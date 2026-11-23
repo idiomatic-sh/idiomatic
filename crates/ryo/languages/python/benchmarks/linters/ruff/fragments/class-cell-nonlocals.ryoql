@@ -1,0 +1,6 @@
+output relation<id: node, name: symbol, file: file>;
+let declarations = select occurrence as id, name, file from "binding-event" where kind = "nonlocal" and name = "__class__";
+let classes = select id, file from "semantic-syntax" where kind = "class-def";
+let class_ancestors = axis(from=declarations, relation="semantic-child", direction=ancestor, domain=classes);
+let cell_declarations = select id, name, file from class_ancestors;
+return cell_declarations;

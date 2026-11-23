@@ -144,6 +144,143 @@ files = { "case.py" = "def f(value=[]):  # noqa: B006 # why\n    pass\n" }
 expected = []
 
 [[cases]]
+name = "collections-ordereddict"
+files = { "case.py" = "import collections\ndef this_too(value=collections.OrderedDict()):\n    ...\n" }
+expected = [{ file = "case.py", start = 38, end = 63 }]
+
+[[cases]]
+name = "list-comprehension-default"
+files = { "case.py" = "def f(default=[i**2 for i in range(3)]):\n    pass\n" }
+expected = [{ file = "case.py", start = 14, end = 38 }]
+
+[[cases]]
+name = "kwonly-list"
+files = { "case.py" = "def f(*, value=[]):\n    ...\n" }
+expected = [{ file = "case.py", start = 15, end = 17 }]
+
+[[cases]]
+name = "imported-alias-annotation"
+files = { "case.py" = "from x import Query\ndef f(q: Query = {}):\n    ...\n" }
+expected = [{ file = "case.py", start = 37, end = 39 }]
+
+[[cases]]
+name = "typeddict-local"
+files = { "case.py" = "from typing import TypedDict\nclass Opts(TypedDict, total=False):\n    a: int\ndef f(o: Opts = {}):\n    ...\n" }
+expected = [{ file = "case.py", start = 92, end = 94 }]
+
+[[cases]]
+name = "mapping-annotation"
+files = { "case.py" = "from typing import Mapping\ndef f(m: Mapping[str, int] = {}):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "local-alias-to-mapping"
+files = { "case.py" = "from typing import Mapping\nQ = Mapping[str, object]\ndef f(q: Q = {}):\n    ...\n" }
+expected = [{ file = "case.py", start = 65, end = 67 }]
+
+[[cases]]
+name = "annotated-with-set-union"
+files = { "case.py" = "from typing import Annotated, Union\nfrom collections import abc\ndef f(c: Annotated[Union[abc.Set[str], abc.Sized], \"annotation\"] = set()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "string-annotation-sequence"
+files = { "case.py" = "from typing import Sequence\ndef f(s: \"Sequence[int]\" = []):\n    pass\n" }
+expected = [{ file = "case.py", start = 55, end = 57 }]
+
+[[cases]]
+name = "collections-counter"
+files = { "case.py" = "import collections\ndef f(value=collections.Counter()):\n    pass\n" }
+expected = [{ file = "case.py", start = 31, end = 52 }]
+
+[[cases]]
+name = "collections-defaultdict"
+files = { "case.py" = "import collections\ndef f(value=collections.defaultdict()):\n    pass\n" }
+expected = [{ file = "case.py", start = 31, end = 56 }]
+
+[[cases]]
+name = "collections-deque"
+files = { "case.py" = "import collections\ndef f(value=collections.deque()):\n    pass\n" }
+expected = [{ file = "case.py", start = 31, end = 50 }]
+
+[[cases]]
+name = "bytearray-call"
+files = { "case.py" = "\ndef f(value=bytearray()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "collections-userdict"
+files = { "case.py" = "import collections\ndef f(value=collections.UserDict()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "set-comprehension"
+files = { "case.py" = "\ndef f(value={i for i in range(3)}):\n    pass\n" }
+expected = [{ file = "case.py", start = 13, end = 34 }]
+
+[[cases]]
+name = "dict-comprehension"
+files = { "case.py" = "\ndef f(value={i: i for i in range(3)}):\n    pass\n" }
+expected = [{ file = "case.py", start = 13, end = 37 }]
+
+[[cases]]
+name = "generator-default"
+files = { "case.py" = "\ndef f(value=(i for i in range(3))):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "kwonly-dict"
+files = { "case.py" = "def f(*, value={}):\n    pass\n" }
+expected = [{ file = "case.py", start = 15, end = 17 }]
+
+[[cases]]
+name = "kwonly-call"
+files = { "case.py" = "def f(*, value=list()):\n    pass\n" }
+expected = [{ file = "case.py", start = 15, end = 21 }]
+
+[[cases]]
+name = "imported-project-alias-of-mapping"
+comparison = "full"
+files = { "pkg/__init__.py" = "", "pkg/_types.py" = "from typing import Mapping\nQuery = Mapping[str, object]\n", "pkg/m.py" = "from ._types import Query\ndef f(q: Query = {}):\n    ...\n" }
+expected = [{ rule = "B006", file = "pkg/m.py", start = 43, end = 45 }]
+
+[[cases]]
+name = "imported-project-typeddict"
+comparison = "full"
+files = { "pkg/__init__.py" = "", "pkg/_types.py" = "from typing import TypedDict\nclass Opts(TypedDict, total=False):\n    a: int\n", "pkg/m.py" = "from ._types import Opts\ndef f(o: Opts = {}):\n    ...\n" }
+expected = [{ rule = "B006", file = "pkg/m.py", start = 41, end = 43 }]
+
+[[cases]]
+name = "typing-extensions-annotated"
+comparison = "full"
+files = { "case.py" = "import typing_extensions\nfrom typing import Union\nfrom collections import abc\ndef f(d: typing_extensions.Annotated[Union[abc.Set[str], abc.Sized], \"annotation\"] = set()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "typing-extensions-optional"
+comparison = "full"
+files = { "case.py" = "import typing_extensions\nfrom collections import abc\ndef f(d: typing_extensions.Optional[abc.Mapping[int, int]] = {}):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 114, end = 116 }]
+
+[[cases]]
+name = "typing-extensions-union"
+comparison = "full"
+files = { "case.py" = "import typing_extensions\nfrom collections import abc\ndef f(d: typing_extensions.Union[abc.Mapping[int, int], None] = {}):\n    pass\n" }
+expected = [{ rule = "B006", file = "case.py", start = 117, end = 119 }]
+
+[[cases]]
+name = "lambda-default-dict"
+comparison = "full"
+files = { "case.py" = "f = lambda l, spam={\"x\": 3}: spam\n" }
+expected = []
+
+[[cases]]
+name = "lambda-default-list"
+comparison = "full"
+files = { "case.py" = "f = lambda x=[]: x\n" }
+expected = []
+
+[[cases]]
 name = "stub_dict_default"
 files = { "case.pyi" = "from typing import Any\ndef f(kwargs: dict[str, Any] = {}) -> None: ...\n" }
 expected = []

@@ -127,3 +127,83 @@ expected = []
 name = "tuple-literal"
 files = { "case.py" = "import logging\nlogging.error(\"x\", exc_info=())\n" }
 expected = []
+
+[[cases]]
+name = "logger-name"
+files = { "case.py" = "import logging\nlogger = logging.getLogger(__name__)\nlogger.info(\"\", exc_info=True)\n" }
+expected = [{ file = "case.py", start = 68, end = 81 }]
+
+[[cases]]
+name = "logger-name-integer"
+files = { "case.py" = "import logging\nlogger = logging.getLogger(__name__)\nlogger.info(\"\", exc_info=1)\n" }
+expected = [{ file = "case.py", start = 68, end = 78 }]
+
+[[cases]]
+name = "logger-in-function"
+files = { "case.py" = "import logging\nlogger = logging.getLogger(__name__)\ndef _():\n    logger.warning(\"\", exc_info=True)\n" }
+expected = [{ file = "case.py", start = 84, end = 97 }]
+
+[[cases]]
+name = "logger-in-handler"
+files = { "case.py" = "import logging\nlogger = logging.getLogger(__name__)\ntry:\n    pass\nexcept ValueError:\n    logger.info(\"\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "logger-walrus-import"
+files = { "case.py" = "_ = (logger := __import__(\"somewhere\").logger)\nlogger.info(\"\", exc_info=True)\n" }
+expected = [{ file = "case.py", start = 63, end = 76 }]
+
+[[cases]]
+name = "unbound-log-name"
+files = { "case.py" = "log.error(\"\", exc_info=True)\n" }
+expected = [{ file = "case.py", start = 14, end = 27 }]
+
+[[cases]]
+name = "upper-logger-name"
+files = { "case.py" = "LOGGER.error(\"\", exc_info=True)\n" }
+expected = [{ file = "case.py", start = 17, end = 30 }]
+
+[[cases]]
+name = "imported-logger-name"
+files = { "case.py" = "from somewhere import logger\nlogger.error(\"\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "attribute-logger"
+files = { "case.py" = "self.logger.debug(\"\", exc_info=True)\n" }
+expected = [{ file = "case.py", start = 22, end = 35 }]
+
+[[cases]]
+name = "other-name"
+files = { "case.py" = "thing.info(\"\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "getlogger-call"
+files = { "case.py" = "import logging\nlogging.getLogger().info(\"\", exc_info=True)\n" }
+expected = [{ file = "case.py", start = 44, end = 57 }]
+
+[[cases]]
+name = "logger-exception-method"
+files = { "case.py" = "import logging\nlogger = logging.getLogger(__name__)\nlogger.exception(\"\", exc_info=True)\n" }
+expected = [{ file = "case.py", start = 73, end = 86 }]
+
+[[cases]]
+name = "logger-log-method"
+files = { "case.py" = "import logging\nlogger = logging.getLogger(__name__)\nlogger.log(10, \"\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "logger-false"
+files = { "case.py" = "import logging\nlogger = logging.getLogger(__name__)\nlogger.info(\"\", exc_info=False)\n" }
+expected = []
+
+[[cases]]
+name = "logger-fatal"
+files = { "case.py" = "import logging\nlogger = logging.getLogger(__name__)\nlogger.fatal(\"\", exc_info=True)\n" }
+expected = []
+
+[[cases]]
+name = "logging-log-function"
+files = { "case.py" = "import logging\nlogging.log(10, \"\", exc_info=True)\n" }
+expected = []

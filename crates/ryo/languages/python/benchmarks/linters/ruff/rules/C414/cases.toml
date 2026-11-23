@@ -87,3 +87,51 @@ name = "concatenated-codes-suppress"
 comparison = "full"
 files = { "case.py" = "result = list(list(items))  # noqa: E501C414\n" }
 expected = []
+
+[[cases]]
+name = "set-of-sorted"
+comparison = "full"
+files = { "case.py" = "set(sorted(x))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 0, end = 14 }]
+
+[[cases]]
+name = "set-of-sorted-with-key"
+comparison = "full"
+files = { "case.py" = "set(sorted(x, key=lambda y: y))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 0, end = 31 }]
+
+[[cases]]
+name = "set-of-sorted-reverse"
+comparison = "full"
+files = { "case.py" = "set(sorted(x, reverse=True))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 0, end = 28 }]
+
+[[cases]]
+name = "set-of-reversed"
+comparison = "full"
+files = { "case.py" = "set(reversed(x))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 0, end = 16 }]
+
+[[cases]]
+name = "list-of-sorted"
+comparison = "full"
+files = { "case.py" = "list(sorted(x))\n" }
+expected = []
+
+[[cases]]
+name = "tuple-of-sorted"
+comparison = "full"
+files = { "case.py" = "tuple(sorted(x))\n" }
+expected = []
+
+[[cases]]
+name = "sorted-of-sorted-plain"
+comparison = "full"
+files = { "case.py" = "sorted(sorted(x))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 0, end = 17 }]
+
+[[cases]]
+name = "set-of-sorted-starred"
+comparison = "full"
+files = { "case.py" = "set(sorted(*x))\n" }
+expected = [{ rule = "C414", file = "case.py", start = 0, end = 15 }]

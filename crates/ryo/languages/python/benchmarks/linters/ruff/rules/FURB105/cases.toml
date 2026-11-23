@@ -75,3 +75,141 @@ name = "nonbuiltin-print"
 comparison = "full"
 files = { "case.py" = "from custom import print\nprint(\"\")\n" }
 expected = []
+
+[[cases]]
+name = "empty-then-starred-with-empty-separator"
+comparison = "full"
+files = { "case.py" = "print(\"\", *args, sep=\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 24 }]
+
+[[cases]]
+name = "empty-f-string"
+comparison = "full"
+files = { "case.py" = "print(f\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 10 }]
+
+[[cases]]
+name = "empty-f-string-with-separator"
+comparison = "full"
+files = { "case.py" = "print(f\"\", sep=\",\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 19 }]
+
+[[cases]]
+name = "empty-f-string-with-end"
+comparison = "full"
+files = { "case.py" = "print(f\"\", end=\"bar\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "starred-only-with-empty-separator"
+comparison = "full"
+files = { "case.py" = "print(*args, sep=\"\")\n" }
+expected = []
+
+[[cases]]
+name = "empty-then-starred-no-separator"
+comparison = "full"
+files = { "case.py" = "print(\"\", *args)\n" }
+expected = []
+
+[[cases]]
+name = "empty-then-starred-nonempty-separator"
+comparison = "full"
+files = { "case.py" = "print(\"\", *args, sep=\"x\")\n" }
+expected = []
+
+[[cases]]
+name = "nonempty-then-starred-empty-separator"
+comparison = "full"
+files = { "case.py" = "print(\"x\", *args, sep=\"\")\n" }
+expected = []
+
+[[cases]]
+name = "interpolating-f-string"
+comparison = "full"
+files = { "case.py" = "print(f\"{x}\")\n" }
+expected = []
+
+[[cases]]
+name = "f-string-concatenated-with-empty-string"
+comparison = "full"
+files = { "case.py" = "print(f\"\" \"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 13 }]
+
+[[cases]]
+name = "empty-string-concatenated-with-f-string"
+comparison = "full"
+files = { "case.py" = "print(\"\" f\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 13 }]
+
+[[cases]]
+name = "empty-f-string-and-empty-with-empty-separator"
+comparison = "full"
+files = { "case.py" = "print(f\"\", \"\", sep=\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "empty-bytes"
+comparison = "full"
+files = { "case.py" = "print(b\"\")\n" }
+expected = []
+
+[[cases]]
+name = "f-string-of-empty-literal"
+comparison = "full"
+files = { "case.py" = "print(f\"{''}\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 14 }]
+
+[[cases]]
+name = "starred-between-empties-empty-separator"
+comparison = "full"
+files = { "case.py" = "print(\"\", *a, \"\", sep=\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "empties-then-starred-empty-separator"
+comparison = "full"
+files = { "case.py" = "print(\"\", \"\", *a, sep=\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "starred-then-empty-empty-separator"
+comparison = "full"
+files = { "case.py" = "print(*a, \"\", sep=\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "concatenated-empty-f-string-with-empty-separator"
+comparison = "full"
+files = { "case.py" = "print(f\"\" \"\", sep=\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "empty-and-interpolating-empty-separator"
+comparison = "full"
+files = { "case.py" = "print(\"\", f\"{x}\", sep=\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "interpolating-with-empty-separator"
+comparison = "full"
+files = { "case.py" = "print(f\"{x}\", sep=\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "empty-f-string-separator"
+comparison = "full"
+files = { "case.py" = "print(\"\", \"a\", sep=f\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 23 }]
+
+[[cases]]
+name = "empty-f-string-separator-alone"
+comparison = "full"
+files = { "case.py" = "print(sep=f\"\")\n" }
+expected = [{ rule = "FURB105", file = "case.py", start = 0, end = 14 }]
+
+[[cases]]
+name = "interpolating-separator"
+comparison = "full"
+files = { "case.py" = "print(\"a\", \"\", sep=f\"{x}\")\n" }
+expected = []

@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
 import call_syntax from "python/ruff/calls";
+import binding_type from "python/ruff/binding-type";
 let calls = call_syntax();
 let function_edges = select parent, child, file from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file, r.span as span from function_edges as l join calls as r on l.parent = r.id and l.file = r.file;
@@ -60,18 +61,9 @@ let same_receiver_names = select l.zip_call as zip_call, l.file as file, l.span 
 let name_receivers = select l.zip_call as zip_call, l.file as file, l.span as span, l.receiver as receiver from same_receiver_names as l;
 let key_inner_counts = group-count(from=positional_args, keys=["call","file"], count="arg_count", distinct="argument");
 let key_inner_args = select l.zip_call as zip_call, l.file as file from name_receivers as l join key_calls as r on l.receiver = r.id and l.file = r.file;
-let receiver_bindings = select l.zip_call as zip_call, l.file as file, l.span as span, r.binding as binding from name_receivers as l join "binding-use" as r on l.receiver = r.reference and l.file = r.file;
-let bind_events = select occurrence, file from "binding-event" where kind = "bind";
-let assignments = select id, file from "semantic-syntax" where kind = "assign";
-let target_edges = select parent, child, file from "semantic-child" where field = "targets";
-let value_edges = select parent, child, file from "semantic-child" where field = "value";
-let assignment_targets = select l.id as assignment, l.file as file, r.child as target from assignments as l join target_edges as r on l.id = r.parent and l.file = r.file;
-let bound_targets = select l.assignment as assignment, l.file as file, l.target as target from assignment_targets as l join bind_events as r on l.target = r.occurrence and l.file = r.file;
-let assigned_values = select l.target as target, l.file as file, r.child as value from bound_targets as l join value_edges as r on l.assignment = r.parent and l.file = r.file;
-let dict_nodes = select id, file from "semantic-syntax" where kind = "dict";
-let dict_literal_targets = select l.target as binding, l.file as file from assigned_values as l join dict_nodes as r on l.value = r.id and l.file = r.file;
-let dictionaries = select binding, file from dict_literal_targets;
-let dict_backed_receivers = select l.zip_call as id, l.file as file, l.span as span from receiver_bindings as l join dictionaries as r on l.binding = r.binding and l.file = r.file;
+let receiver_references = select receiver as reference, file from name_receivers;
+let dict_references = binding_type(references=receiver_references, builtin="builtins.dict", typing="Dict", atom="dict", bindings="latest");
+let dict_backed_receivers = select l.zip_call as id, l.file as file, l.span as span from name_receivers as l join dict_references as r on l.receiver = r.reference and l.file = r.file;
 let inner_calls = union(left=keys_methods,right=values_methods);
 let inner_positional_args = select l.call as call, l.file as file, r.child as argument from wrappers as l join positional_edges as r on l.wrapper = r.parent and l.file = r.file;
 let inner_keyword_args = select l.call as call, l.file as file from wrappers as l join keyword_edges as r on l.wrapper = r.parent and l.file = r.file;

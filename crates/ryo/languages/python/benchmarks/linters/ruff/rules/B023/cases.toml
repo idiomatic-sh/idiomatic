@@ -179,3 +179,141 @@ expected = [{ "rule" = "B023", "file" = "case.py", "start" = 68, "end" = 73 }]
 name = "rooted-two-files-reused-identities"
 files = { "a.py" = "funcs=[]\nfor x in items:\n    funcs.append(lambda: call(deep(x)))\n", "b.py" = "funcs=[]\nfor x in items:\n    for y in other:\n        funcs.append(lambda: (x,y))\n" }
 expected = [{ "rule" = "B023", "file" = "a.py", "start" = 60, "end" = 61 }, { "rule" = "B023", "file" = "b.py", "start" = 75, "end" = 76 }, { "rule" = "B023", "file" = "b.py", "start" = 77, "end" = 78 }]
+
+[[cases]]
+name = "while-assigned"
+comparison = "full"
+files = { "case.py" = "functions = []\na = 10\nwhile True:\n    a = a - 1\n    functions.append(lambda: a)\n" }
+expected = [{ rule = "B023", file = "case.py", start = 77, end = 78 }]
+
+[[cases]]
+name = "while-chained-assigned"
+comparison = "full"
+files = { "case.py" = "functions = []\na = 10\nwhile True:\n    a = a_ = a - 1\n    functions.append(lambda: a_)\n" }
+expected = [{ rule = "B023", file = "case.py", start = 82, end = 84 }]
+
+[[cases]]
+name = "while-augmented"
+comparison = "full"
+files = { "case.py" = "functions = []\nb = 0\nwhile True:\n    b += 1\n    functions.append(lambda: b)\n" }
+expected = [{ rule = "B023", file = "case.py", start = 73, end = 74 }]
+
+[[cases]]
+name = "late-binding-after-lambda"
+comparison = "full"
+files = { "case.py" = "functions = []\nfor i in range(3):\n    functions.append(lambda: c)\n    c = i\n" }
+expected = [{ rule = "B023", file = "case.py", start = 63, end = 64 }]
+
+[[cases]]
+name = "min-key-lambda"
+comparison = "full"
+files = { "case.py" = "for x in range(3):\n    min(range(3), key=lambda y: x * y)\n" }
+expected = []
+
+[[cases]]
+name = "sorted-key-lambda"
+comparison = "full"
+files = { "case.py" = "for x in range(3):\n    sorted(range(3), key=lambda y: x * y)\n" }
+expected = []
+
+[[cases]]
+name = "max-key-lambda-attribute"
+comparison = "full"
+files = { "case.py" = "for x in range(3):\n    max(range(3), key=lambda y: x.a * y)\n" }
+expected = []
+
+[[cases]]
+name = "other-key-lambda"
+comparison = "full"
+files = { "case.py" = "for x in range(3):\n    f(range(3), key=lambda y: x * y)\n" }
+expected = []
+
+[[cases]]
+name = "def-in-while"
+comparison = "full"
+files = { "case.py" = "while cond():\n    preds = g()\n    def recurse(v):\n        return v in preds\n    recurse(1)\n" }
+expected = [{ rule = "B023", file = "case.py", start = 70, end = 75 }]
+
+[[cases]]
+name = "augmented-in-function-in-loop"
+comparison = "full"
+files = { "case.py" = "for i in range(3):\n    step = 0\n    def h():\n        nonlocal step\n        step += 1\n" }
+expected = []
+
+[[cases]]
+name = "annotated-assignment-in-loop"
+comparison = "full"
+files = { "case.py" = "for i in range(3):\n    c: int = i\n    functions.append(lambda: c)\n" }
+expected = [{ rule = "B023", file = "case.py", start = 63, end = 64 }]
+
+[[cases]]
+name = "keyword-lambda-other-name"
+comparison = "full"
+files = { "case.py" = "for x in range(3):\n    f(range(3), cb=lambda y: x * y)\n" }
+expected = [{ rule = "B023", file = "case.py", start = 48, end = 49 }]
+
+[[cases]]
+name = "positional-lambda-other-call"
+comparison = "full"
+files = { "case.py" = "for x in range(3):\n    f(range(3), lambda y: x * y)\n" }
+expected = [{ rule = "B023", file = "case.py", start = 45, end = 46 }]
+
+[[cases]]
+name = "def-in-loop-read-by-lambda"
+comparison = "full"
+files = { "case.py" = "for i in range(3):\n    def rewind(f):\n        return f\n    g = lambda: rewind(1)\n" }
+expected = []
+
+[[cases]]
+name = "recursive-def-in-while"
+comparison = "full"
+files = { "case.py" = "while cond():\n    def recurse(v):\n        return recurse(v)\n    recurse(1)\n" }
+expected = []
+
+[[cases]]
+name = "class-in-loop-read-by-lambda"
+comparison = "full"
+files = { "case.py" = "for i in range(3):\n    class K: ...\n    g = lambda: K()\n" }
+expected = []
+
+[[cases]]
+name = "import-in-loop-read-by-lambda"
+comparison = "full"
+files = { "case.py" = "for i in range(3):\n    import os\n    g = lambda: os\n" }
+expected = []
+
+[[cases]]
+name = "with-target-in-loop"
+comparison = "full"
+files = { "case.py" = "for i in range(3):\n    with f() as h:\n        g = lambda: h\n" }
+expected = []
+
+[[cases]]
+name = "except-name-in-loop"
+comparison = "full"
+files = { "case.py" = "for i in range(3):\n    try:\n        pass\n    except E as e:\n        g = lambda: e\n" }
+expected = []
+
+[[cases]]
+name = "walrus-in-loop"
+comparison = "full"
+files = { "case.py" = "for i in range(3):\n    if (w := i):\n        g = lambda: w\n" }
+expected = []
+
+[[cases]]
+name = "nested-for-target"
+comparison = "full"
+files = { "case.py" = "for i in range(3):\n    for j in range(3):\n        pass\n    g = lambda: j\n" }
+expected = [{ rule = "B023", file = "case.py", start = 71, end = 72 }]
+
+[[cases]]
+name = "tuple-assignment-in-loop"
+comparison = "full"
+files = { "case.py" = "for i in range(3):\n    a, b = i, i\n    g = lambda: b\n" }
+expected = [{ rule = "B023", file = "case.py", start = 51, end = 52 }]
+
+[[cases]]
+name = "match-capture-in-loop"
+comparison = "full"
+files = { "case.py" = "for i in range(3):\n    match i:\n        case m:\n            g = lambda: m\n" }
+expected = []

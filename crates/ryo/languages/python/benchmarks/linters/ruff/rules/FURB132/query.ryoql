@@ -70,7 +70,7 @@ let check_element_shapes = select l.if_stmt as if_stmt, l.file as file, r.shape 
 let remove_element_shapes = select l.if_stmt as if_stmt, l.file as file, r.shape as shape from one_remove_args as l join element_shapes as r on l.argument = r.id and l.file = r.file;
 let matching_elements = select l.if_stmt as if_stmt, l.file as file from check_element_shapes as l join remove_element_shapes as r on l.if_stmt = r.if_stmt and l.file = r.file and l.shape = r.shape;
 let receiver_references = select set_name as reference, file from same_set_bindings;
-let typed_receivers = binding_type(references=receiver_references, builtin="builtins.set", typing="Set", atom="set");
+let typed_receivers = binding_type(references=receiver_references, builtin="builtins.set", typing="Set", atom="set", bindings="only");
 let valid_set_bindings = select l.if_stmt as if_stmt, l.file as file from same_set_bindings as l join typed_receivers as r on l.set_name = r.reference and l.file = r.file;
 let matched_valid_cases = select l.if_stmt as if_stmt, l.file as file from matching_elements as l join valid_set_bindings as r on l.if_stmt = r.if_stmt and l.file = r.file;
 let reportable = select l.if_stmt as id, l.file as file, r.span as span from matched_valid_cases as l join ifs as r on l.if_stmt = r.id and l.file = r.file;

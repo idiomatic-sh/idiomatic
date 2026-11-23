@@ -57,3 +57,219 @@ name = "noqa"
 comparison = "full"
 files = { "case.py" = "import os\nos.getenv(\"KEY\", 1)  # noqa: PLW1508\n" }
 expected = []
+
+[[cases]]
+name = "default-integer"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", 1)\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 26 }]
+
+[[cases]]
+name = "default-list"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", [\"a\"])\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 30 }]
+
+[[cases]]
+name = "default-f-string"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", f\"a\")\n" }
+expected = []
+
+[[cases]]
+name = "default-concatenation"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", \"a\" + \"b\")\n" }
+expected = []
+
+[[cases]]
+name = "default-type-error"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", 1 + \"a\")\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 32 }]
+
+[[cases]]
+name = "default-string-branches"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", \"a\" if x else \"b\")\n" }
+expected = []
+
+[[cases]]
+name = "default-integer-branch"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", 1 if x else \"a\")\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 40 }]
+
+[[cases]]
+name = "default-none"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", None)\n" }
+expected = []
+
+[[cases]]
+name = "default-name"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", x)\n" }
+expected = []
+
+[[cases]]
+name = "default-boolean"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", False)\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 30 }]
+
+[[cases]]
+name = "default-repeated-string"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", \"a\" * 3)\n" }
+expected = []
+
+[[cases]]
+name = "default-percent-format"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", \"a %s\" % \"b\")\n" }
+expected = []
+
+[[cases]]
+name = "default-none-branch"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", None if x else \"a\")\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 43 }]
+
+[[cases]]
+name = "default-bytes"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", b\"a\")\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 29 }]
+
+[[cases]]
+name = "default-walrus-integer"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", (y := 1))\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 26, end = 32 }]
+
+[[cases]]
+name = "default-bool-op"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", \"a\" or 1)\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 33 }]
+
+[[cases]]
+name = "default-call"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", str(1))\n" }
+expected = []
+
+[[cases]]
+name = "default-unary"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", -1)\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 27 }]
+
+[[cases]]
+name = "default-float-add"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", 1.0 + 2)\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 32 }]
+
+[[cases]]
+name = "environ-get-default-integer"
+comparison = "full"
+files = { "case.py" = "import os\nos.environ.get(\"A\", 1)\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 30, end = 31 }]
+
+[[cases]]
+name = "environ-get-default-list"
+comparison = "full"
+files = { "case.py" = "import os\nos.environ.get(\"A\", [\"a\"])\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 30, end = 35 }]
+
+[[cases]]
+name = "environ-get-default-f-string"
+comparison = "full"
+files = { "case.py" = "import os\nos.environ.get(\"A\", f\"a\")\n" }
+expected = []
+
+[[cases]]
+name = "environ-get-default-concatenation"
+comparison = "full"
+files = { "case.py" = "import os\nos.environ.get(\"A\", \"a\" + \"b\")\n" }
+expected = []
+
+[[cases]]
+name = "environ-get-default-type-error"
+comparison = "full"
+files = { "case.py" = "import os\nos.environ.get(\"A\", 1 + \"a\")\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 30, end = 37 }]
+
+[[cases]]
+name = "environ-get-default-string-branches"
+comparison = "full"
+files = { "case.py" = "import os\nos.environ.get(\"A\", \"a\" if x else \"b\")\n" }
+expected = []
+
+[[cases]]
+name = "environ-get-default-integer-branch"
+comparison = "full"
+files = { "case.py" = "import os\nos.environ.get(\"A\", 1 if x else \"a\")\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 30, end = 45 }]
+
+[[cases]]
+name = "environ-get-default-none"
+comparison = "full"
+files = { "case.py" = "import os\nos.environ.get(\"A\", None)\n" }
+expected = []
+
+[[cases]]
+name = "keyword-default-integer"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", default=1)\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 33, end = 34 }]
+
+[[cases]]
+name = "keyword-default-list"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", default=[\"a\"])\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 33, end = 38 }]
+
+[[cases]]
+name = "keyword-default-f-string"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", default=f\"a\")\n" }
+expected = []
+
+[[cases]]
+name = "keyword-default-concatenation"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", default=\"a\" + \"b\")\n" }
+expected = []
+
+[[cases]]
+name = "keyword-default-type-error"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", default=1 + \"a\")\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 33, end = 40 }]
+
+[[cases]]
+name = "keyword-default-string-branches"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", default=\"a\" if x else \"b\")\n" }
+expected = []
+
+[[cases]]
+name = "default-ellipsis"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", ...)\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 28 }]
+
+[[cases]]
+name = "default-generator"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", (a for a in b))\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 39 }]
+
+[[cases]]
+name = "default-string-or-none-bool-op"
+comparison = "full"
+files = { "case.py" = "import os\nos.getenv(\"A\", \"a\" or None)\n" }
+expected = [{ rule = "PLW1508", file = "case.py", start = 25, end = 36 }]

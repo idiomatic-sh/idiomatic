@@ -1,6 +1,11 @@
 import observation_matches from "python/ruff/suppress-matches";
 import call_syntax from "python/ruff/calls";
-let default_roots = select parent as function, child as value, file from "semantic-child" where field = "defaults" or field = "kw-defaults";
+let default_roots0 = select parent as function, child as value, file from "semantic-child" where field = "defaults" or field = "kw-defaults";
+let callables = select id, kind, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "lambda";
+let default_values = select value as id, file from default_roots0;
+let default_owners = axis(from=default_values, relation="semantic-child", direction=nearest-ancestor, domain=callables);
+let lambda_owned_defaults = select l.id as id, l.file as file from default_owners as l join callables as r on l.related = r.id and l.file = r.file where r.kind = "lambda";
+let default_roots = antijoin(left=default_roots0, right=lambda_owned_defaults, left-on=["value", "file"], right-on=["id", "file"]);
 let default_wrappers = select id, file from "semantic-syntax" where kind = "parameter-with-default";
 let wrapper_defaults = select l.id as wrapper, l.file as file, r.child as value from default_wrappers as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "defaults" or r.field = "kw-defaults";
 let wrapper_parameters = select l.id as wrapper, l.file as file, r.child as parameter from default_wrappers as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "args" or r.field = "posonlyargs" or r.field = "kwonlyargs";
@@ -15,7 +20,7 @@ let generic_subscripts = select subscript as node, file from subscript_base_name
 let generic_direct_nodes = select id as node, file from "qualified-name" where path in ["builtins.frozenset", "builtins.tuple", "builtins.frozendict", "collections.abc.ByteString", "collections.abc.Collection", "collections.abc.Container", "collections.abc.Iterable", "collections.abc.Mapping", "collections.abc.Reversible", "collections.abc.Sequence", "collections.abc.Set", "typing.AbstractSet", "typing.ByteString", "typing.Callable", "typing.Collection", "typing.Container", "typing.FrozenSet", "typing.Iterable", "typing.Literal", "typing.Mapping", "typing.Never", "typing.NoReturn", "typing.Reversible", "typing.Sequence", "typing.Tuple"];
 let optional_subscripts = select subscript as node, file from subscript_base_names where path = "typing.Optional";
 let union_subscripts = select subscript as node, file from subscript_base_names where path = "typing.Union";
-let annotated_subscripts = select subscript as node, file from subscript_base_names where path = "typing.Annotated" or path = "typing_extensions.Annotated";
+let annotated_subscripts = select subscript as node, file from subscript_base_names where (path = "typing.Annotated" or path = "typing_extensions.Annotated");
 let none_nodes = select id as node, file from "literal-properties" where kind = "null";
 let binops = select id, file from "semantic-syntax" where kind = "bin-op";
 let left_fields = select parent, child from "semantic-child" where field = "left";

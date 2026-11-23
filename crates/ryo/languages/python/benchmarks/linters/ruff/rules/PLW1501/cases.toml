@@ -75,3 +75,33 @@ name = "mode-keyword-of-other-calls"
 comparison = "full"
 files = { "case.py" = "import numpy as np\n\nreverse_indexer = np.empty(3)\nreverse_indexer.take([0], mode=\"wrap\")\nnp.take(reverse_indexer, [0], mode=\"wrap\")\n\n\ndef get_default_engine(ext, mode=\"reader\"):\n    return ext\n\n\nget_default_engine(\"xlsx\", mode=\"writer\")\n\n\nclass Adapter:\n    def json_schema(self, mode):\n        return mode\n\n\nAdapter().json_schema(mode=\"validation\")\nAdapter().json_schema(mode=\"serialization\")\n" }
 expected = []
+
+[[cases]]
+name = "f-string-mode"
+comparison = "full"
+files = { "case.py" = "open(_file, f\"  {r_plus}      \", -  1)\n" }
+expected = []
+
+[[cases]]
+name = "static-f-string-mode"
+comparison = "full"
+files = { "case.py" = "open(_file, f\"rw\")\n" }
+expected = []
+
+[[cases]]
+name = "bad-literal-mode"
+comparison = "full"
+files = { "case.py" = "open(_file, \"rw\")\n" }
+expected = [{ rule = "PLW1501", file = "case.py", start = 12, end = 16 }]
+
+[[cases]]
+name = "concatenated-mode"
+comparison = "full"
+files = { "case.py" = "open(_file, \"r\" \"w\")\n" }
+expected = [{ rule = "PLW1501", file = "case.py", start = 12, end = 19 }]
+
+[[cases]]
+name = "f-string-keyword-mode"
+comparison = "full"
+files = { "case.py" = "open(_file, mode=f\"{m}\")\n" }
+expected = []

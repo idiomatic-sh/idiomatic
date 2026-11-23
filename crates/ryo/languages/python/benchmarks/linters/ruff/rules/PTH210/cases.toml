@@ -117,3 +117,87 @@ name = "noqa-tab-separator"
 comparison = "full"
 files = { "case.py" = "from pathlib import Path\nPath(\"x\").with_suffix(\"py\")  # noqa:\tPTH210\n" }
 expected = []
+
+[[cases]]
+name = "posix-path-annotated-assignment"
+comparison = "full"
+files = { "case.py" = "import pathlib\nfrom pathlib import PosixPath\np: pathlib.PosixPath = PosixPath()\np.with_suffix(\"py\")\n" }
+expected = [{ rule = "PTH210", file = "case.py", start = 80, end = 99 }]
+
+[[cases]]
+name = "pure-path-assignment"
+comparison = "full"
+files = { "case.py" = "import pathlib\np = pathlib.PurePosixPath()\np.with_suffix(\"py\")\n" }
+expected = [{ rule = "PTH210", file = "case.py", start = 43, end = 62 }]
+
+[[cases]]
+name = "windows-path-parameter"
+comparison = "full"
+files = { "case.py" = "from pathlib import PureWindowsPath\ndef f(p: PureWindowsPath):\n    p.with_suffix(\".\")\n" }
+expected = [{ rule = "PTH210", file = "case.py", start = 67, end = 85 }]
+
+[[cases]]
+name = "annotated-without-value"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\np: Path\np.with_suffix(\"py\")\n" }
+expected = []
+
+[[cases]]
+name = "annotated-with-other-value"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\np: Path = f()\np.with_suffix(\"py\")\n" }
+expected = [{ rule = "PTH210", file = "case.py", start = 39, end = 58 }]
+
+[[cases]]
+name = "rebound-path"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\np = Path()\np = Path()\np.with_suffix(\"py\")\n" }
+expected = []
+
+[[cases]]
+name = "rebound-other"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\np = 1\np = Path()\np.with_suffix(\"py\")\n" }
+expected = []
+
+[[cases]]
+name = "tuple-unpacking"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\np, q = Path(), 1\np.with_suffix(\"py\")\n" }
+expected = [{ rule = "PTH210", file = "case.py", start = 42, end = 61 }]
+
+[[cases]]
+name = "f-string-suffix"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nPath().with_suffix(f\"oo\")\n" }
+expected = []
+
+[[cases]]
+name = "concatenated-suffix"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nPath().with_suffix(u'' \"json\")\n" }
+expected = [{ rule = "PTH210", file = "case.py", start = 25, end = 55 }]
+
+[[cases]]
+name = "inline-pure-path"
+comparison = "full"
+files = { "case.py" = "from pathlib import PurePath\nPurePath().with_suffix(\"py\")\n" }
+expected = [{ rule = "PTH210", file = "case.py", start = 29, end = 57 }]
+
+[[cases]]
+name = "optional-annotation"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\ndef f(p: Path | None):\n    p.with_suffix(\"py\")\n" }
+expected = []
+
+[[cases]]
+name = "string-annotation"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\ndef f(p: \"Path\"):\n    p.with_suffix(\"py\")\n" }
+expected = []
+
+[[cases]]
+name = "path-subclass-call"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nclass MyPath(Path): ...\nMyPath().with_suffix(\"py\")\n" }
+expected = []

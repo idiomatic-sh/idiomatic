@@ -59,7 +59,7 @@ let with_dicts = select l.id as id, l.file as file, l.body as body, l.alternativ
 let statement_dicts = select l.id as id, l.file as file, l.body as body, l.alternative as alternative, l.op as op, l.key as key, l.dictionary as dictionary from with_dicts as l join ifs as r on l.id = r.id and l.file = r.file;
 let expression_dicts = select l.id as id, l.file as file, l.body as body, l.alternative as alternative, l.op as op, l.key as key, l.dictionary as dictionary from with_dicts as l join if_expressions as r on l.id = r.id and l.file = r.file;
 let dict_references = select dictionary as reference, file from statement_dicts;
-let dict_types = binding_type(references=dict_references, builtin="builtins.dict", typing="Dict", atom="dict");
+let dict_types = binding_type(references=dict_references, builtin="builtins.dict", typing="Dict", atom="dict", bindings="only");
 let known_statement_dicts = select l.id as id, l.file as file, l.body as body, l.alternative as alternative, l.op as op, l.key as key, l.dictionary as dictionary from statement_dicts as l join dict_types as r on l.dictionary = r.reference and l.file = r.file;
 let known_dicts = union(left=known_statement_dicts, right=expression_dicts);
 let positive = select id, file, body as expected, alternative as fallback, key, dictionary from known_dicts where op = "in";
