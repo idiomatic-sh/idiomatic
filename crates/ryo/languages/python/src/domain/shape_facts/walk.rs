@@ -223,11 +223,13 @@ impl WalkShapes {
         self.last.clear();
     }
 
+    pub(crate) fn class_at(&self, at: Position) -> Option<Position> {
+        let handle = self.index.classes.get(usize::from(at)).copied().flatten()?;
+        self.last.get(usize::from(handle)).copied()
+    }
+
     pub(crate) fn rows(&self) -> impl Iterator<Item = (Position, Position)> + '_ {
-        self.expressions.iter().filter_map(|&at| {
-            let handle = self.index.classes[usize::from(at)]?;
-            Some((at, self.last[usize::from(handle)]))
-        })
+        self.expressions.iter().filter_map(|&id| Some((id, self.class_at(id)?)))
     }
 }
 

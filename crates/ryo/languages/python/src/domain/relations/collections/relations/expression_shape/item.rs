@@ -72,12 +72,20 @@ fn shape_row(
 ) -> Option<languages::ExpressionShapeRow> {
     let expression =
         category_of(kind_of(node_table::kind_of(file.table, id))) == Category::Expression;
-    expression.then(|| languages::ExpressionShapeRow {
+    expression.then(|| expression_row(file, id, class))
+}
+
+fn expression_row(
+    file: &SyntaxFile<'_>,
+    id: languages::Position,
+    class: languages::Position,
+) -> languages::ExpressionShapeRow {
+    languages::ExpressionShapeRow {
         id: node_cell(file, id),
         shape: node_cell(file, class),
         file: file.file,
         span: span_at(file, id),
-    })
+    }
 }
 
 // The engine fills `expression-shape` from the walked file: every row of the file, or the row of one expression, read from the
@@ -85,6 +93,14 @@ fn shape_row(
 ryo::fills! {
     ExpressionShapeItem => languages::ExpressionShape, walk(PythonWalk) |file, words, rows| {
         if told_whole(file, rows) == languages::SyntaxCompleteness::Incomplete {
+            return;
+        }
+        // The parser can publish the same structural classes before either
+        // the prefix or the finisher reads this typed relation.
+        if let Some(index) = &file.syntax.tree.named.shapes {
+            for (id, class) in index.rows() {
+                rows.write(expression_row(&file.syntax, id, class));
+            }
             return;
         }
         shaped(file, words);
@@ -99,11 +115,14 @@ ryo::fills! {
         if told_whole(file, rows) == languages::SyntaxCompleteness::Incomplete {
             return;
         }
-        shaped(file, words);
-        let found = keyed_node(&file.syntax, key).and_then(|id| {
-            let class = file.buffers.shapes.classes.get(usize::from(id)).copied().flatten()?;
-            shape_row(&file.syntax, id, class)
-        });
+        let Some(id) = keyed_node(&file.syntax, key) else { return };
+        let class = if let Some(index) = &file.syntax.tree.named.shapes {
+            index.class_at(id)
+        } else {
+            shaped(file, words);
+            file.buffers.shapes.classes.get(usize::from(id)).copied().flatten()
+        };
+        let found = class.and_then(|class| shape_row(&file.syntax, id, class));
         if let Some(row) = found {
             rows.write(row);
         }
