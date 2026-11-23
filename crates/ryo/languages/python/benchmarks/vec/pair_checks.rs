@@ -44,7 +44,7 @@ fn bits(ids: impl IntoIterator<Item = u32>) -> Bits {
     }
     Rc::new(b)
 }
-fn each(b: &[u64], mut visit: impl FnMut(u32)) {
+pub(super) fn each(b: &[u64], mut visit: impl FnMut(u32)) {
     for (i, &word) in b.iter().enumerate() {
         let mut w = word;
         while w != 0 {
@@ -150,6 +150,11 @@ impl File<'_> {
             u32::try_from(node_table::element_count(self.t).0).expect("table positions fit u32");
         let nodes = match &self.p.domains[id] {
             Domain::Any => None,
+            Domain::HasParent => {
+                Some(bits((1..n).filter(|&i| {
+                    node_table::parent_of(self.t, Position(i)).0 != i
+                })))
+            }
             Domain::Empty => Some(Rc::default()),
             Domain::Kind(k) => Some(bits(
                 node_table::ids_of_kind(self.t, languages::KindBits(*k))
@@ -215,6 +220,30 @@ impl File<'_> {
                     }
                 }
             }
+            Domain::Except(a, b) => {
+                let (left, right) = (self.nodes(*a), self.nodes(*b));
+                let Some(right) = right else {
+                    self.sets[id] = Some(Some(Rc::default()));
+                    return Some(Rc::default());
+                };
+                let mut out = left.map_or_else(
+                    || {
+                        let mut all = vec![u64::MAX; (n as usize).div_ceil(64)];
+                        if n % 64 != 0 {
+                            *all.last_mut().unwrap() = (1u64 << (n % 64)) - 1;
+                        }
+                        all
+                    },
+                    |v| (*v).clone(),
+                );
+                for (w, r) in out.iter_mut().zip(right.iter()) {
+                    *w &= !*r
+                }
+                while out.last() == Some(&0) {
+                    out.pop();
+                }
+                Some(Rc::new(out))
+            }
             Domain::Either(a, b) => match (self.nodes(*a), self.nodes(*b)) {
                 (Some(a), Some(b)) => {
                     let (a, b) = if a.len() >= b.len() { (a, b) } else { (b, a) };
@@ -260,6 +289,36 @@ impl File<'_> {
                     });
                     Rc::new(out)
                 })
+            }
+            Domain::CapturedSuffix(slot, col, delimiter, re) => {
+                let spec = &self.p.facts[*slot];
+                let table = &mut self.facts[*slot];
+                table.load(spec, n, self.words, self.read);
+                if !table.complete {
+                    None
+                } else {
+                    let key = spec.key.and_then(|k| table.cells.0.get(k));
+                    let regex = &self.p.regexes[*re];
+                    Some(bits(
+                        table
+                            .cells
+                            .0
+                            .get(*col)
+                            .into_iter()
+                            .flat_map(|c| c.0.iter())
+                            .enumerate()
+                            .filter_map(|(i, cell)| {
+                                let text = languages::facts::text(self.words, *cell).0.as_bytes();
+                                text.windows(delimiter.len())
+                                    .enumerate()
+                                    .any(|(p, w)| {
+                                        w == delimiter
+                                            && regex.is_match(&text[p + delimiter.len()..])
+                                    })
+                                    .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
+                            }),
+                    ))
+                }
             }
             Domain::Matching(slot, col, re) => {
                 let spec = &self.p.facts[*slot];
@@ -342,6 +401,7 @@ impl Program {
         words: &mut FileWords,
         mut read: impl FnMut(Relation, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
+        mut exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
         languages::facts::clear_words(words);
         let mut f = File {
@@ -360,6 +420,29 @@ impl Program {
         for (a, (_, root)) in alive.iter_mut().zip(&self.roots) {
             if *a {
                 *a = f.pass(*root)
+            }
+        }
+        if let Some(out) = exact.as_mut() {
+            for (rule, cert) in &self.exact {
+                let rule = *rule;
+                if alive[rule]
+                    && !f.pass(cert.guard)
+                    && cert.facts.iter().all(|&slot| {
+                        let table = &mut f.facts[slot];
+                        table.load(
+                            &self.facts[slot],
+                            node_table::element_count(t).0 as u32,
+                            f.words,
+                            f.read,
+                        );
+                        table.complete
+                    })
+                {
+                    let nodes = f
+                        .nodes(cert.nodes)
+                        .expect("certified domains contain only total node tests");
+                    out.push((rule, nodes));
+                }
             }
         }
         f.steps

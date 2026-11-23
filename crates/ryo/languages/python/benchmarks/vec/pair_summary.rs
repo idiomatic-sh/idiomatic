@@ -9,6 +9,9 @@ use ryo_relations::domain::{labels::types::NameRef, relations::service as catalo
 use ryo_values::domain::finish_plans::{expressions::types::*, service::inputs, types::*};
 use ryo_values::domain::plan_parts::types::Direction;
 
+#[path = "pair_exact.rs"]
+mod exact;
+
 pub(super) type Id = usize;
 const ANY: Id = 0;
 const EMPTY: Id = 1;
@@ -18,12 +21,15 @@ const CAP: usize = 32;
 pub(super) enum Domain {
     Any,
     Empty,
+    HasParent,
     Kind(u16),
     Field(u16),
     Text(String),
     TextMatching(u16, usize),
     Fact(usize, Option<(usize, Vec<Id>)>),
     Matching(usize, usize, usize),
+    CapturedSuffix(usize, usize, Vec<u8>, usize),
+    Except(Id, Id),
     Both(Id, Id),
     Either(Id, Id),
     Parents(Id),
@@ -49,6 +55,7 @@ pub(super) struct Fact {
 pub(super) struct Program {
     pub domains: Vec<Domain>,
     pub needs: Vec<Need>,
+    pub exact: Vec<(usize, exact::Certificate)>,
     pub roots: Vec<(String, Id)>,
     pub skips: Vec<(bool, Vec<Vec<String>>, Vec<Vec<String>>)>,
     pub regexes: Vec<regex::bytes::Regex>,
@@ -133,7 +140,9 @@ impl Builder<'_> {
             return i;
         }
         let size = match d {
-            Domain::Both(a, b) | Domain::Either(a, b) => 1 + self.sizes[a] + self.sizes[b],
+            Domain::Except(a, b) | Domain::Both(a, b) | Domain::Either(a, b) => {
+                1 + self.sizes[a] + self.sizes[b]
+            }
             Domain::Parents(x) | Domain::Children(x) | Domain::Ancestors(x) => 1 + self.sizes[x],
             _ => 1,
         };
@@ -260,12 +269,19 @@ impl Builder<'_> {
                 };
                 let kinds = catalog::kinds(relation);
                 let key = kinds.iter().position(|k| *k == CellKind::Node);
-                let slot = self.out.facts.len();
-                self.out.facts.push(Fact {
-                    relation,
-                    key,
-                    kinds,
-                });
+                let slot = self
+                    .out
+                    .facts
+                    .iter()
+                    .position(|f| f.relation == relation)
+                    .unwrap_or_else(|| {
+                        self.out.facts.push(Fact {
+                            relation,
+                            key,
+                            kinds,
+                        });
+                        self.out.facts.len() - 1
+                    });
                 let d = self.domain(Domain::Fact(slot, None));
                 r.var(d);
                 self.require(&mut r, d);
@@ -726,6 +742,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
             domains: vec![],
             needs: vec![],
             facts: vec![],
+            exact: vec![],
             roots: vec![],
             skips: vec![],
             capped: 0,
@@ -777,6 +794,13 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         b.out.roots.push((r.rule.0.to_string(), need));
         b.out.skips.push(skip);
     }
+    if std::env::var_os("VEC_NO_EXACT").is_none() {
+        exact::prepare(&mut b, plan, &live);
+    }
+    // The separate raw-word index has no proof that every provider value has
+    // a raw spelling (for example, a normalized or resolved identifier).
+    // Certify the whole first half only when that independent skip is vacuous.
+    b.out.exact.retain(|(ri, _)| b.out.skips[*ri].2.is_empty());
     for d in &b.out.domains {
         if let Domain::Text(t) = d {
             b.out.max_text = b.out.max_text.max(t.len());

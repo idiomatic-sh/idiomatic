@@ -1647,6 +1647,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut pairs = None;
     let mut pair_steps = 0;
     let mut pair_cpu = 0.0;
+    let mut exact_rows = Vec::new();
     let (rules, frules, words) = if std::path::Path::new(args[2]).is_dir() {
         let owned;
         let read = match pack {
@@ -1659,7 +1660,13 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             }
         };
         let f1 = thread_cpu();
-        let prepared = first::prepare(read, python_language(vocab), vocab);
+        // A separately loaded finish plan may use the same rule names for
+        // different emits. Only the shared typed plan certifies its output.
+        let shared_plan = read.typed.borrow().is_some();
+        let mut prepared = first::prepare(read, python_language(vocab), vocab);
+        if !shared_plan {
+            prepared.pairs.exact.clear();
+        }
         let f2 = thread_cpu();
         let rules = rules_of_skips(&prepared.skips, vocab);
         let (frules, words) = funnel::build(&prepared.rules, vocab, &mut fact_catalog, &mut interner);
@@ -1816,6 +1823,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let emit_rules: Vec<Vec<usize>> = fin.as_ref().map(|f| f.emit_names().map(|(_, n)| frules.iter().enumerate().filter(|(_, r)| r.name == n).map(|(i, _)| i).collect()).collect()).unwrap_or_default();
     let mut in_seed = vec![false; frules.len()];
     let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
+    let mut exact_counts = vec![(0u64, 0u64, 0u64); frules.len()];
+    let mut exact_log = flag(args, "--exact-out").map(|p| std::io::BufWriter::new(std::fs::File::create(p).expect("exact pairs")));
     let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
     println!("start-up to first file {:.4} s", thread_cpu());
     for (file_no, path) in list.iter().enumerate() {
@@ -1954,10 +1963,12 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 if no_skip {
                     alive.iter_mut().for_each(|a| *a = true);
                 }
+                exact_rows.clear();
                 if !no_skip && let Some(program) = &pairs {
                     let start = thread_cpu();
                     let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].as_bytes());
-                    pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, $fill, &mut alive);
+                    let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
+                    pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, $fill, &mut alive, exact);
                     pair_cpu += thread_cpu() - start;
                 }
                 rule_files += frules.len() as u64;
@@ -2553,7 +2564,23 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                             }
                         }
                         let before_wanted = fin.time;
-                        let wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
+                        let mut wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
+                        if !exact_rows.is_empty() {
+                            wanted.retain(|&e| {
+                                let [ri] = emit_rules[e].as_slice() else { return true };
+                                let Ok(at) = exact_rows.binary_search_by_key(ri, |(r, _)| *r) else { return true };
+                                if let Some(n) = fin.emit_exact(file_no, ft, e, &exact_rows[at].1) {
+                                    if let Some(log) = &mut exact_log {
+                                        use std::io::Write as _;
+                                        writeln!(log, "{}\t{}\t{n}", frules[*ri].name, fin.run.paths[file_no]).expect("write exact pair");
+                                    }
+                                    exact_counts[*ri].0 += 1;
+                                    exact_counts[*ri].1 += n;
+                                    exact_counts[*ri].2 += u64::from(n > 0);
+                                }
+                                false
+                            });
+                        }
                         // wanted() already charges its own time to the second half.
                         if seed_only { phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0)); }
                         if fin.visits(&wanted) {
@@ -2708,6 +2735,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 chk_rows.iter().sum::<u64>(),
                 chk_diff.iter().sum::<u64>() + chk_yes_diff.iter().sum::<u64>() + chk_answer_diff.iter().sum::<u64>()
             );
+        }
+    }
+    if let Some(program) = &pairs {
+        for (ri, _) in &program.exact {
+            println!("EXACT\t{}\t{}\t{}\t{}", frules[*ri].name, exact_counts[*ri].0, exact_counts[*ri].1, exact_counts[*ri].2);
         }
     }
     println!("pair summary checks {pair_steps} CPU {pair_cpu:.4} s");

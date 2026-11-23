@@ -160,6 +160,23 @@ impl<'p> Finisher<'p> {
         self.plan.emits.iter().enumerate().map(|(e, x)| (e, x.0.as_str()))
     }
 
+    pub(super) fn can_finish_exact(&self) -> bool {
+        self.dump.is_none() && self.surv.is_empty()
+    }
+
+    pub(super) fn emit_exact(&mut self, file: usize, table: &NodeTable, emit: usize, nodes: &[u64]) -> Option<u64> {
+        if self.failed_idx[emit] || (self.accepted_only[emit] && languages::node_table::acceptance_of(table) == languages::SyntaxAcceptance::Rejected) {
+            return None;
+        }
+        let mut count = 0;
+        super::pair_checks::each(nodes, |i| {
+            let span = super::span_bytes(table, i as usize);
+            self.findings.push(finding(&self.plan.emits[emit].0, &self.run.paths[file], span.start as u64, span.end as u64));
+            count += 1;
+        });
+        Some(count)
+    }
+
     /// The second half on one walked file of the direct-columns walk (its own model by parts, built on demand).
     pub(super) fn column_file(&mut self, file_no: usize, path: &str, file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>, bytes: &[u8], wanted: &[usize]) {
         let t0 = thread_cpu();
@@ -253,7 +270,7 @@ impl<'p> Finisher<'p> {
                     let sc = t.col("span").ok();
                     for r in 0..t.n {
                         let (st, en) = sc.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
-                        self.findings.push(format!("{{\"rule\":\"{}\",\"file\":\"{}\",\"start\":{st},\"end\":{en}}}", e.0, run.paths[file_no]));
+                        self.findings.push(finding(&e.0, &run.paths[file_no], st, en));
                     }
                 }
                 Err(err) => {
@@ -361,4 +378,8 @@ fn applicability(plan: &finish::Plan, path: Option<&str>) -> Vec<bool> {
     let j: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).expect("applicability file")).expect("applicability json");
     let map = j.get("rule_applicability").unwrap_or(&j);
     plan.emits.iter().map(|e| map.get(&e.0).and_then(serde_json::Value::as_str) == Some("accepted-syntax")).collect()
+}
+
+fn finding(rule: &str, path: &str, st: u64, en: u64) -> String {
+    format!("{{\"rule\":\"{}\",\"file\":\"{}\",\"start\":{st},\"end\":{en}}}", rule, path)
 }

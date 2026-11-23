@@ -99,7 +99,10 @@ pub(super) fn run_first(args: &[&str]) {
             let before = dhat::HeapStats::get().curr_bytes;
             if option("--dump").is_none() && option("--out").is_none() {
                 drop(p);
-                println!("retained spec bytes {}", before - dhat::HeapStats::get().curr_bytes);
+                println!(
+                    "retained spec bytes {}",
+                    before - dhat::HeapStats::get().curr_bytes
+                );
                 continue;
             }
         }
@@ -116,6 +119,9 @@ pub(super) fn run_first(args: &[&str]) {
             }
             for (i, f) in p.pairs.needs.iter().enumerate() {
                 writeln!(w, "file {i} {f:?}").unwrap();
+            }
+            for (ri, cert) in &p.pairs.exact {
+                writeln!(w, "certificate {} {cert:?}", p.pairs.roots[*ri].0).unwrap();
             }
             for (rule, root) in &p.pairs.roots {
                 writeln!(w, "root {rule} {root}").unwrap();
