@@ -13,8 +13,7 @@ use std::cell::RefCell;
 thread_local! {
     /// The worker's answer buffer, kept from fill to fill.
     static FT: RefCell<FactTable> = RefCell::new(FactTable::ordered());
-    /// The direct path's own text memo (run symbols) and the file it last wrote.
-    static MEMO: RefCell<(ColumnMemo, u32)> = RefCell::new((ColumnMemo::default(), u32::MAX));
+
 }
 
 /// The run's symbols as the provider's text ids.
@@ -89,7 +88,7 @@ fn output(table: &NodeTable, ft: &FactTable, key: usize, file_no: u32, names: fi
 }
 
 pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &str, file_no: u32, timed: bool, columns: u64,
-    prefix: Option<Prefix<'_>>, symbols: &mut Vec<u32>) -> Option<(Result<Table, String>, f64, f64, bool)> {
+    prefix: Option<Prefix<'_>>, symbols: &mut Vec<u32>, memo: &mut ColumnMemo) -> Option<(Result<Table, String>, f64, f64, bool)> {
     let (relation, names, tys) = run.catalog(rel)?;
     let relation = relation?;
     let key = tys.iter().position(|t| *t == Ty::Node)?;
@@ -111,14 +110,7 @@ pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &s
     FT.with(|ft| {
         let mut ft = ft.borrow_mut();
         let t0 = if timed { super::thread_cpu() } else { 0.0 };
-        MEMO.with(|m| {
-            let (memo, at) = &mut *m.borrow_mut();
-            if *at != file_no {
-                memo.new_file();
-                *at = file_no;
-            }
-            file.column_with(&Ask { relation, key, exists: false, columns }, &mut RunIds(run), &mut ft, memo);
-        });
+        file.column_with(&Ask { relation, key, exists: false, columns }, &mut RunIds(run), &mut ft, memo);
         let t1 = if timed { super::thread_cpu() } else { 0.0 };
         let out = output(table, &ft, key, file_no, names, tys, columns, false, |v| widen(Ty::Sym, v))?;
         let t2 = if timed { super::thread_cpu() } else { 0.0 };

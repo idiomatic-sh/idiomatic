@@ -529,6 +529,9 @@ pub(super) enum Native {
     /// 6h: a provider relation read in place by key: the file's fill, never copied into a step; a probe on any column reads
     /// that column's keyed list (made from the fill on the first ask in a file), and `col = literal` enters by its bucket.
     /// The number is the relation's place in `Run::fact_rels`.
+    /// A certified empty view. It retains its materialization and probe
+    /// interface, and has no underlying provider relation to consult.
+    Empty,
     Fact(u16),
 }
 
@@ -566,7 +569,7 @@ fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
         Native::Child => &CHILD_COLS,
         Native::Location => &LOC_COLS,
         Native::Token => &TOKEN_COLS,
-        Native::Fact(_) => &[],
+        Native::Fact(_) | Native::Empty => &[],
     }
 }
 
@@ -885,7 +888,7 @@ impl File<'_> {
     /// A native relation's cell.
     fn native_get(&self, run: &mut Run, nat: Native, row: u32, col: usize) -> u64 {
         fill_prof::read(0);
-        fill_prof::read_at(match nat { Native::Tree => 0, Native::Child => 1, Native::Location => 2, Native::Token => 3, Native::Fact(_) => 4 }, col);
+        fill_prof::read_at(match nat { Native::Tree => 0, Native::Child => 1, Native::Location => 2, Native::Token => 3, Native::Empty => return NULL, Native::Fact(_) => 4 }, col);
         let r = row as usize;
         match (nat, col) {
             (Native::Tree, 0) | (Native::Location, 0) => u64::from(row),
@@ -943,6 +946,7 @@ impl File<'_> {
     /// redo-alloc: `native_rows` into `out` (empty).
     fn native_rows_into(&self, run: &Run, nat: Native, out: &mut Vec<u32>) {
         match nat {
+            Native::Empty => {},
             Native::Tree | Native::Location => out.extend(0..self.n as u32),
             Native::Child => out.extend((0..self.n as u32).filter(|p| self.has_parent(*p))),
             Native::Token => {
@@ -961,6 +965,7 @@ impl File<'_> {
     fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
         fill_prof::read(5);
         match nat {
+            Native::Empty => Vec::new(),
             Native::Tree | Native::Location => (0..self.n as u32).collect(),
             Native::Child => (0..self.n as u32).filter(|p| self.has_parent(*p)).collect(),
             Native::Token => {
@@ -1006,7 +1011,7 @@ impl File<'_> {
     }
     /// Whether a native relation is probed in place on a column.
     fn probes(nat: Native, col: usize) -> bool {
-        matches!((nat, col), (Native::Tree | Native::Location, 0) | (Native::Child, 0 | 1) | (Native::Location, 3..=6) | (Native::Token, 0 | 1) | (Native::Fact(_), _))
+        matches!((nat, col), (Native::Tree | Native::Location, 0) | (Native::Child, 0 | 1) | (Native::Location, 3..=6) | (Native::Token, 0 | 1) | (Native::Fact(_) | Native::Empty, _))
     }
     /// Rows of a native relation whose column holds `v`.
     fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
@@ -1727,16 +1732,19 @@ impl<'p> Exec<'p> {
     #[inline]
     fn make_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         if let Some(v) = self.view(run, node)? {
-            if let Native::Fact(i) = v.base && self.pruned(run, f, node) {
-                // Preserve a requested view's materialization and keyed-read
-                // behavior. A certified empty source already has an exact table.
-                let empty_source = self.requests.proven_empty.get(usize::from(i)).copied().unwrap_or(false);
+            if matches!(v.base, Native::Fact(_)) && self.pruned(run, f, node) {
                 let need = self.need(run, node);
-                if !empty_source || need.seeds.iter().any(|s| f.seeds.get(*s).is_none_or(Vec::is_empty))
+                if need.seeds.iter().any(|s| f.seeds.get(*s).is_none_or(Vec::is_empty))
                     || (need.file_test && self.file_fails_of(f, run, node))
                 {
                     return Ok(Res::Tab(self.empty_rc(run, node)?));
                 }
+                // A source certificate or the actual prefix column proved the
+                // filter empty. Keep the view interface for explicit eval and
+                // keyed probes without substituting an empty table for its base.
+                let empty = self.requests.empty_views.entry(node).or_insert_with(||
+                    Rc::new(ViewSpec::new(Native::Empty, v.map.clone(), Vec::new())));
+                return Ok(Res::View(empty.clone()));
             }
             let was = fill_prof::site("view");
             self.load_fact(f, run, p, v.base)?;
@@ -3511,6 +3519,14 @@ fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize
 /// The literal test `lit_rows` reads by: the fill, its base column and the literals.
 fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<(u16, usize, Vec<u32>)> {
     let Native::Fact(i) = base else { return None };
+    let table = f.facts.get(usize::from(i))?.as_ref()?;
+    let (bc, values) = literal_column(&table.tys, conj, si, map)?;
+    Some((i, bc, values))
+}
+
+/// Pick the same typed predicate when using a completed prefix column or an
+/// executor table. Both have the provider's declared column order and types.
+fn literal_column(tys: &[Ty], conj: &[E], si: usize, map: &[usize]) -> Option<(usize, Vec<u32>)> {
     fn cols(e: &E, si: usize, out: &mut Vec<usize>) {
         match e {
             E::Col(s, c, _) if *s == si => out.push(*c),
@@ -3535,11 +3551,11 @@ fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) ->
             if kinds_required_into(e, si, c, &mut vals) {
                 let bc = if map.is_empty() { c } else { map[c] };
                 // a text literal names a symbol cell only; a flag or number column is tested row by row
-                if f.facts[usize::from(i)].as_ref().is_none_or(|t| t.tys[bc] != Ty::Sym) {
+                if tys[bc] != Ty::Sym {
                     continue;
                 }
                 // redo-fills c5 (the pick without its rows) in redo-alloc's buffers: the literals copied out, the buffers kept
-                out = Some((i, bc, vals.clone()));
+                out = Some((bc, vals.clone()));
                 break 'conj;
             }
         }

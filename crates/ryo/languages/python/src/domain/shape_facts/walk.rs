@@ -20,6 +20,8 @@ pub(crate) struct Carriers {
     pub(crate) string: bool,
     pub(crate) bytes: bool,
     pub(crate) number: bool,
+    pub(crate) percent: bool,
+    pub(crate) brace: bool,
 }
 
 #[derive(Debug, Default)]
@@ -137,7 +139,15 @@ impl WalkShapes {
 
     pub(crate) fn leave(&mut self, at: Position, node: AnyNodeRef<'_>, code: NameCode) {
         match node {
-            AnyNodeRef::ExprStringLiteral(_) => self.carriers.string = true,
+            AnyNodeRef::ExprStringLiteral(literal) => {
+                self.carriers.string = true;
+                for part in &literal.value {
+                    if self.carriers.percent && self.carriers.brace { break; }
+                    let bytes = part.value.as_bytes();
+                    self.carriers.percent |= !self.carriers.percent && bytes.contains(&b'%');
+                    self.carriers.brace |= !self.carriers.brace && bytes.contains(&b'{');
+                }
+            }
             AnyNodeRef::ExprBytesLiteral(_) => self.carriers.bytes = true,
             AnyNodeRef::ExprNumberLiteral(_) => self.carriers.number = true,
             _ => {}

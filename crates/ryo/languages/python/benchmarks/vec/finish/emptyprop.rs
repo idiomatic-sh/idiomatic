@@ -405,6 +405,28 @@ impl Exec<'_> {
     }
 
     /// The native field predicates that can be decided before a provider answer.
+    pub(super) fn ep_literals(&mut self, run: &mut Run, node: usize) -> Vec<(u16, usize, Vec<u32>)> {
+        let leaves = self.ep_leaves(run, node);
+        let mut out = Vec::new();
+        for leaf in leaves.iter().filter(|l| l.lit && l.fact != NO_FACT) {
+            let rel = run.fact_rels[usize::from(leaf.fact)].0.clone();
+            let Some((_, _, tys)) = run.catalog(&rel) else { continue };
+            let picked = if leaf.own {
+                self.view(run, node).ok().flatten().and_then(|v| super::literal_column(&tys, &v.filter, 0, &[]))
+            } else {
+                let Some(sp) = self.sel(run, node).ok() else { continue };
+                let i = usize::from(leaf.src);
+                self.view(run, sp.srcs[i]).ok().flatten().and_then(|v| super::literal_column(&tys, &sp.conj, i, &v.map))
+            };
+            if let Some((col, mut values)) = picked {
+                values.sort_unstable();
+                values.dedup();
+                out.push((leaf.fact, col, values));
+            }
+        }
+        out
+    }
+
     pub(super) fn ep_data_leaf(&mut self, run: &mut Run, node: usize) -> bool {
         self.ep_leaves(run, node).iter().any(|leaf| leaf.fact != NO_FACT || leaf.rows)
     }

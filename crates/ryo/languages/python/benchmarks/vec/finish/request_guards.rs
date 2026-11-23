@@ -13,6 +13,7 @@ enum Test {
     Fields(Vec<u16>),
     Seed(usize),
     HasRows(u16),
+    Symbols(u16, usize, Vec<u32>),
     File(usize),
     Combine { all: bool, terms: Vec<u32> },
 }
@@ -20,6 +21,11 @@ enum Test {
 pub(super) struct Guards {
     by_node: Vec<Option<u32>>,
     late: Vec<bool>,
+    columns: FxHashMap<u16, Vec<(usize, u32)>>,
+    absent: Vec<bool>,
+    // Reused symbol membership marks for an already written prefix column.
+    marks: Vec<u32>,
+    generation: u32,
     by_test: FxHashMap<Test, u32>,
     tests: Vec<Test>,
     values: Vec<Option<bool>>,
@@ -30,6 +36,7 @@ impl Default for Guards {
         Self {
             by_node: vec![],
             late: vec![],
+            columns: Default::default(), absent: vec![], marks: vec![], generation: 0,
             by_test: FxHashMap::default(),
             tests: vec![Test::Constant(true), Test::Constant(false)],
             values: vec![],
@@ -46,6 +53,15 @@ impl Guards {
             id
         })
     }
+
+    fn symbols(&mut self, slot: u16, col: usize, values: Vec<u32>) -> u32 {
+        let id = self.intern(Test::Symbols(slot, col, values));
+        let by = self.columns.entry(slot).or_default();
+        if !by.contains(&(col, id)) { by.push((col, id)); }
+        id
+    }
+
+    pub(super) fn clear_evidence(&mut self) { self.absent.fill(false); }
 
     pub(super) fn combine(&mut self, all: bool, mut terms: Vec<u32>) -> u32 {
         let (identity, stop) = if all { (ALWAYS, NEVER) } else { (NEVER, ALWAYS) };
@@ -71,6 +87,28 @@ impl Guards {
 }
 
 impl Exec<'_> {
+    pub(crate) fn prefix_symbols(&mut self, run: &Run, rel: &str, data: &[Vec<u32>], keys: Option<&[u32]>, symbols: usize, lookup: impl Fn(&[u8]) -> Option<u32>) {
+        let Some(&slot) = run.fact_slots.get(rel) else { return };
+        let g = &mut self.requests.guards;
+        let Some(tests) = g.columns.get(&slot) else { return };
+        let mut last = None;
+        g.absent.resize(g.tests.len(), false);
+        for &(column, id) in tests {
+            let Some(values) = data.get(column).filter(|c| !c.is_empty()) else { continue };
+            if last != Some(column) {
+                last = Some(column);
+                g.generation = g.generation.wrapping_add(1);
+                if g.generation == 0 { g.marks.fill(0); g.generation = 1; }
+                g.marks.resize(symbols, 0);
+                let mut mark = |v: u32| { if let Some(at) = g.marks.get_mut(v as usize) { *at = g.generation; } };
+                if let Some(keys) = keys { for &key in keys { mark(values[key as usize]); } }
+                else { for &v in values { mark(v); } }
+            }
+            let Test::Symbols(_, _, choices) = &g.tests[id as usize] else { continue };
+            g.absent[id as usize] = !choices.iter().any(|v| lookup(&run.texts[*v as usize]).is_some_and(|p| g.marks.get(p as usize) == Some(&g.generation)));
+        }
+    }
+
     /// The file-only part of the same predicate used by known_empty: a
     /// select needs all sources, a union needs at least one, other operators
     /// need their declared driving input. A constant step can always run.
@@ -98,6 +136,9 @@ impl Exec<'_> {
                 parts.push(self.requests.guards.intern(Test::File(n)));
             }
             if !sw!("VEC_NO_EMPTYPROP") {
+                for (slot, col, values) in self.ep_literals(run, n) {
+                    parts.push(self.requests.guards.symbols(slot, col, values));
+                }
                 for fields in self.ep_field_codes(run, n) {
                     parts.push(self.requests.guards.intern(Test::Fields(fields)));
                 }
@@ -131,6 +172,7 @@ impl Exec<'_> {
             Test::Fields(fs) => fs
                 .iter()
                 .any(|c| !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c)).is_empty()),
+            Test::Symbols(..) => !self.requests.guards.absent.get(at).copied().unwrap_or(false),
             Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
             Test::Seed(s) => f.seeds.get(*s).is_some_and(|rows| !rows.is_empty()),
             Test::File(n) => {

@@ -48,6 +48,7 @@ pub(super) struct Finisher<'p> {
     type_paths: super::type_expression::Paths,
     input_layout: super::composition_inputs::Layout,
     prefix_symbols: Vec<u32>,
+    direct_memo: ryo_python::fixtures::columns::ColumnMemo,
 }
 
 use ryo::languages;
@@ -122,6 +123,7 @@ impl<'p> Finisher<'p> {
             type_paths: Default::default(),
             input_layout,
             prefix_symbols: Vec::new(),
+            direct_memo: Default::default(),
             project: super::provider_packaging::Project::new(
                 args[2].trim_end_matches('/'),
                 super::provider_packaging::Project::search_roots_of(flag(args, "--request").as_deref()),
@@ -167,8 +169,10 @@ impl<'p> Finisher<'p> {
         self.plan.emits.iter().enumerate().map(|(e, x)| (e, x.0.as_str()))
     }
 
-    pub(super) fn prefix_empty(&mut self, name: &str) {
-        self.exec.walk_empty(&self.run, name);
+    pub(super) fn prefix_table(&mut self, name: &str, t: &ryo_python::fixtures::columns::FactTable, words: &super::facts::Interner) {
+        if t.rows == 0 { self.exec.walk_empty(&self.run, name); return; }
+        let keys = (t.layout == ryo_python::fixtures::columns::Layout::PerNode).then(|| t.keys());
+        self.exec.prefix_symbols(&self.run, name, &t.columns, keys, words.matches.len(), |text| words.ids.get(text));
     }
 
     /// The second half on one walked file of the direct-columns walk (its own model by parts, built on demand).
@@ -184,7 +188,9 @@ impl<'p> Finisher<'p> {
         let mut project = std::mem::take(&mut self.project);
         let mut type_paths = std::mem::take(&mut self.type_paths);
         let mut prefix_symbols = std::mem::take(&mut self.prefix_symbols);
-        let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file_no: file_no as u32, kept: HashMap::new(), type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, project: &mut project, src: bytes };
+        let mut direct_memo = std::mem::take(&mut self.direct_memo);
+        direct_memo.new_file();
+        let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file_no: file_no as u32, kept: HashMap::new(), type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, direct_memo: &mut direct_memo, project: &mut project, src: bytes };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
@@ -192,6 +198,7 @@ impl<'p> Finisher<'p> {
         self.fwords = fwords;
         self.type_paths = type_paths;
         self.prefix_symbols = prefix_symbols;
+        self.direct_memo = direct_memo;
         self.project = project;
         self.time += thread_cpu() - t0;
     }
@@ -232,25 +239,29 @@ impl<'p> Finisher<'p> {
         f.seeds = if self.surv.is_empty() { vec![Vec::new(); plan.seeds.len()] } else { plan.seeds.iter().map(|r| self.surv.get(&(r.clone(), path.to_owned())).cloned().unwrap_or_default()).collect() };
         finish::handover::expand(&mut f, &plan.seed_paths);
         let run = &mut self.run;
-        if self.check {
-            for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
-                let mine = finish::native_table(&mut f, run, rel);
-                let mut answer = Vec::new();
-                let asked = [finish::request::Asked { rel, columns: u64::MAX, scope: finish::Scope::File(file_no as u32) }];
-                match pv.answer(run, &finish::request::Request { relations: &asked }, &mut answer).and_then(|()| answer.pop().unwrap_or_else(|| Err("no answer".to_owned()))) {
-                    Ok(theirs) => self.check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs))),
-                    Err(e) => self.check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
-                }
-            }
-        }
+        let checks: &[&str] = if self.check {
+            &["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"]
+        } else { &[] };
         let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
         // redo-fills pass 3: the file's one request, for what the alive rules' steps can read (request.rs)
         let roots: Vec<usize> = wanted.iter().filter(|ei| !(self.failed_idx[**ei] || (rejected && self.accepted_only[**ei]))).map(|ei| plan.emits[*ei].1).collect();
-        if let Err(err) = self.exec.open_file(&mut f, run, pv, &roots) {
-            for ei in wanted {
-                let e = &plan.emits[*ei];
-                self.failed.insert(e.0.clone(), format!("{}: the request: {err}", run.paths[file_no]));
-                self.failed_idx[*ei] = true;
+        match self.exec.open_file(&mut f, run, pv, &roots, checks) {
+            Ok(checked) => {
+                for (&rel, theirs) in checks.iter().zip(checked) {
+                    let mine = finish::native_table(&mut f, run, rel);
+                    let comparison = match theirs {
+                        Ok(t) => finish::diff(run, &mine, &t),
+                        Err(e) => format!("provider: {e}"),
+                    };
+                    self.check_lines.push(format!("{}\t{rel}\t{comparison}", run.paths[file_no]));
+                }
+            }
+            Err(err) => {
+                for ei in wanted {
+                    let e = &plan.emits[*ei];
+                    self.failed.insert(e.0.clone(), format!("{}: the request: {err}", run.paths[file_no]));
+                    self.failed_idx[*ei] = true;
+                }
             }
         }
         for ei in wanted {

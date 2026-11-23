@@ -469,7 +469,7 @@ fn lend(
     if tree.completeness.syntax == languages::SyntaxCompleteness::Complete && tree.completeness.lexical == languages::SyntaxCompleteness::Complete {
         let absent = |kind| node_table::ids_of_kind(table, crate::domain::syntax::service::kind_bits(kind)).is_empty();
         if !shapes.carriers.string {
-            empty.extend(["literal-expression-parse", "raw-format-segment"]);
+            empty.extend(["literal-expression-parse", "raw-format-segment", "raw-format-field"]);
         }
         if !shapes.carriers.bytes { empty.push("bytes-literal"); }
         if !shapes.carriers.number { empty.push("numeric-literal"); }
@@ -478,7 +478,20 @@ fn lend(
             empty.extend(["string-literal", "brace-format-parse", "brace-format-field", "format-specification"]);
             if !shapes.carriers.bytes { empty.extend(["format-parse", "format-field"]); }
         }
-        if absent(Kind::Node(Node::JoinedStr)) { empty.push("interpolated-string-literal"); }
+        if absent(Kind::Node(Node::JoinedStr)) {
+            empty.push("interpolated-string-literal");
+            // A replacement field needs its dialect's opening delimiter in
+            // decoded text. A string with escapes can differ from its token.
+            if text && absent(Kind::Node(Node::TemplateStr)) {
+                if !shapes.carriers.percent && !shapes.carriers.bytes { empty.push("format-field"); }
+                if !shapes.carriers.brace { empty.extend(["brace-format-field", "format-specification"]); }
+            }
+        }
+        if absent(Kind::Node(Node::Arg)) { empty.push("parameter"); }
+        if absent(Kind::Node(Node::ClassDef)) { empty.push("inherits"); }
+        if absent(Kind::Node(Node::FunctionDef)) && absent(Kind::Node(Node::AsyncFunctionDef)) {
+            empty.extend(["function", "function-terminal"]);
+        }
         if absent(Kind::Node(Node::Call)) { empty.push("call-argument"); }
         if absent(Kind::Extra(TypedExtra::Decorator)) { empty.push("decorates"); }
         if absent(Kind::Node(Node::Alias)) { empty.extend(["static-import", "standard-library-import"]); }

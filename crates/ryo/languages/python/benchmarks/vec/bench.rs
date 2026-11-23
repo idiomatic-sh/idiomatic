@@ -1008,6 +1008,7 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     input_columns: composition_inputs::Columns,
     prefix: Option<direct_fill::Prefix<'w>>,
     prefix_symbols: &'w mut Vec<u32>,
+    direct_memo: &'w mut ryo_python::fixtures::columns::ColumnMemo,
     /// redo-general: the provider's project (its packaging knowledge, run-wide) and this file's bytes, for the relations it
     /// answers for a project.
     project: &'w mut provider_packaging::Project,
@@ -1075,7 +1076,7 @@ impl ColFacts<'_, '_, '_, '_> {
         let timed = finish::fill_prof::timed();
         // redo-fills pass 2: the provider's direct columns, no reader rows and no conversion (direct_fill.rs)
         if direct_fill::direct(rel)
-            && let Some((t, write, make, reused)) = direct_fill::fill(self.file, run, rel, self.file_no, timed, columns, self.prefix, self.prefix_symbols)
+            && let Some((t, write, make, reused)) = direct_fill::fill(self.file, run, rel, self.file_no, timed, columns, self.prefix, self.prefix_symbols, self.direct_memo)
         {
             if timed {
                 let n = t.as_ref().map_or(0, |t| t.n as u64);
@@ -2625,7 +2626,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         if fin.visits(&wanted) {
                             for (i, (slot, _)) in ask_of.iter().enumerate() {
                                 let t = &store.direct.tables[i];
-                                if !asks[i].exists && t.answered && t.rows == 0 { fin.prefix_empty(&fact_catalog.names[*slot]); }
+                                if !asks[i].exists && t.answered { fin.prefix_table(&fact_catalog.names[*slot], t, &interner); }
                             }
                             let prefix = direct_fill::Prefix { asks: &asks, tables: &store.direct.tables, words: &interner };
                             fin.column_file(file_no, path, file, &bytes, &wanted, Some(prefix));

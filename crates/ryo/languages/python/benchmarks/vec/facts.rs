@@ -31,7 +31,7 @@ impl Table {
             _ => Table::Std(HashMap::new()),
         }
     }
-    fn get(&self, k: &[u8]) -> Option<u32> {
+    pub(super) fn get(&self, k: &[u8]) -> Option<u32> {
         match self {
             Table::Std(m) => m.get(k).copied(),
             Table::Fx(m) => m.get(k).copied(),
