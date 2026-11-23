@@ -23,8 +23,8 @@ impl Completed {
         self.tables[slot] = Some(rows);
     }
 
-    pub(super) fn get(&self, relation: Relation) -> Option<&FilledColumns> {
-        self.tables.get(number_of(relation).0)?.as_ref()
+    pub(super) fn take(&mut self, relation: Relation) -> Option<FilledColumns> {
+        self.tables.get_mut(number_of(relation).0)?.take()
     }
 
     pub(super) fn clear(&mut self) {

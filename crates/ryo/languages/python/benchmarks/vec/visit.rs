@@ -132,7 +132,7 @@ impl<'p> Finisher<'p> {
         let mut direct_memo = std::mem::take(&mut self.direct_memo);
         let mut implicit = self.implicit.take();
         direct_memo.new_file();
-        let mut pv = ColFacts { file, completed: &completed, words: &mut fwords, filled: std::mem::take(&mut self.filled), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.inner.by_rel), file_no: file_no as u32, kept: Default::default(), implicit: &mut implicit, type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, direct_memo: &mut direct_memo, project: &mut project, src: bytes };
+        let mut pv = ColFacts { file, completed: &mut completed, words: &mut fwords, filled: std::mem::take(&mut self.filled), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.inner.by_rel), file_no: file_no as u32, kept: Default::default(), implicit: &mut implicit, type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, direct_memo: &mut direct_memo, project: &mut project, src: bytes };
         self.inner.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.inner.provider_time += pv.time;
         self.inner.provider_rows += pv.rows;

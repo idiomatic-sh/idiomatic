@@ -889,7 +889,7 @@ struct Facts<'v, 'f, 'w> {
 /// evaluation region (`ColumnFile::evaluation_region`).
 struct ColFacts<'v, 'a, 'f, 'w> {
     file: &'v mut ryo_python::fixtures::columns::ColumnFile<'a, 'f>,
-    completed: &'w completed_facts::Completed,
+    completed: &'w mut completed_facts::Completed,
     words: &'w mut languages::FileWords,
     filled: languages::FilledColumns,
     time: f64,
@@ -966,12 +966,12 @@ impl ColFacts<'_, '_, '_, '_> {
 
     fn whole_fill(&mut self, run: &mut finish::Run, rel: &str, columns: &languages::ColumnProjection) -> Result<finish::Table, String> {
         if let Some((Some(relation), _, _)) = run.catalog(rel)
-            && let Some(rows) = self.completed.get(relation)
+            && let Some(rows) = self.completed.take(relation)
         {
             let timed = finish::fill_prof::timed();
             let start = if timed { thread_cpu() } else { 0.0 };
             let count = rows.0.first().map_or(0, |column| column.0.len());
-            let answer = finish::filled_columns(run, rel, rows, self.words, columns, count)?;
+            let answer = finish::owned_columns(run, rel, rows, self.words, columns, count)?;
             if timed {
                 let cost = thread_cpu() - start;
                 for label in ["convert", "completed"] {

@@ -4455,6 +4455,31 @@ pub(super) fn filled_columns(run: &mut Run, rel: &str, filled: &languages::Fille
     Ok(out)
 }
 
+/// Move completed provider columns into the answer in row order. Scalar words
+/// already have the run's representation. Only node and symbol words need decoding.
+pub(super) fn owned_columns(run: &mut Run, rel: &str, filled: languages::FilledColumns, words: &languages::FileWords, mask: &languages::ColumnProjection, n: usize) -> R<Table> {
+    let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+    let mut out = Table::projected_where(names, tys.clone(), 0, |_| false);
+    let mut source = filled.0.into_iter();
+    let base = languages::facts::base_count(words).0;
+    for (c, ty) in tys.iter().enumerate() {
+        let column = source.next();
+        if !mask.contains(c) { continue; }
+        let Some(column) = column else {
+            out.cols[c].resize(n, NULL);
+            continue;
+        };
+        let cells = column.0.into_iter();
+        out.cols[c] = match ty {
+            Ty::Sym => cells.map(|word| u64::from(word_sym(run, words, word, base))).collect(),
+            Ty::Node => cells.map(|word| word.0 & 0xffff_ffff).collect(),
+            _ => cells.map(|word| word.0).collect(),
+        };
+    }
+    out.n = n;
+    Ok(out)
+}
+
 /// redo-fills c2: a provider word's run-wide symbol, through the run's word caches (`Run::base_word_sym`).
 fn word_sym(run: &mut Run, words: &languages::FileWords, w: languages::CellWord, base: u64) -> u32 {
     let (own, at) = if w.0 < base {
