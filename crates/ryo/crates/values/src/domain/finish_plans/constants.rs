@@ -11,6 +11,8 @@ pub const OP_AS_OF: &str = "as-of";
 pub const OP_ORDERED_MATCH: &str = "ordered-match";
 /// `axis`.
 pub const OP_AXIS: &str = "axis";
+/// `worklist`.
+pub const OP_WORKLIST: &str = "worklist";
 /// `closure`.
 pub const OP_CLOSURE: &str = "closure";
 /// `follow`.
@@ -56,6 +58,8 @@ pub const ARG_FROM: &str = "from";
 pub const ARG_LEFT: &str = "left";
 /// `right`.
 pub const ARG_RIGHT: &str = "right";
+/// `lattice`.
+pub const ARG_LATTICE: &str = "lattice";
 /// `edges`.
 pub const ARG_EDGES: &str = "edges";
 /// `domain`.
@@ -163,8 +167,8 @@ pub const ARG_STEP: &str = "step";
 
 /// The arguments that name a relation the operator reads (a step, or a relation of the catalog), but for `rows`, whose
 /// `from` is its constant table.
-pub const RELATION_ARGUMENTS: [&str; 8] =
-    [ARG_FROM, ARG_LEFT, ARG_RIGHT, ARG_EDGES, ARG_DOMAIN, ARG_RELATION, ARG_LABELS, ARG_LEAVES];
+pub const RELATION_ARGUMENTS: [&str; 9] =
+    [ARG_FROM, ARG_LEFT, ARG_RIGHT, ARG_EDGES, ARG_DOMAIN, ARG_RELATION, ARG_LABELS, ARG_LEAVES, ARG_LATTICE];
 
 /// How the format writes each axis direction.
 pub const DIRECTION_PARENT: &str = "parent";

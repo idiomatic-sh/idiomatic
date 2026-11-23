@@ -209,71 +209,7 @@ pub(super) struct FRule {
 }
 
 // ---------------------------------------------------------------- the spec, typed (from the JSON lines or prepared in the process)
-/// The bucket a plan is entered at.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Bucket {
-    Kinds,
-    Fields,
-    Words,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(super) struct SpecCheck {
-    pub(super) v: usize,
-    pub(super) kinds: Option<Vec<String>>,
-    pub(super) notkinds: Option<Vec<String>>,
-    pub(super) texts: Option<Vec<Vec<u8>>>,
-    pub(super) fields: Option<Vec<String>>,
-    pub(super) re: Option<String>,
-}
-
-/// A fact test: the relation, its (key column, register) pairs and its (column, op, values) conditions.
-#[derive(Clone, Debug, PartialEq)]
-pub(super) struct SpecFact {
-    pub(super) rel: String,
-    pub(super) keys: Vec<(String, usize)>,
-    pub(super) conds: Vec<(String, String, Vec<String>)>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub(super) enum SpecOp {
-    Check(SpecCheck),
-    Up { from: usize, to: usize, leaf: bool },
-    Down { from: usize, to: usize, leaf: bool },
-    Not(Vec<SpecOp>),
-    Exists { from: usize, to: usize, plan: Vec<SpecOp> },
-    IsParent { child: usize, parent: usize },
-    Fact(SpecFact),
-    Enc { from: usize, to: usize, kinds: Vec<String> },
-    AncX { from: usize, to: usize, plan: Vec<SpecOp> },
-}
-
-/// One plan: the disjunct of its rule it enters (plans of one disjunct are alternatives: each file enters at one of them),
-/// its bucket and keys, its ops and registers, and its required-word CNF.
-#[derive(Clone, Debug)]
-pub(super) struct SpecPlan {
-    pub(super) disjunct: usize,
-    pub(super) bucket: Bucket,
-    pub(super) keys: Vec<String>,
-    pub(super) ops: Vec<SpecOp>,
-    pub(super) regs: usize,
-    pub(super) words: Vec<Vec<String>>,
-}
-
-impl SpecPlan {
-    pub(super) fn same(&self, o: &SpecPlan) -> bool {
-        self.bucket == o.bucket && self.keys == o.keys && self.ops == o.ops && self.words == o.words
-    }
-}
-
-#[derive(Clone, Debug)]
-pub(super) struct SpecRule {
-    pub(super) name: String,
-    /// Of the node class: its rows are found from tree survivors.
-    pub(super) node: bool,
-    pub(super) plans: Vec<SpecPlan>,
-    pub(super) word_cnfs: Vec<Vec<Vec<String>>>,
-}
+pub(super) use super::spec::*;
 
 fn strings(v: &serde_json::Value) -> Vec<String> {
     v.as_array().expect("names").iter().map(|n| n.as_str().expect("name").to_owned()).collect()
@@ -1259,10 +1195,9 @@ pub(super) const FIXED_TEXT: u32 = 1 << 31;
 /// walk gave a code (`codes`: the file's own tree, in id order) is looked up once a code through `memo` (a fixed text's,
 /// once a run through `fixed`); every other (an embedded segment's, or all of a file whose bytes were no text) by its bytes.
 #[expect(clippy::too_many_arguments, reason = "throwaway prototype")]
-pub(super) fn file_words(
-    table: &NodeTable,
-    src: &[u8],
-    name_token: u16,
+pub(super) fn file_words<'a>(
+    positions: impl Iterator<Item = Position>,
+    text: impl Fn(usize) -> &'a [u8],
     codes: &[u32],
     words: &Words,
     memo: &mut Vec<u32>,
@@ -1273,9 +1208,7 @@ pub(super) fn file_words(
     present.iter_mut().for_each(|w| *w = 0);
     pairs.clear();
     memo.clear();
-    let (starts, ends) = (node_table::starts(table), node_table::ends(table));
-    let text = |i: usize| &src[starts[i] as usize..ends[i] as usize];
-    for (j, p) in node_table::ids_of_kind(table, ryo::languages::KindBits(name_token)).iter().enumerate() {
+    for (j, p) in positions.enumerate() {
         let i = p.0 as usize;
         let w = match codes.get(j) {
             Some(&c) => {

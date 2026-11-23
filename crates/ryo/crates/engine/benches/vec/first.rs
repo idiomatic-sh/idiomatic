@@ -14,7 +14,7 @@
 //!   token), minus those another one's keys contain; the run enters each file at the one of them with the fewest nodes in
 //!   that file (funnel4.py chose one by Django's counts). Every alternative covers every node that can match.
 
-use super::funnel::{Bucket, SpecCheck, SpecFact, SpecOp, SpecPlan, SpecRule};
+use super::spec::{Bucket, SpecCheck, SpecFact, SpecOp, SpecPlan, SpecRule};
 use ryo_engine::domain::plan_lowering::types::{PackPrograms, RuleProgram};
 use ryo_values::domain::program::types::{FragmentProgram, ImportDeclaration, LetStep, ParsedModules};
 use ryo_values::domain::query_syntax::types::{
@@ -22,7 +22,7 @@ use ryo_values::domain::query_syntax::types::{
     SourceReference, WrittenOperand, WrittenTest,
 };
 use ryo_values::domain::query_tokens::types::QuerySourceId;
-use ryo_values::domain::finish_plans::constants::{OP_CLOSURE, OP_FOLLOW, OP_ORDERED_DFS, OP_ROWS};
+use ryo_values::domain::finish_plans::constants::{OP_CLOSURE, OP_FOLLOW, OP_ORDERED_DFS, OP_ROWS, OP_WORKLIST};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::rc::Rc;
 
@@ -37,7 +37,7 @@ pub(super) struct Language {
     pub(super) facts: Vec<String>,
     pub(super) spelled: Vec<(String, String, Option<char>)>,
     pub(super) is_identifier: fn(&str) -> bool,
-    pub(super) word_kind: String,
+    pub(super) word_kinds: Vec<String>,
 }
 
 thread_local! {
@@ -51,7 +51,7 @@ fn language() -> Rc<Language> {
 
 /// Operations whose rows are reached from their input (traversals, a literal table), not the input's rows: their output
 /// keeps no tree condition of an input. The plan language's own operations (`finish_plans` constants), not a pack's.
-const NEW_ROWS: [&str; 4] = [OP_CLOSURE, OP_FOLLOW, OP_ORDERED_DFS, OP_ROWS];
+const NEW_ROWS: [&str; 5] = [OP_CLOSURE, OP_FOLLOW, OP_ORDERED_DFS, OP_ROWS, OP_WORKLIST];
 /// A select with more combinations of its sources' disjuncts than this is not followed: its relation is opaque (a
 /// superset, so never a lost finding). funnel4.py's own bound on the symbolic product (not a corpus figure); every time it
 /// is reached is counted and printed by `prepare`.
@@ -2223,7 +2223,7 @@ fn cnf_of(d: &Disj) -> Vec<Vec<String>> {
 
 /// The buckets a variable can be entered at: its kinds, its fields, and the required words when it is a name token spelling
 /// identifiers. No census: every one is kept, and each file enters at the one with the fewest nodes.
-fn buckets(pr: &Props, word_kind: &str) -> Vec<(Bucket, Vec<String>)> {
+fn buckets(pr: &Props, word_kinds: &[String]) -> Vec<(Bucket, Vec<String>)> {
     let mut out = Vec::new();
     if let Some(k) = &pr.kinds {
         out.push((Bucket::Kinds, k.iter().cloned().collect()));
@@ -2234,7 +2234,7 @@ fn buckets(pr: &Props, word_kind: &str) -> Vec<(Bucket, Vec<String>)> {
     if let (Some(t), Some(k)) = (&pr.texts, &pr.kinds)
         && !t.is_empty()
         && t.iter().all(|x| ident(x))
-        && k.iter().all(|x| x == word_kind)
+        && k.iter().all(|x| word_kinds.contains(x))
     {
         out.push((Bucket::Words, t.iter().cloned().collect()));
     }
@@ -2248,7 +2248,7 @@ enum Planned {
     NoAnchor,
 }
 
-fn plan_disjunct(d: &Disj, word_kind: &str, disjunct: usize) -> Planned {
+fn plan_disjunct(d: &Disj, word_kinds: &[String], disjunct: usize) -> Planned {
     let atoms = flat(d);
     let mut uf = Uf::default();
     for a in &atoms {
@@ -2292,7 +2292,7 @@ fn plan_disjunct(d: &Disj, word_kind: &str, disjunct: usize) -> Planned {
     }
     for v in &order {
         if let Some(pr) = rooted.props.get(v) {
-            for (b, keys) in buckets(pr, word_kind) {
+            for (b, keys) in buckets(pr, word_kinds) {
                 alts.push((*v, b, keys));
             }
         }
@@ -2334,8 +2334,7 @@ const CLAUSE_CAP: usize = 32;
 /// `VEC_FIRST_PLANS`: the elaborate per-rule prefix plans (every disjunct rooted at every bucket); else the summaries only.
 pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
     let simple = std::env::var_os("VEC_FIRST_PLANS").is_none();
-    let word_kind = lang.word_kind.clone();
-    let word_kind = word_kind.as_str();
+    let word_kinds = lang.word_kinds.clone();
     LANGUAGE.with(|l| *l.borrow_mut() = Some(Rc::new(lang)));
     let skip = SkipAnalyzer { frags: &programs.fragments };
     let mut an = Analyzer { frags: &programs.fragments, ids: HashMap::new(), rels: vec![Some(Rc::new(opaque()))], uses: vec![0], dry: true, simple, srels: Vec::new(), base_names: HashMap::new(), first_rule: vec![0], rule: 0, shapes: HashMap::new(), texts: HashMap::new() };
@@ -2414,7 +2413,7 @@ pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
         let (mut plans, mut cnfs, mut noanchor) = (Vec::<SpecPlan>::new(), Vec::<Vec<Vec<String>>>::new(), 0usize);
         let mut groups: Vec<Vec<SpecPlan>> = Vec::new();
         for d in &rel.disjs {
-            let got = plan_disjunct(d, word_kind, groups.len());
+            let got = plan_disjunct(d, &word_kinds, groups.len());
             if !matches!(got, Planned::Unsat) {
                 let c = cnf_of(d);
                 if !cnfs.contains(&c) {
@@ -2450,9 +2449,21 @@ pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
     Prepared { skips, rules }
 }
 
+thread_local! {
+    static COUNTS: std::cell::RefCell<[u64; 8]> = const { std::cell::RefCell::new([0; 8]) };
+    /// CPU seconds by phase: skip analysis, relation analysis, planning, the identities' pass.
+    static PHASES: std::cell::RefCell<[f64; 4]> = const { std::cell::RefCell::new([0.0; 4]) };
+}
+fn count(i: usize, n: u64) {
+    COUNTS.with(|c| c.borrow_mut()[i] += n);
+}
+pub(super) fn counts() -> [u64; 8] {
+    COUNTS.with(|c| *c.borrow())
+}
+
 /// `vec first <pack> [--request F] [--repeat K]`: the first half's spec prepared from the pack, with its CPU and size, and the
 /// spec per rule (`--out F`: one line a rule: name, class, plans, disjuncts with alternatives, skip clauses).
-pub(super) fn run_first(args: &[&str]) {
+pub(super) fn run_first(args: &[&str], language: fn() -> Language) {
     let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
     let repeat: usize = args.iter().position(|a| *a == "--repeat").map_or(1, |i| args[i + 1].parse().expect("repeat"));
     let read = super::lower::read_pack(std::path::Path::new(args[0]), request);
@@ -2461,7 +2472,7 @@ pub(super) fn run_first(args: &[&str]) {
         PHASES.with(|c| *c.borrow_mut() = [0.0; 4]);
         let a0 = super::alloc_counts();
         let t0 = super::thread_cpu();
-        let p = prepare(&read.programs, super::python_language());
+        let p = prepare(&read.programs, language());
         let t1 = super::thread_cpu();
         let a1 = super::alloc_counts();
         let plans: usize = p.rules.iter().map(|r| r.plans.len()).sum();
@@ -2492,16 +2503,4 @@ pub(super) fn run_first(args: &[&str]) {
             std::fs::write(args[i + 1], w).expect("out");
         }
     }
-}
-
-thread_local! {
-    static COUNTS: std::cell::RefCell<[u64; 8]> = const { std::cell::RefCell::new([0; 8]) };
-    /// CPU seconds by phase: skip analysis, relation analysis, planning, the identities' pass.
-    static PHASES: std::cell::RefCell<[f64; 4]> = const { std::cell::RefCell::new([0.0; 4]) };
-}
-fn count(i: usize, n: u64) {
-    COUNTS.with(|c| c.borrow_mut()[i] += n);
-}
-pub(super) fn counts() -> [u64; 8] {
-    COUNTS.with(|c| *c.borrow())
 }
