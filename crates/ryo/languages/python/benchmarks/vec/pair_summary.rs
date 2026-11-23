@@ -33,6 +33,7 @@ pub(super) enum Domain {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub(super) enum Need {
     Any,
+    PathMatches(usize),
     Empty,
     Some(Id),
     Both(Id, Id),
@@ -62,6 +63,7 @@ pub(super) struct Program {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Attribute {
     Id,
+    FilePath,
     Kind,
     Field,
     Text,
@@ -229,6 +231,7 @@ impl Builder<'_> {
             "syntax-tree" | "semantic-syntax" => {
                 r.var(ANY);
                 r.add("id", 0, Id);
+                r.add("file", 0, FilePath);
                 r.add("kind", 0, Kind);
                 r.add("text", 0, Text);
             }
@@ -236,6 +239,7 @@ impl Builder<'_> {
                 r.var(ANY);
                 r.var(ANY);
                 r.add("child", 0, Id);
+                r.add("file", 0, FilePath);
                 r.add("field", 0, Field);
                 r.add("parent", 1, Id);
                 r.edges.push((0, 1));
@@ -243,6 +247,7 @@ impl Builder<'_> {
             "source-location" => {
                 r.var(ANY);
                 r.add("id", 0, Id);
+                r.add("file", 0, FilePath);
             }
             _ => {
                 if !self.language.facts.iter().any(|n| n == name)
@@ -374,11 +379,45 @@ impl Builder<'_> {
                             self.both(x, y)
                         },
                     )),
-                    _ if matches!(e, And(_)) => l.or(r),
+                    (a, None) | (None, a) if matches!(e, And(_)) => a,
                     _ => None,
                 }
             }
             _ => None,
+        }
+    }
+    /// Branches testing different node variables still impose a file condition:
+    /// every conjunct needs a witness, and at least one disjunct needs its witnesses.
+    fn file_test(
+        &mut self,
+        e: &PlanExpression,
+        lookup: &impl Fn(&ColumnRead) -> Option<Column>,
+    ) -> Id {
+        use PlanExpression::*;
+        if let Call(f) = e
+            && &*f.function.0 == "matches"
+            && let [Column(c), Literal(PlanConstant::Text(pattern))] = f.arguments.as_slice()
+            && lookup(c).is_some_and(|col| col.attr == Attribute::FilePath)
+        {
+            return self
+                .regex(&pattern.0)
+                .map_or(ANY, |re| self.need(Need::PathMatches(re)));
+        }
+        match e {
+            And(p) | Or(p) => {
+                let l = self.file_test(&p.left, lookup);
+                let r = self.file_test(&p.right, lookup);
+                if matches!(e, And(_)) {
+                    self.and(l, r)
+                } else {
+                    self.or(l, r)
+                }
+            }
+            _ => match self.filter(e, lookup) {
+                Some((_, d)) if d > EMPTY => self.need(Need::Some(d)),
+                Some((_, d)) => d,
+                None => ANY,
+            },
         }
     }
     fn select<'a>(&mut self, s: &'a SelectStep, rows: &[Summary<'a>]) -> Summary<'a> {
@@ -443,6 +482,9 @@ impl Builder<'_> {
                 changed[v] |= d != ANY && d != out.domains[v];
                 out.domains[v] = self.both(out.domains[v], d);
                 self.require(&mut out, d);
+            } else if matches!(e, PlanExpression::Or(_) | PlanExpression::Call(_)) {
+                let n = self.file_test(e, &lookup);
+                out.need = self.and(out.need, n);
             }
         }
         // Restrict text regexes to a known entry bucket. The kind constraint

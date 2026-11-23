@@ -20,6 +20,7 @@ struct File<'a> {
     p: &'a Program,
     t: &'a NodeTable,
     src: &'a [u8],
+    path: Option<&'a [u8]>,
     read: &'a mut Reader<'a>,
     words: &'a mut FileWords,
     facts: Vec<Table>,
@@ -89,6 +90,9 @@ impl File<'_> {
         let yes = match self.p.needs[id] {
             Need::Any => true,
             Need::Empty => false,
+            Need::PathMatches(re) => self
+                .path
+                .is_none_or(|path| self.p.regexes[re].is_match(path)),
             Need::Both(a, b) => self.pass(a) && self.pass(b),
             Need::Either(a, b) => self.pass(a) || self.pass(b),
             Need::Some(x) => match &self.p.domains[x] {
@@ -334,6 +338,7 @@ impl Program {
         &self,
         t: &NodeTable,
         src: &[u8],
+        path: Option<&[u8]>,
         words: &mut FileWords,
         mut read: impl FnMut(Relation, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
@@ -343,6 +348,7 @@ impl Program {
             p: self,
             t,
             src,
+            path,
             read: &mut read,
             words,
             facts: (0..self.facts.len()).map(|_| Table::default()).collect(),

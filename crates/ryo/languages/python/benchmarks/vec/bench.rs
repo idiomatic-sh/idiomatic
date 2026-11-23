@@ -1944,7 +1944,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 }
                 if !no_skip && let Some(program) = &pairs {
                     let start = thread_cpu();
-                    pair_steps += program.file(pt, &bytes, &mut fwords, $fill, &mut alive);
+                    let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].as_bytes());
+                    pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, $fill, &mut alive);
                     pair_cpu += thread_cpu() - start;
                 }
                 rule_files += frules.len() as u64;
