@@ -51,7 +51,7 @@ pub(crate) struct Requests {
     asked: Vec<u16>,
     answer: Vec<Result<Table, String>>,
     // A run-scoped answer counts once; any file can consume it.
-    run_unused: Vec<Option<u64>>,
+    run_unused: Vec<Option<(u64, u64)>>,
     pub(super) counts: Counts,
 }
 
@@ -69,12 +69,34 @@ pub(crate) struct Counts {
     /// Relations answered that no step of the file asked (rows and size never consulted).
     pub(super) never_asked: u64,
     pub(super) never_asked_rows: u64,
+    possible_cells: u64,
+    returned_cells: u64,
+    unused_cells: u64,
     misses: u64,
     reads: u64,
     request_cpu: f64,
     mask_cpu: f64,
     answer_cpu: f64,
     read_cpu: f64,
+}
+
+fn returned_cells(table: &Table) -> u64 {
+    table.cols.iter().map(|column| column.len() as u64).sum()
+}
+
+impl Counts {
+    fn received(&mut self, result: &R<Table>) {
+        match result {
+            Ok(table) => {
+                self.rows += table.n as u64;
+                if super::fill_prof::counting() {
+                    self.possible_cells += table.n as u64 * table.names.len() as u64;
+                    self.returned_cells += returned_cells(table);
+                }
+            }
+            Err(_) => self.refused += 1,
+        }
+    }
 }
 
 impl Requests {
@@ -94,8 +116,12 @@ impl Requests {
     /// The counts' line (printed at the run's end).
     pub(super) fn line(&self) -> String {
         let c = &self.counts;
+        let cells = if super::fill_prof::counting() {
+            let unused = c.unused_cells + self.run_unused.iter().flatten().map(|entry| entry.1).sum::<u64>();
+            format!("; catalog cells {} returned {} in unread relations {unused}", c.possible_cells, c.returned_cells)
+        } else { String::new() };
         format!(
-            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s; selecting columns {:.6} s; file predicates {} leaves {} gates; prefix indexes {} columns {} excluded groups; files without active emits {idle}",
+            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s; selecting columns {:.6} s; file predicates {} leaves {} gates; prefix indexes {} columns {} excluded groups; files without active emits {idle}{cells}",
             c.files,
             c.provider_calls,
             c.provider_relations,
@@ -103,7 +129,7 @@ impl Requests {
             c.rows,
             c.refused,
             c.never_asked + self.run_unused.iter().flatten().count() as u64,
-            c.never_asked_rows + self.run_unused.iter().flatten().sum::<u64>(),
+            c.never_asked_rows + self.run_unused.iter().flatten().map(|entry| entry.0).sum::<u64>(),
             self.names.len(),
             c.misses,
             c.reads,
@@ -472,19 +498,14 @@ impl Exec<'_> {
             rq.counts.provider_relations += list.len() as u64;
             let checked = answer.split_off(asked.len());
             for t in &checked {
-                match t {
-                    Ok(t) => rq.counts.rows += t.n as u64,
-                    Err(_) => rq.counts.refused += 1,
-                }
+                rq.counts.received(t);
             }
             for ((n, entry), t) in asked.iter().zip(&list).zip(answer.drain(..)) {
-                match &t {
-                    Ok(t) => rq.counts.rows += t.n as u64,
-                    Err(_) => rq.counts.refused += 1,
-                }
+                rq.counts.received(&t);
                 if matches!(rq.suppliers[usize::from(*n)], Supplier::Project(super::project::ProjectAsk::Run))
                     && let Ok(table) = &t {
-                    rq.run_unused[usize::from(*n)] = Some(table.n as u64);
+                    let cells = if super::fill_prof::counting() { returned_cells(table) } else { 0 };
+                    rq.run_unused[usize::from(*n)] = Some((table.n as u64, cells));
                 }
                 let result = match entry.scope {
                     Scope::File(_) => t,
@@ -548,6 +569,7 @@ impl Exec<'_> {
             if let Some(Ok(table)) = &f.answer[i] {
                 self.requests.counts.never_asked += 1;
                 self.requests.counts.never_asked_rows += table.n as u64;
+                if super::fill_prof::counting() { self.requests.counts.unused_cells += returned_cells(table); }
             }
         }
         f.answer.clear();
