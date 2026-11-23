@@ -138,6 +138,7 @@ fn type_hosts(reading: &mut Reading<'_, '_>, tree: &WalkedTree<'_>) -> Vec<Posit
         ends: &tree.ends,
         nodes: &tree.nodes,
         annotations: tree.annotations,
+        declarations: tree.declarations,
     };
     form_imports(typed, &tree.imports, &mut reading.scratch.forms);
     type_strings(
@@ -171,6 +172,7 @@ fn lent(reading: &mut Reading<'_, '_>, builder: &mut NodeTableBuilder<'_>, tree:
                 ends: &tree.ends,
                 nodes: &tree.nodes,
                 annotations: tree.annotations,
+                declarations: tree.declarations,
             },
             text: tree.text,
             file: reading.request.file,

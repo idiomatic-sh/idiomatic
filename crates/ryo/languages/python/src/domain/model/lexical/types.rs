@@ -22,6 +22,8 @@ pub(crate) struct TypedTree<'t, 'a> {
     pub(crate) nodes: &'t [AnyNodeRef<'a>],
     /// Whether the module postpones the evaluation of its annotations (`from __future__ import annotations`).
     pub(crate) annotations: BindingAnnotationTiming,
+    /// What a declaration without a value does to its name: binds it in a stub.
+    pub(crate) declarations: crate::domain::model::types::AnnotatedDeclarations,
 }
 
 /// An embedded segment the walk wrote: the expression of a string the language reads as a type expression. The nodes of a

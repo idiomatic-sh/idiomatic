@@ -12,7 +12,7 @@ use crate::domain::model::lexical::types::{NamespaceKey, NodeClass, ScopeForm};
 use crate::domain::model::names::constants::NO_NAME;
 use crate::domain::model::names::service::builtin_of;
 use crate::domain::model::names::types::NameCode;
-use crate::domain::model::types::BindingAction;
+use crate::domain::model::types::{AnnotatedDeclarations, BindingAction};
 use ruff_python_ast::AnyNodeRef;
 use ryo::languages::{Count, Position};
 
@@ -23,9 +23,11 @@ pub(crate) fn clear(model: &mut ReachModel) {
     model.mutation_count = Count(0);
 }
 
-/// Whether the binding step at `at` gives its name a value: the target of an annotation without a value does not.
+/// Whether the binding step at `at` gives its name a value: the target of an annotation without a value does not, but in a stub,
+/// where it declares the name.
 fn binds(source: FlowSource<'_, '_, '_>, at: Position) -> Binds {
-    if let Some(AnyNodeRef::StmtAnnAssign(statement)) = node_at(source.tree, parent_of(source.tree, at))
+    if source.tree.declarations == AnnotatedDeclarations::Unbound
+        && let Some(AnyNodeRef::StmtAnnAssign(statement)) = node_at(source.tree, parent_of(source.tree, at))
         && statement.value.is_none()
     {
         Binds::Nothing

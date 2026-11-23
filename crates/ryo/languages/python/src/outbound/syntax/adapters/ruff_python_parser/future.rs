@@ -90,6 +90,23 @@ pub(super) fn annotation_timing(
     }
 }
 
+/// What a declaration `x: T` without a value does to `x` in a source of this kind: a stub, which is never run, declares `x` by
+/// the typing specification; a module that runs gives it no value.
+pub(super) const fn annotated_declarations(kind: PythonSourceKind) -> crate::domain::model::types::AnnotatedDeclarations {
+    match kind {
+        PythonSourceKind::Stub => crate::domain::model::types::AnnotatedDeclarations::Declared,
+        PythonSourceKind::Python => crate::domain::model::types::AnnotatedDeclarations::Unbound,
+    }
+}
+
+/// The text of the module property that records [`annotated_declarations`].
+pub(super) const fn declarations_text(declarations: crate::domain::model::types::AnnotatedDeclarations) -> ryo::languages::NameText<'static> {
+    ryo::languages::NameText(match declarations {
+        crate::domain::model::types::AnnotatedDeclarations::Declared => crate::domain::syntax::constants::MODULE_DECLARATIONS_DECLARED,
+        crate::domain::model::types::AnnotatedDeclarations::Unbound => crate::domain::syntax::constants::MODULE_DECLARATIONS_UNBOUND,
+    })
+}
+
 /// The text of the module property that records [`annotation_timing`].
 pub(super) const fn timing_text(
     timing: crate::domain::model::types::BindingAnnotationTiming,
@@ -104,11 +121,13 @@ pub(super) const fn timing_text(
     })
 }
 
-/// Writes the module node's two annotation properties: the future import's, and when its annotations are evaluated.
+/// Writes the module node's three annotation properties: the future import's, when its annotations are evaluated, and what a
+/// declaration without a value does to its name.
 pub(super) fn module_properties(
     builder: &mut ryo::languages::TableBuilder<'_>,
     future: FutureAnnotations,
     timing: crate::domain::model::types::BindingAnnotationTiming,
+    declarations: crate::domain::model::types::AnnotatedDeclarations,
 ) {
     use crate::domain::syntax::constants as names;
     let feature = if future.0 {
@@ -125,6 +144,11 @@ pub(super) fn module_properties(
         builder,
         names::MODULE_ANNOTATION_TIMING,
         timing_text(timing),
+    );
+    ryo::languages::node_property(
+        builder,
+        names::MODULE_ANNOTATED_DECLARATIONS,
+        declarations_text(declarations),
     );
 }
 

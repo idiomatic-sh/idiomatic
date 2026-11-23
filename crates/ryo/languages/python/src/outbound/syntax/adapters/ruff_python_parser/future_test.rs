@@ -275,6 +275,43 @@ fn stub_annotations_read_definitions_that_follow_them() {
     assert_eq!(counts, (0, 2, 2));
 }
 
+/// The `binding-use` rows the walk writes of `source` under `path`.
+fn walked_uses_of(path: &str, source: &'static str) -> usize {
+    use crate::fixtures::walking::{walk_words, walked, walked_keys, walked_rows};
+    let (mut table, mut scratch, mut count) = (languages::NodeTable::default(), Default::default(), None);
+    walked(
+        &crate::walk(),
+        path,
+        source.as_bytes(),
+        &[languages::Relation::BindingUse],
+        &mut table,
+        &mut scratch,
+        &mut |mut file| {
+            let mut words = walk_words(&crate::walk()).expect("each fixed name of the walk is stated once");
+            let keys = walked_keys(file.table);
+            let (rows, answer) = walked_rows(&mut file, &keys, languages::Relation::BindingUse, &mut words);
+            assert!(matches!(answer, languages::FactAnswer::Answered(_)), "{answer:?}");
+            count = Some(rows.len());
+        },
+    )
+    .expect("Python source is walked");
+    count.expect("the walk lends the file")
+}
+
+/// A stub is never run, and the typing specification reads its `x: T` as the declaration of `x`: a read after an annotated
+/// declaration without a value uses it, at module, function and class level (three uses), by today's reading and the walk
+/// alike; in a module that runs the declaration gives the name no value, and the reads use nothing.
+fn stub_declarations_bind_the_names_they_declare() {
+    const DECLARED: &str = "codec: str\ncodec.encode\ndef f() -> None:\n    local: int\n    local.bit_length\nclass C:\n    attr: int\n    x = attr\n";
+    let counts = (
+        uses_of("case.py", DECLARED),
+        uses_of("case.pyi", DECLARED),
+        walked_uses_of("case.py", DECLARED),
+        walked_uses_of("case.pyi", DECLARED),
+    );
+    assert_eq!(counts, (0, 3, 0, 3));
+}
+
 /// Which of the file's cases a row runs.
 #[derive(Clone, Copy, Debug)]
 enum Body {
@@ -288,6 +325,8 @@ enum Body {
     MalformedFutureImportNeverEnablesACompilerFeature,
     /// The case `stub_annotations_read_definitions_that_follow_them`.
     StubAnnotationsReadDefinitionsThatFollowThem,
+    /// The case `stub_declarations_bind_the_names_they_declare`.
+    StubDeclarationsBindTheNamesTheyDeclare,
 }
 
 /// The rows of the cases whose bodies assert for themselves.
@@ -324,6 +363,12 @@ const CASES: &[Case<Body, (), ()>] = &[
         input: || Body::StubAnnotationsReadDefinitionsThatFollowThem,
         expect: Expect::Value(()),
     },
+    Case {
+        name: CaseName("stub_declarations_bind_the_names_they_declare"),
+        word: Word::Succeeds,
+        input: || Body::StubDeclarationsBindTheNamesTheyDeclare,
+        expect: Expect::Value(()),
+    },
 ];
 
 /// Runs the body of one case.
@@ -344,6 +389,7 @@ fn body(given: Body) -> Result<(), ()> {
         Body::StubAnnotationsReadDefinitionsThatFollowThem => {
             stub_annotations_read_definitions_that_follow_them()
         }
+        Body::StubDeclarationsBindTheNamesTheyDeclare => stub_declarations_bind_the_names_they_declare(),
     }
     Ok(())
 }
