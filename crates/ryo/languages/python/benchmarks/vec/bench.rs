@@ -536,7 +536,7 @@ fn python_language(vocab: &Vocab) -> first::Language {
         host_len: finish::host::host_len,
         walk_facts: pair_provider::FACTS,
         text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
-        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain(std::env::var_os("VEC_PAIR_NO_PROJECT").is_none().then_some(&provider_packaging::MODULE_IDENTITY_REL)).chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
+        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain([&provider_packaging::MODULE_IDENTITY_REL]).chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
         facts: PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect(),
         spelled: SPELLED_COLUMNS.iter().map(|(r, c, how)| ((*r).to_owned(), (*c).to_owned(), match how { Spelling::Whole => None, Spelling::LastSegment(c) => Some(*c) })).collect(),
         is_identifier,

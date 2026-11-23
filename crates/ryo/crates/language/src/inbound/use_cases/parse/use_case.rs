@@ -124,6 +124,10 @@ impl<P: ParseUseCase> ParseEngine for P {
         ParseUseCase::kind_names(self)
     }
 
+    fn stable_fields(&self) -> crate::domain::fillers::types::FieldNames {
+        ParseUseCase::stable_fields(self)
+    }
+
     fn unknown_reasons(&self) -> &'static [UnknownName] {
         ParseUseCase::unknown_reasons(self)
     }
