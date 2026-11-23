@@ -36,6 +36,8 @@ pub(super) struct Guards {
     tests: Vec<Test>,
     pub(super) circuit: super::request_circuit::Circuit,
     spellings: Option<Spellings>,
+    pub(super) registered_drivers: usize,
+    pub(super) driver_predicates: usize,
     pub(super) indexed_columns: u64,
     pub(super) indexed_absences: u64,
 }
@@ -49,7 +51,7 @@ impl Default for Guards {
             columns: Default::default(), absent: vec![], empty_drivers: vec![], driver_representatives: Default::default(), marks: vec![], generation: 0,
             by_test: FxHashMap::default(),
             tests: vec![Test::Constant(true), Test::Constant(false)],
-            circuit: Default::default(), spellings: None, indexed_columns: 0, indexed_absences: 0,
+            circuit: Default::default(), spellings: None, registered_drivers: 0, driver_predicates: 0, indexed_columns: 0, indexed_absences: 0,
         }
     }
 }
@@ -78,6 +80,8 @@ impl Guards {
             let first = *representative.entry(predicate).or_insert(step);
             self.driver_representatives.insert(step, first);
         }
+        self.registered_drivers = self.driver_representatives.len();
+        self.driver_predicates = representative.len();
     }
 
     pub(super) fn driver(&mut self, node: usize) -> u32 {
