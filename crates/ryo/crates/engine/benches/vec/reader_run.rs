@@ -277,12 +277,14 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     drop(document);
     fin.prepare_requests(&[]);
     let mut distinct = BTreeSet::new();
-    for name in fin.exec.requests.provider_names() {
+    let mut slots = vec![None; catalog::ALL.len()];
+    for (slot, name) in fin.exec.requests.provider_slots() {
         let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
         if parser.absence_of(rel) == Some(l::AbsenceCause::NotYetRead) {
             eprintln!("provider does not yet read {name}");
             return false;
         }
+        slots[catalog::number_of(rel).0] = Some(slot);
         distinct.insert(rel);
     }
     let relations: Vec<_> = distinct.into_iter().collect();
@@ -438,6 +440,13 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             .rows
             .partials
             .retain(|(rel, _, missing)| coverage.needed(&plan, *rel, *missing));
+        // The same indexed packet supplied the prefix and certifies these empty populations.
+        for &rel in &facts {
+            if packet.complete_empty(rel) {
+                let slot = slots[catalog::number_of(rel).0].expect("declared reader relation");
+                fin.exec.walk_empty_slot(slot);
+            }
+        }
         for &i in &wanted {
             active[i] += 1;
         }

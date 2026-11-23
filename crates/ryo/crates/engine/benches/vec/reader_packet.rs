@@ -103,6 +103,10 @@ impl Packet {
             resolved: FxHashMap::default(),
         }
     }
+    pub(super) fn complete_empty(&self, rel: l::Relation) -> bool {
+        let i = catalog::number_of(rel).0;
+        self.ready && self.requested[i] && self.offsets[i].is_empty() && self.partial(rel).is_none()
+    }
     fn partial(&self, rel: l::Relation) -> Option<&str> {
         self.rows
             .partials_at

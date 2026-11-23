@@ -171,8 +171,10 @@ impl Requests {
     }
 
     #[allow(dead_code, reason = "SDK hosts inspect the request graph before their shared row packet is indexed")]
-    pub(crate) fn provider_names(&self) -> impl Iterator<Item = &str> {
-        self.names.iter().zip(&self.host).filter_map(|(name, host)| (!*host).then_some(name.as_str()))
+    pub(crate) fn provider_slots(&self) -> impl Iterator<Item = (u16, &str)> {
+        self.names.iter().zip(&self.host).enumerate().filter_map(|(slot, (name, host))| {
+            (!*host).then_some((slot as u16, name.as_str()))
+        })
     }
 
     /// Before prefix decisions exist, the parser may need any read below an
@@ -294,13 +296,17 @@ impl Exec<'_> {
             self.requests.run_columns[usize::from(*slot)].extend(mask);
         }
         self.requests.compile_guards();
+        self.requests.proven_empty.resize(self.requests.names.len(), false);
 
     }
 
     /// A completed part of the walk can already know a catalog relation is empty.
     pub(crate) fn walk_empty(&mut self, run: &Run, rel: &str) {
-        self.requests.proven_empty.resize(self.requests.names.len(), false);
-        if let Some(&slot) = run.fact_slots.get(rel) { self.requests.proven_empty[usize::from(slot)] = true; }
+        if let Some(&slot) = run.fact_slots.get(rel) { self.walk_empty_slot(slot); }
+    }
+
+    pub(crate) fn walk_empty_slot(&mut self, slot: u16) {
+        self.requests.proven_empty[usize::from(slot)] = true;
     }
 
     fn demand_input(&mut self, run: &mut Run, n: usize, mask: Columns) -> u32 {
