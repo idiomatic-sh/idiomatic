@@ -6,13 +6,82 @@ pub(super) const CALL_SITE: &str = "call-site";
 pub(super) const BINARY_OPERANDS: &str = "binary-operands";
 
 pub(super) const EXPR_STATEMENTS: &str = "expression-statement-value";
+pub(super) const BOOLEANS: &str = "boolean-operands";
+pub(super) const WITH_HEADER: &str = "with-header";
 pub(super) const COMPARISONS: &str = "comparison-operands";
 pub(super) const DICT_KEYS: &str = "dictionary-display-key";
 pub(super) const ASSIGN_NAMES: &str = "assignment-name-predecessor";
+pub(super) const DISPLAY_ELEMENT: &str = "display-element";
+pub(super) const POSITIONAL_ARGUMENT: &str = "positional-argument-site";
+pub(super) const ATTRIBUTE_PREFIX: &str = "attribute-prefix";
+pub(super) const CONSTANT_PREDECESSOR: &str = "dictionary-constant-predecessor";
+pub(super) const ANNOTATION_STRINGS: &str = "annotation-string-site";
+pub(super) const SUBSCRIPT: &str = "subscript-operands";
+pub(super) const SCHEDULE_END: &str = "binding-schedule-end";
 pub(super) const NESTED_DELIMITERS: &str = "nested-delimiters";
 
 pub(super) fn declare(run: &mut Run) {
     use Ty::{File, Node, Num, Sym};
+    let provider = finish::Supplier::Provider;
+    run.declare(
+        DISPLAY_ELEMENT,
+        &[
+            ("owner", Node),
+            ("id", Node),
+            ("position", Num),
+            ("count", Num),
+            ("after", Num),
+            ("file", File),
+        ],
+        provider,
+    );
+    run.declare(
+        POSITIONAL_ARGUMENT,
+        &[
+            ("owner", Node),
+            ("id", Node),
+            ("position", Num),
+            ("file", File),
+        ],
+        provider,
+    );
+    run.declare(
+        ATTRIBUTE_PREFIX,
+        &[
+            ("root", Node),
+            ("end", Node),
+            ("depth", Num),
+            ("file", File),
+        ],
+        provider,
+    );
+    run.declare(
+        CONSTANT_PREDECESSOR,
+        &[
+            ("dictionary", Node),
+            ("id", Node),
+            ("previous", Node),
+            ("file", File),
+        ],
+        provider,
+    );
+    run.declare(
+        ANNOTATION_STRINGS,
+        &[("id", Node), ("root", Node), ("file", File)],
+        provider,
+    );
+    run.declare(
+        SUBSCRIPT,
+        &[
+            ("id", Node),
+            ("value", Node),
+            ("slice", Node),
+            ("value-name", Sym),
+            ("file", File),
+        ],
+        provider,
+    );
+    run.declare(SCHEDULE_END, &[("point", Num), ("file", File)], provider);
     run.declare(
         EXPR_STATEMENTS,
         &[
@@ -25,15 +94,29 @@ pub(super) fn declare(run: &mut Run) {
         finish::Supplier::Provider,
     );
     run.declare(
-        COMPARISONS,
+        WITH_HEADER,
         &[
             ("id", Node),
-            ("left", Node),
-            ("right", Node),
+            ("colon", Node),
+            ("colon-span", Ty::Span),
             ("file", File),
         ],
-        finish::Supplier::Provider,
+        provider,
     );
+    for relation in [COMPARISONS, BOOLEANS] {
+        run.declare(
+            relation,
+            &[
+                ("id", Node),
+                ("left", Node),
+                ("right", Node),
+                ("operator", Sym),
+                ("count", Num),
+                ("file", File),
+            ],
+            provider,
+        );
+    }
     run.declare(
         DICT_KEYS,
         &[
@@ -67,6 +150,12 @@ pub(super) fn declare(run: &mut Run) {
             ("inner-kind", Sym),
             ("nonempty", Num),
             ("after-inner-kind", Sym),
+            ("close", Node),
+            ("after", Node),
+            ("first-comma", Node),
+            ("first-yield", Node),
+            ("commas", Num),
+            ("yields", Num),
             ("file", File),
         ],
         finish::Supplier::Provider,
@@ -102,7 +191,8 @@ pub(super) fn declare(run: &mut Run) {
 
 pub(super) fn fill(
     run: &mut Run,
-    file: &ColumnFile<'_, '_>,
+    file: &mut ColumnFile<'_, '_>,
+    source: &[u8],
     number: u32,
     relation: &str,
 ) -> Result<Table, String> {
@@ -133,6 +223,45 @@ pub(super) fn fill(
                 file_id,
             ])
         });
+    } else if relation == DISPLAY_ELEMENT {
+        file.visit_display_elements(|owner, id, position, count| {
+            write(&[
+                owner.0.into(),
+                id.0.into(),
+                position as u64,
+                count as u64,
+                (count - position - 1) as u64,
+                file_id,
+            ])
+        });
+    } else if relation == POSITIONAL_ARGUMENT {
+        file.visit_positional_arguments(|owner, id, position| {
+            write(&[owner.0.into(), id.0.into(), position as u64, file_id])
+        });
+    } else if relation == ATTRIBUTE_PREFIX {
+        file.visit_attribute_prefixes(|root, end, depth| {
+            write(&[root.0.into(), end.0.into(), depth as u64, file_id])
+        });
+    } else if relation == CONSTANT_PREDECESSOR {
+        file.visit_repeated_constant_keys(|dict, id, previous| {
+            write(&[dict.0.into(), id.0.into(), previous.0.into(), file_id])
+        });
+    } else if relation == ANNOTATION_STRINGS {
+        file.visit_annotation_strings(|id, root| write(&[id.0.into(), root.0.into(), file_id]));
+    } else if relation == SUBSCRIPT {
+        file.visit_subscript_operands(|id, value, slice, name| {
+            write(&[
+                id.0.into(),
+                value.0.into(),
+                slice.0.into(),
+                u64::from(run.sym(name.unwrap_or_default().as_bytes())),
+                file_id,
+            ])
+        });
+    } else if relation == SCHEDULE_END {
+        if let Some(point) = file.binding_schedule_end()? {
+            write(&[point, file_id]);
+        }
     } else if relation == EXPR_STATEMENTS {
         file.visit_expression_statements(|statement, value| {
             let kind = ryo::languages::node_table::kind_of(file.table, value);
@@ -145,10 +274,32 @@ pub(super) fn fill(
                 file_id,
             ])
         });
-    } else if relation == COMPARISONS {
-        file.visit_comparison_operands(|id, left, right| {
-            write(&[id.0.into(), left.0.into(), right.0.into(), file_id])
+    } else if relation == WITH_HEADER {
+        file.visit_with_headers(|id, colon| {
+            let s = ryo::languages::node_table::span_of(file.table, colon);
+            write(&[
+                id.0.into(),
+                colon.0.into(),
+                (u64::from(s.start.0) << 32) | u64::from(s.end.0),
+                file_id,
+            ]);
         });
+    } else if relation == COMPARISONS || relation == BOOLEANS {
+        let operands = |id: Position, left: Position, right: Position, op: &str, count: usize| {
+            write(&[
+                id.0.into(),
+                left.0.into(),
+                right.0.into(),
+                run.sym(op.as_bytes()).into(),
+                count as u64,
+                file_id,
+            ]);
+        };
+        if relation == COMPARISONS {
+            file.visit_comparison_operands(operands);
+        } else {
+            file.visit_boolean_operands(operands);
+        }
     } else if relation == DICT_KEYS {
         file.visit_dictionary_keys(|dict, key, count| {
             let begin = ryo::languages::node_table::span_of(file.table, key).start.0;
@@ -173,6 +324,8 @@ pub(super) fn fill(
             ])
         });
     } else if relation == NESTED_DELIMITERS {
+        let comma_kind = u64::from(run.sym(b"comma"));
+        let name_kind = u64::from(run.sym(b"name-token"));
         let kind = |p| {
             u64::from(
                 run.kind_sym[usize::from(ryo::languages::node_table::kind_of(file.table, p).0)],
@@ -182,30 +335,66 @@ pub(super) fn fill(
         file.visit_nested_delimiters(|outer, inner| pairs.push((outer, inner)));
         if !pairs.is_empty() {
             // The provider's token order supplies the same matching endpoints as token-link.
-            let mut closing: rustc_hash::FxHashMap<u32, Option<Position>> =
-                pairs.iter().map(|&(_, inner)| (inner.0, None)).collect();
+            #[derive(Default)]
+            struct Interior {
+                close: Option<Position>,
+                comma: Option<Position>,
+                yield_token: Option<Position>,
+                commas: u64,
+                yields: u64,
+            }
+            let mut interiors: rustc_hash::FxHashMap<u32, Interior> = pairs
+                .iter()
+                .map(|&(_, inner)| (inner.0, Interior::default()))
+                .collect();
             let tokens = run.tokens.as_ref().ok_or("missing token order")?;
-            tokens.links(file.table, &mut |event| {
-                if let finish::TokenEvent::Matching(open, close) = event
-                    && let Some(slot) = closing.get_mut(&open)
-                {
-                    *slot = Some(Position(close));
+            // The lexical stream identifies each delimiter's matching end and its directly enclosed tokens.
+            tokens.links(file.table, &mut |event| match event {
+                finish::TokenEvent::Matching(open, close) => {
+                    if let Some(slot) = interiors.get_mut(&open) {
+                        slot.close = Some(Position(close));
+                    }
                 }
+                finish::TokenEvent::Enclosing(id, open) => {
+                    let Some(slot) = interiors.get_mut(&open) else {
+                        return;
+                    };
+                    let position = Position(id);
+                    let token_kind = kind(position);
+                    if token_kind == comma_kind {
+                        let _ = slot.comma.get_or_insert(position);
+                        slot.commas += 1;
+                    } else if token_kind == name_kind {
+                        let span = ryo::languages::node_table::span_of(file.table, position);
+                        if source.get(span.start.0 as usize..span.end.0 as usize) == Some(b"yield")
+                        {
+                            let _ = slot.yield_token.get_or_insert(position);
+                            slot.yields += 1;
+                        }
+                    }
+                }
+                _ => {}
             });
+            let value = |id: Option<Position>| id.map_or(finish::NULL, |p| u64::from(p.0));
             for (outer, inner) in pairs {
-                let close = closing[&inner.0];
+                let info = &interiors[&inner.0];
+                let close = info.close;
                 let nonempty = close
                     .is_some_and(|c| file.next_code_token(inner).is_some_and(|first| first != c));
-                let after = close
-                    .and_then(|c| file.next_code_token(c))
-                    .map_or(finish::NULL, kind);
+                let after = close.and_then(|c| file.next_code_token(c));
                 write(&[
                     outer.0.into(),
                     inner.0.into(),
                     kind(outer),
                     kind(inner),
                     nonempty.into(),
-                    after,
+                    after.map_or(finish::NULL, kind),
+                    value(close),
+                    value(after),
+                    value(info.comma),
+                    value(info.yield_token),
+                    info.commas,
+                    info.yields,
                     file_id,
                 ]);
             }
