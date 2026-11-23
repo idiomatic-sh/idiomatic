@@ -5,7 +5,7 @@
 
 use super::constants::{PENDING, PRESENCE_BITS};
 use super::types::{
-    BuilderSegment, BuilderState, ByteSpan, ChildPlace, ChildRange, EmbeddedRoot,
+    BuilderSegment, BuilderState, ByteSpan, ChildPlace, ChildRange, EmbeddedRoot, OpenChildren,
     EmbeddedSegment, EmbeddedSpan, EmbeddedText, FieldCode, Finish, Implied, KindSet, KindsPresent,
     LogicalText, NodeTable, NodeTableBuilder, PendingToken, PresenceWord,
 };
@@ -13,7 +13,7 @@ use crate::domain::diagnostics::constants::UNSPECIFIED_CODE;
 use crate::domain::diagnostics::service::{clear, record};
 use crate::domain::diagnostics::types::{DiagnosticMetadata, DiagnosticPhase, TreeImpact};
 use crate::domain::elements::types::SyntaxAcceptance;
-use crate::domain::elements::types::{DecodedProperty, OpenNode};
+use crate::domain::elements::types::DecodedProperty;
 use ryo_relations::domain::elements::types::EmbeddedMapping;
 use ryo_relations::domain::relations::types::{
     Count, KindBits, Offset, Position, PropertyId, ReportText, Span,
@@ -76,14 +76,14 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
     for ids in &mut columns.enclosing {
         ids.clear();
     }
+    let open = std::mem::take(&mut columns.open);
     let pending = std::mem::take(&mut columns.pending);
     let written = std::mem::take(&mut columns.written);
     NodeTableBuilder(BuilderState {
         table,
         kinds,
-        open: Vec::new(),
+        open,
         written,
-        opened: Vec::new(),
         pending,
         segment_start: Position(0),
         segment: BuilderSegment::File,
@@ -203,6 +203,7 @@ fn numbered(
 }
 
 /// Adds `id` to the list of `code`, making the lists up to it when there are fewer.
+#[inline]
 fn listed(lists: &mut Vec<Vec<Position>>, code: usize, id: Position) {
     if let Some(ids) = lists.get_mut(code) {
         ids.push(id);
@@ -314,11 +315,11 @@ pub fn enter_node(
     if !columns.enclosing_sets.is_empty() {
         enclose(columns, id, parent, kind);
     }
-    state.open.push(OpenNode {
+    state.open.push(OpenChildren {
+        from: state.written.len(),
         position: id,
         next: ChildOrdinal(0),
     });
-    state.opened.push(id_after(Count(state.written.len())));
     state.cursor = state.cursor.max(start);
 }
 
@@ -377,10 +378,7 @@ fn leave_open(state: &mut BuilderState<'_>, end: Offset) {
     let span_end = mapped(state, end, end).end;
     let columns = &mut state.table.0;
     // The node's children, as they were written: its block of `children`; a token's place is kept for its id.
-    let from = state
-        .opened
-        .pop()
-        .map_or(state.written.len(), usize::from);
+    let from = open.from;
     let first = id_after(Count(columns.children.len()));
     columns.children.extend_from_slice(state.written.get(from..).unwrap_or_default());
     state.written.truncate(from);
@@ -422,14 +420,17 @@ fn close_segment(state: &mut BuilderState<'_>) {
         }
     }
     state.children_start = columns.children.len();
-    for token in state.pending.drain(..) {
-        let id = id_after(Count(columns.kind.len()));
-        columns.kind.push(token.kind.0);
-        columns.parent.push(token.parent.0);
-        columns.start.push(token.span.start.0);
-        columns.end.push(token.span.end.0);
-        columns.field.push(token.field.0);
-        columns.ordinal.push(token.ordinal);
+    // Each final column knows the segment length. Extend them independently so
+    // the contiguous writes have one capacity check per column and segment.
+    let tokens = &state.pending;
+    columns.kind.extend(tokens.iter().map(|t| t.kind.0));
+    columns.field.extend(tokens.iter().map(|t| t.field.0));
+    columns.parent.extend(tokens.iter().map(|t| t.parent.0));
+    columns.start.extend(tokens.iter().map(|t| t.span.start.0));
+    columns.end.extend(tokens.iter().map(|t| t.span.end.0));
+    columns.ordinal.extend(tokens.iter().map(|t| t.ordinal));
+    for (offset, token) in state.pending.drain(..).enumerate() {
+        let id = id_after(Count(tokens_from + offset));
         numbered(columns, token.kind, token.field, id);
         if !columns.enclosing_sets.is_empty() {
             enclose(columns, id, token.parent, token.kind);
@@ -821,6 +822,7 @@ pub fn finished<'b>(builder: &'b mut NodeTableBuilder<'_>) -> &'b NodeTable {
             let end = state.cursor;
             leave_open(state, end);
         }
+        state.table.0.open = std::mem::take(&mut state.open);
         state.table.0.pending = std::mem::take(&mut state.pending);
         state.table.0.written = std::mem::take(&mut state.written);
         presence(&mut state.table.0, state.kinds);
@@ -1185,7 +1187,7 @@ pub fn element_sets(table: &NodeTable) -> &[super::types::ElementSets] {
             super::types::ElementSets {
                 child_kinds: children.child_kinds,
                 child_fields: children.child_fields,
-                parent_kind: table.0.kind.get(p as usize).copied().unwrap_or(0),
+                parent_kind: if p as usize <= id { table.0.kind.get(p as usize).copied().unwrap_or(0) } else { 0 },
                 root: p as usize == id,
             }
         }).collect()

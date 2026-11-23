@@ -931,6 +931,7 @@ mod alloc_count;
 mod funnel;
 #[path = "file_seeds.rs"]
 mod file_seeds;
+mod source_batch;
 #[path = "facts.rs"]
 mod facts;
 #[path = "survivors.rs"]
@@ -1811,12 +1812,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut in_seed = vec![false; frules.len()];
     let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
     let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
-    let mut bytes = Vec::new();
+    let mut input = source_batch::SourceBatch::default();
     for (file_no, path) in list.iter().enumerate() {
         let c0 = thread_cpu();
-        use std::io::Read as _;
-        bytes.clear();
-        std::fs::File::open(path).and_then(|mut file| file.read_to_end(&mut bytes)).expect("read");
+        let bytes = input.file(&list, file_no).expect("read");
         let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
         store.reset(slots_n);
         reader_dump.clear();
@@ -1854,7 +1853,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     match word_src.as_str() {
                         "table" => {
                             // redo-onepass pass 2: the walk's name codes when the visit took them, else by bytes
-                            funnel::file_words(pt, &bytes, name_token, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
+                            funnel::file_words(pt, bytes, name_token, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
                             // the index: name-token positions of each required word
                             word_offsets.clear();
                             word_offsets.resize(n_words + 1, 0);
@@ -1906,7 +1905,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         }
                         "ac" => {
                             present.iter_mut().for_each(|w| *w = 0);
-                            for m in ac.find_iter(&bytes) {
+                            for m in ac.find_iter(bytes) {
                                 let (a, b) = (m.start(), m.end());
                                 if (a == 0 || !is_word(bytes[a - 1])) && (b == bytes.len() || !is_word(bytes[b])) {
                                     let w = m.pattern().as_usize();
@@ -1917,7 +1916,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         "bytes6" => {
                             // the byte patterns of the plan's text patterns (`byte_patterns`): one multi-pattern scan
                             let mut hit = 0u64;
-                            for m in bytes_ac.find_iter(&bytes) {
+                            for m in bytes_ac.find_iter(bytes) {
                                 hit |= 1 << m.pattern().as_usize();
                             }
                             present[0] = hit;
@@ -2001,7 +2000,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 if way != "structure" && way != "words" {
                     let ctx = funnel::Ctx {
                         table: t,
-                        src: &bytes,
+                        src: bytes,
                         facts: &store,
                         scan_children: false,
                         enc: node_table::enclosing_ids(t),
@@ -2196,7 +2195,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         }
         let ok = if use_facts && direct {
             cwalk
-                .walked(path, &bytes, &mut table, &mut |file| {
+                .walked(path, bytes, &mut table, &mut |file| {
                     let p0 = thread_cpu();
                     let ft = file.table;
                     let n = node_table::element_count(ft).0;
@@ -2212,7 +2211,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         seeds.choose(&index);
                         phases.add("seed candidates", thread_cpu() - now);
                         let now = thread_cpu();
-                        let ctx = funnel::Ctx { table: ft, src: &bytes,
+                        let ctx = funnel::Ctx { table: ft, src: bytes,
                             scan_children, enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
                         seeds.probe(&frules, &index, &ctx, &alive, &present, &mut in_seed);
                         phases.add("seed checks", thread_cpu() - now);
@@ -2519,7 +2518,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     // one parse a file: the prefix and then the second half on this walked file, before the walk drops it
                     if let Some(seeds) = &mut file_seeds {
                         let now = thread_cpu();
-                        let ctx = funnel::Ctx { table: ft, src: &bytes,
+                        let ctx = funnel::Ctx { table: ft, src: bytes,
                             scan_children, enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
                         seeds.resolve(&frules, &index, &ctx, &mut in_seed);
                         phases.add("seed checks", thread_cpu() - now);
@@ -2550,7 +2549,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         // wanted() already charges its own time to the second half.
                         if seed_only { phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0)); }
                         if fin.visits(&wanted) {
-                            fin.column_file(file_no, path, file, &bytes, &wanted);
+                            fin.column_file(file_no, path, file, bytes, &wanted);
                         }
                     } else if seed_only {
                         phases.add("seed handoff", thread_cpu() - handoff);
@@ -2561,7 +2560,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         } else if use_facts {
             // the provider's facts are lent only while the walk runs: decide here which files need them (some rule that
             // tests a fact survived the kinds-and-words skip), then fill those relations and write their columns
-            ryo_python::fixtures::walking::walked_structured(walk, path, &bytes, &[], &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
+            ryo_python::fixtures::walking::walked_structured(walk, path, bytes, &[], &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
                 let p0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
@@ -2637,7 +2636,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             let mut builder = if structured { node_table::structured(&mut table, walk_kinds(walk), &enclosing) } else { node_table::builder(&mut table, walk_kinds(walk)) };
             let ok = walk
                 .walk(
-                    WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(&bytes) },
+                    WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(bytes) },
                     RelationNeeds(&[]),
                     &mut builder,
                     &mut scratch,

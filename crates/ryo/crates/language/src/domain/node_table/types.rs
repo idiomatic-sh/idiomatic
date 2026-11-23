@@ -5,7 +5,7 @@
 //! parent the host node.
 
 use crate::domain::diagnostics::types::Diagnostics;
-use crate::domain::elements::types::{DecodedProperty, OpenNode, SyntaxAcceptance};
+use crate::domain::elements::types::{DecodedProperty, SyntaxAcceptance};
 use ryo_relations::domain::elements::types::EmbeddedMapping;
 use ryo_relations::domain::relations::types::{Bytes, Count, KindBits, Offset, Position, Span};
 use ryo_relations::domain::terms::types::{ChildOrdinal, NameText};
@@ -80,8 +80,11 @@ pub(crate) struct NodeTableEngine {
     pub(crate) child_sets: Vec<ChildSets>,
     /// Whether this table records structural masks.
     pub(crate) structured: bool,
-    /// Worker buffers reused while numbering the next file.
+    /// Token storage returned by the previous builder.
     pub(crate) pending: Vec<PendingToken>,
+    /// Open-node stack returned by the previous builder.
+    pub(crate) open: Vec<OpenChildren>,
+    /// Immediate-child storage returned by the previous builder.
     pub(crate) written: Vec<Position>,
     /// The kind sets a `structured` builder was given, one enclosing column each.
     pub(crate) enclosing_sets: Vec<KindSet>,
@@ -307,12 +310,10 @@ pub(crate) struct BuilderState<'a> {
     /// How many kinds the language has: the kinds present have a bit for each.
     pub(crate) kinds: Count,
     /// The open nodes, innermost last, each with the ordinal its next child takes.
-    pub(crate) open: Vec<OpenNode>,
-    /// The children of the open nodes written so far, each open node's after the place `opened` holds for it: a node by
+    pub(crate) open: Vec<OpenChildren>,
+    /// The children of the open nodes written so far, each open node's after its `from` offset: a node by
     /// its id, a token by `PENDING` with its place among `pending`.
     pub(crate) written: Vec<Position>,
-    /// For each open node, innermost last, where its children start in `written`.
-    pub(crate) opened: Vec<Position>,
     /// The tokens of the segment being written, kept until its nodes are numbered.
     pub(crate) pending: Vec<PendingToken>,
     /// The id the segment's first token takes once its nodes are numbered: the file's tree starts at zero.
@@ -329,6 +330,17 @@ pub(crate) struct BuilderState<'a> {
     pub(crate) logical: LogicalText,
     /// Start of the current segment in the flat children column.
     pub(crate) children_start: usize,
+}
+
+/// An open node and its not-yet-closed slice of immediate children.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct OpenChildren {
+    /// The open node.
+    pub(crate) position: Position,
+    /// The ordinal of its next child.
+    pub(crate) next: ChildOrdinal,
+    /// The first immediate child in the builder's pending child list.
+    pub(crate) from: usize,
 }
 
 /// A token written before the nodes of its segment are all numbered.
