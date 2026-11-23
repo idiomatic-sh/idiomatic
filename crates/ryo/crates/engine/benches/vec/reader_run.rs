@@ -123,6 +123,7 @@ pub(super) fn run(
         .map(|n| n.j["rel"].as_str().expect("base name"))
         .collect();
     let mut run = finish::Run::default();
+    run.file_field_codes = true;
     for name in bases {
         let relation = catalog::relation_named(NameRef(name)).expect("reader catalog");
         if parser.includes_expansions(relation) {
