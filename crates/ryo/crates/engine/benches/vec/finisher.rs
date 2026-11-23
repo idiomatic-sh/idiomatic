@@ -105,9 +105,6 @@ impl<'p> Finisher<'p> {
         me.exec.cold_test_load(&mut me.run);
         me.exec.cold_load(&mut me.run);
         me.exec.col_load(&mut me.run);
-        me.exec.bind_proofs(&mut me.run, &me.emits);
-        #[cfg(feature = "vec-ask-audit")]
-        finish::ask_audit::begin();
         me.time += thread_cpu() - t0;
         me
     }
@@ -273,10 +270,8 @@ impl<'p> Finisher<'p> {
             }
             std::fs::write(path, data).expect("write rule counters");
         }
-        self.exec.col_report();
-        #[cfg(feature = "vec-ask-audit")]
-        finish::ask_audit::report();
         let exec = &self.exec;
+        exec.col_report();
         if let Some(out) = &self.stats {
             // columns 8 and 13: runs by key, runs by key that returned nothing (finish/keyed.rs); 9 and 10 (made by, why)
             // -1 and empty; 14: rows of tables the step built (a table handed on from an input counts 0)

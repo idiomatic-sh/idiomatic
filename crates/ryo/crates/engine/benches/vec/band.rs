@@ -102,7 +102,7 @@ impl Exec<'_> {
     /// kept rows with a partner, the scan stopping at the first.
     pub(super) fn band_rows(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pb: usize, count: bool) -> R<Option<(Table, Vec<u64>)>> {
         let sp = self.sel(run, node)?;
-        if super::filter_order::file_fails(run, f, &sp.paths) {
+        if super::filter_order::file_fails(run, f, &sp.conj) {
             return Ok(Some((self.empty(run, node)?, Vec::new())));
         }
         let ka = 1 - pb;

@@ -130,6 +130,9 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
         ks.dedup();
         ex.probe(f, run, p, pr.right, pr.rk[0], &ks)?
     } else {
+        if pr.rk.len() == 1 && pr.rfile[0] && let Some(out) = ex.file_exclusion(f, run, p, node, pr.right, (&pr.lk, &pr.rk), l, |keep| gather(pr, l, keep))? {
+            return Ok(out);
+        }
         ex.eval(f, run, p, pr.right)?
     };
     if r.n == 0 {

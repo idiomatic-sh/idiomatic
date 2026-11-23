@@ -377,7 +377,7 @@ fn predicate<'a>(
             let re = b.regex(&pattern.0)?;
             let d = if b.language.text_kinds.contains(&k) {
                 b.domain(Domain::TextMatching(k, re))
-            } else if b.out.regexes[re].is_match(b"") {
+            } else if b.out.regexes[re].compiled()?.is_match(b"") {
                 ANY
             } else {
                 EMPTY
@@ -648,7 +648,9 @@ fn guards(b: &mut Builder<'_>, plan: &FinishPlan) -> Vec<Id> {
             Rows(r) if r.rows.is_empty() => EMPTY,
             _ => ANY,
         };
-        out.push(value);
+        // An invalid predicate can never prove that the suppressing side is empty.
+        let invalid = b.take_validation();
+        out.push(b.or(value, invalid));
     }
     out
 }
@@ -691,7 +693,11 @@ pub(super) fn prepare<'a>(
     b: &mut Builder<'_>,
     plan: &'a FinishPlan,
     live: &[bool],
-) -> Vec<Option<Exclusion<'a>>> {
+) -> Vec<(usize, Exclusion<'a>)> {
+    // Only a retained proof needs its matcher validated. Carry this obligation
+    // even when the row's node expression folds away the matching instruction.
+    let defer = std::env::var_os("VEC_PAIR_EAGER_REGEX").is_none();
+    b.proof_validation = defer.then_some(EMPTY);
     let guards = guards(b, plan);
     // Follow the right side for exact keyed differences. File guards already
     // describe suppression inputs whose rows need richer relational operators.
@@ -756,7 +762,7 @@ pub(super) fn prepare<'a>(
     let mut rows: Vec<Option<Row<'_>>> = Vec::with_capacity(plan.steps.len());
     for (i, s) in plan.steps.iter().enumerate() {
         let capped = b.out.capped;
-        let row = live[i]
+        let mut row = live[i]
             .then(|| -> Option<Row<'_>> {
                 use FinishStep::*;
                 match s {
@@ -858,11 +864,16 @@ pub(super) fn prepare<'a>(
             })
             .flatten()
             .filter(|_| b.out.capped == capped);
+        let invalid = b.take_validation();
+        if let Some(row) = &mut row {
+            row.guard = b.or(row.guard, invalid);
+        }
         if row.is_none() && matches!(s, FinishStep::GroupCount(_)) {
             let _ = b.counts.remove(&i);
         }
         rows.push(row);
     }
+    b.proof_validation = None;
     if std::env::var_os("VEC_PAIR_TRACE").is_some() {
         for (i, row) in rows.iter().enumerate() {
             if row.is_some() {
@@ -932,7 +943,7 @@ pub(super) fn prepare<'a>(
     plan.steps
         .iter()
         .enumerate()
-        .map(|(i, s)| {
+        .filter_map(|(i, s)| {
             if !positive[i] {
                 return None;
             }
@@ -969,13 +980,16 @@ pub(super) fn prepare<'a>(
             if b.out.capped != capped {
                 return None;
             }
-            Some(Exclusion {
-                id: id?,
-                keys,
-                domain,
-                guard: right.guard,
-                slots,
-            })
+            Some((
+                i,
+                Exclusion {
+                    id: id?,
+                    keys,
+                    domain,
+                    guard: right.guard,
+                    slots,
+                },
+            ))
         })
         .collect()
 }

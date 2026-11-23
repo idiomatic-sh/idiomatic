@@ -23,11 +23,10 @@ macro_rules! sw {
     }};
 }
 
-/// Step timing requires the vec-step-clock feature and the runtime timing switches.
+/// 8: the per-step thread clock (a system call each read) only under `VEC_STEP_TIME`; else 0 (the stats' time column empty).
 /// redo-int: one definition for engine-vec's and redo-union pass 2's step clock (the same switch in both).
 #[inline]
 pub(super) fn step_clock() -> f64 {
-    if !cfg!(feature = "vec-step-clock") { return 0.0; }
     // 9: `VEC_STEP_TICKS`: the monotonic clock (vDSO, no system call), for a per-step split that the clock does not distort
     if sw!("VEC_STEP_TICKS") { return select_kernel::ticks(); }
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
@@ -59,11 +58,6 @@ mod tree_class;
 mod frame;
 #[path = "finish/known.rs"]
 mod known;
-#[path = "finish/static_tests.rs"]
-mod static_tests;
-#[cfg(feature = "vec-ask-audit")]
-#[path = "finish/ask_audit.rs"]
-pub(crate) mod ask_audit;
 #[path = "finish/set_ops.rs"]
 mod set_ops;
 #[path = "finish/empty_why.rs"]
@@ -99,6 +93,18 @@ mod ordering;
 mod leaf_scan;
 #[path = "finish/cold_bucket.rs"]
 mod cold_bucket;
+#[path = "finish/view_join/probe.rs"]
+mod view_probe;
+#[path = "finish/view_join/choice.rs"]
+mod view_choice;
+#[path = "finish/view_join/key.rs"]
+mod view_key;
+#[path = "finish/view_join/pair.rs"]
+mod view_pair;
+#[path = "finish/view_join/entry.rs"]
+mod view_entry;
+#[path = "finish/view_join/input.rs"]
+mod view_input;
 #[path = "finish/cold_text.rs"]
 mod cold_text;
 #[path = "finish/cold_list.rs"]
@@ -288,7 +294,6 @@ pub(super) struct Run {
     /// Relations whose provider exposes a population other than this native file table.
     pub(super) reader_tables: rustc_hash::FxHashSet<String>,
     cold: cold_list::Plan,
-    path_tests: filter_order::Paths,
     cold_entries: cold_entries::Audit,
     cold_text: cold_text::Plan,
     pub(super) texts: Vec<Box<[u8]>>,
@@ -661,6 +666,7 @@ pub(super) struct File<'a> {
     memo: Vec<Option<Res>>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
+    cursor_views: rustc_hash::FxHashSet<usize>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
@@ -671,10 +677,8 @@ pub(super) struct File<'a> {
     fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
     /// redo-union pass 2: whether a step is known empty in this file from its kinds, seeds and per-file tests (`known`).
     known: Vec<u8>,
-    static_answers: static_tests::Answers,
-    path_answers: RefCell<static_tests::Answers>,
-    path_errors: std::cell::OnceCell<RefCell<filter_order::PathErrors>>,
-    present_fields: std::cell::OnceCell<rustc_hash::FxHashSet<u32>>,
+    /// The kinds the file has, one bit a kind code (made at the first ask).
+    kind_bits: Vec<u64>,
     /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
     /// next file (no 30 k-entry table made and dropped a file).
     touched: Vec<u32>,
@@ -705,8 +709,7 @@ struct FileBufs {
     lazies: FxHashMap<usize, Rc<Lazy>>,
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
-    static_answers: static_tests::Answers,
-    path_answers: static_tests::Answers,
+    kind_bits: Vec<u64>,
 }
 
 /// A map's tables given back (recycle.rs) and the map emptied, its room kept.
@@ -753,8 +756,7 @@ impl Drop for File<'_> {
             lazies: std::mem::take(&mut self.lazies),
             facts: std::mem::take(&mut self.facts),
             fact_ix: std::mem::take(self.fact_ix.get_mut()),
-            static_answers: std::mem::take(&mut self.static_answers),
-            path_answers: std::mem::take(self.path_answers.get_mut()),
+            kind_bits: std::mem::take(&mut self.kind_bits),
         };
         b.kind.clear();
         b.start.clear();
@@ -776,8 +778,7 @@ impl Drop for File<'_> {
             recycle::recycle(t);
         }
         b.fact_ix.clear();
-        b.static_answers.clear();
-        b.path_answers.clear();
+        b.kind_bits.clear();
         // a map grown far past a usual file is not kept (its room would stay with the worker)
         if b.vrows.capacity() > 1 << 12 || b.index.capacity() > 1 << 12 || b.fact_ix.capacity() > 1 << 12 {
             return;
@@ -843,6 +844,7 @@ impl File<'_> {
             cold_roots: Vec::new(),
             cold_text: cold_text::Dictionary::default(),
             vmat: b.vmat,
+            cursor_views: Default::default(),
             index: b.index,
             fills: b.fills,
             lazies: b.lazies,
@@ -850,10 +852,7 @@ impl File<'_> {
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
             known: Vec::new(),
-            static_answers: b.static_answers,
-            path_answers: RefCell::new(b.path_answers),
-            path_errors: Default::default(),
-            present_fields: Default::default(),
+            kind_bits: b.kind_bits,
             touched: Vec::new(),
             fact_read: Vec::new(),
         };
@@ -1285,14 +1284,13 @@ pub(super) struct ViewSpec {
     cold_test: std::cell::OnceCell<Rc<cold_test::Kernel>>,
     cold_bucket: std::cell::OnceCell<cold_list::Handoff>,
     cold_file_test: bool,
-    paths: filter_order::PathList,
 }
 
 impl ViewSpec {
     fn new(base: Native, map: Vec<usize>, filter: Vec<E>) -> Self {
         let tests = view_cols::compile(&filter);
         let cold_file_test = filter.iter().any(|e| filter_order::file_const(e) && !matches!(e, E::Lit(_)));
-        ViewSpec { base, map, filter, tests, paths: Default::default(), cold_file_test, cold_test: std::cell::OnceCell::new(), cold_bucket: std::cell::OnceCell::new() }
+        ViewSpec { base, map, filter, tests, cold_file_test, cold_test: std::cell::OnceCell::new(), cold_bucket: std::cell::OnceCell::new() }
     }
 }
 
@@ -1305,7 +1303,6 @@ pub(super) enum Res {
 
 /// A select compiled once a run.
 struct SelPlan {
-    paths: filter_order::PathList,
     srcs: Vec<usize>,
     conj: Vec<E>,
     refs: Vec<u64>,
@@ -1361,7 +1358,6 @@ pub(super) struct Exec<'p> {
     /// redo-union pass 2: what each step needs to return anything (`known`), and its shared empty answer.
     needs: Vec<Option<&'static known::Need>>,
     flat: known::Flat,
-    tests: static_tests::Tests,
     empties: Vec<Option<Rc<Table>>>,
     /// The view rows a keyed read of a view finds (reused).
     scratch_rows: Vec<u32>,
@@ -1429,10 +1425,9 @@ impl<'p> Exec<'p> {
             u32_pool: Vec::new(),
             needs: vec![None; k],
             flat: known::Flat::new(k),
-            tests: Default::default(),
             empties: vec![None; k],
             scratch_rows: Vec::new(),
-            timing: cfg!(feature = "vec-step-clock") && sw!("VEC_STEP_TIME"),
+            timing: sw!("VEC_STEP_TIME"),
             col: col::Kernels::default(),
         }
     }
@@ -1765,7 +1760,7 @@ impl<'p> Exec<'p> {
             J::Array(a) => a.iter().map(|it| Ok((s(&it[0])?.to_owned(), self.expr(run, &it[1], &names)?))).collect::<R<_>>().map_err(|e| format!("{e} in step {node} over {srcs:?}"))?,
             _ => return Err("items".to_owned()),
         };
-        let sp = Rc::new(SelPlan { paths: run.path_tests.bind(&conj), srcs, conj, refs, items });
+        let sp = Rc::new(SelPlan { srcs, conj, refs, items });
         self.sels[node] = Some(sp.clone());
         Ok(sp)
     }
@@ -1805,9 +1800,7 @@ impl<'p> Exec<'p> {
                             let map = sp.items.iter().map(|(_, e)| if let E::Col(_, c, _) = e { iv.map[*c] } else { 0 }).collect();
                             let mut filter = iv.filter.clone();
                             filter.extend(sp.conj.iter().map(|e| remap(e, &iv.map)));
-                            let mut view = ViewSpec::new(iv.base, map, filter);
-                            view.paths = run.path_tests.bind(&view.filter);
-                            Some(Rc::new(view))
+                            Some(Rc::new(ViewSpec::new(iv.base, map, filter)))
                         } else {
                             None
                         }
@@ -1865,7 +1858,7 @@ impl<'p> Exec<'p> {
         if let Some(t) = &self.run_memo[node] {
             return Ok(Res::Tab(t.clone()));
         }
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node, known::AskUse::Whole) {
+        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
             emptyprop::skipped(f, node);
             return Ok(Res::Tab(self.empty_rc(run, node)?));
@@ -1883,8 +1876,6 @@ impl<'p> Exec<'p> {
         }
         let out = if self.timing { self.timed_body(f, run, p, node)? } else { self.body(f, run, p, node)? };
         emptyprop::ran();
-        #[cfg(feature = "vec-ask-audit")]
-        ask_audit::whole_ran(self, f, node, out.n);
         self.stats.ran(node);
         self.stats.produced(node, out.n);
         keyed::built(self, f, node, &out);
@@ -2007,23 +1998,30 @@ impl<'p> Exec<'p> {
                     return Ok(t.clone());
                 }
                 let t0 = leaf_scan::table_clock();
-                let sc = self.schema(run, node)?;
                 let rows = view_rows_for(f, run, &v, node, true);
-                let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
-                for c in 0..v.map.len() {
-                    view_cols::gather_ids(f, run, v.base, v.map[c], rows.iter().copied(), &mut out.cols[c]);
-                }
-                out.n = rows.len();
-                self.stats.built[node] += out.n as u64;
-                let rc = recycle::rc(out);
+                let rc = if rows.is_empty() {
+                    self.empty_rc(run, node)?
+                } else {
+                    let sc = self.schema(run, node)?;
+                    let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
+                    for c in 0..v.map.len() {
+                        view_cols::gather_ids(f, run, v.base, v.map[c], rows.iter().copied(), &mut out.cols[c]);
+                    }
+                    out.n = rows.len();
+                    recycle::rc(out)
+                };
                 f.vmat.insert(node, rc.clone());
                 let dt = leaf_scan::table_clock() - t0;
                 self.stats.time[node] += dt;
                 if self.timing || !sw!("VEC_LEAF_CLOCK") {
                     self.inner += dt;
                 }
-                self.stats.ran(node);
-                self.stats.produced(node, rc.n);
+                // A row-stream reader may already have produced this logical result.
+                if !f.cursor_views.remove(&node) {
+                    self.stats.built[node] += rc.n as u64;
+                    self.stats.ran(node);
+                    self.stats.produced(node, rc.n);
+                }
                 Ok(rc)
             }
         }
@@ -2067,21 +2065,12 @@ impl<'p> Exec<'p> {
         if let Some(l) = f.lazies.get(&node) {
             return Ok(l.clone());
         }
-        let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
+        let edges = self.edge_input(f, run, p, self.arg_rel(node, "edges")?)?;
         let t0 = step_clock();
         let a = &self.plan.nodes[node].j["args"];
         let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|k| edges.col(k)).collect::<R<_>>()?;
         let (si, di) = (edges.col(s(&a["source"])?)?, edges.col(s(&a["destination"])?)?);
-        let mut adj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
-        let mut radj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
-        for r in 0..edges.n {
-            let mut k: Vec<u64> = keys.iter().map(|c| edges.cols[*c][r]).collect();
-            let mut k2 = k.clone();
-            k.push(edges.cols[si][r]);
-            adj.entry(k).or_default().push(edges.cols[di][r]);
-            k2.push(edges.cols[di][r]);
-            radj.entry(k2).or_default().push(edges.cols[si][r]);
-        }
+        let (adj, radj) = edges.adjacency(f, run, &keys, si, di);
         let sc = self.schema(run, node)?;
         let l = Rc::new(Lazy { keys, adj, radj, node, names: sc.names.clone(), tys: sc.tys.clone(), cache: RefCell::new(FxHashMap::default()), rcache: RefCell::new(FxHashMap::default()) });
         let dt = step_clock() - t0;
@@ -2112,11 +2101,10 @@ impl<'p> Exec<'p> {
         // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
         // dispatch point (by the frame's code)
         if fr.op == frame::Op::Select {
-            return match self.col.operator(node) {
-                col::Operator::Projection(i) => self.col_select(f, run, p, node, i as usize),
-                col::Operator::Join(i) => self.whole_join(f, run, p, i as usize),
-                col::Operator::Ordinary => self.select_entry(f, run, p, node),
-            };
+            if let Some(index) = self.col.projection(node) {
+                return self.col_select(f, run, p, node, index);
+            }
+            return self.select_entry(f, run, p, node);
         }
         let t = self.step(f, run, p, node)?;
         if t.n == 0 { self.empty_rc(run, node) } else { Ok(recycle::rc(t)) }
@@ -2670,7 +2658,7 @@ impl<'p> Exec<'p> {
     fn select(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         {
             let sp = self.sel(run, node)?;
-            if filter_order::file_fails(run, f, &sp.paths) {
+            if filter_order::file_fails(run, f, &sp.conj) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
                 empty_sel::at(empty_sel::stage::FILE_TEST);
                 return self.empty(run, node);
@@ -3582,7 +3570,7 @@ fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize,
     let start = if sw!("VEC_LEAF_PROFILE") { step_clock() } else { 0.0 };
     let mut entered = 0;
     let mut tests = 0;
-    let slot = if v.cold_file_test && filter_order::file_fails(run, f, &v.paths) {
+    let slot = if v.cold_file_test && filter_order::file_fails(run, f, &v.filter) {
         cold_bucket::Slot::Empty
     } else if let Some(bucket) = v.cold_bucket.get() {
         let slot = bucket.select(f);
@@ -3718,6 +3706,11 @@ fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize
 /// The literal test `lit_rows` reads by: the fill, its base column and the literals.
 fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<(u16, usize, Vec<u32>)> {
     let Native::Fact(i) = base else { return None };
+    lit_pick_for(conj, si, map, |bc| f.facts[usize::from(i)].as_ref().is_some_and(|t| t.tys[bc] == Ty::Sym))
+        .map(|(column, values)| (i, column, values))
+}
+
+fn lit_pick_for(conj: &[E], si: usize, map: &[usize], symbol_column: impl Fn(usize) -> bool) -> Option<(usize, Vec<u32>)> {
     fn cols(e: &E, si: usize, out: &mut Vec<usize>) {
         match e {
             E::Col(s, c, _) if *s == si => out.push(*c),
@@ -3742,11 +3735,11 @@ fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) ->
             if kinds_required_into(e, si, c, &mut vals) {
                 let bc = if map.is_empty() { c } else { map[c] };
                 // a text literal names a symbol cell only; a flag or number column is tested row by row
-                if f.facts[usize::from(i)].as_ref().is_none_or(|t| t.tys[bc] != Ty::Sym) {
+                if !symbol_column(bc) {
                     continue;
                 }
                 // redo-fills c5 (the pick without its rows) in redo-alloc's buffers: the literals copied out, the buffers kept
-                out = Some((i, bc, vals.clone()));
+                out = Some((bc, vals.clone()));
                 break 'conj;
             }
         }
@@ -4063,9 +4056,6 @@ fn index_of(t: &Table, cols: &[usize]) -> Index {
 }
 
 fn table_index(f: &mut File<'_>, tn: usize, t: &Table, cols: &[usize]) -> Rc<Index> {
-    // Named tables live in the file memo or its view materializations until teardown.
-    // A forwarded table can have several producer slots; index its immutable allocation once.
-    let tn = if sw!("VEC_NO_COL_JOIN") || sw!("VEC_COL_JOIN_ORACLE") { tn } else { std::ptr::from_ref(t) as usize };
     // redo-alloc: the index's columns as an inline key, the index in a kept allocation (`index_rc`)
     let same = |c: &inline_key::Key| c.cells().len() == cols.len() && c.cells().iter().zip(cols).all(|(a, b)| *a == *b as u64);
     if let Some(v) = f.index.get(&tn)

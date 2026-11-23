@@ -13,7 +13,7 @@
 
 use super::{E, Exec, File, Native, Provider, Res, Run, filter_order};
 
-/// Inputs and local proof premises resolved while binding the step.
+/// What a step needs to return anything, prepared once a run (at its first ask).
 pub(super) struct Need {
     /// Empty when any of these is empty (or, `all`, when every one is).
     pub(super) inputs: Box<[usize]>,
@@ -23,26 +23,14 @@ pub(super) struct Need {
     /// Survivor sets a seed test reads.
     pub(super) seeds: Box<[usize]>,
     /// A per-file test to decide.
-    path: filter_order::PathList,
+    pub(super) file_test: bool,
     /// Never known empty (a constant step: made once a run, as before).
     pub(super) never: bool,
-}
-
-#[derive(Clone, Copy)]
-pub(super) enum AskUse {
-    Whole,
-    Keyed,
-    Size,
 }
 
 const NO: u8 = 1;
 const YES: u8 = 2;
 const BUSY: u8 = 3;
-
-#[cfg(feature = "vec-ask-audit")]
-pub(super) fn proved(value: u8) -> bool {
-    matches!(value, YES | YES_EP)
-}
 /// redo-empty: known empty by the propagation's own leaves (directly or through an input): counted apart.
 pub(super) const YES_EP: u8 = 4;
 
@@ -53,9 +41,10 @@ pub(super) const YES_EP: u8 = 4;
 pub(super) struct Rec {
     ins: u32,
     n_ins: u16,
-    first: super::static_tests::List,
-    propagated: super::static_tests::List,
-    path: filter_order::PathList,
+    n_kinds: u16,
+    kinds: u32,
+    seeds: u32,
+    n_seeds: u16,
     flags: u8,
 }
 const READY: u8 = 1;
@@ -65,14 +54,14 @@ const FILE_TEST: u8 = 8;
 const CAN: u8 = 16;
 /// redo-empty: the step has a leaf of the propagation (`emptyprop`).
 const EP_LEAF: u8 = 32;
-const PUBLISH: u8 = 64;
 
 #[derive(Default)]
 pub(super) struct Flat {
     recs: Vec<Rec>,
     ins: Vec<u32>,
-    publication: Vec<(u32,u32)>,
-    publish_edges: Vec<u32>,
+    /// Kind sets: a length, then that many kind codes.
+    kinds: Vec<u16>,
+    seeds: Vec<u16>,
 }
 
 impl Flat {
@@ -84,15 +73,7 @@ impl Flat {
 impl Exec<'_> {
     /// Whether a run of `node` in this file returns nothing, known without running it.
     #[inline(always)]
-    pub(super) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, _usage: AskUse) -> bool {
-        let empty = self.known_empty_now(f, run, p, node);
-        #[cfg(feature = "vec-ask-audit")]
-        super::ask_audit::observe(self, f, node, _usage, empty);
-        empty
-    }
-
-    #[inline(always)]
-    fn known_empty_now(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+    pub(super) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         match f.known[node] {
             YES | YES_EP => return true,
             NO | BUSY => {}
@@ -133,7 +114,7 @@ impl Exec<'_> {
 
     #[inline(never)]
     fn static_empty_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
-        if cfg!(feature = "vec-step-clock") && sw!("VEC_STEP_TIME") && self.stats.static_depth == 0 {
+        if sw!("VEC_STEP_TIME") && self.stats.static_depth == 0 {
             self.stats.static_depth = 1;
             let t0 = super::step_clock();
             let e = self.static_empty_(f, run, p, node);
@@ -148,13 +129,33 @@ impl Exec<'_> {
         }
         f.known[node] = BUSY;
         self.stats.static_visits += 1;
-        if r.first.is_empty() && r.flags & (FILE_TEST | EP_LEAF) == 0 {
+        if r.n_kinds == 0 && r.n_seeds == 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
             self.stats.static_pass += 1;
         }
-        let mut e = self.any_static(f, run, p, r.first);
+        if r.n_kinds > 0 && f.kind_bits.is_empty() {
+            // the file's kinds present, one bit a kind code (once a file)
+            let mut bits = vec![0u64; run.kind_sym.len().div_ceil(64).max(1)];
+            for (c, w) in (0..run.kind_sym.len()).map(|c| (c, c / 64)) {
+                if !super::node_table::ids_of_kind(f.table, super::KindBits(c as u16)).is_empty() {
+                    bits[w] |= 1 << (c % 64);
+                }
+            }
+            f.kind_bits = bits;
+        }
+        let mut e = false;
+        // a kind set none of whose kinds the file has
+        let (mut at, end) = (r.kinds as usize, r.kinds as usize + usize::from(r.n_kinds));
+        while !e && at < end {
+            let n = usize::from(self.flat.kinds[at]);
+            e = self.flat.kinds[at + 1..at + 1 + n].iter().all(|c| f.kind_bits[usize::from(*c) / 64] & (1 << (c % 64)) == 0);
+            at += 1 + n;
+        }
+        if !e && r.n_seeds > 0 {
+            e = self.flat.seeds[r.seeds as usize..r.seeds as usize + usize::from(r.n_seeds)].iter().any(|k| f.seeds.get(usize::from(*k)).is_none_or(Vec::is_empty));
+        }
         if !e && r.flags & FILE_TEST != 0 {
             self.stats.static_file_tests += 1;
-            e = filter_order::file_fails(run, f, &r.path);
+            e = self.file_fails_of(f, run, node);
         }
         let mut ep = false;
         if !e && r.n_ins > 0 {
@@ -178,83 +179,26 @@ impl Exec<'_> {
         // redo-empty: the leaves the propagation adds (a fill with no rows, a literal no row of the file holds), after the
         // inputs: a fill is not asked where an input decides already
         if !e && r.flags & EP_LEAF != 0 {
-            e = self.any_static(f, run, p, r.propagated);
+            e = self.ep_leaf_empty(f, run, p, node);
             ep = e;
         }
         f.known[node] = if e && ep { YES_EP } else if e { YES } else { NO };
         e
     }
 
-    pub(crate) fn bind_proofs(&mut self, run: &mut Run, emits: &[usize]) {
-        // Compiling expressions can intern a literal. Hash-group iteration in
-        // ordered and as-of uses those numeric IDs. Bind the proof now, while
-        // keeping publication of runtime expression caches in first-demand order.
-        let old: Vec<_> = (0..self.plan.nodes.len()).map(|i|
-            (self.schemas[i].is_some(), self.views[i].is_some(), self.sels[i].is_some())
-        ).collect();
-        let words = run.texts.len();
-        self.tests.initial_words = words;
-        let paths = run.path_tests.checkpoint();
-        self.flat.publication.resize(self.plan.nodes.len(), (0,0));
-        let mut visited = vec![false; self.plan.nodes.len()];
-        let mut pending: Vec<_> = emits.iter().map(|&e| self.plan.emits[e].1).collect();
-        while let Some(node) = pending.pop() {
-            if std::mem::replace(&mut visited[node], true) { continue; }
-            self.rec(run, node);
-            pending.extend_from_slice(&self.plan.nodes[node].inputs);
-        }
-        if run.texts.len() == words {
-            self.flat.publication.clear();
-            self.flat.publish_edges.clear();
-            return;
-        }
-        for word in run.texts.drain(words..) { let _ = run.ids.remove(word.as_ref()); }
-        run.path_tests.restore(paths);
-        for (i, (schema, view, sel)) in old.into_iter().enumerate() {
-            if !schema { self.schemas[i] = None; }
-            if !view { self.views[i] = None; }
-            if !sel { self.sels[i] = None; }
-            if self.flat.recs[i].flags & READY != 0 { self.flat.recs[i].flags |= PUBLISH; }
-        }
-    }
-
-    /// Reachable records are bound at load. Diagnostic entry points may also request another record.
+    /// The step's flat record (made at its first ask, its inputs' first).
     #[inline]
     fn rec(&mut self, run: &mut Run, node: usize) -> Rec {
         let r = self.flat.recs[node];
-        if r.flags & (READY | PUBLISH) == READY {
+        if r.flags & READY != 0 {
             return r;
         }
-        if r.flags & PUBLISH != 0 { return self.publish(run, node, r); }
         self.rec_of(run, node)
-    }
-
-    /// The shape and test IDs are already fixed. Expose the selectors that
-    /// the old first request of this record compiled, in their original order.
-    #[inline(never)]
-    fn publish(&mut self, run: &mut Run, node: usize, mut r: Rec) -> Rec {
-        r.flags &= !PUBLISH;
-        self.flat.recs[node] = r;
-        if !self.is_constant(run, node) {
-            if let Ok(Some(view)) = self.view(run, node) {
-                r.path = view.paths;
-            } else if self.plan.nodes[node].op == "select" && let Ok(sel) = self.sel(run, node) {
-                r.path = sel.paths;
-                for &source in &sel.srcs { let _ = self.view(run, source); }
-            }
-            let (start,end) = self.flat.publication[node];
-            for at in start..end {
-                let source = self.flat.publish_edges[at as usize] as usize;
-                let _ = self.rec(run, source);
-            }
-        }
-        self.flat.recs[node] = r;
-        r
     }
 
     #[inline(never)]
     fn rec_of(&mut self, run: &mut Run, node: usize) -> Rec {
-        if cfg!(feature = "vec-step-clock") && sw!("VEC_STEP_TIME") && !self.stats.rec_busy {
+        if sw!("VEC_STEP_TIME") && !self.stats.rec_busy {
             self.stats.rec_busy = true;
             let t0 = super::step_clock();
             let r = self.rec_of(run, node);
@@ -264,17 +208,12 @@ impl Exec<'_> {
         }
         // a cycle is impossible (a plan is a DAG); mark ready first all the same
         self.flat.recs[node] = Rec { flags: READY | NEVER, ..Rec::default() };
-        let need = self.need_of(run, node);
+        let need = self.need(run, node);
         let mut r = Rec { flags: READY, ..Rec::default() };
         if need.never {
             r.flags |= NEVER;
             self.flat.recs[node] = r;
             return r;
-        }
-        if !self.flat.publication.is_empty() {
-            let start = self.flat.publish_edges.len() as u32;
-            self.flat.publish_edges.extend(need.inputs.iter().map(|&i| i as u32));
-            self.flat.publication[node] = (start, self.flat.publish_edges.len() as u32);
         }
         let can_in: Vec<bool> = need.inputs.iter().map(|i| self.rec(run, *i).flags & CAN != 0).collect();
         let kept: Vec<u32> = if need.all {
@@ -285,21 +224,25 @@ impl Exec<'_> {
         r.ins = self.flat.ins.len() as u32;
         r.n_ins = kept.len() as u16;
         self.flat.ins.extend(kept);
-        use super::static_tests::Test::{Kinds, Seed};
-        r.first = self.tests.bind(need.kinds.into_vec().into_iter().map(Kinds)
-            .chain(need.seeds.iter().copied().map(Seed)));
+        r.kinds = self.flat.kinds.len() as u32;
+        for ks in need.kinds.iter() {
+            self.flat.kinds.push(ks.len() as u16);
+            self.flat.kinds.extend(ks.iter().copied());
+        }
+        r.n_kinds = (self.flat.kinds.len() - r.kinds as usize) as u16;
+        r.seeds = self.flat.seeds.len() as u32;
+        self.flat.seeds.extend(need.seeds.iter().map(|k| *k as u16));
+        r.n_seeds = need.seeds.len() as u16;
         if need.all {
             r.flags |= ALL;
         }
-        if !need.path.is_empty() {
+        if need.file_test {
             r.flags |= FILE_TEST;
-            r.path = need.path;
         }
-        if !sw!("VEC_NO_EMPTYPROP") { r.propagated = self.bind_ep(run, node); }
-        if !r.propagated.is_empty() {
+        if !sw!("VEC_NO_EMPTYPROP") && self.ep_has_leaf(run, node) {
             r.flags |= EP_LEAF;
         }
-        if r.n_ins > 0 || !r.first.is_empty() || !need.path.is_empty() || r.flags & EP_LEAF != 0 {
+        if r.n_ins > 0 || r.n_kinds > 0 || r.n_seeds > 0 || need.file_test || r.flags & EP_LEAF != 0 {
             r.flags |= CAN;
         }
         self.flat.recs[node] = r;
@@ -317,18 +260,29 @@ impl Exec<'_> {
         n
     }
 
+    fn file_fails_of(&mut self, f: &File<'_>, run: &mut Run, node: usize) -> bool {
+        if let Ok(Some(v)) = self.view(run, node) {
+            return filter_order::file_fails(run, f, &v.filter);
+        }
+        match self.sel(run, node) {
+            Ok(sp) => filter_order::file_fails(run, f, &sp.conj),
+            Err(_) => false,
+        }
+    }
+
     fn need_of(&mut self, run: &mut Run, node: usize) -> Need {
-        let mut n = Need { inputs: Box::new([]), all: false, kinds: Box::new([]), seeds: Box::new([]), path: Default::default(), never: false };
+        let mut n = Need { inputs: Box::new([]), all: false, kinds: Box::new([]), seeds: Box::new([]), file_test: false, never: false };
         if self.is_constant(run, node) {
             n.never = true;
             return n;
         }
         let codes = |run: &Run, syms: &[u32]| -> Box<[u16]> { run.kind_sym.iter().enumerate().filter(|(_, s)| syms.contains(s)).map(|(c, _)| c as u16).collect() };
+        let file_test = |conj: &[E]| conj.iter().any(|c| filter_order::file_const(c) && !matches!(c, E::Lit(_)));
         if let Ok(Some(v)) = self.view(run, node) {
             if v.base == Native::Tree {
                 n.kinds = v.filter.iter().filter_map(|c| super::kind_set(run, std::slice::from_ref(c), 0, v.base, &[])).map(|ks| codes(run, &ks)).collect();
             }
-            n.path = v.paths;
+            n.file_test = file_test(&v.filter);
             n.seeds = v.filter.iter().filter_map(|e| if let E::Seed(_, k) = e { Some(*k) } else { None }).collect();
             return n;
         }
@@ -350,7 +304,7 @@ impl Exec<'_> {
                 }
                 n.kinds = kinds.into();
                 n.seeds = sp.conj.iter().filter_map(|e| if let E::Seed(_, k) = e { Some(*k) } else { None }).collect();
-                n.path = sp.paths;
+                n.file_test = file_test(&sp.conj);
                 n.inputs = sp.srcs.clone().into();
                 return n;
             }

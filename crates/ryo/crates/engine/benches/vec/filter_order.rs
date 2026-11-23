@@ -17,10 +17,10 @@ pub(super) fn file_const(e: &E) -> bool {
     }
 }
 
-fn subst(e: &E, file: &E) -> E {
+fn subst(e: &E, file: u64) -> E {
     let b = |x: &E| Box::new(subst(x, file));
     match e {
-        E::Col(_, _, Ty::File) => file.clone(),
+        E::Col(_, _, Ty::File) => E::Lit(V::new(Ty::File, file)),
         E::List(xs) => E::List(xs.iter().map(|x| subst(x, file)).collect()),
         E::Call(n, xs) => E::Call(n.clone(), xs.iter().map(|x| subst(x, file)).collect()),
         E::Cmp(o, x, y) => E::Cmp(*o, b(x), b(y)),
@@ -34,82 +34,32 @@ fn subst(e: &E, file: &E) -> E {
     }
 }
 
-#[derive(Clone, Copy, Default)]
-pub(super) struct PathList {
-    start: u32,
-    count: u32,
-}
-
-impl PathList {
-    pub(super) fn is_empty(self) -> bool { self.count == 0 }
-}
-
-#[derive(Default)]
-pub(super) struct Paths {
-    keys: rustc_hash::FxHashMap<String, u32>,
-    exprs: Vec<E>,
-    tests: Vec<u32>,
-}
-
-impl Paths {
-    pub(super) fn checkpoint(&self) -> (usize, usize) { (self.exprs.len(), self.tests.len()) }
-
-    pub(super) fn restore(&mut self, (exprs, tests): (usize, usize)) {
-        self.tests.truncate(tests);
-        self.exprs.truncate(exprs);
-        self.keys.retain(|_, id| (*id as usize) < exprs);
+/// Whether some per-file test of `conj` fails in this file (the step is then empty).
+pub(super) fn file_fails(run: &mut Run, f: &File<'_>, conj: &[E]) -> bool {
+    if sw!("VEC_NO_FILECONST") {
+        return false;
     }
-
-    pub(super) fn bind(&mut self, conj: &[E]) -> PathList {
-        let start = self.tests.len();
-        for e in conj.iter().filter(|e| file_const(e) && !matches!(e, E::Lit(_))) {
-            // Every source's file column denotes the current file here. Keep it
-            // distinct from a literal file ID when canonicalizing the expression.
-            let expr = subst(e, &E::Col(0, 0, Ty::File));
-            let id = *self.keys.entry(format!("{expr:?}")).or_insert_with(|| {
-                let i = self.exprs.len() as u32;
-                self.exprs.push(expr);
-                i
-            });
-            self.tests.push(id);
-        }
-        PathList { start: start as u32, count: (self.tests.len() - start) as u32 }
+    // redo-alloc: decided once a file a test list (the plan's lists stay in place while it runs; a later ask in the same
+    // file reads the answer, no substituted copy of the test made again)
+    thread_local! {
+        static SEEN: std::cell::RefCell<(u32, rustc_hash::FxHashMap<(usize, usize), bool>)> = std::cell::RefCell::new((u32::MAX, rustc_hash::FxHashMap::default()));
     }
-}
-
-/// An unresolved function is an observable diagnostic on a conjunction's first
-/// evaluation. Sharing its boolean across conjunctions must still report it there.
-#[derive(Default)]
-pub(super) struct PathErrors {
-    names: rustc_hash::FxHashMap<u32, Box<[String]>>,
-    reported: rustc_hash::FxHashSet<(u32, u32)>,
-}
-
-pub(super) fn file_fails(run: &mut Run, f: &File<'_>, list: &PathList) -> bool {
-    if sw!("VEC_NO_FILECONST") { return false; }
-    (list.start..list.start + list.count).any(|at| {
-        let id = run.path_tests.tests[at as usize];
-        if let Some(fails) = f.path_answers.borrow().get(id) {
-            if let Some(errors) = f.path_errors.get() {
-                let mut errors = errors.borrow_mut();
-                if errors.names.contains_key(&id) && errors.reported.insert((list.start, id)) {
-                    run.missing.extend(errors.names[&id].iter().cloned());
-                }
-            }
-            return fails;
+    let key = (conj.as_ptr() as usize, conj.len());
+    if let Some(v) = SEEN.with(|s| {
+        let s = s.borrow();
+        if s.0 == f.file { s.1.get(&key).copied() } else { None }
+    }) {
+        return v;
+    }
+    let srcs: [Src; 0] = [];
+    let v = conj.iter().filter(|c| file_const(c) && !matches!(c, E::Lit(_))).any(|c| !truthy(eval(run, f, &srcs, &[], &subst(c, u64::from(f.file)))));
+    SEEN.with(|s| {
+        let mut s = s.borrow_mut();
+        if s.0 != f.file {
+            s.0 = f.file;
+            s.1.clear();
         }
-        let expr = subst(&run.path_tests.exprs[id as usize], &E::Lit(V::new(Ty::File, u64::from(f.file))));
-        let sources: [Src; 0] = [];
-        let mut previous = std::mem::take(&mut run.missing);
-        let fails = !truthy(eval(run, f, &sources, &[], &expr));
-        if !run.missing.is_empty() {
-            let mut errors = f.path_errors.get_or_init(Default::default).borrow_mut();
-            errors.names.insert(id, run.missing.iter().cloned().collect());
-            errors.reported.insert((list.start, id));
-            previous.append(&mut run.missing);
-        }
-        run.missing = previous;
-        f.path_answers.borrow_mut().set(id, fails, run.path_tests.exprs.len());
-        fails
-    })
+        s.1.insert(key, v);
+    });
+    v
 }
