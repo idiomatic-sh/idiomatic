@@ -36,6 +36,8 @@ pub(super) fn step_clock() -> f64 {
 mod recycle;
 #[path = "finish/inline_key.rs"]
 mod inline_key;
+#[path = "finish/col/mod.rs"]
+mod col;
 #[path = "finish/select_kernel.rs"]
 mod select_kernel;
 #[path = "finish/handover.rs"]
@@ -1269,6 +1271,7 @@ pub(super) struct Exec<'p> {
     scratch_rows: Vec<u32>,
     /// `VEC_STEP_TIME`: each step run under the step clock (`timed_body`).
     timing: bool,
+    col: col::Kernels,
 }
 
 type R<T> = Result<T, String>;
@@ -1333,6 +1336,7 @@ impl<'p> Exec<'p> {
             empties: vec![None; k],
             scratch_rows: Vec::new(),
             timing: sw!("VEC_STEP_TIME"),
+            col: col::Kernels::default(),
         }
     }
 
@@ -1983,6 +1987,9 @@ impl<'p> Exec<'p> {
         // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
         // dispatch point (by the frame's code)
         if fr.op == frame::Op::Select {
+            if let Some(index) = self.col.projection(node) {
+                return self.col_select(f, run, p, node, index);
+            }
             return self.select_entry(f, run, p, node);
         }
         let t = self.step(f, run, p, node)?;
