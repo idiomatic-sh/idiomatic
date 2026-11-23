@@ -33,7 +33,9 @@ pub(crate) fn divide(
         let mut next = loads.peek_mut().expect("one queue per worker");
         let Reverse((total, count, worker)) = &mut *next;
         shards[*worker].push(file);
-        *total += bytes;
+        // Empty files still have a visit. Give them a unit so they spread
+        // across byte-balanced shards whose final totals differ by a few bytes.
+        *total += bytes.max(1);
         *count += 1;
     }
     for shard in &mut shards {
