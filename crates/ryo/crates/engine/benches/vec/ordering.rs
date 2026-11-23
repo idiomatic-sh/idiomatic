@@ -130,7 +130,7 @@ impl Exec<'_> {
     pub(super) fn order(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         let a = &self.plan.nodes[node].j["args"];
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
-        let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
+        let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;
         let pc = from.col(s(&a["position"])?)?;
         let mut by: Vec<(usize, Cmp, bool)> = Vec::new();
         for k in a["by"].as_array().ok_or("order: by")? {
