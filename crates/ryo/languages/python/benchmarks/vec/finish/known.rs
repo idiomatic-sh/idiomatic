@@ -129,6 +129,9 @@ impl Exec<'_> {
         }
         f.known[node] = BUSY;
         self.stats.static_visits += 1;
+        if r.n_kinds == 0 && r.n_seeds == 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
+            self.stats.static_pass += 1;
+        }
         if r.n_kinds > 0 && f.kind_bits.is_empty() {
             // the file's kinds present, one bit a kind code (once a file)
             let mut bits = vec![0u64; run.kind_sym.len().div_ceil(64).max(1)];
