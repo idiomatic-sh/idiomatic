@@ -31,20 +31,27 @@ fn finding(finding: &Finding) -> String {
     .expect("shipping query row")
 }
 
-pub(super) fn project_receipt(id: &str, result: Result<(usize,String),String>) -> String {
+pub(super) fn project_receipt(id: &str, result: Result<(usize, String), String>) -> String {
     match result {
         Ok((rows, digest)) => json!({"id":id,"rows":rows,"sha256":digest}),
         Err(reason) => json!({"id":id,"refused":reason}),
-    }.to_string()
+    }
+    .to_string()
 }
-pub(super) fn packet_receipt(id:&str, result:Result<(usize,String,Vec<&(String,String)>),&str>) -> String {
+pub(super) fn packet_receipt(
+    id: &str,
+    result: Result<(usize, String, Vec<&(String, String)>), &str>,
+) -> String {
     match result {
-        Ok((rows, digest, unknowns)) => json!({"id":id,"rows":rows,"sha256":digest,"unknowns":unknowns}),
+        Ok((rows, digest, unknowns)) => {
+            json!({"id":id,"rows":rows,"sha256":digest,"unknowns":unknowns})
+        }
         Err(reason) => json!({"id":id,"refused":reason}),
-    }.to_string()
+    }
+    .to_string()
 }
-pub(super) fn write_unknowns(out: impl std::io::Write, unknowns: &[&(String,String)]) {
-    serde_json::to_writer(out,unknowns).expect("write unknown findings");
+pub(super) fn write_unknowns(out: impl std::io::Write, unknowns: &[&(String, String)]) {
+    serde_json::to_writer(out, unknowns).expect("write unknown findings");
 }
 pub(super) fn write_findings(findings: &[Finding], path: &std::path::Path) {
     let mut rows: Vec<_> = findings.iter().map(finding).collect();

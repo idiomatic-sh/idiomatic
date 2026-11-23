@@ -1,9 +1,8 @@
 //! A kept finding shares its prepared column layout. The external comparison
 //! writer borrows the same typed cells the product consumes.
-use super::{NULL, Names, Rc, Run, Table, Ty};
+use super::{Exec, NULL, Names, Rc, Run, Table, Ty};
 use ryo_relations::domain::relations::types::{Integer, Offset, Span};
 use ryo_values::domain::row_texts::types::Cell;
-
 
 pub(crate) type Value = Option<Cell<Rc<str>>>;
 
@@ -30,6 +29,25 @@ impl Layout {
             names: table.names.clone(),
             identity,
         }))
+    }
+}
+
+impl Exec<'_> {
+    pub(super) fn answer_layout(
+        &mut self,
+        emit: usize,
+        rule: &str,
+        table: &Table,
+        subject: &str,
+        keys: &[String],
+    ) -> Result<Rc<Layout>, String> {
+        use std::collections::hash_map::Entry;
+        Ok(match self.answer_layouts.entry(emit) {
+            Entry::Occupied(slot) => slot.get().clone(),
+            Entry::Vacant(slot) => slot
+                .insert(Layout::new(rule, table, subject, keys)?)
+                .clone(),
+        })
     }
 }
 

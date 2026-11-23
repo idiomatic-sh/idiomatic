@@ -1,7 +1,7 @@
 //! Replay complete SDK inputs, one JSON record per line, in one process.
 //! Only the caller owns admission, supplied tables, parameters and the comparison oracle.
 use super::{finish, json_input, json_output, lower};
-use json_input::{Project as Request, Hosted, ProjectCell as HostCell, Parameters, read_parameters};
+use json_input::{Project as Request, Hosted, HostCell, Parameters, read_parameters};
 use finish::{Plan, Provider, Run, Scope, Supplier, Table, Ty};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufRead as _, Write as _};

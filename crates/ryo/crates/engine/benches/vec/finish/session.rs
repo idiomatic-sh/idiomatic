@@ -18,7 +18,7 @@ fn scalar(expr: &E) -> R<()> {
             scalar(a)?;
             scalar(b)
         }
-        E::Null(a, _) | E::Not(a) | E::Re(a, _) => scalar(a),
+        E::Not(a) | E::Re(a, _) => scalar(a),
         E::List(items) => items.iter().try_for_each(scalar),
         E::Col(..) | E::Lit(_) | E::Text(_) | E::Num(_) => Ok(()),
     }
@@ -180,10 +180,7 @@ pub(in super::super) fn evaluate_covered(
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        let layout = match exec.answer_layouts.entry(emit) {
-            std::collections::hash_map::Entry::Occupied(slot) => slot.get().clone(),
-            std::collections::hash_map::Entry::Vacant(slot) => slot.insert(answer::Layout::new(rule, &t, subject, keys)?).clone(),
-        };
+        let layout = exec.answer_layout(emit, rule, &t, subject, keys)?;
         let mut seen = BTreeMap::new();
         for i in 0..t.n {
             let subject = layout.identity[0];
@@ -350,10 +347,7 @@ pub(in super::super) fn pair<'tables>(
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        let layout = match exec.answer_layouts.entry(emit) {
-            std::collections::hash_map::Entry::Occupied(slot) => slot.get().clone(),
-            std::collections::hash_map::Entry::Vacant(slot) => slot.insert(answer::Layout::new(rule, &t, subject, keys)?).clone(),
-        };
+        let layout = exec.answer_layout(emit, rule, &t, subject, keys)?;
         let mut seen = BTreeMap::new();
         for r in 0..t.n {
             let row = answer::typed(run, &t, r, Some(path as usize), &layout)?;

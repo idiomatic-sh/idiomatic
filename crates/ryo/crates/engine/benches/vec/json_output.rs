@@ -207,7 +207,7 @@ pub(crate) fn step(step: &ryo_values::domain::finish_plans::types::FinishStep) -
     String::from_utf8(bytes).expect("text plan format")
 }
 
-use super::answer::{Value, Row};
+use super::answer::{Row, Value};
 use ryo_values::domain::row_texts::types::Cell as AnswerCell;
 // These wrappers serialize directly into the final command output. Subject and
 // key columns are borrowed from their declared slots, including null values.
@@ -266,17 +266,23 @@ fn write_finding(dst: &mut Vec<u8>, row: &Row) {
         rule: &'a str,
         subject: Published<'a>,
     }
-    serde_json::to_writer(dst, &Finding {
-        columns: Columns(row),
-        key: Keys(row),
-        rule: &row.layout.rule,
-        subject: Published(&row.values[row.layout.identity[0]]),
-    })
+    serde_json::to_writer(
+        dst,
+        &Finding {
+            columns: Columns(row),
+            key: Keys(row),
+            rule: &row.layout.rule,
+            subject: Published(&row.values[row.layout.identity[0]]),
+        },
+    )
     .expect("serialize finding");
 }
 
 /// Canonical ordering is lexical over the complete output bytes, including escapes.
-pub(crate) fn ordered_rows<'a>(rows: impl IntoIterator<Item = &'a Row>, mut emit: impl FnMut(&[u8])) {
+pub(crate) fn ordered_rows<'a>(
+    rows: impl IntoIterator<Item = &'a Row>,
+    mut emit: impl FnMut(&[u8]),
+) {
     let mut bytes = Vec::new();
     let mut ranges = Vec::new();
     for row in rows {
@@ -284,6 +290,8 @@ pub(crate) fn ordered_rows<'a>(rows: impl IntoIterator<Item = &'a Row>, mut emit
         write_finding(&mut bytes, row);
         ranges.push(start..bytes.len());
     }
-    ranges.sort_unstable_by(|a,b| bytes[a.clone()].cmp(&bytes[b.clone()]));
-    for range in ranges { emit(&bytes[range]); }
+    ranges.sort_unstable_by(|a, b| bytes[a.clone()].cmp(&bytes[b.clone()]));
+    for range in ranges {
+        emit(&bytes[range]);
+    }
 }

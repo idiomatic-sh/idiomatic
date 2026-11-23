@@ -249,21 +249,17 @@ pub(super) struct Project {
 pub(super) struct Hosted {
     pub name: String,
     pub columns: Vec<(String, String)>,
-    pub rows: Vec<Vec<ProjectCell>>,
+    pub rows: Vec<Vec<HostCell>>,
     #[serde(default)]
     pub partial: Option<String>,
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, serde::Deserialize)]
 #[serde(untagged)]
-pub(super) enum ProjectCell {
+pub(super) enum HostCell {
     File { file: String },
-    Text(String),
     Number(i64),
-    Unsupported(#[serde(deserialize_with = "ignore_cell")] ()),
-}
-fn ignore_cell<'de, D: serde::Deserializer<'de>>(d: D) -> Result<(), D::Error> {
-    <serde::de::IgnoredAny as serde::Deserialize>::deserialize(d).map(|_| ())
+    Text(String),
 }
 pub(super) type Parameters = BTreeMap<Box<str>, PlanConstant>;
 pub(super) fn read_parameters<'de, D: serde::Deserializer<'de>>(
@@ -282,13 +278,19 @@ pub(super) fn project(line: &str) -> Project {
 pub(crate) fn decode<T: serde::de::DeserializeOwned>(input: &[u8]) -> Result<T, serde_json::Error> {
     serde_json::from_slice(input)
 }
-pub(crate) fn decode_line<T: serde::de::DeserializeOwned>(line: &str) -> Result<T, serde_json::Error> {
+pub(crate) fn decode_line<T: serde::de::DeserializeOwned>(
+    line: &str,
+) -> Result<T, serde_json::Error> {
     serde_json::from_str(line)
 }
 pub(super) fn scenario<T: serde::de::DeserializeOwned>(request: &str) -> Option<T> {
     #[derive(serde::Deserialize)]
-    struct Header { inventory: Option<serde::de::IgnoredAny>, selected_rules: Vec<String> }
+    struct Header {
+        inventory: Option<Vec<serde::de::IgnoredAny>>,
+        selected_rules: Vec<String>,
+    }
     let bytes = std::fs::read(request).expect("read request");
-    let h: Header = decode(&bytes).expect("request header");
-    (h.inventory.is_some() && h.selected_rules == ["query"]).then(|| decode(&bytes).expect("scenario request"))
+    let h: Header = decode(&bytes).ok()?;
+    (h.inventory.is_some() && h.selected_rules == ["query"])
+        .then(|| decode(&bytes).expect("scenario request"))
 }
