@@ -9,8 +9,6 @@ use ryo_relations::domain::{labels::types::NameRef, relations::service as catalo
 use ryo_values::domain::finish_plans::{expressions::types::*, service::inputs, types::*};
 use ryo_values::domain::plan_parts::types::Direction;
 
-#[path = "pair_columns.rs"]
-mod columns;
 #[path = "pair_compact.rs"]
 mod compact;
 #[path = "pair_cost.rs"]
@@ -25,6 +23,8 @@ pub(super) mod paths;
 mod precheck;
 #[path = "pair_project.rs"]
 mod project;
+#[path = "pair_regexes.rs"]
+mod regexes;
 
 pub(super) type Id = usize;
 const ANY: Id = 0;
@@ -83,18 +83,16 @@ pub(super) enum CellTest {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Source {
     Catalog(Relation),
-    Columns(Relation, usize, u64),
     Walk(&'static str),
 }
 
 pub(super) struct Fact {
     pub family: cost::Family,
-    pub unavailable: bool,
     pub source: Source,
     pub name: &'static str,
     pub key: Option<usize>,
-    pub columns: Vec<&'static str>,
-    pub kinds: Vec<CellKind>,
+    pub columns: std::rc::Rc<[&'static str]>,
+    pub kinds: std::rc::Rc<[CellKind]>,
     pub exact: bool,
 }
 
@@ -102,12 +100,13 @@ pub(super) struct Program {
     pub meter: Option<cost::Meter>,
     pub lazy_presence: bool,
     pub paths: Vec<Option<paths::Edge>>,
+    pub file_only: Vec<bool>,
     pub domains: Vec<Domain>,
     pub needs: Vec<Need>,
     pub exact: Vec<(usize, exact::Certificate)>,
     pub roots: Vec<(String, Id)>,
     pub skips: Vec<(bool, Vec<Vec<String>>, Vec<Vec<String>>)>,
-    pub regexes: Vec<regex::bytes::Regex>,
+    pub regexes: Vec<regexes::Pattern>,
     pub text_kinds: Vec<u16>,
     pub symbols: Map<String, Id>,
     pub max_text: usize,
@@ -137,9 +136,9 @@ struct Column {
 struct Summary<'a> {
     need: Id,
     native_row: Option<usize>,
-    domains: Vec<Id>,
+    domains: smallvec::SmallVec<[Id; 2]>,
     columns: Vec<(&'a str, Column)>,
-    edges: Vec<(usize, usize, u8)>, // descendant, ancestor, fixed number of parent edges
+    edges: smallvec::SmallVec<[(usize, usize, u8); 1]>, // descendant, ancestor, fixed number of parent edges
 }
 impl<'a> Summary<'a> {
     fn column(&self, name: &str) -> Option<Column> {
@@ -157,10 +156,14 @@ impl<'a> Summary<'a> {
         self.columns.push((name, Column { var, attr }));
     }
     fn compact(&mut self) {
-        let mut vars = Vec::new();
-        if self.domains.is_empty() {
+        if self.domains.len() <= 1 {
+            if self.columns.is_empty() {
+                self.domains.clear();
+            }
+            self.edges.clear();
             return;
         }
+        let mut vars = smallvec::SmallVec::new();
         let mut map = smallvec::SmallVec::<[Option<usize>; 8]>::from_elem(None, self.domains.len());
         for (_, c) in &mut self.columns {
             c.var = *map[c.var].get_or_insert_with(|| {
@@ -197,25 +200,12 @@ impl<'a> Summary<'a> {
     }
 }
 
-fn common_factor(a: Id, b: Id, c: Id, d: Id) -> Option<(Id, Id, Id)> {
-    if a == c {
-        Some((a, b, d))
-    } else if a == d {
-        Some((a, b, c))
-    } else if b == c {
-        Some((b, a, d))
-    } else if b == d {
-        Some((b, a, c))
-    } else {
-        None
-    }
-}
-
 struct Builder<'a> {
     vocab: &'a Vocab,
     language: &'a Language,
-    omit_answers: Vec<String>,
-    factor: bool,
+    positive: bool,
+    regex_slots: Map<String, Id>,
+    early_omit: u16,
     dominance: bool,
     signatures: Vec<u64>,
     neighbors: bool,
@@ -224,6 +214,8 @@ struct Builder<'a> {
     ds: Map<Domain, Id>,
     ns: Map<Need, Id>,
     sizes: Vec<usize>,
+    visited: Vec<usize>,
+    generation: usize,
     file_guards: Vec<Option<Id>>,
     exists: Vec<Option<Id>>,
     counts: Map<usize, exact::Grouped>,
@@ -242,8 +234,10 @@ impl Builder<'_> {
             _ => &[],
         }
     }
-    fn distinct_size(&self, root: &Domain) -> usize {
-        let mut seen = [0; CAP];
+    fn distinct_size(&mut self, root: &Domain) -> usize {
+        // Only visits to this domain contribute to its distinct-instruction cap.
+        self.generation += 1;
+        let stamp = self.generation;
         let mut used = 0;
         let mut pending = smallvec::SmallVec::<[Id; 32]>::new();
         let mut current = root;
@@ -255,11 +249,11 @@ impl Builder<'_> {
                 _ => pending.extend_from_slice(Self::dependencies(current)),
             }
             let Some(next) =
-                std::iter::from_fn(|| pending.pop()).find(|v| !seen[..used].contains(v))
+                std::iter::from_fn(|| pending.pop()).find(|&v| self.visited[v] != stamp)
             else {
                 break;
             };
-            seen[used] = next;
+            self.visited[next] = stamp;
             used += 1;
             if used == CAP {
                 break;
@@ -269,6 +263,9 @@ impl Builder<'_> {
         1 + used
     }
     fn domain(&mut self, d: Domain) -> Id {
+        if self.early_omit != 0 && cost::omit_positive(&d, &self.out.facts, self.early_omit) {
+            return ANY;
+        }
         if let Some(&i) = self.ds.get(&d) {
             if i == ANY && !matches!(d, Domain::Any) {
                 self.out.capped += 1;
@@ -302,6 +299,7 @@ impl Builder<'_> {
         self.ds.insert(d.clone(), i);
         self.out.domains.push(d);
         self.sizes.push(size);
+        self.visited.push(0);
         i
     }
     fn need(&mut self, n: Need) -> Id {
@@ -404,21 +402,6 @@ impl Builder<'_> {
             }
             return id;
         }
-        if self.factor {
-            let capped = self.out.capped;
-            let common = match (&self.out.domains[a], &self.out.domains[b]) {
-                (Domain::Both(x, y), Domain::Both(v, w)) => common_factor(*x, *y, *v, *w),
-                _ => None,
-            };
-            if let Some((c, x, y)) = common {
-                let rest = self.either(x, y);
-                let result = self.both(c, rest);
-                if self.out.capped == capped {
-                    self.ds.insert(key, result);
-                }
-                return result;
-            }
-        }
         if self.subset(a, b) {
             self.ds.insert(key, b);
             return b;
@@ -477,13 +460,6 @@ impl Builder<'_> {
         }
         if b == EMPTY {
             return a;
-        }
-        if self.factor
-            && let (Need::Both(x, y), Need::Both(v, w)) = (&self.out.needs[a], &self.out.needs[b])
-            && let Some((c, x, y)) = common_factor(*x, *y, *v, *w)
-        {
-            let rest = self.or(x, y);
-            return self.and(c, rest);
         }
         self.need(Need::Either(a.min(b), a.max(b)))
     }
@@ -576,12 +552,11 @@ impl Builder<'_> {
                         let key = kinds.iter().position(|k| *k == CellKind::Node);
                         self.out.facts.push(Fact {
                             family: (self.language.fact_family)(name),
-                            unavailable: self.omit_answers.iter().any(|r| r == name),
                             name,
                             source,
                             key,
-                            columns,
-                            kinds,
+                            columns: columns.into(),
+                            kinds: kinds.into(),
                             exact,
                         });
                         self.out.facts.len() - 1
@@ -609,8 +584,12 @@ impl Builder<'_> {
     }
 
     fn symbol(&mut self, text: &str) -> Id {
+        if let Some(&n) = self.out.symbols.get(text) {
+            return n;
+        }
         let n = self.out.symbols.len();
-        *self.out.symbols.entry(text.to_owned()).or_insert(n)
+        self.out.symbols.insert(text.to_owned(), n);
+        n
     }
 
     fn literal(&mut self, attr: Attribute, text: &str) -> Id {
@@ -659,13 +638,15 @@ impl Builder<'_> {
     }
 
     fn regex(&mut self, pattern: &str) -> Option<usize> {
-        if let Some(i) = self.out.regexes.iter().position(|r| r.as_str() == pattern) {
-            return Some(i);
-        }
-        self.out
-            .regexes
-            .push(regex::bytes::Regex::new(pattern).ok()?);
-        Some(self.out.regexes.len() - 1)
+        let slot = if let Some(&slot) = self.regex_slots.get(pattern) {
+            slot
+        } else {
+            let slot = self.out.regexes.len();
+            self.out.regexes.push(regexes::Pattern::new(pattern));
+            self.regex_slots.insert(pattern.to_owned(), slot);
+            slot
+        };
+        (self.positive || self.out.regexes[slot].compiled().is_some()).then_some(slot)
     }
 
     fn required_kind(&self, domain: Id) -> Option<u16> {
@@ -968,6 +949,21 @@ impl Builder<'_> {
         if guarded == ANY { nodes } else { guarded }
     }
     fn select<'a>(&mut self, s: &'a SelectStep, rows: &[Summary<'a>]) -> Summary<'a> {
+        // Without an input column, no row predicate or output expression
+        // can carry a tracked node. Keep the independent file prerequisites.
+        if s.sources
+            .iter()
+            .all(|src| rows[src.step.0].domains.is_empty())
+        {
+            let need = s
+                .sources
+                .iter()
+                .fold(ANY, |n, src| self.and(n, rows[src.step.0].need));
+            return Summary {
+                need,
+                ..Summary::default()
+            };
+        }
         if let [src] = s.sources.as_slice()
             && !matches!(s.condition, RowCondition::Tested(_))
         {
@@ -1008,7 +1004,7 @@ impl Builder<'_> {
             let r = &rows[source.step.0];
             let offset = out.domains.len();
             offsets.push(offset);
-            out.domains.extend(&r.domains);
+            out.domains.extend_from_slice(&r.domains);
             out.need = self.and(out.need, r.need);
             out.edges.extend(
                 r.edges
@@ -1190,9 +1186,9 @@ impl Builder<'_> {
             ..Summary::default()
         };
         let offset = left.domains.len();
-        out.domains.extend(&left.domains);
-        out.domains.extend(&right.domains);
-        out.edges.extend(&left.edges);
+        out.domains.extend_from_slice(&left.domains);
+        out.domains.extend_from_slice(&right.domains);
+        out.edges.extend_from_slice(&left.edges);
         out.edges.extend(
             right
                 .edges
@@ -1558,18 +1554,19 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     let mut b = Builder {
         vocab,
         language,
-        omit_answers: std::env::var("VEC_PAIR_UNAVAILABLE")
-            .map_or_else(|_| vec![], |s| s.split(',').map(str::to_string).collect()),
+        positive: false,
+        regex_slots: Map::default(),
+        early_omit: 0,
         dominance: std::env::var_os("VEC_PAIR_NO_DOMINANCE").is_none(),
         signatures: Vec::with_capacity(plan.steps.len()),
-        factor: std::env::var_os("VEC_PAIR_FACTOR").is_some(),
         neighbors: std::env::var_os("VEC_PAIR_LOCAL").is_none(),
         file_sets: std::env::var_os("VEC_PAIR_LOCAL").is_none()
             && std::env::var_os("VEC_PAIR_TREE").is_none(),
         out: Program {
             meter: None,
             paths: Vec::new(),
-            lazy_presence: std::env::var_os("VEC_PAIR_PRESENCE").is_some(),
+            file_only: Vec::new(),
+            lazy_presence: std::env::var_os("VEC_PAIR_EAGER_PRESENCE").is_none(),
             regexes: Vec::new(),
             text_kinds: language.text_kinds.clone(),
             symbols: Map::default(),
@@ -1586,6 +1583,8 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         ds: Map::with_capacity_and_hasher(plan.steps.len() / 2, Default::default()),
         ns: Map::with_capacity_and_hasher(plan.steps.len(), Default::default()),
         sizes: vec![],
+        visited: vec![],
+        generation: 0,
         file_guards: vec![],
         exists: vec![],
         counts: Map::default(),
@@ -1629,6 +1628,13 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     }
     phase("live");
     let exclusions = exact::prepare(&mut b, plan, &live);
+    b.positive = std::env::var_os("VEC_PAIR_EAGER_REGEX").is_none();
+    let omit = cost::omitted();
+    if std::env::var_os("VEC_PAIR_LATE_OMIT").is_none() {
+        // Every excluded side, distinct-count input and output certificate was
+        // compiled before this point. Only positive witnesses are widened here.
+        b.early_omit = omit;
+    }
     phase("proof");
     if std::env::var_os("VEC_NO_EXACT").is_some() {
         b.out.exact.clear();
@@ -1639,7 +1645,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         let (mut row, skip) = if live[i] {
             (
                 b.step(s, &rows, &plan.steps),
-                super::pair_skip::Skip::step(s, &skips, language, b.factor),
+                super::pair_skip::Skip::step(s, &skips, language),
             )
         } else {
             (Summary::default(), super::pair_skip::Skip::default())
@@ -1684,27 +1690,31 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     // a raw spelling (for example, a normalized or resolved identifier).
     // Certify the whole first half only when that independent skip is vacuous.
     b.out.exact.retain(|(ri, _)| b.out.skips[*ri].2.is_empty());
-    if std::env::var_os("VEC_PAIR_PREFLIGHT").is_some() {
+    if std::env::var_os("VEC_PAIR_NO_PREFLIGHT").is_none() {
         precheck::schedule(&mut b);
     }
     phase("roots");
-    compact::compact(&mut b.out);
-    phase("compact");
+
     cost::arrange(
         &mut b.out,
-        std::env::var_os("VEC_PAIR_ORDER").is_some(),
-        cost::omitted(),
+        std::env::var_os("VEC_PAIR_UNORDERED").is_none(),
+        omit,
     );
     if std::env::var_os("VEC_PAIR_METER").is_some() {
         b.out.meter = Some(cost::Meter::new(b.out.facts.len()));
     }
-    if std::env::var_os("VEC_PAIR_SPARSE").is_some() {
-        b.out.paths = paths::compile(&b.out);
+    if std::env::var_os("VEC_PAIR_NO_SPARSE").is_none() {
+        (b.out.paths, b.out.file_only) = paths::compile(&b.out);
     }
-    if std::env::var_os("VEC_PAIR_COLUMNS").is_some() {
-        columns::compile(&mut b.out, language);
-    }
+
     phase("arrange");
+    if clock || b.out.meter.is_some() {
+        println!(
+            "PAYREGEX prepare {} {}",
+            b.out.regexes.iter().filter(|r| r.initialized()).count(),
+            b.out.regexes.len()
+        );
+    }
     for d in &b.out.domains {
         if let Domain::Text(t) = d {
             b.out.max_text = b.out.max_text.max(t.len());

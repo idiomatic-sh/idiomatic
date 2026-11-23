@@ -25,6 +25,7 @@ struct Table {
 }
 struct File<'a, const PROFILE: bool> {
     owner: usize,
+    reader_class: &'a std::cell::Cell<usize>,
     file_owner: Vec<usize>,
     node_owner: Vec<usize>,
     plain_tree: bool,
@@ -79,18 +80,12 @@ impl Table {
             return;
         }
         self.read = true;
-        if spec.unavailable {
-            return;
-        }
         let answered = read(spec.source, words, &mut self.cells);
         let columns = &self.cells.0;
         self.answered = answered
             && columns.first().is_none_or(|first| {
                 columns.len() == spec.columns.len()
-                    && columns.iter().enumerate().all(|(i, c)| {
-                        matches!(spec.source,Source::Columns(_,_,mask) if mask&(1<<i)==0)
-                            || c.0.len() == first.0.len()
-                    })
+                    && columns.iter().all(|c| c.0.len() == first.0.len())
             });
         self.complete = self.answered;
         if self.complete
@@ -139,7 +134,9 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         self.file_owner[id] = self.owner;
         let prior = self.charged;
         let start = super::thread_cpu();
+        let caller = self.reader_class.replace(class);
         let out = self.pass_miss(id);
+        self.reader_class.set(caller);
         let elapsed = super::thread_cpu() - start;
         self.stats[class].ns += (elapsed - (self.charged - prior) - self.overhead) * 1e9;
         self.charged = prior + elapsed + self.overhead;
@@ -180,10 +177,14 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 _ if self.plain_tree && self.p.paths[x].is_some() => {
                     self.nodes(x).is_none_or(|b| !b.is_empty())
                 }
-                Domain::Parents(a) | Domain::Ancestors(a) if self.plain_tree => {
+                Domain::Parents(a) | Domain::Ancestors(a)
+                    if self.plain_tree && self.p.file_only[x] =>
+                {
                     self.path_exists(*a, false)
                 }
-                Domain::Children(a) | Domain::Descendants(a) if self.plain_tree => {
+                Domain::Children(a) | Domain::Descendants(a)
+                    if self.plain_tree && self.p.file_only[x] =>
+                {
                     self.path_exists(*a, true)
                 }
                 Domain::Both(a, b) => {
@@ -251,7 +252,9 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         self.node_owner[id] = self.owner;
         let prior = self.charged;
         let start = super::thread_cpu();
+        let caller = self.reader_class.replace(class);
         let out = self.nodes_miss(id);
+        self.reader_class.set(caller);
         let elapsed = super::thread_cpu() - start;
         self.stats[class].ns += (elapsed - (self.charged - prior) - self.overhead) * 1e9;
         self.charged = prior + elapsed + self.overhead;
@@ -672,7 +675,10 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     None
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
-                    let regex = &self.p.regexes[*re];
+                    let Some(regex) = self.p.regexes[*re].compiled() else {
+                        self.sets[id] = Some(None);
+                        return None;
+                    };
                     Some(bits(
                         table
                             .cells
@@ -767,6 +773,7 @@ impl Program {
         mut exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
         languages::facts::clear_words(words);
+        let reader_class = std::cell::Cell::new(cost::Family::Logic as usize);
         let mut observe = |source, words: &mut FileWords, cells: &mut FilledColumns| {
             if !PROFILE {
                 return read(source, words, cells);
@@ -781,13 +788,14 @@ impl Program {
                 .expect("declared source");
             let meter = self.meter.as_ref().unwrap();
             let mut fills = meter.fills.borrow_mut();
-            let entry = &mut fills[slot];
+            let entry = &mut fills[slot][reader_class.get()];
             entry.0 += 1;
             entry.1 += cells.0.first().map_or(0, |c| c.0.len() as u64);
             entry.2 += elapsed - meter.overhead;
             ok
         };
         let mut f = File::<PROFILE> {
+            reader_class: &reader_class,
             owner: 0,
             file_owner: if PROFILE {
                 vec![usize::MAX; self.needs.len()]

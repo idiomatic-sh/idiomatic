@@ -1,7 +1,7 @@
 //! Test a fixed neighbour from the surviving side of a conjunction. Fuse a
 //! path only when that conjunction is its sole consumer. Other paths retain
 //! their shared full mask, including paths needed by exact output.
-use super::{Domain, Id, Program};
+use super::{Domain, Id, Need, Program};
 #[derive(Clone, Copy)]
 pub(crate) struct Edge {
     pub(crate) candidates: Id,
@@ -10,7 +10,7 @@ pub(crate) struct Edge {
     pub(crate) transitive: bool,
     pub(crate) existence_only: bool,
 }
-pub(super) fn compile(p: &Program) -> Vec<Option<Edge>> {
+pub(super) fn compile(p: &Program) -> (Vec<Option<Edge>>, Vec<bool>) {
     let mut readers = vec![0usize; p.domains.len()];
     for d in &p.domains {
         match *d {
@@ -33,7 +33,14 @@ pub(super) fn compile(p: &Program) -> Vec<Option<Edge>> {
     for (_, c) in &p.exact {
         readers[c.nodes] += 1;
     }
-    p.domains
+    let file_only = readers.iter().map(|&n| n == 0).collect::<Vec<_>>();
+    for need in &p.needs {
+        if let Need::Some(node) = *need {
+            readers[node] += 1;
+        }
+    }
+    let edges = p
+        .domains
         .iter()
         .enumerate()
         .map(|(id, d)| {
@@ -62,7 +69,7 @@ pub(super) fn compile(p: &Program) -> Vec<Option<Edge>> {
                             targets,
                             to_parent,
                             transitive,
-                            existence_only: readers[id] == 0,
+                            existence_only: file_only[id],
                         });
                     }
                     _ => {}
@@ -70,5 +77,6 @@ pub(super) fn compile(p: &Program) -> Vec<Option<Edge>> {
             }
             None
         })
-        .collect()
+        .collect();
+    (edges, file_only)
 }

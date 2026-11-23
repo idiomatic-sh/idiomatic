@@ -71,12 +71,8 @@ pub(super) fn read(
     source: Source,
     words: &mut FileWords,
     out: &mut FilledColumns,
-    projection: &mut super::pair_projection::Projection,
 ) -> bool {
     let name = match source {
-        Source::Columns(rel, key, mask) => {
-            return projection.fill(file, number, rel, key, mask, words, out);
-        }
         Source::Catalog(rel) => {
             return matches!(
                 file.fill(rel, Wanted::Whole, words, out),

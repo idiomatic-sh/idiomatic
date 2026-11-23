@@ -163,17 +163,25 @@ impl SchedulePlan<'_> {
                 }
             }
             Domain::ProvenExcept(a, b, g, ref slots) => {
-                let required = slots
-                    .iter()
-                    .fold(0, |m, &s| m | self.p.facts[s].family.bit());
+                let required = slots.iter().fold(Price::default(), |price, &slot| {
+                    price.with(Price::of(self.p.facts[slot].family))
+                });
                 let (left, diff, guard) = (self.node(a), self.node(b), self.file(g));
                 z = z.with(left).with(diff).with(guard);
-                z.mask |= required;
-                if self.omit & (class.bit() | diff.mask | required) != 0 {
+                z = z.with(required);
+                if self.omit & (class.bit() | diff.mask | required.mask) != 0 {
                     self.p.domains[id] = Domain::Both(a, ANY);
                 }
             }
             Domain::When(g, n) => z = z.with(self.file(g)).with(self.node(n)),
+            Domain::Member(slot, _, project, _) => {
+                z = z
+                    .with(Price::of(self.p.facts[slot].family))
+                    .with(Price::of(self.p.facts[project].family));
+                if self.omit & z.mask != 0 {
+                    self.p.domains[id] = Domain::Any;
+                }
+            }
             Domain::CountUnder(n, ..) => {
                 z = z.with(self.node(n));
                 if self.omit & z.mask != 0 {
@@ -198,6 +206,7 @@ impl SchedulePlan<'_> {
 }
 pub(super) fn arrange(p: &mut Program, order: bool, omit: u16) {
     if !order && omit == 0 {
+        super::compact::compact(p);
         return;
     }
     let mut walk = SchedulePlan {
@@ -207,7 +216,7 @@ pub(super) fn arrange(p: &mut Program, order: bool, omit: u16) {
         order,
         omit,
     };
-    let keep_exact = std::env::var_os("VEC_PAIR_KEEP_EXACT").is_some();
+    let keep_exact = std::env::var_os("VEC_PAIR_DELEGATE_EXACT").is_none();
     let mut certs = std::mem::take(&mut walk.p.exact);
     if keep_exact {
         // Visit exact outputs first to preserve their shared subprograms. Only
@@ -234,13 +243,26 @@ pub(super) fn arrange(p: &mut Program, order: bool, omit: u16) {
                 == 0
     });
     walk.p.exact = certs;
+    let origins = super::compact::compact(walk.p);
     if order {
-        let costs: Vec<_> = walk.files.iter().map(|r| r.map_or(0, |v| v.cost)).collect();
+        let costs: Vec<_> = origins
+            .into_iter()
+            .map(|i| walk.files[i].map_or(0, |v| v.cost))
+            .collect();
         super::groups::compile(walk.p, &costs);
     }
 }
+/// Costly downward masks and scheduled-row projections are optional only
+/// on the positive pass. The proof pass always sees the declared relation.
+pub(super) fn omit_positive(d: &Domain, facts: &[super::Fact], omit: u16) -> bool {
+    let class = family(d, facts);
+    matches!(class, Child | Schedule | Count) && omit & class.bit() != 0
+}
 pub(super) fn omitted() -> u16 {
-    std::env::var("VEC_PAIR_OMIT").map_or(0, |s| {
+    if std::env::var_os("VEC_PAIR_FULL").is_some() {
+        return 0;
+    }
+    std::env::var("VEC_PAIR_OMIT").map_or(Child.bit() | Schedule.bit() | Count.bit(), |s| {
         s.split(',').fold(0, |m, n| {
             let f = FAMILIES
                 .iter()
@@ -262,7 +284,7 @@ pub(crate) struct Meter {
     pub rows: RefCell<[Sample; 13]>,
     pub loads: RefCell<Vec<u64>>,
     pub overhead: f64,
-    pub fills: RefCell<Vec<(u64, u64, f64)>>,
+    pub fills: RefCell<Vec<[(u64, u64, f64); 13]>>,
 }
 impl Meter {
     pub(super) fn new(slots: usize) -> Self {
@@ -275,20 +297,34 @@ impl Meter {
         Self {
             rows: Default::default(),
             loads: RefCell::new(vec![0; slots]),
-            fills: RefCell::new(vec![(0, 0, 0.); slots]),
+            fills: RefCell::new(vec![[(0, 0, 0.); 13]; slots]),
             overhead: total / 1000.,
         }
     }
     pub(crate) fn report(&self, p: &Program) {
+        println!(
+            "PAYREGEX finish {} {}",
+            p.regexes.iter().filter(|r| r.initialized()).count(),
+            p.regexes.len()
+        );
         for f in FAMILIES {
             let s = self.rows.borrow()[f as usize];
             println!("PAYSHARE\t{}\t{}", f.name(), s.cross);
             println!("PAY\t{}\t{}\t{}\t{:.0}", f.name(), s.calls, s.hits, s.ns);
         }
-        for (fact, (calls, rows, seconds)) in p.facts.iter().zip(self.fills.borrow().iter()) {
-            if *calls > 0 {
+        for (fact, requests) in p.facts.iter().zip(self.fills.borrow().iter()) {
+            let (mut count, mut rows, mut seconds) = (0, 0, 0.);
+            for (class, &(n, r, t)) in FAMILIES.iter().zip(requests) {
+                if n > 0 {
+                    println!("PAYREAD\t{}\t{}\t{n}\t{r}\t{t:.6}", class.name(), fact.name);
+                    count += n;
+                    rows += r;
+                    seconds += t;
+                }
+            }
+            if count > 0 {
                 println!(
-                    "PAYFILL\t{}\t{}\t{calls}\t{rows}\t{seconds:.6}",
+                    "PAYFILL\t{}\t{}\t{count}\t{rows}\t{seconds:.6}",
                     fact.family.name(),
                     fact.name
                 );

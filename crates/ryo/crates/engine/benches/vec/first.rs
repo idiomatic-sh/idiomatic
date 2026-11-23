@@ -24,7 +24,6 @@ pub(super) struct Vocab {
 
 /// Fact availability, spelling and lexical text are supplied by the language provider.
 pub(super) struct Language {
-    pub(super) projection: fn(&str)->bool,
     pub(super) fact_family: fn(&str) -> super::pair_summary::cost::Family,
     pub(super) walk_facts: &'static [WalkFact],
     pub(super) facts: Vec<String>,

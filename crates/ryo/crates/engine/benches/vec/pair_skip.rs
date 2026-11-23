@@ -53,22 +53,6 @@ fn ordered(v: &mut Vec<Clause>) {
     v.dedup();
     v.truncate(CAP);
 }
-fn aligned(a: &[Clause], b: &[Clause]) -> Clauses {
-    if a.is_empty() || b.is_empty() {
-        return Clauses::default();
-    }
-    let mut result = Vec::with_capacity(a.len().max(b.len()));
-    for i in 0..a.len().max(b.len()) {
-        let (l, r) = (&a[i.min(a.len() - 1)], &b[i.min(b.len() - 1)]);
-        result.push(if Rc::ptr_eq(l, r) || l == r {
-            l.clone()
-        } else {
-            Rc::new(l.union(r).cloned().collect())
-        });
-    }
-    ordered(&mut result);
-    Clauses(Some(Rc::new(result)))
-}
 fn either(a: &[Clause], b: &[Clause]) -> Clauses {
     match (a.first(), b.first()) {
         (Some(l), Some(r)) if Rc::ptr_eq(l, r) || l == r => Clauses::singleton(l.clone()),
@@ -182,23 +166,14 @@ impl<'a> Skip<'a> {
         self.shape.include(&r.shape);
         self.words.include(&r.words);
     }
-    pub(super) fn step(
-        s: &'a FinishStep,
-        previous: &[Self],
-        lang: &Language,
-        factor: bool,
-    ) -> Self {
+    pub(super) fn step(s: &'a FinishStep, previous: &[Self], lang: &Language) -> Self {
         use FinishStep::*;
         let mut out = Self::default();
         match s {
             Base(n) => out.scan = Some(&*n.0),
             Union(u) => {
                 let (l, r) = (&previous[u.left.0], &previous[u.right.0]);
-                out.shape = if factor {
-                    aligned(&l.shape, &r.shape)
-                } else {
-                    either(&l.shape, &r.shape)
-                };
+                out.shape = either(&l.shape, &r.shape);
                 out.words = either(&l.words, &r.words);
             }
             Antijoin(j) => out.take(&previous[j.left.0]),

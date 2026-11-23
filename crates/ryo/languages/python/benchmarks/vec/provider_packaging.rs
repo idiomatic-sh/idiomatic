@@ -195,6 +195,14 @@ impl Project {
         if let Some(k) = self.classified.get(dotted) {
             return k.clone();
         }
+        // No child path exists on any configured root when its parent directory is absent on every root.
+        // Prefixes are visited from the root down, so repeated imports inherit that observation from the same project snapshot.
+        if let Some((parent, _)) = dotted.rsplit_once('.')
+            && self.classified.get(parent).is_some_and(|kinds| kinds.as_slice() == ["absent"])
+        {
+            self.classified.insert(dotted.to_owned(), vec!["absent"]);
+            return vec!["absent"];
+        }
         let Some(search_roots) = &self.search_roots else { return vec!["unknown"] };
         let fs = dotted.replace('.', "/");
         let (mut module, mut package, mut namespace) = (false, false, false);

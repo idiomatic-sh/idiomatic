@@ -532,12 +532,11 @@ fn python_language(vocab: &Vocab) -> first::Language {
     let tokens=provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied());
     use ryo_python::fixtures::columns::{PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
     first::Language {
-        projection: |name| PER_NODE_FACTS.contains(&name),
         fact_family: pair_provider::family,
         host_len: finish::host::host_len,
         walk_facts: pair_provider::FACTS,
         text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
-        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain(std::env::var_os("VEC_PAIR_PROJECT").map(|_| &provider_packaging::MODULE_IDENTITY_REL)).chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
+        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain(std::env::var_os("VEC_PAIR_NO_PROJECT").is_none().then_some(&provider_packaging::MODULE_IDENTITY_REL)).chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
         facts: PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect(),
         spelled: SPELLED_COLUMNS.iter().map(|(r, c, how)| ((*r).to_owned(), (*c).to_owned(), match how { Spelling::Whole => None, Spelling::LastSegment(c) => Some(*c) })).collect(),
         is_identifier,
@@ -840,7 +839,6 @@ mod pair_skip;
 #[path = "../../../../crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
 mod pair_provider;
-mod pair_projection;
 #[path = "../../../../crates/engine/benches/vec/host_columns.rs"]
 mod host_columns;
 mod request;
@@ -1295,7 +1293,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
             relative_import::walked(run, self.project, self.file, self.file_no)?
-        } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::ENTRIES) {
+        } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
             import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel)?
         } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL) {
             let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no {rel}"))?;
@@ -1959,8 +1957,8 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].clone());
                     let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
                     pair_steps += program.file(pt, &bytes, relative_path.as_deref().map(str::as_bytes), &mut fwords, |rel, words, out| {
-                        if matches!(rel,pair_summary::Source::Catalog(languages::Relation::ModuleIdentity)) {
-                            return fin.as_deref_mut().is_some_and(|f|f.identity(file_no,words,out));
+                        if matches!(rel, pair_summary::Source::Catalog(languages::Relation::ModuleIdentity)) {
+                            return fin.as_deref_mut().is_some_and(|f| f.identity(file_no, words, out));
                         }
                         if let pair_summary::Source::Catalog(catalog) = rel
                             && let Some(result) = host_columns::fill(catalog, fin.as_deref().map(|f| &f.run), file_no, out) {
@@ -2221,8 +2219,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let n = node_table::element_count(ft).0;
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
-                    let mut projection=pair_projection::Projection::default();
-                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out,&mut projection));
+                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
                     if let Some(seeds) = &mut file_seeds {
@@ -2742,7 +2739,9 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             println!("EXACT\t{}\t{}\t{}\t{}", frules[*ri].name, exact_counts[*ri].0, exact_counts[*ri].1, exact_counts[*ri].2);
         }
     }
-    if let Some(p) = &pairs && let Some(meter) = &p.meter {meter.report(p);}
+    if let Some(p) = &pairs && let Some(meter) = &p.meter {
+        meter.report(p);
+    }
     println!("pair summary checks {pair_steps} CPU {pair_cpu:.4} s");
     let knock_units = units.iter().filter(|u| u.knock).count();
     let steps: u64 = unit_steps.iter().sum();

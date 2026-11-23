@@ -74,7 +74,6 @@ fn main() {
     };
     // Resolved names can be escaped or implicit. Only actual syntax text entails a written word.
     let language = first::Language {
-        projection: |_| false,
         fact_family: |_| pair_summary::cost::Family::Fact,
         walk_facts: &[],
         host_len: finish::host::host_len,

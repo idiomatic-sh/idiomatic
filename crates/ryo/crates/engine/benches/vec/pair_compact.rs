@@ -5,6 +5,7 @@ struct Compact<T> {
     old: Vec<T>,
     ids: Vec<Option<Id>>,
     kept: Vec<T>,
+    origins: Vec<Id>,
 }
 impl<T> Compact<T> {
     fn new(old: Vec<T>) -> Self {
@@ -12,18 +13,21 @@ impl<T> Compact<T> {
             ids: vec![None; old.len()],
             old,
             kept: Vec::new(),
+            origins: Vec::new(),
         }
     }
     fn keep(&mut self, old: Id, value: T) -> Id {
         let new = self.kept.len();
         self.ids[old] = Some(new);
         self.kept.push(value);
+        self.origins.push(old);
         new
     }
 }
 struct Reachable {
     nodes: Compact<Domain>,
     files: Compact<Need>,
+    exist: rustc_hash::FxHashMap<Id, Id>,
 }
 impl Reachable {
     fn file(&mut self, old: Id) -> Id {
@@ -39,6 +43,30 @@ impl Reachable {
                 *b = self.file(*b);
             }
             Need::PathMatches(_) | Need::SourceContains(_) | Need::Any | Need::Empty => {}
+        }
+        let alias = match value {
+            Need::Any if old != ANY => Some(ANY),
+            Need::Empty if old != EMPTY => Some(EMPTY),
+            Need::Some(d) if d <= EMPTY => Some(d),
+            Need::Some(d) => {
+                if let Some(&prev) = self.exist.get(&d) {
+                    Some(prev)
+                } else {
+                    self.exist.insert(d, self.files.kept.len());
+                    None
+                }
+            }
+            Need::Both(a, b) if a == EMPTY || b == EMPTY => Some(EMPTY),
+            Need::Both(a, b) if a == ANY || a == b => Some(b),
+            Need::Both(a, ANY) => Some(a),
+            Need::Either(a, b) if a == ANY || b == ANY => Some(ANY),
+            Need::Either(a, b) if a == EMPTY || a == b => Some(b),
+            Need::Either(a, EMPTY) => Some(a),
+            _ => None,
+        };
+        if let Some(id) = alias {
+            self.files.ids[old] = Some(id);
+            return id;
         }
         self.files.keep(old, value)
     }
@@ -85,11 +113,27 @@ impl Reachable {
             | Domain::Matching(..)
             | Domain::CapturedSuffix(..) => {}
         }
+        // Keep the distinction between a literal universe and an unknown
+        // computed mask. Exact differences and distinct counts inspect it.
+        let alias = match value {
+            Domain::Any if old != ANY => Some(ANY),
+            Domain::Empty if old != EMPTY => Some(EMPTY),
+            Domain::Both(ANY, b) if b != ANY => Some(b),
+            Domain::Both(a, ANY) if a != ANY => Some(a),
+            Domain::Both(a, b) | Domain::Either(a, b) if a == b && a != ANY => Some(a),
+            Domain::When(ANY, d) if d != ANY => Some(d),
+            _ => None,
+        };
+        if let Some(id) = alias {
+            self.nodes.ids[old] = Some(id);
+            return id;
+        }
         self.nodes.keep(old, value)
     }
 }
-pub(super) fn compact(p: &mut Program) {
+pub(super) fn compact(p: &mut Program) -> Vec<Id> {
     let mut reachable = Reachable {
+        exist: Default::default(),
         nodes: Compact::new(std::mem::take(&mut p.domains)),
         files: Compact::new(std::mem::take(&mut p.needs)),
     };
@@ -108,4 +152,5 @@ pub(super) fn compact(p: &mut Program) {
     p.needs = reachable.files.kept;
     p.domains.shrink_to_fit();
     p.needs.shrink_to_fit();
+    reachable.files.origins
 }
