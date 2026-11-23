@@ -299,3 +299,39 @@ impl ColumnFile<'_, '_> {
         true
     }
 }
+
+impl ColumnFile<'_, '_> {
+    /// For a named namespace, report its first scheduled declaration or mutation, its first mutation in
+    /// schedule order, and the earliest written mutation in source order. Reads do not change a namespace.
+    pub fn visit_namespace_sites(&mut self, mut visit: impl FnMut(u32, &str, u64, Option<u64>, Option<u32>)) -> bool {
+        use crate::domain::model::names::service::text_of;
+        let table = self.table;
+        let read = self.file.semantics(ModelPart::Flow);
+        if read.model.flow.state == FlowState::Incomplete {
+            return false;
+        }
+        let mut sites = HashMap::new();
+        for event in &read.model.flow.events {
+            match event.kind {
+                FlowEventKind::Read | FlowEventKind::Wildcard => continue,
+                _ => {}
+            }
+            let key = NamespaceKey { scope: event.scope, name: event.name };
+            let ordinal = event.ordinal.0 as u64;
+            let entry = sites.entry(key).or_insert((ordinal, None, None));
+            entry.0 = entry.0.min(ordinal);
+            if matches!(event.kind, FlowEventKind::Bind | FlowEventKind::Delete | FlowEventKind::Cleanup) {
+                entry.1 = Some(entry.1.map_or(ordinal, |prior: u64| prior.min(ordinal)));
+                let node = table_id(read.tree.segments, event.at);
+                let start = ryo::languages::node_table::span_of(table, node).start.0;
+                entry.2 = Some(entry.2.map_or(start, |prior: u32| prior.min(start)));
+            }
+        }
+        for (key, (first, mutation, written)) in sites {
+            if let Some(name) = text_of(&read.model.names, key.name) {
+                visit(table_id(read.tree.segments, key.scope).0, name.0, first, mutation, written);
+            }
+        }
+        true
+    }
+}

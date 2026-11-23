@@ -281,6 +281,7 @@ fn flag(value: Flag) -> u32 {
     u32::from(value == Flag::Raised)
 }
 
+mod assignment;
 mod resolution;
 pub use resolution::BindingSite;
 
