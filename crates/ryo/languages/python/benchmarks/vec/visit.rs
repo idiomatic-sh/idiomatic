@@ -99,9 +99,11 @@ impl<'p> Finisher<'p> {
     pub(super) fn end(self, walk_time: f64) {
         self.inner.end(walk_time, |locations| locations.dedup());
     }
-    pub(super) fn prefix_storage(&mut self, file: usize) -> (&finish::Run, &mut languages::FileWords, &mut super::completed_facts::Completed) {
+    pub(super) fn prefix_storage(&mut self, file: usize) -> (&finish::Run, &mut languages::FileWords, super::completed_facts::FileWitness<'_, 'p>) {
         self.completed.begin(languages::FileId(file as u32));
-        (&self.inner.run, &mut self.fwords, &mut self.completed)
+        let run = &self.inner.run;
+        let witness = super::completed_facts::FileWitness { completed: &mut self.completed, exec: &mut self.inner.exec, run };
+        (run, &mut self.fwords, witness)
     }
 
     pub(super) fn prefix_table(&mut self, name: &str, t: &ryo_python::fixtures::columns::FactTable, words: &super::facts::Interner) {

@@ -34,6 +34,8 @@ pub(super) struct Guards {
     tests: Vec<Test>,
     pub(super) circuit: super::request_circuit::Circuit,
     spellings: Option<Spellings>,
+    pub(super) indexed_columns: u64,
+    pub(super) indexed_absences: u64,
 }
 
 impl Default for Guards {
@@ -45,7 +47,7 @@ impl Default for Guards {
             columns: Default::default(), absent: vec![], empty_drivers: vec![], marks: vec![], generation: 0,
             by_test: FxHashMap::default(),
             tests: vec![Test::Constant(true), Test::Constant(false)],
-            circuit: Default::default(), spellings: None,
+            circuit: Default::default(), spellings: None, indexed_columns: 0, indexed_absences: 0,
         }
     }
 }
@@ -189,6 +191,28 @@ impl Exec<'_> {
         }
     }
 
+    /// Reuse an exact symbol index already built by the file witness pass.
+    /// Words outside the witness vocabulary have no membership result.
+    pub(crate) fn indexed_symbols(&mut self, run: &Run, rel: &str, column: usize, present: &dyn Fn(&str) -> Option<bool>) {
+        let Some(&slot) = run.fact_slots.get(rel) else { return };
+        let g = &mut self.requests.guards;
+        let Some(tests) = g.columns.get(&slot) else { return };
+        let mut consulted = false;
+        for &(c, id) in tests {
+            if c != column { continue; }
+            let Test::Symbols(_, _, choices) = &g.tests[id as usize] else { continue };
+            consulted = true;
+            g.absent.resize(g.tests.len(), false);
+            if !g.absent[id as usize] && choices.iter().all(|&word| {
+                std::str::from_utf8(&run.texts[word as usize]).ok().and_then(present) == Some(false)
+            }) {
+                g.absent[id as usize] = true;
+                g.indexed_absences += 1;
+            }
+        }
+        g.indexed_columns += u64::from(consulted);
+    }
+
     pub(crate) fn prefix_symbols(&mut self, run: &Run, rel: &str, data: &[Vec<u32>], keys: Option<&[u32]>, symbols: usize, lookup: impl Fn(&[u8]) -> Option<u32>) {
         let Some(&slot) = run.fact_slots.get(rel) else { return };
         let g = &mut self.requests.guards;
@@ -207,7 +231,7 @@ impl Exec<'_> {
                 else { for &v in values { mark(v); } }
             }
             let Test::Symbols(_, _, choices) = &g.tests[id as usize] else { continue };
-            g.absent[id as usize] = !choices.iter().any(|v| lookup(&run.texts[*v as usize]).is_some_and(|p| g.marks.get(p as usize) == Some(&g.generation)));
+            g.absent[id as usize] |= !choices.iter().any(|v| lookup(&run.texts[*v as usize]).is_some_and(|p| g.marks.get(p as usize) == Some(&g.generation)));
         }
     }
 

@@ -13,12 +13,18 @@ type Nodes = Option<Bits>;
 type Reader<'a> = dyn FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool + 'a;
 
 #[derive(Default)]
+struct SymbolRows {
+    rows: Map<Id, Vec<u32>>,
+    all_words_resolved: bool,
+}
+
+#[derive(Default)]
 struct Table {
     read: bool,
     answered: bool,
     complete: bool,
     cells: FilledColumns,
-    index: Map<usize, Map<Id, Vec<u32>>>,
+    index: Map<usize, SymbolRows>,
 }
 struct File<'a> {
     p: &'a Program,
@@ -578,19 +584,24 @@ impl File<'_> {
                     let node = |r: usize| key.map_or(0, |c| c.0[r].0 as u32);
                     if let Some((col, values)) = test {
                         let idx = table.index.entry(*col).or_insert_with(|| {
-                            let mut m = Map::<Id, Vec<u32>>::default();
+                            let mut index = SymbolRows::default();
                             if let Some(column) = table.cells.0.get(*col) {
+                                let end = languages::facts::words_end(self.words).0;
+                                index.all_words_resolved = true;
                                 for (r, &cell) in column.0.iter().enumerate() {
+                                    // Out-of-dictionary cells may have a different
+                                    // catalog encoding. Their spelling is unknown here.
+                                    index.all_words_resolved &= cell.0 < end;
                                     let text = languages::facts::text(self.words, cell);
                                     if let Some(&id) = self.p.symbols.get(text.0) {
-                                        m.entry(id).or_default().push(node(r));
+                                        index.rows.entry(id).or_default().push(node(r));
                                     }
                                 }
                             }
-                            m
+                            index
                         });
                         Some(bits(
-                            values.iter().filter_map(|v| idx.get(v)).flatten().copied(),
+                            values.iter().filter_map(|v| idx.rows.get(v)).flatten().copied(),
                         ))
                     } else {
                         Some(bits(
@@ -611,6 +622,7 @@ impl File<'_> {
 pub(super) trait WitnessResults {
     fn table(&mut self, rel: languages::Relation, cells: FilledColumns);
     fn empty_driver(&mut self, step: usize);
+    fn indexed_symbols(&mut self, relation: &str, column: usize, present: &dyn Fn(&str) -> Option<bool>);
 }
 
 impl Program {
@@ -667,6 +679,13 @@ impl Program {
             }
             for (fact, table) in self.facts.iter().zip(f.facts) {
                 if table.answered && let super::pair_summary::Source::Catalog(relation) = fact.source {
+                    for (column, index) in table.index {
+                        if index.all_words_resolved {
+                            completed.indexed_symbols(fact.name, column, &|text| {
+                                self.symbols.get(text).map(|id| index.rows.contains_key(id))
+                            });
+                        }
+                    }
                     completed.table(relation, table.cells);
                 }
             }

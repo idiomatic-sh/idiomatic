@@ -31,19 +31,29 @@ impl Completed {
     }
 }
 
-impl super::pair_checks::WitnessResults for Completed {
+pub(super) struct FileWitness<'a, 'p> {
+    pub(super) completed: &'a mut Completed,
+    pub(super) exec: &'a mut super::finish::Exec<'p>,
+    pub(super) run: &'a super::finish::Run,
+}
+
+impl super::pair_checks::WitnessResults for FileWitness<'_, '_> {
     fn table(&mut self, relation: Relation, rows: FilledColumns) {
         if rows.0.first().is_some_and(|column| column.0.is_empty()) {
-            self.empty.push(relation);
+            self.completed.empty.push(relation);
         }
         let slot = number_of(relation).0;
-        if self.tables.len() <= slot {
-            self.tables.resize_with(slot + 1, || None);
+        if self.completed.tables.len() <= slot {
+            self.completed.tables.resize_with(slot + 1, || None);
         }
-        self.tables[slot] = Some(rows);
+        self.completed.tables[slot] = Some(rows);
     }
 
     fn empty_driver(&mut self, step: usize) {
-        self.empty_drivers.push(step);
+        self.completed.empty_drivers.push(step);
+    }
+
+    fn indexed_symbols(&mut self, relation: &str, column: usize, present: &dyn Fn(&str) -> Option<bool>) {
+        self.exec.indexed_symbols(self.run, relation, column, present);
     }
 }

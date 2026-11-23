@@ -95,7 +95,7 @@ impl Requests {
     pub(super) fn line(&self) -> String {
         let c = &self.counts;
         format!(
-            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s; selecting columns {:.6} s; file predicates {} leaves {} gates; files without active emits {idle}",
+            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s; selecting columns {:.6} s; file predicates {} leaves {} gates; prefix indexes {} columns {} excluded groups; files without active emits {idle}",
             c.files,
             c.provider_calls,
             c.provider_relations,
@@ -109,7 +109,7 @@ impl Requests {
             c.reads,
             c.request_cpu,
             c.answer_cpu,
-            c.read_cpu, c.mask_cpu, self.guards.circuit.counts().0, self.guards.circuit.counts().1,
+            c.read_cpu, c.mask_cpu, self.guards.circuit.counts().0, self.guards.circuit.counts().1, self.guards.indexed_columns, self.guards.indexed_absences,
             idle = c.idle_files
         )
     }

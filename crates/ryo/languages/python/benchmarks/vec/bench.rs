@@ -2086,12 +2086,12 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let start = thread_cpu();
                     let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
                     pair_steps += if let Some(fin) = fin.as_deref_mut() {
-                        let (run, words, completed) = fin.prefix_storage(file_no);
+                        let (run, words, mut completed) = fin.prefix_storage(file_no);
                         program.file(pt, &bytes, Some(run.paths[file_no].as_bytes()), words, |rel, words, out| {
                             if let pair_summary::Source::Catalog(catalog) = rel
                                 && let Some(answer) = host_columns::fill(catalog, Some(run), file_no, out) { return answer; }
                             ($fill)(rel, words, out)
-                        }, &mut alive, $catalog_file, Some(completed), exact)
+                        }, &mut alive, $catalog_file, Some(&mut completed), exact)
                     } else {
                         program.file(pt, &bytes, None, &mut fwords, $fill, &mut alive, FileId(0), None, exact)
                     };
