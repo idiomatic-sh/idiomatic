@@ -49,7 +49,7 @@ mod spec;
 mod reader_cli;
 use reader_cli::{alloc_counts, flag, thread_cpu};
 mod bindings;
-use bindings::rule_context;
+use bindings::{context_from, rule_context};
 
 /// These readers declare no necessary identifier spelling and no extra walk columns.
 /// Their kind names, field names and filled relations come from the linked parser.

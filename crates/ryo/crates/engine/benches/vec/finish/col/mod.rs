@@ -1,4 +1,4 @@
-//! Whole-table select kernels. Bind the single source, output schema and column positions at plan load.
+//! Whole-table select kernels. Bind the single source, output schema and column positions on the first demand in the run.
 use super::{E, Exec, File, Provider, R, Run, Table, recycle};
 use std::rc::Rc;
 
@@ -14,12 +14,7 @@ pub(super) struct Kernels {
     audit: Option<Audit>,
 }
 
-impl Kernels {
-    #[inline]
-    pub(super) fn projection(&self, node: usize) -> Option<usize> {
-        self.by_node.get(node)?.checked_sub(1).map(|i| i as usize)
-    }
-}
+const UNBOUND: u32 = u32::MAX;
 
 impl Exec<'_> {
     pub(crate) fn col_report(&self) {
@@ -39,7 +34,7 @@ impl Exec<'_> {
             return;
         }
         let mut kernels = Kernels {
-            by_node: vec![0; self.plan.nodes.len()],
+            by_node: vec![UNBOUND; self.plan.nodes.len()],
             ..Kernels::default()
         };
         let check = sw!("VEC_COL_CHECK");
@@ -51,72 +46,86 @@ impl Exec<'_> {
                 phases: [0.0; 3],
             });
         }
-        let plan = self.plan;
-        for (node, pn) in plan.nodes.iter().enumerate() {
-            if pn.op != "select"
-                || !pn.j["cond"].is_null()
-                || !pn.j["count"].is_null()
-                || !pn.j["semi"].is_null()
-            {
-                continue;
-            }
-            let Some([src]) = pn.j["src"].as_array().map(Vec::as_slice) else {
-                continue;
-            };
-            let Some(source) = src[0].as_u64().and_then(|n| usize::try_from(n).ok()) else {
-                continue;
-            };
-            let Some(input) = plan.nodes.get(source) else {
-                continue;
-            };
-            if matches!(input.op.as_str(), "closure" | "base" | "rows")
-                || !matches!(self.view(run, source), Ok(None))
-            {
-                continue;
-            }
-            // Preserve the executor's on-demand errors for unsupported selects on unreachable paths.
-            let Ok(sel) = self.sel(run, node) else {
-                continue;
-            };
-            let Some(picks) = sel
-                .items
-                .iter()
-                .map(|(_, e)| match e {
-                    E::Col(0, c, _) => Some(*c),
-                    _ => None,
-                })
-                .collect::<Option<Box<[_]>>>()
-            else {
-                continue;
-            };
-            let Ok(schema) = self.schema(run, node) else {
-                continue;
-            };
-            let Ok(input) = self.schema(run, source) else {
-                continue;
-            };
-            let ident =
-                schema.names == input.names && picks.iter().copied().eq(0..input.names.len());
-            let distinct =
-                !sw!("VEC_SELECT_BAG") && !sw!("VEC_UNION_ALL") && picks.len() < input.names.len();
-            let projection = Projection {
-                source,
-                schema,
-                picks,
-                ident,
-                distinct,
-            };
-            if let Some(a) = &mut kernels.audit {
-                a.rows.push(Counts {
-                    node,
-                    kind: projection.kind(),
-                    ..Counts::default()
-                });
-            }
-            kernels.projections.push(projection);
-            kernels.by_node[node] = kernels.projections.len() as u32;
-        }
         self.col = kernels;
+        if self.col.audit.is_some() {
+            // An inventory also reports nodes which no file reaches.
+            for node in 0..self.plan.nodes.len() {
+                self.bind_projection(run, node);
+            }
+        }
+    }
+
+    #[inline]
+    pub(super) fn projection(&mut self, run: &mut Run, node: usize) -> Option<usize> {
+        let slot = *self.col.by_node.get(node)?;
+        if slot == UNBOUND {
+            self.bind_projection(run, node);
+            self.col.by_node[node].checked_sub(1).map(|i| i as usize)
+        } else {
+            slot.checked_sub(1).map(|i| i as usize)
+        }
+    }
+
+    #[inline(never)]
+    fn bind_projection(&mut self, run: &mut Run, node: usize) {
+        self.col.by_node[node] = 0;
+        let plan = self.plan;
+        let pn = &plan.nodes[node];
+        if pn.op != "select" || pn.tested() || pn.counted() || pn.semi().is_some() {
+            return;
+        }
+        let &[source] = pn.inputs.as_slice() else {
+            return;
+        };
+        let Some(input) = plan.nodes.get(source) else {
+            return;
+        };
+        if matches!(input.op.as_str(), "closure" | "base" | "rows")
+            || !matches!(self.view(run, source), Ok(None))
+        {
+            return;
+        }
+        // Preserve the executor's on-demand errors for unsupported selects on unreachable paths.
+        let Ok(sel) = self.sel(run, node) else {
+            return;
+        };
+        let Some(picks) = sel
+            .items
+            .iter()
+            .map(|(_, e)| match e {
+                E::Col(0, c, _) => Some(*c),
+                _ => None,
+            })
+            .collect::<Option<Box<[_]>>>()
+        else {
+            return;
+        };
+        let Ok(schema) = self.schema(run, node) else {
+            return;
+        };
+        let Ok(input) = self.schema(run, source) else {
+            return;
+        };
+        let ident = schema.names == input.names && picks.iter().copied().eq(0..input.names.len());
+        let distinct =
+            !sw!("VEC_SELECT_BAG") && !sw!("VEC_UNION_ALL") && picks.len() < input.names.len();
+        let projection = Projection {
+            source,
+            schema,
+            picks,
+            ident,
+            distinct,
+        };
+        let kernels = &mut self.col;
+        if let Some(a) = &mut kernels.audit {
+            a.rows.push(Counts {
+                node,
+                kind: projection.kind(),
+                ..Counts::default()
+            });
+        }
+        kernels.projections.push(projection);
+        kernels.by_node[node] = kernels.projections.len() as u32;
     }
 
     pub(super) fn col_select(
