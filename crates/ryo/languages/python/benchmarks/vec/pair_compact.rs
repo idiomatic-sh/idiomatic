@@ -74,6 +74,7 @@ impl Reachable {
             | Domain::SpanMatching(..)
             | Domain::Fact(..)
             | Domain::Flag(..)
+            | Domain::Number(..)
             | Domain::OtherValues(..)
             | Domain::RelatedIds(..)
             | Domain::Matching(..)

@@ -1,13 +1,13 @@
 //! Evaluate each requested witness once per file. Unknown or partial provider answers admit the file.
-use super::pair_summary::{Domain, Id, Need, Program};
+use super::pair_summary::{Domain, Id, Need, Program, Source};
 use rustc_hash::FxHashMap as Map;
-use ryo::languages::{self, FileWords, FilledColumns, NodeTable, Position, Relation, node_table};
+use ryo::languages::{self, FileWords, FilledColumns, NodeTable, Position, node_table};
 use std::rc::Rc;
 
 type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
 type Nodes = Option<Bits>;
-type Reader<'a> = dyn FnMut(Relation, &mut FileWords, &mut FilledColumns) -> bool + 'a;
+type Reader<'a> = dyn FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool + 'a;
 
 #[derive(Default)]
 struct Table {
@@ -66,7 +66,7 @@ impl Table {
             return;
         }
         self.read = true;
-        self.answered = read(spec.relation, words, &mut self.cells);
+        self.answered = read(spec.source, words, &mut self.cells);
         self.complete = self.answered;
         if self.complete
             && let Some(key) = spec.key
@@ -396,23 +396,24 @@ impl File<'_> {
                     None
                 }
             }
-            Domain::Flag(slot, col, value) => {
+            Domain::Flag(slot, col, _) | Domain::Number(slot, col, _, _) => {
                 let spec = &self.p.facts[*slot];
                 let table = &mut self.facts[*slot];
                 table.load(spec, n, self.words, self.read);
                 if table.complete {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
-                    Some(bits(
-                        table
-                            .cells
-                            .0
-                            .get(*col)
-                            .into_iter()
-                            .flat_map(|c| &c.0)
-                            .enumerate()
-                            .filter(|(_, cell)| cell.0 == u64::from(*value))
-                            .map(|(i, _)| key.map_or(0, |ids| ids.0[i].0 as u32)),
-                    ))
+                    Some(bits(table.cells.0.get(*col).into_iter().flat_map(|c| &c.0).enumerate()
+                        .filter(|(_, cell)| match self.p.domains[id] {
+                            Domain::Flag(_,_,v) => cell.0 == u64::from(v),
+                            Domain::Number(_,_,op,v) if cell.0 != super::finish::NULL && v as u64 != super::finish::NULL => {
+                                use ryo_values::domain::finish_plans::expressions::types::Comparator::*;
+                                let x = cell.0 as i64;
+                                match op { Equal => x == v, NotEqual => x != v, Less => x < v, Greater => x > v,
+                                LessOrEqual => x <= v, GreaterOrEqual => x >= v }
+                            }
+                            _ => false,
+                        })
+                        .map(|(i, _)| key.map_or(0, |ids| ids.0[i].0 as u32))))
                 } else {
                     None
                 }
@@ -553,7 +554,7 @@ impl Program {
         src: &[u8],
         path: Option<&[u8]>,
         words: &mut FileWords,
-        mut read: impl FnMut(Relation, &mut FileWords, &mut FilledColumns) -> bool,
+        mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
         mut exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {

@@ -32,6 +32,7 @@ pub(super) enum Domain {
     Fact(usize, Option<(usize, Vec<Id>)>),
     OtherValues(usize, usize, Vec<Id>),
     Flag(usize, usize, bool),
+    Number(usize, usize, Comparator, i64),
     RelatedIds(usize, usize, Option<(usize, Vec<Id>)>),
     Matching(usize, usize, usize),
     CapturedSuffix(usize, usize, Vec<u8>, usize),
@@ -56,10 +57,19 @@ pub(super) enum Need {
     Either(Id, Id),
 }
 
+#[derive(Clone, Copy)]
+pub(super) enum Source {
+    Catalog(Relation),
+    Walk(&'static str),
+}
+
 pub(super) struct Fact {
-    pub relation: Relation,
+    pub source: Source,
+    pub name: &'static str,
     pub key: Option<usize>,
-    pub kinds: &'static [CellKind],
+    pub columns: Vec<&'static str>,
+    pub kinds: Vec<CellKind>,
+    pub exact: bool,
 }
 
 pub(super) struct Program {
@@ -333,34 +343,6 @@ impl Builder<'_> {
         r.need = self.and(r.need, n);
     }
     fn base<'a>(&mut self, name: &str) -> Summary<'a> {
-        if let Some(witness) = self
-            .language
-            .witnesses
-            .iter()
-            .find(|w| w.relation == name)
-            .copied()
-        {
-            let source = self.native_base(witness.source);
-            let mut rows = Summary {
-                need: source.need,
-                ..Summary::default()
-            };
-            if let Some(column) = source.column(witness.symbol_column)
-                && let Some(d) = self.matching(
-                    column.attr,
-                    &format!(r"\A{}", regex::escape(witness.prefix)),
-                    CellKind::Symbol,
-                )
-            {
-                let var = rows.var(d);
-                rows.add(witness.projected_key, var, Attribute::Id);
-                self.require(&mut rows, d);
-            }
-            return rows;
-        }
-        self.native_base(name)
-    }
-    fn native_base<'a>(&mut self, name: &str) -> Summary<'a> {
         let mut r = Summary::default();
         if (self.language.host_len)(name) == Some(0) {
             r.need = EMPTY;
@@ -392,43 +374,74 @@ impl Builder<'_> {
                 r.add("file", 0, FilePath);
             }
             _ => {
-                if !self.language.facts.iter().any(|n| n == name)
-                    && !(self.file_sets && self.language.file_sets.iter().any(|n| n == name))
-                {
-                    return r;
-                }
-                let Some(relation) = catalog::relation_named(NameRef(name)) else {
-                    return r;
-                };
-                let kinds = catalog::kinds(relation);
-                let key = kinds.iter().position(|k| *k == CellKind::Node);
-                let slot = self
-                    .out
-                    .facts
-                    .iter()
-                    .position(|f| f.relation == relation)
-                    .unwrap_or_else(|| {
+                let slot =
+                    if let Some(slot) = self.out.facts.iter().position(|spec| spec.name == name) {
+                        slot
+                    } else {
+                        let (name, source, columns, kinds, exact): (_, _, Vec<_>, Vec<_>, _) =
+                            if let Some(view) = self
+                                .language
+                                .walk_facts
+                                .iter()
+                                .find(|f| self.file_sets && f.name == name)
+                            {
+                                let (columns, kinds) = view.columns.iter().copied().unzip();
+                                (
+                                    view.name,
+                                    Source::Walk(view.name),
+                                    columns,
+                                    kinds,
+                                    view.exact,
+                                )
+                            } else {
+                                if !self.language.facts.iter().any(|n| n == name)
+                                    && !(self.file_sets
+                                        && self.language.file_sets.iter().any(|n| n == name))
+                                {
+                                    return r;
+                                }
+                                let Some(rel) = catalog::relation_named(NameRef(name)) else {
+                                    return r;
+                                };
+                                let columns = catalog::columns(rel)
+                                    .into_iter()
+                                    .map(|c| catalog::column_name(c).0)
+                                    .collect();
+                                (
+                                    catalog::name(rel).0,
+                                    Source::Catalog(rel),
+                                    columns,
+                                    catalog::kinds(rel).to_vec(),
+                                    true,
+                                )
+                            };
+                        let key = kinds.iter().position(|k| *k == CellKind::Node);
                         self.out.facts.push(Fact {
-                            relation,
+                            name,
+                            source,
                             key,
+                            columns,
                             kinds,
+                            exact,
                         });
                         self.out.facts.len() - 1
-                    });
+                    };
+                let key = self.out.facts[slot].key;
                 let d = self.domain(Domain::Fact(slot, None));
                 r.native_row = Some(slot);
                 r.var(d);
                 self.require(&mut r, d);
-                for (i, col) in catalog::columns(relation).into_iter().enumerate() {
+                for i in 0..self.out.facts[slot].columns.len() {
+                    let col = self.out.facts[slot].columns[i];
                     let (var, attr) = if Some(i) == key {
                         (0, Id)
-                    } else if kinds[i] == CellKind::Node {
+                    } else if self.out.facts[slot].kinds[i] == CellKind::Node {
                         let ids = self.domain(Domain::RelatedIds(slot, i, None));
                         (r.var(ids), Id)
                     } else {
                         (0, Cell(slot, i))
                     };
-                    r.add(catalog::column_name(col).0, var, attr);
+                    r.add(col, var, attr);
                 }
             }
         }
@@ -494,12 +507,23 @@ impl Builder<'_> {
             _ => None,
         }
     }
+    fn number(&mut self, attr: Attribute, cmp: Comparator, value: i64) -> Option<Id> {
+        let Attribute::Cell(slot, col) = attr else {
+            return None;
+        };
+        (self.out.facts[slot].kinds[col] == CellKind::Number)
+            .then(|| self.domain(Domain::Number(slot, col, cmp, value)))
+    }
     fn filter(
         &mut self,
         e: &PlanExpression,
         lookup: &impl Fn(&ColumnRead) -> Option<Column>,
     ) -> Option<(usize, Id)> {
         use PlanExpression::*;
+        if let Some((column, cmp, value)) = numeric_comparison(e) {
+            let c = lookup(column)?;
+            return self.number(c.attr, cmp, value).map(|d| (c.var, d));
+        }
         // A written membership list is one local test. Keep its literals together,
         // including when the parser represents the list as an OR of equalities.
         if matches!(e, Or(_) | In(_)) {
@@ -1156,6 +1180,32 @@ fn choices<'a>(e: &'a PlanExpression, values: &mut Vec<&'a str>) -> Option<&'a C
     }
 }
 
+fn numeric_comparison(e: &PlanExpression) -> Option<(&ColumnRead, Comparator, i64)> {
+    use PlanExpression::*;
+    let Compare(c) = e else { return None };
+    let whole = |e: &PlanExpression| match e {
+        Number(PlanNumber::Whole(n)) | Literal(PlanConstant::Number(PlanNumber::Whole(n))) => {
+            Some(n.0)
+        }
+        _ => None,
+    };
+    match (&*c.left, &*c.right) {
+        (Column(col), n) => Some((col, c.comparator, whole(n)?)),
+        (n, Column(col)) => {
+            use Comparator::*;
+            let cmp = match c.comparator {
+                Less => Greater,
+                LessOrEqual => GreaterOrEqual,
+                Greater => Less,
+                GreaterOrEqual => LessOrEqual,
+                other => other,
+            };
+            Some((col, cmp, whole(n)?))
+        }
+        _ => None,
+    }
+}
+
 pub(super) fn terms<'a>(e: &'a PlanExpression, out: &mut Vec<&'a PlanExpression>) {
     if let PlanExpression::And(p) = e {
         terms(&p.left, out);
@@ -1216,7 +1266,8 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     for s in &plan.steps {
         if let FinishStep::Base(name) = s
             && (language.facts.iter().any(|r| r == &*name.0)
-                || language.file_sets.iter().any(|r| r == &*name.0))
+                || language.file_sets.iter().any(|r| r == &*name.0)
+                || language.walk_facts.iter().any(|f| f.name == &*name.0))
         {
             b.base(&name.0);
         }

@@ -5,15 +5,6 @@ use super::{
     finish::{Run, Table},
 };
 
-/// Every target takes its occurrence from a relative static-import row.
-pub(super) const WITNESS: super::first::RowWitness = super::first::RowWitness {
-    relation: RELATIVE_IMPORT_REL,
-    projected_key: "occurrence",
-    source: "static-import",
-    symbol_column: "target",
-    prefix: ".",
-};
-
 /// One leading dot selects the containing package, and each further dot selects its parent.
 fn prefix(mut package: &[u8], level: usize) -> Option<&[u8]> {
     for _ in 1..level {

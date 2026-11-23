@@ -98,7 +98,7 @@ pub(super) enum Ty {
     Flag,
 }
 
-fn ty_of(k: CellKind) -> Ty {
+pub(super) fn ty_of(k: CellKind) -> Ty {
     match k {
         CellKind::Node => Ty::Node,
         CellKind::Symbol => Ty::Sym,

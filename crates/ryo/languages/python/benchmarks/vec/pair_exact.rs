@@ -97,24 +97,27 @@ fn fact_projection<'a>(
     let FinishStep::Base(name) = &plan.steps[src.step.0] else {
         return None;
     };
-    let rel = catalog::relation_named(NameRef(&name.0))?;
-    let slot = b.out.facts.iter().position(|f| f.relation == rel)?;
+    let slot = b
+        .out
+        .facts
+        .iter()
+        .position(|f| f.name == &*name.0 && f.exact)?;
     let spec = &b.out.facts[slot];
     let key = spec.key?;
-    let kinds = spec.kinds;
-    let names = catalog::columns(rel);
+    let kinds = spec.kinds.clone();
+    let names = spec.columns.clone();
     let column = |c: &ColumnRead| {
         if c.alias != SourceAlias::Unwritten && c.alias != src.alias {
             return None;
         }
-        names
-            .iter()
-            .position(|n| catalog::column_name(*n).0 == &*c.column.0)
+        names.iter().position(|n| *n == &*c.column.0)
     };
     let d = match &s.condition {
         RowCondition::Every => b.domain(Domain::Fact(slot, None)),
         RowCondition::Tested(e) => {
-            if let PlanExpression::Call(f) = e {
+            if let Some((c, cmp, value)) = numeric_comparison(e) {
+                b.number(Attribute::Cell(slot, column(c)?), cmp, value)?
+            } else if let PlanExpression::Call(f) = e {
                 let [
                     PlanExpression::Column(c),
                     PlanExpression::Literal(PlanConstant::Text(p)),
@@ -179,6 +182,7 @@ fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
             Domain::Fact(slot, _)
             | Domain::OtherValues(slot, _, _)
             | Domain::Flag(slot, ..)
+            | Domain::Number(slot, ..)
             | Domain::Matching(slot, _, _) => {
                 if !slots.contains(&slot) {
                     slots.push(slot);

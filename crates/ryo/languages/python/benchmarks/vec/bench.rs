@@ -663,7 +663,7 @@ fn python_language(vocab: &Vocab) -> first::Language {
     use ryo_python::fixtures::columns::{PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
     first::Language {
         host_len: finish::host::host_len,
-        witnesses: &[relative_import::WITNESS],
+        walk_facts: pair_provider::FACTS,
         text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
         file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
         facts: PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect(),
@@ -959,6 +959,7 @@ mod glob_pattern;
 use glob_pattern::glob_pattern;
 mod pair_skip;
 mod pair_checks;
+mod pair_provider;
 mod host_columns;
 mod request;
 #[path = "finisher.rs"]
@@ -1441,14 +1442,9 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             let (_, names, tys) = run.catalog(rel).ok_or("no binding-sites")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
             let complete = self.file.visit_binding_sites(|site| {
-                rows.cols[0].push(u64::from(site.binding));
-                rows.cols[1].push(site.stores as u64);
-                rows.cols[2].push(site.removals as u64);
-                rows.cols[3].push(site.later as u64);
-                rows.cols[4].push(site.statement.map_or(finish::NULL, u64::from));
-                rows.cols[5].push(u64::from(site.series_end));
-                rows.cols[6].push(site.next.map_or(finish::NULL, u64::from));
-                rows.cols[7].push(u64::from(self.file_no));
+                for (column, value) in rows.cols.iter_mut().zip(pair_provider::site_cells(site, self.file_no as usize)) {
+                    column.push(value);
+                }
                 rows.n += 1;
             });
             if !complete {
@@ -2076,8 +2072,11 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].as_bytes());
                     let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
                     pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, |rel, words, out| {
-                        host_columns::fill(rel, fin.as_deref().map(|f| &f.run), file_no, out)
-                            .unwrap_or_else(|| ($fill)(rel, words, out))
+                        if let pair_summary::Source::Catalog(catalog) = rel
+                            && let Some(result) = host_columns::fill(catalog, fin.as_deref().map(|f| &f.run), file_no, out) {
+                            return result;
+                        }
+                        ($fill)(rel, words, out)
                     }, &mut alive, exact);
                     pair_cpu += thread_cpu() - start;
                 }
@@ -2332,7 +2331,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let n = node_table::element_count(ft).0;
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
-                    prepare!(ft, |rel,words,out| matches!(file.fill(rel,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_)));
+                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
                     if let Some(seeds) = &mut file_seeds {
@@ -2709,7 +2708,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                 let p0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
-                prepare!(ft, |rel,words,out| matches!(file.facts.fill(rel,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_)));
+                prepare!(ft, |rel,words,out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_))));
                 prepared = true;
                 let v0 = thread_cpu();
                 let mut needed = vec![false; slots_n];

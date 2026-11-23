@@ -7,7 +7,6 @@ use super::finish::{self, Supplier, Ty, project::ProjectAsk};
 
 /// Syntactic stores and unbindings for a single name in one namespace and evaluation phase.
 pub(super) const BINDING_SITES_REL: &str = "binding-sites";
-const BINDING_SITES_COLS: [(&str, Ty); 8] = [("binding", Ty::Node), ("stores", Ty::Num), ("removals", Ty::Num), ("later", Ty::Num), ("statement", Ty::Node), ("series-end", Ty::Node), ("next", Ty::Node), ("file", Ty::File)];
 
 /// Dotted name requested by a relative import when its containing package is known.
 pub(super) const RELATIVE_IMPORT_REL: &str = "relative-import-target";
@@ -66,9 +65,10 @@ pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
 /// Declares to `run` every relation this provider, the host and the executor's steps supply beyond the provider's relations
 /// catalog.
 pub(super) fn declare(run: &mut finish::Run) {
+    let sites: Vec<_> = super::pair_provider::SITES.iter().map(|&(n, k)| (n, finish::ty_of(k))).collect();
     let facts: [(&str, &[(&str, Ty)]); 10] = [
         (REGION_REL, &REGION_COLS),
-        (BINDING_SITES_REL, &BINDING_SITES_COLS),
+        (BINDING_SITES_REL, &sites),
         (RELATIVE_IMPORT_REL, &RELATIVE_IMPORT_COLS),
         (PREDECESSOR_REL, &RESOLUTION_COLS),
         (FINAL_REL, &FINAL_COLS),
