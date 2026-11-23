@@ -270,7 +270,13 @@ impl Exec<'_> {
             return n;
         }
         let codes = |run: &Run, syms: &[u32]| -> Box<[u16]> { run.kind_sym.iter().enumerate().filter(|(_, s)| syms.contains(s)).map(|(c, _)| c as u16).collect() };
-        let file_test = |conj: &[E]| conj.iter().any(|c| filter_order::file_const(c) && !matches!(c, E::Lit(_)));
+        let file_test = |conj: &[E]| conj.iter().any(|c| {
+            // file_fails substitutes this file's same id for each file column.
+            // Equality of two such columns always succeeds for this decision.
+            let same_file = matches!(c, E::Cmp(super::Op::Eq, a, b)
+                if matches!((&**a, &**b), (E::Col(_, _, super::Ty::File), E::Col(_, _, super::Ty::File))));
+            filter_order::file_const(c) && !matches!(c, E::Lit(_)) && !same_file
+        });
         if let Ok(Some(v)) = self.view(run, node) {
             if v.base == Native::Tree {
                 n.kinds = v.filter.iter().filter_map(|c| super::kind_set(run, std::slice::from_ref(c), 0, v.base, &[])).map(|ks| codes(run, &ks)).collect();
