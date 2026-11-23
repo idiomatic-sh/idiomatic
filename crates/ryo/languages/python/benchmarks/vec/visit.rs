@@ -142,6 +142,7 @@ impl<'p> Finisher<'p> {
         finish::own_words_cleared(&mut self.run);
         let mut project = std::mem::take(&mut self.project);
         let mut pv = ColFacts {
+            import_comments: Default::default(),
             file,
             words: &mut fwords,
             filled: languages::FilledColumns::default(),

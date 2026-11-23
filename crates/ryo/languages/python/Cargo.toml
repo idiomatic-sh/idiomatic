@@ -41,6 +41,7 @@ mimalloc = { workspace = true, optional = true }
 
 [dev-dependencies]
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../crates/operators" }
+bumpalo = "3"
 smallvec = "1"
 serde_json.workspace = true
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
@@ -49,6 +50,7 @@ dhat.workspace = true
 idiomatic-sh-ryo-python = { path = ".", features = ["fixtures"] }
 divan.workspace = true
 # THROWAWAY (ryo-fmx3.1): the `vec` measurement bench.
+memchr.workspace = true
 cpu-time = "1"
 aho-corasick = "1"
 rustc-hash = "2"

@@ -145,6 +145,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
     fn pass_miss(&mut self, id: Id) -> bool {
         self.steps += 1;
         let yes = match self.p.needs[id] {
+            Need::InvalidPattern(_) => unreachable!("proof validation happens at load"),
             Need::Any => true,
             Need::Empty => false,
             Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
@@ -421,17 +422,21 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 }
                 Some(Rc::new(out))
             }
-            Domain::Either(a, b) => match (self.nodes(*a), self.nodes(*b)) {
-                (Some(a), Some(b)) => {
-                    let (a, b) = if a.len() >= b.len() { (a, b) } else { (b, a) };
-                    let mut v = (*a).clone();
-                    for (x, y) in v.iter_mut().zip(b.iter()) {
-                        *x |= *y
-                    }
-                    Some(Rc::new(v))
+            // An unconstrained arm admits every node. Only a known left mask
+            // can justify requesting the right arm and its provider tables.
+            Domain::Either(a, b) => self.nodes(*a).and_then(|left| {
+                let right = self.nodes(*b)?;
+                let (a, b) = if left.len() >= right.len() {
+                    (left, right)
+                } else {
+                    (right, left)
+                };
+                let mut v = (*a).clone();
+                for (x, y) in v.iter_mut().zip(b.iter()) {
+                    *x |= *y;
                 }
-                _ => None,
-            },
+                Some(Rc::new(v))
+            }),
             Domain::Descendants(root) => self.nodes(*root).map(|ancestors| {
                 let mut pending = Vec::new();
                 each(&ancestors, |n| pending.push(n));

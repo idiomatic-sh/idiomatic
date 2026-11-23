@@ -195,6 +195,8 @@ struct K {
     ident: bool,
     /// By source, where it is a view: the kinds its own tests name, and the kinds the select's tests name of it (static).
     kinds: Vec<(Option<Vec<u32>>, Option<Vec<u32>>)>,
+    entries: Vec<super::view_entry::Entry>,
+    view_key: Option<[usize; 2]>,
     /// A semi step's probed side: the band is tried first.
     semi: Option<usize>,
     /// redo-select2: a run is decided by a view source whose entry is empty before anything is read (`ksel_zero`).
@@ -210,6 +212,7 @@ const ABSENT: usize = 1 << 60;
 
 /// `lit_rows`, once a file under `key` (`ABSENT` marks a None).
 pub(super) fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base: super::Native, map: &[usize]) -> Option<Rc<Vec<u32>>> {
+    if !matches!(base, Native::Fact(_)) || conj.is_empty() { return None; }
     if let Some(r) = f.vrows.get(&key) {
         return Some(r.clone());
     }
@@ -404,11 +407,17 @@ impl Exec<'_> {
             items.len() == ssc.names.len() && items.iter().enumerate().all(|(i, (s, c))| *s == 0 && *c == i) && sp.items.iter().zip(ssc.names.iter()).all(|((n, _), m)| n == m)
         };
         let mut kinds = Vec::with_capacity(k);
+        let mut entries = Vec::with_capacity(k);
         for (i, n) in sp.srcs.iter().enumerate() {
-            kinds.push(match self.view(run, *n)? {
-                Some(v) => (kind_set(run, &v.filter, 0, v.base, &[]), kind_set(run, &sp.conj, i, v.base, &v.map)),
-                None => (None, None),
+            let view = self.view(run, *n)?;
+            let sets = view.as_ref().map_or((None, None), |v| {
+                (kind_set(run, &v.filter, 0, v.base, &[]), kind_set(run, &sp.conj, i, v.base, &v.map))
             });
+            let selected = sets.0.as_deref().or(sets.1.as_deref());
+            entries.push(view.as_ref().map_or(super::view_entry::Entry::Unknown, |v| {
+                super::view_entry::Entry::bind(run, v, selected, &sp.conj, i)
+            }));
+            kinds.push(sets);
         }
         // an empty view entry empties the run whatever the other sources hold (every source is joined)
         let zero = semi.is_none() && !sp.conj.iter().any(|e| matches!(e, E::Seed(..))) && {
@@ -418,7 +427,12 @@ impl Exec<'_> {
             }
             views
         };
-        Ok(Prep::K(K { preds, file_const, items, set, ident, kinds, semi, zero }))
+        let view_key = if k == 2 && sp.srcs.iter().any(|s| self.views[*s].as_ref().is_some_and(Option::is_some)) {
+            super::view_pair::columns(&sp.conj)
+        } else {
+            None
+        };
+        Ok(Prep::K(K { preds, file_const, items, set, ident, kinds, entries, view_key, semi, zero }))
     }
 
     /// The dispatch: the kernels, or the interpreter's `select` (`VEC_OLD_SELECT`, or a node they do not cover).
@@ -661,10 +675,7 @@ impl Exec<'_> {
             let dsize = self.keyed_size(f, run, p, sp.srcs[i], true)?;
             let osize = match &srcs[o] {
                 Src::Tab(t, _) => Some(t.n),
-                Src::View(v, vn) => match &kp.kinds[o] {
-                    (Some(ks), _) | (None, Some(ks)) => Some(bucket_len(f, run, ks)),
-                    (None, None) => lit_file(f, LIT_FILTER | *vn, &v.filter, 0, v.base, &[]).or_else(|| lit_file(f, LIT_CONJ | (node << 1) | o, conj, o, v.base, &v.map)).map(|r| r.len()),
-                },
+                Src::View(..) => kp.entries[o].len(f),
                 _ => None,
             };
             if osize.is_none_or(|n| n >= dsize) {
@@ -706,10 +717,7 @@ impl Exec<'_> {
         for (i, sr) in srcs.iter().enumerate() {
             let size = match sr {
                 Src::Tab(t, _) => Some(t.n),
-                Src::View(v, vn) => match &kp.kinds[i] {
-                    (Some(ks), _) | (None, Some(ks)) => Some(bucket_len(f, run, ks)),
-                    (None, None) => lit_file(f, LIT_FILTER | *vn, &v.filter, 0, v.base, &[]).or_else(|| lit_file(f, LIT_CONJ | (node << 1) | i, conj, i, v.base, &v.map)).map(|r| r.len()),
-                },
+                Src::View(..) => kp.entries[i].len(f),
                 _ => None,
             };
             if let Some(n) = size
@@ -725,15 +733,17 @@ impl Exec<'_> {
         }
         let driver = match driver {
             Some(d) => d,
-            None => match (0..k).find(|i| match &srcs[*i] {
-                Src::View(v, vn) => kp.kinds[*i].0.is_some() || kp.kinds[*i].1.is_some() || lit_file(f, LIT_FILTER | *vn, &v.filter, 0, v.base, &[]).is_some() || lit_file(f, LIT_CONJ | (node << 1) | *i, conj, *i, v.base, &v.map).is_some(),
-                _ => false,
-            }) {
-                Some(d) => d,
-                None => (0..k).find(|i| matches!(srcs[*i], Src::View(..))).ok_or("a select with no source to start from")?,
-            },
+            None => (0..k).find(|i| matches!(srcs[*i], Src::View(..))).ok_or("a select with no source to start from")?,
         };
         super::empty_sel::lap(5, self.inner);
+        if let Some(columns) = kp.view_key
+            && deferred.is_none()
+            && !super::empty_sel::on() && !sw!("VEC_KSEL_PROF")
+            && let Some(result) = super::view_pair::run(self, f, run, node, srcs, driver, columns,
+                super::view_pair::Projection { items: &kp.items, left: &mut b.left, right: &mut b.right })?
+        {
+            return Ok(result);
+        }
         let prof = sw!("VEC_KSEL_PROF");
         if prof {
             prof_add(1, t0.elapsed() - (self.inner - i0));
@@ -1016,19 +1026,32 @@ impl Exec<'_> {
                     }
                     Src::View(vs, _) => {
                         let (base, bcol) = (vs.base, vs.map[col]);
-                        for r in sel.iter() {
-                            let r = *r;
-                            cur[driver] = r;
-                            let v = get(run, f, &srcs, &cur, driver, dc);
-                            hits.clear();
-                            f.native_probe(run, base, bcol, v, hits);
-                            super::view_cols::retain(f, run, vs, hits);
-                            touched += hits.len() as u64;
-                            for h in hits.iter() {
-                                cur[si] = *h;
-                                if checks.iter().all(|c| holds(run, f, &srcs, &cur, &kp.preds[*c])) {
-                                    left.push(r);
-                                    right.push(*h);
+                        let batch = super::view_probe::Driver { rows: super::view_probe::Ids::Slice(sel), source: driver, column: dc };
+                        let direct = super::view_probe::pairs(f, run, &srcs, batch, vs, bcol, |run, row, hit| {
+                            cur[driver] = row;
+                            cur[si] = hit;
+                            if checks.iter().all(|c| holds(run, f, &srcs, &cur, &kp.preds[*c])) {
+                                left.push(row);
+                                right.push(hit);
+                            }
+                        });
+                        if let Some(count) = direct {
+                            touched += count;
+                        } else {
+                            for r in sel.iter() {
+                                let r = *r;
+                                cur[driver] = r;
+                                let v = get(run, f, &srcs, &cur, driver, dc);
+                                hits.clear();
+                                f.native_probe(run, base, bcol, v, hits);
+                                super::view_cols::retain(f, run, vs, hits);
+                                touched += hits.len() as u64;
+                                for h in hits.iter() {
+                                    cur[si] = *h;
+                                    if checks.iter().all(|c| holds(run, f, &srcs, &cur, &kp.preds[*c])) {
+                                        left.push(r);
+                                        right.push(*h);
+                                    }
                                 }
                             }
                         }

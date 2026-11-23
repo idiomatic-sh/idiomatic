@@ -6,8 +6,11 @@ use rustc_hash::FxHashMap as Map;
 use rustc_hash::FxHashSet;
 use ryo::languages::{CellKind, Relation};
 use ryo_relations::domain::{labels::types::NameRef, relations::service as catalog};
-use ryo_values::domain::finish_plans::{expressions::types::*, service::inputs, types::*};
+use ryo_values::domain::finish_plans::{
+    arguments::types::StepNumber, expressions::types::*, service::extend_inputs, types::*,
+};
 use ryo_values::domain::plan_parts::types::Direction;
+use std::borrow::Cow;
 
 #[path = "pair_compact.rs"]
 mod compact;
@@ -25,6 +28,15 @@ mod precheck;
 mod project;
 #[path = "pair_regexes.rs"]
 mod regexes;
+
+pub(super) fn inputs(s: &FinishStep) -> smallvec::SmallVec<[StepNumber; 4]> {
+    let mut result = smallvec::SmallVec::new();
+    extend_inputs(s, &mut result);
+    result
+}
+
+type Literals<'a> = smallvec::SmallVec<[&'a str; 4]>;
+pub(super) type Conjuncts<'a> = smallvec::SmallVec<[&'a PlanExpression; 4]>;
 
 pub(super) type Id = usize;
 const ANY: Id = 0;
@@ -67,6 +79,7 @@ pub(super) enum Need {
     Terms(bool, Box<[Id]>),
     Any,
     PathMatches(usize),
+    InvalidPattern(usize), // proof prerequisite, resolved during plan compaction
     SourceContains(usize),
     Empty,
     Some(Id),
@@ -137,10 +150,36 @@ struct Summary<'a> {
     need: Id,
     native_row: Option<usize>,
     domains: smallvec::SmallVec<[Id; 2]>,
-    columns: Vec<(&'a str, Column)>,
+    columns: Cow<'a, [(&'a str, Column)]>,
     edges: smallvec::SmallVec<[(usize, usize, u8); 1]>, // descendant, ancestor, fixed number of parent edges
 }
 impl<'a> Summary<'a> {
+    fn writing(scratch: &mut Vec<(&'a str, Column)>) -> Self {
+        Self {
+            columns: Cow::Owned(std::mem::take(scratch)),
+            ..Self::default()
+        }
+    }
+    // Stored columns are immutable throughout the bottom-up pass. Passthrough
+    // steps borrow that slice. A new projection writes into reusable storage.
+    fn freeze(&mut self, arena: &'a bumpalo::Bump, scratch: &mut Vec<(&'a str, Column)>) {
+        if let Cow::Owned(buf) = &mut self.columns {
+            let stored = arena.alloc_slice_copy(buf);
+            if buf.capacity() > scratch.capacity() {
+                buf.clear();
+                std::mem::swap(buf, scratch);
+            }
+            self.columns = Cow::Borrowed(stored);
+        }
+    }
+    fn retain_columns(&mut self, keep: impl Fn(&(&str, Column)) -> bool) {
+        if let Cow::Borrowed(cols) = &self.columns
+            && cols.iter().all(&keep)
+        {
+            return;
+        }
+        self.columns.to_mut().retain(keep);
+    }
     fn column(&self, name: &str) -> Option<Column> {
         self.columns
             .iter()
@@ -153,7 +192,7 @@ impl<'a> Summary<'a> {
         i
     }
     fn add(&mut self, name: &'a str, var: usize, attr: Attribute) {
-        self.columns.push((name, Column { var, attr }));
+        self.columns.to_mut().push((name, Column { var, attr }));
     }
     fn compact(&mut self) {
         if self.domains.len() <= 1 {
@@ -165,7 +204,7 @@ impl<'a> Summary<'a> {
         }
         let mut vars = smallvec::SmallVec::new();
         let mut map = smallvec::SmallVec::<[Option<usize>; 8]>::from_elem(None, self.domains.len());
-        for (_, c) in &mut self.columns {
+        for (_, c) in self.columns.to_mut() {
             c.var = *map[c.var].get_or_insert_with(|| {
                 vars.push(self.domains[c.var]);
                 vars.len() - 1
@@ -205,6 +244,7 @@ struct Builder<'a> {
     language: &'a Language,
     positive: bool,
     regex_slots: Map<String, Id>,
+    proof_validation: Option<Id>,
     early_omit: u16,
     dominance: bool,
     signatures: Vec<u64>,
@@ -272,6 +312,9 @@ impl Builder<'_> {
             }
             return i;
         }
+        self.insert_domain(d)
+    }
+    fn insert_domain(&mut self, d: Domain) -> Id {
         let size = match d {
             Domain::Except(a, b) | Domain::Both(a, b) | Domain::Either(a, b) => {
                 1 + self.sizes[a] + self.sizes[b]
@@ -317,6 +360,9 @@ impl Builder<'_> {
         if let Some(&i) = self.ns.get(&n) {
             return i;
         }
+        self.insert_need(n)
+    }
+    fn insert_need(&mut self, n: Need) -> Id {
         let i = self.out.needs.len();
         let mut signature = 1 << (i % 64);
         if let Need::Both(a, b) = n {
@@ -380,7 +426,7 @@ impl Builder<'_> {
             self.ds.insert(key, b);
             return b;
         }
-        let combined = self.domain(key);
+        let combined = self.insert_domain(key);
         // The additional conjunct is unrepresentable at the cap. The
         // previous witness is still necessary; exact issuance sees the cap.
         if combined == ANY { a } else { combined }
@@ -410,7 +456,7 @@ impl Builder<'_> {
             self.ds.insert(key, a);
             return a;
         }
-        self.domain(key)
+        self.insert_domain(key)
     }
     // A conjunction entails every conjunct reachable solely through AND.
     // The signature only disproves membership. Elimination requires an actual
@@ -445,11 +491,16 @@ impl Builder<'_> {
             return b;
         }
         let (lo, hi) = (a.min(b), a.max(b));
+        let both = Need::Both(lo, hi);
+        if let Some(&id) = self.ns.get(&both) {
+            return id;
+        }
         let mut remaining = CAP;
         if self.dominance && self.entails(hi, lo, &mut remaining) {
+            self.ns.insert(both, hi);
             return hi;
         }
-        self.need(Need::Both(lo, hi))
+        self.insert_need(both)
     }
     fn or(&mut self, a: Id, b: Id) -> Id {
         if a == ANY || b == ANY {
@@ -637,6 +688,11 @@ impl Builder<'_> {
         Some(self.domain(Domain::Matching(slot, col, regex)))
     }
 
+    fn take_validation(&mut self) -> Id {
+        self.proof_validation
+            .as_mut()
+            .map_or(EMPTY, |v| std::mem::replace(v, EMPTY))
+    }
     fn regex(&mut self, pattern: &str) -> Option<usize> {
         let slot = if let Some(&slot) = self.regex_slots.get(pattern) {
             slot
@@ -646,6 +702,11 @@ impl Builder<'_> {
             self.regex_slots.insert(pattern.to_owned(), slot);
             slot
         };
+        if let Some(guard) = self.proof_validation {
+            let invalid = self.need(Need::InvalidPattern(slot));
+            self.proof_validation = Some(self.or(guard, invalid));
+            return Some(slot);
+        }
         (self.positive || self.out.regexes[slot].compiled().is_some()).then_some(slot)
     }
 
@@ -701,7 +762,7 @@ impl Builder<'_> {
                 }
                 CellTest::Numeric(index, cmp, literal)
             } else {
-                let mut values = Vec::new();
+                let mut values = Literals::new();
                 let col = lookup(choices(term, &mut values)?)?;
                 let Attribute::Cell(source, index) = col.attr else {
                     return None;
@@ -739,7 +800,7 @@ impl Builder<'_> {
         // A written membership list is one local test. Keep its literals together,
         // including when the parser represents the list as an OR of equalities.
         if matches!(e, Or(_) | In(_)) {
-            let mut values = Vec::new();
+            let mut values = Literals::new();
             if let Some(read) = choices(e, &mut values)
                 && let Some(c) = lookup(read)
                 && let Attribute::Cell(slot, col) = c.attr
@@ -754,7 +815,7 @@ impl Builder<'_> {
         // Complements are safe only for total, single-valued native columns.
         // Complementing a projected provider key would also remove nodes with
         // another fact row whose column does satisfy the predicate.
-        let mut values = Vec::new();
+        let mut values = Literals::new();
         let comparison = match e {
             Compare(c) if c.comparator == Comparator::NotEqual => match (&*c.left, &*c.right) {
                 (Column(col), Literal(PlanConstant::Text(v)))
@@ -948,7 +1009,13 @@ impl Builder<'_> {
         let guarded = self.domain(Domain::When(need, nodes));
         if guarded == ANY { nodes } else { guarded }
     }
-    fn select<'a>(&mut self, s: &'a SelectStep, rows: &[Summary<'a>]) -> Summary<'a> {
+    fn select<'a>(
+        &mut self,
+        s: &'a SelectStep,
+        rows: &[Summary<'a>],
+        conjuncts: &[&PlanExpression],
+        scratch: &mut Vec<(&'a str, Column)>,
+    ) -> Summary<'a> {
         // Without an input column, no row predicate or output expression
         // can carry a tracked node. Keep the independent file prerequisites.
         if s.sources
@@ -980,7 +1047,7 @@ impl Builder<'_> {
                 need: input.need,
                 domains: input.domains.clone(),
                 edges: input.edges.clone(),
-                ..Summary::default()
+                ..Summary::writing(scratch)
             };
             for &d in &input.domains {
                 self.require(&mut out, d);
@@ -998,7 +1065,7 @@ impl Builder<'_> {
             out.compact();
             return out;
         }
-        let mut out = Summary::default();
+        let mut out = Summary::writing(scratch);
         let mut offsets = smallvec::SmallVec::<[usize; 4]>::new();
         for source in &s.sources {
             let r = &rows[source.step.0];
@@ -1021,6 +1088,19 @@ impl Builder<'_> {
             if c.alias == SourceAlias::Unwritten && s.sources.len() != 1 {
                 return None;
             }
+            if let [left, right] = s.sources.as_slice()
+                && left.alias != right.alias
+            {
+                if c.alias == left.alias {
+                    return rows[left.step.0].column(&c.column.0);
+                }
+                if c.alias == right.alias {
+                    let mut col = rows[right.step.0].column(&c.column.0)?;
+                    col.var += offsets[1];
+                    return Some(col);
+                }
+                return None;
+            }
             let mut cols = s
                 .sources
                 .iter()
@@ -1036,19 +1116,22 @@ impl Builder<'_> {
         };
         let mut map: smallvec::SmallVec<[usize; 8]> = (0..out.domains.len()).collect();
         let mut changed = smallvec::SmallVec::<[bool; 8]>::from_elem(false, map.len());
-        let mut conjuncts = Vec::new();
-        if let RowCondition::Tested(e) = &s.condition {
-            terms(e, &mut conjuncts)
-        }
-        for e in &conjuncts {
+        // Resolve each equality's columns once. Apply projected membership after
+        // all equal node variables have been unified.
+        let mut project_pairs = smallvec::SmallVec::<[(Column, Column); 1]>::new();
+        for e in conjuncts {
             if let PlanExpression::Compare(c) = e
                 && c.comparator == Comparator::Equal
                 && let (PlanExpression::Column(a), PlanExpression::Column(b)) =
                     (&*c.left, &*c.right)
                 && let (Some(a), Some(b)) = (lookup(a), lookup(b))
-                && a.attr == Attribute::Id
-                && b.attr == Attribute::Id
             {
+                if a.attr != Attribute::Id || b.attr != Attribute::Id {
+                    if matches!((a.attr, b.attr), (Attribute::Cell(..), Attribute::Cell(..))) {
+                        project_pairs.push((a, b));
+                    }
+                    continue;
+                }
                 let (a, b) = (map[a.var], map[b.var]);
                 if a != b {
                     changed[a] |= changed[b] || out.domains[a] != out.domains[b];
@@ -1061,8 +1144,8 @@ impl Builder<'_> {
                 }
             }
         }
-        for term in &conjuncts {
-            if let Some((var, d)) = self.project_membership(term, &lookup) {
+        for (a, b) in project_pairs {
+            if let Some((var, d)) = self.project_membership(a, b) {
                 let v = map[var];
                 changed[v] = true;
                 out.domains[v] = self.both(out.domains[v], d);
@@ -1072,7 +1155,7 @@ impl Builder<'_> {
         let correlated = match s.sources.as_slice() {
             [src] => rows[src.step.0]
                 .native_row
-                .and_then(|slot| self.same_row(slot, &conjuncts, &lookup)),
+                .and_then(|slot| self.same_row(slot, conjuncts, &lookup)),
             _ => None,
         };
         if let Some((var, d)) = correlated {
@@ -1081,7 +1164,7 @@ impl Builder<'_> {
             out.domains[v] = self.both(out.domains[v], d);
             self.require(&mut out, d);
         } else {
-            for e in &conjuncts {
+            for e in conjuncts {
                 if let Some((var, d)) = self.filter(e, &lookup) {
                     let v = map[var];
                     changed[v] |= d != ANY && d != out.domains[v];
@@ -1154,7 +1237,7 @@ impl Builder<'_> {
                 }
             }
             SelectedColumns::All if s.sources.len() == 1 => {
-                for (n, c) in &rows[s.sources[0].step.0].columns {
+                for (n, c) in rows[s.sources[0].step.0].columns.iter() {
                     out.add(n, map[c.var], c.attr);
                 }
             }
@@ -1212,13 +1295,15 @@ impl Builder<'_> {
         s: &'a FinishStep,
         rows: &[Summary<'a>],
         steps: &[FinishStep],
+        conjuncts: &[&PlanExpression],
+        scratch: &mut Vec<(&'a str, Column)>,
     ) -> Summary<'a> {
         use FinishStep::*;
         let mut out = Summary::default();
         match s {
             Base(n) => return self.base(&n.0),
             Select(s) => {
-                out = self.select(s, rows);
+                out = self.select(s, rows, conjuncts, scratch);
                 if let [source] = s.sources.as_slice() {
                     out.native_row = rows[source.step.0].native_row;
                 }
@@ -1228,7 +1313,7 @@ impl Builder<'_> {
                     && let Some(origin) = out.native_row
                     && let RowCondition::Tested(e) = &s.condition
                 {
-                    let mut values = Vec::new();
+                    let mut values = Literals::new();
                     if let Some(read) = choices(e, &mut values)
                         && (read.alias == SourceAlias::Unwritten || read.alias == source.alias)
                         && let Some(Column {
@@ -1260,11 +1345,27 @@ impl Builder<'_> {
                 }
             }
             Union(u) => {
+                out = Summary::writing(scratch);
                 let (l, r) = (&rows[u.left.0], &rows[u.right.0]);
                 out.need = self.or(l.need, r.need);
                 // Only columns whose origin agrees in both arms keep that origin.
+                if l.domains.len() == 1 && r.domains.len() == 1 {
+                    for (name, a) in l.columns.iter() {
+                        if let Some(b) = r.column(name)
+                            && let Some(attr) = project::common(a.attr, b.attr, &self.out.facts)
+                        {
+                            out.add(name, 0, attr);
+                        }
+                    }
+                    if !out.columns.is_empty() {
+                        let left = self.in_branch(l.need, l.domains[0]);
+                        let right = self.in_branch(r.need, r.domains[0]);
+                        out.var(self.either(left, right));
+                    }
+                    return out;
+                }
                 let mut vars = Map::default();
-                for (n, a) in &l.columns {
+                for (n, a) in l.columns.iter() {
                     if let Some(b) = r.column(n)
                         && let Some(origin) = project::common(a.attr, b.attr, &self.out.facts)
                     {
@@ -1300,45 +1401,42 @@ impl Builder<'_> {
             GroupMin(g) | GroupMax(g) => return rows[g.from.0].clone(),
             Project(p) => {
                 out = rows[p.from.0].clone();
-                out.columns
-                    .retain(|(n, _)| p.columns.iter().any(|c| *n == &*c.0));
+                out.retain_columns(|(n, _)| p.columns.iter().any(|c| *n == &*c.0));
                 out.compact();
             }
             Extend(x) => {
                 out = rows[x.from.0].clone();
-                out.columns
-                    .retain(|(n, _)| !x.values.iter().any(|c| *n == &*c.name.0));
+                out.retain_columns(|(n, _)| !x.values.iter().any(|c| *n == &*c.name.0));
             }
             GroupOrdinal(g) => {
                 out = rows[g.from.0].clone();
-                out.columns.retain(|(n, _)| *n != &*g.output.0);
+                out.retain_columns(|(n, _)| *n != &*g.output.0);
             }
             FitsRendered(x) => return rows[x.from.0].clone(),
             Replace(x) => {
                 out = rows[x.from.0].clone();
-                out.columns.retain(|(n, _)| *n != &*x.output.0);
+                out.retain_columns(|(n, _)| *n != &*x.output.0);
             }
             SpanBetween(x) => {
                 out = rows[x.from.0].clone();
-                out.columns.retain(|(n, _)| *n != &*x.output.0);
+                out.retain_columns(|(n, _)| *n != &*x.output.0);
             }
             SpanBounds(x) => {
                 out = rows[x.from.0].clone();
-                out.columns
-                    .retain(|(n, _)| *n != &*x.start_output.0 && *n != &*x.end_output.0);
+                out.retain_columns(|(n, _)| *n != &*x.start_output.0 && *n != &*x.end_output.0);
             }
             Capture(x) => {
                 out = rows[x.from.0].clone();
-                out.columns
-                    .retain(|(n, _)| !x.captures.iter().any(|col| *n == &*col.0));
+                out.retain_columns(|(n, _)| !x.captures.iter().any(|col| *n == &*col.0));
             }
             AsOf(x) => return self.ordered(&rows[x.left.0], &rows[x.right.0], &x.output),
             OrderedMatch(x) => return self.ordered(&rows[x.left.0], &rows[x.right.0], &x.output),
             GroupCount(g) => {
                 if !g.keys.is_empty() {
                     out = rows[g.from.0].clone();
-                    out.columns
-                        .retain(|(n, _)| g.keys.iter().any(|c| *n == &*c.0) && *n != &*g.count.0);
+                    out.retain_columns(|(n, _)| {
+                        g.keys.iter().any(|c| *n == &*c.0) && *n != &*g.count.0
+                    });
                     out.compact();
                 }
             }
@@ -1406,7 +1504,7 @@ impl Builder<'_> {
                 let from = &rows[x.from.0];
                 use ryo_values::domain::finish_plans::arguments::texts::types::OptionalColumn;
                 out = from.clone();
-                out.columns.retain(|(name, _)| {
+                out.retain_columns(|(name, _)| {
                     *name != &*x.output.0
                         && ![
                             &x.line_output,
@@ -1473,7 +1571,7 @@ impl Builder<'_> {
     }
 }
 
-fn choices<'a>(e: &'a PlanExpression, values: &mut Vec<&'a str>) -> Option<&'a ColumnRead> {
+fn choices<'a>(e: &'a PlanExpression, values: &mut Literals<'a>) -> Option<&'a ColumnRead> {
     use PlanExpression::*;
     match e {
         Compare(c) if c.comparator == Comparator::Equal => {
@@ -1532,7 +1630,17 @@ fn numeric_comparison(e: &PlanExpression) -> Option<(&ColumnRead, Comparator, i6
     }
 }
 
-pub(super) fn terms<'a>(e: &'a PlanExpression, out: &mut Vec<&'a PlanExpression>) {
+pub(super) fn conjuncts(step: &FinishStep) -> Conjuncts<'_> {
+    let mut result = Conjuncts::new();
+    if let FinishStep::Select(q) = step
+        && let RowCondition::Tested(e) = &q.condition
+    {
+        terms(e, &mut result);
+    }
+    result
+}
+
+fn terms<'a>(e: &'a PlanExpression, out: &mut Conjuncts<'a>) {
     if let PlanExpression::And(p) = e {
         terms(&p.left, out);
         terms(&p.right, out)
@@ -1556,6 +1664,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         language,
         positive: false,
         regex_slots: Map::default(),
+        proof_validation: None,
         early_omit: 0,
         dominance: std::env::var_os("VEC_PAIR_NO_DOMINANCE").is_none(),
         signatures: Vec::with_capacity(plan.steps.len()),
@@ -1627,7 +1736,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         }
     }
     phase("live");
-    let exclusions = exact::prepare(&mut b, plan, &live);
+    let mut exclusions = exact::prepare(&mut b, plan, &live).into_iter().peekable();
     b.positive = std::env::var_os("VEC_PAIR_EAGER_REGEX").is_none();
     let omit = cost::omitted();
     if std::env::var_os("VEC_PAIR_LATE_OMIT").is_none() {
@@ -1639,20 +1748,21 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     if std::env::var_os("VEC_NO_EXACT").is_some() {
         b.out.exact.clear();
     }
+    let columns = bumpalo::Bump::new();
+    let mut scratch = Vec::new();
     let mut rows = Vec::with_capacity(plan.steps.len());
     let mut skips = Vec::with_capacity(plan.steps.len());
     for (i, s) in plan.steps.iter().enumerate() {
         let (mut row, skip) = if live[i] {
+            let conjuncts = conjuncts(s);
             (
-                b.step(s, &rows, &plan.steps),
-                super::pair_skip::Skip::step(s, &skips, language),
+                b.step(s, &rows, &plan.steps, &conjuncts, &mut scratch),
+                super::pair_skip::Skip::with_terms(s, &skips, language, &conjuncts),
             )
         } else {
             (Summary::default(), super::pair_skip::Skip::default())
         };
-        if live[i]
-            && let Some(exclusion) = &exclusions[i]
-        {
+        if let Some((_, exclusion)) = exclusions.next_if(|(step, _)| *step == i) {
             exclusion.apply(&mut b, &mut row);
         }
         if let FinishStep::GroupCount(g) = s
@@ -1662,6 +1772,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         {
             row.add(&g.count.0, c.var, Attribute::Count(i));
         }
+        row.freeze(&columns, &mut scratch);
         rows.push(row);
         skips.push(skip);
     }

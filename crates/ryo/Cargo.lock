@@ -1473,6 +1473,7 @@ checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 name = "idiomatic-sh-ryo"
 version = "0.2.0"
 dependencies = [
+ "bumpalo",
  "anstream 1.0.0",
  "clap",
  "cpu-time",
@@ -1821,6 +1822,7 @@ dependencies = [
  "arrow-array",
  "arrow-buffer",
  "arrow-select",
+ "bumpalo",
  "cpu-time",
  "dhat",
  "divan",
@@ -1833,6 +1835,7 @@ dependencies = [
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-values",
  "indexmap",
+ "memchr",
  "mimalloc",
  "pep508_rs",
  "postcard",
@@ -1899,6 +1902,7 @@ dependencies = [
 name = "idiomatic-sh-ryo-rust"
 version = "0.2.0"
 dependencies = [
+ "bumpalo",
  "cargo-platform",
  "cpu-time",
  "dhat",
@@ -1984,6 +1988,7 @@ dependencies = [
 name = "idiomatic-sh-ryo-typescript"
 version = "0.2.0"
 dependencies = [
+ "bumpalo",
  "cpu-time",
  "dhat",
  "divan",

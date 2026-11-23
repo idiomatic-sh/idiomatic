@@ -53,6 +53,7 @@ tikv-jemallocator.workspace = true
 mimalloc.workspace = true
 
 [dev-dependencies]
+bumpalo = "3"
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../crates/engine" }
 regex = "1"
 rustc-hash = "2"

@@ -95,6 +95,18 @@ mod ordering;
 mod leaf_scan;
 #[path = "finish/cold_bucket.rs"]
 mod cold_bucket;
+#[path = "finish/view_join/probe.rs"]
+mod view_probe;
+#[path = "finish/view_join/choice.rs"]
+mod view_choice;
+#[path = "finish/view_join/key.rs"]
+mod view_key;
+#[path = "finish/view_join/pair.rs"]
+mod view_pair;
+#[path = "finish/view_join/entry.rs"]
+mod view_entry;
+#[path = "finish/view_join/input.rs"]
+mod view_input;
 #[path = "finish/cold_text.rs"]
 mod cold_text;
 #[path = "finish/cold_list.rs"]
@@ -658,6 +670,7 @@ pub(super) struct File<'a> {
     memo: Vec<Option<Res>>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
+    cursor_views: rustc_hash::FxHashSet<usize>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
@@ -835,6 +848,7 @@ impl File<'_> {
             cold_roots: Vec::new(),
             cold_text: cold_text::Dictionary::default(),
             vmat: b.vmat,
+            cursor_views: Default::default(),
             index: b.index,
             fills: b.fills,
             lazies: b.lazies,
@@ -2024,23 +2038,30 @@ impl<'p> Exec<'p> {
                     return Ok(t.clone());
                 }
                 let t0 = leaf_scan::table_clock();
-                let sc = self.schema(run, node)?;
                 let rows = view_rows_for(f, run, &v, node, true);
-                let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
-                for c in 0..v.map.len() {
-                    view_cols::gather_ids(f, run, v.base, v.map[c], rows.iter().copied(), &mut out.cols[c]);
-                }
-                out.n = rows.len();
-                self.stats.built[node] += out.n as u64;
-                let rc = recycle::rc(out);
+                let rc = if rows.is_empty() {
+                    self.empty_rc(run, node)?
+                } else {
+                    let sc = self.schema(run, node)?;
+                    let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
+                    for c in 0..v.map.len() {
+                        view_cols::gather_ids(f, run, v.base, v.map[c], rows.iter().copied(), &mut out.cols[c]);
+                    }
+                    out.n = rows.len();
+                    recycle::rc(out)
+                };
                 f.vmat.insert(node, rc.clone());
                 let dt = leaf_scan::table_clock() - t0;
                 self.stats.time[node] += dt;
                 if self.timing || !sw!("VEC_LEAF_CLOCK") {
                     self.inner += dt;
                 }
-                self.stats.ran(node);
-                self.stats.produced(node, rc.n);
+                // A row-stream reader may already have produced this logical result.
+                if !f.cursor_views.remove(&node) {
+                    self.stats.built[node] += rc.n as u64;
+                    self.stats.ran(node);
+                    self.stats.produced(node, rc.n);
+                }
                 Ok(rc)
             }
         }
@@ -2084,21 +2105,12 @@ impl<'p> Exec<'p> {
         if let Some(l) = f.lazies.get(&node) {
             return Ok(l.clone());
         }
-        let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
+        let edges = self.edge_input(f, run, p, self.arg_rel(node, "edges")?)?;
         let t0 = step_clock();
         let a = &self.plan.nodes[node].j["args"];
         let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|k| edges.col(k)).collect::<R<_>>()?;
         let (si, di) = (edges.col(s(&a["source"])?)?, edges.col(s(&a["destination"])?)?);
-        let mut adj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
-        let mut radj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
-        for r in 0..edges.n {
-            let mut k: Vec<u64> = keys.iter().map(|c| edges.cols[*c][r]).collect();
-            let mut k2 = k.clone();
-            k.push(edges.cols[si][r]);
-            adj.entry(k).or_default().push(edges.cols[di][r]);
-            k2.push(edges.cols[di][r]);
-            radj.entry(k2).or_default().push(edges.cols[si][r]);
-        }
+        let (adj, radj) = edges.adjacency(f, run, &keys, si, di);
         let sc = self.schema(run, node)?;
         let l = Rc::new(Lazy { keys, adj, radj, node, names: sc.names.clone(), tys: sc.tys.clone(), cache: RefCell::new(FxHashMap::default()), rcache: RefCell::new(FxHashMap::default()) });
         let dt = step_clock() - t0;
@@ -3734,6 +3746,11 @@ fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize
 /// The literal test `lit_rows` reads by: the fill, its base column and the literals.
 fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<(u16, usize, Vec<u32>)> {
     let Native::Fact(i) = base else { return None };
+    lit_pick_for(conj, si, map, |bc| f.facts[usize::from(i)].as_ref().is_some_and(|t| t.tys[bc] == Ty::Sym))
+        .map(|(column, values)| (i, column, values))
+}
+
+fn lit_pick_for(conj: &[E], si: usize, map: &[usize], symbol_column: impl Fn(usize) -> bool) -> Option<(usize, Vec<u32>)> {
     fn cols(e: &E, si: usize, out: &mut Vec<usize>) {
         match e {
             E::Col(s, c, _) if *s == si => out.push(*c),
@@ -3758,11 +3775,11 @@ fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) ->
             if kinds_required_into(e, si, c, &mut vals) {
                 let bc = if map.is_empty() { c } else { map[c] };
                 // a text literal names a symbol cell only; a flag or number column is tested row by row
-                if f.facts[usize::from(i)].as_ref().is_none_or(|t| t.tys[bc] != Ty::Sym) {
+                if !symbol_column(bc) {
                     continue;
                 }
                 // redo-fills c5 (the pick without its rows) in redo-alloc's buffers: the literals copied out, the buffers kept
-                out = Some((i, bc, vals.clone()));
+                out = Some((bc, vals.clone()));
                 break 'conj;
             }
         }

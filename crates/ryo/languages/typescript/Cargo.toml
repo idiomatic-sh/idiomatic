@@ -37,6 +37,7 @@ ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "
 
 [dev-dependencies]
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../crates/operators" }
+bumpalo = "3"
 smallvec = "1"
 # Shared vector executor and in-process query compiler, only for the benchmark.
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../crates/engine" }

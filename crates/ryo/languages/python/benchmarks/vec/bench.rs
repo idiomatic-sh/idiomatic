@@ -862,6 +862,7 @@ mod fact_catalog;
 #[path = "relative_import.rs"]
 mod relative_import;
 mod import_syntax;
+mod expression_parts;
 #[path = "provider_packaging.rs"]
 mod provider_packaging;
 #[path = "provider_tokens.rs"]
@@ -899,6 +900,7 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     file_no: u32,
     /// redo-binding pass 3: the provider relations the harness facts are written from, kept for the file once filled, so
     /// a fact and the steps that read the same relation share one fill.
+    import_comments: import_syntax::LineComments,
     kept: HashMap<String, finish::Table>,
     /// redo-general: the provider's project (its packaging knowledge, run-wide) and this file's bytes, for the relations it
     /// answers for a project.
@@ -1231,6 +1233,23 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         if !matches!(scope, finish::Scope::File(f) if f == self.file_no) || self.kept.contains_key(rel) {
             return None;
         }
+        if matches!(rel, import_syntax::HEADS | import_syntax::LINE_COMMENTS) {
+            let timed = finish::fill_prof::timed();
+            let start = if timed { thread_cpu() } else { 0.0 };
+            let count = if rel == import_syntax::HEADS {
+                Some(self.file.import_statement_count())
+            } else {
+                self.import_comments.known_count().or_else(|| (!self.file.can_have_import_line_comments()).then_some(0))
+            };
+            if timed {
+                let elapsed = thread_cpu() - start;
+                let kind = if count == Some(0) { "empty" } else { "other" };
+                let e = self.by_rel.entry(format!("length-{kind}:{rel}")).or_default();
+                e.0 += elapsed;
+                e.2 += 1;
+            }
+            return count;
+        }
         let (relation, _, _) = run.catalog(rel)?;
         self.file.row_count(relation?)
     }
@@ -1286,8 +1305,10 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
             relative_import::walked(run, self.project, self.file, self.file_no)?
+        } else if matches!(rel, expression_parts::CALL_SITE | expression_parts::BINARY_OPERANDS) {
+            expression_parts::fill(run, self.file, self.file_no, rel)?
         } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::HEADS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
-            import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel)?
+            import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel, &mut self.import_comments)?
         } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no pre-declaration-read")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
