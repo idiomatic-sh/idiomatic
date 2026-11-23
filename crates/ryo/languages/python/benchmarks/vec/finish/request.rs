@@ -345,7 +345,7 @@ impl Exec<'_> {
                     let input = self.demand_input(run, src, Columns::All);
                     if driven && src != first && first < self.plan.nodes.len() {
                         let guard = self.requests.guards.driver(first);
-                        inputs.push(self.branch(guard, vec![input]));
+                        inputs.push(self.requests.branch(guard, vec![input]));
                     } else {
                         inputs.push(input);
                     }
