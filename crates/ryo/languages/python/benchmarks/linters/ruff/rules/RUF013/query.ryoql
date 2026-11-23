@@ -75,8 +75,16 @@ let invalid_descendant_roots = select l.parent as id, l.file as file from descen
 let invalid_all = union(left=invalid_unions, right=invalid_descendant_roots);
 let invalid_wrappers = select l.wrapper as wrapper, l.file as file from effective_roots as l join invalid_all as r on l.annotation = r.id and l.file = r.file;
 let valid_roots = antijoin(left=nonnullable_roots, right=invalid_wrappers, left-on=["wrapper", "file"], right-on=["wrapper", "file"]);
-let known_direct = select id, file from origins where matches(path, "^(?:builtins|typing|typing_extensions|collections[.]abc)[.]");
-let known_subscripts = select subscript as id, file from subscript_paths where matches(path, "^(?:builtins|typing|typing_extensions|collections[.]abc)[.]");
+let builtin_known = select id, file from origins where matches(path, "^(?:builtins|typing_extensions)[.]");
+let library_imports = select target, file from "standard-library-import";
+let library_origins = select l.id as id, l.file as file from origins as l join library_imports as r on l.file = r.file where starts_with(concat(l.path, "."), concat(r.target, "."));
+let attribute_nodes = select id, file from nodes where kind = "attribute";
+let attribute_values = select l.id as parent, r.child as child, l.file as file from attribute_nodes as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "value";
+let attribute_chains = closure(edges=attribute_values, source="parent", destination="child", keys=["file"]);
+let library_attributes = select l.parent as id, l.file as file from attribute_chains as l join library_origins as r on l.child = r.id and l.file = r.file;
+let library_known = union(left=library_origins, right=library_attributes);
+let known_direct = union(left=builtin_known, right=library_known);
+let known_subscripts = select l.subscript as id, l.file as file from subscript_bases as l join known_direct as r on l.base = r.id and l.file = r.file;
 let known_0 = union(left=known_direct, right=known_subscripts);
 let known = union(left=known_0, right=pipe_binops);
 let name_nodes = select id, file from nodes where kind = "name" or kind = "attribute";
