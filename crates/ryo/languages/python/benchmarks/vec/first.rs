@@ -316,10 +316,49 @@ fn leaf_info(base: &str, cs: &[Cond]) -> Leaf {
 /// CNF over `k:<kind>` / `f:<field>` names: a file lacking every name of one clause cannot give the rule a row. A text-only
 /// scan gives no clause (no census: which kinds carry a text is not known before the run). Memoised per shared node.
 fn clauses(f: &R, memo: &mut HashMap<*const Req, Rc<Vec<Set>>>) -> Rc<Vec<Set>> {
+    clauses_of(f, memo, false)
+}
+
+/// The words a scan requires (the same CNF over words): a test of a tree relation's `text`, or of a column the provider
+/// spells as a name, against literals that are all identifiers; one clause a test.
+fn word_leaf(base: &str, cs: &[Cond]) -> Vec<Set> {
+    let mut out = Vec::new();
+    let mut add = |vals: Option<Vec<String>>| {
+        if let Some(vals) = vals
+            && !vals.is_empty()
+            && vals.iter().all(|w| ident(w))
+        {
+            let c: Set = vals.iter().map(|w| format!("w:{w}")).collect();
+            if !out.contains(&c) {
+                out.push(c);
+            }
+        }
+    };
+    if SYNTAX.contains(&base) {
+        for c in cs {
+            add(kset(c, "text").map(|k| k.into_iter().collect()));
+        }
+        return out;
+    }
+    let lang = language();
+    for (rel, col, _) in &lang.spelled {
+        if rel != base {
+            continue;
+        }
+        for c in cs {
+            add(kset(c, col).and_then(|k| k.iter().map(|v| word_of(rel, col, v)).collect::<Option<Vec<String>>>()));
+        }
+    }
+    out
+}
+
+/// `words`: the CNF over required words (`w:`) in place of kinds and fields.
+fn clauses_of(f: &R, memo: &mut HashMap<*const Req, Rc<Vec<Set>>>, words: bool) -> Rc<Vec<Set>> {
     if let Some(m) = memo.get(&Rc::as_ptr(f)) {
         return m.clone();
     }
     let out = match &**f {
+        Req::Scan(b, cs) if words => word_leaf(b, cs),
         Req::Scan(b, cs) => match leaf_info(b, cs) {
             Leaf::Kind(ks) => vec![ks.iter().map(|k| format!("k:{k}")).collect()],
             Leaf::Field(fs) => vec![fs.iter().map(|k| format!("f:{k}")).collect()],
@@ -328,7 +367,7 @@ fn clauses(f: &R, memo: &mut HashMap<*const Req, Rc<Vec<Set>>>) -> Rc<Vec<Set>> 
         Req::And(xs) => {
             let mut out: Vec<Set> = Vec::new();
             for x in xs {
-                for c in clauses(x, memo).iter() {
+                for c in clauses_of(x, memo, words).iter() {
                     if !out.contains(c) {
                         out.push(c.clone());
                     }
@@ -341,7 +380,7 @@ fn clauses(f: &R, memo: &mut HashMap<*const Req, Rc<Vec<Set>>>) -> Rc<Vec<Set>> 
             let mut u = Set::new();
             let mut all = true;
             for x in xs {
-                let cs = clauses(x, memo);
+                let cs = clauses_of(x, memo, words);
                 match cs.iter().min_by(|a, b| a.len().cmp(&b.len()).then_with(|| a.cmp(b))) {
                     Some(m) => u.extend(m.iter().cloned()),
                     None => {
@@ -2306,6 +2345,7 @@ pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
     if simple {
         // the summaries: one per distinct step; a rule's skip is its result's
         let mut memo: HashMap<*const Req, Rc<Vec<Set>>> = HashMap::new();
+        let mut wmemo: HashMap<*const Req, Rc<Vec<Set>>> = HashMap::new();
         let mut pins: Vec<R> = Vec::new();
         for rule in &programs.rules {
             let name = rule.rule.0.to_string();
@@ -2317,12 +2357,16 @@ pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
             let id = an.program_id(&p.steps, HashMap::new(), imports_of(&p.imports), &p.emit.step.0);
             let req = an.srel_of_id(id).req();
             let mut cs: Vec<Set> = clauses(&req, &mut memo).to_vec();
+            // the words it requires, by the same rules (its own memo: the node's CNF differs)
+            let mut ws: Vec<Set> = clauses_of(&req, &mut wmemo, true).to_vec();
+            ws.truncate(CLAUSE_CAP);
+            let word_cnf: Vec<Vec<String>> = ws.iter().filter(|c| !c.is_empty()).map(|c| c.iter().map(|w| w[2..].to_owned()).collect()).collect();
             pins.push(req);
             let never = cs.iter().any(BTreeSet::is_empty);
             // a hard cap on the clauses kept (the smallest first): fewer clauses only skip less, never wrongly
             cs.truncate(CLAUSE_CAP);
             skips.push((name.clone(), never, cs.into_iter().filter(|c| !c.is_empty()).map(|c| c.into_iter().collect()).collect()));
-            rules.push(SpecRule { name, node: false, plans: Vec::new(), word_cnfs: vec![Vec::new()] });
+            rules.push(SpecRule { name, node: false, plans: Vec::new(), word_cnfs: vec![word_cnf] });
         }
         drop(pins);
         return Prepared { skips, rules };

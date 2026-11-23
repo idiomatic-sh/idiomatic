@@ -259,22 +259,37 @@ pub(crate) fn second_half_plan(pack: &ReadPack) -> super::finish::Plan {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
     let t1 = super::thread_cpu();
+    // no fallback: a rule the lowering cannot plan fails the run, by name and reason (never a run without it, never a
+    // plan from elsewhere)
+    if !plan.unplanned.is_empty() {
+        for u in &plan.unplanned {
+            eprintln!("unplanned {} {}", u.rule.0, u.reason.0);
+        }
+        panic!("the in-process lowering cannot plan {} rule(s) of the pack (listed above): the run stops", plan.unplanned.len());
+    }
     for stage in [PlanningStage::Semijoins, PlanningStage::Counts, PlanningStage::Axes] {
         let _marked = passed(&mut plan, stage);
     }
     let t2 = super::thread_cpu();
-    let bytes = json().encoded(&plan);
     let steps = plan.steps.len();
-    drop(plan);
-    let t3 = super::thread_cpu();
-    let value: serde_json::Value = serde_json::from_slice(&bytes).expect("the codec's own plan");
-    drop(bytes);
+    // the hand-over in memory: the typed plan to the executor's value, no text written or parsed (`VEC_PLAN_TEXT`: the
+    // text round trip, to compare)
+    let (value, t3) = if std::env::var_os("VEC_PLAN_TEXT").is_some() {
+        let bytes = json().encoded(&plan);
+        drop(plan);
+        let t3 = super::thread_cpu();
+        (serde_json::from_slice::<serde_json::Value>(&bytes).expect("the codec's own plan"), t3)
+    } else {
+        let v = json().valued(&plan);
+        drop(plan);
+        (v, super::thread_cpu())
+    };
     let t4 = super::thread_cpu();
     let executor_plan = super::finish::from_value(&value);
     drop(value);
     let t5 = super::thread_cpu();
     println!(
-        "start-up second half: steps {steps} expand {:.4} passes {:.4} encode {:.4} decode {:.4} executor-plan {:.4} total {:.4} s",
+        "start-up second half: steps {steps} expand {:.4} passes {:.4} to-value {:.4} decode {:.4} executor-plan {:.4} total {:.4} s",
         t1 - t0,
         t2 - t1,
         t3 - t2,
