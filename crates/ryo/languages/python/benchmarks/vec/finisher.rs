@@ -144,6 +144,11 @@ impl<'p> Finisher<'p> {
         w
     }
 
+    /// redo-general: the plan the second half runs (for a driver that derives its own inputs from it).
+    pub(super) fn plan(&self) -> &'p finish::Plan {
+        self.plan
+    }
+
     /// Whether a file with these emits to run is visited at all.
     pub(super) fn visits(&self, wanted: &[usize]) -> bool {
         !wanted.is_empty() || self.check
@@ -307,6 +312,9 @@ impl<'p> Finisher<'p> {
         println!("{}", finish::fill_prof::reads_line());
         finish::fill_prof::flush();
         for l in finish::fill_prof::unread_lines(&self.run) {
+            println!("{l}");
+        }
+        for l in finish::project::report(&self.run) {
             println!("{l}");
         }
         finish::empty_why::print();

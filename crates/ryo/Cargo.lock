@@ -1832,6 +1832,7 @@ dependencies = [
  "postcard",
  "pyproject-toml",
  "regex",
+ "regex-syntax",
  "ruff_python_ast",
  "ruff_python_parser",
  "ruff_text_size",
