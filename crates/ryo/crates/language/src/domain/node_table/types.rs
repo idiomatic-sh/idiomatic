@@ -54,8 +54,12 @@ pub(crate) struct NodeTableEngine {
     /// Ids of each kind, in id order, one list a kind code: each id is added as it is numbered. Lists are cleared between
     /// files, never dropped.
     pub(crate) by_kind: Vec<Vec<Position>>,
-    /// Ids of each field, in id order, one list a field code (zero: no field), added as each id is numbered.
+    /// IDs of each nonzero field in numbering order.
     pub(crate) by_field: Vec<Vec<Position>>,
+    /// The elements filling no field, collected only when a reader asks for their IDs.
+    pub(crate) without_field: std::sync::OnceLock<Vec<Position>>,
+    /// Count of elements filling no field.
+    pub(crate) without_field_count: usize,
     /// The kinds present, read off the kind lists when the table is finished.
     pub(crate) present: KindsPresent,
     /// How many syntax nodes the file's own tree has: its tokens start here.
@@ -84,8 +88,6 @@ pub(crate) struct NodeTableEngine {
     pub(crate) pending: Vec<PendingToken>,
     /// Open-node stack returned by the previous builder.
     pub(crate) open: Vec<OpenChildren>,
-    /// Immediate-child storage returned by the previous builder.
-    pub(crate) written: Vec<Position>,
     /// The kind sets a `structured` builder was given, one enclosing column each.
     pub(crate) enclosing_sets: Vec<KindSet>,
     /// Per kind set, per element: the nearest strict ancestor whose kind is in the set, `u32::MAX` for none.
@@ -311,9 +313,6 @@ pub(crate) struct BuilderState<'a> {
     pub(crate) kinds: Count,
     /// The open nodes, innermost last, each with the ordinal its next child takes.
     pub(crate) open: Vec<OpenChildren>,
-    /// The children of the open nodes written so far, each open node's after its `from` offset: a node by
-    /// its id, a token by `PENDING` with its place among `pending`.
-    pub(crate) written: Vec<Position>,
     /// The tokens of the segment being written, kept until its nodes are numbered.
     pub(crate) pending: Vec<PendingToken>,
     /// The id the segment's first token takes once its nodes are numbered: the file's tree starts at zero.
@@ -328,19 +327,17 @@ pub(crate) struct BuilderState<'a> {
     pub(crate) implied: Vec<Position>,
     /// The logical text of the embedded segment being written.
     pub(crate) logical: LogicalText,
-    /// Start of the current segment in the flat children column.
-    pub(crate) children_start: usize,
+    /// Number of child slots reserved by parents closed so far.
+    pub(crate) child_count: usize,
 }
 
-/// An open node and its not-yet-closed slice of immediate children.
+/// An open node and the number of its immediate children.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct OpenChildren {
     /// The open node.
     pub(crate) position: Position,
     /// The ordinal of its next child.
     pub(crate) next: ChildOrdinal,
-    /// The first immediate child in the builder's pending child list.
-    pub(crate) from: usize,
 }
 
 /// A token written before the nodes of its segment are all numbered.

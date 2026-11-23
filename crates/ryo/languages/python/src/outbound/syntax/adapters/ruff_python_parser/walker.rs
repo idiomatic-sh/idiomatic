@@ -107,7 +107,7 @@ impl Walker<'_, '_, '_> {
     /// Writes every token that ends at or before `at`: what comes before a node that starts there. A token of no length where the
     /// innermost open node ends is outside that node, so it waits until the node is closed.
     fn write_before(&mut self, at: Offset) {
-        let edge = self.ends.last().copied();
+        let edge = self.open.last().map(|open| open.end);
         let origin = self.origin;
         while self.tokens.get(self.next.0).is_some_and(|token| {
             placed(origin, token.end()) <= at
@@ -162,10 +162,11 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
 
     fn enter_node(&mut self, node: AnyNodeRef<'t>) -> TraversalSignal {
         let root = self.open.is_empty();
-        let start = if root {
-            Offset(0)
+        let (start, end) = if root {
+            (Offset(0), self.length)
         } else {
-            placed(self.origin, node.start())
+            let span = node.range();
+            (placed(self.origin, span.start()), placed(self.origin, span.end()))
         };
         self.write_before(start);
         self.fill(start);
@@ -237,6 +238,7 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             at,
             from,
             next: from,
+            end,
         });
         if let Some(opened) = opens(node.kind()) {
             self.strings.push(opened);
@@ -257,17 +259,12 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         if let AnyNodeRef::StmtImportFrom(statement) = node {
             self.refused.extend(unknown_futures(statement));
         }
-        self.ends.push(if root {
-            self.length
-        } else {
-            placed(self.origin, node.end())
-        });
         TraversalSignal::Traverse
     }
 
     fn leave_node(&mut self, node: AnyNodeRef<'t>) {
         // Where the node ends, as it was placed when it opened.
-        let placed_end = self.ends.pop();
+        let placed_end = self.open.last().map(|open| open.end);
         if opens(node.kind()).is_some() {
             let _: Option<Strings> = self.strings.pop();
         }

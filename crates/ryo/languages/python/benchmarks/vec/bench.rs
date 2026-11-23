@@ -275,7 +275,7 @@ fn fields_present(table: &NodeTable, cols: &mut Columns, fields: usize) {
     cols.field_present.clear();
     cols.field_present.resize(words(fields), 0);
     for f in 0..fields {
-        if !node_table::ids_of_field(table, languages::FieldCode(f as u16)).is_empty() {
+        if node_table::field_count(table, languages::FieldCode(f as u16)).0 != 0 {
             cols.field_present[f / 64] |= 1 << (f % 64);
         }
     }

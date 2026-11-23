@@ -3,7 +3,7 @@
 //! fillers read it with. Nodes are numbered as they open; tokens are kept until the nodes of their segment are all numbered and
 //! then follow them, so every id a reader sees is final once `finished` answers.
 
-use super::constants::{PENDING, PRESENCE_BITS};
+use super::constants::PRESENCE_BITS;
 use super::types::{
     BuilderSegment, BuilderState, ByteSpan, ChildPlace, ChildRange, EmbeddedRoot, OpenChildren,
     EmbeddedSegment, EmbeddedSpan, EmbeddedText, FieldCode, Finish, Implied, KindSet, KindsPresent,
@@ -49,6 +49,8 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
     columns.end.clear();
     columns.field.clear();
     columns.ordinal.clear();
+    let _ = columns.without_field.take();
+    columns.without_field_count = 0;
     columns.child_range.clear();
     columns.children.clear();
     for ids in &mut columns.by_kind {
@@ -78,12 +80,10 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
     }
     let open = std::mem::take(&mut columns.open);
     let pending = std::mem::take(&mut columns.pending);
-    let written = std::mem::take(&mut columns.written);
     NodeTableBuilder(BuilderState {
         table,
         kinds,
         open,
-        written,
         pending,
         segment_start: Position(0),
         segment: BuilderSegment::File,
@@ -91,7 +91,7 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
         finished: Finish::Open,
         implied: Vec::new(),
         logical: LogicalText::default(),
-        children_start: 0,
+        child_count: 0,
     })
 }
 
@@ -199,7 +199,11 @@ fn numbered(
     id: Position,
 ) {
     listed(&mut columns.by_kind, usize::from(kind.0), id);
-    listed(&mut columns.by_field, usize::from(field.0), id);
+    if field.0 == 0 {
+        columns.without_field_count += 1;
+    } else {
+        listed(&mut columns.by_field, usize::from(field.0), id);
+    }
 }
 
 /// Adds `id` to the list of `code`, making the lists up to it when there are fewer.
@@ -288,9 +292,6 @@ pub fn enter_node(
 ) {
     let state = &mut builder.0;
     let id = id_after(Count(state.table.0.kind.len()));
-    if !state.open.is_empty() {
-        state.written.push(id);
-    }
     let ChildPlace { parent, ordinal } = placed(state, id);
     let span = mapped(state, start, start);
     let columns = &mut state.table.0;
@@ -316,7 +317,6 @@ pub fn enter_node(
         enclose(columns, id, parent, kind);
     }
     state.open.push(OpenChildren {
-        from: state.written.len(),
         position: id,
         next: ChildOrdinal(0),
     });
@@ -377,15 +377,14 @@ fn leave_open(state: &mut BuilderState<'_>, end: Offset) {
     let implied = state.implied.last() == Some(&open.position) && state.implied.pop().is_some();
     let span_end = mapped(state, end, end).end;
     let columns = &mut state.table.0;
-    // The node's children, as they were written: its block of `children`; a token's place is kept for its id.
-    let from = open.from;
-    let first = id_after(Count(columns.children.len()));
-    columns.children.extend_from_slice(state.written.get(from..).unwrap_or_default());
-    state.written.truncate(from);
+    // Closing a parent reserves one consecutive range. Final element IDs can
+    // then be placed directly by their ordinals, including interleaved tokens.
+    let first = state.child_count;
+    state.child_count += open.next.0 as usize;
     if let Some(range) = columns.child_range.get_mut(usize::from(open.position)) {
         *range = ChildRange {
-            from: first,
-            to: id_after(Count(columns.children.len())),
+            from: id_after(Count(first)),
+            to: id_after(Count(state.child_count)),
         };
     }
     if let Some(subtree) = columns.subtree_end.get_mut(usize::from(open.position)) {
@@ -412,14 +411,6 @@ fn close_segment(state: &mut BuilderState<'_>) {
     if state.segment == BuilderSegment::File {
         columns.nodes = Count(tokens_from);
     }
-    // Each pending child carries the token's segment-relative index. Resolve
-    // the contiguous child blocks once the segment's node count is known.
-    for child in &mut columns.children[state.children_start..] {
-        if child.0 & PENDING != 0 {
-            *child = id_after(Count(tokens_from + (child.0 & !PENDING) as usize));
-        }
-    }
-    state.children_start = columns.children.len();
     // Each final column knows the segment length. Extend them independently so
     // the contiguous writes have one capacity check per column and segment.
     let tokens = &state.pending;
@@ -429,6 +420,16 @@ fn close_segment(state: &mut BuilderState<'_>) {
     columns.start.extend(tokens.iter().map(|t| t.span.start.0));
     columns.end.extend(tokens.iter().map(|t| t.span.end.0));
     columns.ordinal.extend(tokens.iter().map(|t| t.ordinal));
+    columns.children.resize(state.child_count, Position(0));
+    // Every element except the segment root belongs in a direct child list.
+    // An embedded root has a host parent but is a separate traversal segment.
+    let first_child = usize::from(state.segment_start) + 1;
+    for (offset, (&parent, ordinal)) in columns.parent[first_child..].iter()
+        .zip(&columns.ordinal[first_child..]).enumerate()
+    {
+        let slot = usize::from(columns.child_range[parent as usize].from) + ordinal.0 as usize;
+        columns.children[slot] = id_after(Count(first_child + offset));
+    }
     for (offset, token) in state.pending.drain(..).enumerate() {
         let id = id_after(Count(tokens_from + offset));
         numbered(columns, token.kind, token.field, id);
@@ -543,9 +544,6 @@ fn pend(
     let parent = top.position;
     let span = mapped(state, start, end);
     let decoded = decoded.or_else(|| logical_text(state, start, end));
-    state.written.push(Position(
-        PENDING | u32::try_from(state.pending.len()).unwrap_or(u32::MAX),
-    ));
     if state.table.0.structured {
         add_child(&mut state.table.0, parent, kind, field);
     }
@@ -816,6 +814,7 @@ pub fn embed(
 pub fn finished<'b>(builder: &'b mut NodeTableBuilder<'_>) -> &'b NodeTable {
     let state = &mut builder.0;
     let _ = state.table.0.sets.take();
+    let _ = state.table.0.without_field.take();
     if state.finished == Finish::Open {
         // A walk that stopped early leaves nodes open: they close at the furthest byte written.
         while !state.open.is_empty() {
@@ -824,7 +823,6 @@ pub fn finished<'b>(builder: &'b mut NodeTableBuilder<'_>) -> &'b NodeTable {
         }
         state.table.0.open = std::mem::take(&mut state.open);
         state.table.0.pending = std::mem::take(&mut state.pending);
-        state.table.0.written = std::mem::take(&mut state.written);
         presence(&mut state.table.0, state.kinds);
         state.finished = Finish::Done;
     }
@@ -1035,6 +1033,17 @@ pub fn ids_of_kind(table: &NodeTable, kind: KindBits) -> &[Position] {
         .map_or(&[], Vec::as_slice)
 }
 
+/// Number of elements filling a field. The count for the absent field is
+/// available even when nobody has requested its list of IDs.
+#[must_use]
+pub fn field_count(table: &NodeTable, field: FieldCode) -> Count {
+    Count(if field.0 == 0 {
+        table.0.without_field_count
+    } else {
+        table.0.by_field.get(usize::from(field.0)).map_or(0, Vec::len)
+    })
+}
+
 /// The ids of every element that fills `field` in its parent, in id order; field zero lists the elements that fill none.
 ///
 /// # Examples
@@ -1054,6 +1063,15 @@ pub fn ids_of_kind(table: &NodeTable, kind: KindBits) -> &[Position] {
 /// ```
 #[must_use]
 pub fn ids_of_field(table: &NodeTable, field: FieldCode) -> &[Position] {
+    if field.0 == 0 {
+        return table.0.without_field.get_or_init(|| {
+            let mut ids = Vec::with_capacity(table.0.without_field_count);
+            ids.extend(table.0.field.iter().enumerate().filter_map(|(i, &code)| {
+                (code == 0).then(|| id_after(Count(i)))
+            }));
+            ids
+        });
+    }
     table
         .0
         .by_field

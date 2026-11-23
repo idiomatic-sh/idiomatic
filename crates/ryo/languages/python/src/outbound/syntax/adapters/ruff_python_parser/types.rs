@@ -218,6 +218,8 @@ pub(super) struct OpenWalked<'t> {
     pub node: ruff_python_ast::AnyNodeRef<'t>,
     /// The id the walk gave it.
     pub at: languages::Position,
+    /// End of this node in the walked source.
+    pub end: Offset,
     /// Where the fields of its children start among the walk's fields.
     pub from: FieldIndex,
     /// The field of its next child, when its children open in the order the fields were read.
@@ -235,8 +237,6 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub next: TokenIndex,
     /// Where the last token written ends: the gap up to the next token is white space.
     pub written: Offset,
-    /// Where each open node ends, the innermost last.
-    pub ends: Vec<Offset>,
     /// The strings open, the innermost last: what an interpolation is named by.
     pub strings: Vec<Strings>,
     /// The library's tokens, to find a keyword in.
