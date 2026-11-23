@@ -95,7 +95,7 @@ impl Requests {
     pub(super) fn line(&self) -> String {
         let c = &self.counts;
         format!(
-            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s; selecting columns {:.6} s",
+            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s; selecting columns {:.6} s; file predicates {} leaves {} gates",
             c.files,
             c.provider_calls,
             c.provider_relations,
@@ -109,7 +109,7 @@ impl Requests {
             c.reads,
             c.request_cpu,
             c.answer_cpu,
-            c.read_cpu, c.mask_cpu
+            c.read_cpu, c.mask_cpu, self.guards.circuit.counts().0, self.guards.circuit.counts().1
         )
     }
 }
@@ -215,6 +215,12 @@ impl Requests {
                 alternatives.push(Alternative { guard, roots: words });
             }
             self.projections.push(Projection { slot, columns, alternatives });
+        }
+        let literals = self.guards.compile();
+        for projection in &mut self.projections {
+            for alternative in &mut projection.alternatives {
+                alternative.guard = literals[alternative.guard as usize];
+            }
         }
         // Once a file satisfies a wider projection its subsets are free.
         self.projections.sort_unstable_by_key(|r| (r.slot, std::cmp::Reverse(r.columns.count_ones())));
@@ -364,7 +370,7 @@ impl Exec<'_> {
     }
 
     fn request_masks(&mut self, f: &File<'_>, run: &mut Run, roots: &[usize]) -> Vec<Option<u64>> {
-        self.requests.guards.begin(self.plan.nodes.len());
+        self.decide_file(run, f);
         self.requests.live.fill(0);
         for &node in roots {
             let root = self.requests.root_numbers[node];
@@ -380,7 +386,7 @@ impl Exec<'_> {
                 || masks[i].is_some_and(|m| m & projection.columns == projection.columns) { continue; }
             let readable = projection.alternatives.iter().any(|path| {
                 path.roots.iter().any(|(i, set)| self.requests.live[*i] & set != 0)
-                    && self.permits(run, f, path.guard)
+                    && self.requests.guards.circuit.permits(path.guard)
             });
             if readable { *masks[i].get_or_insert(0) |= projection.columns; }
         }

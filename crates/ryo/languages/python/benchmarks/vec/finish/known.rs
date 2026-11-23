@@ -122,7 +122,7 @@ impl Exec<'_> {
             self.stats.static_depth = 0;
             return e;
         }
-        let decision = self.file_decision(run, f, node);
+        let decision = self.file_decision(node);
         match decision {
             Some((false, _)) => { f.known[node] = YES; return true; }
             Some((true, false)) => { f.known[node] = NO; return false; }

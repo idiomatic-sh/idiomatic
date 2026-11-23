@@ -28,7 +28,7 @@ pub(super) struct Guards {
     generation: u32,
     by_test: FxHashMap<Test, u32>,
     tests: Vec<Test>,
-    values: Vec<Option<bool>>,
+    pub(super) circuit: super::request_circuit::Circuit,
 }
 
 impl Default for Guards {
@@ -39,7 +39,7 @@ impl Default for Guards {
             columns: Default::default(), absent: vec![], marks: vec![], generation: 0,
             by_test: FxHashMap::default(),
             tests: vec![Test::Constant(true), Test::Constant(false)],
-            values: vec![],
+            circuit: Default::default(),
         }
     }
 }
@@ -49,7 +49,6 @@ impl Guards {
         *self.by_test.entry(test.clone()).or_insert_with(|| {
             let id = self.tests.len() as u32;
             self.tests.push(test);
-            self.values.push(None);
             id
         })
     }
@@ -78,11 +77,32 @@ impl Guards {
         }
     }
 
+    pub(super) fn compile(&mut self) -> Vec<u32> {
+        let mut literal = vec![0; self.tests.len()];
+        literal[NEVER as usize] = 1;
+        let mut leaves = Vec::new();
+        for (i, test) in self.tests.iter().enumerate() {
+            if !matches!(test, Test::Constant(_) | Test::Combine { .. }) {
+                leaves.push(i as u32);
+                literal[i] = 2 * leaves.len() as u32;
+            }
+        }
+        let mut compiled = super::request_circuit::Compiler::new(leaves);
+        for (i, test) in self.tests.iter().enumerate() {
+            let Test::Combine { all, terms } = test else { continue };
+            let inverse = u32::from(!all);
+            let result = terms.iter().fold(0, |acc, term| compiled.and(acc, literal[*term as usize] ^ inverse));
+            literal[i] = result ^ inverse;
+        }
+        for node in self.by_node.iter_mut().flatten() { *node = literal[*node as usize]; }
+        self.circuit = compiled.circuit;
+        self.by_test = FxHashMap::default();
+        literal
+    }
+
     pub(super) fn begin(&mut self, nodes: usize) {
         self.by_node.resize(nodes, None);
         self.late.resize(nodes, false);
-        self.values.resize(self.tests.len(), None);
-        self.values.fill(None);
     }
 }
 
@@ -155,58 +175,35 @@ impl Exec<'_> {
         id
     }
 
-    pub(super) fn permits(&mut self, run: &mut Run, f: &File<'_>, id: u32) -> bool {
-        if id == ALWAYS {
-            return true;
+    pub(super) fn decide_file(&mut self, run: &mut Run, f: &File<'_>) {
+        let mut circuit = std::mem::take(&mut self.requests.guards.circuit);
+        let kinds = &super::node_table::kinds_present(f.table).0;
+        let mut changed = false;
+        for i in 0..circuit.leaves.len() {
+            let at = circuit.leaves[i] as usize;
+            let value = match &self.requests.guards.tests[at] {
+                Test::Kinds(ks) => ks.iter().any(|k| kinds.get(usize::from(*k) / 64).is_some_and(|w| w.0 & (1 << (k % 64)) != 0)),
+                Test::Fields(fs) => fs.iter().any(|c| !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c)).is_empty()),
+                Test::Symbols(..) => !self.requests.guards.absent.get(at).copied().unwrap_or(false),
+                Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
+                Test::Seed(s) => f.seeds.get(*s).is_some_and(|rows| !rows.is_empty()),
+                Test::File(n) => { let n = *n; !self.file_fails_of(f, run, n) }
+                _ => unreachable!("only input leaves are scheduled here"),
+            };
+            changed |= circuit.set(i, value);
         }
-        let at = id as usize;
-        if let Some(value) = self.requests.guards.values[at] {
-            return value;
-        }
-        let value = match &self.requests.guards.tests[at] {
-            Test::Constant(v) => *v,
-            Test::Kinds(ks) => {
-                let present = &super::node_table::kinds_present(f.table).0;
-                ks.iter().any(|k| present.get(usize::from(*k) / 64).is_some_and(|w| w.0 & (1 << (k % 64)) != 0))
-            }
-            Test::Fields(fs) => fs
-                .iter()
-                .any(|c| !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c)).is_empty()),
-            Test::Symbols(..) => !self.requests.guards.absent.get(at).copied().unwrap_or(false),
-            Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
-            Test::Seed(s) => f.seeds.get(*s).is_some_and(|rows| !rows.is_empty()),
-            Test::File(n) => {
-                let n = *n;
-                !self.file_fails_of(f, run, n)
-            }
-            Test::Combine { all, terms } => {
-                let (all, len) = (*all, terms.len());
-                let mut value = all;
-                for i in 0..len {
-                    let Test::Combine { terms, .. } = &self.requests.guards.tests[at] else {
-                        unreachable!()
-                    };
-                    let child = terms[i];
-                    if self.permits(run, f, child) != all {
-                        value = !all;
-                        break;
-                    }
-                }
-                value
-            }
-        };
-        self.requests.guards.values[at] = Some(value);
-        value
+        circuit.evaluate(changed);
+        self.requests.guards.circuit = circuit;
     }
 
     /// A positive file-only predicate settles the static decision completely
     /// when neither this operator nor its inputs need an answered fact.
-    pub(super) fn file_decision(&mut self, run: &mut Run, f: &File<'_>, n: usize) -> Option<(bool, bool)> {
+    pub(super) fn file_decision(&self, n: usize) -> Option<(bool, bool)> {
         let guard = self.requests.guards.by_node.get(n).copied().flatten()?;
-        Some((self.permits(run, f, guard), self.requests.guards.late[n]))
+        Some((self.requests.guards.circuit.permits(guard), self.requests.guards.late[n]))
     }
 
-    pub(super) fn pruned(&mut self, run: &mut Run, f: &File<'_>, n: usize) -> bool {
-        self.requests.guards.by_node.get(n).copied().flatten().is_some_and(|g| !self.permits(run, f, g))
+    pub(super) fn pruned(&self, n: usize) -> bool {
+        self.requests.guards.by_node.get(n).copied().flatten().is_some_and(|g| !self.requests.guards.circuit.permits(g))
     }
 }
