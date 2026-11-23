@@ -109,7 +109,6 @@ struct SchedulePlan<'a> {
     nodes: Vec<Option<Price>>,
     files: Vec<Option<Price>>,
     omit: u16,
-    order: bool,
 }
 impl SchedulePlan<'_> {
     fn file(&mut self, id: Id) -> Price {
@@ -122,7 +121,7 @@ impl SchedulePlan<'_> {
             Need::Both(a, b) | Need::Either(a, b) => {
                 let (left, right) = (self.file(a), self.file(b));
                 z = z.with(left).with(right);
-                if self.order && left.cost > right.cost {
+                if left.cost > right.cost {
                     match &mut self.p.needs[id] {
                         Need::Both(x, y) | Need::Either(x, y) => std::mem::swap(x, y),
                         _ => unreachable!(),
@@ -148,7 +147,7 @@ impl SchedulePlan<'_> {
             Domain::Both(a, b) | Domain::Either(a, b) => {
                 let (left, right) = (self.node(a), self.node(b));
                 z = z.with(left).with(right);
-                if self.order && left.cost > right.cost {
+                if left.cost > right.cost {
                     match &mut self.p.domains[id] {
                         Domain::Both(x, y) | Domain::Either(x, y) => std::mem::swap(x, y),
                         _ => unreachable!(),
@@ -204,53 +203,30 @@ impl SchedulePlan<'_> {
         z
     }
 }
-pub(super) fn arrange(p: &mut Program, order: bool, omit: u16) {
-    if !order && omit == 0 {
-        super::compact::compact(p);
-        return;
-    }
+pub(super) fn arrange(p: &mut Program, omit: u16) {
     let mut walk = SchedulePlan {
         nodes: vec![None; p.domains.len()],
         files: vec![None; p.needs.len()],
         p,
-        order,
-        omit,
+        omit: 0,
     };
-    let keep_exact = std::env::var_os("VEC_PAIR_DELEGATE_EXACT").is_none();
-    let mut certs = std::mem::take(&mut walk.p.exact);
-    if keep_exact {
-        // Visit exact outputs first to preserve their shared subprograms. Only
-        // the remaining necessary conditions are eligible for omission.
-        walk.omit = 0;
-        for (_, c) in &certs {
-            walk.file(c.guard);
-            walk.node(c.nodes);
-        }
-        walk.omit = omit;
+    // Visit exact outputs first. Only their independent positive guards may widen.
+    let certs = std::mem::take(&mut walk.p.exact);
+    for (_, c) in &certs {
+        walk.file(c.guard);
+        walk.node(c.nodes);
     }
+    walk.omit = omit;
     for i in 0..walk.p.roots.len() {
-        let id = walk.p.roots[i].1;
-        walk.file(id);
+        walk.file(walk.p.roots[i].1);
     }
-    certs.retain(|(_, c)| {
-        keep_exact
-            || (walk.node(c.nodes).mask
-                | walk.file(c.guard).mask
-                | c.facts
-                    .iter()
-                    .fold(0, |m, &s| m | walk.p.facts[s].family.bit()))
-                & omit
-                == 0
-    });
     walk.p.exact = certs;
     let origins = super::compact::compact(walk.p);
-    if order {
-        let costs: Vec<_> = origins
-            .into_iter()
-            .map(|i| walk.files[i].map_or(0, |v| v.cost))
-            .collect();
-        super::groups::compile(walk.p, &costs);
-    }
+    let costs: Vec<_> = origins
+        .into_iter()
+        .map(|i| walk.files[i].map_or(0, |v| v.cost))
+        .collect();
+    super::groups::compile(walk.p, &costs);
 }
 /// Costly downward masks and scheduled-row projections are optional only
 /// on the positive pass. The proof pass always sees the declared relation.
@@ -258,6 +234,12 @@ pub(super) fn omit_positive(d: &Domain, facts: &[super::Fact], omit: u16) -> boo
     let class = family(d, facts);
     matches!(class, Child | Schedule | Count) && omit & class.bit() != 0
 }
+#[cfg(not(feature = "pair-diagnostics"))]
+pub(super) fn omitted() -> u16 {
+    Child.bit() | Schedule.bit() | Count.bit()
+}
+
+#[cfg(feature = "pair-diagnostics")]
 pub(super) fn omitted() -> u16 {
     if std::env::var_os("VEC_PAIR_FULL").is_some() {
         return 0;
@@ -287,6 +269,7 @@ pub(crate) struct Meter {
     pub fills: RefCell<Vec<[(u64, u64, f64); 13]>>,
 }
 impl Meter {
+    #[cfg(feature = "pair-diagnostics")]
     pub(super) fn new(slots: usize) -> Self {
         let total = (0..1000)
             .map(|_| {

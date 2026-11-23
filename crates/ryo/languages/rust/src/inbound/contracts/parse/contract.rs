@@ -97,7 +97,6 @@ impl Parse for ParseContract {
     }
 
     fn stable_fields(&self) -> languages::FieldNames {
-        use crate::domain::fields::service::{field_name, fields};
         languages::FieldNames(fields().map(field_name).collect())
     }
 

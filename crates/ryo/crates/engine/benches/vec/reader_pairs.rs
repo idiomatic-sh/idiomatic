@@ -4,9 +4,9 @@ use super::super::{
     pair_checks::SyntaxText,
     pair_summary::{Program, Source},
 };
+use super::packet::Packet;
 use rustc_hash::FxHashMap;
-use ryo::languages::{self as l, ByteSlice, CellKind, CellWord, FileWords, FilledColumns};
-use ryo_relations::domain::relations::service as catalog;
+use ryo::languages::{self as l, FileWords};
 
 pub(super) fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> first::Vocab {
     fn codes(names: &[l::NameText<'_>]) -> std::collections::HashMap<String, u16> {
@@ -34,94 +34,14 @@ pub(super) fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> fi
     }
 }
 
-#[derive(Default)]
-pub(super) struct Packet {
-    pub rows: l::contract::Collect,
-    offsets: FxHashMap<l::Relation, Vec<usize>>,
-    pub ready: bool,
-}
-
-impl Packet {
-    pub fn new(program: &Program) -> Self {
-        let offsets = program
-            .facts
-            .iter()
-            .filter_map(|fact| match fact.source {
-                Source::Catalog(rel) => Some((rel, Vec::new())),
-                _ => None,
-            })
-            .collect();
-        Self {
-            offsets,
-            ..Self::default()
-        }
-    }
-    pub fn clear(&mut self) {
-        self.ready = false;
-        self.rows.clear();
-        self.offsets.values_mut().for_each(Vec::clear);
-    }
-    fn index(&mut self) {
-        let mut at = 0;
-        for relation in &self.rows.relations {
-            if let Some(offsets) = self.offsets.get_mut(relation) {
-                offsets.push(at);
-            }
-            at += catalog::kinds(*relation).len();
-        }
-        debug_assert_eq!(at, self.rows.words.len());
-    }
-    fn columns(
-        &self,
-        relation: l::Relation,
-        symbols: &l::Symbols,
-        bytes: &[u8],
-        id: l::FileId,
-        n: usize,
-        words: &mut FileWords,
-        out: &mut FilledColumns,
-    ) -> bool {
-        if self.rows.partials.iter().any(|(r, _, _)| *r == relation)
-            || self.rows.partials_at.iter().any(|(r, _, _)| *r == relation)
-        {
-            return false;
-        }
-        let Some(starts) = self.offsets.get(&relation) else {
-            return false;
-        };
-        let kinds = catalog::kinds(relation);
-        out.0.resize_with(kinds.len(), Default::default);
-        for (i, (column, kind)) in out.0.iter_mut().zip(kinds).enumerate() {
-            column.0.reserve(starts.len());
-            for start in starts {
-                let raw = self.rows.words[start + i];
-                let cell = match kind {
-                    CellKind::Node if raw >> 32 != u64::from(id.0) || raw as u32 as usize >= n => {
-                        return false;
-                    }
-                    CellKind::Node => CellWord(u64::from(raw as u32)),
-                    CellKind::Symbol => {
-                        let text = l::text_of(symbols, ByteSlice(bytes), l::Symbol(raw as u32))
-                            .unwrap_or(l::NameText(""));
-                        l::facts::intern(words, text)
-                    }
-                    _ => CellWord(raw),
-                };
-                column.0.push(cell);
-            }
-        }
-        true
-    }
-}
-
 pub(super) struct Decisions {
-    pub program: Program,
-    pub roots: Vec<usize>,
+    pub(super) program: Program,
+    roots: Vec<usize>,
     words: FileWords,
-    pub steps: u64,
+    pub(super) steps: u64,
 }
 impl Decisions {
-    pub fn new(program: Program, plan: &finish::Plan) -> Self {
+    pub(super) fn new(program: Program, plan: &finish::Plan) -> Self {
         let index: FxHashMap<_, _> = program
             .roots
             .iter()
@@ -140,7 +60,7 @@ impl Decisions {
             steps: 0,
         }
     }
-    pub fn filter(
+    pub(super) fn filter(
         &mut self,
         wanted: &mut Vec<usize>,
         table: &l::NodeTable,
@@ -174,8 +94,7 @@ impl Decisions {
                 }
                 if !packet.ready {
                     walk(elements, symbols, &mut packet.rows);
-                    packet.index();
-                    packet.ready = true;
+                    packet.index(requested);
                 }
                 packet.columns(relation, symbols, bytes, id, n, words, out)
             },

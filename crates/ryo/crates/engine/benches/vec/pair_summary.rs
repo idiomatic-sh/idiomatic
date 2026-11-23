@@ -111,7 +111,6 @@ pub(super) struct Fact {
 
 pub(super) struct Program {
     pub meter: Option<cost::Meter>,
-    pub lazy_presence: bool,
     pub paths: Vec<Option<paths::Edge>>,
     pub file_only: Vec<bool>,
     pub domains: Vec<Domain>,
@@ -247,10 +246,7 @@ struct Builder<'a> {
     regex_slots: Map<String, Id>,
     proof_validation: Option<Id>,
     early_omit: u16,
-    dominance: bool,
     signatures: Vec<u64>,
-    neighbors: bool,
-    file_sets: bool,
     out: Program,
     ds: Map<Domain, Id>,
     ns: Map<Need, Id>,
@@ -497,7 +493,7 @@ impl Builder<'_> {
             return id;
         }
         let mut remaining = CAP;
-        if self.dominance && self.entails(hi, lo, &mut remaining) {
+        if self.entails(hi, lo, &mut remaining) {
             self.ns.insert(both, hi);
             return hi;
         }
@@ -572,7 +568,7 @@ impl Builder<'_> {
                                 .language
                                 .walk_facts
                                 .iter()
-                                .find(|f| self.file_sets && f.name == name)
+                                .find(|f| f.name == name)
                             {
                                 let (columns, kinds) = view.columns.iter().copied().unzip();
                                 (
@@ -584,8 +580,7 @@ impl Builder<'_> {
                                 )
                             } else {
                                 if !self.language.facts.iter().any(|n| n == name)
-                                    && !(self.file_sets
-                                        && self.language.file_sets.iter().any(|n| n == name))
+                                    && !self.language.file_sets.iter().any(|n| n == name)
                                 {
                                     return r;
                                 }
@@ -1213,17 +1208,15 @@ impl Builder<'_> {
             *c = map[*c];
             *p = map[*p];
         }
-        if self.neighbors {
-            for &(c, p, depth) in &out.edges {
-                let (child, parent) = (out.domains[c], out.domains[p]);
-                if changed[p] && parent > EMPTY {
-                    let d = self.at_distance(parent, depth, Domain::Children);
-                    out.domains[c] = self.both(child, d);
-                }
-                if changed[c] && child > EMPTY {
-                    let d = self.at_distance(child, depth, Domain::Parents);
-                    out.domains[p] = self.both(parent, d);
-                }
+        for &(c, p, depth) in &out.edges {
+            let (child, parent) = (out.domains[c], out.domains[p]);
+            if changed[p] && parent > EMPTY {
+                let d = self.at_distance(parent, depth, Domain::Children);
+                out.domains[c] = self.both(child, d);
+            }
+            if changed[c] && child > EMPTY {
+                let d = self.at_distance(child, depth, Domain::Parents);
+                out.domains[p] = self.both(parent, d);
             }
         }
         for v in 0..out.domains.len() {
@@ -1459,8 +1452,7 @@ impl Builder<'_> {
                         .map_or(ANY, |c| r.domains[c.var])
                 };
                 let (mut id, mut related) = (node(from), node(dom));
-                if self.neighbors
-                    && matches!(&steps[a.relation.0],Base(n) if self.native(&n.0) && super::first::CHILD.contains(&&*n.0))
+                if matches!(&steps[a.relation.0],Base(n) if self.native(&n.0) && super::first::CHILD.contains(&&*n.0))
                 {
                     let (origin, target) = (id, related);
                     let (down, up): (fn(Id) -> Domain, fn(Id) -> Domain) = match a.direction {
@@ -1543,8 +1535,7 @@ impl Builder<'_> {
                     let d = self.both(raw, from.domains[col.var]);
                     self.require(&mut out, d);
                 }
-                if self.file_sets
-                    && let Some(col) = from.column(&x.span.0)
+                if let Some(col) = from.column(&x.span.0)
                     && let Some(d) = self.matching(col.attr, &x.pattern.0, CellKind::Span)
                 {
                     let d = self.both(from.domains[col.var], d);
@@ -1659,7 +1650,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
 
 /// Relations supplied as rows may have a different population from the tree.
 pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, language: &Language, reader_rows: &[String]) -> Program {
-    let clock = std::env::var_os("VEC_PAY_PREP").is_some();
+    let clock = cfg!(feature = "pair-diagnostics") && std::env::var_os("VEC_PAY_PREP").is_some();
     let mut t = super::thread_cpu();
     let mut phase = |name| {
         if clock {
@@ -1676,16 +1667,11 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
         regex_slots: Map::default(),
         proof_validation: None,
         early_omit: 0,
-        dominance: std::env::var_os("VEC_PAIR_NO_DOMINANCE").is_none(),
         signatures: Vec::with_capacity(plan.steps.len()),
-        neighbors: std::env::var_os("VEC_PAIR_LOCAL").is_none(),
-        file_sets: std::env::var_os("VEC_PAIR_LOCAL").is_none()
-            && std::env::var_os("VEC_PAIR_TREE").is_none(),
         out: Program {
             meter: None,
             paths: Vec::new(),
             file_only: Vec::new(),
-            lazy_presence: std::env::var_os("VEC_PAIR_EAGER_PRESENCE").is_none(),
             regexes: Vec::new(),
             text_kinds: language.text_kinds.clone(),
             symbols: Map::default(),
@@ -1747,17 +1733,11 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
     }
     phase("live");
     let mut exclusions = exact::prepare(&mut b, plan, &live).into_iter().peekable();
-    b.positive = std::env::var_os("VEC_PAIR_EAGER_REGEX").is_none();
+    b.positive = true;
     let omit = cost::omitted();
-    if std::env::var_os("VEC_PAIR_LATE_OMIT").is_none() {
-        // Every excluded side, distinct-count input and output certificate was
-        // compiled before this point. Only positive witnesses are widened here.
-        b.early_omit = omit;
-    }
+    // Proofs are complete before this point. Widen only positive witnesses.
+    b.early_omit = omit;
     phase("proof");
-    if std::env::var_os("VEC_NO_EXACT").is_some() {
-        b.out.exact.clear();
-    }
     let columns = bumpalo::Bump::new();
     let mut scratch = Vec::new();
     let mut rows = Vec::with_capacity(plan.steps.len());
@@ -1787,6 +1767,7 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
         skips.push(skip);
     }
     phase("rows-and-skips");
+    #[cfg(feature = "pair-diagnostics")]
     if std::env::var_os("VEC_PAIR_TRACE").is_some() {
         for (step, row) in rows.iter().enumerate() {
             println!("WITNESS\t{step}\t{}\t{:?}", row.need, row.domains);
@@ -1811,23 +1792,14 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
     // a raw spelling (for example, a normalized or resolved identifier).
     // Certify the whole first half only when that independent skip is vacuous.
     b.out.exact.retain(|(ri, _)| b.out.skips[*ri].2.is_empty());
-    if std::env::var_os("VEC_PAIR_NO_PREFLIGHT").is_none() {
-        precheck::schedule(&mut b);
-    }
+    precheck::schedule(&mut b);
     phase("roots");
-
-    cost::arrange(
-        &mut b.out,
-        std::env::var_os("VEC_PAIR_UNORDERED").is_none(),
-        omit,
-    );
+    cost::arrange(&mut b.out, omit);
+    #[cfg(feature = "pair-diagnostics")]
     if std::env::var_os("VEC_PAIR_METER").is_some() {
         b.out.meter = Some(cost::Meter::new(b.out.facts.len()));
     }
-    if std::env::var_os("VEC_PAIR_NO_SPARSE").is_none() {
-        (b.out.paths, b.out.file_only) = paths::compile(&b.out);
-    }
-
+    (b.out.paths, b.out.file_only) = paths::compile(&b.out);
     phase("arrange");
     if clock || b.out.meter.is_some() {
         println!(
