@@ -1855,6 +1855,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         }
         f.emit_names().map(|(_, name)| by_name.get(name).cloned().unwrap_or_default()).collect()
     }).unwrap_or_default();
+    let mut wanted = Vec::new();
     let mut in_seed = vec![false; frules.len()];
     let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
     let mut exact_counts = vec![(0u64, 0u64, 0u64); frules.len()];
@@ -2610,7 +2611,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                             }
                         }
                         let before_wanted = fin.time;
-                        let mut wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
+                        fin.wanted_into(path, |e| emit_rules[e].iter().any(|r| in_seed[*r]), &mut wanted);
                         if !exact_rows.is_empty() {
                             wanted.retain(|&e| {
                                 let [ri] = emit_rules[e].as_slice() else { return true };
