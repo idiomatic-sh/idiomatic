@@ -1,5 +1,6 @@
 """Measure one cold child, including startup, on a single available CPU (Linux)."""
 import hashlib
+import json
 import os
 import subprocess
 import tempfile
@@ -49,21 +50,34 @@ def compare(expected, results):
     outcomes = {}
     with results.open() as stream:
         for (identity, reference), raw in zip(expected.items(), stream, strict=True):
-            key, native, answer = raw.rstrip("\n").split("\t")
+            fields = raw.rstrip("\n").split("\t")
+            if len(fields) not in (3, 4):
+                raise ValueError("invalid native receipt")
+            key, native, answer = fields[:3]
             if key != identity:
                 raise ValueError(f"receipt order or identity changed at {identity}")
+            # The original batch protocol can only return rows or a refusal.
+            # A worker with unknowns can append the typed path/message pairs.
+            typed = json.loads(fields[3]) if len(fields) == 4 else []
+            if not isinstance(typed, list) or any(
+                not isinstance(pair, list) or len(pair) != 2 or
+                not all(isinstance(value, str) for value in pair) for pair in typed
+            ):
+                raise ValueError("invalid native unknowns")
             if native == "refused":
-                if answer:
-                    raise ValueError("refusal unexpectedly included rows")
+                if answer or typed:
+                    raise ValueError("refusal unexpectedly included an answer")
             elif native != "different" or len(answer) != 64 or any(c not in "0123456789abcdef" for c in answer):
                 raise ValueError("expected a canonical row digest or explicit refusal")
-            if reference["unknowns"]:
+            unknowns = tuple(sorted(tuple(pair) for pair in typed))
+            wanted = tuple(sorted(tuple(pair) for pair in reference["unknowns"]))
+            if native != "refused" and answer == reference["sha256"] and unknowns == wanted:
+                status = "exact"
+            elif wanted or unknowns:
                 status = "partial"
             elif native == "refused":
                 status = "refused"
-            elif answer == reference["sha256"]:
-                status = "exact"
             else:
                 status = "different"
-            outcomes[identity] = (status, answer)
+            outcomes[identity] = (status, (native, answer, unknowns))
     return outcomes

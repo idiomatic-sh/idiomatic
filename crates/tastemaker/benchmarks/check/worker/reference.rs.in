@@ -122,20 +122,18 @@ fn main() {
             let mut rows = groups.remove(name).unwrap_or_default();
             rows.sort_unstable();
             if let Some(frozen) = frozen.as_mut() {
-                let typed: Vec<Value> = rows
-                    .iter()
-                    .map(|r| serde_json::from_str(r).unwrap())
-                    .collect();
                 let unknowns: Vec<_> = report
                     .unknowns
                     .iter()
                     .filter(|u| u.rule.as_ref() == name)
-                    .map(|u| json!([&*u.path.0, &*u.message.0]))
+                    .map(|u| (&*u.path.0, &*u.message.0))
                     .collect();
                 writeln!(
                     frozen,
-                    "{}",
-                    json!({"stamp":stamp,"rule":name,"rows":typed,"unknowns":unknowns})
+                    r#"{{"stamp":{stamp},"rule":{},"rows":[{}],"unknowns":{}}}"#,
+                    serde_json::to_string(name).unwrap(),
+                    rows.join(","),
+                    serde_json::to_string(&unknowns).unwrap()
                 )
                 .unwrap();
             }

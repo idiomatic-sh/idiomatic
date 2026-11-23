@@ -1,5 +1,5 @@
 """Capture today's CI inputs and measure the release and candidate on one committed checkout."""
-from collections import Counter
+from collections import Counter, defaultdict
 import json
 import os
 from pathlib import Path
@@ -47,13 +47,15 @@ def prepare(packets, trace):
     with packets.manifest.open("w") as stream:
         for call, report in capture_pairs(trace):
             packets.append(stream, call)
-            unknown = {r[0] for r in report["unknowns"]}
+            unknown = defaultdict(list)
+            for rule_id, path, message in report["unknowns"]:
+                unknown[rule_id].append((path, message))
             for i, rule in enumerate(call["rules"]):
                 identity = f'{call["stamp"]}/{i}'
                 if identity in expected:
                     raise ValueError(f"duplicate request {identity}")
                 n, sha = report["answers"].get(rule["id"], (0, row_digest([])))
-                expected[identity] = dict(rows=n, sha256=sha, unknowns=rule["id"] in unknown)
+                expected[identity] = dict(rows=n, sha256=sha, unknowns=unknown.get(rule["id"], ()))
     if not expected:
         raise ValueError("empty SDK trace")
     return expected
