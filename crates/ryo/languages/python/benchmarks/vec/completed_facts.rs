@@ -8,10 +8,12 @@ pub(super) struct Completed {
     pub(super) file: Option<FileId>,
     tables: Vec<Option<FilledColumns>>,
     pub(super) empty: Vec<Relation>,
+    pub(super) decisions: Vec<Option<bool>>,
 }
 
 impl Completed {
     pub(super) fn begin(&mut self, file: FileId) {
+        self.decisions.clear();
         self.tables.clear();
         self.empty.clear();
         self.file = Some(file);
@@ -22,35 +24,21 @@ impl Completed {
     }
 
     pub(super) fn clear(&mut self) {
+        self.decisions.clear();
         self.tables.clear();
         self.empty.clear();
         self.file = None;
     }
-}
 
-pub(super) struct FileWitness<'a, 'p> {
-    pub(super) completed: &'a mut Completed,
-    pub(super) exec: &'a mut super::finish::Exec<'p>,
-    pub(super) run: &'a super::finish::Run,
-}
-
-impl super::pair_checks::WitnessResults for FileWitness<'_, '_> {
-    fn table(&mut self, relation: Relation, rows: FilledColumns) {
+    pub(super) fn table(&mut self, relation: Relation, rows: FilledColumns) {
         if rows.0.first().is_some_and(|column| column.0.is_empty()) {
-            self.completed.empty.push(relation);
+            self.empty.push(relation);
         }
         let slot = number_of(relation).0;
-        if self.completed.tables.len() <= slot {
-            self.completed.tables.resize_with(slot + 1, || None);
+        if self.tables.len() <= slot {
+            self.tables.resize_with(slot + 1, || None);
         }
-        self.completed.tables[slot] = Some(rows);
+        self.tables[slot] = Some(rows);
     }
 
-    fn decisions(&mut self) -> &mut Vec<Option<bool>> {
-        self.exec.prefix_decisions(self.completed.file.expect("active prefix file").0)
-    }
-
-    fn indexed_symbols(&mut self, relation: &str, column: usize, present: &dyn Fn(&str) -> Option<bool>) {
-        self.exec.indexed_symbols(self.run, relation, column, present);
-    }
 }

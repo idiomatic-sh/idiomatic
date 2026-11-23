@@ -58,6 +58,9 @@ pub(crate) struct NameTable {
 pub(crate) struct WalkNames {
     /// Collect expression classes while the parser visits the source tree.
     pub shapes: Option<Box<crate::domain::shape_facts::walk::WalkShapes>>,
+    /// Record lexical facts from the retained typed nodes on the first semantic
+    /// read. The walk omits optional token codes in this mode.
+    pub deferred: bool,
     /// The table the walk interned into.
     pub names: NameTable,
     /// The lexical part, by place: the name each node carries among it.

@@ -104,14 +104,90 @@ impl<'p> Finisher<'p> {
         self.inner.exec.prepare_spellings(&self.inner.run, &language.spelled, language.is_identifier);
         self.inner.time += thread_cpu() - start;
     }
+
+    /// Use the same project answer that is indexed by file for the executor.
+    pub(super) fn identity(
+        &mut self,
+        file: usize,
+        words: &mut languages::FileWords,
+        out: &mut languages::FilledColumns,
+    ) -> bool {
+        self.project.identity_columns(&self.inner.run.paths[file], file as u32, words, out)
+    }
+
+    fn walk_cells(
+        file: languages::FileId,
+        run: &finish::Run,
+        rows: &finish::Table,
+        words: &mut languages::FileWords,
+        out: &mut languages::FilledColumns,
+    ) -> bool {
+        out.0.clear();
+        for (kind, cells) in rows.tys.iter().zip(&rows.cols) {
+            let mut col = Vec::with_capacity(cells.len());
+            for &cell in cells {
+                let value = if matches!(kind, finish::Ty::Sym) && cell != finish::NULL {
+                    let Some(text) = run
+                        .texts
+                        .get(cell as usize)
+                        .and_then(|v| std::str::from_utf8(v).ok())
+                    else {
+                        return false;
+                    };
+                    languages::facts::intern(
+                        words,
+                        ryo_relations::domain::terms::types::NameText(text),
+                    )
+                } else if matches!(kind, finish::Ty::Node) && cell != finish::NULL {
+                    let at = languages::Position(u32::try_from(cell).expect("local node position"));
+                    languages::CellWord(ryo_relations::domain::relations::service::node_id(file, at).0)
+                } else {
+                    languages::CellWord(cell)
+                };
+                col.push(value);
+            }
+            out.0.push(languages::FilledColumn(col));
+        }
+        true
+    }
+    /// Lend the complete provider answer to the walk. Keep the answer and its inputs for execution on this file.
+    pub(super) fn walk_table(
+        &mut self,
+        number: usize,
+        file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>,
+        bytes: &[u8],
+        name: &str,
+        words: &mut languages::FileWords,
+        out: &mut languages::FilledColumns,
+        kept: &mut super::composition_inputs::Tables,
+    ) -> bool {
+        let id = languages::FileId(number as u32);
+        if let Some(rows) = kept.get(name) {
+            return Self::walk_cells(id, &self.inner.run, rows, words, out);
+        }
+        finish::own_words_cleared(&mut self.inner.run);
+        let mut completed = Default::default();
+        self.with_provider(number, file, bytes, words, &mut completed, kept, None, |inner, provider| {
+            let rows = if name == super::expression_parts::NESTED_DELIMITERS {
+                super::expression_parts::fill(&mut inner.run, provider.file, provider.words, bytes, id.0, name)
+                    .map(std::rc::Rc::new)
+            } else {
+                provider.fact(&mut inner.run, name)
+            };
+            let Ok(rows) = rows else { return false };
+            let answered = Self::walk_cells(id, &inner.run, &rows, provider.words, out);
+            provider.kept.insert(name, rows);
+            answered
+        })
+    }
     pub(super) fn end(self, walk_time: f64) {
         self.inner.end(walk_time, |locations| locations.dedup());
     }
-    pub(super) fn prefix_storage(&mut self, file: usize) -> (&finish::Run, &mut super::provider_packaging::Project, &mut languages::FileWords, super::completed_facts::FileWitness<'_, 'p>) {
-        self.completed.begin(languages::FileId(file as u32));
-        let run = &self.inner.run;
-        let witness = super::completed_facts::FileWitness { completed: &mut self.completed, exec: &mut self.inner.exec, run };
-        (run, &mut self.project, &mut self.fwords, witness)
+    /// Swap the dictionary together with its rows. Each of the two borrowed
+    /// parse loans owns both until its executor visit has finished.
+    pub(super) fn swap_loan(&mut self, words: &mut languages::FileWords, completed: &mut super::completed_facts::Completed) {
+        std::mem::swap(&mut self.fwords, words);
+        std::mem::swap(&mut self.completed, completed);
     }
 
     pub(super) fn prefix_table(&mut self, name: &str, t: &ryo_python::fixtures::columns::FactTable, words: &super::facts::Interner) {
@@ -121,7 +197,7 @@ impl<'p> Finisher<'p> {
     }
 
     /// The second half on one walked file of the direct-columns walk (its own model by parts, built on demand).
-    pub(super) fn column_file(&mut self, file_no: usize, path: &str, file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>, bytes: &[u8], wanted: &[usize], prefix: Option<super::direct_fill::Prefix<'_>>) {
+    pub(super) fn column_file(&mut self, file_no: usize, path: &str, file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>, bytes: &[u8], wanted: &[usize], prefix: Option<super::direct_fill::Prefix<'_>>, kept: &mut super::composition_inputs::Tables) {
         let t0 = thread_cpu();
         file.set_file(languages::FileId(file_no as u32));
         if !wanted.is_empty() && file.plain_spellings() { self.inner.exec.source_spellings(bytes); }
@@ -131,6 +207,7 @@ impl<'p> Finisher<'p> {
         let mut fwords = std::mem::take(&mut self.fwords);
         let mut completed = std::mem::take(&mut self.completed);
         if completed.file == Some(languages::FileId(file_no as u32)) {
+            std::mem::swap(self.inner.exec.prefix_decisions(file_no as u32), &mut completed.decisions);
             for &relation in &completed.empty {
                 let name = ryo_relations::domain::relations::service::name(relation).0;
                 self.inner.exec.walk_empty(&self.inner.run, name);
@@ -140,27 +217,37 @@ impl<'p> Finisher<'p> {
             languages::facts::clear_words(&mut fwords);
         }
         finish::own_words_cleared(&mut self.inner.run);
-        let mut project = std::mem::take(&mut self.project);
-        let mut type_paths = std::mem::take(&mut self.type_paths);
-        let mut prefix_symbols = std::mem::take(&mut self.prefix_symbols);
-        let mut direct_memo = std::mem::take(&mut self.direct_memo);
-        let mut implicit = self.implicit.take();
-        direct_memo.new_file();
-        let mut pv = ColFacts { import_comments: Default::default(), file, completed: &mut completed, words: &mut fwords, filled: std::mem::take(&mut self.filled), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.inner.by_rel), file_no: file_no as u32, kept: Default::default(), implicit: &mut implicit, type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, direct_memo: &mut direct_memo, project: &mut project, src: bytes };
-        self.inner.file(file_no, path, ft, bytes, &mut pv, wanted);
-        self.inner.provider_time += pv.time;
-        self.inner.provider_rows += pv.rows;
-        self.inner.by_rel = pv.by_rel;
-        self.filled = pv.filled;
+        self.with_provider(file_no, file, bytes, &mut fwords, &mut completed, kept, prefix,
+            |inner, provider| inner.file(file_no, path, ft, bytes, provider, wanted));
         self.fwords = fwords;
         completed.clear();
         self.completed = completed;
-        self.type_paths = type_paths;
-        self.prefix_symbols = prefix_symbols;
-        self.direct_memo = direct_memo;
-        self.implicit = implicit;
-        self.project = project;
         self.inner.time += thread_cpu() - t0;
+    }
+
+    fn with_provider<T>(
+        &mut self, file_no: usize, file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>,
+        bytes: &[u8], words: &mut languages::FileWords, completed: &mut super::completed_facts::Completed,
+        kept: &mut super::composition_inputs::Tables, prefix: Option<super::direct_fill::Prefix<'_>>,
+        visit: impl FnOnce(&mut finisher::Finisher<'p>, &mut ColFacts<'_, '_, '_, '_>) -> T,
+    ) -> T {
+        self.direct_memo.new_file();
+        let mut provider = ColFacts {
+            file, completed, words, src: bytes, file_no: file_no as u32, prefix,
+            project: &mut self.project, implicit: &mut self.implicit, type_paths: &mut self.type_paths,
+            input_layout: self.input_layout, input_columns: Default::default(),
+            prefix_symbols: &mut self.prefix_symbols, direct_memo: &mut self.direct_memo,
+            import_comments: Default::default(), kept: std::mem::take(kept),
+            filled: std::mem::take(&mut self.filled), by_rel: std::mem::take(&mut self.inner.by_rel),
+            time: 0., rows: 0,
+        };
+        let result = visit(&mut self.inner, &mut provider);
+        self.inner.provider_time += provider.time;
+        self.inner.provider_rows += provider.rows;
+        self.inner.by_rel = provider.by_rel;
+        self.filled = provider.filled;
+        *kept = provider.kept;
+        result
     }
 
     /// The second half on one file through the reader's facts (`vec finish` without `VEC_COLWALK`).

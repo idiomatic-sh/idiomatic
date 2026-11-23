@@ -138,7 +138,6 @@ fn write_segment<'q>(
         tokens,
         next: TokenIndex(0),
         written: Offset(0),
-        ends: Vec::new(),
         strings: Vec::new(),
         parsed_tokens: parsed.tokens(),
         refused: Vec::new(),

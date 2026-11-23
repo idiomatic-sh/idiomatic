@@ -88,7 +88,7 @@ impl Columns {
 /// Intermediate tables have catalog names fixed by the composed writers.
 /// Only those inputs can be reused while building this file's single answer.
 #[derive(Default)]
-pub(super) struct Tables([Option<std::rc::Rc<finish::Table>>; INPUTS.len() + 3]);
+pub(super) struct Tables([Option<std::rc::Rc<finish::Table>>; INPUTS.len() + 4]);
 
 impl Tables {
     fn slot(rel: &str) -> Option<usize> {
@@ -96,6 +96,7 @@ impl Tables {
             "lookup-scope" => Some(INPUTS.len()),
             facts::FINAL_REL => Some(INPUTS.len() + 1),
             facts::DEFERRED_RESOLUTION_REL => Some(INPUTS.len() + 2),
+            super::expression_parts::NESTED_DELIMITERS => Some(INPUTS.len() + 3),
             _ => input(rel),
         }
     }

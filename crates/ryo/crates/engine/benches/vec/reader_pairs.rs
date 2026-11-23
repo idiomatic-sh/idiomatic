@@ -38,6 +38,8 @@ pub(super) struct Decisions {
     pub(super) program: Program,
     roots: Vec<usize>,
     words: FileWords,
+    order: super::super::summary_schedule::Schedule,
+    scratch: super::super::pair_checks::Scratch,
     pub(super) steps: u64,
 }
 impl Decisions {
@@ -53,10 +55,14 @@ impl Decisions {
             .iter()
             .map(|emit| index[emit.0.as_str()])
             .collect();
+        let (words, codes) = super::super::summary_values::register_symbols(&program, &[]);
+        let order = super::super::summary_schedule::Schedule::new(&program, None, codes);
         Self {
             program,
             roots,
-            words: l::facts::file_words(&l::facts::base_words(Default::default(), &[])),
+            words,
+            order,
+            scratch: Default::default(),
             steps: 0,
         }
     }
@@ -79,28 +85,31 @@ impl Decisions {
         for &i in wanted.iter() {
             live[self.roots[i]] = true;
         }
-        self.steps += self.program.file_columns(
+        self.order.literals.syntax(text.ids, text.symbols, &mut self.scratch.literals);
+        self.steps += self.program.eval(
+            &mut self.scratch,
+            &self.order,
             table,
             bytes,
             Some(path.as_bytes()),
             Some(text),
             &mut self.words,
-            |source, words, out| {
+            |source, query, words, out| {
+                if !matches!(query, super::super::pair_checks::Query::Rows) { return None; }
                 let Source::Catalog(relation) = source else {
-                    return false;
+                    return Some(false);
                 };
                 if !requested.contains(&relation) {
-                    return false;
+                    return Some(false);
                 }
                 if !packet.ready {
                     walk(elements, symbols, &mut packet.rows);
                     packet.index(requested);
                 }
-                packet.columns(relation, symbols, bytes, id, n, words, out)
+                Some(packet.columns(relation, symbols, bytes, id, n, words, out))
             },
             &mut live,
             id,
-            None,
             None,
         );
         wanted.retain(|&i| live[self.roots[i]]);

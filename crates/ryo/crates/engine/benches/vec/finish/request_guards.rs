@@ -196,24 +196,6 @@ impl Exec<'_> {
         }
     }
 
-    /// Reuse an exact symbol index already built by the file witness pass.
-    /// A partial vocabulary can certify absence only for the words it covers.
-    pub(crate) fn indexed_symbols(&mut self, run: &Run, rel: &str, column: usize, present: &dyn Fn(&str) -> Option<bool>) {
-        let Some(&slot) = run.fact_slots.get(rel) else { return };
-        let g = &mut self.requests.guards;
-        let Some(tests) = g.columns.get(&slot) else { return };
-        for &(c, id) in tests {
-            if c != column { continue; }
-            let Test::Symbols(_, _, choices) = &g.tests[id as usize] else { continue };
-            g.absent.resize(g.tests.len(), false);
-            if !g.absent[id as usize] && choices.iter().all(|&word| {
-                std::str::from_utf8(&run.texts[word as usize]).ok().and_then(present) == Some(false)
-            }) {
-                g.absent[id as usize] = true;
-            }
-        }
-    }
-
     pub(crate) fn prefix_symbols(&mut self, run: &Run, rel: &str, data: &[Vec<u32>], keys: Option<&[u32]>, symbols: usize, lookup: impl Fn(&[u8]) -> Option<u32>) {
         let Some(&slot) = run.fact_slots.get(rel) else { return };
         let g = &mut self.requests.guards;
