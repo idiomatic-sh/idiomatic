@@ -92,6 +92,17 @@ pub(super) fn run_first(args: &[&str]) {
             read.parse,
             p.rules.len()
         );
+        #[cfg(feature = "vec-dhat")]
+        {
+            // Measure the owned specification. The typed input has already been
+            // released, and moving the drop past either output would count its buffers.
+            let before = dhat::HeapStats::get().curr_bytes;
+            if option("--dump").is_none() && option("--out").is_none() {
+                drop(p);
+                println!("retained spec bytes {}", before - dhat::HeapStats::get().curr_bytes);
+                continue;
+            }
+        }
         if round != 0 {
             continue;
         }

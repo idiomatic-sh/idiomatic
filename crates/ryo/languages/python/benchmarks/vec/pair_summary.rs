@@ -21,6 +21,7 @@ pub(super) enum Domain {
     Kind(u16),
     Field(u16),
     Text(String),
+    TextMatching(u16, usize),
     Fact(usize, Option<(usize, Vec<Id>)>),
     Matching(usize, usize, usize),
     Both(Id, Id),
@@ -302,15 +303,26 @@ impl Builder<'_> {
         if self.out.facts[slot].kinds[col] != kind {
             return None;
         }
-        let regex = match self.out.regexes.iter().position(|r| r.as_str() == pattern) {
-            Some(i) => i,
-            None => {
-                let re = regex::bytes::Regex::new(pattern).ok()?;
-                self.out.regexes.push(re);
-                self.out.regexes.len() - 1
-            }
-        };
+        let regex = self.regex(pattern)?;
         Some(self.domain(Domain::Matching(slot, col, regex)))
+    }
+
+    fn regex(&mut self, pattern: &str) -> Option<usize> {
+        if let Some(i) = self.out.regexes.iter().position(|r| r.as_str() == pattern) {
+            return Some(i);
+        }
+        self.out
+            .regexes
+            .push(regex::bytes::Regex::new(pattern).ok()?);
+        Some(self.out.regexes.len() - 1)
+    }
+
+    fn required_kind(&self, domain: Id) -> Option<u16> {
+        match self.out.domains[domain] {
+            Domain::Kind(k) => Some(k),
+            Domain::Both(a, b) => self.required_kind(a).or_else(|| self.required_kind(b)),
+            _ => None,
+        }
     }
     fn filter(
         &mut self,
@@ -425,12 +437,41 @@ impl Builder<'_> {
                 }
             }
         }
-        for e in conjuncts {
+        for e in &conjuncts {
             if let Some((var, d)) = self.filter(e, &lookup) {
                 let v = map[var];
                 changed[v] |= d != ANY && d != out.domains[v];
                 out.domains[v] = self.both(out.domains[v], d);
                 self.require(&mut out, d);
+            }
+        }
+        // Restrict text regexes to a known entry bucket. The kind constraint
+        // may come from an earlier projection or another term in this select.
+        for e in conjuncts {
+            if let PlanExpression::Call(f) = e
+                && &*f.function.0 == "matches"
+                && let [
+                    PlanExpression::Column(c),
+                    PlanExpression::Literal(PlanConstant::Text(p)),
+                ] = f.arguments.as_slice()
+                && let Some(col) = lookup(c)
+                && col.attr == Attribute::Text
+            {
+                let v = map[col.var];
+                if let Some(kind) = self.required_kind(out.domains[v])
+                    && let Some(re) = self.regex(&p.0)
+                {
+                    let d = if self.language.text_kinds.contains(&kind) {
+                        self.domain(Domain::TextMatching(kind, re))
+                    } else if self.out.regexes[re].is_match(b"") {
+                        ANY
+                    } else {
+                        EMPTY
+                    };
+                    changed[v] |= d != ANY;
+                    out.domains[v] = self.both(out.domains[v], d);
+                    self.require(&mut out, d);
+                }
             }
         }
         for (c, p) in &mut out.edges {

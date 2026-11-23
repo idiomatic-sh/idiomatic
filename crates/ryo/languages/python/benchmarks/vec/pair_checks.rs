@@ -75,7 +75,7 @@ impl Table {
                     .cells
                     .0
                     .get(key)
-                    .is_some_and(|c| c.0.iter().all(|x| (x.0 as u32) < n));
+                    .is_some_and(|c| c.0.iter().all(|x| x.0 < u64::from(n)));
         }
     }
 }
@@ -92,6 +92,29 @@ impl File<'_> {
             Need::Both(a, b) => self.pass(a) && self.pass(b),
             Need::Either(a, b) => self.pass(a) || self.pass(b),
             Need::Some(x) => match &self.p.domains[x] {
+                // All stored bitsets end at their last nonzero word. A file
+                // prerequisite can stop at its first witness without allocating
+                // the intersection or union of every matching node.
+                _ if self.sets[x].is_some() => self.sets[x]
+                    .as_ref()
+                    .unwrap()
+                    .as_ref()
+                    .is_none_or(|b| !b.is_empty()),
+                Domain::Both(a, b) => {
+                    let l = self.nodes(*a);
+                    if l.as_ref().is_some_and(|v| v.is_empty()) {
+                        false
+                    } else {
+                        match (l, self.nodes(*b)) {
+                            (Some(l), Some(r)) => l.iter().zip(r.iter()).any(|(a, b)| a & b != 0),
+                            (l, r) => l.or(r).is_none_or(|v| !v.is_empty()),
+                        }
+                    }
+                }
+                Domain::Either(a, b) => {
+                    self.nodes(*a).is_none_or(|v| !v.is_empty())
+                        || self.nodes(*b).is_none_or(|v| !v.is_empty())
+                }
                 Domain::Kind(k) => {
                     !node_table::ids_of_kind(self.t, languages::KindBits(*k)).is_empty()
                 }
@@ -108,7 +131,7 @@ impl File<'_> {
                     );
                     !table.complete || table.cells.0.first().is_some_and(|c| !c.0.is_empty())
                 }
-                _ => self.nodes(x).is_none_or(|b| b.iter().any(|w| *w != 0)),
+                _ => self.nodes(x).is_none_or(|b| !b.is_empty()),
             },
         };
         self.needs[id] = Some(yes);
@@ -134,6 +157,20 @@ impl File<'_> {
                     .iter()
                     .map(|p| p.0),
             )),
+            Domain::TextMatching(k, re) => {
+                let regex = &self.p.regexes[*re];
+                Some(bits(
+                    node_table::ids_of_kind(self.t, languages::KindBits(*k))
+                        .iter()
+                        .filter_map(|p| {
+                            let text = node_table::decoded_of(self.t, *p).map_or_else(
+                                || &self.src[super::span_bytes(self.t, p.0 as usize)],
+                                |t| t.0.as_bytes(),
+                            );
+                            regex.is_match(text).then_some(p.0)
+                        }),
+                ))
+            }
             Domain::Text(t) => {
                 let by_text = self.texts.get_or_insert_with(|| {
                     let mut m = Map::<&[u8], Vec<u32>>::default();

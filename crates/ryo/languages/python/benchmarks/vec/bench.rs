@@ -574,6 +574,7 @@ fn walk_kinds<W: Walk>(_: &W) -> languages::Count {
 }
 
 fn main() {
+    let _ = thread_cpu(); // Start the process-thread clock before reading the request.
     // redo-alloc: the allocation counter of a `vec-dhat` build (nothing in any other)
     let _counter = alloc_count::start();
     let args: Vec<String> = std::env::args().collect();
@@ -1642,7 +1643,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let f0 = thread_cpu();
     let no_skip = std::env::var_os("VEC_NO_SKIP").is_some();
     let mut pairs = None;
-    let mut pair_steps=0;
+    let mut pair_steps = 0;
+    let mut pair_cpu = 0.0;
     let (rules, frules, words) = if std::path::Path::new(args[2]).is_dir() {
         let owned;
         let read = match pack {
@@ -1803,6 +1805,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut in_seed = vec![false; frules.len()];
     let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
     let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
+    println!("start-up to first file {:.4} s", thread_cpu());
     for (file_no, path) in list.iter().enumerate() {
         let c0 = thread_cpu();
         let bytes = std::fs::read(path).expect("read");
@@ -1936,10 +1939,14 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 alive.clear();
                 alive.extend(kinds_alive.iter().zip(&words_alive).map(|(k, w)| *k && (!word_skip || *w)));
                 // redo-honest: `VEC_NO_SKIP` keeps every rule alive in every file (a check of the skip: findings must not change)
-                if std::env::var_os("VEC_NO_SKIP").is_some() {
+                if no_skip {
                     alive.iter_mut().for_each(|a| *a = true);
                 }
-                if !no_skip && let Some(program)=&pairs { pair_steps+=program.file(pt,&bytes,&mut fwords,$fill,&mut alive); }
+                if !no_skip && let Some(program) = &pairs {
+                    let start = thread_cpu();
+                    pair_steps += program.file(pt, &bytes, &mut fwords, $fill, &mut alive);
+                    pair_cpu += thread_cpu() - start;
+                }
                 rule_files += frules.len() as u64;
                 alive_kinds += kinds_alive.iter().filter(|a| **a).count() as u64;
                 alive_both += alive.iter().filter(|a| **a).count() as u64;
@@ -2653,7 +2660,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             );
         }
     }
-    println!("pair summary checks {pair_steps}");
+    println!("pair summary checks {pair_steps} CPU {pair_cpu:.4} s");
     let knock_units = units.iter().filter(|u| u.knock).count();
     let steps: u64 = unit_steps.iter().sum();
     println!(

@@ -141,6 +141,10 @@ impl<'a> Skip<'a> {
                 out.words = either(&l.words, &r.words);
             }
             Antijoin(j) => out.take(&previous[j.left.0]),
+            OrderedDfs(x) => out.take(&previous[x.from.0]),
+            SubtreeClass(x) => out.take(&previous[x.from.0]),
+            GroupCount(g) if g.keys.is_empty() => {}
+            Unlisted(_) => {}
             Select(q) => {
                 let single = q.sources.len() == 1;
                 let mut terms = Vec::new();
@@ -155,7 +159,18 @@ impl<'a> Skip<'a> {
                         }
                     }
                     if single {
-                        out.scan = scan.scan
+                        // A projection can reuse a base-column name for a new
+                        // value. Later filters then apply to the projected value.
+                        out.scan = scan.scan.filter(|base| match &q.columns {
+                            SelectedColumns::All => true,
+                            SelectedColumns::Items(items) => items.iter().all(|item| {
+                                let name = &*item.name.0;
+                                let tested = (super::first::SYNTAX.contains(base) && matches!(name, "kind" | "text"))
+                                    || (super::first::CHILD.contains(base) && name == "field")
+                                    || lang.spelled.iter().any(|(r, c, _)| r == *base && c == name);
+                                !tested || matches!(&item.value, PlanExpression::Column(c) if c.column == item.name)
+                            }),
+                        });
                     }
                     out.take(&scan);
                 }
