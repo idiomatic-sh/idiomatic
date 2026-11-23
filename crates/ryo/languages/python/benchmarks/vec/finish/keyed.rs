@@ -193,9 +193,11 @@ impl Exec<'_> {
             {
                 return Ok(usize::MAX);
             }
-            if let Res::Tab(t) = self.res(f, run, p, node)? {
-                return Ok(t.n);
-            }
+            let v = match self.res(f, run, p, node)? {
+                Res::Tab(t) => return Ok(t.n),
+                Res::View(v) if v.base == super::Native::Empty => return Ok(0),
+                Res::View(v) => v,
+            };
             // its entry, never its rows read for a size: the kind bucket, the literal rows, its rows if read already,
             // else the relation's rows (an upper bound)
             if let Some(r) = f.vrows.get(&node) {

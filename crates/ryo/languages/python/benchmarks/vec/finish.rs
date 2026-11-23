@@ -1859,10 +1859,11 @@ impl<'p> Exec<'p> {
         if let Some(v) = self.view(run, node)?
             && File::probes(v.base, v.map[col])
         {
-            if let Res::Tab(t) = self.res(f, run, p, node)? {
-                // known empty in this file
-                return Ok(t);
-            }
+            let v = match self.res(f, run, p, node)? {
+                Res::Tab(t) => return Ok(t),
+                Res::View(v) if v.base == Native::Empty => return self.empty_rc(run, node),
+                Res::View(v) => v,
+            };
             let sc = self.schema(run, node)?;
             let mut rows = std::mem::take(&mut self.scratch_rows);
             rows.clear();
