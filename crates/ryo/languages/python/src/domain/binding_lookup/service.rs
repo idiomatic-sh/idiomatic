@@ -18,11 +18,27 @@ use crate::domain::{
 };
 use ryo::languages::{Flag, Position, Symbol, Tree};
 
-/// Annotation declarations own a lexical name but do not supply an initialized value.
+/// A stub’s bare annotations declare names in its namespace.
+pub(crate) fn declarations(tree: &Tree<'_>) -> crate::domain::model::types::AnnotatedDeclarations {
+    if ryo::languages::property_at(
+        tree.elements,
+        Position(0),
+        crate::domain::syntax::constants::MODULE_ANNOTATED_DECLARATIONS,
+    )
+    .is_some_and(|value| value.0 == crate::domain::syntax::constants::MODULE_DECLARATIONS_DECLARED)
+    {
+        crate::domain::model::types::AnnotatedDeclarations::Declared
+    } else {
+        crate::domain::model::types::AnnotatedDeclarations::Unbound
+    }
+}
+
+/// A bare annotation in an executable module owns a lexical name without initializing its value.
 fn annotation_only(tree: &Tree<'_>, at: Position) -> Flag {
     let statement = parent(tree, at);
     if kind(tree, statement) == Kind::Node(Node::AnnAssign)
         && !nodes(tree, statement).any(|child| field_of(tree, child) == Field::Value)
+        && declarations(tree) == crate::domain::model::types::AnnotatedDeclarations::Unbound
     {
         Flag::Raised
     } else {
@@ -47,10 +63,7 @@ fn classified(
     }
 }
 
-/// Associate a reference with real declarations or a builtin. A function read before its first
-/// local event may associate an outer declaration for static shadow analysis; this does not
-/// assert that Python would load that outer value at runtime. Once a local alternative exists,
-/// an absent alternative stays absent rather than falling through that lexical local namespace.
+/// Reachable declarations for a read, or the declarations shadowed at a binding site.
 pub(crate) fn resolve(
     tree: &Tree<'_>,
     model: &Declarations,
@@ -58,6 +71,7 @@ pub(crate) fn resolve(
     frame: BindingFrameId,
     reference: Position,
     name: Symbol,
+    read_mutations: Option<&[crate::domain::model::types::BindingMutation]>,
     output: &mut Vec<Candidate>,
 ) -> ReadState {
     output.clear();
@@ -99,6 +113,20 @@ pub(crate) fn resolve(
                         | Node::DictComp
                 )
             ) {
+                return classified(output, BindingAbsence::Possible, knowledge);
+            }
+        }
+        // A local assignment or deletion anywhere in a function makes an earlier read use the same local slot.
+        if let Some(mutations) = read_mutations
+            && matches!(kind(tree, scope), Kind::Node(Node::FunctionDef | Node::AsyncFunctionDef | Node::Lambda
+                | Node::GeneratorExp | Node::ListComp | Node::SetComp | Node::DictComp))
+        {
+            let key = BindingKey { scope, name };
+            crate::domain::bindings::service::bound(tree, model);
+            let declarations = model.bindings.borrow();
+            if declarations.binary_search_by_key(&key, |binding| binding.key).is_ok()
+                || mutations.binary_search_by_key(&key, |mutation| mutation.key).is_ok()
+            {
                 return classified(output, BindingAbsence::Possible, knowledge);
             }
         }

@@ -305,7 +305,10 @@ pub const PER_NODE_FACTS: [&str; 9] =
     ["qualified-name", "identifier", "literal-properties", "numeric-literal", "string-literal", "expression-shape", "expression-type", "binding-event", "binding-read"];
 
 /// File-local relations available through the walked file's complete fill.
-pub const FILE_SET_FACTS: &[&str] = &["static-import", "comment", "indent-region"];
+pub const FILE_SET_FACTS: &[&str] = &[
+    "static-import", "comment", "indent-region", "call-argument",
+    "binding-use", "binding-shadow", "binding-resolution",
+];
 
 /// How a column's literal is spelled in the source as a word: whole, or its last segment after a separator.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -344,6 +347,12 @@ impl ColumnWalk {
         } else {
             PythonParserSettings::default()
         };
+        Self::with_settings(words, settings)
+    }
+
+    /// Writes facts for the same Python target that governs the source's syntax and annotation evaluation.
+    #[must_use]
+    pub fn with_settings(words: FileWords, settings: PythonParserSettings) -> Self {
         Self {
             walk: PythonWalk { ports: WalkPorts { settings, syntax: Arc::new(ruff_python_parser(settings)) } },
             scratch: PythonWalkScratch::default(),
@@ -407,7 +416,7 @@ impl ColumnWalk {
                 if tree.strings.is_empty() {
                     return hosts;
                 }
-                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names };
+                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, declarations: tree.declarations, named: &tree.names };
                 form_imports(typed, &tree.imports, &mut scratch.forms);
                 type_strings(
                     &mut FormSource { tree: typed, imports: &scratch.forms, model: &mut scratch.file.model, built: &mut built_parts, path: &mut scratch.path },
@@ -444,7 +453,7 @@ fn lend(
         syntax: SyntaxFile {
             table,
             nodes: tree.nodes.get(..own).unwrap_or_default(),
-            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names },
+            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, declarations: tree.declarations, named: &tree.names },
             text: tree.text,
             file: FileId(0),
             completeness: tree.completeness,
@@ -455,7 +464,7 @@ fn lend(
         analysed: Analysed::default(),
         buffers: &mut scratch.file.buffers,
     };
-    visit(&mut ColumnFile { table, file: &mut file, memo, words });
+    visit(&mut ColumnFile { table, file: &mut file, relative_froms: &tree.relative_froms, memo, words });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
@@ -476,6 +485,7 @@ pub struct ColumnFile<'a, 'f> {
     /// The node table.
     pub table: &'a NodeTable,
     file: &'a mut PythonFile<'f>,
+    relative_froms: &'a [Position],
     memo: &'a mut TextMemo,
     words: &'a mut FileWords,
 }
@@ -494,7 +504,32 @@ fn flag(value: Flag) -> u32 {
     u32::from(value == Flag::Raised)
 }
 
+mod assignment;
+mod resolution;
+pub use resolution::BindingSite;
+
 impl ColumnFile<'_, '_> {
+    /// A source file without a relative from-import requests no package-relative alias.
+    pub fn has_relative_imports(&self) -> bool {
+        !self.relative_froms.is_empty()
+    }
+
+    /// Each relative import alias names a member (or, for a wildcard, just its source module).
+    pub fn relative_imports(&self) -> impl Iterator<Item = (u32, u32, Option<&str>, Option<&str>)> {
+        self.relative_froms.iter()
+            .filter_map(|index| match self.file.syntax.nodes.get(usize::from(*index)) {
+                Some(AnyNodeRef::StmtImportFrom(statement)) => Some(*statement),
+                _ => None,
+            })
+            .flat_map(|statement| {
+                statement.names.iter().filter_map(move |alias| {
+                    let id = crate::domain::node::service::id_of(alias)?;
+                    let name = alias.name.as_str();
+                    Some((id.0, statement.level, statement.module.as_ref().map(|m| m.as_str()), (name != "*").then_some(name)))
+                })
+            })
+    }
+
     /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
     /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in
     /// every file of the run. Empty when the file's bytes were not text or the caller deferred lexical collection.

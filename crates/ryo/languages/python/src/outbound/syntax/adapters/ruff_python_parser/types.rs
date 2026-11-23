@@ -73,6 +73,8 @@ pub(super) struct Writer<'b, 'w, 't> {
     pub future_annotations: FutureAnnotations,
     /// Whether the module's annotations are postponed (the future import, or a stub).
     pub annotations_deferred: bool,
+    /// Whether declarations without values bind names in this source.
+    pub declarations: crate::domain::model::types::AnnotatedDeclarations,
     /// Annotation candidates are collected only in explicit annotation contexts.
     pub annotations: Vec<AnnotationCandidate<'t>>,
     /// Current syntactic context, refined by semantic binding before projection.
@@ -249,6 +251,8 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub future_annotations: FutureAnnotations,
     /// Whether the module's annotations are postponed (the future import, or a stub): the timing property of the module node.
     pub annotations_deferred: bool,
+    /// Whether declarations without values bind names in this source.
+    pub declarations: crate::domain::model::types::AnnotatedDeclarations,
     /// The typed node of each id written so far.
     pub nodes: Vec<ruff_python_ast::AnyNodeRef<'t>>,
     /// The parent of each id written so far; the root is its own.
@@ -268,6 +272,8 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub literals: Vec<crate::domain::node::types::StringSite>,
     /// The imported names met: the places of the aliases.
     pub imports: Vec<languages::Position>,
+    /// Relative from-import statements seen in the source walk.
+    pub relative_froms: Vec<languages::Position>,
     /// The fields the open nodes hand their children, one run for each open node.
     pub fields: Vec<crate::domain::node::types::ChildField<'t>>,
     /// The names interned so far: of each node, and of each name token of the file's own tree.

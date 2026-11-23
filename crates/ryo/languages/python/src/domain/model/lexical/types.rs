@@ -22,6 +22,8 @@ pub(crate) struct TypedTree<'t, 'a> {
     pub(crate) nodes: &'t [AnyNodeRef<'a>],
     /// Whether the module postpones the evaluation of its annotations (`from __future__ import annotations`).
     pub(crate) annotations: BindingAnnotationTiming,
+    /// Whether a bare annotated target declares a name in this source.
+    pub(crate) declarations: crate::domain::model::types::AnnotatedDeclarations,
     /// The names the walk interned: the name of each place, and the table.
     pub(crate) named: &'t crate::domain::model::names::types::WalkNames,
 }

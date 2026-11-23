@@ -9,9 +9,6 @@ impl Bits {
     pub(super) fn is_empty(self) -> bool {
         self.len == 0
     }
-    pub(super) fn len(self) -> usize {
-        self.len
-    }
     pub(super) fn range(self) -> std::ops::Range<usize> {
         self.start..self.start + self.len
     }
@@ -22,10 +19,6 @@ pub(super) struct Arena {
     pub(super) work: Vec<u64>,
 }
 impl Arena {
-    #[inline]
-    pub(super) fn word(&self, b: Bits, i: usize) -> u64 {
-        self.words[b.start + i]
-    }
     pub(super) fn commit(&mut self, data: &[u64]) -> Bits {
         let len = data.iter().rposition(|w| *w != 0).map_or(0, |i| i + 1);
         let start = self.words.len();

@@ -2,8 +2,8 @@
 
 use super::errors::SyntaxError;
 use ryo_values::domain::descriptions::types::Grammar;
-use ryo_values::domain::program::types::{ParsedQueryBundle, WrittenProgram};
-use ryo_values::domain::query_tokens::types::{QueryBundle, QueryView};
+use ryo_values::domain::program::types::{FragmentProgram, ParsedQueryBundle, WrittenProgram};
+use ryo_values::domain::query_tokens::types::{QueryBundle, QuerySourceId, QueryView};
 
 /// What every `syntax` adapter implements.
 pub trait SyntaxPort: Send + Sync {
@@ -20,6 +20,17 @@ pub trait SyntaxPort: Send + Sync {
     ///
     /// Returns the source-aware syntax error for the first unreadable document.
     fn read_bundle(&self, bundle: &QueryBundle) -> Result<ParsedQueryBundle, SyntaxError>;
+
+    /// Reads a fragment under its source identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns the location of an unreadable fragment.
+    fn read_fragment(
+        &self,
+        id: &QuerySourceId,
+        text: QueryView<'_>,
+    ) -> Result<FragmentProgram, SyntaxError>;
 
     /// Parses a bundle's root alone, located in the root's source, as `read_bundle` reads it first: a compile whose modules were
     /// parsed from the same catalog earlier in its session reads only this.

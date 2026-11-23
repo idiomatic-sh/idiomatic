@@ -9,10 +9,18 @@ use std::fmt::Write as _;
 pub(super) const SYNTAX: [&str; 2] = ["semantic-syntax", "syntax-tree"];
 pub(super) const CHILD: [&str; 2] = ["semantic-child", "syntax-child"];
 
+/// Columns made available by the provider in addition to its relations catalog.
+pub(super) struct WalkFact {
+    pub name: &'static str,
+    pub columns: &'static [(&'static str, ryo::languages::CellKind)],
+    pub exact: bool,
+}
 /// Fact availability, spelling and lexical text are supplied by the language provider.
 pub(super) struct Language {
+    pub(super) walk_facts: &'static [WalkFact],
     pub(super) facts: Vec<String>,
     pub(super) text_kinds: Vec<u16>,
+    pub(super) host_len: fn(&str) -> Option<usize>,
     pub(super) file_sets: Vec<String>,
     pub(super) spelled: Vec<(String, String, Option<char>)>,
     pub(super) is_identifier: fn(&str) -> bool,
@@ -99,7 +107,10 @@ pub(super) fn run_first(args: &[&str]) {
             let before = dhat::HeapStats::get().curr_bytes;
             if option("--dump").is_none() && option("--out").is_none() {
                 drop(p);
-                println!("retained spec bytes {}", before - dhat::HeapStats::get().curr_bytes);
+                println!(
+                    "retained spec bytes {}",
+                    before - dhat::HeapStats::get().curr_bytes
+                );
                 continue;
             }
         }
@@ -111,11 +122,25 @@ pub(super) fn run_first(args: &[&str]) {
             for (r, s) in p.rules.iter().zip(&p.skips) {
                 writeln!(w, "{s:?}\n{r:?}").unwrap();
             }
+            for (slot, fact) in p.pairs.facts.iter().enumerate() {
+                writeln!(w, "fact {slot} {} {:?} {:?}", fact.name, fact.key, fact.columns).unwrap();
+            }
+            let mut symbols: Vec<_> = p.pairs.symbols.iter().collect();
+            symbols.sort_by_key(|(_, id)| **id);
+            for (word, id) in symbols {
+                writeln!(w, "symbol {id} {word:?}").unwrap();
+            }
+            for (i, re) in p.pairs.regexes.iter().enumerate() {
+                writeln!(w, "regex {i} {:?}", re.as_str()).unwrap();
+            }
             for (i, d) in p.pairs.domains.iter().enumerate() {
                 writeln!(w, "nodes {i} {d:?}").unwrap();
             }
             for (i, f) in p.pairs.needs.iter().enumerate() {
                 writeln!(w, "file {i} {f:?}").unwrap();
+            }
+            for (ri, cert) in &p.pairs.exact {
+                writeln!(w, "certificate {} {cert:?}", p.pairs.roots[*ri].0).unwrap();
             }
             for (rule, root) in &p.pairs.roots {
                 writeln!(w, "root {rule} {root}").unwrap();
