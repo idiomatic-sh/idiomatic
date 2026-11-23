@@ -7,7 +7,7 @@ pub(in super::super) fn row(
     table: &Table,
     row: usize,
     rule: &str,
-    file: usize,
+    file: Option<usize>,
     identity: &[usize],
 ) -> Result<String, String> {
     let mut columns = Vec::with_capacity(table.names.len());
@@ -17,7 +17,10 @@ pub(in super::super) fn row(
             Value::Null
         } else {
             match table.tys[index] {
-                Ty::Node => json!(format!("{}#{word}", run.paths[file])),
+                Ty::Node => {
+                    let path = file.and_then(|id| run.paths.get(id)).ok_or("node has no source origin")?;
+                    json!(format!("{path}#{word}"))
+                }
                 Ty::File => {
                     json!({"file": run.paths.get(usize::try_from(word).map_err(|e| e.to_string())?)
                     .ok_or_else(|| format!("file outside the run: {word}"))?})
