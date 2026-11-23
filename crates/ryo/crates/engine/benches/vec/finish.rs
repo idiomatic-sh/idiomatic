@@ -91,6 +91,10 @@ mod ordering;
 mod leaf_scan;
 #[path = "finish/cold_bucket.rs"]
 mod cold_bucket;
+#[path = "finish/view_join/probe.rs"]
+mod view_probe;
+#[path = "finish/view_join/entry.rs"]
+mod view_entry;
 #[path = "finish/cold_text.rs"]
 mod cold_text;
 #[path = "finish/cold_list.rs"]
@@ -3666,6 +3670,11 @@ fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize
 /// The literal test `lit_rows` reads by: the fill, its base column and the literals.
 fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<(u16, usize, Vec<u32>)> {
     let Native::Fact(i) = base else { return None };
+    lit_pick_for(conj, si, map, |bc| f.facts[usize::from(i)].as_ref().is_some_and(|t| t.tys[bc] == Ty::Sym))
+        .map(|(column, values)| (i, column, values))
+}
+
+fn lit_pick_for(conj: &[E], si: usize, map: &[usize], symbol_column: impl Fn(usize) -> bool) -> Option<(usize, Vec<u32>)> {
     fn cols(e: &E, si: usize, out: &mut Vec<usize>) {
         match e {
             E::Col(s, c, _) if *s == si => out.push(*c),
@@ -3690,11 +3699,11 @@ fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) ->
             if kinds_required_into(e, si, c, &mut vals) {
                 let bc = if map.is_empty() { c } else { map[c] };
                 // a text literal names a symbol cell only; a flag or number column is tested row by row
-                if f.facts[usize::from(i)].as_ref().is_none_or(|t| t.tys[bc] != Ty::Sym) {
+                if !symbol_column(bc) {
                     continue;
                 }
                 // redo-fills c5 (the pick without its rows) in redo-alloc's buffers: the literals copied out, the buffers kept
-                out = Some((i, bc, vals.clone()));
+                out = Some((bc, vals.clone()));
                 break 'conj;
             }
         }

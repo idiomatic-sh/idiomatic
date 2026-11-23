@@ -472,6 +472,9 @@ impl Handoff {
             .collect();
         Some(Self { fields, codes })
     }
+    pub(super) fn codes(&self) -> &[u16] {
+        &self.codes
+    }
     pub(super) fn select(&self, f: &File<'_>) -> super::cold_bucket::Slot {
         super::cold_bucket::select(f, self.fields, &self.codes)
     }
