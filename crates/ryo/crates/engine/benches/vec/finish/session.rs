@@ -45,11 +45,11 @@ pub(in super::super) fn evaluate(
     // admitted set is empty. Retain the first occurrence order of the plan.
     let mut ordered = Vec::new();
     let mut slots = BTreeMap::new();
-    for step in &plan.nodes {
+    for (node, step) in plan.nodes.iter().enumerate() {
         if step.op != "base" { continue; }
         let rel = step.base().ok_or("missing base relation")?;
         if let std::collections::btree_map::Entry::Vacant(entry) = slots.entry(rel) {
-            entry.insert(ordered.len());
+            entry.insert((ordered.len(), node));
             ordered.push(super::request::Asked { rel, columns: &ryo::languages::ColumnProjection::All, scope: Scope::Files(admitted) });
         }
     }
@@ -57,18 +57,18 @@ pub(in super::super) fn evaluate(
     provider.answer(run, &super::request::Request { relations: &ordered }, &mut answer)?;
     if ordered.len() != answer.len() { return Err("incomplete project answer".into()); }
     let mut answers = answer.into_iter().map(Some).collect::<Vec<_>>();
-    let mut bases = BTreeMap::<&str, Rc<Table>>::new();
     for (i, step) in plan.nodes.iter().enumerate() {
         match step.op.as_str() {
             "base" => {
                 let rel = step.base().ok_or("missing base relation")?;
-                let table = match bases.get(rel) {
+                let (slot, first) = slots[rel];
+                let table = match &exec.run_memo[first] {
                     Some(t) => Rc::clone(t),
                     None => {
                         let (_, names, tys) = run
                             .catalog(rel)
                             .ok_or_else(|| format!("undeclared relation {rel}"))?;
-                        let t = answers[slots[rel]].take().expect("first use of a closed population")?;
+                        let t = answers[slot].take().expect("first use of a closed population")?;
                         if t.names != names
                             || t.tys != tys
                             || t.cols.len() != names.len()
@@ -92,9 +92,7 @@ pub(in super::super) fn evaluate(
                                 return Err(format!("unbound or absent {ty:?} cell in {rel}"));
                             }
                         }
-                        let t = Rc::new(t);
-                        let _previous = bases.insert(rel, Rc::clone(&t));
-                        t
+                        Rc::new(t)
                     }
                 };
                 exec.run_memo[i] = Some(table);
