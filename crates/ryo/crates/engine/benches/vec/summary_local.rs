@@ -14,6 +14,8 @@ struct Place {
 #[derive(Default)]
 pub(super) struct Path {
     places: Vec<Place>,
+    output: usize,
+    pub(super) tests: Vec<Id>,
 }
 impl Path {
     fn at(&mut self, d: &[Domain], id: Id, level: usize) -> bool {
@@ -38,7 +40,7 @@ impl Path {
             _ => false,
         }
     }
-    pub(super) fn new(domains: &[Domain], id: Id) -> Option<Self> {
+    pub(super) fn new(domains: &[Domain], id: Id, select: bool) -> Option<Self> {
         if !matches!(
             domains[id],
             Domain::Both(..) | Domain::Children(..) | Domain::Parents(..)
@@ -67,15 +69,38 @@ impl Path {
             }
             path.places[0].parent = true;
         }
+        path.output = level;
         for a in ancestors {
+            if select
+                && matches!(
+                    domains[a],
+                    Domain::Fact(..)
+                        | Domain::SameRow(..)
+                        | Domain::OtherValues(..)
+                        | Domain::Flag(..)
+                        | Domain::Number(..)
+                        | Domain::Matching(..)
+                )
+            {
+                path.tests.push(a);
+                continue;
+            }
             if !path.at(domains, a, level) {
                 return None;
             }
         }
+        if path.places.len() <= level {
+            path.places.resize_with(level + 1, Place::default);
+        }
         let p = path.places.first()?;
         (p.kind.is_some() || p.field.is_some()).then_some(path)
     }
-    pub(super) fn witness(&self, t: &NodeTable, visited: &mut u64) -> Option<bool> {
+    pub(super) fn visit(
+        &self,
+        t: &NodeTable,
+        visited: &mut u64,
+        mut accept: impl FnMut(Position) -> bool,
+    ) -> Option<bool> {
         let first = &self.places[0];
         let kind = first
             .kind
@@ -94,7 +119,11 @@ impl Path {
         }
         Some(ids.iter().copied().any(|mut node: Position| {
             *visited += 1;
-            for p in &self.places {
+            let mut output = node;
+            for (depth, p) in self.places.iter().enumerate() {
+                if depth == self.output {
+                    output = node;
+                }
                 if p.kind.is_some_and(|k| node_table::kind_of(t, node).0 != k)
                     || p.field
                         .is_some_and(|k| node_table::field_of(t, node).0 != k)
@@ -112,7 +141,7 @@ impl Path {
                     node = up;
                 }
             }
-            true
+            accept(output)
         }))
     }
 }

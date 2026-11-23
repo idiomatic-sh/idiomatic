@@ -3,6 +3,7 @@
 //! fillers read it with. Nodes are numbered as they open; tokens are kept until the nodes of their segment are all numbered and
 //! then follow them, so every id a reader sees is final once `finished` answers.
 
+pub use super::navigation::{descendant_ranges,direct_children,DescendantRanges,DirectChildren};
 use super::constants::PRESENCE_BITS;
 use super::types::{
     BuilderSegment, BuilderState, ByteSpan, ChildPlace, ChildRange, EmbeddedRoot, EmbeddedSegment,
@@ -46,6 +47,7 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
     columns.parent.clear();
     columns.subtree_end.clear();
     columns.native.reset();
+    columns.navigation.reset();
     columns.start.clear();
     columns.end.clear();
     columns.field.clear();
@@ -335,6 +337,7 @@ pub fn enter_node(
     columns.end.push(span.end.0);
     columns.field.push(field.0);
     columns.ordinal.push(ordinal);
+    columns.navigation.enter(id.0,state.pending.len());
     columns.child_range.push(ChildRange::default());
     numbered(columns, kind, field, id);
     if columns.structured && parent < id {
@@ -404,6 +407,7 @@ fn leave_open(state: &mut BuilderState<'_>, end: Offset) {
     let implied = state.implied.last() == Some(&open.position) && state.implied.pop().is_some();
     let span_end = mapped(state, end, end).end;
     let columns = &mut state.table.0;
+    columns.navigation.close(open.position.0,state.pending.len());
     // Closing a parent reserves one consecutive range. Final element IDs can
     // then be placed directly by their ordinals, including interleaved tokens.
     let first = state.child_count;
@@ -439,6 +443,7 @@ fn leave_open(state: &mut BuilderState<'_>, end: Offset) {
 fn close_segment(state: &mut BuilderState<'_>) {
     let columns = &mut state.table.0;
     let tokens_from = columns.kind.len();
+    columns.navigation.segment(state.segment_start.0,tokens_from);
     if state.segment == BuilderSegment::File {
         columns.nodes = Count(tokens_from);
     }
@@ -1632,6 +1637,8 @@ pub fn native_token(
 pub fn defer_child_ids(builder: &mut NodeTableBuilder<'_>) {
     builder.0.table.0.defer_children = true;
 }
+/// Record the typed-node and token intervals used for direct navigation.
+pub fn record_token_ranges(builder:&mut NodeTableBuilder<'_>){builder.0.table.0.navigation.active=true;}
 /// Whether a reader has already demanded the deferred child slices.
 #[must_use]
 pub fn child_ids_requested(table: &NodeTable) -> bool {

@@ -4,6 +4,15 @@ use super::pair_summary::{Domain, Id, Need, Program};
 use rustc_hash::FxHashSet;
 
 pub(super) struct Schedule {
+    pub(super) branches: Option<super::summary_branches::Branches>,
+    pub(super) windows: bool,
+    pub(super) classes: bool,
+    pub(super) alias: Vec<Option<Id>>,
+    pub(super) select: bool,
+    pub(super) keys: Vec<Option<ryo::languages::Column>>,
+    pub(super) existential: bool,
+    pub(super) symbols: Option<Vec<Option<Id>>>,
+    pub(super) cache_regex: bool,
     pub(super) paths: Vec<Option<super::summary_local::Path>>,
     pub(super) needs: Vec<Vec<Id>>,
     pub(super) cost: Vec<u8>,
@@ -53,6 +62,9 @@ impl Schedule {
         }
         let mut done = vec![false; p.needs.len()];
         let mut needs = vec![Vec::new(); p.needs.len()];
+        let proofs = std::env::var_os("VEC_IMPLIED_TESTS")
+            .is_some()
+            .then(|| super::summary_proofs::compile(p));
         while let Some(id) = todo.pop() {
             if std::mem::replace(&mut done[id], true) {
                 continue;
@@ -74,17 +86,43 @@ impl Schedule {
                     _ => terms.push(x),
                 }
             }
+            if both && let Some(proofs) = &proofs {
+                let mut redundant = FxHashSet::default();
+                for n in &terms {
+                    if let Need::Some(d) = p.needs[*n] {
+                        redundant.extend(proofs.weaker[d].iter().copied());
+                    }
+                }
+                terms.retain(|&n| !matches!(p.needs[n],Need::Some(d) if redundant.contains(&d)));
+            }
             terms.sort_unstable_by_key(|&x| (price[x], x));
             todo.extend(terms.iter().copied());
             needs[id] = terms;
         }
-        let paths = if std::env::var_os("VEC_LOCAL_PROGRAM").is_some() {
+        let select = std::env::var_os("VEC_SELECTED_NODES").is_some();
+        let paths = if select || std::env::var_os("VEC_LOCAL_PROGRAM").is_some() {
             (0..p.domains.len())
-                .map(|id| super::summary_local::Path::new(&p.domains, id))
+                .map(|id| super::summary_local::Path::new(&p.domains, id, select))
                 .collect()
         } else {
             Vec::new()
         };
-        Self { cost, needs, paths }
+        let branches = std::env::var_os("VEC_FILE_BRANCHES")
+            .is_some()
+            .then(|| super::summary_branches::Branches::new(p, &needs));
+        Self {
+            branches,
+            windows: std::env::var_os("VEC_WORD_WINDOWS").is_some(),
+            classes: std::env::var_os("VEC_NODE_CLASSES").is_some(),
+            alias: proofs.map_or_else(Vec::new, |p| p.alias),
+            select,
+            keys: Vec::new(),
+            existential: std::env::var_os("VEC_WITNESS_PROGRAM").is_some(),
+            cost,
+            needs,
+            paths,
+            symbols: None,
+            cache_regex: std::env::var_os("VEC_WORD_REGEX").is_some(),
+        }
     }
 }

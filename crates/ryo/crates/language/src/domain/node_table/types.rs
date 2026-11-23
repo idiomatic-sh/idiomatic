@@ -53,6 +53,7 @@ pub(crate) struct NodeTableEngine {
     /// The children of every node, nodes and tokens merged in source order, one block a node in the order the nodes close.
     pub(crate) children: Vec<Position>,
     pub(crate) defer_children: bool,
+    pub(super) navigation:super::navigation::TokenRanges,
     pub(crate) child_slots: usize,
     pub(crate) lazy_children: std::sync::OnceLock<Vec<Position>>,
     pub(crate) spare_children: std::sync::Mutex<Vec<Position>>,

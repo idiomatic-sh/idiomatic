@@ -42,7 +42,9 @@ pub(super) fn under(
         (0..node_table::element_count(table).0 as u32).for_each(count);
     } else {
         let children: Bits = children?;
-        each(&arena.words[children.range()], &mut count);
+        each(&arena.words[children.range()], |i| {
+            count(children.first() as u32 * 64 + i)
+        });
     }
     Some(
         arena.bits(

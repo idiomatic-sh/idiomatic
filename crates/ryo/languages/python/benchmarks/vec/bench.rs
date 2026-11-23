@@ -962,10 +962,16 @@ mod pair_skip;
 mod pair_checks;
 #[path = "../../../../crates/engine/benches/vec/summary_schedule.rs"]
 mod summary_schedule;
+#[path="../../../../crates/engine/benches/vec/summary_branches.rs"]
+mod summary_branches;
+#[path = "../../../../crates/engine/benches/vec/summary_proofs.rs"]
+mod summary_proofs;
+#[path = "../../../../crates/engine/benches/vec/summary_values.rs"]
+mod summary_values;
 #[path = "../../../../crates/engine/benches/vec/summary_local.rs"]
 mod summary_local;
 mod summary_walk;
-mod column_pair;
+mod column_batch;
 mod source_batch;
 mod pair_provider;
 mod host_columns;
@@ -1909,8 +1915,10 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),settings);
         cwalk.defer_lexical();
         other.defer_lexical();
+        let numbers=std::env::var_os("VEC_FACT_CODES").is_some().then(||summary_values::vocabulary(walk,program));
+        let codes=numbers.map(|(words,codes)|{fwords=words;codes});
         summary_walk::run(&list, program, &mut skip, &words, name_token, fields_width, &mut fwords,
-            &mut cwalk, &mut other, fin, root.as_deref(), flag(args, "--seed-out").as_deref(),flag(args,"--exact-out").as_deref());
+            &mut cwalk, &mut other, ||ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("declared fixed names"),settings),fin, root.as_deref(), flag(args, "--seed-out").as_deref(),flag(args,"--exact-out").as_deref(),codes);
         return;
     }
     if structured { cwalk.structured(enclosing.clone()); }

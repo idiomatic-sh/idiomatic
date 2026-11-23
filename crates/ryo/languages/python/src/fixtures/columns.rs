@@ -296,6 +296,7 @@ pub struct ColumnWalk {
     /// When set, the table is written `structured` with these enclosing kind sets.
     structure: Option<Vec<languages::KindSet>>,
     defer_children: bool,
+    native_navigation:bool,
     native_spans: bool,
 }
 
@@ -360,6 +361,7 @@ impl ColumnWalk {
             words,
             structure: None,
             defer_children:false,
+            native_navigation:false,
             native_spans: false,
         }
     }
@@ -382,6 +384,8 @@ impl ColumnWalk {
     pub fn use_native_spans(&mut self) {self.native_spans=true;}
 
     /// Materialize child slices at the first navigation request.
+    pub fn use_native_navigation(&mut self){self.native_navigation=true;self.defer_children=true;}
+    /// Defer the adjacency column until it is read.
     pub fn defer_child_ids(&mut self){self.defer_children=true;}
 
     /// # Errors
@@ -399,6 +403,7 @@ impl ColumnWalk {
         };
         if self.native_spans {node_table::request_token_source(&mut builder);}
         if self.defer_children {node_table::defer_child_ids(&mut builder);}
+        if self.native_navigation{node_table::record_token_ranges(&mut builder);}
         let target = self.walk.ports.settings.target_version().components();
         self.scratch.file.model.target = target;
         self.memo.names.clear();
@@ -789,6 +794,13 @@ impl ColumnFile<'_, '_> {
             Relation::ExpressionType=>key==place!(ExpressionType,ExpressionTypeColumn::Id) && [place!(ExpressionType,ExpressionTypeColumn::Resolution),place!(ExpressionType,ExpressionTypeColumn::Type)].contains(&column),
             _=>false,
         }
+    }
+    /// A complete primary parse has table-native expression IDs. Both forms
+    /// of these existing keyed readers use the same whole-file analysis.
+    pub fn can_select_summary_nodes(&self,relation:Relation)->bool{
+        matches!(relation,Relation::ExpressionType|Relation::ExpressionShape)
+        && self.file.syntax.completeness.syntax!=languages::SyntaxCompleteness::Incomplete
+        && self.file.syntax.tree.segments.is_empty()
     }
     /// Existence of a complete relation without writing other cells of its rows.
     pub fn summary_presence(&mut self,relation:Relation,at:Option<Position>)->Option<bool> {
