@@ -447,7 +447,7 @@ impl Exec<'_> {
             }
         }
         let mut b = take_bufs();
-        let out = self.ksel_run(f, run, p, node, kp, &mut b);
+        let out = self.ksel_run(f, run, p, node, kp, &mut b, None);
         give_bufs(b);
         if prof {
             prof_add(0, t0.elapsed() - (self.inner - i0));
@@ -501,17 +501,65 @@ impl Exec<'_> {
             }
         }
         let mut b = take_bufs();
-        let out = self.ksel_run(f, run, p, node, kp, &mut b);
+        let out = self.ksel_run(f, run, p, node, kp, &mut b, None);
         give_bufs(b);
         out
     }
 
-    fn ksel_run(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs) -> R<Rc<Table>> {
+    /// redo-whole pass 2 (keyed.rs): the source of a two-source select read by the other's keys in place of made whole:
+    /// (source, its column, the driver's column) of an equality of the two, the source a step whose one consumer is this
+    /// select, not made in this file and read by key on that column. Not the source `not` (read by key already).
+    fn ksel_deferred(&mut self, f: &File<'_>, run: &mut Run, sp: &super::SelPlan, not: Option<usize>) -> R<Option<(usize, usize, usize)>> {
+        if sp.srcs.len() != 2 || sp.srcs[0] == sp.srcs[1] || sp.conj.iter().any(|e| matches!(e, E::Seed(..))) || sw!("VEC_NO_KEYED_JOIN") {
+            return Ok(None);
+        }
+        for i in [1usize, 0] {
+            if not == Some(i) || f.memo[sp.srcs[i]].is_some() {
+                continue;
+            }
+            let o = 1 - i;
+            for e in &sp.conj {
+                let E::Cmp(Op::Eq, x, y) = e else { continue };
+                for (a, bb) in [(x, y), (y, x)] {
+                    if let (E::Col(sa, c, _), E::Col(sb, dc, _)) = (&**a, &**bb)
+                        && *sa == i
+                        && *sb == o
+                        && self.keyed_ok(f, run, sp.srcs[i], *c)?
+                    {
+                        return Ok(Some((i, *c, *dc)));
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// redo-whole pass 2 (keyed.rs): whether the kernels run `node` (a form they cover).
+    pub(super) fn ksel_covers(&mut self, run: &mut Run, node: usize) -> R<bool> {
+        Ok(matches!(&*self.ksel_prep(run, node)?, Prep::K(_)))
+    }
+
+    /// redo-whole pass 2 (keyed.rs): the select read by key: its source `si` read by `keys` on its column `c` (the
+    /// output column asked) drives the run; (answer, whether it is that source's answer handed on). None: not a kernel.
+    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
+    pub(super) fn select_keyed(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, si: usize, c: usize, keys: &[u64]) -> R<Option<(Rc<Table>, bool)>> {
+        let prep = self.ksel_prep(run, node)?;
+        let Prep::K(kp) = &*prep else { return Ok(None) };
+        let mut b = take_bufs();
+        let out = self.ksel_run(f, run, p, node, kp, &mut b, Some((si, c, keys)));
+        give_bufs(b);
+        let out = out?;
+        let handed = out.n == 0 || kp.ident;
+        Ok(Some((out, handed)))
+    }
+
+    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
+    fn ksel_run(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, keyed: Option<(usize, usize, &[u64])>) -> R<Rc<Table>> {
         // redo-alloc: the sources' list is the worker's (reused across runs); its tables given back after the run
         let mut srcs = std::mem::take(&mut b.srcs);
         srcs.clear();
         let mut jc = std::mem::take(&mut b.join_cols);
-        let out = self.ksel_run_(f, run, p, node, kp, b, &mut srcs, &mut jc);
+        let out = self.ksel_run_(f, run, p, node, kp, b, &mut srcs, &mut jc, keyed);
         for s in srcs.drain(..) {
             if let Src::Tab(t, _) = s {
                 super::recycle::recycle(t);
@@ -523,7 +571,7 @@ impl Exec<'_> {
     }
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    fn ksel_run_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, srcs: &mut Vec<Src>, jc: &mut (Vec<usize>, Vec<usize>)) -> R<Rc<Table>> {
+    fn ksel_run_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, srcs: &mut Vec<Src>, jc: &mut (Vec<usize>, Vec<usize>), keyed: Option<(usize, usize, &[u64])>) -> R<Rc<Table>> {
         let (t0, i0) = (Clk::now(), self.inner);
         super::empty_sel::origin(self.inner);
         let sp = self.sel(run, node)?;
@@ -548,7 +596,41 @@ impl Exec<'_> {
         }
         super::empty_sel::lap(0, self.inner);
         // `srcs` is redo-alloc's kept list (the wrapper's)
+        // redo-whole pass 2 (keyed.rs): the source read by key (this run is itself by key), and the source read by the
+        // driver's keys (a step whose one consumer is this join, on an equality with the other source)
+        let mut deferred = if keyed.is_none() || k == 2 { self.ksel_deferred(f, run, &sp, keyed.map(|x| x.0))? } else { None };
+        // its size (0: the join is empty, nothing else read)
+        let dsize = match deferred {
+            Some((i, _, _)) => self.keyed_size(f, run, p, sp.srcs[i], false)?,
+            None => 0,
+        };
+        if deferred.is_some() && dsize == 0 {
+            return self.empty_rc(run, node);
+        }
+        // the sources are made in order and an empty one ends the run: a deferred first source whose other side is not
+        // made yet and not a view would have the other made first, so it is made in its turn instead
+        if let Some((i, _, _)) = deferred
+            && i == 0
+            && f.memo[sp.srcs[1]].is_none()
+            && self.view(run, sp.srcs[1])?.is_none()
+        {
+            deferred = None;
+        }
         for (i, n) in sp.srcs.iter().enumerate() {
+            if let Some((si, c, keys)) = keyed
+                && si == i
+            {
+                let t = self.probe(f, run, p, *n, c, keys)?;
+                if t.n == 0 {
+                    return self.empty_rc(run, node);
+                }
+                srcs.push(Src::Tab(t, usize::MAX - i));
+                continue;
+            }
+            if deferred.is_some_and(|d| d.0 == i) {
+                srcs.push(Src::Base(Native::Tree));
+                continue;
+            }
             let src = self.src_of(f, run, p, *n)?;
             if let Src::Tab(t, _) = &src
                 && t.n == 0
@@ -563,12 +645,36 @@ impl Exec<'_> {
             srcs.push(src);
         }
         super::empty_sel::lap(1, self.inner);
+        // the deferred source is read by key only when the other side drives with fewer rows than its size; else made
+        if let Some((i, _, _)) = deferred {
+            let o = 1 - i;
+            // the other side is made and not empty: the deferred source is read either way, so its inputs are made for its size
+            let dsize = self.keyed_size(f, run, p, sp.srcs[i], true)?;
+            let osize = match &srcs[o] {
+                Src::Tab(t, _) => Some(t.n),
+                Src::View(v, vn) => match &kp.kinds[o] {
+                    (Some(ks), _) | (None, Some(ks)) => Some(bucket_len(f, run, ks)),
+                    (None, None) => lit_file(f, LIT_FILTER | *vn, &v.filter, 0, v.base, &[]).or_else(|| lit_file(f, LIT_CONJ | (node << 1) | o, conj, o, v.base, &v.map)).map(|r| r.len()),
+                },
+                _ => None,
+            };
+            if osize.is_none_or(|n| n >= dsize) {
+                deferred = None;
+                let src = self.src_of(f, run, p, sp.srcs[i])?;
+                if let Src::Tab(t, _) = &src
+                    && t.n == 0
+                {
+                    return self.empty_rc(run, node);
+                }
+                srcs[i] = src;
+            }
+        }
         if kp.ident
             && let Src::Tab(t, _) = &srcs[0]
         {
             return Ok(t.clone());
         }
-        let mut driver: Option<usize> = None;
+        let mut driver: Option<usize> = keyed.map(|x| x.0).or(deferred.map(|d| 1 - d.0));
         if let Some((si, c, sk)) = conj.iter().find_map(|e| match e {
             E::Seed(x, sk) => match **x {
                 E::Col(si, c, _) => Some((si, c, *sk)),
@@ -699,6 +805,26 @@ impl Exec<'_> {
         // ---- kernel 2: the other source, joined on the columns the conjuncts equate
         if sel.is_empty() {
             return self.empty_rc(run, node);
+        }
+        if let Some((i, c, dc)) = deferred {
+            // the deferred source read by the driver's kept rows' keys (distinct)
+            let keys = &mut b.keys;
+            keys.clear();
+            let mut cur = [0u32; 2];
+            for r in sel.iter() {
+                cur[driver] = *r;
+                keys.push(get(run, f, srcs, &cur, driver, dc));
+            }
+            keys.sort_unstable();
+            keys.dedup();
+            let keys = std::mem::take(keys);
+            let t = self.probe(f, run, p, sp.srcs[i], c, &keys);
+            b.keys = keys;
+            let t = t?;
+            if t.n == 0 {
+                return self.empty_rc(run, node);
+            }
+            srcs[i] = Src::Tab(t, usize::MAX - i);
         }
         let other = 1 - driver;
         let omask = 1u64 << other;

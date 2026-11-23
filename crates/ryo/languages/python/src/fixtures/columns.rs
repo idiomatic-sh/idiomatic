@@ -327,6 +327,9 @@ pub struct ColumnWalk {
 pub const PER_NODE_FACTS: [&str; 9] =
     ["qualified-name", "identifier", "literal-properties", "numeric-literal", "string-literal", "expression-shape", "expression-type", "binding-event", "binding-read"];
 
+/// File-local relations available through the walked file's complete fill.
+pub const FILE_SET_FACTS: &[&str] = &["static-import", "comment", "indent-region"];
+
 /// How a column's literal is spelled in the source as a word: whole, or its last segment after a separator.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Spelling {

@@ -106,6 +106,8 @@ struct Own {
     re: Option<regex::bytes::Regex>,
 }
 
+const REGISTER_CAPACITY: usize = 256;
+
 const ALL_KINDS: KSet = [u64::MAX; 4];
 
 impl Own {
@@ -181,6 +183,8 @@ pub(super) struct Plan {
     pub(super) ops: Vec<Op>,
     pub(super) regs: usize,
     pub(super) stages: Vec<Stage>,
+    /// All preceding stages read syntax alone.
+    pub(super) before_facts: usize,
     pub(super) knock: Option<Vec<(Test, bool)>>,
     /// Required words: every clause has a word spelled in the file.
     pub(super) words: Vec<Vec<u16>>,
@@ -256,12 +260,6 @@ pub(super) struct SpecPlan {
     pub(super) ops: Vec<SpecOp>,
     pub(super) regs: usize,
     pub(super) words: Vec<Vec<String>>,
-}
-
-impl SpecPlan {
-    pub(super) fn same(&self, o: &SpecPlan) -> bool {
-        self.bucket == o.bucket && self.keys == o.keys && self.ops == o.ops && self.words == o.words
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -471,6 +469,7 @@ pub(super) fn build(specs: &[SpecRule], vocab: &Vocab, catalog: &mut super::fact
         let mut disjuncts: Vec<(usize, Vec<usize>)> = Vec::new();
         let mut enterable = true;
         for p in &r.plans {
+            assert!(p.regs <= REGISTER_CAPACITY, "rule {} requires {} registers, predicate stage capacity is {REGISTER_CAPACITY}", r.name, p.regs);
             let keys: Vec<Key> = p
                 .keys
                 .iter()
@@ -487,7 +486,7 @@ pub(super) fn build(specs: &[SpecRule], vocab: &Vocab, catalog: &mut super::fact
                 })
                 .collect();
             let ops = ops_of(&p.ops, vocab, &mut missing, &mut fc);
-            let stages = compile(&ops);
+            let (stages, before_facts) = compile(&ops);
             let knock = knock_tests(&ops);
             let cnf = words.cnf(&p.words);
             let at = disjuncts.iter().position(|(d, _)| *d == p.disjunct).unwrap_or_else(|| {
@@ -501,7 +500,7 @@ pub(super) fn build(specs: &[SpecRule], vocab: &Vocab, catalog: &mut super::fact
                 continue;
             }
             disjuncts[at].1.push(plans.len());
-            plans.push(Plan { keys, ops, regs: p.regs, stages, knock, words: cnf });
+            plans.push(Plan { keys, ops, regs: p.regs, stages, before_facts, knock, words: cnf });
         }
         for (_, d) in &disjuncts {
             if d.is_empty() {
@@ -682,7 +681,8 @@ where
 /// check as a child-kind-bitset test; any other leaf `down` + check, and an `exists` of one check, as one scan of the
 /// children, skipped when the child-kind and child-field sets rule it out; a `down` + check of the child as one expansion
 /// to the children that pass.
-pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
+fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
+    let mut first_fact = None;
     let mut out: Vec<Stage> = Vec::new();
     let mut i = 0;
     while i < ops.len() {
@@ -690,6 +690,9 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
             Some(Op::Check(c)) if c.v == to => Some(c.clone()),
             _ => None,
         };
+        if first_fact.is_none() {
+            super::file_seeds::visits_facts(&ops[i], &mut |_| first_fact = Some(out.len()));
+        }
         match &ops[i] {
             Op::Check(c) => {
                 let (v, own) = (c.v, Own::of(c));
@@ -771,7 +774,8 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
         }
         i += 1;
     }
-    out
+    let boundary = first_fact.unwrap_or(out.len());
+    (out, boundary)
 }
 
 /// A load-time specialised predicate over registers: one closure per operation, chained in continuation style (a `down`
@@ -1001,7 +1005,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
 fn pred_stage(pred: Pred) -> Stage {
     Box::new(move |ctx, rows, steps| {
         let r = rows.r;
-        let mut regs = [0u32; 256];
+        let mut regs = [0u32; REGISTER_CAPACITY];
         let mut w = 0;
         for j in 0..rows.len() {
             regs[..r].copy_from_slice(&rows.d[j * r..j * r + r]);

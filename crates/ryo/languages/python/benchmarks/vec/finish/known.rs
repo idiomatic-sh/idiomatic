@@ -132,6 +132,9 @@ impl Exec<'_> {
         if r.flags & CAN == 0 { f.known[node] = NO; return false; }
         f.known[node] = BUSY;
         self.stats.static_visits += 1;
+        if r.n_kinds == 0 && r.n_seeds == 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
+            self.stats.static_pass += 1;
+        }
         let mut e = false;
         // a kind set none of whose kinds the file has
         let (mut at, end) = (r.kinds as usize, r.kinds as usize + usize::from(r.n_kinds));
