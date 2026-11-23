@@ -122,7 +122,7 @@ impl Exec<'_> {
             self.stats.static_depth = 0;
             return e;
         }
-        let decision = self.file_decision(node);
+        let decision = self.file_decision(f, run, node);
         match decision {
             Some((false, _)) => { f.known[node] = YES; return true; }
             Some((true, false)) => { f.known[node] = NO; return false; }
@@ -253,14 +253,13 @@ impl Exec<'_> {
         n
     }
 
-    pub(super) fn file_fails_of(&mut self, f: &File<'_>, run: &mut Run, node: usize) -> bool {
-        if let Ok(Some(v)) = self.view(run, node) {
+    // Only a prepared Need with a file test calls this method. Its view or
+    // select already owns the compiled expression and its file conjuncts.
+    pub(super) fn file_fails_of(&self, f: &File<'_>, run: &mut Run, node: usize) -> bool {
+        if let Some(Some(v)) = &self.views[node] {
             return filter_order::file_fails(run, f, &v.filter, &v.file_tests);
         }
-        match self.sel(run, node) {
-            Ok(sp) => filter_order::file_fails(run, f, &sp.conj, &sp.file_tests),
-            Err(_) => false,
-        }
+        self.sels[node].as_ref().is_some_and(|sp| filter_order::file_fails(run, f, &sp.conj, &sp.file_tests))
     }
 
     fn need_of(&mut self, run: &mut Run, node: usize) -> Need {

@@ -354,22 +354,24 @@ impl Exec<'_> {
         masks.fill(None);
         // A file with no running emit still receives a packet. Independent
         // diagnostic asks are appended later with their own column demand.
+        self.requests.guards.circuit.begin_file();
         if roots.is_empty() {
             self.requests.counts.idle_files += 1;
             return masks;
         }
-        self.decide_file(run, f);
-        let rq = &mut self.requests;
-        rq.visited.fill(false);
-        rq.pending.extend(roots.iter().filter_map(|&node| rq.nodes[node]).filter(|&id| id != NONE));
-        while let Some(id) = rq.pending.pop() {
+        let mut visited = std::mem::take(&mut self.requests.visited);
+        let mut pending = std::mem::take(&mut self.requests.pending);
+        let rq = &self.requests;
+        visited.fill(false);
+        pending.extend(roots.iter().filter_map(|&node| rq.nodes[node]).filter(|&id| id != NONE));
+        while let Some(id) = pending.pop() {
             let i = id as usize;
-            if std::mem::replace(&mut rq.visited[i], true) { continue; }
+            if std::mem::replace(&mut visited[i], true) { continue; }
             let entry = &rq.graph[i];
             match &entry.action {
                 Action::Inputs(children) => {
-                    if rq.guards.circuit.permits(entry.guard) {
-                        rq.pending.extend_from_slice(children);
+                    if self.allows(f, run, entry.guard) {
+                        pending.extend_from_slice(children);
                     }
                 }
                 Action::Read(read) => {
@@ -377,12 +379,14 @@ impl Exec<'_> {
                     let slot = usize::from(*slot);
                     if rq.proven_empty.get(slot).copied().unwrap_or(false)
                         || masks[slot].as_ref().is_some_and(|m| m.covers(columns)) { continue; }
-                    if rq.guards.circuit.permits(entry.guard) {
+                    if self.allows(f, run, entry.guard) {
                         masks[slot].get_or_insert_with(Columns::default).extend(columns);
                     }
                 }
             }
         }
+        self.requests.visited = visited;
+        self.requests.pending = pending;
         masks
     }
 

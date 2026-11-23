@@ -1812,7 +1812,7 @@ impl<'p> Exec<'p> {
     #[inline]
     fn make_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         if let Some(v) = self.view(run, node)? {
-            if matches!(v.base, Native::Fact(_)) && self.pruned(node) {
+            if matches!(v.base, Native::Fact(_)) && self.pruned(f, run, node) {
                 let need = self.need(run, node);
                 if need.seeds.iter().any(|s| f.seeds.get(*s).is_none_or(Vec::is_empty))
                     || (need.file_test && self.file_fails_of(f, run, node))

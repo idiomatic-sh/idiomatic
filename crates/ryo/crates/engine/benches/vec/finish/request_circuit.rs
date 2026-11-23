@@ -83,38 +83,39 @@ impl Circuit {
         2 * map[literal as usize / 2] + (literal & 1)
     }
 
-    pub(super) fn set(&mut self, index: usize, value: bool) -> bool {
-        let raw = if value { 1 } else { 2 };
-        self.values[index + 1].replace(raw) != raw
-    }
-
-    pub(super) fn begin_file(&mut self, changed: bool) {
-        if changed { self.values[self.leaves + 1..].fill(Cell::new(0)); }
+    pub(super) fn begin_file(&mut self) {
+        if let Some(values) = self.values.get_mut(1..) { values.fill(Cell::new(0)); }
     }
 
     #[inline]
-    fn cached(&self, literal: u32) -> Option<bool> {
-        let raw = self.values[(literal / 2) as usize].get();
-        (raw != 0).then_some((raw == 1) ^ (literal & 1 != 0))
+    fn cached(&self, literal: u32, read: &mut impl FnMut(usize) -> bool) -> Option<bool> {
+        let i = (literal / 2) as usize;
+        let mut raw = self.values[i].get();
+        if raw == 0 {
+            if i > self.leaves { return None; }
+            raw = if read(i - 1) { 1 } else { 2 };
+            self.values[i].set(raw);
+        }
+        Some((raw == 1) ^ (literal & 1 != 0))
     }
 
     #[inline]
-    pub(super) fn permits(&self, literal: u32) -> bool {
-        self.cached(literal).unwrap_or_else(|| self.settle(literal))
+    pub(super) fn permits(&self, literal: u32, mut read: impl FnMut(usize) -> bool) -> bool {
+        literal == 0 || self.cached(literal, &mut read).unwrap_or_else(|| self.settle(literal, &mut read))
     }
 
-    // The input graph is acyclic. A stack avoids tying the supported depth
-    // of a plan to the thread stack. A false first input settles an AND.
-    fn settle(&self, literal: u32) -> bool {
+    // Only an undecided AND needs an entry on the stack. File evidence is
+    // immutable until the next file; every consulted input is read once.
+    fn settle(&self, literal: u32, read: &mut impl FnMut(usize) -> bool) -> bool {
         let first = self.leaves + 1;
         let mut pending = self.pending.borrow_mut();
         pending.push((literal / 2) as usize);
         while let Some(&node) = pending.last() {
             let [a, b] = self.gates[node - first];
-            let value = match self.cached(a) {
+            let value = match self.cached(a, read) {
                 None => { pending.push((a / 2) as usize); continue; }
                 Some(false) => false,
-                Some(true) => match self.cached(b) {
+                Some(true) => match self.cached(b, read) {
                     None => { pending.push((b / 2) as usize); continue; }
                     Some(value) => value,
                 },
@@ -122,7 +123,7 @@ impl Circuit {
             self.values[node].set(if value { 1 } else { 2 });
             pending.pop();
         }
-        self.cached(literal).expect("the requested gate was settled")
+        self.cached(literal, read).expect("the requested gate was settled")
     }
 
     pub(super) fn counts(&self) -> (usize, usize) { (self.leaves, self.gates.len()) }
@@ -140,14 +141,29 @@ mod tests {
         let mut circuit = compiler.circuit;
         let map = circuit.retain_outputs([gate].into_iter());
         let gate = super::Circuit::remap(&map, gate);
-        for i in 0..count { circuit.set(i, true); }
-        circuit.begin_file(true);
-        assert!(circuit.permits(gate));
-        assert!(!circuit.permits(gate ^ 1));
-        assert!(circuit.set(0, false));
-        circuit.begin_file(true);
-        assert!(!circuit.permits(gate));
-        assert!(circuit.permits(gate ^ 1));
+        circuit.begin_file();
+        let mut reads = 0;
+        assert!(circuit.permits(gate, |_| { reads += 1; true }));
+        assert_eq!(reads, count);
+        assert!(!circuit.permits(gate ^ 1, |_| panic!("shared gate was settled")));
+        circuit.begin_file();
+        assert!(!circuit.permits(gate, |i| i != 0));
+        assert!(circuit.permits(gate ^ 1, |_| panic!("negated gate shares its answer")));
+    }
+
+    #[test]
+    fn unneeded_inputs_are_skipped_and_shared_inputs_are_read_once() {
+        let mut compiler = Compiler::new(3);
+        let ab = compiler.and(2, 4);
+        let ac = compiler.and(2, 6);
+        let mut circuit = compiler.circuit;
+        circuit.begin_file();
+        assert!(!circuit.permits(ab, |i| { assert_eq!(i, 0); false }));
+        assert!(!circuit.permits(ac, |_| panic!("the first term already failed")));
+        circuit.begin_file();
+        let mut seen = Vec::new();
+        assert!(circuit.permits(ac, |i| { seen.push(i); true }));
+        assert_eq!(seen, [0, 2]);
     }
 
     #[test]
@@ -169,12 +185,8 @@ mod tests {
         assert_eq!(circuit.counts(), (3, 2));
         for assignment in [0, 0, 7, 1, 2, 3, 4, 5, 6, 7, 7] {
             let bits = [assignment & 1 != 0, assignment & 2 != 0, assignment & 4 != 0];
-            let mut changed = false;
-            for (i, value) in bits.into_iter().enumerate() {
-                changed |= circuit.set(i, value);
-            }
-            circuit.begin_file(changed);
-            assert_eq!(circuit.permits(answer), bits[0] && (!bits[1] || bits[2]));
+            circuit.begin_file();
+            assert_eq!(circuit.permits(answer, |i| bits[i]), bits[0] && (!bits[1] || bits[2]));
         }
     }
 }

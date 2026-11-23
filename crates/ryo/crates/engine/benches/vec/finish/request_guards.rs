@@ -284,36 +284,29 @@ impl Exec<'_> {
         id
     }
 
-    pub(super) fn decide_file(&mut self, run: &mut Run, f: &File<'_>) {
-        let mut circuit = std::mem::take(&mut self.requests.guards.circuit);
-        let kinds = &super::node_table::kinds_present(f.table).0;
-        let mut changed = false;
-        for at in 0..circuit.leaves {
-            let value = match &self.requests.guards.tests[at] {
-                Test::Kind(k) => kinds.get(usize::from(*k) / 64).is_some_and(|w| w.0 & (1 << (k % 64)) != 0),
-                Test::Field(name) => self.ep_field_present(f, run, std::slice::from_ref(name)),
-                Test::Symbols(..) => !self.requests.guards.absent.get(at).copied().unwrap_or(false),
-                Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
-                Test::Driver(n) => self.requests.guards.driver_file != Some(f.file)
-                    || self.requests.guards.driver_values.get(*n) != Some(&Some(false)),
-                Test::Seed(s) => f.seeds.get(*s).is_some_and(|rows| !rows.is_empty()),
-                Test::File(n) => { let n = *n; !self.file_fails_of(f, run, n) }
-                _ => unreachable!("only input leaves are scheduled here"),
-            };
-            changed |= circuit.set(at, value);
-        }
-        circuit.begin_file(changed);
-        self.requests.guards.circuit = circuit;
+    pub(super) fn allows(&self, f: &File<'_>, run: &mut Run, guard: u32) -> bool {
+        let guards = &self.requests.guards;
+        guards.circuit.permits(guard, |at| match &guards.tests[at] {
+            Test::Kind(k) => super::node_table::kinds_present(f.table).0.get(usize::from(*k) / 64)
+                .is_some_and(|word| word.0 & (1 << (k % 64)) != 0),
+            Test::Field(name) => self.ep_field_present(f, run, std::slice::from_ref(name)),
+            Test::Symbols(..) => !guards.absent.get(at).copied().unwrap_or(false),
+            Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
+            Test::Driver(n) => guards.driver_file != Some(f.file) || guards.driver_values.get(*n) != Some(&Some(false)),
+            Test::Seed(s) => f.seeds.get(*s).is_some_and(|rows| !rows.is_empty()),
+            Test::File(n) => !self.file_fails_of(f, run, *n),
+            _ => unreachable!("only independent file predicates have input slots"),
+        })
     }
 
     /// A positive file-only predicate settles the static decision completely
     /// when neither this operator nor its inputs need an answered fact.
-    pub(super) fn file_decision(&self, n: usize) -> Option<(bool, bool)> {
+    pub(super) fn file_decision(&self, f: &File<'_>, run: &mut Run, n: usize) -> Option<(bool, bool)> {
         let guard = self.requests.guards.by_node.get(n).copied().flatten()?;
-        Some((self.requests.guards.circuit.permits(guard), self.requests.guards.late[n]))
+        Some((self.allows(f, run, guard), self.requests.guards.late[n]))
     }
 
-    pub(super) fn pruned(&self, n: usize) -> bool {
-        self.requests.guards.by_node.get(n).copied().flatten().is_some_and(|g| !self.requests.guards.circuit.permits(g))
+    pub(super) fn pruned(&self, f: &File<'_>, run: &mut Run, n: usize) -> bool {
+        self.requests.guards.by_node.get(n).copied().flatten().is_some_and(|g| !self.allows(f, run, g))
     }
 }
