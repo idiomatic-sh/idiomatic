@@ -1320,8 +1320,26 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             relative_import::walked(run, self.project, self.file, self.file_no)?
         } else if matches!(rel, lexical_lines::COMMENT | lexical_lines::MULTILINE | lexical_lines::BREAKS) {
             lexical_lines::fill(run, self.file, self.src, self.file_no, rel)?
-        } else if matches!(rel, expression_parts::CALL_SITE | expression_parts::BINARY_OPERANDS | expression_parts::COMPARISONS | expression_parts::DICT_KEYS | expression_parts::ASSIGN_NAMES | expression_parts::NESTED_DELIMITERS | expression_parts::EXPR_STATEMENTS) {
-            expression_parts::fill(run, self.file, self.file_no, rel)?
+        } else if matches!(
+            rel,
+            expression_parts::CALL_SITE
+                | expression_parts::BINARY_OPERANDS
+                | expression_parts::BOOLEANS
+                | expression_parts::WITH_HEADER
+                | expression_parts::COMPARISONS
+                | expression_parts::DICT_KEYS
+                | expression_parts::ASSIGN_NAMES
+                | expression_parts::NESTED_DELIMITERS
+                | expression_parts::EXPR_STATEMENTS
+                | expression_parts::CONSTANT_PREDECESSOR
+                | expression_parts::ANNOTATION_STRINGS
+                | expression_parts::SUBSCRIPT
+                | expression_parts::SCHEDULE_END
+                | expression_parts::POSITIONAL_ARGUMENT
+                | expression_parts::ATTRIBUTE_PREFIX
+                | expression_parts::DISPLAY_ELEMENT
+        ) {
+            expression_parts::fill(run, self.file, self.src, self.file_no, rel)?
         } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::HEADS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
             import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel, &mut self.import_comments)?
         } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
@@ -1339,7 +1357,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 return Err("pre-declaration-read: incomplete flow".to_owned());
             }
             rows
-        } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL) {
+        } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL | fact_catalog::BINDING_READ_REL) {
             let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no {rel}"))?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
             let complete = pair_provider::sites::visit(rel, self.file, u64::from(self.file_no),
