@@ -121,6 +121,7 @@ impl<'p> Finisher<'p> {
                 &|n| vocab.kinds.get(n).copied(),
             ),
         };
+        me.exec.col_load(&mut me.run);
         me.time += thread_cpu() - t0;
         me
     }
@@ -281,13 +282,14 @@ impl<'p> Finisher<'p> {
             std::fs::write(self.check_out.clone().unwrap_or_else(|| "check-bases.tsv".to_owned()), self.check_lines.join("\n") + "\n").expect("write check");
         }
         let exec = &self.exec;
+        exec.col_report();
         if let Some(out) = &self.stats {
-            // columns 8 and 13 (runs by key, runs by key that returned nothing) are 0, 9 and 10 (made by, why) -1 and empty:
-            // every step is made whole once a file
+            // columns 8 and 13: runs by key, runs by key that returned nothing (finish/keyed.rs); 9 and 10 (made by, why)
+            // -1 and empty; 14: rows of tables the step built (a table handed on from an input counts 0)
             let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
             for (i, pn) in self.plan.nodes.iter().enumerate() {
-                if exec.stats.calls[i] > 0 || exec.stats.touched[i] > 0 || exec.stats.rows[i] > 0 || exec.stats.time[i] > 0.0 || exec.stats.known[i] > 0 {
-                    lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], 0, -1, "", exec.stats.known[i], exec.stats.empty_time[i], 0));
+                if exec.stats.calls[i] > 0 || exec.stats.touched[i] > 0 || exec.stats.rows[i] > 0 || exec.stats.time[i] > 0.0 || exec.stats.known[i] > 0 || exec.stats.keyed[i] > 0 {
+                    lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.keyed[i], -1, "", exec.stats.known[i], exec.stats.empty_time[i], exec.stats.keyed_empty[i], exec.stats.built[i]));
                 }
             }
             for (k, v) in &self.by_rel {
@@ -307,7 +309,7 @@ impl<'p> Finisher<'p> {
         println!("files run {}; findings {}; rules {} ({} failed)", self.files_run, self.findings.len(), self.emits.len(), self.failed.len());
         println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {:.3} ({} rows)", self.provider_time, self.provider_rows);
         // the per-file emptiness decision's static part: steps visited and per-file tests decided (VEC_STEP_TIME: its seconds)
-        println!("known-empty static part: {} steps visited, {} per-file tests; {:.3} s, of which preparing the needs once a run {:.3} s", exec.stats.static_visits, exec.stats.static_file_tests, exec.stats.static_time, exec.stats.rec_time);
+        println!("known-empty static part: {} steps visited ({} with no leaf of their own), {} per-file tests; {:.3} s, of which preparing the needs once a run {:.3} s", exec.stats.static_visits, exec.stats.static_pass, exec.stats.static_file_tests, exec.stats.static_time, exec.stats.rec_time);
         println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
         println!("{}", finish::fill_prof::reads_line());
         finish::fill_prof::flush();
@@ -329,7 +331,7 @@ impl<'p> Finisher<'p> {
             for (i, pn) in self.plan.nodes.iter().enumerate() {
                 let e = by.entry(pn.op.as_str()).or_default();
                 let st = &exec.stats;
-                for (k, v) in [st.calls[i] as f64, 0.0, st.known[i] as f64, st.empty[i] as f64, 0.0, st.empty_time[i], st.time[i], 0.0].into_iter().enumerate() {
+                for (k, v) in [st.calls[i] as f64, st.keyed[i] as f64, st.known[i] as f64, st.empty[i] as f64, st.keyed_empty[i] as f64, st.empty_time[i], st.time[i], 0.0].into_iter().enumerate() {
                     e[k] += v;
                 }
             }

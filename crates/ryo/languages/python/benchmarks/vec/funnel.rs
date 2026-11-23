@@ -183,6 +183,8 @@ pub(super) struct Plan {
     pub(super) ops: Vec<Op>,
     pub(super) regs: usize,
     pub(super) stages: Vec<Stage>,
+    /// All preceding stages read syntax alone.
+    pub(super) before_facts: usize,
     pub(super) knock: Option<Vec<(Test, bool)>>,
     /// Required words: every clause has a word spelled in the file.
     pub(super) words: Vec<Vec<u16>>,
@@ -484,7 +486,7 @@ pub(super) fn build(specs: &[SpecRule], vocab: &Vocab, catalog: &mut super::fact
                 })
                 .collect();
             let ops = ops_of(&p.ops, vocab, &mut missing, &mut fc);
-            let stages = compile(&ops);
+            let (stages, before_facts) = compile(&ops);
             let knock = knock_tests(&ops);
             let cnf = words.cnf(&p.words);
             let at = disjuncts.iter().position(|(d, _)| *d == p.disjunct).unwrap_or_else(|| {
@@ -498,7 +500,7 @@ pub(super) fn build(specs: &[SpecRule], vocab: &Vocab, catalog: &mut super::fact
                 continue;
             }
             disjuncts[at].1.push(plans.len());
-            plans.push(Plan { keys, ops, regs: p.regs, stages, knock, words: cnf });
+            plans.push(Plan { keys, ops, regs: p.regs, stages, before_facts, knock, words: cnf });
         }
         for (_, d) in &disjuncts {
             if d.is_empty() {
@@ -679,7 +681,8 @@ where
 /// check as a child-kind-bitset test; any other leaf `down` + check, and an `exists` of one check, as one scan of the
 /// children, skipped when the child-kind and child-field sets rule it out; a `down` + check of the child as one expansion
 /// to the children that pass.
-pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
+fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
+    let mut first_fact = None;
     let mut out: Vec<Stage> = Vec::new();
     let mut i = 0;
     while i < ops.len() {
@@ -687,6 +690,9 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
             Some(Op::Check(c)) if c.v == to => Some(c.clone()),
             _ => None,
         };
+        if first_fact.is_none() {
+            super::file_seeds::visits_facts(&ops[i], &mut |_| first_fact = Some(out.len()));
+        }
         match &ops[i] {
             Op::Check(c) => {
                 let (v, own) = (c.v, Own::of(c));
@@ -768,7 +774,8 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
         }
         i += 1;
     }
-    out
+    let boundary = first_fact.unwrap_or(out.len());
+    (out, boundary)
 }
 
 /// A load-time specialised predicate over registers: one closure per operation, chained in continuation style (a `down`
