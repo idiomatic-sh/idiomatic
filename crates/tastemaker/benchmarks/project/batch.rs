@@ -32,7 +32,7 @@ struct Input {
 }
 
 enum Work {
-    Project(Answer),
+    Project(Result<finish::json_output::Records, String>),
     Closed {
         binding: usize,
         inventory: Rc<Vec<String>>,
@@ -280,7 +280,7 @@ impl Batch {
                     files,
                     &self.bindings[*binding].1,
                 );
-                self.work[i] = Work::Project(answer.map(|rows| { let mut lines = rows.into_lines(); lines.sort_unstable(); lines }));
+                self.work[i] = Work::Project(answer);
             }
         }
         self.clocks.project += thread_cpu() - t;
@@ -290,7 +290,7 @@ impl Batch {
         match work {
             Work::Project(r) => r
                 .as_ref()
-                .map(|v| v.iter().map(String::as_str).collect())
+                .map(finish::json_output::Records::ordered_lines)
                 .map_err(String::as_str),
             Work::Refused(e) => Err(e),
             Work::Closed { .. } => Err("project inputs still open"),

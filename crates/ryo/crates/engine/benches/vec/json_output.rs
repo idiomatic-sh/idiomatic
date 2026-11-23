@@ -98,7 +98,11 @@ pub(crate) struct Records {
 }
 
 impl Records {
-    pub(crate) fn into_lines(self) -> Vec<String> { self.lines }
+    pub(crate) fn ordered_lines(&self) -> Vec<&str> {
+        let mut lines: Vec<_> = self.lines.iter().map(String::as_str).collect();
+        lines.sort_unstable();
+        lines
+    }
 
     pub(crate) fn query(
         &mut self,
