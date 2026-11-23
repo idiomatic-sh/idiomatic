@@ -142,7 +142,6 @@ impl<'p> Settings<'p> {
         worker.exec.cold_test_load(&mut worker.run);
         worker.exec.cold_load(&mut worker.run);
         worker.exec.col_load(&mut worker.run);
-        worker.exec.cache_counts(&worker.run, "open");
         worker.time += super::thread_cpu() - start;
         println!("worker executor and dictionary CPU {:.6} s", worker.time);
         worker
@@ -168,7 +167,6 @@ pub(crate) struct Report {
 
 impl Finisher<'_> {
     pub(crate) fn report(self) -> Report {
-        self.exec.cache_counts(&self.run, "close");
         let start = super::thread_cpu();
         let report = self.into_report();
         println!("worker executor release CPU {:.6} s", super::thread_cpu() - start);

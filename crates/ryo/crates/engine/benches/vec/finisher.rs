@@ -82,7 +82,6 @@ impl<'p> Finisher<'p> {
         me.exec.cold_test_load(&mut me.run);
         me.exec.cold_load(&mut me.run);
         me.exec.col_load(&mut me.run);
-        me.exec.cache_counts(&me.run, "open");
         me.time += thread_cpu() - t0;
         me
     }
@@ -216,7 +215,6 @@ impl<'p> Finisher<'p> {
 
     /// Write final findings, dumps and statistics after the last file.
     pub(super) fn end(mut self, projection: finish::json_output::Projection<'_>) -> bool {
-        self.exec.cache_counts(&self.run, "close");
         let ok = self.failed.is_empty();
         self.exec.leaf_report(&mut self.run);
         self.exec.cold_report(&self.run);
