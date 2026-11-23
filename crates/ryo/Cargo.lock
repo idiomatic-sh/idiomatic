@@ -1816,6 +1816,7 @@ dependencies = [
  "arrow-array",
  "arrow-buffer",
  "arrow-select",
+ "bumpalo",
  "cpu-time",
  "dhat",
  "divan",
@@ -1893,6 +1894,7 @@ dependencies = [
 name = "idiomatic-sh-ryo-rust"
 version = "0.2.0"
 dependencies = [
+ "bumpalo",
  "cargo-platform",
  "cpu-time",
  "dhat",
@@ -1977,6 +1979,7 @@ dependencies = [
 name = "idiomatic-sh-ryo-typescript"
 version = "0.2.0"
 dependencies = [
+ "bumpalo",
  "cpu-time",
  "dhat",
  "divan",

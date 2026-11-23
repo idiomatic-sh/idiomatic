@@ -1,6 +1,6 @@
 //! Capped file prerequisites of the same lowered step as its node witnesses.
-use super::first::Language;
-use ryo_values::domain::finish_plans::{expressions::types::*, service::inputs, types::*};
+use super::{first::Language, pair_summary::inputs};
+use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
 use std::{collections::BTreeSet, rc::Rc};
 
 type Clause = Rc<BTreeSet<String>>;
@@ -25,7 +25,9 @@ impl Clauses {
             self.0 = r.0.clone();
             return;
         };
-        if Rc::ptr_eq(left, right) {
+        if Rc::ptr_eq(left, right)
+            || (right.len() == 1 && left.iter().any(|c| Rc::ptr_eq(c, &right[0])))
+        {
             return;
         }
         let output = Rc::make_mut(left);
@@ -53,9 +55,17 @@ fn ordered(v: &mut Vec<Clause>) {
     v.dedup();
     v.truncate(CAP);
 }
-fn either(a: &[Clause], b: &[Clause]) -> Clauses {
+fn either(a: &Clauses, b: &Clauses) -> Clauses {
     match (a.first(), b.first()) {
-        (Some(l), Some(r)) if Rc::ptr_eq(l, r) || l == r => Clauses::singleton(l.clone()),
+        (Some(l), Some(r)) if Rc::ptr_eq(l, r) || l == r => {
+            if a.len() == 1 {
+                a.clone()
+            } else if b.len() == 1 {
+                b.clone()
+            } else {
+                Clauses::singleton(l.clone())
+            }
+        }
         (Some(l), Some(r)) => Clauses::singleton(Rc::new(l.union(r).cloned().collect())),
         _ => Clauses::default(),
     }
@@ -166,7 +176,12 @@ impl<'a> Skip<'a> {
         self.shape.include(&r.shape);
         self.words.include(&r.words);
     }
-    pub(super) fn step(s: &'a FinishStep, previous: &[Self], lang: &Language) -> Self {
+    pub(super) fn with_terms(
+        s: &'a FinishStep,
+        previous: &[Self],
+        lang: &Language,
+        terms: &[&PlanExpression],
+    ) -> Self {
         use FinishStep::*;
         let mut out = Self::default();
         match s {
@@ -183,14 +198,10 @@ impl<'a> Skip<'a> {
             Unlisted(_) => {}
             Select(q) => {
                 let single = q.sources.len() == 1;
-                let mut terms = Vec::new();
-                if let RowCondition::Tested(e) = &q.condition {
-                    super::pair_summary::terms(e, &mut terms)
-                }
                 for src in &q.sources {
                     let mut scan = previous[src.step.0].clone();
                     if let Some(base) = scan.scan {
-                        for term in &terms {
+                        for term in terms {
                             scan.filter(base, term, &src.alias, single, lang);
                         }
                     }

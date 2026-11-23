@@ -111,10 +111,30 @@ fn fact_projection<'a>(
         }
         names.iter().position(|n| *n == &*c.column.0)
     };
+    let SelectedColumns::Items(items) = &s.columns else {
+        return None;
+    };
+    let mut cols = Vec::new();
+    let mut derived = false;
+    for item in items {
+        let PlanExpression::Column(c) = &item.value else {
+            return None;
+        };
+        let at = column(c)?;
+        let field = if at == key {
+            "id"
+        } else if kinds[at] == CellKind::File {
+            "file"
+        } else {
+            derived = true;
+            continue;
+        };
+        cols.push((&*item.name.0, Value { depth: 0, field }));
+    }
     let d = match &s.condition {
         RowCondition::Every => b.domain(Domain::Fact(slot, None)),
         RowCondition::Tested(e) => {
-            let mut conjuncts = Vec::new();
+            let mut conjuncts = Conjuncts::new();
             terms(e, &mut conjuncts);
             let correlated = b.same_row(slot, &conjuncts, &|c| {
                 Some(Column {
@@ -139,7 +159,7 @@ fn fact_projection<'a>(
                 }
                 b.matching(Attribute::Cell(slot, column(c)?), &p.0, CellKind::Symbol)?
             } else {
-                let mut values = Vec::new();
+                let mut values = Literals::new();
                 let c = column(choices(e, &mut values)?)?;
                 if kinds[c] != CellKind::Symbol {
                     return None;
@@ -151,26 +171,6 @@ fn fact_projection<'a>(
             }
         }
     };
-    let SelectedColumns::Items(items) = &s.columns else {
-        return None;
-    };
-    let mut cols = Vec::new();
-    let mut derived = false;
-    for item in items {
-        let PlanExpression::Column(c) = &item.value else {
-            return None;
-        };
-        let at = column(c)?;
-        let field = if at == key {
-            "id"
-        } else if kinds[at] == CellKind::File {
-            "file"
-        } else {
-            derived = true;
-            continue;
-        };
-        cols.push((&*item.name.0, Value { depth: 0, field }));
-    }
     Some(Row {
         nodes: d,
         guard: EMPTY,
@@ -423,6 +423,10 @@ fn select<'a>(
     if !(1..=2).contains(&s.sources.len()) || s.count != CountMark::Unmarked {
         return None;
     }
+    if matches!(&s.columns, SelectedColumns::Items(items) if items.iter().any(|v| !matches!(v.value, PlanExpression::Column(_))))
+    {
+        return None;
+    }
     let lookup = |c: &ColumnRead| {
         let i = if c.alias == SourceAlias::Unwritten && s.sources.len() == 1 {
             0
@@ -435,7 +439,7 @@ fn select<'a>(
     };
     let mut nodes = rows[s.sources[0].step.0].as_ref()?.nodes;
     let mut guard = rows[s.sources[0].step.0].as_ref()?.guard;
-    let mut filters = Vec::new();
+    let mut filters = Conjuncts::new();
     if let RowCondition::Tested(e) = &s.condition {
         terms(e, &mut filters)
     }
@@ -649,6 +653,40 @@ fn guards(b: &mut Builder<'_>, plan: &FinishPlan) -> Vec<Id> {
     out
 }
 
+// Bound the exact proof frontier before following demand backwards. Any
+// operator outside the proof language breaks that path. A base remains
+// possible here because its provider may support an exact key projection.
+fn possible_rows(plan: &FinishPlan) -> Vec<bool> {
+    use FinishStep::*;
+    let mut possible = Vec::with_capacity(plan.steps.len());
+    for step in &plan.steps {
+        let can = match step {
+            Base(_) => true,
+            Select(q) => {
+                (1..=2).contains(&q.sources.len())
+                    && q.sources.iter().all(|v| possible[v.step.0])
+                    && match &q.columns {
+                        SelectedColumns::All => true,
+                        SelectedColumns::Items(items) => items
+                            .iter()
+                            .all(|item| matches!(item.value, PlanExpression::Column(_))),
+                    }
+            }
+            Union(x) => possible[x.left.0] && possible[x.right.0],
+            Antijoin(x) => possible[x.left.0],
+            Project(x) => possible[x.from.0],
+            SpanBounds(x) => possible[x.from.0],
+            Extend(x) => possible[x.from.0],
+            GroupCount(x) => possible[x.from.0],
+            GroupOrdinal(x) => possible[x.from.0],
+            GroupMin(x) | GroupMax(x) => possible[x.from.0],
+            _ => false,
+        };
+        possible.push(can);
+    }
+    possible
+}
+
 pub(super) fn prepare<'a>(
     b: &mut Builder<'_>,
     plan: &'a FinishPlan,
@@ -658,6 +696,7 @@ pub(super) fn prepare<'a>(
     // Follow the right side for exact keyed differences. File guards already
     // describe suppression inputs whose rows need richer relational operators.
     let positive = live;
+    let possible = possible_rows(plan);
     let mut live = vec![false; plan.steps.len()];
     for rule in &plan.rules {
         if let RuleEmit::Written(e) = &rule.emit
@@ -679,6 +718,7 @@ pub(super) fn prepare<'a>(
         }
     }
     for (i, s) in plan.steps.iter().enumerate().rev() {
+        live[i] &= possible[i];
         if !live[i] {
             continue;
         }
@@ -704,6 +744,14 @@ pub(super) fn prepare<'a>(
             }
             _ => {}
         }
+    }
+    if std::env::var_os("VEC_PAY_PREP").is_some() {
+        println!(
+            "PAYPROOF steps {} possible {} demanded {}",
+            plan.steps.len(),
+            possible.iter().filter(|v| **v).count(),
+            live.iter().filter(|v| **v).count()
+        );
     }
     let mut rows: Vec<Option<Row<'_>>> = Vec::with_capacity(plan.steps.len());
     for (i, s) in plan.steps.iter().enumerate() {
@@ -883,7 +931,11 @@ pub(super) fn prepare<'a>(
 
     plan.steps
         .iter()
-        .map(|s| {
+        .enumerate()
+        .map(|(i, s)| {
+            if !positive[i] {
+                return None;
+            }
             let FinishStep::Antijoin(j) = s else {
                 return None;
             };
