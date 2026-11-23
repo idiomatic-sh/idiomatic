@@ -77,6 +77,9 @@ pub struct Ask {
 /// One fact of one file, as the provider wrote it.
 #[derive(Clone, Debug, Default)]
 pub struct FactTable {
+    // The answer writer consumes rows in insertion order. Its buffer needs
+    // neither a node index nor space for values at nodes with no row.
+    ordered_rows: bool,
     /// The layout.
     pub layout: Layout,
     /// Whether the provider answered the fact whole for this file (false: the file was not read whole, a superset holds).
@@ -100,13 +103,18 @@ pub struct FactTable {
 }
 
 impl FactTable {
+    /// A buffer for sequential column consumption in provider row order.
+    /// Indexed first-half reads use the default buffer.
+    #[must_use]
+    pub fn ordered() -> Self { Self { ordered_rows: true, ..Self::default() } }
+
     fn begin(&mut self, layout: Layout, width: usize, elements: usize, written: &[usize], exists: bool, wanted: u64) {
         self.wanted = wanted;
         self.layout = layout;
         self.answered = true;
         self.rows = 0;
         self.present.clear();
-        self.present.resize(elements.div_ceil(64).max(1), 0);
+        if !self.ordered_rows { self.present.resize(elements.div_ceil(64).max(1), 0); }
         self.offsets.clear();
         self.order.clear();
         self.keys.clear();
@@ -114,7 +122,7 @@ impl FactTable {
         for column in &mut self.columns {
             column.clear();
         }
-        if layout == Layout::PerNode && !exists {
+        if !self.ordered_rows && layout == Layout::PerNode && !exists {
             for place in written {
                 if wanted >> place & 1 == 0 {
                     continue;
@@ -141,7 +149,11 @@ impl FactTable {
     /// A per-node row: its values by catalog place.
     #[inline]
     fn put(&mut self, node: u32, values: &[(usize, u32)]) {
-        self.mark(node);
+        if self.ordered_rows {
+            self.push(node, values);
+            return;
+        }
+        if !self.ordered_rows { self.mark(node); }
         self.keys.push(node);
         self.rows += 1;
         for (place, value) in values {
@@ -154,7 +166,7 @@ impl FactTable {
     /// A keyed row.
     #[inline]
     fn push(&mut self, node: u32, values: &[(usize, u32)]) {
-        self.mark(node);
+        if !self.ordered_rows { self.mark(node); }
         self.keys.push(node);
         self.rows += 1;
         for (place, value) in values {
@@ -169,7 +181,7 @@ impl FactTable {
     /// Ends a keyed table: the rows are put in key order by a sort of (key, row) pairs, O(rows log rows), and indexed by
     /// key through the presence bits and a rank a word, O(elements / 64): no pass over the file's elements.
     fn finish(&mut self, _elements: usize) {
-        if self.layout != Layout::Keyed {
+        if self.ordered_rows || self.layout != Layout::Keyed {
             return;
         }
         self.rank.clear();
@@ -796,8 +808,9 @@ impl ColumnFile<'_, '_> {
         let width = <languages::QualifiedName as CatalogRelation>::columns().len();
         let (path_at, provenance_at, major_at, minor_at) =
             (place!(QualifiedName, QualifiedNameColumn::Path), place!(QualifiedName, QualifiedNameColumn::Provenance), place!(QualifiedName, QualifiedNameColumn::SinceMajor), place!(QualifiedName, QualifiedNameColumn::SinceMinor));
-                table.begin(Layout::PerNode, width, elements, &[path_at, provenance_at, major_at, minor_at], ask.exists, ask.columns);
-        let read = self.file.semantics(if ask.exists { ModelPart::Lexical } else { ModelPart::Resolution });
+        table.begin(Layout::PerNode, width, elements, &[path_at, provenance_at, major_at, minor_at], ask.exists, ask.columns);
+        let qualify_value = !ask.exists && [path_at, provenance_at, major_at, minor_at].iter().any(|c| table.wants(*c));
+        let read = self.file.semantics(if qualify_value { ModelPart::Resolution } else { ModelPart::Lexical });
         let memo = &mut *self.memo;
         let labels = [refinements::IMPORT, BUILTIN, LOCAL, UNRESOLVED, AMBIGUOUS].map(|text| memo.fixed(ids, NameText(text)));
         let empty = ids.id(b"");
@@ -814,6 +827,7 @@ impl ColumnFile<'_, '_> {
                 table.rows += 1;
                 continue;
             }
+            if !qualify_value { table.put(node, &[]); continue; }
             let provenance = qualify(read.model, at, &mut path);
             let (label, since) = match provenance {
                 NameProvenance::Import => (labels[0], NOT_APPLICABLE),
@@ -823,7 +837,7 @@ impl ColumnFile<'_, '_> {
                 NameProvenance::Ambiguous => (labels[4], NOT_APPLICABLE),
             };
             let has_path = matches!(provenance, NameProvenance::Import | NameProvenance::Builtin(_));
-            let text = if has_path { ids.id(path.0.as_bytes()) } else { empty };
+            let text = if has_path && table.wants(path_at) { ids.id(path.0.as_bytes()) } else { empty };
             table.put(node, &[(path_at, text), (provenance_at, label), (major_at, since.major.0 as u32), (minor_at, since.minor.0 as u32)]);
         }
     }
@@ -917,7 +931,7 @@ impl ColumnFile<'_, '_> {
                     table.rows += 1;
                     continue;
                 }
-                let kind = self.memo.fixed(ids, found.kind);
+                let kind = if table.wants(kind_at) { self.memo.fixed(ids, found.kind) } else { 0 };
                 table.put(id.0, &[(kind_at, kind), (zero_at, flag(found.zero)), (empty_at, flag(found.empty)), (boolean_at, flag(found.boolean))]);
             }
         }
@@ -936,7 +950,7 @@ impl ColumnFile<'_, '_> {
                     table.rows += 1;
                     continue;
                 }
-                let kind = self.memo.fixed(ids, found.kind);
+                let kind = if table.wants(kind_at) { self.memo.fixed(ids, found.kind) } else { 0 };
                 let text = if table.wants(value_at) { ids.id(value.0.as_bytes()) } else { 0 };
                 table.put(id.0, &[(kind_at, kind), (value_at, text), (exact_at, flag(found.exact))]);
             }
@@ -948,7 +962,7 @@ impl ColumnFile<'_, '_> {
         let (owner_at, value_at, import_at) =
             (place!(StringLiteral, StringLiteralColumn::Owner), place!(StringLiteral, StringLiteralColumn::Value), place!(StringLiteral, StringLiteralColumn::Import));
         table.begin(Layout::PerNode, width, elements, &[owner_at, value_at, import_at], ask.exists, ask.columns);
-        if !ask.exists {
+        if !ask.exists && table.wants(owner_at) {
             built(self.file.model, &mut self.file.built, ModelPart::Lexical, self.file.syntax.tree);
         }
         let empty = ids.id(b"");
@@ -956,16 +970,15 @@ impl ColumnFile<'_, '_> {
         let joined = &mut self.file.buffers.text;
         for kind in [Node::Constant, Node::JoinedStr, Node::TemplateStr] {
             for Numbered { id, node } in nodes_of_kind(&self.file.syntax, Kind::Node(kind)) {
-                let value = match string_value(node, joined) {
-                    Some(StringValue::Known(text)) => {
-                        if ask.exists || !table.wants(value_at) {
-                            0
-                        } else {
-                            ids.id(text.0.as_bytes())
-                        }
+                let value = if ask.exists || !table.wants(value_at) {
+                    if !matches!(node, AnyNodeRef::ExprStringLiteral(_) | AnyNodeRef::ExprFString(_) | AnyNodeRef::ExprTString(_)) { continue; }
+                    0
+                } else {
+                    match string_value(node, joined) {
+                        Some(StringValue::Known(text)) => ids.id(text.0.as_bytes()),
+                        Some(StringValue::Interpolated) => empty,
+                        None => continue,
                     }
-                    Some(StringValue::Interpolated) => empty,
-                    None => continue,
                 };
                 if ask.exists {
                     table.mark(id.0);
@@ -973,7 +986,8 @@ impl ColumnFile<'_, '_> {
                     continue;
                 }
                 let owner = owned.get(usize::from(id)).copied().unwrap_or(Position(0)).0;
-                table.put(id.0, &[(owner_at, owner), (value_at, value), (import_at, flag(loaded(&self.file.syntax, id)))]);
+                let import = if table.wants(import_at) { flag(loaded(&self.file.syntax, id)) } else { 0 };
+                table.put(id.0, &[(owner_at, owner), (value_at, value), (import_at, import)]);
             }
         }
     }

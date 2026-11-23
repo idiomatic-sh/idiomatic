@@ -7,12 +7,12 @@
 
 use super::finish::{self, NULL, Table, Ty};
 use ryo::languages::{NodeTable, Position, node_table};
-use ryo_python::fixtures::columns::{Ask, ColumnFile, ColumnMemo, FactTable, Layout, TextIds};
+use ryo_python::fixtures::columns::{Ask, ColumnFile, ColumnMemo, FactTable, TextIds};
 use std::cell::RefCell;
 
 thread_local! {
     /// The worker's answer buffer, kept from fill to fill.
-    static FT: RefCell<FactTable> = RefCell::new(FactTable::default());
+    static FT: RefCell<FactTable> = RefCell::new(FactTable::ordered());
     /// The direct path's own text memo (run symbols) and the file it last wrote.
     static MEMO: RefCell<(ColumnMemo, u32)> = RefCell::new((ColumnMemo::default(), u32::MAX));
 }
@@ -65,7 +65,6 @@ pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &s
             let written = ft.columns.get(c).filter(|col| !col.is_empty());
             let col = &mut out.cols[c];
             match (written, ty) {
-                (Some(w), _) if ft.layout == Layout::PerNode => col.extend(keys.iter().map(|k| widen(*ty, w[*k as usize]))),
                 (Some(w), _) => col.extend(w.iter().map(|v| widen(*ty, *v))),
                 (None, _) if c == key => col.extend(keys.iter().map(|k| u64::from(*k))),
                 (None, Ty::File) => col.resize(n, u64::from(file_no)),
