@@ -1353,8 +1353,7 @@ pub(super) struct Exec<'p> {
     u32_pool: Vec<Vec<u32>>,
     /// redo-union pass 2: what each step needs to return anything (`known`), and its shared empty answer.
     needs: Vec<Option<Rc<known::Need>>>,
-    flat: known::Flat,
-    pub(crate) shared_static: Option<std::sync::Arc<known::Shared>>,
+    flat: std::borrow::Cow<'p, known::Flat>,
     empties: Vec<Option<Rc<Table>>>,
     /// The view rows a keyed read of a view finds (reused).
     scratch_rows: Vec<u32>,
@@ -1431,8 +1430,7 @@ impl<'p> Exec<'p> {
             tally: band::Tally::default(),
             u32_pool: Vec::new(),
             needs: vec![None; k],
-            flat: known::Flat::new(k),
-            shared_static: None,
+            flat: std::borrow::Cow::Owned(known::Flat::new(k)),
             empties: vec![None; k],
             scratch_rows: Vec::new(),
             timing: sw!("VEC_STEP_TIME"),
