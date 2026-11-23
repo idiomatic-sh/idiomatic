@@ -10,7 +10,7 @@ const NEVER: u32 = 1;
 enum Test {
     Constant(bool),
     Kind(u16),
-    Field(u16),
+    Field(u32),
     Seed(usize),
     Emit(usize),
     HasRows(u16),
@@ -242,9 +242,9 @@ impl Exec<'_> {
                 for (slot, col, values) in self.ep_literals(run, n) {
                     parts.push(self.requests.guards.symbols(slot, col, values));
                 }
-                for fields in self.ep_field_codes(run, n) {
-                    let codes = fields.into_iter().map(|c| self.requests.guards.intern(Test::Field(c))).collect();
-                    parts.push(self.requests.guards.combine(false, codes));
+                for fields in self.ep_field_names(run, n) {
+                    let names = fields.into_iter().map(|name| self.requests.guards.intern(Test::Field(name))).collect();
+                    parts.push(self.requests.guards.combine(false, names));
                 }
             }
             if !need.inputs.is_empty() {
@@ -266,7 +266,7 @@ impl Exec<'_> {
         for at in 0..circuit.leaves {
             let value = match &self.requests.guards.tests[at] {
                 Test::Kind(k) => kinds.get(usize::from(*k) / 64).is_some_and(|w| w.0 & (1 << (k % 64)) != 0),
-                Test::Field(c) => !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c)).is_empty(),
+                Test::Field(name) => self.ep_field_present(f, run, std::slice::from_ref(name)),
                 Test::Symbols(..) => !self.requests.guards.absent.get(at).copied().unwrap_or(false),
                 Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
                 Test::Driver(n) => !self.requests.guards.empty_drivers.get(*n).copied().unwrap_or(false),

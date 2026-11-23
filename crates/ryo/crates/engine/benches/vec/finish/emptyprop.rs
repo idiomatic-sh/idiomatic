@@ -429,10 +429,11 @@ impl Exec<'_> {
         self.ep_leaves(run, node).iter().any(|leaf| leaf.fact != NO_FACT || leaf.rows)
     }
 
-    pub(super) fn ep_field_codes(&mut self, run: &mut Run, node: usize) -> Vec<Vec<u16>> {
-        self.ep_leaves(run, node).iter().filter(|l| !l.fields.is_empty()).map(|l| {
-            run.field_sym.iter().enumerate().filter(|(_, s)| l.fields.contains(s)).map(|(i, _)| i as u16).collect()
-        }).collect()
+    /// The row reader resolves field codes at file preparation time. Keep
+    /// the plan's symbol names until the actual file vocabulary is available.
+    pub(super) fn ep_field_names(&mut self, run: &mut Run, node: usize) -> Vec<Vec<u32>> {
+        self.ep_leaves(run, node).iter().filter(|leaf| !leaf.fields.is_empty())
+            .map(|leaf| leaf.fields.to_vec()).collect()
     }
 
     /// Whether one of the step's leaves holds in this file: a provider relation it reads has no rows, or a literal test
@@ -506,7 +507,7 @@ impl Exec<'_> {
     }
 
     /// Whether the file has a child under one of these field names.
-    fn ep_field_present(&mut self, f: &File<'_>, run: &Run, names: &[u32]) -> bool {
+    pub(super) fn ep_field_present(&self, f: &File<'_>, run: &Run, names: &[u32]) -> bool {
         L.with(|l| {
             let mut l = l.borrow_mut();
             let key = (f.file, std::ptr::from_ref(f.table) as usize);
