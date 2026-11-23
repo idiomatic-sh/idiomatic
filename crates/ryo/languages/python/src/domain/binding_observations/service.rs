@@ -68,6 +68,7 @@ fn read(
         frame,
         step.occurrence,
         name,
+        Some(&index.mutations),
         &mut index.candidates,
     );
     let state = crate::domain::binding_uncertainty::service::refine(
@@ -155,6 +156,7 @@ fn bind(
         frame,
         step.occurrence,
         declared.name,
+        None,
         &mut index.candidates,
     );
     index.shadows.extend(
@@ -173,7 +175,13 @@ fn bind(
     );
     match step.action {
         BindingAction::Bind => assign(&mut index.environments, frame, key, step.occurrence),
-        BindingAction::Annotation => annotate(&mut index.environments, frame, key, step.occurrence),
+        BindingAction::Annotation => annotate(
+            &mut index.environments,
+            frame,
+            key,
+            step.occurrence,
+            crate::domain::binding_lookup::service::declarations(tree),
+        ),
         BindingAction::Read
         | BindingAction::Delete
         | BindingAction::Cleanup

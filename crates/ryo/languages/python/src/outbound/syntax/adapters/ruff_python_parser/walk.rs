@@ -122,6 +122,7 @@ pub(super) fn walked(
         refused: Vec::new(),
         future_annotations,
         annotations_deferred: super::future::annotations_deferred(future_annotations, source_kind),
+        declarations: super::future::annotated_declarations(source_kind),
         length: offset(ByteIndex(text.0.len())),
         nodes: Vec::new(),
         parents: Vec::new(),
@@ -249,6 +250,7 @@ pub(super) fn walked(
         } else {
             BindingAnnotationTiming::Immediate
         },
+        declarations: super::future::annotated_declarations(source_kind),
         strings: literals,
         imports,
         segments: Vec::new(),

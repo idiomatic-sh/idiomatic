@@ -142,6 +142,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         writer.future_annotations = future_annotations;
         writer.annotations_deferred =
             super::future::annotations_deferred(future_annotations, source_kind);
+        writer.declarations = super::future::annotated_declarations(source_kind);
         writer.visit_mod(parsed.syntax());
         let mut semantic_errors = if parsed.errors().is_empty() {
             semantic_syntax_errors(

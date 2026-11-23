@@ -588,7 +588,8 @@ fn main() {
     }
     // 6f: `VEC_PY310` walks at the pack's configured target (benchmark.toml `python-target=3.10`); without it the walk is at
     // the parser's default (Latest), as every run before 6f was.
-    let walk = ryo_python::walk_with_settings(target_settings());
+    let settings = target_settings();
+    let walk = ryo_python::walk_with_settings(settings);
     let vocab = vocabulary(&walk);
     match args.get(1).copied() {
         Some("census") => census(&walk, &vocab, args[2], args[3], args[4]),
@@ -638,15 +639,15 @@ fn main() {
                 };
                 println!("start-up total {:.4} s", thread_cpu() - t0);
                 let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
-                run_funnel(&walk, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)));
+                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)));
                 fin.end(0.0);
                 // redo-union pass 2 c18: the plan (30 k nodes of JSON) is not dropped one by one at exit
                 std::mem::forget(plan);
             } else {
-                run_funnel(&walk, &vocab, &args[2..], None, None);
+                run_funnel(&walk, settings, &vocab, &args[2..], None, None);
             }
         }
-        Some("finish") => run_finish(&walk, &vocab, &args[2..]),
+        Some("finish") => run_finish(&walk, settings, &vocab, &args[2..]),
         Some("kfloor") => kernel_floor(&walk, args[2]),
         _ => eprintln!("usage: vec census <files> <literals> <out> | vec run <mode> <files> <anchors> [--batch N] [--repeat K] [--rules-out F]"),
     }
@@ -671,13 +672,14 @@ fn python_language() -> first::Language {
 /// provider's identity); with no request, `VEC_PY310` as before.
 fn target_settings() -> ryo_python::settings::PythonParserSettings {
     let args: Vec<String> = std::env::args().collect();
-    let req = args.iter().position(|a| a == "--request" || a == "--applicability").and_then(|i| args.get(i + 1));
-    if let Some(path) = req
-        && let Ok(text) = std::fs::read_to_string(path)
-        && let Ok(r) = serde_json::from_str::<serde_json::Value>(&text)
-        && let Some(id) = r["parser_configuration"].as_str()
-    {
-        return ryo_python::settings::PythonParserSettings::from_identity(id).unwrap_or_else(|| panic!("parser configuration {id}"));
+    for option in ["--request", "--applicability"] {
+        if let Some(path) = args.windows(2).find(|pair| pair[0] == option).map(|pair| &pair[1])
+            && let Ok(text) = std::fs::read_to_string(path)
+            && let Ok(request) = serde_json::from_str::<serde_json::Value>(&text)
+            && let Some(identity) = request["parser_configuration"].as_str()
+        {
+            return ryo_python::settings::PythonParserSettings::from_identity(identity).unwrap_or_else(|| panic!("parser configuration {identity}"));
+        }
     }
     if std::env::var_os("VEC_PY310").is_some() {
         ryo_python::settings::PythonParserSettings::new(ryo_python::settings::PythonTargetVersion::Py310)
@@ -1097,6 +1099,7 @@ impl ColFacts<'_, '_, '_, '_> {
         t
     }
 
+    /// A scheduled lookup can have one predecessor where control flow permits several reaching definitions.
     /// redo-binding probe: `read-resolution` from the provider's own lookup (`binding-resolution`, whose rows come per read
     /// nearest namespace first): the first row of each read, a deletion's only at depth 0 (its name is local), and a `none`
     /// row for every read or deletion (`binding-read`) no namespace of whose path holds an event of the name.
@@ -1331,7 +1334,15 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             finish::Scope::File(file) => file,
             finish::Scope::Files(files) => {
                 for asked in request.relations {
-                    out.push(self.project.fill(run, asked.rel, files, self.file_no, self.file.table, self.src));
+                    let start = finish::fill_prof::timed().then(thread_cpu);
+                    let table = self.project.fill(run, asked.rel, files, self.file_no, self.file.table, self.src);
+                    if let (Some(start), Ok(table)) = (start, &table) {
+                        let stat = self.by_rel.entry(asked.rel.to_owned()).or_default();
+                        stat.0 += thread_cpu() - start;
+                        stat.1 += table.n as u64;
+                        stat.2 += 1;
+                    }
+                    out.push(table);
                 }
                 return Ok(());
             }
@@ -1608,7 +1619,7 @@ fn kernel_floor(walk: &impl Walk, list: &str) {
 
 /// `vec finish <plan.json> <files> <root> [--rules A,B] [--seed rule-file.tsv] [--out findings.jsonl] [--stats stats.tsv]
 /// [--check-bases]`: each rule's whole lowered query run per file (`finish.rs`); findings as the reference writes them.
-fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
+fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str]) {
     let plan = finish::load(args[0]);
     type_expression::load_lists(args[0]);
     let list = files(args[1]);
@@ -1622,7 +1633,10 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     // 6f probe: `VEC_COLWALK` walks through the direct-columns walk (the provider's own model is reachable there, for the
     // evaluation region); `--dump F` writes every emit's rows instead of findings.
     let colwalk = std::env::var_os("VEC_COLWALK").is_some();
-    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
+    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::with_settings(
+        ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),
+        settings,
+    );
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
     let mut walk_time = 0f64;
@@ -1682,7 +1696,7 @@ fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
 /// `<anchors>` a directory: the pack; the first half's spec is prepared in this process from its parsed rules (`first.rs`), the
 /// parse shared with the second half's when `--finish` names the same pack (`pack`); `<anchors>` and `<plans>` files: the
 /// spec prepared beforehand (the oracle path).
-fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&mut finisher::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
+fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut finisher::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
     let way = args[0];
     let list = files(args[1]);
     let mut fact_catalog = facts::Catalog::default();
@@ -1745,7 +1759,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let ask_all = args.contains(&"--ask-all");
     let no_project = args.contains(&"--no-project");
     let plant = std::env::var("COLS_PLANT").is_ok_and(|v| v == "1");
-    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
+    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::with_settings(
+        ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),
+        settings,
+    );
     store.direct_on = direct;
     if args.contains(&"--regex-set") {
         interner.set = Some(regex::bytes::RegexSet::new(interner.regexes.iter().map(|r| r.as_str())).expect("regex set"));

@@ -102,6 +102,7 @@ pub(crate) fn with_file(source: &str, read: &mut dyn FnMut(&SyntaxFile<'_>)) {
             ends: &ends,
             nodes: &nodes,
             annotations: BindingAnnotationTiming::Immediate,
+            declarations: crate::domain::model::types::AnnotatedDeclarations::Unbound,
             named: &named,
         },
         text: NameText(source),
