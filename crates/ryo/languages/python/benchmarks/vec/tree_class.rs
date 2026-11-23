@@ -1,10 +1,10 @@
 //! THROWAWAY (redo-binding, ryo-fmx3.1): `subtree-class`, the structural class of the subtree under each row's node.
 //!
-//! `subtree-class(from=R, relation=E, labels=L, leaves=S, label=[..], leaf-label=[..], step=[..], output="class")`: the rows of
-//! `R` (column `id`) with a number column `output`; two rows of one call have equal numbers exactly when their subtrees are
+//! `subtree-class(from=R, relation=E, labels=L, leaves=S, id="id", parent="parent", child="child", label=[..], leaf-label=[..],
+//! step=[..], output="class")`: the rows of `R` (node column `id`, which names the node column of `L` and `S` too) with a number column `output`; two rows of one call have equal numbers exactly when their subtrees are
 //! equal as trees. A node of `S` is a leaf: its `leaf-label` columns are its label and its children are not visited.
 //! Every other node has its `label` columns from its row of `L`, and its children are the `child` column of the rows of
-//! `E` whose `parent` is the node, each named by its `step` columns. Two subtrees are equal when their roots have equal
+//! `E` whose `parent` column is the node, each named by its `step` columns. Two subtrees are equal when their roots have equal
 //! labels (a leaf never equals a node) and their children pair one to one by step, each pair equal. A node with no row in
 //! `L` or `S`, or with a child that has none, has no class, so its row is dropped. The classes are interned once a call
 //! (hash-consing, never a hash compare): equal numbers are equal trees, with no collision. No rule id: the shape is the
@@ -21,7 +21,7 @@ impl Exec<'_> {
         if from.n == 0 {
             return Ok(out);
         }
-        let ic = from.col("id")?;
+        let ic = from.col(s(&a["id"])?)?;
         let (en, ln) = (self.arg_rel(node, "relation")?, self.arg_rel(node, "labels")?);
         let sn = self.arg_rel(node, "leaves").ok();
         let label: Vec<String> = (*strs(&a["label"])?).clone();
@@ -30,14 +30,16 @@ impl Exec<'_> {
         let _ = s(&a["output"])?;
         let (esc, lsc) = (self.schema(run, en)?, self.schema(run, ln)?);
         let pos = |names: &[String], c: &str| names.iter().position(|x| x == c).ok_or_else(|| format!("subtree-class: no column {c}"));
-        let (epc, ecc) = (pos(&esc.names, "parent")?, pos(&esc.names, "child")?);
+        // redo-binding pass 6: the edge columns and the label tables' node column are the step's arguments
+        let (parent_col, child_col, id_col) = (s(&a["parent"])?, s(&a["child"])?, s(&a["id"])?);
+        let (epc, ecc) = (pos(&esc.names, parent_col)?, pos(&esc.names, child_col)?);
         let esteps: Vec<usize> = step.iter().map(|c| pos(&esc.names, c)).collect::<R<_>>()?;
-        let lic = pos(&lsc.names, "id")?;
+        let lic = pos(&lsc.names, id_col)?;
         let lcols: Vec<usize> = label.iter().map(|c| pos(&lsc.names, c)).collect::<R<_>>()?;
         let (sic, scols) = match sn {
             Some(sn) => {
                 let ssc = self.schema(run, sn)?;
-                (pos(&ssc.names, "id")?, leaf_label.iter().map(|c| pos(&ssc.names, c)).collect::<R<Vec<usize>>>()?)
+                (pos(&ssc.names, id_col)?, leaf_label.iter().map(|c| pos(&ssc.names, c)).collect::<R<Vec<usize>>>()?)
             }
             None => (0, Vec::new()),
         };

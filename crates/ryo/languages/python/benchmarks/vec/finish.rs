@@ -5,7 +5,7 @@
 //! Relations are column tables (one u64 a cell, typed per column). Base relations of the tree (`syntax-tree`,
 //! `semantic-syntax`, `semantic-child`, `syntax-child`, `source-location`) are not tables: they are read in place from the
 //! node table, by position (a join on their key is a position read; a scan with a kind test reads the kind buckets).
-//! `token-link` comes from the token order. Every other relation is the provider's fill, read once a file when a step asks.
+//! `token-link` comes from the provider's token order (`TokenOrder`). Every other relation is the provider's fill, read once a file when a step asks.
 
 use ryo::languages::{self, CellKind, KindBits, NodeTable, Position, node_table};
 use ryo_relations::domain::labels::types::NameRef;
@@ -32,24 +32,20 @@ pub(super) fn step_clock() -> f64 {
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
-#[path = "finish/drive.rs"]
-mod drive;
+#[path = "finish/recycle.rs"]
+mod recycle;
+#[path = "finish/inline_key.rs"]
+mod inline_key;
 #[path = "finish/select_kernel.rs"]
 mod select_kernel;
-#[path = "finish/memo.rs"]
-mod memo;
 #[path = "finish/handover.rs"]
 pub(super) mod handover;
 #[path = "band.rs"]
 pub(super) mod band;
-#[path = "closure_walk.rs"]
-mod closure_walk;
 #[path = "walk.rs"]
 mod walk;
 #[path = "filter_order.rs"]
 mod filter_order;
-#[path = "finish/kernel_input.rs"]
-mod kernel_input;
 #[path = "finish/union_kernel.rs"]
 mod union_kernel;
 #[path = "finish/antijoin_kernel.rs"]
@@ -64,18 +60,29 @@ mod known;
 pub(super) mod empty_why;
 #[path = "finish/empty_sel.rs"]
 pub(super) mod empty_sel;
-#[path = "finish/select_bound.rs"]
-mod select_bound;
-#[path = "finish/key_absent.rs"]
-mod key_absent;
 #[path = "prefixes.rs"]
 mod prefixes;
 #[path = "finish/ordered_dfs.rs"]
 mod ordered_dfs;
+#[path = "finish/lazy_view.rs"]
+mod lazy_view;
+#[path = "finish/fill_len.rs"]
+pub(super) mod fill_len;
 #[path = "finish/host.rs"]
 pub(super) mod host;
+#[path = "finish/project.rs"]
+pub(super) mod project;
 #[path = "finish/capture.rs"]
 mod capture;
+#[path = "finish/fill_prof.rs"]
+pub(super) mod fill_prof;
+#[path = "finish/view_cols.rs"]
+mod view_cols;
+/// redo-empty: emptiness for the file, by propagation over the plan.
+#[path = "finish/emptyprop.rs"]
+pub(super) mod emptyprop;
+#[path = "ordering.rs"]
+mod ordering;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -116,6 +123,8 @@ impl V {
 }
 
 pub(super) const NULL: u64 = u64::MAX;
+/// redo-alloc: a placeholder cell for an argument array's unused places (never read).
+const NULL_V: V = V(Ty2::T(5), NULL);
 
 /// 7: a table's column names and types, shared with its step's schema (never copied per table).
 pub(super) type Names = Rc<Vec<String>>;
@@ -133,13 +142,82 @@ pub(super) struct Table {
 thread_local! {
     /// 8: the worker's column buffers: a dropped table's columns come back here (cleared, capacity kept) and the next
     /// table takes them, so a file's executions reuse the same memory instead of allocating and freeing per execution.
-    static POOL: RefCell<(Vec<Vec<u64>>, usize)> = const { RefCell::new((Vec::new(), 0)) };
+    /// redo-alloc: by size class (a column of room 2^c..2^(c+1) in class c), so a small table never holds a large column.
+    static POOL: RefCell<([Vec<Vec<u64>>; CLASSES], usize)> = const { RefCell::new(([const { Vec::new() }; CLASSES], 0)) };
 }
-/// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it.
+/// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it (redo-alloc c8
+/// tried 64 MB: no fewer misses, 37 MB more live).
 const POOL_CELLS: usize = 1 << 22;
+/// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 16 = 2^18).
+const CLASSES: usize = 20;
+
+/// redo-alloc: a pooled column with room for `n` cells (no more than 32 times that), or a new one with room for the next
+/// power of two (so it is found again by its class); for an unknown size (`n` 0) one of the small classes (up to 512
+/// cells) or an empty one.
+#[inline]
+fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
+    let (lo, hi) = if n == 0 { (0, 8) } else { let c = (usize::BITS - (n - 1).leading_zeros()) as usize; (c.saturating_sub(1), (c + 4).min(CLASSES - 1)) };
+    for c in lo..=hi.min(CLASSES - 1) {
+        if let Some(v) = p.0[c].pop() {
+            p.1 -= v.capacity();
+            if v.capacity() >= n {
+                return v;
+            }
+            // a column just below the room asked: grown once here
+            let mut v = v;
+            v.reserve(n);
+            return v;
+        }
+    }
+    Vec::with_capacity(if n >= 16 { n.next_power_of_two() } else { n })
+}
 
 impl Drop for Table {
     fn drop(&mut self) {
+        self.release();
+        // redo-alloc: the emptied list of columns kept too (recycle.rs)
+        recycle::give_cols(std::mem::take(&mut self.cols));
+    }
+}
+
+impl Table {
+    fn with(names: impl Into<Names>, tys: impl Into<Tys>) -> Self {
+        Self::with_rows(names, tys, 0)
+    }
+    /// redo-alloc: `with` for a table about to hold `n` rows (its columns taken with that room; 0: unknown).
+    pub(super) fn with_rows(names: impl Into<Names>, tys: impl Into<Tys>, n: usize) -> Self {
+        let (names, tys) = (names.into(), tys.into());
+        let k = names.len();
+        // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool
+        let mut cols = recycle::take_cols(k);
+        POOL.with(|p| {
+            let p = &mut *p.borrow_mut();
+            cols.extend((0..k).map(|_| take_col(p, n)));
+        });
+        Table { names, tys, cols, n: 0 }
+    }
+    /// redo-alloc: a copy of the table in the worker's pooled list and columns (`clone` makes both new).
+    pub(super) fn copy(&self) -> Table {
+        let mut cols = recycle::take_cols(self.cols.len());
+        POOL.with(|p| {
+            let p = &mut *p.borrow_mut();
+            for c in &self.cols {
+                let mut v = take_col(p, c.len());
+                v.extend_from_slice(c);
+                cols.push(v);
+            }
+        });
+        Table { names: self.names.clone(), tys: self.tys.clone(), cols, n: self.n }
+    }
+    /// redo-alloc: a column of `n` cells `x` appended, its room from the pool.
+    pub(super) fn push_const_col(&mut self, x: u64, n: usize) {
+        let mut v = POOL.with(|p| take_col(&mut p.borrow_mut(), n));
+        v.resize(n, x);
+        self.cols.push(v);
+    }
+    /// 8: the table's columns back in the pool (cleared, capacity kept); the table is left with no rows and no columns.
+    pub(super) fn release(&mut self) {
+        self.n = 0;
         if self.cols.is_empty() {
             return;
         }
@@ -152,29 +230,9 @@ impl Drop for Table {
                 }
                 c.clear();
                 *cells += cap;
-                p.push(c);
+                p[(usize::BITS - 1 - cap.leading_zeros()) as usize].push(c);
             }
         });
-    }
-}
-
-impl Table {
-    fn with(names: impl Into<Names>, tys: impl Into<Tys>) -> Self {
-        let (names, tys) = (names.into(), tys.into());
-        let k = names.len();
-        let cols = POOL.with(|p| {
-            let (p, cells) = &mut *p.borrow_mut();
-            (0..k)
-                .map(|_| match p.pop() {
-                    Some(c) => {
-                        *cells -= c.capacity();
-                        c
-                    }
-                    None => Vec::new(),
-                })
-                .collect()
-        });
-        Table { names, tys, cols, n: 0 }
     }
     pub(super) fn col(&self, name: &str) -> Result<usize, String> {
         self.names.iter().position(|c| c == name).ok_or_else(|| format!("no column {name} in {:?}", self.names))
@@ -205,22 +263,31 @@ pub(super) struct Run {
     pub(super) paths: Vec<String>,
     pub(super) path_sym: Vec<u32>,
     pub(super) empty: u32,
-    pub(super) token_first: u16,
-    pub(super) token_last: u16,
-    pub(super) token_error: u16,
-    pub(super) pairs: [(u16, u16); 3],
-    pub(super) rels: FxHashMap<String, (languages::Relation, Names, Tys)>,
+    /// redo-general: the provider's token order (`token-link`, read in place) and, by kind code, whether an element of the
+    /// kind carries its source text (`syntax-tree`'s `text`), both as the provider states them (`TokenOrder`).
+    pub(super) tokens: Option<Rc<dyn TokenOrder>>,
+    pub(super) text_kind: Vec<bool>,
+    pub(super) rels: FxHashMap<String, (Option<languages::Relation>, Names, Tys)>,
+    /// redo-fills pass 2: the relations the run's suppliers declared (`declare`).
+    pub(super) declared: FxHashMap<String, Declared>,
     pub(super) link_sym: [u32; 3],
-    /// The project's root on disk and its search roots, for `project-namespace-membership`.
+    /// The project's root on disk (the host's, for its file facts).
     pub(super) root_dir: String,
-    pub(super) search_roots: Vec<String>,
-    pub(super) classified: FxHashMap<String, Vec<&'static str>>,
+    /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
+    pub(super) project: FxHashMap<String, project::Answered>,
     /// Functions a step asked that are not in the step set (the rule is refused).
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
     pub(super) fact_rels: Vec<(String, usize)>,
     /// pass 2: the kind codes of each kind name's symbol (made at the first ask, after `kind_sym` is set).
     pub(super) kind_codes: std::cell::OnceCell<FxHashMap<u32, Box<[u16]>>>,
+    /// redo-fills c2: the run-wide symbol of each provider word: the run's base words (the same in every file) and this
+    /// file's own words (`own_words_cleared` at each file's start); `u32::MAX`: not seen yet. A fill's text cells become
+    /// symbols by one array read, not a text copy and a hash a cell.
+    pub(super) base_word_sym: Vec<u32>,
+    pub(super) own_word_sym: Vec<u32>,
+    /// redo-fills pass 2: the symbol of each closed-set word (`cell_text`'s blocks, by number from 0xFFFF_0000).
+    pub(super) closed_word_sym: Vec<u32>,
 }
 
 impl Run {
@@ -247,88 +314,91 @@ impl Run {
         self.regexes.insert(p.to_owned(), r.clone());
         Ok(r)
     }
-    pub(super) fn catalog(&mut self, name: &str) -> Option<(languages::Relation, Names, Tys)> {
+    /// A relation's catalog entry: the reader's relation when the provider's relations catalog has it (None: a relation
+    /// the provider declared at the run's start, `declare`), its columns and their types.
+    pub(super) fn catalog(&mut self, name: &str) -> Option<(Option<languages::Relation>, Names, Tys)> {
         if let Some(r) = self.rels.get(name) {
             return Some(r.clone());
         }
-        if name == REGION_REL || name == RESOLUTION_REL || name == FINAL_REL || name == TYPE_EXPRESSION_REL || name == ANNOTATION_EVALUATION_REL || name == DEFERRED_VISIT_REL || name == DEFERRED_RESOLUTION_REL || name == TYPE_REGION_REL {
-            // 6f probe: the provider's per-node evaluation region (`ColumnFile::evaluation_region`); not a catalog relation,
-            // so the placeholder relation is never filled (`Provider::fill` answers it by name). redo-binding: the same for
-            // the provider's read resolution (`RESOLUTION_REL`).
-            let relation = catalog::relation_named(NameRef("binding-read"))?;
-            let cols: &[(&str, Ty)] = match name {
-                REGION_REL => &REGION_COLS,
-                RESOLUTION_REL => &RESOLUTION_COLS,
-                TYPE_EXPRESSION_REL => &TYPE_EXPRESSION_COLS,
-                ANNOTATION_EVALUATION_REL => &ANNOTATION_EVALUATION_COLS,
-                DEFERRED_VISIT_REL => &DEFERRED_VISIT_COLS,
-                DEFERRED_RESOLUTION_REL => &DEFERRED_RESOLUTION_COLS,
-                TYPE_REGION_REL => &TYPE_REGION_COLS,
-                _ => &FINAL_COLS,
-            };
-            let names: Names = Rc::new(cols.iter().map(|c| c.0.to_owned()).collect());
-            let tys: Tys = Rc::new(cols.iter().map(|c| c.1).collect());
-            self.rels.insert(name.to_owned(), (relation, names.clone(), tys.clone()));
-            return Some((relation, names, tys));
+        if let Some(d) = self.declared.get(name) {
+            let r = (None, d.names.clone(), d.tys.clone());
+            self.rels.insert(name.to_owned(), r.clone());
+            return Some(r);
         }
         let relation = catalog::relation_named(NameRef(name))?;
         let names: Names = Rc::new(catalog::columns(relation).into_iter().map(|c| catalog::column_name(c).0.to_owned()).collect());
         let tys: Tys = Rc::new(catalog::kinds(relation).iter().map(|k| ty_of(*k)).collect());
-        self.rels.insert(name.to_owned(), (relation, names.clone(), tys.clone()));
-        Some((relation, names, tys))
+        self.rels.insert(name.to_owned(), (Some(relation), names.clone(), tys.clone()));
+        Some((Some(relation), names, tys))
+    }
+
+    /// redo-fills pass 2: a relation the run's suppliers declare (the provider's own facts beyond its relations catalog, the
+    /// host's, the executor's steps), with its columns and who supplies its rows. A relation not declared here and in the
+    /// provider's relations catalog is the provider's.
+    pub(super) fn declare(&mut self, name: &str, cols: &[(&str, Ty)], supplier: Supplier) {
+        let names: Names = Rc::new(cols.iter().map(|c| c.0.to_owned()).collect());
+        let tys: Tys = Rc::new(cols.iter().map(|c| c.1).collect());
+        self.rels.remove(name);
+        self.declared.insert(name.to_owned(), Declared { names, tys, supplier });
+    }
+
+    /// Who supplies `rel`'s rows (the provider unless declared otherwise).
+    pub(super) fn supplier(&self, rel: &str) -> Supplier {
+        self.declared.get(rel).map_or(Supplier::Provider, |d| d.supplier)
     }
 }
 
-/// 6f probe: the provider's evaluation region of every node, by name.
-pub(super) const REGION_REL: &str = "evaluation-region";
-pub(super) const REGION_COLS: [(&str, Ty); 6] =
-    [("id", Ty::Node), ("region", Ty::Node), ("region-kind", Ty::Sym), ("annotation", Ty::Node), ("timing", Ty::Sym), ("file", Ty::File)];
+/// redo-general: the provider's token order of a file, the `token-link` relation's rows as events (the executor keeps them
+/// in place by position): each token in order, then the links it takes part in, in the catalog's link kinds.
+pub(super) trait TokenOrder {
+    /// Whether an element of kind `kind` carries its source text (the others' `text` is empty).
+    fn has_text(&self, kind: u16) -> bool;
+    /// The file's tokens in order and their links.
+    fn links(&self, table: &NodeTable, each: &mut dyn FnMut(TokenEvent));
+}
 
-/// redo-binding probe: the provider's resolution of every read and deletion, one row each: the event in effect in the nearest
-/// namespace of its lookup path that holds one (a deletion looks in its own namespace only), by name. `kind` is that event's
-/// kind (`none`: no namespace holds an event of the name), `namespace` says whether the event was made in that namespace
-/// itself (`own`) or routed into it by a `global` / `nonlocal` declaration elsewhere (`routed`).
-/// redo-binding pass 3: the event in effect for each name in each namespace once the schedule has run (the namespace's state
-/// after the module ran: what a postponed annotation sees, PEP 563), one row per (namespace, name) that holds an event.
-pub(super) const FINAL_REL: &str = "namespace-final";
-pub(super) const FINAL_COLS: [(&str, Ty); 6] =
-    [("namespace", Ty::Node), ("name", Ty::Sym), ("event", Ty::Node), ("kind", Ty::Sym), ("ordinal", Ty::Num), ("file", Ty::File)];
+/// One step of a file's token order: a token, or one of its links (source, target).
+#[derive(Clone, Copy)]
+pub(super) enum TokenEvent {
+    Token(u32),
+    /// `next-token`: the token after the source.
+    Next(u32, u32),
+    /// `matching-delimiter`: from an opener to its closer.
+    Matching(u32, u32),
+    /// `enclosing-delimiter`: from a token to the opener of its innermost open delimiter.
+    Enclosing(u32, u32),
+}
 
-/// redo-binding pass 4: every element of a file in a type expression (`type`), or the root of a value expression nested in
-/// one (`value`); no row: a value expression (`type_expression.rs`).
-pub(super) const TYPE_EXPRESSION_REL: &str = "type-expression";
-pub(super) const TYPE_EXPRESSION_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("kind", Ty::Sym), ("file", Ty::File)];
+impl Run {
+    /// redo-general: the provider's token order, set once a run.
+    pub(super) fn set_tokens(&mut self, tokens: Rc<dyn TokenOrder>, kinds: usize) {
+        self.text_kind = (0..kinds).map(|k| tokens.has_text(k as u16)).collect();
+        self.tokens = Some(tokens);
+    }
+}
 
-/// redo-binding pass 4: every element inside an annotation, when Python evaluates it (`annotation_evaluation.rs`).
-pub(super) const ANNOTATION_EVALUATION_REL: &str = "annotation-evaluation";
-pub(super) const ANNOTATION_EVALUATION_COLS: [(&str, Ty); 5] =
-    [("id", Ty::Node), ("root", Ty::Node), ("evaluation", Ty::Sym), ("mode", Ty::Sym), ("file", Ty::File)];
+/// redo-fills pass 2: who supplies a relation's rows, as the run's catalog declares it.
+#[derive(Clone, Copy)]
+pub(super) enum Supplier {
+    /// The language provider (`Provider::fill`), for a scope.
+    Provider,
+    /// The host, for a file (the file system's facts: `host::host_fill`).
+    Host,
+    /// The host, for the run: the files of the run (one row a file, the same in every file).
+    #[allow(dead_code, reason = "redo-int round 33: no relation is declared RunFiles since filesystem.file is the file's row (redo-binding c32); kept as redo-fills' run-scoped supplier")]
+    RunFiles,
+    /// redo-general: the provider, for a project (`Scope::Files`): rows relating the run's files to each other or to the
+    /// project's entries, asked as the provider declares (`project::ProjectAsk`).
+    Project(project::ProjectAsk),
+}
 
-/// redo-binding pass 4: every element whose evaluation is postponed past its statement (`deferred`) (`deferred_visit.rs`).
-pub(super) const DEFERRED_VISIT_REL: &str = "deferred-visit";
-pub(super) const DEFERRED_VISIT_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("visit", Ty::Sym), ("file", Ty::File)];
-
-/// redo-binding pass 4: every postponed read's event once the module has run (`deferred_resolution.rs`).
-pub(super) const DEFERRED_RESOLUTION_REL: &str = "deferred-resolution";
-pub(super) const DEFERRED_RESOLUTION_COLS: [(&str, Ty); 5] =
-    [("reference", Ty::Node), ("occurrence", Ty::Node), ("kind", Ty::Sym), ("point", Ty::Num), ("file", Ty::File)];
-
-/// redo-binding pass 4: the elements evaluation-region places in a deferred type phase, alone (`ColumnFile::type_regions`).
-pub(super) const TYPE_REGION_REL: &str = "type-region";
-pub(super) const TYPE_REGION_COLS: [(&str, Ty); 2] = [("id", Ty::Node), ("file", Ty::File)];
-
-pub(super) const RESOLUTION_REL: &str = "read-resolution";
-pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
-    ("reference", Ty::Node),
-    ("event", Ty::Node),
-    ("kind", Ty::Sym),
-    ("namespace", Ty::Sym),
-    ("scope", Ty::Node),
-    ("depth", Ty::Num),
-    ("ordinal", Ty::Num),
-    ("context", Ty::Sym),
-    ("file", Ty::File),
-];
+/// A declared relation.
+#[derive(Clone)]
+pub(super) struct Declared {
+    names: Names,
+    tys: Tys,
+    supplier: Supplier,
+}
 
 /// 6f probe: a made table's rows as text lines (`label`, path, then `column=value` cells; a node as `id:line`).
 pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &str, out: &mut String) {
@@ -497,9 +567,9 @@ fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
 }
 
 /// 6h: a provider relation's place among the facts read in place (`VEC_NO_FACTVIEW` turns this off): every catalog
-/// relation the provider fills per file; never the file list or the two project relations made here.
+/// relation the provider or the host fills per file; never the run's file list or a relation a step makes.
 fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
-    if sw!("VEC_NO_FACTVIEW") || native_of(rel).is_some() || matches!(rel, "filesystem.file" | "project-namespace-membership" | "module-identity") {
+    if sw!("VEC_NO_FACTVIEW") || native_of(rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles | Supplier::Project(_)) {
         return None;
     }
     let (_, names, _) = run.catalog(rel)?;
@@ -523,7 +593,7 @@ pub(super) struct Tokens {
     pair: Vec<u32>,
     opener: Vec<bool>,
     enc: Vec<u32>,
-    enclosed: FxHashMap<u32, Vec<u32>>,
+    enclosed: FxHashMap<u32, inline_key::List<u32>>,
     order: Vec<u32>,
 }
 
@@ -537,6 +607,8 @@ pub(super) struct File<'a> {
     pub(super) start: Vec<u32>,
     pub(super) end: Vec<u32>,
     pub(super) parent: Vec<u32>,
+    /// redo-fills c4: each element's field code (`node_table::field_of`), read as a column.
+    field: Vec<u16>,
     pub(super) line_starts: Vec<u32>,
     text_memo: RefCell<Vec<u32>>,
     by_start: RefCell<Option<Index>>,
@@ -545,17 +617,13 @@ pub(super) struct File<'a> {
     by_line: [RefCell<Option<Index>>; 2],
     tokens: RefCell<Option<Rc<Tokens>>>,
     memo: Vec<Option<Res>>,
-    /// The nodes made, in order: a probe's override drops what was made under it.
-    log: Vec<usize>,
     vrows: FxHashMap<usize, Rc<Vec<u32>>>,
     vmat: FxHashMap<usize, Rc<Table>>,
-    index: FxHashMap<usize, Vec<(Vec<usize>, Rc<Index>)>>,
+    index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     /// The survivor sets of this file (sorted node ids), by set: the prefix's roots for each seeded rule.
     pub(super) seeds: Vec<Vec<u32>>,
-    /// A probed closure walk's adjacency by (closure, forward): the nodes asked so far and their neighbours.
-    walks: FxHashMap<(usize, bool), FxHashMap<u64, Vec<u64>>>,
     /// 6h: the fills read in place, by `Native::Fact` place, and their keyed lists by (place, column).
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
@@ -566,30 +634,128 @@ pub(super) struct File<'a> {
     /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
     /// next file (no 30 k-entry table made and dropped a file).
     touched: Vec<u32>,
+    /// redo-fills (`VEC_FILL_COUNT`): per fact slot, whether a step read the fill's rows (not only its size).
+    fact_read: Vec<std::cell::Cell<bool>>,
 }
 
 thread_local! {
     static SPARE: RefCell<(Vec<Option<Res>>, Vec<u8>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
+    /// redo-alloc: the last file's buffers and maps, emptied (capacity kept), for the next file.
+    static SPARE_BUFS: RefCell<Option<FileBufs>> = const { RefCell::new(None) };
+}
+
+/// redo-alloc: a file's own buffers and maps, emptied at the file's end and handed to the next file (no per-file make
+/// and free of each; their answers given back to the pools, recycle.rs).
+#[derive(Default)]
+struct FileBufs {
+    kind: Vec<u16>,
+    start: Vec<u32>,
+    end: Vec<u32>,
+    parent: Vec<u32>,
+    line_starts: Vec<u32>,
+    text_memo: Vec<u32>,
+    vrows: FxHashMap<usize, Rc<Vec<u32>>>,
+    vmat: FxHashMap<usize, Rc<Table>>,
+    index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
+    fills: FxHashMap<String, Rc<Table>>,
+    lazies: FxHashMap<usize, Rc<Lazy>>,
+    facts: Vec<Option<Rc<Table>>>,
+    fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
+    kind_bits: Vec<u64>,
+}
+
+/// A map's tables given back (recycle.rs) and the map emptied, its room kept.
+fn give_tables<K>(m: &mut FxHashMap<K, Rc<Table>>) {
+    for (_, t) in m.drain() {
+        recycle::recycle(t);
+    }
 }
 
 impl Drop for File<'_> {
     fn drop(&mut self) {
+        if fill_prof::counting() {
+            for (i, t) in self.facts.iter().enumerate() {
+                if t.is_some() {
+                    fill_prof::fact_filled(i, self.fact_read.get(i).is_some_and(std::cell::Cell::get));
+                }
+            }
+        }
         let mut memo = std::mem::take(&mut self.memo);
         let mut known = std::mem::take(&mut self.known);
         let mut touched = std::mem::take(&mut self.touched);
         for n in touched.drain(..) {
-            memo[n as usize] = None;
+            // redo-alloc: the answer given back for the next (recycle.rs), not freed
+            if let Some(Res::Tab(t)) = memo[n as usize].take() {
+                recycle::recycle(t);
+            }
         }
         // a substitution's restore never leaves an entry `res` did not set (checked where it is cheap)
         debug_assert!(memo.iter().all(Option::is_none));
         known.fill(0);
         SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
+        // redo-alloc: the file's buffers and maps emptied and kept for the next file
+        let mut b = FileBufs {
+            kind: std::mem::take(&mut self.kind),
+            start: std::mem::take(&mut self.start),
+            end: std::mem::take(&mut self.end),
+            parent: std::mem::take(&mut self.parent),
+            line_starts: std::mem::take(&mut self.line_starts),
+            text_memo: std::mem::take(self.text_memo.get_mut()),
+            vrows: std::mem::take(&mut self.vrows),
+            vmat: std::mem::take(&mut self.vmat),
+            index: std::mem::take(&mut self.index),
+            fills: std::mem::take(&mut self.fills),
+            lazies: std::mem::take(&mut self.lazies),
+            facts: std::mem::take(&mut self.facts),
+            fact_ix: std::mem::take(self.fact_ix.get_mut()),
+            kind_bits: std::mem::take(&mut self.kind_bits),
+        };
+        b.kind.clear();
+        b.start.clear();
+        b.end.clear();
+        b.parent.clear();
+        b.line_starts.clear();
+        b.text_memo.clear();
+        for (_, r) in b.vrows.drain() {
+            recycle::recycle_rows(r);
+        }
+        give_tables(&mut b.vmat);
+        // redo-alloc: the indexes given back (their own allocation and buffers kept)
+        for (_, mut v) in b.index.drain() {
+            v.drain_each(|(_, ix)| recycle_index(ix));
+        }
+        give_tables(&mut b.fills);
+        b.lazies.clear();
+        for t in b.facts.drain(..).flatten() {
+            recycle::recycle(t);
+        }
+        b.fact_ix.clear();
+        b.kind_bits.clear();
+        // a map grown far past a usual file is not kept (its room would stay with the worker)
+        if b.vrows.capacity() > 1 << 12 || b.index.capacity() > 1 << 12 || b.fact_ix.capacity() > 1 << 12 {
+            return;
+        }
+        SPARE_BUFS.with(|s| *s.borrow_mut() = Some(b));
     }
+}
+
+/// redo-fills pass 2: what a provider's answer covers: one file of the run, or a project (a set of the run's files) for a
+/// relation whose rows relate files to each other. Cells name files by the run's file number, never "this file".
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Scope<'s> {
+    File(u32),
+    /// redo-general: asked by `project.rs` for the relations the provider answers for a project.
+    Files(&'s [u32]),
 }
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
 pub(super) trait Provider {
-    fn fill(&mut self, run: &mut Run, rel: &str) -> Result<Table, String>;
+    /// Every row of `rel` in `scope`, each cell as the run names it (a file cell is the run's number of the file it names).
+    fn fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Table, String>;
+    /// redo-fills pass 2: how many rows `fill(rel, scope)` answers, where known without making them; None: not known.
+    fn fill_len(&mut self, _run: &mut Run, _rel: &str, _scope: Scope<'_>) -> Option<usize> {
+        None
+    }
     /// A node's text in a syntax role: `Ok(None)` where the role cannot hold it.
     fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String>;
 }
@@ -597,35 +763,43 @@ pub(super) trait Provider {
 impl File<'_> {
     pub(super) fn new<'a>(table: &'a NodeTable, src: &'a [u8], file: u32, nodes: usize) -> File<'a> {
         let n = node_table::element_count(table).0;
+        // redo-alloc: the last file's emptied buffers and maps (none at the first file)
+        let mut b = SPARE_BUFS.with(|s| s.borrow_mut().take()).unwrap_or_default();
+        b.kind.reserve(n);
+        b.start.reserve(n);
+        b.end.reserve(n);
+        b.parent.reserve(n);
+        b.line_starts.push(0);
+        b.text_memo.resize(n, u32::MAX);
         let mut f = File {
             table,
             src,
             file,
             n,
-            kind: Vec::with_capacity(n),
-            start: Vec::with_capacity(n),
-            end: Vec::with_capacity(n),
-            parent: Vec::with_capacity(n),
-            line_starts: vec![0],
-            text_memo: RefCell::new(vec![u32::MAX; n]),
+            kind: b.kind,
+            start: b.start,
+            end: b.end,
+            parent: b.parent,
+            field: Vec::with_capacity(n),
+            line_starts: b.line_starts,
+            text_memo: RefCell::new(b.text_memo),
             by_start: RefCell::new(None),
             by_end: RefCell::new(None),
             by_line: [RefCell::new(None), RefCell::new(None)],
             tokens: RefCell::new(None),
             memo: Vec::new(),
-            log: Vec::new(),
-            vrows: FxHashMap::default(),
-            vmat: FxHashMap::default(),
-            index: FxHashMap::default(),
-            fills: FxHashMap::default(),
-            lazies: FxHashMap::default(),
+            vrows: b.vrows,
+            vmat: b.vmat,
+            index: b.index,
+            fills: b.fills,
+            lazies: b.lazies,
             seeds: Vec::new(),
-            walks: FxHashMap::default(),
-            facts: Vec::new(),
-            fact_ix: RefCell::new(FxHashMap::default()),
+            facts: b.facts,
+            fact_ix: RefCell::new(b.fact_ix),
             known: Vec::new(),
-            kind_bits: Vec::new(),
+            kind_bits: b.kind_bits,
             touched: Vec::new(),
+            fact_read: Vec::new(),
         };
         SPARE.with(|sp| {
             let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
@@ -638,6 +812,7 @@ impl File<'_> {
             f.start.push(s.start.0);
             f.end.push(s.end.0);
             f.parent.push(node_table::parent_of(table, p).0);
+            f.field.push(node_table::field_of(table, p).0);
         }
         let mut i = 0;
         while i < src.len() {
@@ -662,8 +837,8 @@ impl File<'_> {
         let l = self.line_starts.partition_point(|s| *s <= off) - 1;
         i64::from(off - self.line_starts[l])
     }
-    fn is_token(&self, run: &Run, k: u16) -> bool {
-        k >= run.token_first && k <= run.token_last
+    fn has_text(run: &Run, k: u16) -> bool {
+        run.text_kind.get(usize::from(k)).copied().unwrap_or(false)
     }
     fn elem_text(&self, run: &mut Run, p: u32) -> u32 {
         let m = self.text_memo.borrow()[p as usize];
@@ -671,7 +846,7 @@ impl File<'_> {
             return m;
         }
         let k = self.kind[p as usize];
-        let s = if self.is_token(run, k) || k == run.token_error {
+        let s = if Self::has_text(run, k) {
             match node_table::decoded_of(self.table, Position(p)) {
                 Some(t) => run.sym(t.0.as_bytes()),
                 None => run.sym(&self.src[self.start[p as usize] as usize..self.end[p as usize] as usize]),
@@ -691,46 +866,23 @@ impl File<'_> {
         }
         let n = self.n;
         let mut t = Tokens { next: vec![NONE; n], prev: vec![NONE; n], pair: vec![NONE; n], opener: vec![false; n], enc: vec![NONE; n], enclosed: FxHashMap::default(), order: Vec::new() };
-        let start = node_table::node_count(self.table).0 as u32;
-        let end = node_table::own_end(self.table).0;
-        let mut stack: Vec<(u16, u32)> = Vec::new();
-        let mut previous: Option<u32> = None;
-        for at in start..end {
-            let k = self.kind[at as usize];
-            if !(k >= run.token_first && k <= run.token_last) {
-                continue;
-            }
-            if k == run.token_error {
-                previous = None;
-                stack.clear();
-                continue;
-            }
-            t.order.push(at);
-            let mut enclosing = stack.last().map(|o| o.1);
-            if let Some(close) = run.pairs.iter().find(|(o, _)| *o == k).map(|(_, c)| *c) {
-                stack.push((close, at));
-            } else if run.pairs.iter().any(|(_, c)| *c == k) {
-                match stack.pop() {
-                    Some((close, open)) if close == k => {
-                        t.pair[open as usize] = at;
-                        t.pair[at as usize] = open;
-                        t.opener[open as usize] = true;
-                        enclosing = stack.last().map(|o| o.1);
-                    }
-                    _ => {
-                        stack.clear();
-                        enclosing = None;
-                    }
+        if let Some(order) = &run.tokens {
+            order.links(self.table, &mut |e| match e {
+                TokenEvent::Token(at) => t.order.push(at),
+                TokenEvent::Next(p, at) => {
+                    t.next[p as usize] = at;
+                    t.prev[at as usize] = p;
                 }
-            }
-            if let Some(p) = previous.replace(at) {
-                t.next[p as usize] = at;
-                t.prev[at as usize] = p;
-            }
-            if let Some(e) = enclosing {
-                t.enc[at as usize] = e;
-                t.enclosed.entry(e).or_default().push(at);
-            }
+                TokenEvent::Matching(open, at) => {
+                    t.pair[open as usize] = at;
+                    t.pair[at as usize] = open;
+                    t.opener[open as usize] = true;
+                }
+                TokenEvent::Enclosing(at, e) => {
+                    t.enc[at as usize] = e;
+                    t.enclosed.entry(e).or_default().push(at);
+                }
+            });
         }
         let rc = Rc::new(t);
         *self.tokens.borrow_mut() = Some(rc.clone());
@@ -738,6 +890,8 @@ impl File<'_> {
     }
     /// A native relation's cell.
     fn native_get(&self, run: &mut Run, nat: Native, row: u32, col: usize) -> u64 {
+        fill_prof::read(0);
+        fill_prof::read_at(match nat { Native::Tree => 0, Native::Child => 1, Native::Location => 2, Native::Token => 3, Native::Fact(_) => 4 }, col);
         let r = row as usize;
         match (nat, col) {
             (Native::Tree, 0) | (Native::Location, 0) => u64::from(row),
@@ -758,7 +912,12 @@ impl File<'_> {
             (Native::Location, 6) => u64::from(self.end[r]),
             (Native::Location, 7) => self.column(self.start[r]) as u64,
             (Native::Location, 8) => self.column(self.end[r]) as u64,
-            (Native::Fact(i), c) => self.facts[usize::from(i)].as_ref().map_or(NULL, |t| t.cols[c][r]),
+            (Native::Fact(i), c) => {
+                if fill_prof::counting() {
+                    self.mark_read(i);
+                }
+                self.facts[usize::from(i)].as_ref().map_or(NULL, |t| t.cols[c][r])
+            }
             (Native::Token, _) => {
                 let (src, k) = (row / 3, row % 3);
                 match col {
@@ -787,7 +946,26 @@ impl File<'_> {
             _ => t.enc[s] != NONE,
         }
     }
+    /// redo-alloc: `native_rows` into `out` (empty).
+    fn native_rows_into(&self, run: &Run, nat: Native, out: &mut Vec<u32>) {
+        match nat {
+            Native::Tree | Native::Location => out.extend(0..self.n as u32),
+            Native::Child => out.extend((0..self.n as u32).filter(|p| self.has_parent(*p))),
+            Native::Token => {
+                let t = self.toks(run);
+                for &p in &t.order {
+                    for k in 0..3 {
+                        if Self::token_row(&t, p, k) {
+                            out.push(p * 3 + k);
+                        }
+                    }
+                }
+            }
+            Native::Fact(i) => out.extend(0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.n as u32)),
+        }
+    }
     fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
+        fill_prof::read(5);
         match nat {
             Native::Tree | Native::Location => (0..self.n as u32).collect(),
             Native::Child => (0..self.n as u32).filter(|p| self.has_parent(*p)).collect(),
@@ -803,7 +981,17 @@ impl File<'_> {
                 }
                 out
             }
-            Native::Fact(i) => (0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.n as u32)).collect(),
+            Native::Fact(i) => {
+                if fill_prof::counting() {
+                    self.mark_read(i);
+                }
+                (0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.n as u32)).collect()
+            }
+        }
+    }
+    fn mark_read(&self, i: u16) {
+        if let Some(c) = self.fact_read.get(usize::from(i)) {
+            c.set(true);
         }
     }
     /// 6h: a fill's keyed list on one column (made on the first ask in a file).
@@ -828,6 +1016,7 @@ impl File<'_> {
     }
     /// Rows of a native relation whose column holds `v`.
     fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
+        fill_prof::read(4);
         let ok = v < self.n as u64;
         match (nat, col) {
             (Native::Tree, 0) | (Native::Location, 0) => {
@@ -881,6 +1070,9 @@ impl File<'_> {
                 }
             }
             (Native::Fact(i), c) => {
+                if fill_prof::counting() {
+                    self.mark_read(i);
+                }
                 if let Some(rows) = self.fact_list(i, c).get(&v) {
                     out.extend_from_slice(rows);
                 }
@@ -913,28 +1105,10 @@ pub(super) struct Stats {
     pub(super) calls: Vec<u64>,
     pub(super) touched: Vec<u64>,
     pub(super) empty: Vec<u64>,
-    pub(super) probes: Vec<u64>,
     /// redo-union pass 2: runs (whole or by key) answered empty before the bracket (`known`), and the seconds of the
     /// bracketed runs that returned nothing.
     pub(super) known: Vec<u64>,
     pub(super) empty_time: Vec<f64>,
-    /// pass 2: probe runs that returned nothing (bracketed).
-    pub(super) probe_empty: Vec<u64>,
-    /// The step that first asked a node whole in a file (diagnostic).
-    pub(super) made_by: Vec<usize>,
-    /// Why a node was first made whole in a file, where the asking step says (empty: read whole by `made_by`).
-    pub(super) why: Vec<&'static str>,
-    /// 6e item 4: rows copied into the per-key memo, rows copied out of it, keys looked up in it.
-    pub(super) memo_in: u64,
-    pub(super) memo_out: u64,
-    pub(super) memo_keys: u64,
-    /// 7: probes answered by a key list asked before, and their keys.
-    pub(super) memo_reused: u64,
-    pub(super) memo_reused_keys: u64,
-    /// pass 2 (`VEC_STEP_TIME`): seconds of the whole runs answered known empty, from the memo miss to the answer, and
-    /// how many (the clock's own pair cost is taken off in the report).
-    pub(super) known_time: f64,
-    pub(super) known_timed: u64,
     /// pass 2 (`VEC_STEP_TIME`): seconds deciding the per-file static part (`known::static_empty_`, outermost calls).
     pub(super) static_time: f64,
     pub(super) static_depth: u32,
@@ -942,9 +1116,6 @@ pub(super) struct Stats {
     pub(super) static_file_tests: u64,
     pub(super) rec_time: f64,
     pub(super) rec_busy: bool,
-    /// pass 2: keys the per-key memo did not have (run below it), and probes it answered whole.
-    pub(super) memo_missing: u64,
-    pub(super) memo_whole_hits: u64,
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
@@ -1018,6 +1189,15 @@ pub(super) struct ViewSpec {
     base: Native,
     map: Vec<usize>,
     filter: Vec<E>,
+    /// redo-fills c4: `filter` compiled once (when the view is made), read as columns (`view_cols`).
+    tests: Vec<view_cols::Test>,
+}
+
+impl ViewSpec {
+    fn new(base: Native, map: Vec<usize>, filter: Vec<E>) -> Self {
+        let tests = view_cols::compile(&filter);
+        ViewSpec { base, map, filter, tests }
+    }
 }
 
 /// What a node answers in a file.
@@ -1041,8 +1221,6 @@ enum Src {
     View(Rc<ViewSpec>, usize),
     Base(Native),
     Lazy(Rc<Lazy>),
-    /// A step not made yet in this file: probed with the keys a join gives it, or made when it must start the join.
-    Pending(usize),
 }
 
 /// A closure that is never made whole: it answers its sources' reach when probed by either end.
@@ -1055,17 +1233,6 @@ pub(super) struct Lazy {
     tys: Tys,
     cache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
     rcache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
-}
-
-fn ty_name(t: Ty) -> &'static str {
-    match t {
-        Ty::Node => "node",
-        Ty::Sym => "sym",
-        Ty::File => "file",
-        Ty::Span => "span",
-        Ty::Num => "num",
-        Ty::Flag => "flag",
-    }
 }
 
 fn truthy(v: V) -> bool {
@@ -1081,98 +1248,27 @@ pub(super) struct Exec<'p> {
     views: Vec<Option<Option<Rc<ViewSpec>>>>,
     sels: Vec<Option<Rc<SelPlan>>>,
     inner: f64,
-    deps: FxHashMap<(usize, usize), bool>,
-    stack: Vec<usize>,
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
     constant: Vec<Option<bool>>,
     run_memo: Vec<Option<Rc<Table>>>,
     /// redo-union pass 2: per node, what the step bracket reads on every run (`frame`).
     frames: Vec<frame::Frame>,
-    ptargets: Vec<Option<Box<[(u32, u32)]>>>,
     /// each step's `args` in the plan (read once).
     args: Vec<&'p J>,
-    scratch_made: Vec<usize>,
-    scratch_ranges: Vec<(usize, usize)>,
-    scratch_order: Vec<(u64, u32)>,
-    scratch_set: rustc_hash::FxHashSet<u64>,
-    /// The steps that read each node, and whether every one of them reads it only by key (never made whole then).
-    consumers: Vec<Vec<usize>>,
-    keyed_memo: Vec<Option<bool>>,
+    /// The steps that read each node.
+    pub(super) consumers: Vec<Vec<usize>>,
     emitted: rustc_hash::FxHashSet<usize>,
-    /// 6e item 1: whether a step's rows are restricted by a survivor seed (static, through row-wise positions).
-    bound_memo: Vec<Option<bool>>,
-    /// The reason the next whole make is asked for (taken by `res`).
-    reason: &'static str,
-    /// `VEC_STATIC_KEYED`: the 6c static rule decides which steps are read by key (the base of 6e item 1).
-    static_keyed: bool,
-    /// 6e item 1: a probed input put in place for one step's run only (step, input, rows), never in the file's memo, so
-    /// another input that reads the same step (a diamond) still sees all of it.
-    over: Option<(usize, usize, Option<usize>, Rc<Table>)>,
     pub(super) tally: band::Tally,
-    /// 7: the per-key memo, by (step, column) slot; slots used in this file are cleared at the next (buffers kept).
-    pmemo: Vec<MemoSlot>,
-    /// pass 2: the memo slots by node, (column, slot) (no map looked up a probe).
-    pmemo_at: Vec<Vec<(u32, u32)>>,
-    pmemo_dirty: Vec<usize>,
-    stamp: u32,
     /// 8: row-number buffers of the join (tuples a source), reused across executions; the join's key set, reused.
     u32_pool: Vec<Vec<u32>>,
-    key_set: rustc_hash::FxHashSet<u64>,
-    scratch_keys: Vec<u64>,
     /// redo-union pass 2: what each step needs to return anything (`known`), and its shared empty answer.
     needs: Vec<Option<&'static known::Need>>,
     flat: known::Flat,
     empties: Vec<Option<Rc<Table>>>,
-    /// engine-vec 8: per step, the input whose emptiness empties it (resolved once a run).
-    firsts: Vec<Option<Option<usize>>>,
-    /// 10: the memo's counter (`VEC_MEMO_COUNT`)
-    mcount: memo::Count,
-    /// 10: the per-key memo (finish/memo.rs; `VEC_OLD_MEMO=1`: step 7's, above)
-    memo: memo::Memo,
-}
-
-/// 7: a key's rows in a memo slot: one range of the slot's table (`start` PENDING while its batch runs).
-#[derive(Clone, Copy)]
-struct MemoKey {
-    start: u32,
-    len: u32,
-    stamp: u32,
-}
-const PENDING: u32 = u32::MAX;
-
-/// 7: key lists this short are looked up key by key; longer ones are remembered whole.
-const LIST_MIN: usize = 4;
-
-fn hash_keys(keys: &[u64]) -> u64 {
-    let mut h: u64 = keys.len() as u64;
-    for k in keys {
-        h = (h.rotate_left(5) ^ k).wrapping_mul(0x517c_c1b7_2722_0a95);
-    }
-    h
-}
-
-struct MemoSlot {
-    t: Table,
-    ix: FxHashMap<u64, MemoKey>,
-    /// 7: answers by key list (its hash: the list, the answer), this file.
-    lists: FxHashMap<u64, (Vec<u64>, Rc<Table>)>,
-    dirty: bool,
-    /// pass 2: over the run, keys asked and keys missing, probes, key lists answered; `direct` once the memo is seen not
-    /// to answer (after `MEMO_TRIAL` probes, under 3% of keys answered and no list): the slot is probed straight.
-    asked: u64,
-    missed: u64,
-    tried: u32,
-    list_hits: u32,
-    direct: bool,
-}
-
-/// pass 2: probes of a memo slot before it may be found useless.
-const MEMO_TRIAL: u32 = 256;
-
-/// pass 2: the share of keys missed (percent) above which a slot is probed straight (`VEC_MEMO_MISS`, default 97).
-fn memo_miss_pct() -> u64 {
-    static P: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
-    *P.get_or_init(|| std::env::var("VEC_MEMO_MISS").ok().and_then(|x| x.parse().ok()).unwrap_or(97))
+    /// The view rows a keyed read of a view finds (reused).
+    scratch_rows: Vec<u32>,
+    /// `VEC_STEP_TIME`: each step run under the step clock (`timed_body`).
+    timing: bool,
 }
 
 type R<T> = Result<T, String>;
@@ -1209,22 +1305,15 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], probe_empty: vec![0; k], made_by: vec![usize::MAX; k], why: vec![""; k], memo_in: 0, memo_out: 0, memo_keys: 0, memo_reused: 0, memo_reused_keys: 0, known_time: 0.0, known_timed: 0, static_time: 0.0, static_depth: 0, static_visits: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, memo_missing: 0, memo_whole_hits: 0 },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
             inner: 0.0,
-            deps: FxHashMap::default(),
-            stack: Vec::new(),
             constant: vec![None; k],
             run_memo: vec![None; k],
             frames: frame::frames(plan),
-            ptargets: vec![None; k],
             args: plan.nodes.iter().map(|n| &n.j["args"]).collect(),
-            scratch_made: Vec::new(),
-            scratch_ranges: Vec::new(),
-            scratch_order: Vec::new(),
-            scratch_set: rustc_hash::FxHashSet::default(),
             consumers: {
                 let mut c = vec![Vec::new(); k];
                 for (i, n) in plan.nodes.iter().enumerate() {
@@ -1236,161 +1325,37 @@ impl<'p> Exec<'p> {
                 }
                 c
             },
-            keyed_memo: vec![None; k],
             emitted: plan.emits.iter().map(|e| e.1).collect(),
-            bound_memo: vec![None; k],
-            reason: "",
-            static_keyed: sw!("VEC_STATIC_KEYED"),
-            over: None,
             tally: band::Tally::default(),
-            pmemo: Vec::new(),
-            pmemo_at: vec![Vec::new(); k],
-            pmemo_dirty: Vec::new(),
-            stamp: 0,
             u32_pool: Vec::new(),
-            key_set: rustc_hash::FxHashSet::default(),
-            scratch_keys: Vec::new(),
             needs: vec![None; k],
             flat: known::Flat::new(k),
             empties: vec![None; k],
-            firsts: vec![None; k],
-            mcount: memo::Count::new(),
-            memo: memo::Memo::new(),
+            scratch_rows: Vec::new(),
+            timing: sw!("VEC_STEP_TIME"),
         }
     }
 
-    pub(super) fn reset_file(&mut self, _nodes: usize) {
-        if self.mcount.on {
-            self.mcount.file();
-        }
-        self.memo.next_file();
-        for i in std::mem::take(&mut self.pmemo_dirty) {
-            let sl = &mut self.pmemo[i];
-            sl.dirty = false;
-            sl.t.n = 0;
-            sl.t.cols.iter_mut().for_each(Vec::clear);
-            sl.ix.clear();
-            sl.lists.clear();
-        }
-    }
-
-    /// Whether every step that reads `node` reads it only by key: a join that binds one of its columns from another
-    /// source, the right side of an antijoin, or a step that passes rows through and is itself read only by key. Such a
-    /// node is never made whole: it is read as a batch of keys in, rows out.
-    fn keyed(&mut self, run: &mut Run, node: usize) -> bool {
-        if let Some(k) = self.keyed_memo[node] {
-            return k;
-        }
-        self.keyed_memo[node] = Some(false);
-        let plan: &'p Plan = self.plan;
-        let k = !self.emitted.contains(&node)
-            && !plan.nodes[node].op.starts_with("closure")
-            && !self.consumers[node].is_empty()
-            && self.consumers[node].clone().into_iter().all(|c| {
-                let op = plan.nodes[c].op.as_str();
-                let arg = |name: &str| plan.nodes[c].j["args"][name]["rel"].as_u64() == Some(node as u64);
-                match op {
-                    "select" => {
-                        let Ok(sp) = self.sel(run, c) else { return false };
-                        let at: Vec<usize> = (0..sp.srcs.len()).filter(|i| sp.srcs[*i] == node).collect();
-                        if at.len() != 1 {
-                            return false;
-                        }
-                        if sp.srcs.len() == 1 {
-                            return self.keyed(run, c);
-                        }
-                        let me = at[0];
-                        sp.conj.iter().any(|e| match e {
-                            E::Cmp(Op::Eq, x, y) => matches!((&**x, &**y), (E::Col(a, _, _), E::Col(b, _, _)) if (*a == me) != (*b == me)),
-                            _ => false,
-                        })
-                    }
-                    "antijoin" if arg("right") => true,
-                    "antijoin" | "union" | "extend" | "project" | "span-between" | "span-bounds" | "replace" | "capture" | "source-matches" | "fits-rendered" | "render-syntax" => self.keyed(run, c),
-                    "axis" if !arg("relation") && arg("from") => self.keyed(run, c),
-                    "axis" if !arg("relation") && arg("domain") => true,
-                    _ => false,
-                }
-            });
-        self.keyed_memo[node] = Some(k);
-        k
-    }
-
-    /// Whether column `kc` of `node` is the tree's kind of the node in its column `ic` (through picks, equal-id joins,
-    /// unions and steps that pass rows through): then a kind test on it may enter by the kind bucket.
-    fn tree_kind(&mut self, run: &mut Run, node: usize, kc: usize, ic: usize) -> bool {
-        if let Ok(Some(v)) = self.view(run, node) {
-            return v.base == Native::Tree && v.map.get(kc) == Some(&1) && v.map.get(ic) == Some(&0);
-        }
-        let plan: &'p Plan = self.plan;
-        let pn = &plan.nodes[node];
-        let Ok(sc) = self.schema(run, node) else { return false };
-        let (kn, inm) = (sc.names[kc].clone(), sc.names[ic].clone());
-        let through = |me: &mut Self, run: &mut Run, arg: &str| -> bool {
-            let Ok(n) = me.arg_rel(node, arg) else { return false };
-            let Ok(isc) = me.schema(run, n) else { return false };
-            match (isc.names.iter().position(|c| *c == kn), isc.names.iter().position(|c| *c == inm)) {
-                (Some(a), Some(b)) => me.tree_kind(run, n, a, b),
-                _ => false,
-            }
-        };
-        match pn.op.as_str() {
-            "select" => {
-                let Ok(sp) = self.sel(run, node) else { return false };
-                let (E::Col(sk, a, _), E::Col(si, b, _)) = (&sp.items[kc].1, &sp.items[ic].1) else { return false };
-                let (sk, a, si, b) = (*sk, *a, *si, *b);
-                if sk == si {
-                    return self.tree_kind(run, sp.srcs[sk], a, b);
-                }
-                // the id from one source, the kind from another joined to it on the id
-                let joined = sp.conj.iter().find_map(|e| match e {
-                    E::Cmp(Op::Eq, x, y) => match (&**x, &**y) {
-                        (E::Col(s1, c1, _), E::Col(s2, c2, _)) if *s1 == si && *c1 == b && *s2 == sk => Some(*c2),
-                        (E::Col(s2, c2, _), E::Col(s1, c1, _)) if *s1 == si && *c1 == b && *s2 == sk => Some(*c2),
-                        _ => None,
-                    },
-                    _ => None,
-                });
-                joined.is_some_and(|c| self.tree_kind(run, sp.srcs[sk], a, c))
-            }
-            "union" => through(self, run, "left") && through(self, run, "right"),
-            "antijoin" => through(self, run, "left"),
-            "extend" | "span-between" | "span-bounds" | "replace" | "source-matches" | "axis" | "group-min" | "group-max" | "fits-rendered" | "render-syntax" => through(self, run, "from"),
-            _ => false,
-        }
-    }
 
     /// Whether a step's rows are the same in every file: it reads only run-wide relations, through steps that read no file.
-    fn is_constant(&mut self, node: usize) -> bool {
+    fn is_constant(&mut self, run: &Run, node: usize) -> bool {
         if let Some(c) = self.constant[node] {
             return c;
         }
         let pn = &self.plan.nodes[node];
         let c = match pn.op.as_str() {
-            "base" => pn.j["rel"].as_str() == Some("filesystem.file"),
+            // redo-binding c32 (filesystem.file per file) through redo-fills' catalog: it is declared a host relation of the
+            // file (fact_catalog.rs), so only a RunFiles relation is constant, and none is declared now
+            "base" => pn.j["rel"].as_str().is_some_and(|r| matches!(run.supplier(r), Supplier::RunFiles)),
             "rows" => true,
             "select" | "union" | "antijoin" | "extend" | "project" | "group-count" | "group-min" | "group-max" | "capture" | "replace" => {
                 let ins = pn.inputs.clone();
-                !ins.is_empty() && ins.iter().all(|i| self.is_constant(*i))
+                !ins.is_empty() && ins.iter().all(|i| self.is_constant(run, *i))
             }
             _ => false,
         };
         self.constant[node] = Some(c);
         c
-    }
-
-    /// Whether `node` reads `input`, directly or through other steps.
-    fn depends(&mut self, node: usize, input: usize) -> bool {
-        if node == input {
-            return true;
-        }
-        if let Some(d) = self.deps.get(&(node, input)) {
-            return *d;
-        }
-        let ins = self.plan.nodes[node].inputs.clone();
-        let d = ins.iter().any(|i| self.depends(*i, input));
-        self.deps.insert((node, input), d);
-        d
     }
 
     fn arg_rel(&self, node: usize, name: &str) -> R<usize> {
@@ -1420,8 +1385,6 @@ impl<'p> Exec<'p> {
                 let rel = s(&j["rel"])?;
                 if let Some(nat) = native_of(rel) {
                     mk(native_cols(nat).iter().map(|c| c.0.to_owned()).collect(), native_cols(nat).iter().map(|c| c.1).collect())
-                } else if rel == "filesystem.file" {
-                    mk(vec!["path".into()], vec![Ty::File])
                 } else {
                     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
                     Rc::new(Schema { names, tys })
@@ -1522,6 +1485,14 @@ impl<'p> Exec<'p> {
                         tys.push(Ty::Num);
                     }
                 }
+                // redo-binding pass 6: `capture-texts={group: column, ...}`, the text of each named group ("" when it did
+                // not take part), so one scan answers several spellings of a span
+                if let Some(ct) = a.get("capture-texts").and_then(J::as_object) {
+                    for v in ct.values() {
+                        names.push(s(v)?.to_owned());
+                        tys.push(Ty::Sym);
+                    }
+                }
                 mk(names, tys)
             }
             "capture" => {
@@ -1570,6 +1541,13 @@ impl<'p> Exec<'p> {
             "ordered-dfs" => {
                 let (f, e) = (from(self, run, "from")?, from(self, run, "edges")?);
                 let (names, tys) = ordered_dfs::schema(a, (&f.names, &f.tys), (&e.names, &e.tys))?;
+                mk(names, tys)
+            }
+            "order" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
+                names.extend([s(&a["rank"])?.to_owned(), s(&a["step"])?.to_owned()]);
+                tys.extend([Ty::Num, Ty::Num]);
                 mk(names, tys)
             }
             other => return Err(format!("operator {other} not in the step set")),
@@ -1655,7 +1633,7 @@ impl<'p> Exec<'p> {
         // a test of two file columns always holds: every relation here is the file's
         // redo-honest: except a source whose rows are the run's (`is_constant`: `filesystem.file` and what reads only it),
         // whose file column names any file of the run
-        let wide: Vec<bool> = srcs.iter().map(|n| self.is_constant(*n)).collect();
+        let wide: Vec<bool> = srcs.iter().map(|n| self.is_constant(run, *n)).collect();
         conj.retain(|c| !matches!(c, E::Cmp(Op::Eq, a, b) if matches!(**a, E::Col(sa, _, Ty::File) if !wide[sa]) && matches!(**b, E::Col(sb, _, Ty::File) if !wide[sb])));
         let refs = conj.iter().map(refs_of).collect();
         let items: Vec<(String, E)> = match &j["items"] {
@@ -1695,10 +1673,10 @@ impl<'p> Exec<'p> {
             "base" => {
                 let rel = pn.j["rel"].as_str().unwrap_or("").to_owned();
                 match native_of(&rel) {
-                    Some(nat) => Some(Rc::new(ViewSpec { base: nat, map: (0..native_cols(nat).len()).collect(), filter: Vec::new() })),
+                    Some(nat) => Some(Rc::new(ViewSpec::new(nat, (0..native_cols(nat).len()).collect(), Vec::new()))),
                     None => fact_of(run, &rel).map(|nat| {
                         let Native::Fact(i) = nat else { unreachable!() };
-                        Rc::new(ViewSpec { base: nat, map: (0..run.fact_rels[usize::from(i)].1).collect(), filter: Vec::new() })
+                        Rc::new(ViewSpec::new(nat, (0..run.fact_rels[usize::from(i)].1).collect(), Vec::new()))
                     }),
                 }
             }
@@ -1713,7 +1691,7 @@ impl<'p> Exec<'p> {
                             let map = sp.items.iter().map(|(_, e)| if let E::Col(_, c, _) = e { iv.map[*c] } else { 0 }).collect();
                             let mut filter = iv.filter.clone();
                             filter.extend(sp.conj.iter().map(|e| remap(e, &iv.map)));
-                            Some(Rc::new(ViewSpec { base: iv.base, map, filter }))
+                            Some(Rc::new(ViewSpec::new(iv.base, map, filter)))
                         } else {
                             None
                         }
@@ -1729,747 +1707,173 @@ impl<'p> Exec<'p> {
 
     // -------------------------------------------------------------------------------------------- per file
 
-    /// A node's answer in this file, made once; an input is asked only when the step needs it.
+    /// A node's answer in this file: its slot, else made once (`make`).
+    #[inline]
     pub(super) fn res(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
-        let why = std::mem::take(&mut self.reason);
-        if let Some(r) = &f.memo[node] {
-            return Ok(r.clone());
+        match &f.memo[node] {
+            Some(Res::Tab(t)) => Ok(Res::Tab(t.clone())),
+            Some(Res::View(v)) => {
+                // redo-fills pass 2: a view a lazy select source left unfilled is filled at its first read (lazy_view.rs)
+                if let Native::Fact(x) = v.base
+                    && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
+                {
+                    let v = v.clone();
+                    let was = fill_prof::site("view");
+                    self.load_fact(f, run, p, v.base)?;
+                    fill_prof::site(was);
+                    return Ok(Res::View(v));
+                }
+                Ok(Res::View(v.clone()))
+            }
+            None => self.make(f, run, p, node),
         }
-        let tk = step_clock();
+    }
+
+    /// A node made in this file and put in its slot (listed in `touched`, cleared at the file's end).
+    #[inline(never)]
+    fn make(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+        let r = self.make_(f, run, p, node)?;
+        f.touched.push(node as u32);
+        f.memo[node] = Some(r.clone());
+        Ok(r)
+    }
+
+    #[inline]
+    fn make_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         if let Some(v) = self.view(run, node)? {
+            let was = fill_prof::site("view");
             self.load_fact(f, run, p, v.base)?;
-            let r = Res::View(v);
-            f.touched.push(node as u32);
-            f.memo[node] = Some(r.clone());
-            return Ok(r);
+            fill_prof::site(was);
+            return Ok(Res::View(v));
         }
         if let Some(t) = &self.run_memo[node] {
-            let r = Res::Tab(t.clone());
-            f.touched.push(node as u32);
-            f.memo[node] = Some(r.clone());
-            return Ok(r);
+            return Ok(Res::Tab(t.clone()));
         }
-        let decided = f.known[node] != 0;
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
+        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
-            let r = Res::Tab(self.empty_rc(run, node)?);
-            f.touched.push(node as u32);
-            f.memo[node] = Some(r.clone());
-            f.log.push(node);
-            if sw!("VEC_STEP_TIME") && decided {
-                self.stats.known_time += step_clock() - tk;
-                self.stats.known_timed += 1;
+            emptyprop::skipped(f, node);
+            return Ok(Res::Tab(self.empty_rc(run, node)?));
+        }
+        // 8: a step over an empty input answers its shared empty table before any set-up
+        let gate = self.frames[node].gate;
+        if gate < frame::MISSING && self.eval(f, run, p, gate as usize)?.n == 0 {
+            self.stats.calls[node] += 1;
+            self.stats.empty[node] += 1;
+            let e = self.empty_rc(run, node)?;
+            if self.is_constant(run, node) {
+                self.run_memo[node] = Some(e.clone());
             }
-            return Ok(r);
+            return Ok(Res::Tab(e));
         }
-        // 8: an execution over an empty input answers the step's shared empty table before any set-up
-        if let Some(inp) = self.first_input(node)? {
-            let t = self.eval(f, run, p, inp)?;
-            if t.n == 0 {
-                if self.stats.made_by[node] == usize::MAX {
-                    self.stats.made_by[node] = self.stack.last().copied().unwrap_or(usize::MAX - 1);
-                    self.stats.why[node] = why;
-                }
-                self.stats.calls[node] += 1;
-                self.stats.empty[node] += 1;
-                let e = self.empty_rc(run, node)?;
-                if self.is_constant(node) {
-                    self.run_memo[node] = Some(e.clone());
-                }
-                let rc = Res::Tab(e);
-                // redo-int: union pass 2 c14 clears at the file's end only the memo entries listed in `touched`
-                f.touched.push(node as u32);
-                f.memo[node] = Some(rc.clone());
-                f.log.push(node);
-                return Ok(rc);
-            }
-        }
-        let ew = if sw!("VEC_EMPTY_WHY") { Some(empty_why::class(self, f, run, node)) } else { None };
-        let t0 = step_clock();
-        let saved = self.inner;
-        self.inner = 0.0;
-        if self.stats.made_by[node] == usize::MAX {
-            self.stats.made_by[node] = self.stack.last().copied().unwrap_or(usize::MAX - 1);
-            self.stats.why[node] = why;
-        }
-        self.stack.push(node);
-        let out = self.body(f, run, p, node);
-        self.stack.pop();
-        let dt = step_clock() - t0;
-        let own = dt - self.inner;
-        self.stats.time[node] += own;
-        self.inner = saved + dt;
-        let out = out?;
-        if out.n == 0 {
-            self.stats.empty_time[node] += own;
-        }
-        if let Some(c) = ew {
-            empty_why::tally(self, f, node, c, out.n == 0);
-        }
+        let out = if self.timing { self.timed_body(f, run, p, node)? } else { self.body(f, run, p, node)? };
+        emptyprop::ran();
         self.stats.calls[node] += 1;
         self.stats.rows[node] += out.n as u64;
         if out.n == 0 {
             self.stats.empty[node] += 1;
         }
-        let t = out;
-        if self.is_constant(node) {
-            self.run_memo[node] = Some(t.clone());
+        if self.is_constant(run, node) {
+            self.run_memo[node] = Some(out.clone());
         }
-        let rc = Res::Tab(t);
-        f.touched.push(node as u32);
-        f.memo[node] = Some(rc.clone());
-        f.log.push(node);
-        Ok(rc)
+        Ok(Res::Tab(out))
     }
 
-    /// The rows of a node whose column `col` holds one of `keys`, without making the node whole where its inputs can be
-    /// probed in turn (sideways key passing through the steps a query defines). What is made under a probe is dropped.
-    fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
-        if keys.is_empty() {
-            return self.empty_rc(run, node);
-        }
-        let sc = self.schema(run, node)?;
-        if let Some(o) = self.overridden(node) {
-            return Ok(Rc::new(drive::subset_of(&o, col, keys)));
-        }
-        if let Some(Res::Tab(t)) = &f.memo[node] {
-            let t = t.clone();
-            self.memo.n[8] += 1;
-            self.memo.n[9] += keys.len() as u64;
-            if t.n == 0 {
-                return Ok(t);
-            }
-            return Ok(Rc::new(subset(f, node, &t, col, keys)));
-        }
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
-            self.stats.known[node] += 1;
-            return self.empty_rc(run, node);
-        }
-        if let Some(v) = self.view(run, node)? {
-            self.memo.n[10] += 1;
-            self.memo.n[11] += keys.len() as u64;
-            self.load_fact(f, run, p, v.base)?;
-            if File::probes(v.base, v.map[col]) {
-                // 10: the row buffer reused across asks
-                let mut rows = std::mem::take(&mut self.memo.vrows);
-                rows.clear();
-                for k in keys {
-                    f.native_probe(run, v.base, v.map[col], *k, &mut rows);
-                }
-                rows.retain(|r| view_holds(f, run, &v, *r));
-                if rows.is_empty() {
-                    self.memo.vrows = rows;
-                    return self.empty_rc(run, node);
-                }
-                let mut out = Table::with(sc.names.clone(), sc.tys.clone());
-                for c in 0..v.map.len() {
-                    out.cols[c].extend(rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])));
-                }
-                out.n = rows.len();
-                self.stats.touched[node] += rows.len() as u64;
-                self.memo.vrows = rows;
-                return Ok(Rc::new(out));
-            }
-            self.reason = "view probed on a column it has no keyed read for";
-            let t = self.eval(f, run, p, node)?;
-            return Ok(Rc::new(subset(f, node, &t, col, keys)));
-        }
-        // the per-key memo (P1): a (step, column, key) is computed once a file, whichever consumer asks. 7: each key's rows
-        // are one contiguous range of the slot's table (no list a key); a key asked is marked pending at once, so the
-        // missing keys come out distinct without a set; a stamp a call dedupes the keys answered.
-        let pm = !sw!("VEC_NO_PMEMO");
-        if pm && !sw!("VEC_OLD_MEMO") {
-            return self.probe_memo(f, run, p, node, col, keys, &sc);
-        }
-        let mt0 = self.memo.tick();
-        let mut missing: Vec<u64> = std::mem::take(&mut self.scratch_keys);
-        missing.clear();
-        let mut list_hash = 0u64;
-        let slot = if pm {
-            let slot = self.memo_slot(node, col, &sc);
-            if self.pmemo[slot].direct {
-                self.scratch_keys = missing;
-                return self.probe_direct(f, run, p, node, col, keys, &sc);
-            }
-            // 7: a key list asked before of this slot is answered by the table made for it then (by reference, no copy)
-            if keys.len() >= LIST_MIN {
-                list_hash = hash_keys(keys);
-                if let Some((ks, t)) = self.pmemo[slot].lists.get(&list_hash)
-                    && ks[..] == keys[..]
-                {
-                    let t = t.clone();
-                    self.pmemo[slot].list_hits += 1;
-                    // a key list answered: all its keys answered
-                    self.pmemo[slot].asked += keys.len() as u64;
-                    self.stats.memo_reused += 1;
-                    self.stats.memo_reused_keys += keys.len() as u64;
-                    if self.mcount.on {
-                        self.mcount.ask(&self.plan.nodes[node].op, ty_name(sc.tys[col]), node, col, f.n, keys, true, 0, t.n, 0, 0);
-                    }
-                    self.scratch_keys = missing;
-                    self.memo.tock(0, mt0);
-                    return Ok(t);
-                }
-            }
-            self.stats.memo_keys += keys.len() as u64;
-            let ix = &mut self.pmemo[slot].ix;
-            for k in keys {
-                if let std::collections::hash_map::Entry::Vacant(v) = ix.entry(*k) {
-                    v.insert(MemoKey { start: PENDING, len: 0, stamp: 0 });
-                    missing.push(*k);
-                }
-            }
-            self.stats.memo_missing += missing.len() as u64;
-            {
-                let sl = &mut self.pmemo[slot];
-                sl.asked += keys.len() as u64;
-                sl.missed += missing.len() as u64;
-                sl.tried += 1;
-                if (sl.tried >= MEMO_TRIAL || sl.asked >= 1 << 16) && (sl.list_hits == 0 || !sw!("VEC_MEMO_LISTS_KEEP")) && sl.missed * 100 >= sl.asked * memo_miss_pct() && !sw!("VEC_MEMO_ALWAYS") {
-                    sl.direct = true;
-                }
-            }
-            if missing.is_empty() {
-                self.stats.memo_whole_hits += 1;
-                self.scratch_keys = missing;
-                let t = self.memo_rows(node, slot, keys);
-                self.stats.memo_out += t.n as u64;
-                if self.mcount.on {
-                    let ix = &self.pmemo[slot].ix;
-                    let empty = keys.iter().filter(|k| ix.get(k).is_none_or(|e| e.len == 0)).count() as u64;
-                    self.mcount.ask(&self.plan.nodes[node].op, ty_name(sc.tys[col]), node, col, f.n, keys, false, 0, t.n, empty, 0);
-                }
-                if keys.len() >= LIST_MIN {
-                    self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
-                }
-                self.memo.tock(0, mt0);
-                return Ok(t);
-            }
-            Some(slot)
-        } else {
-            missing.extend_from_slice(keys);
-            None
-        };
-        self.memo.tock(0, mt0);
-        let out = self.probe_run(f, run, p, node, col, &missing, &sc);
-        let mt1 = self.memo.tick();
-        let out = match out {
-            Ok(o) => o,
-            Err(e) => {
-                if let Some(slot) = slot {
-                    for k in &missing {
-                        self.pmemo[slot].ix.remove(k);
-                    }
-                }
-                self.scratch_keys = missing;
-                return Err(e);
-            }
-        };
-        let Some(slot) = slot else {
-            self.scratch_keys = missing;
-            return Ok(out);
-        };
-        for k in &missing {
-            if let Some(e) = self.pmemo[slot].ix.get_mut(k) {
-                e.start = 0;
-            }
-        }
-        let mut unasked = 0u64;
-        // the batch's rows by key (in row order within a key), each key's run appended as one range
-        let mut order = std::mem::take(&mut self.scratch_order);
-        order.clear();
-        order.extend((0..out.n as u32).map(|r| (out.cols[col][r as usize], r)));
-        order.sort_unstable();
-        let sl = &mut self.pmemo[slot];
-        let mut i = 0;
-        while i < order.len() {
-            let k = order[i].0;
-            let mut j = i;
-            while j < order.len() && order[j].0 == k {
-                j += 1;
-            }
-            let start = sl.t.n as u32;
-            if !sl.ix.contains_key(&k) {
-                unasked += 1;
-            }
-            let e = sl.ix.entry(k).or_insert(MemoKey { start, len: 0, stamp: 0 });
-            if e.len > 0 {
-                unasked += 1;
-                sl.lists.clear();
-                // rows for a key answered before (a step that returned rows not asked): its old range moves to the end first
-                let (os, ol) = (e.start as usize, e.len as usize);
-                for c in 0..sl.t.cols.len() {
-                    let col_c = &mut sl.t.cols[c];
-                    col_c.extend_from_within(os..os + ol);
-                }
-                sl.t.n += ol;
-            }
-            let e = sl.ix.get_mut(&k).expect("the key just filed");
-            let ol = e.len;
-            e.start = start;
-            e.len = ol + (j - i) as u32;
-            for c in 0..sl.t.cols.len() {
-                let (dst, src) = (&mut sl.t.cols[c], &out.cols[c]);
-                dst.extend(order[i..j].iter().map(|x| src[x.1 as usize]));
-            }
-            sl.t.n += j - i;
-            i = j;
-        }
-        self.scratch_order = order;
-        self.stats.memo_in += out.n as u64;
-        let t = self.memo_rows(node, slot, keys);
-        self.stats.memo_out += t.n as u64;
-        if self.mcount.on {
-            let ix = &self.pmemo[slot].ix;
-            let empty = keys.iter().filter(|k| ix.get(k).is_none_or(|e| e.len == 0)).count() as u64;
-            self.mcount.ask(&self.plan.nodes[node].op, ty_name(sc.tys[col]), node, col, f.n, keys, false, missing.len(), t.n, empty, unasked);
-        }
-        if keys.len() >= LIST_MIN {
-            self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
-        }
-        self.scratch_keys = missing;
-        self.memo.tock(1, mt1);
-        Ok(t)
-    }
-
-    /// pass 2 (`VEC_MEMO_DUMP`): the memo slots by keys missed: (node, column, probes, asked, missed, list hits, direct).
-    pub(super) fn memo_dump(&self) -> Vec<String> {
-        let mut v: Vec<(u64, String)> = Vec::new();
-        for (node, cs) in self.pmemo_at.iter().enumerate() {
-            for (col, sl) in cs {
-                let m = &self.pmemo[*sl as usize];
-                v.push((m.missed, format!("MEMO\t{node}\t{}\t{col}\t{}\t{}\t{}\t{}\t{}", self.plan.nodes[node].op, m.tried, m.asked, m.missed, m.list_hits, m.direct)));
-            }
-        }
-        v.sort_by(|a, b| b.0.cmp(&a.0));
-        v.into_iter().take(25).map(|x| x.1).collect()
-    }
-
-    /// pass 2: a probe run counted: its rows, and when it returned nothing, its own seconds (timing on).
-    #[inline]
-    pub(super) fn count_probe(&mut self, node: usize, own: f64, n: usize) {
-        self.stats.probes[node] += 1;
-        self.stats.rows[node] += n as u64;
-        if n == 0 {
-            self.stats.probe_empty[node] += 1;
-            self.stats.empty_time[node] += own;
-        }
-    }
-
-    /// pass 2: a probe of a slot whose memo does not answer: the step's body by the distinct keys, timed as its probe,
-    /// and its rows of keys asked only (what the memo would hand on; no filing).
-    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    fn probe_direct(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], sc: &Schema) -> R<Rc<Table>> {
-        let mut ks = kernel_input::take_keys();
-        let mut set = std::mem::take(&mut self.scratch_set);
-        set.clear();
-        let small = keys.len() <= 16;
-        if small {
-            for k in keys {
-                if !ks.contains(k) {
-                    ks.push(*k);
-                }
-            }
-        } else {
-            if set.capacity() > 8 * keys.len() && set.capacity() > 4096 {
-                set = rustc_hash::FxHashSet::default();
-            }
-            ks.extend(keys.iter().copied().filter(|k| set.insert(*k)));
-        }
+    /// `body` under the step clock (`VEC_STEP_TIME`): the step's own seconds (its inputs' taken off), and the empty
+    /// runs' classes (`VEC_EMPTY_WHY`).
+    #[inline(never)]
+    fn timed_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+        let ew = if sw!("VEC_EMPTY_WHY") { Some(empty_why::class(self, f, run, node)) } else { None };
         let t0 = step_clock();
         let saved = self.inner;
         self.inner = 0.0;
-        self.stack.push(node);
-        let out = self.probe_body(f, run, p, node, col, &ks, sc);
-        self.stack.pop();
-        let dt = step_clock() - t0;
-        let own = dt - self.inner;
-        self.stats.time[node] += own;
-        self.inner = saved + dt;
-        let out = match out {
-            Ok(o) => o,
-            Err(e) => {
-                kernel_input::give_keys(ks);
-                self.scratch_set = set;
-                return Err(e);
-            }
-        };
-        self.count_probe(node, own, out.n);
-        let asked = |k: &u64| if small { ks.contains(k) } else { set.contains(k) };
-        let out = if out.cols[col].iter().all(asked) {
-            out
-        } else {
-            let keep: Vec<usize> = (0..out.n).filter(|r| asked(&out.cols[col][*r])).collect();
-            if keep.is_empty() {
-                self.empty_rc(run, node)?
-            } else {
-                let cols = out.cols.iter().map(|c| keep.iter().map(|r| c[*r]).collect()).collect();
-                Rc::new(Table { names: out.names.clone(), tys: out.tys.clone(), cols, n: keep.len() })
-            }
-        };
-        kernel_input::give_keys(ks);
-        self.scratch_set = set;
-        Ok(out)
-    }
-
-    /// engine-vec 10: a probed step run for keys not in its memo (the step clock's bracket and the probe's stats), used by
-    /// both memos; redo-union pass 2: its own seconds and empty runs counted by `count_probe`.
-    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    fn probe_run(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, missing: &[u64], sc: &Schema) -> R<Rc<Table>> {
-        let t0 = step_clock();
-        let saved = self.inner;
-        self.inner = 0.0;
-        self.stack.push(node);
-        let out = self.probe_body(f, run, p, node, col, missing, sc);
-        self.stack.pop();
+        let out = self.body(f, run, p, node);
         let dt = step_clock() - t0;
         let own = dt - self.inner;
         self.stats.time[node] += own;
         self.inner = saved + dt;
         let out = out?;
-        static TRACE: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
-        if *TRACE.get_or_init(|| std::env::var("VEC_TRACE_PROBE").ok().and_then(|x| x.parse::<usize>().ok())) == Some(node) {
-            eprintln!("probe {node} col {col} keys {} rows {} stack {:?}", missing.len(), out.n, &self.stack[self.stack.len().saturating_sub(6)..]);
+        if out.n == 0 {
+            self.stats.empty_time[node] += own;
+            emptyprop::empty_run(node, false, own);
         }
-        self.count_probe(node, own, out.n);
+        if let Some(c) = ew {
+            empty_why::tally(self, f, node, c, out.n == 0);
+        }
         Ok(out)
     }
 
-    /// 7: the memo slot of a (step, column) for this file (its buffers kept across files).
-    fn memo_slot(&mut self, node: usize, col: usize, sc: &Schema) -> usize {
-        if let Some(&(_, i)) = self.pmemo_at[node].iter().find(|x| x.0 as usize == col) {
-            let i = i as usize;
-            if !self.pmemo[i].dirty {
-                self.pmemo[i].dirty = true;
-                self.pmemo_dirty.push(i);
-            }
-            return i;
+    /// The rows of `node` whose column `col` holds one of `keys`. Every step is made whole once a file (`res`); this
+    /// reads that table through its index on `col` (made once a file). A view is read in place where its base has a
+    /// keyed read for the column; a closure is read through its adjacency (`lazy`), not made whole.
+    fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
+        if keys.is_empty() {
+            return self.empty_rc(run, node);
         }
-        let i = self.pmemo.len();
-        self.pmemo.push(MemoSlot { t: Table::with(sc.names.clone(), sc.tys.clone()), ix: FxHashMap::default(), lists: FxHashMap::default(), dirty: true, asked: 0, missed: 0, tried: 0, list_hits: 0, direct: false });
-        self.pmemo_at[node].push((col as u32, i as u32));
-        self.pmemo_dirty.push(i);
-        i
-    }
-
-    /// 7: the memoised rows of a probed step for these keys, in key order (each key once).
-    fn memo_rows(&mut self, node: usize, slot: usize, keys: &[u64]) -> Rc<Table> {
-        self.stamp = self.stamp.wrapping_add(1);
-        let st = self.stamp;
-        let mut ranges = std::mem::take(&mut self.scratch_ranges);
-        ranges.clear();
-        let sl = &mut self.pmemo[slot];
-        let mut total = 0;
-        for k in keys {
-            if let Some(e) = sl.ix.get_mut(k)
-                && e.stamp != st
-            {
-                e.stamp = st;
-                if e.len > 0 {
-                    ranges.push((e.start as usize, e.len as usize));
-                    total += e.len as usize;
-                }
-            }
-        }
-        if total == 0 {
-            self.scratch_ranges = ranges;
-            // pass 2: no rows: the step's shared empty answer
-            if let Some(t) = &self.empties[node] {
-                return t.clone();
-            }
-            let t = Rc::new(Table::with(sl.t.names.clone(), sl.t.tys.clone()));
-            self.empties[node] = Some(t.clone());
-            return t;
-        }
-        let mut out = Table::with(sl.t.names.clone(), sl.t.tys.clone());
-        for (c, col) in sl.t.cols.iter().enumerate() {
-            let mut v = Vec::with_capacity(total);
-            for (a, l) in &ranges {
-                v.extend_from_slice(&col[*a..*a + *l]);
-            }
-            out.cols[c] = v;
-        }
-        out.n = total;
-        self.scratch_ranges = ranges;
-        Rc::new(out)
-    }
-
-    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    fn probe_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], sc: &Schema) -> R<Rc<Table>> {
-        // pass 2: the target resolved once a run by (step, column); the substitution with reused buffers
-        if self.static_keyed && !sw!("VEC_PTARGET_OFF") {
-            let (input, icol) = self.ptarget(run, node, col)?;
-            match input {
-                frame::GENERAL => {}
-                frame::WHOLE_CARRIED | frame::WHOLE_UNCARRIED => {
-                    if self.frames[node].semi {
-                        let _ = self.semi_drives_whole(f, run, p, node, keys.len())?;
-                    }
-                    self.reason = if input == frame::WHOLE_CARRIED { "probed on a column its input shares with another input" } else { "probed on a column no input carries" };
-                    let t = self.eval(f, run, p, node)?;
-                    return Ok(Rc::new(subset(f, node, &t, col, keys)));
-                }
-                _ => {
-                    if self.frames[node].semi && self.semi_drives_whole(f, run, p, node, keys.len())? {
-                        self.reason = "probed on a column no input carries";
-                        let t = self.eval(f, run, p, node)?;
-                        return Ok(Rc::new(subset(f, node, &t, col, keys)));
-                    }
-                    return self.substituted(f, run, p, node, input as usize, icol as usize, keys);
-                }
-            }
-        }
-        let plan: &'p Plan = self.plan;
-        let op: &'p String = &plan.nodes[node].op;
-        let a = &plan.nodes[node].j["args"];
-        let name: &String = &sc.names[col];
-        // the input a unary step reads, when the probed column is one of its input's
-        let unary = |me: &mut Self, run: &mut Run, arg: &str| -> R<Option<(usize, usize)>> {
-            let n = me.arg_rel(node, arg)?;
-            let isc = me.schema(run, n)?;
-            Ok(isc.names.iter().position(|c| c == name).map(|c| (n, c)))
-        };
-        // 9: a select's keyed entry (select_kernel.rs), where the static rule passes the column on
-        if op == "select"
-            && self.static_keyed
-            && let Some(t) = self.ksel_probe(f, run, p, node, col, keys)?
+        if let Some(v) = self.view(run, node)?
+            && File::probes(v.base, v.map[col])
         {
+            if let Res::Tab(t) = self.res(f, run, p, node)? {
+                // known empty in this file
+                return Ok(t);
+            }
+            let sc = self.schema(run, node)?;
+            let mut rows = std::mem::take(&mut self.scratch_rows);
+            rows.clear();
+            for k in keys {
+                f.native_probe(run, v.base, v.map[col], *k, &mut rows);
+            }
+            if !v.filter.is_empty() {
+                view_cols::retain(f, run, &v, &mut rows);
+            }
+            if rows.is_empty() {
+                self.scratch_rows = rows;
+                return self.empty_rc(run, node);
+            }
+            let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
+            for c in 0..v.map.len() {
+                view_cols::gather(f, run, v.base, v.map[c], &rows, &mut out.cols[c]);
+            }
+            out.n = rows.len();
+            self.stats.touched[node] += rows.len() as u64;
+            self.scratch_rows = rows;
+            return Ok(recycle::rc(out));
+        }
+        if self.frames[node].op == frame::Op::Closure
+            && let Some(t) = self.closure_at(f, run, p, node, col, keys)?
+        {
+            return Ok(recycle::rc(t));
+        }
+        let t = self.eval(f, run, p, node)?;
+        if t.n == 0 {
             return Ok(t);
         }
-        if op == "closure"
-            && !f.lazies.contains_key(&node)
-            && !sw!("VEC_NO_WALK")
-            && let Some(t) = self.walk_probed(f, run, p, node, col, keys, sc)?
-        {
-            return Ok(Rc::new(t));
-        }
-        let target = match op.as_str() {
-            "select" if self.semi_drives_whole(f, run, p, node, keys.len())? => None,
-            "select" => {
-                let sp = self.sel(run, node)?;
-                match &sp.items[col].1 {
-                    E::Col(si, c, _) if sp.srcs.iter().filter(|x| **x == sp.srcs[*si]).count() == 1 => Some((sp.srcs[*si], *c)),
-                    _ => None,
-                }
-            }
-            "union" if !sw!("VEC_OLD_UNION") => return union_kernel::probe(self, f, run, p, node, col, keys),
-            "antijoin" if self.static_keyed && !sw!("VEC_OLD_ANTIJOIN") => return antijoin_kernel::probe(self, f, run, p, node, col, keys),
-            "union" => {
-                let (ln, rn) = (self.arg_rel(node, "left")?, self.arg_rel(node, "right")?);
-                let rsc = self.schema(run, rn)?;
-                let rc = pos(&rsc.names, &name)?;
-                let l = self.probe(f, run, p, ln, col, keys)?;
-                let r = self.probe(f, run, p, rn, rc, keys)?;
-                let mut out = (*l).clone();
-                for (c, nm) in l.names.iter().enumerate() {
-                    out.cols[c].extend_from_slice(&r.cols[pos(&r.names, nm)?]);
-                }
-                out.n += r.n;
-                return Ok(Rc::new(distinct(out)));
-            }
-            "antijoin" => unary(self, run, "left")?,
-            "as-of" | "ordered-match" if !self.static_keyed => {
-                // as-of is row-wise on its left; ordered-match pairs within a key group, so only a left key carries
-                let m = &a["output"][name.as_str()];
-                match (m[0].as_str(), m[1].as_str()) {
-                    (Some("left"), Some(lc)) if op == "as-of" || strs(&a["left-on"])?.iter().any(|k| k == lc) => {
-                        let ln = self.arg_rel(node, "left")?;
-                        let lsc = self.schema(run, ln)?;
-                        Some((ln, pos(&lsc.names, lc)?))
-                    }
-                    _ => None,
-                }
-            }
-            "extend" | "project" | "span-between" | "span-bounds" | "source-matches" | "replace" | "capture" => unary(self, run, "from")?,
-            "axis" => {
-                if name == "related" {
-                    if let Some(t) = self.axis_related(f, run, p, node, keys)? {
-                        return Ok(Rc::new(t));
-                    }
-                    None
-                } else {
-                    let fnode = self.arg_rel(node, "from")?;
-                    let fsc = self.schema(run, fnode)?;
-                    let icol = pos(&fsc.names, &name)?;
-                    let sub = self.probe(f, run, p, fnode, icol, keys)?;
-                    return Ok(Rc::new(self.axis_over(f, run, p, node, &a, &sub)?));
-                }
-            }
-            "group-count" | "group-min" | "group-max" => {
-                let ks = strs(&a["keys"])?;
-                if ks.contains(&name) { unary(self, run, "from")? } else { None }
-            }
-            "closure" => {
-                let l = self.lazy(f, run, p, node)?;
-                let nk = l.keys.len();
-                if col >= nk && nk == 0 {
-                    let forward = col == 0;
-                    let mut out = Table::with(sc.names.clone(), sc.tys.clone());
-                    for k in keys {
-                        for d in reach_dir(&l, &[*k], forward).iter() {
-                            out.push_row(&if forward { [*k, *d] } else { [*d, *k] });
-                        }
-                    }
-                    return Ok(Rc::new(out));
-                }
-                if col >= nk && l.tys[..nk].iter().all(|t| *t == Ty::File) {
-                    let forward = col == nk;
-                    let mut out = Table::with(sc.names.clone(), sc.tys.clone());
-                    for k in keys {
-                        let mut key: Vec<u64> = vec![u64::from(f.file); nk];
-                        key.push(*k);
-                        for d in reach_dir(&l, &key, forward).iter() {
-                            let mut row = vec![u64::from(f.file); nk];
-                            row.extend(if forward { [*k, *d] } else { [*d, *k] });
-                            out.push_row(&row);
-                        }
-                    }
-                    return Ok(Rc::new(out));
-                }
-                None
-            }
-            _ => None,
-        };
-        // the input may be put in place only where no other input of the step reads it (6c); with the override (6e) only
-        // where the step reads it once
-        let carried = target.is_some();
-        if !self.static_keyed {
-            // the probed source's position, where a select reads the same step at several (a self-join)
-            let at = if op == "select" {
-                match &self.sel(run, node)?.items[col].1 {
-                    E::Col(si, c, _) => Some((*si, *c)),
-                    _ => None,
-                }
-            } else {
-                None
-            };
-            let at_pos = at.map(|x| x.0);
-            let target = match (at, target) {
-                (Some((si, c)), None) if op == "select" => Some((self.sel(run, node)?.srcs[si], c)),
-                (_, t) => t,
-            };
-            let target = target.filter(|(input, _)| at_pos.is_some() || matches!(op.as_str(), "antijoin" | "ordered-match" | "as-of") || self.plan.nodes[node].inputs.iter().filter(|i| *i == input).count() == 1);
-            if target.is_none()
-                && let Some(t) = self.probe_by_group(f, run, p, node, col, keys)?
-            {
-                return Ok(Rc::new(t));
-            }
-            let Some((input, icol)) = target else {
-                self.reason = if carried { "probed on a column of an input it reads twice" } else { "probed on a column no input carries" };
-                let t = self.eval(f, run, p, node)?;
-                return Ok(Rc::new(subset(f, node, &t, col, keys)));
-            };
-            let sub = self.probe(f, run, p, input, icol, keys)?;
-            return self.run_over(f, run, p, node, input, at_pos, sub);
-        }
-        let target = target.filter(|(input, _)| {
-            let others: Vec<usize> = self.plan.nodes[node].inputs.iter().copied().filter(|i| i != input).collect();
-            self.plan.nodes[node].inputs.iter().filter(|i| *i == input).count() == 1 && others.iter().all(|o| !self.depends(*o, *input))
-        });
-        let Some((input, icol)) = target else {
-            self.reason = if carried { "probed on a column its input shares with another input" } else { "probed on a column no input carries" };
-            let t = self.eval(f, run, p, node)?;
-            return Ok(Rc::new(subset(f, node, &t, col, keys)));
-        };
-        // the input probed, put in its place while the step runs once over it; everything made meanwhile is dropped
-        let sub = self.probe(f, run, p, input, icol, keys)?;
-        // the input has no rows for these keys: the step over it answers nothing (its body would return at once; a
-        // counted group count reads its select's sources, not the input, and runs)
-        if sub.n == 0 && !self.frames[node].counted {
-            self.stats.known[node] += 1;
-            return self.empty_rc(run, node);
-        }
-        let saved = f.memo[input].replace(Res::Tab(sub));
-        let saved_ix = f.index.remove(&input);
-        let mark = f.log.len();
-        let out = self.body(f, run, p, node);
-        f.memo[input] = saved;
-        f.index.remove(&input);
-        if let Some(ix) = saved_ix {
-            f.index.insert(input, ix);
-        }
-        let made: Vec<usize> = f.log.drain(mark..).collect();
-        let mut dropped: rustc_hash::FxHashSet<usize> = rustc_hash::FxHashSet::default();
-        dropped.insert(input);
-        for n in made {
-            if self.depends(n, input) {
-                dropped.insert(n);
-            } else {
-                f.log.push(n);
-            }
-        }
-        for n in &dropped {
-            if *n != input {
-                f.memo[*n] = None;
-            }
-            f.vmat.remove(n);
-            f.lazies.remove(n);
-        }
-        for n in &dropped {
-            if *n != input {
-                f.index.remove(n);
-            }
-        }
-        // no other input of the step reads the substituted one (checked above), so no probe memo is made over it but this
-        // step's own, which is filed under the keys it was asked
-        out
+        Ok(recycle::rc(subset(f, node, &t, col, keys)))
     }
 
-    /// pass 2: the step run once over its input probed by `keys`, put in its place; what was made meanwhile over it is
-    /// dropped (the same as the general path below, with reused buffers and no set).
-    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    fn substituted(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, input: usize, icol: usize, keys: &[u64]) -> R<Rc<Table>> {
-        let sub = self.probe(f, run, p, input, icol, keys)?;
-        // the input has no rows for these keys: the step over it answers nothing (its body would return at once; a
-        // counted group count reads its select's sources, not the input, and runs)
-        if sub.n == 0 && !self.frames[node].counted {
-            self.stats.known[node] += 1;
-            return self.empty_rc(run, node);
+    /// A closure's rows whose source (`col` the first after its keys) or destination holds one of `keys`, read through
+    /// its adjacency; None where its keys are not all the file (it is then made whole).
+    fn closure_at(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Option<Table>> {
+        let l = self.lazy(f, run, p, node)?;
+        let nk = l.keys.len();
+        if col < nk || l.tys[..nk].iter().any(|t| *t != Ty::File) {
+            return Ok(None);
         }
-        let saved = f.memo[input].replace(Res::Tab(sub));
-        let saved_ix = if f.index.is_empty() { None } else { f.index.remove(&input) };
-        let mark = f.log.len();
-        let out = self.body(f, run, p, node);
-        f.memo[input] = saved;
-        if let Some(ix) = saved_ix {
-            f.index.insert(input, ix);
-        } else if !f.index.is_empty() {
-            f.index.remove(&input);
-        }
-        if f.log.len() > mark {
-            let mut made = std::mem::take(&mut self.scratch_made);
-            made.clear();
-            made.extend(f.log.drain(mark..));
-            for &n in &made {
-                if n == input {
-                    continue;
-                }
-                if self.depends(n, input) {
-                    f.memo[n] = None;
-                    f.vmat.remove(&n);
-                    f.lazies.remove(&n);
-                    f.index.remove(&n);
-                } else {
-                    f.log.push(n);
-                }
+        let forward = col == nk;
+        let mut out = Table::with(l.names.clone(), l.tys.clone());
+        let mut key: Vec<u64> = vec![u64::from(f.file); nk + 1];
+        let mut row: Vec<u64> = vec![u64::from(f.file); nk + 2];
+        for k in keys {
+            key[nk] = *k;
+            for d in reach_dir(&l, &key, forward).iter() {
+                (row[nk], row[nk + 1]) = if forward { (*k, *d) } else { (*d, *k) };
+                out.push_row(&row);
             }
-            self.scratch_made = made;
         }
-        if !f.vmat.is_empty() {
-            f.vmat.remove(&input);
-        }
-        if !f.lazies.is_empty() {
-            f.lazies.remove(&input);
-        }
-        out
+        Ok(Some(out))
     }
 
     /// A node's rows as a table (a view is made whole here, once a file).
     pub(super) fn eval(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
-        let why = self.reason;
-        if let Some(t) = self.overridden(node) {
-            return Ok(t);
-        }
         match self.res(f, run, p, node)? {
             Res::Tab(t) => Ok(t),
             Res::View(v) => {
@@ -2479,18 +1883,13 @@ impl<'p> Exec<'p> {
                 let t0 = step_clock();
                 let sc = self.schema(run, node)?;
                 let rows = view_rows(f, run, &v, node);
-                let mut out = Table::with(sc.names.clone(), sc.tys.clone());
+                let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
                 for c in 0..v.map.len() {
-                    out.cols[c].extend(rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])));
+                    view_cols::gather(f, run, v.base, v.map[c], &rows, &mut out.cols[c]);
                 }
                 out.n = rows.len();
-                let rc = Rc::new(out);
-                if self.stats.made_by[node] == usize::MAX {
-                    self.stats.made_by[node] = self.stack.last().copied().unwrap_or(usize::MAX - 1);
-                    self.stats.why[node] = if why.is_empty() { "a view read whole" } else { why };
-                }
+                let rc = recycle::rc(out);
                 f.vmat.insert(node, rc.clone());
-                f.log.push(node);
                 let dt = step_clock() - t0;
                 self.stats.time[node] += dt;
                 self.inner += dt;
@@ -2499,28 +1898,6 @@ impl<'p> Exec<'p> {
                 Ok(rc)
             }
         }
-    }
-
-    /// 8: the input whose empty answer empties this step (the one `body` tests first), resolved once a run; none for the
-    /// steps that test no input first and for a counted group (which may not make its input).
-    fn first_input(&mut self, node: usize) -> R<Option<usize>> {
-        if let Some(x) = self.firsts[node] {
-            return Ok(x);
-        }
-        let plan: &'p Plan = self.plan;
-        let pn = &plan.nodes[node];
-        let arg = match pn.op.as_str() {
-            "antijoin" | "ordered-match" | "as-of" => Some("left"),
-            "closure" | "follow" => Some("edges"),
-            "base" | "select" | "rows" | "union" | "group-count" => None,
-            _ => Some("from"),
-        };
-        let x = match arg {
-            Some(a) => Some(self.arg_rel(node, a)?),
-            None => None,
-        };
-        self.firsts[node] = Some(x);
-        Ok(x)
     }
 
     /// 8: a cleared row-number buffer from the worker's pool.
@@ -2548,15 +1925,19 @@ impl<'p> Exec<'p> {
     }
 
     fn empty(&mut self, run: &mut Run, node: usize) -> R<Table> {
+        self.empty_rows(run, node, 0)
+    }
+
+    /// redo-alloc: `empty` for a table about to hold `n` rows.
+    pub(super) fn empty_rows(&mut self, run: &mut Run, node: usize, n: usize) -> R<Table> {
         let sc = self.schema(run, node)?;
-        Ok(Table::with(sc.names.clone(), sc.tys.clone()))
+        Ok(Table::with_rows(sc.names.clone(), sc.tys.clone(), n))
     }
 
     fn lazy(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Lazy>> {
         if let Some(l) = f.lazies.get(&node) {
             return Ok(l.clone());
         }
-        self.reason = "closure edges";
         let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
         let t0 = step_clock();
         let a = &self.plan.nodes[node].j["args"];
@@ -2578,7 +1959,6 @@ impl<'p> Exec<'p> {
         self.stats.time[node] += dt;
         self.inner += dt;
         f.lazies.insert(node, l.clone());
-        f.log.push(node);
         Ok(l)
     }
 
@@ -2595,17 +1975,10 @@ impl<'p> Exec<'p> {
         if fr.counted
             && let Some(t) = self.counted(f, run, p, node)?
         {
-            return Ok(Rc::new(t));
+            return Ok(recycle::rc(t));
         }
-        // a step over an empty input answers nothing, and asks for nothing else
         if fr.first == frame::MISSING {
             return Err(format!("no relation argument of {}", self.plan.nodes[node].op));
-        }
-        if fr.first != NONE {
-            let t = self.eval(f, run, p, fr.first as usize)?;
-            if t.n == 0 && fr.op != frame::Op::Union {
-                return self.empty_rc(run, node);
-            }
         }
         // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
         // dispatch point (by the frame's code)
@@ -2613,7 +1986,7 @@ impl<'p> Exec<'p> {
             return self.select_entry(f, run, p, node);
         }
         let t = self.step(f, run, p, node)?;
-        if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) }
+        if t.n == 0 { self.empty_rc(run, node) } else { Ok(recycle::rc(t)) }
     }
 
     /// A group count over a counted select: its kept rows and their counts, grouped (None: the band does not apply).
@@ -2626,21 +1999,27 @@ impl<'p> Exec<'p> {
             if let Some((from, counts)) = self.band_rows(f, run, p, fnode, pb, true)? {
                 self.stats.rows[fnode] += from.n as u64;
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
-                let mut groups: FxHashMap<Vec<u64>, u64> = FxHashMap::default();
-                let mut order: Vec<Vec<u64>> = Vec::new();
+                let mut groups: FxHashMap<inline_key::Key, u64> = FxHashMap::default();
+                let mut order: Vec<inline_key::Key> = Vec::new();
+                // redo-alloc: a row's key read into one buffer; lists made only for a key not seen (same groups, same order)
+                let mut kb: Vec<u64> = Vec::with_capacity(keys.len() + 1);
                 for i in 0..from.n {
-                    let k: Vec<u64> = keys.iter().map(|c| from.cols[*c][i]).collect();
-                    let e = groups.entry(k.clone()).or_insert_with(|| {
-                        order.push(k);
-                        0
-                    });
-                    *e += counts[i];
+                    kb.clear();
+                    kb.extend(keys.iter().map(|c| from.cols[*c][i]));
+                    match groups.get_mut(&kb[..]) {
+                        Some(e) => *e += counts[i],
+                        None => {
+                            order.push(inline_key::Key::of(&kb));
+                            groups.insert(inline_key::Key::of(&kb), counts[i]);
+                        }
+                    }
                 }
                 let mut out = self.empty(run, node)?;
                 for k in order {
-                    let mut row = k.clone();
-                    row.push(groups[&k]);
-                    out.push_row(&row);
+                    kb.clear();
+                    kb.extend_from_slice(k.cells());
+                    kb.push(groups[&k]);
+                    out.push_row(&kb);
                 }
                 return Ok(Some(out));
             }
@@ -2661,7 +2040,7 @@ impl<'p> Exec<'p> {
             "union" => {
                 let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
                 let r = self.eval(f, run, p, self.arg_rel(node, "right")?)?;
-                let mut out = (*l).clone();
+                let mut out = l.copy();
                 let map: Vec<usize> = l.names.iter().map(|c| r.col(c)).collect::<R<_>>()?;
                 for (c, m) in map.iter().enumerate() {
                     out.cols[c].extend_from_slice(&r.cols[*m]);
@@ -2672,7 +2051,7 @@ impl<'p> Exec<'p> {
             "antijoin" => self.antijoin(f, run, p, node, a),
             "extend" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
-                let mut out = (*from).clone();
+                let mut out = from.copy();
                 for (k, v) in a["values"].as_object().ok_or("extend values")? {
                     let (t, x) = match v {
                         J::Number(n) => (Ty::Num, n.as_i64().ok_or("extend number")? as u64),
@@ -2680,7 +2059,8 @@ impl<'p> Exec<'p> {
                         J::String(t) => (Ty::Sym, u64::from(run.sym(t.as_bytes()))),
                         _ => return Err(format!("extend value {v}")),
                     };
-                    out.cols.push(vec![x; from.n]);
+                    // redo-alloc: the constant column from the pool
+                    out.push_const_col(x, from.n);
                 }
                 let sc = self.schema(run, node)?;
                 (out.names, out.tys) = (sc.names.clone(), sc.tys.clone());
@@ -2691,10 +2071,14 @@ impl<'p> Exec<'p> {
                 let cols: Vec<usize> = strs(&a["columns"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let osc = self.schema(run, node)?;
                 let mut out = Table::with(osc.names.clone(), osc.tys.clone());
-                let mut seen = rustc_hash::FxHashSet::default();
+                let mut seen: rustc_hash::FxHashSet<inline_key::Key> = rustc_hash::FxHashSet::default();
+                // redo-alloc: a row read into one buffer; a set entry made only for a row not seen
+                let mut row: Vec<u64> = Vec::with_capacity(cols.len());
                 for i in 0..from.n {
-                    let row: Vec<u64> = cols.iter().map(|c| from.cols[*c][i]).collect();
-                    if seen.insert(row.clone()) {
+                    row.clear();
+                    row.extend(cols.iter().map(|c| from.cols[*c][i]));
+                    if !seen.contains(&row[..]) {
+                        seen.insert(inline_key::Key::of(&row));
                         out.push_row(&row);
                     }
                 }
@@ -2708,14 +2092,18 @@ impl<'p> Exec<'p> {
                     J::String(d) => Some(from.col(d)?),
                     _ => None,
                 };
-                let mut groups: FxHashMap<Vec<u64>, (u64, rustc_hash::FxHashSet<u64>)> = FxHashMap::default();
-                let mut order: Vec<Vec<u64>> = Vec::new();
+                let mut groups: FxHashMap<inline_key::Key, (u64, rustc_hash::FxHashSet<u64>)> = FxHashMap::default();
+                let mut order: Vec<inline_key::Key> = Vec::new();
+                // redo-alloc: a row's key read into one buffer; lists made only for a key not seen (same groups, same order)
+                let mut kb: Vec<u64> = Vec::with_capacity(keys.len() + 1);
                 for i in 0..from.n {
-                    let k: Vec<u64> = keys.iter().map(|c| from.cols[*c][i]).collect();
-                    let e = groups.entry(k.clone()).or_insert_with(|| {
-                        order.push(k);
-                        (0, rustc_hash::FxHashSet::default())
-                    });
+                    kb.clear();
+                    kb.extend(keys.iter().map(|c| from.cols[*c][i]));
+                    if !groups.contains_key(&kb[..]) {
+                        order.push(inline_key::Key::of(&kb));
+                        groups.insert(inline_key::Key::of(&kb), (0, rustc_hash::FxHashSet::default()));
+                    }
+                    let e = groups.get_mut(&kb[..]).expect("the group just made");
                     match distinct {
                         Some(d) => {
                             e.1.insert(from.cols[d][i]);
@@ -2727,9 +2115,10 @@ impl<'p> Exec<'p> {
                 for k in order {
                     let g = &groups[&k];
                     let c = if distinct.is_some() { g.1.len() as u64 } else { g.0 };
-                    let mut row = k.clone();
-                    row.push(c);
-                    out.push_row(&row);
+                    kb.clear();
+                    kb.extend_from_slice(k.cells());
+                    kb.push(c);
+                    out.push_row(&kb);
                 }
                 Ok(out)
             }
@@ -2738,20 +2127,30 @@ impl<'p> Exec<'p> {
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let oc = from.col(s(&a["order"])?)?;
                 let max = op == "group-max";
-                let mut best: FxHashMap<Vec<u64>, i64> = FxHashMap::default();
+                let mut best: FxHashMap<inline_key::Key, i64> = FxHashMap::default();
+                // redo-alloc: a row's key read into one buffer; a key list made only for a key not seen
+                let mut kb: Vec<u64> = Vec::with_capacity(keys.len());
                 for i in 0..from.n {
-                    let k: Vec<u64> = keys.iter().map(|c| from.cols[*c][i]).collect();
+                    kb.clear();
+                    kb.extend(keys.iter().map(|c| from.cols[*c][i]));
                     let v = from.cols[oc][i] as i64;
-                    let e = best.entry(k).or_insert(v);
-                    if (max && v > *e) || (!max && v < *e) {
-                        *e = v;
+                    match best.get_mut(&kb[..]) {
+                        Some(e) => {
+                            if (max && v > *e) || (!max && v < *e) {
+                                *e = v;
+                            }
+                        }
+                        None => {
+                            best.insert(inline_key::Key::of(&kb), v);
+                        }
                     }
                 }
                 let mut out = Table::with(from.names.clone(), from.tys.clone());
                 let mut row = Vec::new();
                 for i in 0..from.n {
-                    let k: Vec<u64> = keys.iter().map(|c| from.cols[*c][i]).collect();
-                    if best[&k] == from.cols[oc][i] as i64 {
+                    kb.clear();
+                    kb.extend(keys.iter().map(|c| from.cols[*c][i]));
+                    if best[&kb[..]] == from.cols[oc][i] as i64 {
                         from.row(i, &mut row);
                         out.push_row(&row);
                     }
@@ -2821,7 +2220,7 @@ impl<'p> Exec<'p> {
             "span-between" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let (sc, ec) = (from.col(s(&a["start"])?)?, from.col(s(&a["end"])?)?);
-                let mut out = (*from).clone();
+                let mut out = from.copy();
                 let col: Vec<u64> = (0..from.n)
                     .map(|i| {
                         let (x, y) = (from.cols[sc][i], from.cols[ec][i]);
@@ -2836,7 +2235,7 @@ impl<'p> Exec<'p> {
             "span-bounds" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let sc = from.col(s(&a["span"])?)?;
-                let mut out = (*from).clone();
+                let mut out = from.copy();
                 out.cols.push(from.cols[sc].iter().map(|x| x >> 32).collect());
                 out.cols.push(from.cols[sc].iter().map(|x| x & 0xffff_ffff).collect());
                 let osc = self.schema(run, node)?;
@@ -2849,7 +2248,7 @@ impl<'p> Exec<'p> {
                 let tc = from.col(s(&a["text"])?)?;
                 let re = run.re(s(&a["pattern"])?)?;
                 let rep = s(&a["replacement"])?.as_bytes().to_vec();
-                let mut out = (*from).clone();
+                let mut out = from.copy();
                 let col: Vec<u64> = (0..from.n)
                     .map(|i| {
                         let t = run.text(from.cols[tc][i] as u32).to_vec();
@@ -2870,6 +2269,7 @@ impl<'p> Exec<'p> {
                 let pattern = s(&a["pattern"])?;
                 let slot_names = capture::names(pattern);
                 let at: Vec<Option<usize>> = caps.iter().map(|c| slot_names.iter().position(|n| n == c)).collect();
+                let separator = a.get("separator").and_then(J::as_str);
                 let mut out = self.empty(run, node)?;
                 let mut row = Vec::new();
                 let mut found: Vec<Vec<std::ops::Range<usize>>> = Vec::new();
@@ -2878,7 +2278,7 @@ impl<'p> Exec<'p> {
                     let text = if from.tys[pc] == Ty::File { run.text(run.path_sym[v as usize]).to_vec() } else { run.text(v as u32).to_vec() };
                     let Ok(text) = String::from_utf8(text) else { continue };
                     found.clear();
-                    capture::matches(pattern, &text, &mut |sl| found.push(sl.to_vec()));
+                    capture::matches(pattern, separator, &text, &mut |sl| found.push(sl.to_vec()));
                     for sl in &found {
                         from.row(i, &mut row);
                         for k in &at {
@@ -2938,6 +2338,7 @@ impl<'p> Exec<'p> {
             }
             "subtree-class" => self.subtree_class(f, run, p, node),
             "prefixes" => self.prefixes(f, run, p, node),
+            "order" => self.order(f, run, p, node),
             "fits-rendered" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let texts: Vec<usize> = strs(&a["texts"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
@@ -2986,45 +2387,6 @@ impl<'p> Exec<'p> {
         }
     }
 
-    /// 6i: an upper bound on a step's rows from what is known without making it: a made table's rows, a view's bucket, a
-    /// select bounded by its smallest bounded source (a join's rows never exceed... a heuristic: the smallest source's),
-    /// a union's sum, a pass-through step's input. None: unknown.
-    fn bound_size(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, depth: u32) -> R<Option<usize>> {
-        if let Some(Res::Tab(t)) = &f.memo[node] {
-            return Ok(Some(t.n));
-        }
-        if let Some(v) = self.view(run, node)? {
-            self.load_fact(f, run, p, v.base)?;
-            return Ok(kind_set(run, &v.filter, 0, v.base, &[]).map(|ks| bucket_len(f, run, &ks)).or_else(|| lit_rows(f, &v.filter, 0, v.base, &[]).map(|r| r.len())));
-        }
-        if depth == 0 {
-            return Ok(None);
-        }
-        let plan: &'p Plan = self.plan;
-        let pn = &plan.nodes[node];
-        Ok(match pn.op.as_str() {
-            "select" => {
-                let mut m: Option<usize> = None;
-                for i in pn.inputs.clone() {
-                    if let Some(b) = self.bound_size(f, run, p, i, depth - 1)? {
-                        m = Some(m.map_or(b, |x| x.min(b)));
-                    }
-                }
-                m
-            }
-            "union" => {
-                let (l, r) = (self.arg_rel(node, "left")?, self.arg_rel(node, "right")?);
-                match (self.bound_size(f, run, p, l, depth - 1)?, self.bound_size(f, run, p, r, depth - 1)?) {
-                    (Some(a), Some(b)) => Some(a + b),
-                    _ => None,
-                }
-            }
-            "antijoin" => self.bound_size(f, run, p, self.arg_rel(node, "left")?, depth - 1)?,
-            "extend" | "project" => self.bound_size(f, run, p, self.arg_rel(node, "from")?, depth - 1)?,
-            _ => None,
-        })
-    }
-
     /// 6h: a fact view's fill, asked once a file (the same fill a whole `base` step reads).
     fn load_fact(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, nat: Native) -> R<()> {
         let Native::Fact(i) = nat else { return Ok(()) };
@@ -3033,36 +2395,53 @@ impl<'p> Exec<'p> {
             return Ok(());
         }
         let rel = run.fact_rels[i].0.clone();
+        if fill_prof::counting() {
+            // redo-int round 37: redo-whole deleted the run stack this diagnostic read; the asker is not known now
+            let by = u32::MAX;
+            fill_prof::asked(i, by);
+            if sw!("VEC_ASKER_PLAN") && by != u32::MAX && fill_prof::first_asker(by) {
+                eprintln!("ASKER-SITE {by} {} {}", fill_prof::SITE.with(std::cell::Cell::get), std::backtrace::Backtrace::force_capture().to_string().lines().filter(|l| l.contains("Exec") || l.contains("kernel") || l.contains("finish")).take(12).map(str::trim).collect::<Vec<_>>().join(" < "));
+                let pn = &self.plan.nodes[by as usize];
+                let ins: Vec<String> = pn.inputs.iter().map(|x| format!("{x}:{}:{}", self.plan.nodes[*x].op, self.plan.nodes[*x].j.to_string().chars().take(160).collect::<String>())).collect();
+                eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.j.to_string().chars().take(900).collect::<String>(), ins.join(" | "));
+            }
+        }
         if !f.fills.contains_key(&rel) {
-            let t = p.fill(run, &rel)?;
-            f.fills.insert(rel.clone(), Rc::new(t));
+            let t = fill_len::fill_or_empty(run, p, &rel, f.file)?;
+            f.fills.insert(rel.clone(), recycle::rc(t));
         }
         if f.facts.len() <= i {
             f.facts.resize(i + 1, None);
+        }
+        if f.fact_read.len() <= i {
+            f.fact_read.resize_with(i + 1, Default::default);
         }
         f.facts[i] = f.fills.get(&rel).cloned();
         Ok(())
     }
 
     fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
-        if rel == "filesystem.file" {
-            let mut out = Table::with(vec!["path".to_owned()], vec![Ty::File]);
-            for i in 0..run.paths.len() {
-                out.push_row(&[i as u64]);
+        // redo-fills pass 2: by who supplies the relation, as the run's catalog declares it
+        match run.supplier(rel) {
+            Supplier::RunFiles => {
+                let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+                let mut out = Table::with(names, tys);
+                for i in 0..run.paths.len() {
+                    out.push_row(&[i as u64]);
+                }
+                return Ok(out);
             }
-            return Ok(out);
+            Supplier::Project(ask) => return project::rows(f, run, p, rel, ask),
+            Supplier::Provider | Supplier::Host => {}
         }
         if let Some(t) = f.fills.get(rel) {
-            return Ok((**t).clone());
+            return Ok(t.copy());
         }
-        if rel == "project-namespace-membership" {
-            return namespace_membership(f, run);
-        }
-        if rel == "module-identity" {
-            return module_identity(f, run);
-        }
-        let t = p.fill(run, rel)?;
-        f.fills.insert(rel.to_owned(), Rc::new(t.clone()));
+        let was = fill_prof::site("base");
+        let t = fill_len::fill_or_empty(run, p, rel, f.file);
+        fill_prof::site(was);
+        let t = t?;
+        f.fills.insert(rel.to_owned(), recycle::rc(t.clone()));
         Ok(t)
     }
 
@@ -3084,7 +2463,7 @@ impl<'p> Exec<'p> {
                 hits.clear();
                 f.native_probe(run, v.base, v.map[rk[ki]], l.cols[lk[ki]][i], &mut hits);
                 let knocked = hits.iter().any(|h| {
-                    view_holds(f, run, &v, *h) && (0..rk.len()).all(|k| f.native_get(run, v.base, *h, v.map[rk[k]]) == l.cols[lk[k]][i] || rsc.tys[rk[k]] == Ty::File)
+                    view_holds(f, run, &v, *h) && (0..rk.len()).all(|k| view_cols::cell(f, run, v.base, *h, v.map[rk[k]]) == l.cols[lk[k]][i] || rsc.tys[rk[k]] == Ty::File)
                 });
                 self.stats.touched[node] += hits.len() as u64;
                 if !knocked {
@@ -3094,9 +2473,9 @@ impl<'p> Exec<'p> {
             }
             return Ok(out);
         }
-        let r = self.right_by_keys(f, run, p, rn, &l, &lk, &rk)?;
+        let r = self.eval(f, run, p, rn)?;
         if r.n == 0 {
-            return Ok((*l).clone());
+            return Ok(l.copy());
         }
         self.stats.touched[node] += r.n as u64;
         if rk.len() == 1 {
@@ -3123,27 +2502,12 @@ impl<'p> Exec<'p> {
     }
 
     fn src_of(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Src> {
-        if let Some(t) = self.overridden(node) {
-            return Ok(Src::Tab(t, usize::MAX - 40));
-        }
         if self.plan.nodes[node].op == "closure" {
-            // a closure put in place by a probe (its rows for the keys asked) is read as that table
-            if !sw!("VEC_NO_WALK")
-                && let Some(Res::Tab(t)) = &f.memo[node]
-            {
+            // a closure made whole is read as its table, else through its adjacency
+            if let Some(Res::Tab(t)) = &f.memo[node] {
                 return Ok(Src::Tab(t.clone(), node));
             }
-            if !f.lazies.contains_key(&node) && f.memo[node].is_none() && !sw!("VEC_NO_WALK") && {
-                let sc = self.schema(run, node)?;
-                let nk = strs(&self.plan.nodes[node].j["args"]["keys"])?.len();
-                sc.tys[..nk].iter().all(|t| *t == Ty::File)
-            } {
-                return Ok(Src::Pending(node));
-            }
             return Ok(Src::Lazy(self.lazy(f, run, p, node)?));
-        }
-        if self.deferred(f, run, node)? {
-            return Ok(Src::Pending(node));
         }
         Ok(match self.res(f, run, p, node)? {
             Res::Tab(t) => Src::Tab(t, node),
@@ -3172,15 +2536,10 @@ impl<'p> Exec<'p> {
         let k = sp.srcs.len();
         let conj = &sp.conj;
         let refs = &sp.refs;
-        // 6e: a probed source put in place at one position (the others read the step itself)
-        let ov = self.take_positional(&sp.srcs);
         // the made inputs first, in order: an empty one ends the step
         let mut srcs: Vec<Src> = Vec::with_capacity(k);
         for (i, n) in sp.srcs.iter().enumerate() {
-            let src = match &ov {
-                Some((at, t)) if *at == i => Src::Tab(t.clone(), usize::MAX - 40),
-                _ => self.src_of(f, run, p, *n)?,
-            };
+            let src = self.src_of(f, run, p, *n)?;
             if let Src::Tab(t, _) = &src
                 && t.n == 0
             {
@@ -3212,22 +2571,6 @@ impl<'p> Exec<'p> {
             srcs[si] = Src::Tab(t, usize::MAX - si);
             driver = Some(si);
         }
-        // 6e item 1: a source the survivors bound is made first (it is small), so exact counts choose the driver
-        if driver.is_none() && !self.static_keyed {
-            for i in 0..k {
-                if let Src::Pending(n) = srcs[i]
-                    && self.bound(run, n)
-                {
-                    self.reason = "bound by the survivors (made, to drive)";
-                    let t = self.eval(f, run, p, n)?;
-                    if t.n == 0 {
-                        empty_sel::at(empty_sel::stage::BOUND_EMPTY);
-                        return self.empty(run, node);
-                    }
-                    srcs[i] = Src::Tab(t, n);
-                }
-            }
-        }
         // the driver: the smallest entry that is already a count, a made table's rows or a view's kind bucket
         let mut best = if driver.is_some() { 0 } else { usize::MAX };
         for (i, sr) in srcs.iter().enumerate() {
@@ -3236,7 +2579,7 @@ impl<'p> Exec<'p> {
                 Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[])
                     .or_else(|| kind_set(run, conj, i, v.base, &v.map))
                     .map(|ks| bucket_len(f, run, &ks))
-                    .or_else(|| lit_rows(f, &v.filter, 0, v.base, &[]).or_else(|| lit_rows(f, conj, i, v.base, &v.map)).map(|r| r.len())),
+                    .or_else(|| lit_len(f, &v.filter, 0, v.base, &[]).or_else(|| lit_len(f, conj, i, v.base, &v.map))),
                 _ => None,
             };
             if let Some(n) = size
@@ -3246,64 +2589,22 @@ impl<'p> Exec<'p> {
                 driver = Some(i);
             }
         }
-        // 6i: a step not made yet whose rows are bounded by a small made or bucketed input gets that bound as its size;
-        // when it is smaller than every sized entry it is made and drives (`VEC_NO_PENDSIZE` off)
-        if !sw!("VEC_NO_PENDSIZE") && best != 0 {
-            let mut pick: Option<(usize, usize, usize)> = None;
-            for i in 0..k {
-                if let Src::Pending(n) = srcs[i]
-                    && let Some(b) = self.bound_size(f, run, p, n, 6)?
-                    && b < best
-                    && pick.is_none_or(|q| b < q.2)
-                {
-                    pick = Some((i, n, b));
-                }
-            }
-            if let Some((i, n, _)) = pick {
-                self.reason = "join driver: a step bounded by a small input";
-                let t = self.eval(f, run, p, n)?;
-                if t.n == 0 {
-                    empty_sel::at(empty_sel::stage::PENDSIZE_EMPTY);
-                    return self.empty(run, node);
-                }
-                best = t.n;
-                srcs[i] = Src::Tab(t, n);
-                driver = Some(i);
-            }
-        }
         let own_of = |d: usize| -> Vec<usize> { (0..conj.len()).filter(|c| refs[*c] & !(1u64 << d) == 0).collect() };
         // the driver: a made table (the smallest), else a view entered by a kind bucket, else a step not made yet (made
         // now: the first in order), else a view read whole
         let driver = match driver {
             Some(d) => d,
             None => match (0..k).find(|i| match &srcs[*i] {
-                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).is_some() || kind_set(run, conj, *i, v.base, &v.map).is_some() || lit_rows(f, &v.filter, 0, v.base, &[]).is_some() || lit_rows(f, conj, *i, v.base, &v.map).is_some(),
+                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).is_some() || kind_set(run, conj, *i, v.base, &v.map).is_some() || lit_applies(f, &v.filter, 0, v.base, &[]) || lit_applies(f, conj, *i, v.base, &v.map),
                 _ => false,
             }) {
                 Some(d) => d,
-                None => match (0..k).find_map(|i| {
-                    let Src::Pending(n) = srcs[i] else { return None };
-                    let sc = self.schema(run, n).ok()?;
-                    let (kc, ic) = (sc.names.iter().position(|c| c == "kind")?, sc.names.iter().position(|c| c == "id")?);
-                    let ks = conj.iter().filter(|e| refs_of(e) == 1 << i).find_map(|e| kinds_required(e, i, kc))?;
-                    self.tree_kind(run, n, kc, ic).then_some((i, n, ic, ks))
+                None => match (0..k).find_map(|i| match &srcs[i] {
+                    Src::Lazy(l) => Some((i, l.node)),
+                    _ => None,
                 }) {
-                    Some((d, n, ic, ks)) => {
-                        // entered by the kind bucket: the step is read only at those ids (its own tests still apply)
-                        let ids: Vec<u64> = bucket(f, run, &ks).into_iter().map(u64::from).collect();
-                        let t = self.probe(f, run, p, n, ic, &ids)?;
-                        self.stats.touched[node] += ids.len() as u64;
-                        if t.n == 0 {
-                            empty_sel::at(empty_sel::stage::BUCKET_EMPTY);
-                            return self.empty(run, node);
-                        }
-                        srcs[d] = Src::Tab(t, usize::MAX - d);
-                        d
-                    }
-                    None => match (0..k).find(|i| matches!(srcs[*i], Src::Pending(_))) {
-                    Some(d) => {
-                        let Src::Pending(n) = srcs[d] else { unreachable!() };
-                        self.reason = "join driver: no source bound";
+                    Some((d, n)) => {
+                        // a closure that no made or bucketed source drives is made whole and drives
                         let t = self.eval(f, run, p, n)?;
                         if t.n == 0 {
                             empty_sel::at(empty_sel::stage::PENDING_EMPTY);
@@ -3313,7 +2614,6 @@ impl<'p> Exec<'p> {
                         d
                     }
                     None => (0..k).find(|i| matches!(srcs[*i], Src::View(..))).ok_or("a select with no source to start from")?,
-                    },
                 },
             },
         };
@@ -3344,9 +2644,16 @@ impl<'p> Exec<'p> {
             Src::View(v, vn) => {
                 // the select's own kind tests narrow the view's entry too
                 match kind_set(run, conj, driver, v.base, &v.map) {
-                    Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => Rc::new(bucket(f, run, &ks).into_iter().filter(|r| view_holds(f, run, v, *r)).collect()),
+                    Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => {
+                        let mut rows = bucket(f, run, &ks);
+                        view_cols::retain(f, run, v, &mut rows);
+                        Rc::new(rows)
+                    },
                     _ => match lit_rows(f, conj, driver, v.base, &v.map) {
-                        Some(rows) if lit_rows(f, &v.filter, 0, v.base, &[]).is_none() => Rc::new(rows.into_iter().filter(|r| view_holds(f, run, v, *r)).collect()),
+                        Some(mut rows) if !lit_applies(f, &v.filter, 0, v.base, &[]) => {
+                            view_cols::retain(f, run, v, &mut rows);
+                            Rc::new(rows)
+                        }
                         _ => view_rows(f, run, v, *vn),
                     },
                 }
@@ -3396,7 +2703,6 @@ impl<'p> Exec<'p> {
                             let native = match &srcs[si] {
                                 Src::View(v, _) => File::probes(v.base, v.map[col]),
                                 Src::Lazy(l) => col + 2 >= l.names.len(),
-                                Src::Pending(_) => true,
                                 _ => false,
                             };
                             if pick.is_none_or(|q| native && !q.3) {
@@ -3423,35 +2729,11 @@ impl<'p> Exec<'p> {
                         }
                         _ => unreachable!(),
                     };
-                    // a step not made yet is probed with the keys the bound rows give it
-                    if let Src::Pending(pn) = srcs[si] {
-                        let mut seen = std::mem::take(&mut self.key_set);
-                        seen.clear();
-                        let mut ks: Vec<u64> = Vec::with_capacity(count.min(1 << 12));
-                        for ti in 0..count {
-                            fill_cur(&mut cur, &tuples, ti, bound);
-                            let v = eval(run, f, &srcs, &cur, other).1;
-                            if seen.insert(v) {
-                                ks.push(v);
-                            }
-                        }
-                        self.key_set = seen;
-                        let sub = self.probe(f, run, p, pn, col, &ks)?;
-                        self.stats.touched[node] += sub.n as u64;
-                        empty_sel::with(|m| {
-                            m.built |= empty_sel::stage::B_PROBE;
-                            if sub.n == 0 {
-                                m.stage = empty_sel::stage::OTHER_PROBED_EMPTY;
-                            }
-                        });
-                        srcs[si] = Src::Tab(sub, usize::MAX - si);
-                    }
                     // a view probed on a column it cannot be probed on in place is made whole, then indexed
                     if let Src::View(_, vn) = &srcs[si]
                         && !native
                     {
                         let vn = *vn;
-                        self.reason = "view probed on a column it has no keyed read for";
                         srcs[si] = Src::Tab(self.eval(f, run, p, vn)?, vn);
                     }
                     // a closure is made for the ends this join asks, and only those
@@ -3486,7 +2768,6 @@ impl<'p> Exec<'p> {
                             }
                         }
                         if unkeyed {
-                            self.reason = "closure probed without its keys (made whole)";
                             srcs[si] = Src::Tab(self.eval(f, run, p, l.node)?, l.node);
                         } else {
                         let mut t = Table::with(l.names.clone(), l.tys.clone());
@@ -3510,7 +2791,7 @@ impl<'p> Exec<'p> {
                             }
                         }
                         self.stats.touched[node] += t.n as u64;
-                        srcs[si] = Src::Tab(Rc::new(t), usize::MAX - si);
+                        srcs[si] = Src::Tab(recycle::rc(t), usize::MAX - si);
                         }
                     }
                     let nb = bound | (1 << si);
@@ -3583,7 +2864,7 @@ impl<'p> Exec<'p> {
                         match &srcs[si] {
                             Src::View(vs, _) => {
                                 f.native_probe(run, vs.base, vs.map[col], v.1, &mut hits);
-                                hits.retain(|h| view_holds(f, run, vs, *h));
+                                view_cols::retain(f, run, vs, &mut hits);
                             }
                             Src::Tab(..) => {
                                 probe_key.clear();
@@ -3613,11 +2894,7 @@ impl<'p> Exec<'p> {
                     for c in checks {
                         used[c] = true;
                     }
-                    empty_sel::with(|m| {
-                        if m.stage != empty_sel::stage::OTHER_PROBED_EMPTY {
-                            m.stage = if any_hit { empty_sel::stage::RESIDUAL } else { empty_sel::stage::KEYS_MISS };
-                        }
-                    });
+                    empty_sel::at(if any_hit { empty_sel::stage::RESIDUAL } else { empty_sel::stage::KEYS_MISS });
                     bound = nb;
                 }
                 None => {
@@ -3625,12 +2902,7 @@ impl<'p> Exec<'p> {
                     let si = (0..k).find(|s2| bound & (1 << s2) == 0).expect("an unbound source");
                     if let Src::Lazy(l) = &srcs[si] {
                         let ln = l.node;
-                        self.reason = "closure crossed (no key joins it)";
                         srcs[si] = Src::Tab(self.eval(f, run, p, ln)?, ln);
-                    }
-                    if let Src::Pending(pn) = srcs[si] {
-                        self.reason = "cross product: no key joins it";
-                        srcs[si] = Src::Tab(self.eval(f, run, p, pn)?, pn);
                     }
                     let nb = bound | (1 << si);
                     empty_sel::at(empty_sel::stage::CROSS);
@@ -3682,7 +2954,7 @@ impl<'p> Exec<'p> {
                     }
                     Src::View(v, _) => {
                         let (base, bc) = (v.base, v.map[*sc]);
-                        col.extend(tuples[*si][..count].iter().map(|r| f.native_get(run, base, *r, bc)));
+                        view_cols::gather(f, run, base, bc, &tuples[*si][..count], col);
                         continue;
                     }
                     _ => {}
@@ -3729,7 +3001,6 @@ impl<'p> Exec<'p> {
         Ok(match self.res(f, run, p, rel)? {
             Res::View(v) if File::probes(v.base, v.map[pc]) && File::probes(v.base, v.map[cc]) => Hier::View(v, pc, cc),
             _ => {
-                self.reason = "axis hierarchy";
                 let t = self.eval(f, run, p, rel)?;
                 let mut up: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
                 let mut down: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
@@ -3742,17 +3013,13 @@ impl<'p> Exec<'p> {
         })
     }
 
-    /// The domain an axis admits by: everything, a set, a view probed by id, or a step read by key (never made whole).
+    /// The domain an axis admits by: everything, a set, or a view probed by id.
     fn dom(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Dom> {
         let plan: &'p Plan = self.plan;
         let Some(J::Object(_)) = plan.nodes[node].j["args"].get("domain") else { return Ok(Dom::All) };
         let dn = self.arg_rel(node, "domain")?;
         let sc = self.schema(run, dn)?;
         let c = pos(&sc.names, "id")?;
-        if self.deferred(f, run, dn)? {
-            return Ok(Dom::Keyed(dn, c));
-        }
-        self.reason = "axis domain";
         Ok(match self.res(f, run, p, dn)? {
             Res::View(v) if File::probes(v.base, v.map[c]) => Dom::View(v, c),
             _ => {
@@ -3778,13 +3045,6 @@ impl<'p> Exec<'p> {
                     }
                 }
                 out
-            }
-            Dom::Keyed(dn, c) => {
-                let mut ks: Vec<u64> = xs.to_vec();
-                ks.sort_unstable();
-                ks.dedup();
-                let t = self.probe(f, run, p, *dn, *c, &ks)?;
-                t.cols[*c].iter().copied().collect()
             }
         })
     }
@@ -3846,15 +3106,20 @@ impl<'p> Exec<'p> {
             return Ok(out);
         }
         let mut all: Vec<(usize, u64)> = Vec::new();
+        // redo-alloc: one walk's set and frontier, emptied a start (not made a start); the neighbours read in place
+        let mut seen = rustc_hash::FxHashSet::default();
+        let mut frontier: Vec<u64> = Vec::new();
         for i in 0..from.n {
             let x = from.cols[ic][i];
             match dir.as_str() {
                 "parent" | "ancestor" => {
-                    let mut seen = rustc_hash::FxHashSet::default();
-                    let mut frontier = vec![x];
+                    seen.clear();
+                    frontier.clear();
+                    frontier.push(x);
                     while let Some(at) = frontier.pop() {
                         hier_step(f, run, &hier, at, true, &mut nbrs);
-                        for q in nbrs.clone() {
+                        for qi in 0..nbrs.len() {
+                            let q = nbrs[qi];
                             if seen.insert(q) {
                                 all.push((i, q));
                                 if dir != "parent" {
@@ -3875,15 +3140,17 @@ impl<'p> Exec<'p> {
                             all.extend((x as u32 + 1..end).map(|q| (i, u64::from(q))));
                         }
                     } else {
-                        let mut seen = rustc_hash::FxHashSet::default();
-                        let mut stack = vec![x];
-                        while let Some(at) = stack.pop() {
+                        seen.clear();
+                        frontier.clear();
+                        frontier.push(x);
+                        while let Some(at) = frontier.pop() {
                             hier_step(f, run, &hier, at, false, &mut nbrs);
-                            for c in nbrs.clone() {
+                            for ci in 0..nbrs.len() {
+                                let c = nbrs[ci];
                                 if seen.insert(c) {
                                     all.push((i, c));
                                     if dir != "child" {
-                                        stack.push(c);
+                                        frontier.push(c);
                                     }
                                 }
                             }
@@ -3916,78 +3183,13 @@ impl<'p> Exec<'p> {
         Ok(out)
     }
 
-    /// The axis read by its `related` end: the start rows whose nearest admitted ancestor is one of `keys`. Walked down from
-    /// each key through nodes the domain does not admit (a tree or a single-parent chain), then the starts probed by id.
-    fn axis_related(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, keys: &[u64]) -> R<Option<Table>> {
-        let plan: &'p Plan = self.plan;
-        let a = &plan.nodes[node].j["args"];
-        if s(&a["direction"])? != "nearest-ancestor" {
-            return Ok(None);
-        }
-        let rel = self.arg_rel(node, "relation")?;
-        let hier = self.hier(f, run, p, rel)?;
-        if matches!(hier, Hier::Tree) {
-            return Ok(None);
-        }
-        let dom = self.dom(f, run, p, node)?;
-        let fnode = self.arg_rel(node, "from")?;
-        let fsc = self.schema(run, fnode)?;
-        let ic = pos(&fsc.names, "id")?;
-        let mut pairs: Vec<(u64, u64)> = Vec::new();
-        let admitted = self.admit(f, run, p, &dom, keys)?;
-        let mut frontier: Vec<(u64, u64)> = keys.iter().filter(|k| admitted.contains(k)).map(|k| (*k, *k)).collect();
-        let mut nbrs = Vec::new();
-        for _ in 0..4096 {
-            if frontier.is_empty() {
-                break;
-            }
-            let mut next = Vec::new();
-            for (x, at) in &frontier {
-                hier_step(f, run, &hier, *at, false, &mut nbrs);
-                for c in &nbrs {
-                    next.push((*x, *c));
-                }
-            }
-            self.stats.touched[node] += next.len() as u64;
-            let cs: Vec<u64> = next.iter().map(|x| x.1).collect();
-            let ok = self.admit(f, run, p, &dom, &cs)?;
-            frontier.clear();
-            for (x, c) in next {
-                pairs.push((c, x));
-                if !ok.contains(&c) {
-                    frontier.push((x, c));
-                }
-            }
-        }
-        let mut cs: Vec<u64> = pairs.iter().map(|x| x.0).collect();
-        cs.sort_unstable();
-        cs.dedup();
-        let starts = self.probe(f, run, p, fnode, ic, &cs)?;
-        let mut by: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
-        for (c, x) in pairs {
-            by.entry(c).or_default().push(x);
-        }
-        let mut out = self.empty(run, node)?;
-        let mut row = Vec::new();
-        for i in 0..starts.n {
-            if let Some(xs) = by.get(&starts.cols[ic][i]) {
-                for x in xs {
-                    starts.row(i, &mut row);
-                    row.push(*x);
-                    out.push_row(&row);
-                }
-            }
-        }
-        Ok(Some(out))
-    }
-
     fn ordered(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J, as_of: bool) -> R<Table> {
         let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
         let rn = self.arg_rel(node, "right")?;
         let lk: Vec<usize> = strs(&a["left-on"])?.iter().map(|c| l.col(c)).collect::<R<_>>()?;
         let rsc = self.schema(run, rn)?;
         let rk0: Vec<usize> = strs(&a["right-on"])?.iter().map(|c| pos(&rsc.names, c)).collect::<R<_>>()?;
-        let r = self.right_by_keys(f, run, p, rn, &l, &lk, &rk0)?;
+        let r = self.eval(f, run, p, rn)?;
         if r.n == 0 {
             return self.empty(run, node);
         }
@@ -4000,28 +3202,48 @@ impl<'p> Exec<'p> {
             picks.push((side == "left", if side == "left" { l.col(s(&v[1])?)? } else { r.col(s(&v[1])?)? }));
         }
         let mut out = self.empty(run, node)?;
-        let mut groups: FxHashMap<Vec<u64>, Vec<(i64, u32)>> = FxHashMap::default();
+        // redo-alloc: a row's key read into one buffer; a key list made only for a key not seen (same keys, same order)
+        let mut kb: Vec<u64> = Vec::with_capacity(rk.len().max(lk.len()));
+        // redo-alloc: keys inline (inline_key.rs: hashed as the Vec was, so the same order), a group's first row inline
+        let mut groups: FxHashMap<inline_key::Key, inline_key::List<(i64, u32)>> = FxHashMap::default();
         for i in 0..r.n {
-            let k: Vec<u64> = rk.iter().map(|c| r.cols[*c][i]).collect();
-            groups.entry(k).or_default().push((r.cols[ro][i] as i64, i as u32));
+            kb.clear();
+            kb.extend(rk.iter().map(|c| r.cols[*c][i]));
+            let v = (r.cols[ro][i] as i64, i as u32);
+            match groups.get_mut(&kb[..]) {
+                Some(g) => g.push(v),
+                None => {
+                    groups.insert(inline_key::Key::of(&kb), inline_key::List::One([v]));
+                }
+            }
         }
         for g in groups.values_mut() {
             g.sort_unstable();
         }
-        let mut lefts: FxHashMap<Vec<u64>, Vec<(i64, u32)>> = FxHashMap::default();
+        let mut lefts: FxHashMap<inline_key::Key, inline_key::List<(i64, u32)>> = FxHashMap::default();
         for i in 0..l.n {
-            let k: Vec<u64> = lk.iter().map(|c| l.cols[*c][i]).collect();
-            lefts.entry(k).or_default().push((l.cols[lo][i] as i64, i as u32));
+            kb.clear();
+            kb.extend(lk.iter().map(|c| l.cols[*c][i]));
+            let v = (l.cols[lo][i] as i64, i as u32);
+            match lefts.get_mut(&kb[..]) {
+                Some(g) => g.push(v),
+                None => {
+                    lefts.insert(inline_key::Key::of(&kb), inline_key::List::One([v]));
+                }
+            }
         }
+        let row = RefCell::new(Vec::with_capacity(picks.len()));
         let emit = |out: &mut Table, li: u32, ri: u32| {
-            let row: Vec<u64> = picks.iter().map(|(left, c)| if *left { l.cols[*c][li as usize] } else { r.cols[*c][ri as usize] }).collect();
+            let mut row = row.borrow_mut();
+            row.clear();
+            row.extend(picks.iter().map(|(left, c)| if *left { l.cols[*c][li as usize] } else { r.cols[*c][ri as usize] }));
             out.push_row(&row);
         };
         if as_of {
             let bound = s(&a["bound"])?;
             for (k, ls) in &lefts {
                 let Some(g) = groups.get(k) else { continue };
-                for (o, li) in ls {
+                for (o, li) in ls.iter() {
                     let (lo_i, hi_i) = (g.partition_point(|x| x.0 < *o), g.partition_point(|x| x.0 <= *o));
                     let target = match bound {
                         "before" => (lo_i > 0).then(|| g[lo_i - 1].0),
@@ -4072,6 +3294,7 @@ impl<'p> Exec<'p> {
         let cap = a.get("capture").and_then(J::as_str).map(str::to_owned);
         let cap_text = a.get("capture-text-output").and_then(J::as_str).is_some();
         let cap_line = a.get("capture-line-output").and_then(J::as_str).is_some();
+        let groups: Vec<String> = a.get("capture-texts").and_then(J::as_object).map(|o| o.keys().cloned().collect()).unwrap_or_default();
         let mut out = self.empty(run, node)?;
         let mut row = Vec::new();
         for i in 0..from.n {
@@ -4116,6 +3339,9 @@ impl<'p> Exec<'p> {
                         row.push(line_at(g.start()) as u64);
                     }
                 }
+                for c in &groups {
+                    row.push(u64::from(run.sym(m.name(c).map_or(&b""[..], |x| x.as_bytes()))));
+                }
                 out.push_row(&row);
             }
         }
@@ -4135,7 +3361,6 @@ pub(super) enum Dom {
     All,
     Set(rustc_hash::FxHashSet<u64>),
     View(Rc<ViewSpec>, usize),
-    Keyed(usize, usize),
 }
 
 /// The other end of each edge from `x`: upward (its parents) or downward (its children).
@@ -4154,14 +3379,20 @@ fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &mut 
             }
         }
         Hier::View(v, pc, cc) => {
-            let mut hits = Vec::new();
+            // redo-alloc: the probe's rows in the worker's one buffer (not a list made a step)
+            thread_local! {
+                static HITS: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
+            }
+            let mut hits = HITS.with(|h| std::mem::take(&mut *h.borrow_mut()));
+            hits.clear();
             let (by, to) = if up { (*cc, *pc) } else { (*pc, *cc) };
             f.native_probe(run, v.base, v.map[by], x, &mut hits);
-            for h in hits {
+            for &h in &hits {
                 if view_holds(f, run, v, h) {
-                    out.push(f.native_get(run, v.base, h, v.map[to]));
+                    out.push(view_cols::cell(f, run, v.base, h, v.map[to]));
                 }
             }
+            HITS.with(|b| *b.borrow_mut() = hits);
         }
         Hier::Maps(u, d) => {
             if let Some(xs) = if up { u.get(&x) } else { d.get(&x) } {
@@ -4173,30 +3404,38 @@ fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &mut 
 
 /// Whether a view's tests hold on one of its base rows.
 fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
+    fill_prof::read(1);
     if v.filter.is_empty() {
         return true;
     }
-    let srcs = [Src::Base(v.base)];
-    let cur = [row];
-    v.filter.iter().all(|e| truthy(eval(run, f, &srcs, &cur, e)))
+    view_cols::row_holds(f, run, v, row)
 }
 
 /// A view's rows in this file: its kind bucket when its tests name kinds, else every base row; tested; made once a file.
 fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<Vec<u32>> {
+    fill_prof::read(3);
     if let Some(r) = f.vrows.get(&node) {
         return r.clone();
     }
     if filter_order::file_fails(run, f, &v.filter) {
-        let rc = Rc::new(Vec::new());
+        let rc = recycle::no_rows();
         f.vrows.insert(node, rc.clone());
         return rc;
     }
-    let rows = match kind_set(run, &v.filter, 0, v.base, &[]) {
-        Some(ks) => bucket(f, run, &ks),
-        None => lit_rows(f, &v.filter, 0, v.base, &[]).unwrap_or_else(|| f.native_rows(run, v.base)),
-    };
-    let kept: Vec<u32> = rows.into_iter().filter(|r| view_holds(f, run, v, *r)).collect();
-    let rc = Rc::new(kept);
+    // redo-alloc: the rows made into a kept list (recycle.rs), tested in place
+    let rc = recycle::rows_with(|out| {
+        match kind_set(run, &v.filter, 0, v.base, &[]) {
+            Some(ks) => bucket_into(f, run, &ks, out),
+            None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
+                Some(r) => out.extend_from_slice(&r),
+                None => f.native_rows_into(run, v.base, out),
+            },
+        }
+        // redo-fills: the view tests read as columns (view_cols)
+        if !v.filter.is_empty() {
+            view_cols::retain(f, run, v, out);
+        }
+    });
     f.vrows.insert(node, rc.clone());
     rc
 }
@@ -4234,8 +3473,14 @@ fn kind_codes(run: &Run) -> &FxHashMap<u32, Box<[u16]>> {
 
 /// The elements of some kinds, in position order.
 fn bucket(f: &File<'_>, run: &Run, ks: &[u32]) -> Vec<u32> {
-    let codes = kind_codes(run);
     let mut rows = Vec::new();
+    bucket_into(f, run, ks, &mut rows);
+    rows
+}
+
+/// redo-alloc: `bucket` into `rows` (empty).
+fn bucket_into(f: &File<'_>, run: &Run, ks: &[u32], rows: &mut Vec<u32>) {
+    let codes = kind_codes(run);
     for (i, s) in ks.iter().enumerate() {
         if ks[..i].contains(s) {
             continue;
@@ -4245,13 +3490,48 @@ fn bucket(f: &File<'_>, run: &Run, ks: &[u32]) -> Vec<u32> {
         }
     }
     rows.sort_unstable();
-    rows
 }
 
 /// 6h: a fact view's rows where a test fixes one of its columns to literals (`col = "x"`, `col in [..]`, an or of such): that
 /// column's keyed list read at those values, a per-file bucket. `map` takes a view's column to its base column (empty: the
 /// base's own).
 fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
+    fill_prof::read(2);
+    let (i, bc, vals) = lit_pick(f, conj, si, base, map)?;
+    let ix = f.fact_list(i, bc);
+    let mut rows: Vec<u32> = vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied().collect();
+    rows.sort_unstable();
+    rows.dedup();
+    Some(rows)
+}
+
+/// redo-fills c5: whether `lit_rows` answers (a literal test on a symbol column of a fill), without making its rows.
+fn lit_applies(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> bool {
+    lit_pick(f, conj, si, base, map).is_some()
+}
+
+/// redo-fills c5: how many rows `lit_rows` answers, without making them (a row holds one value of the column, so the
+/// distinct literals' row lists are disjoint).
+fn lit_len(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<usize> {
+    let (i, bc, mut vals) = lit_pick(f, conj, si, base, map)?;
+    vals.sort_unstable();
+    vals.dedup();
+    let ix = f.fact_list(i, bc);
+    Some(vals.iter().filter_map(|v| ix.get(&u64::from(*v))).map(|r| r.len()).sum())
+}
+
+/// redo-alloc: `lit_rows` into `out` (empty; whether a test fixes a column), through redo-fills' `lit_pick`.
+fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize], rows: &mut Vec<u32>) -> bool {
+    let Some((i, bc, vals)) = lit_pick(f, conj, si, base, map) else { return false };
+    let ix = f.fact_list(i, bc);
+    rows.extend(vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied());
+    rows.sort_unstable();
+    rows.dedup();
+    true
+}
+
+/// The literal test `lit_rows` reads by: the fill, its base column and the literals.
+fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<(u16, usize, Vec<u32>)> {
     let Native::Fact(i) = base else { return None };
     fn cols(e: &E, si: usize, out: &mut Vec<usize>) {
         match e {
@@ -4263,25 +3543,31 @@ fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) ->
             _ => {}
         }
     }
-    for e in conj {
-        let mut cs = Vec::new();
+    // redo-alloc: the columns and literals of each conjunct in the worker's two buffers (none made a conjunct)
+    thread_local! {
+        static BUF: RefCell<(Vec<usize>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new())) };
+    }
+    let (mut cs, mut vals) = BUF.with(|b| std::mem::take(&mut *b.borrow_mut()));
+    let mut out = None;
+    'conj: for e in conj {
+        cs.clear();
         cols(e, si, &mut cs);
-        for c in cs {
-            if let Some(vals) = kinds_required(e, si, c) {
+        for &c in &cs {
+            vals.clear();
+            if kinds_required_into(e, si, c, &mut vals) {
                 let bc = if map.is_empty() { c } else { map[c] };
                 // a text literal names a symbol cell only; a flag or number column is tested row by row
                 if f.facts[usize::from(i)].as_ref().is_none_or(|t| t.tys[bc] != Ty::Sym) {
                     continue;
                 }
-                let ix = f.fact_list(i, bc);
-                let mut rows: Vec<u32> = vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied().collect();
-                rows.sort_unstable();
-                rows.dedup();
-                return Some(rows);
+                // redo-fills c5 (the pick without its rows) in redo-alloc's buffers: the literals copied out, the buffers kept
+                out = Some((i, bc, vals.clone()));
+                break 'conj;
             }
         }
     }
-    None
+    BUF.with(|b| *b.borrow_mut() = (cs, vals));
+    out
 }
 
 /// The kinds a conjunction requires of a tree source's `kind` column (a literal or an or of literals), if any. `map` takes a
@@ -4326,23 +3612,43 @@ fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) -> O
 
 /// The kinds a test requires of column `kc` of source `si`: a literal, a list, an `or` of such, or an `and` holding one.
 fn kinds_required(e: &E, si: usize, kc: usize) -> Option<Vec<u32>> {
-    match e {
+    let mut v = Vec::new();
+    kinds_required_into(e, si, kc, &mut v).then_some(v)
+}
+
+/// redo-alloc: `kinds_required` into `out` (appended; whether it holds, `out` as it was when not).
+fn kinds_required_into(e: &E, si: usize, kc: usize, out: &mut Vec<u32>) -> bool {
+    let at = out.len();
+    let ok = match e {
         E::Cmp(Op::Eq, a, b) => match (&**a, &**b) {
-            (E::Col(s, c, _), E::Text(t)) | (E::Text(t), E::Col(s, c, _)) if *s == si && *c == kc => Some(vec![*t]),
-            _ => None,
+            (E::Col(s, c, _), E::Text(t)) | (E::Text(t), E::Col(s, c, _)) if *s == si && *c == kc => {
+                out.push(*t);
+                true
+            }
+            _ => false,
         },
         E::In(a, b, false) => match (&**a, &**b) {
-            (E::Col(s, c, _), E::List(items)) if *s == si && *c == kc => items.iter().map(|i| if let E::Text(t) = i { Some(*t) } else { None }).collect(),
-            _ => None,
+            (E::Col(s, c, _), E::List(items)) if *s == si && *c == kc => items.iter().all(|i| {
+                if let E::Text(t) = i {
+                    out.push(*t);
+                    true
+                } else {
+                    false
+                }
+            }),
+            _ => false,
         },
-        E::Or(a, b) => {
-            let mut x = kinds_required(a, si, kc)?;
-            x.extend(kinds_required(b, si, kc)?);
-            Some(x)
-        }
-        E::And(a, b) => kinds_required(a, si, kc).or_else(|| kinds_required(b, si, kc)),
-        _ => None,
+        E::Or(a, b) => kinds_required_into(a, si, kc, out) && kinds_required_into(b, si, kc, out),
+        E::And(a, b) => kinds_required_into(a, si, kc, out) || {
+            out.truncate(at);
+            kinds_required_into(b, si, kc, out)
+        },
+        _ => false,
+    };
+    if !ok {
+        out.truncate(at);
     }
+    ok
 }
 
 /// An expression over a view's columns, rewritten over its base's.
@@ -4382,9 +3688,14 @@ fn distinct(t: Table) -> Table {
             keep.extend((0..t.n).filter(|r| seen.insert((t.cols[0][*r], t.cols[1][*r]))));
         }
         _ => {
-            let mut seen: rustc_hash::FxHashSet<Vec<u64>> = rustc_hash::FxHashSet::default();
+            // redo-alloc: a row read into one buffer, its key inline (inline_key.rs)
+            let mut seen: rustc_hash::FxHashSet<inline_key::Key> = rustc_hash::FxHashSet::default();
+            let mut row: Vec<u64> = Vec::with_capacity(t.cols.len());
             for r in 0..t.n {
-                if seen.insert(t.cols.iter().map(|c| c[r]).collect()) {
+                row.clear();
+                row.extend(t.cols.iter().map(|c| c[r]));
+                if !seen.contains(&row[..]) {
+                    seen.insert(inline_key::Key::of(&row));
                     keep.push(r);
                 }
             }
@@ -4393,7 +3704,7 @@ fn distinct(t: Table) -> Table {
     if keep.len() == t.n {
         return t;
     }
-    let mut out = Table::with(t.names.clone(), t.tys.clone());
+    let mut out = Table::with_rows(t.names.clone(), t.tys.clone(), keep.len());
     for (c, col) in t.cols.iter().enumerate() {
         out.cols[c].extend(keep.iter().map(|r| col[*r]));
     }
@@ -4437,42 +3748,99 @@ pub(super) struct Index {
     rows: Vec<u32>,
 }
 
+thread_local! {
+    /// redo-alloc: an index's scratch (its keys, the fill cursor, the sorted pairs) and the kept buffers of dropped indexes.
+    static IX_SCRATCH: RefCell<(Vec<u64>, Vec<u32>, Vec<(u64, u32)>)> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
+    static IX_KEPT: RefCell<(Vec<Vec<u32>>, Vec<FxHashMap<u64, (u32, u32)>>, usize)> = const { RefCell::new((Vec::new(), Vec::new(), 0)) };
+}
+
+/// redo-alloc: the kept index buffers' room, in all (cells): a worker keeps no more than this (4 MB).
+const IX_CELLS: usize = 1 << 20;
+
+/// redo-alloc: a kept row buffer (empty) or a new one.
+fn ix_u32() -> Vec<u32> {
+    IX_KEPT.with(|k| {
+        let k = &mut *k.borrow_mut();
+        let v = k.0.pop();
+        if let Some(v) = &v {
+            k.2 -= v.capacity();
+        }
+        v
+    })
+    .unwrap_or_default()
+}
+
+impl Drop for Index {
+    fn drop(&mut self) {
+        // redo-alloc: the buffers kept for the next index (a worker's working set; one far past it is freed)
+        let _ = IX_KEPT.try_with(|k| {
+            let k = &mut *k.borrow_mut();
+            for mut v in [std::mem::take(&mut self.offs), std::mem::take(&mut self.rows)] {
+                if v.capacity() > 0 && k.2 + v.capacity() <= IX_CELLS {
+                    v.clear();
+                    k.2 += v.capacity();
+                    k.0.push(v);
+                }
+            }
+            let mut m = std::mem::take(&mut self.at);
+            if m.capacity() > 0 && m.capacity() <= 1 << 12 && k.1.len() < 64 {
+                m.clear();
+                k.1.push(m);
+            }
+        });
+    }
+}
+
 impl Index {
     pub(super) fn build(n: usize, key: impl Fn(usize) -> u64) -> Index {
-        let keys: Vec<u64> = (0..n).map(key).collect();
+        // redo-alloc: the scratch and the index's own buffers from the worker's kept ones (same rows, same order)
+        let (mut keys, mut fill, mut order) = IX_SCRATCH.with(|b| std::mem::take(&mut *b.borrow_mut()));
+        keys.clear();
+        keys.extend((0..n).map(key));
         let max = keys.iter().copied().max().unwrap_or(0);
-        if n > 0 && max < (4 * n as u64).max(1024) {
+        let ix = if n > 0 && max < (4 * n as u64).max(1024) {
             let m = max as usize + 1;
-            let mut offs = vec![0u32; m + 1];
+            let mut offs = ix_u32();
+            offs.resize(m + 1, 0);
             for k in &keys {
                 offs[*k as usize + 1] += 1;
             }
             for i in 0..m {
                 offs[i + 1] += offs[i];
             }
-            let mut fill = offs[..m].to_vec();
-            let mut rows = vec![0u32; n];
+            fill.clear();
+            fill.extend_from_slice(&offs[..m]);
+            let mut rows = ix_u32();
+            rows.resize(n, 0);
             for (r, k) in keys.iter().enumerate() {
                 let p = &mut fill[*k as usize];
                 rows[*p as usize] = r as u32;
                 *p += 1;
             }
-            return Index { dense: true, offs, at: FxHashMap::default(), rows };
-        }
-        let mut order: Vec<(u64, u32)> = keys.iter().enumerate().map(|(r, k)| (*k, r as u32)).collect();
-        order.sort_unstable();
-        let mut at: FxHashMap<u64, (u32, u32)> = FxHashMap::default();
-        at.reserve(n.min(1 << 16));
-        let mut i = 0;
-        while i < order.len() {
-            let mut j = i;
-            while j < order.len() && order[j].0 == order[i].0 {
-                j += 1;
+            Index { dense: true, offs, at: FxHashMap::default(), rows }
+        } else {
+            order.clear();
+            order.extend(keys.iter().enumerate().map(|(r, k)| (*k, r as u32)));
+            order.sort_unstable();
+            let mut at: FxHashMap<u64, (u32, u32)> = IX_KEPT.with(|k| k.borrow_mut().1.pop()).unwrap_or_default();
+            at.reserve(n.min(1 << 16));
+            let mut i = 0;
+            while i < order.len() {
+                let mut j = i;
+                while j < order.len() && order[j].0 == order[i].0 {
+                    j += 1;
+                }
+                at.insert(order[i].0, (i as u32, (j - i) as u32));
+                i = j;
             }
-            at.insert(order[i].0, (i as u32, (j - i) as u32));
-            i = j;
+            let mut rows = ix_u32();
+            rows.extend(order.iter().map(|x| x.1));
+            Index { dense: false, offs: Vec::new(), at, rows }
+        };
+        if keys.capacity() <= 1 << 16 && order.capacity() <= 1 << 16 {
+            IX_SCRATCH.with(|b| *b.borrow_mut() = (keys, fill, order));
         }
-        Index { dense: false, offs: Vec::new(), at, rows: order.into_iter().map(|x| x.1).collect() }
+        ix
     }
     pub(super) fn get(&self, k: &u64) -> Option<&[u32]> {
         if self.dense {
@@ -4510,14 +3878,58 @@ fn index_of(t: &Table, cols: &[usize]) -> Index {
 }
 
 fn table_index(f: &mut File<'_>, tn: usize, t: &Table, cols: &[usize]) -> Rc<Index> {
+    // redo-alloc: the index's columns as an inline key, the index in a kept allocation (`index_rc`)
+    let same = |c: &inline_key::Key| c.cells().len() == cols.len() && c.cells().iter().zip(cols).all(|(a, b)| *a == *b as u64);
     if let Some(v) = f.index.get(&tn)
-        && let Some((_, ix)) = v.iter().find(|(c, _)| c == cols)
+        && let Some((_, ix)) = v.iter().find(|(c, _)| same(c))
     {
         return ix.clone();
     }
-    let rc = Rc::new(index_of(t, cols));
-    f.index.entry(tn).or_default().push((cols.to_vec(), rc.clone()));
+    let rc = index_rc(index_of(t, cols));
+    let mut kb = [0u64; 8];
+    let k = if cols.len() <= kb.len() {
+        for (i, c) in cols.iter().enumerate() {
+            kb[i] = *c as u64;
+        }
+        inline_key::Key::of(&kb[..cols.len()])
+    } else {
+        inline_key::Key::of(&cols.iter().map(|c| *c as u64).collect::<Vec<u64>>())
+    };
+    f.index.entry(tn).or_default().push((k, rc.clone()));
     rc
+}
+
+thread_local! {
+    /// redo-alloc: emptied indexes' own allocations, for the next index made in a file.
+    static IX_RCS: RefCell<Vec<Rc<Index>>> = const { RefCell::new(Vec::new()) };
+}
+
+/// redo-alloc: `ix` shared, in a kept allocation when there is one.
+fn index_rc(ix: Index) -> Rc<Index> {
+    match IX_RCS.with(|r| r.borrow_mut().pop()) {
+        Some(mut r) => match Rc::get_mut(&mut r) {
+            Some(slot) => {
+                *slot = ix;
+                r
+            }
+            None => Rc::new(ix),
+        },
+        None => Rc::new(ix),
+    }
+}
+
+/// redo-alloc: an index given back: emptied (its buffers kept, `Index`'s drop) and its allocation kept when no one else
+/// holds it.
+fn recycle_index(mut r: Rc<Index>) {
+    if let Some(slot) = Rc::get_mut(&mut r) {
+        *slot = Index { dense: true, offs: Vec::new(), at: FxHashMap::default(), rows: Vec::new() };
+        let _ = IX_RCS.try_with(|p| {
+            let mut p = p.borrow_mut();
+            if p.len() < 4096 {
+                p.push(r);
+            }
+        });
+    }
 }
 
 fn flatten(e: E, out: &mut Vec<E>) {
@@ -4554,16 +3966,21 @@ fn static_ty(e: &E) -> Ty {
 fn get(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], si: usize, col: usize) -> u64 {
     match &srcs[si] {
         Src::Tab(t, _) => t.cols[col][cur[si] as usize],
-        Src::View(v, _) => f.native_get(run, v.base, cur[si], v.map[col]),
-        Src::Base(n) => f.native_get(run, *n, cur[si], col),
-        Src::Lazy(_) | Src::Pending(_) => NULL,
+        Src::View(v, _) => {
+            fill_prof::read(6);
+            view_cols::cell(f, run, v.base, cur[si], v.map[col])
+        }
+        Src::Base(n) => {
+            fill_prof::read(7);
+            view_cols::cell(f, run, *n, cur[si], col)
+        }
+        Src::Lazy(_) => NULL,
     }
 }
 
 /// The rows of a made table whose column holds one of `keys`, through its index on that column (made once a file).
 fn subset(f: &mut File<'_>, node: usize, t: &Table, col: usize, keys: &[u64]) -> Table {
     let ix = table_index(f, node, t, &[col]);
-    let mut out = Table::with(t.names.clone(), t.tys.clone());
     // 10: the rows found first, then each column gathered (the same rows in the same order as row by row)
     thread_local! {
         static ROWS: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
@@ -4576,23 +3993,27 @@ fn subset(f: &mut File<'_>, node: usize, t: &Table, col: usize, keys: &[u64]) ->
                 rs.extend_from_slice(rows);
             }
         }
+        // redo-alloc: the columns taken with the rows' room now that their count is known
+        let mut out = Table::with_rows(t.names.clone(), t.tys.clone(), rs.len());
         for (c, src) in t.cols.iter().enumerate() {
             let mut v = std::mem::take(&mut out.cols[c]);
             v.extend(rs.iter().map(|r| src[*r as usize]));
             out.cols[c] = v;
         }
         out.n = rs.len();
-    });
-    out
+        out
+    })
 }
 
-fn text_of(run: &Run, v: V) -> Vec<u8> {
+/// redo-alloc: an interned text is read where it lies (no copy); a number's text is made.
+fn text_of(run: &Run, v: V) -> std::borrow::Cow<'_, [u8]> {
+    use std::borrow::Cow;
     match v.ty() {
-        Ty::Sym => run.text(v.1 as u32).to_vec(),
-        Ty::File => run.text(run.path_sym[v.1 as usize]).to_vec(),
-        Ty::Num => (v.1 as i64).to_string().into_bytes(),
-        Ty::Flag => if v.1 == 1 { b"true".to_vec() } else { b"false".to_vec() },
-        _ => Vec::new(),
+        Ty::Sym => Cow::Borrowed(run.text(v.1 as u32)),
+        Ty::File => Cow::Borrowed(run.text(run.path_sym[v.1 as usize])),
+        Ty::Num => Cow::Owned((v.1 as i64).to_string().into_bytes()),
+        Ty::Flag => Cow::Borrowed(if v.1 == 1 { b"true".as_slice() } else { b"false".as_slice() }),
+        _ => Cow::Borrowed(&[]),
     }
 }
 
@@ -4685,6 +4106,14 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             })
         }
         E::Call(name, args) => {
+            // redo-alloc: up to four arguments on the stack (the common sizes), more in a list
+            if args.len() <= 4 {
+                let mut vs = [NULL_V; 4];
+                for (i, x) in args.iter().enumerate() {
+                    vs[i] = eval(run, f, srcs, cur, x);
+                }
+                return call(run, name, &vs[..args.len()]);
+            }
             let vs: Vec<V> = args.iter().map(|x| eval(run, f, srcs, cur, x)).collect();
             call(run, name, &vs)
         }
@@ -4696,32 +4125,39 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
 }
 
 fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
-    let t = |run: &Run, i: usize| text_of(run, vs[i]);
+    // redo-alloc: an argument's text read in place (`text_of`), copied only where a pattern is kept
     match name {
         "matches" => {
-            let p = String::from_utf8(t(run, 1)).unwrap_or_default();
+            let p = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();
             let re = run.re(&p).expect("a regex");
-            flag(re.is_match(&t(run, 0)))
+            flag(re.is_match(&text_of(run, vs[0])))
         }
-        "starts_with" => flag(t(run, 0).starts_with(&t(run, 1))),
-        "ends_with" => flag(t(run, 0).ends_with(&t(run, 1))),
+        "starts_with" => flag(text_of(run, vs[0]).starts_with(&text_of(run, vs[1]))),
+        "ends_with" => flag(text_of(run, vs[0]).ends_with(&text_of(run, vs[1]))),
         "lower" => {
-            let s = String::from_utf8_lossy(&t(run, 0)).to_lowercase();
+            let s = String::from_utf8_lossy(&text_of(run, vs[0])).to_lowercase();
             V::new(Ty::Sym, u64::from(run.sym(s.as_bytes())))
         }
         "concat" => {
-            let mut s = Vec::new();
-            for i in 0..vs.len() {
-                s.extend(t(run, i));
+            // redo-alloc: the worker's one buffer for the text before it is interned
+            thread_local! {
+                static BUF: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
             }
-            V::new(Ty::Sym, u64::from(run.sym(&s)))
+            let mut s = BUF.with(|b| std::mem::take(&mut *b.borrow_mut()));
+            s.clear();
+            for i in 0..vs.len() {
+                s.extend_from_slice(&text_of(run, vs[i]));
+            }
+            let v = V::new(Ty::Sym, u64::from(run.sym(&s)));
+            BUF.with(|b| *b.borrow_mut() = s);
+            v
         }
         "glob_any" => {
-            let g = String::from_utf8(t(run, 1)).unwrap_or_default();
+            let g = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();
             let re = run.re(&glob_pattern(&g)).expect("a glob");
-            flag(re.is_match(&t(run, 0)))
+            flag(re.is_match(&text_of(run, vs[0])))
         }
-        "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&t(run, 0)), &String::from_utf8_lossy(&t(run, 1)))),
+        "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&text_of(run, vs[0])), &String::from_utf8_lossy(&text_of(run, vs[1])))),
         // redo-honest: the shipping engine's meaning (operators numeric_values::integer_successor): whether the right is
         // exactly the left plus one, both integers (an integer cell, or normalized decimal text); a float never is. It was
         // a function answering left + 1, read as a test, so every comparison failed.
@@ -4771,39 +4207,41 @@ fn glob_pattern(g: &str) -> String {
 
 /// Natural order, as the language reference states it.
 fn natural_lt(a: &str, b: &str) -> bool {
-    fn units(s: &str) -> Vec<(bool, String)> {
-        let mut out: Vec<(bool, String)> = Vec::new();
-        let mut cur = String::new();
-        let mut digits = false;
-        for ch in s.chars() {
-            if ch.is_whitespace() {
-                if !cur.is_empty() {
-                    out.push((digits, std::mem::take(&mut cur)));
-                }
+    // redo-alloc: the units as ranges of the text (a digit run, or one other character; whitespace splits) in the worker's
+    // two buffers, not a string a unit
+    fn units(s: &str, out: &mut Vec<(bool, usize, usize)>) {
+        out.clear();
+        let mut run: Option<usize> = None;
+        for (at, ch) in s.char_indices() {
+            if ch.is_ascii_digit() {
+                run.get_or_insert(at);
                 continue;
             }
-            let d = ch.is_ascii_digit();
-            if d {
-                if !digits && !cur.is_empty() {
-                    out.push((false, std::mem::take(&mut cur)));
-                }
-                digits = true;
-                cur.push(ch);
-            } else {
-                if digits && !cur.is_empty() {
-                    out.push((true, std::mem::take(&mut cur)));
-                }
-                digits = false;
-                out.push((false, ch.to_string()));
+            if let Some(st) = run.take() {
+                out.push((true, st, at));
+            }
+            if !ch.is_whitespace() {
+                out.push((false, at, at + ch.len_utf8()));
             }
         }
-        if !cur.is_empty() {
-            out.push((digits, cur));
+        if let Some(st) = run {
+            out.push((true, st, s.len()));
         }
-        out
     }
-    let (x, y) = (units(a), units(b));
-    for (p, q) in x.iter().zip(y.iter()) {
+    thread_local! {
+        static UNITS: RefCell<(Vec<(bool, usize, usize)>, Vec<(bool, usize, usize)>)> = const { RefCell::new((Vec::new(), Vec::new())) };
+    }
+    let (mut xr, mut yr) = UNITS.with(|u| std::mem::take(&mut *u.borrow_mut()));
+    units(a, &mut xr);
+    units(b, &mut yr);
+    let lt = natural_lt_of(xr.iter().map(|(d, s, e)| (*d, &a[*s..*e])), yr.iter().map(|(d, s, e)| (*d, &b[*s..*e])), xr.len() < yr.len());
+    UNITS.with(|u| *u.borrow_mut() = (xr, yr));
+    lt
+}
+
+/// redo-alloc: `natural_lt`'s comparison of two unit lists (`shorter`: the first has fewer units).
+fn natural_lt_of<'a>(x: impl Iterator<Item = (bool, &'a str)>, y: impl Iterator<Item = (bool, &'a str)>, shorter: bool) -> bool {
+    for (p, q) in x.zip(y) {
         let ord = match (p.0, q.0) {
             (true, true) => {
                 if p.1.starts_with('0') || q.1.starts_with('0') {
@@ -4818,7 +4256,7 @@ fn natural_lt(a: &str, b: &str) -> bool {
             return ord == std::cmp::Ordering::Less;
         }
     }
-    x.len() < y.len()
+    shorter
 }
 
 /// `token-link` from the token order (step 5's pass): next token, matching and enclosing delimiter.
@@ -4828,50 +4266,16 @@ fn token_links(f: &File<'_>, run: &mut Run) -> Table {
         vec!["source".into(), "target".into(), "link-kind".into(), "file".into(), "span".into()],
         vec![Ty::Node, Ty::Node, Ty::Sym, Ty::File, Ty::Span],
     );
-    let start = node_table::node_count(f.table).0 as u32;
-    let end = node_table::own_end(f.table).0;
-    let mut stack: Vec<(u16, u32)> = Vec::new();
-    let mut previous: Option<u32> = None;
-    let closer = |k: u16| run.pairs.iter().find(|(o, _)| *o == k).map(|(_, c)| *c);
-    let is_closer = |k: u16| run.pairs.iter().any(|(_, c)| *c == k);
     let mut rows: Vec<[u64; 5]> = Vec::new();
     let sp = |p: u32| (u64::from(f.start[p as usize]) << 32) | u64::from(f.end[p as usize]);
-    for at in start..end {
-        let k = f.kind[at as usize];
-        if !(k >= run.token_first && k <= run.token_last) {
-            continue;
-        }
-        if k == run.token_error {
-            previous = None;
-            stack.clear();
-            continue;
-        }
-        let mut paired = None;
-        let mut enclosing = stack.last().map(|o| o.1);
-        if let Some(close) = closer(k) {
-            stack.push((close, at));
-        } else if is_closer(k) {
-            match stack.pop() {
-                Some((close, open)) if close == k => {
-                    paired = Some((open, at));
-                    enclosing = stack.last().map(|o| o.1);
-                }
-                _ => {
-                    stack.clear();
-                    enclosing = None;
-                }
-            }
-        }
-        let fl = u64::from(f.file);
-        if let Some(p) = previous.replace(at) {
-            rows.push([u64::from(p), u64::from(at), u64::from(nt), fl, sp(p)]);
-        }
-        if let Some((o, c)) = paired {
-            rows.push([u64::from(o), u64::from(c), u64::from(md), fl, sp(o)]);
-        }
-        if let Some(t) = enclosing {
-            rows.push([u64::from(at), u64::from(t), u64::from(ed), fl, sp(at)]);
-        }
+    let fl = u64::from(f.file);
+    if let Some(order) = &run.tokens {
+        order.links(f.table, &mut |e| match e {
+            TokenEvent::Token(_) => {}
+            TokenEvent::Next(p, at) => rows.push([u64::from(p), u64::from(at), u64::from(nt), fl, sp(p)]),
+            TokenEvent::Matching(o, c) => rows.push([u64::from(o), u64::from(c), u64::from(md), fl, sp(o)]),
+            TokenEvent::Enclosing(at, t) => rows.push([u64::from(at), u64::from(t), u64::from(ed), fl, sp(at)]),
+        });
     }
     for r in rows {
         out.push_row(&r);
@@ -4883,34 +4287,113 @@ fn token_links(f: &File<'_>, run: &mut Run) -> Table {
 pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords) -> R<Table> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
     let n = filled.0.first().map_or(0, |c| c.0.len());
-    let mut out = Table::with(names, tys.clone());
+    let mut out = Table::with_rows(names, tys.clone(), n);
     for (c, ty) in tys.iter().enumerate() {
         let Some(column) = filled.0.get(c) else {
             out.cols[c] = vec![NULL; n];
             continue;
         };
-        out.cols[c] = match ty {
-            Ty::Sym => column.0.iter().map(|w| u64::from(run.sym(&cell_text(words, *w)))).collect(),
-            Ty::Node => column.0.iter().map(|w| w.0 & 0xffff_ffff).collect(),
-            _ => column.0.iter().map(|w| w.0).collect(),
-        };
+        // redo-alloc: into the pooled column; redo-fills c2: texts through the run's word caches (`word_sym`)
+        let v = &mut out.cols[c];
+        match ty {
+            Ty::Sym => {
+                let base = languages::facts::base_count(words).0;
+                v.extend(column.0.iter().map(|w| u64::from(word_sym(run, words, *w, base))))
+            }
+            Ty::Node => v.extend(column.0.iter().map(|w| w.0 & 0xffff_ffff)),
+            _ => v.extend(column.0.iter().map(|w| w.0)),
+        }
     }
     out.n = n;
     Ok(out)
 }
 
+/// redo-fills c2: a provider word's run-wide symbol, through the run's word caches (`Run::base_word_sym`).
+fn word_sym(run: &mut Run, words: &languages::FileWords, w: languages::CellWord, base: u64) -> u32 {
+    let (own, at) = if w.0 < base {
+        (false, w.0 as usize)
+    } else if w.0 < 0xFFFF_0000 {
+        (true, (w.0 - base) as usize)
+    } else if w.0 < 0xFFFF_0700 {
+        // redo-fills pass 2: a closed-set word's symbol, once a run (no text copied and hashed a cell)
+        let at = (w.0 - 0xFFFF_0000) as usize;
+        if let Some(&s) = run.closed_word_sym.get(at)
+            && s != u32::MAX
+        {
+            return s;
+        }
+        let s = cell_sym(run, words, w);
+        if run.closed_word_sym.len() <= at {
+            run.closed_word_sym.resize(at + 1, u32::MAX);
+        }
+        run.closed_word_sym[at] = s;
+        return s;
+    } else {
+        return cell_sym(run, words, w);
+    };
+    let cache = if own { &run.own_word_sym } else { &run.base_word_sym };
+    if let Some(&s) = cache.get(at)
+        && s != u32::MAX
+    {
+        return s;
+    }
+    let s = run.sym(languages::facts::text(words, w).0.as_bytes());
+    let cache = if own { &mut run.own_word_sym } else { &mut run.base_word_sym };
+    if at < 1 << 22 {
+        if cache.len() <= at {
+            cache.resize(at + 1, u32::MAX);
+        }
+        cache[at] = s;
+    }
+    s
+}
+
+/// redo-fills c2: a new file's words start: the own-word symbols of the last file are forgotten.
+pub(super) fn own_words_cleared(run: &mut Run) {
+    run.own_word_sym.clear();
+}
+
+/// redo-alloc: a cell's text interned (a closed set's word by `closed_text`, else the file's word read in place).
+fn cell_sym(run: &mut Run, words: &languages::FileWords, w: languages::CellWord) -> u32 {
+    if (0xFFFF_0000..0xFFFF_0700).contains(&w.0) {
+        // a closed set's word: its symbol once a run (the closed set's word list is made a call)
+        thread_local! {
+            static CLOSED: RefCell<(usize, FxHashMap<u64, u32>)> = RefCell::new((0, FxHashMap::default()));
+        }
+        let at = std::ptr::from_ref(&*run) as usize;
+        if let Some(x) = CLOSED.with(|c| {
+            let c = c.borrow();
+            if c.0 == at { c.1.get(&w.0).copied() } else { None }
+        }) {
+            return x;
+        }
+        let Some(t) = closed_text(w) else { return run.sym(languages::facts::text(words, w).0.as_bytes()) };
+        let x = run.sym(&t);
+        CLOSED.with(|c| {
+            let mut c = c.borrow_mut();
+            if c.0 != at {
+                *c = (at, FxHashMap::default());
+            }
+            c.1.insert(w.0, x);
+        });
+        return x;
+    }
+    run.sym(languages::facts::text(words, w).0.as_bytes())
+}
+
 /// redo-binding: a cell's text, a word of a closed set (`defines.kind` and the other closed columns: the catalog's term blocks
 /// from 0xFFFF_0000, 0x100 words a block, `ryo_relations::domain::terms`) read by its number, which the file's words do not hold.
-fn cell_text(words: &languages::FileWords, w: languages::CellWord) -> Vec<u8> {
+/// redo-alloc: its closed-set part only (the file's words are read in place by `cell_sym`).
+fn closed_text(w: languages::CellWord) -> Option<Vec<u8>> {
     use ryo_relations::domain::terms::{service::words_of, types::WordBlock};
     if (0xFFFF_0000..0xFFFF_0700).contains(&w.0) {
         let at = w.0 - 0xFFFF_0000;
         let block = [WordBlock::Declaration, WordBlock::Parameter, WordBlock::Value, WordBlock::Mapping, WordBlock::Dependency, WordBlock::Unknown, WordBlock::Origin][(at / 0x100) as usize];
         if let Some(t) = words_of(block).get((at % 0x100) as usize) {
-            return t.0.as_bytes().to_vec();
+            return Some(t.0.as_bytes().to_vec());
         }
     }
-    languages::facts::text(words, w).0.as_bytes().to_vec()
+    None
 }
 
 /// A tree relation as this file reads it in place, made whole (for `--check-bases`).
@@ -5013,168 +4496,3 @@ fn fits(text: &str, prefix: &str, max: usize, tab: usize) -> bool {
     true
 }
 
-/// `project-namespace-membership` for this file: each dotted prefix of each absolute import path it writes, classified by
-/// the entries under the project's search roots (module file, package directory with an initializer, namespace directory),
-/// with a present child of a parent not present made unknown; as the provider's project phase states it.
-fn namespace_membership(f: &File<'_>, run: &mut Run) -> R<Table> {
-    let (_, names, tys) = run.catalog("project-namespace-membership").ok_or("no project-namespace-membership")?;
-    let kind = |n: &str| run.kind_sym.iter().position(|s| run.text(*s) == n.as_bytes()).map(|c| c as u16);
-    let (alias, from_k, dot, ell, ident, name) = (kind("alias"), kind("import-from"), kind("dot"), kind("ellipsis"), kind("identifier"), kind("name-token"));
-    let names_of = |f: &File<'_>, at: u32, out: &mut Vec<String>| {
-        let mut stack = vec![at];
-        let mut toks = Vec::new();
-        while let Some(x) = stack.pop() {
-            for c in node_table::children_of(f.table, Position(x)).iter().rev() {
-                stack.push(c.0);
-            }
-            if Some(f.kind[x as usize]) == name {
-                toks.push(x);
-            }
-        }
-        toks.sort_unstable_by_key(|t| f.start[*t as usize]);
-        for t in toks {
-            out.push(String::from_utf8_lossy(&f.src[f.start[t as usize] as usize..f.end[t as usize] as usize]).into_owned());
-        }
-    };
-    let mut paths: std::collections::BTreeSet<(String, String)> = std::collections::BTreeSet::new();
-    for a in 0..f.n as u32 {
-        if Some(f.kind[a as usize]) != alias {
-            continue;
-        }
-        let imp = f.parent[a as usize];
-        let is_from = Some(f.kind[imp as usize]) == from_k;
-        let mut level = 0;
-        let mut parts: Vec<String> = Vec::new();
-        if is_from {
-            for c in node_table::children_of(f.table, Position(imp)) {
-                let k = Some(f.kind[c.0 as usize]);
-                if k == alias {
-                    break;
-                }
-                if k == dot {
-                    level += 1;
-                } else if k == ell {
-                    level += 3;
-                } else if k == ident {
-                    names_of(f, c.0, &mut parts);
-                }
-            }
-        }
-        let id = node_table::children_of(f.table, Position(a)).iter().find(|c| Some(f.kind[c.0 as usize]) == ident).map(|c| c.0);
-        match id {
-            Some(i) => names_of(f, i, &mut parts),
-            None => {
-                if !is_from {
-                    continue;
-                }
-            }
-        }
-        if level != 0 || parts.is_empty() || parts[0].is_empty() {
-            continue;
-        }
-        paths.insert((parts[0].clone(), parts.join(".")));
-    }
-    let mut out = Table::with(names.clone(), tys.clone());
-    let col = |n: &str| names.iter().position(|c| c == n).expect("a column of the relation");
-    let (fc, rc, pc, mc, kc) = (col("file"), col("root"), col("path"), col("membership"), col("kind"));
-    let mut rows: std::collections::BTreeSet<(String, String)> = std::collections::BTreeSet::new();
-    for (root, path) in &paths {
-        let comps: Vec<&str> = path.split('.').filter(|c| !c.is_empty()).collect();
-        for i in 1..=comps.len() {
-            rows.insert((root.clone(), comps[..i].join(".")));
-        }
-    }
-    for (root, path) in rows {
-        let kinds = classified(run, &path);
-        // a present child of a parent that is not present cannot prove a project path
-        let present = |ks: &[&str]| ks.iter().any(|k| matches!(*k, "module" | "package" | "namespace"));
-        let kinds = match path.rsplit_once('.') {
-            Some((parent, _)) if present(&kinds) && !present(&classified(run, parent)) => vec!["unknown"],
-            _ => kinds,
-        };
-        for k in kinds {
-            let state = match k {
-                "module" | "package" | "namespace" => "present",
-                "absent" => "absent",
-                _ => "unknown",
-            };
-            let mut row = vec![0u64; names.len()];
-            row[fc] = u64::from(f.file);
-            row[rc] = u64::from(run.sym(root.as_bytes()));
-            row[pc] = u64::from(run.sym(path.as_bytes()));
-            row[mc] = u64::from(run.sym(state.as_bytes()));
-            row[kc] = u64::from(run.sym(k.as_bytes()));
-            out.push_row(&row);
-        }
-    }
-    Ok(out)
-}
-
-fn classified(run: &mut Run, dotted: &str) -> Vec<&'static str> {
-    if let Some(k) = run.classified.get(dotted) {
-        return k.clone();
-    }
-    let fs = dotted.replace('.', "/");
-    let (mut module, mut package, mut namespace) = (false, false, false);
-    for search in run.search_roots.clone() {
-        let base = if search.is_empty() { format!("{}/{fs}", run.root_dir) } else { format!("{}/{search}/{fs}", run.root_dir) };
-        let file = |p: &str| std::path::Path::new(p).is_file();
-        module |= file(&format!("{base}.py")) || file(&format!("{base}.pyi"));
-        let dir = std::path::Path::new(&base).is_dir();
-        let init = file(&format!("{base}/__init__.py")) || file(&format!("{base}/__init__.pyi"));
-        package |= dir && init;
-        namespace |= dir && !init;
-    }
-    let mut kinds = Vec::new();
-    for (p, k) in [(module, "module"), (package, "package"), (namespace, "namespace")] {
-        if p {
-            kinds.push(k);
-        }
-    }
-    if kinds.is_empty() {
-        kinds.push("absent");
-    }
-    run.classified.insert(dotted.to_owned(), kinds.clone());
-    kinds
-}
-
-/// `module-identity` for this file: inside a package (its directory holds `__init__.py`), the dotted path from the topmost
-/// such directory's parent, the module and package directory names and the topmost package's name (the provider's rule).
-fn module_identity(f: &File<'_>, run: &mut Run) -> R<Table> {
-    let (_, names, tys) = run.catalog("module-identity").ok_or("no module-identity")?;
-    let mut out = Table::with(names.clone(), tys);
-    let rel = run.paths[f.file as usize].clone();
-    let file = std::path::Path::new(&rel);
-    let mut dir = file.parent();
-    let mut package: Option<&std::path::Path> = None;
-    while let Some(d) = dir {
-        let init = std::path::Path::new(&run.root_dir).join(d).join("__init__.py");
-        if d.as_os_str().is_empty() || !init.is_file() {
-            break;
-        }
-        package = Some(d);
-        dir = d.parent();
-    }
-    let Some(package) = package else { return Ok(out) };
-    let Some(stem) = file.file_name().and_then(|n| n.to_str()).and_then(|n| n.strip_suffix(".pyi").or_else(|| n.strip_suffix(".py"))) else {
-        return Ok(out);
-    };
-    let top = package.parent().unwrap_or(std::path::Path::new(""));
-    let mut parts: Vec<String> = file.strip_prefix(top).ok().and_then(|r| r.parent()).map(|r| r.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect()).unwrap_or_default();
-    parts.push(stem.to_owned());
-    let pkg_dir = file.parent().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let root_name = package.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let mut row = vec![0u64; names.len()];
-    for (c, n) in names.iter().enumerate() {
-        row[c] = match n.as_str() {
-            "file" => u64::from(f.file),
-            "path" => u64::from(run.sym(parts.join(".").as_bytes())),
-            "module-name" => u64::from(run.sym(stem.as_bytes())),
-            "package-name" => u64::from(run.sym(pkg_dir.as_bytes())),
-            "package-root-name" => u64::from(run.sym(root_name.as_bytes())),
-            _ => NULL,
-        };
-    }
-    out.push_row(&row);
-    Ok(out)
-}

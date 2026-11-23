@@ -14,19 +14,14 @@ pub(super) mod stage {
     pub(crate) const SEMI: u8 = 2;
     pub(crate) const SOURCE_EMPTY: u8 = 3;
     pub(crate) const SEED_EMPTY: u8 = 4;
-    pub(crate) const BOUND_EMPTY: u8 = 5;
-    pub(crate) const PENDSIZE_EMPTY: u8 = 6;
-    pub(crate) const BUCKET_EMPTY: u8 = 7;
     pub(crate) const PENDING_EMPTY: u8 = 8;
     pub(crate) const DRIVER_FILTERED: u8 = 9;
-    pub(crate) const OTHER_PROBED_EMPTY: u8 = 10;
     pub(crate) const KEYS_MISS: u8 = 11;
     pub(crate) const RESIDUAL: u8 = 12;
     pub(crate) const CROSS: u8 = 13;
     pub(crate) const ONE_SOURCE_FILTERED: u8 = 14;
-    pub(crate) const KEYS_ABSENT: u8 = 15;
     pub(crate) const ZERO_ENTRY: u8 = 16;
-    pub(crate) const NAMES: [&str; 17] = [
+    pub(crate) const NAMES: [&str; 18] = [
         "none marked",
         "a per-file test fails",
         "semi band empty",
@@ -44,11 +39,11 @@ pub(super) mod stage {
         "one source: its tests reject every row",
         "other side's keys absent where its probe ends (not probed)",
         "a view source's entry empty (decided before the front)",
+        "bounded driver's bound is zero (not made)",
     ];
     /// What was built before the answer was known.
     pub(crate) const B_INDEX_FRESH: u8 = 1;
     pub(crate) const B_INDEX_FILE: u8 = 2;
-    pub(crate) const B_PROBE: u8 = 4;
     pub(crate) const B_VIEW_PROBE: u8 = 8;
 }
 
@@ -234,7 +229,7 @@ impl super::Exec<'_> {
     fn select_entry_(&mut self, f: &mut super::File<'_>, run: &mut super::Run, p: &mut dyn super::Provider, node: usize) -> super::R<Rc<super::Table>> {
         if sw!("VEC_OLD_EMPTYSEL") || sw!("VEC_OLD_SELECT") {
             let t = self.select(f, run, p, node)?;
-            return if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) };
+            return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
         }
         self.select_kr(f, run, p, node)
     }

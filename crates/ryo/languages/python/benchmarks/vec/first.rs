@@ -2239,7 +2239,6 @@ pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
 pub(super) fn run_first(args: &[&str]) {
     let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
     let repeat: usize = args.iter().position(|a| *a == "--repeat").map_or(1, |i| args[i + 1].parse().expect("repeat"));
-    let _profiler = super::alloc_profiler();
     let read = super::lower::read_pack(std::path::Path::new(args[0]), request);
     for round in 0..repeat {
         COUNTS.with(|c| *c.borrow_mut() = [0; 8]);
@@ -2252,7 +2251,7 @@ pub(super) fn run_first(args: &[&str]) {
         let plans: usize = p.rules.iter().map(|r| r.plans.len()).sum();
         println!("counts (combos, selects, atoms numbered when planned, -, fragment calls, step memo hits across rules, products past the CAP, step memo hits) {:?}", counts());
         println!("phases (skip, relations, planning, identities) {:.4?}", PHASES.with(|p| *p.borrow()));
-        println!("allocations {} bytes {} live after {} (peak so far {})", a1[0] - a0[0], a1[1] - a0[1], a1[2], a1[3]);
+        println!("allocations {} bytes {} (peak so far {})", a1[0] - a0[0], a1[1] - a0[1], a1[3]);
         println!("round {round} parse {:.4} analysis {:.4} s rules {} node {} plans {plans}", read.parse, t1 - t0, p.rules.len(), p.rules.iter().filter(|r| r.node).count());
         if round == 0
             && let Some(i) = args.iter().position(|a| *a == "--dump")

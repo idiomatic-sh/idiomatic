@@ -191,6 +191,11 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
                     MODULE_FUTURE_ANNOTATIONS_DISABLED
                 }),
             );
+            node_table::node_property(
+                self.builder,
+                crate::domain::syntax::constants::MODULE_ANNOTATION_TIMING,
+                super::future::annotation_timing(self.annotations_deferred),
+            );
         }
         self.nodes.push(node);
         let at = Position(id);
