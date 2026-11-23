@@ -7,7 +7,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
 #[path = "reader_coverage.rs"]
-mod coverage;
+pub(super) mod coverage;
 
 #[derive(serde::Deserialize)]
 struct Request {
@@ -70,7 +70,7 @@ impl Memory {
 }
 /// These readers resolve field names for each file. Compile name-based file
 /// requirements from the lowered steps already prepared by the executor.
-fn file_requirements(
+pub(super) fn file_requirements(
     read: &lower::ReadPack,
     language: &first::Language,
 ) -> Vec<(String, (bool, Vec<Vec<String>>, Vec<Vec<String>>))> {
