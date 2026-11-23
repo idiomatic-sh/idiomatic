@@ -47,6 +47,8 @@ pub(crate) struct Requests {
     nodes: Vec<Option<u32>>,
     graph: Vec<Entry>,
     shared: FxHashMap<Entry, u32>,
+    reads: Vec<(u16, Columns)>,
+    read_ids: FxHashMap<(u16, Columns), u32>,
     visited: Vec<bool>,
     pending: Vec<u32>,
     masks: Vec<Option<Columns>>,
@@ -119,13 +121,13 @@ impl Requests {
 
 /// A materialized operator reads its inputs whole. A select reads its view sources
 /// in place, through their predicates and the columns of its expressions.
-#[derive(Clone, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
 enum Action {
-    Read(u16, Columns),
-    Inputs(Vec<u32>),
+    Read(u32),
+    Inputs([u32; 2]),
 }
 
-#[derive(Clone, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
 struct Entry {
     guard: u32,
     action: Action,
@@ -137,7 +139,7 @@ const NONE: u32 = u32::MAX;
 impl Requests {
     fn add(&mut self, guard: u32, action: Action) -> u32 {
         let entry = Entry { guard, action };
-        *self.shared.entry(entry.clone()).or_insert_with(|| {
+        *self.shared.entry(entry).or_insert_with(|| {
             let id = self.graph.len() as u32;
             self.graph.push(entry);
             id
@@ -153,6 +155,26 @@ impl Requests {
         }
         self.visited.resize(self.graph.len(), false);
         self.shared = FxHashMap::default();
+        self.read_ids = FxHashMap::default();
+    }
+
+    fn read(&mut self, guard: u32, slot: u16, columns: Columns) -> u32 {
+        let next = self.reads.len() as u32;
+        let read = *self.read_ids.entry((slot, columns)).or_insert_with_key(|key| {
+            self.reads.push(key.clone());
+            next
+        });
+        self.add(guard, Action::Read(read))
+    }
+
+    // Store both children inline. A wider operator uses a balanced tree of
+    // the same conjunction-free branches, with its guard only at the root.
+    fn group(&mut self, guard: u32, inputs: &[u32]) -> u32 {
+        if let [one] = inputs { return *one; }
+        let (left, right) = inputs.split_at(inputs.len() / 2);
+        let a = self.group(ALWAYS, left);
+        let b = self.group(ALWAYS, right);
+        self.add(guard, Action::Inputs([a, b]))
     }
 
     fn branch(&mut self, guard: u32, mut inputs: Vec<u32>) -> u32 {
@@ -166,11 +188,11 @@ impl Requests {
                 if guard == ALWAYS || guard == child.guard {
                     return *one;
                 }
-                let action = child.action.clone();
+                let action = child.action;
                 let both = self.guards.combine(true, vec![guard, child.guard]);
                 self.add(both, action)
             }
-            _ => self.add(guard, Action::Inputs(inputs)),
+            _ => self.group(guard, &inputs),
         }
     }
 }
@@ -231,10 +253,8 @@ impl Exec<'_> {
         self.requests.guards.begin(self.plan.nodes.len());
         for &emit in emits { self.demand(run, self.plan.emits[emit].1); }
         self.requests.run_columns.resize_with(self.requests.names.len(), Columns::default);
-        for e in &self.requests.graph {
-            if let Action::Read(slot, mask) = &e.action {
-                self.requests.run_columns[usize::from(*slot)].extend(mask);
-            }
+        for (slot, mask) in &self.requests.reads {
+            self.requests.run_columns[usize::from(*slot)].extend(mask);
         }
         self.requests.compile_guards();
 
@@ -258,7 +278,7 @@ impl Exec<'_> {
             }
         }
         let guard = self.guard(run, n);
-        self.requests.add(guard, Action::Read(slot, cols))
+        self.requests.read(guard, slot, cols)
     }
 
     fn demand(&mut self, run: &mut Run, n: usize) -> u32 {
@@ -271,7 +291,7 @@ impl Exec<'_> {
             self.demand_input(run, n, Columns::All)
         } else if pn.op == "base" {
             if let Some(slot) = self.requests.base_slots[n] {
-                self.requests.add(guard, Action::Read(slot, Columns::All))
+                self.requests.read(guard, slot, Columns::All)
             } else {
                 NONE
             }
@@ -352,7 +372,8 @@ impl Exec<'_> {
                         rq.pending.extend_from_slice(children);
                     }
                 }
-                Action::Read(slot, columns) => {
+                Action::Read(read) => {
+                    let (slot, columns) = &rq.reads[*read as usize];
                     let slot = usize::from(*slot);
                     if rq.proven_empty.get(slot).copied().unwrap_or(false)
                         || masks[slot].as_ref().is_some_and(|m| m.covers(columns)) { continue; }

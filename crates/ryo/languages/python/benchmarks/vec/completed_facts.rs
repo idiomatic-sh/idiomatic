@@ -8,13 +8,11 @@ pub(super) struct Completed {
     pub(super) file: Option<FileId>,
     tables: Vec<Option<FilledColumns>>,
     pub(super) empty: Vec<Relation>,
-    pub(super) empty_drivers: Vec<usize>,
 }
 
 impl Completed {
     pub(super) fn begin(&mut self, file: FileId) {
         self.tables.clear();
-        self.empty_drivers.clear();
         self.empty.clear();
         self.file = Some(file);
     }
@@ -25,7 +23,6 @@ impl Completed {
 
     pub(super) fn clear(&mut self) {
         self.tables.clear();
-        self.empty_drivers.clear();
         self.empty.clear();
         self.file = None;
     }
@@ -49,8 +46,8 @@ impl super::pair_checks::WitnessResults for FileWitness<'_, '_> {
         self.completed.tables[slot] = Some(rows);
     }
 
-    fn empty_driver(&mut self, step: usize) {
-        self.completed.empty_drivers.push(step);
+    fn decisions(&mut self) -> &mut Vec<Option<bool>> {
+        self.exec.prefix_decisions(self.completed.file.expect("active prefix file").0)
     }
 
     fn indexed_symbols(&mut self, relation: &str, column: usize, present: &dyn Fn(&str) -> Option<bool>) {

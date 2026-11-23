@@ -129,7 +129,6 @@ impl<'p> Finisher<'p> {
         let mut fwords = std::mem::take(&mut self.fwords);
         let mut completed = std::mem::take(&mut self.completed);
         if completed.file == Some(languages::FileId(file_no as u32)) {
-            self.inner.exec.empty_drivers(&completed.empty_drivers);
             for &relation in &completed.empty {
                 let name = ryo_relations::domain::relations::service::name(relation).0;
                 self.inner.exec.walk_empty(&self.inner.run, name);

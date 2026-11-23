@@ -24,9 +24,10 @@ pub(super) struct Guards {
     late: Vec<bool>,
     columns: FxHashMap<u16, Vec<(usize, u32)>>,
     absent: Vec<bool>,
-    empty_drivers: Vec<bool>,
-    // Build-time map from driving steps to one step carrying the same prefix proof.
-    driver_representatives: FxHashMap<usize, usize>,
+    driver_file: Option<u32>,
+    driver_values: Vec<Option<bool>>,
+    // Plan steps address the prefix's compacted predicate table directly.
+    driver_predicates: FxHashMap<usize, usize>,
     // Reused symbol membership marks for an already written prefix column.
     marks: Vec<u32>,
     generation: u32,
@@ -41,7 +42,7 @@ impl Default for Guards {
         Self {
             by_node: vec![],
             late: vec![],
-            columns: Default::default(), absent: vec![], empty_drivers: vec![], driver_representatives: Default::default(), marks: vec![], generation: 0,
+            columns: Default::default(), absent: vec![], driver_file: None, driver_values: vec![], driver_predicates: Default::default(), marks: vec![], generation: 0,
             by_test: FxHashMap::default(),
             tests: vec![Test::Constant(true), Test::Constant(false)],
             circuit: Default::default(), spellings: None,
@@ -66,23 +67,19 @@ impl Guards {
     }
 
     pub(super) fn register_drivers(&mut self, drivers: &[(usize, usize)]) {
-        let mut representative = FxHashMap::default();
-        for &(step, predicate) in drivers {
-            let first = *representative.entry(predicate).or_insert(step);
-            self.driver_representatives.insert(step, first);
-        }
+        self.driver_predicates.extend(drivers.iter().copied());
     }
 
     pub(super) fn driver(&mut self, node: usize) -> u32 {
-        match self.driver_representatives.get(&node).copied() {
-            Some(representative) => self.intern(Test::Driver(representative)),
+        match self.driver_predicates.get(&node).copied() {
+            Some(predicate) => self.intern(Test::Driver(predicate)),
             None => ALWAYS,
         }
     }
 
     pub(super) fn clear_evidence(&mut self) {
         self.absent.fill(false);
-        self.empty_drivers.fill(false);
+        self.driver_file = None;
     }
 
     pub(super) fn combine(&mut self, all: bool, mut terms: Vec<u32>) -> u32 {
@@ -130,7 +127,7 @@ impl Guards {
         self.tests.shrink_to_fit();
         self.circuit = compiled.circuit;
         self.by_test = FxHashMap::default();
-        self.driver_representatives = FxHashMap::default();
+        self.driver_predicates = FxHashMap::default();
         literal
     }
 
@@ -149,11 +146,10 @@ struct Spellings {
 }
 
 impl Exec<'_> {
-    pub(crate) fn empty_drivers(&mut self, nodes: &[usize]) {
-        if nodes.is_empty() { return; }
-        let marks = &mut self.requests.guards.empty_drivers;
-        marks.resize(self.plan.nodes.len(), false);
-        for &node in nodes { marks[node] = true; }
+    pub(crate) fn prefix_decisions(&mut self, file: u32) -> &mut Vec<Option<bool>> {
+        let guards = &mut self.requests.guards;
+        guards.driver_file = Some(file);
+        &mut guards.driver_values
     }
 
     pub(crate) fn prepare_spellings(&mut self, run: &Run, columns: &[(String, String, Option<char>)], identifier: fn(&str) -> bool) {
@@ -298,7 +294,8 @@ impl Exec<'_> {
                 Test::Field(name) => self.ep_field_present(f, run, std::slice::from_ref(name)),
                 Test::Symbols(..) => !self.requests.guards.absent.get(at).copied().unwrap_or(false),
                 Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
-                Test::Driver(n) => !self.requests.guards.empty_drivers.get(*n).copied().unwrap_or(false),
+                Test::Driver(n) => self.requests.guards.driver_file != Some(f.file)
+                    || self.requests.guards.driver_values.get(*n) != Some(&Some(false)),
                 Test::Seed(s) => f.seeds.get(*s).is_some_and(|rows| !rows.is_empty()),
                 Test::File(n) => { let n = *n; !self.file_fails_of(f, run, n) }
                 _ => unreachable!("only input leaves are scheduled here"),

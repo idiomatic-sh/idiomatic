@@ -631,7 +631,7 @@ impl File<'_> {
 /// Completed facts and already-decided conditional inputs from the file witness pass.
 pub(super) trait WitnessResults {
     fn table(&mut self, rel: languages::Relation, cells: FilledColumns);
-    fn empty_driver(&mut self, step: usize);
+    fn decisions(&mut self) -> &mut Vec<Option<bool>>;
     fn indexed_symbols(&mut self, relation: &str, column: usize, present: &dyn Fn(&str) -> Option<bool>);
 }
 
@@ -645,10 +645,13 @@ impl Program {
         mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
         file: languages::FileId,
-        completed: Option<&mut dyn WitnessResults>,
+        mut completed: Option<&mut dyn WitnessResults>,
         mut exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
         languages::facts::clear_words(words);
+        let mut needs = completed.as_deref_mut().map_or_else(Vec::new, |w| std::mem::take(w.decisions()));
+        needs.clear();
+        needs.resize(self.needs.len(), None);
         let mut f = File {
             p: self,
             file,
@@ -659,7 +662,7 @@ impl Program {
             words,
             facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
             sets: vec![None; self.domains.len()],
-            needs: vec![None; self.needs.len()],
+            needs,
             texts: None,
             steps: 0,
         };
@@ -680,13 +683,10 @@ impl Program {
             }
         }
         if let Some(completed) = completed {
-            // Only publish a prerequisite the prefix already evaluated. Leave
-            // the work and the invocation counts of the driving step intact.
-            for &(step, need) in &self.drivers {
-                if f.needs[need] == Some(false) {
-                    completed.empty_driver(step);
-                }
-            }
+            // The request reads these exact outcomes by compacted predicate id.
+            // Untested prerequisites remain unknown. Transfer the allocation
+            // back so the next file can use it again.
+            *completed.decisions() = f.needs;
             for (fact, table) in self.facts.iter().zip(f.facts) {
                 if table.answered && let super::pair_summary::Source::Catalog(relation) = fact.source {
                     for (column, index) in table.index {
