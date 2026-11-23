@@ -129,3 +129,16 @@ pub(super) fn composed_empty(run: &mut finish::Run, file: &ryo_python::fixtures:
         report(DEFERRED_RESOLUTION_REL, run);
     }
 }
+
+/// A walk that may supply expression shapes publishes its classes during the parse.
+pub(super) fn walk_needs(plan: Option<&finish::Plan>, prefix: &[ryo::languages::Relation]) -> &'static [ryo::languages::Relation] {
+    use ryo::languages::Relation;
+    let name = ryo_relations::domain::relations::service::name(Relation::ExpressionShape).0;
+    if prefix.contains(&Relation::ExpressionShape)
+        || plan.is_some_and(|p| p.nodes.iter().any(|step| step.op == "base" && step.j["rel"].as_str() == Some(name)))
+    {
+        &[Relation::ExpressionShape]
+    } else {
+        &[]
+    }
+}
