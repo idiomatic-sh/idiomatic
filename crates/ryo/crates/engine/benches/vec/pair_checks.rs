@@ -607,6 +607,12 @@ impl File<'_> {
     }
 }
 
+/// Completed facts and already-decided conditional inputs from the file witness pass.
+pub(super) trait WitnessResults {
+    fn table(&mut self, rel: languages::Relation, cells: FilledColumns);
+    fn empty_driver(&mut self, step: usize);
+}
+
 impl Program {
     pub(super) fn file(
         &self,
@@ -617,7 +623,7 @@ impl Program {
         mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
         file: languages::FileId,
-        completed: Option<&mut dyn FnMut(languages::Relation, languages::FilledColumns)>,
+        completed: Option<&mut dyn WitnessResults>,
         mut exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
         languages::facts::clear_words(words);
@@ -652,9 +658,16 @@ impl Program {
             }
         }
         if let Some(completed) = completed {
+            // Only publish a prerequisite the prefix already evaluated. Leave
+            // the work and the invocation counts of the driving step intact.
+            for &(step, need) in &self.drivers {
+                if f.needs[need] == Some(false) {
+                    completed.empty_driver(step);
+                }
+            }
             for (fact, table) in self.facts.iter().zip(f.facts) {
                 if table.answered && let super::pair_summary::Source::Catalog(relation) = fact.source {
-                    completed(relation, table.cells);
+                    completed.table(relation, table.cells);
                 }
             }
         }

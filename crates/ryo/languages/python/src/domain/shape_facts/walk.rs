@@ -1,6 +1,8 @@
 //! Expression classes from parser events. A class handle stays fixed as later
 //! siblings arrive. Its externally visible representative is its greatest node
 //! id, as in the reverse traversal used by the row reader.
+mod constants;
+
 use super::service::{payload, valued};
 use super::types::{ShapeBuild, ShapeReading};
 use crate::domain::extras::types::Extra;
@@ -91,6 +93,7 @@ pub(crate) struct WalkShapes {
     // Name and Identifier are disjoint structural kinds. Their one payload
     // already has a canonical code assigned by the lexical walk.
     names: Vec<[Option<Position>; 2]>,
+    constants: constants::Classes,
     other: Dictionary,
     key: Vec<u64>,
     words: FileWords,
@@ -115,7 +118,7 @@ impl WalkShapes {
 
     pub(crate) fn token(&mut self, bits: KindBits, text: &str) {
         if self.stack.last().is_some_and(|p| p.active
-            && !matches!(p.kind, Kind::Node(Node::Name) | Kind::Extra(Extra::Identifier))) {
+            && !matches!(p.kind, Kind::Node(Node::Name | Node::Constant) | Kind::Extra(Extra::Identifier))) {
             self.children.push(ShapeWord::Token(bits, word(&mut self.words, NameText(text))));
         }
     }
@@ -155,6 +158,11 @@ impl WalkShapes {
                 self.last.push(at);
                 id
             })
+        } else if open.kind == Kind::Node(Node::Constant) {
+            let next = Position(self.last.len() as u32);
+            let class = self.constants.class(node, next);
+            if class == next { self.last.push(at); }
+            class
         } else {
             self.index.scratch.clear();
             let mut build = ShapeBuild { index: &mut self.index, words: &mut self.words, text: &mut self.text };
@@ -202,6 +210,7 @@ impl WalkShapes {
         self.stack.clear();
         self.children.clear();
         self.names.clear();
+        self.constants.clear();
         self.other.child.clear();
         self.other.kind.clear();
         self.other.words.clear();
@@ -214,11 +223,13 @@ impl WalkShapes {
         self.last.clear();
     }
 
+    pub(crate) fn class_at(&self, at: Position) -> Option<Position> {
+        let handle = self.index.classes.get(usize::from(at)).copied().flatten()?;
+        self.last.get(usize::from(handle)).copied()
+    }
+
     pub(crate) fn rows(&self) -> impl Iterator<Item = (Position, Position)> + '_ {
-        self.expressions.iter().filter_map(|&at| {
-            let handle = self.index.classes[usize::from(at)]?;
-            Some((at, self.last[usize::from(handle)]))
-        })
+        self.expressions.iter().filter_map(|&id| Some((id, self.class_at(id)?)))
     }
 }
 

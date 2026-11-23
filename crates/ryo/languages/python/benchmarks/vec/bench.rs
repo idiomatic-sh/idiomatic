@@ -1777,10 +1777,12 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         // A separately loaded finish plan may use the same rule names for
         // different emits. Only the shared typed plan certifies its output.
         let shared_plan = read.typed.borrow().is_some();
+        let shared_steps = shared_plan && pack.is_some_and(|(_, combined)| std::ptr::eq(read, combined));
         let mut prepared = first::prepare(read, python_language(vocab), vocab);
         if !shared_plan {
             prepared.pairs.exact.clear();
         }
+        if !shared_steps { prepared.pairs.drivers.clear(); }
         let f2 = thread_cpu();
         let rules = rules_of_skips(&prepared.skips, vocab);
         let (frules, words) = funnel::build(&prepared.rules, vocab, &mut fact_catalog, &mut interner);
@@ -2093,7 +2095,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                             if let pair_summary::Source::Catalog(catalog) = rel
                                 && let Some(answer) = host_columns::fill(catalog, Some(run), file_no, out) { return answer; }
                             ($fill)(rel, words, out)
-                        }, &mut alive, $catalog_file, Some(&mut |rel, cells| completed.insert(rel, cells)), exact)
+                        }, &mut alive, $catalog_file, Some(completed), exact)
                     } else {
                         program.file(pt, &bytes, None, &mut fwords, $fill, &mut alive, FileId(0), None, exact)
                     };

@@ -14,6 +14,7 @@ enum Test {
     Seed(usize),
     Emit(usize),
     HasRows(u16),
+    Driver(usize),
     Symbols(u16, usize, Vec<u32>),
     File(usize),
     Combine { all: bool, terms: Vec<u32> },
@@ -25,6 +26,7 @@ pub(super) struct Guards {
     late: Vec<bool>,
     columns: FxHashMap<u16, Vec<(usize, u32)>>,
     absent: Vec<bool>,
+    empty_drivers: Vec<bool>,
     // Reused symbol membership marks for an already written prefix column.
     marks: Vec<u32>,
     generation: u32,
@@ -40,7 +42,7 @@ impl Default for Guards {
             by_node: vec![],
             live: vec![],
             late: vec![],
-            columns: Default::default(), absent: vec![], marks: vec![], generation: 0,
+            columns: Default::default(), absent: vec![], empty_drivers: vec![], marks: vec![], generation: 0,
             by_test: FxHashMap::default(),
             tests: vec![Test::Constant(true), Test::Constant(false)],
             circuit: Default::default(), spellings: None,
@@ -66,7 +68,12 @@ impl Guards {
 
     pub(super) fn emit(&mut self, index: usize) -> u32 { self.intern(Test::Emit(index)) }
 
-    pub(super) fn clear_evidence(&mut self) { self.absent.fill(false); }
+    pub(super) fn driver(&mut self, node: usize) -> u32 { self.intern(Test::Driver(node)) }
+
+    pub(super) fn clear_evidence(&mut self) {
+        self.absent.fill(false);
+        self.empty_drivers.fill(false);
+    }
 
     pub(super) fn combine(&mut self, all: bool, mut terms: Vec<u32>) -> u32 {
         let (identity, stop) = if all { (ALWAYS, NEVER) } else { (NEVER, ALWAYS) };
@@ -131,6 +138,13 @@ struct Spellings {
 }
 
 impl Exec<'_> {
+    pub(crate) fn empty_drivers(&mut self, nodes: &[usize]) {
+        if nodes.is_empty() { return; }
+        let marks = &mut self.requests.guards.empty_drivers;
+        marks.resize(self.plan.nodes.len(), false);
+        for &node in nodes { marks[node] = true; }
+    }
+
     pub(crate) fn prepare_spellings(&mut self, run: &Run, columns: &[(String, String, Option<char>)], identifier: fn(&str) -> bool) {
         let guards = &mut self.requests.guards;
         let mut words = Vec::new();
@@ -255,6 +269,7 @@ impl Exec<'_> {
                 Test::Field(c) => !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c)).is_empty(),
                 Test::Symbols(..) => !self.requests.guards.absent.get(at).copied().unwrap_or(false),
                 Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
+                Test::Driver(n) => !self.requests.guards.empty_drivers.get(*n).copied().unwrap_or(false),
                 Test::Emit(i) => self.requests.guards.live[*i],
                 Test::Seed(s) => f.seeds.get(*s).is_some_and(|rows| !rows.is_empty()),
                 Test::File(n) => { let n = *n; !self.file_fails_of(f, run, n) }
