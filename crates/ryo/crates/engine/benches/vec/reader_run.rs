@@ -308,6 +308,8 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         rel.map(|value| relations.binary_search(&value).expect("catalog relation"))
     }).collect();
     let width = relations.len().div_ceil(64);
+    // A rule reads the same relations on every worker. Publish its mask once.
+    let emitted_facts: Vec<_> = (0..plan.emits.len()).map(|_| std::sync::OnceLock::new()).collect();
     let selected = req.selected_rules.join(",");
     let mut options = vec!["--rules", &selected, "--out", output, "--applicability", request];
     if let Some(path) = req.step_stats.as_deref() { options.extend(["--stats", path]); }
@@ -336,7 +338,6 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     let settings = (shards.len() > 1).then(|| fin.worker_settings());
     let process = |ids: &[usize], fin: &mut finisher::Finisher<'_>, skip: &mut super::file_skip::Skip, memory: &mut Memory| {
     let mut state = decisions.state();
-    let mut emitted_facts = vec![None; plan.emits.len()];
     let mut visited = vec![usize::MAX; plan.nodes.len()];
     let mut pending = Vec::new();
     let mut requested = vec![0u64; width];
@@ -344,7 +345,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     let mut relations_for = |wanted: &[usize], facts: &mut Vec<l::Relation>| {
         requested.fill(0);
         for &emit in wanted {
-            let mask = emitted_facts[emit].get_or_insert_with(|| {
+            let mask = emitted_facts[emit].get_or_init(|| {
                 let mut mask = vec![0u64; width];
                 pending.push(plan.emits[emit].1);
                 while let Some(slot) = pending.pop() {
