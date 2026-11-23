@@ -9,15 +9,24 @@ pub(super) struct Output {
     pub(super) aliases: Vec<(usize, usize)>,
     pub(super) answers: Vec<(usize, Answer)>,
     empty: Vec<usize>,
-    pub(super) clock: Clock,
 }
 
-impl Output {
+pub(super) enum Sink<'a> {
+    Direct(&'a mut [usize], &'a mut [Answer]),
+    Buffered(&'a mut Output),
+}
+impl Sink<'_> {
+    pub(super) fn alias(&mut self, slot: usize, target: usize) {
+        match self {
+            Self::Direct(aliases, _) => aliases[slot] = target,
+            Self::Buffered(out) => out.aliases.push((slot, target)),
+        }
+    }
     pub(super) fn answer(&mut self, slot: usize, answer: Answer) {
-        if answer.as_ref().is_ok_and(Vec::is_empty) {
-            self.empty.push(slot);
-        } else {
-            self.answers.push((slot, answer));
+        match self {
+            Self::Direct(_, answers) => answers[slot] = answer,
+            Self::Buffered(out) if answer.as_ref().is_ok_and(Vec::is_empty) => out.empty.push(slot),
+            Self::Buffered(out) => out.answers.push((slot, answer)),
         }
     }
 }
@@ -52,7 +61,7 @@ pub(crate) fn visit(
             .saturating_mul(source.bindings.len().max(1) as u64))
     })
     .expect("closed path groups");
-    let work = |ids: &[usize]| {
+    let work = |ids: &[usize], sink: &mut Sink<'_>| {
         visit_groups(
             parser.as_deref(),
             programs,
@@ -62,9 +71,22 @@ pub(crate) fn visit(
             &groups,
             ids,
             &host,
+            sink,
         )
     };
-    for part in workers::run(&shards, &work, &work) {
+    let completed = workers::run(
+        &shards,
+        |ids| {
+            let time = work(ids, &mut Sink::Direct(aliases, answers));
+            (Output::default(), time)
+        },
+        |ids| {
+            let mut output = Output::default();
+            let time = work(ids, &mut Sink::Buffered(&mut output));
+            (output, time)
+        },
+    );
+    for (part, time) in completed {
         for (slot, target) in part.aliases {
             aliases[slot] = target;
         }
@@ -74,7 +96,6 @@ pub(crate) fn visit(
         for (slot, result) in part.answers {
             answers[slot] = result;
         }
-        let time = part.clock;
         clocks.prepare += time.prepare;
         clocks.read_parse += time.read_parse;
         clocks.screen += time.screen;

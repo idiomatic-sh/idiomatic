@@ -234,7 +234,7 @@ struct Version {
 fn versions(
     group: &[usize],
     sources: &[Source],
-    output: &mut workers::Output,
+    output: &mut workers::Sink<'_>,
     reads: &mut usize,
 ) -> Vec<Version> {
     use std::hash::{Hash, Hasher};
@@ -277,12 +277,12 @@ fn versions(
             Ok(i) => {
                 for (&binding, &slot) in &src.bindings {
                     let source = *files[i].jobs.entry(binding).or_insert(slot);
-                    if slot != source { output.aliases.push((slot, source)); }
+                    if slot != source { output.alias(slot, source); }
                 }
             }
             Err(e) => {
                 for &slot in src.bindings.values() {
-                    output.answers.push((slot, Err(format!("{}: {e}", src.path))));
+                    output.answer(slot, Err(format!("{}: {e}", src.path)));
                 }
             }
         }
@@ -306,8 +306,8 @@ fn visit_groups(
     groups: &[Vec<usize>],
     ids: &[usize],
     host: &impl Fn(usize, &mut Run) -> Result<Tables>,
-) -> workers::Output {
-    let mut output = workers::Output::default();
+    output: &mut workers::Sink<'_>,
+) -> Clock {
     let mut clocks = Clock::default();
     let mut run = Run::default();
     run.file_field_codes = true;
@@ -334,7 +334,7 @@ fn visit_groups(
     let mut packet = reader_run::packet::Packet::new();
     for &group in ids {
         let t = thread_cpu();
-        let versions = versions(&groups[group], sources, &mut output, &mut clocks.reads);
+        let versions = versions(&groups[group], sources, output, &mut clocks.reads);
         clocks.read_parse += thread_cpu() - t;
         for Version {
             origin: index,
@@ -354,7 +354,7 @@ fn visit_groups(
                     bind(p, parser, &mut run, tables)
                 });
                 if let Err(reason) = entry {
-                    output.answers.push((slot, Err(reason.clone())));
+                    output.answer(slot, Err(reason.clone()));
                 }
             }
             clocks.prepare += thread_cpu() - t;
@@ -393,7 +393,7 @@ fn visit_groups(
             };
             if let Err(reason) = result {
                 for &slot in jobs.values() {
-                    output.answers.push((slot, Err(reason.clone())));
+                    output.answer(slot, Err(reason.clone()));
                 }
                 clocks.read_parse += thread_cpu() - t;
                 continue;
@@ -464,12 +464,12 @@ fn visit_groups(
                         .filter_map(|n| relations::service::relation_named(NameRef(n)))
                         .collect();
                     if let Some(partial) = partial_of(&[], recovery, &rels).first() {
-                        output.answers.push((slot, Err(format!(
+                        output.answer(slot, Err(format!(
                             "{} is read only in part in {}: {}",
                             relations::service::name(partial.relation).0,
                             source.path,
                             partial.cause.0
-                        ))));
+                        )));
                         continue;
                     }
                 }
@@ -539,7 +539,7 @@ fn visit_groups(
                     .iter()
                     .find(|(r, _, m)| b.facts.contains(r) && b.coverage.needed(&p.plan, *r, *m))
                 {
-                    output.answers.push((slot, Err(reason.clone())));
+                    output.answer(slot, Err(reason.clone()));
                     continue;
                 }
                 clocks.evaluated += 1;
@@ -556,6 +556,5 @@ fn visit_groups(
             clocks.evaluate += thread_cpu() - t;
         }
     }
-    output.clock = clocks;
-    output
+    clocks
 }
