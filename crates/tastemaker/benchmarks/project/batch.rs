@@ -479,11 +479,11 @@ pub(crate) fn batch(languages: Vec<Language>, manifest: &str, output: &str, work
 pub(crate) fn one(
     languages: Vec<Language>,
     pack: &str,
-    input: Value,
+    input: &[u8],
     output: &str,
 ) -> Result<(), String> {
     let mut session = Batch::default();
-    let req = serde_json::from_value(input).map_err(|e| e.to_string())?;
+    let req = crate::finish::json_input::decode(input).map_err(|e| e.to_string())?;
     let work = session.register(pack, req, None)?;
     session.work.push(work);
     let answers = session.run(languages);

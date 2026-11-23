@@ -124,14 +124,11 @@ fn main() {
         if mode == "--mixed" {
             // Scenario inputs carry their numbered inventory and one standalone query.
             // A pack request keeps its original multi-rule and fragment semantics.
-            let input: serde_json::Value = serde_json::from_slice(
-                &std::fs::read(request).expect("request"),
-            ).expect("request");
-            if input["inventory"].is_array()
-                && input["selected_rules"] == serde_json::json!(["query"])
+            let input = std::fs::read(request).expect("request");
+            if json_input::standalone(&input)
                 && !std::path::Path::new(pack).join("fragments").exists()
             {
-                if let Err(reason) = project_bench::one(langs, pack, input, output) {
+                if let Err(reason) = project_bench::one(langs, pack, &input, output) {
                     eprintln!("{reason}");
                     std::process::exit(1);
                 }

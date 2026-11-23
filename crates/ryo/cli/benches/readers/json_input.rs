@@ -295,3 +295,15 @@ pub(super) fn constants<'de, D: serde::Deserializer<'de>>(
 pub(super) fn project(line: &str) -> Project {
     serde_json::from_str(line).expect("project request")
 }
+
+
+pub(super) fn standalone(bytes: &[u8]) -> bool {
+    #[derive(serde::Deserialize)]
+    struct Shape {
+        inventory: Option<Vec<serde::de::IgnoredAny>>,
+        #[serde(default)]
+        selected_rules: Vec<String>,
+    }
+    let shape: Shape = super::finish::json_input::decode(bytes).expect("request shape");
+    shape.inventory.is_some() && shape.selected_rules == ["query"]
+}
