@@ -661,6 +661,7 @@ fn python_language(vocab: &Vocab) -> first::Language {
     let tokens=provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied());
     use ryo_python::fixtures::columns::{PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
     first::Language {
+        host_len: finish::host::host_len,
         text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
         file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().map(|s|(*s).to_string()).collect(),
         facts: PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect(),

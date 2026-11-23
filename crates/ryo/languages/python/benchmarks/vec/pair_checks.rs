@@ -82,6 +82,14 @@ impl Table {
 }
 
 impl File<'_> {
+    fn complete(&mut self, slots: &[usize]) -> bool {
+        let n = node_table::element_count(self.t).0 as u32;
+        slots.iter().all(|&slot| {
+            let table = &mut self.facts[slot];
+            table.load(&self.p.facts[slot], n, self.words, self.read);
+            table.complete
+        })
+    }
     fn pass(&mut self, id: Id) -> bool {
         if let Some(x) = self.needs[id] {
             return x;
@@ -90,6 +98,7 @@ impl File<'_> {
         let yes = match self.p.needs[id] {
             Need::Any => true,
             Need::Empty => false,
+            Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
             Need::PathMatches(re) => self
                 .path
                 .is_none_or(|path| self.p.regexes[re].is_match(path)),
@@ -166,6 +175,16 @@ impl File<'_> {
                     .iter()
                     .map(|p| p.0),
             )),
+            Domain::SpanMatching(k, re) => Some(bits(
+                node_table::ids_of_kind(self.t, languages::KindBits(*k))
+                    .iter()
+                    .filter_map(|pos| {
+                        let span = super::span_bytes(self.t, pos.0 as usize);
+                        self.p.regexes[*re]
+                            .is_match(&self.src[span])
+                            .then_some(pos.0)
+                    }),
+            )),
             Domain::TextMatching(k, re) => {
                 let regex = &self.p.regexes[*re];
                 Some(bits(
@@ -220,6 +239,21 @@ impl File<'_> {
                     }
                 }
             }
+            Domain::When(need, nodes) => {
+                if self.pass(*need) {
+                    self.nodes(*nodes)
+                } else {
+                    Some(Rc::default())
+                }
+            }
+            // The excluded side must be exact in this particular file.
+            Domain::ProvenExcept(left, difference, guard, slots) => {
+                if !self.pass(*guard) && self.complete(slots) {
+                    self.nodes(*difference)
+                } else {
+                    self.nodes(*left)
+                }
+            }
             Domain::Except(a, b) => {
                 let (left, right) = (self.nodes(*a), self.nodes(*b));
                 let Some(right) = right else {
@@ -261,6 +295,24 @@ impl File<'_> {
                 }
                 _ => None,
             },
+            Domain::Descendants(root) => self.nodes(*root).map(|ancestors| {
+                let mut pending = Vec::new();
+                each(&ancestors, |n| pending.push(n));
+                let mut seen = Vec::new();
+                while let Some(parent) = pending.pop() {
+                    for child in node_table::children_of(self.t, Position(parent)) {
+                        let pos = child.0;
+                        if !seen
+                            .get((pos / 64) as usize)
+                            .is_some_and(|w| (*w >> (pos % 64)) & 1 != 0)
+                        {
+                            insert(&mut seen, pos);
+                            pending.push(pos);
+                        }
+                    }
+                }
+                Rc::new(seen)
+            }),
             Domain::Parents(x) | Domain::Children(x) | Domain::Ancestors(x) => {
                 let children = matches!(self.p.domains[id], Domain::Children(_));
                 let ancestors = matches!(self.p.domains[id], Domain::Ancestors(_));
@@ -463,19 +515,7 @@ impl Program {
         if let Some(out) = exact.as_mut() {
             for (rule, cert) in &self.exact {
                 let rule = *rule;
-                if alive[rule]
-                    && !f.pass(cert.guard)
-                    && cert.facts.iter().all(|&slot| {
-                        let table = &mut f.facts[slot];
-                        table.load(
-                            &self.facts[slot],
-                            node_table::element_count(t).0 as u32,
-                            f.words,
-                            f.read,
-                        );
-                        table.complete
-                    })
-                {
+                if alive[rule] && !f.pass(cert.guard) && f.complete(&cert.facts) {
                     let nodes = f
                         .nodes(cert.nodes)
                         .expect("certified domains contain only total node tests");

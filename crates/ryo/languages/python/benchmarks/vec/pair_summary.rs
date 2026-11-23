@@ -26,21 +26,26 @@ pub(super) enum Domain {
     Field(u16),
     Text(String),
     TextMatching(u16, usize),
+    SpanMatching(u16, usize),
     Fact(usize, Option<(usize, Vec<Id>)>),
     OtherValues(usize, usize, Vec<Id>),
     Matching(usize, usize, usize),
     CapturedSuffix(usize, usize, Vec<u8>, usize),
+    When(Id, Id), // file prerequisite, admitted nodes
     Except(Id, Id),
+    ProvenExcept(Id, Id, Id, Vec<usize>), // left, difference, possible guard, required tables
     Both(Id, Id),
     Either(Id, Id),
     Parents(Id),
     Children(Id),
     Ancestors(Id),
+    Descendants(Id),
 }
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub(super) enum Need {
     Any,
     PathMatches(usize),
+    SourceContains(usize),
     Empty,
     Some(Id),
     Both(Id, Id),
@@ -145,7 +150,12 @@ impl Builder<'_> {
             Domain::Except(a, b) | Domain::Both(a, b) | Domain::Either(a, b) => {
                 1 + self.sizes[a] + self.sizes[b]
             }
-            Domain::Parents(x) | Domain::Children(x) | Domain::Ancestors(x) => 1 + self.sizes[x],
+            Domain::Parents(x)
+            | Domain::Children(x)
+            | Domain::Ancestors(x)
+            | Domain::Descendants(x) => 1 + self.sizes[x],
+            Domain::ProvenExcept(_, difference, _, _) => 1 + self.sizes[difference],
+            Domain::When(_, x) => 1 + self.sizes[x],
             _ => 1,
         };
         if size > CAP {
@@ -201,7 +211,10 @@ impl Builder<'_> {
         if self.subset(b, a) {
             return b;
         }
-        self.domain(Domain::Both(a.min(b), a.max(b)))
+        let combined = self.domain(Domain::Both(a.min(b), a.max(b)));
+        // The additional conjunct is unrepresentable at the cap. The
+        // previous witness is still necessary; exact issuance sees the cap.
+        if combined == ANY { a } else { combined }
     }
     fn either(&mut self, a: Id, b: Id) -> Id {
         if a == ANY || b == ANY {
@@ -261,6 +274,10 @@ impl Builder<'_> {
     }
     fn base<'a>(&mut self, name: &str) -> Summary<'a> {
         let mut r = Summary::default();
+        if (self.language.host_len)(name) == Some(0) {
+            r.need = EMPTY;
+            return r;
+        }
         use Attribute::*;
         match name {
             "syntax-tree" | "semantic-syntax" => {
@@ -544,6 +561,17 @@ impl Builder<'_> {
             },
         }
     }
+    fn in_branch(&mut self, need: Id, nodes: Id) -> Id {
+        if need == ANY || nodes == EMPTY || matches!(self.out.needs[need],Need::Some(d) if d==nodes)
+        {
+            return nodes;
+        }
+        if need == EMPTY {
+            return EMPTY;
+        }
+        let guarded = self.domain(Domain::When(need, nodes));
+        if guarded == ANY { nodes } else { guarded }
+    }
     fn select<'a>(&mut self, s: &'a SelectStep, rows: &[Summary<'a>]) -> Summary<'a> {
         let mut out = Summary::default();
         let mut offsets = Vec::new();
@@ -682,6 +710,35 @@ impl Builder<'_> {
         out
     }
 
+    fn ordered<'a>(
+        &mut self,
+        left: &Summary<'a>,
+        right: &Summary<'a>,
+        outputs: &'a [ryo_values::domain::finish_plans::arguments::joins::types::OutputColumn],
+    ) -> Summary<'a> {
+        use ryo_values::domain::plan_parts::types::Side;
+        let mut out = Summary {
+            need: self.and(left.need, right.need),
+            ..Summary::default()
+        };
+        let offset = left.domains.len();
+        out.domains.extend(&left.domains);
+        out.domains.extend(&right.domains);
+        out.edges.extend(&left.edges);
+        out.edges
+            .extend(right.edges.iter().map(|(c, p)| (c + offset, p + offset)));
+        for o in outputs {
+            let (input, base) = match o.side {
+                Side::Left => (left, 0),
+                Side::Right => (right, offset),
+            };
+            if let Some(col) = input.column(&o.column.0) {
+                out.add(&o.name.0, col.var + base, col.attr);
+            }
+        }
+        out.compact();
+        out
+    }
     fn step<'a>(
         &mut self,
         s: &'a FinishStep,
@@ -703,7 +760,9 @@ impl Builder<'_> {
                         && a.attr == b.attr
                     {
                         let var = *vars.entry((a.var, b.var)).or_insert_with(|| {
-                            out.var(self.either(l.domains[a.var], r.domains[b.var]))
+                            let left = self.in_branch(l.need, l.domains[a.var]);
+                            let right = self.in_branch(r.need, r.domains[b.var]);
+                            out.var(self.either(left, right))
                         });
                         out.add(n, var, a.attr);
                     }
@@ -722,6 +781,31 @@ impl Builder<'_> {
                 out.columns
                     .retain(|(n, _)| !x.values.iter().any(|c| *n == &*c.name.0));
             }
+            GroupOrdinal(g) => {
+                out = rows[g.from.0].clone();
+                out.columns.retain(|(n, _)| *n != &*g.output.0);
+            }
+            FitsRendered(x) => return rows[x.from.0].clone(),
+            Replace(x) => {
+                out = rows[x.from.0].clone();
+                out.columns.retain(|(n, _)| *n != &*x.output.0);
+            }
+            SpanBetween(x) => {
+                out = rows[x.from.0].clone();
+                out.columns.retain(|(n, _)| *n != &*x.output.0);
+            }
+            SpanBounds(x) => {
+                out = rows[x.from.0].clone();
+                out.columns
+                    .retain(|(n, _)| *n != &*x.start_output.0 && *n != &*x.end_output.0);
+            }
+            Capture(x) => {
+                out = rows[x.from.0].clone();
+                out.columns
+                    .retain(|(n, _)| !x.captures.iter().any(|col| *n == &*col.0));
+            }
+            AsOf(x) => return self.ordered(&rows[x.left.0], &rows[x.right.0], &x.output),
+            OrderedMatch(x) => return self.ordered(&rows[x.left.0], &rows[x.right.0], &x.output),
             GroupCount(g) => {
                 if !g.keys.is_empty() {
                     out = rows[g.from.0].clone();
@@ -744,19 +828,41 @@ impl Builder<'_> {
                         .filter(|c| c.attr == Attribute::Id)
                         .map_or(ANY, |c| r.domains[c.var])
                 };
-                let (mut id, related) = (node(from), node(dom));
+                let (mut id, mut related) = (node(from), node(dom));
                 if self.neighbors
                     && matches!(&steps[a.relation.0],Base(n) if super::first::CHILD.contains(&&*n.0))
                 {
-                    match a.direction {
-                        Direction::Parent => out.edges.push((0, 1)),
-                        Direction::Child => out.edges.push((1, 0)),
-                        Direction::Ancestor | Direction::NearestAncestor if id > EMPTY => {
-                            let ancestors = self.domain(Domain::Ancestors(id));
-                            let admitted = self.both(ancestors, related);
-                            self.require(&mut out, admitted);
+                    let (origin, target) = (id, related);
+                    let (down, up): (fn(Id) -> Domain, fn(Id) -> Domain) = match a.direction {
+                        Direction::Parent => {
+                            out.edges.push((0, 1));
+                            (Domain::Children, Domain::Parents)
                         }
-                        _ => {}
+                        Direction::Child => {
+                            out.edges.push((1, 0));
+                            (Domain::Parents, Domain::Children)
+                        }
+                        Direction::Ancestor | Direction::NearestAncestor => {
+                            (Domain::Descendants, Domain::Ancestors)
+                        }
+                        Direction::Descendant => (Domain::Ancestors, Domain::Descendants),
+                        _ => {
+                            out.var(id);
+                            out.var(related);
+                            out.add("id", 0, Attribute::Id);
+                            out.add("related", 1, Attribute::Id);
+                            return out;
+                        }
+                    };
+                    if target > EMPTY {
+                        let allowed = self.domain(down(target));
+                        id = self.both(origin, allowed);
+                        self.require(&mut out, id);
+                    }
+                    if origin > EMPTY {
+                        let allowed = self.domain(up(origin));
+                        related = self.both(target, allowed);
+                        self.require(&mut out, related);
                     }
                 }
                 if id == EMPTY {
@@ -770,7 +876,43 @@ impl Builder<'_> {
             // These operations can keep an input row without a corresponding row of their other input.
             SourceMatches(x) => {
                 let from = &rows[x.from.0];
-                out.need = from.need;
+                use ryo_values::domain::finish_plans::arguments::texts::types::OptionalColumn;
+                out = from.clone();
+                out.columns.retain(|(name, _)| {
+                    *name != &*x.output.0
+                        && ![
+                            &x.line_output,
+                            &x.capture_output,
+                            &x.capture_text_output,
+                            &x.capture_line_output,
+                        ]
+                        .iter()
+                        .any(|opt| matches!(opt,OptionalColumn::Written(c) if &*c.0==*name))
+                        && !x.capture_texts.iter().any(|c| &*c.output.0 == *name)
+                });
+                // SourceMatches always reads a slice of this file's raw bytes.
+                // Without a boundary assertion, a match on that slice is also
+                // a match somewhere in the full file. Test the shared regex once.
+                let pattern = &*x.pattern.0;
+                if !["^", "$", r"\A", r"\z", r"\b", r"\B", r"\<", r"\>"]
+                    .iter()
+                    .any(|op| pattern.contains(op))
+                    && let Some(re) = self.regex(pattern)
+                {
+                    let need = self.need(Need::SourceContains(re));
+                    out.need = self.and(out.need, need);
+                }
+                if let Some(col) = from.column(&x.span.0)
+                    && col.attr == Attribute::Span
+                    && let Some(kind) = self.required_kind(from.domains[col.var])
+                    && let Some(regex) = self.regex(&x.pattern.0)
+                {
+                    // Every capture lies inside a match on this particular input
+                    // span. A required named group may narrow the result further.
+                    let raw = self.domain(Domain::SpanMatching(kind, regex));
+                    let d = self.both(raw, from.domains[col.var]);
+                    self.require(&mut out, d);
+                }
                 if self.file_sets
                     && let Some(col) = from.column(&x.span.0)
                     && let Some(d) = self.matching(col.attr, &x.pattern.0, CellKind::Span)
@@ -911,6 +1053,11 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         }
         rows.push(row);
         skips.push(skip);
+    }
+    if std::env::var_os("VEC_PAIR_TRACE").is_some() {
+        for (step, row) in rows.iter().enumerate() {
+            println!("WITNESS\t{step}\t{}\t{:?}", row.need, row.domains);
+        }
     }
     for r in &plan.rules {
         let (need, skip) = match &r.emit {

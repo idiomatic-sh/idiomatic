@@ -13,6 +13,7 @@ pub(super) const CHILD: [&str; 2] = ["semantic-child", "syntax-child"];
 pub(super) struct Language {
     pub(super) facts: Vec<String>,
     pub(super) text_kinds: Vec<u16>,
+    pub(super) host_len: fn(&str) -> Option<usize>,
     pub(super) file_sets: Vec<String>,
     pub(super) spelled: Vec<(String, String, Option<char>)>,
     pub(super) is_identifier: fn(&str) -> bool,

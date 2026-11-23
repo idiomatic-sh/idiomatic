@@ -26,6 +26,8 @@ struct Row<'a> {
     nodes: Id,
     guard: Id,
     cols: Vec<(&'a str, Value<'a>)>,
+    // Presence is exact, but a subsequent projection must discard derived values.
+    derived: bool,
 }
 impl<'a> Row<'a> {
     fn column(&self, name: &str) -> Option<Value<'a>> {
@@ -76,6 +78,7 @@ fn base<'a>(b: &mut Builder<'_>, name: &str) -> Option<Row<'a>> {
     Some(Row {
         nodes,
         guard: EMPTY,
+        derived: false,
         cols,
     })
 }
@@ -139,33 +142,34 @@ fn fact_projection<'a>(
     let SelectedColumns::Items(items) = &s.columns else {
         return None;
     };
-    let cols = items
-        .iter()
-        .map(|i| {
-            let PlanExpression::Column(c) = &i.value else {
-                return None;
-            };
-            let at = column(c)?;
-            let field = if at == key {
-                "id"
-            } else if kinds[at] == CellKind::File {
-                "file"
-            } else {
-                return None;
-            };
-            Some((&*i.name.0, Value { depth: 0, field }))
-        })
-        .collect::<Option<Vec<_>>>()?;
+    let mut cols = Vec::new();
+    let mut derived = false;
+    for item in items {
+        let PlanExpression::Column(c) = &item.value else {
+            return None;
+        };
+        let at = column(c)?;
+        let field = if at == key {
+            "id"
+        } else if kinds[at] == CellKind::File {
+            "file"
+        } else {
+            derived = true;
+            continue;
+        };
+        cols.push((&*item.name.0, Value { depth: 0, field }));
+    }
     Some(Row {
         nodes: d,
         guard: EMPTY,
+        derived,
         cols,
     })
 }
 
 fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
     match domains[id] {
-        Domain::Fact(slot, _) | Domain::Matching(slot, _, _) => {
+        Domain::Fact(slot, _) | Domain::OtherValues(slot, _, _) | Domain::Matching(slot, _, _) => {
             if !slots.contains(&slot) {
                 slots.push(slot);
             }
@@ -330,8 +334,16 @@ fn select<'a>(b: &mut Builder<'_>, s: &'a SelectStep, rows: &[Option<Row<'a>>]) 
         }
         _ => return None,
     };
-    let mut row = Row { nodes, guard, cols };
+    let derived =
+        matches!(s.columns, SelectedColumns::All) && rows[s.sources[0].step.0].as_ref()?.derived;
+    let mut row = Row {
+        nodes,
+        guard,
+        cols,
+        derived,
+    };
     if row.cols.iter().any(|(_, v)| v.depth > 0)
+        && !row.derived
         && row
             .cols
             .iter()
@@ -472,7 +484,13 @@ pub(super) fn prepare<'a>(
                     live[j.right.0] = true;
                 }
             }
-            FinishStep::Project(_) | FinishStep::Select(_) | FinishStep::Union(_) => {
+            FinishStep::Project(_)
+            | FinishStep::Select(_)
+            | FinishStep::Union(_)
+            | FinishStep::Extend(_)
+            | FinishStep::SpanBounds(_)
+            | FinishStep::GroupMin(_)
+            | FinishStep::GroupMax(_) => {
                 for input in inputs(s) {
                     live[input.0] = true;
                 }
@@ -515,8 +533,43 @@ pub(super) fn prepare<'a>(
                         row.guard = b.or(row.guard, guards[j.right.0]);
                         (row.guard != ANY).then_some(row)
                     }
+                    Extend(x) => {
+                        let mut row = rows[x.from.0].clone()?;
+                        if row.derived || x.values.iter().any(|v| row.column(&v.name.0).is_some()) {
+                            return None;
+                        }
+                        row.derived = !x.values.is_empty();
+                        Some(row)
+                    }
+                    SpanBounds(x) => {
+                        let mut row = rows[x.from.0].clone()?;
+                        if row.derived
+                            || row.column(&x.span.0)?.field != "span"
+                            || row.column(&x.start_output.0).is_some()
+                            || row.column(&x.end_output.0).is_some()
+                        {
+                            return None;
+                        }
+                        row.derived = true;
+                        Some(row)
+                    }
+                    GroupMin(g) | GroupMax(g) => {
+                        let row = rows[g.from.0].clone()?;
+                        row.column(&g.order.0)?;
+                        let mut keyed = false;
+                        for key in &g.keys {
+                            let value = row.column(&key.0)?;
+                            keyed |= value
+                                == Value {
+                                    depth: 0,
+                                    field: "id",
+                                };
+                        }
+                        keyed.then_some(row)
+                    }
                     Project(p) => {
                         let mut row = rows[p.from.0].clone()?;
+                        row.derived = false;
                         for name in &p.columns {
                             row.column(&name.0)?;
                         }
@@ -527,7 +580,7 @@ pub(super) fn prepare<'a>(
                     Union(u) => {
                         let mut l = rows[u.left.0].clone()?;
                         let r = rows[u.right.0].as_ref()?;
-                        if l.cols != r.cols {
+                        if l.derived || r.derived || l.cols != r.cols {
                             return None;
                         }
                         l.nodes = b.either(l.nodes, r.nodes);
@@ -540,6 +593,13 @@ pub(super) fn prepare<'a>(
             .flatten()
             .filter(|_| b.out.capped == capped);
         rows.push(row);
+    }
+    if std::env::var_os("VEC_PAIR_TRACE").is_some() {
+        for (i, row) in rows.iter().enumerate() {
+            if row.is_some() {
+                println!("PROVEN\t{i}");
+            }
+        }
     }
     if std::env::var_os("VEC_EXACT_DIAG").is_some() {
         for r in &plan.rules {
@@ -577,6 +637,7 @@ pub(super) fn prepare<'a>(
                         depth: 0,
                         field: "file",
                     })
+                || row.derived
                 || !row.cols.iter().all(|(n, v)| {
                     v.depth == 0 && *n == v.field && matches!(*n, "file" | "span" | "id")
                 })
@@ -606,14 +667,11 @@ pub(super) fn prepare<'a>(
                 return None;
             };
             let right = rows[j.right.0].as_ref()?;
-            if right.guard != EMPTY || j.left_on.len() != j.right_on.len() {
+            if j.left_on.len() != j.right_on.len() {
                 return None;
             }
             let mut slots = Vec::new();
             required_facts(&b.out.domains, right.nodes, &mut slots);
-            if !slots.is_empty() {
-                return None;
-            }
             let mut id = None;
             let mut keys = Vec::new();
             for (left, r) in j.left_on.iter().zip(&j.right_on) {
@@ -636,6 +694,8 @@ pub(super) fn prepare<'a>(
                 id: id?,
                 keys,
                 domain: right.nodes,
+                guard: right.guard,
+                slots,
             })
         })
         .collect()
@@ -645,6 +705,8 @@ pub(super) struct Exclusion<'a> {
     id: &'a str,
     keys: Vec<(&'a str, Attribute)>,
     domain: Id,
+    guard: Id,
+    slots: Vec<usize>,
 }
 
 impl Exclusion<'_> {
@@ -659,7 +721,16 @@ impl Exclusion<'_> {
         }) {
             return;
         }
-        let d = b.domain(Domain::Except(row.domains[node.var], self.domain));
+        let left = row.domains[node.var];
+        let mut d = b.domain(Domain::Except(left, self.domain));
+        if d != ANY && (self.guard != EMPTY || !self.slots.is_empty()) {
+            d = b.domain(Domain::ProvenExcept(
+                left,
+                d,
+                self.guard,
+                self.slots.clone(),
+            ));
+        }
         if d != ANY {
             row.domains[node.var] = d;
             b.require(row, d);
