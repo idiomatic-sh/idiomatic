@@ -51,10 +51,30 @@ impl ColumnFile<'_, '_> {
             .sum()
     }
 
+    /// A statement is an import exactly when the parser produced an import or from-import node.
+    pub fn is_import_statement(&self, id: Position) -> bool {
+        matches!(
+            self.file.syntax.nodes.get(usize::from(id)),
+            Some(AnyNodeRef::StmtImport(_) | AnyNodeRef::StmtImportFrom(_))
+        )
+    }
+
+    /// Standard-library membership is indexed by the file's selected Python release.
+    pub fn import_release(&self) -> (i64, i64) {
+        (self.file.target.major.0, self.file.target.minor.0)
+    }
+
     fn import_statements(&self) -> impl Iterator<Item = Numbered<'_>> {
         [Node::Import, Node::ImportFrom]
             .into_iter()
             .flat_map(move |kind| nodes_of_kind(&self.file.syntax, Kind::Node(kind)))
+    }
+
+    /// An import-line association requires both an import statement and a comment token.
+    pub fn can_have_import_line_comments(&self) -> bool {
+        use crate::domain::{syntax::service::kind_bits, tokens::types::Token};
+        !node_table::ids_of_kind(self.table, kind_bits(Kind::Token(Token::Comment))).is_empty()
+            && self.import_statement_count() != 0
     }
 
     /// A comment occupies a physical line. Report every import whose source extent reaches that line before the comment.
