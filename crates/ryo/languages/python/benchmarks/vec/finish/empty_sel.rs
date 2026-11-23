@@ -14,19 +14,13 @@ pub(super) mod stage {
     pub(crate) const SEMI: u8 = 2;
     pub(crate) const SOURCE_EMPTY: u8 = 3;
     pub(crate) const SEED_EMPTY: u8 = 4;
-    pub(crate) const BOUND_EMPTY: u8 = 5;
-    pub(crate) const PENDSIZE_EMPTY: u8 = 6;
-    pub(crate) const BUCKET_EMPTY: u8 = 7;
     pub(crate) const PENDING_EMPTY: u8 = 8;
     pub(crate) const DRIVER_FILTERED: u8 = 9;
-    pub(crate) const OTHER_PROBED_EMPTY: u8 = 10;
     pub(crate) const KEYS_MISS: u8 = 11;
     pub(crate) const RESIDUAL: u8 = 12;
     pub(crate) const CROSS: u8 = 13;
     pub(crate) const ONE_SOURCE_FILTERED: u8 = 14;
-    pub(crate) const KEYS_ABSENT: u8 = 15;
     pub(crate) const ZERO_ENTRY: u8 = 16;
-    pub(crate) const BOUND_ZERO: u8 = 17;
     pub(crate) const NAMES: [&str; 18] = [
         "none marked",
         "a per-file test fails",
@@ -50,7 +44,6 @@ pub(super) mod stage {
     /// What was built before the answer was known.
     pub(crate) const B_INDEX_FRESH: u8 = 1;
     pub(crate) const B_INDEX_FILE: u8 = 2;
-    pub(crate) const B_PROBE: u8 = 4;
     pub(crate) const B_VIEW_PROBE: u8 = 8;
 }
 

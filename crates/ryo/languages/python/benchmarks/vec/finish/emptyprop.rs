@@ -267,8 +267,6 @@ struct Leaves {
     codes: rustc_hash::FxHashMap<u32, Vec<u16>>,
     /// runs not made because the propagation's leaves decided them, by step
     skipped: Vec<u64>,
-    /// selects answered empty by a bounded driver's zero bound
-    bound_zero: u64,
     /// emits asked in a file: decided empty by the old leaves, by the propagation's, or run
     emits: [u64; 3],
     /// `VEC_STEP_TIME`: seconds of the leaves' fills, literal reads, view reads
@@ -323,12 +321,6 @@ pub(crate) fn emit_done(f: &File<'_>, node: usize) {
     L.with(|l| l.borrow_mut().emits[k] += 1);
 }
 
-/// A select answered empty because its bounded driver's bound is zero (the driver not made).
-#[inline]
-pub(super) fn bound_zero() {
-    L.with(|l| l.borrow_mut().bound_zero += 1);
-}
-
 /// A step skipped (answered empty before the bracket) because the propagation's leaves decided it.
 #[inline]
 pub(super) fn skipped(f: &File<'_>, node: usize) {
@@ -355,7 +347,6 @@ pub(crate) fn print_skipped(ops: &dyn Fn(usize) -> String) {
         }
         let total: u64 = by.values().sum();
         println!("EPSKIP\tall\t{total}");
-        println!("EPSKIP\tselect: bounded driver's bound zero\t{}", l.bound_zero);
         println!("EPLAPS\tleaves (VEC_STEP_TIME): fills asked {:.3} s, literal reads {:.3} s, small views read {:.3} s", l.laps[0], l.laps[1], l.laps[2]);
         println!("EPEMIT\temits asked in a file {}: decided empty before running by the old leaves {}, by the propagation's {}; run {}", l.emits.iter().sum::<u64>(), l.emits[0], l.emits[1], l.emits[2]);
         for (op, k) in by {
