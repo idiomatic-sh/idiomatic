@@ -42,6 +42,9 @@ pub(super) struct Finisher<'p> {
     check_out: Option<String>,
     /// redo-alloc: blocks and bytes allocated inside `file` (the second half's own), summed.
     alloc: [u64; 2],
+    /// redo-general: the provider's project (its packaging knowledge), for the relations it answers for a project; the
+    /// search roots are the host's (the request's), never a default of this driver.
+    project: super::provider_packaging::Project,
 }
 
 use ryo::languages;
@@ -79,16 +82,12 @@ impl<'p> Finisher<'p> {
         super::fact_catalog::declare(&mut run);
         run.links();
         run.root_dir = args[2].trim_end_matches('/').to_owned();
-        run.search_roots = vec![String::new(), "src".to_owned()];
         run.kind_sym = vocab.kind_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
         run.field_sym = vocab.field_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
         run.paths = list.iter().map(|p| p.strip_prefix(&root).unwrap_or(p).to_owned()).collect();
         run.path_sym = run.paths.clone().iter().map(|p| run.sym(p.as_bytes())).collect();
-        let kind_code = |n: &str| vocab.kinds.get(n).copied().expect("kind");
-        run.token_first = kind_code("name-token");
-        run.token_last = kind_code("colonequal");
-        run.token_error = kind_code("errortoken");
-        run.pairs = [(kind_code("lpar"), kind_code("rpar")), (kind_code("lsqb"), kind_code("rsqb")), (kind_code("lbrace"), kind_code("rbrace"))];
+        // redo-general: the provider's token order (its lexical model, `provider_tokens.rs`)
+        run.set_tokens(std::rc::Rc::new(super::provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied())), vocab.kind_names.len());
         let mut me = Self {
             plan,
             emits,
@@ -116,6 +115,11 @@ impl<'p> Finisher<'p> {
             tally: flag(args, "--tally"),
             check_out: flag(args, "--check-out"),
             alloc: [0; 2],
+            project: super::provider_packaging::Project::new(
+                args[2].trim_end_matches('/'),
+                super::provider_packaging::Project::search_roots_of(flag(args, "--request").as_deref()),
+                &|n| vocab.kinds.get(n).copied(),
+            ),
         };
         me.time += thread_cpu() - t0;
         me
@@ -158,7 +162,8 @@ impl<'p> Finisher<'p> {
         let mut fwords = std::mem::take(&mut self.fwords);
         languages::facts::clear_words(&mut fwords);
         finish::own_words_cleared(&mut self.run);
-        let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file_no: file_no as u32, kept: HashMap::new() };
+        let mut project = std::mem::take(&mut self.project);
+        let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file_no: file_no as u32, kept: HashMap::new(), project: &mut project, src: bytes };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
@@ -169,6 +174,7 @@ impl<'p> Finisher<'p> {
             e.2 += v.2;
         }
         self.fwords = fwords;
+        self.project = project;
         self.time += thread_cpu() - t0;
     }
 
@@ -179,7 +185,8 @@ impl<'p> Finisher<'p> {
         let mut fwords = std::mem::take(&mut self.fwords);
         languages::facts::clear_words(&mut fwords);
         finish::own_words_cleared(&mut self.run);
-        let mut pv = super::Facts { facts: file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file: file_no as u32 };
+        let mut project = std::mem::take(&mut self.project);
+        let mut pv = super::Facts { facts: file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file: file_no as u32, project: &mut project, src: bytes };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
@@ -190,6 +197,7 @@ impl<'p> Finisher<'p> {
             e.2 += v.2;
         }
         self.fwords = fwords;
+        self.project = project;
         self.time += thread_cpu() - t0;
     }
 

@@ -5,7 +5,7 @@
 //! Relations are column tables (one u64 a cell, typed per column). Base relations of the tree (`syntax-tree`,
 //! `semantic-syntax`, `semantic-child`, `syntax-child`, `source-location`) are not tables: they are read in place from the
 //! node table, by position (a join on their key is a position read; a scan with a kind test reads the kind buckets).
-//! `token-link` comes from the token order. Every other relation is the provider's fill, read once a file when a step asks.
+//! `token-link` comes from the provider's token order (`TokenOrder`). Every other relation is the provider's fill, read once a file when a step asks.
 
 use ryo::languages::{self, CellKind, KindBits, NodeTable, Position, node_table};
 use ryo_relations::domain::labels::types::NameRef;
@@ -82,6 +82,8 @@ mod lazy_view;
 pub(super) mod fill_len;
 #[path = "finish/host.rs"]
 pub(super) mod host;
+#[path = "finish/project.rs"]
+pub(super) mod project;
 #[path = "finish/capture.rs"]
 mod capture;
 #[path = "finish/fill_prof.rs"]
@@ -262,10 +264,6 @@ impl Table {
     }
 }
 
-/// redo-fills pass 2: the executor's steps a run declares as the suppliers of their relations (`Run::declare`): a seam,
-/// the provider's knowledge (packaging, import resolution) to move behind provider facts.
-pub(super) const STEPS: [(&str, fn(&File<'_>, &mut Run) -> R<Table>); 2] = [("project-namespace-membership", namespace_membership), ("module-identity", module_identity)];
-
 /// The run: texts, regexes, kind and field names, file paths.
 #[derive(Default)]
 pub(super) struct Run {
@@ -277,18 +275,18 @@ pub(super) struct Run {
     pub(super) paths: Vec<String>,
     pub(super) path_sym: Vec<u32>,
     pub(super) empty: u32,
-    pub(super) token_first: u16,
-    pub(super) token_last: u16,
-    pub(super) token_error: u16,
-    pub(super) pairs: [(u16, u16); 3],
+    /// redo-general: the provider's token order (`token-link`, read in place) and, by kind code, whether an element of the
+    /// kind carries its source text (`syntax-tree`'s `text`), both as the provider states them (`TokenOrder`).
+    pub(super) tokens: Option<Rc<dyn TokenOrder>>,
+    pub(super) text_kind: Vec<bool>,
     pub(super) rels: FxHashMap<String, (Option<languages::Relation>, Names, Tys)>,
     /// redo-fills pass 2: the relations the run's suppliers declared (`declare`).
     pub(super) declared: FxHashMap<String, Declared>,
     pub(super) link_sym: [u32; 3],
-    /// The project's root on disk and its search roots, for `project-namespace-membership`.
+    /// The project's root on disk (the host's, for its file facts).
     pub(super) root_dir: String,
-    pub(super) search_roots: Vec<String>,
-    pub(super) classified: FxHashMap<String, Vec<&'static str>>,
+    /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
+    pub(super) project: FxHashMap<String, project::Answered>,
     /// Functions a step asked that are not in the step set (the rule is refused).
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
@@ -362,6 +360,35 @@ impl Run {
     }
 }
 
+/// redo-general: the provider's token order of a file, the `token-link` relation's rows as events (the executor keeps them
+/// in place by position): each token in order, then the links it takes part in, in the catalog's link kinds.
+pub(super) trait TokenOrder {
+    /// Whether an element of kind `kind` carries its source text (the others' `text` is empty).
+    fn has_text(&self, kind: u16) -> bool;
+    /// The file's tokens in order and their links.
+    fn links(&self, table: &NodeTable, each: &mut dyn FnMut(TokenEvent));
+}
+
+/// One step of a file's token order: a token, or one of its links (source, target).
+#[derive(Clone, Copy)]
+pub(super) enum TokenEvent {
+    Token(u32),
+    /// `next-token`: the token after the source.
+    Next(u32, u32),
+    /// `matching-delimiter`: from an opener to its closer.
+    Matching(u32, u32),
+    /// `enclosing-delimiter`: from a token to the opener of its innermost open delimiter.
+    Enclosing(u32, u32),
+}
+
+impl Run {
+    /// redo-general: the provider's token order, set once a run.
+    pub(super) fn set_tokens(&mut self, tokens: Rc<dyn TokenOrder>, kinds: usize) {
+        self.text_kind = (0..kinds).map(|k| tokens.has_text(k as u16)).collect();
+        self.tokens = Some(tokens);
+    }
+}
+
 /// redo-fills pass 2: who supplies a relation's rows, as the run's catalog declares it.
 #[derive(Clone, Copy)]
 pub(super) enum Supplier {
@@ -372,8 +399,9 @@ pub(super) enum Supplier {
     /// The host, for the run: the files of the run (one row a file, the same in every file).
     #[allow(dead_code, reason = "redo-int round 33: no relation is declared RunFiles since filesystem.file is the file's row (redo-binding c32); kept as redo-fills' run-scoped supplier")]
     RunFiles,
-    /// A step of the executor over the file (a seam: the provider's knowledge, to move behind a provider fact).
-    Step(fn(&File<'_>, &mut Run) -> R<Table>),
+    /// redo-general: the provider, for a project (`Scope::Files`): rows relating the run's files to each other or to the
+    /// project's entries, asked as the provider declares (`project::ProjectAsk`).
+    Project(project::ProjectAsk),
 }
 
 /// A declared relation.
@@ -553,7 +581,7 @@ fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
 /// 6h: a provider relation's place among the facts read in place (`VEC_NO_FACTVIEW` turns this off): every catalog
 /// relation the provider or the host fills per file; never the run's file list or a relation a step makes.
 fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
-    if sw!("VEC_NO_FACTVIEW") || native_of(rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles | Supplier::Step(_)) {
+    if sw!("VEC_NO_FACTVIEW") || native_of(rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles | Supplier::Project(_)) {
         return None;
     }
     let (_, names, _) = run.catalog(rel)?;
@@ -738,7 +766,7 @@ impl Drop for File<'_> {
 #[derive(Clone, Copy, Debug)]
 pub(super) enum Scope<'s> {
     File(u32),
-    #[expect(dead_code, reason = "the project-scope form of the same call; no relation asks it yet")]
+    /// redo-general: asked by `project.rs` for the relations the provider answers for a project.
     Files(&'s [u32]),
 }
 
@@ -833,8 +861,8 @@ impl File<'_> {
         let l = self.line_starts.partition_point(|s| *s <= off) - 1;
         i64::from(off - self.line_starts[l])
     }
-    fn is_token(&self, run: &Run, k: u16) -> bool {
-        k >= run.token_first && k <= run.token_last
+    fn has_text(run: &Run, k: u16) -> bool {
+        run.text_kind.get(usize::from(k)).copied().unwrap_or(false)
     }
     fn elem_text(&self, run: &mut Run, p: u32) -> u32 {
         let m = self.text_memo.borrow()[p as usize];
@@ -842,7 +870,7 @@ impl File<'_> {
             return m;
         }
         let k = self.kind[p as usize];
-        let s = if self.is_token(run, k) || k == run.token_error {
+        let s = if Self::has_text(run, k) {
             match node_table::decoded_of(self.table, Position(p)) {
                 Some(t) => run.sym(t.0.as_bytes()),
                 None => run.sym(&self.src[self.start[p as usize] as usize..self.end[p as usize] as usize]),
@@ -862,46 +890,23 @@ impl File<'_> {
         }
         let n = self.n;
         let mut t = Tokens { next: vec![NONE; n], prev: vec![NONE; n], pair: vec![NONE; n], opener: vec![false; n], enc: vec![NONE; n], enclosed: FxHashMap::default(), order: Vec::new() };
-        let start = node_table::node_count(self.table).0 as u32;
-        let end = node_table::own_end(self.table).0;
-        let mut stack: Vec<(u16, u32)> = Vec::new();
-        let mut previous: Option<u32> = None;
-        for at in start..end {
-            let k = self.kind[at as usize];
-            if !(k >= run.token_first && k <= run.token_last) {
-                continue;
-            }
-            if k == run.token_error {
-                previous = None;
-                stack.clear();
-                continue;
-            }
-            t.order.push(at);
-            let mut enclosing = stack.last().map(|o| o.1);
-            if let Some(close) = run.pairs.iter().find(|(o, _)| *o == k).map(|(_, c)| *c) {
-                stack.push((close, at));
-            } else if run.pairs.iter().any(|(_, c)| *c == k) {
-                match stack.pop() {
-                    Some((close, open)) if close == k => {
-                        t.pair[open as usize] = at;
-                        t.pair[at as usize] = open;
-                        t.opener[open as usize] = true;
-                        enclosing = stack.last().map(|o| o.1);
-                    }
-                    _ => {
-                        stack.clear();
-                        enclosing = None;
-                    }
+        if let Some(order) = &run.tokens {
+            order.links(self.table, &mut |e| match e {
+                TokenEvent::Token(at) => t.order.push(at),
+                TokenEvent::Next(p, at) => {
+                    t.next[p as usize] = at;
+                    t.prev[at as usize] = p;
                 }
-            }
-            if let Some(p) = previous.replace(at) {
-                t.next[p as usize] = at;
-                t.prev[at as usize] = p;
-            }
-            if let Some(e) = enclosing {
-                t.enc[at as usize] = e;
-                t.enclosed.entry(e).or_default().push(at);
-            }
+                TokenEvent::Matching(open, at) => {
+                    t.pair[open as usize] = at;
+                    t.pair[at as usize] = open;
+                    t.opener[open as usize] = true;
+                }
+                TokenEvent::Enclosing(at, e) => {
+                    t.enc[at as usize] = e;
+                    t.enclosed.entry(e).or_default().push(at);
+                }
+            });
         }
         let rc = Rc::new(t);
         *self.tokens.borrow_mut() = Some(rc.clone());
@@ -3370,7 +3375,7 @@ impl<'p> Exec<'p> {
                 }
                 return Ok(out);
             }
-            Supplier::Step(step) => return step(f, run),
+            Supplier::Project(ask) => return project::rows(f, run, p, rel, ask),
             Supplier::Provider | Supplier::Host => {}
         }
         if let Some(t) = f.fills.get(rel) {
@@ -5403,50 +5408,16 @@ fn token_links(f: &File<'_>, run: &mut Run) -> Table {
         vec!["source".into(), "target".into(), "link-kind".into(), "file".into(), "span".into()],
         vec![Ty::Node, Ty::Node, Ty::Sym, Ty::File, Ty::Span],
     );
-    let start = node_table::node_count(f.table).0 as u32;
-    let end = node_table::own_end(f.table).0;
-    let mut stack: Vec<(u16, u32)> = Vec::new();
-    let mut previous: Option<u32> = None;
-    let closer = |k: u16| run.pairs.iter().find(|(o, _)| *o == k).map(|(_, c)| *c);
-    let is_closer = |k: u16| run.pairs.iter().any(|(_, c)| *c == k);
     let mut rows: Vec<[u64; 5]> = Vec::new();
     let sp = |p: u32| (u64::from(f.start[p as usize]) << 32) | u64::from(f.end[p as usize]);
-    for at in start..end {
-        let k = f.kind[at as usize];
-        if !(k >= run.token_first && k <= run.token_last) {
-            continue;
-        }
-        if k == run.token_error {
-            previous = None;
-            stack.clear();
-            continue;
-        }
-        let mut paired = None;
-        let mut enclosing = stack.last().map(|o| o.1);
-        if let Some(close) = closer(k) {
-            stack.push((close, at));
-        } else if is_closer(k) {
-            match stack.pop() {
-                Some((close, open)) if close == k => {
-                    paired = Some((open, at));
-                    enclosing = stack.last().map(|o| o.1);
-                }
-                _ => {
-                    stack.clear();
-                    enclosing = None;
-                }
-            }
-        }
-        let fl = u64::from(f.file);
-        if let Some(p) = previous.replace(at) {
-            rows.push([u64::from(p), u64::from(at), u64::from(nt), fl, sp(p)]);
-        }
-        if let Some((o, c)) = paired {
-            rows.push([u64::from(o), u64::from(c), u64::from(md), fl, sp(o)]);
-        }
-        if let Some(t) = enclosing {
-            rows.push([u64::from(at), u64::from(t), u64::from(ed), fl, sp(at)]);
-        }
+    let fl = u64::from(f.file);
+    if let Some(order) = &run.tokens {
+        order.links(f.table, &mut |e| match e {
+            TokenEvent::Token(_) => {}
+            TokenEvent::Next(p, at) => rows.push([u64::from(p), u64::from(at), u64::from(nt), fl, sp(p)]),
+            TokenEvent::Matching(o, c) => rows.push([u64::from(o), u64::from(c), u64::from(md), fl, sp(o)]),
+            TokenEvent::Enclosing(at, t) => rows.push([u64::from(at), u64::from(t), u64::from(ed), fl, sp(at)]),
+        });
     }
     for r in rows {
         out.push_row(&r);
@@ -5667,168 +5638,3 @@ fn fits(text: &str, prefix: &str, max: usize, tab: usize) -> bool {
     true
 }
 
-/// `project-namespace-membership` for this file: each dotted prefix of each absolute import path it writes, classified by
-/// the entries under the project's search roots (module file, package directory with an initializer, namespace directory),
-/// with a present child of a parent not present made unknown; as the provider's project phase states it.
-fn namespace_membership(f: &File<'_>, run: &mut Run) -> R<Table> {
-    let (_, names, tys) = run.catalog("project-namespace-membership").ok_or("no project-namespace-membership")?;
-    let kind = |n: &str| run.kind_sym.iter().position(|s| run.text(*s) == n.as_bytes()).map(|c| c as u16);
-    let (alias, from_k, dot, ell, ident, name) = (kind("alias"), kind("import-from"), kind("dot"), kind("ellipsis"), kind("identifier"), kind("name-token"));
-    let names_of = |f: &File<'_>, at: u32, out: &mut Vec<String>| {
-        let mut stack = vec![at];
-        let mut toks = Vec::new();
-        while let Some(x) = stack.pop() {
-            for c in node_table::children_of(f.table, Position(x)).iter().rev() {
-                stack.push(c.0);
-            }
-            if Some(f.kind[x as usize]) == name {
-                toks.push(x);
-            }
-        }
-        toks.sort_unstable_by_key(|t| f.start[*t as usize]);
-        for t in toks {
-            out.push(String::from_utf8_lossy(&f.src[f.start[t as usize] as usize..f.end[t as usize] as usize]).into_owned());
-        }
-    };
-    let mut paths: std::collections::BTreeSet<(String, String)> = std::collections::BTreeSet::new();
-    for a in 0..f.n as u32 {
-        if Some(f.kind[a as usize]) != alias {
-            continue;
-        }
-        let imp = f.parent[a as usize];
-        let is_from = Some(f.kind[imp as usize]) == from_k;
-        let mut level = 0;
-        let mut parts: Vec<String> = Vec::new();
-        if is_from {
-            for c in node_table::children_of(f.table, Position(imp)) {
-                let k = Some(f.kind[c.0 as usize]);
-                if k == alias {
-                    break;
-                }
-                if k == dot {
-                    level += 1;
-                } else if k == ell {
-                    level += 3;
-                } else if k == ident {
-                    names_of(f, c.0, &mut parts);
-                }
-            }
-        }
-        let id = node_table::children_of(f.table, Position(a)).iter().find(|c| Some(f.kind[c.0 as usize]) == ident).map(|c| c.0);
-        match id {
-            Some(i) => names_of(f, i, &mut parts),
-            None => {
-                if !is_from {
-                    continue;
-                }
-            }
-        }
-        if level != 0 || parts.is_empty() || parts[0].is_empty() {
-            continue;
-        }
-        paths.insert((parts[0].clone(), parts.join(".")));
-    }
-    let mut out = Table::with(names.clone(), tys.clone());
-    let col = |n: &str| names.iter().position(|c| c == n).expect("a column of the relation");
-    let (fc, rc, pc, mc, kc) = (col("file"), col("root"), col("path"), col("membership"), col("kind"));
-    let mut rows: std::collections::BTreeSet<(String, String)> = std::collections::BTreeSet::new();
-    for (root, path) in &paths {
-        let comps: Vec<&str> = path.split('.').filter(|c| !c.is_empty()).collect();
-        for i in 1..=comps.len() {
-            rows.insert((root.clone(), comps[..i].join(".")));
-        }
-    }
-    for (root, path) in rows {
-        let kinds = classified(run, &path);
-        // a present child of a parent that is not present cannot prove a project path
-        let present = |ks: &[&str]| ks.iter().any(|k| matches!(*k, "module" | "package" | "namespace"));
-        let kinds = match path.rsplit_once('.') {
-            Some((parent, _)) if present(&kinds) && !present(&classified(run, parent)) => vec!["unknown"],
-            _ => kinds,
-        };
-        for k in kinds {
-            let state = match k {
-                "module" | "package" | "namespace" => "present",
-                "absent" => "absent",
-                _ => "unknown",
-            };
-            let mut row = vec![0u64; names.len()];
-            row[fc] = u64::from(f.file);
-            row[rc] = u64::from(run.sym(root.as_bytes()));
-            row[pc] = u64::from(run.sym(path.as_bytes()));
-            row[mc] = u64::from(run.sym(state.as_bytes()));
-            row[kc] = u64::from(run.sym(k.as_bytes()));
-            out.push_row(&row);
-        }
-    }
-    Ok(out)
-}
-
-fn classified(run: &mut Run, dotted: &str) -> Vec<&'static str> {
-    if let Some(k) = run.classified.get(dotted) {
-        return k.clone();
-    }
-    let fs = dotted.replace('.', "/");
-    let (mut module, mut package, mut namespace) = (false, false, false);
-    for search in run.search_roots.clone() {
-        let base = if search.is_empty() { format!("{}/{fs}", run.root_dir) } else { format!("{}/{search}/{fs}", run.root_dir) };
-        let file = |p: &str| std::path::Path::new(p).is_file();
-        module |= file(&format!("{base}.py")) || file(&format!("{base}.pyi"));
-        let dir = std::path::Path::new(&base).is_dir();
-        let init = file(&format!("{base}/__init__.py")) || file(&format!("{base}/__init__.pyi"));
-        package |= dir && init;
-        namespace |= dir && !init;
-    }
-    let mut kinds = Vec::new();
-    for (p, k) in [(module, "module"), (package, "package"), (namespace, "namespace")] {
-        if p {
-            kinds.push(k);
-        }
-    }
-    if kinds.is_empty() {
-        kinds.push("absent");
-    }
-    run.classified.insert(dotted.to_owned(), kinds.clone());
-    kinds
-}
-
-/// `module-identity` for this file: inside a package (its directory holds `__init__.py`), the dotted path from the topmost
-/// such directory's parent, the module and package directory names and the topmost package's name (the provider's rule).
-fn module_identity(f: &File<'_>, run: &mut Run) -> R<Table> {
-    let (_, names, tys) = run.catalog("module-identity").ok_or("no module-identity")?;
-    let mut out = Table::with(names.clone(), tys);
-    let rel = run.paths[f.file as usize].clone();
-    let file = std::path::Path::new(&rel);
-    let mut dir = file.parent();
-    let mut package: Option<&std::path::Path> = None;
-    while let Some(d) = dir {
-        let init = std::path::Path::new(&run.root_dir).join(d).join("__init__.py");
-        if d.as_os_str().is_empty() || !init.is_file() {
-            break;
-        }
-        package = Some(d);
-        dir = d.parent();
-    }
-    let Some(package) = package else { return Ok(out) };
-    let Some(stem) = file.file_name().and_then(|n| n.to_str()).and_then(|n| n.strip_suffix(".pyi").or_else(|| n.strip_suffix(".py"))) else {
-        return Ok(out);
-    };
-    let top = package.parent().unwrap_or(std::path::Path::new(""));
-    let mut parts: Vec<String> = file.strip_prefix(top).ok().and_then(|r| r.parent()).map(|r| r.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect()).unwrap_or_default();
-    parts.push(stem.to_owned());
-    let pkg_dir = file.parent().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let root_name = package.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let mut row = vec![0u64; names.len()];
-    for (c, n) in names.iter().enumerate() {
-        row[c] = match n.as_str() {
-            "file" => u64::from(f.file),
-            "path" => u64::from(run.sym(parts.join(".").as_bytes())),
-            "module-name" => u64::from(run.sym(stem.as_bytes())),
-            "package-name" => u64::from(run.sym(pkg_dir.as_bytes())),
-            "package-root-name" => u64::from(run.sym(root_name.as_bytes())),
-            _ => NULL,
-        };
-    }
-    out.push_row(&row);
-    Ok(out)
-}

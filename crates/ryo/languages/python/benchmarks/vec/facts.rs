@@ -7,6 +7,7 @@ use ryo::languages::{self, CellKind, FilledColumns, Relation};
 use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 use std::collections::HashMap;
+use super::finish::{TokenEvent, TokenOrder};
 
 /// The run's interned texts: an id a text, and for each id the regexes of the pack it matches (one bit a regex).
 /// The run-wide text table, by the hash chosen on the command line.
@@ -286,26 +287,6 @@ fn literal(kind: CellKind, x: &str, interner: &mut Interner) -> Option<u64> {
     }
 }
 
-/// The token kinds of the node table and the three bracket pairs, by code.
-pub(super) struct TokenKinds {
-    pub(super) first: u16,
-    pub(super) last: u16,
-    pub(super) error: u16,
-    pub(super) pairs: [(u16, u16); 3],
-}
-
-impl TokenKinds {
-    fn is_token(&self, k: u16) -> bool {
-        k >= self.first && k <= self.last
-    }
-    fn closer(&self, k: u16) -> Option<u16> {
-        self.pairs.iter().find(|(o, _)| *o == k).map(|(_, c)| *c)
-    }
-    fn is_closer(&self, k: u16) -> bool {
-        self.pairs.iter().any(|(_, c)| *c == k)
-    }
-}
-
 /// One file's fact columns.
 #[derive(Default)]
 pub(super) struct Store {
@@ -440,8 +421,7 @@ impl Store {
 
     /// Token links straight from the node table's token order (step 5): next token, matching and immediate enclosing
     /// delimiter, with the provider's own rules (an error token or an unmatched closer stops the pairing).
-    pub(super) fn token_links(&mut self, cat: &Catalog, slot: usize, table: &ryo::languages::NodeTable, tokens: &TokenKinds, link_ids: [u64; 3], elements: usize) {
-        use ryo::languages::{KindBits, Position, node_table};
+    pub(super) fn token_links(&mut self, cat: &Catalog, slot: usize, table: &ryo::languages::NodeTable, tokens: &dyn TokenOrder, link_ids: [u64; 3], elements: usize) {
         let width = cat.kinds[slot].len();
         let cells = &mut self.cells[slot];
         cells.resize_with(width, Vec::new);
@@ -454,50 +434,13 @@ impl Store {
                 col.push(if c == src { u64::from(s) } else if c == dst { u64::from(t) } else if c == kind { k } else { 0 });
             }
         };
-        let start = node_table::node_count(table).0 as u32;
-        let end = node_table::own_end(table).0;
-        let mut stack: Vec<(u16, u32)> = Vec::new();
-        let mut previous: Option<u32> = None;
-        let mut lost = false;
-        for at in start..end {
-            let k = node_table::kind_of(table, Position(at)).0;
-            if !tokens.is_token(k) {
-                continue;
-            }
-            if k == tokens.error {
-                lost = true;
-                previous = None;
-                stack.clear();
-                continue;
-            }
-            let mut paired = None;
-            let mut enclosing = stack.last().map(|o| o.1);
-            if let Some(close) = tokens.closer(k) {
-                stack.push((close, at));
-            } else if tokens.is_closer(k) {
-                match stack.pop() {
-                    Some((close, open)) if close == k => {
-                        paired = Some((open, at));
-                        enclosing = stack.last().map(|o| o.1);
-                    }
-                    _ => {
-                        lost = true;
-                        stack.clear();
-                        enclosing = None;
-                    }
-                }
-            }
-            if let Some(p) = previous.replace(at) {
-                push(cells, p, at, link_ids[0]);
-            }
-            if let Some((o, c)) = paired {
-                push(cells, o, c, link_ids[1]);
-            }
-            if let Some(t) = enclosing {
-                push(cells, at, t, link_ids[2]);
-            }
-        }
-        let _ = (lost, KindBits(0));
+        // redo-general: the provider's token order (`provider_tokens.rs`)
+        tokens.links(table, &mut |e| match e {
+            TokenEvent::Token(_) => {}
+            TokenEvent::Next(p, at) => push(cells, p, at, link_ids[0]),
+            TokenEvent::Matching(o, c) => push(cells, o, c, link_ids[1]),
+            TokenEvent::Enclosing(at, t) => push(cells, at, t, link_ids[2]),
+        });
         self.rows[slot] = cells.first().map_or(0, Vec::len);
         self.index_slot(cat, slot, elements);
         self.answered[slot] = true;
@@ -505,29 +448,19 @@ impl Store {
 
     /// Next and previous token straight from the node table's token order, as two per-node columns (cols prototype): the
     /// provider's rule kept (an error token resets the chain).
-    pub(super) fn token_order(&mut self, table: &ryo::languages::NodeTable, tokens: &TokenKinds, elements: usize) {
-        use ryo::languages::{Position, node_table};
+    pub(super) fn token_order(&mut self, table: &ryo::languages::NodeTable, tokens: &dyn TokenOrder, elements: usize) {
         self.next_token.clear();
         self.next_token.resize(elements, u32::MAX);
         self.prev_token.clear();
         self.prev_token.resize(elements, u32::MAX);
-        let start = node_table::node_count(table).0 as u32;
-        let end = node_table::own_end(table).0;
-        let mut previous: Option<u32> = None;
-        for at in start..end {
-            let k = node_table::kind_of(table, Position(at)).0;
-            if !tokens.is_token(k) {
-                continue;
+        // redo-general: the provider's token order (`provider_tokens.rs`)
+        let (next, prev) = (&mut self.next_token, &mut self.prev_token);
+        tokens.links(table, &mut |e| {
+            if let TokenEvent::Next(p, at) = e {
+                next[p as usize] = at;
+                prev[at as usize] = p;
             }
-            if k == tokens.error {
-                previous = None;
-                continue;
-            }
-            if let Some(p) = previous.replace(at) {
-                self.next_token[p as usize] = at;
-                self.prev_token[at as usize] = p;
-            }
-        }
+        });
     }
 
     #[inline]
