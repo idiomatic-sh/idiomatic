@@ -124,13 +124,4 @@ impl Expr {
             Self::Invalid(reason) => return Err(reason.clone()),
         })
     }
-    pub(super) fn excludes(&self, column: &str, missing: &str) -> bool {
-        let different = |a: &Self, b: &Self| matches!((a,b),(Self::Column(c,_),Self::Text(t)) if c==column && t!=missing);
-        match self {
-            Self::Compare(Op::Eq, a, b) => different(a, b) || different(b, a),
-            Self::And(a, b) => a.excludes(column, missing) || b.excludes(column, missing),
-            Self::Or(a, b) => a.excludes(column, missing) && b.excludes(column, missing),
-            _ => false,
-        }
-    }
 }

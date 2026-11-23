@@ -199,9 +199,6 @@ impl PNode {
             _ => self.external().is_some_and(|n| n.exists),
         }
     }
-    pub(crate) fn external_excludes(&self, column: &str, missing: &str) -> bool {
-        self.external().and_then(|n| n.condition.as_ref()).is_some_and(|e| e.excludes(column, missing))
-    }
     pub(crate) fn args(&self) -> &Args {
         match &self.source {
             Source::Lowered(p, i) => self.args.get_or_init(|| parameters(&p.steps[*i])),

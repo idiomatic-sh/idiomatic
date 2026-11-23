@@ -42,7 +42,7 @@ fn excludes_kind(node: &PNode, column: &str, kind: &str) -> bool {
     if let Some(FinishStep::Select(select)) = node.step() {
         matches!(&select.condition, RowCondition::Tested(e) if typed_excludes(e, column, kind))
     } else {
-        node.external_excludes(column, kind)
+        false
     }
 }
 

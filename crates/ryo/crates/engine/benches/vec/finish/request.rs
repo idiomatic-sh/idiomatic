@@ -170,12 +170,14 @@ impl Requests {
         self.read_ids = FxHashMap::default();
     }
 
+    #[allow(dead_code, reason = "SDK hosts inspect the request graph before their shared row packet is indexed")]
     pub(crate) fn provider_names(&self) -> impl Iterator<Item = &str> {
         self.names.iter().zip(&self.host).filter_map(|(name, host)| (!*host).then_some(name.as_str()))
     }
 
     /// Before prefix decisions exist, the parser may need any read below an
     /// admitted emit. Use the file request graph with its guards open.
+    #[allow(dead_code, reason = "SDK hosts inspect the request graph before their shared row packet is indexed")]
     pub(crate) fn possible_provider_reads(&mut self, node: usize, mut visit: impl FnMut(&str)) {
         let Some(root) = self.nodes[node].filter(|&id| id != NONE) else { return };
         self.visited.fill(false);
