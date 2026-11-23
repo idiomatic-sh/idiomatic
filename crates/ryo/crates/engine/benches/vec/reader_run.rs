@@ -22,6 +22,16 @@ struct Request {
     selected_rules: Vec<String>,
     #[serde(default)]
     file_rules: HashMap<String, String>,
+    #[serde(default)]
+    rule_context: serde_json::Value,
+    #[serde(default)]
+    rule_observations: serde_json::Value,
+    #[serde(default)]
+    rule_applicability: serde_json::Value,
+    #[serde(default)]
+    hosted: serde_json::Value,
+    #[serde(default)]
+    parameters: serde_json::Value,
 }
 
 /// Dense local bit numbers only for names that occur in a necessary condition.
@@ -110,7 +120,21 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     if let Some(paths) = paths {
         req.files = paths;
     }
-    let read = lower::read_pack(Path::new(pack), super::rule_context(Some(request)));
+    let mut metadata = serde_json::Map::new();
+    for (name, value) in [
+        ("rule_context", &mut req.rule_context), ("rule_observations", &mut req.rule_observations),
+        ("rule_applicability", &mut req.rule_applicability), ("hosted", &mut req.hosted),
+        ("parameters", &mut req.parameters),
+    ] {
+        if !value.is_null() {
+            metadata.insert(name.into(), value.take());
+        }
+    }
+    if metadata.get("parameters").and_then(serde_json::Value::as_object).is_some_and(|p| !p.is_empty()) {
+        metadata.insert("selected_rules".into(), serde_json::json!(req.selected_rules));
+    }
+    let document = serde_json::Value::Object(metadata);
+    let read = lower::read_pack(Path::new(pack), super::context_from(&document));
     let parser = language.parse_engine();
     let plan = lower::second_half_plan(&read, true);
     let emits: BTreeSet<_> = plan.emits.iter().map(|emit| emit.0.as_str()).collect();
@@ -130,7 +154,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         .nodes
         .iter()
         .filter(|n| n.op == "base")
-        .map(|n| n.j["rel"].as_str().expect("base name"))
+        .map(|n| n.base().expect("base name"))
         .collect();
     let mut run = finish::Run::default();
     run.file_field_codes = true;
@@ -264,7 +288,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             reads.extend(&dependencies[i]);
         }
         if n.op == "base" {
-            let name = n.j["rel"].as_str().expect("relation name");
+            let name = n.base().expect("relation name");
             let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
             if !matches!(run.supplier(name), finish::Supplier::Host) && (ryo_relations::domain::catalog::service::fact_form(rel)
                 != ryo_relations::domain::relations::types::FactForm::NodeTable
@@ -294,8 +318,10 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             "--applicability",
             request,
         ],
+        Some((request, &document)),
     );
     fin.query_rows = QUERY_ROWS;
+    drop(document);
     let startup = thread_cpu() - start;
     println!(
         "startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}",

@@ -45,7 +45,7 @@ pub(in super::super) fn evaluate(
     for (i, step) in plan.nodes.iter().enumerate() {
         match step.op.as_str() {
             "base" => {
-                let rel = step.j["rel"].as_str().ok_or("missing base relation")?;
+                let rel = step.base().ok_or("missing base relation")?;
                 let table = match bases.get(rel) {
                     Some(t) => Rc::clone(t),
                     None => {
@@ -85,7 +85,7 @@ pub(in super::super) fn evaluate(
             }
             "rows" | "select" | "project" | "union" | "antijoin" | "group-count" => {}
             "extend"
-                if step.j["args"]["values"]
+                if step.args()["values"]
                     .as_object()
                     .is_some_and(|m| m.len() <= 1) => {}
             "extend" => {
@@ -116,7 +116,7 @@ pub(in super::super) fn evaluate(
                 let _prepared = super::union_kernel::prep(&mut exec, run, i)?;
             }
             "group-count" => {
-                if let Some(name) = step.j["args"]["distinct"].as_str() {
+                if let Some(name) = step.args()["distinct"].as_str() {
                     let input = exec.arg_rel(i, "from")?;
                     let schema = exec.schema(run, input)?;
                     let _column = super::pos(&schema.names, name)?;
