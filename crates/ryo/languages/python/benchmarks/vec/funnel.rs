@@ -471,6 +471,7 @@ pub(super) fn build(specs: &[SpecRule], vocab: &Vocab, catalog: &mut super::fact
         let mut disjuncts: Vec<(usize, Vec<usize>)> = Vec::new();
         let mut enterable = true;
         for p in &r.plans {
+            assert!(p.regs <= 256, "rule {} requires {} registers, predicate stage capacity is 256", r.name, p.regs);
             let keys: Vec<Key> = p
                 .keys
                 .iter()

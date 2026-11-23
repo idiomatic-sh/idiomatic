@@ -628,7 +628,7 @@ fn main() {
                 let plan = if std::path::Path::new(finish_args[0]).is_dir() {
                     // `--request F`: the run's request, for the rule context the lowering reads
                     let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
-                    let read = lower::read_pack(std::path::Path::new(finish_args[0]), request);
+                    let read = lower::read_pack(std::path::Path::new(finish_args[0]), request::rule_context(request));
                     println!("start-up pack: read {:.4} parse {:.4} s", read.read, read.parse);
                     let plan = lower::second_half_plan(&read);
                     pack = Some((finish_args[0], read));
@@ -654,12 +654,16 @@ fn main() {
 
 /// The first half's language knowledge, as the provider declares it (the column walk's per-node facts and the token order
 /// this harness writes, the spelled columns, the identifier rule, the name-token kind).
-fn python_language() -> first::Language {
+fn python_language(vocab: &Vocab) -> first::Language {
+    use finish::TokenOrder as _;
+    let tokens=provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied());
     use ryo_python::fixtures::columns::{NAME_KIND, PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
     let mut facts: Vec<String> = PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect();
     // the harness writes the token order itself (`Store::token_order`)
-    facts.push("token-link".to_owned());
+    if !first::uses_pairs() { facts.push("token-link".to_owned()); }
     first::Language {
+        text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
+        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().map(|s|(*s).to_string()).collect(),
         facts,
         spelled: SPELLED_COLUMNS.iter().map(|(r, c, how)| ((*r).to_owned(), (*c).to_owned(), match how { Spelling::Whole => None, Spelling::LastSegment(c) => Some(*c) })).collect(),
         is_identifier,
@@ -946,6 +950,10 @@ mod finish;
 mod lower;
 #[path = "first.rs"]
 mod first;
+mod pair_summary;
+mod pair_skip;
+mod pair_checks;
+mod request;
 #[path = "finisher.rs"]
 mod finisher;
 #[path = "dump.rs"]
@@ -1635,23 +1643,27 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut fact_catalog = facts::Catalog::default();
     let mut interner = facts::Interner { ids: facts::Table::named(&flag(args, "--hasher").unwrap_or_else(|| "std".to_owned())), ..Default::default() };
     let f0 = thread_cpu();
+    let no_skip = std::env::var_os("VEC_NO_SKIP").is_some();
+    let mut pairs = None;
+    let mut pair_steps=0;
     let (rules, frules, words) = if std::path::Path::new(args[2]).is_dir() {
         let owned;
         let read = match pack {
             Some((dir, read)) if std::fs::canonicalize(dir).ok() == std::fs::canonicalize(args[2]).ok() => read,
             _ => {
                 let request = flag(args, "--request");
-                owned = lower::read_pack(std::path::Path::new(args[2]), request.as_deref());
+                owned = lower::read_pack(std::path::Path::new(args[2]), request::rule_context(request.as_deref()));
                 println!("start-up first half pack: read {:.4} parse {:.4} s", owned.read, owned.parse);
                 &owned
             }
         };
         let f1 = thread_cpu();
-        let prepared = first::prepare(&read.programs, python_language());
+        let prepared = first::prepare(read, python_language(vocab), vocab);
         println!("start-up first half: products past the CAP {}", first::counts()[6]);
         let f2 = thread_cpu();
         let rules = rules_of_skips(&prepared.skips, vocab);
         let (frules, words) = funnel::build(&prepared.rules, vocab, &mut fact_catalog, &mut interner);
+        pairs=prepared.pairs;
         let f3 = thread_cpu();
         println!(
             "start-up first half: from the pack: analysis {:.4} load {:.4} total {:.4} s; rules {} node {} plans {} disjuncts with alternatives {} (plans in them {})",
@@ -1814,7 +1826,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         let mut prepared = false;
         let mut codes_taken = false;
         macro_rules! prepare {
-            ($t:expr) => {{
+            ($t:expr,$fill:expr) => {{
                 let pt: &NodeTable = $t;
                 let c1 = thread_cpu();
                 fields_present(pt, &mut cols, fields_width.max(1));
@@ -1938,6 +1950,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 if std::env::var_os("VEC_NO_SKIP").is_some() {
                     alive.iter_mut().for_each(|a| *a = true);
                 }
+                if !no_skip && let Some(program)=&pairs { pair_steps+=program.file(pt,&bytes,&mut fwords,$fill,&mut alive); }
                 rule_files += frules.len() as u64;
                 alive_kinds += kinds_alive.iter().filter(|a| **a).count() as u64;
                 alive_both += alive.iter().filter(|a| **a).count() as u64;
@@ -2189,7 +2202,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     let n = node_table::element_count(ft).0;
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
-                    prepare!(ft);
+                    prepare!(ft, |rel,words,out| matches!(file.fill(rel,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_)));
                     prepared = true;
                     let v0 = thread_cpu();
                     let mut needed = vec![ask_all; slots_n];
@@ -2513,7 +2526,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 let p0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
-                prepare!(ft);
+                prepare!(ft, |rel,words,out| matches!(file.facts.fill(rel,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_)));
                 prepared = true;
                 let v0 = thread_cpu();
                 let mut needed = vec![false; slots_n];
@@ -2602,7 +2615,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             continue;
         }
         if !prepared {
-            prepare!(t);
+            prepare!(t, |_,_,_| false);
         }
         if !prefixed {
             prefix!(t);
@@ -2651,6 +2664,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             );
         }
     }
+    println!("pair summary checks {pair_steps}");
     let knock_units = units.iter().filter(|u| u.knock).count();
     let steps: u64 = unit_steps.iter().sum();
     println!(

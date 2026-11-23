@@ -27,14 +27,16 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::rc::Rc;
 
 /// The tree relations: a scan of one gives a node with its kind and text.
-const SYNTAX: [&str; 2] = ["semantic-syntax", "syntax-tree"];
+pub(super) const SYNTAX: [&str; 2] = ["semantic-syntax", "syntax-tree"];
 /// The parent-child relations: a scan gives a parent, a child and the child's field.
-const CHILD: [&str; 2] = ["semantic-child", "syntax-child"];
+pub(super) const CHILD: [&str; 2] = ["semantic-child", "syntax-child"];
 /// What the first half needs to know of the language, all given by the provider: the relations written per node as fact
 /// columns, the columns whose text is spelled in the source as a name (and how), what a name is, and the kind of the
 /// tokens that spell names.
 pub(super) struct Language {
     pub(super) facts: Vec<String>,
+    pub(super) text_kinds: Vec<u16>,
+    pub(super) file_sets: Vec<String>,
     pub(super) spelled: Vec<(String, String, Option<char>)>,
     pub(super) is_identifier: fn(&str) -> bool,
     pub(super) word_kind: String,
@@ -2322,6 +2324,7 @@ fn plan_disjunct(d: &Disj, word_kind: &str, disjunct: usize) -> Planned {
 
 /// The first half's spec of one pack, prepared in the process.
 pub(super) struct Prepared {
+    pub(super) pairs: Option<super::pair_summary::Program>,
     /// Per rule, in pack order: its name, whether it never matches, and its kinds-and-fields clauses (`k:`/`f:` names).
     pub(super) skips: Vec<(String, bool, Vec<Vec<String>>)>,
     pub(super) rules: Vec<SpecRule>,
@@ -2331,8 +2334,26 @@ pub(super) struct Prepared {
 /// The skip clauses a rule keeps at most (its smallest).
 const CLAUSE_CAP: usize = 32;
 
+pub(super) fn uses_pairs() -> bool {
+    std::env::var_os("VEC_FIRST_PLANS").is_none() && std::env::var_os("VEC_FIRST_SKIP_ONLY").is_none()
+}
+
+pub(super) fn prepare(read: &super::lower::ReadPack, lang: Language, vocab:&super::Vocab) -> Prepared {
+    if !uses_pairs() { return previous(&read.programs,lang) }
+    let plan=read.typed.take().unwrap_or_else(||ryo_engine::domain::plan_lowering::service::lowered(&read.programs,ryo_engine::domain::plan_lowering::types::PlanningStage::Axes));
+    assert!(plan.unplanned.is_empty(),"{} rules unplanned",plan.unplanned.len());
+    let mut pairs=super::pair_summary::prepare(&plan,vocab,&lang);
+    println!("pair summaries: steps {} node domains {} file tests {} rules {} capped {}",plan.steps.len(),pairs.domains.len(),pairs.needs.len(),pairs.roots.len(),pairs.capped);
+    let (mut skips, mut rules)=(Vec::new(),Vec::new());
+    for ((name,_),(never,shape,words)) in pairs.roots.iter().zip(std::mem::take(&mut pairs.skips)){
+        skips.push((name.clone(),never,shape));
+        rules.push(SpecRule{name:name.clone(),node:false,plans:vec![],word_cnfs:vec![words]});
+    }
+    Prepared{pairs:Some(pairs),skips,rules}
+}
+
 /// `VEC_FIRST_PLANS`: the elaborate per-rule prefix plans (every disjunct rooted at every bucket); else the summaries only.
-pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
+fn previous(programs: &PackPrograms, lang: Language) -> Prepared {
     let simple = std::env::var_os("VEC_FIRST_PLANS").is_none();
     let word_kind = lang.word_kind.clone();
     let word_kind = word_kind.as_str();
@@ -2369,7 +2390,7 @@ pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
             rules.push(SpecRule { name, node: false, plans: Vec::new(), word_cnfs: vec![word_cnf] });
         }
         drop(pins);
-        return Prepared { skips, rules };
+        return Prepared { pairs: None, skips, rules };
     }
     // the identities first (how many steps take each), then the relations
     let td = super::thread_cpu();
@@ -2447,7 +2468,7 @@ pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
         let tr3 = super::thread_cpu();
         PHASES.with(|p| p.borrow_mut()[2] += tr3 - tr2);
     }
-    Prepared { skips, rules }
+    Prepared { pairs: None, skips, rules }
 }
 
 /// `vec first <pack> [--request F] [--repeat K]`: the first half's spec prepared from the pack, with its CPU and size, and the
@@ -2455,13 +2476,15 @@ pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
 pub(super) fn run_first(args: &[&str]) {
     let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
     let repeat: usize = args.iter().position(|a| *a == "--repeat").map_or(1, |i| args[i + 1].parse().expect("repeat"));
-    let read = super::lower::read_pack(std::path::Path::new(args[0]), request);
+    let read = super::lower::read_pack(std::path::Path::new(args[0]), super::request::rule_context(request));
+    let vocab=super::vocabulary(&ryo_python::walk_with_settings(super::target_settings()));
     for round in 0..repeat {
         COUNTS.with(|c| *c.borrow_mut() = [0; 8]);
         PHASES.with(|c| *c.borrow_mut() = [0.0; 4]);
+        if uses_pairs() { read.typed.replace(Some(ryo_engine::domain::plan_lowering::service::lowered(&read.programs,ryo_engine::domain::plan_lowering::types::PlanningStage::Axes))); }
         let a0 = super::alloc_counts();
         let t0 = super::thread_cpu();
-        let p = prepare(&read.programs, super::python_language());
+        let p = prepare(&read, super::python_language(&vocab), &vocab);
         let t1 = super::thread_cpu();
         let a1 = super::alloc_counts();
         let plans: usize = p.rules.iter().map(|r| r.plans.len()).sum();
