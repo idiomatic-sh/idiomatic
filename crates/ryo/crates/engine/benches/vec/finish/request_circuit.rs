@@ -1,14 +1,15 @@
-//! File predicates have fixed dependencies. Compile their conjunctions and
-//! disjunctions once, sharing equal pairs. Literals are adjacent truth and
-//! complement bytes, so each gate needs two indexed reads and one AND.
+//! Shared file predicates. An active read evaluates only the input gates
+//! needed to settle it. The result is reused by every decision in that file.
 use rustc_hash::FxHashMap;
+use std::cell::{Cell, RefCell};
 
 #[derive(Default)]
 pub(super) struct Circuit {
     pub(super) leaves: usize,
     gates: Vec<[u32; 2]>,
-    values: Vec<u8>,
-    valid: bool,
+    // One byte per variable: zero is undecided, one is true, two is false.
+    values: Vec<Cell<u8>>,
+    pending: RefCell<Vec<usize>>,
 }
 
 pub(super) struct Compiler {
@@ -19,8 +20,8 @@ pub(super) struct Compiler {
 impl Compiler {
     pub(super) fn new(leaves: usize) -> Self {
         // Literal zero is true and literal one is false.
-        let mut values = vec![0; 2 * (1 + leaves)];
-        values[0] = 1;
+        let values = vec![Cell::new(0); 1 + leaves];
+        values[0].set(1);
         Self { circuit: Circuit { leaves, values, ..Default::default() }, pairs: FxHashMap::default() }
     }
 
@@ -42,9 +43,9 @@ impl Compiler {
         }
         let pair = [a.min(b), a.max(b)];
         *self.pairs.entry(pair).or_insert_with(|| {
-            let key = self.circuit.values.len() as u32;
+            let key = 2 * self.circuit.values.len() as u32;
             self.circuit.gates.push(pair);
-            self.circuit.values.extend_from_slice(&[0, 1]);
+            self.circuit.values.push(Cell::new(0));
             key
         })
     }
@@ -74,7 +75,7 @@ impl Circuit {
             kept += 1;
         }
         self.gates.truncate(kept);
-        self.values.truncate(2 * (first + kept));
+        self.values.truncate(first + kept);
         map
     }
 
@@ -83,32 +84,45 @@ impl Circuit {
     }
 
     pub(super) fn set(&mut self, index: usize, value: bool) -> bool {
-        let i = 2 * (index + 1);
-        let changed = self.values[i] != u8::from(value);
-        self.values[i] = u8::from(value);
-        self.values[i + 1] = u8::from(!value);
-        changed
+        let raw = if value { 1 } else { 2 };
+        self.values[index + 1].replace(raw) != raw
     }
 
     pub(super) fn evaluate(&mut self, changed: bool) {
-        if self.valid && !changed { return; }
-        // Gates and their two-byte destinations are parallel arrays. Reads
-        // refer to earlier literals, including gates written in this pass.
-        let values = std::cell::Cell::from_mut(self.values.as_mut_slice()).as_slice_of_cells();
-        let (outputs, rest) = values[2 * (1 + self.leaves)..].as_chunks::<2>();
-        debug_assert!(rest.is_empty());
-        debug_assert_eq!(outputs.len(), self.gates.len());
-        for (&[a, b], [yes, no]) in self.gates.iter().zip(outputs) {
-            let value = values[a as usize].get() & values[b as usize].get();
-            yes.set(value);
-            no.set(value ^ 1);
-        }
-        self.valid = true;
+        if changed { self.values[self.leaves + 1..].fill(Cell::new(0)); }
+    }
+
+    #[inline]
+    fn cached(&self, literal: u32) -> Option<bool> {
+        let raw = self.values[(literal / 2) as usize].get();
+        (raw != 0).then_some((raw == 1) ^ (literal & 1 != 0))
     }
 
     #[inline]
     pub(super) fn permits(&self, literal: u32) -> bool {
-        self.values[literal as usize] != 0
+        self.cached(literal).unwrap_or_else(|| self.settle(literal))
+    }
+
+    // The input graph is acyclic. A stack avoids tying the supported depth
+    // of a plan to the thread stack. A false first input settles an AND.
+    fn settle(&self, literal: u32) -> bool {
+        let first = self.leaves + 1;
+        let mut pending = self.pending.borrow_mut();
+        pending.push((literal / 2) as usize);
+        while let Some(&node) = pending.last() {
+            let [a, b] = self.gates[node - first];
+            let value = match self.cached(a) {
+                None => { pending.push((a / 2) as usize); continue; }
+                Some(false) => false,
+                Some(true) => match self.cached(b) {
+                    None => { pending.push((b / 2) as usize); continue; }
+                    Some(value) => value,
+                },
+            };
+            self.values[node].set(if value { 1 } else { 2 });
+            pending.pop();
+        }
+        self.cached(literal).expect("the requested gate was settled")
     }
 
     pub(super) fn counts(&self) -> (usize, usize) { (self.leaves, self.gates.len()) }
