@@ -8,7 +8,18 @@ use std::{collections::BTreeMap, num::NonZeroUsize, path::Path, sync::Arc};
 pub(super) struct Output {
     pub(super) aliases: Vec<(usize, usize)>,
     pub(super) answers: Vec<(usize, Answer)>,
+    empty: Vec<usize>,
     pub(super) clock: Clock,
+}
+
+impl Output {
+    pub(super) fn answer(&mut self, slot: usize, answer: Answer) {
+        if answer.as_ref().is_ok_and(Vec::is_empty) {
+            self.empty.push(slot);
+        } else {
+            self.answers.push((slot, answer));
+        }
+    }
 }
 
 pub(crate) fn visit(
@@ -17,6 +28,7 @@ pub(crate) fn visit(
     programs: &[Result<Program>],
     program_of: &[usize],
     sources: &[Source],
+    paths: &Arc<[String]>,
     selected: &[usize],
     aliases: &mut [usize],
     answers: &mut [Answer],
@@ -29,7 +41,6 @@ pub(crate) fn visit(
         by_path.entry(&sources[index].path).or_default().push(index);
     }
     let groups: Vec<_> = by_path.into_values().collect();
-    let paths: Arc<[_]> = sources.iter().map(|s| s.path.clone()).collect();
     let n = workers::count(requested, groups.len());
     let shards = workers::divide(0..groups.len(), n, |index| {
         let source = &sources[groups[index][0]];
@@ -47,7 +58,7 @@ pub(crate) fn visit(
             programs,
             program_of,
             sources,
-            &paths,
+            paths,
             &groups,
             ids,
             &host,
@@ -56,6 +67,9 @@ pub(crate) fn visit(
     for part in workers::run(&shards, &work, &work) {
         for (slot, target) in part.aliases {
             aliases[slot] = target;
+        }
+        for slot in part.empty {
+            answers[slot] = Ok(Vec::new());
         }
         for (slot, result) in part.answers {
             answers[slot] = result;

@@ -208,6 +208,7 @@ impl Batch {
             .into_iter()
             .map(|l| l.0.into_iter().next())
             .chain([None]);
+        let paths: Arc<[String]> = self.schedule.sources.iter().map(|s| s.path.clone()).collect();
         for (language, files) in readers.zip(groups) {
             if files.is_empty() {
                 continue;
@@ -218,6 +219,7 @@ impl Batch {
                 &self.schedule.programs,
                 &rules,
                 &self.schedule.sources,
+                &paths,
                 &files,
                 &mut aliases,
                 &mut answers,

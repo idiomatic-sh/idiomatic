@@ -486,7 +486,7 @@ fn visit_groups(
                     })
                     || !b.words.iter().all(|c| c.iter().any(|v| words.contains(v)))
                 {
-                    output.answers.push((slot, Ok(Vec::new())));
+                    output.answer(slot, Ok(Vec::new()));
                     clocks.skipped += 1;
                     continue;
                 }
@@ -544,7 +544,7 @@ fn visit_groups(
                     continue;
                 }
                 clocks.evaluated += 1;
-                output.answers.push((slot, finish::session::pair(
+                output.answer(slot, finish::session::pair(
                     &mut b.exec,
                     &mut run,
                     id.0,
@@ -552,7 +552,7 @@ fn visit_groups(
                     &bytes,
                     &mut provider,
                     b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
-                )));
+                ));
             }
             clocks.evaluate += thread_cpu() - t;
         }
