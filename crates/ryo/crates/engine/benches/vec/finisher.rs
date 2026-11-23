@@ -23,6 +23,7 @@ pub(super) struct Finisher<'p> {
     dump_text: String,
     pub(super) run: finish::Run,
     exec: finish::Exec<'p>,
+    pub(crate) anchors: finish::anchor::Programs,
     findings: Vec<String>,
     failed: HashMap<String, String>,
     /// redo-honest: per plan emit, whether its rule runs only on a file whose syntax the parser accepted (the request's
@@ -85,6 +86,7 @@ impl<'p> Finisher<'p> {
             dump_text: String::new(),
             run,
             exec: finish::Exec::new(plan),
+            anchors: Default::default(),
             findings: Vec::new(),
             failed: HashMap::new(),
             failed_idx: vec![false; plan.emits.len()],
@@ -105,6 +107,7 @@ impl<'p> Finisher<'p> {
         me.exec.cold_test_load(&mut me.run);
         me.exec.cold_load(&mut me.run);
         me.exec.col_load(&mut me.run);
+        me.anchors = finish::anchor::Programs::load(&mut me.exec, &mut me.run);
         me.time += thread_cpu() - t0;
         me
     }
@@ -192,6 +195,7 @@ impl<'p> Finisher<'p> {
             }
         }
         let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
+        let mut indexes = finish::anchor::FileIndexes::default();
         for ei in wanted {
             if self.failed_idx[*ei] || (rejected && self.accepted_only[*ei]) {
                 continue;
@@ -199,13 +203,16 @@ impl<'p> Finisher<'p> {
             let e = &plan.emits[*ei];
             run.missing.clear();
             let before = (self.exec.stats.total_runs, self.exec.stats.total_rows);
-            let got = self.exec.eval(&mut f, run, pv, e.1);
+            let got = if self.anchors.covers(*ei) {
+                self.anchors.execute(*ei, &mut self.exec, &mut f, run, pv, &mut indexes)
+            } else { self.exec.eval(&mut f, run, pv, e.1) };
             let stats = &mut self.rule_stats[*ei];
             stats[0] += 1;
             stats[1] += self.exec.stats.total_runs - before.0;
             stats[2] += self.exec.stats.total_rows - before.1;
             finish::emptyprop::emit_done(&f, e.1);
             let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
+            let writing = self.anchors.covers(*ei).then(thread_cpu);
             let written = got.and_then(|t| {
                 if self.dump.is_some() {
                     finish::dump_rows(&f, run, &t, &e.0, &run.paths[file_no], &mut self.dump_text);
@@ -234,11 +241,13 @@ impl<'p> Finisher<'p> {
                 }
                 Ok(())
             });
+            self.anchors.written(writing);
             if let Err(err) = written {
                 self.failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
                 self.failed_idx[*ei] = true;
             }
         }
+        self.anchors.finish_file(indexes);
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
         self.exec.cold_end(&mut f, run);
     }
@@ -246,6 +255,7 @@ impl<'p> Finisher<'p> {
     /// Writes the findings, dumps and stats, and prints the second half's lines; `walk_time` is the walk's own time when
     /// the second half walked the files itself (0 inside the first half's walk).
     pub(super) fn end(mut self, walk_time: f64, project_findings: impl FnOnce(&mut Vec<String>)) -> bool {
+        self.anchors.report();
         let ok = self.failed.is_empty();
         self.exec.leaf_report(&mut self.run);
         self.exec.cold_report(&self.run);

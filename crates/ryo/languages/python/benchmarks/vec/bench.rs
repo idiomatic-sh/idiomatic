@@ -1803,6 +1803,8 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     // name), and the file's seed as a set over the rules
     assert!(fin.is_none() || (use_facts && direct), "--finish in the first half's walk needs --facts --direct");
     let emit_rules: Vec<Vec<usize>> = fin.as_ref().map(|f| f.emit_names().map(|(_, n)| frules.iter().enumerate().filter(|(_, r)| r.name == n).map(|(i, _)| i).collect()).collect()).unwrap_or_default();
+    let anchor_rules: Vec<usize> = emit_rules.iter().enumerate().filter(|(e,_)| fin.as_deref().is_some_and(|f| f.anchors.covers(*e))).flat_map(|(_,rs)|rs.iter().copied()).collect();
+    let mut anchor_admitted = Vec::new();
     let mut in_seed = vec![false; frules.len()];
     let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
     let mut exact_counts = vec![(0u64, 0u64, 0u64); frules.len()];
@@ -1947,6 +1949,10 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                 // redo-honest: `VEC_NO_SKIP` keeps every rule alive in every file (a check of the skip: findings must not change)
                 if no_skip {
                     alive.iter_mut().for_each(|a| *a = true);
+                }
+                anchor_admitted.clear();
+                for &ri in &anchor_rules {
+                    if std::mem::take(&mut alive[ri]) { anchor_admitted.push(ri); }
                 }
                 exact_rows.clear();
                 if !no_skip && let Some(program) = &pairs {
@@ -2557,6 +2563,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                                 in_seed[*r as usize] = true;
                             }
                         }
+                        for &ri in &anchor_admitted { in_seed[ri] = true; }
                         let before_wanted = fin.time;
                         let mut wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
                         if !exact_rows.is_empty() {

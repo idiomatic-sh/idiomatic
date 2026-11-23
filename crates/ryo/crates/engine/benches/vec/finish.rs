@@ -32,6 +32,8 @@ pub(super) fn step_clock() -> f64 {
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
+#[path = "anchor/mod.rs"]
+pub(super) mod anchor;
 #[path = "finish/recycle.rs"]
 mod recycle;
 #[path = "finish/inline_key.rs"]
