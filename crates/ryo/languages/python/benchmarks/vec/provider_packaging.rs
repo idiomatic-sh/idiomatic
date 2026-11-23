@@ -52,14 +52,14 @@ impl Project {
 
     /// A project-scope answer: `rel`'s rows for the run's files `files`. `holds` is the file whose content this provider has
     /// read (`table`, `src`): a relation whose rows depend on a file's own content is answered for that file only.
-    pub(super) fn fill(&mut self, run: &mut finish::Run, rel: &str, files: &[u32], holds: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {
+    pub(super) fn fill(&mut self, run: &mut finish::Run, rel: &str, mask: u64, files: &[u32], holds: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {
         match rel {
-            MODULE_IDENTITY_REL => self.module_identity(run, files),
+            MODULE_IDENTITY_REL => self.module_identity(run, mask, files),
             MEMBERSHIP_REL => {
                 if files != [holds] {
                     return Err(format!("{rel}: answered from each file's imports as the provider reads the file; asked for {} files while holding file {holds}", files.len()));
                 }
-                self.namespace_membership(run, holds, table, src)
+                self.namespace_membership(run, mask, holds, table, src)
             }
             _ => Err(format!("{rel}: not a project relation of this provider")),
         }
@@ -68,7 +68,7 @@ impl Project {
     /// `project-namespace-membership` of `file`: each dotted prefix of each absolute import path it writes, classified by the
     /// entries under the project's search roots (module file, package directory with an initializer, namespace directory),
     /// a present child of a parent not present made unknown.
-    fn namespace_membership(&mut self, run: &mut finish::Run, file: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {
+    fn namespace_membership(&mut self, run: &mut finish::Run, mask: u64, file: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {
         let (_, names, tys) = run.catalog(MEMBERSHIP_REL).ok_or("no project-namespace-membership")?;
         let k = self.kinds;
         let kind = |x: u32| Some(node_table::kind_of(table, Position(x)).0);
@@ -94,11 +94,8 @@ impl Project {
             }
         };
         let mut paths: std::collections::BTreeSet<(String, String)> = std::collections::BTreeSet::new();
-        let n = node_table::element_count(table).0 as u32;
-        for a in 0..n {
-            if kind(a) != k.alias {
-                continue;
-            }
+        let aliases = k.alias.map_or(&[][..], |c| node_table::ids_of_kind(table, ryo::languages::KindBits(c)));
+        for &Position(a) in aliases {
             let imp = node_table::parent_of(table, Position(a)).0;
             let is_from = kind(imp) == k.from;
             let mut level = 0;
@@ -158,14 +155,9 @@ impl Project {
                     "absent" => "absent",
                     _ => "unknown",
                 };
-                let mut row = vec![0u64; names.len()];
-                row[fc] = u64::from(file);
-                row[rc] = u64::from(run.sym(root.as_bytes()));
-                row[pc] = u64::from(run.sym(path.as_bytes()));
-                row[mc] = u64::from(run.sym(state.as_bytes()));
-                row[kc] = u64::from(run.sym(kd.as_bytes()));
-                for (c, v) in row.into_iter().enumerate() {
-                    cols[c].push(v);
+                if finish::request::wants(mask, fc) { cols[fc].push(u64::from(file)); }
+                for (c, text) in [(rc, root.as_str()), (pc, path.as_str()), (mc, state), (kc, kd)] {
+                    if finish::request::wants(mask, c) { cols[c].push(u64::from(run.sym(text.as_bytes()))); }
                 }
                 count += 1;
             }
@@ -206,7 +198,7 @@ impl Project {
     /// `module-identity` of each of `files`: inside a package (its directory holds `__init__.py`), the dotted path from the
     /// topmost such directory's parent, the module and package directory names and the topmost package's name. A file's row
     /// depends on the project's layout only (the initializers of its directories), never on any file's content.
-    fn module_identity(&self, run: &mut finish::Run, files: &[u32]) -> Result<finish::Table, String> {
+    fn module_identity(&self, run: &mut finish::Run, mask: u64, files: &[u32]) -> Result<finish::Table, String> {
         let (_, names, tys) = run.catalog(MODULE_IDENTITY_REL).ok_or("no module-identity")?;
         let mut cols: Vec<Vec<u64>> = vec![Vec::new(); names.len()];
         let mut count = 0;
@@ -238,6 +230,7 @@ impl Project {
             let pkg_dir = file.parent().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
             let root_name = package.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
             for (c, n) in names.iter().enumerate() {
+                if !finish::request::wants(mask, c) { continue; }
                 cols[c].push(match n.as_str() {
                     "file" => u64::from(f),
                     "path" => u64::from(run.sym(parts.join(".").as_bytes())),

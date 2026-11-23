@@ -112,6 +112,25 @@ pub trait FactSource {
         words: &mut FileWords,
         out: &mut FilledColumns,
     ) -> FactAnswer;
+    /// Replaces the output with the selected catalog columns and returns the row count,
+    /// including for an empty projection. Generated file sources write these columns directly.
+    /// Custom sources implementing only the whole-row interface use their existing writer.
+    fn fill_columns(
+        &mut self,
+        relation: Relation,
+        wanted: Wanted,
+        mask: u64,
+        words: &mut FileWords,
+        out: &mut FilledColumns,
+    ) -> (FactAnswer, usize) {
+        out.0.clear();
+        let answer = self.fill(relation, wanted, words, out);
+        let rows = out.0.first().map_or(0, |col| col.0.len());
+        for (i, col) in out.0.iter_mut().enumerate() {
+            if mask & 1u64.checked_shl(i as u32).unwrap_or(u64::MAX) == 0 { col.0.clear(); }
+        }
+        (answer, rows)
+    }
     /// The source form of a node in a syntax role, for fixes (replaces `begin_semantics` and the retained parse).
     fn render(&mut self, request: RenderRequest) -> RenderOutcome;
 }

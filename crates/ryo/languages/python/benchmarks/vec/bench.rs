@@ -1104,12 +1104,11 @@ impl ColFacts<'_, '_, '_, '_> {
         }
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         let relation = relation.ok_or_else(|| format!("{rel}: no reader relation"))?;
-        self.filled.0.clear();
         let t0 = if timed { thread_cpu() } else { 0.0 };
-        let answer = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
+        let (answer, rows) = self.file.fill_columns(relation, columns, self.words, &mut self.filled);
         let t1 = if timed { thread_cpu() } else { 0.0 };
         let t = match answer {
-            languages::FactAnswer::Answered(_) => finish::filled_columns(run, rel, &self.filled, self.words, columns),
+            languages::FactAnswer::Answered(_) => finish::filled_columns(run, rel, &self.filled, self.words, columns, rows),
             _ => Err(format!("{rel} not answered")),
         };
         if timed {
@@ -1215,7 +1214,7 @@ impl ColFacts<'_, '_, '_, '_> {
 
 impl ColFacts<'_, '_, '_, '_> {
     /// redo-binding pass 4: `type-expression` (type_expression.rs) from the node table and four provider relations.
-    fn type_expression(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+    fn type_expression(&mut self, run: &mut finish::Run, mask: u64) -> Result<finish::Table, String> {
         let qualified = self.whole(run, "qualified-name")?;
         let embedded = self.whole(run, "embedded-expression")?;
         // redo-fills pass 2: no root, no row, and the other two inputs are not filled
@@ -1228,13 +1227,14 @@ impl ColFacts<'_, '_, '_, '_> {
         let inputs = type_expression::Inputs { qualified: &qualified, arguments: &arguments, identifiers: &identifiers, embedded: &embedded, lists: type_expression::LISTS.get_or_init(type_expression::Lists::default) };
         let rows = type_expression::rows(run, self.file.table, &inputs, self.type_paths)?;
         let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
-        let (ty, value) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"value")));
-        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
-        for (id, typed) in rows {
-            t.cols[0].push(u64::from(id));
-            t.cols[1].push(if typed { ty } else { value });
-            t.cols[2].push(u64::from(self.file_no));
+        let mut t = finish::Table::projected(names, tys, rows.len(), mask);
+        t.n = rows.len();
+        if finish::request::wants(mask, 0) { t.cols[0].extend(rows.iter().map(|(id, _)| u64::from(*id))); }
+        if finish::request::wants(mask, 1) {
+            let (ty, value) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"value")));
+            t.cols[1].extend(rows.iter().map(|(_, typed)| if *typed { ty } else { value }));
         }
+        if finish::request::wants(mask, 2) { t.cols[2].resize(t.n, u64::from(self.file_no)); }
         Ok(t)
     }
 }
@@ -1242,7 +1242,7 @@ impl ColFacts<'_, '_, '_, '_> {
 impl ColFacts<'_, '_, '_, '_> {
     /// redo-binding pass 4: `annotation-evaluation` (annotation_evaluation.rs) from the node table, the file's compiler features
     /// and target, and its embedded expressions.
-    fn annotation_evaluation(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+    fn annotation_evaluation(&mut self, run: &mut finish::Run, mask: u64) -> Result<finish::Table, String> {
         // redo-fills pass 2: no annotation, no row (and no input filled)
         if !annotation_evaluation::has_annotation(run, self.file.table) {
             let (_, names, tys) = run.catalog(fact_catalog::ANNOTATION_EVALUATION_REL).ok_or("no annotation-evaluation")?;
@@ -1254,14 +1254,17 @@ impl ColFacts<'_, '_, '_, '_> {
         let target = annotation_evaluation::target(run, &features, &targets)?;
         let rows = annotation_evaluation::rows(run, self.file.table, &target, &embedded)?;
         let (_, names, tys) = run.catalog(fact_catalog::ANNOTATION_EVALUATION_REL).ok_or("no annotation-evaluation")?;
-        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 5], n: rows.len() };
-        let classes = annotation_evaluation::NAMES.map(|(e, m)| (u64::from(run.sym(e)), u64::from(run.sym(m))));
-        for (id, root, class) in rows {
-            let (e, m) = classes[class];
-            for (c, v) in [u64::from(id), u64::from(root), e, m, u64::from(self.file_no)].into_iter().enumerate() {
-                t.cols[c].push(v);
+        let mut t = finish::Table::projected(names, tys, rows.len(), mask);
+        t.n = rows.len();
+        if finish::request::wants(mask, 0) { t.cols[0].extend(rows.iter().map(|(id, _, _)| u64::from(*id))); }
+        if finish::request::wants(mask, 1) { t.cols[1].extend(rows.iter().map(|(_, root, _)| u64::from(*root))); }
+        for c in [2, 3] {
+            if finish::request::wants(mask, c) {
+                let words = annotation_evaluation::NAMES.map(|(e, m)| u64::from(run.sym(if c == 2 { e } else { m })));
+                t.cols[c].extend(rows.iter().map(|(_, _, class)| words[*class]));
             }
         }
+        if finish::request::wants(mask, 4) { t.cols[4].resize(t.n, u64::from(self.file_no)); }
         Ok(t)
     }
 }
@@ -1274,12 +1277,13 @@ impl ColFacts<'_, '_, '_, '_> {
         }
         let timed = finish::fill_prof::timed();
         let t0 = if timed { thread_cpu() } else { 0.0 };
+        let mask = self.input_columns.get(rel).unwrap_or(u64::MAX);
         let t = match rel {
-            fact_catalog::TYPE_EXPRESSION_REL => self.type_expression(run)?,
-            fact_catalog::ANNOTATION_EVALUATION_REL => self.annotation_evaluation(run)?,
+            fact_catalog::TYPE_EXPRESSION_REL => self.type_expression(run, mask)?,
+            fact_catalog::ANNOTATION_EVALUATION_REL => self.annotation_evaluation(run, mask)?,
             fact_catalog::FINAL_REL => self.namespace_final(run)?,
             fact_catalog::DEFERRED_RESOLUTION_REL => self.deferred_resolution(run)?,
-            _ => self.deferred_visit(run)?,
+            _ => self.deferred_visit(run, mask)?,
         };
         if timed {
             let e = self.by_rel.entry(format!("fact:{rel}")).or_default();
@@ -1319,7 +1323,7 @@ impl ColFacts<'_, '_, '_, '_> {
 
     /// redo-binding pass 4: `deferred-visit` (deferred_visit.rs) from `type-expression`, `annotation-evaluation`, the node
     /// table, the file's embedded expressions, its name (a stub) and its annotations future.
-    fn deferred_visit(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+    fn deferred_visit(&mut self, run: &mut finish::Run, mask: u64) -> Result<finish::Table, String> {
         let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
         let evaluations = self.fact(run, fact_catalog::ANNOTATION_EVALUATION_REL)?;
         let embedded = self.whole(run, "embedded-expression")?;
@@ -1342,13 +1346,11 @@ impl ColFacts<'_, '_, '_, '_> {
         let inputs = deferred_visit::Inputs { types: &types, evaluations: &evaluations, embedded: &embedded, stub, future };
         let rows = deferred_visit::rows(run, self.file.table, &inputs)?;
         let (_, names, tys) = run.catalog(fact_catalog::DEFERRED_VISIT_REL).ok_or("no deferred-visit")?;
-        let deferred = u64::from(run.sym(b"deferred"));
-        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
-        for id in rows {
-            t.cols[0].push(u64::from(id));
-            t.cols[1].push(deferred);
-            t.cols[2].push(u64::from(self.file_no)); // redo-fills pass 2: the supplier writes the file its rows name
-        }
+        let mut t = finish::Table::projected(names, tys, rows.len(), mask);
+        t.n = rows.len();
+        if finish::request::wants(mask, 0) { t.cols[0].extend(rows.into_iter().map(u64::from)); }
+        if finish::request::wants(mask, 1) { t.cols[1].resize(t.n, u64::from(run.sym(b"deferred"))); }
+        if finish::request::wants(mask, 2) { t.cols[2].resize(t.n, u64::from(self.file_no)); }
         Ok(t)
     }
 }
@@ -1383,7 +1385,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             for (i, asked) in request.relations.iter().enumerate() {
                 if COMPOSED.contains(&asked.rel) == composed {
                     out[base + i] = match asked.scope {
-                        finish::Scope::Files(files) => self.project.fill(run, asked.rel, files, self.file_no, self.file.table, self.src),
+                        finish::Scope::Files(files) => self.project.fill(run, asked.rel, asked.columns, files, self.file_no, self.file.table, self.src),
                         finish::Scope::File(f) if f == self.file_no => match self.one(run, asked.rel, asked.columns) {
                             Ok(Made::Owned(t)) => Ok(t),
                             Ok(Made::Shared(t)) => { pending.push((i, t)); continue; }
@@ -1425,37 +1427,31 @@ const FLOW_READERS: [&str; 10] = ["binding-event", "binding-read", "binding-use"
 const RESOLUTION_READERS: [&str; 1] = ["qualified-name"];
 
 impl ColFacts<'_, '_, '_, '_> {
-    /// One asked relation of this file: none made where the file's own contents say it has no row (`row_count`).
-    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64) -> Result<Made, String> {
-        if !self.kept.contains_key(rel)
-            && let Some((Some(relation), names, tys)) = run.catalog(rel)
-            && self.file.row_count(relation) == Some(0)
-        {
-            return Ok(Made::Owned(finish::Table::with_rows(names, tys, 0)));
-        }
-        let timed = finish::fill_prof::timed();
-        let t0 = if timed { thread_cpu() } else { 0.0 };
-        let made = if rel == fact_catalog::REGION_REL {
+    fn make(&mut self, run: &mut finish::Run, rel: &str, columns: u64) -> Result<Made, String> {
+        Ok(if rel == fact_catalog::REGION_REL {
             let (deferred, rows) = self.file.evaluation_region().ok_or("evaluation-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no evaluation-region")?;
-            let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 6], n: rows.len() };
-            let timing = u64::from(run.sym(if deferred { b"deferred" } else { b"immediate" }));
-            for r in &rows {
-                let kind = u64::from(run.sym(r.kind.as_bytes()));
-                t.cols[0].push(u64::from(r.id));
-                t.cols[1].push(u64::from(r.region));
-                t.cols[2].push(kind);
-                t.cols[3].push(if r.annotation == u32::MAX { finish::NULL } else { u64::from(r.annotation) });
-                t.cols[4].push(timing);
-                t.cols[5].push(u64::from(self.file_no));
+            let mut t = finish::Table::projected(names, tys, rows.len(), columns);
+            t.n = rows.len();
+            if finish::request::wants(columns, 0) { t.cols[0].extend(rows.iter().map(|r| u64::from(r.id))); }
+            if finish::request::wants(columns, 1) { t.cols[1].extend(rows.iter().map(|r| u64::from(r.region))); }
+            if finish::request::wants(columns, 2) { t.cols[2].extend(rows.iter().map(|r| u64::from(run.sym(r.kind.as_bytes())))); }
+            if finish::request::wants(columns, 3) {
+                t.cols[3].extend(rows.iter().map(|r| if r.annotation == u32::MAX { finish::NULL } else { u64::from(r.annotation) }));
             }
+            if finish::request::wants(columns, 4) { t.cols[4].resize(t.n, u64::from(run.sym(if deferred { b"deferred" } else { b"immediate" }))); }
+            if finish::request::wants(columns, 5) { t.cols[5].resize(t.n, u64::from(self.file_no)); }
             Made::Owned(t)
         } else if rel == fact_catalog::RESOLUTION_REL {
             Made::Owned(self.read_resolution(run)?)
         } else if rel == fact_catalog::TYPE_REGION_REL {
             let ids = self.file.type_regions().ok_or("type-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no type-region")?;
-            Made::Owned(finish::Table { names, tys, n: ids.len(), cols: vec![ids.iter().map(|i| u64::from(*i)).collect(), vec![u64::from(self.file_no); ids.len()]] })
+            let mut t = finish::Table::projected(names, tys, ids.len(), columns);
+            t.n = ids.len();
+            if finish::request::wants(columns, 0) { t.cols[0].extend(ids.into_iter().map(u64::from)); }
+            if finish::request::wants(columns, 1) { t.cols[1].resize(t.n, u64::from(self.file_no)); }
+            Made::Owned(t)
         } else if rel == fact_catalog::FINAL_REL
             || rel == fact_catalog::TYPE_EXPRESSION_REL
             || rel == fact_catalog::ANNOTATION_EVALUATION_REL
@@ -1467,7 +1463,20 @@ impl ColFacts<'_, '_, '_, '_> {
             Made::Shared(self.whole(run, rel)?)
         } else {
             Made::Owned(self.whole_fill(run, rel, columns)?)
-        };
+        })
+    }
+
+    /// One asked relation of this file: none made where the file's own contents say it has no row (`row_count`).
+    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64) -> Result<Made, String> {
+        if !self.kept.contains_key(rel)
+            && let Some((Some(relation), names, tys)) = run.catalog(rel)
+            && self.file.row_count(relation) == Some(0)
+        {
+            return Ok(Made::Owned(finish::Table::with_rows(names, tys, 0)));
+        }
+        let timed = finish::fill_prof::timed();
+        let t0 = if timed { thread_cpu() } else { 0.0 };
+        let made = self.make(run, rel, columns)?;
         let t = made.table();
         let dt = if timed { thread_cpu() - t0 } else { 0.0 };
         self.time += dt;
@@ -1487,7 +1496,15 @@ impl ColFacts<'_, '_, '_, '_> {
             if t.cols.iter().any(|c| c.len() < t.n) {
                 // The gate compares full-row digests across versions. Check every
                 // delivered cell in order against the full writer before hashing it.
-                let reference = self.whole_fill(run, rel, u64::MAX)?;
+                let reference = match rel {
+                    fact_catalog::TYPE_EXPRESSION_REL => self.type_expression(run, u64::MAX)?,
+                    fact_catalog::ANNOTATION_EVALUATION_REL => self.annotation_evaluation(run, u64::MAX)?,
+                    fact_catalog::DEFERRED_VISIT_REL => self.deferred_visit(run, u64::MAX)?,
+                    fact_catalog::REGION_REL | fact_catalog::TYPE_REGION_REL => match self.make(run, rel, u64::MAX)? {
+                        Made::Owned(t) => t, Made::Shared(_) => unreachable!(),
+                    },
+                    _ => self.whole_fill(run, rel, u64::MAX)?,
+                };
                 assert_eq!(t.n, reference.n, "{rel} rows");
                 for c in 0..t.cols.len() {
                     if finish::request::wants(columns, c) {
@@ -1522,7 +1539,7 @@ impl finish::Provider for Facts<'_, '_, '_> {
     fn answer(&mut self, run: &mut finish::Run, request: &finish::request::Request<'_>, out: &mut Vec<Result<finish::Table, String>>) -> Result<(), String> {
         for asked in request.relations {
             out.push(match asked.scope {
-                finish::Scope::Files(files) => self.project.fill(run, asked.rel, files, self.file, self.facts.table, self.src),
+                finish::Scope::Files(files) => self.project.fill(run, asked.rel, asked.columns, files, self.file, self.facts.table, self.src),
                 finish::Scope::File(f) if f == self.file => self.one(run, asked.rel, asked.columns),
                 finish::Scope::File(f) => Err(format!("asked for file {f}, this provider holds file {}", self.file)),
             });
@@ -1540,10 +1557,9 @@ impl Facts<'_, '_, '_> {
         let t0 = thread_cpu();
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         let relation = relation.ok_or_else(|| format!("{rel} needs VEC_COLWALK"))?;
-        self.filled.0.clear();
-        let answer = self.facts.facts.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
+        let (answer, rows) = self.facts.facts.fill_columns(relation, languages::Wanted::Whole, columns, self.words, &mut self.filled);
         let mut t = match answer {
-            languages::FactAnswer::Answered(_) => finish::filled_columns(run, rel, &self.filled, self.words, columns),
+            languages::FactAnswer::Answered(_) => finish::filled_columns(run, rel, &self.filled, self.words, columns, rows),
             _ => Err(format!("{rel} not answered")),
         }?;
         // the walk names its file FileId(0): that cell is this provider's file (a cell naming another file is kept)

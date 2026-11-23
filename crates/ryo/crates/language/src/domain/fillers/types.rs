@@ -245,6 +245,9 @@ macro_rules! no_filler {
 
 /// The rows a filler writes, appended column by column as words, and the first part it said it could not read.
 pub(crate) struct ColumnsWriter<'o, R> {
+    /// Selected catalog places; an empty set still counts rows.
+    pub(crate) mask: u64,
+    pub(crate) written: usize,
     /// Where the columns go.
     pub(crate) out: &'o mut FilledColumns,
     /// The first part the filler could not read.
@@ -256,8 +259,25 @@ pub(crate) struct ColumnsWriter<'o, R> {
 impl<R: RelationsItem> Rows<R::Row> for ColumnsWriter<'_, R> {
     fn write(&mut self, row: R::Row) {
         let words = R::words(row);
-        for (column, number) in self.out.0.iter_mut().zip(words.as_ref()) {
-            column.0.push(CellWord(number.0));
+        self.written += 1;
+        if self.mask == u64::MAX {
+            for (column, number) in self.out.0.iter_mut().zip(words.as_ref()) {
+                column.0.push(CellWord(number.0));
+            }
+        } else {
+            let words = words.as_ref();
+            let mut selected = self.mask;
+            while selected != 0 {
+                let i = selected.trailing_zeros() as usize;
+                if i >= words.len() { break; }
+                self.out.0[i].0.push(CellWord(words[i].0));
+                selected &= selected - 1;
+            }
+            if self.mask != 0 {
+                for (column, word) in self.out.0.iter_mut().zip(words).skip(64) {
+                    column.0.push(CellWord(word.0));
+                }
+            }
         }
     }
 
@@ -289,13 +309,15 @@ macro_rules! file_source_answers {
             /// The fill of a relation by the language's filler of it.
             fn answered(
                 &mut self,
+                mask: u64,
+                written: &mut usize,
                 relation: Relation,
                 wanted: Wanted,
                 words: &mut FileWords,
                 out: &mut FilledColumns,
             ) -> FactAnswer {
                 let file = &mut *self.file;
-                $( $( ::ryo_relations::$module!($crate::fill_arm, $module, W, file, relation, wanted, words, out); )* )*
+                $( $( ::ryo_relations::$module!($crate::fill_arm, $module, W, file, relation, wanted, words, out, mask, written); )* )*
                 FactAnswer::Refused(AbsenceCause::NoSuchConstruct)
             }
         }
@@ -310,13 +332,27 @@ macro_rules! file_source_answers {
             ) -> FactAnswer {
                 // SPIKE: under RYO_X_FILLS each fill is counted (`fillers::service::fill_counted`); else nothing is read.
                 let Some(begun) = $crate::domain::fillers::service::fill_begun() else {
-                    return self.answered(relation, wanted, words, out);
+                    return self.answered(u64::MAX, &mut 0, relation, wanted, words, out);
                 };
                 let held = out.0.first().map_or(0, |column| column.0.len());
-                let answer = self.answered(relation, wanted, words, out);
+                let answer = self.answered(u64::MAX, &mut 0, relation, wanted, words, out);
                 let rows = out.0.first().map_or(0, |column| column.0.len()).saturating_sub(held);
                 $crate::domain::fillers::service::fill_counted(relation, wanted, rows, begun);
                 answer
+            }
+
+            fn fill_columns(
+                &mut self, relation: Relation, wanted: Wanted, mask: u64,
+                words: &mut FileWords, out: &mut FilledColumns,
+            ) -> (FactAnswer, usize) {
+                for column in &mut out.0 { column.0.clear(); }
+                let begun = $crate::domain::fillers::service::fill_begun();
+                let mut rows = 0;
+                let answer = self.answered(mask, &mut rows, relation, wanted, words, out);
+                if let Some(begun) = begun {
+                    $crate::domain::fillers::service::fill_counted(relation, wanted, rows, begun);
+                }
+                (answer, rows)
             }
 
             fn render(&mut self, request: RenderRequest) -> RenderOutcome {
@@ -335,12 +371,12 @@ ryo_relations::each_relation!(file_source_answers);
 #[macro_export]
 macro_rules! fill_arm {
     (
-        $module:ident, $walk:ident, $file:ident, $relation:ident, $wanted:ident, $words:ident, $out:ident
+        $module:ident, $walk:ident, $file:ident, $relation:ident, $wanted:ident, $words:ident, $out:ident, $mask:ident, $written:ident
         item $item:ident, row $row:tt, column $column:tt, expected $expected:tt, class $class:ident,
         scope $scope:ident, notes $notes:ident, form NodeTable $nodes:tt, columns $columns:tt
     ) => {};
     (
-        $module:ident, $walk:ident, $file:ident, $relation:ident, $wanted:ident, $words:ident, $out:ident
+        $module:ident, $walk:ident, $file:ident, $relation:ident, $wanted:ident, $words:ident, $out:ident, $mask:ident, $written:ident
         item $item:ident, row $row:tt, column $column:tt, expected $expected:tt, class $class:ident,
         scope $scope:ident, notes $notes:ident, form Filled $key:tt, size $size:ident, keys $keys:tt, columns $columns:tt
     ) => {
@@ -350,19 +386,25 @@ macro_rules! fill_arm {
             let width = <Item as ::ryo_relations::domain::relations::collections::relations::interface::RelationsItem>::kinds().len();
             // What the columns held before this fill: an absent relation leaves them so.
             let held_columns = $out.0.len();
-            let held_rows = $out.0.first().map_or(0, |column| column.0.len());
             if held_columns < width {
                 $out.0.resize_with(width, $crate::domain::facts::types::FilledColumn::default);
             }
             let mut writer = $crate::domain::fillers::types::ColumnsWriter::<Item> {
                 out: $out,
+                mask: $mask,
+                written: 0,
                 partial: None,
                 relation: ::std::marker::PhantomData,
             };
-            return match $walk::$module($file, $words, $wanted, &mut writer) {
+            let filled = $walk::$module($file, $words, $wanted, &mut writer);
+            *$written = writer.written;
+            return match filled {
                 $crate::domain::fillers::types::Fill::Absent(cause) => {
-                    for column in &mut writer.out.0 {
-                        column.0.truncate(held_rows);
+                    *$written = 0;
+                    for (i, column) in writer.out.0.iter_mut().take(width).enumerate() {
+                        if $mask & 1u64.checked_shl(i as u32).unwrap_or(u64::MAX) != 0 {
+                            column.0.truncate(column.0.len() - writer.written);
+                        }
                     }
                     writer.out.0.truncate(held_columns);
                     $crate::domain::facts::types::FactAnswer::Refused(cause)
