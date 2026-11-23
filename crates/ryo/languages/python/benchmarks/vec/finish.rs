@@ -2400,7 +2400,8 @@ impl<'p> Exec<'p> {
         }
         let rel = run.fact_rels[i].0.clone();
         if fill_prof::counting() {
-            let by = self.stack.last().map_or(u32::MAX, |n| *n as u32);
+            // redo-int round 37: redo-whole deleted the run stack this diagnostic read; the asker is not known now
+            let by = u32::MAX;
             fill_prof::asked(i, by);
             if sw!("VEC_ASKER_PLAN") && by != u32::MAX && fill_prof::first_asker(by) {
                 eprintln!("ASKER-SITE {by} {} {}", fill_prof::SITE.with(std::cell::Cell::get), std::backtrace::Backtrace::force_capture().to_string().lines().filter(|l| l.contains("Exec") || l.contains("kernel") || l.contains("finish")).take(12).map(str::trim).collect::<Vec<_>>().join(" < "));
