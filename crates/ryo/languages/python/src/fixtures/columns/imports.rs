@@ -45,6 +45,38 @@ impl ColumnFile<'_, '_> {
             .flat_map(move |kind| nodes_of_kind(&self.file.syntax, Kind::Node(kind)))
     }
 
+    /// A comment occupies a physical line. Report every import whose source extent reaches that line before the comment.
+    pub fn visit_import_line_comments(&self, mut visit: impl FnMut(Position, Position, bool)) {
+        use crate::domain::{syntax::service::kind_bits, tokens::types::Token};
+        let comments = node_table::ids_of_kind(self.table, kind_bits(Kind::Token(Token::Comment)));
+        if comments.is_empty() {
+            return;
+        }
+        let src = self.file.syntax.text.0.as_bytes();
+        let line_end = |at: usize| {
+            at + src[at..]
+                .iter()
+                .position(|b| matches!(b, b'\r' | b'\n'))
+                .unwrap_or(src.len() - at)
+        };
+        for Numbered { id, .. } in self.import_statements() {
+            let statement = node_table::span_of(self.table, id);
+            let first = comments
+                .partition_point(|p| node_table::span_of(self.table, *p).start < statement.start);
+            let end = line_end(statement.end.0 as usize);
+            let mut first_line_end = None;
+            for &comment in &comments[first..] {
+                let at = node_table::span_of(self.table, comment).start.0 as usize;
+                if at >= end {
+                    break;
+                }
+                let first_end =
+                    *first_line_end.get_or_insert_with(|| line_end(statement.start.0 as usize));
+                visit(id, comment, at < first_end);
+            }
+        }
+    }
+
     /// Catalog membership of an absolute module root for the file's configured Python release.
     pub fn import_catalog(&self, root: &str) -> &'static str {
         use crate::domain::standard_library::{

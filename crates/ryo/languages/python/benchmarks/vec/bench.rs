@@ -1432,7 +1432,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
             relative_import::walked(run, self.project, self.file, self.file_no)?
-        } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::ENTRIES) {
+        } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
             import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel)?
         } else if rel == fact_catalog::ASSIGNMENT_SOURCE_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no assignment-source")?;
