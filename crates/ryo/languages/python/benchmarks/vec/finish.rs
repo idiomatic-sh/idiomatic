@@ -186,13 +186,16 @@ impl Table {
     }
     /// redo-alloc: `with` for a table about to hold `n` rows (its columns taken with that room; 0: unknown).
     pub(super) fn with_rows(names: impl Into<Names>, tys: impl Into<Tys>, n: usize) -> Self {
-        let (names, tys) = (names.into(), tys.into());
+        Self::projected(names.into(), tys.into(), n, u64::MAX)
+    }
+
+    pub(super) fn projected(names: Names, tys: Tys, n: usize, mask: u64) -> Self {
         let k = names.len();
         // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool
         let mut cols = recycle::take_cols(k);
         POOL.with(|p| {
             let p = &mut *p.borrow_mut();
-            cols.extend((0..k).map(|_| take_col(p, n)));
+            cols.extend((0..k).map(|c| if request::wants(mask, c) { take_col(p, n) } else { Vec::new() }));
         });
         Table { names, tys, cols, n: 0 }
     }
@@ -279,6 +282,7 @@ pub(super) struct Run {
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
     pub(super) fact_rels: Vec<(String, usize)>,
+    fact_slots: FxHashMap<String, u16>,
     /// pass 2: the kind codes of each kind name's symbol (made at the first ask, after `kind_sym` is set).
     pub(super) kind_codes: std::cell::OnceCell<FxHashMap<u32, Box<[u16]>>>,
     /// redo-fills c2: the run-wide symbol of each provider word: the run's base words (the same in every file) and this
@@ -572,15 +576,8 @@ fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
     if sw!("VEC_NO_FACTVIEW") || native_of(rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles | Supplier::Project(_)) {
         return None;
     }
-    let (_, names, _) = run.catalog(rel)?;
-    let at = match run.fact_rels.iter().position(|(r, _)| r == rel) {
-        Some(i) => i,
-        None => {
-            run.fact_rels.push((rel.to_owned(), names.len()));
-            run.fact_rels.len() - 1
-        }
-    };
-    Some(Native::Fact(at as u16))
+    let &slot = run.fact_slots.get(rel)?;
+    Some(Native::Fact(slot))
 }
 
 const NONE: u32 = u32::MAX;
@@ -620,7 +617,6 @@ pub(super) struct File<'a> {
     vrows: FxHashMap<usize, Rc<Vec<u32>>>,
     vmat: FxHashMap<usize, Rc<Table>>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
-    fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     /// The survivor sets of this file (sorted node ids), by set: the prefix's roots for each seeded rule.
     pub(super) seeds: Vec<Vec<u32>>,
@@ -657,10 +653,11 @@ struct FileBufs {
     vrows: FxHashMap<usize, Rc<Vec<u32>>>,
     vmat: FxHashMap<usize, Rc<Table>>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
-    fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
+    answer: Vec<Option<Result<Table, String>>>,
+    fact_read: Vec<std::cell::Cell<bool>>,
 }
 
 /// A map's tables given back (recycle.rs) and the map emptied, its room kept.
@@ -703,7 +700,8 @@ impl Drop for File<'_> {
             vrows: std::mem::take(&mut self.vrows),
             vmat: std::mem::take(&mut self.vmat),
             index: std::mem::take(&mut self.index),
-            fills: std::mem::take(&mut self.fills),
+            answer: std::mem::take(&mut self.answer),
+            fact_read: std::mem::take(&mut self.fact_read),
             lazies: std::mem::take(&mut self.lazies),
             facts: std::mem::take(&mut self.facts),
             fact_ix: std::mem::take(self.fact_ix.get_mut()),
@@ -722,7 +720,8 @@ impl Drop for File<'_> {
         for (_, mut v) in b.index.drain() {
             v.drain_each(|(_, ix)| recycle_index(ix));
         }
-        give_tables(&mut b.fills);
+        b.answer.clear();
+        b.fact_read.clear();
         b.lazies.clear();
         for t in b.facts.drain(..).flatten() {
             recycle::recycle(t);
@@ -787,15 +786,14 @@ impl File<'_> {
             vrows: b.vrows,
             vmat: b.vmat,
             index: b.index,
-            fills: b.fills,
             lazies: b.lazies,
             seeds: Vec::new(),
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
             known: Vec::new(),
             touched: Vec::new(),
-            fact_read: Vec::new(),
-            answer: Vec::new(),
+            fact_read: b.fact_read,
+            answer: b.answer,
         };
         SPARE.with(|sp| {
             let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
@@ -2026,7 +2024,7 @@ impl<'p> Exec<'p> {
         let j = &pn.j;
         let a = self.args[node];
         match op {
-            "base" => self.base(f, run, p, s(&j["rel"])?),
+            "base" => self.base(f, run, node, s(&j["rel"])?),
             "select" => self.select_k(f, run, p, node),
             "union" => {
                 let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
@@ -2385,7 +2383,6 @@ impl<'p> Exec<'p> {
         if f.facts.get(i).is_some_and(Option::is_some) {
             return Ok(());
         }
-        let rel = run.fact_rels[i].0.clone();
         if fill_prof::counting() {
             // redo-int round 37: redo-whole deleted the run stack this diagnostic read; the asker is not known now
             let by = u32::MAX;
@@ -2397,43 +2394,25 @@ impl<'p> Exec<'p> {
                 eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.j.to_string().chars().take(900).collect::<String>(), ins.join(" | "));
             }
         }
-        if !f.fills.contains_key(&rel) {
-            // redo-fills pass 3: a slot read of the file's one answer (request.rs)
-            let t = self.answered(f, &rel)?;
-            f.fills.insert(rel.clone(), recycle::rc(t));
-        }
-        if f.facts.len() <= i {
-            f.facts.resize(i + 1, None);
-        }
-        if f.fact_read.len() <= i {
-            f.fact_read.resize_with(i + 1, Default::default);
-        }
-        f.facts[i] = f.fills.get(&rel).cloned();
+        let t = self.answered(f, i)?;
+        f.facts[i] = Some(recycle::rc(t));
         Ok(())
     }
 
-    fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
-        // redo-int merge: `p` is read by redo-general's project relations (asked as a request of `Scope::Files`); the
-        // provider and host relations are the file's one answer (redo-fills pass 3)
-        // redo-fills pass 2: by who supplies the relation, as the run's catalog declares it
-        match run.supplier(rel) {
-            Supplier::RunFiles => {
-                let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
-                let mut out = Table::with(names, tys);
-                for i in 0..run.paths.len() {
-                    out.push_row(&[i as u64]);
-                }
-                return Ok(out);
+    fn base(&mut self, f: &mut File<'_>, run: &mut Run, node: usize, rel: &str) -> R<Table> {
+        if let Some(i) = self.requests.base_slots[node] {
+            let i = usize::from(i);
+            if f.facts[i].is_none() {
+                f.facts[i] = Some(recycle::rc(self.answered(f, i)?));
             }
-            Supplier::Provider | Supplier::Host | Supplier::Project(_) => {}
+            return Ok(f.facts[i].as_ref().unwrap().copy());
         }
-        if let Some(t) = f.fills.get(rel) {
-            return Ok(t.copy());
-        }
-        // redo-fills pass 3: a slot read of the file's one answer (request.rs)
-        let t = self.answered(f, rel)?;
-        f.fills.insert(rel.to_owned(), recycle::rc(t.clone()));
-        Ok(t)
+        if !matches!(run.supplier(rel), Supplier::RunFiles) { return Err(format!("no answer slot for {rel}")); }
+        let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+        let mut out = Table::with_rows(names, tys, run.paths.len());
+        out.cols[0].extend(0..run.paths.len() as u64);
+        out.n = run.paths.len();
+        Ok(out)
     }
 
     fn antijoin(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J) -> R<Table> {
@@ -4282,7 +4261,7 @@ pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledC
 pub(super) fn filled_columns(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords, mask: u64) -> R<Table> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
     let n = filled.0.first().map_or(0, |c| c.0.len());
-    let mut out = Table::with_rows(names, tys.clone(), n);
+    let mut out = Table::projected(names, tys.clone(), n, mask);
     for (c, ty) in tys.iter().enumerate() {
         if !request::wants(mask, c) { continue; }
         let Some(column) = filled.0.get(c) else {

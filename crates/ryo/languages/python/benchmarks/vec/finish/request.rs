@@ -34,6 +34,8 @@ pub(crate) struct Requests {
     by_name: FxHashMap<String, u16>,
     /// Who supplies each (the host or the provider), by number.
     host: Vec<bool>,
+    suppliers: Vec<Supplier>,
+    pub(super) base_slots: Vec<Option<u16>>,
     pub(super) guards: Guards,
     nodes: Vec<Option<u32>>,
     graph: Vec<Entry>,
@@ -74,7 +76,9 @@ impl Requests {
         let n = self.names.len() as u16;
         self.names.push(rel.to_owned());
         self.by_name.insert(rel.to_owned(), n);
-        self.host.push(matches!(run.supplier(rel), Supplier::Host));
+        let supplier = run.supplier(rel);
+        self.host.push(matches!(supplier, Supplier::Host));
+        self.suppliers.push(supplier);
         n
     }
 
@@ -167,10 +171,28 @@ fn columns(e: &E, source: usize) -> u64 {
 }
 
 impl Exec<'_> {
+    /// Fix one slot for each catalog relation in this plan before the first file.
+    /// A base and a view of that base address the same read-only answer.
+    pub(crate) fn prepare_slots(&mut self, run: &mut Run) {
+        self.requests.base_slots.resize(self.plan.nodes.len(), None);
+        for (i, node) in self.plan.nodes.iter().enumerate() {
+            if node.op != "base" { continue; }
+            let Some(rel) = node.j["rel"].as_str() else { continue };
+            if native_of(rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles) { continue; }
+            let slot = self.requests.number(run, rel);
+            self.requests.base_slots[i] = Some(slot);
+            if usize::from(slot) == run.fact_rels.len() {
+                let width = run.catalog(rel).map(|(_, names, _)| names.len());
+                run.fact_rels.push((rel.to_owned(), width.unwrap_or(0)));
+                if width.is_some() { run.fact_slots.insert(rel.to_owned(), slot); }
+            }
+        }
+    }
+
     fn demand_input(&mut self, run: &mut Run, n: usize, mask: u64) -> u32 {
         let Ok(Some(v)) = self.view(run, n) else { return self.demand(run, n) };
         let Native::Fact(i) = v.base else { return NONE };
-        let slot = self.requests.number(run, &run.fact_rels[usize::from(i)].0);
+        let slot = i;
         let mut cols = v.filter.iter().fold(0, |m, e| m | columns(e, 0));
         for (c, base) in v.map.iter().enumerate() {
             if wants(mask, c) {
@@ -190,11 +212,7 @@ impl Exec<'_> {
         let d = if self.view(run, n).ok().flatten().is_some() {
             self.demand_input(run, n, u64::MAX)
         } else if pn.op == "base" {
-            if let Some(rel) = pn.j["rel"].as_str()
-                && native_of(rel).is_none()
-                && !matches!(run.supplier(rel), Supplier::RunFiles)
-            {
-                let slot = self.requests.number(run, rel);
+            if let Some(slot) = self.requests.base_slots[n] {
                 self.requests.add(guard, Action::Read(slot, u64::MAX))
             } else {
                 NONE
@@ -272,6 +290,8 @@ impl Exec<'_> {
         rq.counts.files += 1;
         let mut asked = std::mem::take(&mut rq.asked);
         asked.clear();
+        f.facts.resize_with(rq.names.len(), || None);
+        f.fact_read.resize_with(rq.names.len(), Default::default);
         f.answer.clear();
         f.answer.resize_with(rq.names.len(), || None);
         let mut scopes = FxHashMap::default();
@@ -285,7 +305,7 @@ impl Exec<'_> {
                     f.answer[usize::from(n)] = Some(Ok(t));
                 } else {
                     let rel = &rq.names[usize::from(n)];
-                    if let Supplier::Project(ask) = run.supplier(rel) {
+                    if let Supplier::Project(ask) = rq.suppliers[usize::from(n)] {
                         if super::project::covers(run, rel, f.file) {
                             f.answer[usize::from(n)] = Some(super::project::rows(f, run, rel));
                             continue;
@@ -305,7 +325,7 @@ impl Exec<'_> {
                 .iter()
                 .map(|n| {
                     let rel = rq.names[usize::from(*n)].as_str();
-                    let scope = match run.supplier(rel) {
+                    let scope = match rq.suppliers[usize::from(*n)] {
                         Supplier::Project(super::project::ProjectAsk::Run) => Scope::Files(&scopes[n]),
                         Supplier::Project(super::project::ProjectAsk::EachFile) => Scope::Files(&singleton),
                         _ => Scope::File(f.file),
@@ -353,15 +373,15 @@ impl Exec<'_> {
 
     /// A relation's table from the file's answer (moved out: the caller keeps it as the file's fill), or an error naming a
     /// relation the request did not hold.
-    pub(super) fn answered(&mut self, f: &mut File<'_>, rel: &str) -> R<Table> {
+    pub(super) fn answered(&mut self, f: &mut File<'_>, i: usize) -> R<Table> {
         let timed = super::fill_prof::timed();
         let t0 = if timed { super::super::thread_cpu() } else { 0.0 };
-        let n = self.requests.by_name.get(rel).copied();
-        let slot = n.and_then(|n| f.answer.get_mut(usize::from(n)));
+        let slot = f.answer.get_mut(i);
         let result = match slot {
             Some(slot @ Some(Ok(_))) => slot.take().unwrap(),
             Some(Some(Err(err))) => Err(err.clone()),
             _ => {
+                let rel = &self.requests.names[i];
                 self.requests.counts.misses += 1;
                 if super::fill_prof::counting() && self.requests.counts.misses <= 4 {
                     eprintln!("REQUEST-MISS file {} relation {rel}", f.file);

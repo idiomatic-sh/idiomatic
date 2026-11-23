@@ -59,7 +59,7 @@ pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &s
         let n = keys.len();
         // redo-alloc (merged by redo-int): the table through the pool's constructor, each column written in place
         let tys2 = tys.clone();
-        let mut out = Table::with_rows(names, tys, n);
+        let mut out = Table::projected(names, tys, n, columns);
         for (c, ty) in tys2.iter().enumerate() {
             if !finish::request::wants(columns, c) { continue; }
             let written = ft.columns.get(c).filter(|col| !col.is_empty());

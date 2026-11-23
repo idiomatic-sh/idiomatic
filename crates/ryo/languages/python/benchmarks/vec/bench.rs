@@ -1422,7 +1422,7 @@ impl ColFacts<'_, '_, '_, '_> {
         let dt = if timed { thread_cpu() - t0 } else { 0.0 };
         self.time += dt;
         self.rows += t.n as u64;
-        let e = self.by_rel.entry(rel.to_owned()).or_default();
+        let e = if let Some(e) = self.by_rel.get_mut(rel) { e } else { self.by_rel.entry(rel.to_owned()).or_default() };
         e.0 += dt;
         e.1 += t.n as u64;
         e.2 += 1;
@@ -1508,7 +1508,7 @@ impl Facts<'_, '_, '_> {
         let dt = thread_cpu() - t0;
         self.time += dt;
         self.rows += t.n as u64;
-        let e = self.by_rel.entry(rel.to_owned()).or_default();
+        let e = if let Some(e) = self.by_rel.get_mut(rel) { e } else { self.by_rel.entry(rel.to_owned()).or_default() };
         e.0 += dt;
         e.1 += t.n as u64;
         e.2 += 1;

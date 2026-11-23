@@ -121,6 +121,7 @@ impl<'p> Finisher<'p> {
                 &|n| vocab.kinds.get(n).copied(),
             ),
         };
+        me.exec.prepare_slots(&mut me.run);
         me.time += thread_cpu() - t0;
         me
     }
@@ -168,16 +169,11 @@ impl<'p> Finisher<'p> {
         languages::facts::clear_words(&mut fwords);
         finish::own_words_cleared(&mut self.run);
         let mut project = std::mem::take(&mut self.project);
-        let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file_no: file_no as u32, kept: HashMap::new(), project: &mut project, src: bytes };
+        let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file_no: file_no as u32, kept: HashMap::new(), project: &mut project, src: bytes };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
-        for (k, v) in pv.by_rel {
-            let e = self.by_rel.entry(k).or_default();
-            e.0 += v.0;
-            e.1 += v.1;
-            e.2 += v.2;
-        }
+        self.by_rel = pv.by_rel;
         self.fwords = fwords;
         self.project = project;
         self.time += thread_cpu() - t0;
@@ -191,16 +187,11 @@ impl<'p> Finisher<'p> {
         languages::facts::clear_words(&mut fwords);
         finish::own_words_cleared(&mut self.run);
         let mut project = std::mem::take(&mut self.project);
-        let mut pv = super::Facts { facts: file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file: file_no as u32, project: &mut project, src: bytes };
+        let mut pv = super::Facts { facts: file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file: file_no as u32, project: &mut project, src: bytes };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
-        for (k, v) in pv.by_rel {
-            let e = self.by_rel.entry(k).or_default();
-            e.0 += v.0;
-            e.1 += v.1;
-            e.2 += v.2;
-        }
+        self.by_rel = pv.by_rel;
         self.fwords = fwords;
         self.project = project;
         self.time += thread_cpu() - t0;
