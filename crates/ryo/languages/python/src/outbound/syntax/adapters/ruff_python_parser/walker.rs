@@ -8,7 +8,7 @@ use super::types::{FieldIndex, OpenWalked, ParserRefusal, Said, Strings, Walker}
 use super::writer::visit_element;
 use crate::domain::extras::types::Extra;
 use crate::domain::labels::types::Field;
-use crate::domain::model::lexical::service::opened;
+use crate::domain::model::lexical::service::{named, opened};
 use crate::domain::model::names::constants::FIXED_TEXT;
 use crate::domain::model::names::service::{intern, text_of};
 use crate::domain::model::names::types::NameCode;
@@ -332,7 +332,10 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         self.fill(end);
         if let Some(open) = self.open.pop() {
             if let Some(shapes) = &mut self.shapes {
-                shapes.leave(open.at, node, self.names.lexical.name[usize::from(open.at)]);
+                shapes.leave(open.at, node, || {
+                    self.names.lexical.name.get(usize::from(open.at)).copied()
+                        .unwrap_or_else(|| named(&mut self.names.names, node))
+                });
             }
             self.fields.truncate(open.from.0);
             let after = Position(u32::try_from(self.nodes.len()).unwrap_or(u32::MAX));

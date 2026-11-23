@@ -123,7 +123,7 @@ impl WalkShapes {
         }
     }
 
-    pub(crate) fn leave(&mut self, at: Position, node: AnyNodeRef<'_>, code: NameCode) {
+    pub(crate) fn leave(&mut self, at: Position, node: AnyNodeRef<'_>, name_code: impl FnOnce() -> NameCode) {
         match node {
             AnyNodeRef::ExprStringLiteral(literal) => {
                 self.carriers.string = true;
@@ -151,7 +151,7 @@ impl WalkShapes {
             _ => None,
         };
         let handle = if let Some(which) = name {
-            let c = usize::from(code);
+            let c = usize::from(name_code());
             if c >= self.names.len() { self.names.resize(c + 1, [None; 2]); }
             *self.names[c][which].get_or_insert_with(|| {
                 let id = Position(self.last.len() as u32);
