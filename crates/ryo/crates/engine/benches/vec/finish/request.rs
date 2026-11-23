@@ -346,12 +346,17 @@ impl Exec<'_> {
             let i = id as usize;
             if std::mem::replace(&mut rq.visited[i], true) { continue; }
             let entry = &rq.graph[i];
-            if !rq.guards.circuit.permits(entry.guard) { continue; }
             match &entry.action {
-                Action::Inputs(children) => rq.pending.extend_from_slice(children),
+                Action::Inputs(children) => {
+                    if rq.guards.circuit.permits(entry.guard) {
+                        rq.pending.extend_from_slice(children);
+                    }
+                }
                 Action::Read(slot, columns) => {
                     let slot = usize::from(*slot);
-                    if !rq.proven_empty.get(slot).copied().unwrap_or(false) {
+                    if rq.proven_empty.get(slot).copied().unwrap_or(false)
+                        || masks[slot].as_ref().is_some_and(|m| m.covers(columns)) { continue; }
+                    if rq.guards.circuit.permits(entry.guard) {
                         masks[slot].get_or_insert_with(Columns::default).extend(columns);
                     }
                 }

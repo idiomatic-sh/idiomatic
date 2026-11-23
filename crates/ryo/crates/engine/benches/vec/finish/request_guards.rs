@@ -305,7 +305,7 @@ impl Exec<'_> {
             };
             changed |= circuit.set(at, value);
         }
-        circuit.evaluate(changed);
+        circuit.begin_file(changed);
         self.requests.guards.circuit = circuit;
     }
 

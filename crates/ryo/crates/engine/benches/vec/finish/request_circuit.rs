@@ -88,7 +88,7 @@ impl Circuit {
         self.values[index + 1].replace(raw) != raw
     }
 
-    pub(super) fn evaluate(&mut self, changed: bool) {
+    pub(super) fn begin_file(&mut self, changed: bool) {
         if changed { self.values[self.leaves + 1..].fill(Cell::new(0)); }
     }
 
@@ -141,11 +141,11 @@ mod tests {
         let map = circuit.retain_outputs([gate].into_iter());
         let gate = super::Circuit::remap(&map, gate);
         for i in 0..count { circuit.set(i, true); }
-        circuit.evaluate(true);
+        circuit.begin_file(true);
         assert!(circuit.permits(gate));
         assert!(!circuit.permits(gate ^ 1));
         assert!(circuit.set(0, false));
-        circuit.evaluate(true);
+        circuit.begin_file(true);
         assert!(!circuit.permits(gate));
         assert!(circuit.permits(gate ^ 1));
     }
@@ -173,7 +173,7 @@ mod tests {
             for (i, value) in bits.into_iter().enumerate() {
                 changed |= circuit.set(i, value);
             }
-            circuit.evaluate(changed);
+            circuit.begin_file(changed);
             assert_eq!(circuit.permits(answer), bits[0] && (!bits[1] || bits[2]));
         }
     }
