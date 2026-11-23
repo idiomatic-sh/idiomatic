@@ -267,10 +267,11 @@ impl<'p> Finisher<'p> {
         }
         let exec = &self.exec;
         if let Some(out) = &self.stats {
+            // columns 8 and 13 (runs by key, runs by key that returned nothing) are 0: every step is made whole
             let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
             for (i, pn) in self.plan.nodes.iter().enumerate() {
-                if exec.stats.calls[i] > 0 || exec.stats.probes[i] > 0 || exec.stats.touched[i] > 0 || exec.stats.rows[i] > 0 || exec.stats.time[i] > 0.0 || exec.stats.known[i] > 0 {
-                    lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64, exec.stats.why[i], exec.stats.known[i], exec.stats.empty_time[i], exec.stats.probe_empty[i]));
+                if exec.stats.calls[i] > 0 || exec.stats.touched[i] > 0 || exec.stats.rows[i] > 0 || exec.stats.time[i] > 0.0 || exec.stats.known[i] > 0 {
+                    lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], 0, exec.stats.made_by[i] as i64, exec.stats.why[i], exec.stats.known[i], exec.stats.empty_time[i], 0));
                 }
             }
             for (k, v) in &self.by_rel {
@@ -289,8 +290,6 @@ impl<'p> Finisher<'p> {
         println!("ALLOC {} process: blocks {} bytes {} peak-live {}; second half (inside the file calls): blocks {} bytes {}", super::alloc_count::NAME, a[0], a[1], a[2], self.alloc[0], self.alloc[1]);
         println!("files run {}; findings {}; rules {} ({} failed)", self.files_run, self.findings.len(), self.emits.len(), self.failed.len());
         println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {:.3} ({} rows)", self.provider_time, self.provider_rows);
-        println!("per-key memo: rows in {} rows out {} keys asked {} keys missing {} probes answered whole {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys, exec.stats.memo_missing, exec.stats.memo_whole_hits);
-        println!("memo key lists answered whole: {} ({} keys)", exec.stats.memo_reused, exec.stats.memo_reused_keys);
         if exec.stats.known_timed > 0 {
             // redo-union pass 2: the clock's pair cost, calibrated here (a million back-to-back pairs)
             let n = 1_000_000;
@@ -316,12 +315,6 @@ impl<'p> Finisher<'p> {
         finish::emptyprop::print();
         let plan = self.plan;
         finish::emptyprop::print_skipped(&|n| plan.nodes[n].op.clone());
-        if std::env::var_os("VEC_MEMO_DUMP").is_some() {
-            // redo-union pass 2 c19
-            for l in exec.memo_dump() {
-                println!("{l}");
-            }
-        }
         {
             // redo-union pass 2: per step kind: runs (whole, by key, known empty), runs that returned nothing (known before
             // the bracket, bracketed whole, bracketed by key) and the seconds in the bracketed ones (`VEC_STEP_TIME`)
@@ -329,7 +322,7 @@ impl<'p> Finisher<'p> {
             for (i, pn) in self.plan.nodes.iter().enumerate() {
                 let e = by.entry(pn.op.as_str()).or_default();
                 let st = &exec.stats;
-                for (k, v) in [st.calls[i] as f64, st.probes[i] as f64, st.known[i] as f64, st.empty[i] as f64, st.probe_empty[i] as f64, st.empty_time[i], st.time[i], 0.0].into_iter().enumerate() {
+                for (k, v) in [st.calls[i] as f64, 0.0, st.known[i] as f64, st.empty[i] as f64, 0.0, st.empty_time[i], st.time[i], 0.0].into_iter().enumerate() {
                     e[k] += v;
                 }
             }

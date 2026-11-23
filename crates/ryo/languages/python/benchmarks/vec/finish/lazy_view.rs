@@ -46,13 +46,13 @@ impl Exec<'_> {
     /// The view of select source `i` (step `node`), unfilled, when the front reads no size of it (see the module); None:
     /// the source is asked as before. `VEC_EAGER_VIEW` turns it off.
     pub(super) fn lazy_view(&mut self, f: &mut File<'_>, run: &mut Run, node: usize, conj: &[E], i: usize, kinds: bool) -> R<Option<Rc<ViewSpec>>> {
-        if kinds || sw!("VEC_EAGER_VIEW") || matches!(f.memo[node], Some(super::Res::Tab(_))) || self.overridden(node).is_some() || self.plan.nodes[node].op == "closure" {
+        if kinds || sw!("VEC_EAGER_VIEW") || matches!(f.memo[node], Some(super::Res::Tab(_))) || self.plan.nodes[node].op == "closure" {
             return Ok(None);
         }
         let Some(v) = self.view(run, node)? else { return Ok(None) };
         let Native::Fact(x) = v.base else { return Ok(None) };
         let x = usize::from(x);
-        if f.facts.get(x).is_some_and(Option::is_some) || self.deferred(f, run, node)? {
+        if f.facts.get(x).is_some_and(Option::is_some) {
             return Ok(None);
         }
         let width = v.map.len().max(v.map.iter().map(|c| c + 1).max().unwrap_or(0));

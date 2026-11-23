@@ -154,7 +154,7 @@ impl Exec<'_> {
             return Ok(Some(out));
         }
         // the first admitted descendant in preorder, over the tree with a domain read per node
-        if !tree || matches!(dom, Dom::Keyed(..)) {
+        if !tree {
             return Ok(None);
         }
         for r in 0..from.n {

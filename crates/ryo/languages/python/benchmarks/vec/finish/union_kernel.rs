@@ -1,13 +1,12 @@
 //! THROWAWAY (ryo-fmx3.1, redo-union): the union step as a kernel. A tree of unions whose inner unions only it reads is
-//! one n-ary union over its leaves (prepared once a run, per root): the leaves' column positions by output column, which
-//! leaves are read by no other step. A call asks each leaf (whole, or by key), drops the empty answers, and:
+//! one n-ary union over its leaves (prepared once a run, per root): the leaves' column positions by output column.
+//! A call reads each leaf whole, drops the empty answers, and:
 //! - none left: the prepared empty table;
 //! - one left whose columns are in the output's order and whose rows are distinct: that answer itself (no copy);
 //! - else the rows concatenated in input order, each distinct row once (its first place), into exact-size columns.
 //! Distinct rows are found with a hash a row and the worker's reused buffers (a scan of the rows kept for a few rows, a
 //! flat map of hash to row chain otherwise); a hash hit is compared row to row.
 
-use super::kernel_input::{give_got, input_probe, sole, take_got};
 use super::{Exec, File, Names, Provider, R, Run, Table, Tys};
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
@@ -19,7 +18,6 @@ struct Leaf {
     map: Box<[usize]>,
     /// The map is the identity over the leaf's columns.
     ident: bool,
-    sole: bool,
 }
 
 pub(super) struct Prep {
@@ -41,6 +39,8 @@ struct Work {
 }
 
 thread_local! {
+    /// Lists of leaf answers, taken and given back around a call (a leaf may recurse into another union).
+    static GOT: RefCell<Vec<Vec<(Rc<Table>, u32)>>> = const { RefCell::new(Vec::new()) };
     /// Prepared once a run and kept for the process (one plan a process): read by a plain reference, no count.
     static PREP: RefCell<Vec<Option<&'static Prep>>> = const { RefCell::new(Vec::new()) };
     static WORK: RefCell<Work> = RefCell::new(Work::default());
@@ -76,8 +76,7 @@ fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<&'static Prep> {
         let lsc = ex.schema(run, x)?;
         let map: Box<[usize]> = sc.names.iter().map(|c| super::pos(&lsc.names, c)).collect::<R<_>>()?;
         let ident = map.len() == lsc.names.len() && map.iter().enumerate().all(|(i, c)| i == *c);
-        let once = ordered.iter().filter(|y| **y == x).count() == 1;
-        ls.push(Leaf { node: x, map, ident, sole: once && sole(ex, x, &tree) });
+        ls.push(Leaf { node: x, map, ident });
     }
     let pr: &'static Prep = Box::leak(Box::new(Prep { leaves: ls.into(), k: sc.names.len(), names: sc.names.clone(), tys: sc.tys.clone(), empty: Rc::new(Table::with(sc.names.clone(), sc.tys.clone())) }));
     PREP.with(|m| {
@@ -117,20 +116,16 @@ pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
     Ok(out)
 }
 
-/// The union's rows whose column `col` holds one of `keys`.
-#[expect(clippy::too_many_arguments, reason = "a throwaway")]
-pub(super) fn probe(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
-    let pr = prep(ex, run, node)?;
-    let mut got = take_got();
-    for (i, lf) in pr.leaves.iter().enumerate() {
-        let t = input_probe(ex, f, run, p, lf.node, lf.map[col], keys, lf.sole)?;
-        if t.n > 0 {
-            got.push((t, i as u32));
-        }
+fn take_got() -> Vec<(Rc<Table>, u32)> {
+    GOT.with(|k| k.borrow_mut().pop()).unwrap_or_default()
+}
+
+fn give_got(mut v: Vec<(Rc<Table>, u32)>) {
+    // redo-alloc: the leaves' answers given back (recycle.rs)
+    for (t, _) in v.drain(..) {
+        super::recycle::recycle(t);
     }
-    let out = combine(&pr, &got);
-    give_got(got);
-    Ok(out)
+    GOT.with(|k| k.borrow_mut().push(v));
 }
 
 fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
