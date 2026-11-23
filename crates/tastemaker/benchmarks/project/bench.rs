@@ -17,7 +17,7 @@ struct Request {
     hosted: Vec<Hosted>,
     parameters: BTreeMap<String, Value>,
 }
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, serde::Serialize)]
 struct Hosted {
     name: String,
     columns: Vec<(String, String)>,
@@ -66,35 +66,24 @@ fn path_id(run: &Run, path: &str) -> Result<u32, String> {
     u32::try_from(at).map_err(|e| e.to_string())
 }
 
-fn execute(req: Request, plan: &Plan) -> Result<Vec<String>, String> {
-    let mut run = Run::default();
-    run.empty = run.sym(b"");
-    // The release binds host File cells in the whole request's numbered paths.
-    // Each rule admits a subset and can emit a subject owned by another file.
-    let mut inventory = req.inventory.ok_or("incomplete project inventory")?;
-    inventory.sort_unstable();
-    inventory.dedup();
-    if req.files.iter().collect::<BTreeSet<_>>().len() != req.files.len() {
-        return Err("duplicate admitted path".into());
-    }
-    run.path_sym = inventory
-        .iter()
-        .map(|path| run.sym(path.as_bytes()))
-        .collect();
-    run.paths = inventory;
-    let admitted = req
-        .files
-        .iter()
-        .map(|path| path_id(&run, path))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut snapshot = Snapshot {
-        tables: BTreeMap::new(),
-    };
-    for table in req.hosted {
-        if let Some(reason) = table.partial {
+fn bind_tables(
+    hosted: &[Hosted],
+    run: &mut Run,
+    file_id: impl Fn(&str) -> Option<u32>,
+) -> Result<BTreeMap<String, Table>, String> {
+    let mut tables = BTreeMap::new();
+    for table in hosted {
+        if tables.contains_key(&table.name) {
+            return Err(format!("duplicate host relation {}", table.name));
+        }
+        if let Some(reason) = &table.partial {
             return Err(format!("partial {}: {reason}", table.name));
         }
-        if run.catalog(&table.name).is_some() {
+        if ryo_relations::domain::relations::service::relation_named(
+            ryo_relations::domain::labels::types::NameRef(&table.name),
+        )
+        .is_some()
+        {
             return Err(format!("relation already declared: {}", table.name));
         }
         let mut columns = Vec::new();
@@ -114,20 +103,20 @@ fn execute(req: Request, plan: &Plan) -> Result<Vec<String>, String> {
         let (_, names, tys) = run.catalog(&table.name).ok_or("missing host declaration")?;
         let mut t = Table::with_rows(names, tys, table.rows.len());
         let mut cells = Vec::with_capacity(columns.len());
-        'rows: for row in table.rows {
+        'rows: for row in &table.rows {
             if row.len() != columns.len() {
                 return Err(format!("host row width in {}", table.name));
             }
             cells.clear();
-            for (cell, (_, ty)) in row.into_iter().zip(&columns) {
+            for (cell, (_, ty)) in row.iter().zip(&columns) {
                 let word = match ty {
                     Ty::File => {
                         let path = cell["file"].as_str().ok_or("expected file cell")?;
                         // table_of_query omits a row with no such file in the numbered request.
-                        let Ok(id) = run.paths.binary_search_by(|p| p.as_str().cmp(path)) else {
+                        let Some(id) = file_id(path) else {
                             continue 'rows;
                         };
-                        u64::try_from(id).map_err(|e| e.to_string())?
+                        u64::from(id)
                     }
                     Ty::Sym => {
                         u64::from(run.sym(cell.as_str().ok_or("expected text cell")?.as_bytes()))
@@ -146,10 +135,56 @@ fn execute(req: Request, plan: &Plan) -> Result<Vec<String>, String> {
             }
             t.n += 1;
         }
-        let _previous = snapshot.tables.insert(table.name, t);
+        let _previous = tables.insert(table.name.clone(), t);
     }
+    Ok(tables)
+}
+
+fn execute(req: Request, plan: &Plan) -> Result<Vec<String>, String> {
+    let mut run = Run::default();
+    run.empty = run.sym(b"");
+    let mut inventory = req.inventory.ok_or("incomplete project inventory")?;
+    inventory.sort_unstable();
+    inventory.dedup();
+    execute_bound(
+        &mut finish::Exec::new(plan),
+        &mut run,
+        &inventory,
+        &req.files,
+        &req.hosted,
+    )
+}
+
+fn execute_bound(
+    exec: &mut finish::Exec<'_>,
+    run: &mut Run,
+    inventory: &[String],
+    files: &[String],
+    hosted: &[Hosted],
+) -> Result<Vec<String>, String> {
+    // Host File cells are numbered by the full inventory. Admission restricts
+    // source contributions and the final subjects, not the host's numbering.
+    if run.paths != inventory {
+        run.path_sym = inventory.iter().map(|p| run.sym(p.as_bytes())).collect();
+        run.paths = inventory.to_vec();
+    }
+    let admitted = files
+        .iter()
+        .map(|path| path_id(run, path))
+        .collect::<Result<Vec<_>, _>>()?;
     let subject_files: BTreeSet<_> = admitted.iter().copied().collect();
-    finish::session::evaluate(plan, &mut run, &mut snapshot, &admitted, |file| {
+    if subject_files.len() != admitted.len() {
+        return Err("duplicate admitted path".into());
+    }
+    let tables = bind_tables(hosted, run, |p| {
+        inventory
+            .binary_search_by(|s| s.as_str().cmp(p))
+            .ok()?
+            .try_into()
+            .ok()
+    })?;
+    let mut snapshot = Snapshot { tables };
+    finish::session::evaluate(exec, run, &mut snapshot, &admitted, |file| {
         subject_files.contains(&file)
     })
 }
@@ -190,3 +225,7 @@ pub(super) fn replay() {
         writeln!(out, "{receipt}").expect("write receipt");
     }
 }
+
+#[path = "batch.rs"]
+mod batch;
+pub(super) use batch::{batch, one, packets};

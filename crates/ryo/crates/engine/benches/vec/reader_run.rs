@@ -13,7 +13,7 @@ mod packet;
 mod pairs;
 
 #[path = "reader_coverage.rs"]
-mod coverage;
+pub(super) mod coverage;
 
 #[derive(serde::Deserialize)]
 struct Request {
@@ -81,6 +81,32 @@ pub(super) fn fact_family(name: &str) -> super::pair_summary::cost::Family {
         Some(rel) if !catalog::kinds(rel).contains(&l::CellKind::Node) => Family::Sets,
         _ => Family::Fact,
     }
+}
+
+/// These readers resolve field names for each file. Compile name-based file
+/// requirements from the lowered steps already prepared by the executor.
+pub(super) fn file_requirements(
+    read: &lower::ReadPack,
+    language: &first::Language,
+) -> Vec<(String, (bool, Vec<Vec<String>>, Vec<Vec<String>>))> {
+    use ryo_values::domain::finish_plans::types::RuleEmit;
+    let plan = read.typed.take().expect("executor must hand over the typed plan");
+    assert!(plan.unplanned.is_empty(), "unplanned file queries");
+    let mut skips = Vec::with_capacity(plan.steps.len());
+    for step in &plan.steps {
+        let terms = super::pair_summary::conjuncts(step);
+        skips.push(super::pair_skip::Skip::with_terms(step, &skips, language, &terms));
+    }
+    plan.rules
+        .iter()
+        .map(|rule| {
+            let requirements = match &rule.emit {
+                RuleEmit::Written(emit) => skips[emit.step.0].root(),
+                RuleEmit::Unwritten => Default::default(),
+            };
+            (rule.rule.0.to_string(), requirements)
+        })
+        .collect()
 }
 
 pub(super) fn run(

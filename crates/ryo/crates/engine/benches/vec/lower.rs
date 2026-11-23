@@ -214,9 +214,14 @@ pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::
 /// Prepare the caller's query directly from its text. Bind typed host tables at execution.
 #[allow(dead_code, reason = "file-only benchmark binaries prepare rule packs")]
 pub(crate) fn query_plan(rule: &str, text: &str, context: RuleContext) -> Result<super::finish::Plan, String> {
+    query_parts(rule, text, context, false).map(|(plan, _)| plan)
+}
+
+pub(crate) fn query_parts(rule: &str, text: &str, context: RuleContext, keep: bool) -> Result<(super::finish::Plan, ReadPack), String> {
     let texts = PackTexts { rules: vec![(rule.into(), Some(text.into()))], fragments: Vec::new() };
     let pack = ReadPack { typed: Default::default(), programs: parsed(&texts, context), read: 0.0, parse: 0.0 };
-    finish_plan(&pack, false, false)
+    let plan = finish_plan(&pack, keep, false)?;
+    Ok((plan, pack))
 }
 
 fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool) -> Result<super::finish::Plan, String> {
