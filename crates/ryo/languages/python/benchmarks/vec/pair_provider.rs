@@ -122,3 +122,15 @@ pub(super) fn read(
         _ => unreachable!("declared walk fact has a reader"),
     }
 }
+
+/// The walk declares the cost of accessing a family. Import and directive rows
+/// are file sets; ordered predecessor selection also needs the resolution input.
+pub(super) fn family(name: &str) -> super::pair_summary::cost::Family {
+    use super::pair_summary::cost::Family::*;
+    match name {
+        fact_catalog::PREDECESSOR_REL => Schedule,
+        "static-import" | "comment" | "filesystem.executable" => Sets,
+        super::provider_packaging::MODULE_IDENTITY_REL => Project,
+        _ => Fact,
+    }
+}

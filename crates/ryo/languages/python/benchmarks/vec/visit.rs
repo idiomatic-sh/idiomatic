@@ -79,6 +79,49 @@ impl<'p> Finisher<'p> {
         me.time = thread_cpu() - t0;
         me
     }
+    /// Use the same project answer that is indexed by file for the executor.
+    pub(super) fn identity(
+        &mut self,
+        file: usize,
+        words: &mut languages::FileWords,
+        out: &mut languages::FilledColumns,
+    ) -> bool {
+        use super::finish::project::{ProjectAsk, for_file};
+        let result = for_file(
+            file as u32,
+            &mut self.inner.run,
+            super::provider_packaging::MODULE_IDENTITY_REL,
+            ProjectAsk::Run,
+            |run, files| self.project.module_identity(run, files),
+        );
+        let Ok(rows) = result else { return false };
+        out.0.clear();
+        for (kind, cells) in rows.tys.iter().zip(&rows.cols) {
+            let mut col = Vec::with_capacity(cells.len());
+            for &cell in cells {
+                let value = if matches!(kind, finish::Ty::Sym) && cell != finish::NULL {
+                    let Some(text) = self
+                        .inner
+                        .run
+                        .texts
+                        .get(cell as usize)
+                        .and_then(|v| std::str::from_utf8(v).ok())
+                    else {
+                        return false;
+                    };
+                    languages::facts::intern(
+                        words,
+                        ryo_relations::domain::terms::types::NameText(text),
+                    )
+                } else {
+                    languages::CellWord(cell)
+                };
+                col.push(value);
+            }
+            out.0.push(languages::FilledColumn(col));
+        }
+        true
+    }
     pub(super) fn end(self, walk_time: f64) {
         self.inner.end(walk_time, |locations| locations.dedup());
     }

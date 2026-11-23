@@ -44,6 +44,7 @@ ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../.
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/relations" }
 rustc-hash = "2"
 regex = "1"
+smallvec = "1"
 cpu-time = "1"
 unicode-width = "=0.2.2"
 tikv-jemallocator.workspace = true
