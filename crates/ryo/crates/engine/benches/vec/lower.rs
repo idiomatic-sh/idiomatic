@@ -208,16 +208,26 @@ pub(crate) fn read_pack(pack: &Path, context: RuleContext) -> ReadPack {
 /// The second half's plan, lowered in this process from the parsed pack: expansion, the three passes, then the typed plan
 /// shared with the executor and the first-half analysis.
 pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::finish::Plan {
+    finish_plan(pack, keep_for_first, true).unwrap_or_else(|reason| panic!("{reason}"))
+}
+
+/// Prepare the caller's query directly from its text. Bind typed host tables at execution.
+#[allow(dead_code, reason = "file-only benchmark binaries prepare rule packs")]
+pub(crate) fn query_plan(rule: &str, text: &str, context: RuleContext) -> Result<super::finish::Plan, String> {
+    let texts = PackTexts { rules: vec![(rule.into(), Some(text.into()))], fragments: Vec::new() };
+    let pack = ReadPack { typed: Default::default(), programs: parsed(&texts, context), read: 0.0, parse: 0.0 };
+    finish_plan(&pack, false, false)
+}
+
+fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool) -> Result<super::finish::Plan, String> {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
     let t1 = super::thread_cpu();
     // no fallback: a rule the lowering cannot plan fails the run, by name and reason (never a run without it, never a
     // plan from elsewhere)
     if !plan.unplanned.is_empty() {
-        for u in &plan.unplanned {
-            eprintln!("unplanned {} {}", u.rule.0, u.reason.0);
-        }
-        panic!("the in-process lowering cannot plan {} rule(s) of the pack (listed above): the run stops", plan.unplanned.len());
+        let reasons: Vec<_> = plan.unplanned.iter().map(|u| format!("unplanned {} {}", u.rule.0, u.reason.0)).collect();
+        return Err(reasons.join("\n"));
     }
     mark_through(&mut plan, PlanningStage::Axes);
     let t2 = super::thread_cpu();
@@ -228,6 +238,7 @@ pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::
         pack.typed.replace(Some(plan));
     }
     let t5 = super::thread_cpu();
+    if log {
     println!(
         "start-up second half: steps {steps} expand {:.4} passes {:.4} to-value 0.0000 decode 0.0000 executor-plan {:.4} total {:.4} s",
         t1 - t0,
@@ -235,5 +246,6 @@ pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::
         t5 - t2,
         t5 - t0
     );
-    executor_plan
+    }
+    Ok(executor_plan)
 }

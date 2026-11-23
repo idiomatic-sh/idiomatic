@@ -92,20 +92,34 @@ pub(super) fn fact_family(name: &str) -> super::pair_summary::cost::Family {
 pub(super) fn run(
     start: f64,
     language: l::Language,
-    mut declaration: first::Language,
+    declaration: first::Language,
     pack: &str,
     request: &str,
     output: &str,
 ) -> bool {
+    run_files::<false>(start, language, declaration, pack, request, output, None)
+}
+
+/// Evaluate one reader's files of a multi-reader request. The caller collects
+/// the complete typed results and reports unsupported project scopes explicitly.
+pub(super) fn run_files<const QUERY_ROWS: bool>(
+    start: f64,
+    language: l::Language,
+    mut declaration: first::Language,
+    pack: &str,
+    request: &str,
+    output: &str,
+    paths: Option<Vec<String>>,
+) -> bool {
     let mut req: Request =
         serde_json::from_slice(&std::fs::read(request).expect("read request")).expect("request");
-    assert!(req.rule_context.is_null() && req.rule_observations.is_null(), "this host provides no named context tables");
+    if let Some(paths) = paths { req.files = paths; }
     let mut metadata = serde_json::Map::new();
     if !req.rule_applicability.is_null() {
         metadata.insert("rule_applicability".into(), req.rule_applicability.take());
     }
     let document = serde_json::Value::Object(metadata);
-    let read = lower::read_pack(Path::new(pack), Default::default());
+    let read = lower::read_pack(Path::new(pack), super::rule_context(Some(request)));
     let parser = language.parse_engine();
     let plan = lower::second_half_plan(&read, true);
     let emits: BTreeSet<_> = plan.emits.iter().map(|emit| emit.0.as_str()).collect();
@@ -131,7 +145,23 @@ pub(super) fn run(
     run.file_field_codes = true;
     let mut reader_rows = Vec::new();
     for name in bases {
-        let relation = catalog::relation_named(NameRef(name)).expect("reader catalog");
+        let Some(relation) = catalog::relation_named(NameRef(name)) else {
+            eprintln!("no catalog declaration for {name}");
+            return false;
+        };
+        if catalog::class_of(relation) == ryo_relations::domain::relations::types::Class::Engine {
+            let (_, names, types) = run.catalog(name).expect("host schema");
+            let columns: Vec<_> = names.iter().zip(types.iter())
+                .map(|(name, ty)| (name.as_str(), *ty)).collect();
+            run.declare(name, &columns, finish::Supplier::Host);
+            continue;
+        }
+        if ryo_relations::domain::catalog::service::scope_of(relation)
+            == ryo_relations::domain::catalog::types::RowScope::Project
+        {
+            eprintln!("project-scoped {name} needs a project reader and a complete inventory");
+            return false;
+        }
         if parser.includes_expansions(relation) {
             run.reader_tables.insert(name.to_owned());
             // A provider may append semantic positions under a native holder. Only
@@ -171,6 +201,7 @@ pub(super) fn run(
     drop(typed);
     let summaries_cpu = thread_cpu() - summaries_start;
     run.empty = run.sym(b"");
+    let unknown_words = reader::public_words(&mut run, parser.unknown_reasons());
     run.links();
     run.kind_sym = kind_names
         .0
@@ -242,11 +273,16 @@ pub(super) fn run(
     for (slot, n) in plan.nodes.iter().enumerate() {
         if let Some(name) = n.base() {
             let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
-            if ryo_relations::domain::catalog::service::fact_form(rel)
+            if !matches!(run.supplier(name), finish::Supplier::Host) && (ryo_relations::domain::catalog::service::fact_form(rel)
                 != ryo_relations::domain::relations::types::FactForm::NodeTable
-                || run.reader_tables.contains(name)
+                || run.reader_tables.contains(name))
             {
-                assert!(parser.absence_of(rel).is_none(), "provider does not supply {name}");
+                // The parser writes a complete empty relation for a construct its
+                // language lacks. Only an unimplemented reader leaves the answer open.
+                if parser.absence_of(rel) == Some(l::AbsenceCause::NotYetRead) {
+                    eprintln!("provider does not yet read {name}");
+                    return false;
+                }
                 distinct.insert(rel);
                 base_facts[slot] = Some(rel);
             }
@@ -301,6 +337,7 @@ pub(super) fn run(
         Some((request, &document)),
     );
     drop(document);
+    fin.query_rows = QUERY_ROWS;
     let startup = thread_cpu() - start;
     println!(
         "startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}",
@@ -339,7 +376,7 @@ pub(super) fn run(
         parser
             .build_file(parse, &mut elements, &mut symbols, &relations)
             .expect("parse file");
-        let mut provider = reader::ReaderFacts::new(id.0);
+        let mut provider = reader::ReaderFacts::new(id.0, &unknown_words);
         reader::project_tree(
             &elements,
             &symbols,
@@ -369,17 +406,18 @@ pub(super) fn run(
             );
             let field = reader::symbol(
                 &mut fin.run,
+                &unknown_words,
                 &symbols,
                 &bytes,
                 l::field_name_at(&elements, pos),
             );
             fields.mark(field, &mut visible_fields);
-            if l::flags_at(&elements, pos).0 & l::TOKEN.0 != 0 {
-                let word =
-                    reader::symbol(&mut fin.run, &symbols, &bytes, l::text_at(&elements, pos));
-                words.mark(word, &mut visible_words);
-            }
+            let word = reader::symbol(&mut fin.run, &unknown_words, &symbols, &bytes, l::text_at(&elements, pos));
+            words.mark(word, &mut visible_words);
         }
+        // A missing scalar has the empty spelling in a text predicate.
+        // Allowing that spelling for the file is a necessary-condition superset.
+        words.mark(fin.run.empty, &mut visible_words);
         skip.file(&visible_kinds, &visible_fields);
         let only = req.file_rules.get(path);
         fin.wanted_into(path, |i| {

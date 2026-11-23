@@ -36,7 +36,7 @@ fn subst(e: &E, file: u64) -> E {
 
 /// Whether some per-file test of `conj` fails in this file (the step is then empty).
 pub(super) fn file_fails(run: &mut Run, f: &File<'_>, conj: &[E]) -> bool {
-    if sw!("VEC_NO_FILECONST") {
+    if f.after_last_file || sw!("VEC_NO_FILECONST") {
         return false;
     }
     // redo-alloc: decided once a file a test list (the plan's lists stay in place while it runs; a later ask in the same

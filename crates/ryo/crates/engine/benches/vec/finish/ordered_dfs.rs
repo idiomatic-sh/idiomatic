@@ -13,8 +13,8 @@ pub(super) fn schema(a: &Args, from: (&[String], &[Ty]), edges: (&[String], &[Ty
     let col = |names: &[String], c: &str| names.iter().position(|n| n == c).ok_or_else(|| format!("ordered-dfs: no column {c}"));
     let mut names = Vec::new();
     let mut tys = Vec::new();
-    for k in strs(&a["keys"])?.iter() {
-        names.push(k.clone());
+    for k in strs(&a["keys"])? {
+        names.push(k.to_owned());
         tys.push(from.1[col(from.0, k)?]);
     }
     let root = s(&a["root"])?;
@@ -32,8 +32,8 @@ pub(super) fn schema(a: &Args, from: (&[String], &[Ty]), edges: (&[String], &[Ty
 /// The visit rows into `out` (made with `schema`'s columns).
 pub(super) fn walked(a: &Args, from: &Table, edges: &Table, out: &mut Table) -> R<()> {
     let keys = strs(&a["keys"])?;
-    let fk: Vec<usize> = keys.iter().map(|k| from.col(k)).collect::<R<_>>()?;
-    let ek: Vec<usize> = keys.iter().map(|k| edges.col(k)).collect::<R<_>>()?;
+    let fk: Vec<usize> = keys.clone().map(|k| from.col(k)).collect::<R<_>>()?;
+    let ek: Vec<usize> = keys.map(|k| edges.col(k)).collect::<R<_>>()?;
     let root = from.col(s(&a["root"])?)?;
     let (src, dst, ord, edge) =
         (edges.col(s(&a["source"])?)?, edges.col(s(&a["destination"])?)?, edges.col(s(&a["order"])?)?, edges.col(s(&a["edge"])?)?);

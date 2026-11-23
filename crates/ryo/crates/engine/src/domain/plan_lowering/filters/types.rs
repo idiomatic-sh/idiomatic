@@ -1,9 +1,9 @@
-//! The types of the `filters` part: the parameters a fragment's conditions may name.
+//! The types of the `filters` part: the parameters a program's conditions may name.
 
 use ryo_values::domain::finish_plans::expressions::types::PlanConstant;
 use hashbrown::HashMap;
 
-/// The parameters of a fragment as its caller gave them, by name: a rule has none.
+/// The parameter values supplied to a rule or a fragment, by declared name.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Parameters {
     /// Each parameter's value.

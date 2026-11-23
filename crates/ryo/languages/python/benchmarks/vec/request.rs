@@ -192,5 +192,6 @@ pub(super) fn context_from(r: &Value) -> RuleContext {
     RuleContext {
         tables,
         observations,
+        ..RuleContext::default()
     }
 }

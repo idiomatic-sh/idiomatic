@@ -147,13 +147,7 @@ pub(crate) fn operand(
                 column(reference)
             },
         ),
-        WrittenOperand::Parameter(name) => Ok(match parameter(&name.0, parameters)? {
-            PlanConstant::Number(number) => PlanExpression::Number(number),
-            other @ (PlanConstant::Text(_)
-            | PlanConstant::List(_)
-            | PlanConstant::Map(_)
-            | PlanConstant::Absent) => PlanExpression::Literal(other),
-        }),
+        WrittenOperand::Parameter(name) => Ok(constant_operand(parameter(&name.0, parameters)?)),
         WrittenOperand::Text(text) => Ok(PlanExpression::Literal(PlanConstant::Text(
             LiteralText(text.0.clone()),
         ))),
@@ -161,6 +155,15 @@ pub(crate) fn operand(
             Ok(PlanExpression::Number(PlanNumber::Whole(WholeNumber(number.0))))
         }
         WrittenOperand::Function(applied) => function(applied, parameters),
+    }
+}
+
+/// Use the same operand representation for bound values and their written equivalents.
+fn constant_operand(value: PlanConstant) -> PlanExpression {
+    match value {
+        PlanConstant::Number(number) => PlanExpression::Number(number),
+        PlanConstant::List(items) => PlanExpression::List(items.into_iter().map(constant_operand).collect()),
+        other => PlanExpression::Literal(other),
     }
 }
 

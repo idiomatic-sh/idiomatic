@@ -106,15 +106,16 @@ fn rule_emit<'p>(
     rule: &'p str,
     program: &'p WrittenProgram,
 ) -> Result<RuleEmit, PlanLoweringError> {
-    if let Some(parameter) = program.parameters.first() {
-        return Err(PlanLoweringError::NotGiven(WrittenText(
-            parameter.parameter.0.clone(),
-        )));
-    }
     let mut scope = ProgramScope {
         imports: imported(&program.imports),
         ..ProgramScope::default()
     };
+    for parameter in &program.parameters {
+        let name = &parameter.parameter.0;
+        let value = expansion.context.parameters.get(rule).and_then(|given| given.get(name))
+            .ok_or_else(|| PlanLoweringError::NotGiven(WrittenText(name.clone())))?;
+        let _previous = scope.parameters.values.insert(name.clone(), value.clone());
+    }
     lets(expansion, &mut scope, &program.steps)?;
     for observation in &program.observations {
         let step = named(&scope, &observation.step.0.0)?;

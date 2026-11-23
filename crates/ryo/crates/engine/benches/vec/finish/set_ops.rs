@@ -36,7 +36,6 @@ pub(super) fn select_rows(left: &Table, right: &Table, intersection: bool) -> R<
 /// hashes, then fold them in order. File and text cells hash their spelling.
 pub(super) fn digest(run: &Run, file: u32, args: &Args, input: &Table, output: &mut Table) -> R<()> {
     let keys = strs(&args["keys"])?
-        .iter()
         .map(|name| input.col(name))
         .collect::<R<Vec<_>>>()?;
     let distinct = input.col(s(&args["distinct"])?)?;
