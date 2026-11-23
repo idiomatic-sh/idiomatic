@@ -1502,7 +1502,8 @@ impl ColFacts<'_, '_, '_, '_> {
             "positional-argument" => languages::RenderContext::PositionalArgument,
             other => return Err(format!("render context {other}")),
         };
-        match self.file.render(languages::RenderRequest { node: languages::NodeId(u64::from(node)), context }) {
+        let node = ryo_relations::domain::relations::service::node_id(FileId(self.file_no), languages::Position(node));
+        match self.file.render(languages::RenderRequest { node, context }) {
             languages::RenderOutcome::Known(t) => Ok(Some(t.0.as_bytes().to_vec())),
             languages::RenderOutcome::NotApplicable => Ok(None),
             languages::RenderOutcome::Unsupported(_) => Err("render unsupported".to_owned()),
@@ -1561,7 +1562,8 @@ impl Facts<'_, '_, '_> {
             "positional-argument" => languages::RenderContext::PositionalArgument,
             other => return Err(format!("render context {other}")),
         };
-        match self.facts.facts.render(languages::RenderRequest { node: languages::NodeId(u64::from(self.file) << 32 | u64::from(node)), context }) {
+        let node = ryo_relations::domain::relations::service::node_id(FileId(self.file), languages::Position(node));
+        match self.facts.facts.render(languages::RenderRequest { node, context }) {
             languages::RenderOutcome::Known(t) => Ok(Some(t.0.as_bytes().to_vec())),
             languages::RenderOutcome::NotApplicable => Ok(None),
             languages::RenderOutcome::Unsupported(_) => Err("render unsupported".to_owned()),
