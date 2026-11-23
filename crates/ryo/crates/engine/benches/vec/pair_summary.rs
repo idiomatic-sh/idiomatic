@@ -79,6 +79,7 @@ pub(super) enum Need {
     Terms(bool, Box<[Id]>),
     Any,
     PathMatches(usize),
+    InvalidPattern(usize), // proof prerequisite, resolved during plan compaction
     SourceContains(usize),
     Empty,
     Some(Id),
@@ -243,6 +244,7 @@ struct Builder<'a> {
     language: &'a Language,
     positive: bool,
     regex_slots: Map<String, Id>,
+    proof_validation: Option<Id>,
     early_omit: u16,
     dominance: bool,
     signatures: Vec<u64>,
@@ -686,6 +688,11 @@ impl Builder<'_> {
         Some(self.domain(Domain::Matching(slot, col, regex)))
     }
 
+    fn take_validation(&mut self) -> Id {
+        self.proof_validation
+            .as_mut()
+            .map_or(EMPTY, |v| std::mem::replace(v, EMPTY))
+    }
     fn regex(&mut self, pattern: &str) -> Option<usize> {
         let slot = if let Some(&slot) = self.regex_slots.get(pattern) {
             slot
@@ -695,6 +702,11 @@ impl Builder<'_> {
             self.regex_slots.insert(pattern.to_owned(), slot);
             slot
         };
+        if let Some(guard) = self.proof_validation {
+            let invalid = self.need(Need::InvalidPattern(slot));
+            self.proof_validation = Some(self.or(guard, invalid));
+            return Some(slot);
+        }
         (self.positive || self.out.regexes[slot].compiled().is_some()).then_some(slot)
     }
 
@@ -1652,6 +1664,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         language,
         positive: false,
         regex_slots: Map::default(),
+        proof_validation: None,
         early_omit: 0,
         dominance: std::env::var_os("VEC_PAIR_NO_DOMINANCE").is_none(),
         signatures: Vec::with_capacity(plan.steps.len()),
@@ -1723,7 +1736,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         }
     }
     phase("live");
-    let exclusions = exact::prepare(&mut b, plan, &live);
+    let mut exclusions = exact::prepare(&mut b, plan, &live).into_iter().peekable();
     b.positive = std::env::var_os("VEC_PAIR_EAGER_REGEX").is_none();
     let omit = cost::omitted();
     if std::env::var_os("VEC_PAIR_LATE_OMIT").is_none() {
@@ -1749,9 +1762,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         } else {
             (Summary::default(), super::pair_skip::Skip::default())
         };
-        if live[i]
-            && let Some(exclusion) = &exclusions[i]
-        {
+        if let Some((_, exclusion)) = exclusions.next_if(|(step, _)| *step == i) {
             exclusion.apply(&mut b, &mut row);
         }
         if let FinishStep::GroupCount(g) = s

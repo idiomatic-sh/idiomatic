@@ -145,6 +145,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
     fn pass_miss(&mut self, id: Id) -> bool {
         self.steps += 1;
         let yes = match self.p.needs[id] {
+            Need::InvalidPattern(_) => unreachable!("proof validation happens at load"),
             Need::Any => true,
             Need::Empty => false,
             Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
