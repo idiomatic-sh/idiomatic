@@ -4414,10 +4414,6 @@ fn token_links(f: &File<'_>, run: &mut Run) -> Table {
 }
 
 /// The provider's rows of a relation as a table: texts interned run-wide, nodes as positions.
-pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords) -> R<Table> {
-    filled_columns(run, rel, filled, words, &languages::ColumnProjection::All, filled.0.first().map_or(0, |c| c.0.len()))
-}
-
 pub(super) fn filled_columns(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords, mask: &languages::ColumnProjection, n: usize) -> R<Table> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
     let mut out = Table::projected_where(names, tys.clone(), n, |c| mask.contains(c));
