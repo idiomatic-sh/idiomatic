@@ -102,6 +102,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, target: &Target, em
     // root classes: bit 0 eager, 1 postponed, 2 deferred, 3 unevaluated lazy, 4 unevaluated eager
     let mut class: Vec<Option<u8>> = vec![None; n as usize];
     let mut bodies: Vec<u32> = Vec::new();
+    let mut annotations = Vec::new();
     let relevant = [k_arg, k_function[0], k_function[1], k_ann_assign, k_lambda, k_generator];
     let roots = run.kind_sym.iter().enumerate().filter(|(_, k)| relevant.contains(k))
         .flat_map(|(code, _)| node_table::ids_of_kind(table, ryo::languages::KindBits(code as u16)));
@@ -136,6 +137,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, target: &Target, em
                     if target.disabled && target.native {
                         bits |= 4;
                     }
+                    if class[c as usize].is_none() { annotations.push(c); }
                     *class[c as usize].get_or_insert(0) |= bits;
                 }
             }
@@ -180,6 +182,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, target: &Target, em
                     }
                 }
                 // a root with no class still holds its members (they take no row)
+                if class[c as usize].is_none() { annotations.push(c); }
                 *class[c as usize].get_or_insert(0) |= bits;
             }
         } else if k == k_lambda {
@@ -199,30 +202,48 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, target: &Target, em
     }
     let e_root = col(embedded, "root")?;
     bodies.extend((0..embedded.n).map(|r| embedded.cols[e_root][r] as u32));
-    if class.iter().flatten().all(|b| *b == 0) {
-        return Ok(out);
+    if annotations.iter().all(|r| class[*r as usize] == Some(0)) { return Ok(out); }
+    // These intervals are the same body exclusions used by the lexical model.
+    // Tokens can be numbered after their parent subtree, so follow child edges
+    // for membership, including when traversing an excluded syntax node.
+    let mut excluded = Vec::new();
+    if !bodies.is_empty() {
+        excluded.resize(n as usize, false);
+        for b in bodies {
+            let range = subtree(b);
+            if b < n { excluded[b as usize..range.end.min(n) as usize].fill(true); }
+        }
     }
-    let mut excluded = vec![false; n as usize];
-    for b in bodies {
-        for q in subtree(b) {
-            if q < n {
-                excluded[q as usize] = true;
+    // The host is the embedded root's parent, but the host's child list
+    // contains only its source syntax. Include those additional parent edges.
+    let mut embedded_edges: Vec<_> = node_table::embedded_segments(table)
+        .map(|segment| (segment.host.0, segment.root.0)).collect();
+    embedded_edges.sort_unstable();
+    let mut stack = Vec::new();
+    for root in annotations {
+        let bits = class[root as usize].unwrap();
+        if bits == 0 { continue; }
+        stack.push(root);
+        while let Some(x) = stack.pop() {
+            if !excluded.get(x as usize).copied().unwrap_or(false) {
+                let mut pending = bits;
+                while pending != 0 {
+                    out.push((x, root, pending.trailing_zeros() as usize));
+                    pending &= pending - 1;
+                }
+            }
+            // The nested root itself belongs to both annotations. Its children
+            // belong to the nearer root alone, even if that root emits no class.
+            if x == root || class[x as usize].is_none() {
+                stack.extend(children(x));
+                let first = embedded_edges.partition_point(|&(host, _)| host < x);
+                for &(host, child) in &embedded_edges[first..] {
+                    if host != x { break; }
+                    stack.push(child);
+                }
             }
         }
     }
-    let emit = |out: &mut Vec<Row>, x: u32, root: u32, bits: u8| {
-        for i in 0..NAMES.len() {
-            if bits & (1 << i) != 0 { out.push((x, root, i)); }
-        }
-    };
-    let mut nearest = vec![u32::MAX; n as usize];
-    for x in 0..n {
-        let outer = parent(x).map_or(u32::MAX, |p| nearest[p as usize]);
-        let own = class[x as usize];
-        nearest[x as usize] = if own.is_some() { x } else { outer };
-        if excluded[x as usize] { continue; }
-        if outer != u32::MAX { emit(&mut out, x, outer, class[outer as usize].unwrap()); }
-        if let Some(bits) = own { emit(&mut out, x, x, bits); }
-    }
+    out.sort_unstable();
     Ok(out)
 }

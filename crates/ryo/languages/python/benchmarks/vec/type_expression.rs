@@ -161,7 +161,7 @@ impl Paths {
 pub(super) struct Inputs<'t> {
     pub(super) qualified: &'t finish::Table,
     pub(super) arguments: &'t finish::Table,
-    pub(super) identifiers: &'t finish::Table,
+    pub(super) identifiers: Option<&'t finish::Table>,
     pub(super) embedded: &'t finish::Table,
     pub(super) lists: &'t Lists,
 }
@@ -256,35 +256,33 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>, p
     let names_of = |x: u32| names.get(&x).copied().unwrap_or(0);
     // the typing forms of each call (by its callee's paths)
     let mut forms: FxHashMap<u32, Vec<Form>> = FxHashMap::default();
-    for c in 0..n as u32 {
-        if kind(c as usize) != k_call {
-            continue;
-        }
-        for callee in child_by(c, f_func) {
-            if let Some(fs) = callee_forms.get(&callee) {
-                let e = forms.entry(c).or_default();
-                for fm in fs {
-                    if !e.contains(fm) {
-                        e.push(*fm);
-                    }
-                }
+    for (callee, fs) in callee_forms {
+        let owner = parent(callee as usize);
+        if owner != u32::MAX && field(callee as usize) == f_func && kind(owner as usize) == k_call {
+            let set = forms.entry(owner).or_default();
+            for form in fs {
+                if !set.contains(&form) { set.push(form); }
             }
         }
     }
     let has_form = |c: u32, f: Form| forms.get(&c).is_some_and(|v| v.contains(&f));
     // keywords: value, name, owner (nearest call above)
-    let (i_id, i_name) = (col(inp.identifiers, "id")?, col(inp.identifiers, "name")?);
-    let mut ident: FxHashMap<u32, u32> = FxHashMap::default();
-    for r in 0..inp.identifiers.n {
-        let _ = ident.insert(inp.identifiers.cols[i_id][r] as u32, inp.identifiers.cols[i_name][r] as u32);
+    let mut ident = Vec::new();
+    if !forms.is_empty() && let Some(identifiers) = inp.identifiers {
+        let (id, name) = (col(identifiers, "id")?, col(identifiers, "name")?);
+        ident.resize(n, u32::MAX);
+        for r in 0..identifiers.n {
+            if let Some(at) = ident.get_mut(identifiers.cols[id][r] as usize) {
+                *at = identifiers.cols[name][r] as u32;
+            }
+        }
     }
     let mut keyword_values: FxHashSet<u32> = FxHashSet::default();
     // (owner call, Some(name) | None (unpacked), value)
     let mut keywords: Vec<(u32, Option<u32>, u32)> = Vec::new();
-    for kw in 0..n as u32 {
-        if kind(kw as usize) != k_keyword {
-            continue;
-        }
+    let keywords_of_form = run.kind_sym.iter().enumerate().filter(|(_, k)| !forms.is_empty() && **k == k_keyword)
+        .flat_map(|(c, _)| node_table::ids_of_kind(table, ryo::languages::KindBits(c as u16)));
+    for &Position(kw) in keywords_of_form {
         let values: Vec<u32> = child_by(kw, f_value).collect();
         keyword_values.extend(values.iter().copied());
         let mut owner = parent(kw as usize);
@@ -294,7 +292,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>, p
         if owner == u32::MAX || !forms.contains_key(&owner) {
             continue;
         }
-        let names: Vec<u32> = child_by(kw, f_arg).filter_map(|a| ident.get(&a).copied()).collect();
+        let names: Vec<u32> = child_by(kw, f_arg).filter_map(|a| ident.get(a as usize).copied().filter(|v| *v != u32::MAX)).collect();
         for v in &values {
             if names.is_empty() {
                 keywords.push((owner, None, *v));
@@ -417,10 +415,12 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>, p
         }
     }
     let mut in_target = vec![false; n];
-    for p in 0..n {
-        if parent(p) == u32::MAX {
-            continue;
-        }
+    let root_fields = run.field_sym.iter().enumerate()
+        .filter(|(_, f)| **f == f_annotation || **f == f_returns || f_targets.contains(f))
+        .flat_map(|(c, _)| node_table::ids_of_field(table, ryo::languages::FieldCode(c as u16)));
+    for &Position(p) in root_fields {
+        let p = p as usize;
+        if parent(p) == u32::MAX { continue; }
         let f = field(p);
         if f == f_annotation || f == f_returns {
             types[p] = true;
@@ -438,7 +438,9 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>, p
             }
         }
     }
-    for p in 0..n as u32 {
+    let type_sites = run.kind_sym.iter().enumerate().filter(|(_, k)| **k == k_subscript || k_decl.contains(k))
+        .flat_map(|(c, _)| node_table::ids_of_kind(table, ryo::languages::KindBits(c as u16)));
+    for &Position(p) in type_sites {
         let k = kind(p as usize);
         if k_decl.contains(&k) {
             for c in children(p) {

@@ -84,3 +84,29 @@ impl Columns {
         input(rel).and_then(|index| self.0[index])
     }
 }
+
+/// Intermediate tables have catalog names fixed by the composed writers.
+/// Only those inputs can be reused while building this file's single answer.
+#[derive(Default)]
+pub(super) struct Tables([Option<std::rc::Rc<finish::Table>>; INPUTS.len() + 3]);
+
+impl Tables {
+    fn slot(rel: &str) -> Option<usize> {
+        match rel {
+            "lookup-scope" => Some(INPUTS.len()),
+            facts::FINAL_REL => Some(INPUTS.len() + 1),
+            facts::DEFERRED_RESOLUTION_REL => Some(INPUTS.len() + 2),
+            _ => input(rel),
+        }
+    }
+
+    pub(super) fn get(&self, rel: &str) -> Option<&std::rc::Rc<finish::Table>> {
+        self.0[Self::slot(rel)?].as_ref()
+    }
+
+    pub(super) fn insert(&mut self, rel: &str, table: std::rc::Rc<finish::Table>) {
+        if let Some(i) = Self::slot(rel) { self.0[i] = Some(table); }
+    }
+
+    pub(super) fn clear(&mut self) { self.0.fill(None); }
+}

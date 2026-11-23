@@ -48,6 +48,8 @@ pub(super) struct Finisher<'p> {
     type_paths: super::type_expression::Paths,
     input_layout: super::composition_inputs::Layout,
     prefix_symbols: Vec<u32>,
+    implicit: Option<(u32, finish::Table)>,
+    filled: languages::FilledColumns,
     direct_memo: ryo_python::fixtures::columns::ColumnMemo,
 }
 
@@ -123,6 +125,8 @@ impl<'p> Finisher<'p> {
             type_paths: Default::default(),
             input_layout,
             prefix_symbols: Vec::new(),
+            implicit: None,
+            filled: Default::default(),
             direct_memo: Default::default(),
             project: super::provider_packaging::Project::new(
                 args[2].trim_end_matches('/'),
@@ -189,16 +193,19 @@ impl<'p> Finisher<'p> {
         let mut type_paths = std::mem::take(&mut self.type_paths);
         let mut prefix_symbols = std::mem::take(&mut self.prefix_symbols);
         let mut direct_memo = std::mem::take(&mut self.direct_memo);
+        let mut implicit = self.implicit.take();
         direct_memo.new_file();
-        let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file_no: file_no as u32, kept: HashMap::new(), type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, direct_memo: &mut direct_memo, project: &mut project, src: bytes };
+        let mut pv = ColFacts { file, words: &mut fwords, filled: std::mem::take(&mut self.filled), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file_no: file_no as u32, kept: Default::default(), implicit: &mut implicit, type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, direct_memo: &mut direct_memo, project: &mut project, src: bytes };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
         self.by_rel = pv.by_rel;
+        self.filled = pv.filled;
         self.fwords = fwords;
         self.type_paths = type_paths;
         self.prefix_symbols = prefix_symbols;
         self.direct_memo = direct_memo;
+        self.implicit = implicit;
         self.project = project;
         self.time += thread_cpu() - t0;
     }
@@ -211,11 +218,12 @@ impl<'p> Finisher<'p> {
         languages::facts::clear_words(&mut fwords);
         finish::own_words_cleared(&mut self.run);
         let mut project = std::mem::take(&mut self.project);
-        let mut pv = super::Facts { facts: file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file: file_no as u32, project: &mut project, src: bytes };
+        let mut pv = super::Facts { facts: file, words: &mut fwords, filled: std::mem::take(&mut self.filled), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file: file_no as u32, project: &mut project, src: bytes };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
         self.by_rel = pv.by_rel;
+        self.filled = pv.filled;
         self.fwords = fwords;
         self.project = project;
         self.time += thread_cpu() - t0;

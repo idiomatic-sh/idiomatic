@@ -970,11 +970,6 @@ mod provider_packaging;
 #[path = "provider_tokens.rs"]
 mod provider_tokens;
 
-thread_local! {
-    /// redo-binding pass 5: the implicit-symbol catalog of this run (module position, table), filled once.
-    static IMPLICIT_CATALOG: std::cell::RefCell<Option<(u32, finish::Table)>> = const { std::cell::RefCell::new(None) };
-}
-
 /// The visit's facts as the finish's provider.
 struct Facts<'v, 'f, 'w> {
     facts: &'v mut FileFacts<'f>,
@@ -1002,7 +997,8 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     file_no: u32,
     /// redo-binding pass 3: the provider relations the harness facts are written from, kept for the file once filled, so
     /// a fact and the steps that read the same relation share one fill.
-    kept: HashMap<String, Rc<finish::Table>>,
+    kept: composition_inputs::Tables,
+    implicit: &'w mut Option<(u32, finish::Table)>,
     type_paths: &'w mut type_expression::Paths,
     input_layout: composition_inputs::Layout,
     input_columns: composition_inputs::Columns,
@@ -1026,10 +1022,6 @@ impl Made {
     }
 }
 
-fn keeps_input(rel: &str) -> bool {
-    matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target" | "lookup-scope" | "implicit-symbol")
-}
-
 impl ColFacts<'_, '_, '_, '_> {
     /// A catalog relation of this file, filled whole (once a file for the relations the harness facts read).
     fn whole(&mut self, run: &mut finish::Run, rel: &str) -> Result<Rc<finish::Table>, String> {
@@ -1040,7 +1032,7 @@ impl ColFacts<'_, '_, '_, '_> {
         // rows name the module scope and the file only; the file column is set by `fill`), so it is filled once a run
         let module = (rel == "implicit-symbol").then(|| self.module_position(run)).flatten();
         if let Some(m) = module
-            && let Some(t) = IMPLICIT_CATALOG.with(|c| c.borrow().as_ref().filter(|(at, _)| *at == m).map(|(_, t)| t.clone()))
+            && let Some(t) = self.implicit.as_ref().filter(|(at, _)| *at == m).map(|(_, t)| t.copy())
         {
             // the rows name the module scope and the file: the cached rows' file cells become this file's
             let mut t = t;
@@ -1051,18 +1043,16 @@ impl ColFacts<'_, '_, '_, '_> {
                 }
             }
             let t = Rc::new(t);
-            let _ = self.kept.insert(rel.to_owned(), t.clone());
+            self.kept.insert(rel, t.clone());
             return Ok(t);
         }
         let mask = self.input_columns.get(rel).unwrap_or(u64::MAX);
         let t = self.whole_fill(run, rel, mask)?;
         if let Some(m) = module {
-            IMPLICIT_CATALOG.with(|c| *c.borrow_mut() = Some((m, t.clone())));
+            *self.implicit = Some((m, t.copy()));
         }
         let t = Rc::new(t);
-        if keeps_input(rel) {
-            let _ = self.kept.insert(rel.to_owned(), t.clone());
-        }
+        self.kept.insert(rel, t.clone());
         Ok(t)
     }
 
@@ -1223,8 +1213,11 @@ impl ColFacts<'_, '_, '_, '_> {
             return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 });
         }
         let arguments = self.whole(run, "call-argument")?;
-        let identifiers = self.whole(run, "identifier")?;
-        let inputs = type_expression::Inputs { qualified: &qualified, arguments: &arguments, identifiers: &identifiers, embedded: &embedded, lists: type_expression::LISTS.get_or_init(type_expression::Lists::default) };
+        let keyword = run.sym(b"keyword");
+        let has_keywords = run.kind_sym.iter().enumerate().any(|(i, sym)| *sym == keyword
+            && !languages::node_table::ids_of_kind(self.file.table, languages::KindBits(i as u16)).is_empty());
+        let identifiers = if has_keywords { Some(self.whole(run, "identifier")?) } else { None };
+        let inputs = type_expression::Inputs { qualified: &qualified, arguments: &arguments, identifiers: identifiers.as_deref(), embedded: &embedded, lists: type_expression::LISTS.get_or_init(type_expression::Lists::default) };
         let rows = type_expression::rows(run, self.file.table, &inputs, self.type_paths)?;
         let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
         let mut t = finish::Table::projected(names, tys, rows.len(), mask);
@@ -1292,7 +1285,7 @@ impl ColFacts<'_, '_, '_, '_> {
             e.2 += 1;
         }
         let t = Rc::new(t);
-        let _ = self.kept.insert(rel.to_owned(), t.clone());
+        self.kept.insert(rel, t.clone());
         Ok(t)
     }
 
@@ -1468,7 +1461,7 @@ impl ColFacts<'_, '_, '_, '_> {
 
     /// One asked relation of this file: none made where the file's own contents say it has no row (`row_count`).
     fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64) -> Result<Made, String> {
-        if !self.kept.contains_key(rel)
+        if self.kept.get(rel).is_none()
             && let Some((Some(relation), names, tys)) = run.catalog(rel)
             && self.file.row_count(relation) == Some(0)
         {
