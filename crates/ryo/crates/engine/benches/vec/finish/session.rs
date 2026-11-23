@@ -85,10 +85,12 @@ pub(in super::super) fn evaluate(
             "extend"
                 if step.args()["values"]
                     .as_object()
-                    .is_some_and(|m| m.len() <= 1) => {}
+                    .is_some_and(|m| m.len() <= 1)
+                    || step.args()["value-order"].as_array().is_some() => {}
             "extend" => {
                 return Err("project emit needs declaration order for multi-column extend".into());
             }
+            "capture" if step.args()["separator"].as_str().is_some() => {}
             "capture" => return Err("project capture needs a verified separator contract".into()),
             op => return Err(format!("project scope is unverified for {op}")),
         }
@@ -108,10 +110,10 @@ pub(in super::super) fn evaluate(
                 }
             }
             "antijoin" => {
-                let _prepared = super::antijoin_kernel::prep(&mut exec, run, i)?;
+                let _prepared = super::antijoin_kernel::prep(exec, run, i)?;
             }
             "union" => {
-                let _prepared = super::union_kernel::prep(&mut exec, run, i)?;
+                let _prepared = super::union_kernel::prep(exec, run, i)?;
             }
             "group-count" => {
                 if let Some(name) = step.args()["distinct"].as_str() {
