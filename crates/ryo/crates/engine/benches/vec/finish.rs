@@ -1386,16 +1386,25 @@ fn pos(names: &[String], c: &str) -> R<usize> {
     names.iter().position(|x| x == c).ok_or_else(|| format!("no column {c} in {names:?}"))
 }
 
-impl<'p> Exec<'p> {
-    pub(super) fn new(plan: &'p Plan) -> Self {
+impl Layout {
+    pub(crate) fn prepare(plan: &Plan) -> std::sync::Arc<Self> {
         let mut consumers = vec![Vec::new(); plan.nodes.len()];
         for (i,node) in plan.nodes.iter().enumerate() {
             for &input in &node.inputs {
                 if consumers[input].last() != Some(&i) { consumers[input].push(i); }
             }
         }
-        let layout = std::sync::Arc::new(Layout { frames: frame::frames(plan), consumers, emitted: plan.emits.iter().map(|e|e.1).collect() });
-        Self::with_layout(plan, layout)
+        std::sync::Arc::new(Self {
+            frames: frame::frames(plan),
+            consumers,
+            emitted: plan.emits.iter().map(|e| e.1).collect(),
+        })
+    }
+}
+
+impl<'p> Exec<'p> {
+    pub(super) fn new(plan: &'p Plan) -> Self {
+        Self::with_layout(plan, Layout::prepare(plan))
     }
 
     pub(crate) fn with_layout(plan: &'p Plan, layout: std::sync::Arc<Layout>) -> Self {
