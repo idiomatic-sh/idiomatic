@@ -1724,9 +1724,6 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         // 7: the (rule, file) seeds read by file once, not a key copied per rule
         let seed_here = seed_by_path.get(path.as_str());
         let wanted = fin.wanted(path, &|e| seed.is_none() || seed_here.is_some_and(|s| s.contains(plan.emits[e].0.as_str())));
-        if !fin.visits(&wanted) {
-            continue;
-        }
         if colwalk {
             let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| fin.column_file(file_no, path, file, &bytes, &wanted, None));
         } else {
@@ -2691,14 +2688,12 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         let wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
                         // wanted() already charges its own time to the second half.
                         if seed_only { phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0)); }
-                        if fin.visits(&wanted) {
-                            for (i, (slot, _)) in ask_of.iter().enumerate() {
-                                let t = &store.direct.tables[i];
-                                if !asks[i].exists && t.answered { fin.prefix_table(&fact_catalog.names[*slot], t, &interner); }
-                            }
-                            let prefix = direct_fill::Prefix { asks: &asks, tables: &store.direct.tables, words: &interner };
-                            fin.column_file(file_no, path, file, &bytes, &wanted, Some(prefix));
+                        for (i, (slot, _)) in ask_of.iter().enumerate() {
+                            let t = &store.direct.tables[i];
+                            if !asks[i].exists && t.answered { fin.prefix_table(&fact_catalog.names[*slot], t, &interner); }
                         }
+                        let prefix = direct_fill::Prefix { asks: &asks, tables: &store.direct.tables, words: &interner };
+                        fin.column_file(file_no, path, file, &bytes, &wanted, Some(prefix));
                     } else if seed_only {
                         phases.add("seed handoff", thread_cpu() - handoff);
                     }

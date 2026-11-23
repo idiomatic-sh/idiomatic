@@ -166,11 +166,6 @@ impl<'p> Finisher<'p> {
         self.plan
     }
 
-    /// Whether a file with these emits to run is visited at all.
-    pub(super) fn visits(&self, wanted: &[usize]) -> bool {
-        !wanted.is_empty() || self.check
-    }
-
     /// The plan's emits by name with their index into `plan.emits` (for a caller that maps its own rules to them).
     pub(super) fn emit_names(&self) -> impl Iterator<Item = (usize, &str)> {
         self.plan.emits.iter().enumerate().map(|(e, x)| (e, x.0.as_str()))
