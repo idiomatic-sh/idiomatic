@@ -193,7 +193,13 @@ impl<'p> Finisher<'p> {
                 let subject = t.col(&e.2)?;
                 let span = t.col("span").ok();
                 let rule = serde_json::to_string(&e.0).expect("rule string");
+                // An emit is insensitive to copies of an identical result row. Distinct
+                // bindings can still report the same location and must survive projection.
+                let mut seen = rustc_hash::FxHashSet::default();
                 for r in 0..t.n {
+                    if t.n > 1 && !seen.insert(t.cols.iter().map(|c| c[r]).collect::<Vec<_>>()) {
+                        continue;
+                    }
                     let target = if t.tys[subject] == finish::Ty::File {
                         usize::try_from(t.cols[subject][r]).ok().and_then(|id| run.paths.get(id))
                             .ok_or_else(|| format!("file subject outside the run: {}", t.cols[subject][r]))?
