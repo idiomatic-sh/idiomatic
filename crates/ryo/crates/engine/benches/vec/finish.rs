@@ -61,6 +61,8 @@ mod known;
 #[cfg(feature = "vec-ask-audit")]
 #[path = "finish/ask_audit.rs"]
 pub(crate) mod ask_audit;
+#[path = "finish/set_ops.rs"]
+mod set_ops;
 #[path = "finish/empty_why.rs"]
 pub(super) mod empty_why;
 #[path = "finish/empty_sel.rs"]
@@ -264,6 +266,8 @@ impl Table {
 /// The run: texts, regexes, kind and field names, file paths.
 #[derive(Default)]
 pub(super) struct Run {
+    /// Relations whose provider exposes a population other than this native file table.
+    pub(super) reader_tables: rustc_hash::FxHashSet<String>,
     pub(super) texts: Vec<Box<[u8]>>,
     pub(super) ids: FxHashMap<Box<[u8]>, u32>,
     pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
@@ -555,7 +559,8 @@ const LOC_COLS: [(&str, Ty); 9] = [
 ];
 const TOKEN_COLS: [(&str, Ty); 5] = [("source", Ty::Node), ("target", Ty::Node), ("link-kind", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
 
-fn native_of(rel: &str) -> Option<Native> {
+fn native_of(run: &Run, rel: &str) -> Option<Native> {
+    if run.reader_tables.contains(rel) { return None; }
     match rel {
         "syntax-tree" | "semantic-syntax" => Some(Native::Tree),
         "semantic-child" | "syntax-child" => Some(Native::Child),
@@ -578,7 +583,7 @@ fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
 /// 6h: a provider relation's place among the facts read in place (`VEC_NO_FACTVIEW` turns this off): every catalog
 /// relation the provider or the host fills per file; never the run's file list or a relation a step makes.
 fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
-    if sw!("VEC_NO_FACTVIEW") || native_of(rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles | Supplier::Project(_)) {
+    if sw!("VEC_NO_FACTVIEW") || native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles | Supplier::Project(_)) {
         return None;
     }
     let (_, names, _) = run.catalog(rel)?;
@@ -1422,7 +1427,7 @@ impl<'p> Exec<'p> {
         let sc = match op.as_str() {
             "base" => {
                 let rel = s(&j["rel"])?;
-                if let Some(nat) = native_of(rel) {
+                if let Some(nat) = native_of(run, rel) {
                     mk(native_cols(nat).iter().map(|c| c.0.to_owned()).collect(), native_cols(nat).iter().map(|c| c.1).collect())
                 } else {
                     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
@@ -1433,6 +1438,7 @@ impl<'p> Exec<'p> {
                 let sp = self.sel(run, node)?;
                 mk(sp.items.iter().map(|i| i.0.clone()).collect(), sp.items.iter().map(|i| static_ty(&i.1)).collect())
             }
+            "intersection" | "difference" => from(self, run, "left")?,
             "union" | "antijoin" | "group-min" | "group-max" => from(self, run, if op == "union" || op == "antijoin" { "left" } else { "from" })?,
             "extend" => {
                 let f = from(self, run, "from")?;
@@ -1459,11 +1465,16 @@ impl<'p> Exec<'p> {
                 tys.push(Ty::Node);
                 mk(names, tys)
             }
-            "group-count" => {
+            "group-count" | "group-digest" => {
                 let f = from(self, run, "from")?;
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| pos(&f.names, c)).collect::<R<_>>()?;
                 let mut names: Vec<String> = keys.iter().map(|c| f.names[*c].clone()).collect();
                 let mut tys: Vec<Ty> = keys.iter().map(|c| f.tys[*c]).collect();
+                if op == "group-digest" {
+                    pos(&f.names, s(&a["distinct"])?)?;
+                    names.push(s(&a["digest"])?.to_owned());
+                    tys.push(Ty::Num);
+                }
                 names.push(s(&a["count"])?.to_owned());
                 tys.push(Ty::Num);
                 mk(names, tys)
@@ -1718,7 +1729,7 @@ impl<'p> Exec<'p> {
         let v = match pn.op.as_str() {
             "base" => {
                 let rel = pn.j["rel"].as_str().unwrap_or("").to_owned();
-                match native_of(&rel) {
+                match native_of(run, &rel) {
                     Some(nat) => Some(Rc::new(ViewSpec::new(nat, (0..native_cols(nat).len()).collect(), Vec::new()))),
                     None => fact_of(run, &rel).map(|nat| {
                         let Native::Fact(i) = nat else { unreachable!() };
@@ -2107,6 +2118,17 @@ impl<'p> Exec<'p> {
                 }
                 out.n += r.n;
                 Ok(distinct(out))
+            }
+            "intersection" | "difference" => {
+                let left = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
+                let right = self.eval(f, run, p, self.arg_rel(node, "right")?)?;
+                set_ops::select_rows(&left, &right, op == "intersection")
+            }
+            "group-digest" => {
+                let input = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let mut out = self.empty(run, node)?;
+                set_ops::digest(run, f.file, a, &input, &mut out)?;
+                Ok(out)
             }
             "antijoin" => self.antijoin(f, run, p, node, a),
             "extend" => {
@@ -3061,7 +3083,7 @@ impl<'p> Exec<'p> {
 
     /// The hierarchy an axis walks: the tree, a view probed by its child and parent columns, or a made table indexed once.
     fn hier(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: usize) -> R<Hier> {
-        if self.plan.nodes[rel].op == "base" && native_of(self.plan.nodes[rel].j["rel"].as_str().unwrap_or("")) == Some(Native::Child) {
+        if self.plan.nodes[rel].op == "base" && native_of(run, self.plan.nodes[rel].j["rel"].as_str().unwrap_or("")) == Some(Native::Child) {
             return Ok(Hier::Tree);
         }
         let rsc = self.schema(run, rel)?;
@@ -3225,13 +3247,17 @@ impl<'p> Exec<'p> {
                         }
                     }
                 }
-                "next-sibling" => {
+                "next-sibling" | "previous-sibling" => {
+                    if !matches!(hier, Hier::Tree) {
+                        return Err("sibling axis requires the concrete ordered children".into());
+                    }
                     if (x as usize) < f.n && f.has_parent(x as u32) {
                         let sibs = node_table::children_of(f.table, Position(f.parent[x as usize]));
-                        if let Some(at) = sibs.iter().position(|c| u64::from(c.0) == x)
-                            && let Some(nx) = sibs.get(at + 1)
-                        {
-                            all.push((i, u64::from(nx.0)));
+                        if let Some(at) = sibs.iter().position(|c| u64::from(c.0) == x) {
+                            let offset = if dir == "next-sibling" { 1 } else { -1 };
+                            if let Some(sibling) = at.checked_add_signed(offset).and_then(|j| sibs.get(j)) {
+                                all.push((i, u64::from(sibling.0)));
+                            }
                         }
                     }
                 }
@@ -4480,7 +4506,7 @@ pub(super) fn native_table(f: &mut File<'_>, run: &mut Run, rel: &str) -> Table 
     if rel == "token-link" {
         return token_links(f, run);
     }
-    let nat = native_of(rel).expect("a native relation");
+    let nat = native_of(run, rel).expect("a native relation");
     let cols = native_cols(nat);
     let mut out = Table::with(cols.iter().map(|c| c.0.to_owned()).collect::<Vec<_>>(), cols.iter().map(|c| c.1).collect::<Vec<_>>());
     for r in f.native_rows(run, nat) {
