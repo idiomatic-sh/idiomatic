@@ -1,5 +1,5 @@
 //! Python file visit and reusable provider state feeding the shared executor.
-use super::{ColFacts, HashMap, Vocab, files, finish, finisher, flag, thread_cpu};
+use super::{ColFacts, Vocab, files, finish, finisher, flag, thread_cpu};
 use ryo::languages;
 
 pub(super) struct Finisher<'p> {
@@ -80,7 +80,6 @@ impl<'p> Finisher<'p> {
             implicit: None,
             filled: Default::default(),
             direct_memo: Default::default(),
-
             inner: finisher::Finisher::new(plan, run, args),
             fwords: ryo_python::fixtures::walking::walk_words(walk)
                 .expect("the walk's fixed names"),

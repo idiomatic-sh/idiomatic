@@ -92,6 +92,7 @@ impl FactTable {
         }
     }
 
+    /// Whether the request projects this column.
     #[inline]
     pub fn wants(&self, place: usize) -> bool {
         self.wanted >> place & 1 == 1
@@ -112,7 +113,7 @@ impl FactTable {
             self.push(node, values);
             return;
         }
-        if !self.ordered_rows { self.mark(node); }
+        self.mark(node);
         self.keys.push(node);
         self.rows += 1;
         for (place, value) in values {
