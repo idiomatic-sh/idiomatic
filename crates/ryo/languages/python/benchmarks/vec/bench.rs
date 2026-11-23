@@ -1890,8 +1890,9 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     if query.is_some() {println!("summary evaluation preparation {:.6} s",thread_cpu()-prepare_summary);}
     if seed_only && !token_pass && !compare && !check_links && let Some((program,schedule,words_for_file,scratch))=&mut query {
         let root = fin.as_ref().map(|f| f.run.root_dir.clone()).or_else(|| flag(args, "--summary-root"));
-        let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),settings);
-        summary_walk::run(&list, settings, vocab, workers, program,&mut skip,&words,fields_width,words_for_file,
+        let parser_words = ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names");
+        let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(parser_words.fresh(), settings);
+        summary_walk::run(&list, settings, vocab, &parser_words, workers, program,&mut skip,&words,fields_width,words_for_file,
             &mut cwalk,&mut other,fin,root.as_deref(),flag(args,"--seed-out").as_deref(),flag(args,"--exact-out").as_deref(),schedule,scratch);
         return;
     }

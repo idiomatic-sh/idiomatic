@@ -11,6 +11,7 @@ pub(super) fn run(
     list: &[String],
     settings: ryo_python::settings::PythonParserSettings,
     vocab: &super::Vocab,
+    parser_words: &FileWords,
     requested: Option<std::num::NonZeroUsize>,
     program: &Program,
     skip: &mut Skip,
@@ -112,8 +113,7 @@ pub(super) fn run(
             )
         },
         |ids| {
-            let walk = ryo_python::walk_with_settings(settings);
-            let base = ryo_python::fixtures::walking::walk_words(&walk).expect("fixed vocabulary");
+            let base = parser_words.fresh();
             let mut a = ColumnWalk::with_settings(base.fresh(), settings);
             let mut b = ColumnWalk::with_settings(base.fresh(), settings);
             let mut f = seed
