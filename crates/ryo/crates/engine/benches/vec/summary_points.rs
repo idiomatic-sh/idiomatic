@@ -3,10 +3,10 @@
 //! predicates reading that node. Whole-only families retain their normal read.
 use super::*;
 impl File<'_> {
-    fn bit_at(&self, set: Nodes, at: Position) -> bool {
+    pub(super) fn bit_at(&self, set: Nodes, at: Position) -> bool {
         set.is_none_or(|s| self.arena.word(s, (at.0 / 64) as usize) & (1 << (at.0 % 64)) != 0)
     }
-    fn point(&mut self, id: Id, at: Position) -> bool {
+    pub(super) fn point(&mut self, id: Id, at: Position) -> bool {
         *self.points += 1;
         if let Some(set) = self.sets.get(id) {
             return self.bit_at(set, at);
@@ -37,6 +37,12 @@ impl File<'_> {
                             && out.0.iter().all(|c| c.0.len() == out.0[0].0.len()));
                     (complete && valid).then_some(out)
                 });
+                if rows
+                    .as_ref()
+                    .is_some_and(|r| r.0.first().is_none_or(|c| c.0.is_empty()))
+                {
+                    return false;
+                }
                 if let Some(rows) = rows
                     && let Some(keys) = spec.key.and_then(|k| rows.0.get(k))
                 {

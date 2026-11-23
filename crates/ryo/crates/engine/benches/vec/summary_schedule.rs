@@ -4,6 +4,14 @@ use super::pair_summary::{Domain, Id, Need, Program};
 use rustc_hash::FxHashSet;
 
 pub(super) struct Schedule {
+    pub(super) buckets: bool,
+    pub(super) literals: Option<super::summary_literals::Layout>,
+    pub(super) proof_order: bool,
+    pub(super) price: Vec<u8>,
+    pub(super) rules: Option<super::summary_rules::Rules>,
+    pub(super) byte_regex: bool,
+    pub(super) groups: Option<super::summary_groups::Groups>,
+    pub(super) scan: Option<super::pair_checks::scan::Layout>,
     pub(super) branches: Option<super::summary_branches::Branches>,
     pub(super) windows: bool,
     pub(super) classes: bool,
@@ -110,7 +118,22 @@ impl Schedule {
         let branches = std::env::var_os("VEC_FILE_BRANCHES")
             .is_some()
             .then(|| super::summary_branches::Branches::new(p, &needs));
+        let rules = std::env::var_os("VEC_SHARED_RULES")
+            .is_some()
+            .then(|| super::summary_rules::Rules::new(p, &needs, &price));
+        let groups = std::env::var_os("VEC_MASK_GROUPS")
+            .is_some()
+            .then(|| super::summary_groups::Groups::new(p, &cost));
+        let scan = std::env::var_os("VEC_NODE_SCAN")
+            .or_else(|| std::env::var_os("VEC_BORROW_BUCKETS"))
+            .is_some()
+            .then(|| super::pair_checks::scan::Layout::new(p));
         Self {
+            buckets: std::env::var_os("VEC_BORROW_BUCKETS").is_some(),
+            rules,
+            byte_regex: std::env::var_os("VEC_BYTE_REGEX").is_some(),
+            groups,
+            scan,
             branches,
             windows: std::env::var_os("VEC_WORD_WINDOWS").is_some(),
             classes: std::env::var_os("VEC_NODE_CLASSES").is_some(),
@@ -118,7 +141,10 @@ impl Schedule {
             select,
             keys: Vec::new(),
             existential: std::env::var_os("VEC_WITNESS_PROGRAM").is_some(),
+            literals: None,
             cost,
+            price,
+            proof_order: std::env::var_os("VEC_PROOF_ORDER").is_some(),
             needs,
             paths,
             symbols: None,

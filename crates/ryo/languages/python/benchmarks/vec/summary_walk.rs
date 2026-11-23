@@ -69,6 +69,9 @@ pub(super) fn run(
     let prep = thread_cpu();
     let mut order = super::summary_schedule::Schedule::new(program);
     order.symbols = codes;
+    order.literals = std::env::var_os("VEC_LITERAL_BUCKETS")
+        .is_some()
+        .then(|| super::summary_literals::Layout::new(program, words, word_kind));
     order.keys = program
         .facts
         .iter()
@@ -86,8 +89,12 @@ pub(super) fn run(
         "summary evaluation preparation {:.6} s",
         thread_cpu() - prep
     );
+    let wide_keys = std::env::var_os("VEC_NATIVE_KEYS").is_some();
     let diagnostic = std::env::var_os("VEC_SUMMARY_METRICS").is_some();
     let mut scratch = super::pair_checks::Scratch::default();
+    if std::env::var_os("VEC_MASK_CENSUS").is_some() {
+        scratch.measure_masks();
+    }
     let mut metrics =
         rustc_hash::FxHashMap::<String, (usize, usize, usize, usize, usize, f64, usize)>::default();
     let certify = fin.as_ref().is_none_or(|f| f.can_finish_exact());
@@ -147,9 +154,13 @@ pub(super) fn run(
                     kinds.extend(node_table::kinds_present(t).0.iter().map(|w| w.0));
                     fields_kinds += thread_cpu() - begin;
                     present.fill(0);
-                    for p in node_table::ids_of_kind(t, KindBits(word_kind)) {
-                        if let Some(&w) = words.ids.get(&bytes[span_bytes(t, p.0 as usize)]) {
-                            present[usize::from(w) / 64] |= 1 << (w % 64);
+                    if let Some(layout) = &order.literals {
+                        layout.names(t, bytes, &mut present, &mut scratch.literals);
+                    } else {
+                        for p in node_table::ids_of_kind(t, KindBits(word_kind)) {
+                            if let Some(&w) = words.ids.get(&bytes[span_bytes(t, p.0 as usize)]) {
+                                present[usize::from(w) / 64] |= 1 << (w % 64);
+                            }
                         }
                     }
                     let c = thread_cpu();
@@ -204,7 +215,7 @@ pub(super) fn run(
                                 }
                                 Query::Node(key, at) => {
                                     if let Source::Catalog(r) = source {
-                                        if file.can_select_summary_nodes(r) {
+                                        if file.can_select_summary_nodes(r, wide_keys) {
                                             let yes = file.fill(
                                                 r,
                                                 languages::Wanted::Key(
@@ -342,6 +353,7 @@ pub(super) fn run(
         "domain bitset words {} peak {}",
         scratch.words, scratch.peak
     );
+    scratch.report_masks();
     for (ri, _) in &program.exact {
         let (pairs, rows, nonempty) = exact_counts[*ri];
         println!(
@@ -391,6 +403,10 @@ pub(super) fn run(
     println!(
         "contents kinds and fields {fields_kinds:.4} s words {:.4} s",
         contents - fields_kinds
+    );
+    println!(
+        "literal bucket visits names {} other {}",
+        scratch.literals.name_visits, scratch.literals.other_visits
     );
     println!("distinct existential tests {}", scratch.witness_calls);
     println!(

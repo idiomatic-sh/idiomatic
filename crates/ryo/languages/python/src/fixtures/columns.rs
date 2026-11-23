@@ -797,8 +797,8 @@ impl ColumnFile<'_, '_> {
     }
     /// A complete primary parse has table-native expression IDs. Both forms
     /// of these existing keyed readers use the same whole-file analysis.
-    pub fn can_select_summary_nodes(&self,relation:Relation)->bool{
-        matches!(relation,Relation::ExpressionType|Relation::ExpressionShape)
+    pub fn can_select_summary_nodes(&self,relation:Relation,wide:bool)->bool{
+        (matches!(relation,Relation::ExpressionType|Relation::ExpressionShape) || wide && matches!(relation,Relation::Identifier|Relation::LiteralProperties|Relation::StringLiteral|Relation::NumericLiteral|Relation::QualifiedName|Relation::BindingRead|Relation::BindingEvent))
         && self.file.syntax.completeness.syntax!=languages::SyntaxCompleteness::Incomplete
         && self.file.syntax.tree.segments.is_empty()
     }

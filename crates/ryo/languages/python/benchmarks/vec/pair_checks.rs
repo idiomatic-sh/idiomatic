@@ -11,6 +11,8 @@ mod classes;
 mod memo;
 #[path = "../../../../crates/engine/benches/vec/summary_points.rs"]
 mod points;
+#[path = "../../../../crates/engine/benches/vec/summary_scan.rs"]
+pub(super) mod scan;
 #[path = "../../../../crates/engine/benches/vec/summary_witness.rs"]
 mod witness;
 use arena::{Arena, Bits};
@@ -41,6 +43,8 @@ struct Table {
 }
 #[derive(Default)]
 pub(super) struct Scratch {
+    pub(super) literals: super::summary_literals::Observed,
+    alive_words: Vec<u64>,
     pub(super) points: u64,
     pub(super) classes: classes::Classes,
     witnesses: Vec<Option<bool>>,
@@ -55,6 +59,8 @@ pub(super) struct Scratch {
     pub(super) peak: usize,
 }
 struct File<'a> {
+    byte_tests: Map<(usize, &'a [u8]), bool>,
+    literals: &'a mut super::summary_literals::Observed,
     p: &'a Program,
     t: &'a NodeTable,
     src: &'a [u8],
@@ -165,22 +171,30 @@ impl File<'_> {
             Need::Both(a, b) => self.pass(a) && self.pass(b),
             Need::Either(a, b) => self.pass(a) || self.pass(b),
             Need::Some(x) if self.no_classes(x) => false,
+            Need::Some(x) if let Some(set) = self.grouped(x, true) => {
+                set.is_none_or(|s| !s.is_empty())
+            }
             Need::Some(x) if self.order.is_some_and(|o| o.existential) => self.witness(x),
             Need::Some(x) => match &self.p.domains[x] {
                 // All stored bitsets end at their last nonzero word. A file
                 // prerequisite can stop at its first witness without allocating
                 // the intersection or union of every matching node.
-                _ if self.sets.get(x).is_some() => self.sets.get(x)
+                _ if self.sets.get(x).is_some() => self
+                    .sets
+                    .get(x)
                     .as_ref()
                     .unwrap()
                     .as_ref()
                     .is_none_or(|b| !b.is_empty()),
                 _ if let Some(yes) = self.local_answer(x) => yes,
+                Domain::Both(a, b) if let Some(s) = self.native_join(*a, *b, true) => !s.is_empty(),
                 Domain::Both(a, b) => {
                     let (a, b) = self.first(*a, *b);
                     let l = self.nodes(a);
                     if l.as_ref().is_some_and(|v| v.is_empty()) {
                         false
+                    } else if let Some(set) = l.and_then(|s| self.restricted(s, b, true)) {
+                        !set.is_empty()
                     } else {
                         match (l, self.nodes(b)) {
                             (Some(l), Some(r)) => self.arena.intersects(l, r),
@@ -243,6 +257,10 @@ impl File<'_> {
         if let Some(s) = self.sets.get(id) {
             return s;
         }
+        if let Some(set) = self.grouped(id, false) {
+            self.sets.set(id, set);
+            return set;
+        }
         if let Some(set) = self.local_set(id) {
             self.sets.set(id, set);
             return set;
@@ -294,20 +312,31 @@ impl File<'_> {
                         .map(|p| p.0),
                 ),
             ),
-            Domain::SpanMatching(k, re) => Some(
-                self.arena.bits(
-                    node_table::ids_of_kind(self.t, languages::KindBits(*k))
-                        .iter()
-                        .filter_map(|pos| {
-                            let span = super::span_bytes(self.t, pos.0 as usize);
-                            self.p.regexes[*re]
-                                .is_match(&self.src[span])
-                                .then_some(pos.0)
-                        }),
-                ),
-            ),
+            Domain::SpanMatching(k, re) => {
+                let cache = self.order.is_some_and(|o| o.byte_regex);
+                let regex = &self.p.regexes[*re];
+                Some(
+                    self.arena.bits(
+                        node_table::ids_of_kind(self.t, languages::KindBits(*k))
+                            .iter()
+                            .filter_map(|pos| {
+                                let text = &self.src[super::span_bytes(self.t, pos.0 as usize)];
+                                let yes = if cache {
+                                    *self
+                                        .byte_tests
+                                        .entry((*re, text))
+                                        .or_insert_with(|| regex.is_match(text))
+                                } else {
+                                    regex.is_match(text)
+                                };
+                                yes.then_some(pos.0)
+                            }),
+                    ),
+                )
+            }
             Domain::TextMatching(k, re) => {
                 let regex = &self.p.regexes[*re];
+                let cache = self.order.is_some_and(|o| o.byte_regex);
                 Some(
                     self.arena.bits(
                         node_table::ids_of_kind(self.t, languages::KindBits(*k))
@@ -317,8 +346,26 @@ impl File<'_> {
                                     || &self.src[super::span_bytes(self.t, p.0 as usize)],
                                     |t| t.0.as_bytes(),
                                 );
-                                regex.is_match(text).then_some(p.0)
+                                (if cache {
+                                    *self
+                                        .byte_tests
+                                        .entry((*re, text))
+                                        .or_insert_with(|| regex.is_match(text))
+                                } else {
+                                    regex.is_match(text)
+                                })
+                                .then_some(p.0)
                             }),
+                    ),
+                )
+            }
+            Domain::Text(_) if let Some(layout) = self.order.and_then(|o| o.literals.as_ref()) => {
+                Some(
+                    self.arena.bits(
+                        layout
+                            .nodes(id, self.t, self.src, self.literals)
+                            .iter()
+                            .copied(),
                     ),
                 )
             }
@@ -345,11 +392,14 @@ impl File<'_> {
                         .bits(by_text.get(t.as_bytes()).into_iter().flatten().copied()),
                 )
             }
+            Domain::Both(a, b) if let Some(s) = self.native_join(*a, *b, false) => Some(s),
             Domain::Both(a, b) => {
                 let (a, b) = self.first(*a, *b);
                 let left = self.nodes(a);
                 if left.is_some_and(Bits::is_empty) {
                     left
+                } else if let Some(set) = left.and_then(|s| self.restricted(s, b, false)) {
+                    Some(set)
                 } else {
                     match (left, self.nodes(b)) {
                         (Some(a), Some(b)) => Some(self.arena.intersect(a, b)),
@@ -365,6 +415,21 @@ impl File<'_> {
                 }
             }
             // The excluded side must be exact in this particular file.
+            Domain::ProvenExcept(left, difference, guard, slots)
+                if self.order.is_some_and(|o| o.proof_order) =>
+            {
+                let a = self.nodes(*left);
+                if a.is_some_and(Bits::is_empty) || self.pass(*guard) {
+                    a
+                } else {
+                    let d = self.nodes(*difference);
+                    if self.arena.identical(a, d) || self.complete(slots) {
+                        d
+                    } else {
+                        a
+                    }
+                }
+            }
             Domain::ProvenExcept(left, difference, guard, slots) => {
                 let admitted = self.nodes(*left);
                 if admitted.as_ref().is_some_and(|v| v.is_empty())
@@ -421,10 +486,15 @@ impl File<'_> {
             Domain::Descendants(root) => self.nodes(*root).map(|ancestors| {
                 if node_table::descendant_ranges(self.t, Position(0)).is_some() {
                     let mut seen = Vec::new();
+                    let mut through = 0u32;
                     each(&self.arena.words[ancestors.range()], |offset| {
                         let n = ancestors.first() as u32 * 64 + offset;
+                        if n < through {
+                            return;
+                        }
                         let ranges = node_table::descendant_ranges(self.t, Position(n))
                             .expect("recorded intervals");
+                        through = ranges.nodes.end;
                         arena::cover(&mut seen, ranges.nodes);
                         arena::cover(&mut seen, ranges.tokens);
                     });
@@ -817,6 +887,8 @@ impl Program {
         }
         scratch.classes.reset();
         let mut f = File {
+            literals: &mut scratch.literals,
+            byte_tests: Map::default(),
             classes: &mut scratch.classes,
             witnesses: &mut scratch.witnesses,
             witness_calls: &mut scratch.witness_calls,
@@ -837,17 +909,21 @@ impl Program {
             texts: None,
             steps: 0,
         };
-        for (ri, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
-            if *a {
-                *a = if let Some(branches) = order.and_then(|s| s.branches.as_ref()) {
-                    let mut pc = branches.entry[ri];
-                    while pc >= 2 {
-                        let b = branches.code[pc - 2];
-                        pc = if f.pass(b.test) { b.yes } else { b.no };
+        if let Some(rules) = order.and_then(|s| s.rules.as_ref()) {
+            rules.apply(alive, &mut scratch.alive_words, |id| f.pass(id));
+        } else {
+            for (ri, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
+                if *a {
+                    *a = if let Some(branches) = order.and_then(|s| s.branches.as_ref()) {
+                        let mut pc = branches.entry[ri];
+                        while pc >= 2 {
+                            let b = branches.code[pc - 2];
+                            pc = if f.pass(b.test) { b.yes } else { b.no };
+                        }
+                        pc == 1
+                    } else {
+                        f.pass(*root)
                     }
-                    pc == 1
-                } else {
-                    f.pass(*root)
                 }
             }
         }
@@ -865,5 +941,16 @@ impl Program {
         scratch.words += f.arena.words.len() as u64;
         scratch.peak = scratch.peak.max(f.arena.words.len());
         f.steps
+    }
+}
+
+impl Scratch {
+    pub(super) fn measure_masks(&mut self) {
+        self.arena.census = Some(Default::default());
+    }
+    pub(super) fn report_masks(&self) {
+        if let Some(c) = &self.arena.census {
+            c.report();
+        }
     }
 }

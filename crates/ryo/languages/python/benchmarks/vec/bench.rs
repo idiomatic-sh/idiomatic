@@ -964,6 +964,12 @@ mod pair_checks;
 mod summary_schedule;
 #[path="../../../../crates/engine/benches/vec/summary_branches.rs"]
 mod summary_branches;
+#[path="../../../../crates/engine/benches/vec/summary_groups.rs"]
+mod summary_groups;
+#[path="../../../../crates/engine/benches/vec/summary_rules.rs"]
+mod summary_rules;
+#[path="../../../../crates/engine/benches/vec/summary_literals.rs"]
+mod summary_literals;
 #[path = "../../../../crates/engine/benches/vec/summary_proofs.rs"]
 mod summary_proofs;
 #[path = "../../../../crates/engine/benches/vec/summary_values.rs"]

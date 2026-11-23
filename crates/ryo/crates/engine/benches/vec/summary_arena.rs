@@ -22,6 +22,7 @@ impl Bits {
 }
 #[derive(Default)]
 pub(super) struct Arena {
+    pub(super) census: Option<Census>,
     pub(super) window: bool,
     pub(super) words: Vec<u64>,
     pub(super) work: Vec<u64>,
@@ -42,6 +43,18 @@ impl Arena {
             return Bits::default();
         };
         let hi = data.iter().rposition(|&x| x != 0).unwrap() + 1;
+        if let Some(m) = &mut self.census {
+            let trimmed = &data[lo..hi];
+            m.values += 1;
+            m.one_word += u64::from(trimmed.len() == 1);
+            let mut hits = 0;
+            for &w in trimmed {
+                m.nonzero_words += u64::from(w != 0);
+                hits += u64::from(w.count_ones());
+            }
+            m.nodes += hits;
+            m.singletons += u64::from(hits == 1);
+        }
         let lo = if self.window { lo } else { 0 };
         let b = Bits {
             start: self.words.len(),
@@ -155,5 +168,88 @@ pub(super) fn cover(words: &mut Vec<u64>, range: std::ops::Range<u32>) {
         words[a] |= lo;
         words[a + 1..b].fill(u64::MAX);
         words[b] |= hi;
+    }
+}
+
+impl Arena {
+    fn group_bounds(sets: &[Bits], and: bool) -> std::ops::Range<usize> {
+        let (mut from, mut end) = if and {
+            (0, usize::MAX)
+        } else {
+            (usize::MAX, 0)
+        };
+        for &s in sets {
+            if and {
+                from = from.max(s.first());
+                end = end.min(s.len());
+            } else {
+                from = from.min(s.first());
+                end = end.max(s.len());
+            }
+        }
+        from..end
+    }
+    pub(super) fn common(&self, sets: &[Bits]) -> bool {
+        Self::group_bounds(sets, true).any(|i| {
+            let mut w = u64::MAX;
+            for &s in sets {
+                w &= self.word(s, i);
+                if w == 0 {
+                    return false;
+                }
+            }
+            true
+        })
+    }
+    pub(super) fn group(&mut self, sets: &[Bits], and: bool) -> Bits {
+        if let [v] = sets {
+            return *v;
+        }
+        let range = Self::group_bounds(sets, and);
+        let first = range.start;
+        for i in range {
+            let mut w = if and { u64::MAX } else { 0 };
+            for &s in sets {
+                if and {
+                    w &= self.word(s, i);
+                    if w == 0 {
+                        break;
+                    }
+                } else {
+                    w |= self.word(s, i);
+                }
+            }
+            self.work.push(w);
+        }
+        self.flush(first)
+    }
+}
+
+impl Arena {
+    pub(super) fn identical(&self, a: Option<Bits>, b: Option<Bits>) -> bool {
+        match (a, b) {
+            (None, None) => true,
+            (Some(a), Some(b)) => {
+                a == b || a.first() == b.first() && self.words[a.range()] == self.words[b.range()]
+            }
+            _ => false,
+        }
+    }
+}
+
+#[derive(Default)]
+pub(super) struct Census {
+    values: u64,
+    one_word: u64,
+    singletons: u64,
+    nonzero_words: u64,
+    nodes: u64,
+}
+impl Census {
+    pub(super) fn report(&self) {
+        println!(
+            "materialised masks {} one-word {} singleton {} nonzero words {} selected node occurrences {}",
+            self.values, self.one_word, self.singletons, self.nonzero_words, self.nodes
+        );
     }
 }
