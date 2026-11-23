@@ -223,8 +223,14 @@ impl File<'_> {
             Domain::Except(a, b) => {
                 let (left, right) = (self.nodes(*a), self.nodes(*b));
                 let Some(right) = right else {
-                    self.sets[id] = Some(Some(Rc::default()));
-                    return Some(Rc::default());
+                    // A missing provider answer cannot prove an exclusion.
+                    let out = if matches!(self.p.domains[*b], Domain::Any) {
+                        Some(Rc::default())
+                    } else {
+                        left
+                    };
+                    self.sets[id] = Some(out.clone());
+                    return out;
                 };
                 let mut out = left.map_or_else(
                     || {
@@ -258,7 +264,12 @@ impl File<'_> {
             Domain::Parents(x) | Domain::Children(x) | Domain::Ancestors(x) => {
                 let children = matches!(self.p.domains[id], Domain::Children(_));
                 let ancestors = matches!(self.p.domains[id], Domain::Ancestors(_));
-                self.nodes(*x).map(|b| {
+                let input = if matches!(self.p.domains[*x], Domain::Any) {
+                    Some(bits(0..n))
+                } else {
+                    self.nodes(*x)
+                };
+                input.map(|b| {
                     let mut out = Vec::new();
                     each(&b, |i| {
                         if children {
@@ -289,6 +300,33 @@ impl File<'_> {
                     });
                     Rc::new(out)
                 })
+            }
+            Domain::OtherValues(slot, col, excluded) => {
+                let spec = &self.p.facts[*slot];
+                let table = &mut self.facts[*slot];
+                table.load(spec, n, self.words, self.read);
+                if !table.complete {
+                    None
+                } else {
+                    let key = spec.key.and_then(|k| table.cells.0.get(k));
+                    Some(bits(
+                        table
+                            .cells
+                            .0
+                            .get(*col)
+                            .into_iter()
+                            .flat_map(|c| c.0.iter())
+                            .enumerate()
+                            .filter_map(|(i, cell)| {
+                                let text = languages::facts::text(self.words, *cell).0;
+                                self.p
+                                    .symbols
+                                    .get(text)
+                                    .is_none_or(|id| excluded.binary_search(id).is_err())
+                                    .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
+                            }),
+                    ))
+                }
             }
             Domain::CapturedSuffix(slot, col, delimiter, re) => {
                 let spec = &self.p.facts[*slot];

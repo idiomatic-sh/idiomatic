@@ -452,7 +452,11 @@ fn guards(b: &mut Builder<'_>, plan: &FinishPlan) -> Vec<Id> {
     out
 }
 
-pub(super) fn prepare(b: &mut Builder<'_>, plan: &FinishPlan, live: &[bool]) {
+pub(super) fn prepare<'a>(
+    b: &mut Builder<'_>,
+    plan: &'a FinishPlan,
+    live: &[bool],
+) -> Vec<Option<Exclusion<'a>>> {
     let guards = guards(b, plan);
     // Follow the right side for exact keyed differences. File guards already
     // describe suppression inputs whose rows need richer relational operators.
@@ -594,4 +598,71 @@ pub(super) fn prepare(b: &mut Builder<'_>, plan: &FinishPlan, live: &[bool]) {
             ))
         })
         .collect();
+
+    plan.steps
+        .iter()
+        .map(|s| {
+            let FinishStep::Antijoin(j) = s else {
+                return None;
+            };
+            let right = rows[j.right.0].as_ref()?;
+            if right.guard != EMPTY || j.left_on.len() != j.right_on.len() {
+                return None;
+            }
+            let mut slots = Vec::new();
+            required_facts(&b.out.domains, right.nodes, &mut slots);
+            if !slots.is_empty() {
+                return None;
+            }
+            let mut id = None;
+            let mut keys = Vec::new();
+            for (left, r) in j.left_on.iter().zip(&j.right_on) {
+                let v = right.column(&r.0)?;
+                if v.depth != 0 {
+                    return None;
+                }
+                let attr = match v.field {
+                    "id" => {
+                        id = Some(&*left.0);
+                        Attribute::Id
+                    }
+                    "file" => Attribute::FilePath,
+                    "span" => Attribute::Span,
+                    _ => return None,
+                };
+                keys.push((&*left.0, attr));
+            }
+            Some(Exclusion {
+                id: id?,
+                keys,
+                domain: right.nodes,
+            })
+        })
+        .collect()
+}
+
+pub(super) struct Exclusion<'a> {
+    id: &'a str,
+    keys: Vec<(&'a str, Attribute)>,
+    domain: Id,
+}
+
+impl Exclusion<'_> {
+    pub(super) fn apply(&self, b: &mut Builder<'_>, row: &mut Summary<'_>) {
+        let Some(node) = row.column(self.id) else {
+            return;
+        };
+        if !self.keys.iter().all(|(n, a)| {
+            row.column(n).is_some_and(|c| {
+                c.attr == *a && (c.var == node.var || c.attr == Attribute::FilePath)
+            })
+        }) {
+            return;
+        }
+        let d = b.domain(Domain::Except(row.domains[node.var], self.domain));
+        if d != ANY {
+            row.domains[node.var] = d;
+            b.require(row, d);
+        }
+    }
 }

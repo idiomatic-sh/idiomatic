@@ -951,6 +951,8 @@ mod lower;
 #[path = "first.rs"]
 mod first;
 mod pair_summary;
+mod glob_pattern;
+use glob_pattern::glob_pattern;
 mod pair_skip;
 mod pair_checks;
 mod request;

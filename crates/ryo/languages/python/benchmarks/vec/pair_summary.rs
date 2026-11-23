@@ -27,6 +27,7 @@ pub(super) enum Domain {
     Text(String),
     TextMatching(u16, usize),
     Fact(usize, Option<(usize, Vec<Id>)>),
+    OtherValues(usize, usize, Vec<Id>),
     Matching(usize, usize, usize),
     CapturedSuffix(usize, usize, Vec<u8>, usize),
     Except(Id, Id),
@@ -71,6 +72,7 @@ pub(super) struct Program {
 enum Attribute {
     Id,
     FilePath,
+    Span,
     Kind,
     Field,
     Text,
@@ -165,6 +167,24 @@ impl Builder<'_> {
         self.out.needs.push(n);
         i
     }
+    // Keep repeated constraints once before charging the formula cap. Only
+    // positive, monotone implications are used here. No alternatives expand.
+    fn subset(&self, small: Id, large: Id) -> bool {
+        if small == large || small == EMPTY || large == ANY {
+            return true;
+        }
+        if let Domain::Both(a, b) = self.out.domains[large] {
+            return self.subset(small, a) && self.subset(small, b);
+        }
+        match (&self.out.domains[small], &self.out.domains[large]) {
+            (Domain::Both(a, b), _) => self.subset(*a, large) || self.subset(*b, large),
+            (Domain::Except(a, _), _) => self.subset(*a, large),
+            (Domain::TextMatching(k, _), Domain::Kind(t)) => k == t,
+            (Domain::Children(a), Domain::Children(b))
+            | (Domain::Parents(a), Domain::Parents(b)) => self.subset(*a, *b),
+            _ => false,
+        }
+    }
     fn both(&mut self, a: Id, b: Id) -> Id {
         if a == EMPTY || b == EMPTY {
             return EMPTY;
@@ -175,10 +195,10 @@ impl Builder<'_> {
         if b == ANY {
             return a;
         }
-        if matches!(self.out.domains[a],Domain::Both(x,y) if x==b||y==b) {
+        if self.subset(a, b) {
             return a;
         }
-        if matches!(self.out.domains[b],Domain::Both(x,y) if x==a||y==a) {
+        if self.subset(b, a) {
             return b;
         }
         self.domain(Domain::Both(a.min(b), a.max(b)))
@@ -191,6 +211,12 @@ impl Builder<'_> {
             return b;
         }
         if b == EMPTY {
+            return a;
+        }
+        if self.subset(a, b) {
+            return b;
+        }
+        if self.subset(b, a) {
             return a;
         }
         self.domain(Domain::Either(a.min(b), a.max(b)))
@@ -240,6 +266,7 @@ impl Builder<'_> {
             "syntax-tree" | "semantic-syntax" => {
                 r.var(ANY);
                 r.add("id", 0, Id);
+                r.add("span", 0, Span);
                 r.add("file", 0, FilePath);
                 r.add("kind", 0, Kind);
                 r.add("text", 0, Text);
@@ -256,6 +283,7 @@ impl Builder<'_> {
             "source-location" => {
                 r.var(ANY);
                 r.add("id", 0, Id);
+                r.add("span", 0, Span);
                 r.add("file", 0, FilePath);
             }
             _ => {
@@ -366,6 +394,67 @@ impl Builder<'_> {
                 return Some((c.var, self.domain(Domain::Fact(slot, Some((col, ids))))));
             }
         }
+        // Complements are safe only for total, single-valued native columns.
+        // Complementing a projected provider key would also remove nodes with
+        // another fact row whose column does satisfy the predicate.
+        let mut values = Vec::new();
+        let comparison = match e {
+            Compare(c) if c.comparator == Comparator::NotEqual => match (&*c.left, &*c.right) {
+                (Column(col), Literal(PlanConstant::Text(v)))
+                | (Literal(PlanConstant::Text(v)), Column(col)) => {
+                    values.push(&*v.0);
+                    Some((col, true))
+                }
+                _ => None,
+            },
+            NotIn(p) => match (&*p.left, &*p.right) {
+                (Column(col), List(items)) => {
+                    for item in items {
+                        let Literal(PlanConstant::Text(v)) = item else {
+                            return None;
+                        };
+                        values.push(&*v.0);
+                    }
+                    Some((col, true))
+                }
+                _ => None,
+            },
+            Not(inner) => choices(inner, &mut values).map(|c| (c, true)),
+            In(_) => choices(e, &mut values).map(|c| (c, false)),
+            _ => None,
+        };
+        if let Some((name, negated)) = comparison {
+            let col = lookup(name)?;
+            if negated
+                && let Attribute::Cell(slot, c) = col.attr
+                && self.out.facts[slot].kinds[c] == CellKind::Symbol
+            {
+                let mut ids: Vec<_> = values.iter().map(|v| self.symbol(v)).collect();
+                ids.sort_unstable();
+                ids.dedup();
+                return Some((col.var, self.domain(Domain::OtherValues(slot, c, ids))));
+            }
+            if !matches!(
+                col.attr,
+                Attribute::Kind | Attribute::Field | Attribute::Text
+            ) {
+                return None;
+            }
+            let mut set = EMPTY;
+            for v in values {
+                let d = self.literal(col.attr, v);
+                set = self.either(set, d);
+                if set == ANY {
+                    return None;
+                }
+            }
+            let d = if negated {
+                self.domain(Domain::Except(ANY, set))
+            } else {
+                set
+            };
+            return Some((col.var, d));
+        }
         match e {
             Compare(c) if c.comparator == Comparator::Equal => {
                 let (col, text) = match (&*c.left, &*c.right) {
@@ -375,12 +464,24 @@ impl Builder<'_> {
                 };
                 Some((col.var, self.literal(col.attr, text)))
             }
-            Call(f) if &*f.function.0 == "matches" => {
+            Call(f) if matches!(&*f.function.0, "matches" | "starts_with" | "ends_with") => {
                 let [Column(c), Literal(PlanConstant::Text(p))] = f.arguments.as_slice() else {
                     return None;
                 };
                 let col = lookup(c)?;
-                self.matching(col.attr, &p.0, CellKind::Symbol)
+                let anchored;
+                let pattern = match &*f.function.0 {
+                    "starts_with" => {
+                        anchored = format!(r"\A{}", regex::escape(&p.0));
+                        anchored.as_str()
+                    }
+                    "ends_with" => {
+                        anchored = format!(r"{}\z", regex::escape(&p.0));
+                        anchored.as_str()
+                    }
+                    _ => &p.0,
+                };
+                self.matching(col.attr, pattern, CellKind::Symbol)
                     .map(|d| (col.var, d))
             }
             Or(p) | And(p) => {
@@ -411,12 +512,19 @@ impl Builder<'_> {
     ) -> Id {
         use PlanExpression::*;
         if let Call(f) = e
-            && &*f.function.0 == "matches"
+            && matches!(&*f.function.0, "matches" | "glob_any")
             && let [Column(c), Literal(PlanConstant::Text(pattern))] = f.arguments.as_slice()
             && lookup(c).is_some_and(|col| col.attr == Attribute::FilePath)
         {
+            let glob;
+            let pattern = if &*f.function.0 == "glob_any" {
+                glob = super::glob_pattern(&pattern.0);
+                &glob
+            } else {
+                &*pattern.0
+            };
             return self
-                .regex(&pattern.0)
+                .regex(pattern)
                 .map_or(ANY, |re| self.need(Need::PathMatches(re)));
         }
         match e {
@@ -772,10 +880,23 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
             }
         }
     }
+    // Assign slots once, also for facts used only on an excluded side.
+    for s in &plan.steps {
+        if let FinishStep::Base(name) = s
+            && (language.facts.iter().any(|r| r == &*name.0)
+                || language.file_sets.iter().any(|r| r == &*name.0))
+        {
+            b.base(&name.0);
+        }
+    }
+    let exclusions = exact::prepare(&mut b, plan, &live);
+    if std::env::var_os("VEC_NO_EXACT").is_some() {
+        b.out.exact.clear();
+    }
     let mut rows = Vec::with_capacity(plan.steps.len());
     let mut skips = Vec::with_capacity(plan.steps.len());
     for (i, s) in plan.steps.iter().enumerate() {
-        let (row, skip) = if live[i] {
+        let (mut row, skip) = if live[i] {
             (
                 b.step(s, &rows, &plan.steps),
                 super::pair_skip::Skip::step(s, &skips, language),
@@ -783,6 +904,11 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         } else {
             (Summary::default(), super::pair_skip::Skip::default())
         };
+        if live[i]
+            && let Some(exclusion) = &exclusions[i]
+        {
+            exclusion.apply(&mut b, &mut row);
+        }
         rows.push(row);
         skips.push(skip);
     }
@@ -794,9 +920,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         b.out.roots.push((r.rule.0.to_string(), need));
         b.out.skips.push(skip);
     }
-    if std::env::var_os("VEC_NO_EXACT").is_none() {
-        exact::prepare(&mut b, plan, &live);
-    }
+
     // The separate raw-word index has no proof that every provider value has
     // a raw spelling (for example, a normalized or resolved identifier).
     // Certify the whole first half only when that independent skip is vacuous.
