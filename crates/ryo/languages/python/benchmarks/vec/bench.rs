@@ -932,25 +932,25 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     }
 }
 
-#[path = "alloc_count.rs"]
+#[path = "../../../../crates/engine/benches/vec/alloc_count.rs"]
 mod alloc_count;
-#[path = "funnel.rs"]
+#[path = "../../../../crates/engine/benches/vec/funnel.rs"]
 mod funnel;
-#[path = "file_seeds.rs"]
+#[path = "../../../../crates/engine/benches/vec/file_seeds.rs"]
 mod file_seeds;
-#[path = "facts.rs"]
+#[path = "../../../../crates/engine/benches/vec/facts.rs"]
 mod facts;
-#[path = "survivors.rs"]
+#[path = "../../../../crates/engine/benches/vec/survivors.rs"]
 mod survivors;
-#[path = "finish.rs"]
+#[path = "../../../../crates/engine/benches/vec/finish.rs"]
 mod finish;
-#[path = "lower.rs"]
+#[path = "../../../../crates/engine/benches/vec/lower.rs"]
 mod lower;
-#[path = "first.rs"]
+#[path = "../../../../crates/engine/benches/vec/first.rs"]
 mod first;
-#[path = "finisher.rs"]
+#[path = "../../../../crates/engine/benches/vec/finisher.rs"]
 mod finisher;
-#[path = "dump.rs"]
+#[path = "../../../../crates/engine/benches/vec/dump.rs"]
 mod dump;
 #[path = "type_expression.rs"]
 mod type_expression;
@@ -2786,5 +2786,5 @@ mod kernels {
 }
 
 #[cfg(feature = "vec-arrow")]
-#[path = "kernels.rs"]
+#[path = "../../../../crates/engine/benches/vec/kernels.rs"]
 mod kernels;
