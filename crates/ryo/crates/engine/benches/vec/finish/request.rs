@@ -282,7 +282,8 @@ fn select_columns(e: &E, source: usize, columns: &mut Columns) {
 impl Exec<'_> {
     /// Fix one slot for each catalog relation in this plan before the first file.
     /// A base and a view of that base address the same read-only answer.
-    pub(crate) fn prepare_slots(&mut self, run: &mut Run, emits: &[usize]) {
+    pub(crate) fn prepare_slots(&mut self, run: &mut Run, emits: &[usize], drivers: &[(usize, usize)]) {
+        self.requests.guards.register_drivers(drivers);
         self.requests.base_slots.resize(self.plan.nodes.len(), None);
         for (i, node) in self.plan.nodes.iter().enumerate() {
             if node.op != "base" { continue; }

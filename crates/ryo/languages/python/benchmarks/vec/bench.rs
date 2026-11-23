@@ -1679,6 +1679,7 @@ fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let list = files(args[1]);
     let reader_needs = fact_catalog::walk_needs(Some(&plan), &[]);
     let mut fin = visit::Finisher::new(&plan, walk, vocab, args);
+    fin.prepare_requests(vocab, &[]);
     let seed: Option<std::collections::HashSet<(String, String)>> =
         flag(args, "--seed").map(|p| std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect());
     let mut seed_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
@@ -1796,6 +1797,11 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         println!("start-up first half: from the files: load {:.4} s; rules {} node {} plans {}", thread_cpu() - f0, frules.len(), frules.iter().filter(|r| r.node).count(), frules.iter().map(|r| r.plans.len()).sum::<usize>());
         (rules, frules, words)
     };
+    if let Some(fin) = fin.as_deref_mut() {
+        let drivers = pairs.as_ref().filter(|_| !no_skip).map_or(&[][..], |program| program.drivers.as_slice());
+        fin.prepare_requests(vocab, drivers);
+    }
+
     let use_facts = args.contains(&"--facts");
     let reader_needs = fact_catalog::walk_needs(fin.as_deref().map(|f| f.plan()), &fact_catalog.relations);
     let slots_n = fact_catalog.relations.len();

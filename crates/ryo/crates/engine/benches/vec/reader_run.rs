@@ -234,6 +234,7 @@ pub(super) fn run(
             request,
         ],
     );
+    fin.prepare_requests(&[]);
     let startup = thread_cpu() - start;
     println!("startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}", read.read, read.parse, summaries_cpu);
     let mut memory = Memory {

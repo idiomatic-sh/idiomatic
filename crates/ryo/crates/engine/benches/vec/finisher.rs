@@ -102,10 +102,17 @@ impl<'p> Finisher<'p> {
             check_out: flag(args, "--check-out"),
             alloc: [0; 2],
         };
-        me.exec.prepare_slots(&mut me.run, &me.emits);
-        me.exec.col_load(&mut me.run);
         me.time += thread_cpu() - t0;
         me
+    }
+
+    /// Prepare the shared file decision once the prefix declares which driving
+    /// steps have the same necessary predicate. No provider rows are needed.
+    pub(super) fn prepare_requests(&mut self, drivers: &[(usize, usize)]) {
+        let start = thread_cpu();
+        self.exec.prepare_slots(&mut self.run, &self.emits, drivers);
+        self.exec.col_load(&mut self.run);
+        self.time += thread_cpu() - start;
     }
 
     /// The emits to run on the file at `path`: a seed rule where it has survivors by node; any other where `seeded` says

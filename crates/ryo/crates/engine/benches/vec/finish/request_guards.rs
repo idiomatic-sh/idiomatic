@@ -27,6 +27,8 @@ pub(super) struct Guards {
     columns: FxHashMap<u16, Vec<(usize, u32)>>,
     absent: Vec<bool>,
     empty_drivers: Vec<bool>,
+    // Build-time map from driving steps to one step carrying the same prefix proof.
+    driver_representatives: FxHashMap<usize, usize>,
     // Reused symbol membership marks for an already written prefix column.
     marks: Vec<u32>,
     generation: u32,
@@ -44,7 +46,7 @@ impl Default for Guards {
             by_node: vec![],
             live: vec![],
             late: vec![],
-            columns: Default::default(), absent: vec![], empty_drivers: vec![], marks: vec![], generation: 0,
+            columns: Default::default(), absent: vec![], empty_drivers: vec![], driver_representatives: Default::default(), marks: vec![], generation: 0,
             by_test: FxHashMap::default(),
             tests: vec![Test::Constant(true), Test::Constant(false)],
             circuit: Default::default(), spellings: None, indexed_columns: 0, indexed_absences: 0,
@@ -70,7 +72,20 @@ impl Guards {
 
     pub(super) fn emit(&mut self, index: usize) -> u32 { self.intern(Test::Emit(index)) }
 
-    pub(super) fn driver(&mut self, node: usize) -> u32 { self.intern(Test::Driver(node)) }
+    pub(super) fn register_drivers(&mut self, drivers: &[(usize, usize)]) {
+        let mut representative = FxHashMap::default();
+        for &(step, predicate) in drivers {
+            let first = *representative.entry(predicate).or_insert(step);
+            self.driver_representatives.insert(step, first);
+        }
+    }
+
+    pub(super) fn driver(&mut self, node: usize) -> u32 {
+        match self.driver_representatives.get(&node).copied() {
+            Some(representative) => self.intern(Test::Driver(representative)),
+            None => ALWAYS,
+        }
+    }
 
     pub(super) fn clear_evidence(&mut self) {
         self.absent.fill(false);
@@ -122,6 +137,7 @@ impl Guards {
         self.tests.shrink_to_fit();
         self.circuit = compiled.circuit;
         self.by_test = FxHashMap::default();
+        self.driver_representatives = FxHashMap::default();
         literal
     }
 

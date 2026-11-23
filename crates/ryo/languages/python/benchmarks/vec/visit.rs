@@ -91,10 +91,16 @@ impl<'p> Finisher<'p> {
                 &|n| vocab.kinds.get(n).copied(),
             ),
         };
-        let language = super::python_language(vocab);
-        me.inner.exec.prepare_spellings(&me.inner.run, &language.spelled, language.is_identifier);
         me.time = thread_cpu() - t0;
         me
+    }
+
+    pub(super) fn prepare_requests(&mut self, vocab: &Vocab, drivers: &[(usize, usize)]) {
+        self.inner.prepare_requests(drivers);
+        let start = thread_cpu();
+        let language = super::python_language(vocab);
+        self.inner.exec.prepare_spellings(&self.inner.run, &language.spelled, language.is_identifier);
+        self.inner.time += thread_cpu() - start;
     }
     pub(super) fn end(self, walk_time: f64) {
         self.inner.end(walk_time, |locations| locations.dedup());
