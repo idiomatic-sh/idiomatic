@@ -13,6 +13,15 @@ use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::query_tokens::types::QuerySpelling;
 
+/// Whether a `where` negates a condition (`not ...`), however deep in an `or`: this compile has no negated test.
+fn negates(conditions: &[ryo_values::domain::query_syntax::types::Condition]) -> bool {
+    conditions.iter().any(|condition| match condition {
+        ryo_values::domain::query_syntax::types::Condition::Test(_) => false,
+        ryo_values::domain::query_syntax::types::Condition::Any(choices) => choices.iter().any(|choice| negates(choice)),
+        ryo_values::domain::query_syntax::types::Condition::Not(_) => true,
+    })
+}
+
 /// The alternatives of a `where`, each the tests that all hold for it: one when there is no `or`, and an `or` inside an
 /// alternative multiplies it into one alternative for each of its own.
 fn alternatives_of(
@@ -40,6 +49,8 @@ fn alternatives_of(
                 }
                 alternatives = multiplied;
             }
+            // refused before (`negates`)
+            ryo_values::domain::query_syntax::types::Condition::Not(_) => {}
         }
     }
     alternatives
@@ -246,6 +257,9 @@ fn comparisons_of(
     conditions: &[ryo_values::domain::query_syntax::types::Condition],
     columns: Addressable<'_>,
 ) -> Result<Vec<Vec<parts::PlanComparison>>, LoweringError> {
+    if negates(conditions) {
+        return Err(LoweringError::NegatedCondition { span: builder.span });
+    }
     let mut alternatives = Vec::new();
     for tests in alternatives_of(conditions) {
         let mut comparisons = Vec::new();

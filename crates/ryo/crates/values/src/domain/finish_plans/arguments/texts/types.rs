@@ -99,6 +99,7 @@ pub struct ReplaceArguments {
 ///     pattern: LiteralText("#".into()), output: ColumnName("match".into()), line_output: OptionalColumn::Unwritten,
 ///     capture: OptionalColumn::Unwritten, capture_output: OptionalColumn::Unwritten,
 ///     capture_text_output: OptionalColumn::Unwritten, capture_line_output: OptionalColumn::Unwritten,
+///     capture_texts: Vec::new(),
 /// };
 /// assert_eq!(matches.capture, OptionalColumn::Unwritten);
 /// ```
@@ -124,6 +125,8 @@ pub struct SourceMatchesArguments {
     pub capture_text_output: OptionalColumn,
     /// The column the capture's line is written to.
     pub capture_line_output: OptionalColumn,
+    /// Capture groups read by name, each with the column its text is written to, in the order written.
+    pub capture_texts: Vec<(ColumnName, ColumnName)>,
 }
 
 /// A name an operator may be given or not: a column, or a capture group.
@@ -156,6 +159,7 @@ pub enum OptionalColumn {
 ///
 /// let capture = CaptureArguments {
 ///     from: StepNumber(0), path: ColumnName("path".into()), pattern: LiteralText("{name}".into()), captures: Vec::new(),
+///     separator: None,
 /// };
 /// assert!(capture.captures.is_empty());
 /// ```
@@ -169,6 +173,8 @@ pub struct CaptureArguments {
     pub pattern: LiteralText,
     /// The captures kept as columns.
     pub captures: Vec<ColumnName>,
+    /// The path separator the pattern's segments are split at, when the query gives one.
+    pub separator: Option<LiteralText>,
 }
 
 /// `fits-rendered`: the rows whose texts, rendered with literals between them, fit on one line.

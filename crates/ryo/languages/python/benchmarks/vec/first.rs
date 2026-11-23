@@ -146,6 +146,8 @@ fn alias_of(a: &Alias) -> Option<String> {
 fn cond(c: &Condition) -> Cond {
     match c {
         Condition::Any(branches) => Cond::Or(branches.iter().map(|b| b.iter().map(cond).collect()).collect()),
+        // a negation is not read (dropped: a superset)
+        Condition::Not(_) => Cond::Other(Vec::new()),
         Condition::Test(f) => {
             let (l, r) = (opd(&f.left), opd(&f.right));
             let cmp = match f.test {
@@ -888,6 +890,7 @@ impl<'p> Analyzer<'p> {
                                     lit(&mut w, &c.column.0);
                                 }
                                 SelectedValue::Applied(_) => w.push('a'),
+                                SelectedValue::Constant(_) => w.push('k'),
                             }
                             match &c.rename {
                                 Renaming::Renamed(n) => {
@@ -992,7 +995,7 @@ impl<'p> Analyzer<'p> {
                     .map(|c| {
                         let r = match &c.column {
                             SelectedValue::Column(c) => Some((alias_of(&c.alias), c.column.0.to_string())),
-                            SelectedValue::Applied(_) => None,
+                            SelectedValue::Applied(_) | SelectedValue::Constant(_) => None,
                         };
                         let name = match &c.rename {
                             Renaming::Renamed(n) => n.0.to_string(),
@@ -1226,6 +1229,10 @@ fn shape_cond(w: &mut String, c: &Condition) {
             let _ = write!(w, "T{:?}", f.test);
             shape_operand(w, &f.left);
             shape_operand(w, &f.right);
+        }
+        Condition::Not(cs) => {
+            let _ = write!(w, "N{}", cs.len());
+            cs.iter().for_each(|x| shape_cond(w, x));
         }
         Condition::Any(bs) => {
             let _ = write!(w, "O{}", bs.len());

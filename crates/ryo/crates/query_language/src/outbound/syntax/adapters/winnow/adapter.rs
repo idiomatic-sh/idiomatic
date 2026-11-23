@@ -621,6 +621,7 @@ pub(super) fn select(input: &mut Input<'_>) -> ModalResult<Select> {
 pub(super) fn select_column(input: &mut Input<'_>) -> ModalResult<SelectColumn> {
     let column = alt((
         function.map(SelectedValue::Applied),
+        number.map(|value| SelectedValue::Constant(WrittenOperand::Number(value))),
         column_reference.map(SelectedValue::Column),
     ))
     .parse_next(input)?;
@@ -719,9 +720,10 @@ pub(super) fn conjunction(input: &mut Input<'_>) -> ModalResult<Vec<Condition>> 
     Ok(factors.into_iter().flatten().collect())
 }
 
-/// `(a or b)`, a condition in parentheses, a membership in a written list, or one filter.
+/// `not` a factor, `(a or b)`, a condition in parentheses, a membership in a written list, or one filter.
 pub(super) fn factor(input: &mut Input<'_>) -> ModalResult<Vec<Condition>> {
     alt((
+        preceded((keyword(Keyword::Not), multispace1), factor).map(|negated| vec![Condition::Not(negated)]),
         delimited(('(', multispace0), condition, (multispace0, ')')).map(conditions_of),
         written_membership,
         filter.map(|test| vec![Condition::Test(test)]),

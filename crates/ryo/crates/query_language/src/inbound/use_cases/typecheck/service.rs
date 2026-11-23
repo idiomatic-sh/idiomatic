@@ -71,6 +71,7 @@ pub(super) fn unresolved(error: LoweringError) -> TypecheckError {
         | LoweringError::InvalidRegex { span, .. }
         | LoweringError::UnknownColumn { span, .. }
         | LoweringError::ComputedColumn { span }
+        | LoweringError::NegatedCondition { span }
         | LoweringError::UnknownSide { span, .. }
         | LoweringError::UnknownSideColumn { span, .. }
         | LoweringError::UnknownParameterType { span, .. }

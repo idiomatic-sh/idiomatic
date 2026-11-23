@@ -122,6 +122,8 @@ pub const ARG_CAPTURE: &str = "capture";
 pub const ARG_CAPTURE_OUTPUT: &str = "capture-output";
 /// `capture-text-output`.
 pub const ARG_CAPTURE_TEXT_OUTPUT: &str = "capture-text-output";
+/// `capture-texts`.
+pub const ARG_CAPTURE_TEXTS: &str = "capture-texts";
 /// `capture-line-output`.
 pub const ARG_CAPTURE_LINE_OUTPUT: &str = "capture-line-output";
 /// `path`.
@@ -150,6 +152,12 @@ pub const ARG_LEAVES: &str = "leaves";
 pub const ARG_LABEL: &str = "label";
 /// `leaf-label`.
 pub const ARG_LEAF_LABEL: &str = "leaf-label";
+/// `id`.
+pub const ARG_ID: &str = "id";
+/// `parent`.
+pub const ARG_PARENT: &str = "parent";
+/// `child`.
+pub const ARG_CHILD: &str = "child";
 /// `step`.
 pub const ARG_STEP: &str = "step";
 

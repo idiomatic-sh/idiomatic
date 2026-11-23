@@ -158,6 +158,7 @@ fn check_conditions(
                     check_conditions(alternative, parameters)?;
                 }
             }
+            Condition::Not(negated) => check_conditions(negated, parameters)?,
         }
     }
     Ok(())

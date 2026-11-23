@@ -4,7 +4,8 @@
 use super::super::fields::schemas::{
     all_rows, bound_in, bound_out, column_in, column_out, columns_in, columns_out, direction_in,
     direction_out, distinct_in, distinct_out, every_row, keys_in, keys_out, no_keys, output_in,
-    output_out, rows_in, rows_out, step_in, step_out, unkeyed, values_in, values_out,
+    output_out, rows_in, rows_out, step_in, step_out, unkeyed, values_in, values_out, no_column, optional_in, optional_out,
+    unwritten,
 };
 use ryo_values::domain::finish_plans::arguments::groups::types::{
     CountedRows, GroupCountArguments, GroupOrderArguments, GroupOrdinalArguments,
@@ -209,6 +210,15 @@ pub(in crate::outbound::plan_codec::adapters::json) struct SubtreeClassSchema {
     /// `output`.
     #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
     output: ColumnName,
+    /// `id`.
+    #[serde(serialize_with = "optional_out", deserialize_with = "optional_in", skip_serializing_if = "unwritten", default = "no_column")]
+    id: ryo_values::domain::finish_plans::arguments::texts::types::OptionalColumn,
+    /// `parent`.
+    #[serde(serialize_with = "optional_out", deserialize_with = "optional_in", skip_serializing_if = "unwritten", default = "no_column")]
+    parent: ryo_values::domain::finish_plans::arguments::texts::types::OptionalColumn,
+    /// `child`.
+    #[serde(serialize_with = "optional_out", deserialize_with = "optional_in", skip_serializing_if = "unwritten", default = "no_column")]
+    child: ryo_values::domain::finish_plans::arguments::texts::types::OptionalColumn,
 }
 
 /// `GroupCountArguments` as JSON.
