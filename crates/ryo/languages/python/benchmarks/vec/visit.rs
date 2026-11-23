@@ -77,7 +77,7 @@ impl<'p> Finisher<'p> {
     }
     pub(super) fn worker_roots(&self) -> Option<Vec<String>> { self.project.worker_roots() }
 
-    pub(super) fn worker(settings: &finisher::worker::Settings<'p>, words: languages::FileWords, vocab: &Vocab, roots: Option<Vec<String>>) -> Self {
+    pub(super) fn worker(settings: &'p finisher::worker::Settings<'p>, words: languages::FileWords, vocab: &Vocab, roots: Option<Vec<String>>) -> Self {
         let kind = |name: &str| vocab.kinds.get(name).copied();
         let inner = settings.open(Some(std::rc::Rc::new(super::provider_tokens::Lexicon::new(&kind))));
         let project = super::provider_packaging::Project::new(&inner.run.root_dir, roots, &kind);

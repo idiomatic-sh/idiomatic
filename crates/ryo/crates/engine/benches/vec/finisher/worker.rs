@@ -82,7 +82,7 @@ impl<'p> Finisher<'p> {
 }
 
 impl<'p> Settings<'p> {
-    pub(crate) fn open(&self, tokens: Option<std::rc::Rc<dyn finish::TokenOrder>>) -> Finisher<'p> {
+    pub(crate) fn open(&self, tokens: Option<std::rc::Rc<dyn finish::TokenOrder>>) -> Finisher<'_> {
         let start = super::thread_cpu();
         let mut run = finish::Run::default();
         run.shared_projects = Some(self.project.clone());
@@ -135,7 +135,7 @@ impl<'p> Settings<'p> {
             check_out: None,
             alloc: [0; 2],
         };
-        worker.exec.worker_shapes = Some(finish::worker_schemas::Local::new(self.shapes.clone()));
+        self.shapes.attach(&mut worker.exec);
         worker.exec.use_constants(self.constants.clone());
         worker.exec.shared_static = Some(self.static_tests.clone());
         worker.exec.cold_test_load(&mut worker.run);
