@@ -317,7 +317,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             ),
             Domain::SpanMatching(k, re) | Domain::TextMatching(k, re) => {
                 let decoded = matches!(self.p.domains[id], Domain::TextMatching(..));
-                let regex = self.searches.get(self.p, *re);
+                let matches = |text: &[u8]| self.searches.accepts(self.p, *re, text);
                 Some(
                     self.arena.bits(
                         node_table::ids_of_kind(self.t, languages::KindBits(*k))
@@ -334,7 +334,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                 };
                                 self.byte_tests
                                     .entry((*re, text))
-                                    .or_insert_with(|| regex.is_none_or(|r| r.is_match(text)))
+                                    .or_insert_with(|| matches(text))
                                     .then_some(pos.0)
                             }),
                     ),
@@ -636,7 +636,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     None
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
-                    let regex = self.searches.get(self.p, *re);
+                    let matches = |text: &[u8]| self.searches.accepts(self.p, *re, text);
                     Some(
                         self.arena.bits(
                             table
@@ -653,7 +653,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                         .enumerate()
                                         .any(|(p, w)| {
                                             w == delimiter
-                                                && regex.is_none_or(|r| r.is_match(&text[p + delimiter.len()..]))
+                                                && matches(&text[p + delimiter.len()..])
                                         })
                                         .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
                                 }),
