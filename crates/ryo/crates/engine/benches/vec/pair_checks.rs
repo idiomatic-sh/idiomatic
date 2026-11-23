@@ -1,4 +1,5 @@
 //! Evaluate each requested witness once per file. Unknown or partial provider answers admit the file.
+use super::pair_summary::cost::{self, Sample};
 use super::pair_summary::{Domain, Id, Need, Program, Source};
 use rustc_hash::FxHashMap as Map;
 use ryo::languages::{self, FileWords, FilledColumns, NodeTable, Position, node_table};
@@ -20,7 +21,10 @@ struct Table {
     cells: FilledColumns,
     index: Map<usize, Map<Id, Vec<u32>>>,
 }
-struct File<'a> {
+struct File<'a, const PROFILE: bool> {
+    stats: [Sample; 13],
+    charged: f64,
+    overhead: f64,
     p: &'a Program,
     t: &'a NodeTable,
     src: &'a [u8],
@@ -92,7 +96,7 @@ impl Table {
     }
 }
 
-impl File<'_> {
+impl<const PROFILE: bool> File<'_, PROFILE> {
     fn complete(&mut self, slots: &[usize]) -> bool {
         let n = node_table::element_count(self.t).0 as u32;
         slots.iter().all(|&slot| {
@@ -102,9 +106,32 @@ impl File<'_> {
         })
     }
     fn pass(&mut self, id: Id) -> bool {
-        if let Some(x) = self.needs[id] {
-            return x;
+        let class = if PROFILE {
+            cost::file_family(self.p, id) as usize
+        } else {
+            0
+        };
+        if PROFILE {
+            self.stats[class].calls += 1;
         }
+        if let Some(result) = &self.needs[id] {
+            if PROFILE {
+                self.stats[class].hits += 1;
+            }
+            return *result;
+        }
+        if !PROFILE {
+            return self.pass_miss(id);
+        }
+        let prior = self.charged;
+        let start = super::thread_cpu();
+        let out = self.pass_miss(id);
+        let elapsed = super::thread_cpu() - start;
+        self.stats[class].ns += (elapsed - (self.charged - prior) - self.overhead) * 1e9;
+        self.charged = prior + elapsed + self.overhead;
+        out
+    }
+    fn pass_miss(&mut self, id: Id) -> bool {
         self.steps += 1;
         let yes = match self.p.needs[id] {
             Need::Any => true,
@@ -113,6 +140,13 @@ impl File<'_> {
             Need::PathMatches(re) => self
                 .path
                 .is_none_or(|path| self.p.regexes[re].is_match(path)),
+            Need::Terms(all, ref terms) => {
+                if all {
+                    terms.iter().all(|i| self.pass(*i))
+                } else {
+                    terms.iter().any(|i| self.pass(*i))
+                }
+            }
             Need::Both(a, b) => self.pass(a) && self.pass(b),
             Need::Either(a, b) => self.pass(a) || self.pass(b),
             Need::Some(x) => match &self.p.domains[x] {
@@ -162,9 +196,32 @@ impl File<'_> {
         yes
     }
     fn nodes(&mut self, id: Id) -> Nodes {
-        if let Some(s) = &self.sets[id] {
-            return s.clone();
+        let class = if PROFILE {
+            cost::family(&self.p.domains[id], &self.p.facts) as usize
+        } else {
+            0
+        };
+        if PROFILE {
+            self.stats[class].calls += 1;
         }
+        if let Some(result) = &self.sets[id] {
+            if PROFILE {
+                self.stats[class].hits += 1;
+            }
+            return result.clone();
+        }
+        if !PROFILE {
+            return self.nodes_miss(id);
+        }
+        let prior = self.charged;
+        let start = super::thread_cpu();
+        let out = self.nodes_miss(id);
+        let elapsed = super::thread_cpu() - start;
+        self.stats[class].ns += (elapsed - (self.charged - prior) - self.overhead) * 1e9;
+        self.charged = prior + elapsed + self.overhead;
+        out
+    }
+    fn nodes_miss(&mut self, id: Id) -> Nodes {
         self.steps += 1;
         let n =
             u32::try_from(node_table::element_count(self.t).0).expect("table positions fit u32");
@@ -530,7 +587,43 @@ impl File<'_> {
                     ))
                 }
             }
-            Domain::Matching(slot, col, re) => {
+            Domain::Member(slot, col, project, field) => {
+                let (slot, col, project, field) = (*slot, *col, *project, *field);
+                let available = &mut self.facts[project];
+                available.load(&self.p.facts[project], n, self.words, self.read);
+                if !available.complete {
+                    None
+                } else if available.cells.0.first().is_none_or(|c| c.0.is_empty()) {
+                    Some(Rc::default())
+                } else {
+                    let allowed: Vec<_> = available.cells.0[field]
+                        .0
+                        .iter()
+                        .filter(|v| v.0 != super::finish::NULL)
+                        .map(|v| v.0)
+                        .collect();
+                    let t = &mut self.facts[slot];
+                    let spec = &self.p.facts[slot];
+                    t.load(spec, n, self.words, self.read);
+                    if !t.complete {
+                        None
+                    } else {
+                        let key = spec.key.and_then(|k| t.cells.0.get(k));
+                        Some(bits(
+                            t.cells
+                                .0
+                                .get(col)
+                                .into_iter()
+                                .flat_map(|c| &c.0)
+                                .enumerate()
+                                .filter(|(_, c)| allowed.contains(&c.0))
+                                .map(|(i, _)| key.map_or(0, |k| k.0[i].0 as u32)),
+                        ))
+                    }
+                }
+            }
+            Domain::Matching(slot, col, re) | Domain::Unmatched(slot, col, re) => {
+                let negative = matches!(self.p.domains[id], Domain::Unmatched(..));
                 let spec = &self.p.facts[*slot];
                 let table = &mut self.facts[*slot];
                 table.load(spec, n, self.words, self.read);
@@ -556,7 +649,8 @@ impl File<'_> {
                                         languages::facts::text(self.words, *cell).0.as_bytes(),
                                     )
                                 };
-                                yes.then(|| key.map_or(0, |c| c.0[r].0 as u32))
+                                ((yes != negative) || (negative && cell.0 == super::finish::NULL))
+                                    .then(|| key.map_or(0, |c| c.0[r].0 as u32))
                                     .filter(|x| spec.key.is_none() || *x < n)
                             }),
                     ))
@@ -609,12 +703,31 @@ impl Program {
         src: &[u8],
         path: Option<&[u8]>,
         words: &mut FileWords,
+        read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
+        alive: &mut [bool],
+        exact: Option<&mut Vec<(usize, Bits)>>,
+    ) -> u64 {
+        if self.meter.is_some() {
+            self.evaluate::<true>(t, src, path, words, read, alive, exact)
+        } else {
+            self.evaluate::<false>(t, src, path, words, read, alive, exact)
+        }
+    }
+    fn evaluate<const PROFILE: bool>(
+        &self,
+        t: &NodeTable,
+        src: &[u8],
+        path: Option<&[u8]>,
+        words: &mut FileWords,
         mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
         mut exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
         languages::facts::clear_words(words);
-        let mut f = File {
+        let mut f = File::<PROFILE> {
+            charged: 0.,
+            stats: Default::default(),
+            overhead: self.meter.as_ref().map_or(0., |m| m.overhead),
             p: self,
             t,
             src,
@@ -641,6 +754,17 @@ impl Program {
                         .expect("certified domains contain only total node tests");
                     out.push((rule, nodes));
                 }
+            }
+        }
+        if PROFILE {
+            let meter = self.meter.as_ref().unwrap();
+            for (a, b) in meter.rows.borrow_mut().iter_mut().zip(f.stats) {
+                a.calls += b.calls;
+                a.hits += b.hits;
+                a.ns += b.ns;
+            }
+            for (n, t) in meter.loads.borrow_mut().iter_mut().zip(&f.facts) {
+                *n += u64::from(t.read);
             }
         }
         f.steps

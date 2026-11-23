@@ -11,8 +11,14 @@ use ryo_values::domain::plan_parts::types::Direction;
 
 #[path = "pair_compact.rs"]
 mod compact;
+#[path = "pair_cost.rs"]
+pub(super) mod cost;
 #[path = "pair_exact.rs"]
 mod exact;
+#[path = "pair_groups.rs"]
+mod groups;
+#[path = "pair_project.rs"]
+mod project;
 
 pub(super) type Id = usize;
 const ANY: Id = 0;
@@ -37,6 +43,8 @@ pub(super) enum Domain {
     Number(usize, usize, Comparator, i64),
     RelatedIds(usize, usize, Option<(usize, Vec<Id>)>),
     Matching(usize, usize, usize),
+    Unmatched(usize, usize, usize),
+    Member(usize, usize, usize, usize),
     CapturedSuffix(usize, usize, Vec<u8>, usize),
     When(Id, Id), // file prerequisite, admitted nodes
     Except(Id, Id),
@@ -50,6 +58,7 @@ pub(super) enum Domain {
 }
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub(super) enum Need {
+    Terms(bool, Box<[Id]>),
     Any,
     PathMatches(usize),
     SourceContains(usize),
@@ -72,6 +81,7 @@ pub(super) enum Source {
 }
 
 pub(super) struct Fact {
+    pub family: cost::Family,
     pub source: Source,
     pub name: &'static str,
     pub key: Option<usize>,
@@ -81,6 +91,7 @@ pub(super) struct Fact {
 }
 
 pub(super) struct Program {
+    pub meter: Option<cost::Meter>,
     pub domains: Vec<Domain>,
     pub needs: Vec<Need>,
     pub exact: Vec<(usize, exact::Certificate)>,
@@ -104,6 +115,7 @@ enum Attribute {
     Field,
     Text,
     Cell(usize, usize),
+    ProjectChoices(usize, u64),
     Count(usize),
 }
 #[derive(Clone, Copy)]
@@ -447,6 +459,7 @@ impl Builder<'_> {
                             };
                         let key = kinds.iter().position(|k| *k == CellKind::Node);
                         self.out.facts.push(Fact {
+                            family: (self.language.fact_family)(name),
                             name,
                             source,
                             key,
@@ -510,6 +523,14 @@ impl Builder<'_> {
     }
 
     fn matching(&mut self, attr: Attribute, pattern: &str, kind: CellKind) -> Option<Id> {
+        if let Attribute::ProjectChoices(slot, cols) = attr {
+            let mut domain = EMPTY;
+            for col in project::columns(cols) {
+                let next = self.matching(Attribute::Cell(slot, col), pattern, kind)?;
+                domain = self.either(domain, next);
+            }
+            return Some(domain);
+        }
         let Attribute::Cell(slot, col) = attr else {
             return None;
         };
@@ -885,6 +906,14 @@ impl Builder<'_> {
                 }
             }
         }
+        for term in &conjuncts {
+            if let Some((var, d)) = self.project_membership(term, &lookup) {
+                let v = map[var];
+                changed[v] = true;
+                out.domains[v] = self.both(out.domains[v], d);
+                self.require(&mut out, d);
+            }
+        }
         let correlated = match s.sources.as_slice() {
             [src] => rows[src.step.0]
                 .native_row
@@ -1082,14 +1111,14 @@ impl Builder<'_> {
                 let mut vars = Map::default();
                 for (n, a) in &l.columns {
                     if let Some(b) = r.column(n)
-                        && a.attr == b.attr
+                        && let Some(origin) = project::common(a.attr, b.attr, &self.out.facts)
                     {
                         let var = *vars.entry((a.var, b.var)).or_insert_with(|| {
                             let left = self.in_branch(l.need, l.domains[a.var]);
                             let right = self.in_branch(r.need, r.domains[b.var]);
                             out.var(self.either(left, right))
                         });
-                        out.add(n, var, a.attr);
+                        out.add(n, var, origin);
                     }
                 }
                 // Parent is functional. One common lineage per projected
@@ -1107,7 +1136,12 @@ impl Builder<'_> {
                 out.edges.sort_unstable();
                 out.edges.dedup();
             }
-            Antijoin(j) => return rows[j.left.0].clone(),
+            Antijoin(j) => {
+                out = rows[j.left.0].clone();
+                if let Some(need) = self.rejected_filter(j, steps, &out) {
+                    out.need = self.and(out.need, need);
+                }
+            }
             GroupMin(g) | GroupMax(g) => return rows[g.from.0].clone(),
             Project(p) => {
                 out = rows[p.from.0].clone();
@@ -1353,6 +1387,15 @@ pub(super) fn terms<'a>(e: &'a PlanExpression, out: &mut Vec<&'a PlanExpression>
 }
 
 pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> Program {
+    let clock = std::env::var_os("VEC_PAY_PREP").is_some();
+    let mut t = super::thread_cpu();
+    let mut phase = |name| {
+        if clock {
+            let now = super::thread_cpu();
+            println!("PAYPREP {name} {:.6}", now - t);
+            t = now;
+        }
+    };
     let mut b = Builder {
         vocab,
         language,
@@ -1360,6 +1403,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         file_sets: std::env::var_os("VEC_PAIR_LOCAL").is_none()
             && std::env::var_os("VEC_PAIR_TREE").is_none(),
         out: Program {
+            meter: None,
             regexes: Vec::new(),
             text_kinds: language.text_kinds.clone(),
             symbols: Map::default(),
@@ -1410,7 +1454,9 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
             b.base(&name.0);
         }
     }
+    phase("live");
     let exclusions = exact::prepare(&mut b, plan, &live);
+    phase("proof");
     if std::env::var_os("VEC_NO_EXACT").is_some() {
         b.out.exact.clear();
     }
@@ -1440,6 +1486,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         rows.push(row);
         skips.push(skip);
     }
+    phase("rows-and-skips");
     if std::env::var_os("VEC_PAIR_TRACE").is_some() {
         for (step, row) in rows.iter().enumerate() {
             println!("WITNESS\t{step}\t{}\t{:?}", row.need, row.domains);
@@ -1464,7 +1511,18 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     // a raw spelling (for example, a normalized or resolved identifier).
     // Certify the whole first half only when that independent skip is vacuous.
     b.out.exact.retain(|(ri, _)| b.out.skips[*ri].2.is_empty());
+    phase("roots");
     compact::compact(&mut b.out);
+    phase("compact");
+    cost::arrange(
+        &mut b.out,
+        std::env::var_os("VEC_PAIR_ORDER").is_some(),
+        cost::omitted(),
+    );
+    if std::env::var_os("VEC_PAIR_METER").is_some() {
+        b.out.meter = Some(cost::Meter::new(b.out.facts.len()));
+    }
+    phase("arrange");
     for d in &b.out.domains {
         if let Domain::Text(t) = d {
             b.out.max_text = b.out.max_text.max(t.len());

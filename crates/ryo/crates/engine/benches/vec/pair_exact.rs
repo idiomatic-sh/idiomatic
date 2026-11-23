@@ -266,9 +266,17 @@ fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
             | Domain::OtherValues(slot, _, _)
             | Domain::Flag(slot, ..)
             | Domain::Number(slot, ..)
+            | Domain::Unmatched(slot, _, _)
             | Domain::Matching(slot, _, _) => {
                 if !slots.contains(&slot) {
                     slots.push(slot);
+                }
+            }
+            Domain::Member(a, _, b, _) => {
+                for slot in [a, b] {
+                    if !slots.contains(&slot) {
+                        slots.push(slot);
+                    }
                 }
             }
             Domain::Both(a, b) | Domain::Either(a, b) | Domain::Except(a, b) => {

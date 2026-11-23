@@ -32,6 +32,7 @@ impl Reachable {
         }
         let mut value = std::mem::replace(&mut self.files.old[old], Need::Any);
         match &mut value {
+            Need::Terms(..) => unreachable!("groups are compiled after compaction"),
             Need::Some(d) => *d = self.node(*d),
             Need::Both(a, b) | Need::Either(a, b) => {
                 *a = self.file(*a);
@@ -79,6 +80,8 @@ impl Reachable {
             | Domain::Number(..)
             | Domain::OtherValues(..)
             | Domain::RelatedIds(..)
+            | Domain::Member(..)
+            | Domain::Unmatched(..)
             | Domain::Matching(..)
             | Domain::CapturedSuffix(..) => {}
         }
