@@ -135,7 +135,8 @@ pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &fin
     let _ = q_id;
     for r in 0..qualified.n {
         let t: &[u8] = &run.texts[qualified.cols[q_path][r] as usize];
-        // redo-int merge: `rows`' tests as redo-binding pass 6 states them (the pack's lists, not the writer's)
+        // redo-int merge: `rows`' tests as redo-binding pass 6 states them (the pack's lists `LISTS`, passed in as `rows`
+        // reads them; redo-binding pass 7's own read of `LISTS` here is the same value, so not kept)
         if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) && !lists.modules.iter().any(|m| t.starts_with(m)) {
             continue;
         }
