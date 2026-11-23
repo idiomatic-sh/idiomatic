@@ -336,7 +336,7 @@ fn path_context(run: &mut Run, project: &mut Project, target: &str) -> ImportPre
     answer
 }
 
-fn line_starts(src: &[u8]) -> Vec<u32> {
+pub(super) fn line_starts(src: &[u8]) -> Vec<u32> {
     let mut starts = vec![0];
     for i in memchr::memchr2_iter(b'\r', b'\n', src) {
         if src[i] == b'\n' || src.get(i + 1) != Some(&b'\n') {

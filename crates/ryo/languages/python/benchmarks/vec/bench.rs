@@ -536,7 +536,7 @@ fn python_language(vocab: &Vocab) -> first::Language {
         host_len: finish::host::host_len,
         walk_facts: pair_provider::FACTS,
         text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
-        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain(std::env::var_os("VEC_PAIR_NO_PROJECT").is_none().then_some(&provider_packaging::MODULE_IDENTITY_REL)).chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
+        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain([&provider_packaging::MODULE_IDENTITY_REL]).chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
         facts: PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect(),
         spelled: SPELLED_COLUMNS.iter().map(|(r, c, how)| ((*r).to_owned(), (*c).to_owned(), match how { Spelling::Whole => None, Spelling::LastSegment(c) => Some(*c) })).collect(),
         is_identifier,
@@ -863,6 +863,7 @@ mod fact_catalog;
 mod relative_import;
 mod import_syntax;
 mod expression_parts;
+mod lexical_lines;
 #[path = "provider_packaging.rs"]
 mod provider_packaging;
 #[path = "provider_tokens.rs"]
@@ -1305,8 +1306,28 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
             relative_import::walked(run, self.project, self.file, self.file_no)?
-        } else if matches!(rel, expression_parts::CALL_SITE | expression_parts::BINARY_OPERANDS) {
-            expression_parts::fill(run, self.file, self.file_no, rel)?
+        } else if matches!(rel, lexical_lines::COMMENT | lexical_lines::MULTILINE | lexical_lines::BREAKS) {
+            lexical_lines::fill(run, self.file, self.src, self.file_no, rel)?
+        } else if matches!(
+            rel,
+            expression_parts::CALL_SITE
+                | expression_parts::BINARY_OPERANDS
+                | expression_parts::BOOLEANS
+                | expression_parts::WITH_HEADER
+                | expression_parts::COMPARISONS
+                | expression_parts::DICT_KEYS
+                | expression_parts::ASSIGN_NAMES
+                | expression_parts::NESTED_DELIMITERS
+                | expression_parts::EXPR_STATEMENTS
+                | expression_parts::CONSTANT_PREDECESSOR
+                | expression_parts::ANNOTATION_STRINGS
+                | expression_parts::SUBSCRIPT
+                | expression_parts::SCHEDULE_END
+                | expression_parts::POSITIONAL_ARGUMENT
+                | expression_parts::ATTRIBUTE_PREFIX
+                | expression_parts::DISPLAY_ELEMENT
+        ) {
+            expression_parts::fill(run, self.file, self.src, self.file_no, rel)?
         } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::HEADS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
             import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel, &mut self.import_comments)?
         } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
@@ -1324,7 +1345,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 return Err("pre-declaration-read: incomplete flow".to_owned());
             }
             rows
-        } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL) {
+        } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL | fact_catalog::BINDING_READ_REL) {
             let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no {rel}"))?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
             let complete = pair_provider::sites::visit(rel, self.file, u64::from(self.file_no),

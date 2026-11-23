@@ -94,6 +94,12 @@ pub trait ParseUseCase: Send + Sync {
     /// the language's trees have no kind of is a word no query can match, which the engine refuses when a query writes it.
     fn kind_names(&self) -> KindNames;
 
+    /// Field codes whose meaning stays fixed across files. Providers with file-local
+    /// dictionaries leave this empty. File vocabulary checks can still use their names.
+    fn stable_fields(&self) -> crate::domain::fillers::types::FieldNames {
+        Default::default()
+    }
+
     /// The reasons the language declares for a value of a column it cannot resolve statically (a wildcard import, a call of a variable):
     /// a closed list, each named once and shown by a fixture row. A reader that meets such a construct writes its row with the
     /// unknown value of the reason, and never omits the row or marks the whole file partial.

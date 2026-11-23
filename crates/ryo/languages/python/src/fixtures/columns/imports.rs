@@ -44,11 +44,7 @@ pub struct ImportAlias<'a> {
 impl ColumnFile<'_, '_> {
     /// Each import or from-import statement supplies one statement-layout row.
     pub fn import_statement_count(&self) -> usize {
-        use crate::domain::syntax::service::kind_bits;
-        [Node::Import, Node::ImportFrom]
-            .into_iter()
-            .map(|k| node_table::ids_of_kind(self.table, kind_bits(Kind::Node(k))).len())
-            .sum()
+        self.import_presence.statements
     }
 
     /// A statement is an import exactly when the parser produced an import or from-import node.
@@ -70,16 +66,15 @@ impl ColumnFile<'_, '_> {
             .flat_map(move |kind| nodes_of_kind(&self.file.syntax, Kind::Node(kind)))
     }
 
-    /// An import-line association requires both an import statement and a comment token.
+    /// The lexical walk saw a physical comment within an import's lines.
     pub fn can_have_import_line_comments(&self) -> bool {
-        use crate::domain::{syntax::service::kind_bits, tokens::types::Token};
-        !node_table::ids_of_kind(self.table, kind_bits(Kind::Token(Token::Comment))).is_empty()
-            && self.import_statement_count() != 0
+        self.import_presence.line_comment
     }
 
     /// A comment occupies a physical line. Report every import whose source extent reaches that line before the comment.
     pub fn visit_import_line_comments(&self, mut visit: impl FnMut(Position, Position, bool)) {
         use crate::domain::{syntax::service::kind_bits, tokens::types::Token};
+        if !self.can_have_import_line_comments() { return; }
         let comments = node_table::ids_of_kind(self.table, kind_bits(Kind::Token(Token::Comment)));
         if comments.is_empty() {
             return;
