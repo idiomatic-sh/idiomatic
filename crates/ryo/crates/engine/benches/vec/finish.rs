@@ -5,7 +5,7 @@
 //! Relations are column tables (one u64 a cell, typed per column). Base relations of the tree (`syntax-tree`,
 //! `semantic-syntax`, `semantic-child`, `syntax-child`, `source-location`) are not tables: they are read in place from the
 //! node table, by position (a join on their key is a position read; a scan with a kind test reads the kind buckets).
-//! `token-link` comes from the provider's token order (`TokenOrder`). Every other relation is the provider's fill, read once a file when a step asks.
+//! `token-link` comes from the provider's token order (`TokenOrder`). Each file asks for the projected provider relations together, then steps read the returned tables by slot.
 
 use ryo::languages::{self, CellKind, KindBits, NodeTable, Position, node_table};
 use ryo_relations::domain::labels::types::NameRef;
@@ -14,6 +14,8 @@ use rustc_hash::FxHashMap;
 use serde_json::Value as J;
 #[path = "finish/plan_load.rs"]
 mod plan_load;
+#[path = "finish/plan_external.rs"]
+mod plan_external;
 #[path = "finish/plan_args.rs"]
 mod plan_args;
 #[path = "finish/plan_select.rs"]
@@ -577,6 +579,7 @@ pub(super) fn load(path: &str) -> Plan {
 
 /// Read an explicitly supplied plan, including external seed sets and seed move paths.
 fn from_value(j: &J) -> Plan {
+    let report = sw!("VEC_COLD_KEYS");
     let nodes = j["nodes"]
         .as_array()
         .expect("nodes")
@@ -592,7 +595,7 @@ fn from_value(j: &J) -> Plan {
                 inputs_of(&n["args"], &mut inputs);
             }
             let rels = n["args"].as_object().map(|m| m.iter().filter_map(|(k, v)| v.get("rel").and_then(J::as_u64).map(|r| (k.clone(), r as usize))).collect()).unwrap_or_default();
-            PNode { op, source: plan_load::Source::External(n.clone()), args: Default::default(), inputs, rels }
+            PNode { op, source: plan_load::Source::External(Box::new(plan_external::ExternalStep::read(n, report))), args: Default::default(), inputs, rels }
         })
         .collect();
     let mut emits = Vec::new();
@@ -1439,9 +1442,6 @@ pub(super) struct Exec<'p> {
 
 type R<T> = Result<T, String>;
 
-fn external_text(j: &J) -> R<&str> {
-    j.as_str().ok_or_else(|| format!("not a text: {j}"))
-}
 /// Borrow names from this plan argument in their declared order.
 fn strs(j: &Param) -> R<impl DoubleEndedIterator<Item = &str> + Clone> {
     let values = match j {
@@ -1733,38 +1733,6 @@ impl<'p> Exec<'p> {
         };
         self.schemas[node] = Some(sc.clone());
         Ok(sc)
-    }
-
-    fn expr(&self, run: &mut Run, j: &J, names: &[(Option<String>, Rc<Schema>)]) -> R<E> {
-        let a = j.as_array().ok_or("expr")?;
-        let tag = external_text(&a[0])?;
-        Ok(match tag {
-            "col" => Self::column_expr(run, external_text(&a[1])?, a[2].as_str(), names)?,
-            "lit" => E::Text(run.sym(external_text(&a[1])?.as_bytes())),
-            "num" => E::Num(a[1].as_i64().ok_or("num")?),
-            "list" => E::List(a[1].as_array().ok_or("list")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?),
-            "call" => {
-                let name = external_text(&a[1])?.to_owned();
-                let args: Vec<E> = a[2].as_array().ok_or("args")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?;
-                Self::call_expr(run, &name, args)?
-            }
-            "cmp" => {
-                let left = self.expr(run, &a[2], names)?;
-                let right = self.expr(run, &a[3], names)?;
-                Self::compare_expr(run, Op::of(external_text(&a[1])?), left, right)
-            }
-            "in" | "notin" => {
-                let value = self.expr(run, &a[1], names)?;
-                let list = self.expr(run, &a[2], names)?;
-                Self::membership_expr(run, value, list, tag == "notin")
-            }
-            "and" => E::And(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
-            "or" => E::Or(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
-            "not" => E::Not(Box::new(self.expr(run, &a[1], names)?)),
-            "null" => E::Null(Box::new(self.expr(run, &a[1], names)?), a[2].as_bool().ok_or("null test")?),
-            "seed" => E::Seed(Box::new(self.expr(run, &a[1], names)?), a[2].as_u64().ok_or("seed set")? as usize),
-            other => return Err(format!("expression {other}")),
-        })
     }
 
     /// A select's compiled form, once a run.

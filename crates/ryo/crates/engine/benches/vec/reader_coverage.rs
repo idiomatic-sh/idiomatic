@@ -4,7 +4,6 @@ use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
 use ryo::languages::Relation;
 use ryo_relations::domain::relations::service as catalog;
 use ryo_relations::domain::relations::types::{Missing, RowKind};
-use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -39,32 +38,11 @@ impl Coverage {
     }
 }
 
-fn excludes(condition: &Value, column: &str, missing: &str) -> bool {
-    let different = |field: &Value, literal: &Value| {
-        field[0] == "col"
-            && field[1] == column
-            && literal[0] == "lit"
-            && literal[1].as_str().is_some_and(|kind| kind != missing)
-    };
-    match condition[0].as_str() {
-        Some("cmp") if condition[1] == "=" => {
-            different(&condition[2], &condition[3]) || different(&condition[3], &condition[2])
-        }
-        Some("and") => {
-            excludes(&condition[1], column, missing) || excludes(&condition[2], column, missing)
-        }
-        Some("or") => {
-            excludes(&condition[1], column, missing) && excludes(&condition[2], column, missing)
-        }
-        _ => false,
-    }
-}
-
 fn excludes_kind(node: &PNode, column: &str, kind: &str) -> bool {
     if let Some(FinishStep::Select(select)) = node.step() {
         matches!(&select.condition, RowCondition::Tested(e) if typed_excludes(e, column, kind))
     } else {
-        node.external().is_some_and(|j| excludes(&j["cond"], column, kind))
+        node.external_excludes(column, kind)
     }
 }
 

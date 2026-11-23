@@ -1,7 +1,7 @@
 //! Direct handoff from the lowered slot graph. The first walk and executor share the same
 //! immutable steps. External, explicitly supplied plan files retain the older file format.
 use super::plan_args::Param;
-use super::{Args, J, PNode, Plan, Rc};
+use super::{Args, PNode, Plan, Rc, plan_external::ExternalStep};
 use ryo_values::domain::finish_plans::{
     arguments::{
         groups::types::CountedRows, joins::types::AsOfBound, literals::types::ArgumentValue,
@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 #[derive(Debug)]
 pub(super) enum Source {
     Lowered(Rc<FinishPlan>, usize),
-    External(J),
+    External(Box<ExternalStep>),
 }
 pub(crate) fn from_typed(plan: Rc<FinishPlan>) -> Plan {
     let nodes = plan
@@ -135,16 +135,16 @@ fn slots(step: &FinishStep) -> (&str, Vec<(String, usize)>) {
     }
 }
 impl PNode {
-    pub(super) fn diagnostic(&self) -> J {
+    pub(super) fn diagnostic(&self) -> String {
         use ryo_engine::outbound::plan_codec::{factory::json, interface::PlanCodecPort};
         match &self.source {
-            Source::External(j) => j.clone(),
+            Source::External(n) => n.report.clone().expect("requested plan diagnostic"),
             Source::Lowered(p, i) => json().valued(&FinishPlan {
                 steps: vec![p.steps[*i].clone()],
                 rules: vec![],
                 unplanned: vec![],
             })["nodes"][0]
-                .take(),
+                .to_string(),
         }
     }
 
@@ -154,7 +154,7 @@ impl PNode {
             Source::External(_) => None,
         }
     }
-    pub(crate) fn external(&self) -> Option<&J> {
+    pub(super) fn external(&self) -> Option<&ExternalStep> {
         match &self.source {
             Source::External(n) => Some(n),
             _ => None,
@@ -163,7 +163,7 @@ impl PNode {
     pub(crate) fn base(&self) -> Option<&str> {
         match self.step() {
             Some(FinishStep::Base(r)) => Some(&r.0),
-            _ => self.external()?.get("rel")?.as_str(),
+            _ => self.external()?.base.as_deref(),
         }
     }
     pub(crate) fn semi(&self) -> Option<usize> {
@@ -172,38 +172,41 @@ impl PNode {
                 ProbeMark::Probed(n) => Some(n.0),
                 _ => None,
             },
-            _ => self.external()?.get("semi")?.as_u64().map(|n| n as usize),
+            _ => self.external()?.probe,
         }
     }
     pub(super) fn distinct_count(&self) -> bool {
         match self.step() {
             Some(FinishStep::GroupCount(g)) => matches!(g.distinct, CountedRows::Distinct(_)),
-            _ => self.external().is_some_and(|n| !n["args"]["distinct"].is_null()),
+            _ => self.external().is_some_and(|n| !matches!(n.args["distinct"], Param::Missing)),
         }
     }
     pub(crate) fn counted(&self) -> bool {
         match self.step() {
             Some(FinishStep::Select(s)) => s.count == CountMark::Counted,
-            _ => self.external().is_some_and(|n| n.get("count").is_some()),
+            _ => self.external().is_some_and(|n| n.counted),
         }
     }
     pub(crate) fn tested(&self) -> bool {
         match self.step() {
             Some(FinishStep::Select(s)) => s.condition != RowCondition::Every,
-            _ => self.external().is_some_and(|n| !n["cond"].is_null()),
+            _ => self.external().is_some_and(|n| n.condition.is_some()),
         }
     }
     pub(crate) fn exists(&self) -> bool {
         match self.step() {
             Some(FinishStep::Axis(s)) => s.exists == ExistsMark::Marked,
-            _ => self.external().is_some_and(|n| n.get("exists").is_some()),
+            _ => self.external().is_some_and(|n| n.exists),
         }
     }
+    pub(crate) fn external_excludes(&self, column: &str, missing: &str) -> bool {
+        self.external().and_then(|n| n.condition.as_ref()).is_some_and(|e| e.excludes(column, missing))
+    }
     pub(crate) fn args(&self) -> &Args {
-        self.args.get_or_init(|| match &self.source {
-            Source::Lowered(p, i) => parameters(&p.steps[*i]),
-            Source::External(n) => Param::external(&n["args"]),
-        })
+        match &self.source {
+            Source::Lowered(p, i) => self.args.get_or_init(|| parameters(&p.steps[*i])),
+            Source::External(n) => &n.args,
+        }
     }
 }
 fn parameters(step: &FinishStep) -> Args {
