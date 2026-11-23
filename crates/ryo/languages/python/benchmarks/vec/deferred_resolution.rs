@@ -50,12 +50,9 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
         }
     }
     let (b_ref, b_name, b_scope) = (col(inp.reads, "reference")?, col(inp.reads, "name")?, col(inp.reads, "scope")?);
-    let mut read_points: FxHashMap<u64, Vec<usize>> = FxHashMap::default();
-    for r in 0..ev.n {
-        if ev.cols[e_kind][r] == s_read {
-            read_points.entry(ev.cols[e_occ][r]).or_default().push(r);
-        }
-    }
+    let read_points: FxHashSet<u64> = ev.cols[e_occ].iter().zip(&ev.cols[e_kind])
+        .filter_map(|(&id, &kind)| (kind == s_read && visit.contains(&id)).then_some(id))
+        .collect();
     // deferred reads: (id, name, initial scope)
     let mut deferred_reads: Vec<(u64, u64, u64)> = Vec::new();
     let mut deferred_ids: Vec<u64> = Vec::new();
@@ -70,7 +67,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
             if seen_ids.insert(id) {
                 deferred_ids.push(id);
             }
-            if read_points.contains_key(&id) {
+            if read_points.contains(&id) {
                 let t = (id, inp.reads.cols[b_name][r], inp.reads.cols[b_scope][r]);
                 if seen.insert(t) {
                     deferred_reads.push(t);

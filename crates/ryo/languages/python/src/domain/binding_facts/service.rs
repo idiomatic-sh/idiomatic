@@ -357,6 +357,11 @@ pub(crate) fn binding_resolution_rows<V: ModelView>(
             let _first = order.latest.entry(NamespaceKey { scope: event.lexical, name: event.name }).or_insert(Count(at));
         }
     }
+    // PEP 695 defers names in parameter bounds and defaults. Without a type parameter no read needs that ancestor walk.
+    use crate::domain::{nodes::types::Node, syntax::{service::kind_bits, types::Kind}};
+    let has_parameters = [Node::TypeVar, Node::TypeVarTuple, Node::ParamSpec].iter().any(|kind| {
+        !ryo::languages::node_table::ids_of_kind(read.table, kind_bits(Kind::Node(*kind))).is_empty()
+    });
     let mut cursor = 0_usize;
     for (at, event) in flow.events.iter().enumerate() {
         let key = NamespaceKey { scope: event.scope, name: event.name };
@@ -379,7 +384,7 @@ pub(crate) fn binding_resolution_rows<V: ModelView>(
                     context: found.map_or(fallback, |it| it.context),
                     state: found.map_or(FlowReadState::Uncertain, |it| it.state),
                 };
-                if event.kind == FlowEventKind::Read && lazy_read(read, event.at) {
+                if event.kind == FlowEventKind::Read && has_parameters && lazy_read(read, event.at) {
                     order.lazy.push((Count(at), each));
                 } else {
                     resolution_rows_of(read, words, &mut known, &mut order, event.ordinal, &each);

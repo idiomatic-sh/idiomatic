@@ -967,6 +967,15 @@ impl ColFacts<'_, '_, '_, '_> {
         Ok(t)
     }
 
+    /// Keep the complete schedule input once; its consumers only inspect the columns on this file.
+    fn keep_schedule_input(&mut self, run: &mut finish::Run, name: &'static str) -> Result<(), String> {
+        if !self.kept.contains_key(name) {
+            let rows = self.whole_fill(run, name)?;
+            self.kept.insert(name.to_owned(), rows);
+        }
+        Ok(())
+    }
+
     /// The position of the file's module node (the scope the implicit-symbol rows name).
     fn module_position(&self, run: &finish::Run) -> Option<u32> {
         let n = node_table::element_count(self.file.table).0 as u32;
@@ -1056,17 +1065,75 @@ impl ColFacts<'_, '_, '_, '_> {
         Ok(rows)
     }
 
+    /// Each alias's spelling and first scheduled read, including whether evaluation is delayed or inside a keyword.
+    fn import_read_sample(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let (_, names, types) = run.catalog(fact_catalog::IMPORT_READ_SAMPLE).ok_or("missing import-read-sample")?;
+        let mut rows = finish::Table::with_rows(names, types, 0);
+        if self.file.import_statement_count() == 0 {
+            return Ok(rows);
+        }
+        // A later full-table reader gets these same columns. Both views resolve each read only once.
+        let predecessor = fact_catalog::PREDECESSOR_REL;
+        if !self.kept.contains_key(predecessor) {
+            let table = self.scheduled_read_predecessor(run)?;
+            self.kept.insert(predecessor.to_owned(), table);
+        }
+        let table = &self.kept[predecessor];
+        let bind = u64::from(run.sym(b"bind"));
+        let local = u64::from(run.sym(b"own"));
+        let alias = run.sym(b"alias");
+        let mut first = rustc_hash::FxHashMap::<u32, (u32, bool)>::default();
+        for i in 0..table.n {
+            if table.cols[2][i] != bind { continue; }
+            let binding = table.cols[1][i] as u32;
+            if run.kind_sym[usize::from(node_table::kind_of(self.file.table, Position(binding)).0)] != alias { continue; }
+            let sample = (table.cols[0][i] as u32, table.cols[3][i] == local);
+            let selected = first.entry(binding).or_insert(sample);
+            if sample.0 < selected.0 { *selected = sample; }
+        }
+        let mut samples = rustc_hash::FxHashMap::default();
+        self.file.visit_keyword_origins(
+            first.into_iter().map(|(binding, (reference, own))| (Position(binding), Position(reference), own)),
+            |binding, reference, own, depth, path| {
+                samples.insert(u64::from(binding.0), (u64::from(reference.0), own, depth, u64::from(run.sym(path.as_bytes()))));
+            },
+        );
+        let visits = self.fact(run, fact_catalog::DEFERRED_VISIT_REL)?;
+        let delayed: rustc_hash::FxHashSet<u64> = visits.cols[0].iter().copied().collect();
+        let [absent, immediate, deferred] = [b"absent".as_slice(), b"immediate", b"deferred"].map(|word| u64::from(run.sym(word)));
+        let empty = u64::from(run.sym(b""));
+        let own = u64::from(run.sym(b"own"));
+        let routed = u64::from(run.sym(b"routed"));
+        let file = u64::from(self.file_no);
+        self.file.visit_import_aliases(|alias| {
+            let binding = u64::from(alias.id);
+            let (reference, namespace, mode, depth, origin) = if let Some(&(reference, local, depth, origin)) = samples.get(&binding) {
+                (reference, if local { own } else { routed }, if delayed.contains(&reference) { deferred } else { immediate }, depth, origin)
+            } else {
+                (finish::NULL, absent, absent, 0, empty)
+            };
+            let values = [binding, run.sym(alias.form.as_bytes()).into(), run.sym(alias.module.as_bytes()).into(),
+                run.sym(alias.name.as_bytes()).into(), run.sym(alias.rename.as_bytes()).into(),
+                reference, namespace, mode, u64::from(depth > 0), depth as u64, origin, file];
+            for (column, v) in rows.cols.iter_mut().zip(values) { column.push(v); }
+            rows.n += 1;
+        });
+        Ok(rows)
+    }
+
     /// A scheduled lookup can have one predecessor where control flow permits several reaching definitions.
     /// redo-binding probe: `read-resolution` from the provider's own lookup (`binding-resolution`, whose rows come per read
     /// nearest namespace first): the first row of each read, a deletion's only at depth 0 (its name is local), and a `none`
     /// row for every read or deletion (`binding-read`) no namespace of whose path holds an event of the name.
     fn scheduled_read_predecessor(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
-        let res = self.whole(run, "binding-resolution")?;
-        let reads = self.whole(run, "binding-read")?;
+        self.keep_schedule_input(run, "binding-resolution")?;
+        self.keep_schedule_input(run, "binding-read")?;
+        let res = &self.kept["binding-resolution"];
+        let reads = &self.kept["binding-read"];
         let col = |t: &finish::Table, n: &str| t.names.iter().position(|c| c == n).ok_or_else(|| format!("no column {n}"));
         use pair_provider::predecessor::{LOOKUP, READ, WORDS, positions, project};
-        let lookup = positions(LOOKUP, |name| col(&res, name))?;
-        let read = positions(READ, |name| col(&reads, name))?;
+        let lookup = positions(LOOKUP, |name| col(res, name))?;
+        let read = positions(READ, |name| col(reads, name))?;
         let (_, names, tys) = run.catalog(fact_catalog::PREDECESSOR_REL).ok_or("no scheduled-read-predecessor")?;
         let symbols = WORDS.map(|text| u64::from(run.sym(text.as_bytes())));
         let mut t = finish::Table::with_rows(names, tys, reads.n);
@@ -1222,6 +1289,25 @@ impl ColFacts<'_, '_, '_, '_> {
     /// table, the file's embedded expressions, its name (a stub) and its annotations future.
     fn deferred_visit(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
         let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
+        if !stub && let Some(segments) = self.file.eager_module_segments() {
+            let (_, names, tys) = run.catalog(fact_catalog::DEFERRED_VISIT_REL).ok_or("no deferred-visit")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let deferred = u64::from(run.sym(b"deferred"));
+            let size = node_table::element_count(self.file.table).0 as u32;
+            let mut previous_end = 0;
+            // Embedded roots are in node order. Emit the union of their subtrees, including each root once.
+            for root in segments {
+                let end = node_table::subtree_end_of(self.file.table, root).0.max(root.0 + 1).min(size);
+                for id in root.0.max(previous_end)..end {
+                    rows.cols[0].push(u64::from(id));
+                    rows.cols[1].push(deferred);
+                    rows.cols[2].push(u64::from(self.file_no));
+                    rows.n += 1;
+                }
+                previous_end = previous_end.max(end);
+            }
+            return Ok(rows);
+        }
         let evaluations = self.fact(run, fact_catalog::ANNOTATION_EVALUATION_REL)?;
         let embedded = self.whole(run, "embedded-expression")?;
         let features = self.whole(run, "compiler-feature")?;
@@ -1336,11 +1422,13 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         } else if matches!(
             rel,
             expression_parts::CALL_SITE
+                | expression_parts::BITWISE_OR_TREE
                 | expression_parts::BINARY_OPERANDS
                 | expression_parts::BOOLEANS
                 | expression_parts::WITH_HEADER
                 | expression_parts::COMPARISONS
                 | expression_parts::DICT_KEYS
+                | expression_parts::ASSIGNMENT_POSITIONS
                 | expression_parts::ASSIGN_NAMES
                 | expression_parts::NESTED_DELIMITERS
                 | expression_parts::EXPR_STATEMENTS
@@ -1397,8 +1485,13 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 return Err("binding-sites: incomplete flow".to_owned());
             }
             rows
+        } else if rel == fact_catalog::IMPORT_READ_SAMPLE {
+            self.import_read_sample(run)?
         } else if rel == fact_catalog::PREDECESSOR_REL {
-            self.scheduled_read_predecessor(run)?
+            match self.kept.remove(rel) {
+                Some(table) => table,
+                None => self.scheduled_read_predecessor(run)?,
+            }
         } else if rel == fact_catalog::RESOLUTION_REL {
             self.read_resolution(run)?
         } else if rel == fact_catalog::TYPE_REGION_REL {

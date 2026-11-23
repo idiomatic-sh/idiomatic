@@ -43,6 +43,61 @@ impl ColumnFile<'_, '_> {
             })
     }
 
+    /// Names at identical written positions in assignment targets and values, including chained targets.
+    pub fn visit_assignment_name_positions(
+        &self,
+        mut visit: impl FnMut(Position, Position, &str, &str, usize, bool, bool),
+    ) {
+        fn children(expr: &Expr) -> Option<(&[Expr], bool)> {
+            match expr {
+                Expr::Tuple(display) => Some((&display.elts, true)),
+                Expr::List(display) => Some((&display.elts, false)),
+                _ => None,
+            }
+        }
+        fn pair<'a>(
+            left: &'a Expr,
+            right: &'a Expr,
+            depth: usize,
+            tuples: bool,
+            emit: &mut impl FnMut(&'a Expr, &'a Expr, &str, &str, usize, bool),
+        ) {
+            if let (Expr::Name(a), Expr::Name(b)) = (left, right) {
+                // Parse recovery may insert an empty name for a missing operand.
+                if !a.id.as_str().is_empty() && !b.id.as_str().is_empty() {
+                    emit(left, right, a.id.as_str(), b.id.as_str(), depth, tuples);
+                }
+            } else if let (Some((ls, lt)), Some((rs, rt))) = (children(left), children(right)) {
+                for (a, b) in ls.iter().zip(rs) {
+                    pair(a, b, depth + 1, tuples && lt && rt, emit);
+                }
+            }
+        }
+        let segments = self.file.syntax.tree.segments;
+        let mut source = |left: &Expr, right: &Expr, later_target| {
+            pair(left, right, 0, true, &mut |a, b, name, other, depth, tuples| {
+                if let (Some(x), Some(y)) = (id_of(a), id_of(b)) {
+                    visit(table_id(segments, x), table_id(segments, y), name, other, depth, tuples, later_target);
+                }
+            });
+        };
+        for Numbered { node, .. } in self.expression_nodes(Node::Assign) {
+            if let AnyNodeRef::StmtAssign(stmt) = node {
+                for (position, target) in stmt.targets.iter().enumerate() {
+                    source(target, &stmt.value, false);
+                    for later in &stmt.targets[position + 1..] {
+                        source(target, later, true);
+                    }
+                }
+            }
+        }
+        for Numbered { node, .. } in self.expression_nodes(Node::AnnAssign) {
+            if let AnyNodeRef::StmtAnnAssign(stmt) = node && let Some(rhs) = &stmt.value {
+                source(&stmt.target, rhs, false);
+            }
+        }
+    }
+
     /// An expression statement evaluates its single value expression.
     pub fn visit_expression_statements(&self, mut visit: impl FnMut(Position, Position)) {
         for Numbered { id, node } in self.expression_nodes(Node::Expr) {
@@ -133,6 +188,49 @@ impl ColumnFile<'_, '_> {
 }
 
 impl ColumnFile<'_, '_> {
+    /// Each binary OR in one connected expression, and the name, None and other operands on its frontier.
+    pub fn visit_bitwise_or_trees(
+        &self,
+        mut visit: impl FnMut(Position, Position, Position, Position, usize, usize, usize, usize),
+    ) {
+        use std::collections::HashSet;
+        let tree = self.file.syntax.tree;
+        let mut names = HashSet::new();
+        let mut edges = Vec::new();
+        let mut pending = Vec::new();
+        for Numbered { id: root, node } in self.expression_nodes(Node::BinOp) {
+            let AnyNodeRef::ExprBinOp(binary) = node else { continue; };
+            if binary.op != Operator::BitOr { continue; }
+            let parent = node_table::parent_of(self.table, root);
+            if let Some(parent) = place_of_id(tree, parent)
+                && matches!(tree.nodes.get(usize::from(parent)), Some(AnyNodeRef::ExprBinOp(b)) if b.op == Operator::BitOr)
+            { continue; }
+            names.clear();
+            edges.clear();
+            let (mut named, mut nulls, mut other) = (0, 0, 0);
+            let Some(left) = id_of(&*binary.left) else { continue; };
+            let Some(right) = id_of(&*binary.right) else { continue; };
+            edges.push((root, table_id(tree.segments, left), table_id(tree.segments, right)));
+            pending.extend([&*binary.right, &*binary.left]);
+            while let Some(expr) = pending.pop() {
+                match expr {
+                    Expr::BinOp(node) if node.op == Operator::BitOr => {
+                        if let (Some(at), Some(left), Some(right)) = (id_of(expr), id_of(&*node.left), id_of(&*node.right)) {
+                            edges.push((table_id(tree.segments, at), table_id(tree.segments, left), table_id(tree.segments, right)));
+                            pending.extend([&*node.right, &*node.left]);
+                        } else { other += 1; }
+                    }
+                    Expr::Name(name) if !name.id.as_str().is_empty() => { named += 1; names.insert(name.id.as_str()); }
+                    Expr::NoneLiteral(_) => nulls += 1,
+                    _ => other += 1,
+                }
+            }
+            for &(at, left, right) in &edges {
+                visit(root, at, left, right, named, names.len(), nulls, other);
+            }
+        }
+    }
+
     /// Each adjacent operand pair is compared once in Python's chained-comparison grammar.
     pub fn visit_comparison_operands(
         &self,
@@ -274,16 +372,19 @@ impl ColumnFile<'_, '_> {
     }
 
     /// Each explicit dictionary key is evaluated in display order, excluding mapping-unpack entries.
-    pub fn visit_dictionary_keys(&self, mut visit: impl FnMut(Position, Position, usize)) {
+    pub fn visit_dictionary_keys(&self, mut visit: impl FnMut(Position, Position, usize, usize)) {
+        let mut groups = std::collections::HashMap::new();
         for Numbered { id, node } in self.expression_nodes(Node::Dict) {
-            let AnyNodeRef::ExprDict(dict) = node else {
-                continue;
-            };
+            let AnyNodeRef::ExprDict(dict) = node else { continue; };
+            let positions = || dict.items.iter().filter_map(|item| item.key.as_ref().and_then(id_of))
+                .map(|key| table_id(self.file.syntax.tree.segments, key));
+            groups.clear();
+            for key in positions() {
+                *groups.entry(node_table::kind_of(self.table, key).0).or_insert(0_usize) += 1;
+            }
             let count = dict.items.iter().filter(|item| item.key.is_some()).count();
-            for item in &dict.items {
-                if let Some(key) = item.key.as_ref().and_then(id_of) {
-                    visit(id, table_id(self.file.syntax.tree.segments, key), count);
-                }
+            for key in positions() {
+                visit(id, key, count, groups[&node_table::kind_of(self.table, key).0]);
             }
         }
     }
@@ -293,21 +394,28 @@ impl ColumnFile<'_, '_> {
         &mut self,
         mut visit: impl FnMut(Position, Position, Position),
     ) {
-        use crate::domain::relations::collections::relations::constant_key::item::keyed_constants;
-        let has_multiple_keys = self.expression_nodes(Node::Dict).any(|item| {
-            let AnyNodeRef::ExprDict(dict) = item.node else {
-                return false;
-            };
-            dict.items
-                .iter()
-                .filter_map(|item| item.key.as_ref())
-                .nth(1)
-                .is_some()
-        });
-        if !has_multiple_keys {
-            return;
+        use crate::domain::key_facts::{service::dictionary_keys, types::KeyBuild};
+        use crate::domain::model::view::types::PartState;
+        if self.file.analysed.keys == PartState::Pending {
+            let tree = self.file.syntax.tree;
+            let dictionaries = node_table::ids_of_kind(self.table, kind_bits(Kind::Node(Node::Dict)));
+            let dicts = || dictionaries.iter().filter_map(|&id| {
+                let place = place_of_id(tree, id)?;
+                match tree.nodes.get(usize::from(place))? {
+                    AnyNodeRef::ExprDict(dict) => Some(*dict),
+                    _ => None,
+                }
+            });
+            if !dicts().any(|dict| dict.items.iter().filter_map(|e| e.key.as_ref()).nth(1).is_some()) {
+                return;
+            }
+            dictionary_keys(tree.nodes.len(), dicts(), &mut KeyBuild {
+                index: &mut self.file.buffers.keys,
+                words: self.words,
+                text: &mut self.file.buffers.text,
+            });
+            // A later request for the whole constant-key relation still classifies every expression.
         }
-        keyed_constants(self.file, self.words);
         let classes = &self.file.buffers.keys.classes;
         let segments = self.file.syntax.tree.segments;
         let mut previous = std::collections::HashMap::new();

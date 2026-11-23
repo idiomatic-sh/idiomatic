@@ -3,6 +3,7 @@ use super::finish::{self, Run, Table, Ty};
 use ryo::languages::Position;
 use ryo_python::fixtures::columns::ColumnFile;
 pub(super) const CALL_SITE: &str = "call-site";
+pub(super) const BITWISE_OR_TREE: &str = "bitwise-or-tree";
 pub(super) const BINARY_OPERANDS: &str = "binary-operands";
 
 pub(super) const EXPR_STATEMENTS: &str = "expression-statement-value";
@@ -10,6 +11,7 @@ pub(super) const BOOLEANS: &str = "boolean-operands";
 pub(super) const WITH_HEADER: &str = "with-header";
 pub(super) const COMPARISONS: &str = "comparison-operands";
 pub(super) const DICT_KEYS: &str = "dictionary-display-key";
+pub(super) const ASSIGNMENT_POSITIONS: &str = "assignment-name-position";
 pub(super) const ASSIGN_NAMES: &str = "assignment-name-predecessor";
 pub(super) const DISPLAY_ELEMENT: &str = "display-element";
 pub(super) const POSITIONAL_ARGUMENT: &str = "positional-argument-site";
@@ -140,9 +142,17 @@ pub(super) fn declare(run: &mut Run) {
             ("id", Node),
             ("count", Num),
             ("begin", Num),
+            ("kind", Sym),
+            ("same-kind-count", Num),
             ("file", File),
         ],
         finish::Supplier::Provider,
+    );
+    run.declare(
+        ASSIGNMENT_POSITIONS,
+        &[("target", Node), ("value", Node), ("target-name", Sym), ("value-name", Sym),
+          ("depth", Num), ("tuple-path", Num), ("later-target", Num), ("file", File)],
+        provider,
     );
     run.declare(
         ASSIGN_NAMES,
@@ -178,6 +188,8 @@ pub(super) fn declare(run: &mut Run) {
         ],
         finish::Supplier::Provider,
     );
+    run.declare(BITWISE_OR_TREE, &[("root", Node), ("id", Node), ("left", Node), ("right", Node),
+        ("names", Num), ("distinct-names", Num), ("nulls", Num), ("other", Num), ("file", File)], provider);
     run.declare(
         BINARY_OPERANDS,
         &[
@@ -264,6 +276,11 @@ pub(super) fn fill(
         if let Some(point) = file.binding_schedule_end()? {
             write(&[point, file_id]);
         }
+    } else if relation == BITWISE_OR_TREE {
+        file.visit_bitwise_or_trees(|root, id, left, right, names, distinct, nulls, other| {
+            write(&[root.0.into(), id.0.into(), left.0.into(), right.0.into(), names as u64,
+                distinct as u64, nulls as u64, other as u64, file_id]);
+        });
     } else if relation == EXPR_STATEMENTS {
         file.visit_expression_statements(|statement, value| {
             let kind = ryo::languages::node_table::kind_of(file.table, value);
@@ -303,15 +320,22 @@ pub(super) fn fill(
             file.visit_boolean_operands(operands);
         }
     } else if relation == DICT_KEYS {
-        file.visit_dictionary_keys(|dict, key, count| {
+        file.visit_dictionary_keys(|dict, key, count, peers| {
             let begin = ryo::languages::node_table::span_of(file.table, key).start.0;
             write(&[
                 dict.0.into(),
                 key.0.into(),
                 count as u64,
                 begin.into(),
+                run.kind_sym[usize::from(ryo::languages::node_table::kind_of(file.table, key).0)].into(),
+                peers as u64,
                 file_id,
             ]);
+        });
+    } else if relation == ASSIGNMENT_POSITIONS {
+        file.visit_assignment_name_positions(|target, value, left, right, depth, tuples, later| {
+            write(&[target.0.into(), value.0.into(), run.sym(left.as_bytes()).into(),
+                run.sym(right.as_bytes()).into(), depth as u64, tuples.into(), later.into(), file_id]);
         });
     } else if relation == ASSIGN_NAMES {
         file.visit_repeated_assignment_names(|stmt, id, name, previous, first_direct| {

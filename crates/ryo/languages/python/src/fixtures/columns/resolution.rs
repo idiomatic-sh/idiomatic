@@ -85,6 +85,81 @@ impl SiteSequence {
 }
 
 impl ColumnFile<'_, '_> {
+    /// Before 3.14, without postponed annotations or generic declarations, only embedded strings defer evaluation in a runtime module.
+    pub fn eager_module_segments(&self) -> Option<impl Iterator<Item = Position> + '_> {
+        use crate::domain::nodes::types::Node;
+        use crate::domain::relations::collections::relations::compiler_feature::item::feature_flag;
+        use crate::domain::syntax::{constants::MODULE_FUTURE_ANNOTATIONS, service::kind_bits, types::Kind};
+        use ryo::languages::{Flag, node_table};
+        let target = self.file.target;
+        let flag = node_table::property_of(self.table, Position(0), MODULE_FUTURE_ANNOTATIONS);
+        if target.major.0 != 3 || target.minor.0 >= 14 || feature_flag(flag) != Some(Flag::Lowered) {
+            return None;
+        }
+        for kind in [Node::TypeAlias, Node::TypeVar, Node::TypeVarTuple, Node::ParamSpec] {
+            if !node_table::ids_of_kind(self.table, kind_bits(Kind::Node(kind))).is_empty() {
+                return None;
+            }
+        }
+        Some(self.file.syntax.tree.segments.iter().map(|segment| segment.root))
+    }
+
+    /// Each import's first scheduled reader, the keyword arguments containing it within its parsed expression,
+    /// and the callable's proven origin when there is a single enclosing keyword.
+    pub fn visit_keyword_origins(
+        &mut self,
+        samples: impl Iterator<Item = (Position, Position, bool)>,
+        mut visit: impl FnMut(Position, Position, bool, usize, &str),
+    ) {
+        use crate::domain::lexical_facts::{service::qualify, types::{NameProvenance, QualifiedPath}};
+        use crate::domain::model::lexical::service::node_at;
+        use crate::domain::node::service::{id_of, place_of_id};
+        use crate::domain::nodes::types::Node;
+        use crate::domain::syntax::{service::kind_bits, types::Kind};
+        use ruff_python_ast::AnyNodeRef;
+        use ryo::languages::node_table;
+        let keyword = kind_bits(Kind::Node(Node::Keyword));
+        let tree = self.file.syntax.tree;
+        let mut pending = Vec::new();
+        for (binding, reference, own) in samples {
+            let mut at = reference;
+            let mut count = 0;
+            let mut function = None;
+            loop {
+                let parent = node_table::parent_of(self.table, at);
+                if parent == at || node_table::subtree_end_of(self.table, parent).0 <= at.0 { break; }
+                if node_table::kind_of(self.table, at) == keyword {
+                    count += 1;
+                    if count == 1 {
+                        let caller = node_table::parent_of(self.table, parent);
+                        if let Some(place) = place_of_id(tree, caller)
+                            && let Some(AnyNodeRef::ExprCall(call)) = node_at(tree, place)
+                        {
+                            function = id_of(&*call.func);
+                        }
+                    }
+                }
+                at = parent;
+            }
+            if count == 1 && let Some(function) = function {
+                pending.push((binding, reference, own, function));
+            } else {
+                visit(binding, reference, own, count, "");
+            }
+        }
+        if !pending.is_empty() {
+            let read = self.file.semantics(ModelPart::Resolution);
+            let mut path = QualifiedPath::default();
+            for (binding, reference, own, function) in pending {
+                let origin = match qualify(read.model, function, &mut path) {
+                    NameProvenance::Builtin(_) | NameProvenance::Import => path.0.as_str(),
+                    _ => "",
+                };
+                visit(binding, reference, own, 1, origin);
+            }
+        }
+    }
+
     /// A read has each reaching binding or absence of the flow. An open invocation or inspection also sees
     /// the source writes to its captured slot, and an unknown outcome for dynamically supplied or removed values.
     pub fn visit_read_outcomes(

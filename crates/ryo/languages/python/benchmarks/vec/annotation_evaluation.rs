@@ -101,7 +101,11 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, target: &Target, em
     // root classes: bit 0 eager, 1 postponed, 2 deferred, 3 unevaluated lazy, 4 unevaluated eager
     let mut class: rustc_hash::FxHashMap<u32, u8> = rustc_hash::FxHashMap::default();
     let mut bodies: Vec<u32> = Vec::new();
-    for p in 0..n {
+    let declarations = [k_arg, k_ann_assign, k_function[0], k_function[1], k_lambda, k_generator];
+    let sites = run.kind_sym.iter().enumerate().filter(|(_, label)| declarations.contains(label)).flat_map(|(index, _)| {
+        node_table::ids_of_kind(table, ryo::languages::KindBits(index as u16)).iter().map(|id| id.0)
+    });
+    for p in sites {
         let k = kind(run, p);
         if k == k_arg || k_function.contains(&k) {
             for c in children(p) {
@@ -214,39 +218,31 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, target: &Target, em
             }
         }
     };
-    // each element: its own root (when it is one) and its nearest root above it
-    let mut nearest: Vec<u32> = vec![u32::MAX; n as usize];
-    let mut done = vec![false; n as usize];
-    for x in 0..n {
-        // the nearest root strictly above x
-        let mut chain: Vec<u32> = Vec::new();
-        let mut at = parent(x);
-        let found = loop {
-            let Some(a) = at else { break u32::MAX };
-            if class.contains_key(&a) {
-                break a;
-            }
-            if done[a as usize] {
-                break nearest[a as usize];
-            }
-            chain.push(a);
-            at = parent(a);
-        };
-        for c in chain {
-            nearest[c as usize] = found;
-            done[c as usize] = true;
-        }
-        nearest[x as usize] = found;
-        done[x as usize] = true;
-        if excluded[x as usize] {
-            continue;
-        }
-        if found != u32::MAX {
-            emit(&mut out, x, found, class[&found]);
-        }
-        if let Some(bits) = class.get(&x) {
-            emit(&mut out, x, x, *bits);
+    // Embedded roots are numbered after their hosts close. Their parent link participates in annotation membership.
+    let mut embedded_children = rustc_hash::FxHashMap::<u32, Vec<u32>>::default();
+    for &value in &embedded.cols[e_root] {
+        let root = value as u32;
+        if let Some(host) = parent(root) {
+            embedded_children.entry(host).or_default().push(root);
         }
     }
+    // A nested annotation is a member of its outer annotation. Its children belong to the inner annotation.
+    let mut pending = Vec::new();
+    for (&root, &bits) in &class {
+        if bits == 0 { continue; }
+        pending.push(root);
+        while let Some(member) = pending.pop() {
+            if !excluded[member as usize] {
+                emit(&mut out, member, root, bits);
+            }
+            if member == root || !class.contains_key(&member) {
+                pending.extend(children(member));
+                if let Some(extra) = embedded_children.get(&member) {
+                    pending.extend(extra.iter().copied());
+                }
+            }
+        }
+    }
+    out.sort_by_key(|&(member, root, _, _)| (member, member == root));
     Ok(out)
 }

@@ -189,17 +189,48 @@ pub(crate) fn keyed(file: &SyntaxFile<'_>, build: &mut KeyBuild<'_>) {
     clear_keys(build.index);
     build.index.classes.resize(file.nodes.len(), None);
     for (id, node) in file.nodes.iter().enumerate().rev() {
-        build.index.scratch.clear();
-        let Some(number) = key_words(build, *node) else {
-            continue;
-        };
-        let at = Position(u32::try_from(id).unwrap_or(u32::MAX));
+        classify(build, Position(u32::try_from(id).unwrap_or(u32::MAX)), *node);
+    }
+}
+
+/// Only equality inside a dictionary matters for its overwrites. Classify its key operands with the same evaluator.
+pub(crate) fn dictionary_keys<'a>(
+    size: usize,
+    dictionaries: impl Iterator<Item = &'a ruff_python_ast::ExprDict>,
+    build: &mut KeyBuild<'_>,
+) {
+    fn operand(build: &mut KeyBuild<'_>, expr: &Expr) {
+        let Some(at) = id_of(expr) else { return; };
+        match expr {
+            Expr::Tuple(tuple) => {
+                for member in &tuple.elts { operand(build, member); }
+            }
+            Expr::UnaryOp(unary) => operand(build, &unary.operand),
+            Expr::BinOp(binary) if matches!(binary.op, Operator::Add | Operator::Sub) => {
+                operand(build, &binary.left);
+                operand(build, &binary.right);
+            }
+            _ => {}
+        }
+        classify(build, at, expr.into());
+    }
+    clear_keys(build.index);
+    build.index.classes.resize(size, None);
+    for dict in dictionaries {
+        if dict.items.iter().filter_map(|item| item.key.as_ref()).nth(1).is_some() {
+            for key in dict.items.iter().filter_map(|item| item.key.as_ref()) {
+                operand(build, key);
+            }
+        }
+    }
+}
+
+fn classify(build: &mut KeyBuild<'_>, at: Position, node: AnyNodeRef<'_>) {
+    build.index.scratch.clear();
+    if let Some(number) = key_words(build, node) {
         let representative = intern_key(build.index, at);
-        if let Some(slot) = build.index.classes.get_mut(id) {
-            *slot = Some(KeyClass {
-                representative,
-                number,
-            });
+        if let Some(slot) = build.index.classes.get_mut(usize::from(at)) {
+            *slot = Some(KeyClass { representative, number });
         }
     }
 }

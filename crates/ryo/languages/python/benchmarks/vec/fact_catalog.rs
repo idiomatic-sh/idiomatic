@@ -11,6 +11,11 @@ pub(super) const BINDING_SITES_REL: &str = "binding-sites";
 
 /// One row per binding reachable from a source read, with the first syntax node of each outcome basis.
 pub(super) const BINDING_READ_REL: &str = "binding-read-summary";
+/// Each parsed alias with its first scheduled reader, the reader's evaluation mode and keyword enclosure.
+pub(super) const IMPORT_READ_SAMPLE: &str = "import-read-sample";
+const IMPORT_READ_COLUMNS: &[(&str, Ty)] = &[("binding", Ty::Node), ("form", Ty::Sym), ("module", Ty::Sym),
+    ("name", Ty::Sym), ("rename", Ty::Sym), ("reference", Ty::Node), ("namespace", Ty::Sym),
+    ("evaluation", Ty::Sym), ("in-keyword", Ty::Num), ("keyword-depth", Ty::Num), ("keyword-callee-path", Ty::Sym), ("file", Ty::File)];
 /// Source assignment targets, their whole or statically unpacked RHS and assignment form.
 pub(super) const ASSIGNMENT_SOURCE_REL: &str = "assignment-source";
 /// First declarations and first mutations of a name in a routed namespace.
@@ -83,6 +88,7 @@ pub(super) fn declare(run: &mut finish::Run) {
     let namespaces = columns(super::pair_provider::sites::NAMESPACE);
     let facts: &[(&str, &[(&str, Ty)])] = &[
         (BINDING_READ_REL, &witnesses),
+        (IMPORT_READ_SAMPLE, IMPORT_READ_COLUMNS),
         (ASSIGNMENT_SOURCE_REL, &assignments),
         (PRE_DECLARATION_READ_REL, &PRE_DECLARATION_READ_COLS),
         (NAMESPACE_SITES_REL, &namespaces),
