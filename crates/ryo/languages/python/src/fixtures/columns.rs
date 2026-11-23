@@ -480,6 +480,7 @@ fn flag(value: Flag) -> u32 {
     u32::from(value == Flag::Raised)
 }
 
+mod forward_reads;
 mod assignment;
 mod resolution;
 pub use resolution::BindingSite;

@@ -13,6 +13,10 @@ const BINDING_SITES_COLS: [(&str, Ty); 8] = [("binding", Ty::Node), ("stores", T
 pub(super) const ASSIGNMENT_SOURCE_REL: &str = "assignment-source";
 const ASSIGNMENT_SOURCE_COLS: [(&str, Ty); 5] = [("target", Ty::Node), ("value", Ty::Node), ("operation", Ty::Sym), ("association", Ty::Sym), ("file", Ty::File)];
 
+/// Reads before the first scheduled store or annotation of their name in the same namespace and phase.
+pub(super) const PRE_DECLARATION_READ_REL: &str = "pre-declaration-read";
+const PRE_DECLARATION_READ_COLS: [(&str, Ty); 5] = [("reference", Ty::Node), ("scope", Ty::Node), ("phase", Ty::Node), ("ordinal", Ty::Num), ("file", Ty::File)];
+
 /// Scheduled first declaration and scheduled/source-order first mutation for a routed name.
 pub(super) const NAMESPACE_SITES_REL: &str = "namespace-sites";
 const NAMESPACE_SITES_COLS: [(&str, Ty); 6] = [("scope", Ty::Node), ("name", Ty::Sym), ("first", Ty::Num), ("first-mutation", Ty::Num), ("first-written", Ty::Num), ("file", Ty::File)];
@@ -74,10 +78,11 @@ pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
 /// Declares to `run` every relation this provider, the host and the executor's steps supply beyond the provider's relations
 /// catalog.
 pub(super) fn declare(run: &mut finish::Run) {
-    let facts: [(&str, &[(&str, Ty)]); 12] = [
+    let facts: &[(&str, &[(&str, Ty)])] = &[
         (REGION_REL, &REGION_COLS),
         (BINDING_SITES_REL, &BINDING_SITES_COLS),
         (ASSIGNMENT_SOURCE_REL, &ASSIGNMENT_SOURCE_COLS),
+        (PRE_DECLARATION_READ_REL, &PRE_DECLARATION_READ_COLS),
         (NAMESPACE_SITES_REL, &NAMESPACE_SITES_COLS),
         (RELATIVE_IMPORT_REL, &RELATIVE_IMPORT_COLS),
         (PREDECESSOR_REL, &RESOLUTION_COLS),
@@ -88,7 +93,7 @@ pub(super) fn declare(run: &mut finish::Run) {
         (DEFERRED_RESOLUTION_REL, &DEFERRED_RESOLUTION_COLS),
         (TYPE_REGION_REL, &TYPE_REGION_COLS),
     ];
-    for (name, cols) in facts {
+    for &(name, cols) in facts {
         run.declare(name, cols, Supplier::Provider);
     }
     let mut resolutions = RESOLUTION_COLS.to_vec();
