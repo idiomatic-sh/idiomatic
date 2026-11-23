@@ -93,41 +93,41 @@ fn conjunction(
 fn test(filter: &Filter, parameters: &Parameters) -> Result<PlanExpression, PlanLoweringError> {
     let left = operand(&filter.left, parameters)?;
     let right = operand(&filter.right, parameters)?;
-    let compared = |comparator| {
+    let compared = |comparator, left, right| {
         Ok(PlanExpression::Compare(RowComparison {
             comparator,
-            left: Box::new(left.clone()),
-            right: Box::new(right.clone()),
+            left: Box::new(left),
+            right: Box::new(right),
         }))
     };
-    let pair = || ExpressionPair {
-        left: Box::new(left.clone()),
-        right: Box::new(right.clone()),
+    let pair = |left, right| ExpressionPair {
+        left: Box::new(left),
+        right: Box::new(right),
     };
-    let called = |name: &str| {
+    let called = |name: &str, left, right| {
         PlanExpression::Call(FunctionCall {
             function: FunctionName(name.into()),
-            arguments: vec![left.clone(), right.clone()],
+            arguments: vec![left, right],
         })
     };
     match filter.test {
-        WrittenTest::Equal => compared(Comparator::Equal),
-        WrittenTest::NotEqual => compared(Comparator::NotEqual),
-        WrittenTest::LessThan => compared(Comparator::Less),
-        WrittenTest::LessThanOrEqual => compared(Comparator::LessOrEqual),
-        WrittenTest::GreaterThan => compared(Comparator::Greater),
-        WrittenTest::GreaterThanOrEqual => compared(Comparator::GreaterOrEqual),
-        WrittenTest::In => Ok(PlanExpression::In(pair())),
-        WrittenTest::NotIn => Ok(PlanExpression::NotIn(pair())),
-        WrittenTest::GlobAny => Ok(called(GLOB_ANY)),
-        WrittenTest::NotGlobAny => Ok(PlanExpression::Not(Box::new(called(GLOB_ANY)))),
-        WrittenTest::FloatTextGreaterThanOrEqual => Ok(called(FLOAT_TEXT_GTE)),
-        WrittenTest::StartsWith => Ok(called(STARTS_WITH)),
-        WrittenTest::EndsWith => Ok(called(ENDS_WITH)),
-        WrittenTest::Matches => Ok(called(MATCHES)),
-        WrittenTest::NumericGreaterThanOrEqual => Ok(called(NUMERIC_GTE)),
-        WrittenTest::IntegerSuccessor => Ok(called(INTEGER_SUCCESSOR)),
-        WrittenTest::NaturalLessThan => Ok(called(NATURAL_LT)),
+        WrittenTest::Equal => compared(Comparator::Equal, left, right),
+        WrittenTest::NotEqual => compared(Comparator::NotEqual, left, right),
+        WrittenTest::LessThan => compared(Comparator::Less, left, right),
+        WrittenTest::LessThanOrEqual => compared(Comparator::LessOrEqual, left, right),
+        WrittenTest::GreaterThan => compared(Comparator::Greater, left, right),
+        WrittenTest::GreaterThanOrEqual => compared(Comparator::GreaterOrEqual, left, right),
+        WrittenTest::In => Ok(PlanExpression::In(pair(left, right))),
+        WrittenTest::NotIn => Ok(PlanExpression::NotIn(pair(left, right))),
+        WrittenTest::GlobAny => Ok(called(GLOB_ANY, left, right)),
+        WrittenTest::NotGlobAny => Ok(PlanExpression::Not(Box::new(called(GLOB_ANY, left, right)))),
+        WrittenTest::FloatTextGreaterThanOrEqual => Ok(called(FLOAT_TEXT_GTE, left, right)),
+        WrittenTest::StartsWith => Ok(called(STARTS_WITH, left, right)),
+        WrittenTest::EndsWith => Ok(called(ENDS_WITH, left, right)),
+        WrittenTest::Matches => Ok(called(MATCHES, left, right)),
+        WrittenTest::NumericGreaterThanOrEqual => Ok(called(NUMERIC_GTE, left, right)),
+        WrittenTest::IntegerSuccessor => Ok(called(INTEGER_SUCCESSOR, left, right)),
+        WrittenTest::NaturalLessThan => Ok(called(NATURAL_LT, left, right)),
     }
 }
 

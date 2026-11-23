@@ -29,6 +29,7 @@ pub(super) enum Domain {
     SpanMatching(u16, usize),
     Fact(usize, Option<(usize, Vec<Id>)>),
     OtherValues(usize, usize, Vec<Id>),
+    RelatedIds(usize, usize, Option<(usize, Vec<Id>)>),
     Matching(usize, usize, usize),
     CapturedSuffix(usize, usize, Vec<u8>, usize),
     When(Id, Id), // file prerequisite, admitted nodes
@@ -265,6 +266,11 @@ impl Builder<'_> {
         self.need(Need::Either(a.min(b), a.max(b)))
     }
     fn require(&mut self, r: &mut Summary<'_>, d: Id) {
+        if matches!(self.out.domains[d], Domain::RelatedIds(_, _, None)) {
+            // The base already requires a row. Read this endpoint only when
+            // a join or a predicate constrains its node set.
+            return;
+        }
         let n = if d <= EMPTY {
             d
         } else {
@@ -331,11 +337,15 @@ impl Builder<'_> {
                 r.var(d);
                 self.require(&mut r, d);
                 for (i, col) in catalog::columns(relation).into_iter().enumerate() {
-                    r.add(
-                        catalog::column_name(col).0,
-                        0,
-                        if Some(i) == key { Id } else { Cell(slot, i) },
-                    );
+                    let (var, attr) = if Some(i) == key {
+                        (0, Id)
+                    } else if kinds[i] == CellKind::Node {
+                        let ids = self.domain(Domain::RelatedIds(slot, i, None));
+                        (r.var(ids), Id)
+                    } else {
+                        (0, Cell(slot, i))
+                    };
+                    r.add(catalog::column_name(col).0, var, attr);
                 }
             }
         }
@@ -749,7 +759,44 @@ impl Builder<'_> {
         let mut out = Summary::default();
         match s {
             Base(n) => return self.base(&n.0),
-            Select(s) => return self.select(s, rows),
+            Select(s) => {
+                out = self.select(s, rows);
+                // A base fact can have several node columns. Filter its rows
+                // before projecting the chosen endpoint, keeping the same row.
+                if let [source] = s.sources.as_slice()
+                    && matches!(steps[source.step.0], Base(_))
+                    && let RowCondition::Tested(e) = &s.condition
+                {
+                    let mut values = Vec::new();
+                    if let Some(read) = choices(e, &mut values)
+                        && (read.alias == SourceAlias::Unwritten || read.alias == source.alias)
+                        && let Some(Column {
+                            attr: Attribute::Cell(slot, col),
+                            ..
+                        }) = rows[source.step.0].column(&read.column.0)
+                        && self.out.facts[slot].kinds[col] == CellKind::Symbol
+                    {
+                        for i in 0..out.domains.len() {
+                            if let Domain::RelatedIds(other, endpoint, None) =
+                                self.out.domains[out.domains[i]]
+                                && slot == other
+                            {
+                                let mut ids: Vec<_> =
+                                    values.iter().map(|v| self.symbol(v)).collect();
+                                ids.sort_unstable();
+                                ids.dedup();
+                                let filtered = self.domain(Domain::RelatedIds(
+                                    slot,
+                                    endpoint,
+                                    Some((col, ids)),
+                                ));
+                                out.domains[i] = filtered;
+                                self.require(&mut out, filtered);
+                            }
+                        }
+                    }
+                }
+            }
             Union(u) => {
                 let (l, r) = (&rows[u.left.0], &rows[u.right.0]);
                 out.need = self.or(l.need, r.need);
@@ -923,6 +970,17 @@ impl Builder<'_> {
             }
             SubtreeClass(x) => out.need = rows[x.from.0].need,
             OrderedDfs(x) => out.need = rows[x.from.0].need,
+            Unlisted(x) if &*x.operator.0 == "order" => {
+                // Ordering can append ranks; each output still needs an input row.
+                use ryo_values::domain::finish_plans::arguments::literals::types::ArgumentValue;
+                for a in &x.arguments {
+                    if &*a.name.0 == "from"
+                        && let ArgumentValue::Step(from) = a.value
+                    {
+                        out.need = rows[from.0].need;
+                    }
+                }
+            }
             Unlisted(_) => {}
             _ => {
                 for i in inputs(s) {

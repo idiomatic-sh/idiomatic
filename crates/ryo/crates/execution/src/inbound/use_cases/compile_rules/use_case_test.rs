@@ -223,6 +223,14 @@ impl SyntaxPort for CountingSyntax {
     fn read(&self, text: QueryView<'_>) -> Result<WrittenProgram, SyntaxError> {
         self.inner.read(text)
     }
+    fn read_fragment(
+        &self,
+        id: &ryo_values::domain::query_tokens::types::QuerySourceId,
+        text: QueryView<'_>,
+    ) -> Result<ryo_values::domain::program::types::FragmentProgram, SyntaxError> {
+        let _before = self.modules.fetch_add(1, Ordering::SeqCst);
+        self.inner.read_fragment(id, text)
+    }
     fn read_bundle(&self, bundle: &QueryBundle) -> Result<ParsedQueryBundle, SyntaxError> {
         let _before = self
             .modules

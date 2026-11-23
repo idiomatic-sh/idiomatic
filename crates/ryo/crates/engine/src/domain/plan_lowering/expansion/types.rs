@@ -17,7 +17,7 @@ pub(crate) struct Expansion<'p> {
     pub(crate) steps: Vec<FinishStep>,
     /// Each step's number, by the hash of its identity (the step with every map's entries in key order): the steps
     /// are held once, in `steps`.
-    pub(crate) numbers: hashbrown::HashTable<StepNumber>,
+    pub(crate) numbers: hashbrown::HashTable<(u64, StepNumber)>,
     /// The hasher of the identities.
     pub(crate) hasher: hashbrown::DefaultHashBuilder,
     /// The fragments of the pack, by name.

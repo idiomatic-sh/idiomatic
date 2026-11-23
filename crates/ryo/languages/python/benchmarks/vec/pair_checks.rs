@@ -353,6 +353,37 @@ impl File<'_> {
                     Rc::new(out)
                 })
             }
+            Domain::RelatedIds(slot, endpoint, filter) => {
+                let table = &mut self.facts[*slot];
+                table.load(&self.p.facts[*slot], n, self.words, self.read);
+                if !table.complete {
+                    None
+                } else if let Some(keys) = table.cells.0.get(*endpoint) {
+                    let valid = keys.0.iter().all(|c| c.0 < u64::from(n));
+                    let values = filter
+                        .as_ref()
+                        .and_then(|(col, ids)| Some((table.cells.0.get(*col)?, ids)));
+                    if !valid
+                        || (filter.is_some()
+                            && values.is_none_or(|(c, _)| c.0.len() != keys.0.len()))
+                    {
+                        None
+                    } else {
+                        Some(bits(keys.0.iter().enumerate().filter_map(|(i, k)| {
+                            let keep = values.is_none_or(|(c, ids)| {
+                                let text = languages::facts::text(self.words, c.0[i]).0;
+                                self.p
+                                    .symbols
+                                    .get(text)
+                                    .is_some_and(|id| ids.binary_search(id).is_ok())
+                            });
+                            keep.then_some(k.0 as u32)
+                        })))
+                    }
+                } else {
+                    None
+                }
+            }
             Domain::OtherValues(slot, col, excluded) => {
                 let spec = &self.p.facts[*slot];
                 let table = &mut self.facts[*slot];

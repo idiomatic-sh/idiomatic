@@ -192,26 +192,71 @@ fn predicate<'a>(
     domain: Id,
 ) -> Option<Id> {
     use PlanExpression::*;
+    let native = |v: Value<'_>| match v.field {
+        "kind" => Some(Attribute::Kind),
+        "field" => Some(Attribute::Field),
+        "text" => Some(Attribute::Text),
+        _ => None,
+    };
     let (value, test) = match e {
-        Compare(c) if c.comparator == Comparator::Equal => {
+        Compare(c) if matches!(c.comparator, Comparator::Equal | Comparator::NotEqual) => {
             if let (Column(a), Column(d)) = (&*c.left, &*c.right) {
-                return (get(a)? == get(d)?).then_some(ANY);
+                if get(a)? != get(d)? {
+                    return None;
+                }
+                return Some(if c.comparator == Comparator::Equal {
+                    ANY
+                } else {
+                    EMPTY
+                });
             }
-            let (Column(col), Literal(PlanConstant::Text(lit))) = (&*c.left, &*c.right) else {
-                return None;
-            };
-            let v = get(col)?;
-            let attr = match v.field {
-                "kind" => Attribute::Kind,
-                "field" => Attribute::Field,
-                "text" => Attribute::Text,
+            let (col, lit) = match (&*c.left, &*c.right) {
+                (Column(c), Literal(PlanConstant::Text(t)))
+                | (Literal(PlanConstant::Text(t)), Column(c)) => (c, t),
                 _ => return None,
             };
-            let d = b.literal(attr, &lit.0);
+            let v = get(col)?;
+            let d = b.literal(native(v)?, &lit.0);
             if d == ANY {
                 return None;
             }
-            (v, d)
+            (
+                v,
+                if c.comparator == Comparator::Equal {
+                    d
+                } else {
+                    b.domain(Domain::Except(ANY, d))
+                },
+            )
+        }
+        In(p) | NotIn(p) => {
+            let (Column(col), List(values)) = (&*p.left, &*p.right) else {
+                return None;
+            };
+            if values.len() > CAP {
+                return None;
+            }
+            let v = get(col)?;
+            let attr = native(v)?;
+            let mut d = EMPTY;
+            for value in values {
+                let Literal(PlanConstant::Text(text)) = value else {
+                    return None;
+                };
+                let one = b.literal(attr, &text.0);
+                d = b.either(d, one);
+                if d == ANY {
+                    return None;
+                }
+            }
+            (
+                v,
+                if matches!(e, NotIn(_)) {
+                    b.domain(Domain::Except(ANY, d))
+                } else {
+                    d
+                },
+            )
         }
         Call(c) if &*c.function.0 == "matches" => {
             let [Column(col), Literal(PlanConstant::Text(pattern))] = c.arguments.as_slice() else {
