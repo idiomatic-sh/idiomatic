@@ -24,13 +24,14 @@ impl<T> Compact<T> {
         new
     }
 }
-struct Reachable {
+struct Reachable<'a> {
+    patterns: &'a [super::regexes::Pattern],
     nodes: Compact<Domain>,
     files: Compact<Need>,
     exist: Vec<Id>,
     file_origins: Vec<Id>,
 }
-impl Reachable {
+impl Reachable<'_> {
     fn file(&mut self, old: Id) -> Id {
         let id = self.files.ids[old];
         if id != UNSEEN {
@@ -38,6 +39,15 @@ impl Reachable {
         }
         let mut value = std::mem::replace(&mut self.files.old[old], Need::Any);
         match &mut value {
+            Need::InvalidPattern(slot) => {
+                let id = if self.patterns[*slot].compiled().is_some() {
+                    EMPTY
+                } else {
+                    ANY
+                };
+                self.files.ids[old] = id;
+                return id;
+            }
             Need::Terms(..) => unreachable!("groups are compiled after compaction"),
             Need::Some(d) => *d = self.node(*d),
             Need::Both(a, b) | Need::Either(a, b) => {
@@ -127,6 +137,8 @@ impl Reachable {
             Domain::Both(a, ANY) if a != ANY => Some(a),
             Domain::Both(a, b) | Domain::Either(a, b) if a == b && a != ANY => Some(a),
             Domain::When(ANY, d) if d != ANY => Some(d),
+            Domain::ProvenExcept(left, _, ANY, _) => Some(left),
+            Domain::ProvenExcept(_, diff, EMPTY, ref slots) if slots.is_empty() => Some(diff),
             _ => None,
         };
         if let Some(id) = alias {
@@ -138,6 +150,7 @@ impl Reachable {
 }
 pub(super) fn compact(p: &mut Program) -> Vec<Id> {
     let mut reachable = Reachable {
+        patterns: &p.regexes,
         exist: vec![UNSEEN; p.domains.len()],
         file_origins: Vec::new(),
         nodes: Compact::new(std::mem::take(&mut p.domains)),
@@ -154,6 +167,7 @@ pub(super) fn compact(p: &mut Program) -> Vec<Id> {
         cert.nodes = reachable.node(cert.nodes);
         cert.guard = reachable.file(cert.guard);
     }
+    p.exact.retain(|(_, c)| c.guard != ANY);
     p.domains = reachable.nodes.kept;
     p.needs = reachable.files.kept;
     p.domains.shrink_to_fit();
