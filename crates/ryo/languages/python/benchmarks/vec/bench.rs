@@ -1435,6 +1435,34 @@ impl ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
             relative_import::walked(run, self.project, self.file, self.file_no)?
+        } else if rel == fact_catalog::ASSIGNMENT_SOURCE_REL {
+            let (_, names, tys) = run.catalog(rel).ok_or("no assignment-source")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            self.file.visit_assignment_sources(|target, value, operation, association| {
+                rows.cols[0].push(u64::from(target));
+                rows.cols[1].push(u64::from(value));
+                rows.cols[2].push(u64::from(run.sym(operation.as_bytes())));
+                rows.cols[3].push(u64::from(run.sym(association.as_bytes())));
+                rows.cols[4].push(u64::from(self.file_no));
+                rows.n += 1;
+            });
+            rows
+        } else if rel == fact_catalog::NAMESPACE_SITES_REL {
+            let (_, names, tys) = run.catalog(rel).ok_or("no namespace-sites")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = self.file.visit_namespace_sites(|scope, name, first, mutation, written| {
+                rows.cols[0].push(u64::from(scope));
+                rows.cols[1].push(u64::from(run.sym(name.as_bytes())));
+                rows.cols[2].push(first);
+                rows.cols[3].push(mutation.unwrap_or(finish::NULL));
+                rows.cols[4].push(written.map_or(finish::NULL, u64::from));
+                rows.cols[5].push(u64::from(self.file_no));
+                rows.n += 1;
+            });
+            if !complete {
+                return Err("namespace-sites: incomplete flow".to_owned());
+            }
+            rows
         } else if rel == fact_catalog::BINDING_SITES_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no binding-sites")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);

@@ -9,6 +9,14 @@ use super::finish::{self, Supplier, Ty, project::ProjectAsk};
 pub(super) const BINDING_SITES_REL: &str = "binding-sites";
 const BINDING_SITES_COLS: [(&str, Ty); 8] = [("binding", Ty::Node), ("stores", Ty::Num), ("removals", Ty::Num), ("later", Ty::Num), ("statement", Ty::Node), ("series-end", Ty::Node), ("next", Ty::Node), ("file", Ty::File)];
 
+/// Source assignment targets, their whole or positionally unpacked RHS and assignment form.
+pub(super) const ASSIGNMENT_SOURCE_REL: &str = "assignment-source";
+const ASSIGNMENT_SOURCE_COLS: [(&str, Ty); 5] = [("target", Ty::Node), ("value", Ty::Node), ("operation", Ty::Sym), ("association", Ty::Sym), ("file", Ty::File)];
+
+/// Scheduled first declaration and scheduled/source-order first mutation for a routed name.
+pub(super) const NAMESPACE_SITES_REL: &str = "namespace-sites";
+const NAMESPACE_SITES_COLS: [(&str, Ty); 6] = [("scope", Ty::Node), ("name", Ty::Sym), ("first", Ty::Num), ("first-mutation", Ty::Num), ("first-written", Ty::Num), ("file", Ty::File)];
+
 /// Dotted name requested by a relative import when its containing package is known.
 pub(super) const RELATIVE_IMPORT_REL: &str = "relative-import-target";
 const RELATIVE_IMPORT_COLS: [(&str, Ty); 3] = [("occurrence", Ty::Node), ("path", Ty::Sym), ("file", Ty::File)];
@@ -66,9 +74,11 @@ pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
 /// Declares to `run` every relation this provider, the host and the executor's steps supply beyond the provider's relations
 /// catalog.
 pub(super) fn declare(run: &mut finish::Run) {
-    let facts: [(&str, &[(&str, Ty)]); 10] = [
+    let facts: [(&str, &[(&str, Ty)]); 12] = [
         (REGION_REL, &REGION_COLS),
         (BINDING_SITES_REL, &BINDING_SITES_COLS),
+        (ASSIGNMENT_SOURCE_REL, &ASSIGNMENT_SOURCE_COLS),
+        (NAMESPACE_SITES_REL, &NAMESPACE_SITES_COLS),
         (RELATIVE_IMPORT_REL, &RELATIVE_IMPORT_COLS),
         (PREDECESSOR_REL, &RESOLUTION_COLS),
         (FINAL_REL, &FINAL_COLS),
