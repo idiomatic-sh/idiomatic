@@ -973,6 +973,8 @@ mod deferred_resolution;
 mod direct_fill;
 #[path = "fact_catalog.rs"]
 mod fact_catalog;
+#[path = "relative_import.rs"]
+mod relative_import;
 #[path = "provider_packaging.rs"]
 mod provider_packaging;
 #[path = "provider_tokens.rs"]
@@ -1365,6 +1367,11 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 t.cols[5].push(u64::from(self.file_no));
             }
             t
+        } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
+            let imports = self.whole(run, "static-import")?;
+            relative_import::targets(run, &imports, self.file_no, |run| {
+                self.project.fill(run, provider_packaging::MODULE_IDENTITY_REL, &[self.file_no], self.file_no, self.file.table, self.src)
+            })?
         } else if rel == fact_catalog::RESOLUTION_REL {
             self.read_resolution(run)?
         } else if rel == fact_catalog::TYPE_REGION_REL {
@@ -1423,6 +1430,12 @@ impl finish::Provider for Facts<'_, '_, '_> {
         };
         if file != self.file {
             return Err(format!("{rel}: asked for file {file}, this provider holds file {}", self.file));
+        }
+        if rel == fact_catalog::RELATIVE_IMPORT_REL {
+            let imports = self.fill(run, "static-import", finish::Scope::File(file))?;
+            return relative_import::targets(run, &imports, file, |run| {
+                self.project.fill(run, provider_packaging::MODULE_IDENTITY_REL, &[file], file, self.facts.table, self.src)
+            });
         }
         let t0 = thread_cpu();
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
