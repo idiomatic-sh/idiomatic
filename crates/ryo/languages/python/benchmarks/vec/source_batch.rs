@@ -12,7 +12,7 @@ pub(super) struct SourceBatch {
 }
 
 impl SourceBatch {
-    pub(super) fn file(&mut self, files: &[String], index: usize) -> Result<&[u8]> {
+    pub(super) fn load(&mut self, files: &[String], index: usize) -> Result<usize> {
         if self.ends.is_empty() || index >= self.first + self.ends.len() - 1 {
             self.bytes.clear();
             self.ends.clear();
@@ -32,7 +32,16 @@ impl SourceBatch {
                 }
             }
         }
+        Ok(self.first + self.ends.len() - 1)
+    }
+
+    pub(super) fn get(&self, index: usize) -> &[u8] {
         let at = index - self.first;
-        Ok(&self.bytes[self.ends[at]..self.ends[at + 1]])
+        &self.bytes[self.ends[at]..self.ends[at + 1]]
+    }
+
+    pub(super) fn file(&mut self, files: &[String], index: usize) -> Result<&[u8]> {
+        self.load(files, index)?;
+        Ok(self.get(index))
     }
 }

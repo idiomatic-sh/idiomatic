@@ -932,6 +932,7 @@ mod funnel;
 #[path = "file_seeds.rs"]
 mod file_seeds;
 mod source_batch;
+mod column_pair;
 #[path = "facts.rs"]
 mod facts;
 #[path = "survivors.rs"]
@@ -1688,7 +1689,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let ask_all = args.contains(&"--ask-all");
     let no_project = args.contains(&"--no-project");
     let plant = std::env::var("COLS_PLANT").is_ok_and(|v| v == "1");
-    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
+    let make_walk = || ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
+    let mut cwalk = make_walk();
     store.direct_on = direct;
     if args.contains(&"--regex-set") {
         interner.set = Some(regex::bytes::RegexSet::new(interner.regexes.iter().map(|r| r.as_str())).expect("regex set"));
@@ -1812,20 +1814,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut in_seed = vec![false; frules.len()];
     let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
     let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
-    let mut input = source_batch::SourceBatch::default();
-    for (file_no, path) in list.iter().enumerate() {
-        let c0 = thread_cpu();
-        let bytes = input.file(&list, file_no).expect("read");
-        let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
-        store.reset(slots_n);
-        reader_dump.clear();
-        let mut visit_time = 0f64;
-        // the file's skip, made once (inside the walk when the provider's facts are decided there, else after it): the
-        // columns read, the required words present, and which rules can match by kinds and fields and by words
-        let mut prepared = false;
-        let mut codes_taken = false;
         macro_rules! prepare {
-            ($t:expr) => {{
+            ($t:expr, $source:expr, $file_no:expr, $codes:expr) => {{
+                let bytes: &[u8] = $source;
+                let file_no: usize = $file_no;
+                let codes_taken: bool = $codes;
                 let pt: &NodeTable = $t;
                 let c1 = thread_cpu();
                 fields_present(pt, &mut cols, fields_width.max(1));
@@ -1962,6 +1955,78 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 }
             }};
         }
+    let mut input = source_batch::SourceBatch::default();
+    if syntax_only && !args.contains(&"--one-file") && let Some(executor) = fin.as_deref_mut() {
+        let mut next_walk = make_walk();
+        next_walk.defer_lexical();
+        if !scan_children { next_walk.structured(enclosing.clone()); }
+        let mut next_table = NodeTable::default();
+        let mut bits = [vec![false; frules.len()], vec![false; frules.len()]];
+        let seeds = file_seeds.as_mut().expect("file prefix");
+        let mut prefix_cpu = 0.0;
+        let mut consumer_cpu = 0.0;
+        let mut handoff_cpu = 0.0;
+        let batch_start = thread_cpu();
+        let mut first = 0;
+        while first < list.len() {
+            let stop = input.load(&list, first).expect("read");
+            while first < stop {
+                let second = (first + 1 < stop).then_some(first + 1);
+                let paths = (&list[first][..], input.get(first));
+                let next = second.map(|n| (&list[n][..], input.get(n)));
+                column_pair::walked_pair(&mut cwalk, &mut table, &mut next_walk, &mut next_table, paths, next, &mut bits,
+                    &mut |slot, file, result| {
+                        let start = thread_cpu();
+                        let file_no = first + slot;
+                        let bytes = input.get(file_no);
+                        let ft = file.table;
+                        prepare!(ft, bytes, file_no, false);
+                        let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
+                        let now = thread_cpu();
+                        seeds.choose(&index);
+                        phases.add("seed candidates", thread_cpu() - now);
+                        let now = thread_cpu();
+                        let ctx = funnel::Ctx { table: ft, src: bytes, scan_children, enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
+                        seeds.probe(&frules, &index, &ctx, &alive, &present, result);
+                        phases.add("seed checks", thread_cpu() - now);
+                        let now = thread_cpu();
+                        if seed_out.is_some() {
+                            use std::fmt::Write as _;
+                            for (r, &set) in result.iter().enumerate() {
+                                if set { writeln!(seed_dump, "{file_no}\t{}", frules[r].name).expect("write file seed"); }
+                            }
+                        }
+                        phases.add("seed handoff", thread_cpu() - now);
+                        prefix_cpu += thread_cpu() - start;
+                    },
+                    &mut |slot, file, result| {
+                        let start = thread_cpu();
+                        let id = first + slot;
+                        let before = executor.time;
+                        let wanted = executor.wanted(&list[id], &|e| emit_rules[e].iter().any(|&r| result[r]));
+                        handoff_cpu += (thread_cpu() - start - (executor.time - before)).max(0.0);
+                        if executor.visits(&wanted) {
+                            executor.column_file(id, &list[id], file, input.get(id), &wanted);
+                        }
+                        consumer_cpu += thread_cpu() - start;
+                    });
+                first += if second.is_some() { 2 } else { 1 };
+            }
+        }
+        phases.add("seed handoff", handoff_cpu);
+        phases.add("walk+table", thread_cpu() - batch_start - prefix_cpu - consumer_cpu);
+    } else {
+    for (file_no, path) in list.iter().enumerate() {
+        let c0 = thread_cpu();
+        let bytes = input.file(&list, file_no).expect("read");
+        let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
+        store.reset(slots_n);
+        reader_dump.clear();
+        let mut visit_time = 0f64;
+        // the file's skip, made once (inside the walk when the provider's facts are decided there, else after it): the
+        // columns read, the required words present, and which rules can match by kinds and fields and by words
+        let mut prepared = false;
+        let mut codes_taken = false;
         // the file's prefix: the structure pass, then each live unit's plans over its bucket (inside the fact visit when the
         // walk lends the file there, so the second half can run on the same parsed file after it)
         let mut prefixed = false;
@@ -2203,7 +2268,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         file.name_token_codes(&mut name_codes);
                         codes_taken = true;
                     }
-                    prepare!(ft);
+                    prepare!(ft, bytes, file_no, codes_taken);
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
                     if let Some(seeds) = &mut file_seeds {
@@ -2564,7 +2629,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 let p0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
-                prepare!(ft);
+                prepare!(ft, bytes, file_no, codes_taken);
                 prepared = true;
                 let v0 = thread_cpu();
                 let mut needed = vec![false; slots_n];
@@ -2653,11 +2718,12 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             continue;
         }
         if !prepared {
-            prepare!(t);
+            prepare!(t, bytes, file_no, codes_taken);
         }
         if !prefixed {
             prefix!(t);
         }
+    }
     }
     // the second half's time inside this walk is not the first half's
     let fin_spent = fin.as_ref().map_or(0.0, |f| f.time) - fin0;
