@@ -6,7 +6,6 @@ use std::{collections::BTreeMap, rc::Rc};
 // an empty input would otherwise escape the executor's runtime missing-function check.
 fn scalar(expr: &E) -> R<()> {
     match expr {
-        E::Seed(..) => Err("project predicate requires file-local seeds".into()),
         E::Cmp(Op::Other, ..) => Err("unsupported project comparison".into()),
         E::Call(name, args) => match name.as_str() {
             "starts_with" | "ends_with" | "concat" | "matches" | "glob_any" | "lower"
@@ -25,44 +24,6 @@ fn scalar(expr: &E) -> R<()> {
     }
 }
 
-/// Complete even for an empty admission. Resolve every base before evaluating an
-/// emit, so a short-circuit or an antijoin cannot turn an unavailable input into evidence.
-pub(in super::super) fn evaluate(
-    exec: &mut Exec<'_>,
-    run: &mut Run,
-    provider: &mut dyn Provider,
-    admitted: &[u32],
-    admit_file_subject: impl Fn(u32) -> bool,
-) -> R<Vec<answer::Row>> {
-    evaluate_frontier(
-        exec,
-        run,
-        provider,
-        admitted,
-        admit_file_subject,
-        &BTreeMap::new(),
-    )
-}
-
-pub(in super::super) fn evaluate_frontier(
-    exec: &mut Exec<'_>,
-    run: &mut Run,
-    provider: &mut dyn Provider,
-    admitted: &[u32],
-    admit_file_subject: impl Fn(u32) -> bool,
-    carried: &BTreeMap<usize, Rc<Table>>,
-) -> R<Vec<answer::Row>> {
-    evaluate_covered(
-        exec,
-        run,
-        provider,
-        admitted,
-        admit_file_subject,
-        carried,
-        &BTreeMap::new(),
-    )
-}
-
 /// Absence-dependent steps retain only rows whose key is outside the incomplete files.
 /// The filter runs at the affected step, before any later join or projection.
 pub(in super::super) fn evaluate_covered(
@@ -75,9 +36,6 @@ pub(in super::super) fn evaluate_covered(
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
 ) -> R<Vec<answer::Row>> {
     let plan = exec.plan;
-    if !plan.seeds.is_empty() {
-        return Err("project scope requires complete populations for survivor seeds".into());
-    }
     // A supplied step has a consumer outside this operator chain. Optimizations
     // may read its materialization, but cannot substitute the inputs beneath it.
     if carried.keys().any(|node| !exec.emitted.contains(node)) {
@@ -217,18 +175,18 @@ pub(in super::super) fn evaluate_covered(
         restrict_uncertain(exec, run, provider, &mut frame, &demanded, incomplete)?;
     }
     let mut rows = Vec::new();
-    for (rule, node, subject, keys) in &plan.emits {
+    for (emit, (rule, node, subject, keys)) in plan.emits.iter().enumerate() {
         let t = exec.eval(&mut frame, run, provider, *node)?;
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        let identity = std::iter::once(subject)
-            .chain(keys)
-            .map(|name| t.col(name))
-            .collect::<R<Vec<_>>>()?;
+        let layout = match exec.answer_layouts.entry(emit) {
+            std::collections::hash_map::Entry::Occupied(slot) => slot.get().clone(),
+            std::collections::hash_map::Entry::Vacant(slot) => slot.insert(answer::Layout::new(rule, &t, subject, keys)?).clone(),
+        };
         let mut seen = BTreeMap::new();
         for i in 0..t.n {
-            let subject = identity[0];
+            let subject = layout.identity[0];
             if matches!(t.tys[subject], Ty::File | Ty::Node) {
                 let cell = t.cols[subject][i];
                 if cell == super::NULL { continue; }
@@ -242,7 +200,8 @@ pub(in super::super) fn evaluate_covered(
                     continue;
                 }
             }
-            keep_finding(&mut seen, answer::typed(run, &t, i, rule, None, &identity)?);
+            let row = answer::typed(run, &t, i, None, &layout)?;
+            if t.n == 1 { rows.push(row); } else { keep_finding(&mut seen, row); }
         }
         rows.extend(seen.into_values());
     }
@@ -252,15 +211,15 @@ pub(in super::super) fn evaluate_covered(
 /// A join can produce multiple rows for one public finding. Its placed key and
 /// subject coincide, so the lexicographically first typed payload wins the tie.
 fn keep_finding(
-    seen: &mut BTreeMap<Vec<Option<ryo_values::domain::row_texts::types::Cell>>, answer::Row>,
+    seen: &mut BTreeMap<Vec<answer::Value>, answer::Row>,
     row: answer::Row,
 ) {
     use std::collections::btree_map::Entry;
-    let key = row.identity.iter().map(|&i| row.columns[i].1.clone()).collect();
+    let key = row.layout.identity.iter().map(|&i| row.values[i].clone()).collect();
     match seen.entry(key) {
         Entry::Vacant(slot) => { slot.insert(row); }
         Entry::Occupied(mut slot) => {
-            if row.columns < slot.get().columns {
+            if row.values < slot.get().values {
                 slot.insert(row);
             }
         }
@@ -385,22 +344,20 @@ pub(in super::super) fn pair<'tables>(
         )?;
     }
     let mut rows = Vec::new();
-    for (rule, node, subject, keys) in &plan.emits {
+    for (emit, (rule, node, subject, keys)) in plan.emits.iter().enumerate() {
         run.missing.clear();
         let t = exec.eval(&mut frame, run, facts, *node)?;
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        let identity = std::iter::once(subject)
-            .chain(keys)
-            .map(|name| t.col(name))
-            .collect::<R<Vec<_>>>()?;
+        let layout = match exec.answer_layouts.entry(emit) {
+            std::collections::hash_map::Entry::Occupied(slot) => slot.get().clone(),
+            std::collections::hash_map::Entry::Vacant(slot) => slot.insert(answer::Layout::new(rule, &t, subject, keys)?).clone(),
+        };
         let mut seen = BTreeMap::new();
         for r in 0..t.n {
-            keep_finding(
-                &mut seen,
-                answer::typed(run, &t, r, rule, Some(path as usize), &identity)?,
-            );
+            let row = answer::typed(run, &t, r, Some(path as usize), &layout)?;
+            if t.n == 1 { rows.push(row); } else { keep_finding(&mut seen, row); }
         }
         rows.extend(seen.into_values());
     }

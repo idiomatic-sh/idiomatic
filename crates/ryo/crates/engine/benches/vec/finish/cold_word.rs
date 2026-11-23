@@ -52,7 +52,7 @@ pub(super) fn column(e: &E) -> Option<(usize, Ty)> {
         E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => {
             column(a).or_else(|| column(b))
         }
-        E::Re(a, _) | E::Not(a) | E::Null(a, _) => column(a),
+        E::Re(a, _) | E::Not(a) => column(a),
         E::Call(_, args) => args.iter().find_map(column),
         _ => None,
     }
@@ -171,10 +171,6 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
         E::Not(x) => {
             let t = compile(run, x, c, ty)?.bind();
             Box::new(move |r, w| !t(r, w))
-        }
-        E::Null(x, neg) if is_col(x, c) => {
-            let n = *neg;
-            Box::new(move |_, w| (w == NULL) != n)
         }
         E::In(x, items, true) if ty == Ty::Sym && is_col(x, c) => {
             let E::List(items) = &**items else {

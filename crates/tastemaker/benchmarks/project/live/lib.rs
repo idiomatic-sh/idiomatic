@@ -40,9 +40,11 @@ mod spec;
 #[path = "../../../../ryo/crates/engine/benches/vec/reader_cli.rs"]
 mod reader_cli;
 use reader_cli::{alloc_counts, flag, thread_cpu};
-#[path = "../../../../ryo/cli/benches/readers/bindings.rs"]
-mod bindings;
-use bindings::{context_from, rule_context};
+#[path = "../../../../ryo/cli/benches/readers/json_input.rs"]
+mod json_input;
+#[path = "../../../../ryo/cli/benches/readers/json_output.rs"]
+mod json_output;
+use json_input::rule_context;
 
 /// These readers declare no necessary identifier spelling and no extra walk columns.
 /// Their kind names, field names and filled relations come from the linked parser.

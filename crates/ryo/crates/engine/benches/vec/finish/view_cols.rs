@@ -14,7 +14,6 @@ pub(super) enum Test {
     /// `col in [ids]` (`true`: `not in`).
     In(usize, Box<[u64]>, bool),
     /// `col is null` (`true`: `is not null`).
-    Null(usize, bool),
     /// `a = b` (`true`) or `a != b` (`false`) on two columns of one type.
     Cols(usize, usize, bool),
     Not(Box<Test>),
@@ -42,10 +41,6 @@ fn one(e: &E) -> Test {
             (E::Col(0, c, super::Ty::Sym), E::List(items)) if items.iter().all(|i| matches!(i, E::Text(_))) => {
                 Test::In(*c, items.iter().map(|i| if let E::Text(t) = i { u64::from(*t) } else { NULL }).collect(), *neg)
             }
-            _ => Test::Eval(e.clone()),
-        },
-        E::Null(a, not) => match &**a {
-            E::Col(0, c, _) => Test::Null(*c, *not),
             _ => Test::Eval(e.clone()),
         },
         E::Not(a) => Test::Not(Box::new(one(a))),
@@ -85,7 +80,6 @@ fn holds(f: &File<'_>, run: &mut Run, base: Native, t: &Test, row: u32) -> bool 
             let x = cell(f, run, base, row, *c);
             (x != NULL && vs.contains(&x)) != *neg
         }
-        Test::Null(c, not) => (cell(f, run, base, row, *c) == NULL) != *not,
         Test::Cols(a, b, want) => {
             let (x, y) = (cell(f, run, base, row, *a), cell(f, run, base, row, *b));
             (x == y && x != NULL) == *want
@@ -136,11 +130,6 @@ pub(super) fn retain_original(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &
                         let x = col[*r as usize];
                         (x != NULL && vs.contains(&x)) != *neg
                     });
-                    continue;
-                }
-                Test::Null(c, not) => {
-                    let col = &tab.cols[*c];
-                    rows.retain(|r| (col[*r as usize] == NULL) != *not);
                     continue;
                 }
                 _ => {}

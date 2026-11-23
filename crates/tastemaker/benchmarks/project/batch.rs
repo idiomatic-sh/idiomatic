@@ -13,7 +13,7 @@ use ryo::{
 };
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use serde::Deserialize;
-use serde_json::Value;
+use crate::{json_input, json_output};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -23,7 +23,7 @@ use std::{
 };
 
 #[derive(Deserialize)]
-struct Input {
+pub(crate) struct Input {
     root: String,
     files: Vec<String>,
     inventory: Option<Vec<String>>,
@@ -63,7 +63,7 @@ struct Authorities {
 impl Authorities {
     fn from_input() -> Result<Self, String> {
         match std::env::var_os("TM_CORPUS_PROJECTS") {
-            Some(path) => serde_json::from_slice(&std::fs::read(path).map_err(|e| e.to_string())?)
+            Some(path) => json_input::decode(&std::fs::read(path).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string()),
             None => Ok(Self::default()),
         }
@@ -255,7 +255,7 @@ impl Batch {
                         path.to_owned(),
                         Rc::new({
                             let mut paths: Vec<String> =
-                                serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+                                json_input::decode(&bytes).map_err(|e| e.to_string())?;
                             paths.sort_unstable();
                             paths.dedup();
                             paths
@@ -691,21 +691,13 @@ impl<'a> Receipt<'a> {
     }
 }
 
-pub(super) fn findings<'a>(rows: impl IntoIterator<Item = &'a finish::answer::Row>) -> Vec<String> {
-    let mut result: Vec<_> = rows.into_iter().map(finish::answer::finding).collect();
-    result.sort_unstable();
-    result
-}
-
-fn digest(rows: &[&finish::answer::Row]) -> String {
+pub(super) fn digest(rows: &[&finish::answer::Row]) -> String {
     let mut hash = Sha256::new();
-    if rows.is_empty() {
+    if rows.is_empty() { hash.update(b"\n"); }
+    finish::json_output::ordered_rows(rows.iter().copied(), |line| {
+        hash.update(line);
         hash.update(b"\n");
-    }
-    for row in findings(rows.iter().copied()) {
-        hash.update(row.as_bytes());
-        hash.update(b"\n");
-    }
+    });
     format!("{:x}", hash.finalize())
 }
 
@@ -736,17 +728,17 @@ pub(crate) fn packets(
     let mut projects = stdin.lock().lines();
     for line in std::io::BufReader::new(source).lines() {
         let item: Entry =
-            serde_json::from_str(&line.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+            json_input::decode_line(&line.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
         let mapped = projects
             .next()
             .ok_or("missing closed inventory")?
             .map_err(|e| e.to_string())?;
-        let project: Inventory = serde_json::from_str(&mapped).map_err(|e| e.to_string())?;
+        let project: Inventory = json_input::decode_line(&mapped).map_err(|e| e.to_string())?;
         if project.id != item.id {
             return Err("inventory and admitted request differ".into());
         }
         let bytes = std::fs::read(item.request).map_err(|e| e.to_string())?;
-        let mut input: Input = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+        let mut input: Input = json_input::decode(&bytes).map_err(|e| e.to_string())?;
         input.inventory = Some(project.inventory);
         input.repository = project.repository;
         let work = session
@@ -764,9 +756,9 @@ pub(crate) fn packets(
     for (id, work) in ids.into_iter().zip(&session.work) {
         let result = match Batch::answer(work, &answers) {
             Ok(r) => {
-                serde_json::json!({"id":id,"rows":r.rows.len(),"sha256":digest(&r.rows),"unknowns":r.unknowns})
+                json_output::packet_receipt(&id, Ok((r.rows.len(), digest(&r.rows), r.unknowns)))
             }
-            Err(reason) => serde_json::json!({"id":id,"refused":reason}),
+            Err(reason) => json_output::packet_receipt(&id, Err(reason)),
         };
         writeln!(out, "{result}").map_err(|e| e.to_string())?;
     }
@@ -786,7 +778,7 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
     let mut session = Batch::default();
     if let Some(index) = std::env::var_os("TM_CORPUS_INVENTORIES") {
         let bytes = std::fs::read(index).expect("closed input inventories");
-        session.roots = serde_json::from_slice(&bytes).expect("source roots and their inventories");
+        session.roots = json_input::decode(&bytes).expect("source roots and their inventories");
     }
     session.authorities = Authorities::from_input().expect("repository declarations");
     let file = std::fs::File::open(manifest).expect("input manifest");
@@ -810,7 +802,7 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
         let idx = *inputs.entry(key).or_insert_with(|| {
             let result = std::fs::read(req)
                 .map_err(|e| e.to_string())
-                .and_then(|bytes| serde_json::from_slice(&bytes).map_err(|e| e.to_string()))
+                .and_then(|bytes| json_input::decode(&bytes).map_err(|e| e.to_string()))
                 .and_then(|input| session.register(pack, input, closed))
                 .unwrap_or_else(Work::Refused);
             session.work.push(result);
@@ -840,7 +832,7 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
                 write!(out, "{id}\t{status}\t{d}").unwrap();
                 if !unknowns.is_empty() {
                     write!(out, "\t").unwrap();
-                    serde_json::to_writer(&mut out, unknowns).expect("write unknown findings");
+                    json_output::write_unknowns(&mut out, unknowns);
                 }
                 writeln!(out).unwrap();
             }
@@ -885,15 +877,14 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
 pub(crate) fn one(
     languages: Vec<Language>,
     pack: &str,
-    input: Value,
+    input: Input,
     output: &str,
 ) -> Result<(), String> {
     let readers: Vec<_> = languages
         .into_iter()
         .map(session::source::Linked::from)
         .collect();
-    let req = serde_json::from_value(input).map_err(|e| e.to_string())?;
-    one_source(&readers, pack, req, output)
+    one_source(&readers, pack, input, output)
 }
 
 fn one_source<L: session::source::Source>(
@@ -910,7 +901,13 @@ fn one_source<L: session::source::Source>(
     if !rows.unknowns.is_empty() {
         return Err("partial answer requires typed unknown output".into());
     }
-    std::fs::write(output, findings(rows.rows).join("\n") + "\n").map_err(|e| e.to_string())
+    let mut stream = Vec::new();
+    if rows.rows.is_empty() { stream.push(b'\n'); }
+    finish::json_output::ordered_rows(rows.rows, |line| {
+        stream.extend_from_slice(line);
+        stream.push(b'\n');
+    });
+    std::fs::write(output, stream).map_err(|e| e.to_string())
 }
 
 #[cfg(feature = "product-session")]

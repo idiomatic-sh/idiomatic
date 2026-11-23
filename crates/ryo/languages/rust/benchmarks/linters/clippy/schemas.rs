@@ -207,7 +207,7 @@ impl TryFrom<ClippyReportSchema<'_>> for RunReport {
             .filter(|line| !line.is_empty())
         {
             let line: LineSchema =
-                serde_json::from_slice(line).map_err(|error| Error::Json(Box::new(error)))?;
+                crate::json_input::decode(line).map_err(|error| Error::Json(Box::new(error)))?;
             let Some(message) = line
                 .message
                 .filter(|_| line.reason == constants::COMPILER_MESSAGE)

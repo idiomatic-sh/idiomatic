@@ -13,7 +13,6 @@ pub(super) mod stage {
     pub(crate) const FILE_TEST: u8 = 1;
     pub(crate) const SEMI: u8 = 2;
     pub(crate) const SOURCE_EMPTY: u8 = 3;
-    pub(crate) const SEED_EMPTY: u8 = 4;
     pub(crate) const PENDING_EMPTY: u8 = 8;
     pub(crate) const DRIVER_FILTERED: u8 = 9;
     pub(crate) const KEYS_MISS: u8 = 11;

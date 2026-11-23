@@ -11,7 +11,7 @@ use ryo::languages::{self, CellKind, KindBits, NodeTable, Position, node_table};
 use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 use rustc_hash::FxHashMap;
-use serde_json::Value as J;
+
 #[path = "finish/plan_load.rs"]
 mod plan_load;
 #[path = "finish/plan_args.rs"]
@@ -40,8 +40,12 @@ pub(super) fn step_clock() -> f64 {
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
-#[path = "finish/answer.rs"]
-pub(super) mod answer;
+#[allow(dead_code, reason = "file, native-reference and project hosts read different request fields")]
+#[path = "json_input.rs"]
+pub(crate) mod json_input;
+#[allow(dead_code, reason = "benchmark hosts select lint locations or full query output")]
+#[path = "json_output.rs"]
+pub(crate) mod json_output;
 #[path = "finish/recycle.rs"]
 mod recycle;
 #[path = "finish/inline_key.rs"]
@@ -50,8 +54,6 @@ mod inline_key;
 mod col;
 #[path = "finish/select_kernel.rs"]
 mod select_kernel;
-#[path = "finish/handover.rs"]
-pub(super) mod handover;
 #[path = "band.rs"]
 pub(super) mod band;
 #[path = "walk.rs"]
@@ -134,10 +136,13 @@ mod keyed;
 #[path = "finish/session.rs"]
 pub(super) mod session;
 #[allow(dead_code, reason = "file-only benchmark binaries have no project frontier")]
+#[path = "finish/answer.rs"]
+pub(super) mod answer;
+#[allow(dead_code, reason = "file-only benchmark binaries have no project frontier")]
 #[path = "finish/partition.rs"]
 pub(super) mod partition;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(super) enum Ty {
     Node,
     Sym,
@@ -159,9 +164,9 @@ pub(super) fn ty_of(k: CellKind) -> Ty {
 }
 
 /// A value: a typed cell.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub(super) struct V(Ty2, u64);
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 enum Ty2 {
     T(u8),
 }
@@ -192,11 +197,23 @@ pub(super) struct Table {
     pub(super) n: usize,
 }
 
+// Small results commonly repeat a schema width in the next file. Keep their column
+// list intact so retiring one answer does not dismantle and pool each buffer.
+const BUNDLE_WIDTH: usize = 12;
+const BUNDLE_ROWS: usize = 64;
+
+struct ColumnPool {
+    by_capacity: [Vec<Vec<u64>>; CLASSES],
+    by_width: [Vec<Vec<Vec<u64>>>; BUNDLE_WIDTH + 1],
+    cells: usize,
+}
+
 thread_local! {
-    /// 8: the worker's column buffers: a dropped table's columns come back here (cleared, capacity kept) and the next
-    /// table takes them, so a file's executions reuse the same memory instead of allocating and freeing per execution.
-    /// redo-alloc: by size class (a column of room 2^c..2^(c+1) in class c), so a small table never holds a large column.
-    static POOL: RefCell<([Vec<Vec<u64>>; CLASSES], usize)> = const { RefCell::new(([const { Vec::new() }; CLASSES], 0)) };
+    static POOL: RefCell<ColumnPool> = const { RefCell::new(ColumnPool {
+        by_capacity: [const { Vec::new() }; CLASSES],
+        by_width: [const { Vec::new() }; BUNDLE_WIDTH + 1],
+        cells: 0,
+    }) };
 }
 /// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it (redo-alloc c8
 /// tried 64 MB: no fewer misses, 37 MB more live).
@@ -208,11 +225,11 @@ const CLASSES: usize = 20;
 /// power of two (so it is found again by its class); for an unknown size (`n` 0) one of the small classes (up to 512
 /// cells) or an empty one.
 #[inline]
-fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
+fn take_col(p: &mut ColumnPool, n: usize) -> Vec<u64> {
     let (lo, hi) = if n == 0 { (0, 8) } else { let c = (usize::BITS - (n - 1).leading_zeros()) as usize; (c.saturating_sub(1), (c + 4).min(CLASSES - 1)) };
     for c in lo..=hi.min(CLASSES - 1) {
-        if let Some(v) = p.0[c].pop() {
-            p.1 -= v.capacity();
+        if let Some(v) = p.by_capacity[c].pop() {
+            p.cells -= v.capacity();
             if v.capacity() >= n {
                 return v;
             }
@@ -242,10 +259,18 @@ impl Table {
         let (names, tys) = (names.into(), tys.into());
         let k = names.len();
         // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool
-        let mut cols = recycle::take_cols(k);
-        POOL.with(|p| {
-            let p = &mut *p.borrow_mut();
+        let cols = POOL.with_borrow_mut(|p| {
+            if n <= BUNDLE_ROWS && k <= BUNDLE_WIDTH && let Some(mut cols) = p.by_width[k].pop() {
+                for col in &mut cols {
+                    p.cells -= col.capacity();
+                    col.clear();
+                    col.reserve(n);
+                }
+                return cols;
+            }
+            let mut cols = recycle::take_cols(k);
             cols.extend((0..k).map(|_| take_col(p, n)));
+            cols
         });
         Table { names, tys, cols, n: 0 }
     }
@@ -275,15 +300,24 @@ impl Table {
             return;
         }
         let _ = POOL.try_with(|p| {
-            let (p, cells) = &mut *p.borrow_mut();
+            let p = &mut *p.borrow_mut();
+            let k = self.cols.len();
+            if k <= BUNDLE_WIDTH && p.by_width[k].len() < 128 && self.cols.iter().all(|c| c.capacity() <= BUNDLE_ROWS) {
+                let cells = self.cols.iter().map(Vec::capacity).sum::<usize>();
+                if p.cells + cells <= POOL_CELLS {
+                    p.cells += cells;
+                    p.by_width[k].push(std::mem::take(&mut self.cols));
+                    return;
+                }
+            }
             for mut c in self.cols.drain(..) {
                 let cap = c.capacity();
-                if cap == 0 || cap > POOL_CELLS / 16 || *cells + cap > POOL_CELLS {
+                if cap == 0 || cap > POOL_CELLS / 16 || p.cells + cap > POOL_CELLS {
                     continue;
                 }
                 c.clear();
-                *cells += cap;
-                p[(usize::BITS - 1 - cap.leading_zeros()) as usize].push(c);
+                p.cells += cap;
+                p.by_capacity[(usize::BITS - 1 - cap.leading_zeros()) as usize].push(c);
             }
         });
     }
@@ -322,6 +356,7 @@ pub(super) struct Run {
     /// The provider updates its field-code dictionary when reading each file.
     pub(super) file_field_codes: bool,
     pub(super) paths: Vec<String>,
+    answer_symbols: FxHashMap<u32, Rc<str>>,
     pub(super) path_sym: Vec<u32>,
     pub(super) empty: u32,
     /// The SDK symbol without a published value, distinct from an empty string.
@@ -499,7 +534,8 @@ pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &
 /// A plan node, as lowered.
 pub(super) struct PNode {
     pub(super) op: String,
-    source: plan_load::Source,
+    source: Rc<ryo_values::domain::finish_plans::types::FinishPlan>,
+    slot: usize,
     args: std::cell::OnceCell<Args>,
     pub(super) inputs: Vec<usize>,
     /// 7: the relation arguments (`args.<name>.rel`), by name.
@@ -509,89 +545,16 @@ pub(super) struct PNode {
 pub(super) struct Plan {
     pub(super) nodes: Vec<PNode>,
     pub(super) emits: Vec<(String, usize, String, Vec<String>)>,
-    /// The survivor sets the plan's seed tests name, by set: the label of the prefix rule whose roots fill it.
-    pub(super) seeds: Vec<String>,
-    /// 6e item 2: per set, the move paths from the prefix's roots to the other variables the set also holds.
-    pub(super) seed_paths: Vec<Vec<Vec<String>>>,
+
 }
 
-/// The executor also accepts older encoded plans whose value map has no separate ordering.
+/// Visit typed extension values in their declared order.
 fn extend_values(args: &Args, mut visit: impl FnMut(&str, &Param) -> R<()>) -> R<()> {
     let values = args["values"].as_object().ok_or("extend values")?;
-    if let Some(order) = args["value-order"].as_array() {
-        if order.len() != values.len() {
-            return Err("invalid extend column order".into());
-        }
-        for key in order {
-            let name = key.as_str().ok_or("invalid extend column")?;
-            visit(name, values.get(name).ok_or("undeclared extend column")?)?;
-        }
-    } else {
-        for (name, value) in values {
-            visit(name, value)?;
-        }
+    for name in strs(&args["value-order"])? {
+        visit(name, values.get(name).ok_or("undeclared extend column")?)?;
     }
     Ok(())
-}
-
-fn inputs_of(j: &J, out: &mut Vec<usize>) {
-    match j {
-        J::Object(m) => {
-            if let Some(J::Number(n)) = m.get("rel")
-                && m.len() == 1
-            {
-                out.push(n.as_u64().expect("rel") as usize);
-                return;
-            }
-            for v in m.values() {
-                inputs_of(v, out);
-            }
-        }
-        J::Array(a) => a.iter().for_each(|v| inputs_of(v, out)),
-        _ => {}
-    }
-}
-
-pub(super) fn load(path: &str) -> Plan {
-    let j: J = serde_json::from_str(&std::fs::read_to_string(path).expect("plan")).expect("plan json");
-    from_value(&j)
-}
-
-/// Read an explicitly supplied plan, including external seed sets and seed move paths.
-fn from_value(j: &J) -> Plan {
-    let nodes = j["nodes"]
-        .as_array()
-        .expect("nodes")
-        .iter()
-        .map(|n| {
-            let op = n["op"].as_str().expect("op").to_owned();
-            let mut inputs = Vec::new();
-            if op == "select" {
-                for s in n["src"].as_array().expect("src") {
-                    inputs.push(s[0].as_u64().expect("src node") as usize);
-                }
-            } else if op != "base" {
-                inputs_of(&n["args"], &mut inputs);
-            }
-            let rels = n["args"].as_object().map(|m| m.iter().filter_map(|(k, v)| v.get("rel").and_then(J::as_u64).map(|r| (k.clone(), r as usize))).collect()).unwrap_or_default();
-            PNode { op, source: plan_load::Source::External(n.clone()), args: Default::default(), inputs, rels }
-        })
-        .collect();
-    let mut emits = Vec::new();
-    for (rule, e) in j["emits"].as_object().expect("emits") {
-        emits.push((
-            rule.clone(),
-            e["node"].as_u64().expect("emit node") as usize,
-            e["subject"].as_str().unwrap_or("file").to_owned(),
-            e["key"].as_array().map(|a| a.iter().map(|x| x.as_str().unwrap_or("").to_owned()).collect()).unwrap_or_default(),
-        ));
-    }
-    let seeds = j["seeds"].as_array().map(|a| a.iter().map(|x| x.as_str().unwrap_or("").to_owned()).collect()).unwrap_or_default();
-    let seed_paths = j["seed_paths"]
-        .as_array()
-        .map(|a| a.iter().map(|ps| ps.as_array().map(|ps| ps.iter().map(|p| p.as_array().map(|p| p.iter().map(|m| m.as_str().unwrap_or("").to_owned()).collect()).unwrap_or_default()).collect()).unwrap_or_default()).collect())
-        .unwrap_or_default();
-    Plan { nodes, emits, seeds, seed_paths }
 }
 
 /// The relations of the tree read in place, by position.
@@ -687,20 +650,20 @@ pub(super) struct File<'a> {
     keyed_sizes: FxHashMap<usize, usize>,
     owed_fills: Vec<bool>,
     present_fields: std::cell::OnceCell<rustc_hash::FxHashSet<u32>>,
-    cold_roots: Vec<(u16, u32)>,
+    cold_roots: std::cell::OnceCell<Vec<(u16, u32)>>,
     cold_text: cold_text::Dictionary,
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
     pub(super) file: u32,
     after_last_file: bool,
     pub(super) n: usize,
-    pub(super) kind: Vec<u16>,
-    pub(super) start: Vec<u32>,
-    pub(super) end: Vec<u32>,
-    pub(super) parent: Vec<u32>,
+    pub(super) kind: &'a [u16],
+    pub(super) start: &'a [u32],
+    pub(super) end: &'a [u32],
+    pub(super) parent: &'a [u32],
     /// redo-fills c4: each element's field code (`node_table::field_of`), read as a column.
-    field: Vec<u16>,
-    pub(super) line_starts: Vec<u32>,
+    field: &'a [u16],
+    line_starts: std::cell::OnceCell<Vec<u32>>,
     text_memo: RefCell<Vec<u32>>,
     by_start: RefCell<Option<Index>>,
     by_end: RefCell<Option<Index>>,
@@ -714,12 +677,10 @@ pub(super) struct File<'a> {
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
-    /// The survivor sets of this file (sorted node ids), by set: the prefix's roots for each seeded rule.
-    pub(super) seeds: Vec<Vec<u32>>,
     /// 6h: the fills read in place, by `Native::Fact` place, and their keyed lists by (place, column).
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
-    /// redo-union pass 2: whether a step is known empty in this file from its kinds, seeds and per-file tests (`known`).
+    /// redo-union pass 2: whether a step is known empty in this file from its kinds and per-file tests (`known`).
     known: Vec<u8>,
     /// The kinds the file has, one bit a kind code (made at the first ask).
     kind_bits: Vec<u64>,
@@ -740,11 +701,6 @@ thread_local! {
 /// and free of each; their answers given back to the pools, recycle.rs).
 #[derive(Default)]
 struct FileBufs {
-    kind: Vec<u16>,
-    start: Vec<u32>,
-    end: Vec<u32>,
-    parent: Vec<u32>,
-    line_starts: Vec<u32>,
     text_memo: Vec<u32>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
@@ -787,11 +743,6 @@ impl Drop for File<'_> {
         SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
         // redo-alloc: the file's buffers and maps emptied and kept for the next file
         let mut b = FileBufs {
-            kind: std::mem::take(&mut self.kind),
-            start: std::mem::take(&mut self.start),
-            end: std::mem::take(&mut self.end),
-            parent: std::mem::take(&mut self.parent),
-            line_starts: std::mem::take(&mut self.line_starts),
             text_memo: std::mem::take(self.text_memo.get_mut()),
             vrows: std::mem::take(&mut self.vrows),
             vmat: std::mem::take(&mut self.vmat),
@@ -802,11 +753,6 @@ impl Drop for File<'_> {
             fact_ix: std::mem::take(self.fact_ix.get_mut()),
             kind_bits: std::mem::take(&mut self.kind_bits),
         };
-        b.kind.clear();
-        b.start.clear();
-        b.end.clear();
-        b.parent.clear();
-        b.line_starts.clear();
         b.text_memo.clear();
         for (_, r) in b.vrows.drain() {
             r.recycle();
@@ -867,24 +813,18 @@ impl File<'_> {
         let n = node_table::element_count(table).0;
         // redo-alloc: the last file's emptied buffers and maps (none at the first file)
         let mut b = SPARE_BUFS.with(|s| s.borrow_mut().take()).unwrap_or_default();
-        b.kind.reserve(n);
-        b.start.reserve(n);
-        b.end.reserve(n);
-        b.parent.reserve(n);
-        b.line_starts.push(0);
-        b.text_memo.resize(n, u32::MAX);
         let mut f = File {
             table,
             src,
             file,
             after_last_file: false,
             n,
-            kind: b.kind,
-            start: b.start,
-            end: b.end,
-            parent: b.parent,
-            field: Vec::with_capacity(n),
-            line_starts: b.line_starts,
+            kind: node_table::kind_codes(table),
+            start: node_table::starts(table),
+            end: node_table::ends(table),
+            parent: node_table::parent_ids(table),
+            field: node_table::field_codes(table),
+            line_starts: Default::default(),
             text_memo: RefCell::new(b.text_memo),
             by_start: RefCell::new(None),
             by_end: RefCell::new(None),
@@ -896,14 +836,13 @@ impl File<'_> {
             keyed_sizes: FxHashMap::default(),
             owed_fills: Vec::new(),
             present_fields: Default::default(),
-            cold_roots: Vec::new(),
+            cold_roots: Default::default(),
             cold_text: cold_text::Dictionary::default(),
             vmat: b.vmat,
             cursor_views: Default::default(),
             index: b.index,
             fills: b.fills,
             lazies: b.lazies,
-            seeds: Vec::new(),
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
             known: Vec::new(),
@@ -915,46 +854,48 @@ impl File<'_> {
             let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
             (f.memo, f.known, f.touched) = if memo.len() == nodes && known.len() == nodes { (memo, known, touched) } else { (vec![None; nodes], vec![0; nodes], Vec::new()) };
         });
-        for i in 0..n as u32 {
-            let p = Position(i);
-            f.kind.push(node_table::kind_of(table, p).0);
-            let s = node_table::span_of(table, p);
-            f.start.push(s.start.0);
-            f.end.push(s.end.0);
-            f.parent.push(node_table::parent_of(table, p).0);
-            let field = node_table::field_of(table, p).0;
-            f.field.push(field);
-            if i != 0 && f.parent[i as usize] == i {
-                f.cold_roots.push((field, i));
-            }
-        }
-        if sw!("VEC_COLD_COUNT") { cold_bucket::roots(f.cold_roots.len(), f.cold_roots.capacity()); }
-        let mut i = 0;
-        while i < src.len() {
-            match src[i] {
-                b'\n' => f.line_starts.push(i as u32 + 1),
-                b'\r' => {
-                    if i + 1 < src.len() && src[i + 1] == b'\n' {
-                        i += 1;
-                    }
-                    f.line_starts.push(i as u32 + 1);
-                }
-                _ => {}
-            }
-            i += 1;
+        if sw!("VEC_COLD_COUNT") {
+            let roots = f.extra_roots();
+            cold_bucket::roots(roots.len(), roots.capacity());
         }
         f
     }
+
+    // A forest can have additional self-parent nodes. Most files never request their field bucket.
+    fn extra_roots(&self) -> &Vec<(u16, u32)> {
+        self.cold_roots.get_or_init(|| {
+            self.parent.iter().enumerate().skip(1)
+                .filter(|(node, parent)| *node == **parent as usize)
+                .map(|(node, _)| (self.field[node], node as u32))
+                .collect()
+        })
+    }
+
+    fn line_offsets(&self) -> &[u32] {
+        self.line_starts.get_or_init(|| {
+            let mut starts = vec![0];
+            for (i, &byte) in self.src.iter().enumerate() {
+                if byte == b'\n' || (byte == b'\r' && self.src.get(i + 1) != Some(&b'\n')) {
+                    starts.push(i as u32 + 1);
+                }
+            }
+            starts
+        })
+    }
     pub(super) fn set_text(&mut self, symbols: &[u32]) {
-        self.text_memo.get_mut().copy_from_slice(symbols);
+        assert_eq!(symbols.len(), self.n);
+        let memo = self.text_memo.get_mut();
+        memo.clear();
+        memo.extend_from_slice(symbols);
     }
 
     fn line(&self, off: u32) -> i64 {
-        self.line_starts.partition_point(|s| *s <= off) as i64
+        self.line_offsets().partition_point(|s| *s <= off) as i64
     }
     fn column(&self, off: u32) -> i64 {
-        let l = self.line_starts.partition_point(|s| *s <= off) - 1;
-        i64::from(off - self.line_starts[l])
+        let starts = self.line_offsets();
+        let l = starts.partition_point(|s| *s <= off) - 1;
+        i64::from(off - starts[l])
     }
     fn has_text(run: &Run, k: u16) -> bool {
         run.text_kind.get(usize::from(k)).copied().unwrap_or(false)
@@ -967,9 +908,11 @@ impl File<'_> {
         }
     }
     fn elem_text(&self, run: &mut Run, p: u32) -> u32 {
-        let m = self.text_memo.borrow()[p as usize];
-        if m != u32::MAX {
-            return m;
+        let mut memo = self.text_memo.borrow_mut();
+        if let Some(&symbol) = memo.get(p as usize) {
+            if symbol != u32::MAX { return symbol; }
+        } else {
+            memo.resize(self.n, u32::MAX);
         }
         let k = self.kind[p as usize];
         let s = if Self::has_text(run, k) {
@@ -977,7 +920,7 @@ impl File<'_> {
         } else {
             run.empty
         };
-        self.text_memo.borrow_mut()[p as usize] = s;
+        memo[p as usize] = s;
         s
     }
     fn has_parent(&self, p: u32) -> bool {
@@ -1278,16 +1221,13 @@ enum E {
     And(Box<E>, Box<E>),
     Or(Box<E>, Box<E>),
     Not(Box<E>),
-    /// redo-binding: the null test (`x is null`, `x is not null` when the flag is set): whether a value is the absent cell.
-    Null(Box<E>, bool),
     /// A text tested against a constant regex (from `matches` or `glob_any`), compiled once.
     Re(Box<E>, Rc<regex::bytes::Regex>),
-    /// The survivor handoff: whether a node id is in survivor set `k` of this file (the prefix's roots for a rule).
-    Seed(Box<E>, usize),
+
 }
 
 /// 8: a comparison operator, resolved once a run when the plan's expression is compiled (never compared as text per row).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(super) enum Op {
     Eq,
     Ne,
@@ -1298,17 +1238,6 @@ pub(super) enum Op {
     Other,
 }
 impl Op {
-    pub(super) fn of(o: &str) -> Op {
-        match o {
-            "=" => Op::Eq,
-            "!=" => Op::Ne,
-            "<" => Op::Lt,
-            "<=" => Op::Le,
-            ">" => Op::Gt,
-            ">=" => Op::Ge,
-            _ => Op::Other,
-        }
-    }
     pub(super) fn as_str(self) -> &'static str {
         match self {
             Op::Eq => "=",
@@ -1391,6 +1320,7 @@ fn truthy(v: V) -> bool {
 // ------------------------------------------------------------------------------------------------ the executor
 
 pub(super) struct Exec<'p> {
+    answer_layouts: FxHashMap<usize, Rc<answer::Layout>>,
     pub(super) plan: &'p Plan,
     pub(super) stats: Stats,
     schemas: Vec<Option<Rc<Schema>>>,
@@ -1429,9 +1359,6 @@ pub(super) struct Exec<'p> {
 
 type R<T> = Result<T, String>;
 
-fn external_text(j: &J) -> R<&str> {
-    j.as_str().ok_or_else(|| format!("not a text: {j}"))
-}
 /// Borrow names from this plan argument in their declared order.
 fn strs(j: &Param) -> R<impl DoubleEndedIterator<Item = &str> + Clone> {
     let values = match j {
@@ -1467,6 +1394,7 @@ impl<'p> Exec<'p> {
             leaves: emptyprop::Leaves::default(),
             inner: 0.0,
             constant: vec![None; k],
+            answer_layouts: FxHashMap::default(),
             run_memo: vec![None; k],
             frames: frame::frames(plan),
             consumers: {
@@ -1742,38 +1670,6 @@ impl<'p> Exec<'p> {
         Ok(sc)
     }
 
-    fn expr(&self, run: &mut Run, j: &J, names: &[(Option<String>, Rc<Schema>)]) -> R<E> {
-        let a = j.as_array().ok_or("expr")?;
-        let tag = external_text(&a[0])?;
-        Ok(match tag {
-            "col" => Self::column_expr(run, external_text(&a[1])?, a[2].as_str(), names)?,
-            "lit" => E::Text(run.sym(external_text(&a[1])?.as_bytes())),
-            "num" => E::Num(a[1].as_i64().ok_or("num")?),
-            "list" => E::List(a[1].as_array().ok_or("list")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?),
-            "call" => {
-                let name = external_text(&a[1])?.to_owned();
-                let args: Vec<E> = a[2].as_array().ok_or("args")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?;
-                Self::call_expr(run, &name, args)?
-            }
-            "cmp" => {
-                let left = self.expr(run, &a[2], names)?;
-                let right = self.expr(run, &a[3], names)?;
-                Self::compare_expr(run, Op::of(external_text(&a[1])?), left, right)
-            }
-            "in" | "notin" => {
-                let value = self.expr(run, &a[1], names)?;
-                let list = self.expr(run, &a[2], names)?;
-                Self::membership_expr(run, value, list, tag == "notin")
-            }
-            "and" => E::And(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
-            "or" => E::Or(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
-            "not" => E::Not(Box::new(self.expr(run, &a[1], names)?)),
-            "null" => E::Null(Box::new(self.expr(run, &a[1], names)?), a[2].as_bool().ok_or("null test")?),
-            "seed" => E::Seed(Box::new(self.expr(run, &a[1], names)?), a[2].as_u64().ok_or("seed set")? as usize),
-            other => return Err(format!("expression {other}")),
-        })
-    }
-
     /// A select's compiled form, once a run.
     fn sel(&mut self, run: &mut Run, node: usize) -> R<Rc<SelPlan>> {
         if let Some(sp) = &self.sels[node] {
@@ -1847,8 +1743,7 @@ impl<'p> Exec<'p> {
                 match self.view(run, inner)? {
                     Some(iv) => {
                         let sp = self.sel(run, node)?;
-                        // 6e: `VEC_SEED_NOT_VIEW`: a seed test is never a view's filter (measured a loss: j13 239.6 M against j12 212.0 M)
-                        let plain = sp.items.iter().all(|(_, e)| matches!(e, E::Col(0, _, _))) && (!sw!("VEC_SEED_NOT_VIEW") || !sp.conj.iter().any(|e| matches!(e, E::Seed(..))));
+                        let plain = sp.items.iter().all(|(_, e)| matches!(e, E::Col(0, _, _)));
                         if plain {
                             let map = sp.items.iter().map(|(_, e)| if let E::Col(_, c, _) = e { iv.map[*c] } else { 0 }).collect();
                             let mut filter = iv.filter.clone();
@@ -2623,8 +2518,8 @@ impl<'p> Exec<'p> {
             if sw!("VEC_ASKER_PLAN") && by != u32::MAX && fill_prof::first_asker(by) {
                 eprintln!("ASKER-SITE {by} {} {}", fill_prof::SITE.with(std::cell::Cell::get), std::backtrace::Backtrace::force_capture().to_string().lines().filter(|l| l.contains("Exec") || l.contains("kernel") || l.contains("finish")).take(12).map(str::trim).collect::<Vec<_>>().join(" < "));
                 let pn = &self.plan.nodes[by as usize];
-                let ins: Vec<String> = pn.inputs.iter().map(|x| format!("{x}:{}:{}", self.plan.nodes[*x].op, self.plan.nodes[*x].diagnostic().to_string().chars().take(160).collect::<String>())).collect();
-                eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.diagnostic().to_string().chars().take(900).collect::<String>(), ins.join(" | "));
+                let ins: Vec<String> = pn.inputs.iter().map(|x| format!("{x}:{}:{}", self.plan.nodes[*x].op, self.plan.nodes[*x].summary_text().chars().take(160).collect::<String>())).collect();
+                eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.summary_text().chars().take(900).collect::<String>(), ins.join(" | "));
             }
         }
         if !f.fills.contains_key(&rel) {
@@ -2773,27 +2668,9 @@ impl<'p> Exec<'p> {
             }
             srcs.push(src);
         }
-        // the survivor handoff: a source with a seed test starts the step from the rule's survivors, read by key
-        let mut driver: Option<usize> = None;
-        if let Some((si, c, k)) = conj.iter().find_map(|e| match e {
-            E::Seed(x, k) => match **x {
-                E::Col(si, c, _) => Some((si, c, *k)),
-                _ => None,
-            },
-            _ => None,
-        }) {
-            let ids: Vec<u64> = f.seeds.get(k).map(|s| s.iter().map(|x| u64::from(*x)).collect()).unwrap_or_default();
-            let t = self.probe(f, run, p, sp.srcs[si], c, &ids)?;
-            self.stats.touched[node] += ids.len() as u64;
-            if t.n == 0 {
-                empty_sel::at(empty_sel::stage::SEED_EMPTY);
-                return self.empty(run, node);
-            }
-            srcs[si] = Src::Tab(t, usize::MAX - si);
-            driver = Some(si);
-        }
+        let mut driver = None;
         // the driver: the smallest entry that is already a count, a made table's rows or a view's kind bucket
-        let mut best = if driver.is_some() { 0 } else { usize::MAX };
+        let mut best = usize::MAX;
         for (i, sr) in srcs.iter().enumerate() {
             let size = match sr {
                 Src::Tab(t, _) => Some(t.n),
@@ -3921,9 +3798,7 @@ fn remap(e: &E, map: &[usize]) -> E {
         E::And(x, y) => E::And(b(x), b(y)),
         E::Or(x, y) => E::Or(b(x), b(y)),
         E::Not(x) => E::Not(b(x)),
-        E::Null(x, n) => E::Null(b(x), *n),
         E::Re(x, r) => E::Re(b(x), r.clone()),
-        E::Seed(x, k) => E::Seed(b(x), *k),
         other => other.clone(),
     }
 }
@@ -4205,7 +4080,7 @@ fn refs_of(e: &E) -> u64 {
         E::Col(s, _, _) => 1 << s,
         E::List(v) | E::Call(_, v) => v.iter().map(refs_of).fold(0, |a, b| a | b),
         E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => refs_of(a) | refs_of(b),
-        E::Not(a) | E::Null(a, _) | E::Re(a, _) | E::Seed(a, _) => refs_of(a),
+        E::Not(a) | E::Re(a, _) => refs_of(a),
         _ => 0,
     }
 }
@@ -4309,7 +4184,6 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
         E::And(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) && truthy(eval(run, f, srcs, cur, b))),
         E::Or(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) || truthy(eval(run, f, srcs, cur, b))),
         E::Not(a) => flag(!truthy(eval(run, f, srcs, cur, a))),
-        E::Null(a, not) => flag((eval(run, f, srcs, cur, a).1 == NULL) != *not),
         E::Cmp(o @ (Op::Eq | Op::Ne), a, b) => {
             let want = *o == Op::Eq;
             let eq = match (&**a, &**b) {
@@ -4374,10 +4248,6 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             }
             let vs: Vec<V> = args.iter().map(|x| eval(run, f, srcs, cur, x)).collect();
             call(run, name, &vs)
-        }
-        E::Seed(a, k) => {
-            let x = eval(run, f, srcs, cur, a);
-            flag(f.seeds.get(*k).is_some_and(|s| s.binary_search(&(x.1 as u32)).is_ok()))
         }
     }
 }
