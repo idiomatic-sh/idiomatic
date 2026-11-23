@@ -23,7 +23,7 @@ impl Early<'_, '_> {
             }
             Need::Some(d) => self.exists(d),
             Need::PathMatches(_) | Need::Any | Need::Empty => i,
-            Need::SourceContains(_) => ANY,
+            Need::SourceContains(_) | Need::InvalidPattern(_) => ANY,
             Need::Terms(..) => unreachable!("file scheduling follows projection"),
         };
         self.files[i] = Some(value);
