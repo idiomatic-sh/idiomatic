@@ -1237,6 +1237,23 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         if !matches!(scope, finish::Scope::File(f) if f == self.file_no) || self.kept.contains_key(rel) {
             return None;
         }
+        if matches!(rel, import_syntax::HEADS | import_syntax::LINE_COMMENTS) {
+            let timed = finish::fill_prof::timed();
+            let start = if timed { thread_cpu() } else { 0.0 };
+            let count = if rel == import_syntax::HEADS {
+                Some(self.file.import_statement_count())
+            } else {
+                self.import_comments.known_count().or_else(|| (!self.file.can_have_import_line_comments()).then_some(0))
+            };
+            if timed {
+                let elapsed = thread_cpu() - start;
+                let kind = if count == Some(0) { "empty" } else { "other" };
+                let e = self.by_rel.entry(format!("length-{kind}:{rel}")).or_default();
+                e.0 += elapsed;
+                e.2 += 1;
+            }
+            return count;
+        }
         let (relation, _, _) = run.catalog(rel)?;
         self.file.row_count(relation?)
     }

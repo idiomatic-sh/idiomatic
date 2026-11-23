@@ -34,22 +34,7 @@ pub(super) fn common(a: Attribute, b: Attribute, facts: &[Fact]) -> Option<Attri
     (slot == other).then_some(Attribute::ProjectChoices(slot, aa | bb))
 }
 impl Builder<'_> {
-    pub(super) fn project_membership(
-        &mut self,
-        e: &PlanExpression,
-        lookup: &impl Fn(&ColumnRead) -> Option<Column>,
-    ) -> Option<(usize, Id)> {
-        let PlanExpression::Compare(test) = e else {
-            return None;
-        };
-        if test.comparator != Comparator::Equal {
-            return None;
-        }
-        let (PlanExpression::Column(a), PlanExpression::Column(b)) = (&*test.left, &*test.right)
-        else {
-            return None;
-        };
-        let (a, b) = (lookup(a)?, lookup(b)?);
+    pub(super) fn project_membership(&mut self, a: Column, b: Column) -> Option<(usize, Id)> {
         for (candidate, project) in [(a, b), (b, a)] {
             let (Attribute::Cell(slot, col), Attribute::Cell(set, field)) =
                 (candidate.attr, project.attr)

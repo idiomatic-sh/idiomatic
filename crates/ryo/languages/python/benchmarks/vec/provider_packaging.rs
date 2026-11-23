@@ -21,7 +21,9 @@ pub(super) struct Project {
     root_dir: String,
     search_roots: Option<Vec<String>>,
     classified: HashMap<String, PathObservation>,
-    pub(super) import_prefixes: HashMap<u32, super::import_syntax::ImportPrefix>,
+    pub(super) import_prefixes: rustc_hash::FxHashMap<u32, super::import_syntax::ImportPrefix>,
+    pub(super) head_modules: rustc_hash::FxHashMap<((i64,i64),u32), (u64, super::import_syntax::ModuleContext)>,
+    pub(super) import_catalog: rustc_hash::FxHashMap<((i64,i64),u64), u64>,
     kinds: Kinds,
     packages: HashMap<std::path::PathBuf, Option<Package>>,
 }
@@ -60,7 +62,7 @@ impl Project {
     /// code of a kind name.
     pub(super) fn new(root_dir: &str, search_roots: Option<Vec<String>>, kind: &dyn Fn(&str) -> Option<u16>) -> Self {
         let kinds = Kinds { alias: kind("alias"), from: kind("import-from"), dot: kind("dot"), ellipsis: kind("ellipsis"), ident: kind("identifier"), name: kind("name-token") };
-        Self { root_dir: root_dir.to_owned(), search_roots, classified: HashMap::new(), import_prefixes: HashMap::new(), kinds, packages: HashMap::new() }
+        Self { root_dir: root_dir.to_owned(), search_roots, classified: HashMap::new(), import_prefixes: Default::default(), import_catalog: Default::default(), head_modules: Default::default(), kinds, packages: HashMap::new() }
     }
 
     /// The host's search roots from a request file (`project_search_roots`); None without a request or without the key.

@@ -85,7 +85,8 @@ fn file_requirements(
     assert!(plan.unplanned.is_empty(), "unplanned file queries");
     let mut skips = Vec::with_capacity(plan.steps.len());
     for step in &plan.steps {
-        skips.push(super::pair_skip::Skip::step(step, &skips, language));
+        let terms = super::pair_summary::conjuncts(step);
+        skips.push(super::pair_skip::Skip::with_terms(step, &skips, language, &terms));
     }
     plan.rules
         .iter()

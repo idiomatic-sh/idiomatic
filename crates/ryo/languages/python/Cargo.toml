@@ -40,6 +40,7 @@ arrow-select = { version = "=60.0.0", optional = true }
 mimalloc = { workspace = true, optional = true }
 
 [dev-dependencies]
+bumpalo = "3"
 smallvec = "1"
 serde_json.workspace = true
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
@@ -48,6 +49,7 @@ dhat.workspace = true
 idiomatic-sh-ryo-python = { path = ".", features = ["fixtures"] }
 divan.workspace = true
 # THROWAWAY (ryo-fmx3.1): the `vec` measurement bench.
+memchr.workspace = true
 cpu-time = "1"
 aho-corasick = "1"
 rustc-hash = "2"

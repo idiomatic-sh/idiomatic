@@ -1,41 +1,53 @@
 //! Retain only instructions reachable from a rule decision or an exact output.
 use super::{ANY, Domain, EMPTY, Id, Need, Program};
 
+// A valid slot indexes a vector, so its id is always smaller than usize::MAX.
+const UNSEEN: Id = usize::MAX;
+
 struct Compact<T> {
     old: Vec<T>,
-    ids: Vec<Option<Id>>,
+    ids: Vec<Id>,
     kept: Vec<T>,
-    origins: Vec<Id>,
 }
 impl<T> Compact<T> {
     fn new(old: Vec<T>) -> Self {
         Self {
-            ids: vec![None; old.len()],
+            ids: vec![UNSEEN; old.len()],
             old,
             kept: Vec::new(),
-            origins: Vec::new(),
         }
     }
     fn keep(&mut self, old: Id, value: T) -> Id {
         let new = self.kept.len();
-        self.ids[old] = Some(new);
+        self.ids[old] = new;
         self.kept.push(value);
-        self.origins.push(old);
         new
     }
 }
-struct Reachable {
+struct Reachable<'a> {
+    patterns: &'a [super::regexes::Pattern],
     nodes: Compact<Domain>,
     files: Compact<Need>,
-    exist: rustc_hash::FxHashMap<Id, Id>,
+    exist: Vec<Id>,
+    file_origins: Vec<Id>,
 }
-impl Reachable {
+impl Reachable<'_> {
     fn file(&mut self, old: Id) -> Id {
-        if let Some(id) = self.files.ids[old] {
+        let id = self.files.ids[old];
+        if id != UNSEEN {
             return id;
         }
         let mut value = std::mem::replace(&mut self.files.old[old], Need::Any);
         match &mut value {
+            Need::InvalidPattern(slot) => {
+                let id = if self.patterns[*slot].compiled().is_some() {
+                    EMPTY
+                } else {
+                    ANY
+                };
+                self.files.ids[old] = id;
+                return id;
+            }
             Need::Terms(..) => unreachable!("groups are compiled after compaction"),
             Need::Some(d) => *d = self.node(*d),
             Need::Both(a, b) | Need::Either(a, b) => {
@@ -49,10 +61,11 @@ impl Reachable {
             Need::Empty if old != EMPTY => Some(EMPTY),
             Need::Some(d) if d <= EMPTY => Some(d),
             Need::Some(d) => {
-                if let Some(&prev) = self.exist.get(&d) {
+                let prev = self.exist[d];
+                if prev != UNSEEN {
                     Some(prev)
                 } else {
-                    self.exist.insert(d, self.files.kept.len());
+                    self.exist[d] = self.files.kept.len();
                     None
                 }
             }
@@ -65,13 +78,15 @@ impl Reachable {
             _ => None,
         };
         if let Some(id) = alias {
-            self.files.ids[old] = Some(id);
+            self.files.ids[old] = id;
             return id;
         }
+        self.file_origins.push(old);
         self.files.keep(old, value)
     }
     fn node(&mut self, old: Id) -> Id {
-        if let Some(id) = self.nodes.ids[old] {
+        let id = self.nodes.ids[old];
+        if id != UNSEEN {
             return id;
         }
         let mut value = std::mem::replace(&mut self.nodes.old[old], Domain::Any);
@@ -122,10 +137,12 @@ impl Reachable {
             Domain::Both(a, ANY) if a != ANY => Some(a),
             Domain::Both(a, b) | Domain::Either(a, b) if a == b && a != ANY => Some(a),
             Domain::When(ANY, d) if d != ANY => Some(d),
+            Domain::ProvenExcept(left, _, ANY, _) => Some(left),
+            Domain::ProvenExcept(_, diff, EMPTY, ref slots) if slots.is_empty() => Some(diff),
             _ => None,
         };
         if let Some(id) = alias {
-            self.nodes.ids[old] = Some(id);
+            self.nodes.ids[old] = id;
             return id;
         }
         self.nodes.keep(old, value)
@@ -133,7 +150,9 @@ impl Reachable {
 }
 pub(super) fn compact(p: &mut Program) -> Vec<Id> {
     let mut reachable = Reachable {
-        exist: Default::default(),
+        patterns: &p.regexes,
+        exist: vec![UNSEEN; p.domains.len()],
+        file_origins: Vec::new(),
         nodes: Compact::new(std::mem::take(&mut p.domains)),
         files: Compact::new(std::mem::take(&mut p.needs)),
     };
@@ -148,9 +167,10 @@ pub(super) fn compact(p: &mut Program) -> Vec<Id> {
         cert.nodes = reachable.node(cert.nodes);
         cert.guard = reachable.file(cert.guard);
     }
+    p.exact.retain(|(_, c)| c.guard != ANY);
     p.domains = reachable.nodes.kept;
     p.needs = reachable.files.kept;
     p.domains.shrink_to_fit();
     p.needs.shrink_to_fit();
-    reachable.files.origins
+    reachable.file_origins
 }
