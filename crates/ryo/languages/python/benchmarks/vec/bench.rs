@@ -1594,37 +1594,14 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     fin.end(walk_time);
 }
 
-/// redo-general: the byte strings one of which a text must hold for a regex of the plan to match it: every `source-matches`
-/// pattern and every literal pattern of a `matches` call, whose literal set (regex-syntax's extractor) is finite and holds
-/// no empty string; distinct, in plan order.
+/// redo-general: the byte strings one of which a file's source must hold for a `source-matches` pattern of the plan to
+/// match in it: each pattern's literal set (regex-syntax's extractor) where it is finite and holds no empty string;
+/// distinct, in plan order. (A `matches` call tests a cell's text, which need not be the source's: not read here.)
 fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
-    fn walk(j: &serde_json::Value, out: &mut Vec<String>) {
-        match j {
-            serde_json::Value::Array(a) => {
-                if a.first().and_then(serde_json::Value::as_str) == Some("call")
-                    && a.get(1).and_then(serde_json::Value::as_str) == Some("matches")
-                    && let Some(p) = a.get(2).and_then(|x| x.get(1)).and_then(|x| x.get(1)).and_then(serde_json::Value::as_str)
-                {
-                    out.push(p.to_owned());
-                }
-                a.iter().for_each(|x| walk(x, out));
-            }
-            serde_json::Value::Object(o) => o.values().for_each(|x| walk(x, out)),
-            _ => {}
-        }
-    }
-    let mut patterns = Vec::new();
-    for n in &plan.nodes {
-        if n.op == "source-matches"
-            && let Some(p) = n.j["pattern"].as_str()
-        {
-            patterns.push(p.to_owned());
-        }
-        walk(&n.j, &mut patterns);
-    }
     let mut out: Vec<Vec<u8>> = Vec::new();
-    for p in patterns {
-        let Ok(hir) = regex_syntax::ParserBuilder::new().utf8(false).build().parse(&p) else { continue };
+    for n in plan.nodes.iter().filter(|n| n.op == "source-matches") {
+        let Some(p) = n.j["pattern"].as_str() else { continue };
+        let Ok(hir) = regex_syntax::ParserBuilder::new().utf8(false).build().parse(p) else { continue };
         let seq = regex_syntax::hir::literal::Extractor::new().extract(&hir);
         let Some(lits) = seq.literals() else { continue };
         if lits.is_empty() || lits.iter().any(|l| l.as_bytes().is_empty()) {
