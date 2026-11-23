@@ -12,7 +12,7 @@ use ryo_values::domain::finish_plans::{
 };
 use ryo_values::domain::plan_parts::types::Side;
 use std::collections::BTreeMap;
-pub(crate) fn from_typed(plan: std::sync::Arc<FinishPlan>) -> Plan {
+pub(crate) fn from_typed(plan: std::sync::Arc<FinishPlan>, pack_columns_by_name: bool) -> Plan {
     let nodes = plan
         .steps
         .iter()
@@ -32,7 +32,13 @@ pub(crate) fn from_typed(plan: std::sync::Arc<FinishPlan>) -> Plan {
                 rels,
                 source: plan.clone(),
                 slot: id,
-                args: Default::default(),
+                // A pack binds added columns by name. A query exposes the positional
+                // column order written by its author in the result receipt.
+                args: if pack_columns_by_name && matches!(step, FinishStep::Extend(_)) {
+                    std::sync::OnceLock::from(parameters(step, true))
+                } else {
+                    Default::default()
+                },
             }
         })
         .collect();
@@ -175,10 +181,10 @@ impl PNode {
         }
     }
     pub(crate) fn args(&self) -> &Args {
-        self.args.get_or_init(|| parameters(self.step()))
+        self.args.get_or_init(|| parameters(self.step(), false))
     }
 }
-fn parameters(step: &FinishStep) -> Args {
+fn parameters(step: &FinishStep, columns_by_name: bool) -> Args {
     use FinishStep::*;
     let mut m = BTreeMap::new();
     let mut set = |key: &str, value: Param| {
@@ -335,7 +341,12 @@ fn parameters(step: &FinishStep) -> Args {
             );
         }
         Extend(a) => {
-            set("value-order", Param::strings(a.values.iter().map(|v| v.name.0.as_ref())));
+            let mut names: Vec<&str> = a.values.iter().map(|v| v.name.0.as_ref()).collect();
+            if columns_by_name {
+                names.sort_unstable();
+                names.dedup();
+            }
+            set("value-order", Param::strings(names.into_iter()));
             set(
                 "values",
                 Param::Named(

@@ -203,7 +203,7 @@ pub(crate) fn read_pack(pack: &Path, context: RuleContext) -> ReadPack {
 /// The second half's plan, lowered in this process from the parsed pack: expansion, the three passes, then the typed plan
 /// shared with the executor and the first-half analysis.
 pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::finish::Plan {
-    finish_plan(pack, keep_for_first, true, None).unwrap_or_else(|reason| panic!("{reason}"))
+    finish_plan(pack, keep_for_first, Input::RulePack).unwrap_or_else(|reason| panic!("{reason}"))
 }
 
 /// Prepare the caller's query directly from its text. Bind typed host tables at execution.
@@ -215,11 +215,16 @@ pub(crate) fn query_plan(rule: &str, text: &str, context: RuleContext) -> Result
 pub(crate) fn query_parts(rule: &str, text: &str, context: RuleContext, keep: bool, separator: Option<&str>) -> Result<(super::finish::Plan, ReadPack), String> {
     let texts = PackTexts { rules: vec![(rule.into(), Some(text.into()))], fragments: Vec::new() };
     let pack = ReadPack { typed: Default::default(), programs: parsed(&texts, context), read: 0.0, parse: 0.0 };
-    let plan = finish_plan(&pack, keep, false, separator)?;
+    let plan = finish_plan(&pack, keep, Input::Query(separator))?;
     Ok((plan, pack))
 }
 
-fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>) -> Result<super::finish::Plan, String> {
+enum Input<'a> {
+    RulePack,
+    Query(Option<&'a str>),
+}
+
+fn finish_plan(pack: &ReadPack, keep_for_first: bool, input: Input<'_>) -> Result<super::finish::Plan, String> {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
     let t1 = super::thread_cpu();
@@ -231,7 +236,7 @@ fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Opti
     }
     mark_through(&mut plan, PlanningStage::Axes);
     let t2 = super::thread_cpu();
-    if let Some(separator) = separator {
+    if let Input::Query(Some(separator)) = input {
         for step in &mut plan.steps {
             if let FinishStep::Capture(args) = step {
                 args.separator.get_or_insert_with(|| ryo_values::domain::plan_parts::types::LiteralText(separator.into()));
@@ -240,12 +245,13 @@ fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Opti
     }
     let steps = plan.steps.len();
     let plan = std::sync::Arc::new(plan);
-    let executor_plan = super::finish::from_typed(plan.clone());
+    let rule_pack = matches!(input, Input::RulePack);
+    let executor_plan = super::finish::from_typed(plan.clone(), rule_pack);
     if keep_for_first {
         pack.typed.replace(Some(plan));
     }
     let t5 = super::thread_cpu();
-    if log {
+    if rule_pack {
     println!(
         "start-up second half: steps {steps} expand {:.4} passes {:.4} to-value 0.0000 decode 0.0000 executor-plan {:.4} total {:.4} s",
         t1 - t0,
