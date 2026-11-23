@@ -141,6 +141,8 @@ expected = []
 name = "local-class-of-an-ordinary-module"
 files = { "case.py" = "class Local: ...\ndef f(a: Local = None): ...\n" }
 expected = []
+
+[[cases]]
 name = "kwonly-imported-class"
 files = { "case.py" = "from decimal import Decimal\ndef f(*, gt: Decimal = None):\n    pass\n" }
 expected = [{ file = "case.py", start = 41, end = 48 }]
