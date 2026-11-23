@@ -433,7 +433,29 @@ fn lend(
         analysed: Analysed::default(),
         buffers: &mut scratch.file.buffers,
     };
-    visit(&mut ColumnFile { table, shapes: tree.shapes.as_ref().expect("the column walk requests expression classes"), file: &mut file, memo, words });
+    let shapes = tree.shapes.as_ref().expect("the column walk requests expression classes");
+    let mut empty = Vec::new();
+    if tree.completeness.syntax == languages::SyntaxCompleteness::Complete && tree.completeness.lexical == languages::SyntaxCompleteness::Complete {
+        let absent = |kind| node_table::ids_of_kind(table, crate::domain::syntax::service::kind_bits(kind)).is_empty();
+        if !shapes.carriers.string {
+            empty.extend(["literal-expression-parse", "raw-format-segment"]);
+        }
+        if !shapes.carriers.bytes { empty.push("bytes-literal"); }
+        if !shapes.carriers.number { empty.push("numeric-literal"); }
+        let text = shapes.carriers.string || !absent(Kind::Node(Node::JoinedStr)) || !absent(Kind::Node(Node::TemplateStr));
+        if !text {
+            empty.extend(["string-literal", "brace-format-parse", "brace-format-field", "format-specification"]);
+            if !shapes.carriers.bytes { empty.extend(["format-parse", "format-field"]); }
+        }
+        if absent(Kind::Node(Node::JoinedStr)) { empty.push("interpolated-string-literal"); }
+        if absent(Kind::Node(Node::Call)) { empty.push("call-argument"); }
+        if absent(Kind::Extra(TypedExtra::Decorator)) { empty.push("decorates"); }
+        if absent(Kind::Node(Node::Alias)) { empty.extend(["static-import", "standard-library-import"]); }
+        if absent(Kind::Token(crate::domain::tokens::types::Token::Comment)) { empty.push("comment"); }
+        if tree.segments.is_empty() { empty.push("embedded-expression"); }
+    }
+    if node_table::syntax_error_count(table).0 == 0 { empty.push("syntax-error"); }
+    visit(&mut ColumnFile { table, empty, shapes, file: &mut file, memo, words });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
@@ -451,6 +473,8 @@ pub struct Region {
 
 /// One walked file, lent over the reader and over the direct columns.
 pub struct ColumnFile<'a, 'f> {
+    /// Catalog relations the completed parser walk certifies to have zero rows.
+    pub empty: Vec<&'static str>,
     shapes: &'a crate::domain::shape_facts::walk::Classes,
     /// The node table.
     pub table: &'a NodeTable,

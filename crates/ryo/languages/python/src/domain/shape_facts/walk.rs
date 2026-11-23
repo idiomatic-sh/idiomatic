@@ -14,8 +14,17 @@ use ruff_python_ast::AnyNodeRef;
 use ryo::languages::{FieldId, FileWords, KindBits, NameText, Position, RetainedKeyIndex, ShapeWord};
 use std::collections::BTreeMap;
 
+/// Ordinary string, byte string and number carriers encountered in the file's own tree.
+#[derive(Copy, Clone, Debug, Default)]
+pub(crate) struct Carriers {
+    pub(crate) string: bool,
+    pub(crate) bytes: bool,
+    pub(crate) number: bool,
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct Classes {
+    pub(crate) carriers: Carriers,
     expressions: Vec<Position>,
     handles: Vec<Option<Position>>,
     last: Vec<Position>,
@@ -51,6 +60,7 @@ pub(crate) struct WalkShapes {
     words: FileWords,
     index: RetainedKeyIndex<Position, ShapeWord>,
     text: TextBuffer,
+    pub(crate) carriers: Carriers,
     expressions: Vec<Position>,
     last: Vec<Position>,
 }
@@ -74,6 +84,12 @@ impl WalkShapes {
     }
 
     pub(crate) fn leave(&mut self, at: Position, node: AnyNodeRef<'_>, code: NameCode) {
+        match node {
+            AnyNodeRef::ExprStringLiteral(_) => self.carriers.string = true,
+            AnyNodeRef::ExprBytesLiteral(_) => self.carriers.bytes = true,
+            AnyNodeRef::ExprNumberLiteral(_) => self.carriers.number = true,
+            _ => {}
+        }
         let open = self.stack.pop().expect("matching syntax events");
         if !open.active { return; }
         if !open.valid {
@@ -129,7 +145,7 @@ impl WalkShapes {
     }
 
     pub(crate) fn finish(self) -> Classes {
-        Classes { expressions: self.expressions, handles: self.index.classes, last: self.last }
+        Classes { carriers: self.carriers, expressions: self.expressions, handles: self.index.classes, last: self.last }
     }
 }
 

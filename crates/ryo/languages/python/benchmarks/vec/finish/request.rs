@@ -36,6 +36,7 @@ pub(crate) struct Requests {
     host: Vec<bool>,
     suppliers: Vec<Supplier>,
     pub(super) base_slots: Vec<Option<u16>>,
+    pub(super) proven_empty: Vec<bool>,
     pub(super) guards: Guards,
     nodes: Vec<Option<u32>>,
     graph: Vec<Entry>,
@@ -187,6 +188,12 @@ impl Exec<'_> {
                 if width.is_some() { run.fact_slots.insert(rel.to_owned(), slot); }
             }
         }
+    }
+
+    /// A completed part of the walk can already know a catalog relation is empty.
+    pub(crate) fn walk_empty(&mut self, run: &Run, rel: &str) {
+        self.requests.proven_empty.resize(self.requests.names.len(), false);
+        if let Some(&slot) = run.fact_slots.get(rel) { self.requests.proven_empty[usize::from(slot)] = true; }
     }
 
     fn demand_input(&mut self, run: &mut Run, n: usize, mask: u64) -> u32 {
@@ -398,6 +405,7 @@ impl Exec<'_> {
 
     /// The file's end: the answered relations no step asked, counted.
     pub(crate) fn close_file(&mut self, f: &mut File<'_>) {
+        self.requests.proven_empty.fill(false);
         for (i, answer) in f.answer.drain(..).enumerate() {
             if self.requests.host[i] {
                 continue;

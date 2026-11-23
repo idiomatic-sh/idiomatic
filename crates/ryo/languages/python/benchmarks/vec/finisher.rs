@@ -160,10 +160,15 @@ impl<'p> Finisher<'p> {
         self.plan.emits.iter().enumerate().map(|(e, x)| (e, x.0.as_str()))
     }
 
+    pub(super) fn prefix_empty(&mut self, name: &str) {
+        self.exec.walk_empty(&self.run, name);
+    }
+
     /// The second half on one walked file of the direct-columns walk (its own model by parts, built on demand).
     pub(super) fn column_file(&mut self, file_no: usize, path: &str, file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>, bytes: &[u8], wanted: &[usize]) {
         let t0 = thread_cpu();
         file.set_file(languages::FileId(file_no as u32));
+        for &rel in &file.empty { self.exec.walk_empty(&self.run, rel); }
         let ft = file.table;
         let mut fwords = std::mem::take(&mut self.fwords);
         languages::facts::clear_words(&mut fwords);

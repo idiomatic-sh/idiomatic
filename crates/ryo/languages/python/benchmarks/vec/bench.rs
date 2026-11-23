@@ -2610,6 +2610,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         }
                         let wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
                         if fin.visits(&wanted) {
+                            for (i, (slot, _)) in ask_of.iter().enumerate() {
+                                let t = &store.direct.tables[i];
+                                if !asks[i].exists && t.answered && t.rows == 0 { fin.prefix_empty(&fact_catalog.names[*slot]); }
+                            }
                             fin.column_file(file_no, path, file, &bytes, &wanted);
                         }
                     }

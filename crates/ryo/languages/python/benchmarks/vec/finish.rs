@@ -2394,7 +2394,10 @@ impl<'p> Exec<'p> {
                 eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.j.to_string().chars().take(900).collect::<String>(), ins.join(" | "));
             }
         }
-        let t = self.answered(f, i)?;
+        let t = if self.requests.proven_empty.get(i).copied().unwrap_or(false) {
+            let (_, names, tys) = run.catalog(&run.fact_rels[i].0.clone()).ok_or("unknown walk relation")?;
+            Table::with_rows(names, tys, 0)
+        } else { self.answered(f, i)? };
         f.facts[i] = Some(recycle::rc(t));
         Ok(())
     }
