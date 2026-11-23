@@ -1,0 +1,102 @@
+//! A single equality against an indexed base view has a known key on each side.
+//! Read the already chosen driver in its original order and gather only the result.
+use super::{
+    E, Exec, File, Native, Op, R, Run, Src, Table, cold_bucket::Rows, recycle, view_cols,
+    view_probe, view_rows,
+};
+use std::rc::Rc;
+
+pub(super) fn columns(conj: &[E]) -> Option<[usize; 2]> {
+    let [E::Cmp(Op::Eq, x, y)] = conj else {
+        return None;
+    };
+    match (&**x, &**y) {
+        (E::Col(0, a, _), E::Col(1, b, _)) | (E::Col(1, b, _), E::Col(0, a, _)) => Some([*a, *b]),
+        _ => None,
+    }
+}
+
+pub(super) struct Projection<'a> {
+    pub(super) items: &'a [(usize, usize)],
+    pub(super) left: &'a mut Vec<u32>,
+    pub(super) right: &'a mut Vec<u32>,
+}
+
+pub(super) fn run(
+    ex: &mut Exec<'_>,
+    f: &mut File<'_>,
+    run: &mut Run,
+    node: usize,
+    sources: &[Src],
+    driver: usize,
+    columns: [usize; 2],
+    out: Projection<'_>,
+) -> R<Option<Rc<Table>>> {
+    let other = 1 - driver;
+    let Src::View(target, _) = &sources[other] else {
+        return Ok(None);
+    };
+    let key = target.map[columns[other]];
+    if !view_probe::supports(f, target, key) {
+        return Ok(None);
+    }
+    let retained: Rows<'_>;
+    let rows = match &sources[driver] {
+        Src::Tab(t, _) => view_probe::Ids::Range(t.n as u32),
+        Src::View(v, _)
+            if v.filter.is_empty() && matches!(v.base, Native::Tree | Native::Location) =>
+        {
+            view_probe::Ids::Range(f.n as u32)
+        }
+        Src::View(v, step) => {
+            retained = view_rows(f, run, v, *step);
+            view_probe::Ids::View(&retained)
+        }
+        _ => return Ok(None),
+    };
+    let n = rows.len();
+    if n == 0 {
+        return ex.empty_rc(run, node).map(Some);
+    }
+    out.left.clear();
+    out.right.clear();
+    let (driven, hits) = if let Some(counts) =
+        super::view_choice::reverse(f, run, sources, driver, columns, rows, out.left, out.right)
+    {
+        counts
+    } else {
+        let batch = view_probe::Driver {
+            rows,
+            source: driver,
+            column: columns[driver],
+        };
+        let hits = view_probe::pairs(f, run, sources, batch, target, key, |_, left, right| {
+            out.left.push(left);
+            out.right.push(right);
+        })
+        .expect("validated native view key");
+        (n, hits)
+    };
+    ex.stats.touched[node] += driven as u64 + hits;
+    if out.left.is_empty() {
+        return ex.empty_rc(run, node).map(Some);
+    }
+    let mut table = ex.empty_rows(run, node, out.left.len())?;
+    for ((source, column), dst) in out.items.iter().zip(&mut table.cols) {
+        let positions = if *source == driver {
+            &*out.left
+        } else {
+            &*out.right
+        };
+        match &sources[*source] {
+            Src::Tab(t, _) => {
+                let values = &t.cols[*column];
+                dst.extend(positions.iter().map(|r| values[*r as usize]));
+            }
+            Src::View(v, _) => view_cols::gather(f, run, v.base, v.map[*column], positions, dst),
+            _ => unreachable!("both sources resolved"),
+        }
+    }
+    table.n = out.left.len();
+    Ok(Some(recycle::rc(table)))
+}

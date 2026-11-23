@@ -49,6 +49,7 @@ dhat.workspace = true
 idiomatic-sh-ryo-python = { path = ".", features = ["fixtures"] }
 divan.workspace = true
 # THROWAWAY (ryo-fmx3.1): the `vec` measurement bench.
+memchr.workspace = true
 cpu-time = "1"
 aho-corasick = "1"
 rustc-hash = "2"
