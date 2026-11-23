@@ -1118,11 +1118,17 @@ impl File<'_> {
             c.set(true);
         }
     }
-    /// 6h: a fill's keyed list on one column (made on the first ask in a file).
+    fn fact_index_slot(&self, relation: u16, column: usize) -> usize {
+        let relation = usize::from(relation);
+        let slot = self.fact_offsets[relation] + column;
+        debug_assert!(slot < self.fact_offsets[relation + 1]);
+        slot
+    }
+
+    /// The postings for a relation column are shared by every reader in the file.
     fn fact_list(&self, i: u16, col: usize) -> Rc<Index> {
         let relation = usize::from(i);
-        let slot = self.fact_offsets[relation] + col;
-        debug_assert!(slot < self.fact_offsets[relation + 1]);
+        let slot = self.fact_index_slot(i, col);
         self.fact_ix.borrow_mut()[slot].get_or_insert_with(|| {
             let index = match &self.facts[relation] {
                 Some(t) => {
