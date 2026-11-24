@@ -9,7 +9,7 @@ use std::collections::{BTreeSet, HashMap};
 
 pub(super) struct Checks {
     program: pair_summary::Program,
-    roots: Vec<Vec<usize>>,
+    roots: Vec<Option<Vec<usize>>>,
     live: Vec<bool>,
     patterns: crate::pair_checks::SymbolMatches,
     words: l::FileWords,
@@ -101,6 +101,13 @@ impl Checks {
             Some(crate::finish::host::CURRENT_FILE),
             true,
         );
+        // All requested outputs must be impossible to discharge the binding.
+        // One unconditional output makes testing its siblings unnecessary.
+        let roots = roots.into_iter().map(|outputs| {
+            let unconditional = outputs.iter().any(|&r|
+                matches!(program.needs[program.roots[r].1], pair_summary::Need::Any));
+            (!unconditional).then_some(outputs)
+        }).collect();
         let live = vec![false; program.roots.len()];
         let row_guards = program
             .needs
@@ -150,8 +157,10 @@ impl Checks {
         self.live.fill(false);
         let mut any = false;
         for &(binding, _, excluded) in active.iter() {
-            if !excluded {
-                for &root in &self.roots[root_for(binding)] {
+            if !excluded && let Some(roots) = &self.roots[root_for(binding)]
+                && bound[&binding].as_ref().expect("active binding").screenable != Some(false)
+            {
+                for &root in roots {
                     self.live[root] = true;
                     any = true;
                 }
@@ -202,7 +211,8 @@ impl Checks {
             );
         }
         for (binding, _, excluded) in active {
-            if !*excluded && self.roots[root_for(*binding)].iter().all(|&r| !self.live[r]) {
+            if !*excluded && self.roots[root_for(*binding)].as_ref()
+                .is_some_and(|roots| roots.iter().all(|&r| !self.live[r])) {
                 let b = bound.get_mut(binding).unwrap().as_mut().unwrap();
                 if partials.iter().any(|p| b.facts.contains(&p.relation)) {
                     continue;
