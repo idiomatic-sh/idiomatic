@@ -132,7 +132,7 @@ impl Exec<'_> {
                 if !run.prepared_globs.contains_key(&pattern) {
                     let text = String::from_utf8_lossy(run.text(pattern));
                     let matcher = MatchingUseCaseImpl::new().compile_text_globs(&[GlobPattern(&text)]);
-                    run.prepared_globs.insert(pattern, matcher);
+                    run.prepared_globs.insert(pattern, symbol_predicate::PreparedGlob::new(matcher));
                 }
                 Ok(E::Call("glob_any".into(), vec![subject.clone(), E::Text(pattern)]))
             }

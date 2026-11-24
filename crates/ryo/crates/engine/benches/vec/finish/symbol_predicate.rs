@@ -80,3 +80,38 @@ pub(super) fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Optio
         .or_insert_with(|| Rc::new(Bound::new(run.texts[*id as usize].clone())));
     Some(E::TextTest(Box::new(col.clone()), TextTest::LowerEqual(test.clone())))
 }
+
+/// Interpreted globs often see a file's path on every row of its relations.
+pub(super) struct PreparedGlob {
+    matcher: ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs,
+    last: std::cell::Cell<Option<(u32, bool)>>,
+}
+
+impl PreparedGlob {
+    pub(super) fn new(matcher: ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs) -> Self {
+        Self { matcher, last: Default::default() }
+    }
+
+    pub(super) fn matches(&self, run: &Run, value: V) -> bool {
+        use ryo_matching::inbound::use_cases::matching::{
+            interface::MatchingUseCase, types::{MatchOutcome, SearchText}, use_case::MatchingUseCaseImpl,
+        };
+        let symbol = match value.ty() {
+            Ty::Sym => u32::try_from(value.1).ok(),
+            Ty::File => run.path_sym.get(value.1 as usize).copied(),
+            _ => None,
+        };
+        if let (Some(id), Some((last, answer))) = (symbol, self.last.get())
+            && id == last
+        {
+            return answer;
+        }
+        let text = text_of(run, value);
+        let subject = String::from_utf8_lossy(&text);
+        let answer = MatchingUseCaseImpl::new().matches_text_globs(&self.matcher, SearchText(&subject)) == MatchOutcome::Matches;
+        if let Some(id) = symbol {
+            self.last.set(Some((id, answer)));
+        }
+        answer
+    }
+}
