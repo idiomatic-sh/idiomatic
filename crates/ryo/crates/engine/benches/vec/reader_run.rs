@@ -362,9 +362,11 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
     let mut packet = packet::Packet::new();
     let mut coverage = coverage::Coverage::default();
     let mut symbols = l::Symbols::default();
+    // The linter projects the native syntax spelling column for its prepared packs.
     let all: Vec<_> = dependencies
         .iter()
         .flat_map(|d| d.iter().copied())
+        .chain(std::iter::once(l::Relation::SyntaxTree))
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();

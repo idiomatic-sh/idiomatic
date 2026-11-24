@@ -757,7 +757,10 @@ pub(crate) fn visit<L: FileSource>(
                         l::NoteRequest::Wanted
                     },
                 };
-                let requested: Vec<_> = wanted.into_iter().collect();
+                // Native text predicates may consume decoded bytes without a provider fill.
+                let requested: Vec<_> = wanted.into_iter()
+                    .chain(projects_words.then_some(l::Relation::SyntaxTree))
+                    .collect();
                 let build_start = thread_cpu();
                 let result = parser.build(
                     request,

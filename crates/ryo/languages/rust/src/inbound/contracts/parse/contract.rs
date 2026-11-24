@@ -135,8 +135,12 @@ impl Parse for ParseContract {
     }
 
     fn complete(&self, request: &ParseRequest<'_>, completion: &mut languages::Completion<'_>) {
-        for kind in kinds() {
-            languages::name_kind(completion, kind_bits(kind), kind_name(kind));
+        // The native graph already exposes kind codes. Only the semantic syntax
+        // rows read the complete per-file map from kind code to SDK symbol.
+        if completion.supplies(languages::Relation::SemanticSyntax) {
+            for kind in kinds() {
+                languages::name_kind(completion, kind_bits(kind), kind_name(kind));
+            }
         }
         if request.fields == languages::FieldRequest::Wanted {
             for field in fields() {

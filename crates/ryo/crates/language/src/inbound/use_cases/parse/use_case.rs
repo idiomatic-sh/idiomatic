@@ -160,9 +160,16 @@ impl<P: ParseUseCase> ParseEngine for P {
         if self.recognizes(&request) == Recognition::Declines {
             return Err(ParseError::Unsupported);
         }
-        crate::domain::elements::service::read_native(table, symbols, request.bytes, native,
-            request.fields == super::types::FieldRequest::Wanted, access);
-        super::service::finish_file(self, request, table, symbols, super::service::demanded(self, wanted));
+        let columns = crate::domain::elements::types::NativeColumns {
+            fields: request.fields == super::types::FieldRequest::Wanted,
+            notes: request.notes == super::types::NoteRequest::Wanted,
+        };
+        crate::domain::elements::service::read_native(table, symbols, request.bytes, native, columns, access);
+        let requested = match access {
+            crate::domain::elements::types::NodeAccess::Inspect(_) => None,
+            crate::domain::elements::types::NodeAccess::Query(rows) => Some(rows),
+        };
+        super::service::finish_file(self, request, table, symbols, super::service::demanded(self, wanted), requested);
         Ok(())
     }
 

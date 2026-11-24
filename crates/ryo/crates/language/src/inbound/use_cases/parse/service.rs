@@ -78,7 +78,7 @@ fn build_recognized<L: ParseUseCase + ?Sized>(
 ) -> Result<(), ParseError> {
     let mut builder = table_builder(table, symbols, request.bytes);
     language.read_tree(&request, &mut builder)?;
-    finish_file(language, request, table, symbols, requirement);
+    finish_file(language, request, table, symbols, requirement, None);
     Ok(())
 }
 
@@ -88,9 +88,12 @@ pub(super) fn finish_file<L: ParseUseCase + ?Sized>(
     table: &mut Elements,
     symbols: &mut Symbols,
     requirement: CompletionRequirement,
+    requested: Option<&[Relation]>,
 ) {
+    let mut phase = completion(table, symbols, request.bytes, request.file);
+    phase.as_mut().requested = requested;
     crate::application::completion::service::complete::<L::FileModel>(
-        completion(table, symbols, request.bytes, request.file),
+        phase,
         ByteSlice(language.configuration_identity().0.as_bytes()),
         requirement,
         |tree, model| language.file_model(tree, model),
