@@ -164,7 +164,6 @@ pub(super) struct Store {
     groups: Shards<Group>,
     packets: Packets<Packet>,
     observed: Observations,
-    current_inputs: Option<InputScope>,
     work_inputs: HashMap<usize, InputScope>,
     supplied_versions: HashMap<usize, Key>,
     versions: Vec<Option<Key>>,
@@ -267,7 +266,6 @@ impl Store {
             groups: Shards::new("inputs", snapshot.groups),
             packets: Packets::new(snapshot.packets, snapshot.packet_layers),
             observed: Observations::new(dir, snapshot.stamps),
-            current_inputs: None,
             work_inputs: HashMap::new(),
             supplied_versions: HashMap::new(),
             versions: vec![],
@@ -442,19 +440,6 @@ impl Store {
             self.packets.write_bytes
         );
     }
-    pub(super) fn overlay(
-        &mut self,
-        root: &Path,
-        inventory: Key,
-        peers: Key,
-        v: &BTreeMap<String, (std::sync::Arc<[u8]>, crate::check_session::Permission)>,
-    ) {
-        let supplied = v.iter().map(|(path, (bytes, permission))| {
-            (path.clone(), key((blake3::hash(bytes).as_bytes(), permission)))
-        }).collect();
-        self.current_inputs = Some(self.request_inputs(root, inventory, peers, supplied));
-    }
-
     pub(super) fn request_inputs(
         &mut self,
         root: &Path,
@@ -492,7 +477,7 @@ impl Store {
         self.observed.observe(p, Probe::Bytes)
     }
     pub(super) fn lookup(&mut self, id: Key) -> Option<(Key, &[String])> {
-        self.lookup_for(self.current_inputs, id)
+        self.lookup_for(None, id)
     }
 
     pub(super) fn lookup_in(&mut self, scope: InputScope, id: Key) -> Option<(Key, &[String])> {
@@ -668,7 +653,7 @@ impl Store {
         let work_inputs = std::mem::take(&mut self.work_inputs);
         self.plans.clear();
         for (index, work) in b.work.iter().enumerate() {
-            let scope = work_inputs.get(&index).copied().or(self.current_inputs);
+            let scope = work_inputs.get(&index).copied();
             let (pairs, project, closed) = match work {
                 Work::Pairs(p) => (p.as_slice(), None, false),
                 Work::Closed { pairs, project, .. } => (pairs.as_slice(), *project, true),
