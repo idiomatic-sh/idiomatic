@@ -163,6 +163,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(GlobMatch::Matches),
     },
     Case {
+        name: CaseName("a_literal_between_classes_is_required_but_class_members_vary"),
+        word: Word::Succeeds,
+        input: || ("*[]x]part[!a-z]*", "éxpart7"),
+        expect: Expect::Value(GlobMatch::Matches),
+    },
+    Case {
+        name: CaseName("an_optional_directory_and_class_can_start_at_the_root"),
+        word: Word::Succeeds,
+        input: || ("**/[ab]file", "bfile"),
+        expect: Expect::Value(GlobMatch::Matches),
+    },
+    Case {
         name: CaseName("a_comma_inside_a_class_splits_no_alternative"),
         word: Word::Succeeds,
         input: || ("{[,]a,b}", ",a"),
