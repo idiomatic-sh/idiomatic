@@ -458,7 +458,7 @@ impl Live {
                         r
                     }
                 };
-                render_receipt(id.as_ref(), receipt, &mut out, None)?;
+                render_receipt::<false>(id.as_ref(), receipt, &mut out, None)?;
             }
         }
         for path in Rc::unwrap_or_clone(paths) {
@@ -487,23 +487,26 @@ fn render_chunk(entries: &mut [(&str, super::Receipt<'_>)]) -> Result<(LiveRepor
     let mut result = LiveReport::default();
     let mut dictionaries = Dictionaries::new();
     for (id, receipt) in entries {
-        render_receipt(id, std::mem::take(receipt), &mut result, Some(&mut dictionaries))?;
+        render_receipt::<true>(id, std::mem::take(receipt), &mut result, Some(&mut dictionaries))?;
     }
     Ok((result, dictionaries.len()))
 }
 
-fn render_receipt<'a>(
+fn render_receipt<'a, const SHARED: bool>(
     id: &str,
     receipt: super::Receipt<'a>,
     out: &mut LiveReport,
     mut dictionaries: Option<&mut Dictionaries<'a>>,
 ) -> Result<(), String> {
     for row in receipt.rows {
-        let words = dictionaries.as_deref_mut().map(|dictionaries| {
+        let words = if SHARED {
             let table = row.dictionary();
-            &**dictionaries.entry(std::ptr::from_ref(table) as usize)
-                .or_insert_with(|| table.read().expect("answer dictionary"))
-        });
+            Some(&**dictionaries.as_deref_mut().expect("delivery worker dictionary cache")
+                .entry(std::ptr::from_ref(table) as usize)
+                .or_insert_with(|| table.read().expect("answer dictionary")))
+        } else {
+            None
+        };
         let value = |column| match words {
             Some(words) => row.value_from(column, words),
             None => row.value(column),

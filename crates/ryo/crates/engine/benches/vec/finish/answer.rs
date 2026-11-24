@@ -145,6 +145,7 @@ impl Row {
         self.words.len()
     }
 
+    #[inline]
     fn text(ty: Ty, word: u64, words: &Words) -> Cell<Arc<str>> {
         match ty {
             Ty::Sym => Cell::Text(words.symbols[&(word as u32)].clone()),
