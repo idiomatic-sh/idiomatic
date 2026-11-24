@@ -1,0 +1,129 @@
+{
+  "stamp": 155,
+  "rule": "idiomatic.arch/threads-at-adapter",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/work.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "a3e1a6793ad7787ae2dc9ecad553bd41c8454dd113467e6ab754e159a0067e87",
+    "src/work.rs": "c8e3327dc5b440da220f6072bae4174a6cdd394ac82241fa330657cf20245cb1",
+    "tastemaker.toml": "944c9e9f235de0b72ace54432951c9b716f9d683f31005d0cc9039e74a0a5174"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "**/adapters/**",
+        "**/adapters/**/**",
+        "**/benches/**",
+        "**/benches/**/**",
+        "**/composition.rs",
+        "**/composition.rs/**",
+        "**/tests/**",
+        "**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/threads-at-adapter",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-threads-at-adapter-45024d49131b"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/work.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "occurrence",
+            "src/work.rs#20"
+          ],
+          [
+            "file",
+            {
+              "file": "src/work.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                19,
+                31
+              ]
+            }
+          ],
+          [
+            "target",
+            "rayon::scope"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              19,
+              31
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/work.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

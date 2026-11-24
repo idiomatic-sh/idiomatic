@@ -1,0 +1,5 @@
+impl Parse for ParseContract {
+    fn function(&self) -> Support<Reader<languages::Function, ()>> {
+        languages::absent(AbsenceCause::NoSuchConstruct)
+    }
+}

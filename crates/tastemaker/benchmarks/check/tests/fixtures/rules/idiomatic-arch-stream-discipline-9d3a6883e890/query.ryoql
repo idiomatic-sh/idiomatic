@@ -1,0 +1,5 @@
+let calls = project(from="static-call", columns=["file", "span", "target"]);
+let chrome = select * from calls where glob_any(target, "*ChromeLayerBuilder::new");
+let named = select * from "syntax-tree" where kind = "ident" and text = "file";
+let found = antijoin(left=chrome, right=named, left-on=["file"], right-on=["file"]);
+emit found subject "file" key("span");

@@ -1,0 +1,5 @@
+let strings = select * from "syntax-tree" where kind = "string";
+let captured = select l."file" as "file", l."span" as "span", l."text" as "text" from strings as l where glob_any(l."text", "*\{modified\}*") or glob_any(l."text", "*\{modified:*") or glob_any(l."text", "*\{mtime\}*") or glob_any(l."text", "*\{mtime:*");
+let passed = select l."file" as "file", l."span" as "span", l."target" as "text" from "mention" as l where glob_any(l."target", "{modified,mtime}");
+let found = union(left=captured, right=passed);
+emit found subject "file" key("span");

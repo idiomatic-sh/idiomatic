@@ -402,33 +402,16 @@ pub fn walked_structured<W: Walk>(
     structure: Option<&[languages::KindSet]>,
     visit: &mut dyn FnMut(FileFacts<'_>),
 ) -> Result<(), languages::WalkError> {
-    walked_request(
-        walk,
-        WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(bytes) },
-        needs, table, scratch, structure, visit,
-    )
-}
-
-/// Walks a numbered input file and lends the reader the cells in that file's own identity space.
-///
-/// # Errors
-///
-/// Returns the language's refusal if its walk cannot read the input.
-pub fn walked_request<W: Walk>(
-    walk: &W,
-    request: WalkRequest<'_>,
-    needs: &[Relation],
-    table: &mut NodeTable,
-    scratch: &mut W::Scratch,
-    structure: Option<&[languages::KindSet]>,
-    visit: &mut dyn FnMut(FileFacts<'_>),
-) -> Result<(), languages::WalkError> {
     let mut builder = match structure {
         Some(enclosing) => node_table::structured(table, W::KIND_COUNT, enclosing),
         None => node_table::builder(table, W::KIND_COUNT),
     };
     walk.walk(
-        request,
+        WalkRequest {
+            path: languages::SourcePath(path),
+            file: FileId(0),
+            source: ByteSlice(bytes),
+        },
         RelationNeeds(needs),
         &mut builder,
         scratch,

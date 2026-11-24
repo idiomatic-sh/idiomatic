@@ -1,0 +1,19 @@
+pub struct Settings;
+
+pub fn top(settings: &Settings, n: u8) {
+    middle(settings, n);
+}
+
+fn middle(config: &Settings, n: u8) {
+    lower(n, config);
+}
+
+fn lower(n: u8, setting: &Settings) {
+    bottom(setting);
+}
+
+fn bottom(used: &Settings) {
+    consume(used.clone());
+}
+
+fn consume(_x: Settings) {}

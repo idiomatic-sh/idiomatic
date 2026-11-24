@@ -1,5 +1,5 @@
 //! Resolve expressions in the lowering's typed select directly against source schemas.
-use super::{E, Exec, Op, PNode, R, Rc, Run, Schema, Ty, glob_pattern};
+use super::{E, Exec, Op, PNode, R, Rc, Run, Schema, Ty, TextTest, symbol_predicate, glob_pattern};
 use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
 type Sources = [(Option<String>, Rc<Schema>)];
 
@@ -11,10 +11,10 @@ fn alias(a: &SourceAlias) -> Option<&str> {
 }
 impl PNode {
     pub(super) fn alias(&self, i: usize) -> Option<&str> {
-        if let Some(FinishStep::Select(s)) = self.step() {
+        if let FinishStep::Select(s) = self.step() {
             alias(&s.sources[i].alias)
         } else {
-            self.external()?.aliases.get(i)?.as_deref()
+            None
         }
     }
 }
@@ -25,13 +25,13 @@ impl Exec<'_> {
         n: &PNode,
         sources: &Sources,
     ) -> R<Option<E>> {
-        if let Some(FinishStep::Select(s)) = n.step() {
+        if let FinishStep::Select(s) = n.step() {
             return match &s.condition {
                 RowCondition::Every => Ok(None),
                 RowCondition::Tested(e) => self.typed_expr(run, e, sources).map(Some),
             };
         }
-        n.external().ok_or("select")?.condition.as_ref().map(|e| e.bind(run, sources)).transpose()
+        Err("not a select".into())
     }
     pub(super) fn select_items(
         &self,
@@ -39,7 +39,7 @@ impl Exec<'_> {
         n: &PNode,
         sources: &Sources,
     ) -> R<Option<Vec<(String, E)>>> {
-        if let Some(FinishStep::Select(s)) = n.step() {
+        if let FinishStep::Select(s) = n.step() {
             return match &s.columns {
                 SelectedColumns::All => Ok(None),
                 SelectedColumns::Items(items) => items
@@ -54,8 +54,7 @@ impl Exec<'_> {
                     .map(Some),
             };
         }
-        let items = n.external().ok_or("select")?.items.as_ref().map_err(Clone::clone)?;
-        items.as_ref().map(|items| items.iter().map(|(name, e)| Ok((name.clone(), e.bind(run, sources)?))).collect()).transpose()
+        Err("not a select".into())
     }
     pub(super) fn column_expr(
         run: &mut Run,
@@ -81,21 +80,36 @@ impl Exec<'_> {
         }
     }
     pub(super) fn call_expr(run: &mut Run, name: &str, args: Vec<E>) -> R<E> {
+        if name == "lower" && let [E::Text(symbol)] = args.as_slice() {
+            return Ok(E::Text(run.lower_symbol(*symbol)));
+        }
         match (name, args.get(1)) {
             ("matches", Some(E::Text(t))) if args.len() == 2 => {
                 let re = run.re(&String::from_utf8_lossy(run.text(*t)).into_owned())?;
-                Ok(E::Re(Box::new(args.into_iter().next().unwrap()), re))
+                Ok(E::TextTest(Box::new(args.into_iter().next().unwrap()), TextTest::Regex(re)))
             }
-            ("glob_any", Some(E::Text(t))) if args.len() == 2 => {
-                let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                Ok(E::Re(Box::new(args.into_iter().next().unwrap()), re))
-            }
+            ("glob_any", Some(E::Text(t))) if args.len() == 2 => Self::glob_test(run, &args[0], *t),
             ("glob_any", Some(E::List(items))) if args.len() == 2 => {
+                if items.len() > 1 && matches!(args[0], E::Col(_, _, Ty::Sym | Ty::File)) {
+                    let patterns = items.iter().map(|item| match item {
+                        E::Text(pattern) => Ok(*pattern),
+                        _ => Err("glob pattern must be text".to_owned()),
+                    }).collect::<R<Vec<_>>>()?;
+                    let test = if let Some(test) = run.glob_lists.get(&patterns) {
+                        test.clone()
+                    } else {
+                        let tests = patterns.iter().map(|&pattern| Self::glob_predicate(run, pattern))
+                            .collect::<R<Vec<_>>>()?;
+                        let test = TextTest::Any(Rc::new(super::Bound::new(tests.into_boxed_slice())));
+                        run.glob_lists.insert(patterns, test.clone());
+                        test
+                    };
+                    return Ok(E::TextTest(Box::new(args[0].clone()), test));
+                }
                 let mut combined = None;
                 for item in items {
                     let E::Text(t) = item else { return Err("glob pattern must be text".into()) };
-                    let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                    let test = E::Re(Box::new(args[0].clone()), re);
+                    let test = Self::glob_test(run, &args[0], *t)?;
                     combined = Some(match combined {
                         Some(left) => E::Or(Box::new(left), Box::new(test)),
                         None => test,
@@ -106,15 +120,44 @@ impl Exec<'_> {
             _ => Ok(E::Call(name.to_owned(), args)),
         }
     }
-    // The SDK exposes the empty spelling for absent symbols as well as actual empty text.
-    pub(super) fn compare_expr(run: &Run, op: Op, left: E, right: E) -> E {
+    fn glob_test(run: &mut Run, subject: &E, pattern: u32) -> R<E> {
+        Ok(E::TextTest(Box::new(subject.clone()), Self::glob_predicate(run, pattern)?))
+    }
+    fn glob_predicate(run: &mut Run, pattern: u32) -> R<TextTest> {
+        match glob_pattern(&String::from_utf8_lossy(run.text(pattern))) {
+            Some(regex) => Ok(TextTest::Regex(run.re(&regex)?)),
+            None => {
+                use ryo_matching::inbound::use_cases::matching::{
+                    interface::MatchingUseCase, types::GlobPattern, use_case::MatchingUseCaseImpl,
+                };
+                let glob = if let Some(glob) = run.prepared_globs.get(&pattern) {
+                    Rc::clone(glob)
+                } else {
+                    let text = String::from_utf8_lossy(run.text(pattern));
+                    let matcher = MatchingUseCaseImpl::new().compile_text_globs(&[GlobPattern(&text)]);
+                    let glob = Rc::new(symbol_predicate::PreparedGlob::new(pattern, matcher));
+                    run.prepared_globs.insert(pattern, Rc::clone(&glob));
+                    glob
+                };
+                Ok(TextTest::Glob(glob))
+            }
+        }
+    }
+    // A symbol without a source spelling compares as empty text. Its emitted identity is preserved.
+    pub(super) fn compare_expr(run: &mut Run, op: Op, left: E, right: E) -> E {
+        if matches!(op, Op::Eq | Op::Ne)
+            && let Some(test) = symbol_predicate::folded_literal(run, &left, &right)
+                .or_else(|| symbol_predicate::folded_literal(run, &right, &left))
+        {
+            return if op == Op::Eq { test } else { E::Not(Box::new(test)) };
+        }
         let column = match (&left, &right) {
             (col @ E::Col(_, _, Ty::Sym), E::Text(t)) |
             (E::Text(t), col @ E::Col(_, _, Ty::Sym)) if *t == run.empty => Some(col),
             _ => None,
         };
-        if let (Some(absent), Some(col), Op::Eq | Op::Ne) = (run.absent_word, column, op) {
-            return E::In(Box::new(col.clone()), Box::new(E::List(vec![E::Text(run.empty), E::Text(absent)])), op == Op::Ne);
+        if let (Some(_), Some(col), Op::Eq | Op::Ne) = (run.absent_word, column, op) {
+            return Self::membership_expr(run, col.clone(), E::List(vec![E::Text(run.empty)]), op == Op::Ne);
         }
         E::Cmp(op, Box::new(left), Box::new(right))
     }
@@ -123,6 +166,7 @@ impl Exec<'_> {
             && items.iter().any(|e| matches!(e, E::Text(t) if *t == run.empty))
         {
             items.push(E::Text(absent));
+            items.extend(run.unresolved_words.iter().copied().map(E::Text));
         }
         E::In(Box::new(value), Box::new(list), negated)
     }

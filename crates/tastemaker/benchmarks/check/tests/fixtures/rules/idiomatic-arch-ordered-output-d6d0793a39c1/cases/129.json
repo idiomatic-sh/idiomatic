@@ -1,0 +1,146 @@
+{
+  "stamp": 129,
+  "rule": "idiomatic.arch/ordered-output",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "420b6e1a9378c2835c692f5f2bfe7932d266d78280fdf7a3faafd333dac40890",
+    "tastemaker.toml": "bc63e32746cecbf43ee79a461db4473650dcdae00893c6d7259bfb5b86839d67"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/ordered-output",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-ordered-output-d6d0793a39c1"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                102,
+                109
+              ]
+            }
+          ],
+          [
+            "text",
+            "HashMap"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              102,
+              109
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                157,
+                164
+              ]
+            }
+          ],
+          [
+            "text",
+            "HashSet"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              157,
+              164
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

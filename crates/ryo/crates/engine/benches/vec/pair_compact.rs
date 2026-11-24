@@ -54,7 +54,7 @@ impl Reachable<'_> {
                 *a = self.file(*a);
                 *b = self.file(*b);
             }
-            Need::PathMatches(_) | Need::SourceContains(_) | Need::Any | Need::Empty => {}
+            Need::PathGlob(_) | Need::PathMatches(..) | Need::SyntaxMatches(..) | Need::SourceContains(_) | Need::Any | Need::Empty => {}
         }
         let alias = match value {
             Need::Any if old != ANY => Some(ANY),
@@ -167,17 +167,6 @@ pub(super) fn compact(p: &mut Program) -> Vec<Id> {
         cert.nodes = reachable.node(cert.nodes);
         cert.guard = reachable.file(cert.guard);
     }
-    // A driver is only evidence when the rule program already retained its
-    // prerequisite. Translate it to the same index used by the file scan.
-    p.drivers.retain_mut(|(_, need)| {
-        let id = reachable.files.ids[*need];
-        if id != UNSEEN {
-            *need = id;
-            true
-        } else {
-            false
-        }
-    });
     p.exact.retain(|(_, c)| c.guard != ANY);
     p.domains = reachable.nodes.kept;
     p.needs = reachable.files.kept;

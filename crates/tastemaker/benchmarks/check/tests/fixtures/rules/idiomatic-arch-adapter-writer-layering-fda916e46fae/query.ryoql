@@ -1,0 +1,7 @@
+let imports = project(from="static-import", columns=["file", "span", "target"]);
+let references = project(from="reference", columns=["file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let sources = capture(from=mentions, path="file", pattern="{*owner}/{part}.rs", captures=["owner", "part"]);
+let reversed = select * from sources as s where (s."part" = "writer" and glob_any(s."target", "{super::adapter,super::adapter::*,*::adapters::*::adapter,*::adapters::*::adapter::*}")) or (glob_any(s."part", "{schemas,types}") and glob_any(s."target", "{super::writer,super::writer::*,*::adapters::*::writer,*::adapters::*::writer::*}"));
+let findings = project(from=reversed, columns=["file", "span"]);
+emit findings subject "file" key("span");

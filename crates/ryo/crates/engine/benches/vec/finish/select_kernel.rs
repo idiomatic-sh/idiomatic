@@ -10,8 +10,8 @@
 //! runs the interpreter's `select` instead (the oracle). A node with a form the kernels do not cover goes to the
 //! interpreter's `select` too (`VEC_KSEL_LOG=<path>` lists each node's path once a run).
 
-use super::{E, Exec, File, Native, Op, Provider, R, Run, Src, Table, Ty, V, NULL};
-use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, text_of, truthy, view_holds, view_rows};
+use super::{E, Exec, File, Native, Op, TextTest, Provider, R, Run, Src, Table, Ty, V, NULL};
+use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, truthy, view_holds, view_rows};
 use rustc_hash::FxHashSet;
 
 use std::cell::RefCell;
@@ -34,8 +34,9 @@ enum P {
     /// Any other comparison, by `compare`.
     Cmp(Op, Opd, Opd),
     In(Opd, Vec<V>, bool),
-    Re(Opd, Rc<regex::bytes::Regex>),
-    Seed(Opd, usize),
+    SymbolIn(usize, usize, Rc<super::symbol_predicate::SymbolSet>, bool),
+    SymbolTest(usize, usize, TextTest),
+    TextTest(Opd, TextTest),
     And(Box<P>, Box<P>),
     Or(Box<P>, Box<P>),
     Not(Box<P>),
@@ -54,13 +55,13 @@ fn opd(e: &E) -> Option<Opd> {
     })
 }
 
-fn compile(e: &E) -> P {
+fn compile(run: &Run, e: &E) -> P {
     match e {
         E::Lit(v) => P::Const(truthy(*v)),
         E::List(_) => P::Const(false),
-        E::And(a, b) => P::And(Box::new(compile(a)), Box::new(compile(b))),
-        E::Or(a, b) => P::Or(Box::new(compile(a)), Box::new(compile(b))),
-        E::Not(a) => P::Not(Box::new(compile(a))),
+        E::And(a, b) => P::And(Box::new(compile(run, a)), Box::new(compile(run, b))),
+        E::Or(a, b) => P::Or(Box::new(compile(run, a)), Box::new(compile(run, b))),
+        E::Not(a) => P::Not(Box::new(compile(run, a))),
         E::Cmp(o @ (Op::Eq | Op::Ne), a, b) => {
             let want = *o == Op::Eq;
             match (&**a, &**b) {
@@ -85,16 +86,17 @@ fn compile(e: &E) -> P {
                 _ => Some(Vec::new()),
             };
             match (opd(a), items) {
+                (Some(Opd::Col(s, c, Ty::Sym)), Some(items)) if items.iter().all(|v| v.ty() == Ty::Sym) => {
+                    let words = items.iter().filter(|v| v.1 != NULL).map(|v| v.1).collect();
+                    P::SymbolIn(s, c, super::symbol_predicate::SymbolSet::bind(run, words), *neg)
+                }
                 (Some(x), Some(items)) => P::In(x, items, *neg),
                 _ => P::Old(e.clone()),
             }
         }
-        E::Re(a, re) => match opd(a) {
-            Some(x) => P::Re(x, re.clone()),
-            None => P::Old(e.clone()),
-        },
-        E::Seed(a, k) => match opd(a) {
-            Some(x) => P::Seed(x, *k),
+        E::TextTest(a, re) => match opd(a) {
+            Some(Opd::Col(s, c, Ty::Sym)) => P::SymbolTest(s, c, re.clone()),
+            Some(x) => P::TextTest(x, re.clone()),
             None => P::Old(e.clone()),
         },
         _ => P::Old(e.clone()),
@@ -127,23 +129,20 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
                 Op::Le => ord != Greater,
                 Op::Gt => ord == Greater,
                 Op::Ge => ord != Less,
-                Op::Other => false,
             }
         }
+        P::SymbolIn(s, c, words, neg) => words.contains(get(run, f, srcs, cur, *s, *c)) != *neg,
         P::In(a, items, neg) => {
             let x = val(run, f, srcs, cur, a);
-            items.iter().any(|y| compare(run, x, *y) == Some(std::cmp::Ordering::Equal)) != *neg
+            items.iter().any(|y| super::member_eq(run, x, *y)) != *neg
         }
-        P::Re(a, re) => {
-            let x = val(run, f, srcs, cur, a);
-            match x.ty() {
-                Ty::Sym => re.is_match(run.text(x.1 as u32)),
-                _ => re.is_match(&text_of(run, x)),
-            }
+        P::SymbolTest(s, c, test) => {
+            let symbol = get(run, f, srcs, cur, *s, *c) as u32;
+            test.symbol(run, symbol)
         }
-        P::Seed(a, k) => {
+        P::TextTest(a, re) => {
             let x = val(run, f, srcs, cur, a);
-            f.seeds.get(*k).is_some_and(|s| s.binary_search(&(x.1 as u32)).is_ok())
+            re.value(run, x)
         }
         P::And(a, b) => holds(run, f, srcs, cur, a) && holds(run, f, srcs, cur, b),
         P::Or(a, b) => holds(run, f, srcs, cur, a) || holds(run, f, srcs, cur, b),
@@ -158,6 +157,11 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
 fn filter(run: &mut Run, f: &File<'_>, srcs: &[Src], si: usize, p: &P, sel: &mut Vec<u32>) {
     if let Src::Tab(t, _) = &srcs[si] {
         match p {
+            P::SymbolTest(s, c, test) if *s == si => {
+                let column = &t.cols[*c];
+                sel.retain(|r| test.symbol(run, column[*r as usize] as u32));
+                return;
+            }
             P::EqCK(s, c, k, want) if *s == si => {
                 let col = &t.cols[*c][..];
                 let (k, want) = (*k, *want);
@@ -384,8 +388,8 @@ impl Exec<'_> {
                 }
             }
         }
-        let preds = sp.conj.iter().map(compile).collect();
-        let file_const = sp.file_tests.is_some();
+        let preds = sp.conj.iter().map(|e| compile(run, e)).collect();
+        let file_const = sp.conj.iter().any(|c| super::filter_order::file_const(c) && !matches!(c, E::Lit(_)));
         let set = k == 1 && items.iter().all(|(s, _)| *s == 0);
         let ident = k == 1 && sp.conj.is_empty() && {
             let ssc = self.schema(run, sp.srcs[0])?;
@@ -405,7 +409,7 @@ impl Exec<'_> {
             kinds.push(sets);
         }
         // an empty view entry empties the run whatever the other sources hold (every source is joined)
-        let zero = semi.is_none() && !sp.conj.iter().any(|e| matches!(e, E::Seed(..))) && {
+        let zero = semi.is_none() && {
             let mut views = false;
             for s in sp.srcs.iter() {
                 views |= self.view(run, *s)?.is_some();
@@ -437,7 +441,7 @@ impl Exec<'_> {
         };
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
-            if super::filter_order::file_fails(run, f, &sp.conj, &sp.file_tests) {
+            if super::filter_order::file_fails(run, f, &sp.conj) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
                 return self.empty(run, node);
             }
@@ -466,6 +470,7 @@ impl Exec<'_> {
             let Ok(Some(v)) = self.view(run, *s) else { continue };
             if let super::Native::Fact(x) = v.base
                 && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
+                && !(f.owed_fills.get(usize::from(x)).copied().unwrap_or(false) && self.load_fact(f, run, p, v.base).is_ok())
             {
                 continue;
             }
@@ -489,7 +494,7 @@ impl Exec<'_> {
         };
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
-            if super::filter_order::file_fails(run, f, &sp.conj, &sp.file_tests) {
+            if super::filter_order::file_fails(run, f, &sp.conj) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
                 super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
                 return self.empty_rc(run, node);
@@ -509,7 +514,7 @@ impl Exec<'_> {
     /// (source, its column, the driver's column) of an equality of the two, the source a step whose one consumer is this
     /// select, not made in this file and read by key on that column. Not the source `not` (read by key already).
     fn ksel_deferred(&mut self, f: &File<'_>, run: &mut Run, sp: &super::SelPlan, not: Option<usize>) -> R<Option<(usize, usize, usize)>> {
-        if sp.srcs.len() != 2 || sp.srcs[0] == sp.srcs[1] || sp.conj.iter().any(|e| matches!(e, E::Seed(..))) || sw!("VEC_NO_KEYED_JOIN") {
+        if sp.srcs.len() != 2 || sp.srcs[0] == sp.srcs[1] || sw!("VEC_NO_KEYED_JOIN") {
             return Ok(None);
         }
         for i in [1usize, 0] {
@@ -574,7 +579,7 @@ impl Exec<'_> {
         let (t0, i0) = (Clk::now(), self.inner);
         super::empty_sel::origin(self.inner);
         let sp = self.sel(run, node)?;
-        if kp.file_const && super::filter_order::file_fails(run, f, &sp.conj, &sp.file_tests) {
+        if kp.file_const && super::filter_order::file_fails(run, f, &sp.conj) {
             *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
             super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
             return self.empty_rc(run, node);
@@ -594,7 +599,9 @@ impl Exec<'_> {
             prof_add(7, t0.elapsed());
         }
         super::empty_sel::lap(0, self.inner);
+        // redo-fills pass 2: views the front reads no size of, filled only past the front's early ends (lazy_view.rs);
         // `srcs` is redo-alloc's kept list (the wrapper's)
+        let mut late: [Option<Native>; 4] = [None; 4];
         // redo-whole pass 2 (keyed.rs): the source read by key (this run is itself by key), and the source read by the
         // driver's keys (a step whose one consumer is this join, on an equality with the other source)
         let mut deferred = if keyed.is_none() || k == 2 { self.ksel_deferred(f, run, &sp, keyed.map(|x| x.0))? } else { None };
@@ -610,6 +617,7 @@ impl Exec<'_> {
         // made yet and not a view would have the other made first, so it is made in its turn instead
         if let Some((i, _, _)) = deferred
             && i == 0
+            && f.population(sp.srcs[i]).is_none()
             && f.memo[sp.srcs[1]].is_none()
             && self.view(run, sp.srcs[1])?.is_none()
         {
@@ -630,7 +638,13 @@ impl Exec<'_> {
                 srcs.push(Src::Base(Native::Tree));
                 continue;
             }
-            let src = self.src_of(f, run, p, *n)?;
+            let src = match if i < 4 { self.lazy_view(f, run, *n, conj, i, kp.kinds[i].0.is_some() || kp.kinds[i].1.is_some())? } else { None } {
+                Some(v) => {
+                    late[i] = Some(v.base);
+                    Src::View(v, *n)
+                }
+                None => self.src_of(f, run, p, *n)?,
+            };
             if let Src::Tab(t, _) = &src
                 && t.n == 0
             {
@@ -671,23 +685,6 @@ impl Exec<'_> {
             return Ok(t.clone());
         }
         let mut driver: Option<usize> = keyed.map(|x| x.0).or(deferred.map(|d| 1 - d.0));
-        if let Some((si, c, sk)) = conj.iter().find_map(|e| match e {
-            E::Seed(x, sk) => match **x {
-                E::Col(si, c, _) => Some((si, c, *sk)),
-                _ => None,
-            },
-            _ => None,
-        }) {
-            let ids: Vec<u64> = f.seeds.get(sk).map(|s| s.iter().map(|x| u64::from(*x)).collect()).unwrap_or_default();
-            let t = self.probe(f, run, p, sp.srcs[si], c, &ids)?;
-            self.stats.touched[node] += ids.len() as u64;
-            if t.n == 0 {
-                super::empty_sel::at(super::empty_sel::stage::SEED_EMPTY);
-                return self.empty_rc(run, node);
-            }
-            srcs[si] = Src::Tab(t, usize::MAX - si);
-            driver = Some(si);
-        }
         super::empty_sel::lap(2, self.inner);
         let mut best = if driver.is_some() { 0 } else { usize::MAX };
         for (i, sr) in srcs.iter().enumerate() {
@@ -704,6 +701,9 @@ impl Exec<'_> {
             }
         }
         super::empty_sel::lap(3, self.inner);
+        for b in late.into_iter().flatten() {
+            self.load_fact(f, run, p, b)?;
+        }
         let driver = match driver {
             Some(d) => d,
             None => (0..k).find(|i| matches!(srcs[*i], Src::View(..))).ok_or("a select with no source to start from")?,

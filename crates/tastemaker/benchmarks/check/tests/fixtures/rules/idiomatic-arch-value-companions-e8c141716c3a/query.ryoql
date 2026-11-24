@@ -1,0 +1,12 @@
+let files = project(from="filesystem.file", columns=["path"]);
+let bodies = capture(from=files, path="path", pattern="{*root}/types/{value}/value.rs", captures=["root", "value"]);
+let tests = capture(from=files, path="path", pattern="{*root}/types/{value}/value_test.rs", captures=["root", "value"]);
+let modules = capture(from=files, path="path", pattern="{*root}/types/{value}.rs", captures=["root", "value"]);
+let absent-proof = antijoin(left=bodies, right=tests, left-on=["root", "value"], right-on=["root", "value"]);
+let absent-module = antijoin(left=bodies, right=modules, left-on=["root", "value"], right-on=["root", "value"]);
+let absent-body = antijoin(left=modules, right=bodies, left-on=["root", "value"], right-on=["root", "value"]);
+let orphan-proof = antijoin(left=tests, right=bodies, left-on=["root", "value"], right-on=["root", "value"]);
+let first = union(left=absent-proof, right=absent-module);
+let second = union(left=absent-body, right=orphan-proof);
+let missing = union(left=first, right=second);
+emit missing subject "path" key("path");

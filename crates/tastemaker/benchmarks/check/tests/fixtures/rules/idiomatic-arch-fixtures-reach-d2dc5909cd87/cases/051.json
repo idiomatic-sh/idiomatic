@@ -1,0 +1,134 @@
+{
+  "stamp": 51,
+  "rule": "idiomatic.arch/fixtures-reach",
+  "dependency": "Project",
+  "admitted": [
+    "Cargo.toml",
+    "demo/Cargo.toml",
+    "demo/src/fixtures.rs",
+    "demo/src/lib.rs",
+    "other/Cargo.toml",
+    "other/src/fixtures.rs",
+    "other/src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "9aa267f4fd20989c0b2d2a97c2b5091ca39f4ec918516e2247e208392ee65f07",
+    "demo/Cargo.toml": "1f3c62fbdc41e9d436f07859764b378e3b598fea61abdc9fe177523c3f0de7ab",
+    "demo/src/fixtures.rs": "115002f98cd66dcfa343442e115b4e2ec0c701fab038104a2517311249bf646d",
+    "demo/src/lib.rs": "3618a68825f4ba9b8e737f5727636779430aaf25597f8ea6588e00f5f913cec5",
+    "other/Cargo.toml": "4541eb20e39d63ce1d5225b7ff23afd90d11b9766554dd2fc69581b2f7052f44",
+    "other/src/fixtures.rs": "ed853ed0dcff7257c46d51a9b559a0f048483fc651514817b50f2a8a55723c9b",
+    "other/src/lib.rs": "103e2b98250d1650f0b931f93188606f7ce784d00b157ed11f8591c7db6746cd",
+    "tastemaker.toml": "f305beefc7e0988c67d845b3bb8c710207aad4640ebc95e0e2d08419f82c1809"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "**/benches/**",
+        "**/benches/**/**",
+        "**/tests/**",
+        "**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/fixtures-reach",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**",
+        "**/Cargo.toml",
+        "**/Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-fixtures-reach-d2dc5909cd87"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "demo/Cargo.toml",
+        "demo/src/fixtures.rs",
+        "demo/src/lib.rs",
+        "other/Cargo.toml",
+        "other/src/fixtures.rs",
+        "other/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "demo/src/fixtures.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                36,
+                57
+              ]
+            }
+          ],
+          [
+            "krate",
+            "other"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              36,
+              57
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "demo/src/fixtures.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

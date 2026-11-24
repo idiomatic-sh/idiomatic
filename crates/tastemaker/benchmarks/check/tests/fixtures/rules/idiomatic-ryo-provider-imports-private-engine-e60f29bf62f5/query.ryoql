@@ -1,0 +1,2 @@
+let imports = select file, span, target from "static-import" where glob_any(target, "{ryo_core,ryo_core::*}");
+emit imports subject file key(span);

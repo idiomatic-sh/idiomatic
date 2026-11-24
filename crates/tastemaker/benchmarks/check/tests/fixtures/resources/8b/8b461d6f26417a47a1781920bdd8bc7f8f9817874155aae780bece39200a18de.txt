@@ -1,0 +1,9 @@
+//! The wiring of `check`.
+
+/// Builds the check service over the cache directory.
+pub fn build(cache: &std::path::Path) -> std::io::Result<crate::inventory::CheckService> {
+    let source_connection = crate::inventory::SourceConnection::open(
+        &cache.join("source-inventory"),
+    )?;
+    Ok(crate::inventory::CheckService { inventory: source_connection })
+}

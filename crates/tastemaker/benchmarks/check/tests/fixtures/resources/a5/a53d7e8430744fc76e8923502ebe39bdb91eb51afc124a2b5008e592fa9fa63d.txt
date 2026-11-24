@@ -1,0 +1,14 @@
+//! What the `greeting` port asks of the outside, in the core's own vocabulary: plain data in and out,
+//! and the handles (traits this file declares) it hands back. It never takes an adapter's
+//! configuration (a directory, a budget, a client): the port's factory takes that.
+
+/// What every `greeting` adapter implements.
+pub trait GreetingPort {
+    /// Shows the greeting.
+    fn show(&self) -> &'static str;
+
+    /// Shows the greeting loudly.
+    fn shout(&self) -> String {
+        self.show().to_uppercase()
+    }
+}

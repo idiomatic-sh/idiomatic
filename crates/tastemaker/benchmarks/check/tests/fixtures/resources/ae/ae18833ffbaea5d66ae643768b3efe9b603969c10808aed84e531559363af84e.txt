@@ -1,0 +1,12 @@
+//! The fake of the `names` port: what the core's tests stand in for it with.
+
+use super::super::interface::NamesPort;
+
+/// What the core's tests stand in for `names` with.
+pub struct NamesFake;
+
+impl NamesPort for NamesFake {}
+
+#[cfg(test)]
+#[path = "fake_test.rs"]
+mod tests;

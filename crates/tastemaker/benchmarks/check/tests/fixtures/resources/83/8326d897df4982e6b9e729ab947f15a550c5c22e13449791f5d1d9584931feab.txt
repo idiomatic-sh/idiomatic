@@ -1,0 +1,12 @@
+use std::fmt::{self, Display};
+
+#[derive(Debug, thiserror::Error)]
+pub struct LimitError {
+    pub limit: u32,
+}
+
+impl Display for LimitError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "over the limit {}", self.limit)
+    }
+}

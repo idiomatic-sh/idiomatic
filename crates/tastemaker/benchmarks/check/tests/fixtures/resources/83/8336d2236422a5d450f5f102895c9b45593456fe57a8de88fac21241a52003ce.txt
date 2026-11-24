@@ -1,0 +1,3 @@
+pub fn value() -> serde_json::Value {
+    Default::default()
+}

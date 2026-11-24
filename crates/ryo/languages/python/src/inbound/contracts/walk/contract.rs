@@ -86,11 +86,6 @@ impl Walk for PythonWalk<WalkPorts> {
         let target = self.ports.settings.target_version().components();
         scratch.file.model.target = target;
         let mut names = std::mem::take(&mut scratch.names);
-        if needs.0.contains(&languages::Relation::ExpressionShape) {
-            names.shapes.get_or_insert_with(Default::default).clear();
-        } else {
-            names.shapes = None;
-        }
         crate::domain::model::names::service::cleared(&mut names);
         let mut reading = Reading {
             request,

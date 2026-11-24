@@ -1,0 +1,9 @@
+//! The names port, implemented with memory.
+
+use crate::outbound::names::interface::NamesPort;
+
+/// The memory names adapter.
+#[derive(Debug)]
+pub(crate) struct NamesMemoryAdapter;
+
+impl NamesPort for NamesMemoryAdapter {}

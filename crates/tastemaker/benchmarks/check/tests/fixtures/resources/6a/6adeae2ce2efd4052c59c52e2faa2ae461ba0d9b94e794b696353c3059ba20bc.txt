@@ -1,0 +1,18 @@
+[package]
+name = "demo-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cpu-time.workspace = true
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true

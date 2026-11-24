@@ -1,0 +1,3 @@
+//! The `greeting` domain's rules, one module per concept.
+
+mod polite;

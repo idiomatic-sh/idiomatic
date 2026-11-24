@@ -1,0 +1,100 @@
+{
+  "stamp": 178,
+  "rule": "idiomatic.arch/ci/command-entry",
+  "dependency": "One file",
+  "admitted": [
+    "ci/demo/command.py"
+  ],
+  "given": {
+    "ci/demo/command.py": "6fc8d8c9be5ba9856ef6f7f7437d26e962682859039857c14cad3626a111514d",
+    "tastemaker.toml": "fe9f9d0fc32e03de0486c9082c549b9cf451621f2167e8ad473d27535210bf93"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/ci/command-entry",
+      "include": [
+        "ci/**",
+        "ci/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-ci-command-entry-a23dccd3403a"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "ci/demo/command.py",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "ci/demo/command.py"
+            }
+          ],
+          [
+            "job",
+            "demo"
+          ],
+          [
+            "entry",
+            "run"
+          ]
+        ],
+        "key": [
+          {
+            "file": "ci/demo/command.py"
+          },
+          "run"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "ci/demo/command.py"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

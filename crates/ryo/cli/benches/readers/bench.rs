@@ -21,16 +21,6 @@ mod glob_pattern;
 mod host_columns;
 #[path = "../../../crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
-#[path = "../../../crates/engine/benches/vec/summary_schedule.rs"]
-mod summary_schedule;
-#[path = "../../../crates/engine/benches/vec/summary_values.rs"]
-mod summary_values;
-#[path = "../../../crates/engine/benches/vec/summary_proofs.rs"]
-mod summary_proofs;
-#[path = "../../../crates/engine/benches/vec/summary_rules.rs"]
-mod summary_rules;
-#[path = "../../../crates/engine/benches/vec/summary_literals.rs"]
-mod summary_literals;
 use glob_pattern::glob_pattern;
 #[path = "../../../crates/engine/benches/vec/lower.rs"]
 mod lower;
@@ -42,14 +32,17 @@ mod pair_summary;
 mod reader;
 #[path = "../../../crates/engine/benches/vec/reader_run.rs"]
 mod reader_run;
+#[path = "../../../crates/engine/benches/vec/check_session.rs"]
+mod check_session;
 #[path = "../../../crates/engine/benches/vec/spec.rs"]
 mod spec;
 
 #[path = "../../../crates/engine/benches/vec/reader_cli.rs"]
 mod reader_cli;
 use reader_cli::{alloc_counts, flag, thread_cpu};
-mod bindings;
-use bindings::{context_from, rule_context};
+mod json_input;
+mod json_output;
+use json_input::rule_context;
 
 /// These readers declare no necessary identifier spelling and no extra walk columns.
 /// Their kind names, field names and filled relations come from the linked parser.
@@ -91,17 +84,39 @@ fn main() {
         project_bench::replay();
         return;
     }
+    let languages = || {
+        let mut langs: Vec<_> = readers.iter().map(|link| link()).collect();
+        langs.extend([ryo_python::linked(), ryo_rust::linked(), ryo_typescript::linked()]);
+        langs
+    };
+    if let [mode, manifest, output] = args.as_slice()
+        && mode == "--tm-batch"
+    {
+        project_bench::batch(languages(), manifest, output);
+        return;
+    }
+    if let [manifest, _, output] = args.as_slice() {
+        if let Err(reason) = project_bench::packets(languages(), manifest, output) {
+            eprintln!("{reason}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if let [mode, pack, request, output] = args.as_slice()
         && (mode == "--shipping" || mode == "--mixed")
     {
-        let mut langs: Vec<_> = readers.iter().map(|link| link()).collect();
-        langs.extend([
-            ryo_python::linked(),
-            ryo_rust::linked(),
-            ryo_typescript::linked(),
-        ]);
+        let langs = languages();
         if mode == "--mixed" {
-            if !mixed::run(langs, pack, request, output) {
+            // Scenario inputs carry their numbered inventory and one standalone query.
+            // A pack request keeps its original multi-rule and fragment semantics.
+            if !std::path::Path::new(pack).join("fragments").exists()
+                && let Some(input) = json_input::scenario(request)
+            {
+                if let Err(reason) = project_bench::one(langs, pack, input, output) {
+                    eprintln!("{reason}");
+                    std::process::exit(1);
+                }
+            } else if !mixed::run(langs, pack, request, output) {
                 std::process::exit(1);
             }
             return;
@@ -122,7 +137,7 @@ fn main() {
         .map(|link| link())
         .find(|r| &*r.name().0 == name)
         .expect("requested reader must be linked");
-    if !reader_run::run_files::<true>(start, reader, declaration(), pack, request, output, None) {
+    if !reader_run::run_files::<true>(start, reader, declaration(), pack, request, reader_run::Output::Path(output), None) {
         std::process::exit(1);
     }
 }

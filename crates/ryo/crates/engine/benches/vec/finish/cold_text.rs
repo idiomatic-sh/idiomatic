@@ -9,10 +9,10 @@ use std::rc::Rc;
 pub(super) struct Plan {
     by_symbol: Vec<u32>,
     slots: usize,
-    by_bytes: FxHashMap<Box<[u8]>, u32>,
+    by_bytes: FxHashMap<Rc<[u8]>, u32>,
     one_byte: Vec<u32>,
     longest: usize,
-    tests: FxHashMap<Vec<String>, Rc<Predicate>>,
+    tests: FxHashMap<Vec<super::cold_list::FilterKey>, Rc<Predicate>>,
 }
 pub(super) fn slots(run: &mut Run, words: &[u32]) -> Vec<usize> {
     words
@@ -67,21 +67,18 @@ impl Plan {
 #[derive(Default)]
 pub(super) struct Dictionary {
     postings: RefCell<Vec<Vec<u32>>>,
-    answers: RefCell<FxHashMap<(usize, u32), bool>>,
 }
 
 pub(super) struct Predicate {
-    id: usize,
-    test: Test,
+    test: super::Bound<Test>,
 }
 impl Predicate {
     pub(super) fn compile(run: &mut Run, expr: &E, test: Test) -> Rc<Self> {
         let key = super::cold_list::conjuncts(std::slice::from_ref(expr));
-        let id = run.cold_text.tests.len();
         run.cold_text
             .tests
             .entry(key)
-            .or_insert_with(|| Rc::new(Self { id, test }))
+            .or_insert_with(|| Rc::new(Self { test: super::Bound::new(test) }))
             .clone()
     }
     pub(super) fn accepts(&self, f: &File<'_>, run: &mut Run, row: u32) -> bool {
@@ -89,16 +86,12 @@ impl Predicate {
         if sw!("VEC_COLD_COUNT") {
             counts(|n| n[4] += 1);
         }
-        *f.cold_text
-            .answers
-            .borrow_mut()
-            .entry((self.id, symbol))
-            .or_insert_with(|| {
-                if sw!("VEC_COLD_COUNT") {
-                    counts(|n| n[3] += 1);
-                }
-                (self.test)(run, u64::from(symbol))
-            })
+        self.test.answer(symbol, || {
+            if sw!("VEC_COLD_COUNT") {
+                counts(|n| n[3] += 1);
+            }
+            (self.test.pattern)(run, u64::from(symbol))
+        })
     }
 }
 

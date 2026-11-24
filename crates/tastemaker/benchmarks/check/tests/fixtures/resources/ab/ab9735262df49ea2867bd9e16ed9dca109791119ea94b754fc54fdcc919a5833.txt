@@ -1,0 +1,12 @@
+# Demo
+
+## Usage
+
+```console
+$ demo greeting show
+Hello!
+```
+
+```toml
+description = "What the rule checks."
+```

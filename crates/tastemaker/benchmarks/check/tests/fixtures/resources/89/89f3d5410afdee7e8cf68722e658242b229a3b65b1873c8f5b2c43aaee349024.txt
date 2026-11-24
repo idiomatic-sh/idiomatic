@@ -1,0 +1,7 @@
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+pub struct LintUseCaseImpl {
+    plans: Mutex<HashMap<u64, u64>>,
+    workers: u8,
+}

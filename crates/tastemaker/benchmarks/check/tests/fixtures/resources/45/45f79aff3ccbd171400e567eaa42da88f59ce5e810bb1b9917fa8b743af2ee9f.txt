@@ -1,0 +1,3 @@
+pub struct Rule {
+    pub check: Box<dyn Fn(u8) -> bool + Send>,
+}

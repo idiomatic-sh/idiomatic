@@ -1,0 +1,5 @@
+use ryo::languages::ReadItem;
+
+struct CircleItem;
+
+impl ReadItem for CircleItem {}

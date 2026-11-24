@@ -1,0 +1,1 @@
+//! Proves when the progress line is drawn on stderr, and that `settle` takes it down.

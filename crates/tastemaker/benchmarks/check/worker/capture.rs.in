@@ -1,0 +1,189 @@
+// Diagnostic-only observer, copied into the disposable Tastemaker build.
+use ryo::linter::*;
+use serde_json::{Value, json};
+use std::io::Write;
+
+fn parameter(v: &ParameterValue) -> Value {
+    match v {
+        ParameterValue::Number(n) => json!(n.0),
+        ParameterValue::Flag(b) => json!(*b == FlagState::On),
+        ParameterValue::Text(t) => json!(&*t.0),
+        ParameterValue::Numbers(a) => json!(&a.0),
+        ParameterValue::Texts(a) => json!(a.iter().map(|t| &*t.0).collect::<Vec<_>>()),
+        ParameterValue::TextSets(a) => json!(
+            a.iter()
+                .map(|s| s.iter().map(|t| &*t.0).collect::<Vec<_>>())
+                .collect::<Vec<_>>()
+        ),
+        ParameterValue::Tables(a) => json!(
+            a.iter()
+                .map(|t| t
+                    .0
+                    .iter()
+                    .map(|c| (&*c.key.0, &*c.value.0))
+                    .collect::<std::collections::BTreeMap<_, _>>())
+                .collect::<Vec<_>>()
+        ),
+        other => panic!("{other:?}"),
+    }
+}
+
+pub(super) fn record(req: &LintRequest, languages: &Languages) -> usize {
+    let Some(path) = std::env::var_os("TM_BENCH_TRACE") else {
+        return 0;
+    };
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let stamp = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let cases = |files: &[CaseSource]| {
+        files
+            .iter()
+            .map(|s| (&*s.path.0, &*s.text.0))
+            .map(|(p, t)| (p.to_string(), t.to_string()))
+            .collect::<std::collections::BTreeMap<_, _>>()
+    };
+    let corpus = match &req.corpus {
+        Corpus::Listed(files) => json!({"listed":files.iter().map(|p|&*p.0).collect::<Vec<_>>()}),
+        Corpus::Given(files) => json!({"given":cases(files)}),
+        Corpus::Walked => json!({"walked":true}),
+        other => panic!("{other:?}"),
+    };
+    let strings = |list: &[Glob]| list.iter().map(|p| p.to_string()).collect::<Vec<_>>();
+    let paths: std::collections::BTreeSet<_> = match &req.corpus {
+        Corpus::Listed(files) => files.iter().collect(),
+        Corpus::Given(files) => files.iter().map(|f| &f.path).collect(),
+        _ => Default::default(),
+    };
+    let paths: std::collections::BTreeSet<_> = paths
+        .into_iter()
+        .chain(req.beside.iter().map(|f| &f.path))
+        .collect();
+    let readers: std::collections::BTreeMap<_, _> = languages
+        .0
+        .iter()
+        .map(|l| {
+            let one = Languages(vec![l.clone()]);
+            let names = paths
+                .iter()
+                .filter(|f| one.reads(f) == ryo::languages::Recognition::Reads)
+                .map(|f| &*f.0)
+                .collect::<Vec<_>>();
+            (&*l.name().0, names)
+        })
+        .collect();
+    let globs = |rules: &[Glob]| {
+        let mut builder = globset::GlobSetBuilder::new();
+        for g in rules {
+            let _ = builder.add(
+                globset::GlobBuilder::new(g.as_ref())
+                    .literal_separator(true)
+                    .build()
+                    .unwrap(),
+            );
+        }
+        builder.build().unwrap()
+    };
+    let rules: Vec<_> = req.rules.iter().map(|(id,r)| {
+        let inc = globs(&r.include);
+        let exc = globs(&r.exclude);
+        let admitted: Vec<_> = paths.iter().filter(|p| (r.include.is_empty() || inc.is_match(p.0.as_ref()))
+                && !exc.is_match(p.0.as_ref())).map(|p| p.0.as_ref()).collect();
+        json!({"id":id.as_ref(),"query":r.query.as_ref(),
+        "parameters":r.parameters.iter().map(|(k,v)|(&*k.0,parameter(v))).collect::<std::collections::BTreeMap<_,_>>(),
+        "include":strings(&r.include),"exclude":strings(&r.exclude),"admitted":admitted})}).collect();
+    let hosted: Vec<_> = req
+        .hosted
+        .iter()
+        .map(|h| json!([h.name.to_string(), h.rows.len()]))
+        .collect();
+    let supplied: Vec<_> = req
+        .hosted
+        .iter()
+        .map(|h| {
+            let columns: Vec<_> = h
+                .columns
+                .iter()
+                .map(|c| (c.name.to_string(), format!("{:?}", c.kind)))
+                .collect();
+            let data: Vec<_> = h
+                .rows
+                .iter()
+                .map(|r| {
+                    r.0.iter()
+                        .map(|c| value(&Slot::Is(c.clone())))
+                        .collect::<Vec<_>>()
+                })
+                .collect();
+            json!({"name":h.name.to_string(),"columns":columns,"rows":data})
+        })
+        .collect();
+    let encoded = json!({"stamp":stamp,"root":req.root,"corpus":corpus,"beside":cases(&req.beside),"readers":readers,"rules":rules,"hosted":hosted,"supplied":supplied}).to_string() + "\n";
+    append(path, encoded);
+    stamp
+}
+
+fn append(path: std::ffi::OsString, encoded: String) {
+    static WRITE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _guard = WRITE.lock().unwrap();
+    std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(path)
+        .unwrap()
+        .write_all(encoded.as_bytes())
+        .unwrap();
+}
+
+fn value(slot: &Slot) -> Value {
+    match slot {
+        Slot::Nothing => Value::Null,
+        Slot::Is(Cell::File(file)) => json!({"file": &*file.0}),
+        Slot::Is(Cell::Text(text)) => json!(&*text.0),
+        Slot::Is(Cell::Number(number)) => json!(number.0),
+        Slot::Is(Cell::Span(span)) => json!({"span": [span.start.0, span.end.0]}),
+        other => panic!("unrepresented result cell {other:?}"),
+    }
+}
+
+pub(super) fn answer(stamp: usize, report: &LintReport) {
+    use sha2::{Digest, Sha256};
+    let Some(path) = std::env::var_os("TM_BENCH_TRACE") else {
+        return;
+    };
+    let mut grouped = std::collections::BTreeMap::<&str, Vec<String>>::new();
+    for f in &report.findings {
+        let columns: Vec<_> = f
+            .columns
+            .iter()
+            .map(|c| (&*c.name.0, value(&c.value)))
+            .collect();
+        grouped.entry(f.rule.as_ref()).or_default().push(
+            json!({"columns":columns,"key":f.key.0.iter().map(value).collect::<Vec<_>>(),
+            "rule":"query","subject":value(&f.subject)})
+            .to_string(),
+        );
+    }
+    let summaries: std::collections::BTreeMap<_, _> = grouped
+        .into_iter()
+        .map(|(id, mut lines)| {
+            lines.sort();
+            let mut hash = Sha256::new();
+            for line in &lines {
+                hash.update(line.as_bytes());
+                hash.update(b"\n");
+            }
+            (id, json!([lines.len(), format!("{:x}", hash.finalize())]))
+        })
+        .collect();
+    let unknowns: Vec<_> = report
+        .unknowns
+        .iter()
+        .map(|u| json!([u.rule.as_ref(), &*u.path.0, &*u.message.0]))
+        .collect();
+    append(
+        path,
+        json!({"stamp":stamp,"answers":summaries,"unknowns":unknowns,
+        "unread":report.unread.len(),"skips":report.skipped.len()})
+        .to_string()
+            + "\n",
+    );
+}

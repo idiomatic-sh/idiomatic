@@ -1,0 +1,4 @@
+/// The names port.
+pub trait NamesPort {
+    fn names(&self) -> u8;
+}

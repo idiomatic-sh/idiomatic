@@ -1,0 +1,3 @@
+use cache::factory::memory as chosen;
+pub fn compose(_supplied: usize) -> usize { chosen() }
+pub fn build() -> usize { compose(7) }

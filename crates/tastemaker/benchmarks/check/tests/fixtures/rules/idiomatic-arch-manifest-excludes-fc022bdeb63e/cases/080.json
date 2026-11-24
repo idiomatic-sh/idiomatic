@@ -1,0 +1,169 @@
+{
+  "stamp": 80,
+  "rule": "idiomatic.arch/manifest-excludes",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "tastemaker.toml"
+  ],
+  "given": {
+    "tastemaker.toml": "c960d38338f7e729ddcd1e0694acf4b972a31d13a354860e060246552a8a98fb"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "src/fixtures/**",
+        "src/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/catch-all-names",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-catch-all-names-239f121e607d"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/manifest-excludes",
+      "include": [
+        "**/tastemaker.toml",
+        "**/tastemaker.toml/**"
+      ],
+      "parameters": {
+        "allowlist-keys": [
+          {
+            "definition": "idiomatic.arch/no-heap-accounting",
+            "key": "owners"
+          },
+          {
+            "definition": "idiomatic.arch/entry-traits-witnessed",
+            "key": "non-entries"
+          },
+          {
+            "definition": "idiomatic.arch/test-imports",
+            "key": "test-contracts"
+          }
+        ],
+        "edge-composition-roles": [
+          {
+            "glob": "cli/Cargo.toml"
+          },
+          {
+            "glob": "cli/build.rs"
+          },
+          {
+            "glob": "cli/src/**"
+          },
+          {
+            "glob": "**/benchmarks/provider/**"
+          }
+        ],
+        "generated-roles": [
+          {
+            "glob": "**/src/languages.rs"
+          },
+          {
+            "glob": "**/src/tastemaker.toml"
+          }
+        ],
+        "input-roots": [
+          {
+            "glob": "**/tests/fixtures/**"
+          }
+        ],
+        "key-roles": [
+          {
+            "glob": "**/accounting/**",
+            "key": "owners"
+          }
+        ],
+        "public-roots": [
+          "ryo::",
+          "ryo_sdk::"
+        ],
+        "role-globs": [
+          {
+            "glob": "**/*_test.rs"
+          },
+          {
+            "glob": "**/*_test/**"
+          },
+          {
+            "glob": "**/test.rs"
+          },
+          {
+            "glob": "**/tests.rs"
+          },
+          {
+            "glob": "**/tests/**"
+          },
+          {
+            "glob": "**/tests/bdd.rs"
+          },
+          {
+            "glob": "**/tests/allocation.rs"
+          },
+          {
+            "glob": "**/acceptance.rs"
+          },
+          {
+            "glob": "**/fixtures/**"
+          },
+          {
+            "glob": "**/fixtures.rs"
+          },
+          {
+            "glob": "**/benches/**"
+          }
+        ]
+      },
+      "query": "idiomatic-arch-manifest-excludes-fc022bdeb63e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": []
+  }
+}

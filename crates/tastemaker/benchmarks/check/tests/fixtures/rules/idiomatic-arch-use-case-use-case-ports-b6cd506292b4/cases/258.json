@@ -1,0 +1,108 @@
+{
+  "stamp": 258,
+  "rule": "idiomatic.arch/use-case/use-case-ports",
+  "dependency": "One file",
+  "admitted": [
+    "src/inbound/use_cases/greet/use_case.rs"
+  ],
+  "given": {
+    "src/inbound/use_cases/greet/use_case.rs": "ad43f17d7a8d0a28b6c662f21eefdca43a7f3789cadff7b84c278b177b9d4a43",
+    "tastemaker.toml": "36de3d19a0931e275c7b88070e336a3c709298f4f5825a3c611e605bd869e46f"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/use-case/use-case-ports",
+      "include": [
+        "src/inbound/use_cases/greet/use_case.rs",
+        "src/inbound/use_cases/greet/use_case.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-use-case-ports-b6cd506292b4"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/inbound/use_cases/greet/use_case.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "N"
+          ],
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/greet/use_case.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                153,
+                161
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              153,
+              161
+            ]
+          },
+          "N"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/greet/use_case.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

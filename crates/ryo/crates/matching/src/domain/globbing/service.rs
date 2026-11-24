@@ -373,12 +373,48 @@ pub(crate) fn compile(patterns: &[GlobText<'_>]) -> TextGlobProgram {
         .map_or_else(|_| interpreted(patterns), TextGlobProgram::Ready)
 }
 
+/// Find a literal outside the character classes. Alternatives, escapes and optional
+/// directory separators retain their full interpreter semantics.
+fn required_literal(pattern: GlobText<'_>) -> std::ops::Range<usize> {
+    let text = pattern.0;
+    if !text.is_ascii() || text.contains(['{', '}', '\\']) || text.contains("**/") {
+        return 0..0;
+    }
+    let joined = Alternated {
+        before: GlobPiece(text),
+        alternative: GlobPiece::default(),
+        after: GlobPiece::default(),
+    };
+    let mut longest = 0..0;
+    let mut start = 0;
+    while start < text.len() {
+        let end = text[start..]
+            .find(['*', '?', '['])
+            .map_or(text.len(), |offset| start + offset);
+        if end - start > longest.len() {
+            longest = start..end;
+        }
+        if text.as_bytes().get(end) == Some(&b'[') {
+            let Some(class) = class_close(joined, GlobIndex(end)) else {
+                return 0..0;
+            };
+            start = class.close.0 + 1;
+        } else {
+            start = end + 1;
+        }
+    }
+    longest
+}
+
 /// Keep authored patterns only when the exact compiler optimization is unavailable.
 fn interpreted(patterns: &[GlobText<'_>]) -> TextGlobProgram {
     TextGlobProgram::Interpreted(
         patterns
             .iter()
-            .map(|pattern| OwnedGlobText(Box::from(pattern.0)))
+            .map(|&pattern| OwnedGlobText {
+                pattern: Box::from(pattern.0),
+                required: required_literal(pattern),
+            })
             .collect(),
     )
 }
@@ -388,9 +424,10 @@ fn interpreted(patterns: &[GlobText<'_>]) -> TextGlobProgram {
 pub(crate) fn matches_compiled(compiled: &TextGlobProgram, text: Subject<'_>) -> GlobMatch {
     let matched = match compiled {
         TextGlobProgram::Ready(matcher) => matcher.is_match(text.0.as_bytes()),
-        TextGlobProgram::Interpreted(patterns) => patterns
-            .iter()
-            .any(|pattern| matches(GlobText(&pattern.0), text) == GlobMatch::Matches),
+        TextGlobProgram::Interpreted(patterns) => patterns.iter().any(|glob| {
+            (glob.required.is_empty() || text.0.contains(&glob.pattern[glob.required.clone()]))
+                && matches(GlobText(&glob.pattern), text) == GlobMatch::Matches
+        }),
     };
     if matched {
         GlobMatch::Matches

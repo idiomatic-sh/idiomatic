@@ -1,0 +1,8 @@
+//! The catalog: hands every relation to a callback macro.
+
+#[macro_export]
+macro_rules! each_relation {
+    ($callback:path) => {
+        $callback! { syntax { Function function FunctionRow FunctionColumn; } }
+    };
+}

@@ -20,6 +20,8 @@ pub(super) mod cost;
 mod exact;
 #[path = "pair_groups.rs"]
 mod groups;
+#[path = "pair_patterns.rs"]
+mod patterns;
 #[path = "pair_paths.rs"]
 pub(super) mod paths;
 #[path = "pair_precheck.rs"]
@@ -27,7 +29,7 @@ mod precheck;
 #[path = "pair_project.rs"]
 mod project;
 #[path = "pair_regexes.rs"]
-mod regexes;
+pub(super) mod regexes;
 
 pub(super) fn inputs(s: &FinishStep) -> smallvec::SmallVec<[StepNumber; 4]> {
     let mut result = smallvec::SmallVec::new();
@@ -78,7 +80,9 @@ pub(super) enum Domain {
 pub(super) enum Need {
     Terms(bool, Box<[Id]>),
     Any,
-    PathMatches(usize),
+    PathMatches(usize, bool),
+    PathGlob(usize),
+    SyntaxMatches(usize, bool),
     InvalidPattern(usize), // proof prerequisite, resolved during plan compaction
     SourceContains(usize),
     Empty,
@@ -110,6 +114,7 @@ pub(super) struct Fact {
 }
 
 pub(super) struct Program {
+    pub scratch: std::cell::RefCell<super::pair_checks::Scratch>,
     pub meter: Option<cost::Meter>,
     pub paths: Vec<Option<paths::Edge>>,
     pub file_only: Vec<bool>,
@@ -117,9 +122,9 @@ pub(super) struct Program {
     pub needs: Vec<Need>,
     pub exact: Vec<(usize, exact::Certificate)>,
     pub roots: Vec<(String, Id)>,
-    pub drivers: Vec<(usize, Id)>,
     pub skips: Vec<(bool, Vec<Vec<String>>, Vec<Vec<String>>)>,
     pub regexes: Vec<regexes::Pattern>,
+    pub path_globs: Vec<String>,
     pub text_kinds: Vec<u16>,
     pub symbols: Map<String, Id>,
     pub max_text: usize,
@@ -138,6 +143,7 @@ enum Attribute {
     Text,
     Cell(usize, usize),
     ProjectChoices(usize, u64),
+    SymbolOrigins(usize),
     Count(usize),
 }
 #[derive(Clone, Copy)]
@@ -243,8 +249,12 @@ struct Builder<'a> {
     vocab: &'a Vocab,
     language: &'a Language,
     reader_rows: &'a [String],
+    current_file: Option<(&'static str, &'static str)>,
+    syntax_symbols: bool,
     positive: bool,
     regex_slots: Map<String, Id>,
+    glob_slots: Map<Vec<String>, Id>,
+    symbol_origins: Vec<Vec<(usize, usize)>>,
     proof_validation: Option<Id>,
     early_omit: u16,
     signatures: Vec<u64>,
@@ -535,6 +545,11 @@ impl Builder<'_> {
             return r;
         }
         use Attribute::*;
+        if let Some((relation, column)) = self.current_file && relation == name {
+            let file = r.var(ANY);
+            r.add(column, file, FilePath);
+            return r;
+        }
         match name {
             "syntax-tree" | "semantic-syntax" if self.native(name) => {
                 r.var(ANY);
@@ -793,6 +808,9 @@ impl Builder<'_> {
         lookup: &impl Fn(&ColumnRead) -> Option<Column>,
     ) -> Option<(usize, Id)> {
         use PlanExpression::*;
+        if self.syntax_symbols && matches!(e, Call(_) | Not(_) | Or(_)) && let Some(test) = self.glob_domain(e, lookup) {
+            return Some(test);
+        }
         if let Some((column, cmp, value)) = numeric_comparison(e) {
             let c = lookup(column)?;
             return self.number(c.attr, cmp, value).map(|d| (c.var, d));
@@ -929,6 +947,32 @@ impl Builder<'_> {
         lookup: &impl Fn(&ColumnRead) -> Option<Column>,
     ) -> Id {
         use PlanExpression::*;
+        if let PlanExpression::Call(f) = e
+            && &*f.function.0 == "glob_any"
+            && matches!(f.arguments.as_slice(), [PlanExpression::Column(_), PlanExpression::List(items)] if items.is_empty())
+        {
+            return EMPTY;
+        }
+        if self.syntax_symbols && let Some((col, re, polarity)) = self.glob_test(e, lookup) {
+            match col.attr {
+                Attribute::Text => return self.need(Need::SyntaxMatches(re, polarity)),
+                Attribute::FilePath => return self.need(Need::PathMatches(re, polarity)),
+                Attribute::Cell(slot, col) if self.out.facts[slot].kinds[col] == CellKind::Symbol && polarity => {
+                    let d = self.domain(Domain::Matching(slot, col, re));
+                    return self.need(Need::Some(d));
+                }
+                Attribute::SymbolOrigins(i) if polarity => {
+                    let mut any = EMPTY;
+                    for (slot, column) in self.symbol_origins[i].clone() {
+                        let d = self.domain(Domain::Matching(slot, column, re));
+                        let exists = self.need(Need::Some(d));
+                        any = self.or(any, exists);
+                    }
+                    return any;
+                }
+                _ => {}
+            }
+        }
         if let Call(f) = e
             && matches!(&*f.function.0, "matches" | "glob_any")
             && let [Column(c), Literal(PlanConstant::Text(pattern))] = f.arguments.as_slice()
@@ -936,14 +980,22 @@ impl Builder<'_> {
         {
             let glob;
             let pattern = if &*f.function.0 == "glob_any" {
-                glob = super::glob_pattern(&pattern.0);
+                let Some(compiled) = super::glob_pattern(&pattern.0) else {
+                    let slot = self.out.path_globs.iter().position(|p| p == &*pattern.0)
+                        .unwrap_or_else(|| {
+                            self.out.path_globs.push(pattern.0.to_string());
+                            self.out.path_globs.len() - 1
+                        });
+                    return self.need(Need::PathGlob(slot));
+                };
+                glob = compiled;
                 &glob
             } else {
                 &*pattern.0
             };
             return self
                 .regex(pattern)
-                .map_or(ANY, |re| self.need(Need::PathMatches(re)));
+                .map_or(ANY, |re| self.need(Need::PathMatches(re, true)));
         }
         match e {
             And(p) | Or(p) => {
@@ -1170,7 +1222,7 @@ impl Builder<'_> {
                     changed[v] |= d != ANY && d != out.domains[v];
                     out.domains[v] = self.both(out.domains[v], d);
                     self.require(&mut out, d);
-                } else if matches!(e, PlanExpression::Or(_) | PlanExpression::Call(_)) {
+                } else if matches!(e, PlanExpression::Or(_) | PlanExpression::Call(_) | PlanExpression::Not(_)) {
                     let n = self.file_test(e, &lookup);
                     out.need = self.and(out.need, n);
                 }
@@ -1350,7 +1402,7 @@ impl Builder<'_> {
                 if l.domains.len() == 1 && r.domains.len() == 1 {
                     for (name, a) in l.columns.iter() {
                         if let Some(b) = r.column(name)
-                            && let Some(attr) = project::common(a.attr, b.attr, &self.out.facts)
+                            && let Some(attr) = self.common_origin(a.attr, b.attr)
                         {
                             out.add(name, 0, attr);
                         }
@@ -1365,7 +1417,7 @@ impl Builder<'_> {
                 let mut vars = Map::default();
                 for (n, a) in l.columns.iter() {
                     if let Some(b) = r.column(n)
-                        && let Some(origin) = project::common(a.attr, b.attr, &self.out.facts)
+                        && let Some(origin) = self.common_origin(a.attr, b.attr)
                     {
                         let var = *vars.entry((a.var, b.var)).or_insert_with(|| {
                             let left = self.in_branch(l.need, l.domains[a.var]);
@@ -1646,14 +1698,28 @@ fn terms<'a>(e: &'a PlanExpression, out: &mut Conjuncts<'a>) {
 }
 
 pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> Program {
-    prepare_with_reader_rows(plan, vocab, language, &[])
+    prepare_with_reader_rows(plan, vocab, language, &[], false)
 }
 
 /// Relations supplied as rows may have a different population from the tree.
-pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, language: &Language, reader_rows: &[String]) -> Program {
+pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, language: &Language, reader_rows: &[String], syntax_symbols: bool) -> Program {
+    prepare_plans(&[plan], None, vocab, language, reader_rows, None, syntax_symbols)
+}
+
+/// Prepared texts share one set of file and node tests without renumbering their executor steps.
+pub(super) fn prepare_plans(
+    plans: &[&FinishPlan],
+    targets: Option<&[Vec<usize>]>,
+    vocab: &Vocab,
+    language: &Language,
+    reader_rows: &[String],
+    current_file: Option<(&'static str, &'static str)>,
+    syntax_symbols: bool,
+) -> Program {
+    let steps = plans.iter().map(|p| p.steps.len()).sum::<usize>();
     let clock = cfg!(feature = "pair-diagnostics") && std::env::var_os("VEC_PAY_PREP").is_some();
     let mut t = super::thread_cpu();
-    let mut phase = |name| {
+    let mut phase = |name: &str| {
         if clock {
             let now = super::thread_cpu();
             println!("PAYPREP {name} {:.6}", now - t);
@@ -1664,16 +1730,22 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
         vocab,
         language,
         reader_rows,
+        current_file,
+        syntax_symbols,
         positive: false,
         regex_slots: Map::default(),
+        glob_slots: Map::default(),
+        symbol_origins: Vec::new(),
         proof_validation: None,
         early_omit: 0,
-        signatures: Vec::with_capacity(plan.steps.len()),
+        signatures: Vec::with_capacity(steps),
         out: Program {
+            scratch: Default::default(),
             meter: None,
             paths: Vec::new(),
             file_only: Vec::new(),
             regexes: Vec::new(),
+            path_globs: Vec::new(),
             text_kinds: language.text_kinds.clone(),
             symbols: Map::default(),
             max_text: 0,
@@ -1683,12 +1755,11 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
             facts: vec![],
             exact: vec![],
             roots: vec![],
-            drivers: vec![],
             skips: vec![],
             capped: 0,
         },
-        ds: Map::with_capacity_and_hasher(plan.steps.len() / 2, Default::default()),
-        ns: Map::with_capacity_and_hasher(plan.steps.len(), Default::default()),
+        ds: Map::with_capacity_and_hasher(steps / 2, Default::default()),
+        ns: Map::with_capacity_and_hasher(steps, Default::default()),
         sizes: vec![],
         visited: vec![],
         generation: 0,
@@ -1700,10 +1771,52 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
     b.domain(Domain::Empty);
     b.need(Need::Any);
     b.need(Need::Empty);
+    let omit = cost::omitted();
+    for (i, plan) in plans.iter().enumerate() {
+        prepare_roots(&mut b, plan, targets.map(|ts| ts[i].as_slice()), omit, &mut phase);
+    }
+    // The separate raw-word index has no proof that every provider value has
+    // a raw spelling (for example, a normalized or resolved identifier).
+    // Certify the whole first half only when that independent skip is vacuous.
+    b.out.exact.retain(|(ri, _)| b.out.skips[*ri].2.is_empty());
+    precheck::schedule(&mut b);
+    phase("roots");
+    cost::arrange(&mut b.out, omit);
+    #[cfg(feature = "pair-diagnostics")]
+    if std::env::var_os("VEC_PAIR_METER").is_some() {
+        b.out.meter = Some(cost::Meter::new(b.out.facts.len()));
+    }
+    (b.out.paths, b.out.file_only) = paths::compile(&b.out);
+    phase("arrange");
+    if clock || b.out.meter.is_some() {
+        println!(
+            "PAYREGEX prepare {} {}",
+            b.out.regexes.iter().filter(|r| r.initialized()).count(),
+            b.out.regexes.len()
+        );
+    }
+    for d in &b.out.domains {
+        if let Domain::Text(t) = d {
+            b.out.max_text = b.out.max_text.max(t.len());
+            b.out.texts.insert(t.as_bytes().to_vec());
+        }
+    }
+    b.out
+}
+
+fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: Option<&[usize]>, omit: u16, phase: &mut impl FnMut(&str)) {
+    b.counts.clear();
+    b.positive = false;
+    b.early_omit = 0;
+    let language = b.language;
     let mut live = vec![false; plan.steps.len()];
-    for r in &plan.rules {
-        if let RuleEmit::Written(e) = &r.emit {
-            live[e.step.0] = true;
+    if let Some(steps) = targets {
+        for &step in steps { live[step] = true; }
+    } else {
+        for r in &plan.rules {
+            if let RuleEmit::Written(e) = &r.emit {
+                live[e.step.0] = true;
+            }
         }
     }
     for (i, s) in plan.steps.iter().enumerate().rev() {
@@ -1734,9 +1847,10 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
         }
     }
     phase("live");
-    let mut exclusions = exact::prepare(&mut b, plan, &live).into_iter().peekable();
+    let previous_exact = b.out.exact.len();
+    let mut exclusions = exact::prepare(b, plan, &live).into_iter().peekable();
+    if targets.is_some() { b.out.exact.truncate(previous_exact); }
     b.positive = true;
-    let omit = cost::omitted();
     // Proofs are complete before this point. Widen only positive witnesses.
     b.early_omit = omit;
     phase("proof");
@@ -1755,7 +1869,7 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
             (Summary::default(), super::pair_skip::Skip::default())
         };
         if let Some((_, exclusion)) = exclusions.next_if(|(step, _)| *step == i) {
-            exclusion.apply(&mut b, &mut row);
+            exclusion.apply(b, &mut row);
         }
         if let FinishStep::GroupCount(g) = s
             && let Some(proof) = b.counts.get(&i)
@@ -1768,18 +1882,6 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
         rows.push(row);
         skips.push(skip);
     }
-    for step in &plan.steps {
-        let driver = match step {
-            FinishStep::Antijoin(join) => join.left,
-            FinishStep::AsOf(join) => join.left,
-            FinishStep::OrderedMatch(join) => join.left,
-            _ => continue,
-        };
-        let need = rows[driver.0].need;
-        if need != ANY { b.out.drivers.push((driver.0, need)); }
-    }
-    b.out.drivers.sort_unstable();
-    b.out.drivers.dedup();
     phase("rows-and-skips");
     #[cfg(feature = "pair-diagnostics")]
     if std::env::var_os("VEC_PAIR_TRACE").is_some() {
@@ -1787,46 +1889,28 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
             println!("WITNESS\t{step}\t{}\t{:?}", row.need, row.domains);
         }
     }
-    for r in &plan.rules {
-        let (need, skip) = match &r.emit {
-            RuleEmit::Written(e) => (rows[e.step.0].need, skips[e.step.0].root()),
-            RuleEmit::Unwritten => (ANY, Default::default()),
-        };
+    let mut push = |name, step: Option<usize>| {
+        let (need, skip) = step.map_or_else(|| (ANY, Default::default()), |i| {
+            (rows[i].need, skips[i].root())
+        });
         let early = b.file_guard(need);
         let root = if early == ANY || early == need {
             need
         } else {
             b.need(Need::Both(early, need))
         };
-        b.out.roots.push((r.rule.0.to_string(), root));
+        b.out.roots.push((name, root));
         b.out.skips.push(skip);
-    }
-
-    // The separate raw-word index has no proof that every provider value has
-    // a raw spelling (for example, a normalized or resolved identifier).
-    // Certify the whole first half only when that independent skip is vacuous.
-    b.out.exact.retain(|(ri, _)| b.out.skips[*ri].2.is_empty());
-    precheck::schedule(&mut b);
-    phase("roots");
-    cost::arrange(&mut b.out, omit);
-    #[cfg(feature = "pair-diagnostics")]
-    if std::env::var_os("VEC_PAIR_METER").is_some() {
-        b.out.meter = Some(cost::Meter::new(b.out.facts.len()));
-    }
-    (b.out.paths, b.out.file_only) = paths::compile(&b.out);
-    phase("arrange");
-    if clock || b.out.meter.is_some() {
-        println!(
-            "PAYREGEX prepare {} {}",
-            b.out.regexes.iter().filter(|r| r.initialized()).count(),
-            b.out.regexes.len()
-        );
-    }
-    for d in &b.out.domains {
-        if let Domain::Text(t) = d {
-            b.out.max_text = b.out.max_text.max(t.len());
-            b.out.texts.insert(t.as_bytes().to_vec());
+    };
+    if let Some(steps) = targets {
+        for &step in steps { push(String::new(), Some(step)); }
+    } else {
+        for rule in &plan.rules {
+            let step = match &rule.emit {
+                RuleEmit::Written(e) => Some(e.step.0),
+                RuleEmit::Unwritten => None,
+            };
+            push(rule.rule.0.to_string(), step);
         }
     }
-    b.out
 }

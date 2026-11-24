@@ -1,0 +1,17 @@
+//! Relations.
+
+/// One.
+#[derive(Debug, RyoRelation)]
+pub struct Relation0;
+
+/// One.
+#[derive(Debug, RyoRelation)]
+pub struct Relation1;
+
+/// One.
+#[derive(Debug, RyoRelation)]
+pub struct Relation2;
+
+/// One.
+#[derive(Debug, RyoRelation)]
+pub struct Relation3;

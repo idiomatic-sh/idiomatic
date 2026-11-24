@@ -1,0 +1,123 @@
+{
+  "stamp": 115,
+  "rule": "idiomatic.arch/no-public-options",
+  "dependency": "Project",
+  "admitted": [
+    "Cargo.toml",
+    "src/beyond_types.rs",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/beyond_types.rs": "da0122ba76a8c30befe6a875fa108f12cbd27620be7a21b3a21891ccdd82dd0b",
+    "src/lib.rs": "7bae1264042421040df2f970e4cd5fe332b060cac6424bbe7237c6b7b7fee099",
+    "tastemaker.toml": "31272b2b1746814572eb22ad15faa8cef2b3952ea6bcdb0535c14618efe48beb"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/dtos.rs",
+        "**/dtos.rs/**"
+      ],
+      "id": "idiomatic.arch/no-public-options",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-no-public-options-b64b6f8fd783"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/beyond_types.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/beyond_types.rs#15"
+          ],
+          [
+            "file",
+            {
+              "file": "src/beyond_types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                74,
+                98
+              ]
+            }
+          ],
+          [
+            "text",
+            "Option"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              74,
+              98
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/beyond_types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

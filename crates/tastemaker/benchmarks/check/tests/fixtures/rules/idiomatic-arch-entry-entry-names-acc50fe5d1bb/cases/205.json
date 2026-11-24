@@ -1,0 +1,108 @@
+{
+  "stamp": 205,
+  "rule": "idiomatic.arch/entry/entry-names",
+  "dependency": "One file",
+  "admitted": [
+    "src/entry.rs"
+  ],
+  "given": {
+    "src/entry.rs": "56146b3aee7350ace3c823c9ff80a84f91711a87cb40144adbe3283d6439ff62",
+    "tastemaker.toml": "45df8012c7a570c3397864e2d6e889ee6d0de19db83a4cb961bcaed24d374b3b"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/entry/entry-names",
+      "include": [
+        "src/entry.rs",
+        "src/entry.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-entry-entry-names-acc50fe5d1bb"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/entry.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/entry.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                22,
+                136
+              ]
+            }
+          ],
+          [
+            "problem",
+            "does not return `Result<<Verb>Report, <Verb>Error>` (or `Result<(), <Verb>Error>`): the answer ending `Report`, or `()`, comes first and the error ending `Error` second"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              22,
+              136
+            ]
+          },
+          "does not return `Result<<Verb>Report, <Verb>Error>` (or `Result<(), <Verb>Error>`): the answer ending `Report`, or `()`, comes first and the error ending `Error` second"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/entry.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

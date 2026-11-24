@@ -1,5 +1,5 @@
 //! Evaluate a distinct node count grouped by its fixed ancestor in this file.
-use super::{Arena, Bits, Map, NodeTable, Nodes, Position, each, node_table};
+use super::{Bits, Map, NodeTable, Nodes, Position, bits, each, node_table};
 use ryo_values::domain::finish_plans::expressions::types::Comparator;
 
 pub(super) fn compare(left: i64, op: Comparator, right: i64) -> bool {
@@ -20,7 +20,6 @@ pub(super) fn compare(left: i64, op: Comparator, right: i64) -> bool {
 
 pub(super) fn under(
     table: &NodeTable,
-    arena: &mut Arena,
     children: Nodes,
     all: bool,
     depth: u8,
@@ -42,15 +41,9 @@ pub(super) fn under(
         (0..node_table::element_count(table).0 as u32).for_each(count);
     } else {
         let children: Bits = children?;
-        each(&arena.words[children.range()], |i| {
-            count(children.first() as u32 * 64 + i)
-        });
+        each(&children, &mut count);
     }
-    Some(
-        arena.bits(
-            counts
-                .into_iter()
-                .filter_map(|(id, n)| compare(i64::from(n), op, value).then_some(id)),
-        ),
-    )
+    Some(bits(counts.into_iter().filter_map(|(id, n)| {
+        compare(i64::from(n), op, value).then_some(id)
+    })))
 }

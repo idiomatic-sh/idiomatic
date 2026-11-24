@@ -1,0 +1,11 @@
+//! The demo.
+
+/// Runs.
+pub fn run() {}
+
+#[cfg(test)]
+mod tests {
+    #[ignore]
+    #[test]
+    fn skipped() {}
+}

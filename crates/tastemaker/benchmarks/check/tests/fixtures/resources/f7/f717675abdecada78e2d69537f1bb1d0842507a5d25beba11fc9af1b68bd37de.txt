@@ -1,0 +1,23 @@
+//! `greeting list`: parses, checks, composes, calls the service, presents.
+
+/// The arguments of `greeting list`.
+#[derive(clap::Args)]
+pub struct ListArguments {
+    #[command(flatten)]
+    output: crate::output::FormatSwitch,
+}
+
+/// Runs `greeting list`: checks its arguments through its schemas, connects and composes its
+/// service, calls it once, and prints the answer in the format `--format` chose.
+pub fn run(arguments: ListArguments) -> crate::outcome::Outcome {
+    let format = arguments.output.format();
+    let request = match arguments.try_into() {
+        Ok(request) => request,
+        Err(error) => return crate::output::fail(&error, crate::outcome::Outcome::Failure),
+    };
+    let service = super::composition::compose(super::connections::connect(), super::composition::GreetingListParts { greeting: "hello" });
+    match service.list(request) {
+        Ok(answer) => crate::output::present(format, &answer, crate::outcome::Outcome::Success),
+        Err(error) => crate::output::fail(&error, crate::outcome::Outcome::Error),
+    }
+}

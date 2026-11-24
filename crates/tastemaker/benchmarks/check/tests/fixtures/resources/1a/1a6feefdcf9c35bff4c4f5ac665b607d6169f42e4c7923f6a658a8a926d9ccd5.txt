@@ -1,0 +1,1 @@
+pub struct Greet(pub u32);

@@ -1,0 +1,2 @@
+let rows = select * from "mapping";
+emit rows subject "file" key("id");

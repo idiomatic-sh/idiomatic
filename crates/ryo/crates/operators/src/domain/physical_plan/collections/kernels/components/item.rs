@@ -176,7 +176,7 @@ fn edge_at(
 
 /// Marks in `scratch.found`, by node number, each node of `nodes` in a component of more than one or with an edge to itself,
 /// `edge` answering the node the edge at a place leaving a node leads to. Tarjan's strongly connected components, one pass.
-fn components(
+pub fn components(
     nodes: NodeCount,
     edge: impl Fn(NodeNumber, EdgePlace) -> Option<NodeNumber>,
     scratch: &mut CycleScratch,

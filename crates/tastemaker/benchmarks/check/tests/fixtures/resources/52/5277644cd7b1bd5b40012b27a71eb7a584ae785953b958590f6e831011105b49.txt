@@ -1,0 +1,1 @@
+use ryo_benchmark::application::run::inventory::verify;

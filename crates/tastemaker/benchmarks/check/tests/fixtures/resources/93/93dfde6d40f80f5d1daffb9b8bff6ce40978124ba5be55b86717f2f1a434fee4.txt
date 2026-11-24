@@ -1,0 +1,7 @@
+//! A lock.
+
+use std::sync::RwLock;
+
+pub fn state() -> RwLock<u8> {
+    RwLock::new(0)
+}

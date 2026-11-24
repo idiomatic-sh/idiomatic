@@ -1,0 +1,5 @@
+//! The `polite` concept's failures.
+
+/// Why an operation of `polite` failed.
+#[derive(Debug, thiserror::Error)]
+enum PoliteError {}

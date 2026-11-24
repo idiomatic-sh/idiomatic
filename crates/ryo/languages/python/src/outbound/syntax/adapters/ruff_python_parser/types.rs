@@ -220,8 +220,6 @@ pub(super) struct OpenWalked<'t> {
     pub node: ruff_python_ast::AnyNodeRef<'t>,
     /// The id the walk gave it.
     pub at: languages::Position,
-    /// End of this node in the walked source.
-    pub end: Offset,
     /// Where the fields of its children start among the walk's fields.
     pub from: FieldIndex,
     /// The field of its next child, when its children open in the order the fields were read.
@@ -231,8 +229,6 @@ pub(super) struct OpenWalked<'t> {
 /// The walker of the node table: it walks the library's tree in the order of the file, writes each node with the field it fills
 /// and the tokens between the nodes, and keeps the typed node of each id.
 pub(super) struct Walker<'b, 'w, 't> {
-    /// Structural classes being collected on this traversal.
-    pub shapes: Option<Box<crate::domain::shape_facts::walk::WalkShapes>>,
     /// The table's builder.
     pub builder: &'b mut languages::NodeTableBuilder<'w>,
     /// The library's tokens, in the order of the file.
@@ -241,6 +237,8 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub next: TokenIndex,
     /// Where the last token written ends: the gap up to the next token is white space.
     pub written: Offset,
+    /// Where each open node ends, the innermost last.
+    pub ends: Vec<Offset>,
     /// The strings open, the innermost last: what an interpolation is named by.
     pub strings: Vec<Strings>,
     /// The library's tokens, to find a keyword in.

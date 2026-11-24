@@ -1,73 +1,129 @@
 //! Evaluate each requested witness once per file. Unknown or partial provider answers admit the file.
 use super::pair_summary::cost::{self, Sample};
 use super::pair_summary::{Domain, Id, Need, Program, Source};
-use super::summary_schedule::Schedule;
 use rustc_hash::FxHashMap as Map;
 use ryo::languages::{self, FileWords, FilledColumns, NodeTable, Position, node_table};
-#[path = "summary_arena.rs"]
-mod arena;
-#[path = "summary_memo.rs"]
-mod memo;
-#[path = "summary_postings.rs"]
-pub(super) mod postings;
-#[path = "summary_ready.rs"]
-mod ready;
-#[path = "summary_scan.rs"]
-pub(super) mod scan;
-#[path = "summary_witness.rs"]
-mod physical_witness;
-use arena::{Arena, Bits};
+use std::rc::Rc;
 
 #[path = "pair_counts.rs"]
 mod counts;
 #[path = "pair_witness.rs"]
 mod witness;
 
+type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
 type Nodes = Option<Bits>;
+type SymbolColumn<'a> = dyn Fn(Source, usize, &super::pair_summary::regexes::Matcher) -> Option<bool> + 'a;
 /// The exact syntax text column supplied by a host with per-position symbol IDs.
 #[derive(Clone, Copy)]
 pub(super) struct SyntaxText<'a> {
     pub ids: &'a [u32],
-    pub symbols: &'a [Box<[u8]>],
+    pub symbols: &'a [std::rc::Rc<[u8]>],
+    pub patterns: Option<&'a SymbolMatches>,
+    pub dictionary: &'a Map<Rc<[u8]>, u32>,
+    pub distinct: Option<&'a std::cell::RefCell<FileSymbols>>,
+    pub column: Option<&'a SymbolColumn<'a>>,
+}
+/// The reader owns symbol identities for the lifetime of this dictionary.
+#[derive(Default)]
+pub(super) struct SymbolMatches(std::cell::RefCell<Vec<(usize, u32, bool)>>);
+
+/// An existence test can stop early. Later predicates continue the same
+/// discovery of distinct subjects and see every subject already discovered.
+#[derive(Default)]
+pub(super) struct FileSymbols {
+    seen: Vec<u64>,
+    words: Vec<u32>,
+    next: usize,
+}
+impl FileSymbols {
+    #[allow(dead_code, reason = "session readers reuse this index across source versions")]
+    pub(super) fn clear(&mut self) {
+        for word in self.words.drain(..) {
+            self.seen[word as usize / 64] = 0;
+        }
+        self.next = 0;
+    }
+
+    fn any(&mut self, column: &[u32], mut accepts: impl FnMut(u32) -> bool) -> bool {
+        if self.words.iter().copied().any(&mut accepts) {
+            return true;
+        }
+        while self.next < column.len() {
+            let id = column[self.next];
+            self.next += 1;
+            let block = id as usize / 64;
+            if self.seen.len() <= block {
+                self.seen.resize(block + 1, 0);
+            }
+            let bit = 1u64 << (id % 64);
+            if self.seen[block] & bit == 0 {
+                self.seen[block] |= bit;
+                self.words.push(id);
+                if accepts(id) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+}
+
+impl SymbolMatches {
+    fn with_predicate<R>(&self, index: usize, regex: &super::pair_summary::regexes::Matcher,
+        symbols: &[Rc<[u8]>], apply: impl FnOnce(&mut dyn FnMut(u32) -> bool) -> R) -> R {
+        let mut entries = self.0.borrow_mut();
+        if entries.is_empty() {
+            entries.resize(4096, (usize::MAX, 0, false));
+        }
+        apply(&mut |id| {
+            let slot = (index.wrapping_mul(0x9e3779b9) ^ id as usize) & (entries.len() - 1);
+            let entry = &mut entries[slot];
+            if (entry.0, entry.1) != (index, id) {
+                *entry = (index, id, regex.is_match(&symbols[id as usize]));
+            }
+            entry.2
+        })
+    }
+}
+impl SyntaxText<'_> {
+    #[inline(never)]
+    fn matches(self, index: usize, regex: &super::pair_summary::regexes::Matcher, polarity: bool) -> bool {
+        if let Some(patterns) = self.patterns {
+            patterns.with_predicate(index, regex, self.symbols, |test|
+                if let Some(distinct) = self.distinct {
+                    distinct.borrow_mut().any(self.ids, |id| test(id) == polarity)
+                } else {
+                    self.ids.iter().any(|&id| test(id) == polarity)
+                })
+        } else {
+            self.ids.iter().any(|&id| regex.is_match(&self.symbols[id as usize]) == polarity)
+        }
+    }
 }
 impl<'a> SyntaxText<'a> {
     fn at(self, index: usize) -> &'a [u8] {
         &self.symbols[self.ids[index] as usize]
     }
 }
-pub(super) enum Query<'a> {
-    Rows,
-    Exists,
-    Keys(&'a mut Vec<u64>),
-}
-type Reader<'a> =
-    dyn FnMut(Source, Query<'_>, &mut FileWords, &mut FilledColumns) -> Option<bool> + 'a;
+type Reader<'a> = dyn FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool + 'a;
 
 #[derive(Default)]
 struct Table {
-    file: u32,
     read: bool,
     answered: bool,
     complete: bool,
     cells: FilledColumns,
+    index: Map<usize, Map<Id, Vec<u32>>>,
 }
+/// Empty between files. Only materialized node masks need clearing.
 #[derive(Default)]
 pub(super) struct Scratch {
-    postings: postings::Cache,
-    pub(super) literals: super::summary_literals::Observed,
-    alive_words: Vec<u64>,
-    witnesses: Vec<Option<bool>>,
-    matches: super::summary_values::Matches,
-    facts: Vec<Table>,
-    sets: memo::Memo<Nodes>,
+    sets: Vec<Option<Nodes>>,
     needs: Vec<Option<bool>>,
-    arena: Arena,
-    #[cfg(feature = "summary-diagnostics")]
-    pub(super) words: u64,
-    #[cfg(feature = "summary-diagnostics")]
-    pub(super) peak: usize,
+    touched: Vec<Id>,
 }
+
 struct File<'a, const PROFILE: bool> {
     owner: usize,
     reader_class: &'a std::cell::Cell<usize>,
@@ -77,9 +133,6 @@ struct File<'a, const PROFILE: bool> {
     stats: [Sample; 13],
     charged: f64,
     overhead: f64,
-    postings: &'a mut postings::Cache,
-    byte_tests: Map<(usize, &'a [u8]), bool>,
-    literals: &'a mut super::summary_literals::Observed,
     p: &'a Program,
     t: &'a NodeTable,
     src: &'a [u8],
@@ -87,13 +140,11 @@ struct File<'a, const PROFILE: bool> {
     path: Option<&'a [u8]>,
     read: &'a mut Reader<'a>,
     words: &'a mut FileWords,
-    facts: &'a mut [Table],
-    sets: &'a mut memo::Memo<Nodes>,
+    facts: Vec<Table>,
+    sets: &'a mut [Option<Nodes>],
     needs: &'a mut [Option<bool>],
-    arena: &'a mut Arena,
-    matches: &'a mut super::summary_values::Matches,
-    order: &'a Schedule,
-    witnesses: &'a mut [Option<bool>],
+    touched: &'a mut Vec<Id>,
+    texts: Option<Map<&'a [u8], Vec<u32>>>,
     steps: u64,
 }
 
@@ -104,6 +155,13 @@ fn insert(bits: &mut Vec<u64>, n: u32) {
     }
     bits[w] |= 1 << (n % 64);
 }
+fn bits(ids: impl IntoIterator<Item = u32>) -> Bits {
+    let mut b = Vec::new();
+    for n in ids {
+        insert(&mut b, n)
+    }
+    Rc::new(b)
+}
 pub(super) fn each(b: &[u64], mut visit: impl FnMut(u32)) {
     for (i, &word) in b.iter().enumerate() {
         let mut w = word;
@@ -113,15 +171,6 @@ pub(super) fn each(b: &[u64], mut visit: impl FnMut(u32)) {
         }
     }
 }
-/// Node words include their owning file. A foreign or absent endpoint
-/// cannot establish a necessary node-domain restriction for this file.
-fn position_in_file(word: languages::CellWord, file: languages::FileId, n: u32) -> Option<u32> {
-    use ryo_relations::domain::relations::service::{node_file, node_position};
-    let node = languages::NodeId(word.0);
-    let position = node_position(node).0;
-    (node_file(node) == file && position < n).then_some(position)
-}
-
 impl Table {
     fn load(
         &mut self,
@@ -134,8 +183,7 @@ impl Table {
             return;
         }
         self.read = true;
-        let answered =
-            read(spec.source, Query::Rows, words, &mut self.cells).expect("row query handled");
+        let answered = read(spec.source, words, &mut self.cells);
         let columns = &self.cells.0;
         self.answered = answered
             && columns.first().is_none_or(|first| {
@@ -153,23 +201,12 @@ impl Table {
                     .cells
                     .0
                     .get(key)
-                    .is_some_and(|c| c.0.iter().all(|x| position_in_file(*x, languages::FileId(self.file), n).is_some()));
+                    .is_some_and(|c| c.0.iter().all(|x| x.0 < u64::from(n)));
         }
     }
 }
 
 impl<const PROFILE: bool> File<'_, PROFILE> {
-    fn first(&self, a: Id, b: Id) -> (Id, Id) {
-        let (l, r) = (self.ready_first(a), self.ready_first(b));
-        if l != r {
-            return if l < r { (a, b) } else { (b, a) };
-        }
-        if self.order.cost[b] < self.order.cost[a] {
-            (b, a)
-        } else {
-            (a, b)
-        }
-    }
     fn complete(&mut self, slots: &[usize]) -> bool {
         let n = node_table::element_count(self.t).0 as u32;
         slots.iter().all(|&slot| {
@@ -215,9 +252,21 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Need::Any => true,
             Need::Empty => false,
             Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
-            Need::PathMatches(re) => self
-                .path
-                .is_none_or(|path| self.p.regexes[re].is_match(path)),
+            Need::PathGlob(slot) => self.path.is_none_or(|path| {
+                use ryo_matching::inbound::use_cases::matching::{
+                    interface::MatchingUseCase, types::{GlobPattern, MatchOutcome, SearchText},
+                    use_case::MatchingUseCaseImpl,
+                };
+                MatchingUseCaseImpl::new().matches_text_glob(
+                    GlobPattern(&self.p.path_globs[slot]), SearchText(&String::from_utf8_lossy(path)),
+                ) == MatchOutcome::Matches
+            }),
+            Need::PathMatches(re,yes) => self.path.is_none_or(|p|
+                self.p.regexes[re].compiled().is_none_or(|r| r.is_match(p) == yes)),
+            Need::SyntaxMatches(re,yes) => self.syntax_text.is_none_or(|col|{
+                self.p.regexes[re].compiled().is_none_or(|r|
+                    col.matches(re, r, yes))
+            }),
             Need::Terms(all, ref terms) => {
                 if all {
                     terms.iter().all(|i| self.pass(*i))
@@ -225,11 +274,101 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     terms.iter().any(|i| self.pass(*i))
                 }
             }
-            Need::Both(..) if self.cached_guard(id, false) => false,
-            Need::Both(..) => self.order.needs[id].iter().all(|&n| self.pass(n)),
-            Need::Either(..) if self.cached_guard(id, true) => true,
-            Need::Either(..) => self.order.needs[id].iter().any(|&n| self.pass(n)),
-            Need::Some(x) => self.witness(x),
+            Need::Both(a, b) => self.pass(a) && self.pass(b),
+            Need::Either(a, b) => self.pass(a) || self.pass(b),
+            Need::Some(x) => match &self.p.domains[x] {
+                // All stored bitsets end at their last nonzero word. A file
+                // prerequisite can stop at its first witness without allocating
+                // the intersection or union of every matching node.
+                _ if self.sets[x].is_some() => self.sets[x]
+                    .as_ref()
+                    .unwrap()
+                    .as_ref()
+                    .is_none_or(|b| !b.is_empty()),
+                _ if self.plain_tree && self.p.paths[x].is_some_and(|e| e.existence_only) => {
+                    let edge = self.p.paths[x].unwrap();
+                    self.edge(edge, None)
+                        .unwrap_or_else(|| self.nodes(x).is_none_or(|b| !b.is_empty()))
+                }
+                _ if self.plain_tree && self.p.paths[x].is_some() => {
+                    self.nodes(x).is_none_or(|b| !b.is_empty())
+                }
+                Domain::Parents(a) | Domain::Ancestors(a)
+                    if self.plain_tree && self.p.file_only[x] =>
+                {
+                    self.path_exists(*a, false)
+                }
+                Domain::Children(a) | Domain::Descendants(a)
+                    if self.plain_tree && self.p.file_only[x] =>
+                {
+                    self.path_exists(*a, true)
+                }
+                Domain::Both(a, b) => {
+                    let l = self.nodes(*a);
+                    if l.as_ref().is_some_and(|v| v.is_empty()) {
+                        false
+                    } else {
+                        match (l, self.nodes(*b)) {
+                            (Some(l), Some(r)) => l.iter().zip(r.iter()).any(|(a, b)| a & b != 0),
+                            (l, r) => l.or(r).is_none_or(|v| !v.is_empty()),
+                        }
+                    }
+                }
+                Domain::Either(a, b) => {
+                    self.nodes(*a).is_none_or(|v| !v.is_empty())
+                        || self.nodes(*b).is_none_or(|v| !v.is_empty())
+                }
+                Domain::Kind(k) => {
+                    !node_table::ids_of_kind(self.t, languages::KindBits(*k)).is_empty()
+                }
+                Domain::Field(k) => {
+                    !node_table::ids_of_field(self.t, languages::FieldCode(*k)).is_empty()
+                }
+                Domain::Text(literal) if self.syntax_text.is_some() => {
+                    let column = self.syntax_text.unwrap();
+                    column.dictionary.get(literal.as_bytes()).is_some_and(|id| column.ids.contains(id))
+                }
+                Domain::SpanMatching(kind, pattern) if self.p.file_only[x] => {
+                    node_table::ids_of_kind(self.t, languages::KindBits(*kind)).iter().any(|pos| {
+                        self.p.regexes[*pattern].is_match(&self.src[super::span_bytes(self.t, pos.0 as usize)])
+                    })
+                }
+                Domain::TextMatching(kind, pattern) if self.p.file_only[x] && self.syntax_text.is_some() => {
+                    let col = self.syntax_text.unwrap();
+                    let ids = node_table::ids_of_kind(self.t, languages::KindBits(*kind));
+                    match (self.p.regexes[*pattern].compiled(), col.patterns) {
+                        (Some(regex), Some(cache)) => cache.with_predicate(*pattern, regex, col.symbols, |test|
+                            ids.iter().any(|p| test(col.ids[p.0 as usize]))),
+                        _ => ids.iter().any(|p| self.p.regexes[*pattern].is_match(col.at(p.0 as usize))),
+                    }
+                }
+                Domain::Matching(slot, column, pattern)
+                    if self.syntax_text.is_some_and(|view| view.column.is_some())
+                        && self.p.facts[*slot].kinds[*column] == languages::CellKind::Symbol =>
+                {
+                    let view = self.syntax_text.unwrap();
+                    let found = self.p.regexes[*pattern].compiled().and_then(|p|
+                        (view.column.unwrap())(self.p.facts[*slot].source, *column, p));
+                    found.unwrap_or_else(|| self.nodes(x).is_none_or(|bits| !bits.is_empty()))
+                }
+                Domain::Fact(slot, None) => {
+                    let table = &mut self.facts[*slot];
+                    if !table.read && self.p.facts[*slot].key.is_some() {
+                        // A bare file-level existence guard alone cannot justify building
+                        // a keyed table. A subsequent constrained check can still request it.
+                        self.needs[id] = Some(true);
+                        return true;
+                    }
+                    table.load(
+                        &self.p.facts[*slot],
+                        node_table::element_count(self.t).0 as u32,
+                        self.words,
+                        self.read,
+                    );
+                    !table.complete || table.cells.0.first().is_some_and(|c| !c.0.is_empty())
+                }
+                _ => self.nodes(x).is_none_or(|b| !b.is_empty()),
+            },
         };
         self.needs[id] = Some(yes);
         yes
@@ -243,13 +382,14 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         if PROFILE {
             self.stats[class].calls += 1;
         }
-        if let Some(result) = self.sets.get(id) {
+        if let Some(result) = &self.sets[id] {
             if PROFILE {
                 self.stats[class].hits += 1;
                 self.stats[class].cross += u64::from(self.node_owner[id] != self.owner);
             }
             return result.clone();
         }
+        self.touched.push(id);
         if !PROFILE {
             return self.nodes_miss(id);
         }
@@ -265,16 +405,6 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         out
     }
     fn nodes_miss(&mut self, id: Id) -> Nodes {
-        if self.witnesses.get(id) == Some(&Some(false)) {
-            let empty = Some(Bits::default());
-            self.sets.set(id, empty);
-            return empty;
-        }
-        if let Some(child) = self.order.alias[id] {
-            let s = self.nodes(child);
-            self.sets.set(id, s);
-            return s;
-        }
         self.steps += 1;
         let n =
             u32::try_from(node_table::element_count(self.t).0).expect("table positions fit u32");
@@ -283,8 +413,8 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         {
             let mut output = Vec::new();
             if self.edge(edge, Some(&mut output)).is_some() {
-                let nodes = Some(self.arena.commit(&output));
-                self.sets.set(id, nodes);
+                let nodes = Some(Rc::new(output));
+                self.sets[id] = Some(nodes.clone());
                 return nodes;
             }
         }
@@ -295,7 +425,6 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 let children = self.nodes(rows);
                 counts::under(
                     self.t,
-                    self.arena,
                     children,
                     matches!(self.p.domains[rows], Domain::Any),
                     depth,
@@ -303,67 +432,106 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     value,
                 )
             }
-            Domain::HasParent => Some(
-                self.arena
-                    .bits((1..n).filter(|&i| node_table::parent_of(self.t, Position(i)).0 != i)),
-            ),
-            Domain::Empty => Some(Bits::default()),
-            Domain::Kind(k) => Some(
-                self.arena.bits(
+            Domain::HasParent => {
+                Some(bits((1..n).filter(|&i| {
+                    node_table::parent_of(self.t, Position(i)).0 != i
+                })))
+            }
+            Domain::Empty => Some(Rc::default()),
+            Domain::Kind(k) => Some(bits(
+                node_table::ids_of_kind(self.t, languages::KindBits(*k))
+                    .iter()
+                    .map(|p| p.0),
+            )),
+            Domain::Field(k) => Some(bits(
+                node_table::ids_of_field(self.t, languages::FieldCode(*k))
+                    .iter()
+                    .map(|p| p.0),
+            )),
+            Domain::SpanMatching(k, re) => Some(bits(
+                node_table::ids_of_kind(self.t, languages::KindBits(*k))
+                    .iter()
+                    .filter_map(|pos| {
+                        let span = super::span_bytes(self.t, pos.0 as usize);
+                        self.p.regexes[*re]
+                            .is_match(&self.src[span])
+                            .then_some(pos.0)
+                    }),
+            )),
+            Domain::TextMatching(k, re) => {
+                let regex = &self.p.regexes[*re];
+                if let Some(column) = self.syntax_text
+                    && let Some(cache) = column.patterns
+                    && let Some(matcher) = regex.compiled()
+                {
+                    let nodes = cache.with_predicate(*re, matcher, column.symbols, |test| {
+                        bits(node_table::ids_of_kind(self.t, languages::KindBits(*k)).iter()
+                            .filter(|p| test(column.ids[p.0 as usize])).map(|p| p.0))
+                    });
+                    self.sets[id] = Some(Some(Rc::clone(&nodes)));
+                    return Some(nodes);
+                }
+                Some(bits(
                     node_table::ids_of_kind(self.t, languages::KindBits(*k))
                         .iter()
-                        .map(|p| p.0),
-                ),
-            ),
-            Domain::Field(k) => Some(
-                self.arena.bits(
-                    node_table::ids_of_field(self.t, languages::FieldCode(*k))
-                        .iter()
-                        .map(|p| p.0),
-                ),
-            ),
-            Domain::SpanMatching(k, re) | Domain::TextMatching(k, re) => {
-                let decoded = matches!(self.p.domains[id], Domain::TextMatching(..));
-                let regex = &self.p.regexes[*re];
-                Some(
-                    self.arena.bits(
+                        .filter_map(|p| {
+                            let text = self.syntax_text.map_or_else(
+                                || node_table::decoded_of(self.t, *p).map_or_else(
+                                    || &self.src[super::span_bytes(self.t, p.0 as usize)],
+                                    |t| t.0.as_bytes(),
+                                ),
+                                |column| column.at(p.0 as usize),
+                            );
+                            regex.is_match(text).then_some(p.0)
+                        }),
+                ))
+            }
+            Domain::Text(t) => {
+                let by_text = self.texts.get_or_insert_with(|| {
+                    let mut m = Map::<&[u8], Vec<u32>>::default();
+                    if let Some(column) = self.syntax_text {
+                        let wanted: Map<_, _> = self.p.texts.iter().filter_map(|s|
+                            column.dictionary.get(s.as_slice()).map(|&id| (id, s.as_slice()))).collect();
+                        for (i, id) in column.ids.iter().enumerate() {
+                            if let Some(&text) = wanted.get(id) {
+                                m.entry(text).or_default().push(i as u32);
+                            }
+                        }
+                        return m;
+                    }
+                    for i in self.p.text_kinds.iter().flat_map(|k| {
                         node_table::ids_of_kind(self.t, languages::KindBits(*k))
                             .iter()
-                            .filter_map(|&pos| {
-                                let raw = || &self.src[super::span_bytes(self.t, pos.0 as usize)];
-                                let text = if decoded && let Some(column) = self.syntax_text {
-                                    column.at(pos.0 as usize)
-                                } else if decoded {
-                                    node_table::decoded_of(self.t, pos)
-                                        .map_or_else(raw, |s| s.0.as_bytes())
-                                } else {
-                                    raw()
-                                };
-                                self.byte_tests
-                                    .entry((*re, text))
-                                    .or_insert_with(|| regex.is_match(text))
-                                    .then_some(pos.0)
-                            }),
-                    ),
-                )
+                            .map(|p| p.0)
+                    }) {
+                        let value = node_table::decoded_of(self.t, Position(i)).map_or_else(
+                            || &self.src[super::span_bytes(self.t, i as usize)],
+                            |t| t.0.as_bytes(),
+                        );
+                        if value.len() <= self.p.max_text && self.p.texts.contains(value) {
+                            m.entry(value).or_default().push(i);
+                        }
+                    }
+                    m
+                });
+                Some(bits(
+                    by_text.get(t.as_bytes()).into_iter().flatten().copied(),
+                ))
             }
-            Domain::Text(_) => Some(
-                self.arena.bits(
-                    self.order
-                        .literals
-                        .nodes(id, self.t, self.src, self.literals)
-                        .iter()
-                        .copied(),
-                ),
-            ),
             Domain::Both(a, b) => {
-                let (a, b) = self.first(*a, *b);
-                let left = self.nodes(a);
-                if left.is_some_and(Bits::is_empty) {
-                    left
+                let l = self.nodes(*a);
+                if l.as_ref().is_some_and(|b| b.is_empty()) {
+                    l
                 } else {
-                    match (left, self.nodes(b)) {
-                        (Some(a), Some(b)) => Some(self.arena.intersect(a, b)),
+                    match (l, self.nodes(*b)) {
+                        (Some(a), Some(b)) => {
+                            let mut v: Vec<_> =
+                                a.iter().zip(b.iter()).map(|(x, y)| x & y).collect();
+                            while v.last() == Some(&0) {
+                                v.pop();
+                            }
+                            Some(Rc::new(v))
+                        }
                         (a, b) => a.or(b),
                     }
                 }
@@ -372,37 +540,35 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 if self.pass(*need) {
                     self.nodes(*nodes)
                 } else {
-                    Some(Bits::default())
+                    Some(Rc::default())
                 }
             }
             // The excluded side must be exact in this particular file.
             Domain::ProvenExcept(left, difference, guard, slots) => {
-                let a = self.nodes(*left);
-                if a.is_some_and(Bits::is_empty) || self.pass(*guard) {
-                    a
+                let admitted = self.nodes(*left);
+                if admitted.as_ref().is_some_and(|v| v.is_empty())
+                    || self.pass(*guard)
+                    || !self.complete(slots)
+                {
+                    admitted
                 } else {
-                    let d = self.nodes(*difference);
-                    if self.arena.identical(a, d) || self.complete(slots) {
-                        d
-                    } else {
-                        a
-                    }
+                    self.nodes(*difference)
                 }
             }
             Domain::Except(a, b) => {
                 let left = self.nodes(*a);
                 if left.as_ref().is_some_and(|v| v.is_empty()) {
-                    self.sets.set(id, left.clone());
+                    self.sets[id] = Some(left.clone());
                     return left;
                 }
                 let Some(right) = self.nodes(*b) else {
                     // A missing provider answer cannot prove an exclusion.
                     let out = if matches!(self.p.domains[*b], Domain::Any) {
-                        Some(Bits::default())
+                        Some(Rc::default())
                     } else {
                         left
                     };
-                    self.sets.set(id, out.clone());
+                    self.sets[id] = Some(out.clone());
                     return out;
                 };
                 let mut out = left.map_or_else(
@@ -413,47 +579,34 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                         }
                         all
                     },
-                    |v| self.arena.absolute(v),
+                    |v| (*v).clone(),
                 );
-                for (w, r) in out
-                    .iter_mut()
-                    .skip(right.first())
-                    .zip(&self.arena.words[right.range()])
-                {
+                for (w, r) in out.iter_mut().zip(right.iter()) {
                     *w &= !*r
                 }
                 while out.last() == Some(&0) {
                     out.pop();
                 }
-                Some(self.arena.commit(&out))
+                Some(Rc::new(out))
             }
             // An unconstrained arm admits every node. Only a known left mask
             // can justify requesting the right arm and its provider tables.
             Domain::Either(a, b) => self.nodes(*a).and_then(|left| {
                 let right = self.nodes(*b)?;
-                Some(self.arena.union(left, right))
+                let (a, b) = if left.len() >= right.len() {
+                    (left, right)
+                } else {
+                    (right, left)
+                };
+                let mut v = (*a).clone();
+                for (x, y) in v.iter_mut().zip(b.iter()) {
+                    *x |= *y;
+                }
+                Some(Rc::new(v))
             }),
             Domain::Descendants(root) => self.nodes(*root).map(|ancestors| {
-                if node_table::descendant_ranges(self.t, Position(0)).is_some() {
-                    let mut seen = Vec::new();
-                    let mut through = 0u32;
-                    each(&self.arena.words[ancestors.range()], |offset| {
-                        let n = ancestors.first() as u32 * 64 + offset;
-                        if n < through {
-                            return;
-                        }
-                        let ranges = node_table::descendant_ranges(self.t, Position(n))
-                            .expect("recorded intervals");
-                        through = ranges.nodes.end;
-                        arena::cover(&mut seen, ranges.nodes);
-                        arena::cover(&mut seen, ranges.tokens);
-                    });
-                    return self.arena.commit(&seen);
-                }
                 let mut pending = Vec::new();
-                each(&self.arena.words[ancestors.range()], |n| {
-                    pending.push(ancestors.first() as u32 * 64 + n)
-                });
+                each(&ancestors, |n| pending.push(n));
                 let mut seen = Vec::new();
                 while let Some(parent) = pending.pop() {
                     for child in node_table::children_of(self.t, Position(parent)) {
@@ -467,30 +620,22 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                         }
                     }
                 }
-                self.arena.commit(&seen)
+                Rc::new(seen)
             }),
             Domain::Parents(x) | Domain::Children(x) | Domain::Ancestors(x) => {
                 let children = matches!(self.p.domains[id], Domain::Children(_));
                 let ancestors = matches!(self.p.domains[id], Domain::Ancestors(_));
                 let input = if matches!(self.p.domains[*x], Domain::Any) {
-                    Some(self.arena.bits(0..n))
+                    Some(bits(0..n))
                 } else {
                     self.nodes(*x)
                 };
                 input.map(|b| {
-                    let out = &mut self.arena.work;
-                    each(&self.arena.words[b.range()], |offset| {
-                        let i = b.first() as u32 * 64 + offset;
+                    let mut out = Vec::new();
+                    each(&b, |i| {
                         if children {
-                            if let Some(children) = node_table::direct_children(self.t, Position(i))
-                            {
-                                for child in children {
-                                    insert(out, child.0);
-                                }
-                            } else {
-                                for c in node_table::children_of(self.t, Position(i)) {
-                                    insert(out, c.0);
-                                }
+                            for c in node_table::children_of(self.t, Position(i)) {
+                                insert(&mut out, c.0)
                             }
                         } else {
                             let mut child = i;
@@ -506,7 +651,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                 {
                                     break;
                                 }
-                                insert(out, p);
+                                insert(&mut out, p);
                                 if !ancestors {
                                     break;
                                 }
@@ -514,7 +659,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                             }
                         }
                     });
-                    self.arena.finish()
+                    Rc::new(out)
                 })
             }
             Domain::RelatedIds(slot, endpoint, filter) => {
@@ -530,22 +675,20 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                         None
                     } else {
                         let mut valid = true;
-                        let nodes =
-                            self.arena
-                                .bits(keys.0.iter().enumerate().filter_map(|(i, k)| {
-                                    let keep = values.is_none_or(|(c, ids)| {
-                                        super::summary_values::symbol(
-                                            self.order, self.words, c.0[i],
-                                        )
-                                        .as_ref()
-                                        .is_some_and(|id| ids.binary_search(id).is_ok())
-                                    });
-                                    if keep && position_in_file(*k, languages::FileId(table.file), n).is_none() {
-                                        valid = false;
-                                        return None;
-                                    }
-                                    keep.then_some(k.0 as u32)
-                                }));
+                        let nodes = bits(keys.0.iter().enumerate().filter_map(|(i, k)| {
+                            let keep = values.is_none_or(|(c, ids)| {
+                                let text = languages::facts::text(self.words, c.0[i]).0;
+                                self.p
+                                    .symbols
+                                    .get(text)
+                                    .is_some_and(|id| ids.binary_search(id).is_ok())
+                            });
+                            if keep && k.0 >= u64::from(n) {
+                                valid = false;
+                                return None;
+                            }
+                            keep.then_some(k.0 as u32)
+                        }));
                         valid.then_some(nodes)
                     }
                 } else {
@@ -558,25 +701,23 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 table.load(spec, n, self.words, self.read);
                 if table.complete {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
-                    Some(
-                        self.arena.bits(
-                            table
-                                .cells
-                                .0
-                                .get(*col)
-                                .into_iter()
-                                .flat_map(|c| &c.0)
-                                .enumerate()
-                                .filter(|(_, cell)| match self.p.domains[id] {
-                                    Domain::Flag(_, _, v) => cell.0 == u64::from(v),
-                                    Domain::Number(_, _, op, v) => {
-                                        counts::compare(cell.0 as i64, op, v)
-                                    }
-                                    _ => false,
-                                })
-                                .map(|(i, _)| key.map_or(0, |ids| ids.0[i].0 as u32)),
-                        ),
-                    )
+                    Some(bits(
+                        table
+                            .cells
+                            .0
+                            .get(*col)
+                            .into_iter()
+                            .flat_map(|c| &c.0)
+                            .enumerate()
+                            .filter(|(_, cell)| match self.p.domains[id] {
+                                Domain::Flag(_, _, v) => cell.0 == u64::from(v),
+                                Domain::Number(_, _, op, v) => {
+                                    counts::compare(cell.0 as i64, op, v)
+                                }
+                                _ => false,
+                            })
+                            .map(|(i, _)| key.map_or(0, |ids| ids.0[i].0 as u32)),
+                    ))
                 } else {
                     None
                 }
@@ -591,13 +732,15 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
                     let len = table.cells.0.first().map_or(0, |c| c.0.len());
-                    Some(self.arena.bits((0..len).filter_map(|row| {
+                    Some(bits((0..len).filter_map(|row| {
                         let matched = tests.iter().all(|test| match test {
                             CellTest::Symbols(c, values) => {
                                 let cell = table.cells.0[*c].0[row];
                                 cell.0 != super::finish::NULL
-                                    && super::summary_values::symbol(self.order, self.words, cell)
-                                        .as_ref()
+                                    && self
+                                        .p
+                                        .symbols
+                                        .get(languages::facts::text(self.words, cell).0)
                                         .is_some_and(|id| values.binary_search(id).is_ok())
                             }
                             CellTest::Numeric(c, op, literal) => {
@@ -616,23 +759,23 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     None
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
-                    Some(
-                        self.arena.bits(
-                            table
-                                .cells
-                                .0
-                                .get(*col)
-                                .into_iter()
-                                .flat_map(|c| c.0.iter())
-                                .enumerate()
-                                .filter_map(|(i, cell)| {
-                                    super::summary_values::symbol(self.order, self.words, *cell)
-                                        .as_ref()
-                                        .is_none_or(|id| excluded.binary_search(id).is_err())
-                                        .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
-                                }),
-                        ),
-                    )
+                    Some(bits(
+                        table
+                            .cells
+                            .0
+                            .get(*col)
+                            .into_iter()
+                            .flat_map(|c| c.0.iter())
+                            .enumerate()
+                            .filter_map(|(i, cell)| {
+                                let text = languages::facts::text(self.words, *cell).0;
+                                self.p
+                                    .symbols
+                                    .get(text)
+                                    .is_none_or(|id| excluded.binary_search(id).is_err())
+                                    .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
+                            }),
+                    ))
                 }
             }
             Domain::CapturedSuffix(slot, col, delimiter, re) => {
@@ -644,28 +787,25 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
                     let regex = &self.p.regexes[*re];
-                    Some(
-                        self.arena.bits(
-                            table
-                                .cells
-                                .0
-                                .get(*col)
-                                .into_iter()
-                                .flat_map(|c| c.0.iter())
-                                .enumerate()
-                                .filter_map(|(i, cell)| {
-                                    let text =
-                                        languages::facts::text(self.words, *cell).0.as_bytes();
-                                    text.windows(delimiter.len())
-                                        .enumerate()
-                                        .any(|(p, w)| {
-                                            w == delimiter
-                                                && regex.is_match(&text[p + delimiter.len()..])
-                                        })
-                                        .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
-                                }),
-                        ),
-                    )
+                    Some(bits(
+                        table
+                            .cells
+                            .0
+                            .get(*col)
+                            .into_iter()
+                            .flat_map(|c| c.0.iter())
+                            .enumerate()
+                            .filter_map(|(i, cell)| {
+                                let text = languages::facts::text(self.words, *cell).0.as_bytes();
+                                text.windows(delimiter.len())
+                                    .enumerate()
+                                    .any(|(p, w)| {
+                                        w == delimiter
+                                            && regex.is_match(&text[p + delimiter.len()..])
+                                    })
+                                    .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
+                            }),
+                    ))
                 }
             }
             Domain::Member(slot, col, project, field) => {
@@ -675,7 +815,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 if !available.complete {
                     None
                 } else if available.cells.0.first().is_none_or(|c| c.0.is_empty()) {
-                    Some(Bits::default())
+                    Some(Rc::default())
                 } else {
                     let allowed: Vec<_> = available.cells.0[field].0.iter().map(|v| v.0).collect();
                     let t = &mut self.facts[slot];
@@ -685,7 +825,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                         None
                     } else {
                         let key = spec.key.and_then(|k| t.cells.0.get(k));
-                        Some(self.arena.bits(
+                        Some(bits(
                             t.cells
                                 .0
                                 .get(col)
@@ -708,10 +848,10 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
                     let Some(regex) = self.p.regexes[*re].compiled() else {
-                        self.sets.set(id, None);
+                        self.sets[id] = Some(None);
                         return None;
                     };
-                    Some(self.arena.bits(
+                    Some(bits(
                         table
                             .cells
                             .0
@@ -726,7 +866,9 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                     let span = (cell.0 >> 32) as usize..(cell.0 as u32) as usize;
                                     self.src.get(span).is_some_and(|text| regex.is_match(text))
                                 } else {
-                                    self.matches.test(self.p, *re, *cell, self.words)
+                                    regex.is_match(
+                                        languages::facts::text(self.words, *cell).0.as_bytes(),
+                                    )
                                 };
                                 (yes != negative)
                                     .then(|| key.map_or(0, |c| c.0[r].0 as u32))
@@ -735,22 +877,8 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     ))
                 }
             }
-            Domain::Fact(_, Some(_)) => self.posted(id, false),
-            Domain::Fact(slot, None) => {
+            Domain::Fact(slot, test) => {
                 let spec = &self.p.facts[*slot];
-                if !self.facts[*slot].read && spec.key.is_some() {
-                    let mut result = Vec::new();
-                    if let Some(complete) = (self.read)(
-                        spec.source,
-                        Query::Keys(&mut result),
-                        self.words,
-                        &mut FilledColumns::default(),
-                    ) {
-                        let value = complete.then(|| self.arena.commit(&result));
-                        self.sets.set(id, value);
-                        return value;
-                    }
-                }
                 let table = &mut self.facts[*slot];
                 table.load(spec, n, self.words, self.read);
                 if !table.complete {
@@ -758,96 +886,88 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
                     let node = |r: usize| key.map_or(0, |c| c.0[r].0 as u32);
-                    Some(
-                        self.arena
-                            .bits((0..table.cells.0.first().map_or(0, |c| c.0.len())).map(node)),
-                    )
+                    if let Some((col, values)) = test {
+                        let idx = table.index.entry(*col).or_insert_with(|| {
+                            let mut m = Map::<Id, Vec<u32>>::default();
+                            if let Some(column) = table.cells.0.get(*col) {
+                                for (r, &cell) in column.0.iter().enumerate() {
+                                    let text = languages::facts::text(self.words, cell);
+                                    if let Some(&id) = self.p.symbols.get(text.0) {
+                                        m.entry(id).or_default().push(node(r));
+                                    }
+                                }
+                            }
+                            m
+                        });
+                        Some(bits(
+                            values.iter().filter_map(|v| idx.get(v)).flatten().copied(),
+                        ))
+                    } else {
+                        Some(bits(
+                            (0..table.cells.0.first().map_or(0, |c| c.0.len()))
+                                .map(node)
+                                .filter(|x| spec.key.is_none() || *x < n),
+                        ))
+                    }
                 }
             }
         };
-        self.sets.set(id, nodes.clone());
+        self.sets[id] = Some(nodes.clone());
         nodes
     }
 }
 
-impl Scratch {
-    /// Lend just the complete rows and decisions already produced for this file.
-    pub(super) fn handoff(&mut self, program: &Program, decisions: &mut Vec<Option<bool>>,
-        mut keep: impl FnMut(languages::Relation, FilledColumns)) {
-        std::mem::swap(&mut self.needs, decisions);
-        for (spec, table) in program.facts.iter().zip(&mut self.facts) {
-            if table.answered && let Source::Catalog(rel) = spec.source {
-                keep(rel, std::mem::take(&mut table.cells));
-            }
-        }
-    }
-}
-
 impl Program {
-    pub(super) fn eval(
+    pub(super) fn file(
         &self,
-        scratch: &mut Scratch,
-        order: &Schedule,
+        t: &NodeTable,
+        src: &[u8],
+        path: Option<&[u8]>,
+        words: &mut FileWords,
+        read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
+        alive: &mut [bool],
+        exact: Option<&mut Vec<(usize, Bits)>>,
+    ) -> u64 {
+        self.file_columns(t, src, path, None, words, read, alive, exact, &[])
+    }
+    pub(super) fn file_columns(
+        &self,
         t: &NodeTable,
         src: &[u8],
         path: Option<&[u8]>,
         syntax_text: Option<SyntaxText<'_>>,
         words: &mut FileWords,
-        read: impl FnMut(Source, Query<'_>, &mut FileWords, &mut FilledColumns) -> Option<bool>,
+        read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
-        file: languages::FileId,
-        exact: Option<&mut Vec<(usize, Vec<u64>)>>,
+        exact: Option<&mut Vec<(usize, Bits)>>,
+        known: &[(Id, bool)],
     ) -> u64 {
         #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            return self.evaluate::<true>(scratch, order, t, src, path, syntax_text, words, read, alive, file, exact);
+            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact, known);
         }
-        self.evaluate::<false>(scratch, order, t, src, path, syntax_text, words, read, alive, file, exact)
+        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact, known)
     }
-
     fn evaluate<const PROFILE: bool>(
         &self,
-        scratch: &mut Scratch,
-        order: &Schedule,
         t: &NodeTable,
         src: &[u8],
         path: Option<&[u8]>,
         syntax_text: Option<SyntaxText<'_>>,
         words: &mut FileWords,
-        mut read: impl FnMut(Source, Query<'_>, &mut FileWords, &mut FilledColumns) -> Option<bool>,
+        mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
-        file: languages::FileId,
-        mut exact: Option<&mut Vec<(usize, Vec<u64>)>>,
+        mut exact: Option<&mut Vec<(usize, Bits)>>,
+        known: &[(Id, bool)],
     ) -> u64 {
         languages::facts::clear_words(words);
-        scratch.arena.words.clear();
-        scratch.sets.reset(self.domains.len());
-        scratch.needs.clear();
-        scratch.needs.resize(self.needs.len(), None);
-        scratch.facts.resize_with(self.facts.len(), Table::default);
-        for t in &mut scratch.facts {
-            t.file = file.0;
-            t.read = false;
-            t.answered = false;
-            t.complete = false;
-            for c in &mut t.cells.0 {
-                c.0.clear();
-            }
-        }
-        scratch.matches.reset(
-            self.regexes.len(),
-            languages::facts::base_count(words).0 as usize,
-        );
-        scratch.witnesses.clear();
-        scratch.witnesses.resize(self.domains.len(), None);
-        scratch.postings.reset(&order.postings);
         let reader_class = std::cell::Cell::new(cost::Family::Logic as usize);
-        let mut observe = |source, query: Query<'_>, words: &mut FileWords, cells: &mut FilledColumns| {
+        let mut observe = |source, words: &mut FileWords, cells: &mut FilledColumns| {
             if !PROFILE {
-                return read(source, query, words, cells);
+                return read(source, words, cells);
             }
             let start = super::thread_cpu();
-            let ok = read(source, query, words, cells);
+            let ok = read(source, words, cells);
             let elapsed = super::thread_cpu() - start;
             let slot = self
                 .facts
@@ -862,6 +982,10 @@ impl Program {
             entry.2 += elapsed - meter.overhead;
             ok
         };
+        let mut buffers = self.scratch.take();
+        buffers.sets.resize(self.domains.len(), None);
+        buffers.needs.resize(self.needs.len(), None);
+        buffers.needs.fill(None);
         let mut f = File::<PROFILE> {
             reader_class: &reader_class,
             owner: 0,
@@ -879,11 +1003,6 @@ impl Program {
             charged: 0.,
             stats: Default::default(),
             overhead: self.meter.as_ref().map_or(0., |m| m.overhead),
-            postings: &mut scratch.postings,
-            literals: &mut scratch.literals,
-            byte_tests: Map::default(),
-            witnesses: &mut scratch.witnesses,
-            matches: &mut scratch.matches,
             p: self,
             t,
             src,
@@ -891,22 +1010,21 @@ impl Program {
             path,
             read: &mut observe,
             words,
-            facts: &mut scratch.facts,
-            arena: &mut scratch.arena,
-            order,
-            sets: &mut scratch.sets,
-            needs: &mut scratch.needs,
+            facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
+            sets: &mut buffers.sets,
+            needs: &mut buffers.needs,
+            touched: &mut buffers.touched,
+            texts: None,
             steps: 0,
         };
-        if PROFILE {
-            for (ri, (active, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
-                f.owner = ri;
-                if *active { *active = f.pass(*root); }
+        for &(need, value) in known { f.needs[need] = Some(value); }
+        for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
+            if PROFILE {
+                f.owner = rule;
             }
-        } else {
-        order
-            .rules
-            .apply(alive, &mut scratch.alive_words, |id| f.pass(id));
+            if *a {
+                *a = f.pass(*root)
+            }
         }
         if let Some(out) = exact.as_mut() {
             for (rule, cert) in &self.exact {
@@ -918,7 +1036,7 @@ impl Program {
                     let nodes = f
                         .nodes(cert.nodes)
                         .expect("certified domains contain only total node tests");
-                    out.push((rule, f.arena.absolute(nodes)));
+                    out.push((rule, nodes));
                 }
             }
         }
@@ -930,15 +1048,16 @@ impl Program {
                 a.cross += b.cross;
                 a.ns += b.ns;
             }
-            for (n, t) in meter.loads.borrow_mut().iter_mut().zip(f.facts.iter()) {
+            for (n, t) in meter.loads.borrow_mut().iter_mut().zip(&f.facts) {
                 *n += u64::from(t.read);
             }
         }
-        #[cfg(feature = "summary-diagnostics")]
-        {
-            scratch.words += f.arena.words.len() as u64;
-            scratch.peak = scratch.peak.max(f.arena.words.len());
+        let steps = f.steps;
+        drop(f);
+        for id in buffers.touched.drain(..) {
+            buffers.sets[id] = None;
         }
-        f.steps
+        self.scratch.replace(buffers);
+        steps
     }
 }

@@ -1,0 +1,1 @@
+//! Proves how a command's answer is printed in each format, and each error with its next step.

@@ -1,0 +1,12 @@
+let files = select l."path" as "path" from "filesystem.file" as l;
+let linters = select * from files where glob_any(path, "{linters/*/bench.rs,**/linters/*/bench.rs}");
+let manifests = select * from files where glob_any(path, "{benchmark.toml,**/benchmarks/benchmark.toml}");
+let patches = select * from files where glob_any(path, "{patches/*.patch,**/benchmarks/patches/*.patch}");
+let linter_groups = extend(from=linters, values={"group": "comparative"});
+let manifest_groups = extend(from=manifests, values={"group": "comparative"});
+let patch_groups = extend(from=patches, values={"group": "comparative"});
+let patch_counts = group-count(from=patch_groups, keys=["group"], count="count", distinct="path");
+let sufficient_patches = select * from patch_counts where count >= 2;
+let assets = select l."group" as "group" from manifest_groups as l join sufficient_patches as r on l."group" = r."group";
+let missing = antijoin(left=linter_groups, right=assets, left-on=["group"], right-on=["group"]);
+emit missing subject "path" key("path");

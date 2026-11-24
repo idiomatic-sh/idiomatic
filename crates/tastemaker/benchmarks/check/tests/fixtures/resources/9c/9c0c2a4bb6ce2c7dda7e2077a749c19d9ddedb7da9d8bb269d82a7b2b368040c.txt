@@ -1,0 +1,13 @@
+[package]
+name = "fixture"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+derive = []
+
+[dependencies]
+fixture_macros = { path = "macros" }
+
+[workspace]
+members = ["macros"]

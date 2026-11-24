@@ -1,0 +1,127 @@
+{
+  "stamp": 135,
+  "rule": "idiomatic.arch/print-in-library",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/code.rs",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/code.rs": "568bf99ec4810ef9b28f6f11daf62c81ae44f7c5824b60c00b4a9b3ac01e8aa3",
+    "src/lib.rs": "fbb44ebacca548c7f5690341c371c4dfdf0f93a5db5f7522e501ec3bdf86a0c0",
+    "tastemaker.toml": "c4d4a4b0765ad2d2c0efd6a35da62b055147e54035f472ac0672f8cf7ca112e4"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/benches/**",
+        "**/benches/**/**",
+        "**/build.rs",
+        "**/build.rs/**",
+        "**/main.rs",
+        "**/main.rs/**",
+        "**/tests/**",
+        "**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/print-in-library",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-print-in-library-a9682733e37e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/code.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/code.rs#19"
+          ],
+          [
+            "file",
+            {
+              "file": "src/code.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                21,
+                38
+              ]
+            }
+          ],
+          [
+            "text",
+            "println"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              21,
+              38
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/code.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

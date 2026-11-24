@@ -1,0 +1,10 @@
+param internal-packages: set<string>;
+param allowed-packages: set<string>;
+let internal = select source, target, package from "package-dependency" where package in $internal-packages;
+let allowed = select source, target, package from internal where package in $allowed-packages;
+let own_manifest = select source, target, package from internal as l where l.source = l.target;
+let permitted = union(left=allowed, right=own_manifest);
+let denied = antijoin(left=internal, right=permitted, left-on=["source", "target", "package"], right-on=["source", "target", "package"]);
+let documents = select file, span from "syntax-tree" where kind = "toml" and text = "";
+let located = select l.source as file, r.span as span, l.package as package from denied as l join documents as r on l.source = r.file;
+emit located subject "file" key("file", "package");

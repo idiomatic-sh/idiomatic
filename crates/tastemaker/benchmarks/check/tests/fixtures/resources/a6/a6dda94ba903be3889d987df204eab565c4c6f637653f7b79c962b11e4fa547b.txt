@@ -1,0 +1,12 @@
+//! The `circle` item of the `shapes` collection: one implementation of the collection's shape.
+
+use ryo::languages;
+
+pub(crate) struct CircleItem;
+
+ryo::reads! {
+    CircleItem => languages::Circle |tree, at, _symbols| {
+        kinds: every,
+        row { }
+    }
+}

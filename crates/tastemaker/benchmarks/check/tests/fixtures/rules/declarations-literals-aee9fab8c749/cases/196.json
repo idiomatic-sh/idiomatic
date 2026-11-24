@@ -1,0 +1,220 @@
+{
+  "stamp": 196,
+  "rule": "declarations-literals",
+  "dependency": "One file",
+  "admitted": [
+    ".tastemaker-rendered/304d80b24b8d895a.README.md",
+    "app/README.md"
+  ],
+  "given": {
+    "app/README.md": "707d7247a8e9480e8e98bf5b04287712b40355409d1817f0c3416dda611767fa",
+    "tastemaker.toml": "159b7a47ec2f553beeabebd90f648370a3a176683c197b0e420062c42e7e3636"
+  },
+  "beside": {
+    ".tastemaker-rendered/304d80b24b8d895a.README.md": "3d68f7e77ad5101b6c6ecf52aca5ee80049524b8697e28191245f906102f3603"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "app/README.md"
+          },
+          "crate-readme",
+          "idiomatic.arch",
+          "crate-readme",
+          "0.13.2",
+          "crate"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-literals",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-literals-aee9fab8c749"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-prose",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-prose-ab90c113c201"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "app/README.md",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "occurrence",
+            "app/README.md#21"
+          ],
+          [
+            "owner",
+            "app/README.md#11"
+          ],
+          [
+            "value",
+            "let greeting = demo_app::greet(\"world\");\nassert_eq!(greeting, \"hello, world\");\n"
+          ],
+          [
+            "file",
+            {
+              "file": "app/README.md"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                104,
+                194
+              ]
+            }
+          ],
+          [
+            "import",
+            "false"
+          ]
+        ],
+        "key": [
+          "app/README.md#21"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "app/README.md"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

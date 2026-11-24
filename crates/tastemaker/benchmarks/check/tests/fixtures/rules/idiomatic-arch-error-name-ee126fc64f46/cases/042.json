@@ -1,0 +1,112 @@
+{
+  "stamp": 42,
+  "rule": "idiomatic.arch/error-name",
+  "dependency": "One file",
+  "admitted": [
+    "src/inbound/use_cases/greet/errors.rs"
+  ],
+  "given": {
+    "src/inbound/use_cases/greet/errors.rs": "1a17a567a375d02102e4348f16022ab986321476f789c7e9170b6ca90a2a1473",
+    "tastemaker.toml": "52251054c9d479130566c4ff200d2295625529524004141f17bcc886fe72e8bd"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/error-name",
+      "include": [
+        "**/errors.rs",
+        "**/errors.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-error-name-ee126fc64f46"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/inbound/use_cases/greet/errors.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/greet/errors.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                37
+              ]
+            }
+          ],
+          [
+            "name",
+            "errors.rs"
+          ],
+          [
+            "problem",
+            "declares no `enum`: the file holds the part's one error enum"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              37
+            ]
+          },
+          "declares no `enum`: the file holds the part's one error enum"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/greet/errors.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

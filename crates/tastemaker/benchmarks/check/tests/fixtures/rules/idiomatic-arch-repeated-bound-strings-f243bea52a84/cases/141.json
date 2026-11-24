@@ -1,0 +1,162 @@
+{
+  "stamp": 141,
+  "rule": "idiomatic.arch/repeated-bound-strings",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "src/a.rs",
+    "src/b.rs",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/a.rs": "89ba195c24f2b75902badd6cf4c73612a28c5c0e03c1ff9cc09c74c30627b4bf",
+    "src/b.rs": "37b78cf121265419863b2e26b207ceb2bbf5023a1862fea6956dbc117a961deb",
+    "src/lib.rs": "1583007859010a6300b4f36c2ffc06e4e1ca72b7ab3cae61c7ae9fcc6b86560f",
+    "tastemaker.toml": "75362df6f7cf287127a1a38e40aec4010a08998aab4d33da8b90d69798257712"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/repeated-bound-strings",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "min-files": 2
+      },
+      "query": "idiomatic-arch-repeated-bound-strings-f243bea52a84"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/a.rs",
+        "src/b.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "files",
+            2
+          ],
+          [
+            "file",
+            {
+              "file": "src/a.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                36,
+                49
+              ]
+            }
+          ],
+          [
+            "text",
+            "retry-limit"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              36,
+              49
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/a.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "files",
+            2
+          ],
+          [
+            "file",
+            {
+              "file": "src/b.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                37,
+                50
+              ]
+            }
+          ],
+          [
+            "text",
+            "retry-limit"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              37,
+              50
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/b.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

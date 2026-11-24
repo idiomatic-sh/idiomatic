@@ -1,0 +1,9 @@
+pub fn outer() {
+    fn first() {
+        fn deeper() {}
+        deeper();
+    }
+    fn second() {}
+    first();
+    second();
+}

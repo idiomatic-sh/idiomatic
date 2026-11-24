@@ -1,0 +1,7 @@
+use std::collections::HashMap;
+
+#[derive(Debug, serde::Serialize)]
+pub struct Report {
+    pub rules: HashMap<String, u32>,
+    pub files: std::collections::HashSet<String>,
+}

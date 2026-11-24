@@ -55,7 +55,7 @@ pub(super) fn frames(plan: &Plan) -> Vec<Frame> {
             let rel = |name: &str| pn.rels.iter().find(|(n, _)| n == name).map_or(MISSING, |x| x.1 as u32);
             let first = match pn.op.as_str() {
                 "union" | "antijoin" | "intersection" | "difference" | "ordered-match" | "as-of" => rel("left"),
-                "closure" | "follow" => rel("edges"),
+                "cycles" | "closure" | "follow" => rel("edges"),
                 // A worklist validates even the unused lattice and edges of an empty root set.
                 "base" | "select" | "rows" | "worklist" => NONE,
                 _ => rel("from"),

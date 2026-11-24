@@ -731,10 +731,11 @@ pub(super) fn conjunction(input: &mut Input<'_>) -> ModalResult<Vec<Condition>> 
 /// `not` a factor, `(a or b)`, a condition in parentheses, a membership in a written list, or one filter.
 pub(super) fn factor(input: &mut Input<'_>) -> ModalResult<Vec<Condition>> {
     alt((
-        preceded((keyword(Keyword::Not), multispace1), factor).map(|negated| vec![Condition::Not(negated)]),
         delimited(('(', multispace0), condition, (multispace0, ')')).map(conditions_of),
         written_membership,
         filter.map(|test| vec![Condition::Test(test)]),
+        // The named negative glob test is a filter in its own right.
+        preceded((keyword(Keyword::Not), multispace1), factor).map(|negated| vec![Condition::Not(negated)]),
     ))
     .parse_next(input)
 }

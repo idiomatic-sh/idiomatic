@@ -1,0 +1,161 @@
+{
+  "stamp": 165,
+  "rule": "idiomatic.arch/workspace-fixtures-feature",
+  "dependency": "Several readers",
+  "admitted": [
+    "Cargo.toml",
+    "crates/core/Cargo.toml",
+    "crates/core/src/lib.rs",
+    "crates/engine/Cargo.toml",
+    "crates/engine/src/lib.rs",
+    "crates/values/Cargo.toml",
+    "crates/values/src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "dec73bec5af25b30ee33af21961e7110288f98be879a82d2338959c9ecf35e9c",
+    "crates/core/Cargo.toml": "d1846cc485e8bd906eda260d0c73e10f67161bff80ada0562ad0399d4e92433b",
+    "crates/core/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/engine/Cargo.toml": "14de109daed43635acf577b6726ed9f6e5156b60f7e0fddbad94d7fd542a9991",
+    "crates/engine/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/values/Cargo.toml": "c9d0aa05a1074633bfeffb467ff82ef4454b5389a1ee7a68a5baa062fcd5f9c5",
+    "crates/values/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "785da7e5440d40df550c4f59ace0124ccbf568009f9263538165bf55f852e589"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/workspace-fixtures-feature",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-workspace-fixtures-feature-a2cc69ac4c60"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "crates/core/Cargo.toml",
+        "crates/core/src/lib.rs",
+        "crates/engine/Cargo.toml",
+        "crates/engine/src/lib.rs",
+        "crates/values/Cargo.toml",
+        "crates/values/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "engine"
+          ],
+          [
+            "file",
+            {
+              "file": "crates/core/Cargo.toml"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                140,
+                146
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              140,
+              146
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/core/Cargo.toml"
+        }
+      },
+      {
+        "columns": [
+          [
+            "name",
+            "engine"
+          ],
+          [
+            "file",
+            {
+              "file": "crates/core/Cargo.toml"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                75,
+                81
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              75,
+              81
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/core/Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

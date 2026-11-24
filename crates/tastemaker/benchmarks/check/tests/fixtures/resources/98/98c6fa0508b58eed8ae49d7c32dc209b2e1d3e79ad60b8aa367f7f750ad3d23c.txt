@@ -1,0 +1,6 @@
+//! The names the disk adapter looks for and skips.
+
+/// A workspace's file.
+pub(super) const WORKSPACE_FILE: &str = crate::domain::definitions::constants::WORKSPACE_FILE;
+/// The store Tastemaker keeps at a project's root, never walked: it is no file of the project.
+pub(super) const STORE: &str = ".tastemaker_cache";

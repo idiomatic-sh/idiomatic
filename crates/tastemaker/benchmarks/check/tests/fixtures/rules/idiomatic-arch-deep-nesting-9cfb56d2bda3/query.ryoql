@@ -1,0 +1,10 @@
+param max-depth: integer;
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let flow = select * from tree-nodes where glob_any(kind, "{if-expr,match-expr,loop-expr,while-expr,for-expr}");
+let flow-parents = select l."id" as "id", l."kind" as "kind", r."parent" as "parent" from flow as l join "syntax-child" as r on l."id" = r."child";
+let else-ifs = select l."id" as "id" from flow-parents as l join flow as r on l."parent" = r."id" and l."kind" = r."kind";
+let levels = antijoin(left=flow, right=else-ifs, left-on=["id"], right-on=["id"]);
+let enclosing = axis(from=levels, relation="syntax-child", direction=ancestor, domain=levels);
+let depths = group-count(from=enclosing, keys=["id", "file", "span", "kind"], count="depth", distinct="related");
+let deep = select * from depths where depth > $max-depth;
+emit deep subject "file" key("span");

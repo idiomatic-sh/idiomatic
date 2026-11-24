@@ -1,0 +1,31 @@
+//! Phase observer isolation and resource boundary proofs.
+
+#[test]
+fn phases_succeeds_with_exact_outer_pairs_and_ignores_nested_reentry() {
+    todo!();
+}
+
+#[test]
+fn phases_succeeds_without_worker_entries_or_foreign_creator_spans() {
+    todo!();
+}
+
+#[test]
+fn phases_refuses_incomplete_and_out_of_order_diagnostic_sequences() {
+    todo!();
+}
+
+#[test]
+fn phases_succeeds_with_monotonic_process_cpu_and_clock_brackets() {
+    todo!();
+}
+
+#[test]
+fn phases_succeeds_with_unwinding_without_changing_the_caller_refusal() {
+    todo!();
+}
+
+#[test]
+fn phases_succeeds_with_off_preserving_the_callers_dispatch_and_default() {
+    todo!();
+}

@@ -1,0 +1,576 @@
+{
+  "stamp": 25,
+  "rule": "count-refused",
+  "dependency": "Observations",
+  "admitted": [],
+  "given": {},
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    },
+    {
+      "columns": [
+        [
+          "entry",
+          "Number"
+        ],
+        [
+          "scope",
+          "Number"
+        ],
+        [
+          "identity",
+          "Text"
+        ],
+        [
+          "pair",
+          "Number"
+        ],
+        [
+          "found",
+          "Number"
+        ],
+        [
+          "condition",
+          "Text"
+        ],
+        [
+          "min",
+          "Number"
+        ],
+        [
+          "max",
+          "Number"
+        ],
+        [
+          "then-min",
+          "Number"
+        ],
+        [
+          "then-max",
+          "Number"
+        ],
+        [
+          "else-min",
+          "Number"
+        ],
+        [
+          "else-max",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.template-entry",
+      "rows": [
+        [
+          0,
+          0,
+          "idiomatic.arch/adapter",
+          0,
+          1,
+          "",
+          1,
+          1,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          1,
+          1,
+          "idiomatic.arch/adapter-writer(writer)",
+          0,
+          1,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          2,
+          1,
+          "idiomatic.arch/adapter-connection(connection)",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          3,
+          1,
+          "idiomatic.arch/adapter/adapter",
+          0,
+          1,
+          "",
+          1,
+          1,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          4,
+          1,
+          "idiomatic.arch/adapter/adapter-test",
+          0,
+          0,
+          "",
+          1,
+          1,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          5,
+          1,
+          "idiomatic.arch/adapter/adapter-fixture",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          6,
+          1,
+          "idiomatic.arch/adapter/adapter-fixture(adapter-fixtures-module)",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          7,
+          1,
+          "idiomatic.arch/constants",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          8,
+          1,
+          "idiomatic.arch/adapter/settings",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          9,
+          1,
+          "idiomatic.arch/types",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          10,
+          1,
+          "idiomatic.arch/errors",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          11,
+          1,
+          "idiomatic.arch/schemas",
+          0,
+          1,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          12,
+          1,
+          "idiomatic.arch/schemas-test",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          13,
+          1,
+          "idiomatic.arch/adapter/document-module",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          14,
+          1,
+          "idiomatic.arch/schemas(document-schemas)",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          15,
+          1,
+          "idiomatic.arch/schemas-test(document-schemas-test)",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "scope",
+          "Number"
+        ],
+        [
+          "condition",
+          "Text"
+        ],
+        [
+          "holds",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.condition-answer",
+      "rows": []
+    },
+    {
+      "columns": [
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "prefix",
+          "Text"
+        ],
+        [
+          "last",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.closed-dir",
+      "rows": [
+        [
+          0,
+          "",
+          0
+        ],
+        [
+          1,
+          "edge/",
+          1
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "stray",
+          "Number"
+        ],
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "path",
+          "Text"
+        ],
+        [
+          "home",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.closed-under",
+      "rows": [
+        [
+          0,
+          0,
+          "domain/adapter.rs",
+          "domain/"
+        ],
+        [
+          1,
+          0,
+          "domain/writer.rs",
+          "domain/"
+        ],
+        [
+          2,
+          0,
+          "edge/adapter.rs",
+          "edge/"
+        ],
+        [
+          3,
+          0,
+          "edge/schemas.rs",
+          "edge/"
+        ],
+        [
+          4,
+          0,
+          "edge/writer.rs",
+          "edge/"
+        ],
+        [
+          5,
+          0,
+          "tastemaker.toml",
+          ""
+        ],
+        [
+          6,
+          1,
+          "edge/adapter.rs",
+          "edge/"
+        ],
+        [
+          7,
+          1,
+          "edge/schemas.rs",
+          "edge/"
+        ],
+        [
+          8,
+          1,
+          "edge/writer.rs",
+          "edge/"
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "path",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed-file",
+      "rows": [
+        [
+          "edge/adapter.rs"
+        ],
+        [
+          "edge/schemas.rs"
+        ],
+        [
+          "edge/writer.rs"
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "path",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.own-file",
+      "rows": [
+        [
+          "tastemaker.toml"
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "prefix",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.nested-dir",
+      "rows": [
+        [
+          0,
+          "edge/"
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "owner",
+          "Number"
+        ],
+        [
+          "prefix",
+          "Text"
+        ],
+        [
+          "depth",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.occupied",
+      "rows": [
+        [
+          1,
+          1,
+          "edge/",
+          1
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "closed-stray",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "closed-stray-4fd6e5bd9f42"
+    },
+    {
+      "exclude": [],
+      "id": "count-refused",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "count-refused-90441b4c6035"
+    },
+    {
+      "exclude": [],
+      "id": "pair-missing",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "pair-missing-145c9d0ab9ce"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "entry",
+            4
+          ],
+          [
+            "branch",
+            0
+          ]
+        ],
+        "key": [
+          4
+        ],
+        "rule": "query",
+        "subject": 4
+      }
+    ],
+    "unknowns": []
+  }
+}

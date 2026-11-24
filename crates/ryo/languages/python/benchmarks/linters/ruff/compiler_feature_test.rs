@@ -11,7 +11,7 @@ use super::context_case_test::{ContextCase, check_case, stage_modules};
 fn compiler_features_and_annotation_contexts_follow_the_language_contract() -> Result<(), Error> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../tests/fixtures/compiler-features/annotation-contexts.json");
-    let cases: Vec<ContextCase> = serde_json::from_slice(&std::fs::read(source)?)
+    let cases: Vec<ContextCase> = crate::json_input::decode(&std::fs::read(source)?)
         .map_err(|error| Error::Json(Box::new(error)))?;
     assert!(
         cases.len() >= 40,

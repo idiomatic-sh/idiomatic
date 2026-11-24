@@ -1,0 +1,98 @@
+{
+  "stamp": 254,
+  "rule": "idiomatic.arch/use-case/implemented-shape",
+  "dependency": "Several files",
+  "admitted": [
+    "app/src/inbound/use_cases/parse/interface.rs",
+    "app/src/inbound/use_cases/parse/use_case.rs"
+  ],
+  "given": {
+    "app/src/inbound/use_cases/parse/interface.rs": "e8cf927576feb2f175d77f513c145724c299a628ee8343c41c332e8437b64c8f",
+    "app/src/inbound/use_cases/parse/use_case.rs": "ebd54f6aa531dddb27729925346ab4ebf877a95644647ab20d81ccfe5c0ef156",
+    "tastemaker.toml": "fc6077d44b4414441df86ebf6948c4d60eeae945faecf409e8cc3650206ba7f1"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/use-case/implemented-shape",
+      "include": [
+        "app/src/inbound/use_cases/parse/*.rs",
+        "app/src/inbound/use_cases/parse/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-implemented-shape-557b22252dff"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "app/src/inbound/use_cases/parse/interface.rs",
+        "app/src/inbound/use_cases/parse/use_case.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "app/src/inbound/use_cases/parse/interface.rs"
+            }
+          ],
+          [
+            "name",
+            "interface"
+          ]
+        ],
+        "key": [
+          {
+            "file": "app/src/inbound/use_cases/parse/interface.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "app/src/inbound/use_cases/parse/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "stamp": 150,
+  "rule": "idiomatic.arch/test-directory-layout",
+  "dependency": "Project",
+  "admitted": [
+    "Cargo.toml",
+    "src/inbound.rs",
+    "src/inbound/use_cases.rs",
+    "src/inbound/use_cases/execute.rs",
+    "src/inbound/use_cases/execute/use_case_test.rs",
+    "src/inbound/use_cases/execute/use_case_test/axis.rs",
+    "src/inbound/use_cases/execute/use_case_test/axis/test.rs",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "e01598279cb9d039ce0201765e27b3f26fe2da2f410d37364f6bc8fcd11cfd09",
+    "src/inbound.rs": "26a9ed2ac4189f5e5d2cdd260ccf4c11622d9b0ef7780500ce12f60556770fa0",
+    "src/inbound/use_cases.rs": "7cf260ec65dc23a0ed87c31bd3200d0632f51144d7373537c7ad465d5606970d",
+    "src/inbound/use_cases/execute.rs": "990e004f94179792fb5fb951fa85feb0ecbae654a9ae79295dc093876aa15e1c",
+    "src/inbound/use_cases/execute/use_case_test.rs": "d0f74570933a58fc0ed75d2648154459230290d2b278e78513047503806afd37",
+    "src/inbound/use_cases/execute/use_case_test/axis.rs": "94e39576ef29a462ae19e028de16f8c8390e8c5ddbbd83b66ffac4dc93b3206c",
+    "src/inbound/use_cases/execute/use_case_test/axis/test.rs": "b07471fe5c966750cb79c2b47bb8f9ab151f1dfb512b66d7cc65384b6f334965",
+    "src/lib.rs": "c81aa93131986d68a8b0820ddde3c78ea117e7dc2d16d1275c32cc64b59089f1",
+    "tastemaker.toml": "e5d9093152ec45beff661c1f74b89e7cec9c89b0c84226e3f57267a6e8c47223"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/test-directory-layout",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-directory-layout-212f6972e13c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/inbound.rs",
+        "src/inbound/use_cases.rs",
+        "src/inbound/use_cases/execute.rs",
+        "src/inbound/use_cases/execute/use_case_test.rs",
+        "src/inbound/use_cases/execute/use_case_test/axis.rs",
+        "src/inbound/use_cases/execute/use_case_test/axis/test.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/execute/use_case_test/axis/test.rs"
+            }
+          ],
+          [
+            "problem",
+            "is not reached from a real Cargo target by Rust module declarations"
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/inbound/use_cases/execute/use_case_test/axis/test.rs"
+          },
+          "is not reached from a real Cargo target by Rust module declarations"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/execute/use_case_test/axis/test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,17 @@
+//! The `farewell` use case: the struct holding only the ports it calls.
+
+use super::interface::FarewellUseCase;
+
+/// `farewell`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+struct FarewellUseCaseImpl;
+
+impl FarewellUseCaseImpl {
+    /// `farewell` over the ports it calls, which the edge injects.
+    fn new() -> Self {
+        Self
+    }
+}
+
+impl FarewellUseCase for FarewellUseCaseImpl {
+    fn farewell(&self) {}
+}

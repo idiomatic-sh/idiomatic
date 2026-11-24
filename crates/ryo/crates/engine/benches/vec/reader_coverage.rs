@@ -7,10 +7,10 @@ use ryo_relations::domain::relations::types::{Missing, RowKind};
 use std::collections::HashMap;
 
 #[derive(Default)]
-pub(super) struct Coverage(HashMap<(Relation, RowKind), bool>);
+pub(crate) struct Coverage(HashMap<(Relation, RowKind), bool>);
 
 impl Coverage {
-    pub(super) fn needed(&mut self, plan: &Plan, relation: Relation, missing: Missing) -> bool {
+    pub(crate) fn needed(&mut self, plan: &Plan, relation: Relation, missing: Missing) -> bool {
         let Missing::Kind(kind) = missing else {
             return true;
         };
@@ -39,7 +39,7 @@ impl Coverage {
 }
 
 fn excludes_kind(node: &PNode, column: &str, kind: &str) -> bool {
-    if let Some(FinishStep::Select(select)) = node.step() {
+    if let FinishStep::Select(select) = node.step() {
         matches!(&select.condition, RowCondition::Tested(e) if typed_excludes(e, column, kind))
     } else {
         false

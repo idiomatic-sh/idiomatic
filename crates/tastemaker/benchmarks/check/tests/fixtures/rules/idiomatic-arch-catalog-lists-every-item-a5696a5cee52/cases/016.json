@@ -1,0 +1,137 @@
+{
+  "stamp": 16,
+  "rule": "idiomatic.arch/catalog-lists-every-item",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/catalog.rs",
+    "src/collections.rs",
+    "src/collections/relations.rs",
+    "src/collections/relations/comment.rs",
+    "src/collections/relations/function.rs",
+    "src/collections/relations/interface.rs",
+    "src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "e31731d3ffca8869d07819507e0a8e893bbc4c57146860b181adcd9d4f8800db",
+    "src/catalog.rs": "33ac0038a3a71528cc7c3c21f37036e1c158e84d8dab9e1de627cfe3864f30fd",
+    "src/collections.rs": "a1b7bcc8acbb0d393a41c81afd4c8a2908444fa70ee61e7a5df4d4e7b25d0278",
+    "src/collections/relations.rs": "4703d9c295e360df7a8281b390a9ffc5064f6cb6035b118e1007c84fc73b8527",
+    "src/collections/relations/comment.rs": "da9cba397377bce32909973548304abfb9568369f7bf3145e1b00b23d950929f",
+    "src/collections/relations/function.rs": "f384bd3010e5db33fbe40e71f687764919c56098e80330426a33070e43e7c882",
+    "src/collections/relations/interface.rs": "64eea86319de35203944585a65d9cfc85d51b86d114687d7bf879e5d75f83aa3",
+    "src/lib.rs": "4efd4c52faeec022194434f2cad73ab5c77a9e6482dc79cd6f6a3ec23b893cf1",
+    "tastemaker.toml": "b3b18c9f242b34a7a71336e1fd43e669fa2287e45d5b6734cb7105951c2aff4c"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/catalog-lists-every-item",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {
+        "catalog": [
+          "src/catalog.rs"
+        ],
+        "collection": [
+          "src/collections/relations.rs"
+        ],
+        "except": [
+          "interface"
+        ]
+      },
+      "query": "idiomatic-arch-catalog-lists-every-item-a5696a5cee52"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/catalog.rs",
+        "src/collections.rs",
+        "src/collections/relations.rs",
+        "src/collections/relations/comment.rs",
+        "src/collections/relations/function.rs",
+        "src/collections/relations/interface.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "comment"
+          ],
+          [
+            "file",
+            {
+              "file": "src/collections/relations.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                66,
+                73
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              66,
+              73
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/collections/relations.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

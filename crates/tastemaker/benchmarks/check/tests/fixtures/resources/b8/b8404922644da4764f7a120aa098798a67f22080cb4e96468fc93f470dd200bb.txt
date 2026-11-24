@@ -1,0 +1,1 @@
+pub trait Store { fn read(&self) -> u8; }

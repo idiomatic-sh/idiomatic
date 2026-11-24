@@ -7,39 +7,41 @@ use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
 #[path = "reader_packet.rs"]
-mod packet;
+pub(super) mod packet;
 
 #[path = "reader_pairs.rs"]
-mod pairs;
+pub(super) mod pairs;
 
 #[path = "reader_coverage.rs"]
-mod coverage;
-
-#[derive(serde::Deserialize)]
-struct Request {
-    root: String,
-    files: Vec<String>,
-    selected_rules: Vec<String>,
-    #[serde(default)]
-    file_rules: HashMap<String, String>,
-
-}
+pub(super) mod coverage;
 
 /// Dense local bit numbers only for names that occur in a necessary condition.
 #[derive(Default)]
-struct Names(HashMap<u32, u16>);
+struct Names {
+    // Only summary vocabulary extends this table, before file dispatch.
+    // A file-local spelling beyond its end has no summary bit.
+    by_symbol: Vec<Option<u16>>,
+    count: usize,
+}
 
 impl Names {
     fn code(&mut self, id: u32) -> u16 {
-        let next = u16::try_from(self.0.len()).expect("too many distinct summary words");
-        *self.0.entry(id).or_insert(next)
+        let index = id as usize;
+        if index >= self.by_symbol.len() {
+            self.by_symbol.resize(index + 1, None);
+        }
+        *self.by_symbol[index].get_or_insert_with(|| {
+            let code = u16::try_from(self.count).expect("too many distinct summary words");
+            self.count += 1;
+            code
+        })
     }
     fn width(&self) -> usize {
-        self.0.len().div_ceil(64).max(1)
+        self.count.div_ceil(64).max(1)
     }
     fn mark(&self, value: u32, bits: &mut [u64]) {
-        if let Some(code) = self.0.get(&value) {
-            bits[usize::from(*code) / 64] |= 1 << (code % 64);
+        if let Some(&Some(code)) = self.by_symbol.get(value as usize) {
+            bits[usize::from(code) / 64] |= 1 << (code % 64);
         }
     }
     fn present(&self, values: impl Iterator<Item = u32>) -> Vec<u64> {
@@ -75,6 +77,31 @@ impl Memory {
         std::fs::write("/proc/self/clear_refs", b"5").expect("reset process high-water RSS");
     }
 }
+/// These readers resolve field names for each file. Compile name-based file
+/// requirements from the lowered steps already prepared by the executor.
+pub(super) fn file_requirements(
+    plan: &ryo_values::domain::finish_plans::types::FinishPlan,
+    language: &first::Language,
+) -> Vec<(String, (bool, Vec<Vec<String>>, Vec<Vec<String>>))> {
+    use ryo_values::domain::finish_plans::types::RuleEmit;
+    assert!(plan.unplanned.is_empty(), "unplanned file queries");
+    let mut skips = Vec::with_capacity(plan.steps.len());
+    for step in &plan.steps {
+        let terms = super::pair_summary::conjuncts(step);
+        skips.push(super::pair_skip::Skip::with_terms(step, &skips, language, &terms));
+    }
+    plan.rules
+        .iter()
+        .map(|rule| {
+            let requirements = match &rule.emit {
+                RuleEmit::Written(emit) => skips[emit.step.0].root(),
+                RuleEmit::Unwritten => Default::default(),
+            };
+            (rule.rule.0.to_string(), requirements)
+        })
+        .collect()
+}
+
 /// SDK packets have node-addressable columns or file-wide rows.
 pub(super) fn fact_family(name: &str) -> super::pair_summary::cost::Family {
     use super::pair_summary::cost::Family;
@@ -92,7 +119,12 @@ pub(super) fn run(
     request: &str,
     output: &str,
 ) -> bool {
-    run_files::<false>(start, language, declaration, pack, request, output, None)
+    run_files::<false>(start, language, declaration, pack, request, Output::Path(output), None)
+}
+
+pub(crate) enum Output<'a> {
+    Path(&'a str),
+    Rows(&'a mut finish::json_output::Records),
 }
 
 /// Evaluate one reader's files of a multi-reader request. The caller collects
@@ -100,20 +132,34 @@ pub(super) fn run(
 pub(super) fn run_files<const QUERY_ROWS: bool>(
     start: f64,
     language: l::Language,
-    mut declaration: first::Language,
+    declaration: first::Language,
     pack: &str,
     request: &str,
-    output: &str,
+    output: Output<'_>,
     paths: Option<Vec<String>>,
 ) -> bool {
-    let document = serde_json::from_slice(&std::fs::read(request).expect("read request")).expect("request");
-    let mut req = <Request as serde::Deserialize>::deserialize(&document).expect("file selection");
-    if let Some(paths) = paths {
-        req.files = paths;
-    }
-    let read = lower::read_pack(Path::new(pack), super::context_from(&document));
+    evaluate_files::<QUERY_ROWS>(start,language,declaration,pack,request,output,paths,None)
+}
+
+pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
+    start:f64, language:l::Language, mut declaration:first::Language, pack:&str, request:&str, output:Output<'_>,
+    paths:Option<Vec<String>>,mut capture:Option<&mut finisher::retained::Capture>,
+)->bool {
+    let mut req = finish::json_input::request(request);
+    if let Some(paths) = paths { req.files = paths; }
+    let context = if QUERY_ROWS {
+        super::rule_context(Some(request))
+    } else {
+        req.check_file_context();
+        Default::default()
+    };
     let parser = language.parse_engine();
-    let plan = lower::second_half_plan(&read, true);
+    let (plan, typed, pack_read, pack_parse) = {
+        let read = lower::read_pack(Path::new(pack), context);
+        let plan = lower::second_half_plan(&read, true);
+        let typed = read.typed.take().expect("executor must hand over the typed plan");
+        (plan, typed, read.read, read.parse)
+    };
     let emits: BTreeSet<_> = plan.emits.iter().map(|emit| emit.0.as_str()).collect();
     for selected in &req.selected_rules {
         assert!(
@@ -138,7 +184,9 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     let mut reader_rows = Vec::new();
     for name in bases {
         let Some(relation) = catalog::relation_named(NameRef(name)) else {
-            eprintln!("no catalog declaration for {name}");
+            let message=format!("no catalog declaration for {name}");
+            if let Some(c)=capture.as_deref_mut() {c.refused_admission(&message);}
+            eprintln!("{message}");
             return false;
         };
         if catalog::class_of(relation) == ryo_relations::domain::relations::types::Class::Engine {
@@ -151,7 +199,9 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         if ryo_relations::domain::catalog::service::scope_of(relation)
             == ryo_relations::domain::catalog::types::RowScope::Project
         {
-            eprintln!("project-scoped {name} needs a project reader and a complete inventory");
+            let message=format!("project-scoped {name} needs a project reader and a complete inventory");
+            if let Some(c)=capture.as_deref_mut() {c.refused_admission(&message);}
+            eprintln!("{message}");
             return false;
         }
         if parser.includes_expansions(relation) {
@@ -177,19 +227,10 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     declaration.text_kinds = (0..kind_names.0.len())
         .map(|k| u16::try_from(k).expect("kind code"))
         .collect();
-    let typed = read
-        .typed
-        .take()
-        .expect("executor must hand over the typed plan");
     assert!(typed.unplanned.is_empty());
     let mut program =
-        super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows);
-    let prepared: Vec<_> = program
-        .roots
-        .iter()
-        .map(|r| r.0.clone())
-        .zip(std::mem::take(&mut program.skips))
-        .collect();
+        super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows, true);
+    let clauses_by_root = std::mem::take(&mut program.skips);
     drop(typed);
     let summaries_cpu = thread_cpu() - summaries_start;
     run.empty = run.sym(b"");
@@ -201,16 +242,11 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         .map(|k| run.sym(k.0.as_bytes()))
         .collect();
     run.root_dir = req.root.clone();
-    run.paths = req.files.clone();
-    run.path_sym = req
-        .files
-        .iter()
-        .map(|path| run.sym(path.as_bytes()))
-        .collect();
+    run.paths = req.files.clone().into();
     let mut kinds = Names::default();
     let mut fields = Names::default();
     let mut words = Names::default();
-    for (_, (_, clauses, _)) in &prepared {
+    for (_, clauses, _) in &clauses_by_root {
         for name in clauses.iter().flatten() {
             let (tag, term) = name.split_once(':').expect("tagged vocabulary name");
             let id = run.sym(term.as_bytes());
@@ -221,11 +257,12 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             }
         }
     }
-    let source: HashMap<_, _> = prepared.iter().map(|(r, skip)| (r, skip)).collect();
+    let source: HashMap<_, _> = program.roots.iter().map(|(rule, _)| rule.as_str())
+        .zip(&clauses_by_root).collect();
     let mut syntax = Vec::new();
     let mut spellings: Vec<Vec<Vec<Vec<u16>>>> = Vec::new();
     for emit in &plan.emits {
-        let (never, clauses, word_clauses) = source[&emit.0];
+        let (never, clauses, word_clauses) = source[emit.0.as_str()];
         let mut masks = Vec::new();
         for clause in clauses {
             let mask = |prefix: &str, names: &Names| {
@@ -258,63 +295,81 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         kinds.width(),
         fields.width(),
     );
-    let mut decisions = pairs::Decisions::new(program, &plan);
-    let selected = req.selected_rules.join(",");
-    let mut fin = finisher::Finisher::new(
-        &plan,
-        run,
-        &[
-            "--rules",
-            &selected,
-            "--out",
-            output,
-            "--applicability",
-            request,
-        ],
-        Some((request, &document)),
-    );
-    fin.query_rows = QUERY_ROWS;
-    drop(document);
-    fin.prepare_requests(&[]);
+    drop(source);
+    drop((clauses_by_root, syntax, spellings));
+    // The parser needs the union of declared relations before its first file. A particular
+    // emit's transitive relation mask is needed only when a file first asks for that emit.
+    let mut base_facts = vec![None; plan.nodes.len()];
     let mut distinct = BTreeSet::new();
-    let mut slots = vec![None; catalog::ALL.len()];
-    for (slot, name) in fin.exec.requests.provider_slots() {
-        let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
-        if parser.absence_of(rel) == Some(l::AbsenceCause::NotYetRead) {
-            eprintln!("provider does not yet read {name}");
-            return false;
+    for (slot, n) in plan.nodes.iter().enumerate() {
+        if let Some(name) = n.base() {
+            let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
+            if !matches!(run.supplier(name), finish::Supplier::Host) && (ryo_relations::domain::catalog::service::fact_form(rel)
+                != ryo_relations::domain::relations::types::FactForm::NodeTable
+                || run.reader_tables.contains(name))
+            {
+                // The parser writes a complete empty relation for a construct its
+                // language lacks. Only an unimplemented reader leaves the answer open.
+                if parser.absence_of(rel) == Some(l::AbsenceCause::NotYetRead) {
+                    let message=format!("provider does not yet read {name}");
+            if let Some(c)=capture.as_deref_mut() {c.refused_admission(&message);}
+            eprintln!("{message}");
+                    return false;
+                }
+                distinct.insert(rel);
+                base_facts[slot] = Some(rel);
+            }
         }
-        slots[catalog::number_of(rel).0] = Some(slot);
-        distinct.insert(rel);
     }
     let relations: Vec<_> = distinct.into_iter().collect();
+    let base_bits: Vec<_> = base_facts.into_iter().map(|rel| {
+        rel.map(|value| relations.binary_search(&value).expect("catalog relation"))
+    }).collect();
     let width = relations.len().div_ceil(64);
     let mut emitted_facts = vec![None; plan.emits.len()];
+    let mut visited = vec![usize::MAX; plan.nodes.len()];
+    let mut pending = Vec::new();
     let mut requested = vec![0u64; width];
     let mut facts = Vec::with_capacity(relations.len());
-    let mut relations_for = |requests: &mut finish::request::Requests, wanted: &[usize], facts: &mut Vec<l::Relation>| {
+    let mut decisions = pairs::Decisions::new(program, &plan);
+    let mut relations_for = |wanted: &[usize], facts: &mut Vec<l::Relation>| {
         requested.fill(0);
         for &emit in wanted {
             let mask = emitted_facts[emit].get_or_insert_with(|| {
                 let mut mask = vec![0u64; width];
-                requests.possible_provider_reads(plan.emits[emit].1, |name| {
-                    let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
-                    let bit = relations.binary_search(&rel).expect("declared reader relation");
-                    mask[bit / 64] |= 1 << (bit % 64);
-                });
+                pending.push(plan.emits[emit].1);
+                while let Some(slot) = pending.pop() {
+                    if visited[slot] == emit { continue; }
+                    visited[slot] = emit;
+                    if let Some(bit) = base_bits[slot] { mask[bit / 64] |= 1 << (bit % 64); }
+                    pending.extend_from_slice(&plan.nodes[slot].inputs);
+                }
                 mask
             });
-            for (word, &extra) in requested.iter_mut().zip(mask.iter()) { *word |= extra; }
+            for (word, &extra) in requested.iter_mut().zip(mask.iter()) {
+                *word |= extra;
+            }
         }
         facts.clear();
         for (i, &rel) in relations.iter().enumerate() {
             if requested[i / 64] & (1 << (i % 64)) != 0 { facts.push(rel); }
         }
     };
+    let selected = req.selected_rules.join(",");
+    let mut args = vec!["--rules", &selected, "--applicability", request];
+    if let Output::Path(path) = &output { args.extend(["--out", *path]); }
+    let mut fin = finisher::Finisher::new(
+        &plan,
+        run,
+        &args,
+        req.rule_applicability.as_ref().map(|accepted| (request, accepted)),
+    );
+    fin.query_rows = QUERY_ROWS;
+    fin.capture = capture.as_deref_mut().map(std::mem::take);
     let startup = thread_cpu() - start;
     println!(
         "startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}",
-        read.read, read.parse, summaries_cpu
+        pack_read, pack_parse, summaries_cpu
     );
     let mut memory = Memory {
         enabled: std::env::var_os("VEC_PHASE_RSS").is_some(),
@@ -336,6 +391,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     let mut coverage = coverage::Coverage::default();
     let mut symbols = l::Symbols::default();
     for (index, path) in req.files.iter().enumerate() {
+        if fin.retained_file(path) { continue; }
         let t0 = thread_cpu();
         let bytes = std::fs::read(Path::new(&req.root).join(path)).expect("read source");
         let id = FileId(index.try_into().expect("file id"));
@@ -347,8 +403,9 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             notes: l::NoteRequest::Unwanted,
         };
         parser
-            .build_file(parse, &mut elements, &mut symbols, &relations)
+            .build_native_file(parse, &mut elements, &mut symbols, l::NodeAccess::Query(&relations))
             .expect("parse file");
+        if let Some(c) = &mut fin.capture { c.visited(path,&bytes); }
         let mut provider = reader::ReaderFacts::new(id.0, &unknown_words);
         reader::project_tree(
             &elements,
@@ -358,6 +415,8 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             &mut table,
             &mut provider,
         );
+        let native = l::native_table(&elements).cloned();
+        let table = native.as_deref().unwrap_or(&table);
         let mut visible_kinds = kinds.present(
             node_table::kind_codes(&table)
                 .iter()
@@ -393,12 +452,12 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         words.mark(fin.run.empty, &mut visible_words);
         skip.file(&visible_kinds, &visible_fields);
         let only = req.file_rules.get(path);
-        fin.wanted_into(path, |i| {
+        fin.wanted_into( |i| {
             only.is_none_or(|rule| rule == &plan.emits[i].0)
                 && (check_without_skip || (skip.alive(i) && skip.words_alive(i, &visible_words)))
         }, &mut wanted);
         packet.clear();
-        relations_for(&mut fin.exec.requests, &wanted, &mut facts);
+        relations_for(&wanted, &mut facts);
         if !wanted.is_empty() && !check_without_skip {
             decisions.filter(
                 &mut wanted,
@@ -406,6 +465,10 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
                 super::pair_checks::SyntaxText {
                     ids: &provider.text,
                     symbols: &fin.run.texts,
+                    dictionary: &fin.run.ids,
+                    distinct: None,
+                    patterns: None,
+                    column: None,
                 },
                 &bytes,
                 path,
@@ -419,13 +482,14 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
                 },
             );
             if !packet.ready {
-                relations_for(&mut fin.exec.requests, &wanted, &mut facts);
+                relations_for(&wanted, &mut facts);
             }
         }
         let t1 = thread_cpu();
         first_cpu += t1 - t0;
         memory.sample(1);
-        if !packet.ready && !wanted.is_empty() {
+        let visits = fin.visits(&wanted);
+        if visits && !packet.ready {
             parser.walk_file(
                 &mut elements,
                 &mut symbols,
@@ -436,23 +500,57 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             );
             packet.index(&facts);
         }
+        if let Some(c) = &mut fin.capture {
+            use finisher::retained::UnknownOrigin;
+            use ryo_relations::domain::relations::types::Missing;
+            for (rel, cause, missing) in &packet.rows.partials {
+                let kind = match missing { Missing::Any => None, Missing::Kind(kind) => Some(kind.0) };
+                c.unknown(path, catalog::name(*rel).0, kind, cause, UnknownOrigin::Partition);
+            }
+            for (rel, subject, cause) in &packet.rows.partials_at {
+                if *subject == id {
+                    c.unknown(path, catalog::name(*rel).0, None, cause, UnknownOrigin::Partition);
+                } else {
+                    c.partial(path);
+                }
+            }
+            if !unknown_words.is_empty() {
+                let mut scalar = |relation: &str, word: l::Symbol, origin: UnknownOrigin| {
+                    if let Some(&reason) = unknown_words.get(&word.0) {
+                        let cause = std::str::from_utf8(&fin.run.texts[reason as usize]).expect("published cause");
+                        c.unknown(path, relation, None, cause, origin);
+                    }
+                };
+                for n in 0..l::end_of(&elements).0 {
+                    let pos = l::Position(n);
+                    scalar("syntax-tree", l::field_name_at(&elements, pos), UnknownOrigin::Field(n));
+                    scalar("syntax-tree", l::text_at(&elements, pos), UnknownOrigin::Text(n));
+                }
+                let mut offset = 0;
+                for (row, &relation) in packet.rows.relations.iter().enumerate() {
+                    let kinds = catalog::kinds(relation);
+                    for (column, kind) in kinds.iter().enumerate() {
+                        if *kind == l::CellKind::Symbol {
+                            let word = l::Symbol(packet.rows.words[offset + column] as u32);
+                            scalar(catalog::name(relation).0, word, UnknownOrigin::Cell(row as u32, column as u32));
+                        }
+                    }
+                    offset += kinds.len();
+                }
+            }
+        }
+        if !visits {
+            continue;
+        }
         packet
             .rows
             .partials
             .retain(|(rel, _, missing)| coverage.needed(&plan, *rel, *missing));
-        // The same indexed packet supplied the prefix and certifies these empty populations.
-        for &rel in &facts {
-            if packet.complete_empty(rel) {
-                let slot = slots[catalog::number_of(rel).0].expect("declared reader relation");
-                fin.exec.walk_empty_slot(slot);
-            }
-        }
         for &i in &wanted {
             active[i] += 1;
         }
         fin.file(
             index,
-            path,
             &table,
             &bytes,
             &mut packet.view(&mut provider, &symbols, &bytes),
@@ -473,7 +571,11 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     }
     fin.time = second_cpu;
     let reporting = thread_cpu();
-    let ok = fin.end(0., |_| {});
+    if let Some(c) = capture.take() { *c = fin.capture.take().unwrap(); }
+    let ok = fin.end(match output {
+        Output::Rows(rows) => finish::json_output::Projection::Collect(rows),
+        Output::Path(_) => finish::json_output::Projection::All,
+    });
     second_cpu += thread_cpu() - reporting;
     memory.sample(2);
     if memory.enabled {

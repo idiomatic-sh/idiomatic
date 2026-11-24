@@ -1,0 +1,1 @@
+fn bypass() { let _ = super::runtime::service::KernelAdmission { execution: (), region: 0 }; }

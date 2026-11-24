@@ -34,9 +34,6 @@ pub struct Ask {
 /// One fact of one file, as the provider wrote it.
 #[derive(Clone, Debug, Default)]
 pub struct FactTable {
-    // The answer writer consumes rows in insertion order. Its buffer needs
-    // neither a node index nor space for values at nodes with no row.
-    ordered_rows: bool,
     /// The layout.
     pub layout: Layout,
     /// Whether the provider answered the fact whole for this file (false: the file was not read whole, a superset holds).
@@ -60,11 +57,6 @@ pub struct FactTable {
 }
 
 impl FactTable {
-    /// A buffer for sequential column consumption in provider row order.
-    /// Indexed first-half reads use the default buffer.
-    #[must_use]
-    pub fn ordered() -> Self { Self { ordered_rows: true, ..Self::default() } }
-
     /// Starts a fresh answer with the declared layout and projected columns.
     pub fn begin(&mut self, layout: Layout, width: usize, elements: usize, written: &[usize], exists: bool, wanted: u64) {
         self.wanted = wanted;
@@ -72,7 +64,7 @@ impl FactTable {
         self.answered = true;
         self.rows = 0;
         self.present.clear();
-        if !self.ordered_rows { self.present.resize(elements.div_ceil(64).max(1), 0); }
+        self.present.resize(elements.div_ceil(64).max(1), 0);
         self.offsets.clear();
         self.order.clear();
         self.keys.clear();
@@ -80,7 +72,7 @@ impl FactTable {
         for column in &mut self.columns {
             column.clear();
         }
-        if !self.ordered_rows && layout == Layout::PerNode && !exists {
+        if layout == Layout::PerNode && !exists {
             for place in written {
                 if wanted >> place & 1 == 0 {
                     continue;
@@ -109,10 +101,6 @@ impl FactTable {
     /// A per-node row: its values by catalog place.
     #[inline]
     pub fn put(&mut self, node: u32, values: &[(usize, u32)]) {
-        if self.ordered_rows {
-            self.push(node, values);
-            return;
-        }
         self.mark(node);
         self.keys.push(node);
         self.rows += 1;
@@ -126,7 +114,7 @@ impl FactTable {
     /// A keyed row.
     #[inline]
     pub fn push(&mut self, node: u32, values: &[(usize, u32)]) {
-        if !self.ordered_rows { self.mark(node); }
+        self.mark(node);
         self.keys.push(node);
         self.rows += 1;
         for (place, value) in values {
@@ -141,7 +129,7 @@ impl FactTable {
     /// Ends a keyed table: the rows are put in key order by a sort of (key, row) pairs, O(rows log rows), and indexed by
     /// key through the presence bits and a rank a word, O(elements / 64): no pass over the file's elements.
     pub fn finish(&mut self, _elements: usize) {
-        if self.ordered_rows || self.layout != Layout::Keyed {
+        if self.layout != Layout::Keyed {
             return;
         }
         self.rank.clear();

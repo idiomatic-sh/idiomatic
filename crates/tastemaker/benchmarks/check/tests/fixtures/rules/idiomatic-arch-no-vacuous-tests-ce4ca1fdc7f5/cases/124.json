@@ -1,0 +1,105 @@
+{
+  "stamp": 124,
+  "rule": "idiomatic.arch/no-vacuous-tests",
+  "dependency": "One file",
+  "admitted": [
+    "src/lib_test.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib_test.rs": "a6d08f5f25937d68c6b9fbdf6d87d9376baae92abb3dc1bea82db25b4cafb0bb",
+    "tastemaker.toml": "626699fefc8d2a8c6ba56965ef9d10da34c701ad672dc66c67f019a4858ee52c"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-vacuous-tests",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-vacuous-tests-ce4ca1fdc7f5"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                39,
+                46
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              39,
+              46
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

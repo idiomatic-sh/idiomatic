@@ -199,7 +199,7 @@ pub(super) fn select(f: &File<'_>, fields: bool, codes: &[u16]) -> Slot {
         let ids = bucket.rows(f.table);
         let mut lo = 0;
         if fields && !ids.is_empty() {
-            // Exclude all self-parent roots in position order.
+            // Extra roots are in position order.
             for (root_code, root) in f
                 .field
                 .first()

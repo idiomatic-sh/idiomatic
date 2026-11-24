@@ -1,0 +1,17 @@
+use super::interface::GreetingInterface;
+
+pub struct GreetingFake;
+
+impl GreetingInterface for GreetingFake {
+    fn greet(&self) -> String {
+        String::new()
+    }
+}
+
+pub struct StorageFake;
+
+impl crate::storage::interface::StorageInterface for StorageFake {
+    fn load(&self) -> String {
+        String::new()
+    }
+}

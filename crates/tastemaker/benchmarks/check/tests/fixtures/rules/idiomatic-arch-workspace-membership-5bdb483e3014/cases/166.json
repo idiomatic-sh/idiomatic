@@ -1,0 +1,338 @@
+{
+  "stamp": 166,
+  "rule": "idiomatic.arch/workspace-membership",
+  "dependency": "Project",
+  "admitted": [
+    "Cargo.toml",
+    "crates/app/Cargo.toml",
+    "crates/app/src/lib.rs",
+    "crates/support/Cargo.toml",
+    "crates/support/src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "c3e577ddea6e1eb713a1b0bd18917e6f2878c4376a413f80fdc7945a81d2f232",
+    "crates/app/Cargo.toml": "76649102f9c2cd5f8e9841f366bf235e0d5c9c15c5a817abb986e889affae049",
+    "crates/app/src/lib.rs": "4e09425d9a3e2538f1ea6c428d5080eade36baf933b917b450b4ab85b5b19e6f",
+    "crates/support/Cargo.toml": "9089446edf59d96573bc98c353de58f8bc3192a4b8c0c14999559b16c409747a",
+    "crates/support/src/lib.rs": "4e09425d9a3e2538f1ea6c428d5080eade36baf933b917b450b4ab85b5b19e6f",
+    "tastemaker.toml": "6252d64711a264e825744cfdb8e96abfe51cc229901ecd013db17eba66631606"
+  },
+  "beside": {
+    ".tastemaker-rendered/cd5110d741be3330.lib.rs": "a10bdaee35d538f9a3e0cfaca2005a109e843ceb34294fe397e32d5a490f0612",
+    ".tastemaker-rendered/f3c24208629fe45e.lib.rs": "a10bdaee35d538f9a3e0cfaca2005a109e843ceb34294fe397e32d5a490f0612"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "crates/app/Cargo.toml"
+          },
+          "cargo-package",
+          "idiomatic.arch",
+          "cargo-package",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "crates/app/src/lib.rs"
+          },
+          "crate-root",
+          "idiomatic.arch",
+          "crate-root",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "crates/support/Cargo.toml"
+          },
+          "cargo-package",
+          "idiomatic.arch",
+          "cargo-package",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "crates/support/src/lib.rs"
+          },
+          "crate-root",
+          "idiomatic.arch",
+          "crate-root",
+          "0.13.2",
+          "crate"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "crates/app/src/lib.rs",
+        ".tastemaker-rendered/f3c24208629fe45e.lib.rs",
+        "crates/support/src/lib.rs",
+        ".tastemaker-rendered/cd5110d741be3330.lib.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "crates/app/src/lib.rs",
+        ".tastemaker-rendered/f3c24208629fe45e.lib.rs",
+        "crates/support/src/lib.rs",
+        ".tastemaker-rendered/cd5110d741be3330.lib.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "crates/app/src/lib.rs",
+        ".tastemaker-rendered/f3c24208629fe45e.lib.rs",
+        "crates/support/src/lib.rs",
+        ".tastemaker-rendered/cd5110d741be3330.lib.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "crates/app/src/lib.rs",
+        ".tastemaker-rendered/f3c24208629fe45e.lib.rs",
+        "crates/support/src/lib.rs",
+        ".tastemaker-rendered/cd5110d741be3330.lib.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "crates/app/src/lib.rs",
+        ".tastemaker-rendered/f3c24208629fe45e.lib.rs",
+        "crates/support/src/lib.rs",
+        ".tastemaker-rendered/cd5110d741be3330.lib.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "crates/app/src/lib.rs",
+        ".tastemaker-rendered/f3c24208629fe45e.lib.rs",
+        "crates/support/src/lib.rs",
+        ".tastemaker-rendered/cd5110d741be3330.lib.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "crates/app/src/lib.rs",
+        ".tastemaker-rendered/f3c24208629fe45e.lib.rs",
+        "crates/support/src/lib.rs",
+        ".tastemaker-rendered/cd5110d741be3330.lib.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "crates/app/src/lib.rs",
+        ".tastemaker-rendered/f3c24208629fe45e.lib.rs",
+        "crates/support/src/lib.rs",
+        ".tastemaker-rendered/cd5110d741be3330.lib.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/captured-workload",
+      "include": [
+        "crates/app/Cargo.toml",
+        "crates/support/Cargo.toml"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-captured-workload-4ce858c6c633"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/error-shape",
+      "include": [
+        "crates/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-error-shape-505aa5cd3814"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/fixtures-feature",
+      "include": [
+        "crates/app/Cargo.toml",
+        "crates/support/Cargo.toml"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-fixtures-feature-30d24fb9b0ff"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/thiserror-in-errors",
+      "include": [
+        "crates/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-thiserror-in-errors-749b78e75367"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/extension-point-ports",
+      "include": [
+        "crates/**"
+      ],
+      "parameters": {
+        "exposed": []
+      },
+      "query": "idiomatic-arch-extension-point-ports-d6269e1f7c08"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/orphan-rust-files",
+      "include": [
+        "crates/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-orphan-rust-files-d1ff19eef5c2"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/workspace-membership",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-workspace-membership-5bdb483e3014"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "crates/app/Cargo.toml",
+        "crates/app/src/lib.rs",
+        "crates/support/Cargo.toml",
+        "crates/support/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "crates/support/Cargo.toml"
+            }
+          ],
+          [
+            "entry",
+            "cargo-package"
+          ],
+          [
+            "package",
+            "idiomatic.arch"
+          ],
+          [
+            "template",
+            "cargo-package"
+          ],
+          [
+            "version",
+            "0.13.2"
+          ],
+          [
+            "spec",
+            "crate"
+          ]
+        ],
+        "key": [
+          {
+            "file": "crates/support/Cargo.toml"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/support/Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

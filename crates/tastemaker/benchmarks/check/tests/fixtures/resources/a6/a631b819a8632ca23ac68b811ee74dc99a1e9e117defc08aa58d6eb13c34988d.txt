@@ -1,0 +1,8 @@
+//! The demo language.
+
+pub mod inbound;
+pub mod outbound;
+mod domain;
+
+/// The demo language, composed over its ports.
+pub fn linked() {}

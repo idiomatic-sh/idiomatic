@@ -1,0 +1,1 @@
+//! One group of cases: its module file declares the group's test, its fixtures and its nested groups.

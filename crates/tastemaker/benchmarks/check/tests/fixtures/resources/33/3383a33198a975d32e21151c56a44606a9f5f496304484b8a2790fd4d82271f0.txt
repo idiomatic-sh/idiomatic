@@ -1,0 +1,8 @@
+//! Core.
+
+use engine::Request;
+
+/// Lints one file through the engine.
+pub fn lint(engine: &engine::Engine) -> usize {
+    engine.open_file("a.rs")
+}

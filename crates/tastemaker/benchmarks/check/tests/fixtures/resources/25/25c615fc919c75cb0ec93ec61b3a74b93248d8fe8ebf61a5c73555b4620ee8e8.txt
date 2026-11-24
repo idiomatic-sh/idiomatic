@@ -1,0 +1,2 @@
+//! The linter's composition.
+pub(crate) mod profile;

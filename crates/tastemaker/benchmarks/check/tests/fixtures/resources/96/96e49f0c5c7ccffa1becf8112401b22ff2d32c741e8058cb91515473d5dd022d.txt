@@ -1,0 +1,22 @@
+//! The memory adapter of the names port: the core's contract rows run through it, then the cases specific to it.
+
+use crate::cases::{Case, Word, run};
+use crate::outbound::names::fixtures::contract::CASES as CONTRACT;
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of what is specific to this adapter: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Calls the adapter on one input, for the contract's rows and for its own; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    Err(())
+}
+
+#[test]
+fn succeeds() {
+    run(CONTRACT, Word::Succeeds, subject);
+    run(CASES, Word::Succeeds, subject);
+}

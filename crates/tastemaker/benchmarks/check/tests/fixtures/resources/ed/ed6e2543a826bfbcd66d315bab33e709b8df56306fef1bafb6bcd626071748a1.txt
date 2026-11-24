@@ -1,0 +1,49 @@
+//! What `greeting show` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = Vec<&'static str>;
+type Value = String;
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "show prints a greeting",
+        word: Word::Succeeds,
+        input: || vec!["show"],
+        expect: Expect::Value(String::from("hello")),
+    },
+    Case {
+        name: "show refuses an unknown greeting",
+        word: Word::Refuses,
+        input: || vec!["show"],
+        expect: Expect::Error(crate::outcome::Outcome::Failure),
+    },
+    Case {
+        name: "show ends in error when the service fails",
+        word: Word::Fails,
+        input: || vec!["show"],
+        expect: Expect::Error(crate::outcome::Outcome::Error),
+    },
+];
+
+/// Runs `greeting show` on one command line.
+fn subject(line: Input) -> Result<Value, Failure> {
+    todo!("parse the command line, run the command, return what it printed or the outcome it ended with")
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}

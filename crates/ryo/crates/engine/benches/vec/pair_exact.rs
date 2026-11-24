@@ -899,7 +899,8 @@ pub(super) fn prepare<'a>(
             }
         }
     }
-    b.out.exact = plan
+    let base = b.out.roots.len();
+    let certificates = plan
         .rules
         .iter()
         .enumerate()
@@ -929,7 +930,7 @@ pub(super) fn prepare<'a>(
                 return None;
             }
             Some((
-                ri,
+                base + ri,
                 Certificate {
                     nodes: row.nodes,
                     guard: row.guard,
@@ -941,7 +942,8 @@ pub(super) fn prepare<'a>(
                 },
             ))
         })
-        .collect();
+        .collect::<Vec<_>>();
+    b.out.exact.extend(certificates);
 
     plan.steps
         .iter()

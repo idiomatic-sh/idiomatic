@@ -41,7 +41,7 @@ pub(super) fn count_tests(
             break;
         }
         n += rows.len() as u64;
-        let one = ViewSpec::new(v.base, Vec::new(), vec![test.clone()]);
+        let one = ViewSpec::new(run, v.base, Vec::new(), vec![test.clone()]);
         super::view_cols::retain(f, run, &one, rows);
     }
     if sw!("VEC_LEAF_TESTS") {
@@ -80,8 +80,8 @@ impl Exec<'_> {
             if let Ok(Some(v)) = self.view(run, node) {
                 println!(
                     "LEAF_VIEW\t{node}\t{}\t{}",
-                    serde_json::to_string(&buckets(run, &v)).expect("bucket report"),
-                    serde_json::to_string(&current_entries(run, &v)).expect("entry report")
+                    super::json_output::buckets(&buckets(run, &v)),
+                    super::json_output::buckets(&current_entries(run, &v))
                 );
             }
         }
@@ -112,7 +112,6 @@ fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
         Native::Fact(i) => {
             return vec![vec!["fact".into(), run.fact_rels[usize::from(i)].0.clone()]];
         }
-        Native::Empty => return Vec::new(),
     };
     if let Some(column) = column {
         for test in &v.filter {
@@ -125,7 +124,7 @@ fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
                 names.dedup();
                 return names
                     .into_iter()
-                    .map(|name| vec![base.into(), name.into_owned()])
+                    .map(|n| vec![base.into(), n.into_owned()])
                     .collect();
             }
         }

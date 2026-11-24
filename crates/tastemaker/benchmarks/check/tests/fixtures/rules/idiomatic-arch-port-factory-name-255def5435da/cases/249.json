@@ -1,0 +1,112 @@
+{
+  "stamp": 249,
+  "rule": "idiomatic.arch/port/factory-name",
+  "dependency": "One file",
+  "admitted": [
+    "src/names/factory.rs"
+  ],
+  "given": {
+    "src/names/factory.rs": "5c414cd5124a116f1f5bbc273acef6cbfb1230895bab4e344b115f429d42f3e8",
+    "tastemaker.toml": "37794dec4e68d16fd055ff369bad47dd895029fef2f92c2bbd891956e5b350d4"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/port/factory-name",
+      "include": [
+        "src/*/factory.rs",
+        "src/*/factory.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-port-factory-name-255def5435da"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/names/factory.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/names/factory.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                51,
+                225
+              ]
+            }
+          ],
+          [
+            "name",
+            "memory"
+          ],
+          [
+            "problem",
+            "does not return `impl <Name>Port`: a factory function builds an adapter and returns it as the trait of its port"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              51,
+              225
+            ]
+          },
+          "does not return `impl <Name>Port`: a factory function builds an adapter and returns it as the trait of its port"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/names/factory.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

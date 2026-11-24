@@ -1,0 +1,15 @@
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let files = project(from=listed-files, columns=["file"]);
+let verbs = capture(from=files, path="file", pattern="{*root}/src/resources/{resource}/{verb}/entry.rs", captures=["root", "resource", "verb"]);
+let imports = select * from "static-import" where binding != "";
+let resource-imports = capture(from=imports, path="file", pattern="{*root}/src/resources/{resource}.rs", captures=["root", "resource"]);
+let functions = select * from "function" where name != "";
+let verb-functions = capture(from=functions, path="file", pattern="{*root}/src/resources/{resource}/{verb}/entry.rs", captures=["root", "resource", "verb"]);
+let declared = select l."file" as "file" from verbs as l join resource-imports as r on l."root" = r."root" and l."resource" = r."resource" and l."verb" = r."binding";
+let defined = select l."file" as "file" from verbs as l join verb-functions as r on l."file" = r."file" and l."verb" = r."name";
+let unresolved = antijoin(left=verbs, right=declared, left-on=["file"], right-on=["file"]);
+let undefined = antijoin(left=verbs, right=defined, left-on=["file"], right-on=["file"]);
+let unresolved-paths = project(from=unresolved, columns=["file"]);
+let undefined-paths = project(from=undefined, columns=["file"]);
+let found = union(left=unresolved-paths, right=undefined-paths);
+emit found subject "file" key("file");

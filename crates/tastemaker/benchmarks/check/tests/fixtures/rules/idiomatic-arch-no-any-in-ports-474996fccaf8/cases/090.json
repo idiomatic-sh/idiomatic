@@ -1,0 +1,109 @@
+{
+  "stamp": 90,
+  "rule": "idiomatic.arch/no-any-in-ports",
+  "dependency": "One file",
+  "admitted": [
+    "src/outbound/lint_store/types.rs"
+  ],
+  "given": {
+    "src/outbound/lint_store/types.rs": "710b0fc90608188f73a44ce61321d751d190d5f3c013ff7f732b40a9451fd85d",
+    "tastemaker.toml": "13d88542549b21a734c898da8315608b6e9a59bdf23831972c69e44de92332e2"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-any-in-ports",
+      "include": [
+        "src/outbound/*/interface.rs",
+        "src/outbound/*/interface.rs/**",
+        "src/outbound/*/types.rs",
+        "src/outbound/*/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-any-in-ports-474996fccaf8"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/outbound/lint_store/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/outbound/lint_store/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                134,
+                137
+              ]
+            }
+          ],
+          [
+            "text",
+            "Any"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              134,
+              137
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/lint_store/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

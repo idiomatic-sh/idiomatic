@@ -1,0 +1,12 @@
+//! The wiring: the one place each implementation is chosen.
+
+/// The services composed, one per domain.
+#[derive(Debug, Default)]
+pub struct Services {}
+
+impl Services {
+    /// The greeting service, composed from its factory.
+    pub fn greeting(&self) -> impl crate::greeting::interface::GreetingInterface {
+        crate::greeting::factory::memory()
+    }
+}

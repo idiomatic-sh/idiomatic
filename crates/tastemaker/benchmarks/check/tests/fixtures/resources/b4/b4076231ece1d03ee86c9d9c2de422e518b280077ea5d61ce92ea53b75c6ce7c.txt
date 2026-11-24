@@ -1,0 +1,1 @@
+//! Proves what the user does next about each error a command can end with.

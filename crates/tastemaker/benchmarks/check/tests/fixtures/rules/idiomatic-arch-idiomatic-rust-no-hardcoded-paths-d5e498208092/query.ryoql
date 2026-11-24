@@ -1,0 +1,3 @@
+let literals = project(from="string-literal", columns=["file", "span", "value"]);
+let absolute = select * from literals where glob_any(value, "{/tmp/*,/home/*,/usr/*,/etc/*,/var/*,/opt/*,/root/*,/mnt/*,/Users/*,/workspaces/*,?:[\\]*}");
+emit absolute subject "file" key("span");

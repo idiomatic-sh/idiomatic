@@ -1,0 +1,124 @@
+{
+  "stamp": 122,
+  "rule": "idiomatic.arch/no-tracker-text-shipped",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "src/limits.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/limits.rs": "a2c728767294be97bf6da16a85406219ecce63e0bb228db8a2dd4a83f8822d9c",
+    "tastemaker.toml": "23b543f27e132460300c7f2f51d34180b4cd4dd337383e4a9187cbee561a9317"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-tracker-text-shipped",
+      "include": [
+        "Cargo.toml",
+        "Cargo.toml/**",
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {
+        "patterns": [
+          "*ryo-[a-z][a-z][a-z][a-z].[0-9]*",
+          "*ryo-[a-z][a-z][a-z][0-9]*",
+          "*(owner 20*",
+          "*[Tt]he owner's*",
+          "*[Oo]wner's decision*",
+          "*[Tt]he spike",
+          "*[Tt]he spike[!a-z]*",
+          "*[Tt]he devcontainer*",
+          "*[Aa]n agent*"
+        ]
+      },
+      "query": "idiomatic-arch-no-tracker-text-shipped-3d901acd0c2d"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/limits.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/limits.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                63
+              ]
+            }
+          ],
+          [
+            "text",
+            " The most a run may reach is the owner's figure, not yet met."
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              63
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/limits.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

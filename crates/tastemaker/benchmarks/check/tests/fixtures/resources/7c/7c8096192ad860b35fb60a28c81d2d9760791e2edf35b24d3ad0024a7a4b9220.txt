@@ -1,0 +1,6 @@
+fn either(column: ColumnIndex) -> bool {
+    match column {
+        ColumnIndex(0 | 1) => true,
+        _ => false,
+    }
+}

@@ -1,0 +1,4 @@
+//! The request.
+
+/// The request.
+pub struct GreetRequest;

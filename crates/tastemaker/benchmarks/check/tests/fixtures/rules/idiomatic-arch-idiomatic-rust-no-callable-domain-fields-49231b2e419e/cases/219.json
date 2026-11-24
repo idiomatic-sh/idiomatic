@@ -1,0 +1,113 @@
+{
+  "stamp": 219,
+  "rule": "idiomatic.arch/idiomatic-rust/no-callable-domain-fields",
+  "dependency": "One file",
+  "admitted": [
+    "src/domain/rule/types.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/domain/rule/types.rs": "45f79aff3ccbd171400e567eaa42da88f59ce5e810bb1b9917fa8b743af2ee9f",
+    "tastemaker.toml": "19237922f95a90cc88f5fbe5fdf4118ce193602b3b6ae3153179878435a1dfdc"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/no-callable-domain-fields",
+      "include": [
+        "**/src/domain/**/*.rs",
+        "**/src/domain/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-callable-domain-fields-49231b2e419e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/domain/rule/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/domain/rule/types.rs#29"
+          ],
+          [
+            "file",
+            {
+              "file": "src/domain/rule/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                37,
+                62
+              ]
+            }
+          ],
+          [
+            "related",
+            "src/domain/rule/types.rs#13"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              37,
+              62
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/domain/rule/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,7 +1,8 @@
 //! Unicode word splitting with the original case-boundary and digit policy.
 use crate::domain::words::types::WordScratch;
 use ryo_values::domain::row_texts::types::CellText;
-pub(crate) fn split(
+/// Deliver lowercase words, in source order, to the supplied row consumer.
+pub fn split(
     text: CellText<'_>,
     scratch: WordScratch<'_>,
     each: &mut dyn crate::domain::words::types::WordOutput,

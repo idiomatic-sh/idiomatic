@@ -1,0 +1,7 @@
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+# The fixture's root holds a Cargo workspace manifest no entry places; its subject is the crate and its parts.
+closed = false
+specs = [
+  { spec = "idiomatic.arch/crate", include = ["greeting"], params = { package = "absent", library = "absent", binary = "absent", distribution = "absent", product = "demo", folder = "demo" } },
+  { spec = "idiomatic.arch/nu-hex", include = ["greeting"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
+]

@@ -1,0 +1,12 @@
+//! The names port, implemented with memory.
+
+use crate::outbound::names::interface::NamesPort;
+
+/// The memory names adapter.
+#[derive(Debug, serde::Deserialize)]
+pub(crate) struct NamesMemoryAdapter;
+
+impl NamesPort for NamesMemoryAdapter {
+    fn stored(&self, asked: &Asked) {
+    }
+}

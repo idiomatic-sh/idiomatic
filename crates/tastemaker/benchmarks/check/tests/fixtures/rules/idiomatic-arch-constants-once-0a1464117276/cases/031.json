@@ -1,0 +1,163 @@
+{
+  "stamp": 31,
+  "rule": "idiomatic.arch/constants-once",
+  "dependency": "Project",
+  "admitted": [
+    "src/domain/definitions/constants.rs",
+    "src/outbound/repository/adapters/disk/constants.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/domain/definitions/constants.rs": "148150cbb43e25d5f050d24ab36cb80fd87e6e75777dcd392cdf358fff311fe3",
+    "src/outbound/repository/adapters/disk/constants.rs": "98c6fa0508b58eed8ae49d7c32dc209b2e1d3e79ad60b8aa367f7f750ad3d23c",
+    "tastemaker.toml": "5366f03b40a92666f74e7b2c5fbc3b57686770cfab58afec70d09337800176ce"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/constants-once",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-constants-once-0a1464117276"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/domain/definitions/constants.rs",
+        "src/outbound/repository/adapters/disk/constants.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "files",
+            2
+          ],
+          [
+            "name",
+            "STORE"
+          ],
+          [
+            "value",
+            ".tastemaker_cache"
+          ],
+          [
+            "file",
+            {
+              "file": "src/domain/definitions/constants.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                193,
+                212
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              193,
+              212
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/domain/definitions/constants.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "files",
+            2
+          ],
+          [
+            "name",
+            "STORE"
+          ],
+          [
+            "value",
+            ".tastemaker_cache"
+          ],
+          [
+            "file",
+            {
+              "file": "src/outbound/repository/adapters/disk/constants.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                299,
+                318
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              299,
+              318
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/repository/adapters/disk/constants.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

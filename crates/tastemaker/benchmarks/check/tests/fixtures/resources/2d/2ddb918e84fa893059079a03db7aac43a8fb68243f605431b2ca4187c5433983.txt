@@ -1,0 +1,6 @@
+pub fn read(pointer: *const u8) -> u8 {
+    unsafe {
+        // SAFETY: the caller passes a valid, aligned pointer.
+        *pointer
+    }
+}

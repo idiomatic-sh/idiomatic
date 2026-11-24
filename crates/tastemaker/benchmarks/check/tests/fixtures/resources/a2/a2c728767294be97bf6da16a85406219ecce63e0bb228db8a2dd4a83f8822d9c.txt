@@ -1,0 +1,2 @@
+// The most a run may reach is the owner's figure, not yet met.
+pub const LIMIT: u64 = 1;

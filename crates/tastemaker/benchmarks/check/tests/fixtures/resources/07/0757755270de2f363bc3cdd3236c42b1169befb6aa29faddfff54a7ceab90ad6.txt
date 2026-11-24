@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/no-language-names", description = "The definition under test, placed alone.", include = ["**"], params = { languages = ["python", "rust"], written = ["go", "Go", "Go[!A-Za-z0-9]*", "*[!A-Za-z0-9]Go", "*[!A-Za-z0-9]Go[!A-Za-z0-9]*", "*JavaScript*"] } }]

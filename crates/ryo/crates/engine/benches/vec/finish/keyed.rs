@@ -50,8 +50,7 @@ impl Exec<'_> {
             super::frame::Op::Select if !pn.counted() => {
                 let sp = self.sel(run, node)?;
                 let closure = sp.srcs.iter().any(|s| self.plan.nodes[*s].op == "closure");
-                let seed = sp.conj.iter().any(|e| matches!(e, E::Seed(..)));
-                if sp.srcs.is_empty() || sp.srcs.len() > 2 || closure || seed || (sp.srcs.len() == 2 && sp.srcs[0] == sp.srcs[1]) || !self.ksel_covers(run, node)? {
+                if sp.srcs.is_empty() || sp.srcs.len() > 2 || closure || (sp.srcs.len() == 2 && sp.srcs[0] == sp.srcs[1]) || !self.ksel_covers(run, node)? {
                     Form::Not
                 } else {
                     Form::Select(sp.items.iter().map(|(_, e)| if let E::Col(si, c, _) = e { Some((*si, *c)) } else { None }).collect())
@@ -64,6 +63,7 @@ impl Exec<'_> {
     /// Whether `node`, not made in this file, is read by key on its column `col`.
     #[inline]
     pub(super) fn keyed_ok(&mut self, f: &File<'_>, run: &mut Run, node: usize, col: usize) -> R<bool> {
+        if let Some(input)=f.population(node) {return Ok(input.can_probe(col));}
         if f.memo[node].is_some() {
             return Ok(false);
         }
@@ -78,6 +78,11 @@ impl Exec<'_> {
     /// `by_size`: the caller judged the keys against the step's size already (a join's driver).
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
     pub(super) fn keyed(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], by_size: bool) -> R<Option<Rc<Table>>> {
+        if let Some(input) = f.population(node) {
+            if !input.can_probe(col) { return Ok(None); }
+            let sc=self.schema(run,node)?;
+            return Ok(Some(input.probe(&sc.names,&sc.tys,col,keys)));
+        }
         if !self.keyed_ok(f, run, node, col)? {
             return Ok(None);
         }
@@ -137,17 +142,11 @@ impl Exec<'_> {
     /// with `make` (the caller reads the step either way: whole, or by key, which makes those inputs too); else it is
     /// unknown (`usize::MAX`). 0 only when the step is empty.
     pub(super) fn keyed_size(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, make: bool) -> R<usize> {
+        if let Some(input)=f.population(node) { return Ok(input.n); }
         if let Some(Res::Tab(t)) = &f.memo[node] {
             return Ok(t.n);
         }
         if let Some(v) = self.view(run, node)? {
-            // The packet decision also supplies the size of a proven empty base.
-            // A keyed planner can use that zero before opening any input slot.
-            if let super::Native::Fact(slot) = v.base
-                && self.requests.proven_empty.get(usize::from(slot)).copied().unwrap_or(false)
-            {
-                return Ok(0);
-            }
             // a view over a fill not read yet in this file: not read for a size
             if let super::Native::Fact(x) = v.base
                 && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
@@ -155,11 +154,9 @@ impl Exec<'_> {
             {
                 return Ok(usize::MAX);
             }
-            let v = match self.res(f, run, p, node)? {
-                Res::Tab(t) => return Ok(t.n),
-                Res::View(v) if v.base == super::Native::Empty => return Ok(0),
-                Res::View(v) => v,
-            };
+            if let Res::Tab(t) = self.res(f, run, p, node)? {
+                return Ok(t.n);
+            }
             // its entry, never its rows read for a size: the kind bucket, the literal rows, its rows if read already,
             // else the relation's rows (an upper bound)
             if let Some(r) = f.vrows.slot(&node) {
@@ -172,7 +169,6 @@ impl Exec<'_> {
                     None => match v.base {
                         super::Native::Tree | super::Native::Location | super::Native::Child => f.n,
                         super::Native::Token => 3 * f.n,
-                        super::Native::Empty => 0,
                         super::Native::Fact(i) => f.facts[usize::from(i)].as_ref().map_or(0, |t| t.n),
                     },
                 },

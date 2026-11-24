@@ -70,8 +70,6 @@ pub(super) fn prepare(read: &ReadPack, lang: Language, vocab: &Vocab) -> Prepare
         skips.push((name.clone(), never, shape));
         rules.push(SpecRule {
             name: name.clone(),
-            node: false,
-            plans: Vec::new(),
             word_cnfs: vec![words],
         });
     }
@@ -167,6 +165,5 @@ pub(super) fn run_first(args: &[&str], vocab: &Vocab, language: fn(&Vocab) -> La
 }
 
 pub(super) fn span_bytes(table: &ryo::languages::NodeTable, i: usize) -> std::ops::Range<usize> {
-    let span = ryo::languages::node_table::span_of(table, ryo::languages::Position(i as u32));
-    span.start.0 as usize..span.end.0 as usize
+    ryo::languages::node_table::starts(table)[i] as usize..ryo::languages::node_table::ends(table)[i] as usize
 }

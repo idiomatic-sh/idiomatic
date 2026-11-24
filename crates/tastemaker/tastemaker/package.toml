@@ -1,0 +1,3 @@
+name = "idiomatic.tastemaker"
+description = "Tastemaker’s product-owned workloads and regression inputs."
+dependencies = [{ package = "idiomatic.arch", path = "../../../tastemaker" }]

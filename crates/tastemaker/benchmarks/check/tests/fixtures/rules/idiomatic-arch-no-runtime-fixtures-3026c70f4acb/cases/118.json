@@ -1,0 +1,109 @@
+{
+  "stamp": 118,
+  "rule": "idiomatic.arch/no-runtime-fixtures",
+  "dependency": "Project",
+  "admitted": [
+    "app/src/inbound/use_cases/greet.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "app/src/inbound/use_cases/greet.rs": "a58e0ad09a9ce0a6e7ce1387039875d0de4df48c79f385060b67abfa2bc1c281",
+    "tastemaker.toml": "2188273d3ef4d99c9c4694928592a53dd12241fbf1eab4cc3798ae8973aefdc8"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/acceptance.rs",
+        "**/acceptance.rs/**",
+        "**/tests/**",
+        "**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-runtime-fixtures",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-runtime-fixtures-3026c70f4acb"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "app/src/inbound/use_cases/greet.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "app/src/inbound/use_cases/greet.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                43
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              43
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "app/src/inbound/use_cases/greet.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

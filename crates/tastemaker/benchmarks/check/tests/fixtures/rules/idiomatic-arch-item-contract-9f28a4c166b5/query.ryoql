@@ -1,0 +1,14 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let files = select * from tree-nodes where kind = "source-file";
+let item-tests = capture(from=files, path="file", pattern="{*root}/collections/{collection}/{item}/item_test.rs", captures=["root", "collection", "item"]);
+let contracts = capture(from=files, path="file", pattern="{*root}/collections/{collection}/fixtures/contract.rs", captures=["root", "collection"]);
+let contract-keys = project(from=contracts, columns=["root", "collection"]);
+let required = select l."file" as "file", l."span" as "span" from item-tests as l join contract-keys as r on l."root" = r."root" and l."collection" = r."collection";
+let path-calls = select l."file" as "file", l."span" as "span", l."target" as "target" from "static-call" as l join "reference" as r on l."file" = r."file" and l."span" = r."span" and l."target" = r."target";
+let qualified-calls = select * from path-calls where glob_any(target, "{contract::check,contract::check_with,*::contract::check,*::contract::check_with}");
+let qualified = project(from=qualified-calls, columns=["file"]);
+let check-imports = select * from "static-import" where glob_any(target, "{contract::check,contract::check_with,*::contract::check,*::contract::check_with}");
+let imported-calls = select l."file" as "file" from path-calls as l join check-imports as r on l."file" = r."file" and l."target" = r."binding";
+let calling = union(left=qualified, right=imported-calls);
+let silent = antijoin(left=required, right=calling, left-on=["file"], right-on=["file"]);
+emit silent subject "file" key("file");

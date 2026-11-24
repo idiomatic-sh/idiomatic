@@ -8,10 +8,6 @@ use super::types::{FieldIndex, OpenWalked, ParserRefusal, Said, Strings, Walker}
 use super::writer::visit_element;
 use crate::domain::extras::types::Extra;
 use crate::domain::labels::types::Field;
-use crate::domain::model::lexical::service::{named, opened};
-use crate::domain::model::names::constants::FIXED_TEXT;
-use crate::domain::model::names::service::{intern, text_of};
-use crate::domain::model::names::types::NameCode;
 use crate::domain::node::service::{field_code, token_field};
 use crate::domain::node::types::{AnnotationSeed, Placed, StringSite};
 use crate::domain::node_fields::service::child_fields;
@@ -20,6 +16,10 @@ use crate::domain::syntax::constants::{
     MODULE_FUTURE_ANNOTATIONS_ENABLED,
 };
 use crate::domain::syntax::service::kind_bits;
+use crate::domain::model::lexical::service::opened;
+use crate::domain::model::names::constants::FIXED_TEXT;
+use crate::domain::model::names::service::{intern, text_of};
+use crate::domain::model::names::types::NameCode;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use ruff_python_ast::visitor::source_order::{
@@ -87,22 +87,13 @@ impl Walker<'_, '_, '_> {
             (Some(open), Kind::Token(named)) => token_field(open.node, token.kind(), named),
             (Some(_) | None, Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)) => Field::None,
         };
-        if !self.names.deferred && matches!(kind, Kind::Token(Token::Name)) && !self.text.is_empty()
-        {
+        if matches!(kind, Kind::Token(Token::Name)) && !self.text.is_empty() {
             if token.kind().is_non_soft_keyword() {
                 // A keyword is a fixed text of the language: its code is its kind's, the same in every file.
-                self.names
-                    .of_token
-                    .push(NameCode(FIXED_TEXT | token.kind() as u32));
+                self.names.of_token.push(NameCode(FIXED_TEXT | token.kind() as u32));
             } else {
                 self.name_token(start, end);
             }
-        }
-        if let Some(shapes) = &mut self.shapes
-            && let Kind::Token(token) = kind
-            && crate::domain::expression_shapes::service::significant(token).is_some()
-        {
-            shapes.token(kind_bits(kind), self.text.get(start.0 as usize..end.0 as usize).unwrap_or_default());
         }
         node_table::token(self.builder, kind_bits(kind), field_code(field), start, end);
         self.written = end;
@@ -127,7 +118,7 @@ impl Walker<'_, '_, '_> {
     /// Writes every token that ends at or before `at`: what comes before a node that starts there. A token of no length where the
     /// innermost open node ends is outside that node, so it waits until the node is closed.
     fn write_before(&mut self, at: Offset) {
-        let edge = self.open.last().map(|open| open.end);
+        let edge = self.ends.last().copied();
         let origin = self.origin;
         while self.tokens.get(self.next.0).is_some_and(|token| {
             placed(origin, token.end()) <= at
@@ -182,14 +173,10 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
 
     fn enter_node(&mut self, node: AnyNodeRef<'t>) -> TraversalSignal {
         let root = self.open.is_empty();
-        let (start, end) = if root {
-            (Offset(0), self.length)
+        let start = if root {
+            Offset(0)
         } else {
-            let span = node.range();
-            (
-                placed(self.origin, span.start()),
-                placed(self.origin, span.end()),
-            )
+            placed(self.origin, node.start())
         };
         self.write_before(start);
         self.fill(start);
@@ -199,13 +186,9 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         // The id the table gives the node as it opens: the walk keeps it in the library's own node index.
         let id = u32::try_from(self.nodes.len()).unwrap_or(u32::MAX);
         node.node_index().set(NodeIndex::from(id));
-        let kind = concrete_node_kind(node, strings);
-        if let Some(shapes) = &mut self.shapes {
-            shapes.enter(Position(id), kind, field);
-        }
         node_table::enter_node(
             self.builder,
-            kind_bits(kind),
+            kind_bits(concrete_node_kind(node, strings)),
             field_code(field),
             start,
         );
@@ -264,16 +247,7 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             // No other node is kept apart for the reader of the tree.
         }
         self.subtree_ends.push(Position(id.saturating_add(1)));
-        if !self.names.deferred {
-            opened(
-                &mut self.names.lexical,
-                &mut self.names.names,
-                &self.nodes,
-                &self.parents,
-                &self.subtree_ends,
-                at,
-            );
-        }
+        opened(&mut self.names.lexical, &mut self.names.names, &self.nodes, &self.parents, &self.subtree_ends, at);
         let from = FieldIndex(self.fields.len());
         child_fields(
             Placed {
@@ -288,7 +262,6 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             at,
             from,
             next: from,
-            end,
         });
         if let Some(opened) = opens(node.kind()) {
             self.strings.push(opened);
@@ -309,12 +282,17 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         if let AnyNodeRef::StmtImportFrom(statement) = node {
             self.refused.extend(unknown_futures(statement));
         }
+        self.ends.push(if root {
+            self.length
+        } else {
+            placed(self.origin, node.end())
+        });
         TraversalSignal::Traverse
     }
 
     fn leave_node(&mut self, node: AnyNodeRef<'t>) {
         // Where the node ends, as it was placed when it opened.
-        let placed_end = self.open.last().map(|open| open.end);
+        let placed_end = self.ends.pop();
         if opens(node.kind()).is_some() {
             let _: Option<Strings> = self.strings.pop();
         }
@@ -331,12 +309,6 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         };
         self.fill(end);
         if let Some(open) = self.open.pop() {
-            if let Some(shapes) = &mut self.shapes {
-                shapes.leave(open.at, node, || {
-                    self.names.lexical.name.get(usize::from(open.at)).copied()
-                        .unwrap_or_else(|| named(&mut self.names.names, node))
-                });
-            }
             self.fields.truncate(open.from.0);
             let after = Position(u32::try_from(self.nodes.len()).unwrap_or(u32::MAX));
             if let Some(subtree_end) = self.subtree_ends.get_mut(usize::from(open.at)) {

@@ -1,0 +1,5 @@
+let tests = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "{use_case_test.rs,**/use_case_test.rs}");
+let proving = select l."file" as "file" from "string-literal" as l where glob_any(l."value", "*bounded*") and glob_any(l."file", "{use_case_test.rs,**/use_case_test.rs}");
+let proved = project(from=proving, columns=["file"]);
+let missing = antijoin(left=tests, right=proved, left-on=["file"], right-on=["file"]);
+emit missing subject "file" key("file");

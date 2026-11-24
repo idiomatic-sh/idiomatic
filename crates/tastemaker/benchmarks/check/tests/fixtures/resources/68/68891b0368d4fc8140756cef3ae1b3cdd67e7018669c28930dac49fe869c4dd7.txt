@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/entry-traits-witnessed", description = "The definition under test, placed alone.", include = ["**"], params = { implementer = ["Witness"], interfaces = ["src/interface.rs"], non-entries = [{ trait = "PreparedQueries", why = "reads the plans a program was prepared from and takes no root" }], witness = ["tests/witness.rs"] } }]

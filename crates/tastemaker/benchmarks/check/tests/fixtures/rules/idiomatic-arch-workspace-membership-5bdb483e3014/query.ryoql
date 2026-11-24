@@ -1,0 +1,6 @@
+let manifests = select * from "tastemaker.placed" where template = "cargo-package";
+let members = project(from="workspace-member", columns=["package"]);
+let unlisted = antijoin(left=manifests, right=members, left-on=["path"], right-on=["package"]);
+let roots = project(from="workspace-member", columns=["workspace"]);
+let outside = antijoin(left=unlisted, right=roots, left-on=["path"], right-on=["workspace"]);
+emit outside subject "path" key("path");

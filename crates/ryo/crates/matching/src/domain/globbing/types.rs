@@ -57,9 +57,12 @@ pub(crate) struct Subject<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct GlobText<'a>(pub &'a str);
 
-/// The authored text of a glob the interpreter keeps.
+/// The authored glob and a literal that must occur in every matching subject.
 #[derive(Clone, Debug)]
-pub(crate) struct OwnedGlobText(pub Box<str>);
+pub(crate) struct OwnedGlobText {
+    pub pattern: Box<str>,
+    pub required: std::ops::Range<usize>,
+}
 
 /// A character of the text.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

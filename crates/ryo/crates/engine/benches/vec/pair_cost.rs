@@ -78,8 +78,9 @@ pub(crate) fn family(d: &Domain, facts: &[super::Fact]) -> Family {
 }
 pub(crate) fn file_family(p: &Program, id: Id) -> Family {
     match p.needs[id] {
-        Need::PathMatches(_) => Filename,
+        Need::PathGlob(_) | Need::PathMatches(..) => Filename,
         Need::SourceContains(_) => Sets,
+        Need::SyntaxMatches(..) => Text,
         Need::Some(x) => family(&p.domains[x], &p.facts),
         _ => Logic,
     }
@@ -129,7 +130,7 @@ impl SchedulePlan<'_> {
                 }
             }
             Need::Some(x) => z = z.with(self.node(x)),
-            Need::SourceContains(_) | Need::PathMatches(_) if self.omit & class.bit() != 0 => {
+            Need::SyntaxMatches(..) | Need::SourceContains(_) | Need::PathGlob(_) | Need::PathMatches(..) if self.omit & class.bit() != 0 => {
                 self.p.needs[id] = Need::Any
             }
             _ => {}

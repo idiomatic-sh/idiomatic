@@ -1,0 +1,12 @@
+use crate::collections::shapes::interface::ShapesItem;
+
+pub struct CircleItem {
+    radius: f64,
+}
+
+impl ShapesItem for CircleItem {
+    #[tracing::instrument(level = "info", skip_all)]
+    fn area(&self) -> f64 {
+        self.radius * self.radius * 3.14
+    }
+}

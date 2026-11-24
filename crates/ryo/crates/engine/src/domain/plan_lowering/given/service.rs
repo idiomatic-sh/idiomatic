@@ -230,13 +230,23 @@ pub(crate) fn extended_values(given: &mut GivenArguments<'_>) -> Result<Vec<Exte
 }
 
 /// A `rows`'s `from`: its constant table, each row a list of texts.
-pub(crate) fn constant_rows(given: &mut GivenArguments<'_>) -> Result<Vec<ConstantRow>, PlanLoweringError> {
+pub(crate) fn constant_rows(given: &mut GivenArguments<'_>, columns: &[ColumnName]) -> Result<Vec<ConstantRow>, PlanLoweringError> {
     let PlanConstant::List(rows) = given_constant(given, ARG_FROM)? else {
         return Err(refused(given, ARG_FROM));
     };
     let mut table = Vec::with_capacity(rows.len());
     for row in rows {
-        let cells = text_list(row).ok_or_else(|| refused(given, ARG_FROM))?;
+        let cells = match row {
+            PlanConstant::Map(entries) => columns.iter().map(|column| {
+                entries.iter().find(|e| e.key.0 == column.0)
+                    .and_then(|e| match &e.value {
+                        PlanConstant::Text(t) => Some(t.0.clone()),
+                        _ => None,
+                    }).ok_or_else(|| refused(given, ARG_FROM))
+            }).collect::<Result<Vec<_>, _>>()?,
+            other => text_list(other).filter(|cells| cells.len() == columns.len())
+                .ok_or_else(|| refused(given, ARG_FROM))?,
+        };
         table.push(ConstantRow {
             cells: cells.into_iter().map(LiteralText).collect(),
         });
