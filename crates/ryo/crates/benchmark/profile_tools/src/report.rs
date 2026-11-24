@@ -62,7 +62,13 @@ pub fn report(output: &mut impl io::Write, profile: &Profile, directory: &Path) 
                     output,
                     "Allocation-count parity is unverified. Heaptrack provides cumulative requested bytes for the whole image and live bytes by site at the peak.\n"
                 )?;
-                heap_sites(output, &fs::read_to_string(&report)?)?;
+                let text = fs::read_to_string(&report)?;
+                let peak = text
+                    .lines()
+                    .find_map(|line| line.strip_prefix("peak heap memory consumption: "))
+                    .ok_or_else(|| io::Error::other("missing Heaptrack heap total at peak"))?;
+                writeln!(output, "Heaptrack live heap at peak: {peak}.\n")?;
+                heap_sites(output, &text)?;
                 writeln!(output, "\nFull tool report: `{}`.", report.display())?;
                 continue;
             }
