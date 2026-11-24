@@ -81,6 +81,7 @@ pub(super) enum Need {
     Terms(bool, Box<[Id]>),
     Any,
     PathMatches(usize, bool),
+    CapturedPath(patterns::CapturePath),
     SyntaxMatches(usize, bool),
     InvalidPattern(usize), // proof prerequisite, resolved during plan compaction
     SourceContains(usize),
@@ -1467,6 +1468,14 @@ impl Builder<'_> {
             }
             Capture(x) => {
                 out = rows[x.from.0].clone();
+                if self.syntax_symbols
+                    && let Some(col) = out.column(&x.path.0)
+                    && col.attr == Attribute::FilePath
+                    && let Some(pattern) = patterns::CapturePath::from_pattern(&x.pattern.0)
+                {
+                    let path = self.need(Need::CapturedPath(pattern));
+                    out.need = self.and(path, out.need);
+                }
                 out.retain_columns(|(n, _)| !x.captures.iter().any(|col| *n == &*col.0));
             }
             AsOf(x) => return self.ordered(&rows[x.left.0], &rows[x.right.0], &x.output),

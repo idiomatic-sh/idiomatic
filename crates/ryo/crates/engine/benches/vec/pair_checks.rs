@@ -188,6 +188,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Need::Any => true,
             Need::Empty => false,
             Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
+            Need::CapturedPath(ref capture) => self.path.is_none_or(|path| capture.allows(path)),
             Need::PathMatches(re,yes) => self.path.is_none_or(|p|
                 self.p.regexes[re].compiled().is_none_or(|r| r.is_match(p) == yes)),
             Need::SyntaxMatches(re,yes) => self.syntax_text.is_none_or(|col|{

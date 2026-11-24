@@ -176,6 +176,8 @@ impl Live {
             c.unique_pairs,
             c.skipped,
             c.evaluated,
+            c.productive,
+            c.refused,
         ];
         result
     }
@@ -333,7 +335,7 @@ struct Measurement {
     reasons: BTreeMap<String, usize>,
     elapsed: f64,
     parts: [f64; 6],
-    counts: [usize; 8],
+    counts: [usize; 10],
     retained: [u64; 4],
 }
 static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measurement {
@@ -345,7 +347,7 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     reasons: BTreeMap::new(),
     elapsed: 0.0,
     parts: [0.0; 6],
-    counts: [0; 8],
+    counts: [0; 10],
     retained: [0; 4],
 });
 
@@ -360,14 +362,15 @@ pub fn print_measurement() {
     let [versions,hits,evictions,peak_charge]=m.retained;
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;
-    let [plans, bindings, sources, reads, parses, pairs, skips, eval] = m.counts;
+    let [plans, bindings, sources, reads, parses, pairs, skips, eval, productive, refused] = m.counts;
+    let empty = eval - productive - refused;
     let [inventories, builds, relations, repeated] = m.project_counts;
     eprintln!(
         "PROJECT_POPULATIONS sessions={} inventories={inventories} builds={builds} relations={relations} repeated_relations={repeated}",
         m.sessions,
     );
     eprintln!(
-        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6}",
+        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} productive={productive} empty={empty} refused={refused} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6}",
         m.calls,
         m.requests,
         m.refused,
