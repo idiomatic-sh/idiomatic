@@ -338,7 +338,7 @@ impl Observations {
 pub(super) struct Record {
     pub proof: Vec<Proof>,
     pub packet: Key,
-    pub unread: Vec<String>,
+    pub unread: Vec<(String, String)>,
 }
 
 #[derive(Serialize, Deserialize)]

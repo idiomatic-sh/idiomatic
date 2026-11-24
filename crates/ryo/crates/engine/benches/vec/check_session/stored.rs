@@ -171,7 +171,7 @@ pub(super) struct Store {
     pairs: Vec<Option<(usize, usize)>>,
     program_keys: Vec<Key>,
     binding_keys: Vec<Key>,
-    plans: Vec<Option<(Vec<Proof>, Vec<String>)>>,
+    plans: Vec<Option<(Vec<Proof>, Vec<(String, String)>)>>,
     keep_pairs: Vec<bool>,
     local_rows: Vec<bool>,
     project_proofs: HashMap<usize, Option<Proof>>,
@@ -478,15 +478,15 @@ impl Store {
     pub(super) fn contract_file(&mut self, p: &Path) -> Option<Key> {
         self.observed.observe(p, Probe::Bytes)
     }
-    pub(super) fn lookup(&mut self, id: Key) -> Option<(Key, &[String])> {
+    pub(super) fn lookup(&mut self, id: Key) -> Option<(Key, &[(String, String)])> {
         self.lookup_for(None, id)
     }
 
-    pub(super) fn lookup_in(&mut self, scope: InputScope, id: Key) -> Option<(Key, &[String])> {
+    pub(super) fn lookup_in(&mut self, scope: InputScope, id: Key) -> Option<(Key, &[(String, String)])> {
         self.lookup_for(Some(scope), id)
     }
 
-    fn lookup_for(&mut self, scope: Option<InputScope>, id: Key) -> Option<(Key, &[String])> {
+    fn lookup_for(&mut self, scope: Option<InputScope>, id: Key) -> Option<(Key, &[(String, String)])> {
         self.requests.open(&self.dir, &id);
         let r = self.requests.get(&id)?;
         for &(group, expected) in &r.proof {
@@ -531,7 +531,7 @@ impl Store {
         id: Key,
         mut packet: Packet,
         proof: Vec<Proof>,
-        unread: Vec<String>,
+        unread: Vec<(String, String)>,
         render: impl FnOnce() -> String,
     ) -> Key {
         let k = key((&packet.refusal, &packet.unknowns, &packet.rejected_syntax, packet.typed_bytes()));
@@ -544,7 +544,7 @@ impl Store {
         self.record(id, k, proof, unread);
         k
     }
-    fn record(&mut self, id: Key, packet: Key, proof: Vec<Proof>, unread: Vec<String>) {
+    fn record(&mut self, id: Key, packet: Key, proof: Vec<Proof>, unread: Vec<(String, String)>) {
         self.requests.open(&self.dir, &id);
         self.requests.insert(
             id,
@@ -976,7 +976,9 @@ impl Store {
             return;
         }
         let Some(p) = pop else { return };
-        let unread = p.refused.iter().map(|r| r.path.0.to_string()).collect();
+        let unread = p.refused.iter()
+            .map(|r| (r.path.0.to_string(), r.reason.0.to_string()))
+            .collect();
         let Some((project, root)) = project.and_then(|(id, authority)| authority.disk().map(|root| (id, root))) else {
             if let Some((_, u)) = &mut self.plans[idx] {
                 *u = unread;
@@ -1078,7 +1080,7 @@ mod tests {
             key("first"),
             Packet::declined("replacement"),
             vec![evidence],
-            vec![],
+            vec![("input".into(), "unreadable project input".into()); 2],
             String::new,
         );
         let shards = store.requests.index().clone();
@@ -1090,7 +1092,12 @@ mod tests {
         let old = scope(&mut store, "old bytes");
         let new = scope(&mut store, "new bytes");
         for (input, key_name, text) in [(old, "first", "replacement"), (new, "second", "second")] {
-            let (packet, _) = store.lookup_in(input, key(key_name)).unwrap();
+            let (packet, unread) = store.lookup_in(input, key(key_name)).unwrap();
+            if key_name == "first" {
+                assert_eq!(unread, vec![("input".to_owned(), "unreadable project input".to_owned()); 2].as_slice());
+            } else {
+                assert!(unread.is_empty());
+            }
             assert_eq!(store.packet(&packet).refusal.as_deref(), Some(text));
         }
         assert!(store.lookup_in(new, key("first")).is_none());
