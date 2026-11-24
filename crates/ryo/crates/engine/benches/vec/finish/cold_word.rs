@@ -101,7 +101,7 @@ fn compare(run: &Run, ty: Ty, op: Op, literal: &E, reverse: bool) -> Option<Word
             match ty {
                 Ty::Sym => Box::new(move |r, w| w != NULL && accept(r.text(w as u32).cmp(&rhs))),
                 Ty::File => Box::new(move |r, w| {
-                    w != NULL && accept(r.text(r.path_sym[w as usize]).cmp(&rhs))
+                    w != NULL && accept(r.paths[w as usize].as_bytes().cmp(&rhs))
                 }),
                 Ty::Flag => {
                     let yes = accept(b"true".as_slice().cmp(&rhs));
@@ -124,7 +124,7 @@ pub(super) fn as_bytes(ty: Ty) -> for<'a> fn(&'a Run, u64) -> std::borrow::Cow<'
     use std::borrow::Cow;
     match ty {
         Ty::Sym => |r, w| Cow::Borrowed(r.text(w as u32)),
-        Ty::File => |r, w| Cow::Borrowed(r.text(r.path_sym[w as usize])),
+        Ty::File => |r, w| Cow::Borrowed(r.paths[w as usize].as_bytes()),
         Ty::Num => |_, w| Cow::Owned((w as i64).to_string().into_bytes()),
         Ty::Flag => |_, w| Cow::Borrowed(if w == 1 { b"true" } else { b"false" }),
         _ => |_, _| Cow::Borrowed(&[]),
@@ -133,7 +133,7 @@ pub(super) fn as_bytes(ty: Ty) -> for<'a> fn(&'a Run, u64) -> std::borrow::Cow<'
 fn text_predicate(ty: Ty, test: impl Fn(&[u8]) -> bool + 'static) -> Test {
     match ty {
         Ty::Sym => Box::new(move |r, w| test(r.text(w as u32))),
-        Ty::File => Box::new(move |r, w| test(r.text(r.path_sym[w as usize]))),
+        Ty::File => Box::new(move |r, w| test(r.paths[w as usize].as_bytes())),
         _ => {
             let read = as_bytes(ty);
             Box::new(move |r, w| test(&read(r, w)))
@@ -151,9 +151,9 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
         if let [x] = ids.as_slice() {
             return Some(Word::Eq(u64::from(*x)));
         }
-        let ids: Box<[u64]> = ids.into_iter().map(u64::from).collect();
+        let ids = super::symbol_predicate::SymbolSet::bind(run, ids.into_iter().map(u64::from).collect());
         return Some(Word::Test(Box::new(move |_, w| {
-            ids.binary_search(&w).is_ok()
+            ids.contains(w)
         })));
     }
     let test: Test = match e {
@@ -180,7 +180,7 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
             let E::List(items) = &**items else {
                 return None;
             };
-            let mut words = items
+            let words = items
                 .iter()
                 .map(|e| {
                     if let E::Text(s) = e {
@@ -190,14 +190,14 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
                     }
                 })
                 .collect::<Option<Vec<_>>>()?;
-            words.sort_unstable();
-            Box::new(move |_, w| words.binary_search(&w).is_err())
+            let words = super::symbol_predicate::SymbolSet::bind(run, words);
+            Box::new(move |_, w| !words.contains(w))
         }
         E::TextTest(x, re) if is_col(x, c) => {
             let re = re.clone();
             if ty == Ty::Sym { Box::new(move |r, w| re.symbol(r, w as u32)) }
-            else if ty == Ty::File && matches!(re, super::TextTest::Glob(_)) {
-                Box::new(move |r, w| re.symbol(r, r.path_sym[w as usize]))
+            else if ty == Ty::File && matches!(re, super::TextTest::Glob(_) | super::TextTest::Any(_)) {
+                Box::new(move |r, w| re.value(r, super::V::new(Ty::File, w)))
             } else { text_predicate(ty, move |bytes| re.bytes(bytes)) }
         }
         E::Call(name, args) => match (name.as_str(), args.as_slice()) {

@@ -12,7 +12,7 @@ pub(super) enum Test {
     /// `col != id`.
     Ne(usize, u64),
     /// `col in [ids]` (`true`: `not in`).
-    In(usize, Box<[u64]>, bool),
+    In(usize, std::rc::Rc<super::symbol_predicate::SymbolSet>, bool),
     /// `col is null` (`true`: `is not null`).
     Null(usize, bool),
     /// `a = b` (`true`) or `a != b` (`false`) on two columns of one type.
@@ -25,11 +25,11 @@ pub(super) enum Test {
 }
 
 /// A view filter's conjuncts compiled.
-pub(super) fn compile(filter: &[E]) -> Vec<Test> {
-    filter.iter().map(one).collect()
+pub(super) fn compile(run: &Run, filter: &[E]) -> Vec<Test> {
+    filter.iter().map(|e| one(run, e)).collect()
 }
 
-fn one(e: &E) -> Test {
+fn one(run: &Run, e: &E) -> Test {
     match e {
         E::Cmp(o @ (Op::Eq | Op::Ne), a, b) => match (&**a, &**b) {
             (E::Col(0, c, super::Ty::Sym), E::Text(t)) | (E::Text(t), E::Col(0, c, super::Ty::Sym)) => {
@@ -40,7 +40,7 @@ fn one(e: &E) -> Test {
         },
         E::In(a, b, neg) => match (&**a, &**b) {
             (E::Col(0, c, super::Ty::Sym), E::List(items)) if items.iter().all(|i| matches!(i, E::Text(_))) => {
-                Test::In(*c, items.iter().map(|i| if let E::Text(t) = i { u64::from(*t) } else { NULL }).collect(), *neg)
+                Test::In(*c, super::symbol_predicate::SymbolSet::bind(run, items.iter().filter_map(|i| if let E::Text(t) = i { Some(u64::from(*t)) } else { None }).collect()), *neg)
             }
             _ => Test::Eval(e.clone()),
         },
@@ -48,9 +48,9 @@ fn one(e: &E) -> Test {
             E::Col(0, c, _) => Test::Null(*c, *not),
             _ => Test::Eval(e.clone()),
         },
-        E::Not(a) => Test::Not(Box::new(one(a))),
-        E::And(a, b) => Test::And(Box::new(one(a)), Box::new(one(b))),
-        E::Or(a, b) => Test::Or(Box::new(one(a)), Box::new(one(b))),
+        E::Not(a) => Test::Not(Box::new(one(run, a))),
+        E::And(a, b) => Test::And(Box::new(one(run, a)), Box::new(one(run, b))),
+        E::Or(a, b) => Test::Or(Box::new(one(run, a)), Box::new(one(run, b))),
         _ => Test::Eval(e.clone()),
     }
 }
@@ -83,7 +83,7 @@ fn holds(f: &File<'_>, run: &mut Run, base: Native, t: &Test, row: u32) -> bool 
         Test::Ne(c, v) => cell(f, run, base, row, *c) != *v,
         Test::In(c, vs, neg) => {
             let x = cell(f, run, base, row, *c);
-            (x != NULL && vs.contains(&x)) != *neg
+            (x != NULL && vs.contains(x)) != *neg
         }
         Test::Null(c, not) => (cell(f, run, base, row, *c) == NULL) != *not,
         Test::Cols(a, b, want) => {
@@ -134,7 +134,7 @@ pub(super) fn retain_original(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &
                     let col = &tab.cols[*c];
                     rows.retain(|r| {
                         let x = col[*r as usize];
-                        (x != NULL && vs.contains(&x)) != *neg
+                        (x != NULL && vs.contains(x)) != *neg
                     });
                     continue;
                 }

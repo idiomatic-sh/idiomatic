@@ -390,7 +390,7 @@ impl Store {
         let bindings: Vec<_> = b
             .bindings
             .iter()
-            .map(|(r, host)| key((rules[*r], host)))
+            .zip(&b.program_of).map(|(host, r)| key((rules[*r], host)))
             .collect();
         self.pairs.resize(b.schedule.pairs, None);
         for (i, src) in b.schedule.sources.iter().enumerate() {
@@ -473,7 +473,7 @@ impl Store {
             if !requested {
                 continue;
             }
-            if world.frontiers.contains_key(&slot) {
+            if world.frontier_parts(slot).is_some() {
                 continue;
             }
             let Some((version, binding)) = self.pairs[slot] else {
@@ -496,7 +496,7 @@ impl Store {
                     (n, block)
                 })
                 .collect();
-            world.frontiers.insert(slot, parts);
+            world.restore_frontier(slot, parts);
             if !pair.unavailable.is_empty() {
                 let missing = pair
                     .unavailable
@@ -582,7 +582,7 @@ impl Store {
                     continue;
                 }
                 let mut frontier = Vec::new();
-                if let Some(parts) = world.frontiers.get(&a) {
+                if let Some(parts) = world.frontier_parts(a) {
                     for (node, block) in parts {
                         let addr = (version, Rc::as_ptr(block));
                         let index = *encoded.entry(addr).or_insert_with(|| {

@@ -8,7 +8,6 @@ use serde_json::json;
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufRead as _, Write as _};
-use std::rc::Rc;
 
 #[derive(Deserialize)]
 struct Request {
@@ -43,13 +42,13 @@ struct Hosted {
     name: String,
     columns: Vec<(String, String)>,
     #[serde(deserialize_with = "read_host_rows")]
-    rows: Rc<[Rc<[HostCell]>]>,
+    rows: std::sync::Arc<[std::sync::Arc<[HostCell]>]>,
     #[serde(default)]
     partial: Option<String>,
 }
 
-fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Rc<[Rc<[HostCell]>]>, D::Error> {
-    Vec::<Vec<HostCell>>::deserialize(input).map(|rows| rows.into_iter().map(Rc::from).collect())
+fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<std::sync::Arc<[std::sync::Arc<[HostCell]>]>, D::Error> {
+    Vec::<Vec<HostCell>>::deserialize(input).map(|rows| rows.into_iter().map(std::sync::Arc::from).collect())
 }
 
 struct Snapshot<'a> {
@@ -218,9 +217,8 @@ fn execute_populations(
 ) -> Result<Vec<finish::answer::Row>, String> {
     // Host File cells are numbered by the full inventory. Admission restricts
     // source contributions and the final subjects, not the host's numbering.
-    if run.paths != inventory {
-        run.path_sym = inventory.iter().map(|p| run.sym(p.as_bytes())).collect();
-        run.paths = inventory.to_vec();
+    if run.paths.as_slice() != inventory {
+        run.paths = inventory.to_vec().into();
     }
     let numbers: Vec<_> = (0..inventory.len() as u32).collect();
     execute_ids(

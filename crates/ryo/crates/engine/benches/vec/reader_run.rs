@@ -26,19 +26,31 @@ struct Request {
 
 /// Dense local bit numbers only for names that occur in a necessary condition.
 #[derive(Default)]
-struct Names(HashMap<u32, u16>);
+struct Names {
+    // Only summary vocabulary extends this table, before file dispatch.
+    // A file-local spelling beyond its end has no summary bit.
+    by_symbol: Vec<Option<u16>>,
+    count: usize,
+}
 
 impl Names {
     fn code(&mut self, id: u32) -> u16 {
-        let next = u16::try_from(self.0.len()).expect("too many distinct summary words");
-        *self.0.entry(id).or_insert(next)
+        let index = id as usize;
+        if index >= self.by_symbol.len() {
+            self.by_symbol.resize(index + 1, None);
+        }
+        *self.by_symbol[index].get_or_insert_with(|| {
+            let code = u16::try_from(self.count).expect("too many distinct summary words");
+            self.count += 1;
+            code
+        })
     }
     fn width(&self) -> usize {
-        self.0.len().div_ceil(64).max(1)
+        self.count.div_ceil(64).max(1)
     }
     fn mark(&self, value: u32, bits: &mut [u64]) {
-        if let Some(code) = self.0.get(&value) {
-            bits[usize::from(*code) / 64] |= 1 << (code % 64);
+        if let Some(&Some(code)) = self.by_symbol.get(value as usize) {
+            bits[usize::from(code) / 64] |= 1 << (code % 64);
         }
     }
     fn present(&self, values: impl Iterator<Item = u32>) -> Vec<u64> {
@@ -231,12 +243,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
         .map(|k| run.sym(k.0.as_bytes()))
         .collect();
     run.root_dir = req.root.clone();
-    run.paths = req.files.clone();
-    run.path_sym = req
-        .files
-        .iter()
-        .map(|path| run.sym(path.as_bytes()))
-        .collect();
+    run.paths = req.files.clone().into();
     let mut kinds = Names::default();
     let mut fields = Names::default();
     let mut words = Names::default();
@@ -448,6 +455,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
                     ids: &provider.text,
                     symbols: &fin.run.texts,
                     patterns: None,
+                    column: None,
                 },
                 &bytes,
                 path,

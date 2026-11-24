@@ -6,7 +6,7 @@ use ryo_execution_domain::domain::coverage::types::Recovery;
 use ryo_language::domain::files::types::ProjectEntries;
 use std::{collections::HashMap, sync::Arc};
 
-pub(crate) trait Source: Clone {
+pub(crate) trait Source: Clone + Sync {
     fn name(&self) -> &str;
     type File: Default;
     type Dictionary: Default;

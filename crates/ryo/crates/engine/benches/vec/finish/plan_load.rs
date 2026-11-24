@@ -1,7 +1,7 @@
 //! Direct handoff from the lowered slot graph. The first walk and executor share the same
 //! immutable steps. External, explicitly supplied plan files retain the older file format.
 use super::plan_args::Param;
-use super::{Args, J, PNode, Plan, Rc};
+use super::{Args, J, PNode, Plan};
 use ryo_values::domain::finish_plans::{
     arguments::{
         groups::types::CountedRows, joins::types::AsOfBound, literals::types::ArgumentValue,
@@ -14,10 +14,10 @@ use ryo_values::domain::plan_parts::types::Side;
 use std::collections::BTreeMap;
 #[derive(Debug)]
 pub(super) enum Source {
-    Lowered(Rc<FinishPlan>, usize),
+    Lowered(std::sync::Arc<FinishPlan>, usize),
     External(J),
 }
-pub(crate) fn from_typed(plan: Rc<FinishPlan>) -> Plan {
+pub(crate) fn from_typed(plan: std::sync::Arc<FinishPlan>) -> Plan {
     let nodes = plan
         .steps
         .iter()

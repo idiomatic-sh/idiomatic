@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Default)]
 pub(in super::super) struct Partition {
+    pub domains: BTreeMap<usize, (usize, usize)>,
     pub inputs: Vec<usize>,
     pub columns: BTreeMap<usize, Vec<bool>>,
     pub filters: BTreeMap<usize, Vec<(usize, Vec<u8>)>>,
@@ -260,7 +261,9 @@ pub(in super::super) fn partition(
             filters.insert(source, alternatives.into_iter().collect());
         }
     }
+    let domains = super::session::demand::domains(exec, run, &local, &input_set);
     Ok(Partition {
+        domains,
         columns,
         filters,
         inputs: input_set.into_iter().collect(),

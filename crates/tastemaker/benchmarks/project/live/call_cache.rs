@@ -14,7 +14,7 @@ pub(super) struct CallCache {
     selections: HashMap<Selection, usize>,
     queries: HashSet<Rc<str>>,
     schemas: HashMap<(String, Vec<(String, String)>), usize>,
-    rows: Vec<Rc<[HostCell]>>,
+    rows: Vec<std::sync::Arc<[HostCell]>>,
     by_hash: HashMap<(usize, u64), Vec<usize>>,
     tables: HashMap<(usize, Vec<usize>), Hosted>,
 }
@@ -128,7 +128,7 @@ impl CallCache {
                         _ => return Err("host cell disagrees with declaration".to_owned()),
                     })
                 })
-                .collect::<Result<Rc<[_]>, _>>()?;
+                .collect::<Result<std::sync::Arc<[_]>, _>>()?;
             let i = self.rows.len();
             self.rows.push(cells);
             bucket.push(i);

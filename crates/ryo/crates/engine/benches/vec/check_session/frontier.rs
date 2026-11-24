@@ -9,14 +9,15 @@ use std::{
 pub(super) struct FileInputs<'a> {
     columns: BTreeMap<&'a str, Vec<bool>>,
     carried_bases: HashMap<String, Rc<Block>>,
+    produced: HashMap<usize, Rc<Block>>,
 }
 impl<'a> FileInputs<'a> {
     pub(super) fn new(
         active: &[(usize, usize, bool)],
-        bound: &HashMap<usize, Result<Bound<'_>>>,
+        bound: &super::Bindings<'_>,
         programs: &'a [Result<Program>],
         program_of: &[usize],
-        cut_of: &[Option<Rc<Partition>>],
+        cut_of: &[Option<&Partition>],
     ) -> Self {
         let mut shared_columns = BTreeMap::<&str, Vec<bool>>::new();
         for &(binding, _, _) in active {
@@ -46,6 +47,7 @@ impl<'a> FileInputs<'a> {
         Self {
             columns: shared_columns,
             carried_bases: HashMap::new(),
+            produced: HashMap::new(),
         }
     }
     pub(super) fn contribute(
@@ -72,10 +74,21 @@ impl<'a> FileInputs<'a> {
                 .base()
                 .filter(|name| !hosted.iter().any(|(bound, _)| bound.as_str() == *name))
         };
+        let outputs = &b.outputs;
+        let share = |n: usize| outputs.get(&n).filter(|_| local_coverage.is_empty());
+        let absent = b
+            .absent
+            .as_ref()
+            .filter(|(home, _)| *home == id && local_coverage.is_empty())
+            .map(|(_, bits)| bits);
+        let omitted = |i: usize| absent.is_some_and(|a| a[i]);
         let missing: Vec<_> = cut
             .inputs
             .iter()
-            .copied()
+            .enumerate()
+            .filter(|(i, _)| !omitted(*i))
+            .map(|(_, n)| *n)
+            .filter(|&n| !share(n).is_some_and(|id| self.produced.contains_key(id)))
             .filter(|&n| !shared_base(n).is_some_and(|name| self.carried_bases.contains_key(name)))
             .collect();
         let tables = {
@@ -88,10 +101,11 @@ impl<'a> FileInputs<'a> {
                     facts_view,
                     &b.slots,
                     &missing,
+                    &b.projections,
                     local_coverage,
                 )?;
-                for (n, t) in tables {
-                    let filtered = b.filters.get(&n).map(|terms| {
+                for (n, t, projected) in tables {
+                    let filtered = b.filters.get(&n).filter(|_| !projected).map(|terms| {
                         let mut rows = Vec::new();
                         for r in 0..t.n {
                             if terms.iter().any(|&(c, w)| t.cols[c][r] == w) {
@@ -120,24 +134,44 @@ impl<'a> FileInputs<'a> {
                     if let Some(name) = shared_base(n) {
                         self.carried_bases.insert(name.to_owned(), table);
                     } else {
+                        if let Some(id) = share(n) { self.produced.insert(*id,table.clone()); }
                         derived.insert(n, table);
                     }
                 }
             }
             cut.inputs
                 .iter()
-                .map(|&n| {
+                .enumerate()
+                .map(|(i, &n)| {
+                    if omitted(i) {
+                        let t = exec.empty_rc(run, b.slots[n])?;
+                        return Ok((n, world.empty_block(&t)));
+                    }
                     let t = if let Some(name) = shared_base(n) {
                         self.carried_bases.get(name).cloned()
                     } else {
-                        derived.remove(&n)
+                        derived.remove(&n).or_else(|| share(n).and_then(|id|self.produced.get(id)).cloned())
                     };
                     Ok((n, t.ok_or("missing local output")?))
                 })
                 .collect::<Result<Vec<_>>>()?
         };
-        world.frontiers.insert(slot, tables);
+        world.frontiers.insert(slot, FileFrontier::Rows(tables.into_boxed_slice()));
         Ok(())
+    }
+}
+type Part = (usize, Rc<Block>);
+pub(super) type EmptyFrontier = Rc<[Part]>;
+enum FileFrontier {
+    Rows(Box<[Part]>),
+    Empty(EmptyFrontier),
+}
+impl FileFrontier {
+    fn parts(&self) -> &[Part] {
+        match self {
+            Self::Rows(parts) => parts,
+            Self::Empty(parts) => parts,
+        }
     }
 }
 /// A frontier's words cross the reader's symbol pool and its local node number
@@ -146,22 +180,28 @@ impl<'a> FileInputs<'a> {
 #[derive(Default)]
 pub(crate) struct World {
     pub run: Run,
+    pub(super) boundaries: Option<Vec<(usize, usize, usize)>>,
     pub(super) project_words: Vec<HashMap<u32, u32>>,
     pub files: HashMap<String, u32>,
-    pub(crate) frontiers: HashMap<usize, Vec<(usize, Rc<finish::population::Block>)>>,
+    frontiers: HashMap<usize, FileFrontier>,
     empty_blocks: HashMap<(usize, usize), Rc<finish::population::Block>>,
     pub unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
 }
 
 impl World {
+    pub(crate) fn frontier_parts(&self, slot: usize) -> Option<&[Part]> {
+        self.frontiers.get(&slot).map(FileFrontier::parts)
+    }
+    pub(crate) fn restore_frontier(&mut self, slot: usize, parts: Vec<Part>) {
+        self.frontiers.insert(slot, FileFrontier::Rows(parts.into_boxed_slice()));
+    }
+
     pub fn file(&mut self, path: &str) -> u32 {
         if let Some(&i) = self.files.get(path) {
             return i;
         }
         let i = u32::try_from(self.run.paths.len()).expect("file number");
-        self.run.paths.push(path.to_owned());
-        let sym = self.run.sym(path.as_bytes());
-        self.run.path_sym.push(sym);
+        std::sync::Arc::make_mut(&mut self.run.paths).push(path.to_owned());
         self.files.insert(path.to_owned(), i);
         i
     }
@@ -172,13 +212,19 @@ impl World {
             Rc::new(Block::new(0, t.names.clone(), t.tys.clone(), 0, Vec::new()))
         }).clone()
     }
-    pub(super) fn insert_empty(&mut self, slot: usize, path: &str, tables: &[(usize, Rc<Table>)]) {
-        if !tables.is_empty() { self.file(path); }
-        let blocks = tables.iter().map(|(i, t)| (*i, self.empty_block(t))).collect();
-        self.frontiers.insert(slot, blocks);
+    pub(super) fn insert_empty(
+        &mut self, slot: usize, path: &str, binding: &mut Bound<'_>, run: &mut Run, cut: &Partition,
+    ) {
+        let parts = binding.empty_frontier.get_or_insert_with(|| {
+            let tables = finish::session::certificate::empty_frontier(&mut finish::Exec::new(binding.plan), run, &cut.inputs)
+                .expect("certified file output schemas");
+            tables.iter().map(|(id, t)| (*id, self.empty_block(t))).collect()
+        });
+        if !parts.is_empty() { self.file(path); }
+        self.frontiers.insert(slot, FileFrontier::Empty(parts.clone()));
     }
     pub(super) fn productive(&self, slot: usize) -> bool {
-        self.frontiers.get(&slot).is_some_and(|v| v.iter().any(|(_, block)| block.n != 0))
+        self.frontiers.get(&slot).is_some_and(|v| v.parts().iter().any(|(_, block)| block.n != 0))
     }
     fn carry(
         &mut self,
@@ -279,7 +325,7 @@ impl World {
         use finish::population::Population;
         let mut tables: Vec<_> = cut.iter().map(|_| Population::default()).collect();
         for slot in slots {
-            let parts = self.frontiers.get(slot).ok_or("missing file frontier")?;
+            let parts = self.frontiers.get(slot).ok_or("missing file frontier")?.parts();
             if parts.len() != cut.len() {
                 return Err("incomplete file frontier".into());
             }
@@ -300,5 +346,127 @@ impl World {
     pub fn release(&mut self, slot: usize) {
         self.frontiers.remove(&slot);
         self.unavailable.remove(&slot);
+    }
+}
+
+/// Slot ordinals survive the join. A repeated block in different request frontiers
+/// is transferred once, including the reference to its file and symbol domains.
+pub(super) struct Transfer {
+    slots: Vec<(usize, Vec<(usize, usize)>)>,
+    blocks: Vec<finish::population::CarriedBlock>,
+    schemas: finish::population::CarriedSchemas,
+    paths: Vec<String>,
+    words: Vec<Vec<u8>>,
+    prefix: usize,
+    boundaries: Vec<(usize, usize, usize)>,
+    unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
+}
+
+impl World {
+    pub(super) fn transfer(mut self, prefix: usize) -> Transfer {
+        self.empty_blocks.clear();
+        let mut ids = HashMap::new();
+        let mut blocks = Vec::new();
+        let mut slots = Vec::new();
+        for (slot, frontier) in self.frontiers {
+            let pieces = frontier.parts()
+                .iter().cloned()
+                .map(|(node, block)| {
+                    let id = *ids.entry(Rc::as_ptr(&block)).or_insert_with(|| {
+                        let id = blocks.len();
+                        blocks.push(block);
+                        id
+                    });
+                    (node, id)
+                })
+                .collect();
+            slots.push((slot, pieces));
+        }
+        let mut schemas = finish::population::CarriedSchemas::default();
+        Transfer {
+            slots,
+            blocks: blocks
+                .into_iter()
+                .map(|b| {
+                    Rc::try_unwrap(b)
+                        .ok()
+                        .expect("worker owns all frontier blocks")
+                        .carry(&mut schemas)
+                })
+                .collect(),
+            schemas,
+            paths: std::sync::Arc::unwrap_or_clone(self.run.paths),
+            prefix,
+            boundaries: self.boundaries.unwrap_or_default(),
+            words: self
+                .run
+                .texts
+                .into_iter()
+                .skip(prefix)
+                .map(|s| s.to_vec())
+                .collect(),
+            unavailable: self.unavailable,
+        }
+    }
+
+    /// The serial reader visits relative paths lexically. Assign file and symbol
+    /// ordinals in that same order, including cross-file references first seen
+    /// in another path's frontier. Worker completion order has no effect.
+    pub(super) fn receive(&mut self, parts: Vec<Transfer>, sources: &[super::Source]) {
+        let mut groups = Vec::new();
+        let mut maps = Vec::with_capacity(parts.len());
+        for (worker, part) in parts.iter().enumerate() {
+            let mut file = 0;
+            let mut word = part.prefix;
+            for &(source, files, words) in &part.boundaries {
+                groups.push((
+                    &sources[source].path,
+                    worker,
+                    file..files,
+                    (word - part.prefix)..(words - part.prefix),
+                ));
+                file = files;
+                word = words;
+            }
+            maps.push((
+                Vec::with_capacity(file),
+                (0..part.prefix as u32).collect::<Vec<_>>(),
+            ));
+        }
+        groups.sort_unstable_by(|a, b| a.0.cmp(b.0));
+        for (_, worker, file, word) in groups {
+            let (files, symbols) = &mut maps[worker];
+            let part = &parts[worker];
+            symbols.extend(part.words[word].iter().map(|w| self.run.sym(w)));
+            files.extend(part.paths[file].iter().map(|p| self.file(p)));
+        }
+        for (part, (files, symbols)) in parts.into_iter().zip(maps) {
+            self.receive_blocks(part, &files, &symbols);
+        }
+    }
+
+    fn receive_blocks(&mut self, part: Transfer, files: &[u32], symbols: &[u32]) {
+        let schemas = part.schemas.receive();
+        let blocks: Vec<_> = part
+            .blocks
+            .into_iter()
+            .map(|b| Rc::new(b.receive(files, symbols, &schemas)))
+            .collect();
+        for (slot, ids) in part.slots {
+            self.frontiers.insert(
+                slot,
+                FileFrontier::Rows(ids.into_iter()
+                    .map(|(n, i)| (n, blocks[i].clone()))
+                    .collect()),
+            );
+        }
+        for (slot, set) in part.unavailable {
+            self.unavailable.insert(
+                slot,
+                set.into_iter()
+                    .map(|(name, file)| (name, files[file as usize]))
+                    .collect(),
+            );
+        }
     }
 }

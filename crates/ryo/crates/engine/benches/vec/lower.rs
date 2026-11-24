@@ -182,7 +182,7 @@ pub(crate) fn run_stage(args: &[&str]) {
 
 /// The pack's rules and fragments read and parsed once at start, for both halves' plans (`vec funnel ... --finish <pack dir>`).
 pub(crate) struct ReadPack {
-    pub(crate) typed: std::cell::RefCell<Option<std::rc::Rc<FinishPlan>>>,
+    pub(crate) typed: std::cell::RefCell<Option<std::sync::Arc<FinishPlan>>>,
     pub(crate) programs: PackPrograms,
     /// Thread CPU of reading the texts (and the request's rule context) and of parsing them.
     pub(crate) read: f64,
@@ -190,8 +190,8 @@ pub(crate) struct ReadPack {
 }
 
 impl ReadPack {
-    pub(super) fn lower_axes(&self) -> std::rc::Rc<FinishPlan> {
-        std::rc::Rc::new(lowered(&self.programs, PlanningStage::Axes))
+    pub(super) fn lower_axes(&self) -> std::sync::Arc<FinishPlan> {
+        std::sync::Arc::new(lowered(&self.programs, PlanningStage::Axes))
     }
 }
 
@@ -243,7 +243,7 @@ fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Opti
             if let FinishStep::Capture(c)=step {c.separator.get_or_insert_with(||LiteralText(separator.into()));}
         }
     }
-    let plan = std::rc::Rc::new(plan);
+    let plan = std::sync::Arc::new(plan);
     let executor_plan = super::finish::from_typed(plan.clone());
     if keep_for_first {
         pack.typed.replace(Some(plan));

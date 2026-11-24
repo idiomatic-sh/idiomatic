@@ -34,6 +34,7 @@ enum P {
     /// Any other comparison, by `compare`.
     Cmp(Op, Opd, Opd),
     In(Opd, Vec<V>, bool),
+    SymbolIn(usize, usize, Rc<super::symbol_predicate::SymbolSet>, bool),
     SymbolTest(usize, usize, TextTest),
     TextTest(Opd, TextTest),
     Seed(Opd, usize),
@@ -55,13 +56,13 @@ fn opd(e: &E) -> Option<Opd> {
     })
 }
 
-fn compile(e: &E) -> P {
+fn compile(run: &Run, e: &E) -> P {
     match e {
         E::Lit(v) => P::Const(truthy(*v)),
         E::List(_) => P::Const(false),
-        E::And(a, b) => P::And(Box::new(compile(a)), Box::new(compile(b))),
-        E::Or(a, b) => P::Or(Box::new(compile(a)), Box::new(compile(b))),
-        E::Not(a) => P::Not(Box::new(compile(a))),
+        E::And(a, b) => P::And(Box::new(compile(run, a)), Box::new(compile(run, b))),
+        E::Or(a, b) => P::Or(Box::new(compile(run, a)), Box::new(compile(run, b))),
+        E::Not(a) => P::Not(Box::new(compile(run, a))),
         E::Cmp(o @ (Op::Eq | Op::Ne), a, b) => {
             let want = *o == Op::Eq;
             match (&**a, &**b) {
@@ -86,6 +87,10 @@ fn compile(e: &E) -> P {
                 _ => Some(Vec::new()),
             };
             match (opd(a), items) {
+                (Some(Opd::Col(s, c, Ty::Sym)), Some(items)) if items.iter().all(|v| v.ty() == Ty::Sym) => {
+                    let words = items.iter().filter(|v| v.1 != NULL).map(|v| v.1).collect();
+                    P::SymbolIn(s, c, super::symbol_predicate::SymbolSet::bind(run, words), *neg)
+                }
                 (Some(x), Some(items)) => P::In(x, items, *neg),
                 _ => P::Old(e.clone()),
             }
@@ -132,6 +137,7 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
                 Op::Other => false,
             }
         }
+        P::SymbolIn(s, c, words, neg) => words.contains(get(run, f, srcs, cur, *s, *c)) != *neg,
         P::In(a, items, neg) => {
             let x = val(run, f, srcs, cur, a);
             items.iter().any(|y| super::member_eq(run, x, *y)) != *neg
@@ -392,7 +398,7 @@ impl Exec<'_> {
                 }
             }
         }
-        let preds = sp.conj.iter().map(compile).collect();
+        let preds = sp.conj.iter().map(|e| compile(run, e)).collect();
         let file_const = sp.conj.iter().any(|c| super::filter_order::file_const(c) && !matches!(c, E::Lit(_)));
         let set = k == 1 && items.iter().all(|(s, _)| *s == 0);
         let ident = k == 1 && sp.conj.is_empty() && {
