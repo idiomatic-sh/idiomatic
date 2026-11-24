@@ -3,7 +3,7 @@ use super::{ColumnFile, Kind, Node, Numbered, nodes_of_kind};
 use crate::domain::node::service::id_of;
 use ruff_python_ast::AnyNodeRef;
 use ruff_text_size::Ranged;
-use ryo::languages::{Position, node_table};
+use ryo::languages::{self as l, Position, node_table};
 use std::collections::{HashMap, HashSet};
 
 /// The parser's import names and their original spelling at one alias.
@@ -74,7 +74,9 @@ impl ColumnFile<'_, '_> {
     /// A comment occupies a physical line. Report every import whose source extent reaches that line before the comment.
     pub fn visit_import_line_comments(&self, mut visit: impl FnMut(Position, Position, bool)) {
         use crate::domain::{syntax::service::kind_bits, tokens::types::Token};
-        if !self.can_have_import_line_comments() { return; }
+        if !self.can_have_import_line_comments() {
+            return;
+        }
         let comments = node_table::ids_of_kind(self.table, kind_bits(Kind::Token(Token::Comment)));
         if comments.is_empty() {
             return;
@@ -286,4 +288,711 @@ impl ColumnFile<'_, '_> {
             }
         }
     }
+}
+
+const NEIGHBORS: &str = "statement-neighbors";
+const STATEMENTS: &str = "import-statement";
+const HEADS: &str = "import-head";
+const ALIASES: &str = "import-alias-parts";
+const CONTEXTUAL_ALIASES: &str = "import-alias-context";
+const ENTRIES: &str = "import-module-context";
+const LINE_COMMENTS: &str = "import-line-comment";
+
+type ImportColumn = (&'static str, l::CellKind);
+
+const fn extend_columns<const N: usize>(
+    left: &[ImportColumn],
+    right: &[ImportColumn],
+) -> [ImportColumn; N] {
+    assert!(left.len() + right.len() == N);
+    let mut result = [("", l::CellKind::Number); N];
+    let mut i = 0;
+    while i < left.len() {
+        result[i] = left[i];
+        i += 1;
+    }
+    while i < N {
+        result[i] = right[i - left.len()];
+        i += 1;
+    }
+    result
+}
+
+const NEIGHBOR_COLUMNS: &[ImportColumn] = &[
+    ("id", l::CellKind::Node),
+    ("parent", l::CellKind::Node),
+    ("field", l::CellKind::Symbol),
+    ("kind", l::CellKind::Symbol),
+    ("span", l::CellKind::Span),
+    ("parent-kind", l::CellKind::Symbol),
+    ("previous", l::CellKind::Node),
+    ("previous-kind", l::CellKind::Symbol),
+    ("previous-gap", l::CellKind::Span),
+    ("has-previous", l::CellKind::Number),
+    ("next", l::CellKind::Node),
+    ("next-kind", l::CellKind::Symbol),
+    ("has-next", l::CellKind::Number),
+    ("gap", l::CellKind::Span),
+    ("first", l::CellKind::Node),
+    ("last", l::CellKind::Node),
+    ("suite-span", l::CellKind::Span),
+    ("file", l::CellKind::File),
+];
+const STATEMENT_COLUMNS: [ImportColumn; 24] = extend_columns(
+    NEIGHBOR_COLUMNS,
+    &[
+        ("gap-text", l::CellKind::Symbol),
+        ("previous-gap-text", l::CellKind::Symbol),
+        ("statement-text", l::CellKind::Symbol),
+        ("run-first", l::CellKind::Node),
+        ("run-last", l::CellKind::Node),
+        ("run-span", l::CellKind::Span),
+    ],
+);
+const ALIAS_COLUMNS: &[ImportColumn] = &[
+    ("alias", l::CellKind::Node),
+    ("statement", l::CellKind::Node),
+    ("index", l::CellKind::Number),
+    ("count", l::CellKind::Number),
+    ("renames", l::CellKind::Number),
+    ("form", l::CellKind::Symbol),
+    ("module", l::CellKind::Symbol),
+    ("dots", l::CellKind::Symbol),
+    ("name", l::CellKind::Symbol),
+    ("rename", l::CellKind::Symbol),
+    ("written-name", l::CellKind::Symbol),
+    ("written-rename", l::CellKind::Symbol),
+    ("last-segment", l::CellKind::Symbol),
+    ("bound-name", l::CellKind::Symbol),
+    ("target", l::CellKind::Symbol),
+    ("written-module", l::CellKind::Symbol),
+    ("root", l::CellKind::Symbol),
+    ("alias-text", l::CellKind::Symbol),
+    ("alias-span", l::CellKind::Span),
+    ("statement-span", l::CellKind::Span),
+    ("at", l::CellKind::Number),
+    ("start-line", l::CellKind::Number),
+    ("end-line", l::CellKind::Number),
+    ("file", l::CellKind::File),
+];
+const HEADS_COLUMNS: [ImportColumn; 46] = extend_columns(
+    &STATEMENT_COLUMNS,
+    &[
+        ("head-alias", l::CellKind::Node),
+        ("head-at", l::CellKind::Number),
+        ("count", l::CellKind::Number),
+        ("renames", l::CellKind::Number),
+        ("module", l::CellKind::Symbol),
+        ("written-module", l::CellKind::Symbol),
+        ("written-name", l::CellKind::Symbol),
+        ("written-rename", l::CellKind::Symbol),
+        ("dots", l::CellKind::Symbol),
+        ("level", l::CellKind::Number),
+        ("root", l::CellKind::Symbol),
+        ("written-root", l::CellKind::Symbol),
+        ("catalog", l::CellKind::Symbol),
+        ("source-module-prefix", l::CellKind::Symbol),
+        ("source-package-prefix", l::CellKind::Symbol),
+        ("module-namespace", l::CellKind::Number),
+        ("package-root", l::CellKind::Symbol),
+        ("statement-at", l::CellKind::Number),
+        ("statement-end", l::CellKind::Number),
+        ("statement-start-line", l::CellKind::Number),
+        ("statement-end-line", l::CellKind::Number),
+        ("line-comment-count", l::CellKind::Number),
+    ],
+);
+const ALIASES_COLUMNS: [ImportColumn; 28] = extend_columns(
+    ALIAS_COLUMNS,
+    &[
+        ("statement-start-line", l::CellKind::Number),
+        ("statement-end-line", l::CellKind::Number),
+        ("statement-text", l::CellKind::Symbol),
+        ("previous-start-line", l::CellKind::Number),
+    ],
+);
+const CONTEXTUAL_ALIASES_COLUMNS: [ImportColumn; 36] = extend_columns(
+    ALIAS_COLUMNS,
+    &[
+        ("written-root", l::CellKind::Symbol),
+        ("level", l::CellKind::Number),
+        ("catalog", l::CellKind::Symbol),
+        ("module-prefix", l::CellKind::Symbol),
+        ("package-prefix", l::CellKind::Symbol),
+        ("module-namespace", l::CellKind::Number),
+        ("package-root", l::CellKind::Symbol),
+        ("statement-at", l::CellKind::Number),
+        ("statement-end", l::CellKind::Number),
+        ("statement-start-line", l::CellKind::Number),
+        ("statement-end-line", l::CellKind::Number),
+        ("statement-text", l::CellKind::Symbol),
+    ],
+);
+
+impl ColumnFile<'_, '_> {
+    /// Schemas whose rows follow from the import syntax and its project context.
+    pub const IMPORT_SCHEMAS: &'static [l::FileRelation] = &[
+        l::FileRelation {
+            name: NEIGHBORS,
+            columns: NEIGHBOR_COLUMNS,
+        },
+        l::FileRelation {
+            name: STATEMENTS,
+            columns: &STATEMENT_COLUMNS,
+        },
+        l::FileRelation {
+            name: HEADS,
+            columns: &HEADS_COLUMNS,
+        },
+        l::FileRelation {
+            name: ALIASES,
+            columns: &ALIASES_COLUMNS,
+        },
+        l::FileRelation {
+            name: CONTEXTUAL_ALIASES,
+            columns: &CONTEXTUAL_ALIASES_COLUMNS,
+        },
+        l::FileRelation {
+            name: ENTRIES,
+            columns: &[
+                ("alias", l::CellKind::Node),
+                ("module", l::CellKind::Symbol),
+                ("root", l::CellKind::Symbol),
+                ("written-root", l::CellKind::Symbol),
+                ("form", l::CellKind::Symbol),
+                ("level", l::CellKind::Number),
+                ("catalog", l::CellKind::Symbol),
+                ("module-prefix", l::CellKind::Symbol),
+                ("package-prefix", l::CellKind::Symbol),
+                ("module-namespace", l::CellKind::Number),
+                ("package-root", l::CellKind::Symbol),
+                ("file", l::CellKind::File),
+            ],
+        },
+        l::FileRelation {
+            name: LINE_COMMENTS,
+            columns: &[
+                ("statement", l::CellKind::Node),
+                ("comment", l::CellKind::Node),
+                ("first-line", l::CellKind::Number),
+                ("following", l::CellKind::Number),
+                ("prefix", l::CellKind::Span),
+                ("gap", l::CellKind::Span),
+                ("text", l::CellKind::Symbol),
+                ("file", l::CellKind::File),
+            ],
+        },
+    ];
+
+    /// Sorted lexical links, shared with the import head's comment count.
+    pub fn import_comment_links<'a>(
+        &self,
+        links: &'a mut Option<Vec<(Position, Position, bool)>>,
+    ) -> &'a [(Position, Position, bool)] {
+        links.get_or_insert_with(|| {
+            let mut rows = Vec::new();
+            self.visit_import_line_comments(|statement, comment, first| {
+                rows.push((statement, comment, first));
+            });
+            rows.sort_unstable_by_key(|row| (row.0.0, row.1.0));
+            rows
+        })
+    }
+
+    /// Write the import schema's columns using the file's local element positions.
+    ///
+    /// Project callbacks supply the enclosing package and observations of the
+    /// imported module (written root, catalog, module prefix, package prefix,
+    /// namespace). Syntax-only relations do not call either project callback.
+    pub fn import_columns<W>(
+        &self,
+        schema: &l::FileRelation,
+        src: &[u8],
+        number: u32,
+        comments: &mut Option<Vec<(Position, Position, bool)>>,
+        context: &mut W,
+        word: impl Fn(&mut W, &[u8]) -> u32,
+        package: impl Fn(&mut W) -> Result<u64, String>,
+        observe: impl Fn(&mut W, &Self, &ImportAlias<'_>, bool) -> (u64, u64, [u64; 5]),
+    ) -> Result<(usize, Vec<Vec<u64>>), String> {
+        if !Self::IMPORT_SCHEMAS.contains(schema) {
+            return Err(format!("no import relation {}", schema.name));
+        }
+        let rel = schema.name;
+        let estimated = match rel {
+            HEADS | STATEMENTS => self.import_statement_count(),
+            LINE_COMMENTS => self.import_comment_links(comments).len(),
+            _ => 0,
+        };
+        let mut t = ImportRows {
+            cols: (0..schema.columns.len())
+                .map(|_| Vec::with_capacity(estimated))
+                .collect(),
+            n: 0,
+        };
+        let f = u64::from(number);
+        let table = self.table;
+        const NEIGHBOR_COLUMNS: usize = 18;
+        const LAYOUT_COLUMNS: usize = NEIGHBOR_COLUMNS + 6;
+        if matches!(rel, NEIGHBORS | STATEMENTS | HEADS) {
+            let kind = |context: &mut W, id: Position| {
+                word(
+                    context,
+                    crate::domain::syntax::service::kind_name(
+                        crate::domain::syntax::service::kind_of(node_table::kind_of(table, id)),
+                    )
+                    .0
+                    .as_bytes(),
+                )
+            };
+            let import = |id| self.is_import_statement(id);
+            // Source order in each suite fixes both neighbors. A run contains consecutive import statements regardless of intervening trivia.
+            self.visit_statement_suites(rel != NEIGHBORS, |suite| {
+                let first = suite[0];
+                let last = suite[suite.len() - 1];
+                let suite_span = span(bounds(table, first).0, bounds(table, last).1);
+                let parent = node_table::parent_of(table, first);
+                let field = crate::domain::labels::types::Field::from_repr(
+                    node_table::field_of(table, first).0,
+                )
+                .unwrap_or_default();
+                let field = word(
+                    context,
+                    crate::domain::labels::service::field_name(field)
+                        .0
+                        .as_bytes(),
+                );
+                let mut start = 0;
+                while start < suite.len() {
+                    let mut end = start + 1;
+                    let starts_import = import(suite[start]);
+                    if rel != NEIGHBORS && !starts_import {
+                        start = end;
+                        continue;
+                    }
+                    if starts_import {
+                        while end < suite.len() && import(suite[end]) {
+                            end += 1;
+                        }
+                    }
+                    let head = suite[start];
+                    let tail = suite[end - 1];
+                    let run_span = span(bounds(table, head).0, bounds(table, tail).1);
+                    for i in start..end {
+                        let id = suite[i];
+                        let (begin, finish) = bounds(table, id);
+                        let previous = i.checked_sub(1).map(|p| suite[p]);
+                        let next = suite.get(i + 1).copied();
+                        push(
+                            &mut t,
+                            [
+                                id.0.into(),
+                                parent.0.into(),
+                                field.into(),
+                                kind(context, id).into(),
+                                span(begin, finish),
+                                kind(context, parent).into(),
+                                previous.map_or(u64::MAX, |p| p.0.into()),
+                                previous.map_or(u64::MAX, |p| kind(context, p).into()),
+                                previous.map_or(u64::MAX, |p| span(bounds(table, p).1, begin)),
+                                u64::from(previous.is_some()),
+                                next.map_or(u64::MAX, |p| p.0.into()),
+                                next.map_or(u64::MAX, |p| kind(context, p).into()),
+                                u64::from(next.is_some()),
+                                next.map_or(u64::MAX, |p| span(finish, bounds(table, p).0)),
+                                first.0.into(),
+                                last.0.into(),
+                                suite_span,
+                                f,
+                            ],
+                        );
+                        if rel != NEIGHBORS {
+                            let mut spelling = |lo: u32, hi: u32| {
+                                u64::from(word(
+                                    context,
+                                    src.get(lo as usize..hi as usize).unwrap_or_default(),
+                                ))
+                            };
+                            let gap =
+                                next.map_or(u64::MAX, |p| spelling(finish, bounds(table, p).0));
+                            let before =
+                                previous.map_or(u64::MAX, |p| spelling(bounds(table, p).1, begin));
+                            let text = spelling(begin, finish);
+                            for (c, v) in t.cols[NEIGHBOR_COLUMNS..LAYOUT_COLUMNS]
+                                .iter_mut()
+                                .rev()
+                                .zip(
+                                    [gap, before, text, head.0.into(), tail.0.into(), run_span]
+                                        .into_iter()
+                                        .rev(),
+                                )
+                            {
+                                c.push(v);
+                            }
+                        }
+                    }
+                    start = end;
+                }
+            });
+            if rel == HEADS && t.n != 0 {
+                let (layout, extras) = t.cols.split_at_mut(LAYOUT_COLUMNS);
+                let (counts, alias_columns) = extras
+                    .split_last_mut()
+                    .expect("import head includes comment count");
+                let upto = layout[4]
+                    .iter()
+                    .map(|s| (*s as u32) as usize)
+                    .max()
+                    .unwrap_or(0)
+                    .min(src.len());
+                // Only offsets up to the final import are queried. Read one further byte for a CRLF at the boundary.
+                let starts = super::super::comment_positions::starts(
+                    &src[..upto.saturating_add(1).min(src.len())],
+                );
+                let links = self.import_comment_links(comments);
+                let containing_package = package(context)?;
+                self.visit_ordered_import_heads(
+                    layout[0].iter().map(|id| Position(*id as u32)),
+                    |row, a| {
+                        let (begin, end) = bounds(table, Position(a.statement));
+                        let (module, root_id, observed) = observe(context, self, &a, true);
+                        // The parser's spelling and the source spelling usually share one symbol.
+                        let empty = u64::from(word(context, b""));
+                        let mut sym = |s: &str| {
+                            if s.is_empty() {
+                                empty
+                            } else {
+                                u64::from(word(context, s.as_bytes()))
+                            }
+                        };
+                        let written_module = if a.written_module == a.module {
+                            module
+                        } else {
+                            sym(a.written_module)
+                        };
+                        let written_name = if a.written_name == a.written_module {
+                            written_module
+                        } else {
+                            sym(a.written_name)
+                        };
+                        let values = [
+                            a.id.into(),
+                            bounds(table, Position(a.id)).0.into(),
+                            a.count as u64,
+                            a.renames as u64,
+                            module,
+                            written_module,
+                            written_name,
+                            sym(a.written_rename),
+                            sym(a.dots),
+                            a.dots.len() as u64,
+                            root_id,
+                            observed[0],
+                            observed[1],
+                            observed[2],
+                            observed[3],
+                            observed[4],
+                            containing_package,
+                            begin.into(),
+                            end.into(),
+                            starts.partition_point(|s| *s <= begin) as u64,
+                            starts.partition_point(|s| *s <= end) as u64,
+                        ];
+                        // Parser recovery can omit the first alias. Only its skipped row needs padding.
+                        if alias_columns[0].len() != row {
+                            for c in alias_columns.iter_mut() {
+                                c.resize(row, u64::MAX);
+                            }
+                        }
+                        for (column, v) in alias_columns.iter_mut().zip(values) {
+                            column.push(v);
+                        }
+                    },
+                );
+                for col in alias_columns {
+                    col.resize(t.n, u64::MAX);
+                }
+
+                if links.is_empty() {
+                    counts.resize(t.n, 0);
+                } else {
+                    for &id in &layout[0] {
+                        let lo = links.partition_point(|link| u64::from(link.0.0) < id);
+                        let hi = links[lo..].partition_point(|link| u64::from(link.0.0) == id);
+                        counts.push(hi as u64);
+                    }
+                }
+            }
+        } else if rel == LINE_COMMENTS {
+            // A comment beginning on a line touched by the import has a source prefix and, when it follows the statement, an intervening gap.
+            for &(statement, comment, first_line) in self.import_comment_links(comments) {
+                let (start, end) = bounds(table, statement);
+                let (at, until) = bounds(table, comment);
+                let following = end <= at;
+                let text = word(context, &src[at as usize + 1..until as usize]);
+                push(
+                    &mut t,
+                    [
+                        statement.0.into(),
+                        comment.0.into(),
+                        first_line.into(),
+                        following.into(),
+                        span(start, at),
+                        if following { span(end, at) } else { u64::MAX },
+                        text.into(),
+                        f,
+                    ],
+                );
+            }
+        } else if rel == ENTRIES {
+            let package_root = package(context)?;
+            self.visit_import_aliases(|a| {
+                let root = a.module.split('.').next().unwrap_or_default();
+                let root_id = u64::from(word(context, root.as_bytes()));
+                let (_, _, observed) = observe(context, self, &a, false);
+                push(
+                    &mut t,
+                    [
+                        a.id.into(),
+                        word(context, a.module.as_bytes()).into(),
+                        root_id,
+                        observed[0],
+                        word(context, a.form.as_bytes()).into(),
+                        a.dots.len() as u64,
+                        observed[1],
+                        observed[2],
+                        observed[3],
+                        observed[4],
+                        package_root,
+                        f,
+                    ],
+                );
+            });
+        } else {
+            let contextual = rel == CONTEXTUAL_ALIASES;
+            let containing_package = if contextual && self.import_statement_count() != 0 {
+                package(context)?
+            } else {
+                0
+            };
+            let mut statement_text = 0;
+            let starts = super::super::comment_positions::starts(src);
+            let mut previous_statement = None;
+            let mut statement_lines = [0; 2];
+            let line = |byte| starts.partition_point(|&s| s <= byte) as u64;
+            // An alias has a parser name and an optional as-name, each with its own original source spelling.
+            self.visit_import_aliases(|a| {
+                let (at, end) = bounds(table, Position(a.id));
+                let (st, en) = bounds(table, Position(a.statement));
+                let mut sym = |s: &str| u64::from(word(context, s.as_bytes()));
+                let root = a.module.split('.').next().unwrap_or_default();
+                let root_id = sym(root);
+                let alias_text =
+                    std::str::from_utf8(src.get(at as usize..end as usize).unwrap_or_default())
+                        .unwrap_or_default();
+                push(
+                    &mut t,
+                    [
+                        a.id.into(),
+                        a.statement.into(),
+                        a.index as u64,
+                        a.count as u64,
+                        a.renames as u64,
+                        sym(a.form),
+                        sym(a.module),
+                        sym(a.dots),
+                        sym(a.name),
+                        sym(a.rename),
+                        sym(a.written_name),
+                        sym(a.written_rename),
+                        sym(a.name.rsplit('.').next().unwrap_or_default()),
+                        sym(if !a.rename.is_empty() {
+                            a.rename
+                        } else if a.form == "import" {
+                            root
+                        } else if a.name == "*" {
+                            ""
+                        } else {
+                            a.name
+                        }),
+                        sym(a.target),
+                        sym(a.written_module),
+                        root_id,
+                        sym(alias_text),
+                        span(at, end),
+                        span(st, en),
+                        at.into(),
+                        line(at),
+                        line(end),
+                        f,
+                    ],
+                );
+                // Every alias shares its enclosing statement's extent; its preceding name is fixed by the ordered alias list.
+                if previous_statement != Some(a.statement) {
+                    previous_statement = Some(a.statement);
+                    statement_text = u64::from(word(context, &src[st as usize..en as usize]));
+                    statement_lines = [line(st), line(en)];
+                }
+                if contextual {
+                    let (_, _, observed) = observe(context, self, &a, false);
+                    let extra = [
+                        observed[0],
+                        a.dots.len() as u64,
+                        observed[1],
+                        observed[2],
+                        observed[3],
+                        observed[4],
+                        containing_package,
+                        st.into(),
+                        en.into(),
+                        statement_lines[0],
+                        statement_lines[1],
+                        statement_text,
+                    ];
+                    for (col, v) in t.cols.iter_mut().rev().zip(extra.into_iter().rev()) {
+                        col.push(v);
+                    }
+                } else {
+                    let extra = [
+                        statement_lines[0],
+                        statement_lines[1],
+                        statement_text,
+                        a.previous_start.map_or(u64::MAX, line),
+                    ];
+                    for (col, v) in t.cols.iter_mut().rev().zip(extra.into_iter().rev()) {
+                        col.push(v);
+                    }
+                }
+            });
+        }
+        Ok((t.n, t.cols))
+    }
+
+    /// Write absolute spellings of relative imports given the containing module's package.
+    pub fn visit_relative_import_targets(
+        &self,
+        package: Option<&str>,
+        mut visit: impl FnMut(u32, &str),
+    ) {
+        let Some(package) = package else { return };
+        let mut path = String::new();
+        for (node, level, module, member) in self.relative_imports() {
+            let mut prefixes = std::iter::successors(Some(package), |part| {
+                part.rsplit_once('.').map(|(prefix, _)| prefix)
+            });
+            let Some(base) = prefixes.nth(level.saturating_sub(1) as usize) else {
+                continue;
+            };
+            path.clear();
+            path.push_str(base);
+            for part in [module, member].into_iter().flatten() {
+                path.push('.');
+                path.push_str(part);
+            }
+            visit(node, &path);
+        }
+    }
+
+    /// Complete file-local import facts in the same dictionary as the syntax.
+    pub(super) fn named_import(
+        &self,
+        schema: &l::FileRelation,
+        file: l::FileId,
+        src: &[u8],
+        symbols: &mut l::Symbols,
+        comments: &mut Option<Vec<(Position, Position, bool)>>,
+        package_root: Option<&str>,
+        prefixes: &mut Option<&mut dyn FnMut(&str) -> (String, String, bool)>,
+    ) -> Result<Vec<l::FactColumn>, String> {
+        let completeness = self.file.syntax.completeness;
+        if completeness.syntax != l::SyntaxCompleteness::Complete
+            || (matches!(schema.name, HEADS | LINE_COMMENTS)
+                && completeness.lexical != l::SyntaxCompleteness::Complete)
+        {
+            return Err(format!("incomplete {}", schema.name));
+        }
+        let intern = |symbols: &mut l::Symbols, text: &str| {
+            l::intern_derived(symbols, l::ByteSlice(src), l::NameText(text)).0
+        };
+        let (_, columns) = self.import_columns(
+            schema,
+            src,
+            file.0,
+            comments,
+            &mut (symbols, prefixes),
+            |context, bytes| {
+                intern(
+                    context.0,
+                    std::str::from_utf8(bytes).expect("Python source or name"),
+                )
+            },
+            |context| {
+                let root = package_root.ok_or_else(|| {
+                    format!("{} needs the file's project import context", schema.name)
+                })?;
+                Ok(u64::from(intern(context.0, root)))
+            },
+            |context, file, a, head| {
+                let target = if head { a.module } else { a.target };
+                let root = a.module.split('.').next().unwrap_or_default();
+                let written = a.written_module.split('.').next().unwrap_or_default();
+                let (module, package, namespace) = if a.dots.is_empty() && !target.is_empty() {
+                    context.1.as_deref_mut().map_or_else(
+                        || (String::new(), String::new(), false),
+                        |prefixes| {
+                            let (module, package, namespace) = prefixes(target);
+                            let namespace = if target == a.module {
+                                namespace
+                            } else if !a.module.is_empty()
+                                && target
+                                    .strip_prefix(a.module)
+                                    .is_some_and(|suffix| suffix.starts_with('.'))
+                            {
+                                prefixes(a.module).2
+                            } else {
+                                false
+                            };
+                            (module, package, namespace)
+                        },
+                    )
+                } else {
+                    (String::new(), String::new(), false)
+                };
+                let mut word = |text: &str| u64::from(intern(context.0, text));
+                (
+                    word(a.module),
+                    word(root),
+                    [
+                        word(written),
+                        word(file.import_catalog(root)),
+                        word(&module),
+                        word(&package),
+                        namespace.into(),
+                    ],
+                )
+            },
+        )?;
+        Ok(super::resolution::qualify_cells(schema, file, columns))
+    }
+}
+
+struct ImportRows {
+    cols: Vec<Vec<u64>>,
+    n: usize,
+}
+
+fn push<const N: usize>(t: &mut ImportRows, row: [u64; N]) {
+    for (c, v) in t.cols.iter_mut().zip(row) {
+        c.push(v);
+    }
+    t.n += 1;
+}
+
+fn bounds(table: &l::NodeTable, id: Position) -> (u32, u32) {
+    let span = node_table::span_of(table, id);
+    (span.start.0, span.end.0)
+}
+
+fn span(start: u32, end: u32) -> u64 {
+    (u64::from(start) << 32) | u64::from(end)
 }
