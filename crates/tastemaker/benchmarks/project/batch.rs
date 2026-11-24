@@ -73,12 +73,24 @@ impl Authorities {
     }
 }
 
+type HostSchema = Vec<(String, Vec<(String, String)>)>;
+
+struct Admission {
+    id: usize,
+    contract: Rc<session::completeness::Contract>,
+    project_bases: Vec<l::Relation>,
+    closed: bool,
+    file_cells: bool,
+    file_inventory: bool,
+    cut: Option<Rc<finish::partition::Partition>>,
+}
+
 #[derive(Default)]
 struct Batch {
     schedule: session::Schedule,
     bindings: Vec<(usize, Rc<[Hosted]>)>,
-    host_rows: std::collections::HashSet<Rc<[Vec<super::HostCell>]>>,
-    binding_ids: HashMap<(usize, Rc<[Hosted]>), usize>,
+    host_rows: HashMap<Rc<[Vec<super::HostCell>]>, usize>,
+    binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
     queries: HashMap<String, Rc<str>>,
     work: Vec<Work>,
     inventories: HashMap<PathBuf, Rc<Vec<String>>>,
@@ -87,12 +99,10 @@ struct Batch {
     roots: HashMap<String, PathBuf>,
     authorities: Authorities,
     projects: Vec<ProjectSpec>,
-    cuts: HashMap<(usize, Vec<(String, Vec<(String, String)>)>), Rc<finish::partition::Partition>>,
     cut_of: HashMap<usize, Rc<finish::partition::Partition>>,
-    local_bindings: HashMap<(usize, Vec<(String, Vec<(String, String)>)>), usize>,
+    local_bindings: HashMap<usize, usize>,
     project_keys: HashMap<(String, Authority, Rc<Vec<String>>), usize>,
-    contracts:
-        HashMap<(usize, Vec<(String, Vec<(String, String)>)>), Rc<session::completeness::Contract>>,
+    admissions: HashMap<(usize, HostSchema), Rc<Admission>>,
     bound_contracts: HashMap<usize, Rc<session::completeness::Contract>>,
     clocks: Clock,
     populations_built: usize,
@@ -110,6 +120,91 @@ struct Active<F: Default, D: Default> {
     contributions: Vec<Option<Rc<project::Contribution>>>,
     manifest_failures: Vec<l::FilePath>,
     populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
+}
+
+impl Admission {
+    fn prepare(id: usize, query: &str, program: &Program, hosted: &[Hosted]) -> Result<Self, String> {
+        use ryo_values::domain::hosted::types::{
+            ColumnLabel, HostedColumn, HostedName, HostedRelation,
+        };
+        let relations = hosted
+            .iter()
+            .map(|t| {
+                let columns = t
+                    .columns
+                    .iter()
+                    .map(|(n, ty)| {
+                        let kind = match ty.as_str() {
+                            "File" => l::CellKind::File,
+                            "Text" => l::CellKind::Symbol,
+                            "Number" => l::CellKind::Number,
+                            _ => return Err(format!("unsupported host type {ty}")),
+                        };
+                        Ok(HostedColumn {
+                            name: ColumnLabel(n.as_str().into()),
+                            kind,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+                Ok(HostedRelation {
+                    name: HostedName(t.name.as_str().into()),
+                    columns,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        let contract = Rc::new(session::completeness::describe(query, program, relations)?);
+        let held: Vec<_> = program
+            .bases
+            .iter()
+            .filter_map(|n| relations::service::relation_named(NameRef(n)))
+            .filter(|r| catalog::service::scope_of(*r) == catalog::types::RowScope::Project)
+            .collect();
+        let scope_only = program.bases.iter().all(|name| {
+            name == "filesystem.file"
+                || held.iter().any(|r| relations::service::name(*r).0 == name)
+                || hosted.iter().any(|h| &h.name == name)
+        });
+        // File-valued caller cells use the admitted request's file dictionary.
+        // The same partition can consume its source subtree locally and bind those
+        // cells at the join once the inventory is numbered.
+        let numbered_host = hosted
+            .iter()
+            .any(|table| table.columns.iter().any(|(_, kind)| kind == "File"));
+        let wide = contract.cross || numbered_host;
+        let cut = if !scope_only && wide {
+            let mut run = finish::Run::default();
+            let declarations = hosted
+                .iter()
+                .map(|t| Hosted {
+                    rows: Rc::default(),
+                    name: t.name.clone(),
+                    columns: t.columns.clone(),
+                    partial: t.partial.clone(),
+                })
+                .collect::<Vec<_>>();
+            let _ = bind_tables(&declarations, &mut run, |_| None)?;
+            let scoped = finish::partition::partition(
+                &mut finish::Exec::new(&program.plan),
+                &mut run,
+                |n| {
+                    held.iter().any(|r| relations::service::name(*r).0 == n)
+                        || hosted.iter().any(|t| t.name == n)
+                },
+            )?;
+            Some(Rc::new(scoped))
+        } else {
+            None
+        };
+        Ok(Self {
+            id,
+            contract,
+            project_bases: held,
+            closed: scope_only || wide,
+            file_cells: numbered_host,
+            file_inventory: program.bases.iter().any(|name| name == "filesystem.file"),
+            cut,
+        })
+    }
 }
 
 impl Batch {
@@ -157,97 +252,20 @@ impl Batch {
             .map(|t| (t.name.clone(), t.columns.clone()))
             .collect();
         let schema_key = (rule, shape);
-        let contract = if let Some(c) = self.contracts.get(&schema_key) {
-            Rc::clone(c)
-        } else {
-            use ryo_values::domain::hosted::types::{
-                ColumnLabel, HostedColumn, HostedName, HostedRelation,
-            };
-            let hosted = req
-                .hosted
-                .iter()
-                .map(|t| {
-                    let columns = t
-                        .columns
-                        .iter()
-                        .map(|(n, ty)| {
-                            let kind = match ty.as_str() {
-                                "File" => l::CellKind::File,
-                                "Text" => l::CellKind::Symbol,
-                                "Number" => l::CellKind::Number,
-                                _ => return Err(format!("unsupported host type {ty}")),
-                            };
-                            Ok(HostedColumn {
-                                name: ColumnLabel(n.as_str().into()),
-                                kind,
-                            })
-                        })
-                        .collect::<Result<Vec<_>, String>>()?;
-                    Ok(HostedRelation {
-                        name: HostedName(t.name.as_str().into()),
-                        columns,
-                    })
-                })
-                .collect::<Result<Vec<_>, String>>()?;
-            let c = Rc::new(session::completeness::describe(&query, program, hosted)?);
-            self.contracts.insert(schema_key.clone(), Rc::clone(&c));
-            c
-        };
-        let held: Vec<_> = program
-            .bases
-            .iter()
-            .filter_map(|n| relations::service::relation_named(NameRef(n)))
-            .filter(|r| catalog::service::scope_of(*r) == catalog::types::RowScope::Project)
-            .collect();
-        let scope_only = program.bases.iter().all(|name| {
-            name == "filesystem.file"
-                || held.iter().any(|r| relations::service::name(*r).0 == name)
-                || req.hosted.iter().any(|h| &h.name == name)
-        });
-        // File-valued caller cells use the admitted request's file dictionary.
-        // The same partition can consume its source subtree locally and bind those
-        // cells at the join once the inventory is numbered.
-        let numbered_host = req
-            .hosted
-            .iter()
-            .any(|table| table.columns.iter().any(|(_, kind)| kind == "File"));
-        let wide = contract.cross || numbered_host;
-        let cut = if !scope_only && wide {
-            let schema = req
-                .hosted
-                .iter()
-                .map(|t| (t.name.clone(), t.columns.clone()))
-                .collect();
-            let key = (rule, schema);
-            if !self.cuts.contains_key(&key) {
-                let mut run = finish::Run::default();
-                let declarations = req
-                    .hosted
-                    .iter()
-                    .map(|t| Hosted {
-                        rows: Rc::default(),
-                        ..t.clone()
-                    })
-                    .collect::<Vec<_>>();
-                let _ = bind_tables(&declarations, &mut run, |_| None)?;
-                let scoped = finish::partition::partition(
-                    &mut finish::Exec::new(&program.plan),
-                    &mut run,
-                    |n| {
-                        held.iter().any(|r| relations::service::name(*r).0 == n)
-                            || req.hosted.iter().any(|t| t.name == n)
-                    },
-                )?;
-                self.cuts.insert(key.clone(), Rc::new(scoped));
+        let class = match self.admissions.get(&schema_key) {
+            Some(class) => class.clone(),
+            None => {
+                let class = Rc::new(Admission::prepare(self.admissions.len(), &query, program, &req.hosted)?);
+                self.admissions.insert(schema_key, class.clone());
+                class
             }
-            Some(self.cuts[&key].clone())
-        } else {
-            None
         };
+        let held = &class.project_bases;
+        let contract = &class.contract;
         if req.files.is_empty() && !contract.cross {
             return Ok(Work::Pairs(Vec::new()));
         }
-        if scope_only || wide {
+        if class.closed {
             let t = thread_cpu();
             // Closed fixture inventories accompany the production input stream. If
             // only typed scalar host cells are read, no file identity needs binding.
@@ -279,12 +297,7 @@ impl Batch {
                 })
                 .or(snapshot)
                 .or_else(|| {
-                    let has_file = req
-                        .hosted
-                        .iter()
-                        .any(|h| h.columns.iter().any(|(_, k)| k == "File"));
-                    let needs_inventory = program.bases.iter().any(|n| n == "filesystem.file");
-                    (!has_file && (!req.files.is_empty() || !needs_inventory)).then(|| {
+                    (!class.file_cells && (!req.files.is_empty() || !class.file_inventory)).then(|| {
                         let mut paths = req.files.clone();
                         paths.sort_unstable();
                         Rc::new(paths)
@@ -326,14 +339,14 @@ impl Batch {
             {
                 return Ok(Work::Project(Rc::new(Ok(session::Reported::skipped(&inventory)))));
             }
-            let binding = self.binding(rule, req.hosted);
-            self.bound_contracts.insert(binding, Rc::clone(&contract));
-            let pairs = if let Some(c) = cut {
-                self.cut_of.insert(binding, c);
+            let binding = self.binding(rule, class.id, req.hosted);
+            self.bound_contracts.insert(binding, Rc::clone(contract));
+            let pairs = if let Some(c) = &class.cut {
+                self.cut_of.insert(binding, c.clone());
                 // Caller rows are consumed only after closure. Sources with the same
                 // prepared program and caller schema produce identical local outputs.
-                let local = *self.local_bindings.entry(schema_key).or_insert(binding);
-                self.schedule.admit(req.root, req.files.clone(), local)?
+                let local = *self.local_bindings.entry(class.id).or_insert(binding);
+                self.schedule.admit(req.root, &req.files, local)?
             } else {
                 Vec::new()
             };
@@ -349,26 +362,29 @@ impl Batch {
         if req.files.is_empty() {
             return Err("no complete source contribution for query".into());
         }
-        let binding = self.binding(rule, req.hosted);
-        self.bound_contracts.insert(binding, contract);
-        let pairs = self.schedule.admit(req.root, req.files, binding)?;
+        let binding = self.binding(rule, class.id, req.hosted);
+        self.bound_contracts.insert(binding, contract.clone());
+        let pairs = self.schedule.admit(req.root, &req.files, binding)?;
         Ok(Work::Pairs(pairs))
     }
 
-    fn binding(&mut self, rule: usize, mut hosted: Vec<Hosted>) -> usize {
-        // Only the immutable payload is shared. Each declaration keeps its schema,
-        // completeness and file-valued cells in the requesting scope.
+    fn binding(&mut self, rule: usize, class: usize, mut hosted: Vec<Hosted>) -> usize {
+        let mut payloads = Vec::with_capacity(hosted.len());
         for table in &mut hosted {
-            if let Some(rows) = self.host_rows.get(&table.rows) {
-                table.rows = Rc::clone(rows);
+            let id = if let Some((rows, &id)) = self.host_rows.get_key_value(&table.rows) {
+                table.rows = rows.clone();
+                id
             } else {
-                self.host_rows.insert(Rc::clone(&table.rows));
-            }
+                let id = self.host_rows.len();
+                self.host_rows.insert(table.rows.clone(), id);
+                id
+            };
+            payloads.push((id, table.partial.clone()));
         }
-        let hosted: Rc<[Hosted]> = hosted.into();
-        let host_key = hosted.clone();
-        *self.binding_ids.entry((rule, host_key)).or_insert_with(|| {
-            self.bindings.push((rule, hosted));
+        // The class binds the program and ordered schemas. Each payload ID binds
+        // all its cells by value, so the binding lookup need not hash them again.
+        *self.binding_ids.entry((class, payloads)).or_insert_with(|| {
+            self.bindings.push((rule, hosted.into()));
             self.bindings.len() - 1
         })
     }
@@ -486,7 +502,7 @@ impl Batch {
         if !*keep {
             *aliases=Vec::new();
         }
-        self.schedule.delivered(&pending);
+        self.schedule.delivered(&pending, *keep);
         self.finish_projects(languages, contributions, world, answers, populations, manifest_failures, *keep);
     }
 

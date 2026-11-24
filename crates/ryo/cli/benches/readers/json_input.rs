@@ -260,12 +260,69 @@ fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<std::rc:
     Vec::deserialize(input).map(std::rc::Rc::from)
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, serde::Deserialize)]
-#[serde(untagged)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub(super) enum HostCell {
     File { file: String },
     Number(i64),
     Text(String),
+}
+
+impl<'de> serde::Deserialize<'de> for HostCell {
+    fn deserialize<D: serde::Deserializer<'de>>(input: D) -> Result<Self, D::Error> {
+        use serde::de::{Error, IgnoredAny, MapAccess, SeqAccess, Visitor, value::MapAccessDeserializer};
+
+        struct CellVisitor;
+        impl<'de> Visitor<'de> for CellVisitor {
+            type Value = Option<HostCell>;
+
+            fn expecting(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                fmt.write_str("a file object, an integer, or text")
+            }
+
+            fn visit_map<M: MapAccess<'de>>(self, map: M) -> Result<Self::Value, M::Error> {
+                #[derive(serde::Deserialize)]
+                #[serde(untagged)]
+                enum Object {
+                    File { file: String },
+                    Other(IgnoredAny),
+                }
+                let value = serde::Deserialize::deserialize(MapAccessDeserializer::new(map))?;
+                Ok(match value {
+                    Object::File { file } => Some(HostCell::File { file }),
+                    Object::Other(_) => None,
+                })
+            }
+
+            fn visit_i64<E: Error>(self, number: i64) -> Result<Self::Value, E> {
+                Ok(Some(HostCell::Number(number)))
+            }
+
+            fn visit_u64<E: Error>(self, number: u64) -> Result<Self::Value, E> {
+                Ok(i64::try_from(number).ok().map(HostCell::Number))
+            }
+
+            fn visit_str<E: Error>(self, text: &str) -> Result<Self::Value, E> {
+                Ok(Some(HostCell::Text(text.to_owned())))
+            }
+
+            fn visit_string<E: Error>(self, text: String) -> Result<Self::Value, E> {
+                Ok(Some(HostCell::Text(text)))
+            }
+            fn visit_bool<E: Error>(self, _: bool) -> Result<Self::Value, E> { Ok(None) }
+            fn visit_f64<E: Error>(self, _: f64) -> Result<Self::Value, E> { Ok(None) }
+            fn visit_unit<E: Error>(self) -> Result<Self::Value, E> { Ok(None) }
+            fn visit_seq<S: SeqAccess<'de>>(self, mut seq: S) -> Result<Self::Value, S::Error> {
+                while seq.next_element::<IgnoredAny>()?.is_some() {}
+                Ok(None)
+            }
+
+        }
+
+        // Consume the complete cell before reporting the wire decoder's existing error.
+        input.deserialize_any(CellVisitor)?.ok_or_else(|| {
+            D::Error::custom("data did not match any variant of untagged enum HostCell")
+        })
+    }
 }
 pub(super) type Parameters = BTreeMap<Box<str>, PlanConstant>;
 pub(super) fn read_parameters<'de, D: serde::Deserializer<'de>>(
