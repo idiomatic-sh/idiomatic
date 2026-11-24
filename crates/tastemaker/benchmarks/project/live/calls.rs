@@ -220,6 +220,10 @@ impl Live {
         last.project_shards = c.project_shards;
         last.admission_shards = self.admission_shards;
         last.project_prepare_wall = c.project_prepare_wall;
+        last.project_numbered = c.project_numbered;
+        last.empty_project_epochs = c.empty_project_epochs;
+        last.project_number_wall = c.project_number_wall;
+        last.project_provider_wall = c.project_provider_wall;
         last.call_wall += wall.elapsed().as_secs_f64();
         last.phase_wall = [
             self.admission_wall,
@@ -580,6 +584,10 @@ struct Measurement {
     admission_shards: usize,
     project_shards: usize,
     project_prepare_wall: f64,
+    project_provider_wall: f64,
+    project_number_wall: f64,
+    project_numbered: usize,
+    empty_project_epochs: usize,
     call_wall: f64,
     phase_wall: [f64; 4],
     parts: [f64; 6],
@@ -605,6 +613,10 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     admission_shards: 0,
     project_shards: 0,
     project_prepare_wall: 0.,
+    project_provider_wall: 0.,
+    project_number_wall: 0.,
+    project_numbered: 0,
+    empty_project_epochs: 0,
     call_wall: 0.0,
     phase_wall: [0.0; 4],
     parts: [0.0; 6],
@@ -638,6 +650,10 @@ pub fn print_measurement() {
     }
     let [versions,hits,evictions,peak_charge]=m.retained;
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
+    eprintln!(
+        "LIVE_PROJECT_WALL provider={:.6} numbering={:.6} numbered={} empty_epochs={}",
+        m.project_provider_wall, m.project_number_wall, m.project_numbered, m.empty_project_epochs
+    );
     let [prepare, read, first, second, project, assembly] = m.parts;
     let [inventory, join, critical, busy, largest] = m.dispatch_wall;
     eprintln!("LIVE_FILE_WALL inventory={inventory:.6} join={join:.6} critical={critical:.6} busy={busy:.6} largest={largest:.6}");

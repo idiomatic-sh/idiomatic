@@ -619,6 +619,7 @@ impl Batch {
             if let Some((prior, _)) = populations.get(&id) {
                 self.relations_rebuilt += s.wanted.intersection(prior).count();
             }
+            let provider = std::time::Instant::now();
             let population = (|| {
                 let sources = s
                     .slots
@@ -638,6 +639,7 @@ impl Batch {
                     &s.wanted.iter().copied().collect::<Vec<_>>(),
                 )
             })();
+            self.clocks.project_provider_wall += provider.elapsed().as_secs_f64();
             populations.insert(id, (s.wanted.clone(), population));
         }
         if !keep {
@@ -650,6 +652,12 @@ impl Batch {
             }
         }
         self.clocks.project_prepare_wall += wall.elapsed().as_secs_f64();
+        if groups.is_empty() {
+            self.clocks.empty_project_epochs += 1;
+            self.clocks.project += thread_cpu() - t;
+            self.clocks.project_wall += wall.elapsed().as_secs_f64();
+            return;
+        }
         let mut readers=readers::Closed::new(&self.work,&self.cut_of,keep);
         #[cfg(feature = "product-session")]
         let workers = self.workers.map_or(1, std::num::NonZeroUsize::get);
@@ -663,6 +671,8 @@ impl Batch {
                 workers, self, world, populations, answers, groups.into_iter(), &mut readers,
             );
             self.clocks.project_workers_cpu += worker_cpu;
+            self.clocks.project_number_wall += readers.number_wall;
+            self.clocks.project_numbered += readers.numbered;
             self.clocks.project += thread_cpu() - t;
             self.clocks.project_wall += wall.elapsed().as_secs_f64();
             return;
@@ -712,6 +722,8 @@ impl Batch {
                 self.work[i] = Work::Project(answer);
             }
         }
+        self.clocks.project_number_wall += readers.number_wall;
+        self.clocks.project_numbered += readers.numbered;
         self.clocks.project += thread_cpu() - t;
         self.clocks.project_wall += wall.elapsed().as_secs_f64();
     }

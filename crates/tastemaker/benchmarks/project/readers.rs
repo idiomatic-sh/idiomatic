@@ -24,6 +24,8 @@ impl<'a> PathLists<'a> {
 
 pub(super) struct Closed {
     inventory: Vec<usize>,
+    pub(super) number_wall: f64,
+    pub(super) numbered: usize,
     numbers: Vec<Option<Vec<u32>>>,
     pub(super) duplicate: Vec<Option<usize>>,
     reads: Vec<Option<usize>>,
@@ -98,6 +100,8 @@ impl Closed {
 
         Self {
             numbers: vec![None; lists.lists.len()],
+            number_wall: 0.,
+            numbered: 0,
             inventory: inventory_ids,
             duplicate,
             reads,
@@ -120,8 +124,13 @@ impl Closed {
         paths: &[String],
         world: &mut session::World,
     ) -> &[u32] {
-        self.numbers[self.inventory[request]]
-            .get_or_insert_with(|| paths.iter().map(|path| world.file(path)).collect())
+        self.numbers[self.inventory[request]].get_or_insert_with(|| {
+            let start = std::time::Instant::now();
+            let numbers = paths.iter().map(|path| world.file(path)).collect();
+            self.number_wall += start.elapsed().as_secs_f64();
+            self.numbered += paths.len();
+            numbers
+        })
     }
     pub(super) fn inputs(
         &mut self,
