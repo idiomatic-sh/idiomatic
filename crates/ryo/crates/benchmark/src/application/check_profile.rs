@@ -57,6 +57,10 @@ pub fn profile(
     ]))?;
     let mut written = fs::File::create(directory.join("profile.md"))?;
     writeln!(written, "# Real check at {}\n", revision.trim())?;
+    writeln!(
+        written,
+        "The ordinary release allocator supplies the phase clocks, samples and instructions. The same source built with Rust's system allocator supplies Heaptrack data.\n"
+    )?;
     let mut totals = BTreeMap::new();
     for (name, workspace) in [("root", source.clone()), ("ryo", source.join("crates/ryo"))] {
         let command = registered_command(&workspace)?;
@@ -230,7 +234,8 @@ fn build(repo: &Path, bench: &Path, image: &Path, revision: &str) -> Result<(), 
         command
     };
     run(&mut make())?;
-    fs::copy(target.join("release/tm"), image.join("ordinary"))?;
+    let ordinary = stage.path().join("ordinary");
+    fs::copy(target.join("release/tm"), &ordinary)?;
     let entry = product.join("cli/src/main.rs");
     let mut text = fs::read_to_string(&entry)?;
     for declaration in [
@@ -255,7 +260,10 @@ fn build(repo: &Path, bench: &Path, image: &Path, revision: &str) -> Result<(), 
     }
     fs::write(entry, text)?;
     run(&mut make())?;
-    fs::copy(target.join("release/tm"), image.join("heap"))?;
+    let heap = stage.path().join("heap");
+    fs::copy(target.join("release/tm"), &heap)?;
+    fs::rename(ordinary, image.join("ordinary"))?;
+    fs::rename(heap, image.join("heap"))?;
     Ok(())
 }
 

@@ -278,8 +278,7 @@ impl Batch {
                 Program::prepare("query", &query, ctx, &declaration(), Some("/"))
             });
         self.clocks.prepare += thread_cpu() - t;
-        #[cfg(feature = "product-session")]
-        crate::operators::query(rule, &query);
+        finish::operators::query(rule, &query);
         rule
     }
     fn register_query(
@@ -859,8 +858,7 @@ impl Batch {
                         return Ok(answer);
                     }
                     let numbers = readers.numbers(i, inventory, world);
-                    #[cfg(feature = "product-session")]
-                    let _profile = crate::operators::scope(rule, "cross-file");
+                    let _profile = finish::operators::scope(rule, "cross-file");
                     let rows = execute_ids(
                         &mut exec,
                         &mut world.run,

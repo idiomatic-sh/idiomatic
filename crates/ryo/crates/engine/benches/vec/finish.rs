@@ -12,6 +12,9 @@ use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 use rustc_hash::FxHashMap;
 
+#[path = "operators.rs"]
+pub(crate) mod operators;
+
 #[path = "finish/plan_load.rs"]
 mod plan_load;
 #[path = "finish/plan_args.rs"]
@@ -1711,11 +1714,10 @@ impl<'p> Exec<'p> {
     /// A node's answer in this file: its slot, else made once (`make`).
     #[inline]
     pub(super) fn res(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
-        #[cfg(feature = "product-session")]
-        if let Some(start) = crate::operators::enter(node, 0) {
+        if let Some(start) = operators::enter(node, 0) {
             let fresh = f.memo[node].is_none() && self.run_memo[node].is_none();
             let out = self.res_body(f, run, p, node);
-            crate::operators::leave(start, &self.plan.nodes[node].op, match &out { Ok(Res::Tab(t)) => t.n, _ => 0 }, fresh && matches!(&out, Ok(Res::Tab(_))));
+            operators::leave(start, &self.plan.nodes[node].op, match &out { Ok(Res::Tab(t)) => t.n, _ => 0 }, fresh && matches!(&out, Ok(Res::Tab(_))));
             return out;
         }
         self.res_body(f, run, p, node)
@@ -1826,11 +1828,10 @@ impl<'p> Exec<'p> {
     /// reads that table through its index on `col` (made once a file). A view is read in place where its base has a
     /// keyed read for the column; a closure is read through its adjacency (`lazy`), not made whole.
     fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
-        #[cfg(feature = "product-session")]
-        if let Some(start) = crate::operators::enter(node, keys.len()) {
+        if let Some(start) = operators::enter(node, keys.len()) {
             let fresh = true;
             let out = self.probe_body(f, run, p, node, col, keys);
-            crate::operators::leave(start, &self.plan.nodes[node].op, out.as_ref().map_or(0, |t| t.n), fresh && out.is_ok());
+            operators::leave(start, &self.plan.nodes[node].op, out.as_ref().map_or(0, |t| t.n), fresh && out.is_ok());
             return out;
         }
         self.probe_body(f, run, p, node, col, keys)
@@ -1919,11 +1920,10 @@ impl<'p> Exec<'p> {
 
     /// A node's rows as a table (a view is made whole here, once a file).
     pub(super) fn eval(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
-        #[cfg(feature = "product-session")]
-        if let Some(start) = crate::operators::enter(node, 0) {
+        if let Some(start) = operators::enter(node, 0) {
             let fresh = !matches!(&f.memo[node], Some(Res::Tab(_))) && !f.vmat.contains_key(&node) && self.run_memo[node].is_none();
             let out = self.eval_body(f, run, p, node);
-            crate::operators::leave(start, &self.plan.nodes[node].op, out.as_ref().map_or(0, |t| t.n), fresh && out.is_ok());
+            operators::leave(start, &self.plan.nodes[node].op, out.as_ref().map_or(0, |t| t.n), fresh && out.is_ok());
             return out;
         }
         self.eval_body(f, run, p, node)
@@ -3540,8 +3540,7 @@ fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize,
             if sw!("VEC_COLD_PHASE") { run.cold.phase(node, middle - before, cold_list::clock() - middle); }
         }).into()
     };
-    #[cfg(feature = "product-session")]
-    crate::operators::rows_in(entered);
+    operators::rows_in(entered);
     let rows = slot.resolve(f.table);
     if sw!("VEC_LEAF_PROFILE") {
         leaf_scan::row_list(node, materialize, entered, rows.len(), start);

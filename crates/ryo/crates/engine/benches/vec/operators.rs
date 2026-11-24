@@ -61,7 +61,7 @@ impl Drop for Scope {
 }
 
 fn clock() -> u64 {
-    (crate::thread_cpu() * 1e9) as u64
+    (super::super::thread_cpu() * 1e9) as u64
 }
 
 #[inline]
