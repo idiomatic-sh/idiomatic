@@ -129,8 +129,12 @@ struct Local {
 }
 // This length-prefixed postcard payload stays packed until a changed closed
 // answer actually requests a column from it.
-#[derive(Deserialize)]
 struct EncodedBlock(Vec<u8>);
+impl<'de> Deserialize<'de> for EncodedBlock {
+    fn deserialize<D: serde::Deserializer<'de>>(input: D) -> Result<Self, D::Error> {
+        Ok(Self(<&[u8]>::deserialize(input)?.to_vec()))
+    }
+}
 impl Serialize for EncodedBlock {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
         out.serialize_bytes(&self.0)
