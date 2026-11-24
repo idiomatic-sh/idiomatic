@@ -76,10 +76,18 @@ impl<'a> FileInputs<'a> {
         };
         let outputs = &b.outputs;
         let share = |n: usize| outputs.get(&n).filter(|_| local_coverage.is_empty());
+        let absent = b
+            .absent
+            .as_ref()
+            .filter(|(home, _)| *home == id && local_coverage.is_empty())
+            .map(|(_, bits)| bits);
+        let omitted = |i: usize| absent.is_some_and(|a| a[i]);
         let missing: Vec<_> = cut
             .inputs
             .iter()
-            .copied()
+            .enumerate()
+            .filter(|(i, _)| !omitted(*i))
+            .map(|(_, n)| *n)
             .filter(|&n| !share(n).is_some_and(|id| self.produced.contains_key(id)))
             .filter(|&n| !shared_base(n).is_some_and(|name| self.carried_bases.contains_key(name)))
             .collect();
@@ -133,7 +141,12 @@ impl<'a> FileInputs<'a> {
             }
             cut.inputs
                 .iter()
-                .map(|&n| {
+                .enumerate()
+                .map(|(i, &n)| {
+                    if omitted(i) {
+                        let t = b.exec.empty_rc(run, n)?;
+                        return Ok((n, world.empty_block(&t)));
+                    }
                     let t = if let Some(name) = shared_base(n) {
                         self.carried_bases.get(name).cloned()
                     } else {

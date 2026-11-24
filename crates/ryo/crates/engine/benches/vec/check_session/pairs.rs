@@ -10,6 +10,7 @@ use std::collections::{BTreeSet, HashMap};
 pub(super) struct Checks {
     program: pair_summary::Program,
     roots: Vec<Vec<usize>>,
+    domains: Vec<Vec<(usize, usize)>>,
     live: Vec<bool>,
     patterns: crate::pair_checks::SymbolMatches,
     words: l::FileWords,
@@ -33,11 +34,18 @@ impl Checks {
         }
         let mut steps = vec![BTreeSet::new(); programs.len()];
         let mut roots = vec![Vec::new(); program_of.len()];
+        let mut domains = vec![Vec::new(); program_of.len()];
         for (binding, outputs) in roots.iter_mut().enumerate().filter(|(b, _)| needed[*b]) {
             let id = program_of[binding];
             let Ok(program) = &programs[id] else { continue };
             if let Some(partition) = &cuts[binding] {
                 outputs.extend_from_slice(&partition.inputs);
+                for (offset, n) in partition.inputs.iter().enumerate() {
+                    if let Some(&(_, d)) = partition.domains.get(n) {
+                        steps[id].insert(d);
+                        domains[binding].push((offset, d));
+                    }
+                }
             } else {
                 outputs.extend(program.plan.emits.iter().map(|e| e.1));
             }
@@ -57,6 +65,9 @@ impl Checks {
             bases.extend(program.bases.iter().map(String::as_str));
         }
         for (binding, outputs) in roots.iter_mut().enumerate() {
+            for (_, d) in &mut domains[binding] {
+                *d = indices[&(program_of[binding], *d)];
+            }
             for step in outputs {
                 *step = indices[&(program_of[binding], *step)];
             }
@@ -118,6 +129,7 @@ impl Checks {
         Self {
             program,
             roots,
+            domains,
             row_guards,
             known: Vec::new(),
             live,
@@ -145,6 +157,9 @@ impl Checks {
         let mut any = false;
         for &(binding, _, excluded) in active.iter() {
             if !excluded {
+                for &(_, d) in &self.domains[binding] {
+                    self.live[d] = true;
+                }
                 for &root in &self.roots[binding] {
                     self.live[root] = true;
                     any = true;
@@ -184,19 +199,45 @@ impl Checks {
             );
         }
         for (binding, _, excluded) in active {
-            if !*excluded && self.roots[*binding].iter().all(|&r| !self.live[r]) {
-                let b = bound.get_mut(binding).unwrap().as_mut().unwrap();
-                if partials.iter().any(|p| b.facts.contains(&p.relation)) {
-                    continue;
+            if *excluded {
+                continue;
+            }
+            let roots = &self.roots[*binding];
+            let cut = cuts[*binding].as_deref();
+            let b = bound.get_mut(binding).unwrap().as_mut().unwrap();
+            if partials.iter().any(|p| b.facts.contains(&p.relation)) {
+                continue;
+            }
+            let any_absent = roots.iter().any(|&r| !self.live[r]);
+            if !any_absent && !self.domains[*binding].iter().any(|&(_, d)| !self.live[d]) {
+                continue;
+            }
+            if !*b.screenable.get_or_insert_with(|| {
+                crate::finish::session::certificate::certified_empty(
+                    &mut b.exec,
+                    run,
+                    &b.hosted,
+                    cut,
+                )
+            }) {
+                continue;
+            }
+            if roots.iter().all(|&r| !self.live[r]) {
+                *excluded = true;
+                continue;
+            }
+            if let Some(cut) = cut {
+                let (home, absent) = b.absent.get_or_insert_with(|| (id.0, Vec::new()));
+                *home = id.0;
+                absent.clear();
+                absent.extend(roots.iter().map(|&r| !self.live[r]));
+                for &(i, d) in &self.domains[*binding] {
+                    absent[i] |= !self.live[d]
+                        && b.projections
+                            .get(&cut.inputs[i])
+                            .is_some_and(|p| p.needs_domain());
                 }
-                *excluded = *b.screenable.get_or_insert_with(|| {
-                    crate::finish::session::certificate::certified_empty(
-                        &mut b.exec,
-                        run,
-                        &b.hosted,
-                        cuts[*binding].as_deref(),
-                    )
-                });
+                *excluded = absent.iter().all(|&v| v);
             }
         }
     }

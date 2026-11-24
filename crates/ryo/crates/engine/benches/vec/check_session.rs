@@ -266,6 +266,7 @@ impl Schedule {
 
 struct Bound<'p> {
     screenable: Option<bool>,
+    absent: Option<(u32, Vec<bool>)>,
     empty_frontier: Option<Vec<(usize, Rc<Table>)>>,
     outputs: HashMap<usize,usize>,
     projections: BTreeMap<usize,finish::session::contribution::Projection>,
@@ -349,6 +350,7 @@ fn bind<'p, L: FileSource>(
     let outputs = registry.identify(&projections, cut);
     Ok(Bound {
         screenable: None,
+        absent: None,
         empty_frontier: None,
         outputs,
         projections,

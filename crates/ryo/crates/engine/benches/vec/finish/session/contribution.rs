@@ -7,6 +7,7 @@ use std::{
 };
 
 pub(in super::super::super) struct Projection {
+    demand: Option<(usize, Rc<ViewSpec>)>,
     source: usize,
     tree: Rc<ViewSpec>,
     schema: Rc<Schema>,
@@ -49,7 +50,7 @@ impl Registry {
         let mut result = HashMap::new();
         if let Some(cut) = cut {
             for (&node, p) in plans {
-                if !p.tree.filter.is_empty() {
+                if p.demand.is_some() || !p.tree.filter.is_empty() {
                     continue;
                 }
                 let key = Output {
@@ -78,14 +79,40 @@ impl Projection {
         if let Some(cut) = cut {
             for (&node, mask) in &cut.columns {
                 let local_reader = exec.consumers[node].iter().any(|&u| cut.file_steps[u]);
-                if let Some(plan) =
+                if let Some(mut plan) =
                     Self::prepare(exec, run, node, mask, local_reader, tests.get(&node))
                 {
+                    if let Some(&(c, domain)) = cut.domains.get(&node)
+                        && plan
+                            .columns
+                            .iter()
+                            .any(|&(out, base, col)| out == c && base == Native::Child && col == 0)
+                        && let Some(view) = exec.view(run, domain).ok().flatten()
+                        && view.base == Native::Tree
+                        && !view.filter.is_empty()
+                        && exec
+                            .schema(run, domain)
+                            .ok()
+                            .and_then(|s| s.names.iter().position(|n| n == "id"))
+                            .is_some_and(|id| view.map[id] == 0)
+                        && view
+                            .filter
+                            .iter()
+                            .chain(&plan.tree.filter)
+                            .all(super::certificate::total)
+                    {
+                        plan.demand = Some((domain, view));
+                        plan.share_with_local_reader = false;
+                    }
                     plans.insert(node, plan);
                 }
             }
         }
         plans
+    }
+
+    pub(in super::super::super) fn needs_domain(&self) -> bool {
+        self.demand.is_some()
     }
 
     fn prepare(
@@ -130,6 +157,7 @@ impl Projection {
                 .map(|(c, &col)| (c, Native::Tree, col))
                 .collect();
             return Some(Self {
+                demand: None,
                 source: node,
                 tree,
                 schema,
@@ -181,6 +209,7 @@ impl Projection {
             }
         }
         Some(Self {
+            demand: None,
             source: plan.srcs[tree_side],
             tree: views[tree_side].clone(),
             schema,
@@ -202,6 +231,18 @@ impl Projection {
                         rows.dedup();
                     }
                 }
+                view_cols::retain_original(file, run, &self.tree, &mut rows);
+                rows
+            }
+            Rows::WithParent if self.demand.is_some() => {
+                let (domain, view) = self.demand.as_ref().unwrap();
+                let parents = super::super::view_rows_for(file, run, view, *domain, true);
+                let mut rows = Vec::new();
+                for &parent in parents.iter() {
+                    file.native_probe(run, Native::Child, 0, u64::from(parent), &mut rows);
+                }
+                rows.sort_unstable();
+                rows.dedup();
                 view_cols::retain_original(file, run, &self.tree, &mut rows);
                 rows
             }
