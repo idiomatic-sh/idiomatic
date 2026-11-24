@@ -62,6 +62,7 @@ impl Capture {
             answer.findings.push(finding);
         }
     }
+    #[allow(dead_code, reason = "only SDK file readers publish packet unknowns")]
     pub(crate) fn unknown(
         &mut self,
         origin: &str,
@@ -86,6 +87,10 @@ impl Capture {
         self.partial(origin);
         self.prior_refusal = true;
     }
+    #[allow(
+        dead_code,
+        reason = "only paired visitors inspect the next file before scheduling it"
+    )]
     pub(crate) fn contains(&self, origin: &str) -> bool {
         !self.prior_refusal && self.reusable.contains_key(origin)
     }
@@ -110,6 +115,10 @@ pub(crate) struct Request {
     pub root: PathBuf,
     pub files: Vec<String>,
     #[serde(default)]
+    #[allow(
+        dead_code,
+        reason = "some hosts bind selection in their own request reader"
+    )]
     pub selected_rules: Vec<String>,
     #[serde(default)]
     project_search_roots: Vec<PathBuf>,
