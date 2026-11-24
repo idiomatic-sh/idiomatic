@@ -323,12 +323,14 @@ pub enum RowCondition {
 ///
 /// assert_ne!(ProbeMark::Probed(SourceOrdinal(1)), ProbeMark::Unmarked);
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ProbeMark {
     /// Not a semijoin.
     Unmarked,
     /// This source is probed; the other is kept.
     Probed(SourceOrdinal),
+    /// A necessary test from the sole consumer, using the original join order.
+    Filtered(Box<PlanExpression>),
 }
 
 /// A source's place among a select's sources.

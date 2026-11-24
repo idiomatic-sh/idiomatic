@@ -4,6 +4,7 @@ use super::{
     E, Exec, File, Native, Op, R, Run, Src, Table, cold_bucket::Rows, recycle, view_cols,
     view_probe, view_rows,
 };
+use super::select_kernel::Pushed;
 use std::rc::Rc;
 
 pub(super) fn columns(conj: &[E]) -> Option<[usize; 2]> {
@@ -20,6 +21,7 @@ pub(super) struct Projection<'a> {
     pub(super) items: &'a [(usize, usize)],
     pub(super) left: &'a mut Vec<u32>,
     pub(super) right: &'a mut Vec<u32>,
+    pub(super) pushed: Option<&'a Pushed>,
 }
 
 pub(super) fn run(
@@ -60,9 +62,10 @@ pub(super) fn run(
     }
     out.left.clear();
     out.right.clear();
-    let (driven, hits) = if let Some(counts) =
-        super::view_choice::reverse(f, run, sources, driver, columns, rows, out.left, out.right)
-    {
+    let pushed = out.pushed.filter(|test| matches!(sources[test.source], Src::View(..)));
+    let (driven, hits) = if let Some(counts) = super::view_choice::reverse(
+        f, run, sources, driver, columns, rows, pushed, out.left, out.right,
+    ) {
         counts
     } else {
         let batch = view_probe::Driver {
@@ -70,7 +73,7 @@ pub(super) fn run(
             source: driver,
             column: columns[driver],
         };
-        let hits = view_probe::pairs(f, run, sources, batch, target, key, |_, left, right| {
+        let hits = view_probe::filtered_pairs(f, run, sources, batch, target, key, pushed, |_, left, right| {
             out.left.push(left);
             out.right.push(right);
         })

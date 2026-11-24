@@ -1,6 +1,7 @@
 //! Reverse a native equality only when the other input has a known smaller
 //! cardinality. Preserve the original pair order for order-sensitive consumers.
 use super::{File, Native, Run, Src, ViewSpec, cold_bucket::Rows, view_probe};
+use super::select_kernel::Pushed;
 use ryo::languages::{Position, node_table};
 use view_probe::Ids;
 
@@ -44,6 +45,7 @@ pub(super) fn reverse(
     driver: usize,
     columns: [usize; 2],
     rows: Ids<'_>,
+    pushed: Option<&Pushed>,
     left: &mut Vec<u32>,
     right: &mut Vec<u32>,
 ) -> Option<(usize, u64)> {
@@ -73,7 +75,7 @@ pub(super) fn reverse(
         column: columns[other],
     };
     let mut pairs = Vec::new();
-    let hits = view_probe::pairs(f, run, sources, batch, old, key, |_, new_id, old_id| {
+    let hits = view_probe::filtered_pairs(f, run, sources, batch, old, key, pushed, |_, new_id, old_id| {
         pairs.push((old_id, new_id));
     })?;
     if (new.base, new.map[columns[other]]) == (Native::Child, 0) {
