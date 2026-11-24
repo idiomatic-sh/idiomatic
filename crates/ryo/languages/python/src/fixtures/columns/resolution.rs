@@ -388,6 +388,81 @@ impl ColumnFile<'_, '_> {
 }
 
 impl ColumnFile<'_, '_> {
+    /// Targets and values of source assignments.
+    pub const ASSIGNMENT_SOURCE_SCHEMA: ryo::languages::FileRelation = {
+        use ryo::languages::{
+            CellKind::{File, Node, Symbol},
+            FileRelation,
+        };
+        FileRelation {
+            name: "assignment-source",
+            columns: &[
+                ("target", Node),
+                ("value", Node),
+                ("operation", Symbol),
+                ("association", Symbol),
+                ("file", File),
+            ],
+        }
+    };
+
+    /// First read witnesses for each reachable binding.
+    pub const BINDING_READ_SCHEMA: ryo::languages::FileRelation = {
+        use ryo::languages::{
+            CellKind::{File, Node},
+            FileRelation,
+        };
+        FileRelation {
+            name: "binding-read-summary",
+            columns: &[
+                ("binding", Node),
+                ("flow-read", Node),
+                ("namespace-read", Node),
+                ("file", File),
+            ],
+        }
+    };
+
+    /// Scheduled mutations around each binding.
+    pub const BINDING_SITES_SCHEMA: ryo::languages::FileRelation = {
+        use ryo::languages::{
+            CellKind::{File, Node, Number},
+            FileRelation,
+        };
+        FileRelation {
+            name: "binding-sites",
+            columns: &[
+                ("binding", Node),
+                ("stores", Number),
+                ("removals", Number),
+                ("later", Number),
+                ("statement", Node),
+                ("series-end", Node),
+                ("next", Node),
+                ("file", File),
+            ],
+        }
+    };
+
+    /// First events and mutations in a namespace.
+    pub const NAMESPACE_SITES_SCHEMA: ryo::languages::FileRelation = {
+        use ryo::languages::{
+            CellKind::{File, Node, Number, Symbol},
+            FileRelation,
+        };
+        FileRelation {
+            name: "namespace-sites",
+            columns: &[
+                ("scope", Node),
+                ("name", Symbol),
+                ("first", Number),
+                ("first-mutation", Number),
+                ("first-written", Number),
+                ("file", File),
+            ],
+        }
+    };
+
     /// Schemas for rows over the parsed file's syntax and binding schedule.
     pub const SITE_SCHEMAS: &'static [ryo::languages::FileRelation] = {
         use ryo::languages::{
@@ -395,49 +470,10 @@ impl ColumnFile<'_, '_> {
             FileRelation,
         };
         &[
-            FileRelation {
-                name: "assignment-source",
-                columns: &[
-                    ("target", Node),
-                    ("value", Node),
-                    ("operation", Symbol),
-                    ("association", Symbol),
-                    ("file", File),
-                ],
-            },
-            FileRelation {
-                name: "binding-read-summary",
-                columns: &[
-                    ("binding", Node),
-                    ("flow-read", Node),
-                    ("namespace-read", Node),
-                    ("file", File),
-                ],
-            },
-            FileRelation {
-                name: "binding-sites",
-                columns: &[
-                    ("binding", Node),
-                    ("stores", Number),
-                    ("removals", Number),
-                    ("later", Number),
-                    ("statement", Node),
-                    ("series-end", Node),
-                    ("next", Node),
-                    ("file", File),
-                ],
-            },
-            FileRelation {
-                name: "namespace-sites",
-                columns: &[
-                    ("scope", Node),
-                    ("name", Symbol),
-                    ("first", Number),
-                    ("first-mutation", Number),
-                    ("first-written", Number),
-                    ("file", File),
-                ],
-            },
+            Self::ASSIGNMENT_SOURCE_SCHEMA,
+            Self::BINDING_READ_SCHEMA,
+            Self::BINDING_SITES_SCHEMA,
+            Self::NAMESPACE_SITES_SCHEMA,
             FileRelation {
                 name: "pre-declaration-read",
                 columns: &[

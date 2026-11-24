@@ -184,6 +184,9 @@ const PREDECESSOR: FileRelation = FileRelation {
 };
 
 impl ColumnFile<'_, '_> {
+    /// The schedule predecessor's file-local columns.
+    pub const PREDECESSOR_SCHEMA: FileRelation = PREDECESSOR;
+
     /// Complete file-local typing and postponed-evaluation relations.
     pub const TYPING_SCHEMAS: &'static [FileRelation] =
         &[TYPE, ANNOTATION, VISIT, RESOLUTION, PREDECESSOR];
