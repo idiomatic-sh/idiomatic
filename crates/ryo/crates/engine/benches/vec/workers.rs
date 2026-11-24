@@ -82,6 +82,7 @@ pub(crate) fn run<T: Send>(
                     let place = &place;
                     let secondary = &secondary;
                     move || {
+                        let _budget = super::finish::PoolBudget::for_workers(shards.len());
                         place(i + 1);
                         secondary(shard)
                     }
@@ -100,6 +101,7 @@ pub(crate) fn run<T: Send>(
         }
         #[cfg(target_os = "linux")]
         let _restore = Restore(mask.as_ref());
+        let _budget = super::finish::PoolBudget::for_workers(shards.len());
         place(0);
         let mut results = vec![primary(&shards[0])];
         for worker in other {
