@@ -1,0 +1,42 @@
+[package]
+name = "tm-project-session"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[lib]
+path = "lib.rs"
+
+[features]
+default = ["vec-glibc", "product-session"]
+vec-glibc = []
+product-session = []
+
+[dependencies]
+release_sdk = { package = "idiomatic-sh-ryo-sdk", version = "=0.1.4", features = ["fixtures"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+globset = "0.4"
+cpu-time = "1"
+bumpalo = "3"
+regex = "1"
+rustc-hash = "2"
+smallvec = "1"
+unicode-width = "=0.2.2"
+toml = "1"
+ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../../../ryo/crates/engine" }
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../../../../ryo/crates/execution_domain" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../../../../ryo/crates/language" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../../../ryo/crates/operators" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../../../../ryo/crates/query_language" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../../../ryo/crates/relations" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../../../../ryo/crates/values" }
+ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../../../../ryo/crates/sdk", features = ["fixtures"] }
+
+release_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", version = "=0.1.4" }
+release_language = { package = "idiomatic-sh-ryo-language", version = "=0.1.4" }
+release_relations = { package = "idiomatic-sh-ryo-relations", version = "=0.1.4" }
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../../../ryo/crates/matching" }

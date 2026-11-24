@@ -41,11 +41,6 @@ impl FutureImports<'_> {
 }
 
 impl<'a> Visitor<'a> for FutureImports<'_> {
-    // A future statement can only occur in a statement suite. Expressions
-    // have no statement children, including lambda and comprehension bodies.
-    fn visit_expr(&mut self, _expr: &'a ruff_python_ast::Expr) {}
-
-
     fn visit_stmt(&mut self, stmt: &'a Stmt) {
         if let Stmt::ImportFrom(import) = stmt
             && import.level == 0

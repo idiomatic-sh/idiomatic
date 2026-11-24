@@ -36,6 +36,7 @@ oxc_regular_expression = "=0.142.0"
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.2.0" }
 
 [dev-dependencies]
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../crates/matching" }
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../crates/operators" }
 bumpalo = "3"
 smallvec = "1"
@@ -77,7 +78,6 @@ harness = false
 [features]
 # Instruments and widens the benchmark pair program for cost measurements.
 pair-diagnostics = []
-summary-diagnostics = []
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["ryo/fixtures"]
 

@@ -89,6 +89,23 @@ impl CompileUseCase for CompileUseCaseImpl {
                 request.modules.clone(),
             )
         };
+        self.compile_root(request, root, modules)
+    }
+}
+
+impl CompileUseCaseImpl {
+    /// Compile a root the caller has already parsed. This applies the ordinary catalog,
+    /// scope and type checks to the same syntax reused for another representation.
+    ///
+    /// # Errors
+    ///
+    /// Any linking, validation or lowering refusal of the text-based entry.
+    pub fn compile_root(
+        &self,
+        request: QueryRequest,
+        root: ryo_values::domain::program::types::WrittenProgram,
+        modules: ParsedModules,
+    ) -> Result<CompileReport, CompileError> {
         let checks = self.checks_of(&request.text, &modules);
         let program = crate::domain::expanding::service::link_checked(
             &request.text,

@@ -13,7 +13,7 @@
 use super::{E, Exec, File, Native, Op, TextTest, Provider, R, Run, Src, Table, Ty, V, NULL};
 use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, truthy, view_holds, view_rows};
 use rustc_hash::FxHashSet;
-use serde_json::Value as J;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -134,7 +134,7 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
         }
         P::In(a, items, neg) => {
             let x = val(run, f, srcs, cur, a);
-            items.iter().any(|y| compare(run, x, *y) == Some(std::cmp::Ordering::Equal)) != *neg
+            items.iter().any(|y| super::member_eq(run, x, *y)) != *neg
         }
         P::SymbolTest(s, c, test) => {
             let symbol = get(run, f, srcs, cur, *s, *c) as u32;
@@ -356,9 +356,9 @@ impl Exec<'_> {
 
     fn ksel_make(&mut self, run: &mut Run, node: usize) -> R<Prep> {
         let plan = self.plan;
-        let j = &plan.nodes[node].j;
+        let pn = &plan.nodes[node];
         // a semi step tries the band first (band.rs); where it declines, the kernels run it (`VEC_KSEL_NO_SEMI`: the old path)
-        let semi = j.get("semi").and_then(J::as_u64).filter(|_| j.get("count").is_none() && !sw!("VEC_NO_SEMI")).map(|x| x as usize);
+        let semi = pn.semi().filter(|_| !pn.counted() && !sw!("VEC_NO_SEMI"));
         if semi.is_some() && sw!("VEC_KSEL_NO_SEMI") {
             return Ok(Prep::Old("semi"));
         }

@@ -16,16 +16,6 @@ mod first;
 use first::{Vocab, span_bytes};
 #[path = "../../../../crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
-#[path = "../../../../crates/engine/benches/vec/summary_schedule.rs"]
-mod summary_schedule;
-#[path = "../../../../crates/engine/benches/vec/summary_values.rs"]
-mod summary_values;
-#[path = "../../../../crates/engine/benches/vec/summary_proofs.rs"]
-mod summary_proofs;
-#[path = "../../../../crates/engine/benches/vec/summary_rules.rs"]
-mod summary_rules;
-#[path = "../../../../crates/engine/benches/vec/summary_literals.rs"]
-mod summary_literals;
 #[path = "../../../../crates/engine/benches/vec/host_columns.rs"]
 mod host_columns;
 #[path = "../../../../crates/engine/benches/vec/glob_pattern.rs"]
@@ -46,7 +36,7 @@ mod spec;
 
 #[path = "../../../../crates/engine/benches/vec/reader_cli.rs"]
 mod reader_cli;
-use reader_cli::{alloc_counts, flag, rule_context, thread_cpu};
+use reader_cli::{alloc_counts, context_from, flag, rule_context, thread_cpu};
 
 fn declaration() -> first::Language {
     first::Language {

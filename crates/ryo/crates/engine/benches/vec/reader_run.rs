@@ -131,12 +131,10 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     output: &str,
     paths: Option<Vec<String>>,
 ) -> bool {
-    let mut req: Request =
-        serde_json::from_slice(&std::fs::read(request).expect("read request")).expect("request");
-    if let Some(paths) = paths {
-        req.files = paths;
-    }
-    let read = lower::read_pack(Path::new(pack), super::rule_context(Some(request)));
+    let document: serde_json::Value = serde_json::from_slice(&std::fs::read(request).expect("read request")).expect("request");
+    let mut req = <Request as serde::Deserialize>::deserialize(&document).expect("request fields");
+    if let Some(paths) = paths { req.files = paths; }
+    let read = lower::read_pack(Path::new(pack), super::context_from(&document));
     let parser = language.parse_engine();
     let plan = lower::second_half_plan(&read, true);
     let emits: BTreeSet<_> = plan.emits.iter().map(|emit| emit.0.as_str()).collect();
@@ -156,7 +154,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         .nodes
         .iter()
         .filter(|n| n.op == "base")
-        .map(|n| n.j["rel"].as_str().expect("base name"))
+        .map(|n| n.base().expect("base name"))
         .collect();
     let mut run = finish::Run::default();
     run.file_field_codes = true;
@@ -290,7 +288,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             reads.extend(&dependencies[i]);
         }
         if n.op == "base" {
-            let name = n.j["rel"].as_str().expect("relation name");
+            let name = n.base().expect("relation name");
             let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
             if !matches!(run.supplier(name), finish::Supplier::Host) && (ryo_relations::domain::catalog::service::fact_form(rel)
                 != ryo_relations::domain::relations::types::FactForm::NodeTable
@@ -320,8 +318,10 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             "--applicability",
             request,
         ],
+        Some((request, &document)),
     );
     fin.query_rows = QUERY_ROWS;
+    drop(document);
     let startup = thread_cpu() - start;
     println!(
         "startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}",
