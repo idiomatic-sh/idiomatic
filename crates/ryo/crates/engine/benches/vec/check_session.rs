@@ -589,7 +589,7 @@ fn versions<'s>(
         };
     }
     let mut files = Versions::new();
-    let mut inodes = HashMap::new();
+    let mut inodes = HashMap::<_, usize>::new();
     let mut contents = BTreeMap::new();
     for &idx in group {
         let src = &sources[idx];
@@ -604,21 +604,16 @@ fn versions<'s>(
                 let path = Path::new(&*src.root).join(&src.path);
                 let meta = std::fs::metadata(&path)?;
                 let inode = (meta.dev(), meta.ino());
+                let mode = meta.mode() & 0o111;
                 if let Some(&i) = inodes.get(&inode) {
+                    if keep {
+                        retained.insert(idx, (Arc::clone(&files[i].data), mode));
+                    }
                     return Ok(i);
                 }
                 *reads += 1;
-                (
-                    Arc::from(std::fs::read(path)?),
-                    Some(inode),
-                    Some(meta.mode() & 0o111),
-                )
+                (Arc::from(std::fs::read(path)?), Some(inode), Some(mode))
             };
-            if let Some(mode) = perm.filter(|_| keep) {
-                retained
-                    .entry(idx)
-                    .or_insert_with(|| (Arc::clone(&data), mode));
-            }
             // Length and executable mode usually decide before the byte comparison.
             // The ordered key also handles different files of equal length exactly.
             let key = (data.len(), perm, Arc::clone(&data));
@@ -632,6 +627,11 @@ fn versions<'s>(
                 });
                 i
             });
+            if let Some(mode) = perm.filter(|_| keep) {
+                retained
+                    .entry(idx)
+                    .or_insert_with(|| (Arc::clone(&files[i].data), mode));
+            }
             if let Some(key) = inode {
                 inodes.insert(key, i);
             }
