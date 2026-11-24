@@ -621,6 +621,7 @@ impl Exec<'_> {
         // made yet and not a view would have the other made first, so it is made in its turn instead
         if let Some((i, _, _)) = deferred
             && i == 0
+            && f.population(sp.srcs[i]).is_none()
             && f.memo[sp.srcs[1]].is_none()
             && self.view(run, sp.srcs[1])?.is_none()
         {
