@@ -1103,9 +1103,11 @@ pub(crate) fn visit<L: FileSource>(
             let cost = bytes.len().saturating_add(l::node_table::kind_codes(tree).len().saturating_mul(40))
                 .saturating_add(packet.rows.words.capacity().saturating_mul(8))
                 .saturating_add(plan.nodes.len().saturating_mul(32));
+            clocks.evaluate += thread_cpu() - t;
             if !pending.is_empty() && charge.saturating_add(cost) > 4 * 1024 * 1024 {
                 flush!(); pending.clear(); charge = 0;
             }
+            let t = thread_cpu();
             charge = charge.saturating_add(cost);
             pending.push(file_batch::Packet {
                 index, bytes, tree:std::mem::take(&mut held.tree), native,

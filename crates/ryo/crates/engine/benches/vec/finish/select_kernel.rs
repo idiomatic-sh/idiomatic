@@ -488,7 +488,29 @@ impl Exec<'_> {
     /// redo-select2: the kernels' entry for a whole run (from `empty_sel::select_entry`): the step's shared table out.
     pub(super) fn select_kr(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
         let prep = self.ksel_prep(run, node)?;
-        let Prep::K(kp) = &*prep else {
+        let mut scratch=take_bufs();
+        let result=self.select_partition(f,run,p,node,&prep,&mut scratch);
+        give_bufs(scratch);
+        result
+    }
+
+    /// Select once for an ordered set of file partitions. A partition supplies
+    /// the implicit first key for every lookup, including a node-position probe.
+    /// The program and row workspace are acquired once for the entire mask.
+    pub(super) fn select_partitions(&mut self, run:&mut Run, lanes:&mut [super::batch::Lane<'_, '_>], node:usize, ready:&[(usize,Option<Rc<Table>>)]) -> R<Vec<Rc<Table>>> {
+        let projection=self.projection(run,node);
+        let prep=self.ksel_prep(run,node)?;
+        let mut scratch=take_bufs();
+        let result=ready.iter().map(|(id,_)|lanes[*id].enter(run,|f,r,p|{
+            if let Some(index)=projection { return self.col_select(f,r,p,node,index); }
+            self.select_partition(f,r,p,node,&prep,&mut scratch)
+        })).collect();
+        give_bufs(scratch);
+        result
+    }
+
+    fn select_partition(&mut self, f:&mut File<'_>,run:&mut Run,p:&mut dyn Provider,node:usize,prep:&Prep,b:&mut Bufs) -> R<Rc<Table>> {
+        let Prep::K(kp) = prep else {
             let t = self.select(f, run, p, node)?;
             return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
         };
@@ -504,10 +526,7 @@ impl Exec<'_> {
                 return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
             }
         }
-        let mut b = take_bufs();
-        let out = self.ksel_run(f, run, p, node, kp, &mut b, None);
-        give_bufs(b);
-        out
+        self.ksel_run(f, run, p, node, kp, b, None)
     }
 
     /// redo-whole pass 2 (keyed.rs): the source of a two-source select read by the other's keys in place of made whole:

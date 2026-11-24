@@ -12,7 +12,7 @@ pub(in super::super) struct Lane<'a,'v> {
 }
 
 impl Lane<'_, '_> {
-    fn enter<T>(&mut self, run: &mut Run, visit: impl FnOnce(&mut File<'_>, &mut Run, &mut dyn Provider) -> T) -> T {
+    pub(super) fn enter<T>(&mut self, run: &mut Run, visit: impl FnOnce(&mut File<'_>, &mut Run, &mut dyn Provider) -> T) -> T {
         std::mem::swap(self.fields, &mut run.field_sym);
         run.root_dir.clear();
         run.root_dir.push_str(self.root);
@@ -34,14 +34,18 @@ impl Exec<'_> {
         // to choose its own posting and driver in each participating file.
         while let Some((node, mask)) = masks.pop_last() {
             let step = &self.plan.nodes[node];
-            if step.op == "union" || matches!(step.op.as_str(), "project" | "capture" | "axis" | "extend" | "antijoin") {
-                let inputs: &[usize] = if step.op == "union" { &step.inputs }
-                    else if self.frames[node].first < frame::MISSING { std::slice::from_ref(&step.inputs[step.inputs.iter().position(|&n| n==self.frames[node].first as usize).unwrap()]) }
-                    else { &[] };
-                for &dep in inputs {
-                    debug_assert!(dep < node);
+            match step.op.as_str() {
+                "union" => for &dep in &step.inputs {
                     *masks.entry(dep).or_default() |= mask;
+                },
+                "project" | "capture" | "axis" | "extend" | "antijoin" => {
+                    let dep = self.frames[node].first;
+                    if dep < frame::MISSING { *masks.entry(dep as usize).or_default() |= mask; }
                 }
+                "select" if step.inputs.len() == 1 && step.semi().is_none() => {
+                    *masks.entry(step.inputs[0]).or_default() |= mask;
+                }
+                _ => {}
             }
             steps.push((node,mask));
         }
@@ -118,15 +122,8 @@ impl Exec<'_> {
                 result
             }
             "select" => {
-                let projection=self.projection(run,node);
-                let mut result=Vec::with_capacity(parts);
-                for &(id,_) in &ready {
-                    result.push(lanes[id].enter(run,|f,r,p|match projection {
-                        Some(index)=>self.col_select(f,r,p,node,index),
-                        None=>self.select_entry(f,r,p,node),
-                    })?);
-                }
-                result
+                self.select_partitions(run, lanes, node, &ready)?
+
             }
             _ => {
                 let mut result=Vec::with_capacity(parts);
