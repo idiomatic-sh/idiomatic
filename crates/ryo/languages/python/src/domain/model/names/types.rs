@@ -56,9 +56,6 @@ pub(crate) struct NameTable {
 /// were not text). The model copies the table and the lexical part; the engine reads the token codes.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct WalkNames {
-    /// Record lexical facts from the retained typed nodes on the first semantic
-    /// read. The walk omits optional token codes in this mode.
-    pub deferred: bool,
     /// The table the walk interned into.
     pub names: NameTable,
     /// The lexical part, by place: the name each node carries among it.

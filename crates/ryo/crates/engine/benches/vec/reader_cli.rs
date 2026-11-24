@@ -23,11 +23,16 @@ pub(super) fn rule_context(
     if let Some(path) = request {
         let context: serde_json::Value =
             serde_json::from_slice(&std::fs::read(path).expect("request")).expect("JSON request");
+        return context_from(&context);
+    }
+    Default::default()
+}
+
+pub(super) fn context_from(context: &serde_json::Value) -> ryo_engine::domain::plan_lowering::types::RuleContext {
         assert!(
             context["rule_context"].is_null() && context["rule_observations"].is_null(),
             "this host provides no named context tables"
         );
-    }
     Default::default()
 }
 

@@ -3,7 +3,6 @@
 //! language's fact by name: the provider's own facts (written in `bench.rs`' `ColFacts`), the host's relations, and the
 //! provider's project relations (redo-general: its packaging knowledge, `provider_packaging.rs`).
 
-use ryo::languages::CellKind;
 use super::finish::{self, Supplier, Ty, project::ProjectAsk};
 
 /// Syntactic stores and unbindings for a single name in one namespace and evaluation phase.
@@ -42,8 +41,8 @@ pub(super) const TYPE_EXPRESSION_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("ki
 
 /// redo-binding pass 4: every element inside an annotation, when Python evaluates it (`annotation_evaluation.rs`).
 pub(super) const ANNOTATION_EVALUATION_REL: &str = "annotation-evaluation";
-pub(super) const ANNOTATION_EVALUATION_COLS: &[(&str, CellKind)] =
-    &[("id", CellKind::Node), ("root", CellKind::Node), ("evaluation", CellKind::Symbol), ("mode", CellKind::Symbol), ("file", CellKind::File)];
+pub(super) const ANNOTATION_EVALUATION_COLS: [(&str, Ty); 5] =
+    [("id", Ty::Node), ("root", Ty::Node), ("evaluation", Ty::Sym), ("mode", Ty::Sym), ("file", Ty::File)];
 
 /// redo-binding pass 4: every element whose evaluation is postponed past its statement (`deferred`) (`deferred_visit.rs`).
 pub(super) const DEFERRED_VISIT_REL: &str = "deferred-visit";
@@ -51,8 +50,8 @@ pub(super) const DEFERRED_VISIT_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("vis
 
 /// The module lookup for each postponed read at the end of the static schedule.
 pub(super) const DEFERRED_RESOLUTION_REL: &str = "deferred-resolution";
-pub(super) const DEFERRED_RESOLUTION_COLS: &[(&str, CellKind)] =
-    &[("reference", CellKind::Node), ("occurrence", CellKind::Node), ("kind", CellKind::Symbol), ("point", CellKind::Number), ("file", CellKind::File)];
+pub(super) const DEFERRED_RESOLUTION_COLS: [(&str, Ty); 5] =
+    [("reference", Ty::Node), ("occurrence", Ty::Node), ("kind", Ty::Sym), ("point", Ty::Num), ("file", Ty::File)];
 
 /// redo-binding pass 4: the elements evaluation-region places in a deferred type phase, alone (`ColumnFile::type_regions`).
 pub(super) const TYPE_REGION_REL: &str = "type-region";
@@ -78,8 +77,6 @@ pub(super) fn declare(run: &mut finish::Run) {
     let mut resolutions = columns(super::pair_provider::predecessor::COLUMNS);
     let witnesses = columns(super::pair_provider::sites::READ_WITNESS);
     let assignments = columns(super::pair_provider::sites::ASSIGNMENT);
-    let annotation_evaluation = columns(ANNOTATION_EVALUATION_COLS);
-    let deferred_resolution = columns(DEFERRED_RESOLUTION_COLS);
     let namespaces = columns(super::pair_provider::sites::NAMESPACE);
     let facts: &[(&str, &[(&str, Ty)])] = &[
         (BINDING_READ_REL, &witnesses),
@@ -92,9 +89,9 @@ pub(super) fn declare(run: &mut finish::Run) {
         (PREDECESSOR_REL, &resolutions),
         (FINAL_REL, &FINAL_COLS),
         (TYPE_EXPRESSION_REL, &TYPE_EXPRESSION_COLS),
-        (ANNOTATION_EVALUATION_REL, &annotation_evaluation),
+        (ANNOTATION_EVALUATION_REL, &ANNOTATION_EVALUATION_COLS),
         (DEFERRED_VISIT_REL, &DEFERRED_VISIT_COLS),
-        (DEFERRED_RESOLUTION_REL, &deferred_resolution),
+        (DEFERRED_RESOLUTION_REL, &DEFERRED_RESOLUTION_COLS),
         (TYPE_REGION_REL, &TYPE_REGION_COLS),
     ];
     for &(name, cols) in facts {

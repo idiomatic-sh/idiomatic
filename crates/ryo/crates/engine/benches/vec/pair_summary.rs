@@ -935,7 +935,8 @@ impl Builder<'_> {
         {
             let glob;
             let pattern = if &*f.function.0 == "glob_any" {
-                glob = super::glob_pattern(&pattern.0);
+                let Some(plain) = super::glob_pattern(&pattern.0) else { return ANY };
+                glob = plain;
                 &glob
             } else {
                 &*pattern.0

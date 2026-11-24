@@ -25,6 +25,7 @@ impl<'p> Finisher<'p> {
         walk: &impl languages::Walk,
         vocab: &Vocab,
         args: &[&str],
+        request: Option<(&str, &serde_json::Value)>,
     ) -> Self {
         let t0 = thread_cpu();
         let list = files(args[1]);
@@ -65,14 +66,15 @@ impl<'p> Finisher<'p> {
             vocab.kind_names.len(),
         );
         let mut me = Self {
-            inner: finisher::Finisher::new(plan, run, args),
+            inner: finisher::Finisher::new(plan, run, args, request),
             fwords: ryo_python::fixtures::walking::walk_words(walk)
                 .expect("the walk's fixed names"),
             project: super::provider_packaging::Project::new(
                 args[2].trim_end_matches('/'),
-                super::provider_packaging::Project::search_roots_of(
-                    flag(args, "--request").as_deref(),
-                ),
+                match request {
+                    Some((_, doc)) => super::provider_packaging::Project::search_roots(doc),
+                    None => super::provider_packaging::Project::search_roots_of(flag(args, "--request").as_deref()),
+                },
                 &|n| vocab.kinds.get(n).copied(),
             ),
         };
@@ -95,21 +97,14 @@ impl<'p> Finisher<'p> {
             |run, files| self.project.module_identity(run, files),
         );
         let Ok(rows) = result else { return false };
-        Self::walk_cells(&self.inner.run, &rows, words, out)
-    }
-
-    fn walk_cells(
-        run: &finish::Run,
-        rows: &finish::Table,
-        words: &mut languages::FileWords,
-        out: &mut languages::FilledColumns,
-    ) -> bool {
         out.0.clear();
         for (kind, cells) in rows.tys.iter().zip(&rows.cols) {
             let mut col = Vec::with_capacity(cells.len());
             for &cell in cells {
                 let value = if matches!(kind, finish::Ty::Sym) && cell != finish::NULL {
-                    let Some(text) = run
+                    let Some(text) = self
+                        .inner
+                        .run
                         .texts
                         .get(cell as usize)
                         .and_then(|v| std::str::from_utf8(v).ok())
@@ -129,50 +124,6 @@ impl<'p> Finisher<'p> {
         }
         true
     }
-    /// Lend the complete provider answer to the walk. Keep the answer and its inputs for execution on this file.
-    pub(super) fn walk_table(
-        &mut self,
-        number: usize,
-        file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>,
-        bytes: &[u8],
-        name: &str,
-        words: &mut languages::FileWords,
-        out: &mut languages::FilledColumns,
-        kept: &mut HashMap<String, finish::Table>,
-    ) -> bool {
-        if let Some(rows) = kept.get(name) {
-            return Self::walk_cells(&self.inner.run, rows, words, out);
-        }
-        if kept.is_empty() {
-            file.set_file(languages::FileId(number as u32));
-            languages::facts::clear_words(&mut self.fwords);
-            finish::own_words_cleared(&mut self.inner.run);
-        }
-        let mut provider = ColFacts::for_visit(
-            file,
-            number,
-            bytes,
-            &mut self.fwords,
-            &mut self.project,
-            std::mem::take(kept),
-        );
-        let result = if name == super::expression_parts::NESTED_DELIMITERS {
-            super::expression_parts::fill(
-                &mut self.inner.run,
-                provider.file,
-                bytes,
-                number as u32,
-                name,
-            )
-            .map(|table| {
-                let _ = provider.kept.insert(name.to_owned(), table);
-            })
-        } else {
-            provider.fact(&mut self.inner.run, name).map(|_| ())
-        };
-        *kept = provider.kept;
-        result.is_ok() && Self::walk_cells(&self.inner.run, &kept[name], words, out)
-    }
     pub(super) fn end(self, walk_time: f64) {
         self.inner.end(walk_time, |locations| locations.dedup());
     }
@@ -184,7 +135,6 @@ impl<'p> Finisher<'p> {
         file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>,
         bytes: &[u8],
         wanted: &[usize],
-        kept: HashMap<String, finish::Table>,
     ) {
         let t0 = thread_cpu();
         file.set_file(languages::FileId(file_no as u32));
@@ -193,7 +143,19 @@ impl<'p> Finisher<'p> {
         languages::facts::clear_words(&mut fwords);
         finish::own_words_cleared(&mut self.run);
         let mut project = std::mem::take(&mut self.project);
-        let mut pv = ColFacts::for_visit(file, file_no, bytes, &mut fwords, &mut project, kept);
+        let mut pv = ColFacts {
+            import_comments: Default::default(),
+            file,
+            words: &mut fwords,
+            filled: languages::FilledColumns::default(),
+            time: 0.0,
+            rows: 0,
+            by_rel: HashMap::new(),
+            file_no: file_no as u32,
+            kept: HashMap::new(),
+            project: &mut project,
+            src: bytes,
+        };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;

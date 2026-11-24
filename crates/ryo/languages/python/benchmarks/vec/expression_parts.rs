@@ -20,22 +20,6 @@ pub(super) const SUBSCRIPT: &str = "subscript-operands";
 pub(super) const SCHEDULE_END: &str = "binding-schedule-end";
 pub(super) const NESTED_DELIMITERS: &str = "nested-delimiters";
 
-pub(super) const DELIMITER_COLUMNS: &[(&str, ryo::languages::CellKind)] = &[
-    ("outer", ryo::languages::CellKind::Node),
-    ("inner", ryo::languages::CellKind::Node),
-    ("outer-kind", ryo::languages::CellKind::Symbol),
-    ("inner-kind", ryo::languages::CellKind::Symbol),
-    ("nonempty", ryo::languages::CellKind::Number),
-    ("after-inner-kind", ryo::languages::CellKind::Symbol),
-    ("close", ryo::languages::CellKind::Node),
-    ("after", ryo::languages::CellKind::Node),
-    ("first-comma", ryo::languages::CellKind::Node),
-    ("first-yield", ryo::languages::CellKind::Node),
-    ("commas", ryo::languages::CellKind::Number),
-    ("yields", ryo::languages::CellKind::Number),
-    ("file", ryo::languages::CellKind::File),
-];
-
 pub(super) fn declare(run: &mut Run) {
     use Ty::{File, Node, Num, Sym};
     let provider = finish::Supplier::Provider;
@@ -157,11 +141,25 @@ pub(super) fn declare(run: &mut Run) {
         ],
         finish::Supplier::Provider,
     );
-    let delimiter_columns: Vec<_> = DELIMITER_COLUMNS
-        .iter()
-        .map(|&(label, kind)| (label, finish::ty_of(kind)))
-        .collect();
-    run.declare(NESTED_DELIMITERS, &delimiter_columns, provider);
+    run.declare(
+        NESTED_DELIMITERS,
+        &[
+            ("outer", Node),
+            ("inner", Node),
+            ("outer-kind", Sym),
+            ("inner-kind", Sym),
+            ("nonempty", Num),
+            ("after-inner-kind", Sym),
+            ("close", Node),
+            ("after", Node),
+            ("first-comma", Node),
+            ("first-yield", Node),
+            ("commas", Num),
+            ("yields", Num),
+            ("file", File),
+        ],
+        finish::Supplier::Provider,
+    );
     run.declare(
         CALL_SITE,
         &[

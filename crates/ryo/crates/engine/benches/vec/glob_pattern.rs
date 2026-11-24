@@ -1,17 +1,17 @@
-//! The query glob translated to the byte regex used by both plan consumers.
-pub(super) fn glob_pattern(g: &str) -> String {
-    // Globs match the complete published value, including line terminators.
-    let mut s = String::from("(?s)^");
-    for c in g.chars() {
+//! Only literal, star and single-character globs have this regular-expression
+//! representation. The caller uses the query language's matcher for its other forms.
+pub(super) fn glob_pattern(pattern: &str) -> Option<String> {
+    if pattern.contains(['\\', '[', '{', '}']) || pattern.contains("**/") {
+        return None;
+    }
+    let mut regex = String::from("(?s)^");
+    for c in pattern.chars() {
         match c {
-            '*' => s.push_str(".*"),
-            '?' => s.push('.'),
-            '{' => s.push_str("(?:"),
-            '}' => s.push(')'),
-            ',' => s.push('|'),
-            c => s.push_str(&regex::escape(&c.to_string())),
+            '*' => regex.push_str(".*"),
+            '?' => regex.push('.'),
+            c => regex.push_str(&regex::escape(&c.to_string())),
         }
     }
-    s.push('$');
-    s
+    regex.push('$');
+    Some(regex)
 }

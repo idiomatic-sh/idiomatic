@@ -6,7 +6,7 @@
 use winnow::ascii::{digit1, multispace0, multispace1};
 use winnow::combinator::{alt, cut_err, delimited, eof, opt, preceded, separated, terminated};
 use winnow::prelude::*;
-use winnow::stream::LocatingSlice;
+use winnow::stream::{LocatingSlice, Stream};
 use winnow::token::{take_till, take_while};
 
 use super::constants::{GRAMMAR, Keyword, Mark, expectation, keyword_text, mark_text};
@@ -731,10 +731,11 @@ pub(super) fn conjunction(input: &mut Input<'_>) -> ModalResult<Vec<Condition>> 
 /// `not` a factor, `(a or b)`, a condition in parentheses, a membership in a written list, or one filter.
 pub(super) fn factor(input: &mut Input<'_>) -> ModalResult<Vec<Condition>> {
     alt((
-        preceded((keyword(Keyword::Not), multispace1), factor).map(|negated| vec![Condition::Not(negated)]),
         delimited(('(', multispace0), condition, (multispace0, ')')).map(conditions_of),
         written_membership,
         filter.map(|test| vec![Condition::Test(test)]),
+        // The named negative glob test is a filter in its own right.
+        preceded((keyword(Keyword::Not), multispace1), factor).map(|negated| vec![Condition::Not(negated)]),
     ))
     .parse_next(input)
 }
@@ -1124,16 +1125,31 @@ pub(super) fn string(input: &mut Input<'_>) -> ModalResult<WrittenLiteral> {
 
 /// Letters, digits, `_` and `-`: `trait-files`, `max-lines`, `emit`.
 pub(super) fn word<'i>(input: &mut Input<'i>) -> ModalResult<BareWord<'i>> {
-    take_while(1.., ('a'..='z', 'A'..='Z', '0'..='9', '_', '-'))
-        .map(BareWord)
-        .parse_next(input)
+    let bytes = input.as_bytes();
+    let end = bytes.iter().position(|&b| !word_byte(b)).unwrap_or(bytes.len());
+    if end == 0 {
+        return winnow::combinator::fail.parse_next(input);
+    }
+    Ok(BareWord(input.next_slice(end)))
 }
 
-/// A word that must be exactly `expected`.
+fn word_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-')
+}
+
+/// Compare only the expected spelling when alternatives try a keyword. A longer word
+/// with this prefix belongs to the next alternative, and must leave the stream untouched.
 fn keyword<'i>(
     expected: Keyword,
 ) -> impl Parser<Input<'i>, BareWord<'i>, winnow::error::ErrMode<winnow::error::ContextError>> {
-    word.verify(move |found: &BareWord<'_>| found.0 == keyword_text(expected))
+    let word = keyword_text(expected);
+    move |input: &mut Input<'i>| {
+        if input.starts_with(word) && !input.as_bytes().get(word.len()).is_some_and(|&b| word_byte(b)) {
+            Ok(BareWord(input.next_slice(word.len())))
+        } else {
+            winnow::combinator::fail.parse_next(input)
+        }
+    }
 }
 
 /// A mark of more than one character.

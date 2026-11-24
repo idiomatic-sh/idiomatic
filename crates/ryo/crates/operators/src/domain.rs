@@ -12,7 +12,7 @@ pub mod capture;
 pub mod contract;
 pub mod distinct_rows;
 pub mod ordered_match;
-pub(crate) mod rank;
+pub mod rank;
 pub mod replace;
 pub mod select;
 pub mod source_matches;

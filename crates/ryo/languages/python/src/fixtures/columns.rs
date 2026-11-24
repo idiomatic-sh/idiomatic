@@ -100,7 +100,6 @@ pub struct ColumnWalk {
     words: FileWords,
     /// When set, the table is written `structured` with these enclosing kind sets.
     structure: Option<Vec<languages::KindSet>>,
-    native_navigation:bool,
 }
 
 /// The relations this walk writes per node as fact columns (`ColumnWalk::column`), by catalog name: a consumer may test
@@ -163,7 +162,6 @@ impl ColumnWalk {
             memo: TextMemo::default(),
             words,
             structure: None,
-            native_navigation:false,
         }
     }
 
@@ -173,17 +171,8 @@ impl ColumnWalk {
         self.structure = Some(enclosing);
     }
 
-    /// Select the file walk for consumers reading token text from source spans.
-    /// Semantic answers are built from the retained typed tree on first demand.
-    pub fn defer_lexical(&mut self) {
-        self.scratch.names.deferred = true;
-    }
-
-    /// Record typed-node and token intervals for the summary walk. Readers
-    /// materialize ordered child slices on their first ordinary slice request.
-    pub fn use_native_navigation(&mut self){self.native_navigation=true;}
-
-    /// Walk one file into the table and lend it to the callback.
+    /// Walks one file into `table` and lends it to `visit`.
+    ///
     /// # Errors
     ///
     /// When the file is not Python.
@@ -197,10 +186,6 @@ impl ColumnWalk {
             Some(enclosing) => node_table::structured(table, kinds, enclosing),
             None => node_table::builder(table, kinds),
         };
-        if self.native_navigation {
-            node_table::record_token_ranges(&mut builder);
-            node_table::defer_child_ids(&mut builder);
-        }
         let target = self.walk.ports.settings.target_version().components();
         self.scratch.file.model.target = target;
         self.memo.names.clear();
@@ -341,7 +326,7 @@ impl ColumnFile<'_, '_> {
 
     /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
     /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in
-    /// every file of the run. Empty when the file's bytes were not text or the caller deferred lexical collection.
+    /// every file of the run. Empty when the file's bytes were not text.
     pub fn name_token_codes(&self, out: &mut Vec<u32>) {
         out.clear();
         out.extend(self.file.syntax.tree.named.of_token.iter().map(|code| code.0));
@@ -568,32 +553,6 @@ impl ColumnFile<'_, '_> {
             Relation::StaticImport | Relation::StandardLibraryImport => nodes_of_kind(&self.file.syntax, Kind::Node(Node::Alias)).next().is_none().then_some(0),
             _ => None,
         }
-    }
-
-    /// Existence of a complete relation without writing other cells of its rows.
-    pub fn summary_presence(&mut self,relation:Relation)->Option<bool> {
-        match relation {
-            Relation::BindingEvent|Relation::BindingRead=>{
-                let read=self.file.semantics(ModelPart::Flow);
-                Some(read.model.flow.state==FlowState::Incomplete || if relation==Relation::BindingEvent {
-                    !read.model.flow.events.is_empty()
-                }else{!read.model.flow.reads.is_empty()})
-            }
-            Relation::LiteralProperties=>Some(nodes_of_kind(&self.file.syntax,Kind::Node(Node::Constant)).any(|v|properties(v.node).is_some())),
-            _=>self.projected_keys(relation).map(|mut keys|keys.next().is_some())
-        }
-    }
-    /// Complete keys for the shape relation when every native node has a shape.
-    /// Escape commands and their ancestors can lack a class, so a file containing
-    /// one uses the ordinary shape reader. Embedded segments have separate ids.
-    #[must_use]
-    pub fn projected_keys(&self, relation: Relation) -> Option<impl Iterator<Item = Position> + '_> {
-        let syntax=&self.file.syntax;
-        let escape=crate::domain::syntax::service::kind_bits(Kind::Extra(TypedExtra::IpyEscapeCommand));
-        if relation!=Relation::ExpressionShape || syntax.completeness.syntax==languages::SyntaxCompleteness::Incomplete
-            || !syntax.tree.segments.is_empty() || !node_table::ids_of_kind(syntax.table,escape).is_empty() { return None; }
-        Some((0..syntax.nodes.len()).map(|i|Position(i as u32)).filter(|&p|
-            category_of(kind_of(node_table::kind_of(syntax.table,p)))==Category::Expression))
     }
 
     /// `column` with the caller's own text memo (`ColumnMemo`): the ids are `ids`', never the walk's memo's.

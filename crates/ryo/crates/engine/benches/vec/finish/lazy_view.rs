@@ -40,8 +40,7 @@ impl Exec<'_> {
         f.owed_fills[x] = true;
         // the step's answer is the view, as `res` keeps it (and lists it to be cleared at the file's end)
         if f.memo[node].is_none() {
-            f.touched.push(node as u32);
-            f.memo[node] = Some(super::Res::View(v.clone()));
+            f.remember(node, super::Res::View(v.clone()));
         }
         Ok(Some(v))
     }

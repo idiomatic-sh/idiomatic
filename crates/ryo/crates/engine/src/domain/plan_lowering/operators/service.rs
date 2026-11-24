@@ -128,10 +128,11 @@ pub(crate) fn operator_step(
             from: step(&mut given, ARG_FROM)?,
             values: extended_values(&mut given)?,
         }),
-        OP_ROWS => FinishStep::Rows(RowsArguments {
-            rows: constant_rows(&mut given)?,
-            columns: columns(&mut given, ARG_COLUMNS)?,
-        }),
+        OP_ROWS => {
+            let columns = columns(&mut given, ARG_COLUMNS)?;
+            let rows = constant_rows(&mut given, &columns)?;
+            FinishStep::Rows(RowsArguments { rows, columns })
+        }
         other => text_step(&mut given, other)?,
     };
     match given.arguments.first() {
