@@ -37,7 +37,6 @@ enum P {
     SymbolIn(usize, usize, Rc<super::symbol_predicate::SymbolSet>, bool),
     SymbolTest(usize, usize, TextTest),
     TextTest(Opd, TextTest),
-    Seed(Opd, usize),
     And(Box<P>, Box<P>),
     Or(Box<P>, Box<P>),
     Not(Box<P>),
@@ -100,10 +99,6 @@ fn compile(run: &Run, e: &E) -> P {
             Some(x) => P::TextTest(x, re.clone()),
             None => P::Old(e.clone()),
         },
-        E::Seed(a, k) => match opd(a) {
-            Some(x) => P::Seed(x, *k),
-            None => P::Old(e.clone()),
-        },
         _ => P::Old(e.clone()),
     }
 }
@@ -134,7 +129,6 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
                 Op::Le => ord != Greater,
                 Op::Gt => ord == Greater,
                 Op::Ge => ord != Less,
-                Op::Other => false,
             }
         }
         P::SymbolIn(s, c, words, neg) => words.contains(get(run, f, srcs, cur, *s, *c)) != *neg,
@@ -149,10 +143,6 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
         P::TextTest(a, re) => {
             let x = val(run, f, srcs, cur, a);
             re.value(run, x)
-        }
-        P::Seed(a, k) => {
-            let x = val(run, f, srcs, cur, a);
-            f.seeds.get(*k).is_some_and(|s| s.binary_search(&(x.1 as u32)).is_ok())
         }
         P::And(a, b) => holds(run, f, srcs, cur, a) && holds(run, f, srcs, cur, b),
         P::Or(a, b) => holds(run, f, srcs, cur, a) || holds(run, f, srcs, cur, b),
@@ -419,7 +409,7 @@ impl Exec<'_> {
             kinds.push(sets);
         }
         // an empty view entry empties the run whatever the other sources hold (every source is joined)
-        let zero = semi.is_none() && !sp.conj.iter().any(|e| matches!(e, E::Seed(..))) && {
+        let zero = semi.is_none() && {
             let mut views = false;
             for s in sp.srcs.iter() {
                 views |= self.view(run, *s)?.is_some();
@@ -524,7 +514,7 @@ impl Exec<'_> {
     /// (source, its column, the driver's column) of an equality of the two, the source a step whose one consumer is this
     /// select, not made in this file and read by key on that column. Not the source `not` (read by key already).
     fn ksel_deferred(&mut self, f: &File<'_>, run: &mut Run, sp: &super::SelPlan, not: Option<usize>) -> R<Option<(usize, usize, usize)>> {
-        if sp.srcs.len() != 2 || sp.srcs[0] == sp.srcs[1] || sp.conj.iter().any(|e| matches!(e, E::Seed(..))) || sw!("VEC_NO_KEYED_JOIN") {
+        if sp.srcs.len() != 2 || sp.srcs[0] == sp.srcs[1] || sw!("VEC_NO_KEYED_JOIN") {
             return Ok(None);
         }
         for i in [1usize, 0] {
@@ -695,23 +685,6 @@ impl Exec<'_> {
             return Ok(t.clone());
         }
         let mut driver: Option<usize> = keyed.map(|x| x.0).or(deferred.map(|d| 1 - d.0));
-        if let Some((si, c, sk)) = conj.iter().find_map(|e| match e {
-            E::Seed(x, sk) => match **x {
-                E::Col(si, c, _) => Some((si, c, *sk)),
-                _ => None,
-            },
-            _ => None,
-        }) {
-            let ids: Vec<u64> = f.seeds.get(sk).map(|s| s.iter().map(|x| u64::from(*x)).collect()).unwrap_or_default();
-            let t = self.probe(f, run, p, sp.srcs[si], c, &ids)?;
-            self.stats.touched[node] += ids.len() as u64;
-            if t.n == 0 {
-                super::empty_sel::at(super::empty_sel::stage::SEED_EMPTY);
-                return self.empty_rc(run, node);
-            }
-            srcs[si] = Src::Tab(t, usize::MAX - si);
-            driver = Some(si);
-        }
         super::empty_sel::lap(2, self.inner);
         let mut best = if driver.is_some() { 0 } else { usize::MAX };
         for (i, sr) in srcs.iter().enumerate() {

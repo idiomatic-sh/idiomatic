@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use super::cold_bucket::Slot;
 type Map = FxHashMap<usize, Slot>;
-pub(super) type Key = (String, Option<(usize, Vec<u32>)>, Vec<String>);
+pub(super) type Key = (Native, Option<(usize, Vec<u32>)>, Vec<super::cold_list::FilterKey>);
 const SHIFT: usize = 56;
 // Namespace tags of the two positive filtered driver-slot keys in select_kernel.
 const KIND_ENTRY: usize = 3;
@@ -136,7 +136,7 @@ fn identity(base: Native, mut entry: Option<(usize, Vec<u32>)>, tests: &[super::
     }
     residual.sort_unstable();
     residual.dedup();
-    (format!("{base:?}"), entry, residual)
+    (base, entry, residual)
 }
 
 pub(super) fn view_key(run: &mut Run, v: &ViewSpec) -> Key {

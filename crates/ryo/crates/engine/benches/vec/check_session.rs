@@ -159,12 +159,14 @@ pub(crate) struct Source {
     pub(crate) provided: Option<Arc<[u8]>>,
 }
 
+type PathIds = HashMap<Rc<str>, usize>;
+
 /// Per-check program identities and the inverse admission index. The caller binds
 /// external relations and hands the index a stable identity for each binding.
 #[derive(Default)]
 pub(crate) struct Schedule {
     pub sources: Vec<Source>,
-    source_ids: HashMap<(Arc<str>, Rc<str>), usize>,
+    source_ids: HashMap<Arc<str>, PathIds>,
     supplied_ids: HashMap<(Rc<str>, Arc<[u8]>), usize>,
     pub pending: BTreeSet<usize>,
     pub programs: Vec<Result<Program>>,
@@ -173,10 +175,17 @@ pub(crate) struct Schedule {
 }
 
 impl Schedule {
-    pub(crate) fn delivered(&mut self, ids: &[usize]) {
+    pub(crate) fn delivered(&mut self, ids: &[usize], keep: bool) {
         for &i in ids {
-            self.sources[i].bindings.clear();
-            self.sources[i].project = false;
+            let source = &mut self.sources[i];
+            if keep && source.known.is_empty() {
+                source.known = std::mem::take(&mut source.bindings);
+            } else if keep {
+                source.known.extend(std::mem::take(&mut source.bindings));
+            } else {
+                source.bindings.clear();
+            }
+            source.project = false;
         }
     }
     pub(crate) fn close(&mut self) {
@@ -198,28 +207,32 @@ impl Schedule {
             self.programs.len() - 1
         })
     }
-    fn source(&mut self, root: &Arc<str>, path: &str) -> Result<usize> {
-        let rel = Path::new(&path);
-        if rel
+    fn source_in(
+        sources: &mut Vec<Source>,
+        ids: &mut PathIds,
+        root: &Arc<str>,
+        path: &str,
+    ) -> Result<usize> {
+        if let Some(&id) = ids.get(path) {
+            return Ok(id);
+        }
+        if Path::new(path)
             .components()
             .any(|c| !matches!(c, std::path::Component::Normal(_)))
         {
             return Err(format!("invalid relative source path {path}"));
         }
-        Ok(*self
-            .source_ids
-            .entry((root.clone(), Rc::from(path)))
-            .or_insert_with(|| {
-                self.sources.push(Source {
-                    root: root.clone(),
-                    path:path.to_owned(),
-                    bindings: BTreeMap::new(),
-                    known: BTreeMap::new(),
-                    project: false,
-                    provided: None,
-                });
-                self.sources.len() - 1
-            }))
+        let id = sources.len();
+        ids.insert(Rc::from(path), id);
+        sources.push(Source {
+            root: root.clone(),
+            path: path.to_owned(),
+            bindings: BTreeMap::new(),
+            known: BTreeMap::new(),
+            project: false,
+            provided: None,
+        });
+        Ok(id)
     }
 
     /// Attach immutable caller bytes before admitting any consumer of this source root.
@@ -228,7 +241,8 @@ impl Schedule {
         let id = match self.supplied_ids.get(&key) {
             Some(&id) => id,
             None => {
-                let id = self.source(root, &path)?;
+                let ids = self.source_ids.entry(root.clone()).or_default();
+                let id = Self::source_in(&mut self.sources, ids, root, &path)?;
                 self.sources[id].provided = Some(bytes);
                 self.supplied_ids.insert(key, id);
                 id
@@ -238,27 +252,30 @@ impl Schedule {
     }
 
     pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str) -> Result<()> {
-        let id = self.source(directory, path)?;
+        let ids = self.source_ids.entry(directory.clone()).or_default();
+        let id = Self::source_in(&mut self.sources, ids, directory, path)?;
         self.alias_source(root, path, id)
     }
 
     fn alias_source(&mut self, root: &Arc<str>, path: &str, id: usize) -> Result<()> {
-        if self
-            .source_ids
-            .insert((root.clone(), Rc::from(path)), id)
-            .is_some_and(|p| p != id)
-        {
-            return Err("immutable source version changed".into());
+        let ids = self.source_ids.entry(root.clone()).or_default();
+        if let Some(&prior) = ids.get(path) {
+            if prior != id {
+                return Err("immutable source version changed".into());
+            }
+        } else {
+            ids.insert(Rc::from(path), id);
         }
         Ok(())
     }
 
     pub(crate) fn project_inputs(&mut self, root: &str, paths: &[String]) -> Result<Vec<usize>> {
         let root: Arc<str> = Arc::from(root);
+        let ids = self.source_ids.entry(root.clone()).or_default();
         paths
             .iter()
             .map(|p| {
-                let index = self.source(&root, p)?;
+                let index = Self::source_in(&mut self.sources, ids, &root, p)?;
                 self.sources[index].project = true;
                 self.pending.insert(index);
                 Ok(index)
@@ -272,28 +289,28 @@ impl Schedule {
         binding: usize,
     ) -> Result<Vec<usize>> {
         let root: Arc<str> = root.into();
+        let ids = self.source_ids.entry(root.clone()).or_default();
         let mut pairs = Vec::with_capacity(files.len());
         for path in files {
-            let src = self.source(&root, path)?;
+            let src = Self::source_in(&mut self.sources, ids, &root, path)?;
             let source = &mut self.sources[src];
-            let slot = *source.known.entry(binding).or_insert_with(|| {
+            if let Some(&slot) = source.known.get(&binding) {
+                pairs.push(slot);
+                continue;
+            }
+            let first = source.bindings.is_empty();
+            let slot = *source.bindings.entry(binding).or_insert_with(|| {
                 let slot = self.pairs;
                 self.pairs += 1;
-                source.bindings.insert(binding, slot);
-                self.pending.insert(src);
+                if first {
+                    self.pending.insert(src);
+                }
                 slot
             });
             pairs.push(slot);
         }
         Ok(pairs)
     }
-}
-
-#[derive(Clone, Copy, Default)]
-struct SummaryColumns {
-    kinds: bool,
-    fields: bool,
-    words: bool,
 }
 
 /// Admission assigns dense binding IDs. Only bindings used by this reader own an executor.
@@ -311,6 +328,13 @@ impl<'p> std::ops::IndexMut<&usize> for Bindings<'p> {
     fn index_mut(&mut self, id: &usize) -> &mut Self::Output {
         self.0[*id].as_deref_mut().expect("prepared binding")
     }
+}
+
+#[derive(Clone, Copy, Default)]
+struct SummaryColumns {
+    kinds: bool,
+    fields: bool,
+    words: bool,
 }
 
 struct Bound<'p> {
@@ -746,7 +770,7 @@ pub(crate) fn visit<L: FileSource>(
                     path: SourcePath(&source.path),
                     bytes: ByteSlice(&bytes),
                     // Later calls can widen the relations asked of a retained file.
-                    fields: if projects_fields {
+                    fields: if session_open || projects_fields {
                         l::FieldRequest::Wanted
                     } else {
                         l::FieldRequest::Unwanted
@@ -1065,7 +1089,7 @@ pub(crate) fn visit<L: FileSource>(
                     answers.set(slot, answer);
                     continue;
                 }
-                let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, &b.slots, &local_coverage);
+                let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, binding, &b.slots, &local_coverage);
                 if value.is_err() { frame = None; exec.release_request(); }
                 let answer = value
                 .map(|rows| Reported { rows, unknowns });

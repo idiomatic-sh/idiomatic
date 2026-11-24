@@ -22,7 +22,7 @@ impl Early<'_, '_> {
                 self.b.or(x, y)
             }
             Need::Some(d) => self.exists(d),
-            Need::PathMatches(..) | Need::Any | Need::Empty => i,
+            Need::PathGlob(_) | Need::PathMatches(..) | Need::Any | Need::Empty => i,
             Need::SyntaxMatches(..) | Need::SourceContains(_) | Need::InvalidPattern(_) => ANY,
             Need::Terms(..) => unreachable!("file scheduling follows projection"),
         };

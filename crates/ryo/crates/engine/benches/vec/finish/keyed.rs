@@ -50,8 +50,7 @@ impl Exec<'_> {
             super::frame::Op::Select if !pn.counted() => {
                 let sp = self.sel(run, node)?;
                 let closure = sp.srcs.iter().any(|s| self.plan.nodes[*s].op == "closure");
-                let seed = sp.conj.iter().any(|e| matches!(e, E::Seed(..)));
-                if sp.srcs.is_empty() || sp.srcs.len() > 2 || closure || seed || (sp.srcs.len() == 2 && sp.srcs[0] == sp.srcs[1]) || !self.ksel_covers(run, node)? {
+                if sp.srcs.is_empty() || sp.srcs.len() > 2 || closure || (sp.srcs.len() == 2 && sp.srcs[0] == sp.srcs[1]) || !self.ksel_covers(run, node)? {
                     Form::Not
                 } else {
                     Form::Select(sp.items.iter().map(|(_, e)| if let E::Col(si, c, _) = e { Some((*si, *c)) } else { None }).collect())
