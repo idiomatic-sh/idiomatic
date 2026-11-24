@@ -1,5 +1,6 @@
 //! A missing row kind is immaterial only when every direct consumer excludes it.
-use super::finish::Plan;
+use super::finish::{Plan, PNode};
+use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
 use ryo::languages::Relation;
 use ryo_relations::domain::relations::service as catalog;
 use ryo_relations::domain::relations::types::{Missing, RowKind};
@@ -22,7 +23,7 @@ impl Coverage {
             let name = catalog::name(relation).0;
             plan.nodes.iter().enumerate().any(|(base, node)| {
                 node.op == "base"
-                    && node.j["rel"] == name
+                    && node.base() == Some(name)
                     && (plan.emits.iter().any(|emit| emit.1 == base)
                         || plan
                             .nodes
@@ -31,7 +32,7 @@ impl Coverage {
                             .any(|n| {
                                 n.op != "select"
                                     || n.inputs.len() != 1
-                                    || !excludes(&n.j["cond"], column, kind.0)
+                                    || !excludes_kind(n, column, kind.0)
                             }))
             })
         })
@@ -55,6 +56,26 @@ fn excludes(condition: &Value, column: &str, missing: &str) -> bool {
         Some("or") => {
             excludes(&condition[1], column, missing) && excludes(&condition[2], column, missing)
         }
+        _ => false,
+    }
+}
+
+fn excludes_kind(node: &PNode, column: &str, kind: &str) -> bool {
+    if let Some(FinishStep::Select(select)) = node.step() {
+        matches!(&select.condition, RowCondition::Tested(e) if typed_excludes(e, column, kind))
+    } else {
+        node.external().is_some_and(|j| excludes(&j["cond"], column, kind))
+    }
+}
+
+fn typed_excludes(e: &PlanExpression, c: &str, k: &str) -> bool {
+    let different = |a: &PlanExpression, b: &PlanExpression| matches!((a,b),(PlanExpression::Column(n),PlanExpression::Literal(PlanConstant::Text(t))) if n.column.0.as_ref()==c && t.0.as_ref()!=k);
+    match e {
+        PlanExpression::Compare(p) if p.comparator == Comparator::Equal => {
+            different(&p.left, &p.right) || different(&p.right, &p.left)
+        }
+        PlanExpression::And(p) => typed_excludes(&p.left, c, k) || typed_excludes(&p.right, c, k),
+        PlanExpression::Or(p) => typed_excludes(&p.left, c, k) && typed_excludes(&p.right, c, k),
         _ => false,
     }
 }

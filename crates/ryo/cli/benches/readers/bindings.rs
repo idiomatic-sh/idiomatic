@@ -27,10 +27,16 @@ pub(super) fn constant(value: &Value) -> PlanConstant {
 }
 
 pub(super) fn rule_context(request: Option<&str>) -> RuleContext {
-    let mut context = super::reader_cli::rule_context(request);
     if let Some(path) = request {
         let input: Value =
             serde_json::from_slice(&std::fs::read(path).expect("read request")).expect("request");
+        return context_from(&input);
+    }
+    RuleContext::default()
+}
+
+pub(super) fn context_from(input: &Value) -> RuleContext {
+    let mut context = super::reader_cli::context_from(input);
         if let Some(tables) = input["hosted"].as_array() {
             use ryo_engine::domain::plan_lowering::types::ContextTable;
             use ryo_values::domain::descriptions::types::{ColumnName, RelationName};
@@ -78,6 +84,5 @@ pub(super) fn rule_context(request: Option<&str>) -> RuleContext {
                     .collect(),
             );
         }
-    }
     context
 }

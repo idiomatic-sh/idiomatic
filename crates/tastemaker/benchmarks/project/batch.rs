@@ -1,8 +1,7 @@
 //! The corpus runner's TSV is a list of invocations, not an execution schedule.
 //! Only the final comparison has access to a reference digest.
-use super::{Hosted, bind_tables, execute_bound, finish};
+use super::{Hosted, Parameters, bind_tables, execute_bound, finish, read_parameters};
 use crate::{
-    bindings,
     check_session::{self as session, Answer, Clock, Program},
     declaration, thread_cpu,
 };
@@ -11,7 +10,6 @@ use ryo::{
     linter::{Languages, RelativePath},
 };
 use serde::Deserialize;
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, HashMap},
@@ -26,7 +24,8 @@ struct Input {
     files: Vec<String>,
     inventory: Option<Vec<String>>,
     hosted: Vec<Hosted>,
-    parameters: BTreeMap<String, Value>,
+    #[serde(deserialize_with = "read_parameters")]
+    parameters: Parameters,
 }
 
 enum Work {
@@ -43,8 +42,8 @@ enum Work {
 #[derive(Default)]
 struct Batch {
     schedule: session::Schedule,
-    bindings: Vec<(usize, Vec<Hosted>)>,
-    binding_ids: HashMap<(usize, String), usize>,
+    bindings: Vec<(usize, Rc<[Hosted]>)>,
+    binding_ids: HashMap<(usize, Rc<[Hosted]>), usize>,
     queries: HashMap<String, Rc<str>>,
     work: Vec<Work>,
     inventories: HashMap<PathBuf, Rc<Vec<String>>>,
@@ -70,15 +69,12 @@ impl Batch {
         };
         let rule = self.schedule.prepare(
             query.clone(),
-            serde_json::to_string(&req.parameters).unwrap(),
+            req.parameters.clone(),
             || {
                 let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
                 ctx.parameters.insert(
                     "query".into(),
-                    req.parameters
-                        .iter()
-                        .map(|(k, v)| (k.as_str().into(), bindings::constant(v)))
-                        .collect(),
+                    req.parameters,
                 );
                 Program::prepare("query", &query, ctx, &declaration(), Some("/"))
             },
@@ -159,7 +155,8 @@ impl Batch {
     }
 
     fn binding(&mut self, rule: usize, hosted: Vec<Hosted>) -> usize {
-        let host_key = serde_json::to_string(&hosted).unwrap();
+        let hosted: Rc<[Hosted]> = hosted.into();
+        let host_key = hosted.clone();
         *self.binding_ids.entry((rule, host_key)).or_insert_with(|| {
             self.bindings.push((rule, hosted));
             self.bindings.len() - 1
@@ -447,7 +444,7 @@ pub(crate) fn batch(languages: Vec<Language>, manifest: &str, output: &str) {
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
     println!(
-        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6}",
+        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6}",
         session.schedule.programs.len(),
         session.bindings.len(),
         session.schedule.sources.len(),
@@ -457,6 +454,7 @@ pub(crate) fn batch(languages: Vec<Language>, manifest: &str, output: &str) {
         c.unique_pairs,
         c.skipped,
         c.evaluated,
+        c.productive,
         c.prepare,
         c.read_parse,
         c.screen,
@@ -471,7 +469,7 @@ pub(crate) fn batch(languages: Vec<Language>, manifest: &str, output: &str) {
 pub(crate) fn one(
     languages: Vec<Language>,
     pack: &str,
-    input: Value,
+    input: serde_json::Value,
     output: &str,
 ) -> Result<(), String> {
     let mut session = Batch::default();

@@ -8,7 +8,7 @@ use super::packet::Packet;
 use rustc_hash::FxHashMap;
 use ryo::languages::{self as l, FileWords};
 
-pub(super) fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> first::Vocab {
+pub(in super::super) fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> first::Vocab {
     fn codes(names: &[l::NameText<'_>]) -> std::collections::HashMap<String, u16> {
         let mut codes = std::collections::HashMap::new();
         let mut ambiguous = std::collections::HashSet::new();
@@ -34,9 +34,10 @@ pub(super) fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> fi
     }
 }
 
-pub(super) struct Decisions {
+pub(in super::super) struct Decisions {
     pub(super) program: Program,
     roots: Vec<usize>,
+    live: Vec<bool>,
     words: FileWords,
     order: super::super::summary_schedule::Schedule,
     scratch: super::super::pair_checks::Scratch,
@@ -55,18 +56,26 @@ impl Decisions {
             .iter()
             .map(|emit| index[emit.0.as_str()])
             .collect();
+        Self::with_roots(program, roots)
+    }
+    pub(in super::super) fn with_roots(program: Program, roots: Vec<usize>) -> Self {
         let (words, codes) = super::super::summary_values::register_symbols(&program, &[]);
         let order = super::super::summary_schedule::Schedule::new(&program, None, codes);
+        let live = vec![false; program.roots.len()];
         Self {
             program,
             roots,
+            live,
             words,
             order,
             scratch: Default::default(),
             steps: 0,
         }
     }
-    pub(super) fn filter(
+    pub(in super::super) fn kept(&self, i: usize) -> bool {
+        self.live[self.roots[i]]
+    }
+    pub(in super::super) fn filter(
         &mut self,
         wanted: &mut Vec<usize>,
         table: &l::NodeTable,
@@ -81,9 +90,9 @@ impl Decisions {
         mut walk: impl FnMut(&mut l::Elements, &mut l::Symbols, &mut l::contract::Collect),
     ) {
         let n = text.ids.len();
-        let mut live = vec![false; self.program.roots.len()];
+        self.live.fill(false);
         for &i in wanted.iter() {
-            live[self.roots[i]] = true;
+            self.live[self.roots[i]] = true;
         }
         self.order.literals.syntax(text.ids, text.symbols, &mut self.scratch.literals);
         self.steps += self.program.eval(
@@ -95,22 +104,29 @@ impl Decisions {
             Some(text),
             &mut self.words,
             |source, query, words, out| {
-                if !matches!(query, super::super::pair_checks::Query::Rows) { return None; }
+                use super::super::pair_checks::Query;
+                if matches!(query, Query::Keys(_)) {
+                    return None;
+                }
                 let Source::Catalog(relation) = source else {
-                    return Some(false);
+                    return matches!(query, Query::Rows).then_some(false);
                 };
                 if !requested.contains(&relation) {
-                    return Some(false);
+                    return matches!(query, Query::Rows).then_some(false);
                 }
                 if !packet.ready {
                     walk(elements, symbols, &mut packet.rows);
                     packet.index(requested);
                 }
-                Some(packet.columns(relation, symbols, bytes, id, n, words, out))
+                match query {
+                    Query::Exists => packet.complete_len(relation).map(|n| n != 0),
+                    Query::Rows => Some(packet.columns(relation, symbols, bytes, id, n, words, out)),
+                    Query::Keys(_) => unreachable!(),
+                }
             },
-            &mut live,
+            &mut self.live,
             None,
         );
-        wanted.retain(|&i| live[self.roots[i]]);
+        wanted.retain(|&i| self.kept(i));
     }
 }

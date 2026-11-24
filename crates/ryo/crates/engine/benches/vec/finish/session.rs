@@ -47,7 +47,7 @@ pub(in super::super) fn evaluate(
     for (i, step) in plan.nodes.iter().enumerate() {
         match step.op.as_str() {
             "base" => {
-                let rel = step.j["rel"].as_str().ok_or("missing base relation")?;
+                let rel = step.base().ok_or("missing base relation")?;
                 let table = match bases.get(rel) {
                     Some(t) => Rc::clone(t),
                     None => {
@@ -87,14 +87,14 @@ pub(in super::super) fn evaluate(
             }
             "rows" | "select" | "project" | "union" | "antijoin" | "group-count" => {}
             "extend"
-                if step.j["args"]["values"]
+                if step.args()["values"]
                     .as_object()
                     .is_some_and(|m| m.len() <= 1)
-                    || step.j["args"]["value-order"].is_array() => {}
+                    || step.args()["value-order"].as_array().is_some() => {}
             "extend" => {
                 return Err("project emit needs declaration order for multi-column extend".into());
             }
-            "capture" if step.j["args"]["separator"].is_string() => {}
+            "capture" if step.args()["separator"].as_str().is_some() => {}
             "capture" => return Err("project capture needs a verified separator contract".into()),
             op => return Err(format!("project scope is unverified for {op}")),
         }
@@ -120,7 +120,7 @@ pub(in super::super) fn evaluate(
                 let _prepared = super::union_kernel::prep(exec, run, i)?;
             }
             "group-count" => {
-                if let Some(name) = step.j["args"]["distinct"].as_str() {
+                if let Some(name) = step.args()["distinct"].as_str() {
                     let input = exec.arg_rel(i, "from")?;
                     let schema = exec.schema(run, input)?;
                     let _column = super::pos(&schema.names, name)?;
@@ -220,3 +220,6 @@ pub(in super::super) fn pair<'tables>(
     }
     Ok(rows)
 }
+
+#[path = "session_certificate.rs"]
+pub(in super::super) mod certificate;

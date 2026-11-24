@@ -25,6 +25,7 @@ impl<'p> Finisher<'p> {
         walk: &impl languages::Walk,
         vocab: &Vocab,
         args: &[&str],
+        request: Option<(&str, &serde_json::Value)>,
     ) -> Self {
         let t0 = thread_cpu();
         let list = files(args[1]);
@@ -65,14 +66,15 @@ impl<'p> Finisher<'p> {
             vocab.kind_names.len(),
         );
         let mut me = Self {
-            inner: finisher::Finisher::new(plan, run, args),
+            inner: finisher::Finisher::new(plan, run, args, request),
             fwords: ryo_python::fixtures::walking::walk_words(walk)
                 .expect("the walk's fixed names"),
             project: super::provider_packaging::Project::new(
                 args[2].trim_end_matches('/'),
-                super::provider_packaging::Project::search_roots_of(
-                    flag(args, "--request").as_deref(),
-                ),
+                match request {
+                    Some((_, doc)) => super::provider_packaging::Project::search_roots(doc),
+                    None => super::provider_packaging::Project::search_roots_of(flag(args, "--request").as_deref()),
+                },
                 &|n| vocab.kinds.get(n).copied(),
             ),
         };

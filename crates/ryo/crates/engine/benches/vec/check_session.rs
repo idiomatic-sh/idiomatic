@@ -10,12 +10,18 @@ use std::{
     rc::Rc,
 };
 
+#[path = "check_session/pairs.rs"]
+mod pairs;
+
+type Parameters = BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
+
 type Result<T> = std::result::Result<T, String>;
 pub(crate) type Answer = Result<Vec<String>>;
 pub(crate) type Tables = Vec<(String, Rc<Table>)>;
 
 pub(crate) struct Program {
     pub plan: Plan,
+    typed: Rc<ryo_values::domain::finish_plans::types::FinishPlan>,
     pub bases: Vec<String>,
     requirements: (bool, Vec<Vec<String>>, Vec<Vec<String>>),
 }
@@ -28,24 +34,7 @@ impl Program {
         declaration: &first::Language,
         capture_separator: Option<&str>,
     ) -> Result<Self> {
-        let (mut plan, pack) = lower::query_parts(alias, text, context, true)?;
-        {
-            use ryo_values::domain::finish_plans::types::FinishStep;
-            let typed = pack.typed.borrow();
-            for (node, step) in plan.nodes.iter_mut().zip(&typed.as_ref().unwrap().steps) {
-                if let FinishStep::Extend(args) = step {
-                    node.j["args"]["value-order"] = serde_json::json!(
-                        args.values.iter().map(|v| &v.name.0).collect::<Vec<_>>()
-                    );
-                }
-                if node.op == "capture"
-                    && node.j["args"]["separator"].is_null()
-                    && let Some(separator) = capture_separator
-                {
-                    node.j["args"]["separator"] = separator.into();
-                }
-            }
-        }
+        let (plan, pack) = lower::query_parts(alias, text, context, true, capture_separator)?;
         let requirements = reader_run::file_requirements(&pack, declaration)
             .pop()
             .ok_or("missing query emit")?
@@ -53,11 +42,11 @@ impl Program {
         let bases = plan
             .nodes
             .iter()
-            .filter(|n| n.op == "base")
-            .map(|n| n.j["rel"].as_str().unwrap().to_owned())
+            .filter_map(|n| n.base().map(str::to_owned))
             .collect();
         Ok(Self {
             plan,
+            typed: pack.typed.take().expect("prepared query"),
             requirements,
             bases,
         })
@@ -78,6 +67,7 @@ pub(crate) struct Clock {
     pub pairs: usize,
     pub skipped: usize,
     pub evaluated: usize,
+    pub productive: usize,
 }
 
 /// The root and path identify the caller's immutable effective source. This
@@ -95,7 +85,7 @@ pub(crate) struct Schedule {
     pub sources: Vec<Source>,
     source_ids: HashMap<(Rc<str>, Rc<str>), usize>,
     pub programs: Vec<Result<Program>>,
-    prepared: HashMap<(Rc<str>, String), usize>,
+    prepared: HashMap<(Rc<str>, Parameters), usize>,
     pub pairs: usize,
 }
 
@@ -107,7 +97,7 @@ impl Schedule {
     pub(crate) fn prepare(
         &mut self,
         text: Rc<str>,
-        parameters: String,
+        parameters: Parameters,
         make: impl FnOnce() -> Result<Program>,
     ) -> usize {
         *self.prepared.entry((text, parameters)).or_insert_with(|| {
@@ -157,6 +147,7 @@ impl Schedule {
 }
 
 struct Bound<'p> {
+    screenable: Option<bool>,
     exec: Exec<'p>,
     facts: Vec<l::Relation>,
     hosted: Tables,
@@ -224,6 +215,7 @@ fn bind<'p>(
         .collect();
     let exec = Exec::new(&program.plan);
     Ok(Bound {
+        screenable: None,
         exec,
         facts,
         hosted,
@@ -343,6 +335,9 @@ pub(crate) fn visit(
         let word = run.sym(src.path.as_bytes());
         run.path_sym.push(word);
     }
+    let start = thread_cpu();
+    let mut checks = pairs::Checks::new(parser.as_deref(), programs, program_of, sources, selected);
+    clocks.prepare += thread_cpu() - start;
     let mut bound = HashMap::new();
     let mut elements = l::Elements::default();
     let mut symbols = l::Symbols::default();
@@ -531,11 +526,17 @@ pub(crate) fn visit(
                     &mut packet.rows,
                 );
             }
-            let partials = std::mem::take(&mut packet.rows.partials);
             packet.index(&facts);
-            let version = std::cell::OnceCell::new();
-            let mut provider = packet.view(&mut provider, &symbols, &bytes);
             clocks.read_parse += thread_cpu() - t;
+            let start = thread_cpu();
+            checks.filter(
+                &mut active, program_of, &mut bound, answers, &mut run, &provider,
+                &tree, &bytes, source, &mut elements, &mut symbols, id, &facts, &mut packet, clocks,
+            );
+            clocks.screen += thread_cpu() - start;
+            let partials = std::mem::take(&mut packet.rows.partials);
+            let version = std::cell::OnceCell::new();
+            let mut view = packet.view(&mut provider, &symbols, &bytes);
             let t = thread_cpu();
             let lines = active
                 .iter()
@@ -567,10 +568,11 @@ pub(crate) fn visit(
                 answers[slot] = finish::session::pair(
                     &mut b.exec,
                     &mut run,
-                    version.get_or_init(|| finish::FileVersion::new(&tree, &bytes, id.0, provider.syntax_text())),
-                    &mut provider,
+                    version.get_or_init(|| finish::FileVersion::new(&tree, &bytes, id.0, view.syntax_text())),
+                    &mut view,
                     b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
                 );
+                clocks.productive += usize::from(matches!(&answers[slot], Ok(rows) if !rows.is_empty()));
             }
             clocks.evaluate += thread_cpu() - t;
         }

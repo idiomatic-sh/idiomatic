@@ -65,3 +65,21 @@ impl Matches {
         row[at] == 2
     }
 }
+
+/// The SDK dictionary belongs to one reader session. Reusing a symbol ID
+/// never changes its spelling within that session. A collision rechecks it.
+#[derive(Default)]
+pub(super) struct SymbolMatches(Vec<(usize, u32, bool)>);
+impl SymbolMatches {
+    pub(super) fn test(&mut self, pattern: usize, word: u32, check: impl FnOnce() -> bool) -> bool {
+        if self.0.is_empty() {
+            self.0.resize(4096, (usize::MAX, 0, false));
+        }
+        let index = (pattern.wrapping_mul(0x9e3779b9) ^ word as usize) & (self.0.len() - 1);
+        let entry = &mut self.0[index];
+        if (entry.0, entry.1) != (pattern, word) {
+            *entry = (pattern, word, check());
+        }
+        entry.2
+    }
+}

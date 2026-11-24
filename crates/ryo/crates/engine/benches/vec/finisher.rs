@@ -53,7 +53,7 @@ use ryo::languages;
 impl<'p> Finisher<'p> {
     /// `args` as `vec finish` takes them: `<plan> <files> <root> [--rules A,B] [--surv F] [--check-bases] [--dump F]
     /// [--out F] [--stats F] [--tally F] [--check-out F]`; `plan` is `args[0]` loaded.
-    pub(super) fn new(plan: &'p finish::Plan, run: finish::Run, args: &[&str]) -> Self {
+    pub(super) fn new(plan: &'p finish::Plan, run: finish::Run, args: &[&str], request: Option<(&str, &serde_json::Value)>) -> Self {
         let t0 = thread_cpu();
         let only: Option<HashSet<String>> = flag(args, "--rules").map(|r| r.split(',').map(str::to_owned).collect());
         let emits: Vec<usize> = (0..plan.emits.len()).filter(|e| only.as_ref().is_none_or(|o| o.contains(&plan.emits[*e].0))).collect();
@@ -90,7 +90,7 @@ impl<'p> Finisher<'p> {
             findings: Vec::new(),
             failed: HashMap::new(),
             failed_idx: vec![false; plan.emits.len()],
-            accepted_only: applicability(plan, flag(args, "--applicability").as_deref()),
+            accepted_only: applicability(plan, flag(args, "--applicability").as_deref(), request),
             rule_stats: vec![[0; 3]; plan.emits.len()],
             check_lines: Vec::new(),
             files_run: 0,
@@ -352,9 +352,16 @@ impl<'p> Finisher<'p> {
 
 /// redo-honest: per plan emit, whether its rule's applicability is "accepted-syntax" in `path` (a request's
 /// `rule_applicability`, or that map alone); none given: false for every emit (every rule runs on every file).
-fn applicability(plan: &finish::Plan, path: Option<&str>) -> Vec<bool> {
+fn applicability(plan: &finish::Plan, path: Option<&str>, request: Option<(&str, &serde_json::Value)>) -> Vec<bool> {
     let Some(path) = path else { return vec![false; plan.emits.len()] };
-    let j: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).expect("applicability file")).expect("applicability json");
-    let map = j.get("rule_applicability").unwrap_or(&j);
+    let owned;
+    let j = match request {
+        Some((same, value)) if same == path && value.get("rule_applicability").is_some() => value,
+        _ => {
+            owned = serde_json::from_slice(&std::fs::read(path).expect("applicability file")).expect("applicability json");
+            &owned
+        }
+    };
+    let map = j.get("rule_applicability").unwrap_or(j);
     plan.emits.iter().map(|e| map.get(&e.0).and_then(serde_json::Value::as_str) == Some("accepted-syntax")).collect()
 }

@@ -10,7 +10,7 @@ use std::path::Path;
 pub(super) mod packet;
 
 #[path = "reader_pairs.rs"]
-mod pairs;
+pub(super) mod pairs;
 
 #[path = "reader_coverage.rs"]
 pub(super) mod coverage;
@@ -74,6 +74,15 @@ impl Memory {
         std::fs::write("/proc/self/clear_refs", b"5").expect("reset process high-water RSS");
     }
 }
+/// SDK packets have node-addressable columns or file-wide rows.
+pub(super) fn fact_family(name: &str) -> super::pair_summary::cost::Family {
+    use super::pair_summary::cost::Family;
+    match catalog::relation_named(NameRef(name)) {
+        Some(rel) if !catalog::kinds(rel).contains(&l::CellKind::Node) => Family::Sets,
+        _ => Family::Fact,
+    }
+}
+
 /// These readers resolve field names for each file. Compile name-based file
 /// requirements from the lowered steps already prepared by the executor.
 pub(super) fn file_requirements(
@@ -81,7 +90,8 @@ pub(super) fn file_requirements(
     language: &first::Language,
 ) -> Vec<(String, (bool, Vec<Vec<String>>, Vec<Vec<String>>))> {
     use ryo_values::domain::finish_plans::types::RuleEmit;
-    let plan = read.typed.take().expect("executor must hand over the typed plan");
+    let borrowed = read.typed.borrow();
+    let plan = borrowed.as_ref().expect("executor must hand over the typed plan");
     assert!(plan.unplanned.is_empty(), "unplanned file queries");
     let mut skips = Vec::with_capacity(plan.steps.len());
     for step in &plan.steps {
@@ -98,15 +108,6 @@ pub(super) fn file_requirements(
             (rule.rule.0.to_string(), requirements)
         })
         .collect()
-}
-
-/// SDK packets have node-addressable columns or file-wide rows.
-pub(super) fn fact_family(name: &str) -> super::pair_summary::cost::Family {
-    use super::pair_summary::cost::Family;
-    match catalog::relation_named(NameRef(name)) {
-        Some(rel) if !catalog::kinds(rel).contains(&l::CellKind::Node) => Family::Sets,
-        _ => Family::Fact,
-    }
 }
 
 pub(super) fn run(
@@ -131,12 +132,13 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     output: &str,
     paths: Option<Vec<String>>,
 ) -> bool {
-    let mut req: Request =
+    let document: serde_json::Value =
         serde_json::from_slice(&std::fs::read(request).expect("read request")).expect("request");
+    let mut req = <Request as serde::Deserialize>::deserialize(&document).expect("request fields");
     if let Some(paths) = paths {
         req.files = paths;
     }
-    let read = lower::read_pack(Path::new(pack), super::rule_context(Some(request)));
+    let read = lower::read_pack(Path::new(pack), super::context_from(&document));
     let parser = language.parse_engine();
     let plan = lower::second_half_plan(&read, true);
     let emits: BTreeSet<_> = plan.emits.iter().map(|emit| emit.0.as_str()).collect();
@@ -156,7 +158,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         .nodes
         .iter()
         .filter(|n| n.op == "base")
-        .map(|n| n.j["rel"].as_str().expect("base name"))
+        .map(|n| n.base().expect("base name"))
         .collect();
     let mut run = finish::Run::default();
     run.file_field_codes = true;
@@ -290,7 +292,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             reads.extend(&dependencies[i]);
         }
         if n.op == "base" {
-            let name = n.j["rel"].as_str().expect("relation name");
+            let name = n.base().expect("relation name");
             let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
             if !matches!(run.supplier(name), finish::Supplier::Host) && (ryo_relations::domain::catalog::service::fact_form(rel)
                 != ryo_relations::domain::relations::types::FactForm::NodeTable
@@ -320,8 +322,10 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             "--applicability",
             request,
         ],
+        Some((request, &document)),
     );
     fin.query_rows = QUERY_ROWS;
+    drop(document);
     let startup = thread_cpu() - start;
     println!(
         "startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}",
