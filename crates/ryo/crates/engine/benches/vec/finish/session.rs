@@ -128,8 +128,8 @@ pub(in super::super) fn evaluate_covered(
             }
             // Class numbers are interned across the complete input. A local class
             // from one file has no meaning in another file's class dictionary.
-            "subtree-class" | "as-of" | "order" if !uncertain.get(i).copied().unwrap_or(false) => {}
-            "rows" | "select" | "project" | "union" | "antijoin" | "group-count" | "words" | "axis" | "closure" | "cycles" | "rank" | "intersection" | "difference" | "group-digest" | "replace" | "span-bounds" | "span-between" => {}
+            "subtree-class" | "order" if !uncertain.get(i).copied().unwrap_or(false) => {}
+            "as-of" | "rows" | "select" | "project" | "union" | "antijoin" | "group-count" | "words" | "axis" | "closure" | "cycles" | "rank" | "intersection" | "difference" | "group-digest" | "replace" | "span-bounds" | "span-between" => {}
             "extend"
                 if step.args()["values"]
                     .as_object()
@@ -286,7 +286,7 @@ pub(in super::super) fn absence_input(step: &super::PNode) -> Option<(&'static s
     match step.op.as_str() {
         "group-count" | "group-digest" => Some(("from", "keys")),
         "difference" => Some(("right", "")),
-        "antijoin" => Some(("right", "left-on")),
+        "antijoin" | "as-of" => Some(("right", "left-on")),
         _ => None,
     }
 }
@@ -316,6 +316,21 @@ fn restrict_uncertain(
                 if !frame.after_last_file {
                     // A negative step inside one incomplete source cannot publish any rows.
                     frame.remember(i, super::Res::Tab(exec.empty_rc(run, i)?));
+                    affected.push(here);
+                    continue;
+                }
+                if step.op == "as-of" {
+                    // Exclude uncertain partitions before choosing the nearest row.
+                    // The projection may discard or rename its partition key.
+                    let file_local_right = frame.project_inputs.is_some_and(|xs| xs.contains_key(&source));
+                    let result = if file_local_right && !affected[source].contains(&None) {
+                        exec.ordered(frame, run, provider, i, step.args(), true, Some(&affected[source]))?
+                    } else {
+                        exec.empty(run, i)?
+                    };
+                    let result = Rc::new(result);
+                    frame.remember(i, super::Res::Tab(Rc::clone(&result)));
+                    exec.run_memo[i] = Some(result);
                     affected.push(here);
                     continue;
                 }

@@ -2266,7 +2266,7 @@ impl<'p> Exec<'p> {
                 }
                 Ok(out)
             }
-            "ordered-match" | "as-of" => self.ordered(f, run, p, node, a, op == "as-of"),
+            "ordered-match" | "as-of" => self.ordered(f, run, p, node, a, op == "as-of", None),
             "span-between" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let (sc, ec) = (from.col(s(&a["start"])?)?, from.col(s(&a["end"])?)?);
@@ -3236,7 +3236,7 @@ impl<'p> Exec<'p> {
         Ok(out)
     }
 
-    fn ordered(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, as_of: bool) -> R<Table> {
+    fn ordered(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, as_of: bool, incomplete: Option<&std::collections::BTreeSet<Option<u32>>>) -> R<Table> {
         let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
         let rn = self.arg_rel(node, "right")?;
         let lk: Vec<usize> = strs(&a["left-on"])?.map(|c| l.col(c)).collect::<R<_>>()?;
@@ -3259,7 +3259,19 @@ impl<'p> Exec<'p> {
         let mut kb: Vec<u64> = Vec::with_capacity(rk.len().max(lk.len()));
         // redo-alloc: keys inline (inline_key.rs: hashed as the Vec was, so the same order), a group's first row inline
         let mut groups: FxHashMap<inline_key::Key, inline_key::List<(i64, u32)>> = FxHashMap::default();
+        let scoped_key = incomplete.and_then(|files| {
+            rk.iter().copied().find(|&key| matches!(r.tys[key], Ty::File | Ty::Node))
+                .map(|key| (files, key))
+        });
+        if incomplete.is_some() && scoped_key.is_none() {
+            return Ok(out);
+        }
         for i in 0..r.n {
+            if let Some((files, key)) = scoped_key {
+                let word = r.cols[key][i];
+                let file = if r.tys[key] == Ty::Node { word >> 32 } else { word };
+                if word == NULL || files.contains(&u32::try_from(file).ok()) { continue; }
+            }
             kb.clear();
             kb.extend(rk.iter().map(|c| r.cols[*c][i]));
             let v = (r.cols[ro][i] as i64, i as u32);
