@@ -65,6 +65,10 @@ impl Flat {
 }
 
 impl Exec<'_> {
+    pub(super) fn can_decide_empty(&mut self, run: &mut Run, node: usize) -> bool {
+        self.rec(run, node).flags & CAN != 0
+    }
+
     pub(super) fn decided_empty(&self, file: &File<'_>, node: usize) -> bool {
         matches!(file.known[node], YES | YES_EP)
     }

@@ -1,5 +1,6 @@
 //! Bind provider reads to the typed plan and admit one ordered packet per file.
 use super::{E, Exec, File, Native, Provider, R, Run, Scope, Supplier, Table, native_of, project};
+use rustc_hash::FxHashMap;
 use ryo::languages::ColumnProjection as Columns;
 use std::rc::Rc;
 
@@ -49,8 +50,10 @@ pub(crate) trait Indexed {
 
 #[derive(Default)]
 pub(super) struct Requests {
-    steps: Vec<Option<Demand>>,
+    by_step: Vec<u32>,
+    graph: Vec<Demand>,
     seen: Vec<bool>,
+    pending: Vec<u32>,
     masks: Vec<Option<Columns>>,
     #[allow(dead_code, reason = "used by the check-session host")]
     indexed_slots: Vec<Option<u16>>,
@@ -66,15 +69,20 @@ pub(super) struct Requests {
     pub(super) missing: u64,
 }
 
-enum Demand {
-    Native,
-    Base(u16),
-    Inputs(Box<[Edge]>),
+const NO_READ: u32 = u32::MAX;
+const UNBOUND: u32 = u32::MAX - 1;
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct Demand {
+    /// An existing executor empty decision, indexed by its typed plan step.
+    guard: Option<usize>,
+    reads: Reads,
 }
 
-struct Edge {
-    input: usize,
-    projected: Option<(u16, Columns)>,
+#[derive(Clone, PartialEq, Eq, Hash)]
+enum Reads {
+    Base(u16, Columns),
+    Inputs(Box<[u32]>),
 }
 
 fn columns(expr: &E, source: usize, out: &mut Columns) {
@@ -102,24 +110,53 @@ pub(super) fn slot(run: &mut Run, relation: &str) -> u16 {
 }
 
 impl Exec<'_> {
-    fn bind_request(&mut self, run: &mut Run, node: usize) {
-        if self.requests.steps[node].is_some() { return; }
-        let plan = &self.plan.nodes[node];
-        // Mark before descending. Shared subtrees are bound once.
-        self.requests.steps[node] = Some(Demand::Native);
-        for &input in &plan.inputs { self.bind_request(run, input); }
+    /// Compile the provider-bearing part of the typed plan once. Flatten
+    /// aliases without an empty decision and share identical read branches.
+    pub(crate) fn bind_provider_reads(&mut self, run: &mut Run, roots: impl IntoIterator<Item = usize>) {
+        self.requests.by_step.resize(self.plan.nodes.len(), UNBOUND);
+        let mut shared = FxHashMap::default();
+        for node in roots {
+            self.bind_request(run, node, &mut shared);
+        }
+        self.requests.seen.resize(self.requests.graph.len(), false);
+    }
+
+    fn demand(&mut self, guard: Option<usize>, reads: Reads, shared: &mut FxHashMap<Demand, u32>) -> u32 {
+        let demand = Demand { guard, reads };
+        *shared.entry(demand).or_insert_with_key(|demand| {
+            let id = self.requests.graph.len() as u32;
+            self.requests.graph.push(demand.clone());
+            id
+        })
+    }
+
+    fn guard(&mut self, run: &mut Run, node: usize) -> Option<usize> {
+        (!self.plan.nodes[node].counted() && self.can_decide_empty(run, node)).then_some(node)
+    }
+
+    fn bind_request(&mut self, run: &mut Run, node: usize, shared: &mut FxHashMap<Demand, u32>) -> u32 {
+        let known = self.requests.by_step[node];
+        if known != UNBOUND {
+            return known;
+        }
+        self.requests.by_step[node] = NO_READ;
+        let plan = self.plan;
+        let plan = &plan.nodes[node];
         let demand = if let Some(rel) = plan.base() {
             if native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles) {
-                Demand::Native
+                NO_READ
             } else {
-                Demand::Base(slot(run, rel))
+                let slot = slot(run, rel);
+                let guard = self.guard(run, node);
+                self.demand(guard, Reads::Base(slot, Columns::All), shared)
             }
         } else {
-            let mut edges: Vec<_> = plan.inputs.iter().copied()
-                .filter(|&input| !matches!(self.requests.steps[input], Some(Demand::Native)))
-                .map(|input| Edge { input, projected: None }).collect();
-            if edges.is_empty() {
-                return;
+            let mut inputs: Vec<_> = plan.inputs.iter().copied()
+                .map(|input| (input, self.bind_request(run, input, shared)))
+                .filter(|&(_, read)| read != NO_READ)
+                .collect();
+            if inputs.is_empty() {
+                return NO_READ;
             }
             if plan.op == "select" && !plan.counted()
                 && let Ok(select) = self.sel(run, node)
@@ -127,6 +164,7 @@ impl Exec<'_> {
                 && matches!(self.keyed_form(run, node), Ok(super::keyed::Form::Not))
                 && let Ok(Some(view)) = self.view(run, select.srcs[0])
                 && let Native::Fact(slot) = view.base
+                && let Some((input, entry)) = inputs.iter_mut().find(|(input, _)| *input == select.srcs[0])
             {
                 let mut mask = Columns::default();
                 for expr in select.conj.iter().chain(select.items.iter().map(|(_, e)| e)) {
@@ -137,46 +175,51 @@ impl Exec<'_> {
                 for (column, &base) in view.map.iter().enumerate() {
                     if mask.contains(column) { base_columns.insert(base); }
                 }
-                if let Some(edge) = edges.iter_mut().find(|edge| edge.input == select.srcs[0]) {
-                    edge.projected = Some((slot, base_columns));
-                }
+                let guard = self.guard(run, *input);
+                *entry = self.demand(guard, Reads::Base(slot, base_columns), shared);
             }
-            Demand::Inputs(edges.into_boxed_slice())
+            let guard = self.guard(run, node);
+            if guard.is_none() && let [(_, only)] = inputs.as_slice() {
+                *only
+            } else {
+                self.demand(guard, Reads::Inputs(inputs.into_iter().map(|(_, demand)| demand).collect()), shared)
+            }
         };
-        self.requests.steps[node] = Some(demand);
+        self.requests.by_step[node] = demand;
+        demand
     }
 
     fn collect_request(&mut self, run: &mut Run, file: &mut File<'_>, provider: &mut dyn Provider,
-        steps: &[Option<Demand>], node: usize, prune: bool) {
-        let demand = steps[node].as_ref().expect("bound request");
-        if matches!(demand, Demand::Native) || std::mem::replace(&mut self.requests.seen[node], true) { return; }
-        if prune && !self.plan.nodes[node].counted() && self.static_empty(file, run, provider, node) { return; }
-        match demand {
-            Demand::Native => {}
-            Demand::Base(slot) => { self.requests.masks[usize::from(*slot)] = Some(Columns::All); }
-            Demand::Inputs(edges) => {
-                for edge in edges {
-                    if let Some((slot, columns)) = &edge.projected {
-                        if !prune || !self.static_empty(file, run, provider, edge.input) {
-                            let mask = self.requests.masks[usize::from(*slot)].get_or_insert_with(Columns::default);
-                            mask.extend(columns);
-                        }
-                    } else {
-                        self.collect_request(run, file, provider, steps, edge.input, prune);
-                    }
-                }
+        roots: impl IntoIterator<Item = usize>, prune: bool) {
+        self.requests.seen.fill(false);
+        self.requests.pending.extend(roots.into_iter().filter_map(|node| {
+            let id = self.requests.by_step[node];
+            debug_assert_ne!(id, UNBOUND);
+            (id != NO_READ).then_some(id)
+        }));
+        self.requests.pending.reverse();
+        let graph = std::mem::take(&mut self.requests.graph);
+        while let Some(id) = self.requests.pending.pop() {
+            if std::mem::replace(&mut self.requests.seen[id as usize], true) {
+                continue;
+            }
+            let demand = &graph[id as usize];
+            if prune && demand.guard.is_some_and(|node| self.static_empty(file, run, provider, node)) {
+                continue;
+            }
+            match &demand.reads {
+                Reads::Base(slot, columns) => self.requests.masks[usize::from(*slot)]
+                    .get_or_insert_with(Columns::default).extend(columns),
+                Reads::Inputs(inputs) => self.requests.pending.extend(inputs.iter().rev().copied()),
             }
         }
+        self.requests.graph = graph;
     }
 
     /// The request owns scopes and projection masks only until the provider returns.
     /// Results belong to the shared file version, including refusals for that file.
     pub(crate) fn open_file(&mut self, file: &mut File<'_>, run: &mut Run, provider: &mut dyn Provider,
-        roots: impl IntoIterator<Item = usize> + Clone, checks: &[&str], empty: Option<&[&str]>) -> R<Vec<Reply>> {
-        self.requests.steps.resize_with(self.plan.nodes.len(), || None);
-        self.requests.seen.resize(self.plan.nodes.len(), false);
-        self.requests.seen.fill(false);
-        for node in roots.clone() { self.bind_request(run, node); }
+        roots: impl IntoIterator<Item = usize>, checks: &[&str], empty: Option<&[&str]>) -> R<Vec<Reply>> {
         self.requests.masks.resize_with(run.fact_rels.len(), || None);
         self.requests.masks.fill(None);
         if let Some(empty) = empty {
@@ -188,9 +231,7 @@ impl Exec<'_> {
         }
         file.admitting = true;
         let prune = empty.is_some() && !sw!("VEC_NO_KNOWN") && !sw!("VEC_NO_SEMI");
-        let steps = std::mem::take(&mut self.requests.steps);
-        for node in roots { self.collect_request(run, file, provider, &steps, node, prune); }
-        self.requests.steps = steps;
+        self.collect_request(run, file, provider, roots, prune);
         file.admitting = false;
         // A negative decision can change once the admitted fact columns are present.
         if prune { file.known.iter_mut().filter(|value| **value == super::known::NO).for_each(|value| *value = 0); }
