@@ -271,7 +271,6 @@ pub(crate) fn dispatch<L: FileSource>(
             clocks.evaluated += time.evaluated;
             clocks.certified += time.certified;
             clocks.productive += time.productive;
-            clocks.certified += time.certified;
             clocks.empty += time.empty;
             clocks.refused += time.refused;
         }
