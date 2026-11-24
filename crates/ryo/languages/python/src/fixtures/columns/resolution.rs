@@ -481,23 +481,19 @@ impl ColumnFile<'_, '_> {
         if self.file.syntax.completeness.syntax != l::SyntaxCompleteness::Complete {
             return Err(format!("incomplete {}", schema.name));
         }
-        let mut columns = vec![l::FactColumn::default(); schema.columns.len()];
+        let mut columns = vec![Vec::new(); schema.columns.len()];
         self.visit_site_relation(
             schema.name,
             u64::from(file.0),
             |text| u64::from(l::intern_derived(symbols, l::ByteSlice(src), l::NameText(text)).0),
             |row| {
-                for ((out, (_, kind)), &cell) in columns.iter_mut().zip(schema.columns).zip(row) {
-                    out.0
-                        .push(if *kind == l::CellKind::Node && cell != u64::MAX {
-                            (u64::from(file.0) << 32) | cell
-                        } else {
-                            cell
-                        });
+                debug_assert_eq!(columns.len(), row.len());
+                for (out, &cell) in columns.iter_mut().zip(row) {
+                    out.push(cell);
                 }
             },
         )?;
-        Ok(columns)
+        Ok(qualify_cells(schema, file, columns))
     }
 
     /// Visit site rows using file-local node identities and the supplied symbol dictionary.
@@ -606,11 +602,11 @@ impl ColumnFile<'_, '_> {
             match event.kind {
                 FlowEventKind::Read | FlowEventKind::Wildcard => continue,
                 FlowEventKind::Global | FlowEventKind::Nonlocal if event.lexical != event.scope => {
-                    latest.insert((event.lexical, event.name), event);
+                    let _ = latest.insert((event.lexical, event.name), event);
                 }
                 _ => {}
             }
-            latest.insert((event.scope, event.name), event);
+            let _ = latest.insert((event.scope, event.name), event);
         }
         let mut ordered: Vec<_> = latest.into_iter().collect();
         ordered.sort_unstable_by_key(|((scope, name), _)| (table_id(segments, *scope).0, *name));

@@ -258,7 +258,7 @@ impl Semantics<'_, '_, '_> {
     {
         if !self.inputs.contains_key(name) {
             let table = InputTable::read::<R>(self.file, &mut self.words.words, projection)?;
-            self.inputs.insert(name, table);
+            let _ = self.inputs.insert(name, table);
         }
         Ok(())
     }
@@ -445,7 +445,6 @@ impl Semantics<'_, '_, '_> {
 
     fn predecessor(&mut self) -> Result<InputTable, String> {
         use l::{BindingReadColumn as Read, BindingResolutionColumn as Lookup};
-        const NULL: u64 = u64::MAX;
         self.read::<l::BindingResolution>(
             "lookups",
             &[
@@ -472,50 +471,53 @@ impl Semantics<'_, '_, '_> {
             .map(|text| u64::from(self.words.symbol(text)));
         let lookup = &self.inputs["lookups"];
         let mut out = InputTable::empty(&PREDECESSOR);
-        let mut seen = std::collections::HashSet::with_capacity(read.n);
-        for i in 0..lookup.n {
-            let [
-                reference,
-                event,
-                kind,
-                scope,
-                lexical,
-                depth,
-                ordinal,
-                context,
-            ] = std::array::from_fn(|column| lookup.cols[column][i]);
+        ColumnFile::visit_scheduled_predecessors(
+            (0..lookup.n).map(|i| std::array::from_fn(|column| lookup.cols[column][i])),
+            (0..read.n).map(|i| std::array::from_fn(|column| read.cols[column][i])),
+            [deletion, own, routed, none],
+            self.number,
+            |row| out.push(&row),
+        );
+        Ok(out)
+    }
+}
+
+impl ColumnFile<'_, '_> {
+    /// Report the first eligible resolver row per read, including reads without any event.
+    pub fn visit_scheduled_predecessors(
+        lookups: impl Iterator<Item = [u64; 8]>,
+        reads: impl ExactSizeIterator<Item = [u64; 3]>,
+        [deletion, own, routed, none]: [u64; 4],
+        file: u64,
+        mut emit: impl FnMut([u64; 9]),
+    ) {
+        const NULL: u64 = u64::MAX;
+        let mut seen = std::collections::HashSet::with_capacity(reads.len());
+        for [
+            reference,
+            event,
+            kind,
+            scope,
+            lexical,
+            depth,
+            ordinal,
+            context,
+        ] in lookups
+        {
             if (context == deletion && depth != 0) || !seen.insert(reference) {
                 continue;
             }
             let namespace = if lexical == scope { own } else { routed };
-            out.push(&[
-                reference,
-                event,
-                kind,
-                namespace,
-                scope,
-                depth,
-                ordinal,
-                context,
-                self.number,
+            emit([
+                reference, event, kind, namespace, scope, depth, ordinal, context, file,
             ]);
         }
-        for i in 0..read.n {
-            let [reference, scope, context] = std::array::from_fn(|column| read.cols[column][i]);
+        for [reference, scope, context] in reads {
             if seen.insert(reference) {
-                out.push(&[
-                    reference,
-                    NULL,
-                    none,
-                    none,
-                    scope,
-                    NULL,
-                    NULL,
-                    context,
-                    self.number,
+                emit([
+                    reference, NULL, none, none, scope, NULL, NULL, context, file,
                 ]);
             }
         }
-        Ok(out)
     }
 }

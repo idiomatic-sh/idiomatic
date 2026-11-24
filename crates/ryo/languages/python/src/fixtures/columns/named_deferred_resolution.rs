@@ -52,7 +52,7 @@ pub(super) fn rows(
     let mut visit: HashSet<u64> = HashSet::default();
     for r in 0..inp.visits.n {
         if inp.visits.cols[v_visit][r] == s_deferred {
-            visit.insert(inp.visits.cols[v_id][r]);
+            let _ = visit.insert(inp.visits.cols[v_id][r]);
         }
     }
     let (b_ref, b_name, b_scope) = (
@@ -145,12 +145,12 @@ pub(super) fn rows(
             if let Some(&(event, kind)) = final_of.get(&(*m, name))
                 && kind == s_bind
             {
-                results.insert((id, event, s_bind));
+                let _ = results.insert((id, event, s_bind));
                 bound = true;
             }
         }
         if !bound && builtins.contains(&name) {
-            results.insert((id, id, s_builtin));
+            let _ = results.insert((id, id, s_builtin));
         }
     }
     let answered: HashSet<u64> = results.iter().map(|r| r.0).collect();

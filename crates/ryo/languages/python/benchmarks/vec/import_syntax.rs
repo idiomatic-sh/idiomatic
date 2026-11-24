@@ -70,7 +70,7 @@ fn head_context(
     } else {
         run.sym(root.as_bytes())
     });
-    let context = module_context(run, project, file, a, a.module, (root, root_id));
+    let context = module_context(run, project, file, a, a.module);
     if canonical {
         project.head_modules.insert(key, (root_id, context));
     }
@@ -85,44 +85,29 @@ fn module_context(
     file: &ColumnFile<'_, '_>,
     a: &ryo_python::fixtures::columns::ImportAlias<'_>,
     target: &str,
-    root: (&str, u64),
 ) -> ModuleContext {
-    let empty = u64::from(run.empty);
-    let (root, root_id) = root;
-    let catalog_id = *project
-        .import_catalog
-        .entry((file.import_release(), root_id))
-        .or_insert_with(|| u64::from(run.sym(file.import_catalog(root).as_bytes())));
-    let (module, package, namespace) = if a.dots.is_empty() && !target.is_empty() {
-        let prefix = path_context(run, project, target);
-        let namespace = if target == a.module {
-            prefix.namespace
-        } else if !a.module.is_empty()
-            && target
-                .strip_prefix(a.module)
-                .is_some_and(|s| s.starts_with('.'))
-        {
-            path_context(run, project, a.module).namespace
-        } else {
-            false
-        };
-        (prefix.module, prefix.package, namespace)
-    } else {
-        (empty, empty, false)
-    };
-    let written_root = run.sym(
-        a.written_module
-            .split('.')
-            .next()
-            .unwrap_or_default()
-            .as_bytes(),
+    let [
+        written_root,
+        catalog,
+        module_prefix,
+        package_prefix,
+        namespace,
+    ] = file.import_context(
+        a,
+        target,
+        &mut (run, project),
+        |context, word| context.0.sym(word),
+        |context, target| {
+            let observed = path_context(context.0, context.1, target);
+            (observed.module, observed.package, observed.namespace)
+        },
     );
     ModuleContext {
-        written_root: written_root.into(),
-        catalog: catalog_id,
-        module_prefix: module,
-        package_prefix: package,
-        namespace,
+        written_root,
+        catalog,
+        module_prefix,
+        package_prefix,
+        namespace: namespace != 0,
     }
 }
 
@@ -205,11 +190,7 @@ pub(super) fn fill(
             } else {
                 let root = a.module.split('.').next().unwrap_or_default();
                 let root_id = u64::from(run.sym(root.as_bytes()));
-                (
-                    0,
-                    root_id,
-                    module_context(run, project, file, a, a.target, (root, root_id)),
-                )
+                (0, root_id, module_context(run, project, file, a, a.target))
             };
             (
                 module,
