@@ -144,11 +144,11 @@ impl Observations {
         root: &Path,
         inventory: Key,
         peers: Key,
-        values: &BTreeMap<String, std::sync::Arc<[u8]>>,
+        values: &BTreeMap<String, (std::sync::Arc<[u8]>, crate::check_session::Permission)>,
     ) {
         let overlay = values
             .iter()
-            .map(|(p, data)| (p.into(), *blake3::hash(data).as_bytes()))
+            .map(|(p, (data, mode))| (p.into(), key((blake3::hash(data).as_bytes(), mode))))
             .collect();
         let effective_changed = self.root.as_deref() != Some(root) || self.overlay != overlay;
         let inventory = key((inventory, peers));
@@ -363,6 +363,7 @@ struct Rows<Word = Box<str>> {
 
 #[derive(Serialize, Deserialize)]
 pub(in super::super) struct Packet {
+    pub rejected_syntax: Vec<String>,
     pub refusal: Option<String>,
     pub digest: String,
     pub unknowns: Vec<(String, String)>,
@@ -372,6 +373,7 @@ pub(in super::super) struct Packet {
 impl Packet {
     pub(super) fn declined(reason: &str) -> Self {
         Self {
+            rejected_syntax: Vec::new(),
             refusal: Some(reason.to_owned()),
             digest: String::new(),
             unknowns: vec![],
@@ -385,15 +387,13 @@ impl Packet {
         Self {
             refusal: None,
             digest: String::new(),
+            rejected_syntax: receipt.rejected_syntax.iter().map(|v| (*v).clone()).collect(),
             unknowns: receipt.unknowns.iter().map(|v| (*v).clone()).collect(),
             data: pack_rows(receipt.rows.iter().copied()),
         }
     }
     pub(in super::super) fn report(&self) -> session::Reported {
-        session::Reported {
-            unknowns: self.unknowns.clone(),
-            rows: unpack_rows(&self.data),
-        }
+        session::Reported::new(unpack_rows(&self.data), self.unknowns.clone(), self.rejected_syntax.clone())
     }
 }
 

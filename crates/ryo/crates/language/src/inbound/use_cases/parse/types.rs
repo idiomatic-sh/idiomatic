@@ -143,6 +143,9 @@ pub struct KindNames(pub Vec<ryo_relations::domain::terms::types::NameText<'stat
 /// What the engine asks of a language: the same reading as `ParseUseCase`, behind an interface alone and with what the language works
 /// out of each file kept inside the call, so that languages of different models are held side by side. Every `ParseUseCase` is one.
 pub trait ParseEngine: Send + Sync {
+    /// Provider-owned file relations beyond the shared catalog.
+    fn file_relations(&self) -> Option<&dyn super::named::FileRelations> { None }
+
     /// Every optional promise of the language, preserved across the erased provider boundary: those of its files' trees, read from what
     /// its `Semantics` answers other than `NotYetRead`, then those it lists in `ParseUseCase::capabilities`.
     fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability>;

@@ -366,6 +366,8 @@ pub(super) struct Run {
     pub(super) link_sym: [u32; 3],
     /// The project's root on disk (the host's, for its file facts).
     pub(super) root_dir: String,
+    /// Supplied files carry the caller's observation instead of a disk path to stat.
+    pub(super) supplied_permission: Option<(u32, ryo_values::domain::files::types::ExecutablePermission)>,
     /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
     pub(super) project: FxHashMap<String, project::Answered>,
     /// Exact refusal returned by the current provider call on bound inputs.

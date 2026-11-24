@@ -129,13 +129,13 @@ fn rule_emit<'p>(
     }))
 }
 
-/// Each import's name and the fragment it names: the last part of its path.
+/// Each imported name paired with its declared module identity.
 fn imported(imports: &[ImportDeclaration]) -> hashbrown::HashMap<&str, &str> {
     imports
         .iter()
         .map(|import| {
             let path = &*import.module.0;
-            (&*import.alias.0, path.rsplit('/').next().unwrap_or(path))
+            (&*import.alias.0, path)
         })
         .collect()
 }
@@ -327,6 +327,7 @@ fn called<'p>(
         let program = expansion
             .fragments
             .get(&QuerySourceId((*fragment).into()))
+            .or_else(|| fragment.rsplit_once('/').and_then(|(_, stem)| expansion.fragments.get(&QuerySourceId(stem.into()))))
             .ok_or_else(|| PlanLoweringError::UnknownFragment(WrittenText((*fragment).into())))?;
         return inlined(expansion, scope, *fragment, program, &call.arguments);
     }

@@ -27,6 +27,7 @@ pub(crate) struct Contribution {
 pub(crate) enum Authority {
     Given,
     Disk(String),
+    Scoped { disk: Option<String>, roots: Vec<String> },
 }
 
 impl super::World {
@@ -40,10 +41,22 @@ impl super::World {
 }
 
 impl Authority {
+    pub(crate) fn disk(&self) -> Option<&str> {
+        match self {
+            Self::Given => None,
+            Self::Disk(root) => Some(root),
+            Self::Scoped { disk, .. } => disk.as_deref(),
+        }
+    }
+
+    pub(crate) fn with_roots(self, roots: Vec<String>) -> Self {
+        Self::Scoped { disk: self.disk().map(str::to_owned), roots }
+    }
+
     fn observe(&self, files: &[l::FilePath], path: l::FilePath) -> EntryObservation {
         use l::ObservedEntryState as State;
-        let state = match self {
-            Self::Given => {
+        let state = match self.disk() {
+            None => {
                 let file = files.binary_search(&path).is_ok();
                 let prefix = format!("{path}/");
                 let i = files.partition_point(|p| p.0.as_ref() < prefix.as_str());
@@ -54,7 +67,7 @@ impl Authority {
                     _ => State::Unknown,
                 }
             }
-            Self::Disk(root) => match std::fs::metadata(Path::new(root).join(&*path)) {
+            Some(root) => match std::fs::metadata(Path::new(root).join(&*path)) {
                 Ok(m) if m.is_file() => State::File,
                 Ok(m) if m.is_dir() => State::Directory,
                 Ok(_) => State::Other,
@@ -86,7 +99,7 @@ pub(crate) fn collect<L: super::FileSource>(
     wanted: &[l::Relation],
 ) -> Result<Population> {
     // A missing repository root cannot establish that its children are absent.
-    if let Authority::Disk(root) = authority {
+    if let Some(root) = authority.disk() {
         let entry = std::fs::metadata(root)
             .map_err(|e| format!("unavailable project root {root}: {e}"))?;
         if !entry.is_dir() {
@@ -115,15 +128,14 @@ pub(crate) fn collect<L: super::FileSource>(
         manifests,
         notes: Vec::new(),
         wanted: wanted.to_vec(),
-        repository: match authority {
-            Authority::Given => l::Repository::Given,
-            Authority::Disk(_) => l::Repository::Disk,
+        repository: if authority.disk().is_some() { l::Repository::Disk } else { l::Repository::Given },
+        root: l::RootPath(authority.disk().unwrap_or_default().into()),
+        search_scope: match authority {
+            Authority::Scoped { roots, .. } => ryo_language::domain::project_context::types::ProjectSearchScope::Declared(
+                roots.iter().map(|root| l::FilePath(root.as_str().into())).collect()
+            ),
+            _ => Default::default(),
         },
-        root: l::RootPath(match authority {
-            Authority::Given => "".into(),
-            Authority::Disk(root) => root.as_str().into(),
-        }),
-        search_scope: Default::default(),
         given_inventory: Default::default(),
         observed_entries: Default::default(),
     };

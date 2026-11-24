@@ -2,6 +2,7 @@
 //! its trees is shown and the typed rows each fixture must give. It reads the manifests of a Python project: the rows they give are the fixture's.
 
 pub mod columns;
+pub mod comment_positions;
 pub mod configuration;
 pub mod contracts;
 pub mod grown;

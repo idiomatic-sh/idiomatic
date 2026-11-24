@@ -91,6 +91,10 @@ impl ParseUseCase for ParseUseCaseImpl {
 
 /// Every `ParseUseCase` is a `ParseEngine`: the engine reads it through the use case's own drive.
 impl<P: ParseUseCase> ParseEngine for P {
+    fn file_relations(&self) -> Option<&dyn super::named::FileRelations> {
+        ParseUseCase::file_relations(self)
+    }
+
     fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability> {
         promises_in(self)
     }

@@ -32,6 +32,7 @@ pub(super) fn key(value: impl Hash) -> Key {
 
 #[derive(Serialize, Deserialize)]
 struct Report {
+    rejected_syntax: Vec<String>,
     // None means only the closed operator consumed this contribution.
     // Some(empty) proves a local request completed with no rows.
     rows: Option<Vec<u8>>,
@@ -47,6 +48,7 @@ impl Report {
                     request_answers::pack_rows(&answer.rows)
                 }
             }),
+            rejected_syntax: answer.rejected_syntax.clone(),
             unknowns: answer.unknowns.clone(),
         }
     }
@@ -61,10 +63,7 @@ impl Report {
         } else {
             vec![]
         };
-        Some(session::Reported {
-            rows,
-            unknowns: self.unknowns.clone(),
-        })
+        Some(session::Reported::new(rows, self.unknowns.clone(), self.rejected_syntax.clone()))
     }
 }
 
@@ -439,7 +438,7 @@ impl Store {
         root: &Path,
         inventory: Key,
         peers: Key,
-        v: &BTreeMap<String, std::sync::Arc<[u8]>>,
+        v: &BTreeMap<String, (std::sync::Arc<[u8]>, crate::check_session::Permission)>,
     ) {
         self.observed.overlay(root, inventory, peers, v);
     }
@@ -483,7 +482,7 @@ impl Store {
     pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
         let (proof, unread) = self.plans.get_mut(idx)?.take()?;
         let start = crate::thread_cpu();
-        let empty = r.rows.is_empty() && r.unknowns.is_empty();
+        let empty = r.rows.is_empty() && r.unknowns.is_empty() && r.rejected_syntax.is_empty();
         let k = if let Some(packet) = self.empty_packet.filter(|_| empty) {
             self.record(id, packet, proof, unread);
             self.empty_packet_reuses += 1;
@@ -511,7 +510,7 @@ impl Store {
         unread: Vec<String>,
         render: impl FnOnce() -> String,
     ) -> Key {
-        let k = key((&packet.refusal, &packet.unknowns, packet.typed_bytes()));
+        let k = key((&packet.refusal, &packet.unknowns, &packet.rejected_syntax, packet.typed_bytes()));
         self.packets.open(&self.dir, &k);
         if self.packets.get(&k).is_none() {
             packet.digest = render();
@@ -580,7 +579,7 @@ impl Store {
                     self.observed
                         .observe(&Path::new(&*source.root).join(&source.path), Probe::Source)?
                 };
-                Some(key((&source.path, d)))
+                Some(key((&source.path, &source.reader, source.permission, d)))
             }));
         let mut rules = vec![[0; 32]; b.schedule.programs.len()];
         for ((text, params), &idx) in &b.schedule.prepared {
@@ -824,7 +823,7 @@ impl Store {
         b: &Batch,
         world: &session::World,
         answers: &[Answer],
-        aliases: &[usize],
+        aliases: &session::worker::PairAliases,
         contributions: &[Option<Rc<project::Contribution>>],
     ) {
         let mut encoded = HashMap::new();
@@ -862,7 +861,7 @@ impl Store {
                     continue;
                 };
                 let binding = self.binding_keys[binding];
-                let a = aliases[slot];
+                let a = aliases.lookup(slot);
                 let Ok(report) = &answers[a] else { continue };
                 if file
                     .pairs
@@ -942,7 +941,7 @@ impl Store {
         }
         let Some(p) = pop else { return };
         let unread = p.refused.iter().map(|r| r.path.0.to_string()).collect();
-        let Some((project, Authority::Disk(root))) = project else {
+        let Some((project, root)) = project.and_then(|(id, authority)| authority.disk().map(|root| (id, root))) else {
             if let Some((_, u)) = &mut self.plans[idx] {
                 *u = unread;
             }

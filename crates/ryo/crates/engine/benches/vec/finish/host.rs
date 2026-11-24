@@ -33,6 +33,15 @@ pub(in super::super) fn host_fill(run: &mut Run, rel: &str, file_no: u32) -> Opt
         return Some(Ok(t));
     }
     if rel == "filesystem.executable" {
+        if let Some((id, permission)) = run.supplied_permission.filter(|&(id, _)| id == file_no) {
+            use ryo_values::domain::files::types::ExecutablePermission::*;
+            match permission {
+                PosixExecutable | PosixNotExecutable => t.push_row(&[u64::from(id), u64::from(permission == PosixExecutable)]),
+                // Unknown metadata is also reported as partial by the input edge.
+                Unsupported | Unknown => {}
+            }
+            return Some(Ok(t));
+        }
         let path = format!("{}/{}", run.root_dir, run.paths[file_no as usize]);
         match host_columns::executable(std::path::Path::new(&path)) {
             Ok(value) => t.push_row(&[u64::from(file_no), u64::from(value)]),

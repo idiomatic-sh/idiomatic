@@ -230,7 +230,7 @@ impl CallCache {
     pub(super) fn program_digest(
         &mut self,
         id: usize,
-        query: &str,
+        query: &crate::check_session::query::Query,
         parameters: &Parameters,
     ) -> stored::Key {
         *self

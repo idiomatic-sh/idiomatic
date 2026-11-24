@@ -1,6 +1,7 @@
 """Link the candidate in a fresh archive of the benchmark's pinned Tastemaker release."""
 from pathlib import Path
 import sys
+import json
 
 release = Path(sys.argv[1]).resolve()
 library = Path(__file__).resolve().parent
@@ -17,7 +18,11 @@ assert cfg.count(k) == 1
 # Keep the released public types (including their non-exhaustive fields) and
 # replace the lint resource only in the benchmark's SDK copy.
 sdk_src = release / "crates/ryo/crates/sdk/src"
-(sdk_src / "linked_sdk.rs").write_bytes((library / "linked-sdk.rs").read_bytes())
+image_sources = library.parents[3] / "ryo/crates/engine/benches/lint_image"
+(sdk_src / "linked_sdk.rs").write_text(
+    f'include!({json.dumps(str(library / "linked-sdk.rs"))});\n'
+    f'include!({json.dumps(str(image_sources / "sdk_bundle.rs"))});\n'
+)
 sdk_lib = sdk_src / "lib.rs"
 sdk_lib.write_text(
     '#![allow(dead_code, reason = "the linked benchmark replaces the shipped lint implementation")]\n' +
@@ -250,3 +255,67 @@ composition.write_text(s[:at] + """    let counting: Arc<dyn analysis::interface
 # This module transforms the pinned benchmark host only.
 import runpy
 runpy.run_path(str(library / "link-rounds.py"))["link_rounds"](core, library)
+
+# Build all three pack harnesses in this workspace so the SDK crate identity,
+# linked executor and profile match the real check.
+image = image_sources / "main.rs"
+cli_manifest = cli.parent / "Cargo.toml"
+cli_manifest.write_text(cli_manifest.read_text().replace("[dependencies]\n", "[dependencies]\ncpu-time.workspace = true\ntoml.workspace = true\nglobset = \"0.4\"\n", 1))
+with cli_manifest.open("a") as manifest:
+    for binary, language in (("vec", "python"), ("vec_ts", "typescript"), ("vec_rust", "rust")):
+        path = cli / "bin" / (binary + ".rs")
+        path.parent.mkdir(exist_ok=True)
+        if language == "python":
+            configure = """
+    use provider::settings::{PythonParserSettings, PythonTargetVersion};
+    match settings {
+        None => Ok(provider::linked()),
+        Some("python-target=3.10") => Ok(provider::linked_with_settings(PythonParserSettings::new(PythonTargetVersion::Py310))),
+        Some(value) => Err(format!("unsupported provider settings {value}")),
+    }"""
+        else:
+            configure = """
+    match settings {
+        None => Ok(provider::linked()),
+        Some(value) => Err(format!("unsupported provider settings {value}")),
+    }"""
+        path.write_text(f"use ryo_{language} as provider;\n"
+            f"const DISTINCT_LOCATIONS: bool = {str(language == 'python').lower()};\n"
+            f"fn configured_provider(settings: Option<&str>) -> Result<ryo::languages::Language, String> {{{configure}\n}}\n"
+            f"include!({json.dumps(str(image))});\n")
+        manifest.write(f'\n[[bin]]\nname = "{binary}"\npath = "src/bin/{binary}.rs"\n')
+
+# The linked SDK has two crate identities. Pair the concrete libraries at the
+# composition root; matching a name cannot prove equivalence of parser revisions.
+engine_tree = image_sources.parents[3]
+sdk_manifest = sdk_src.parent / "Cargo.toml"
+def dependency(path, alias, package, location, features=()):
+    features = ", features = " + json.dumps(list(features)) if features else ""
+    content = path.read_text()
+    path.write_text(content.replace("[dependencies]\n", "[dependencies]\n" +
+        f'{alias} = {{ package = "{package}", path = {json.dumps(str(location))}{features} }}\n', 1))
+
+dependency(sdk_manifest, "native_sdk", "idiomatic-sh-ryo-sdk", engine_tree / "crates/sdk")
+language_type = sdk_src / "domain/language/types.rs"
+definition = language_type.read_text()
+definition = definition.replace("pub struct Language {", """pub struct Language {
+    pub native_provider: Option<native_sdk::languages::Language>,""", 1)
+definition = definition.replace("        Self {\n            name,", "        Self {\n            native_provider: None,\n            name,", 1)
+language_type.write_text(definition)
+composition = cli / "languages.rs"
+edges = composition.read_text()
+for name in ("rust", "toml", "json", "markdown", "typescript", "python"):
+    dependency(cli_manifest, "native_" + name, "idiomatic-sh-ryo-" + name, engine_tree / "languages" / name, ("fixtures",) if name == "python" else ())
+    if name in ("rust", "toml", "json", "markdown"):
+        factory = "linked_0_1_4" if name == "rust" else "linked"
+        edges = edges.replace(f'ryo_{name}::linked(),', f'{{ let mut provider = ryo_{name}::linked(); provider.native_provider = Some(native_{name}::{factory}()); provider }},')
+composition.write_text(edges)
+for binary, name in (("vec", "python"), ("vec_ts", "typescript"), ("vec_rust", "rust")):
+    file = cli / "bin" / (binary + ".rs")
+    source = file.read_text().replace('Ok(provider::linked())',
+        f'Ok({{ let mut p = provider::linked(); p.native_provider = Some(native_{name}::linked()); p }})')
+    if name == "python":
+        source = source.replace('Ok(provider::linked_with_settings(PythonParserSettings::new(PythonTargetVersion::Py310)))',
+            '''Ok({ let mut p = provider::linked_with_settings(PythonParserSettings::new(PythonTargetVersion::Py310));
+            p.native_provider = Some(native_python::linked_with_settings(native_python::settings::PythonParserSettings::new(native_python::settings::PythonTargetVersion::Py310))); p })''')
+    file.write_text(source)

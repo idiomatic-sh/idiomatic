@@ -32,6 +32,9 @@ macro_rules! syntax_methods {
 
 /// What a language offers for its files.
 pub trait ParseUseCase: Send + Sync {
+    /// Provider-owned file relations beyond the shared catalog.
+    fn file_relations(&self) -> Option<&dyn super::named::FileRelations> { None }
+
     /// A preorder writer for engines which consume the native columns directly.
     fn native_reader(&self) -> Option<crate::domain::elements::types::NativeReader> { None }
 

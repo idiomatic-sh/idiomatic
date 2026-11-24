@@ -119,6 +119,7 @@ impl Packet {
             symbols,
             bytes,
             resolved: FxHashMap::default(),
+            renderer: None,
         }
     }
     fn partial(&self, rel: l::Relation) -> Option<&str> {
@@ -139,6 +140,7 @@ impl Packet {
     }
 }
 pub(crate) struct View<'a, 'words> {
+    pub(crate) renderer: Option<&'a mut dyn FnMut(l::RenderRequest) -> Result<l::RenderOutcome, String>>,
     packet: &'a Packet,
     parsed: &'a mut reader::ReaderFacts<'words>,
     symbols: &'a l::Symbols,
@@ -149,10 +151,20 @@ impl finish::Provider for View<'_, '_> {
     fn syntax_text(&self) -> Option<&[u32]> {
         self.parsed.projects_words.then_some(self.parsed.text.as_slice())
     }
-    fn render(&mut self, _: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
-        Err(format!(
-            "reader does not supply syntax rendering in {context}"
-        ))
+    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
+        let role = match context {
+            "assignment-target" => l::RenderContext::AssignmentTarget,
+            "attribute-receiver" => l::RenderContext::AttributeReceiver,
+            "positional-argument" => l::RenderContext::PositionalArgument,
+            other => return Err(format!("unknown render context {other}")),
+        };
+        let render = self.renderer.as_mut().ok_or_else(|| format!("no renderer for {context}"))?;
+        let node = l::NodeId((u64::from(self.parsed.file) << 32) | u64::from(node));
+        match render(l::RenderRequest { node, context: role })? {
+            l::RenderOutcome::Known(text) => Ok(Some(text.0.as_bytes().to_vec())),
+            l::RenderOutcome::NotApplicable => Ok(None),
+            l::RenderOutcome::Unsupported(reason) => Err(format!("unresolved render in {context}: {}", reason.0)),
+        }
     }
     fn fill_len(
         &mut self,

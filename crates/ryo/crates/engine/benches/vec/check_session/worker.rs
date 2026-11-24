@@ -20,6 +20,36 @@ impl<T> Slots<T> for Vec<(usize, T)> {
     }
 }
 
+/// Unwritten slots are their own result. Allocate only for pages containing
+/// two admitted slots proven to share the same source and binding.
+#[derive(Default)]
+pub(crate) struct PairAliases {
+    pages: Vec<Option<Box<[usize; 256]>>>,
+    writes: usize,
+}
+impl PairAliases {
+    pub(crate) fn lookup(&self, id: usize) -> usize {
+        self.pages.get(id / 256).and_then(Option::as_deref)
+            .map_or(id, |page| page[id % 256])
+    }
+
+    pub(crate) fn is_empty(&self) -> bool { self.pages.is_empty() }
+
+    pub(crate) fn counts(&self) -> (usize, usize) {
+        (self.writes, self.pages.iter().flatten().count())
+    }
+}
+impl Slots<usize> for PairAliases {
+    fn set(&mut self, slot: usize, target: usize) {
+        if target == slot { return; }
+        let index = slot / 256;
+        if self.pages.len() <= index { self.pages.resize_with(index + 1, || None); }
+        let page = self.pages[index].get_or_insert_with(|| Box::new(std::array::from_fn(|i| index * 256 + i)));
+        page[slot % 256] = target;
+        self.writes += 1;
+    }
+}
+
 pub(crate) fn dispatch<L: FileSource>(
     request: Option<NonZeroUsize>,
     languages: &[L],
@@ -38,7 +68,7 @@ pub(crate) fn dispatch<L: FileSource>(
     world: &mut World,
     sources: &[Source],
     selected: &[usize],
-    aliases: &mut [usize],
+    aliases: &mut PairAliases,
     answers: &mut [Answer],
     host: impl Fn(usize, &mut Run) -> Result<Tables> + Sync,
     clocks: &mut Clock,
@@ -203,7 +233,7 @@ pub(crate) fn dispatch<L: FileSource>(
                 answers[id] = answer;
             }
             for (id, target) in links {
-                aliases[id] = target;
+                aliases.set(id, target);
             }
             let notes: Vec<_> = notes.into_iter().map(Rc::new).collect();
             for (slot, id) in slots {

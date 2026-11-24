@@ -64,7 +64,7 @@ pub(super) fn inputs(
     }
     if files.is_empty() && !inventory.is_empty() && contract.frontier {
         let mut withheld = session::Reported::skipped(inventory);
-        withheld.unknowns.extend(unknowns);
+        withheld.extend_unknowns(unknowns);
         return Ok(Inputs::Withheld(withheld));
     }
     if let Some(cut) = cut {
@@ -242,7 +242,7 @@ pub(super) fn run(
                         Inputs::Ready { carried, incomplete, unknowns } => {
                             execute_ids(&mut exec, &mut run, numbers[job.inventory_key].as_deref().expect("closed inventory assigned"), &carried,
                                 job.inventory, job.files, job.hosted, p, &incomplete, None)
-                                .map(|rows| session::Reported { rows, unknowns })
+                                .map(|rows| session::Reported::new(rows, unknowns, Vec::new()))
                         }
                     }
                 })();

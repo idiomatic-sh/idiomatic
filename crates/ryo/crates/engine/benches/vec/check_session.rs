@@ -21,6 +21,8 @@ pub(crate) mod project;
 #[path = "check_session/source.rs"]
 pub(crate) mod source;
 use source::Source as FileSource;
+#[path = "check_session/named.rs"]
+pub(crate) mod named;
 #[path = "check_session/frontier.rs"]
 mod frontier;
 pub(crate) use frontier::World;
@@ -36,6 +38,10 @@ pub(crate) use retention::Retention;
 #[path="check_session/stored_block.rs"]
 pub(crate) mod stored_block;
 
+#[path = "check_session/query.rs"]
+pub(crate) mod query;
+use query::Query;
+
 type Parameters =
     BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
 
@@ -44,49 +50,71 @@ pub(crate) type Answer = Result<Reported>;
 
 #[derive(Clone, Default)]
 pub(crate) struct Reported {
-    pub rows: Vec<finish::answer::Row>,
+    pub rows: Box<[finish::answer::Row]>,
+    issues: Option<Box<ReportIssues>>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct ReportIssues {
+    pub rejected_syntax: Vec<String>,
     pub unknowns: Vec<(String, String)>,
 }
+
+impl std::ops::Deref for Reported {
+    type Target = ReportIssues;
+
+    fn deref(&self) -> &ReportIssues {
+        static EMPTY: ReportIssues = ReportIssues { rejected_syntax: Vec::new(), unknowns: Vec::new() };
+        self.issues.as_deref().unwrap_or(&EMPTY)
+    }
+}
+
 impl Reported {
+    pub(crate) fn new(rows: Vec<finish::answer::Row>, unknowns: Vec<(String, String)>, rejected_syntax: Vec<String>) -> Self {
+        let issues = (!unknowns.is_empty() || !rejected_syntax.is_empty())
+            .then(|| Box::new(ReportIssues { unknowns, rejected_syntax }));
+        Self { rows: rows.into_boxed_slice(), issues }
+    }
+
     pub(crate) fn skipped(paths: &[String]) -> Self {
         let error = ryo_execution_domain::domain::operating::errors::OperatingError::ObservationIncomplete {
             reason: "every source partition was explicitly skipped".into(),
         };
         let reason = format!("project phase diagnostic emit: {error}");
-        Self {
-            rows: Vec::new(),
-            unknowns: paths.iter().map(|p| (p.clone(), reason.clone())).collect(),
+        Self::new(Vec::new(), paths.iter().map(|p| (p.clone(), reason.clone())).collect(), Vec::new())
+    }
+
+    pub(crate) fn extend_unknowns(&mut self, unknowns: Vec<(String, String)>) {
+        if !unknowns.is_empty() {
+            self.issues.get_or_insert_with(Default::default).unknowns.extend(unknowns);
         }
     }
 }
 impl From<Vec<finish::answer::Row>> for Reported {
-    fn from(rows: Vec<finish::answer::Row>) -> Self {
-        Self {
-            rows,
-            ..Default::default()
-        }
-    }
+    fn from(rows: Vec<finish::answer::Row>) -> Self { Self { rows: rows.into_boxed_slice(), issues: None } }
 }
 pub(crate) type Tables = Vec<(String, Rc<Table>)>;
 
 pub(crate) struct Program {
     typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
     pub plan: Plan,
-    pub syntax: Box<ryo_values::domain::program::types::WrittenProgram>,
+    pub accepted_only: bool,
     pub bases: Vec<String>,
     base_steps: Vec<(usize, Option<l::Relation>)>,
+    renders: bool,
     requirements: (bool, Vec<Vec<String>>, Vec<Vec<String>>),
 }
 
 impl Program {
     pub(crate) fn prepare(
         alias: &str,
-        text: &str,
+        query: &Query,
         context: ryo_engine::domain::plan_lowering::types::RuleContext,
         declaration: &first::Language,
         capture_separator: Option<&str>,
+        modules: ryo_values::domain::program::types::ParsedModules,
     ) -> Result<Self> {
-        let (plan, pack) = lower::query_parts(alias, text, context, true, capture_separator)?;
+        let (plan, pack) = lower::query_parts(alias, &query.text, context, true, capture_separator, modules, &query.observations)?;
         let typed = pack.typed.take().expect("prepared query");
         let requirements = reader_run::file_requirements(&typed, declaration)
             .pop()
@@ -97,20 +125,12 @@ impl Program {
                 (name.to_owned(), (offset, relations::service::relation_named(NameRef(name))))
             })
         }).unzip();
-        let syntax = match pack
-            .programs
-            .rules
-            .into_iter()
-            .next()
-            .ok_or("missing parsed query")?
-            .program
-        {
-            ryo_engine::domain::plan_lowering::types::RuleProgram::Parsed(root) => root,
-            _ => return Err("unread query".into()),
-        };
+        use ryo_values::domain::finish_plans::types::FinishStep;
+        let renders = typed.steps.iter().any(|step| matches!(step, FinishStep::RenderSyntax(_) | FinishStep::FitsRendered(_)));
         Ok(Self {
+            renders,
             plan,
-            syntax,
+            accepted_only: query.accepted_only,
             typed,
             requirements,
             bases,
@@ -180,14 +200,17 @@ pub(crate) struct ReaderParts {
 /// The root and path identify the caller's immutable effective source. This
 /// distinguishes in-memory replacements staged at different roots.
 pub(crate) struct Source {
+    pub(crate) permission: Permission,
     pub root: Arc<str>,
     pub path: String,
+    pub reader: Option<Arc<str>>,
     pub bindings: BTreeMap<usize, usize>,
     known: BTreeMap<usize, usize>,
     pub(crate) project: bool,
     pub(crate) provided: Option<Arc<[u8]>>,
 }
 
+pub(crate) use ryo_values::domain::files::types::ExecutablePermission as Permission;
 type PathIds = HashMap<Rc<str>, usize>;
 
 /// Per-check program identities and the inverse admission index. The caller binds
@@ -196,10 +219,12 @@ type PathIds = HashMap<Rc<str>, usize>;
 pub(crate) struct Schedule {
     pub sources: Vec<Source>,
     source_ids: HashMap<Arc<str>, PathIds>,
-    supplied_ids: HashMap<(Rc<str>, Arc<[u8]>), usize>,
+    supplied_ids: HashMap<(Rc<str>, Arc<[u8]>, Permission, Option<Arc<str>>), usize>,
+    named_disk_ids: HashMap<(Arc<str>, Arc<str>), PathIds>,
     pub pending: BTreeSet<usize>,
     pub programs: Vec<Result<Program>>,
-    pub(crate) prepared: HashMap<(Rc<str>, Parameters), usize>,
+    pub(crate) prepared: HashMap<(Query, Parameters), usize>,
+    module_catalogs: HashMap<query::Modules, Result<ryo_values::domain::program::types::ParsedModules>>,
     pub pairs: usize,
 }
 
@@ -219,20 +244,27 @@ impl Schedule {
     }
     pub(crate) fn close(&mut self) {
         self.prepared = HashMap::new();
+        self.module_catalogs.clear();
         self.source_ids = HashMap::new();
         self.supplied_ids = HashMap::new();
+        self.named_disk_ids = HashMap::new();
         for source in &mut self.sources {
             source.known.clear();
         }
     }
     pub(crate) fn prepare(
         &mut self,
-        text: Rc<str>,
+        text: Query,
         parameters: Parameters,
-        make: impl FnOnce() -> Result<Program>,
+        make: impl FnOnce(ryo_values::domain::program::types::ParsedModules) -> Result<Program>,
     ) -> usize {
-        *self.prepared.entry((text, parameters)).or_insert_with(|| {
-            self.programs.push(make());
+        let catalog = text.modules.clone();
+        *self.prepared.entry((text, parameters)).or_insert_with_key(|(query, _)| {
+            let modules = match catalog {
+                None => Ok(Default::default()),
+                Some(sources) => self.module_catalogs.entry(sources).or_insert_with(|| query.parse_modules()).clone(),
+            };
+            self.programs.push(modules.and_then(make));
             self.programs.len() - 1
         })
     }
@@ -256,10 +288,12 @@ impl Schedule {
         sources.push(Source {
             root: root.clone(),
             path: path.to_owned(),
+            reader: None,
             bindings: BTreeMap::new(),
             known: BTreeMap::new(),
             project: false,
             provided: None,
+            permission: Permission::Unknown,
         });
         Ok(id)
     }
@@ -270,14 +304,18 @@ impl Schedule {
         root: &Arc<str>,
         path: &str,
         bytes: &Arc<[u8]>,
+        permission: Permission,
+        reader: &Option<Arc<str>>,
     ) -> Result<Arc<[u8]>> {
-        let key = (Rc::from(path), bytes.clone());
+        let key = (Rc::from(path), bytes.clone(), permission, reader.clone());
         let (id, canonical) = match self.supplied_ids.get_key_value(&key) {
-            Some(((_, held), &id)) => (id, held.clone()),
+            Some(((_, held, _, _), &id)) => (id, held.clone()),
             None => {
                 let ids = self.source_ids.entry(root.clone()).or_default();
                 let id = Self::source_in(&mut self.sources, ids, root, path)?;
                 self.sources[id].provided = Some(bytes.clone());
+                self.sources[id].permission = permission;
+                self.sources[id].reader = reader.clone();
                 self.supplied_ids.insert(key, id);
                 (id, bytes.clone())
             }
@@ -286,9 +324,13 @@ impl Schedule {
         Ok(canonical)
     }
 
-    pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str) -> Result<()> {
-        let ids = self.source_ids.entry(directory.clone()).or_default();
+    pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str, reader: &Option<Arc<str>>) -> Result<()> {
+        let ids = match reader {
+            Some(name) => self.named_disk_ids.entry((directory.clone(), name.clone())).or_default(),
+            None => self.source_ids.entry(directory.clone()).or_default(),
+        };
         let id = Self::source_in(&mut self.sources, ids, directory, path)?;
+        self.sources[id].reader = reader.clone();
         self.alias_source(root, path, id)
     }
 
@@ -400,6 +442,8 @@ fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
 }
 
 struct Bound<'p> {
+    named: Vec<&'static source::FileRelation>,
+    executable: bool,
     fact_mask: FactMask,
     requirements: Rc<BoundRequirements>,
     projects_words: bool,
@@ -458,6 +502,7 @@ fn bind<'p, L: FileSource>(
     cut: Option<&finish::partition::Partition>,
     (requirements, test): (Rc<BoundRequirements>, usize),
 ) -> Result<Bound<'p>> {
+    let mut named = Vec::new();
     let mut facts = Vec::new();
     let mut projects_words = requirements.summary.words;
     let mut reads_fields = requirements.summary.fields;
@@ -465,7 +510,13 @@ fn bind<'p, L: FileSource>(
         if cut.is_some_and(|c| !c.file_steps[*at]) || hosted.iter().any(|(n, _)| n == name) {
             continue;
         }
-        let rel = relation.ok_or_else(|| format!("undeclared {name}"))?;
+        let Some(rel) = *relation else {
+            let schema = parser.and_then(|p| p.declarations().iter().find(|s| s.name == name))
+                .ok_or_else(|| format!("no reader declares file relation {name}"))?;
+            named::declare(run, schema);
+            if !named.contains(&schema) { named.push(schema); }
+            continue;
+        };
         let name = name.as_str();
         projects_words |= matches!(rel, l::Relation::SyntaxTree | l::Relation::SemanticSyntax | l::Relation::TokenLink);
         reads_fields |= matches!(rel, l::Relation::SemanticChild | l::Relation::SyntaxChild);
@@ -510,6 +561,8 @@ fn bind<'p, L: FileSource>(
         fact_mask[id / 64] |= 1 << (id % 64);
     }
     Ok(Bound {
+        executable: program.base_steps.iter().any(|(_, rel)| *rel == Some(l::Relation::FilesystemExecutable)),
+        named,
         fact_mask,
         requirements,
         reads_fields,
@@ -609,7 +662,7 @@ fn versions<'s>(
             }
             // Length and executable mode usually decide before the byte comparison.
             // The ordered key also handles different files of equal length exactly.
-            let key = (data.len(), perm, Arc::clone(&data));
+            let key = (data.len(), src.provided.as_ref().map(|_| src.permission), perm, Arc::clone(&data));
             let i = *contents.entry(key).or_insert_with(|| {
                 let i = files.len();
                 files.push(Version {
@@ -830,15 +883,23 @@ pub(crate) fn visit<L: FileSource>(
             let source = &sources[index];
             let id = FileId(index.try_into().expect("file ID"));
             let t = thread_cpu();
+            let start = keep.then(|| retention.clock()).flatten();
+            let mut cached = start.and_then(|_| retention.take(index));
             let mut required = FactMask::default();
             let mut have_plan = false;
-            let mut projects_words = keep;
-            let mut projects_fields = keep;
+            let mut unknown_permission = false;
+            let mut needs_native = false;
+            let mut projects_words = cached.is_some();
+            let mut projects_fields = cached.is_some();
             let mut summary = SummaryColumns::default();
             for (&binding, &slot) in jobs.iter() {
                 match &bound[&binding] {
                     Ok(b) => {
                         have_plan = true;
+                        unknown_permission |= source.provided.is_some()
+                            && source.permission == Permission::Unknown
+                            && b.executable;
+                        needs_native |= !b.named.is_empty() || programs[program_of[binding]].as_ref().is_ok_and(|p| p.renders);
                         for (word, bits) in required.iter_mut().zip(b.fact_mask) { *word |= bits; }
                         projects_words |= b.projects_words;
                         projects_fields |= b.reads_fields;
@@ -857,15 +918,15 @@ pub(crate) fn visit<L: FileSource>(
                 continue;
             }
             let t = thread_cpu();
+            run.supplied_permission = source.provided.as_ref().map(|_| (id.0, source.permission));
             run.root_dir.clear();
             run.root_dir.push_str(&source.root);
             let session_open = keep;
-            let start = keep.then(|| retention.clock()).flatten();
-            let mut cached = start.and_then(|_| retention.take(index));
+            let needs_notes = !project_slots.is_empty() && contributions.previous(index).and_then(Option::as_ref).is_none();
             // An opaque provider dictionary and its projected rows are one version.
             // Rebuild them together if a later binding asks for additional facts.
             if let Some((credit, file)) = cached.as_mut()
-                && !requested.iter().all(|rel| file.known.contains(rel))
+                && (needs_native || needs_notes || !requested.iter().all(|rel| file.known.contains(rel)))
             {
                 *file = HeldFile::default();
                 *credit = 0;
@@ -885,29 +946,25 @@ pub(crate) fn visit<L: FileSource>(
                     path: SourcePath(&source.path),
                     bytes: ByteSlice(&bytes),
                     // Later calls can widen the relations asked of a retained file.
-                    fields: if session_open || projects_fields {
+                    fields: if projects_fields {
                         l::FieldRequest::Wanted
                     } else {
                         l::FieldRequest::Unwanted
                     },
-                    notes: if project_slots.is_empty() && !session_open {
+                    notes: if !needs_notes {
                         l::NoteRequest::Unwanted
                     } else {
                         l::NoteRequest::Wanted
                     },
                 };
 
-                if !session_open && projects_words { requested.push(l::Relation::SyntaxTree); }
+                if projects_words { requested.push(l::Relation::SyntaxTree); }
                 let build_start = thread_cpu();
                 let result = parser.build(
                     request,
                     &mut elements,
                     &mut symbols,
-                    if session_open {
-                        relations::service::ALL
-                    } else {
-                        &requested
-                    },
+                    &requested,
                 );
                 clocks.build_file += thread_cpu() - build_start;
                 result
@@ -923,7 +980,7 @@ pub(crate) fn visit<L: FileSource>(
                 clocks.read_parse += thread_cpu() - t;
                 continue;
             }
-            if !project_slots.is_empty() || (session_open && !reused) {
+            if !project_slots.is_empty() {
                 let c = contributions.previous(index).and_then(Option::as_ref).cloned().unwrap_or_else(|| {
                     let manifest = manifests
                         .contains(source.path.rsplit('/').next().unwrap())
@@ -1003,6 +1060,18 @@ pub(crate) fn visit<L: FileSource>(
             let mut active = Vec::new();
             for (&binding, &slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
+                if programs[program_of[binding]].as_ref().is_ok_and(|p| p.accepted_only)
+                    && l::node_table::acceptance_of(tree) == l::SyntaxAcceptance::Rejected
+                {
+                    if cut_of[binding].is_some() {
+                        answers.set(slot, Err(format!("closed phase requires syntax coverage for {}", source.path)));
+                        clocks.refused += 1;
+                    } else {
+                        answers.set(slot, Ok(Reported::new(Vec::new(), Vec::new(), vec![source.path.clone()])));
+                        clocks.skipped += 1;
+                    }
+                    continue;
+                }
                 let excluded = cut_of[binding].is_none()
                     && coarse.get(b.test).unwrap_or_else(|| {
                         let impossible = b.requirements.never
@@ -1013,7 +1082,7 @@ pub(crate) fn visit<L: FileSource>(
                         coarse.set(b.test, impossible);
                         impossible
                     });
-                if excluded && b.facts.is_empty() {
+                if excluded && b.facts.is_empty() && !unknown_permission {
                     let whole = recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
                     if whole || {
                         let rels: Vec<_> = contracts[binding].needs.reads.iter()
@@ -1072,7 +1141,7 @@ pub(crate) fn visit<L: FileSource>(
             use ryo_values::domain::stored_facts::types::{
                 PartialAt, PartialCause, PartialScope, ReadInPart,
             };
-            let said: Vec<_> = partials
+            let mut said: Vec<_> = partials
                 .iter()
                 .map(|(relation, why, lacking)| ReadInPart {
                     relation: *relation,
@@ -1087,6 +1156,14 @@ pub(crate) fn visit<L: FileSource>(
                     at: PartialScope::OneFile(PartialAt(file.0)),
                 }))
                 .collect();
+            if unknown_permission {
+                said.push(ReadInPart {
+                    relation: l::Relation::FilesystemExecutable,
+                    cause: PartialCause("input edge did not supply executable permission metadata".into()),
+                    lacking: ryo_relations::domain::relations::types::Missing::Any,
+                    at: PartialScope::OneFile(PartialAt(id.0)),
+                });
+            }
             if keep {
                 held.known.extend(facts.iter().copied());
                 packet.index(&held.known.iter().copied().collect::<Vec<_>>());
@@ -1125,7 +1202,35 @@ pub(crate) fn visit<L: FileSource>(
             let proof_time = thread_cpu() - t;
             clocks.screen += proof_time;
             clocks.bound_proofs += proof_time;
+            let mut named_tables = Vec::new();
+            let mut named_errors = BTreeMap::new();
+            if needs_native && let Some(parser) = parser {
+                let mut demanded = BTreeMap::new();
+                for (binding, _, _) in &active {
+                    for &schema in &bound[binding].as_ref().unwrap().named {
+                        demanded.insert(schema.name, schema);
+                    }
+                }
+                for (name, schema) in demanded {
+                    match named::table(parser, schema, id, elements, tree, symbols, &bytes, &mut run, unknown) {
+                        Ok(table) => named_tables.push((name.to_owned(), Rc::new(table))),
+                        Err(error) => { named_errors.insert(name, error); }
+                    }
+                }
+            }
+            let mut semantics = None;
+            let mut render = |request: l::RenderRequest| {
+                let slot = semantics.get_or_insert_with(|| parser.map_or(l::SemanticSlot::Empty, |reader| reader.begin_render(
+                    l::ParseRequest { file: id, path: SourcePath(&source.path), bytes: ByteSlice(&bytes), notes: l::NoteRequest::Unwanted, fields: l::FieldRequest::Unwanted },
+                    elements,
+                )));
+                let l::SemanticSlot::Begun(session) = slot else { return Err("source reader has no rendering session".to_owned()); };
+                let answers = session.render_batch(ByteSlice(&bytes), &[request]).map_err(|e| e.to_string())?;
+                let [answer]: [l::RenderOutcome; 1] = answers.try_into().map_err(|_| "renderer returned the wrong number of answers")?;
+                Ok(answer)
+            };
             let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
+            facts_view.renderer = Some(&mut render);
             let t = thread_cpu();
             let lines = active
                 .iter()
@@ -1149,6 +1254,11 @@ pub(crate) fn visit<L: FileSource>(
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
                 let contract = &contracts[binding];
                 let b = bound[&binding].as_mut().unwrap();
+                if let Some(reason) = b.named.iter().find_map(|schema| named_errors.get(schema.name)) {
+                    answers.set(slot, Err(reason.clone()));
+                    clocks.refused += 1;
+                    continue;
+                }
                 let mut local_coverage = BTreeMap::new();
                 let unknowns = if said.is_empty()
                     && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
@@ -1197,7 +1307,7 @@ pub(crate) fn visit<L: FileSource>(
                 let version = version.get_or_init(|| {
                     finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text())
                 });
-                let make_frame = || finish::session::frame(version, &plan, &supplied, lines.as_ref());
+                let make_frame = || finish::session::frame(version, &plan, &supplied, lines.iter().chain(&named_tables));
                 let mut restricted;
                 let current = if local_coverage.is_empty() {
                     frame.get_or_insert_with(make_frame)
@@ -1210,10 +1320,7 @@ pub(crate) fn visit<L: FileSource>(
                         &local_coverage, world, &mut carried_symbols, reader_id, unknown, slot);
                     if value.is_err() { frame = None; exec.release_request(); }
                     let answer = value.map(|()| {
-                        Reported {
-                            rows: Vec::new(),
-                            unknowns,
-                        }
+                        Reported::new(Vec::new(), unknowns, Vec::new())
                     });
                     clocks.productive += usize::from(world.productive(slot));
                     clocks.refused += usize::from(answer.is_err());
@@ -1223,7 +1330,7 @@ pub(crate) fn visit<L: FileSource>(
                 let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, binding, &b.slots, &local_coverage);
                 if value.is_err() { frame = None; exec.release_request(); }
                 let answer = value
-                .map(|rows| Reported { rows, unknowns });
+                .map(|rows| Reported::new(rows, unknowns, Vec::new()));
                 clocks.productive += usize::from(answer.as_ref().is_ok_and(|r| !r.rows.is_empty()));
                 clocks.refused += usize::from(answer.is_err());
                     answers.set(slot, answer);

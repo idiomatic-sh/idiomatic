@@ -16,11 +16,11 @@ pub(in super::super) struct Partition {
 /// A multidirectional join stays local only if its equality edges connect every
 /// source with file-local keys. Pure project relations and caller snapshots are
 /// always complete at the later phase, even if they happen to hold one row.
-pub(in super::super) fn partition(
+pub(in super::super) fn file_steps(
     exec: &mut Exec<'_>,
     run: &mut Run,
     wide: impl Fn(&str) -> bool,
-) -> R<Partition> {
+) -> R<Vec<bool>> {
     exec.closed_inputs();
     // All operands here are already local. A span names a place in that source.
     fn anchor(ty: Ty) -> bool {
@@ -29,6 +29,9 @@ pub(in super::super) fn partition(
     let plan = exec.plan;
     let mut local = Vec::with_capacity(plan.nodes.len());
     for (i, step) in plan.nodes.iter().enumerate() {
+        // Use the schema that evaluation itself will bind. A request with no admitted
+        // files must still refuse an unknown relation or a malformed projection.
+        exec.schema(run, i)?;
         let args = step.args();
         let keys_hold = |ex: &mut Exec<'_>, run: &mut Run, from: &str, keys: &str| -> R<bool> {
             let source = ex.arg_rel(i, from)?;
@@ -117,6 +120,15 @@ pub(in super::super) fn partition(
         };
         local.push(here);
     }
+    Ok(local)
+}
+
+pub(in super::super) fn partition(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    local: Vec<bool>,
+) -> R<Partition> {
+    let plan = exec.plan;
     let input_set: BTreeSet<_> = plan
         .nodes
         .iter()

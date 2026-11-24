@@ -6,7 +6,18 @@ use ryo_execution_domain::domain::coverage::types::Recovery;
 use ryo_language::domain::files::types::ProjectEntries;
 use std::{collections::HashMap, sync::Arc};
 
+pub(crate) use ryo_language::inbound::use_cases::parse::named::FileRelation;
+pub(crate) type Columns = Vec<ryo_relations::domain::relations::types::FactColumn>;
+
 pub(crate) trait Source: Clone + Sync {
+    fn declarations(&self) -> &'static [FileRelation] { &[] }
+    fn named_rows(&self, relation: &FileRelation, _: FileId, _: &Self::File, _: &l::NodeTable, _: &[u8], _: &mut Self::Dictionary) -> Result<Columns> {
+        Err(format!("provider does not supply {}", relation.name))
+    }
+
+    fn begin_render(&self, _: l::ParseRequest<'_>, _: &mut Self::File) -> l::SemanticSlot {
+        l::SemanticSlot::Empty
+    }
     fn name(&self) -> &str;
     type File: Default;
     type Dictionary: Default;
@@ -78,6 +89,18 @@ impl From<l::Language> for Linked {
     }
 }
 impl Source for Linked {
+    fn begin_render(&self, request: l::ParseRequest<'_>, file: &mut Self::File) -> l::SemanticSlot {
+        let mut slot = ryo_language::domain::elements::service::take_semantics(file);
+        self.parser.begin_semantics(&request, file, &mut slot);
+        slot
+    }
+    fn declarations(&self) -> &'static [FileRelation] {
+        self.parser.file_relations().map_or(&[], |supplier| supplier.declarations())
+    }
+    fn named_rows(&self, relation: &FileRelation, id: FileId, file: &Self::File, tree: &l::NodeTable, bytes: &[u8], dict: &mut Self::Dictionary) -> Result<Columns> {
+        let supplier = self.parser.file_relations().ok_or_else(|| format!("no provider for {}", relation.name))?;
+        supplier.read(relation, id, file, tree, l::ByteSlice(bytes), dict).map_err(|e| e.to_string())
+    }
     fn name(&self) -> &str { &self.language.name().0 }
     type File = l::Elements;
     type Dictionary = l::Symbols;

@@ -13,47 +13,52 @@ use ryo_execution_domain::domain::{
     },
 };
 use ryo_language::domain::files::types::FilePath;
-use ryo_query_language::{
-    inbound::use_cases::compile::use_case::CompileUseCaseImpl,
-    outbound::{catalog, syntax},
-};
-use ryo_values::domain::{
-    hosted::types::HostedRelation,
-    plan_parts::types::{QueryText, StepScope},
-    query_requests::types::QueryRequest,
-};
-use std::sync::Arc;
-
 pub(crate) struct Contract {
     pub cross: bool,
     pub frontier: bool,
     pub needs: Needs,
 }
 
-pub(crate) fn describe(
-    text: &str,
-    program: &Program,
-    hosted: Vec<HostedRelation>,
-) -> Result<Contract> {
-    let compiler = CompileUseCaseImpl::new(
-        Arc::new(syntax::factory::winnow()),
-        Arc::new(catalog::factory::language()),
-    );
-    let request = QueryRequest {
-        text: QueryText(text.into()).into(),
-        modules: Default::default(),
-        observations: Vec::new(),
-        hosted,
-    };
-    let plan = compiler
-        .compile_root(request, (*program.syntax).clone(), Default::default())
-        .map_err(|e| e.to_string())?
-        .plan;
-    Ok(Contract {
-        cross: plan.steps[plan.emit.step.0 as usize].scope == StepScope::CrossFile,
-        frontier: !plan.frontier.is_empty(),
-        needs: scoped_needs(&plan),
-    })
+/// Derive coverage from the bases reachable by this plan's outputs. Negative
+/// operators trust only the inputs whose missing rows can change their answers.
+pub(crate) fn describe(program: &Program, local: &[bool]) -> Result<Contract> {
+    use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
+    use std::collections::BTreeSet;
+    let mut needs = Needs::default();
+    let plan = &program.plan;
+    let mut reached = vec![false; plan.nodes.len()];
+    let mut negative_file = reached.clone();
+    let mut negative_project = reached.clone();
+    for (_, output, _, _) in &plan.emits { reached[*output] = true; }
+    let cross = plan.emits.iter().any(|(_, index, _, _)| !local[*index]);
+    let mut frontier = false;
+    for (i, step) in plan.nodes.iter().enumerate().rev() {
+        if !reached[i] { continue; }
+        let sensitive = super::finish::session::absence_input(step).and_then(|(name, _)| {
+            step.rels.iter().find_map(|(key, source)| (key == name).then_some(source))
+        });
+        if let Some(&source) = sensitive {
+            if local[i] { negative_file[source] = true; } else { negative_project[source] = true; }
+        }
+        for &operand in &step.inputs {
+            reached[operand] = true;
+            if negative_file[i] { negative_file[operand] = true; }
+            if negative_project[i] { negative_project[operand] = true; }
+            frontier |= !local[i] && local[operand];
+        }
+    }
+    let mut sets: [BTreeSet<super::l::Relation>; 3] = Default::default();
+    for &(at, relation) in &program.base_steps {
+        if let Some(relation) = relation {
+            for (set, used) in sets.iter_mut().zip([reached[at], negative_file[at], negative_project[at]]) {
+                if used { set.insert(relation); }
+            }
+        }
+    }
+    for (out, relations) in [&mut needs.reads, &mut needs.per_file, &mut needs.cross].into_iter().zip(sets) {
+        out.extend(relations.into_iter().map(RelationRead::whole));
+    }
+    Ok(Contract { cross, frontier, needs })
 }
 
 impl Contract {

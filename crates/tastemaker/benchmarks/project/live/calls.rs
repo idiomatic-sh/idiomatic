@@ -8,6 +8,8 @@ mod pinned;
 mod call_cache;
 #[path = "allocated.rs"]
 mod allocated;
+#[path = "../../../../ryo/crates/engine/benches/lint_image/sdk_request.rs"]
+mod sdk_request;
 use call_cache::{CallCache, PathFilter};
 use pinned::{Dictionary, Pinned};
 use release_sdk::linter as sdk;
@@ -104,7 +106,7 @@ struct CallKey {
     inventory: usize,
     filter: usize,
     tables: Vec<usize>,
-    rules: Vec<(sdk::RuleId, Rc<str>, usize, usize)>,
+    rules: Vec<(sdk::RuleId, crate::check_session::query::Query, usize, usize)>,
 }
 
 /// Options supplied by the caller of the pinned SDK check.
@@ -138,6 +140,7 @@ type WorkEntry = (
 
 struct Pending {
     ids: Vec<WorkEntry>,
+    named_reader: bool,
     paths: Rc<Vec<String>>,
     projects: std::collections::BTreeSet<usize>,
     restored_unread: BTreeMap<String, usize>,
@@ -168,11 +171,13 @@ struct Live {
     file_epoch_wall: f64,
     parallel_rows: usize,
     delivery_dictionaries: usize,
-    versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
+    versions: HashMap<(Authority, BTreeMap<String, (Arc<[u8]>, crate::check_session::Permission)>, Option<Arc<str>>), Arc<str>>,
 }
 
 impl Drop for Live {
     fn drop(&mut self){
+        let (writes, pages) = self.state.aliases.counts();
+        eprintln!("PAIR_ALIASES pairs={} aliases={writes} allocated_pages={pages}", self.batch.schedule.pairs);
         if let Some(store)=&mut self.store && let Err(e)=store.publish(){eprintln!("publish completed session: {e}");}
     }
 }
@@ -235,6 +240,7 @@ fn rule_error(
     hosted: &[Hosted],
     reason: String,
 ) -> sdk::LintError {
+    eprintln!("plan refusal for {id}: {reason}");
     use release_sdk::query::{ValidateError, ValidateRequest, validate};
 
     let hosted = hosted.iter().map(|table| sdk::HostDeclaration {
@@ -372,11 +378,16 @@ impl Live {
         requests: Vec<sdk::LintRequest>,
         linked: &sdk::Languages,
         ) -> Vec<Reply> {
-        // The opt-in retained store's overlay is local to a request.
-        if self.store.is_some() && requests.len() > 1 {
-            return requests.into_iter()
-                .flat_map(|request| self.lint(vec![request], linked)).collect();
+        // A retained proof references the currently installed source overlay.
+        // Close that epoch before installing the next overlay. Both lifetimes
+        // execute the same admission, visit and delivery below.
+        if self.store.is_some() {
+            return requests.into_iter().flat_map(|request| self.epoch(vec![request], linked)).collect();
         }
+        self.epoch(requests, linked)
+    }
+
+    fn epoch(&mut self, requests: Vec<sdk::LintRequest>, linked: &sdk::Languages) -> Vec<Reply> {
         let previous_children = self.child_cpu();
         let previous = self.phase_totals();
         let options = check_options();
@@ -385,6 +396,13 @@ impl Live {
         let admission = Instant::now();
         if self.languages.is_empty() {
             self.languages = linked.0.iter().cloned().map(Pinned::from).collect();
+            match crate::check_session::named::Catalog::from_readers(&self.languages) {
+                Ok(catalog) => self.batch.file_catalog = catalog,
+                Err(reason) => {
+                    self.languages.clear();
+                    return requests.into_iter().map(|_| Err(execution(reason.clone()))).collect();
+                }
+            }
         }
         let count = requests.iter().map(|request| request.rules.len()).sum::<usize>();
         let pending = requests.into_iter().map(|request| {
@@ -487,9 +505,7 @@ impl Live {
     }
 
     fn admit(&mut self, req: sdk::LintRequest, linked: &sdk::Languages, reverse_files: bool, unbounded: bool) -> Result<RoundRequest, sdk::LintError> {
-        if req.source_language != sdk::SourceLanguage::Recognized
-            || req.project_search_scope != sdk::ProjectSearchScope::Undeclared
-            || req.given_project_inventory != Default::default()
+        if req.given_project_inventory != Default::default()
         {
             return Err(execution("unsupported source or project authority".into()));
         }
@@ -501,23 +517,37 @@ impl Live {
             }
             _ => return Err(execution("a closed source inventory is required".into())),
         };
+        let authority = match req.project_search_scope {
+            sdk::ProjectSearchScope::Undeclared => authority,
+            sdk::ProjectSearchScope::Declared(roots) => authority.with_roots(roots.into_iter().map(|p| p.0.into_string()).collect()),
+        };
         if reverse_files {
             listed.reverse();
             given.reverse();
         }
         let mut overlay = BTreeMap::new();
         for source in given.into_iter().chain(req.beside) {
-            if source.executable != sdk::ExecutablePermission::Unknown {
-                return Err(execution("unhandled supplied executable permission".into()));
-            }
-            overlay.insert(
-                source.path.0.into_string(),
-                Arc::<[u8]>::from(source.text.0.as_bytes()),
-            );
+            use crate::check_session::Permission;
+            let permission = match source.executable {
+                sdk::ExecutablePermission::Unknown => Permission::Unknown,
+                sdk::ExecutablePermission::Unsupported => Permission::Unsupported,
+                sdk::ExecutablePermission::PosixExecutable => Permission::PosixExecutable,
+                sdk::ExecutablePermission::PosixNotExecutable => Permission::PosixNotExecutable,
+            };
+            overlay.insert(source.path.0.into_string(), (Arc::<[u8]>::from(source.text.0.as_bytes()), permission));
         }
         let (inventory, paths) = self.cache.inventory(listed.iter().map(|p| p.0.as_ref())
             .chain(overlay.keys().map(String::as_str)).collect());
-        let mut key = (authority.clone(), overlay);
+        let reader: Option<Arc<str>> = match req.source_language {
+            sdk::SourceLanguage::Recognized => None,
+            sdk::SourceLanguage::Named(name) => {
+                if linked.0.iter().filter(|l| l.name() == &name).count() != 1 {
+                    return Err(execution(format!("named reader {} is absent or ambiguous", name.0)));
+                }
+                Some(Arc::from(name.0))
+            }
+        };
+        let mut key = (authority.clone(), overlay, reader.clone());
         let mut prepared_root=None;
         for (index, relation) in req.hosted.iter().enumerate() {
             if req.hosted[..index].iter().any(|earlier| earlier.name == relation.name) {
@@ -534,6 +564,7 @@ impl Live {
             .into_iter()
             .unzip();
         self.registered_tables += hosted.len();
+        let inputs = sdk_request::inputs(&req.rules)?;
         let memoize = unbounded && self.store.is_none() && authority == Authority::Given
             && table_ids.len() <= 32 && !req.rules.is_empty() && req.rules.len() <= 16
             && req.rules.iter().all(|(id, rule)| id.as_ref().len() <= 256
@@ -543,7 +574,7 @@ impl Live {
         let memo = if memoize {
             let mut rules = Vec::with_capacity(req.rules.len());
             for (id, rule) in &req.rules {
-                rules.push((id.clone(), self.cache.query(rule.query.as_ref()),
+                rules.push((id.clone(), sdk_request::query(&mut self.cache, rule, inputs.get(id)),
                     self.globs(&rule.include).map_err(execution)?.0, self.globs(&rule.exclude).map_err(execution)?.0));
             }
             let memo = CallKey {
@@ -555,7 +586,7 @@ impl Live {
             };
             if self.batch.schedule.pending.is_empty()
                 && let Some((_, report)) = self.completed_calls[memo_pool].iter().find(|(saved, _)| saved == &memo)
-                && paths.iter().all(|path| !unread_path(linked, &sdk::RelativePath(path.as_str().into())))
+                && (reader.is_some() || paths.iter().all(|path| !unread_path(linked, &sdk::RelativePath(path.as_str().into()))))
             {
                 let start = thread_cpu();
                 let report = report.clone();
@@ -579,7 +610,7 @@ impl Live {
                 let parameters = rule.parameters.iter()
                     .map(|(k, v)| Ok((k.0.clone(), parameter(v.clone())?)))
                     .collect::<Result<Parameters, String>>().map_err(execution)?;
-                let query = self.cache.query(rule.query.as_ref());
+                let query = sdk_request::query(&mut self.cache, rule, inputs.get(id));
                 let program = self.batch.prepared_rule(query.clone(), &parameters);
                 let digest = self.cache.program_digest(program, &query, &parameters);
                 peers.push(super::stored::key((id.as_ref(), digest, &rule.include, &rule.exclude)));
@@ -589,10 +620,10 @@ impl Live {
             self.store.as_mut().unwrap().overlay(
                 std::path::Path::new(&*physical),
                 self.cache.path_digest(&paths),
-                super::stored::key((peers, shape)),
+                super::stored::key((peers, shape, &reader)),
                 &key.1,
             );
-            Some(super::stored::key((&physical, &authority)))
+            Some(super::stored::key((&physical, &authority, &reader)))
         } else {
             None
         };
@@ -622,11 +653,7 @@ impl Live {
             });
         }
         let serial = rules.map(|(id, rule)| (id, rule, None));
-        for (id, rule, typed) in serial.chain(prepared) {
-            if rule.applicability != sdk::RuleApplicability::Always || !rule.observations.is_empty()
-            {
-                return Err(sdk::LintError::Unrunnable { id, reason: "unsupported observation or syntax requirement".into() });
-            }
+        for (id, mut rule, typed) in serial.chain(prepared) {
             let inc = self.globs(&rule.include).map_err(execution)?;
             let exc = self.globs(&rule.exclude).map_err(execution)?;
             let (selection, files) = self.cache.files(
@@ -648,8 +675,8 @@ impl Live {
                 ));
                 (query, parameters, Some(identity))
             } else {
-                let parameters = typed.unwrap_or_else(|| parameters(rule.parameters)).map_err(execution)?;
-                (self.cache.query(rule.query.as_ref()), parameters, None)
+                let parameters = typed.unwrap_or_else(|| parameters(std::mem::take(&mut rule.parameters))).map_err(execution)?;
+                (sdk_request::query(&mut self.cache, &rule, inputs.get(&id)), parameters, None)
             };
             if let (Some(store),Some(k))=(&mut self.store,contract)
                 && let Some((packet,unread))=store.lookup(k){
@@ -665,8 +692,8 @@ impl Live {
             id.clone()
         } else {
             let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
-            for (path, bytes) in &mut key.1 {
-                let shared = self.batch.schedule.provide(&id, path, bytes).map_err(execution)?;
+            for (path, (bytes, permission)) in &mut key.1 {
+                let shared = self.batch.schedule.provide(&id, path, bytes, *permission, &reader).map_err(execution)?;
                 // The scheduler already owns the exact path and bytes. Retain
                 // its allocation in the version key and drop the duplicate.
                 if !Arc::ptr_eq(bytes, &shared) {
@@ -680,7 +707,7 @@ impl Live {
         };
         for p in &listed {
             if !key.1.contains_key(p.0.as_ref()) {
-                self.batch.schedule.listed(&root, &physical, &p.0).map_err(execution)?;
+                self.batch.schedule.listed(&root, &physical, &p.0, &reader).map_err(execution)?;
             }
         }
                 prepared_root=Some(root);
@@ -717,11 +744,11 @@ impl Live {
             key.version = Some(version);
             (memo_pool, key)
         });
-        Ok(RoundRequest::Scheduled(Pending { ids, paths, projects, restored_unread, memo }))
+        Ok(RoundRequest::Scheduled(Pending { ids, paths, projects, restored_unread, memo, named_reader: reader.is_some() }))
     }
 
     fn deliver(&mut self, request: Pending, linked: &sdk::Languages) -> Reply {
-        let Pending { ids, paths, projects, restored_unread, memo } = request;
+        let Pending { ids, paths, projects, restored_unread, memo, named_reader } = request;
         let deliver=Instant::now();
         let cpu=thread_cpu();
         let mut out = report(Vec::new(), Vec::new(), Vec::new());
@@ -751,22 +778,29 @@ impl Live {
                     let (part, time) = child.join().expect("receipt worker panicked");
                     let (part, count) = part?;
                     dictionaries += count;
+                    out.skipped.extend(part.skipped);
                     out.findings.extend(part.findings);
                     out.unknowns.extend(part.unknowns);
                     cpu += time;
                 }
                 Ok::<_, sdk::LintError>((cpu, dictionaries))
             })?;
+            drop(receipts);
+            for (_, entry) in ids {
+                let (i, _) = entry.expect_err("fresh receipt");
+                self.batch.work[i] = super::Work::Invalid(String::new());
+            }
             self.parallel_rows += out.findings.len();
             self.delivery_dictionaries += other_cpu.1;
             self.batch.clocks.delivery_workers_cpu += other_cpu.0;
         } else {
             for (id,entry) in ids {
+                let consumed = entry.as_ref().err().map(|(i, _)| *i);
                 let held;
                 let receipt=match entry {
                     Ok(k)=>{
                         held=self.store.as_ref().unwrap().packet(&k).report();
-                        super::Receipt {rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
+                        super::Receipt {rejected_syntax:held.rejected_syntax.iter().collect(),rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
                     }
                     Err((i,k))=>{
                         let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e| sdk::LintError::Unrunnable { id: id.clone(), reason: e.to_string() })?;
@@ -775,13 +809,18 @@ impl Live {
                     }
                 };
                 render_receipt::<false>(&id, receipt, &mut out, None)?;
+                if let Some(i) = consumed {
+                    // Epoch evaluation and any retained proof are complete.
+                    // Drop this request's source lists or closed rows at delivery.
+                    self.batch.work[i] = super::Work::Invalid(String::new());
+                }
             }
         }
         self.delivered_rows += out.findings.len();
         self.delivered_cells += out.findings.iter().map(|f| f.columns.len()).sum::<usize>();
         for path in Rc::unwrap_or_clone(paths) {
             let p = sdk::RelativePath(path.into());
-            if unread_path(linked, &p) {
+            if !named_reader && unread_path(linked, &p) {
                 out.unread.push(unread(p, sdk::Unreadable::NoLanguage));
             }
         }
@@ -838,6 +877,9 @@ fn render_receipt<'a, const SHARED: bool>(
     out: &mut sdk::LintReport,
     mut dictionaries: Option<&mut Dictionaries<'a>>,
 ) -> Result<(), sdk::LintError> {
+    out.skipped.extend(receipt.rejected_syntax.into_iter().map(|path| sdk::Skipped {
+        rule: id.clone(), path: sdk::RelativePath(path.as_str().into()), reason: sdk::SkipReason::SyntaxRejected,
+    }));
     for row in receipt.rows {
         let words = if SHARED {
             let table = row.dictionary();

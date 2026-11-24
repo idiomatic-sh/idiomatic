@@ -52,6 +52,11 @@ impl ParseContract {
 }
 
 impl Parse for ParseContract {
+    #[cfg(feature = "fixtures")]
+    fn file_relations(&self) -> Option<&dyn languages::FileRelations> {
+        Some(&crate::fixtures::comment_positions::Comments)
+    }
+
     type FileModel = Declarations;
 
     fn begin_semantics(

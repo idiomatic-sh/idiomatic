@@ -297,7 +297,7 @@ mod expression_parts;
 pub use expression_parts::CallSite;
 mod assignment;
 mod imports;
-mod lexical_lines;
+pub(crate) mod lexical_lines;
 pub use imports::ImportAlias;
 mod resolution;
 pub use resolution::BindingSite;

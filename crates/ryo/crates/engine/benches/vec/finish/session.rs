@@ -269,6 +269,16 @@ fn keep_finding(
     }
 }
 
+/// The input whose absence can invalidate a produced row and the output file keys.
+pub(in super::super) fn absence_input(step: &super::PNode) -> Option<(&'static str, &'static str)> {
+    match step.op.as_str() {
+        "group-count" | "group-digest" => Some(("from", "keys")),
+        "difference" => Some(("right", "")),
+        "antijoin" => Some(("right", "left-on")),
+        _ => None,
+    }
+}
+
 fn restrict_uncertain(
     exec: &mut Exec<'_>,
     run: &mut Run,
@@ -287,12 +297,7 @@ fn restrict_uncertain(
             here.extend(&affected[source]);
         }
         if demanded[i] {
-            let probe = match step.op.as_str() {
-                "group-count" | "group-digest" => Some((exec.arg_rel(i, "from")?, "keys")),
-                "difference" => Some((exec.arg_rel(i, "right")?, "")),
-                "antijoin" => Some((exec.arg_rel(i, "right")?, "left-on")),
-                _ => None,
-            };
+            let probe = absence_input(step).map(|(source, keys)| exec.arg_rel(i, source).map(|at| (at, keys))).transpose()?;
             if let Some((source, keys)) = probe
                 && !affected[source].is_empty()
             {
@@ -306,7 +311,7 @@ fn restrict_uncertain(
                 let mut file_key = if keys.is_empty() {
                     out.tys.iter().position(|ty| matches!(ty, Ty::File | Ty::Node))
                 } else { None };
-                for key in super::strs(&step.args()[keys])? {
+                for key in (!keys.is_empty()).then(|| super::strs(&step.args()[keys])).transpose()?.into_iter().flatten() {
                     let col = out.col(key)?;
                     if matches!(out.tys[col], Ty::File | Ty::Node) {
                         file_key = Some(col);
@@ -346,14 +351,15 @@ fn restrict_uncertain(
 
 /// Run one already prepared file program and deliver its complete typed rows. Caller
 /// tables have already been numbered in this request and belong to this binding.
-pub(in super::super) fn frame<'a>(
+pub(in super::super) fn frame<'a, 't>(
     version: &'a FileVersion<'a>,
     plan: &super::Plan,
     supplied: &[(String, Rc<Table>)],
-    local: Option<&(String, Rc<Table>)>,
+    local: impl IntoIterator<Item = &'t (String, Rc<Table>)>,
 ) -> File<'a> {
     let mut frame = File::new(version, plan.nodes.len());
-    frame.fills.extend(supplied.iter().chain(local).cloned());
+    frame.fills.extend(supplied.iter().cloned());
+    frame.fills.extend(local.into_iter().cloned());
     frame
 }
 

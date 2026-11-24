@@ -6,6 +6,7 @@ mod readers;
 mod stored;
 
 use super::{Hosted, Parameters, bind_tables, execute_ids, finish, read_parameters};
+use crate::check_session::query::Query;
 use crate::check_session::project::{self, Authority, Population};
 use crate::{
     check_session::{self as session, Answer, Clock, Program},
@@ -117,6 +118,7 @@ struct Admission {
 
 #[derive(Default)]
 struct Batch {
+    file_catalog: session::named::Catalog,
     closed_reuse: [usize; 5],
     workers: Option<std::num::NonZeroUsize>,
     schedule: session::Schedule,
@@ -160,42 +162,13 @@ struct Active<F: Default, D: Default> {
     readers: Vec<session::ReaderState>,
     world: session::World,
     answers: Vec<Answer>,
-    aliases: Vec<usize>,
+    aliases: session::worker::PairAliases,
     contributions: Vec<Option<Rc<project::Contribution>>>,
     populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
 }
 
 impl Admission {
-    fn prepare(id: usize, query: &str, program: &Program, hosted: &[Hosted]) -> Result<Self, String> {
-        use ryo_values::domain::hosted::types::{
-            ColumnLabel, HostedColumn, HostedName, HostedRelation,
-        };
-        let relations = hosted
-            .iter()
-            .map(|t| {
-                let columns = t
-                    .columns
-                    .iter()
-                    .map(|(n, ty)| {
-                        let kind = match ty.as_str() {
-                            "File" => l::CellKind::File,
-                            "Text" => l::CellKind::Symbol,
-                            "Number" => l::CellKind::Number,
-                            _ => return Err(format!("unsupported host type {ty}")),
-                        };
-                        Ok(HostedColumn {
-                            name: ColumnLabel(n.as_str().into()),
-                            kind,
-                        })
-                    })
-                    .collect::<Result<Vec<_>, String>>()?;
-                Ok(HostedRelation {
-                    name: HostedName(t.name.as_str().into()),
-                    columns,
-                })
-            })
-            .collect::<Result<Vec<_>, String>>()?;
-        let contract = Arc::new(session::completeness::describe(query, program, relations)?);
+    fn prepare(id: usize, program: &Program, hosted: &[Hosted], catalog: &session::named::Catalog) -> Result<Self, String> {
         let held: Vec<_> = program
             .bases
             .iter()
@@ -213,31 +186,21 @@ impl Admission {
         let numbered_host = hosted
             .iter()
             .any(|table| table.columns.iter().any(|(_, kind)| kind == "File"));
+        let mut run = finish::Run::default();
+        catalog.declare(&mut run);
+        let declarations = hosted.iter().map(|h| Hosted {
+            name: h.name.clone(), columns: h.columns.clone(), rows: Default::default(), partial: h.partial.clone(),
+        }).collect::<Vec<_>>();
+        let _ = bind_tables(&declarations, &mut run, |_| None)?;
+        let mut exec = finish::Exec::new(&program.plan);
+        let local = finish::partition::file_steps(&mut exec, &mut run, |name| {
+            held.iter().any(|r| relations::service::name(*r).0 == name) || hosted.iter().any(|t| t.name == name)
+        })?;
+        let contract = Arc::new(session::completeness::describe(program, &local)?);
         let wide = contract.cross || numbered_host;
         let cut = if !scope_only && wide {
-            let mut run = finish::Run::default();
-            let declarations = hosted
-                .iter()
-                .map(|t| Hosted {
-                    rows: Default::default(),
-                    name: t.name.clone(),
-                    columns: t.columns.clone(),
-                    partial: t.partial.clone(),
-                })
-                .collect::<Vec<_>>();
-            let _ = bind_tables(&declarations, &mut run, |_| None)?;
-            let scoped = finish::partition::partition(
-                &mut finish::Exec::new(&program.plan),
-                &mut run,
-                |n| {
-                    held.iter().any(|r| relations::service::name(*r).0 == n)
-                        || hosted.iter().any(|t| t.name == n)
-                },
-            )?;
-            Some(Arc::new(scoped))
-        } else {
-            None
-        };
+            Some(Arc::new(finish::partition::partition(&mut exec, &mut run, local)?))
+        } else { None };
         Ok(Self {
             id,
             contract,
@@ -265,25 +228,25 @@ impl Batch {
             }
         };
         self.clocks.prepare += thread_cpu() - t;
-        self.register_query(query, req, closed, None)
+        self.register_query(query.into(), req, closed, None)
     }
 
-    fn prepared_rule(&mut self,query:Rc<str>,parameters:&Parameters)->usize{
+    fn prepared_rule(&mut self,query:Query,parameters:&Parameters)->usize{
         let t = thread_cpu();
         let rule = self
             .schedule
-            .prepare(query.clone(), parameters.clone(), || {
+            .prepare(query.clone(), parameters.clone(), |modules| {
                 let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
                 ctx.parameters
                     .insert("query".into(), parameters.clone());
-                Program::prepare("query", &query, ctx, &declaration(), Some("/"))
+                Program::prepare("query", &query, ctx, &declaration(), Some("/"), modules)
             });
         self.clocks.prepare += thread_cpu() - t;
         rule
     }
     fn register_query(
         &mut self,
-        query: Rc<str>,
+        query: Query,
         mut req: Input,
         closed: Option<&Path>,
         sdk: Option<LiveAdmission<'_>>,
@@ -309,7 +272,7 @@ impl Batch {
         let class = match self.admissions.get(&schema_key) {
             Some(class) => class.clone(),
             None => {
-                let class = Rc::new(Admission::prepare(self.admissions.len(), &query, program, &req.hosted)?);
+                let class = Rc::new(Admission::prepare(self.admissions.len(), program, &req.hosted, &self.file_catalog)?);
                 self.admissions.insert(schema_key, class.clone());
                 class
             }
@@ -489,14 +452,6 @@ impl Batch {
         })
     }
 
-    fn run(&mut self, languages: Vec<Language>) -> Vec<Answer> {
-        let readers: Vec<_> = languages
-            .into_iter()
-            .map(session::source::Linked::from)
-            .collect();
-        self.run_sources(&readers)
-    }
-
     fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> Vec<Answer> {
         // The closed, store-disabled capture cannot register another request.
         // Release the admission-only maps before the reader and join heaps grow.
@@ -544,7 +499,6 @@ impl Batch {
         if world.run.texts.is_empty() {
             world.declare_words(languages);
         }
-        aliases.extend(aliases.len()..self.schedule.pairs);
         answers.resize_with(self.schedule.pairs, || Err(String::new()));
         contributions.resize_with(self.schedule.sources.len(), || None);
         if let Some(s)=store.as_deref_mut() {
@@ -566,7 +520,7 @@ impl Batch {
                 continue;
             }
             let path = src.path.as_str();
-            let mut found = languages.iter().enumerate().filter(|(_, l)| l.reads(path));
+            let mut found = languages.iter().enumerate().filter(|(_, l)| src.reader.as_deref().map_or_else(|| l.reads(path), |name| l.name() == name));
             match (found.next(), found.next()) {
                 (Some((index, _)), None) => groups[index].push(i),
                 (None, None) => groups[unclaimed].push(i),
@@ -640,15 +594,15 @@ impl Batch {
         if !*keep {
             reader_states.clear();
         }
-        for work in &mut self.work {
-            if let Work::Pairs(pairs) | Work::Closed { pairs, .. } = work {
-                for slot in pairs {
-                    *slot = aliases[*slot];
+        if !aliases.is_empty() {
+            for work in &mut self.work {
+                if let Work::Pairs(pairs) | Work::Closed { pairs, .. } = work {
+                    for slot in pairs { *slot = aliases.lookup(*slot); }
                 }
             }
         }
         if !*keep {
-            *aliases=Vec::new();
+            *aliases=Default::default();
         }
         self.schedule.delivered(&pending, *keep);
         self.finish_projects(languages, contributions, world, answers, populations, *keep,store.as_deref_mut());
@@ -818,7 +772,7 @@ impl Batch {
                     }
                     if files.is_empty() && !inventory.is_empty() && contract.frontier {
                         let mut withheld = session::Reported::skipped(inventory);
-                        withheld.unknowns.extend(unknowns);
+                        withheld.extend_unknowns(unknowns);
                         return Ok(withheld);
                     }
                     if let Some(cut) = &self.cut_of[*binding] {
@@ -862,7 +816,7 @@ impl Batch {
                         &incomplete,
                         Some((&mut operators, scope)),
                     )?;
-                    let reported = session::Reported { rows, unknowns };
+                    let reported = session::Reported::new(rows, unknowns, Vec::new());
                     if reusable { evaluated.remember(scope, p, &carried, &reported); }
                     Ok(reported)
                 }))};
@@ -912,6 +866,7 @@ impl Batch {
 
 #[derive(Default)]
 struct Receipt<'a> {
+    rejected_syntax: Vec<&'a String>,
     rows: Vec<&'a finish::answer::Row>,
     unknowns: Vec<&'a (String, String)>,
 }
@@ -924,6 +879,7 @@ impl<'a> Receipt<'a> {
                 s.as_str()
             }
         })?;
+        self.rejected_syntax.extend(&held.rejected_syntax);
         self.rows.extend(&held.rows);
         self.unknowns.extend(&held.unknowns);
         Ok(())
@@ -959,7 +915,8 @@ pub(crate) fn packets(
         inventory: Vec<String>,
         repository: Option<Authority>,
     }
-    let mut session = Batch::default();
+    let readers: Vec<_> = languages.into_iter().map(session::source::Linked::from).collect();
+    let mut session = Batch { file_catalog: session::named::Catalog::from_readers(&readers)?, ..Default::default() };
     session.authorities = Authorities::from_input()?;
     let mut ids = Vec::new();
     let source = std::fs::File::open(manifest).map_err(|e| e.to_string())?;
@@ -989,7 +946,7 @@ pub(crate) fn packets(
     if projects.next().is_some() {
         return Err("extra closed inventory".into());
     }
-    let answers = session.run(languages);
+    let answers = session.run_sources(&readers);
     let mut out =
         std::io::BufWriter::new(std::fs::File::create(output).map_err(|e| e.to_string())?);
     for (id, work) in ids.into_iter().zip(&session.work) {
@@ -1037,7 +994,7 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
 }
 fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&str, output:&str, root:Option<&Path>, workers:Option<std::num::NonZeroUsize>, completed: impl FnOnce()){
     let start = thread_cpu();
-    let mut session = Batch { workers, ..Default::default() };
+    let mut session = Batch { workers, file_catalog: session::named::Catalog::from_readers(readers).expect("linked file catalog"), ..Default::default() };
     if let Some(index) = std::env::var_os("TM_CORPUS_INVENTORIES") {
         let bytes = std::fs::read(index).expect("closed input inventories");
         session.roots = json_input::decode(&bytes).expect("source roots and their inventories");
@@ -1235,6 +1192,7 @@ fn one_source<L: session::source::Source>(
     output: &str,
 ) -> Result<(), String> {
     let mut session = Batch::default();
+    session.file_catalog = session::named::Catalog::from_readers(readers)?;
     let work = session.register(pack, req, None)?;
     session.work.push(work);
     let answers = session.run_sources(readers);

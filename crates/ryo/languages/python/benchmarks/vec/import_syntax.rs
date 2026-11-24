@@ -336,15 +336,7 @@ fn path_context(run: &mut Run, project: &mut Project, target: &str) -> ImportPre
     answer
 }
 
-pub(super) fn line_starts(src: &[u8]) -> Vec<u32> {
-    let mut starts = vec![0];
-    for i in memchr::memchr2_iter(b'\r', b'\n', src) {
-        if src[i] == b'\n' || src.get(i + 1) != Some(&b'\n') {
-            starts.push(i as u32 + 1);
-        }
-    }
-    starts
-}
+pub(super) use ryo_python::fixtures::comment_positions::starts as line_starts;
 
 pub(super) fn fill(
     run: &mut Run,

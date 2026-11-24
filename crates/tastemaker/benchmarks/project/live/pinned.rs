@@ -21,10 +21,7 @@ pub(super) struct Pinned {
 }
 impl From<old::Language> for Pinned {
     fn from(language: old::Language) -> Self {
-        let native = [ryo_rust::linked_0_1_4, ryo_toml::linked, ryo_json::linked, ryo_markdown::linked].into_iter()
-            .map(|linked| linked())
-            .find(|provider| provider.name().0.as_ref() == language.name().0.as_ref())
-            .map(Linked::from);
+        let native = language.native_provider.clone().map(Linked::from);
         Self {
             native,
             parser: language.parse_engine(),
@@ -154,7 +151,7 @@ fn collect(
 
 fn project_request(r: &l::ProjectRequest) -> Result<old::ProjectRequest> {
     use release_language::domain::project_context as ctx;
-    if r.search_scope != Default::default() || r.given_inventory != Default::default() {
+    if r.given_inventory != Default::default() {
         return Err("unsupported project entry authority".into());
     }
     let entries = r
@@ -178,7 +175,11 @@ fn project_request(r: &l::ProjectRequest) -> Result<old::ProjectRequest> {
             l::Repository::Disk => old::Repository::Disk,
             l::Repository::Given => old::Repository::Given,
         },
-        search_scope: Default::default(),
+        search_scope: match &r.search_scope {
+            ryo_language::domain::project_context::types::ProjectSearchScope::Undeclared => Default::default(),
+            ryo_language::domain::project_context::types::ProjectSearchScope::Declared(roots) =>
+                ctx::types::ProjectSearchScope::Declared(roots.iter().map(|r| old::FilePath(r.0.clone())).collect()),
+        },
         given_inventory: Default::default(),
         observed_entries: ctx::service::observed(entries),
         files: r.files.iter().map(|p| old::FilePath(p.0.clone())).collect(),
@@ -210,6 +211,21 @@ impl Default for File {
 }
 
 impl Source for Pinned {
+    fn begin_render(&self, request: l::ParseRequest<'_>, file: &mut File) -> l::SemanticSlot {
+        match (&self.native, file) {
+            (Some(reader), File::Native(tree)) => reader.begin_render(request, tree),
+            _ => l::SemanticSlot::Empty,
+        }
+    }
+    fn declarations(&self) -> &'static [crate::check_session::source::FileRelation] {
+        self.native.as_ref().map_or(&[], Source::declarations)
+    }
+    fn named_rows(&self, relation: &crate::check_session::source::FileRelation, id: l::FileId, file: &File, projection: &l::NodeTable, bytes: &[u8], dict: &mut Dictionary) -> Result<crate::check_session::source::Columns> {
+        match (&self.native, file) {
+            (Some(reader), File::Native(tree)) => reader.named_rows(relation, id, tree, projection, bytes, &mut dict.out),
+            _ => Err(format!("no linked provider for {}", relation.name)),
+        }
+    }
     fn name(&self) -> &str { &self.language.name().0 }
     type File = File;
     fn lent(f: &File) -> Option<Arc<l::NodeTable>> {
@@ -246,6 +262,7 @@ impl Source for Pinned {
             .collect()
     }
     fn words(&self) -> Vec<l::UnknownName> {
+        if let Some(parser) = &self.native { return parser.words(); }
         self.parser
             .unknown_reasons()
             .iter()
@@ -258,11 +275,13 @@ impl Source for Pinned {
     // The pinned SDK reads its native catalog from the concrete tree. Its other
     // relations, including expanded semantic nodes, go through the provider.
     fn expands(&self, relation_id: l::Relation) -> bool {
+        if let Some(parser) = &self.native { return parser.expands(relation_id); }
         relation(relation_id).ok().and_then(
             release_execution_domain::domain::table_cells::service::native_form,
         ).is_none()
     }
     fn available(&self, r: l::Relation) -> bool {
+        if let Some(parser) = &self.native { return parser.available(r); }
         relation(r)
             .ok()
             .is_some_and(|r| self.parser.absence_of(r) != Some(old::AbsenceCause::NotYetRead))
