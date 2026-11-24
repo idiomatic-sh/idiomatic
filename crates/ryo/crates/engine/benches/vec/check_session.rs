@@ -902,34 +902,60 @@ pub(crate) fn visit<L: FileSource>(
                 *file = HeldFile::default();
                 *credit = 0;
             }
-            let keep = cached.is_some();
-            let held = cached.as_mut().map_or(&mut scratch, |(_,file)| file);
-            let mut symbols = &mut held.symbols;
-            let reused = keep && held.recovery.is_some();
-            let mut elements = &mut held.native;
-            let mut tree = &mut held.tree;
-                let request = l::ParseRequest {
-                    file: id,
-                    path: SourcePath(&source.path),
-                    bytes: ByteSlice(&bytes),
-                    // Later calls can widen the relations asked of a retained file.
-                    fields: if projects_fields {
-                        l::FieldRequest::Wanted
-                    } else {
-                        l::FieldRequest::Unwanted
-                    },
-                    notes: if !needs_notes {
-                        l::NoteRequest::Unwanted
-                    } else {
-                        l::NoteRequest::Wanted
-                    },
+            let request = l::ParseRequest {
+                file: id,
+                path: SourcePath(&source.path),
+                bytes: ByteSlice(&bytes),
+                // Later calls can widen the relations asked of a retained file.
+                fields: if projects_fields {
+                    l::FieldRequest::Wanted
+                } else {
+                    l::FieldRequest::Unwanted
+                },
+                notes: if !needs_notes {
+                    l::NoteRequest::Unwanted
+                } else {
+                    l::NoteRequest::Wanted
+                },
+            };
+            if projects_words { requested.push(l::Relation::SyntaxTree); }
+            let scoped = parser.and_then(FileSource::scoped);
+            let named_demand = scoped.map(|_| {
+                jobs.iter().filter_map(|(binding, _)| bound[binding].as_ref().ok())
+                    .flat_map(|binding| binding.named.iter().copied().map(|s| (s.name, s)))
+                    .collect::<BTreeMap<_,_>>().into_values().collect::<Vec<_>>()
+            });
+            let cached_ready = cached.as_ref().is_some_and(|(_, file)| file.recovery.is_some());
+            let mut spent_in_visit = 0.;
+            let mut consume = |loan: Option<(l::NumberedFile<'_>, &mut l::Symbols)>| {
+                let inside = thread_cpu();
+                let (scoped_tree, mut scoped_facts, mut scoped_symbols, words, fields, coverage, notes) = match loan {
+                    Some((file, symbols)) => {
+                        use ryo_execution_domain::domain::coverage::types::Recovery;
+                        use l::SyntaxCompleteness::Incomplete;
+                        let coverage = match (file.syntax, file.lexical) {
+                            (Incomplete, Incomplete) => Recovery::SyntaxErrors,
+                            (Incomplete, _) => Recovery::LexicallyCompleteSyntaxErrors,
+                            _ => Recovery::Whole,
+                        };
+                        (Some(file.tree), Some(file.facts), Some(symbols), file.words,
+                            Some(file.fields), Some(coverage), Some(file.notes))
+                    }
+                    None => (None, None, None, &[][..], None, None, None),
                 };
-
-            let result = if reused {
+                let keep = cached.is_some() && scoped_tree.is_none();
+                let held = cached.as_mut().map_or(&mut scratch, |(_,file)| file);
+                let mut symbols = &mut held.symbols;
+                let reused = keep && held.recovery.is_some();
+                let mut elements = &mut held.native;
+                let mut tree = &mut held.tree;
+            let result = if scoped_tree.is_some() {
+                clocks.files += 1;
+                Ok(())
+            } else if reused {
                 Ok(())
             } else if let Some(parser) = &parser {
                 clocks.files += 1;
-                if projects_words { requested.push(l::Relation::SyntaxTree); }
                 let build_start = thread_cpu();
                 let result = parser.build(
                     request,
@@ -949,30 +975,38 @@ pub(crate) fn visit<L: FileSource>(
                     answers.set(slot, Err(reason.clone()));
                 }
                 clocks.read_parse += thread_cpu() - t;
-                continue;
+                return;
             }
             if !project_slots.is_empty() {
                 let c = contributions.previous(index).and_then(Option::as_ref).cloned().unwrap_or_else(|| {
                     let manifest = manifests
                         .contains(source.path.rsplit('/').next().unwrap())
                         .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
-                    Rc::new(project::Contribution { reader: reader_id, notes: L::notes(&elements), manifest })
+                    Rc::new(project::Contribution { reader: reader_id, notes: notes.cloned().unwrap_or_else(|| L::notes(&elements)), manifest })
                 });
                 if session_open {
                     contributions.set(index, Some(c.clone()));
                 }
-                for slot in project_slots {
+                for &slot in &project_slots {
                     contributions.set(slot, Some(c.clone()));
                 }
                 if !session_open && jobs.iter().all(|(b, _)| bound[b].is_err()) {
                     clocks.read_parse += thread_cpu() - t;
-                    continue;
+                    return;
                 }
             }
             let mut provider = reader::ReaderFacts::new(id.0, &unknown);
             provider.projects_words = projects_words;
             provider.projects_fields = projects_fields;
-            if reused {
+            if let Some(fields) = fields {
+                if projects_fields {
+                    run.field_sym = fields.0.iter().map(|name| run.sym(name.0.as_bytes())).collect();
+                }
+                if projects_words {
+                    let dict = scoped_symbols.as_deref().expect("scoped dictionary");
+                    provider.text.extend(words.iter().map(|&word| reader::symbol(&mut run, unknown, dict, &bytes, word)));
+                }
+            } else if reused {
                 run.field_sym.clone_from(&held.fields);
                 provider.text = std::mem::take(&mut held.text);
             } else {
@@ -993,13 +1027,13 @@ pub(crate) fn visit<L: FileSource>(
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
             let native = if reused { held.lent.take() } else { L::lent(elements) };
-            let tree = native.as_deref().unwrap_or(tree);
+            let tree = scoped_tree.or(native.as_deref()).unwrap_or(tree);
             let contents = &mut held.contents;
             if !reused {
                 contents.reset();
             }
             use ryo_execution_domain::domain::coverage::service::partial_of;
-            let recovery = held.recovery.unwrap_or_else(|| L::recovery(&elements));
+            let recovery = coverage.or(held.recovery).unwrap_or_else(|| L::recovery(&elements));
             let mut active = Vec::new();
             for &(binding, slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
@@ -1028,6 +1062,7 @@ pub(crate) fn visit<L: FileSource>(
                             },
                             &provider.text,
                             |run, out| {
+                                if scoped_tree.is_some() { return; }
                                 L::expanded_summary(
                                     elements, symbols, &bytes, run, unknown,
                                     l::node_table::kind_codes(tree).len(),
@@ -1070,14 +1105,16 @@ pub(crate) fn visit<L: FileSource>(
                 && !missing.is_empty()
             {
                 let fact_start = thread_cpu();
-                let filled = parser.fill(
+                let filled = if let Some(supplier) = scoped_facts.as_deref_mut() {
+                    supplier.fill(&missing, scoped_symbols.as_deref_mut().expect("scoped dictionary"), &mut packet.rows).map_err(|e| e.to_string())
+                } else { parser.fill(
                     &mut elements,
                     &mut symbols,
                     &bytes,
                     id,
                     &missing,
                     &mut packet.rows,
-                );
+                ) };
                 fact_cpu += thread_cpu() - fact_start;
                 if let Err(reason) = filled {
                     for &(_, slot) in jobs.iter() {
@@ -1087,7 +1124,7 @@ pub(crate) fn visit<L: FileSource>(
                         held.known.clear();
                         held.facts.clear();
                     }
-                    continue;
+                    return;
                 }
             }
             let partials = std::mem::take(&mut packet.rows.partials);
@@ -1139,7 +1176,7 @@ pub(crate) fn visit<L: FileSource>(
                 let mut evaluate = |scope, screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
                     let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                     screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
-                        &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, unknown, cut_of, &said, &mut clocks.witnesses);
+                        &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &facts, &packet, unknown, cut_of, &said, &mut clocks.witnesses);
                     if said.is_empty() && provider.projects_words {
                         for &(binding, slot, excluded) in jobs.iter() {
                             if excluded || cut_of[binding].is_some() { continue; }
@@ -1184,7 +1221,12 @@ pub(crate) fn visit<L: FileSource>(
                     let schemas: Vec<_> = demanded.into_values().collect();
                     let named_start = thread_cpu();
                     clocks.named_counts[0] += 1;
-                    let answers = parser.named_rows(&schemas, request, elements, tree, symbols, source.environment.as_deref().map(|e| e as &dyn l::FileProject));
+                    let answers = if let Some(supplier) = scoped_facts.as_deref_mut() {
+                        supplier.named(&schemas, scoped_symbols.as_deref_mut().expect("scoped dictionary"))
+                            .into_iter().map(|result| result.map_err(|e| e.to_string())).collect()
+                    } else {
+                        parser.named_rows(&schemas, request, elements, tree, symbols, source.environment.as_deref().map(|e| e as &dyn l::FileProject))
+                    };
                     if answers.len() != schemas.len() {
                         for schema in schemas {
                             named_errors.insert(schema.name, "provider returned the wrong number of named tables".to_owned());
@@ -1195,7 +1237,7 @@ pub(crate) fn visit<L: FileSource>(
                                 if let Some(reason) = rows.partial {
                                     named_partials.insert(schema.name, reason.0);
                                 }
-                                named::table(rows.columns, schema, id, L::symbols(symbols), &bytes, &mut run, unknown)
+                                named::table(rows.columns, schema, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, &mut run, unknown)
                             });
                             match table {
                                 Ok(table) => {
@@ -1214,6 +1256,7 @@ pub(crate) fn visit<L: FileSource>(
             }
             let mut semantics = None;
             let mut render = |request: l::RenderRequest| {
+                if let Some(supplier) = scoped_facts.as_deref_mut() { return supplier.render(request).map_err(|e| e.to_string()); }
                 let slot = semantics.get_or_insert_with(|| parser.map_or(l::SemanticSlot::Empty, |reader| reader.begin_render(
                     l::ParseRequest { file: id, path: SourcePath(&source.path), bytes: ByteSlice(&bytes), notes: l::NoteRequest::Unwanted, fields: l::FieldRequest::Unwanted },
                     elements,
@@ -1223,7 +1266,7 @@ pub(crate) fn visit<L: FileSource>(
                 let [answer]: [l::RenderOutcome; 1] = answers.try_into().map_err(|_| "renderer returned the wrong number of answers")?;
                 Ok(answer)
             };
-            let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
+            let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes);
             facts_view.renderer = Some(&mut render);
             let t = thread_cpu();
             let lines = active
@@ -1367,13 +1410,41 @@ pub(crate) fn visit<L: FileSource>(
                 packet.rows.partials_at = partials_at;
                 std::mem::swap(&mut held.facts, &mut packet.rows);
             }
-            if let Some((previous, file)) = cached
+            clocks.evaluate += thread_cpu() - t;
+            spent_in_visit += thread_cpu() - inside;
+            };
+            let before_visit = thread_cpu();
+            let mut called = false;
+            let result = if cached_ready { None } else {
+                scoped.map(|supplier| supplier.visit(request, &requested,
+                    named_demand.as_deref().unwrap_or_default(),
+                    source.environment.as_deref().map(|e| e as &dyn l::FileProject),
+                    &mut l::Symbols::default(), &mut |file, dictionary| {
+                        assert!(!called, "a file version was supplied twice");
+                        called = true;
+                        consume(Some((file, dictionary)));
+                    }))
+            };
+            match result {
+                None if !called => consume(None),
+                Some(Ok(())) if called => {}
+                result => {
+                    let reason = result.and_then(|result| result.err()).map_or_else(
+                        || "provider did not deliver exactly one numbered file".to_owned(), |e| e.to_string());
+                    for &(_, slot) in jobs.iter() { answers.set(slot, Err(reason.clone())); }
+                }
+            }
+            if called {
+                // The supplier's elapsed clock spans the callback. The common
+                // visit has already charged its inspection and execution.
+                clocks.build_file += (thread_cpu() - before_visit - spent_in_visit).max(0.);
+            }
+            if !called && let Some((previous, file)) = cached
                 && let (Some(start), Some(end)) = (start, retention.clock()) {
                 // All allocations on this worker during the visit conservatively bound
                 // the new storage, including provider-owned opaque parser allocations.
                 retention.put(index, previous.saturating_add(end.wrapping_sub(start)), file);
             }
-            clocks.evaluate += thread_cpu() - t;
         }
         if let Some(start) = file_start {
             let elapsed = start.elapsed().as_secs_f64();

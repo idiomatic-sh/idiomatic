@@ -49,11 +49,46 @@ pub struct FileRows {
     pub partial: Option<crate::domain::reasons::types::ToolMessage>,
 }
 
+/// State that lives only while the consumer borrows the provider's numbered tree.
+pub struct NumberedFile<'a> {
+    /// All positions, including expansions, in the same namespace as every row.
+    pub tree: &'a crate::domain::node_table::types::NodeTable,
+    /// Text symbols by position, if requested, in the visit's symbol dictionary.
+    pub words: &'a [ryo_relations::domain::terms::types::Symbol],
+    /// Stable field names by the tree's physical field code.
+    pub fields: &'a crate::domain::fillers::types::FieldNames,
+    /// Whether the syntax and the lexical stream were read in full.
+    pub syntax: crate::domain::diagnostics::types::SyntaxCompleteness,
+    /// Completeness of the lexical stream independently of syntax recovery.
+    pub lexical: crate::domain::diagnostics::types::SyntaxCompleteness,
+    /// Provider-owned project evidence for this file.
+    pub notes: &'a ryo_relations::domain::relations::types::Bytes,
+    /// On-demand relations and rendering from the live parse.
+    pub facts: &'a mut dyn NumberedFacts,
+}
+
+/// Operations on a single borrowed file. A node cell must address its lent table.
+pub trait NumberedFacts {
+    /// Append catalog rows and their coverage into the consumer's writer.
+    fn fill(&mut self, relations: &[ryo_relations::domain::relations::types::Relation],
+        symbols: &mut Symbols, out: &mut dyn ryo_relations::domain::relations::types::RowWriter)
+        -> Result<(), super::errors::ParseError>;
+    /// Supply the named tables in request order.
+    fn named(&mut self, relations: &[&FileRelation], symbols: &mut Symbols)
+        -> Vec<Result<FileRows, super::errors::ParseError>>;
+    /// Render the queried position before releasing the parse.
+    fn render(&mut self, request: crate::domain::semantics::types::RenderRequest)
+        -> Result<crate::domain::semantics::types::RenderOutcome, super::errors::ParseError>;
+}
+
 /// Additional relations from the same numbered parse. An error means the provider
 /// could not establish a complete answer for this file.
 pub trait FileRelations: Send + Sync {
     /// Whether any of these producers consult repository observations.
     fn uses_project(&self) -> bool { false }
+
+    /// The scoped reader when this provider lends its native file.
+    fn numbered(&self) -> Option<&dyn NumberedVisit> { None }
 
     /// Every relation this provider can supply.
     fn declarations(&self) -> &'static [FileRelation];
@@ -84,4 +119,14 @@ pub trait FileRelations: Send + Sync {
         symbols: &mut Symbols,
         project: Option<&dyn FileProject>,
     ) -> Vec<Result<Vec<FactColumn>, super::errors::ParseError>>;
+}
+
+/// A provider that lends its own numbered tree until its consumer finishes.
+pub trait NumberedVisit: Send + Sync {
+    /// Lend the file once. Return a failure when it could not be read.
+    fn visit(&self, request: super::types::ParseRequest<'_>,
+        catalog: &[ryo_relations::domain::relations::types::Relation],
+        named: &[&FileRelation], project: Option<&dyn FileProject>,
+        symbols: &mut Symbols, consume: &mut dyn FnMut(NumberedFile<'_>, &mut Symbols))
+        -> Result<(), super::errors::ParseError>;
 }

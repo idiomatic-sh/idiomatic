@@ -17,6 +17,8 @@ pub(crate) trait Source: Clone + Sync {
         relations.iter().map(|schema| Err(format!("provider does not supply {}", schema.name))).collect()
     }
 
+    fn scoped(&self) -> Option<&dyn l::NumberedVisit> { None }
+
     fn begin_render(&self, _: l::ParseRequest<'_>, _: &mut Self::File) -> l::SemanticSlot {
         l::SemanticSlot::Empty
     }
@@ -95,6 +97,7 @@ impl From<l::Language> for Linked {
 impl Source for Linked {
     fn source_words(&self) -> Option<l::SourceWords> { self.parser.source_words() }
     fn uses_project(&self) -> bool { self.parser.file_relations().is_some_and(|p| p.uses_project()) }
+    fn scoped(&self) -> Option<&dyn l::NumberedVisit> { self.parser.file_relations().and_then(|reader| reader.numbered()) }
     fn begin_render(&self, request: l::ParseRequest<'_>, file: &mut Self::File) -> l::SemanticSlot {
         let mut slot = ryo_language::domain::elements::service::take_semantics(file);
         self.parser.begin_semantics(&request, file, &mut slot);
