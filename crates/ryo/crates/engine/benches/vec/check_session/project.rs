@@ -165,7 +165,7 @@ pub(crate) fn collect<L: super::FileSource>(
             .into_iter()
             .map(|path| match environment {
                 Some(env) if authority.disk().is_some() && env.authority == *authority => {
-                    EntryObservation { state: env.physical(&path), path }
+                    EntryObservation { state: env.physical(Path::new(path.0.as_ref())), path }
                 }
                 _ => authority.observe(&request.files, path),
             })

@@ -289,11 +289,30 @@ impl languages::FileRelations for ParseContract {
 
     fn read(&self, schemas: &[&languages::FileRelation], request: languages::ParseRequest<'_>, elements: &languages::Elements,
         tree: &languages::NodeTable, symbols: &mut languages::Symbols, project: Option<&dyn languages::FileProject>) -> Vec<Result<Vec<languages::FactColumn>, languages::ParseError>> {
-        use crate::fixtures::{columns::ColumnWalk, comment_positions};
+        self.read_covered(schemas, request, elements, tree, symbols, project).into_iter().map(|answer| {
+            let languages::FileRows { columns, partial } = answer?;
+            match partial {
+                Some(reason) => Err(languages::ParseError::Library { reason }),
+                None => Ok(columns),
+            }
+        }).collect()
+    }
+
+    fn read_covered(&self, schemas: &[&languages::FileRelation], request: languages::ParseRequest<'_>, elements: &languages::Elements,
+        tree: &languages::NodeTable, symbols: &mut languages::Symbols, project: Option<&dyn languages::FileProject>) -> Vec<Result<languages::FileRows, languages::ParseError>> {
+        use crate::fixtures::{columns::{ColumnFile, ColumnWalk}, comment_positions};
+        let syntax = languages::has_incomplete_syntax(elements);
+        let lexical = languages::has_incomplete_lexical_stream(elements);
+        let covered = |schema: &languages::FileRelation, answer: Result<_, languages::ParseError>| {
+            match ColumnFile::named_uncovered(schema, syntax, lexical) {
+                Some(partial) => Ok(partial),
+                None => answer.map(|columns| languages::FileRows { columns, partial: None }),
+            }
+        };
         if schemas.iter().all(|schema| comment_positions::SCHEMAS.contains(schema)) {
-            return comment_positions::Comments.read(schemas, request, elements, tree, symbols, project);
+            return schemas.iter().zip(comment_positions::Comments.read(schemas, request, elements, tree, symbols, project))
+                .map(|(schema, answer)| covered(schema, answer)).collect();
         }
-        use crate::fixtures::columns::ColumnFile;
         let projected: Vec<_> = schemas.iter().copied().filter(|s| **s != ColumnFile::NAMESPACE_SITES_SCHEMA).collect();
         let mut schedule = (projected.len() != schemas.len()).then(|| {
             use crate::domain::binding_results::types::EventKind;
@@ -327,7 +346,7 @@ impl languages::FileRelations for ParseContract {
             }
         };
         if projected.is_empty() {
-            return schemas.iter().map(|_| next_schedule()).collect();
+            return schemas.iter().map(|schema| covered(schema, next_schedule())).collect();
         }
         let mut result = None;
         let read = ColumnWalk::retained(self.settings, request, elements, &mut |file, positions| {
@@ -351,10 +370,10 @@ impl languages::FileRelations for ParseContract {
                 }
             };
             let lookup = project.filter(|p| p.roots().is_some()).map(|_| &mut prefixes as &mut dyn FnMut(&str) -> (String, String, bool));
-            let mut answers = file.answer_named_facts(&projected, request.file, request.path.0, request.bytes, symbols,
+            let mut answers = file.answer_named_facts_covered(&projected, request.file, request.path.0, request.bytes, symbols,
                 Some((&generic, &argument, modules)), observed_package, lookup);
             for (schema, answer) in projected.iter().zip(&mut answers) {
-                if let Ok(columns) = answer && let Err(error) = crate::fixtures::columns::positions::publish(columns, schema, request.file, positions) {
+                if let Ok(rows) = answer && let Err(error) = crate::fixtures::columns::positions::publish(&mut rows.columns, schema, request.file, positions) {
                     *answer = Err(error);
                 }
                 if let Some(error) = failure.as_ref().filter(|_| schema.name == "import-head") {
@@ -368,7 +387,7 @@ impl languages::FileRelations for ParseContract {
         })).collect());
         let mut answers = answers.into_iter();
         schemas.iter().map(|schema| if **schema == ColumnFile::NAMESPACE_SITES_SCHEMA {
-            next_schedule()
+            covered(schema, next_schedule())
         } else {
             answers.next().expect("requested projection")
         }).collect()
