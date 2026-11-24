@@ -86,7 +86,7 @@ pub fn report(
                     "Total executed instructions: {}.\n",
                     instructions(directory)?
                 )?;
-                functions(output, &text)?;
+                functions(output, &text, "Executed instructions")?;
             }
             writeln!(output, "\nFull tool report: `{}`.", report.display())?;
         }
@@ -162,11 +162,45 @@ fn samples(output: &mut impl io::Write, report: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn functions(output: &mut impl io::Write, report: &str) -> io::Result<()> {
+fn sample_changes(output: &mut impl io::Write, report: &str) -> io::Result<()> {
+    writeln!(
+        output,
+        "| Function | Image | First share (%) | Change (pct points) |"
+    )?;
+    writeln!(output, "|---|---|---:|---:|")?;
+    for line in report
+        .lines()
+        .filter(|line| !line.starts_with('#'))
+        .take(20)
+    {
+        let mut columns = line.split('\t').map(str::trim);
+        let (Some(base), Some(delta), Some(symbol), Some(image)) = (
+            columns.next(),
+            columns.next(),
+            columns.next(),
+            columns.next(),
+        ) else {
+            continue;
+        };
+        let symbol = symbol
+            .strip_prefix("[.] ")
+            .unwrap_or(symbol)
+            .replace('|', "\\|");
+        let image = image.replace('|', "\\|");
+        writeln!(
+            output,
+            "| {symbol} | {image} | {base} | {} |",
+            delta.trim_end_matches('%')
+        )?;
+    }
+    Ok(())
+}
+
+fn functions(output: &mut impl io::Write, report: &str, metric: &str) -> io::Result<()> {
     let (_, functions) = report
         .split_once("-- Function:file summary")
         .ok_or_else(|| io::Error::other("missing Cachegrind function summary"))?;
-    writeln!(output, "| Function | Executed instructions |\n|---|---:|")?;
+    writeln!(output, "| Function | {metric} |\n|---|---:|")?;
     for line in functions
         .lines()
         .filter_map(|line| line.strip_prefix('>'))
@@ -281,37 +315,50 @@ pub fn compare(
     let diff = other.1.join("differences");
     fs::create_dir_all(&diff)?;
     let mut perf = Command::new("perf");
-    perf.args(["diff", "--sort", "symbol,dso"])
+    perf.args(["diff", "--sort", "symbol,dso", "--field-separator", "\t"])
         .arg(base.1.join("samples/perf.data"))
         .arg(other.1.join("samples/perf.data"));
-    tool_diff(&mut perf, &diff.join("samples.txt"))?;
+    let samples = diff.join("samples.txt");
+    tool_diff(&mut perf, &samples)?;
+    writeln!(output, "\n### Software-clock sample changes by function\n")?;
+    sample_changes(output, &fs::read_to_string(&samples)?)?;
+    writeln!(output, "\nFull tool diff: `{}`.", samples.display())?;
     let mut heaptrack = Command::new("heaptrack_print");
     heaptrack
         .args(["-m", "false", "-n", "20", "-d"])
         .arg(heap_trace(&base.1.join("heap"))?)
         .arg("-f")
         .arg(heap_trace(&other.1.join("heap"))?);
-    tool_diff(&mut heaptrack, &diff.join("allocations.txt"))?;
-    writeln!(
-        output,
-        "\nFunction-sample and allocation-site differences are in `{}`.",
-        diff.display()
-    )?;
+    let allocations = diff.join("allocations.txt");
+    tool_diff(&mut heaptrack, &allocations)?;
+    let heap = fs::read_to_string(&allocations)?;
+    writeln!(output, "\n### Allocation and live-heap changes by site\n")?;
+    if let Some(peak) = heap
+        .lines()
+        .find_map(|line| line.strip_prefix("peak heap memory consumption: "))
+    {
+        writeln!(output, "Reported change in live heap at peak: {peak}.\n")?;
+    }
+    heap_sites(output, &heap)?;
+    writeln!(output, "\nFull tool diff: `{}`.", allocations.display())?;
     if [base.0, other.0]
         .iter()
         .all(|p| p.instructions.status.code() != Some(124))
     {
         let mut cachegrind = Command::new("cg_annotate");
         cachegrind
-            .args(["--diff", "--auto=no", "--show=Ir"])
+            .args(["--diff", "--auto=no", "--show=Ir", "--no-show-percs"])
             .arg(base.1.join("instructions/cachegrind.out"))
             .arg(other.1.join("instructions/cachegrind.out"));
-        tool_diff(&mut cachegrind, &diff.join("instructions.txt"))?;
-        writeln!(
+        let instructions = diff.join("instructions.txt");
+        tool_diff(&mut cachegrind, &instructions)?;
+        writeln!(output, "\n### Executed instruction changes by function\n")?;
+        functions(
             output,
-            "Instruction differences by function are in `{}`.",
-            diff.join("instructions.txt").display()
+            &fs::read_to_string(&instructions)?,
+            "Instruction change",
         )?;
+        writeln!(output, "\nFull tool diff: `{}`.", instructions.display())?;
     }
     Ok(())
 }
