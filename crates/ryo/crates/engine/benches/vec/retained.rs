@@ -180,19 +180,30 @@ fn tree(
         } else if meta.is_dir() {
             tree(hash, root, &path, cache, obs)?;
         } else if meta.is_symlink() {
-            let resolved = fs::canonicalize(&path)?;
-            if !resolved.starts_with(root) || resolved.starts_with(cache) {
-                return Err(invalid("link leaves the declared source scope"));
+            let target = fs::read_link(&path)?;
+            field(hash, target.as_os_str().as_encoded_bytes());
+            match fs::canonicalize(&path) {
+                Ok(resolved) if resolved.starts_with(root) && !resolved.starts_with(cache) => {
+                    field(hash, &[1]);
+                    field(
+                        hash,
+                        resolved
+                            .strip_prefix(root)
+                            .unwrap()
+                            .as_os_str()
+                            .as_encoded_bytes(),
+                    );
+                }
+                Err(e)
+                    if e.kind() == io::ErrorKind::NotFound
+                        && local(&target)
+                        && !path.parent().unwrap().join(&target).starts_with(cache) =>
+                {
+                    // The complete directory walk proves absence inside the declared scope.
+                    field(hash, &[0]);
+                }
+                _ => return Err(invalid("link leaves the declared source scope")),
             }
-            field(hash, fs::read_link(&path)?.as_os_str().as_encoded_bytes());
-            field(
-                hash,
-                resolved
-                    .strip_prefix(root)
-                    .unwrap()
-                    .as_os_str()
-                    .as_encoded_bytes(),
-            );
         } else {
             return Err(invalid("scope includes a special entry"));
         }
