@@ -647,7 +647,9 @@ impl Batch {
         }
         self.clocks.project_prepare_wall += wall.elapsed().as_secs_f64();
         let mut readers=readers::Closed::new(&self.work,&self.cut_of,keep);
+        #[cfg(feature = "product-session")]
         let workers = self.workers.map_or(1, std::num::NonZeroUsize::get);
+        #[cfg(feature = "product-session")]
         if keep && store.is_none() && workers > 1 && groups.len() >= 16 {
             self.clocks.project_shards += workers.min(groups.len());
             self.clocks.project_workers_cpu += closed_workers::run(
