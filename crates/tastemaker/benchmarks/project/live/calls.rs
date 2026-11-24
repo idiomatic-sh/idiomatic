@@ -30,6 +30,25 @@ pub struct LiveReport {
     pub unread: Vec<Box<str>>,
 }
 
+/// Options supplied by the caller of the pinned SDK check.
+#[derive(Clone, Copy, Default)]
+pub struct LiveOptions {
+    pub workers: Option<std::num::NonZeroUsize>,
+    pub reverse_files: bool,
+}
+
+// The pinned CLI has one check invocation. The SDK receives these values
+// explicitly even though its session resides on the host's scheduler thread.
+static CHECK_OPTIONS: std::sync::OnceLock<LiveOptions> = std::sync::OnceLock::new();
+
+pub fn configure_bench_check(workers: Option<std::num::NonZeroUsize>, reverse_files: bool) {
+    let _ = CHECK_OPTIONS.set(LiveOptions { workers, reverse_files });
+}
+
+pub fn check_options() -> LiveOptions {
+    CHECK_OPTIONS.get().copied().unwrap_or_default()
+}
+
 pub struct Live {
     batch: Batch,
     store:Option<super::stored::Store>,
@@ -38,7 +57,6 @@ pub struct Live {
     languages: Vec<Pinned>,
     filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
-    reverse_files: bool,
     admission_wall: f64,
     admission_workers_cpu: f64,
     admission_shards: usize,
@@ -60,15 +78,8 @@ impl Default for Live {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .sessions += 1;
-        let workers: Option<std::num::NonZeroUsize> = std::env::var_os("TM_BENCH_WORKERS").map(|n| {
-            n.to_str().and_then(|n| n.parse().ok()).expect("positive worker count")
-        });
         Self {
-            batch: Batch {
-                workers,
-                ..Default::default()
-            },
-            reverse_files: std::env::var_os("TM_BENCH_REVERSE_FILES").is_some(),
+            batch: Batch::default(),
             admission_wall: 0.0,
             admission_workers_cpu: 0.0,
             admission_shards: 0,
@@ -172,6 +183,7 @@ impl Live {
         req: sdk::LintRequest,
         linked: &sdk::Languages,
         memory: sdk::MemoryBudget,
+        options: LiveOptions,
     ) -> Result<LiveReport, String> {
         let wall = Instant::now();
         let t = thread_cpu();
@@ -182,7 +194,8 @@ impl Live {
         };
         self.state.retention.configure(limit, allocated::bytes);
         let count = req.rules.len();
-        let result = self.answer(req, linked);
+        self.batch.workers = options.workers;
+        let result = self.answer(req, linked, options.reverse_files);
         let mut last = MEASURED
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -196,6 +209,10 @@ impl Live {
         last.elapsed += thread_cpu() - t;
         last.worker_cpu = c.delivery_workers_cpu + c.file_workers_cpu + c.project_workers_cpu + self.admission_workers_cpu;
         last.file_shards = c.file_shards;
+        last.dispatch_wall = [c.inventory_wall, c.join_wall, c.shard_critical_wall, c.shard_busy_wall, c.largest_file_wall];
+        if c.largest_file_wall > 0. {
+            last.largest_file.clone_from(&c.largest_file);
+        }
         last.parallel_rows = self.parallel_rows;
         last.delivery_dictionaries = self.delivery_dictionaries;
         last.empty_file_epochs = c.empty_file_epochs;
@@ -242,6 +259,7 @@ impl Live {
         &mut self,
         req: sdk::LintRequest,
         linked: &sdk::Languages,
+        reverse_files: bool,
     ) -> Result<LiveReport, String> {
         let admission = Instant::now();
         if self.languages.is_empty() {
@@ -261,7 +279,7 @@ impl Live {
             }
             _ => return Err("a closed source inventory is required".into()),
         };
-        if self.reverse_files {
+        if reverse_files {
             listed.reverse();
             given.reverse();
         }
@@ -553,6 +571,8 @@ struct Measurement {
     elapsed: f64,
     worker_cpu: f64,
     file_shards: usize,
+    dispatch_wall: [f64; 5],
+    largest_file: String,
     parallel_rows: usize,
     delivery_dictionaries: usize,
     empty_file_epochs: usize,
@@ -576,6 +596,8 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     elapsed: 0.0,
     worker_cpu: 0.0,
     file_shards: 0,
+    dispatch_wall: [0.; 5],
+    largest_file: String::new(),
     parallel_rows: 0,
     delivery_dictionaries: 0,
     empty_file_epochs: 0,
@@ -590,8 +612,24 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     retained: [0; 4],
 });
 
+#[derive(Clone, Copy)]
+pub enum HostPhase { Conversion, Validation, Emission }
+
+static HOST: std::sync::Mutex<[f64; 3]> = std::sync::Mutex::new([0.; 3]);
+
+pub fn host_wall(phase: HostPhase, seconds: f64) {
+    HOST.lock().expect("host clocks")[phase as usize] += seconds;
+}
+
+pub fn host_snapshot() -> (f64, f64) {
+    let sdk = MEASURED.lock().expect("SDK clocks").call_wall;
+    (sdk, HOST.lock().expect("host clocks")[HostPhase::Conversion as usize])
+}
+
 /// Print the one executor's cumulative counters to the benchmark log after the host renders.
 pub fn print_measurement() {
+    let [conversion, validation, emission] = *HOST.lock().expect("host clocks");
+    eprintln!("LIVE_HOST_WALL conversion={conversion:.6} validation={validation:.6} emission={emission:.6}");
     let m = MEASURED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -601,6 +639,11 @@ pub fn print_measurement() {
     let [versions,hits,evictions,peak_charge]=m.retained;
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;
+    let [inventory, join, critical, busy, largest] = m.dispatch_wall;
+    eprintln!("LIVE_FILE_WALL inventory={inventory:.6} join={join:.6} critical={critical:.6} busy={busy:.6} largest={largest:.6}");
+    if largest > 0. {
+        eprintln!("LIVE_LARGEST_FILE {:?}", m.largest_file);
+    }
     let [admission_wall, file_wall, project_wall, delivery_wall] = m.phase_wall;
     eprintln!("LIVE_DELIVERY rows={} dictionary_borrows={}", m.parallel_rows, m.delivery_dictionaries);
     eprintln!(

@@ -17,7 +17,7 @@ impl<'a> FileInputs<'a> {
         bound: &super::Bindings<'_>,
         programs: &'a [Result<Program>],
         program_of: &[usize],
-        cut_of: &[Option<&Partition>],
+        cut_of: &[Option<std::sync::Arc<Partition>>],
     ) -> Self {
         let mut shared_columns = BTreeMap::<&str, Vec<bool>>::new();
         for &(binding, _, _) in active {

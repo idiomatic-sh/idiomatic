@@ -23,7 +23,7 @@ impl Checks {
         programs: &[Result<Program>],
         program_of: &[usize],
         needed: &[bool],
-        cuts: &[Option<&crate::finish::partition::Partition>],
+        cuts: &[Option<std::sync::Arc<crate::finish::partition::Partition>>],
     ) -> Self {
         let mut roots = vec![Vec::new(); program_of.len()];
         let mut domains = vec![Vec::new(); program_of.len()];
@@ -153,7 +153,7 @@ impl Checks {
         requested: &[l::Relation],
         packet: &reader_run::packet::Packet,
         unknown: &HashMap<u32, u32>,
-        cuts: &[Option<&crate::finish::partition::Partition>],
+        cuts: &[Option<std::sync::Arc<crate::finish::partition::Partition>>],
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
     ) {
         self.live.fill(false);
@@ -282,7 +282,7 @@ pub(super) struct Retained {
 impl Retained {
     pub(super) fn groups<L: FileSource>(
         &mut self, parser: Option<&L>, programs: &[Result<Program>], program_of: &[usize],
-        cuts: &[Option<&crate::finish::partition::Partition>],
+        cuts: &[Option<std::sync::Arc<crate::finish::partition::Partition>>],
         active: &mut [(usize, usize, bool)],
         mut visit: impl FnMut(&mut Checks, &mut [(usize, usize, bool)]),
     ) -> f64 {

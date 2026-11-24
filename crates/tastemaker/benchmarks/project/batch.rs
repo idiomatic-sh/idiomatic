@@ -99,12 +99,12 @@ type HostSchema = Vec<(String, Vec<(String, String)>)>;
 
 struct Admission {
     id: usize,
-    contract: Rc<session::completeness::Contract>,
+    contract: std::sync::Arc<session::completeness::Contract>,
     project_bases: Vec<l::Relation>,
     closed: bool,
     file_cells: bool,
     file_inventory: bool,
-    cut: Option<Rc<finish::partition::Partition>>,
+    cut: Option<std::sync::Arc<finish::partition::Partition>>,
 }
 
 #[derive(Default)]
@@ -112,7 +112,7 @@ struct Batch {
     workers: Option<std::num::NonZeroUsize>,
     schedule: session::Schedule,
     program_of: Vec<usize>,
-    bindings: Vec<Rc<[Hosted]>>,
+    bindings: Vec<std::sync::Arc<[Hosted]>>,
     host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
     binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
     queries: HashMap<String, Rc<str>>,
@@ -123,11 +123,11 @@ struct Batch {
     roots: HashMap<String, PathBuf>,
     authorities: Authorities,
     projects: Vec<ProjectSpec>,
-    cut_of: Vec<Option<Rc<finish::partition::Partition>>>,
+    cut_of: Vec<Option<std::sync::Arc<finish::partition::Partition>>>,
     local_bindings: HashMap<usize, usize>,
     project_keys: HashMap<(String, Authority, Rc<Vec<String>>), usize>,
     admissions: HashMap<(usize, HostSchema), Rc<Admission>>,
-    bound_contracts: HashMap<usize, Rc<session::completeness::Contract>>,
+    bound_contracts: HashMap<usize, std::sync::Arc<session::completeness::Contract>>,
     clocks: Clock,
     populations_built: usize,
     relations_built: usize,
@@ -177,7 +177,7 @@ impl Admission {
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
-        let contract = Rc::new(session::completeness::describe(query, program, relations)?);
+        let contract = std::sync::Arc::new(session::completeness::describe(query, program, relations)?);
         let held: Vec<_> = program
             .bases
             .iter()
@@ -216,7 +216,7 @@ impl Admission {
                         || hosted.iter().any(|t| t.name == n)
                 },
             )?;
-            Some(Rc::new(scoped))
+            Some(std::sync::Arc::new(scoped))
         } else {
             None
         };
@@ -362,7 +362,7 @@ impl Batch {
                 return Ok(Work::Project(Rc::new(Ok(session::Reported::skipped(&inventory)))));
             }
             let binding = self.binding(rule, class.id, req.hosted);
-            self.bound_contracts.insert(binding, Rc::clone(contract));
+            self.bound_contracts.insert(binding, std::sync::Arc::clone(contract));
             let pairs = if let Some(c) = &class.cut {
                 self.cut_of[binding] = Some(c.clone());
                 // Caller rows are consumed only after closure. Sources with the same
@@ -476,7 +476,6 @@ impl Batch {
         let pending: Vec<_> = std::mem::take(&mut self.schedule.pending)
             .into_iter()
             .collect();
-        let manifests: BTreeSet<_> = languages.iter().flat_map(|l| l.manifests()).collect();
         let unclaimed = languages.len();
         reader_states.resize_with(unclaimed + 1, Default::default);
         let mut groups = vec![Vec::new(); unclaimed + 1];
@@ -499,9 +498,9 @@ impl Batch {
         }
         self.clocks.pairs = self.schedule.pairs;
         if groups.iter().any(|files| !files.is_empty()) {
-            let cuts: Vec<_> = self.cut_of.iter().map(|cut| cut.as_deref()).collect();
-            let contracts = self.bound_contracts.iter().map(|(&id, c)| (id, c.as_ref())).collect();
-            let hosted: Vec<_> = self.bindings.iter().map(|t| t.as_ref()).collect();
+            let manifests: BTreeSet<_> = languages.iter().flat_map(|l| l.manifests()).collect();
+            self.clocks.omitted_file_bindings += self.bindings.len();
+            let hosted = &self.bindings;
             let file_workers = if store.is_some() && *keep { Some(std::num::NonZeroUsize::MIN) } else { self.workers };
             let paths = (!*keep || (pending.len() >= 128 && file_workers.is_some_and(|n| n.get() > 1)))
                 .then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
@@ -523,15 +522,15 @@ impl Batch {
                     contributions,
                     &self.schedule.programs,
                     &self.program_of,
-                    &contracts,
-                    &cuts,
+                    &self.bound_contracts,
+                    &self.cut_of,
                     world,
                     &self.schedule.sources,
                     &files,
                     aliases,
                     answers,
                     |binding, run| {
-                        Ok(bind_tables(hosted[binding], run, |_| None)?
+                        Ok(bind_tables(&hosted[binding], run, |_| None)?
                             .into_iter()
                             .map(|(n, t)| (n, Rc::new(t)))
                             .collect())
@@ -661,7 +660,7 @@ impl Batch {
             let groups: Vec<_> = groups.into_values().collect();
             self.clocks.project_shards += workers.min(groups.len());
             let worker_cpu = closed_workers::run(
-                workers, self, world, populations, answers, groups.into_iter(), &readers.duplicate,
+                workers, self, world, populations, answers, groups.into_iter(), &mut readers,
             );
             self.clocks.project_workers_cpu += worker_cpu;
             self.clocks.project += thread_cpu() - t;
@@ -695,8 +694,8 @@ impl Batch {
                     match input {
                         closed_workers::Inputs::Withheld(answer) => Ok(answer),
                         closed_workers::Inputs::Ready { carried, incomplete, unknowns } => {
-                            let numbers: Vec<_> = inventory.iter().map(|p| world.file(p)).collect();
-                            execute_ids(&mut exec, &mut world.run, &numbers, &carried, inventory,
+                            let numbers = readers.numbers(i, inventory, world);
+                            execute_ids(&mut exec, &mut world.run, numbers, &carried, inventory,
                                 files, &self.bindings[*binding], p, &incomplete)
                                 .map(|rows| session::Reported { rows, unknowns })
                         }

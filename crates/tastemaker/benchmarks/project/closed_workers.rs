@@ -165,23 +165,20 @@ pub(super) fn run(
     populations: &HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
     answers: &[Answer],
     groups: impl Iterator<Item = Vec<usize>>,
-    duplicate: &[Option<usize>],
+    readers: &mut readers::Closed,
 ) -> f64 {
     let mut programs = Vec::new();
-    let mut numbers = HashMap::<usize, Vec<u32>>::new();
     for slots in groups {
         let mut jobs = Vec::new();
         let mut plan = None;
         for slot in slots {
-            if duplicate[slot].is_some() {
+            if readers.duplicate[slot].is_some() {
                 continue;
             }
             let Work::Closed { pairs, project, binding, inventory, files } = &batch.work[slot]
                 else { unreachable!("closed program task") };
-            let inventory_key = Rc::as_ptr(inventory) as usize;
-            numbers.entry(inventory_key).or_insert_with(|| {
-                inventory.iter().map(|path| world.file(path)).collect()
-            });
+            let inventory_key = readers.inventory_id(slot);
+            readers.numbers(slot, inventory, world);
             plan = Some(&batch.schedule.programs[batch.program_of[*binding]].as_ref().unwrap().plan);
             jobs.push(Job {
                 slot,
@@ -199,6 +196,7 @@ pub(super) fn run(
             programs.push((plan, jobs));
         }
     }
+    let numbers = readers.numbered_inventories();
     let frontier = session::SharedFrontier::new(world, programs.iter().flat_map(|(_, jobs)| {
         jobs.iter().filter(|job| job.cut.is_some()).flat_map(|job| job.pairs.iter().copied())
     }));
@@ -242,7 +240,7 @@ pub(super) fn run(
                     {
                         Inputs::Withheld(answer) => Ok(answer),
                         Inputs::Ready { carried, incomplete, unknowns } => {
-                            execute_ids(&mut exec, &mut run, &numbers[&job.inventory_key], &carried,
+                            execute_ids(&mut exec, &mut run, numbers[job.inventory_key].as_deref().expect("closed inventory assigned"), &carried,
                                 job.inventory, job.files, job.hosted, p, &incomplete)
                                 .map(|rows| session::Reported { rows, unknowns })
                         }
@@ -272,7 +270,7 @@ pub(super) fn run(
     for (slot, answer) in results {
         batch.work[slot] = Work::Project(Rc::new(answer));
     }
-    for (slot, prior) in duplicate.iter().enumerate() {
+    for (slot, prior) in readers.duplicate.iter().enumerate() {
         if let Some(prior) = prior {
             let Work::Project(answer) = &batch.work[*prior] else { unreachable!("closed request owner") };
             batch.work[slot] = Work::Project(answer.clone());

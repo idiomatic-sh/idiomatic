@@ -121,6 +121,13 @@ impl Program {
 pub(crate) struct Clock {
     pub(crate) readers: BTreeMap<String, ReaderParts>,
     pub inventory: f64,
+    pub inventory_wall: f64,
+    pub join_wall: f64,
+    pub shard_critical_wall: f64,
+    pub shard_busy_wall: f64,
+    pub largest_file_wall: f64,
+    pub largest_file: String,
+    pub measure_file_wall: bool,
     pub join: f64,
     pub prepare: f64,
     pub read_parse: f64,
@@ -654,8 +661,8 @@ pub(crate) fn visit<L: FileSource>(
     contributions: &mut (impl Slots<Option<Rc<project::Contribution>>> + ?Sized),
     programs: &[Result<Program>],
     program_of: &[usize],
-    contracts: &HashMap<usize, &completeness::Contract>,
-    cut_of: &[Option<&finish::partition::Partition>],
+    contracts: &HashMap<usize, std::sync::Arc<completeness::Contract>>,
+    cut_of: &[Option<std::sync::Arc<finish::partition::Partition>>],
     world: &mut World,
     sources: &[Source],
     selected: &[usize],
@@ -726,6 +733,7 @@ pub(crate) fn visit<L: FileSource>(
         carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
     }
     for group in by_path.values() {
+        let file_start = clocks.measure_file_wall.then(std::time::Instant::now);
         let t = thread_cpu();
         let versions = versions(
             group,
@@ -1148,6 +1156,13 @@ pub(crate) fn visit<L: FileSource>(
                 retention.put(index, previous.saturating_add(end.wrapping_sub(start)), file);
             }
             clocks.evaluate += thread_cpu() - t;
+        }
+        if let Some(start) = file_start {
+            let elapsed = start.elapsed().as_secs_f64();
+            if elapsed > clocks.largest_file_wall {
+                clocks.largest_file_wall = elapsed;
+                clocks.largest_file.clone_from(&sources[group[0]].path);
+            }
         }
         if let Some(boundaries) = &mut world.boundaries {
             boundaries.push((group[0], world.run.paths.len(), world.run.texts.len()));
