@@ -89,7 +89,7 @@ pub(super) fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Optio
 pub(super) struct PreparedGlob {
     pattern: u32,
     matcher: ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs,
-    last: std::cell::Cell<Option<(u32, bool)>>,
+    last: std::cell::Cell<Option<(u64, bool)>>,
 }
 
 // The compiled plan identity is independent of which subject was visited last.
@@ -112,19 +112,26 @@ impl PreparedGlob {
         MatchingUseCaseImpl::new().matches_text_globs(&self.matcher, SearchText(&subject)) == MatchOutcome::Matches
     }
 
-    fn symbol(&self, run: &Run, id: u32) -> bool {
-        if let Some((last, answer)) = self.last.get() && id == last {
+    fn subject<'a>(&self, key: u64, bytes: impl FnOnce() -> &'a [u8]) -> bool {
+        if let Some((last, answer)) = self.last.get() && last == key {
             return answer;
         }
-        let answer = self.bytes(run.text(id));
-        self.last.set(Some((id, answer)));
+        let answer = self.bytes(bytes());
+        self.last.set(Some((key, answer)));
         answer
+    }
+
+    fn symbol(&self, run: &Run, id: u32) -> bool {
+        self.subject(u64::from(id), || run.text(id))
     }
 
     pub(super) fn matches(&self, run: &Run, value: V) -> bool {
         match value.ty() {
             Ty::Sym => self.symbol(run, value.1 as u32),
-            Ty::File => self.symbol(run, run.path_sym[value.1 as usize]),
+            Ty::File => {
+                let id = value.1 as u32;
+                self.subject((1u64 << 32) | u64::from(id), || run.paths[id as usize].as_bytes())
+            }
             _ => self.bytes(&text_of(run, value)),
         }
     }
