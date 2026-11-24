@@ -70,6 +70,7 @@ struct Batch {
 
 #[derive(Default)]
 struct Active<F: Default, D: Default> {
+    paths: Arc<Vec<String>>,
     keep: bool,
     manifests: Option<BTreeSet<&'static str>>,
     retention: session::Retention<F,D>,
@@ -340,6 +341,7 @@ impl Batch {
         mut store:Option<&mut stored::Store>,
     ) {
         let Active {
+            paths,
             keep,
             manifests,
             retention,
@@ -392,8 +394,10 @@ impl Batch {
             self.clocks.omitted_file_bindings += self.bindings.len();
             let hosted = &self.bindings;
             let file_workers = if store.is_some() && *keep { Some(std::num::NonZeroUsize::MIN) } else { self.workers };
-            let paths = (!*keep || (pending.len() >= 128 && file_workers.is_some_and(|n| n.get() > 1)))
-                .then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
+            let start = paths.len();
+            if start < self.schedule.sources.len() {
+                Arc::make_mut(paths).extend(self.schedule.sources[start..].iter().map(|s| s.path.clone()));
+            }
             let readers = languages.iter().map(Some).chain([None]);
             for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
                 if files.is_empty() {
@@ -402,7 +406,7 @@ impl Batch {
                 session::worker::dispatch(
                     file_workers,
                     languages,
-                    paths.as_ref(),
+                    paths,
                     &mut reader_states[reader_id],
                     retention,
                     *keep,

@@ -747,10 +747,7 @@ pub(crate) fn visit<L: FileSource>(
         }
         public
     });
-    if run.paths.len() < sources.len() {
-        let start = run.paths.len();
-        Arc::make_mut(&mut run.paths).extend(sources[start..].iter().map(|src| src.path.clone()));
-    }
+    debug_assert_eq!(run.paths.len(), sources.len());
     let t = thread_cpu();
     let mut needed = vec![false; program_of.len()];
     for &index in selected {

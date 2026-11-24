@@ -53,7 +53,7 @@ impl Slots<usize> for PairAliases {
 pub(crate) fn dispatch<L: FileSource>(
     request: Option<NonZeroUsize>,
     languages: &[L],
-    paths: Option<&Arc<Vec<String>>>,
+    paths: &Arc<Vec<String>>,
     state: &mut ReaderState,
     retention: &mut Retention<L::File, L::Dictionary>,
     keep: bool,
@@ -79,11 +79,9 @@ pub(crate) fn dispatch<L: FileSource>(
         .min(selected.len());
     // Reuse the open reader for small SDK calls and when a finite cache budget
     // requires a single global admission order.
-    let parallel_open = keep && paths.is_some() && selected.len() >= 128 && !retention.has_limit();
+    let parallel_open = keep && selected.len() >= 128 && !retention.has_limit();
     if (keep && !parallel_open) || count <= 1 {
-        if !keep && let Some(paths) = paths {
-            state.run.paths = paths.clone();
-        }
+        let previous_paths = std::mem::replace(&mut state.run.paths, Arc::clone(paths));
         visit(
             state,
             retention,
@@ -104,6 +102,7 @@ pub(crate) fn dispatch<L: FileSource>(
             host,
             clocks,
         );
+        state.run.paths = previous_paths;
         return;
     }
     let inventory_wall = std::time::Instant::now();
@@ -153,7 +152,7 @@ pub(crate) fn dispatch<L: FileSource>(
         let mut notes = Vec::new();
         let mut time = Clock { measure_file_wall: true, ..Default::default() };
         let mut local = ReaderState::default();
-        local.run.paths = paths.expect("file worker inventory").clone();
+        local.run.paths = Arc::clone(paths);
         if parallel_open {
             local.bytes.extend(files.iter().filter_map(|id| {
                 snapshots.get(id).map(|value| (*id, value.clone()))
