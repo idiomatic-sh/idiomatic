@@ -8,8 +8,7 @@ mod pinned;
 mod call_cache;
 #[path = "allocated.rs"]
 mod allocated;
-use call_cache::CallCache;
-use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
+use call_cache::{CallCache, PathFilter};
 use pinned::{Dictionary, Pinned};
 use release_sdk::linter as sdk;
 use ryo_values::domain::finish_plans::expressions::types::{
@@ -36,7 +35,7 @@ pub struct Live {
     directory:Option<std::path::PathBuf>,
     state: Active<pinned::File, Dictionary>,
     languages: Vec<Pinned>,
-    filters: HashMap<Vec<sdk::Glob>, (usize, Rc<GlobSet>)>,
+    filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
     versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
 }
@@ -129,20 +128,12 @@ impl Live {
         }
         Ok(())
     }
-    fn globs(&mut self, names: &[sdk::Glob]) -> Result<(usize, Rc<GlobSet>), String> {
+    fn globs(&mut self, names: &[sdk::Glob]) -> Result<(usize, Rc<PathFilter>), String> {
         if let Some(found) = self.filters.get(names) {
             return Ok(found.clone());
         }
-        let mut builder = GlobSetBuilder::new();
-        for name in names {
-            builder.add(
-                GlobBuilder::new(name.as_ref())
-                    .literal_separator(true)
-                    .build()
-                    .map_err(|e| e.to_string())?,
-            );
-        }
-        let set = (self.filters.len(), Rc::new(builder.build().map_err(|e| e.to_string())?));
+        let matcher = PathFilter::compile(names)?;
+        let set = (self.filters.len(), Rc::new(matcher));
         self.filters.insert(names.to_vec(), set.clone());
         Ok(set)
     }
@@ -267,11 +258,12 @@ impl Live {
             }
             let inc = self.globs(&rule.include)?;
             let exc = self.globs(&rule.exclude)?;
-            let files = self.cache.files((inventory, filter.0, inc.0, exc.0), |p| {
-                    (req.files.is_empty() || filter.1.is_match(p))
-                        && (rule.include.is_empty() || inc.1.is_match(p))
-                        && !exc.1.is_match(p)
-            });
+            let files = self.cache.files(
+                (inventory, filter.0, inc.0, exc.0),
+                &filter.1,
+                &inc.1,
+                &exc.1,
+            );
             let parameters = rule
                 .parameters
                 .into_iter()
