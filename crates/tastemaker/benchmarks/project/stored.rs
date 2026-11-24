@@ -193,6 +193,7 @@ pub(super) struct Store {
     restored_blocks: usize,
     packets_packed: usize,
     packed_rows: usize,
+    rendered_packets: usize,
     pack_cpu: f64,
 }
 fn table(dir: &Path, name: &str, digest: Key) -> PathBuf {
@@ -278,6 +279,7 @@ impl Store {
             restored_blocks: 0,
             packets_packed: 0,
             packed_rows: 0,
+            rendered_packets: 0,
             pack_cpu: 0.0,
         })
     }
@@ -355,9 +357,19 @@ impl Store {
         Ok(written)
     }
     pub(super) fn costs(&self) {
-        eprintln!("table_read_cpu pairs={:.6} project={:.6} requests={:.6} inputs={:.6} answers={:.6}",
-            self.files.read_cpu, self.notes.read_cpu, self.requests.read_cpu, self.groups.read_cpu, self.packets.read_cpu);
-        eprintln!("packets_packed={} packed_rows={} packet_build_cpu={:.6}", self.packets_packed, self.packed_rows, self.pack_cpu);
+        eprintln!(
+            "table_read_cpu pairs={:.6} project={:.6} requests={:.6} inputs={:.6} answers={:.6}",
+            self.files.read_cpu,
+            self.notes.read_cpu,
+            self.requests.read_cpu,
+            self.groups.read_cpu,
+            self.packets.read_cpu
+        );
+        eprintln!(
+            "packets_packed={} packed_rows={} packet_build_cpu={:.6}",
+            self.packets_packed, self.packed_rows, self.pack_cpu
+        );
+        eprintln!("rendered_packets={}", self.rendered_packets);
         let o = &self.observed;
         eprintln!("observation_open_cpu={:.6}", o.open_cpu);
         eprintln!(
@@ -440,24 +452,30 @@ impl Store {
     pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
         let (proof, unread) = self.plans.get_mut(idx)?.take()?;
         let start = crate::thread_cpu();
-        let k = self.put(id, Packet::save(r), proof, unread);
+        let k = self.put(id, Packet::save(r), proof, unread, || {
+            super::digest(&r.rows)
+        });
         self.pack_cpu += crate::thread_cpu() - start;
         self.packets_packed += 1;
         self.packed_rows += r.rows.len();
         Some(k)
     }
     pub(super) fn decline(&mut self, id: Key, reason: &str) {
-        self.put(id, Packet::declined(reason), vec![], vec![]);
+        self.put(id, Packet::declined(reason), vec![], vec![], String::new);
     }
-    fn put(&mut self, id: Key, packet: Packet, proof: Vec<Proof>, unread: Vec<String>) -> Key {
-        let k = key((
-            &packet.refusal,
-            &packet.digest,
-            &packet.unknowns,
-            packet.typed_bytes(),
-        ));
+    fn put(
+        &mut self,
+        id: Key,
+        mut packet: Packet,
+        proof: Vec<Proof>,
+        unread: Vec<String>,
+        render: impl FnOnce() -> String,
+    ) -> Key {
+        let k = key((&packet.refusal, &packet.unknowns, packet.typed_bytes()));
         self.packets.open(&self.dir, &k);
         if self.packets.get(&k).is_none() {
+            packet.digest = render();
+            self.rendered_packets += 1;
             self.packets.insert(k, packet);
         }
         self.requests.open(&self.dir, &id);

@@ -257,7 +257,7 @@ impl Packet {
     pub(super) fn save(receipt: &Receipt<'_>) -> Self {
         Self {
             refusal: None,
-            digest: super::super::digest(&receipt.rows),
+            digest: String::new(),
             unknowns: receipt.unknowns.iter().map(|v| (*v).clone()).collect(),
             data: pack_rows(receipt.rows.iter().copied()),
         }
@@ -287,23 +287,37 @@ pub(super) fn pack_rows<'a>(rows: impl IntoIterator<Item = &'a finish::answer::R
     }
     let mut schemas = Vec::new();
     let mut ids = BTreeMap::new();
+    let mut previous: Option<(&finish::answer::Row, usize)> = None;
     let rows = rows
         .into_iter()
         .map(|r| {
-            let shape = (
-                &r.rule,
-                r.columns.iter().map(|(n, _)| n).collect::<Vec<_>>(),
-                &r.identity,
-            );
-            let schema = *ids.entry(shape).or_insert_with(|| {
-                let i = schemas.len();
-                schemas.push(Schema {
-                    rule: r.rule.clone(),
-                    columns: r.columns.iter().map(|(n, _)| n.clone()).collect(),
-                    identity: r.identity.clone(),
-                });
-                i
-            });
+            let schema = if let Some((prior, id)) = previous
+                && prior.rule == r.rule
+                && prior.identity == r.identity
+                && prior
+                    .columns
+                    .iter()
+                    .map(|c| &c.0)
+                    .eq(r.columns.iter().map(|c| &c.0))
+            {
+                id
+            } else {
+                let shape = (
+                    &r.rule,
+                    r.columns.iter().map(|(n, _)| n).collect::<Vec<_>>(),
+                    &r.identity,
+                );
+                *ids.entry(shape).or_insert_with(|| {
+                    let i = schemas.len();
+                    schemas.push(Schema {
+                        rule: r.rule.clone(),
+                        columns: r.columns.iter().map(|(n, _)| n.clone()).collect(),
+                        identity: r.identity.clone(),
+                    });
+                    i
+                })
+            };
+            previous = Some((r, schema));
             PackedRow {
                 schema,
                 values: r
