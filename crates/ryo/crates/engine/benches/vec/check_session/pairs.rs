@@ -8,11 +8,13 @@ use crate::{
     pair_summary::{self, LocationColumn, Source as FactSource},
 };
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
+use ryo_values::domain::finish_plans::types::FinishStep;
 use std::{collections::{BTreeSet, HashMap}, sync::Arc};
 
 pub(super) struct Checks {
     program: pair_summary::Program,
     roots: Vec<Option<Vec<usize>>>,
+    lefts: Vec<Vec<usize>>,
     domains: Vec<Vec<(usize, usize)>>,
     live: Vec<bool>,
     selected: Vec<u64>,
@@ -52,9 +54,22 @@ impl Checks {
         mut roots: Vec<Vec<usize>>, mut domains: Vec<Vec<(usize, usize)>>,
     ) -> Self {
         let mut steps = vec![BTreeSet::new(); programs.len()];
+        let mut lefts = vec![Vec::new(); roots.len()];
         for (binding, outputs) in roots.iter().enumerate() {
-            steps[program_of[binding]].extend(outputs.iter().copied());
-            steps[program_of[binding]].extend(domains[binding].iter().map(|&(_, d)| d));
+            let id = program_of[binding];
+            let wanted = &mut steps[id];
+            wanted.extend(outputs.iter().copied());
+            wanted.extend(domains[binding].iter().map(|&(_, d)| d));
+            if let Ok(program) = &programs[id]
+                && outputs.iter().copied().eq(program.plan.emits.iter().map(|emit| emit.1))
+                && let Some(left) = outputs.iter().map(|&step| match &program.typed.steps[step] {
+                    FinishStep::Antijoin(join) => Some(join.left.0),
+                    _ => None,
+                }).collect::<Option<Vec<_>>>()
+            {
+                wanted.extend(left.iter().copied());
+                lefts[binding] = left;
+            }
         }
         let mut plans = Vec::new();
         let mut targets = Vec::new();
@@ -73,7 +88,7 @@ impl Checks {
             for (_, d) in &mut domains[binding] {
                 *d = indices[&(program_of[binding], *d)];
             }
-            for step in outputs {
+            for step in outputs.iter_mut().chain(&mut lefts[binding]) {
                 *step = indices[&(program_of[binding], *step)];
             }
         }
@@ -113,12 +128,18 @@ impl Checks {
         // All requested outputs must be impossible to discharge the binding.
         // One unconditional output makes testing its siblings unnecessary
         // unless the binding can be answered exactly.
+        let unconditional = |&root: &usize|
+            matches!(program.needs[program.roots[root].1], pair_summary::Need::Any);
+        for left in &mut lefts {
+            if left.iter().any(unconditional) {
+                left.clear();
+            }
+        }
         let roots = roots.into_iter().enumerate().map(|(binding, outputs)| {
-            let unconditional = outputs.iter().any(|&r|
-                matches!(program.needs[program.roots[r].1], pair_summary::Need::Any));
             let exact = outputs.iter().all(|root|
                 program.exact.binary_search_by_key(root, |(index, _)| *index).is_ok());
-            (!unconditional || exact || outputs.len() > 1 || !domains[binding].is_empty())
+            (!outputs.iter().any(unconditional) || exact || outputs.len() > 1
+                || !domains[binding].is_empty() || !lefts[binding].is_empty())
                 .then_some(outputs)
         }).collect();
         let live = vec![false; program.roots.len()];
@@ -142,6 +163,7 @@ impl Checks {
         Self {
             program,
             roots,
+            lefts,
             domains,
             row_guards,
             known: Vec::new(),
@@ -196,6 +218,11 @@ impl Checks {
                 }
                 for root in roots.iter().copied().chain(self.domains[root_for(binding)].iter().map(|&(_, d)| d)) {
                     self.selected[root / 64] |= 1 << (root % 64);
+                }
+                if cuts[binding].is_none() {
+                    for &root in &self.lefts[root_for(binding)] {
+                        self.selected[root / 64] |= 1 << (root % 64);
+                    }
                 }
             }
         }
@@ -269,16 +296,25 @@ impl Checks {
             if *excluded {
                 continue;
             }
-            let Some(roots) = &self.roots[root_for(*binding)] else { continue };
+            let index = root_for(*binding);
+            let Some(roots) = &self.roots[index] else { continue };
             let cut = cuts[*binding].as_deref();
             let b = bound[binding].as_mut().unwrap();
             let any_absent = roots.iter().any(|&r| !self.live[r]);
-            if !any_absent && !self.domains[root_for(*binding)].iter().any(|&(_, d)| !self.live[d]) {
+            let left = &self.lefts[index];
+            let left_absent = cut.is_none() && !left.is_empty() && left.iter().all(|&r| !self.live[r]);
+            if !left_absent && !any_absent && !self.domains[index].iter().any(|&(_, d)| !self.live[d]) {
                 continue;
             }
             witnesses[1] += 1;
             if partials.iter().any(|p| b.facts.contains(&p.relation)) {
                 witnesses[2] += 1;
+                continue;
+            }
+            if left_absent && crate::finish::session::certificate::certified_empty_left(
+                &mut crate::finish::Exec::new(b.plan), run, &b.hosted,
+            ).is_ok() {
+                *excluded = true;
                 continue;
             }
             if !*b.screenable.get_or_insert_with(|| {
@@ -301,7 +337,7 @@ impl Checks {
                 *home = id.0;
                 absent.clear();
                 absent.extend(roots.iter().map(|&r| !self.live[r]));
-                for &(i, d) in &self.domains[root_for(*binding)] {
+                for &(i, d) in &self.domains[index] {
                     absent[i] |= !self.live[d]
                         && b.projections
                             .get(&cut.inputs[i])
