@@ -77,7 +77,7 @@ struct Batch {
     workers: Option<std::num::NonZeroUsize>,
     schedule: session::Schedule,
     bindings: Vec<(usize, Rc<[Hosted]>)>,
-    host_rows: std::collections::HashSet<Rc<[Vec<super::HostCell>]>>,
+    host_rows: std::collections::HashSet<std::sync::Arc<[Vec<super::HostCell>]>>,
     binding_ids: HashMap<(usize, Rc<[Hosted]>), usize>,
     queries: HashMap<String, Rc<str>>,
     work: Vec<Work>,
@@ -362,7 +362,7 @@ impl Batch {
             if let Some(rows) = self.host_rows.get(&table.rows) {
                 table.rows = Rc::clone(rows);
             } else {
-                self.host_rows.insert(Rc::clone(&table.rows));
+                self.host_rows.insert(std::sync::Arc::clone(&table.rows));
             }
         }
         let hosted: Rc<[Hosted]> = hosted.into();

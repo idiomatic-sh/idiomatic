@@ -43,13 +43,13 @@ struct Hosted {
     name: String,
     columns: Vec<(String, String)>,
     #[serde(deserialize_with = "read_host_rows")]
-    rows: Rc<[Vec<HostCell>]>,
+    rows: std::sync::Arc<[Vec<HostCell>]>,
     #[serde(default)]
     partial: Option<String>,
 }
 
-fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Rc<[Vec<HostCell>]>, D::Error> {
-    Vec::deserialize(input).map(Rc::from)
+fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<std::sync::Arc<[Vec<HostCell>]>, D::Error> {
+    Vec::deserialize(input).map(std::sync::Arc::from)
 }
 
 struct Snapshot<'a> {
