@@ -22,8 +22,8 @@ impl Early<'_, '_> {
                 self.b.or(x, y)
             }
             Need::Some(d) => self.exists(d),
-            Need::PathMatches(_) | Need::Any | Need::Empty => i,
-            Need::SourceContains(_) | Need::InvalidPattern(_) => ANY,
+            Need::PathMatches(..) | Need::Any | Need::Empty => i,
+            Need::SyntaxMatches(..) | Need::SourceContains(_) | Need::InvalidPattern(_) => ANY,
             Need::Terms(..) => unreachable!("file scheduling follows projection"),
         };
         self.files[i] = Some(value);
