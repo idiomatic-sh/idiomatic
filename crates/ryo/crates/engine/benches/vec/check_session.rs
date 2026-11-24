@@ -313,6 +313,9 @@ struct Bound<'p> {
     plan: &'p Plan,
     slots: Vec<usize>,
     test: usize,
+    absent: Option<(u32, Vec<bool>)>,
+    outputs: HashMap<usize,usize>,
+    projections: BTreeMap<usize,finish::session::contribution::Projection>,
     facts: Vec<l::Relation>,
     filters: BTreeMap<usize,Vec<(usize,u64)>>,
     hosted: Tables,
@@ -324,6 +327,7 @@ struct Bound<'p> {
 }
 
 fn bind<'p, L: FileSource>(
+    registry: &mut finish::session::contribution::Registry,
     program: &'p Program,
     parser: Option<&L>,
     run: &mut Run,
@@ -385,13 +389,19 @@ fn bind<'p, L: FileSource>(
         .iter()
         .map(|clause| clause.iter().map(|w| run.sym(w.as_bytes())).collect())
         .collect();
-    let filters=cut.into_iter().flat_map(|c|&c.filters).map(|(&node,alts)|{
+    let mut exec = Exec::new(&program.plan);
+    let filters: BTreeMap<usize, Vec<(usize, u64)>>=cut.into_iter().flat_map(|c|&c.filters).map(|(&node,alts)|{
         (node,alts.iter().map(|(col,w)|(*col,u64::from(run.sym(w)))).collect())
     }).collect();
+    let projections = finish::session::contribution::Projection::bind(&mut exec, run, cut, &filters);
+    let outputs = registry.identify(&projections, cut);
     Ok(Bound {
         reads_fields,
         screenable: None,
+        absent: None,
         empty_frontier: None,
+        outputs,
+        projections,
         filters,
         plan: &program.plan,
         slots: Vec::with_capacity(program.plan.nodes.len()),
@@ -590,6 +600,7 @@ pub(crate) fn visit<L: FileSource>(
     let mut checks = (!keep).then(|| pairs::Checks::new(parser, programs, program_of, &needed, cut_of));
     clocks.prepare += thread_cpu() - t;
     let mut bound = Bindings((0..program_of.len()).map(|_| None).collect());
+    let mut registry = finish::session::contribution::Registry::default();
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
@@ -603,7 +614,7 @@ pub(crate) fn visit<L: FileSource>(
         let entry = (|| {
             let program = programs[program_of[binding]].as_ref().map_err(Clone::clone)?;
             let tables = host(binding, &mut run)?;
-            let mut b = bind(program, parser, &mut run, tables, cut_of[binding].as_deref())?;
+            let mut b = bind(&mut registry, program, parser, &mut run, tables, cut_of[binding].as_deref())?;
             merged.add(&mut b, &mut run);
             Ok(b)
         })();

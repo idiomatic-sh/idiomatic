@@ -3,6 +3,27 @@ use super::super as finish;
 use finish::{E, Exec, Op, R, Run, Table, Ty};
 use std::rc::Rc;
 
+// Dynamic pattern compilation can refuse a non-empty intermediate even
+// when the downstream emit is empty. A literal pattern is already E::TextTest.
+pub(in super::super) fn total(expr: &E) -> bool {
+    match expr {
+        E::Call(name, args) => {
+            let arity = match name.as_str() {
+                "lower" => args.len() == 1,
+                "starts_with" | "ends_with" => args.len() == 2,
+                "concat" => true,
+                _ => false,
+            };
+            arity && args.iter().all(total)
+        }
+        E::Seed(..) | E::Cmp(Op::Other, ..) => false,
+        E::In(a, b, _) | E::And(a, b) | E::Or(a, b) | E::Cmp(_, a, b) => total(a) && total(b),
+        E::Null(a, _) | E::Not(a) | E::TextTest(a, _) => total(a),
+        E::List(items) => items.iter().all(total),
+        E::Col(..) | E::Lit(_) | E::Text(_) | E::Num(_) => true,
+    }
+}
+
 /// A missing witness can skip evaluation once the binding has passed these checks.
 pub(crate) fn certified_empty(
     exec: &mut Exec<'_>,
@@ -10,26 +31,6 @@ pub(crate) fn certified_empty(
     tables: &[(String, Rc<Table>)],
     frontier: Option<&finish::partition::Partition>,
 ) -> bool {
-    // Dynamic pattern compilation can refuse a non-empty intermediate even
-    // when the downstream emit is empty. A literal pattern is already E::TextTest.
-    fn total(expr: &E) -> bool {
-        match expr {
-            E::Call(name, args) => {
-                let arity = match name.as_str() {
-                    "lower" => args.len() == 1,
-                    "starts_with" | "ends_with" => args.len() == 2,
-                    "concat" => true,
-                    _ => false,
-                };
-                arity && args.iter().all(total)
-            }
-            E::Seed(..) | E::Cmp(Op::Other, ..) => false,
-            E::In(a, b, _) | E::And(a, b) | E::Or(a, b) | E::Cmp(_, a, b) => total(a) && total(b),
-            E::Null(a, _) | E::Not(a) | E::TextTest(a, _) => total(a),
-            E::List(items) => items.iter().all(total),
-            E::Col(..) | E::Lit(_) | E::Text(_) | E::Num(_) => true,
-        }
-    }
     for (name, table) in tables {
         if run
             .catalog(name)

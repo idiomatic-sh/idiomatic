@@ -10,6 +10,7 @@ use std::collections::{BTreeSet, HashMap};
 pub(super) struct Checks {
     program: pair_summary::Program,
     roots: Vec<Option<Vec<usize>>>,
+    domains: Vec<Vec<(usize, usize)>>,
     live: Vec<bool>,
     patterns: crate::pair_checks::SymbolMatches,
     words: l::FileWords,
@@ -25,20 +26,23 @@ impl Checks {
         cuts: &[Option<&crate::finish::partition::Partition>],
     ) -> Self {
         let mut roots = vec![Vec::new(); program_of.len()];
+        let mut domains = vec![Vec::new(); program_of.len()];
         for (binding, outputs) in roots.iter_mut().enumerate().filter(|(b, _)| needed[*b]) {
             let id = program_of[binding];
             let Ok(program) = &programs[id] else { continue };
+            domains[binding] = domain_steps(cuts[binding].as_deref());
             *outputs = target_steps(program, cuts[binding].as_deref());
         }
-        Self::from_roots(parser, programs, program_of, roots)
+        Self::from_roots(parser, programs, program_of, roots, domains)
     }
     fn from_roots<L: FileSource>(
         parser: Option<&L>, programs: &[Result<Program>], program_of: &[usize],
-        mut roots: Vec<Vec<usize>>,
+        mut roots: Vec<Vec<usize>>, mut domains: Vec<Vec<(usize, usize)>>,
     ) -> Self {
         let mut steps = vec![BTreeSet::new(); programs.len()];
         for (binding, outputs) in roots.iter().enumerate() {
             steps[program_of[binding]].extend(outputs.iter().copied());
+            steps[program_of[binding]].extend(domains[binding].iter().map(|&(_, d)| d));
         }
         let mut plans = Vec::new();
         let mut targets = Vec::new();
@@ -54,6 +58,9 @@ impl Checks {
             bases.extend(program.bases.iter().map(String::as_str));
         }
         for (binding, outputs) in roots.iter_mut().enumerate() {
+            for (_, d) in &mut domains[binding] {
+                *d = indices[&(program_of[binding], *d)];
+            }
             for step in outputs {
                 *step = indices[&(program_of[binding], *step)];
             }
@@ -96,10 +103,10 @@ impl Checks {
         );
         // All requested outputs must be impossible to discharge the binding.
         // One unconditional output makes testing its siblings unnecessary.
-        let roots = roots.into_iter().map(|outputs| {
+        let roots = roots.into_iter().enumerate().map(|(binding, outputs)| {
             let unconditional = outputs.iter().any(|&r|
                 matches!(program.needs[program.roots[r].1], pair_summary::Need::Any));
-            (!unconditional).then_some(outputs)
+            (!unconditional || outputs.len() > 1 || !domains[binding].is_empty()).then_some(outputs)
         }).collect();
         let live = vec![false; program.roots.len()];
         let row_guards = program
@@ -122,6 +129,7 @@ impl Checks {
         Self {
             program,
             roots,
+            domains,
             row_guards,
             known: Vec::new(),
             live,
@@ -153,6 +161,7 @@ impl Checks {
             if !excluded && let Some(roots) = &self.roots[root_for(binding)]
                 && bound[&binding].as_ref().expect("active binding").screenable != Some(false)
             {
+                for &(_, d) in &self.domains[root_for(binding)] { self.live[d] = true; }
                 for &root in roots {
                     self.live[root] = true;
                     any = true;
@@ -204,25 +213,54 @@ impl Checks {
             );
         }
         for (binding, _, excluded) in active {
-            if !*excluded && self.roots[root_for(*binding)].as_ref()
-                .is_some_and(|roots| roots.iter().all(|&r| !self.live[r])) {
-                let b = bound[binding].as_mut().unwrap();
-                if partials.iter().any(|p| b.facts.contains(&p.relation)) {
-                    continue;
+            if *excluded {
+                continue;
+            }
+            let Some(roots) = &self.roots[root_for(*binding)] else { continue };
+            let cut = cuts[*binding].as_deref();
+            let b = bound[binding].as_mut().unwrap();
+            if partials.iter().any(|p| b.facts.contains(&p.relation)) {
+                continue;
+            }
+            let any_absent = roots.iter().any(|&r| !self.live[r]);
+            if !any_absent && !self.domains[root_for(*binding)].iter().any(|&(_, d)| !self.live[d]) {
+                continue;
+            }
+            if !*b.screenable.get_or_insert_with(|| {
+                crate::finish::session::certificate::certified_empty(
+                    &mut crate::finish::Exec::new(b.plan),
+                    run,
+                    &b.hosted,
+                    cut,
+                )
+            }) {
+                continue;
+            }
+            if roots.iter().all(|&r| !self.live[r]) {
+                *excluded = true;
+                continue;
+            }
+            if let Some(cut) = cut {
+                let (home, absent) = b.absent.get_or_insert_with(|| (id.0, Vec::new()));
+                *home = id.0;
+                absent.clear();
+                absent.extend(roots.iter().map(|&r| !self.live[r]));
+                for &(i, d) in &self.domains[root_for(*binding)] {
+                    absent[i] |= !self.live[d]
+                        && b.projections
+                            .get(&cut.inputs[i])
+                            .is_some_and(|p| p.needs_domain());
                 }
-                *excluded = *b.screenable.get_or_insert_with(|| {
-                    crate::finish::session::certificate::certified_empty(
-                        &mut crate::finish::Exec::new(b.plan),
-                        run,
-                        &b.hosted,
-                        cuts[*binding].as_deref(),
-                    )
-                });
+                *excluded = absent.iter().all(|&v| v);
             }
         }
     }
 }
 
+fn domain_steps(cut: Option<&crate::finish::partition::Partition>) -> Vec<(usize, usize)> {
+    cut.into_iter().flat_map(|c| c.inputs.iter().enumerate()
+        .filter_map(|(i, n)| c.domains.get(n).map(|&(_, d)| (i, d)))).collect()
+}
 fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partition>) -> Vec<usize> {
     match cut {
         Some(cut) => cut.inputs.clone(),
@@ -234,7 +272,7 @@ fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partit
 /// vocabulary and a prepared program's output steps survive those boundaries.
 #[derive(Default)]
 pub(super) struct Retained {
-    shapes: HashMap<(usize, Vec<usize>), usize>,
+    shapes: HashMap<(usize, Vec<usize>, Vec<(usize, usize)>), usize>,
     bindings: Vec<Option<usize>>,
     programs: Vec<Checks>,
 }
@@ -251,13 +289,12 @@ impl Retained {
             if excluded || self.bindings[binding].is_some() { continue; }
             let id = program_of[binding];
             let program = programs[id].as_ref().expect("active program");
-            let mut steps = target_steps(program, cuts[binding].as_deref());
-            steps.sort_unstable();
-            steps.dedup();
-            let index = *self.shapes.entry((id, steps)).or_insert_with_key(|(_, steps)| {
+            let steps = target_steps(program, cuts[binding].as_deref());
+            let domains = domain_steps(cuts[binding].as_deref());
+            let index = *self.shapes.entry((id, steps, domains)).or_insert_with_key(|(_, steps, domains)| {
                 let start = super::thread_cpu();
                 let screen = Checks::from_roots(parser, std::slice::from_ref(&programs[id]),
-                    &[0], vec![steps.clone()]);
+                    &[0], vec![steps.clone()], vec![domains.clone()]);
                 let index = self.programs.len();
                 self.programs.push(screen);
                 prepare += super::thread_cpu() - start;
