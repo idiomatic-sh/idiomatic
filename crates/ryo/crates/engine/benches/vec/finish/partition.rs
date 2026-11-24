@@ -104,7 +104,7 @@ pub(in super::super) fn file_steps(
                     keys_hold(exec, run, "from", "keys")?
                 }
                 "rank" | "extend" | "capture" | "span-bounds" | "span-between"
-                | "source-matches" | "render-syntax" | "fits-rendered" | "words" | "replace" => {
+                | "source-matches" | "render-syntax" | "fits-rendered" | "words" | "replace" | "prefixes" => {
                     true
                 }
                 "closure" | "cycles" | "follow" => {
@@ -113,6 +113,18 @@ pub(in super::super) fn file_steps(
                     let source = super::pos(&edges.names, super::s(&args["source"])?)?;
                     anchor(edges.tys[source])
                         || (step.op.as_str() != "cycles" && keys_hold(exec, run, "edges", "keys")?)
+                }
+                "ordered-dfs" | "worklist" => {
+                    // The partition key or the graph vertex must identify the
+                    // source on both sides. All operands, including the lattice,
+                    // have already been checked for file-local scope above.
+                    let mut held = true;
+                    for (input, vertex) in [("from", "root"), ("edges", "source")] {
+                        let schema = exec.schema(run, exec.arg_rel(i, input)?)?;
+                        let vertex = super::pos(&schema.names, super::s(&args[vertex])?)?;
+                        held &= anchor(schema.tys[vertex]) || keys_hold(exec, run, input, "keys")?;
+                    }
+                    held
                 }
                 "axis" => true,
                 _ => false,

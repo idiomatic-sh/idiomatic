@@ -211,9 +211,11 @@ pub(super) fn run(
         (id, population.as_ref().map(SharedPopulation::from))
     }).collect();
 
+    let file_catalog = &batch.file_catalog;
     let run_shard = |shard: usize| {
         let start = thread_cpu();
         let mut run = finish::Run::default();
+        file_catalog.declare(&mut run);
         run.paths = Arc::clone(paths);
         run.empty = empty;
         run.absent_word = absent_word;

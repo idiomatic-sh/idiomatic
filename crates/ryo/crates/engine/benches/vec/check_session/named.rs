@@ -30,7 +30,9 @@ impl Catalog {
 
     pub(crate) fn declare(&self, run: &mut Run) {
         for schema in self.0.values() {
-            declare(run, schema);
+            if run.catalog(schema.name).is_none() {
+                declare(run, schema);
+            }
         }
     }
 }

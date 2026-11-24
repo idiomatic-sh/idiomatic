@@ -689,6 +689,7 @@ impl Batch {
             self.clocks.project_wall += wall.elapsed().as_secs_f64();
             return;
         }
+        self.file_catalog.declare(&mut world.run);
         let mut readers=readers::Closed::new(&self.work,&self.cut_of,keep);
         #[cfg(feature = "product-session")]
         let workers = self.workers.map_or(1, std::num::NonZeroUsize::get);
