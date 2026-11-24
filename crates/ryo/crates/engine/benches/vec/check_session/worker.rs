@@ -231,6 +231,9 @@ pub(crate) fn dispatch<L: FileSource>(
                 total.path_joins_avoided += part.path_joins_avoided;
                 total.line_scans += part.line_scans;
                 total.line_scans_avoided += part.line_scans_avoided;
+                total.staged_paths += part.staged_paths;
+                total.note_copies_avoided += part.note_copies_avoided;
+                total.note_bytes_avoided += part.note_bytes_avoided;
             }
             clocks.prepare += time.prepare;
             clocks.read_parse += time.read_parse;

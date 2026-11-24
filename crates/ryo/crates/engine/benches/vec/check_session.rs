@@ -181,6 +181,9 @@ pub(crate) struct ReaderParts {
     pub path_joins_avoided: usize,
     pub line_scans: usize,
     pub line_scans_avoided: usize,
+    pub staged_paths: usize,
+    pub note_copies_avoided: usize,
+    pub note_bytes_avoided: usize,
 }
 
 /// The root and path identify the caller's immutable effective source. This
@@ -659,8 +662,8 @@ fn versions<'s>(
     files
 }
 
-/// In a closed batch only paths with another input of the same length can
-/// share a body. Leave the other paths on the streaming reader's scratch.
+/// Only paths with another input of the same length can share a body.
+/// Leave the other paths on the streaming reader's scratch.
 fn body_candidates(
     paths: &BTreeMap<&str, SourceGroup>,
     sources: &[Source],
@@ -718,7 +721,6 @@ struct Contents {
 struct HeldFile<F: Default, D: Default> {
     symbols: D,
     native: F,
-    notes: Option<l::Bytes>,
     lent: Option<std::sync::Arc<l::NodeTable>>,
     tree: l::NodeTable,
     fields: Vec<u32>,
@@ -765,6 +767,9 @@ pub(crate) fn visit<L: FileSource>(
     let mut path_joins_avoided = 0;
     let mut line_scans = 0;
     let mut line_scans_avoided = 0;
+    let mut staged_paths = 0;
+    let mut note_copies_avoided = 0;
+    let mut note_bytes_avoided = 0;
     let mut tree_cpu = 0.;
     let mut fact_cpu = 0.;
     let mut run = std::mem::take(&mut state.run);
@@ -858,14 +863,9 @@ pub(crate) fn visit<L: FileSource>(
         let start = thread_cpu();
         let mut indexes = rustc_hash::FxHashMap::default();
         let mut identities = rustc_hash::FxHashMap::default();
-        let candidates = if keep {
-            None
-        } else {
-            Some(body_candidates(&by_path, sources, &state.bytes, dialect))
-        };
-        for (_, group) in by_path.extract_if(.., |_, group| {
-            candidates.as_ref().is_none_or(|paths| paths.contains(&group[0]))
-        }) {
+        let candidates = body_candidates(&by_path, sources, &state.bytes, dialect);
+        staged_paths += candidates.len();
+        for (_, group) in by_path.extract_if(.., |_, group| candidates.contains(&group[0])) {
             for mut version in versions(&group, sources, answers, aliases, &mut clocks.reads, &mut state.bytes, keep, &mut path_joins_avoided) {
                 let Some(dialect) = dialect(version.origin) else {
                     bodies.push(smallvec![version]);
@@ -923,6 +923,7 @@ pub(crate) fn visit<L: FileSource>(
         let mut body_fields = false;
         let mut body_notes = false;
         let mut body_line_count = None;
+        let mut body_contributions: [Option<Rc<project::Contribution>>; 2] = [None, None];
         let mut shared_remaining = versions.len();
         if share {
             let t = thread_cpu();
@@ -1048,11 +1049,27 @@ pub(crate) fn visit<L: FileSource>(
             }
             if !project_slots.is_empty() || (session_open && contributions.previous(index).and_then(Option::as_ref).is_none()) {
                 let c = contributions.previous(index).and_then(Option::as_ref).cloned().unwrap_or_else(|| {
-                    let manifest = manifests
-                        .contains(source.path.rsplit('/').next().unwrap())
-                        .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
-                    let notes = if keep { held.notes.get_or_insert_with(|| L::notes(elements)).clone() } else { L::notes(elements) };
-                    Rc::new(project::Contribution { reader: reader_id, notes, manifest })
+                    let is_manifest = manifests.contains(source.path.rsplit('/').next().unwrap());
+                    let make = || {
+                        let manifest = is_manifest.then(|| {
+                            l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into())
+                        });
+                        Rc::new(project::Contribution {
+                            reader: reader_id,
+                            notes: L::notes(elements),
+                            manifest,
+                        })
+                    };
+                    if share {
+                        let contribution = &mut body_contributions[usize::from(is_manifest)];
+                        if let Some(prior) = contribution {
+                            note_copies_avoided += 1;
+                            note_bytes_avoided += prior.notes.0.len();
+                        }
+                        contribution.get_or_insert_with(make).clone()
+                    } else {
+                        make()
+                    }
                 });
                 if session_open {
                     contributions.set(index, Some(c.clone()));
@@ -1411,6 +1428,9 @@ pub(crate) fn visit<L: FileSource>(
     parts.path_joins_avoided += path_joins_avoided;
     parts.line_scans += line_scans;
     parts.line_scans_avoided += line_scans_avoided;
+    parts.staged_paths += staged_paths;
+    parts.note_copies_avoided += note_copies_avoided;
+    parts.note_bytes_avoided += note_bytes_avoided;
     parts.tree += tree_cpu;
     parts.facts += fact_cpu;
     if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }

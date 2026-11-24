@@ -91,8 +91,8 @@ impl Drop for Live {
     fn drop(&mut self){
         for (name, r) in &self.batch.clocks.readers {
             eprintln!(
-                "CHECK_READER {name} parsed={} total={:.6} read={:.6} build={:.6} tree={:.6} facts={:.6} projected={} filled={} rebound={} path_joins_avoided={} line_scans={} line_scans_avoided={}",
-                r.parsed, r.total, r.read, r.build, r.tree, r.facts, r.projected, r.filled, r.rebound, r.path_joins_avoided, r.line_scans, r.line_scans_avoided,
+                "CHECK_READER {name} parsed={} total={:.6} read={:.6} build={:.6} tree={:.6} facts={:.6} projected={} filled={} rebound={} path_joins_avoided={} line_scans={} line_scans_avoided={} staged_paths={} note_copies_avoided={} note_bytes_avoided={}",
+                r.parsed, r.total, r.read, r.build, r.tree, r.facts, r.projected, r.filled, r.rebound, r.path_joins_avoided, r.line_scans, r.line_scans_avoided, r.staged_paths, r.note_copies_avoided, r.note_bytes_avoided,
             );
         }
         if let Some(store)=&mut self.store && let Err(e)=store.publish(){eprintln!("publish completed session: {e}");}
