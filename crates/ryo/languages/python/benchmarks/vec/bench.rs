@@ -651,12 +651,7 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut in_batch = 0usize;
     let mut kernels = kernels::State::default();
     let started = thread_cpu();
-    for (file_no, name) in list.iter().enumerate() {
-        let absolute;
-        let path = if let Some(request) = paths {
-            absolute = request.root.join(name);
-            absolute.to_str().expect("source path")
-        } else { name.as_str() };
+    for (file_no, path) in list.iter().enumerate() {
         totals.files += 1;
         let c0 = thread_cpu();
         let bytes = std::fs::read(path).expect("read");
@@ -1642,12 +1637,7 @@ fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let mut scratch = Default::default();
     let mut walk_time = 0f64;
     let mut rss_peak = 0u64;
-    for (file_no, name) in list.iter().enumerate() {
-        let absolute;
-        let path = if let Some(request) = paths {
-            absolute = request.root.join(name);
-            absolute.to_str().expect("source path")
-        } else { name.as_str() };
+    for (file_no, path) in list.iter().enumerate() {
         let w0 = thread_cpu();
         let in_fin = fin.time;
         let bytes = std::fs::read(path).expect("read");
