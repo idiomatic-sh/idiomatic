@@ -47,6 +47,12 @@ impl Packet {
         debug_assert_eq!(at, self.rows.words.len());
         self.ready = true;
     }
+    /// An indexed, requested relation already has an exact row count. The
+    /// caller withholds this observation when the provider declared a partial.
+    pub(crate) fn has_rows(&self, relation: l::Relation) -> Option<bool> {
+        let slot = catalog::number_of(relation).0;
+        (self.ready && self.requested[slot]).then(|| !self.offsets[slot].is_empty())
+    }
     pub(crate) fn columns(
         &self,
         relation: l::Relation,

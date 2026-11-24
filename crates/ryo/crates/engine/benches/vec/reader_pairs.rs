@@ -100,6 +100,7 @@ impl Decisions {
             },
             &mut live,
             None,
+            &[],
         );
         wanted.retain(|&i| live[self.roots[i]]);
     }

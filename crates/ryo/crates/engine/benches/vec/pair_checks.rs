@@ -813,7 +813,7 @@ impl Program {
         alive: &mut [bool],
         exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
-        self.file_columns(t, src, path, None, words, read, alive, exact)
+        self.file_columns(t, src, path, None, words, read, alive, exact, &[])
     }
     pub(super) fn file_columns(
         &self,
@@ -825,12 +825,13 @@ impl Program {
         read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
         exact: Option<&mut Vec<(usize, Bits)>>,
+        known: &[(Id, bool)],
     ) -> u64 {
         #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact);
+            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact, known);
         }
-        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact)
+        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact, known)
     }
     fn evaluate<const PROFILE: bool>(
         &self,
@@ -842,6 +843,7 @@ impl Program {
         mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
         mut exact: Option<&mut Vec<(usize, Bits)>>,
+        known: &[(Id, bool)],
     ) -> u64 {
         languages::facts::clear_words(words);
         let reader_class = std::cell::Cell::new(cost::Family::Logic as usize);
@@ -895,6 +897,7 @@ impl Program {
             texts: None,
             steps: 0,
         };
+        for &(need, value) in known { f.needs[need] = Some(value); }
         for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
             if PROFILE {
                 f.owner = rule;

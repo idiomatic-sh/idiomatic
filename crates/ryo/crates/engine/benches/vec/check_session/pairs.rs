@@ -13,6 +13,8 @@ pub(super) struct Checks {
     live: Vec<bool>,
     patterns: crate::pair_checks::SymbolMatches,
     words: l::FileWords,
+    row_guards: Vec<(usize, l::Relation)>,
+    known: Vec<(usize, bool)>,
 }
 impl Checks {
     pub(super) fn new<L: FileSource>(
@@ -96,9 +98,28 @@ impl Checks {
             true,
         );
         let live = vec![false; program.roots.len()];
+        let row_guards = program
+            .needs
+            .iter()
+            .enumerate()
+            .filter_map(|(i, need)| {
+                let pair_summary::Need::Some(node) = *need else {
+                    return None;
+                };
+                let pair_summary::Domain::Fact(slot, None) = program.domains[node] else {
+                    return None;
+                };
+                let FactSource::Catalog(relation) = program.facts[slot].source else {
+                    return None;
+                };
+                Some((i, relation))
+            })
+            .collect();
         Self {
             program,
             roots,
+            row_guards,
+            known: Vec::new(),
             live,
             patterns: Default::default(),
             words: l::facts::file_words(&l::facts::base_words(Default::default(), &[])),
@@ -131,6 +152,14 @@ impl Checks {
             }
         }
         if any {
+            self.known.clear();
+            for &(need, relation) in &self.row_guards {
+                if !partials.iter().any(|p| p.relation == relation)
+                    && let Some(exists) = packet.has_rows(relation)
+                {
+                    self.known.push((need, exists));
+                }
+            }
             self.program.file_columns(
                 tree,
                 bytes,
@@ -151,6 +180,7 @@ impl Checks {
                 },
                 &mut self.live,
                 None,
+                &self.known,
             );
         }
         for (binding, _, excluded) in active {
