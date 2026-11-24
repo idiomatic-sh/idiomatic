@@ -342,11 +342,9 @@ impl Store {
     ) {
         use std::os::unix::fs::MetadataExt;
         let mut inodes = HashMap::new();
-        self.versions = b
-            .schedule
-            .sources
-            .iter()
-            .map(|source| {
+        let prior = self.versions.len();
+        self.versions
+            .extend(b.schedule.sources.iter().skip(prior).map(|source| {
                 let digest = if let Some(data) = &source.provided {
                     (*blake3::hash(data).as_bytes(), None)
                 } else {
@@ -364,8 +362,7 @@ impl Store {
                     (d, Some(m.mode() & 0o111))
                 };
                 Some(key((&source.path, digest)))
-            })
-            .collect();
+            }));
         let mut rules = vec![[0; 32]; b.schedule.programs.len()];
         for ((text, params), &idx) in &b.schedule.prepared {
             rules[idx] = key((text, params));
@@ -375,7 +372,7 @@ impl Store {
             .iter()
             .map(|(r, host)| key((rules[*r], host)))
             .collect();
-        self.pairs = vec![None; b.schedule.pairs];
+        self.pairs.resize(b.schedule.pairs, None);
         for (i, src) in b.schedule.sources.iter().enumerate() {
             for (&binding, &slot) in &src.bindings {
                 self.pairs[slot] = self.versions[i].map(|d| (d, bindings[binding]));
@@ -444,6 +441,42 @@ impl Store {
             }
         }
         let mut restored = HashMap::new();
+        // Later live requests can consume a file answer delivered in an earlier epoch.
+        // Its source no longer has a pending binding, but its stable pair key remains.
+        for slot in frontier {
+            if world.frontiers.contains_key(&slot) {
+                continue;
+            }
+            let Some((version, binding)) = self.pairs[slot] else {
+                continue;
+            };
+            let Some(file) = self.files.get(&version) else {
+                continue;
+            };
+            let Some(pair) = file.pairs.get(&binding) else {
+                continue;
+            };
+            let parts = pair
+                .frontier
+                .iter()
+                .map(|&(n, id)| {
+                    let block = restored
+                        .entry((version, id))
+                        .or_insert_with(|| file.blocks[id].restore(world))
+                        .clone();
+                    (n, block)
+                })
+                .collect();
+            world.frontiers.insert(slot, parts);
+            if !pair.unavailable.is_empty() {
+                let missing = pair
+                    .unavailable
+                    .iter()
+                    .map(|(name, path)| (name.clone(), world.file(path)))
+                    .collect();
+                world.unavailable.insert(slot, missing);
+            }
+        }
         for (i, src) in b.schedule.sources.iter_mut().enumerate() {
             if !projects.contains(&i) {
                 src.project = false;
@@ -469,28 +502,6 @@ impl Store {
                     return true;
                 };
                 answers[*slot] = Ok(pair.report.read());
-                if frontier.contains(slot) {
-                    let parts = pair
-                        .frontier
-                        .iter()
-                        .map(|&(n, id)| {
-                            let block = restored
-                                .entry((self.versions[i], id))
-                                .or_insert_with(|| file.blocks[id].restore(world))
-                                .clone();
-                            (n, block)
-                        })
-                        .collect();
-                    world.frontiers.insert(*slot, parts);
-                    if !pair.unavailable.is_empty() {
-                        let missing = pair
-                            .unavailable
-                            .iter()
-                            .map(|(name, path)| (name.clone(), world.file(path)))
-                            .collect();
-                        world.unavailable.insert(*slot, missing);
-                    }
-                }
                 self.file_hits += 1;
                 false
             });
