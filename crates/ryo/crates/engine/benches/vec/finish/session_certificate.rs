@@ -76,12 +76,15 @@ fn verify(
             run.declare(name, &cols, finish::Supplier::Host);
         }
     }
-    let check = |exec: &mut Exec<'_>, run: &mut Run| -> R<()> {
+    let timed = exec.timing;
+    let mut at = None;
+    let mut check = |exec: &mut Exec<'_>, run: &mut Run| -> R<()> {
         let plan = exec.plan;
         for (i, step) in plan.nodes.iter().enumerate() {
             if frontier.is_some_and(|cut| !cut.file_steps[i]) || demanded.is_some_and(|read| !read[i]) {
                 continue;
             }
+            at = Some(i);
             let _schema = exec.schema(run, i)?;
             let arg_column = |ex: &mut Exec<'_>, run: &mut Run, input, name: &str| -> R<()> {
                 let source = ex.arg_rel(i, input)?;
@@ -107,7 +110,7 @@ fn verify(
                         .chain(select.items.iter().map(|(_, e)| e))
                     {
                         if !total(e) {
-                            return Err("partial scalar".into());
+                            return Err(if timed { format!("partial scalar {e:?}") } else { "partial scalar".into() });
                         }
                     }
                 }
@@ -167,6 +170,7 @@ fn verify(
             return Ok(());
         }
         for (_, i, subject, keys) in &plan.emits {
+            at = Some(*i);
             let schema = exec.schema(run, *i)?;
             for name in std::iter::once(subject).chain(keys) {
                 finish::pos(&schema.names, name)?;
@@ -174,7 +178,11 @@ fn verify(
         }
         Ok(())
     };
-    check(exec, run)
+    let result = check(exec, run);
+    if exec.timing && let Err(reason) = &result && let Some(i) = at {
+        eprintln!("PAIR_CERTIFICATE_REFUSAL\t{i}\t{}\t{reason}", exec.plan.nodes[i].op);
+    }
+    result
 }
 
 /// Preserve the frontier schema even when no output can contain any rows.
