@@ -220,10 +220,10 @@ impl Source for Pinned {
     fn declarations(&self) -> &'static [crate::check_session::source::FileRelation] {
         self.native.as_ref().map_or(&[], Source::declarations)
     }
-    fn named_rows(&self, relation: &crate::check_session::source::FileRelation, id: l::FileId, file: &File, projection: &l::NodeTable, bytes: &[u8], dict: &mut Dictionary) -> Result<crate::check_session::source::Columns> {
+    fn named_rows(&self, relations: &[&crate::check_session::source::FileRelation], request: l::ParseRequest<'_>, file: &File, projection: &l::NodeTable, dict: &mut Dictionary) -> Vec<Result<crate::check_session::source::Columns>> {
         match (&self.native, file) {
-            (Some(reader), File::Native(tree)) => reader.named_rows(relation, id, tree, projection, bytes, &mut dict.out),
-            _ => Err(format!("no linked provider for {}", relation.name)),
+            (Some(reader), File::Native(tree)) => reader.named_rows(relations, request, tree, projection, &mut dict.out),
+            _ => relations.iter().map(|schema| Err(format!("no linked provider for {}", schema.name))).collect(),
         }
     }
     fn name(&self) -> &str { &self.language.name().0 }

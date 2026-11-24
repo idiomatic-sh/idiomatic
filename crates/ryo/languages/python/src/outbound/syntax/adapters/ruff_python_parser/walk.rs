@@ -94,7 +94,23 @@ pub(super) fn walked(
 ) {
     let Readable(source) = readable(text);
     let parsed = parse_unchecked(&source, options(source_kind, settings));
-    let utf8 = matches!(&source, Cow::Borrowed(_));
+    visit_parsed(settings, text, source_kind, reported, builder, names, read, &source, &parsed);
+}
+
+/// Walk an already parsed module. Nested annotation sources retain their own node namespace.
+#[expect(clippy::too_many_arguments, reason = "the same writer borrows the parse, target, sink and walk scratch")]
+pub(crate) fn visit_parsed(
+    settings: &PythonParserSettings,
+    text: SourceText<'_>,
+    source_kind: PythonSourceKind,
+    reported: ReportedSyntax,
+    builder: &mut languages::NodeTableBuilder<'_>,
+    names: crate::domain::model::names::types::WalkNames,
+    read: &mut dyn FnMut(Walked<'_, '_, '_>) -> Vec<Position>,
+    source: &Cow<'_, str>,
+    parsed: &ruff_python_parser::Parsed<Mod>,
+) {
+    let utf8 = matches!(source, Cow::Borrowed(_));
     node_table::set_syntax_acceptance(
         builder,
         if utf8 && parsed.errors().is_empty() {
@@ -138,7 +154,7 @@ pub(super) fn walked(
         last_import_end: None,
         relative_froms: Vec::new(),
         names,
-        text: if utf8 { &source } else { "" },
+        text: if utf8 { source } else { "" },
     };
     walker.visit_mod(parsed.syntax());
     let Walker {
@@ -164,7 +180,7 @@ pub(super) fn walked(
         .any(|refusal| refusal.metadata.impact != TreeImpact::Preserved);
     // Whether the lexer read every token is asked only of a file something was refused in: nothing else reads it.
     let lexical = if !parsed.errors().is_empty() || refuses {
-        if utf8 && complete(&parsed, languages::ByteSlice(text.0)).0 {
+        if utf8 && complete(parsed, languages::ByteSlice(text.0)).0 {
             SyntaxCompleteness::Complete
         } else {
             SyntaxCompleteness::Incomplete
@@ -261,7 +277,7 @@ pub(super) fn walked(
         import_presence,
         relative_froms,
         segments: Vec::new(),
-        text: NameText(&source),
+        text: NameText(source),
         completeness: Wholeness { syntax, lexical },
         names,
     };

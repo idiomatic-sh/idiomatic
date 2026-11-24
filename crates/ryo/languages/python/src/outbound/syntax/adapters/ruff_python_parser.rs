@@ -16,6 +16,8 @@ mod scopes;
 pub(crate) mod types;
 mod embedded;
 mod walk;
+#[cfg(feature = "fixtures")]
+pub(crate) use walk::visit_parsed;
 mod walker;
 
 #[cfg(test)]
@@ -40,3 +42,8 @@ mod future_test;
 
 #[cfg(test)]
 mod options_test;
+
+#[cfg(feature = "fixtures")]
+pub(crate) fn walk_text(source: crate::outbound::syntax::types::SourceText<'_>) -> std::borrow::Cow<'_, str> {
+    lexical::readable(source).0
+}

@@ -45,18 +45,15 @@ pub(super) fn declare(run: &mut Run, schema: &FileRelation) {
     run.declare(schema.name, &columns, finish::Supplier::Provider);
 }
 
-pub(super) fn table<L: FileSource>(
-    source: &L,
+pub(super) fn table(
+    columns: super::source::Columns,
     schema: &FileRelation,
     id: FileId,
-    file: &L::File,
-    tree: &l::NodeTable,
-    symbols: &mut L::Dictionary,
+    symbols: &l::Symbols,
     bytes: &[u8],
     run: &mut Run,
     unknown: &HashMap<u32, u32>,
 ) -> Result<Table> {
-    let columns = source.named_rows(schema, id, file, tree, bytes, symbols)?;
     let n = columns.first().map_or(0, |c| c.0.len());
     if columns.len() != schema.columns.len() || columns.iter().any(|c| c.0.len() != n) {
         return Err(format!(
@@ -75,7 +72,7 @@ pub(super) fn table<L: FileSource>(
                 l::CellKind::Symbol => u64::from(reader::symbol(
                     run,
                     unknown,
-                    L::symbols(symbols),
+                    symbols,
                     bytes,
                     l::Symbol(raw.try_into().map_err(|_| "invalid symbol id")?),
                 )),

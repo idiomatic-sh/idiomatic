@@ -937,10 +937,6 @@ pub(crate) fn visit<L: FileSource>(
             let reused = keep && held.recovery.is_some();
             let mut elements = &mut held.native;
             let mut tree = &mut held.tree;
-            let result = if reused {
-                Ok(())
-            } else if let Some(parser) = &parser {
-                clocks.files += 1;
                 let request = l::ParseRequest {
                     file: id,
                     path: SourcePath(&source.path),
@@ -958,6 +954,10 @@ pub(crate) fn visit<L: FileSource>(
                     },
                 };
 
+            let result = if reused {
+                Ok(())
+            } else if let Some(parser) = &parser {
+                clocks.files += 1;
                 if projects_words { requested.push(l::Relation::SyntaxTree); }
                 let build_start = thread_cpu();
                 let result = parser.build(
@@ -1211,10 +1211,21 @@ pub(crate) fn visit<L: FileSource>(
                         demanded.insert(schema.name, schema);
                     }
                 }
-                for (name, schema) in demanded {
-                    match named::table(parser, schema, id, elements, tree, symbols, &bytes, &mut run, unknown) {
-                        Ok(table) => named_tables.push((name.to_owned(), Rc::new(table))),
-                        Err(error) => { named_errors.insert(name, error); }
+                if !demanded.is_empty() {
+                    let schemas: Vec<_> = demanded.into_values().collect();
+                    let answers = parser.named_rows(&schemas, request, elements, tree, symbols);
+                    if answers.len() != schemas.len() {
+                        for schema in schemas {
+                            named_errors.insert(schema.name, "provider returned the wrong number of named tables".to_owned());
+                        }
+                    } else {
+                        for (schema, answer) in schemas.into_iter().zip(answers) {
+                            let table = answer.and_then(|cols| named::table(cols, schema, id, L::symbols(symbols), &bytes, &mut run, unknown));
+                            match table {
+                                Ok(table) => named_tables.push((schema.name.to_owned(), Rc::new(table))),
+                                Err(error) => { named_errors.insert(schema.name, error); }
+                            }
+                        }
                     }
                 }
             }

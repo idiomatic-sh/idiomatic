@@ -11,8 +11,8 @@ pub(crate) type Columns = Vec<ryo_relations::domain::relations::types::FactColum
 
 pub(crate) trait Source: Clone + Sync {
     fn declarations(&self) -> &'static [FileRelation] { &[] }
-    fn named_rows(&self, relation: &FileRelation, _: FileId, _: &Self::File, _: &l::NodeTable, _: &[u8], _: &mut Self::Dictionary) -> Result<Columns> {
-        Err(format!("provider does not supply {}", relation.name))
+    fn named_rows(&self, relations: &[&FileRelation], _: l::ParseRequest<'_>, _: &Self::File, _: &l::NodeTable, _: &mut Self::Dictionary) -> Vec<Result<Columns>> {
+        relations.iter().map(|schema| Err(format!("provider does not supply {}", schema.name))).collect()
     }
 
     fn begin_render(&self, _: l::ParseRequest<'_>, _: &mut Self::File) -> l::SemanticSlot {
@@ -97,9 +97,11 @@ impl Source for Linked {
     fn declarations(&self) -> &'static [FileRelation] {
         self.parser.file_relations().map_or(&[], |supplier| supplier.declarations())
     }
-    fn named_rows(&self, relation: &FileRelation, id: FileId, file: &Self::File, tree: &l::NodeTable, bytes: &[u8], dict: &mut Self::Dictionary) -> Result<Columns> {
-        let supplier = self.parser.file_relations().ok_or_else(|| format!("no provider for {}", relation.name))?;
-        supplier.read(relation, id, file, tree, l::ByteSlice(bytes), dict).map_err(|e| e.to_string())
+    fn named_rows(&self, relations: &[&FileRelation], request: l::ParseRequest<'_>, file: &Self::File, tree: &l::NodeTable, dict: &mut Self::Dictionary) -> Vec<Result<Columns>> {
+        match self.parser.file_relations() {
+            Some(supplier) => supplier.read(relations, request, file, tree, dict).into_iter().map(|answer| answer.map_err(|error| error.to_string())).collect(),
+            None => relations.iter().map(|schema| Err(format!("no provider for {}", schema.name))).collect(),
+        }
     }
     fn name(&self) -> &str { &self.language.name().0 }
     type File = l::Elements;

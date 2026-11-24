@@ -19,6 +19,11 @@ use ryo_relations::domain::relations::types::{
 use ryo_relations::domain::terms::types::ChildOrdinal;
 use ryo_relations::domain::terms::types::Symbol;
 
+/// Borrow the provider's private parse without taking it away from later rendering.
+pub fn retained_parse<T: std::any::Any>(elements: &Elements) -> Option<&T> {
+    engine(elements).retained.0.as_deref()?.downcast_ref()
+}
+
 /// What the language kept of its read of the file for a semantic session, taken: the table keeps nothing of it after.
 pub fn take_semantics(elements: &mut Elements) -> crate::domain::semantics::types::SemanticSlot {
     engine_mut(elements).retained.0.take().map_or(

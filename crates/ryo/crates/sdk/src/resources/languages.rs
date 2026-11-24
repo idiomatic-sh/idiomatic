@@ -124,7 +124,7 @@ pub use ryo_language::domain::builders::service::retain_for_semantics;
 pub use ryo_language::domain::builders::service::set_syntax_acceptance;
 pub use ryo_language::domain::elements::service::syntax_acceptance;
 /// Take what a read kept for a semantic session out of the table.
-pub use ryo_language::domain::elements::service::take_semantics;
+pub use ryo_language::domain::elements::service::{retained_parse, take_semantics};
 
 /// Say a kind of edge or step in the words of `flow-edge` and `flow-step`.
 pub use ryo_language::domain::flow::service::{flow_edge_word, flow_step_word};

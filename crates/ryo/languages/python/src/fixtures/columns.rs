@@ -177,8 +177,50 @@ impl ColumnWalk {
     ///
     /// When the file is not Python.
     pub fn walked(&mut self, path: &str, bytes: &[u8], table: &mut NodeTable, visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>)) -> Result<(), WalkError> {
+        self.visit_parse(path, bytes, table, None, visit)
+    }
+
+    /// Lend a column file from the module retained by this numbered parse. The
+    /// provider can fill every requested relation before this borrow ends.
+    pub fn retained(
+        settings: PythonParserSettings,
+        request: languages::ParseRequest<'_>,
+        elements: &languages::Elements,
+        visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
+    ) -> Result<(), WalkError> {
+        let parsed = languages::retained_parse::<ruff_python_parser::Parsed<ruff_python_ast::Mod>>(elements)
+            .ok_or(WalkError::Unsupported)?;
+        let walk = PythonWalk { ports: WalkPorts { settings, syntax: Arc::new(ruff_python_parser(settings)) } };
+        let words = super::walking::walk_words(&walk).map_err(|_| WalkError::Library)?;
+        let mut reader = Self::with_settings(words, settings);
+        let mut wrote = false;
+        reader.visit_parse(request.path.0, request.bytes.0, &mut NodeTable::default(), Some(parsed), &mut |file| {
+            // Positions are identities, including embedded nodes. Verify the two
+            // publications in index order. Matching equal spans cannot establish identity.
+            let table = file.table;
+            let kinds = node_table::kind_codes(table);
+            let parents = node_table::parent_ids(table);
+            let starts = node_table::starts(table);
+            let ends = node_table::ends(table);
+            if kinds.len() != languages::end_of(elements).0 as usize { return; }
+            for (i, &kind) in kinds.iter().enumerate() {
+                let at = Position(i as u32);
+                if kind != languages::kind_at(elements, at).0 ||
+                    (i != 0 && parents[i] != languages::parent_at(elements, at).0) ||
+                    starts[i] != languages::start_at(elements, at).0 || ends[i] != languages::end_at(elements, at).0 {
+                    return;
+                }
+            }
+            file.set_file(request.file);
+            visit(file);
+            wrote = true;
+        })?;
+        if wrote { Ok(()) } else { Err(WalkError::Library) }
+    }
+
+    fn visit_parse(&mut self, path: &str, bytes: &[u8], table: &mut NodeTable, parsed: Option<&ruff_python_parser::Parsed<ruff_python_ast::Mod>>, visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>)) -> Result<(), WalkError> {
         let source_path = languages::SourcePath(path);
-        if reads(source_path) != languages::Recognition::Reads {
+        if parsed.is_none() && reads(source_path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
         let kinds = <PythonWalk<WalkPorts> as languages::Walk>::KIND_COUNT;
@@ -196,7 +238,7 @@ impl ColumnWalk {
         let words = &mut self.words;
         let mut names = std::mem::take(&mut scratch.names);
         crate::domain::model::names::service::cleared(&mut names);
-        self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, names, &mut |walked| match walked {
+        let mut consume = |walked: Walked<'_, '_, '_>| match walked {
             Walked::Strings(tree) => {
                 built_parts = Built::default();
                 let mut hosts = Vec::new();
@@ -218,7 +260,14 @@ impl ColumnWalk {
                 scratch.names = tree.names;
                 Vec::new()
             }
-        });
+        };
+        if let Some(parsed) = parsed {
+            let text = crate::outbound::syntax::adapters::walk_text(SourceText(bytes));
+            crate::outbound::syntax::adapters::visit_parsed(&self.walk.ports.settings, SourceText(bytes), source_kind(source_path),
+                ReportedSyntax::Refusals, &mut builder, names, &mut consume, &text, parsed);
+        } else {
+            self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, names, &mut consume);
+        }
         Ok(())
     }
 }

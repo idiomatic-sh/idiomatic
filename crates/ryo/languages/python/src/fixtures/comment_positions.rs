@@ -155,36 +155,49 @@ impl l::FileRelations for Comments {
     }
     fn read(
         &self,
-        schema: &l::FileRelation,
-        file: l::FileId,
+        relations: &[&l::FileRelation],
+        request: l::ParseRequest<'_>,
         _: &l::Elements,
         tree: &l::NodeTable,
-        bytes: l::ByteSlice<'_>,
         symbols: &mut l::Symbols,
-    ) -> Result<Vec<l::FactColumn>, l::ParseError> {
-        if !SCHEMAS.contains(schema) {
-            return Err(l::ParseError::Unsupported);
-        }
-        let mut cols = vec![l::FactColumn::default(); schema.columns.len()];
-        visit(
-            schema.name,
-            tree,
-            bytes.0,
-            file,
-            |s| l::intern_derived(symbols, bytes, l::NameText(s)).0,
-            |row| {
-                for ((col, (_, ty)), &raw) in cols.iter_mut().zip(schema.columns).zip(row) {
-                    col.0.push(if *ty == l::CellKind::Node {
-                        (u64::from(file.0) << 32) | raw
-                    } else {
-                        raw
-                    });
-                }
-            },
-        )
-        .map_err(|reason| l::ParseError::Library {
-            reason: l::ToolMessage(reason.into()),
-        })?;
-        Ok(cols)
+    ) -> Vec<Result<Vec<l::FactColumn>, l::ParseError>> {
+        let bytes = request.bytes;
+        let file = request.file;
+        relations.iter().map(|&schema| {
+            columns(schema, file, tree, bytes, symbols)
+        }).collect()
     }
+}
+
+pub(crate) fn columns(
+    schema: &l::FileRelation,
+    file: l::FileId,
+    tree: &l::NodeTable,
+    bytes: l::ByteSlice<'_>,
+    symbols: &mut l::Symbols,
+) -> Result<Vec<l::FactColumn>, l::ParseError> {
+    if !SCHEMAS.contains(schema) {
+        return Err(l::ParseError::Unsupported);
+    }
+    let mut cols = vec![l::FactColumn::default(); schema.columns.len()];
+    visit(
+        schema.name,
+        tree,
+        bytes.0,
+        file,
+        |s| l::intern_derived(symbols, bytes, l::NameText(s)).0,
+        |row| {
+            for ((col, (_, ty)), &raw) in cols.iter_mut().zip(schema.columns).zip(row) {
+                col.0.push(if *ty == l::CellKind::Node {
+                    (u64::from(file.0) << 32) | raw
+                } else {
+                    raw
+                });
+            }
+        },
+    )
+    .map_err(|reason| l::ParseError::Library {
+        reason: l::ToolMessage(reason.into()),
+    })?;
+    Ok(cols)
 }
