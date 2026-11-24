@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import runpy
 import shutil
 import subprocess
 import tempfile
@@ -55,7 +56,149 @@ def parent_lookup(executable, scratch, env):
         assert (results[0]!=baseline)==present
 
 
-def run(fixture, exe, other_build, evidence):
+def typed_packets(cache):
+    """Read active request references; compare complete typed bytes, including order."""
+    reader_path=Path(__file__).resolve().parents[3]/"ryo/benchmarks/retention/edit_matrix.py"
+    reader=runpy.run_path(str(reader_path))["Postcard"]
+    packets={}
+    for path in cache.glob("answers-*.postcard"):
+        r=reader(path.read_bytes())
+        for _ in range(r.uint()):
+            key=bytes(r.take(32))
+            reason=r.string() if r.take(1)[0] else None
+            digest=r.string()
+            unknowns=[(r.string(),r.string()) for _ in range(r.uint())]
+            payload=bytes(r.take(r.uint()))
+            packets[key]=(reason,digest,unknowns,payload)
+        assert r.at==len(r.data)
+    active={}
+    for path in cache.glob("requests-*.postcard"):
+        r=reader(path.read_bytes())
+        for _ in range(r.uint()):
+            key=bytes(r.take(32))
+            r.take(64*r.uint())
+            result=packets[bytes(r.take(32))]
+            unread=[r.string() for _ in range(r.uint())]
+            active[key]=(result,unread)
+        assert r.at==len(r.data)
+    return active
+
+
+def contribution_edits(executable, scratch, env):
+    """An edit changes a local multiset and an untouched parent's closed answer."""
+    root = scratch / "contributions"
+    pack = root / "pack/rules/query"
+    pack.mkdir(parents=True)
+    src = root / "src"
+    src.mkdir()
+    parent, child = "src/parent.py", "src/child.py"
+    (root / parent).write_text("def parent(): return 1\ndef member(): return 1\n")
+    local = 'let nodes = select id, file, span from "semantic-syntax" where kind = "function-def";\nemit nodes subject file key(id, span);\n'
+    closed = (
+        'let listed = select l."path" as "file" from "filesystem.file" as l;\n'
+        'let target = select * from listed where glob_any(file, "src/parent.py");\n'
+        'let nodes = select file from "semantic-syntax" where kind = "function-def" and glob_any(file, "src/child.py");\n'
+        'let needs = extend(from=target, values={"witness": 1});\n'
+        'let has = extend(from=nodes, values={"witness": 1});\n'
+        'let missing = antijoin(left=needs,right=has,left-on=["witness"],right-on=["witness"]);\n'
+        'emit missing subject file key(file);\n'
+    )
+    (pack / "query.ryoql").write_text(local)
+    second = root / "closed/rules/query"
+    second.mkdir(parents=True)
+    (second / "query.ryoql").write_text(closed)
+    req = root / "request"
+    inventory = root / "inventory"
+    manifest = root / "manifest"
+    manifest.write_text("".join(f"{i}\t{directory}\t{req}\tunused\t{inventory}\n"
+                                for i,directory in [("local",pack.parents[1]),("closed",second.parents[1])]))
+    result = {}
+    for label,files in [("forward",[parent,child]),("reverse",[child,parent])]:
+        req.write_text(json.dumps(dict(root=str(root),files=files,parameters={},hosted=[])))
+        inventory.write_text(json.dumps(files))
+        cache=root/label
+        for step,source in enumerate(["pass\n","def child(): return 2\n"]):
+            (root/child).write_text(source)
+            reports=[]
+            for mode in (["--tm-batch-retained",cache],["--tm-batch"],["--tm-batch-retained",cache]):
+                out=root/"out"
+                p=subprocess.run([executable,*mode,manifest,out],env=env,capture_output=True,check=True)
+                assert b"refused" not in out.read_bytes(),p.stdout
+                reports.append(out.read_bytes().splitlines())
+            assert reports[0]==reports[1]==reports[2]
+            assert b"evaluated_pairs=0 evaluated_closed=0 written=0" in p.stderr
+            fresh=root/f"fresh-{label}-{step}"
+            subprocess.run([executable,"--tm-batch-retained",fresh,manifest,root/"fresh-receipt"],
+                           env=env,capture_output=True,check=True)
+            warm_packets=typed_packets(cache/".ryo_cache")
+            fresh_packets=typed_packets(fresh/".ryo_cache")
+            assert len(warm_packets)==2 and warm_packets==fresh_packets
+            if step==0: baseline=reports[0]
+            else:
+                assert all(a!=b for a,b in zip(baseline,reports[0])),(label,baseline,reports[0])
+                result[label]=reports[0]
+    assert result["forward"]==result["reverse"]
+    return result["forward"]
+
+
+def host_representative(executable,scratch,env):
+    """A request hit removes the former representative for the shared local cut."""
+    root=scratch/"representative";pack=root/"pack/rules/query";pack.mkdir(parents=True)
+    (pack/"query.ryoql").write_text(
+        'let nodes = select id, file, span from "semantic-syntax" where kind = "function-def";\n'
+        'let allowed = select path from "tastemaker.placed";\n'
+        'let hits = select n.file as file, n.id as id, n.span as span from nodes as n join allowed as a on n.file = a.path;\n'
+        'emit hits subject file key(id,span);\n')
+    names=["a.py","b.py","c.py"]
+    for n in names:(root/n).write_text("def once(): return 1\n")
+    inv=root/"inventory";inv.write_text(json.dumps(names))
+    man=root/"manifest";lines=[]
+    for j,(paths,allowed) in enumerate([(names[:2],names[1]),([names[0],names[2]],names[2])]):
+        req=root/f"req{j}"
+        req.write_text(json.dumps(dict(root=str(root),files=paths,parameters={},
+            hosted=[dict(name="tastemaker.placed",columns=[["path","File"]],rows=[[{"file":allowed}]])])))
+        lines.append(f"{j}\t{pack.parents[1]}\t{req}\tunused\t{inv}\n")
+    man.write_text("".join(lines))
+    def invoke(warm):
+        out=root/"out"
+        args=["--tm-batch-retained",root] if warm else ["--tm-batch"]
+        p=subprocess.run([executable,*args,man,out],env=env,capture_output=True,check=True)
+        assert b"refused" not in out.read_bytes(),p.stdout
+        return out.read_bytes(),p.stderr
+    original,_=invoke(True)
+    (root/"c.py").write_text("pass\n")
+    answer,counters=invoke(True)
+    assert answer!=original and answer==invoke(False)[0]
+    assert b"request_hits=1 " in counters and b"evaluated_pairs=1 " in counters,counters
+    return answer
+
+
+def inherited_inventory(executable,scratch,env):
+    root=scratch/'inherited';pack=root/'pack/rules/query';pack.mkdir(parents=True)
+    (root/'src').mkdir()
+    (root/'src/lib.rs').write_text('pub mod child;\n')
+    (root/'src/child.rs').write_text('pub fn child() {}\n')
+    (pack/'query.ryoql').write_text('let listed = select l."path" as "file" from "filesystem.file" as l;\nlet p = select * from listed where glob_any(file, "src/lib.rs");\nlet c = select * from listed where glob_any(file, "src/child.rs");\nlet a = extend(from=p,values={"w":1});\nlet b = extend(from=c,values={"w":1});\nlet missing = antijoin(left=a,right=b,left-on=["w"],right-on=["w"]);\nemit missing subject file key(file);\n')
+    req=root/'req';req.write_text(json.dumps(dict(root=str(root),files=['src/lib.rs','src/child.rs'],parameters={},hosted=[])))
+    inv=root/'inventory';index=root/'roots';index.write_text(json.dumps({str(root):str(inv)}))
+    m=root/'manifest';m.write_text(f'lookup\t{pack.parents[1]}\t{req}\tunused\n')
+    env=dict(env,TM_CORPUS_INVENTORIES=str(index))
+    prior=None
+    for names in [['src/lib.rs','src/child.rs'],None]:
+        inv.write_text(json.dumps(names) if names is not None else "[truncated")
+        results=[]
+        for args in (['--tm-batch-retained',root],['--tm-batch']):
+            out=root/'out';p=subprocess.run([executable,*args,m,out],env=env,capture_output=True,check=True)
+            results.append(out.read_bytes())
+        assert results[0]==results[1],(results,p.stderr)
+        if prior is not None:assert prior!=results[0]
+        prior=results[0]
+
+FULL_CAPTURE_EDITS = ("unchanged", "comment", "answer-change", "same-stamp", "add", "delete",
+                      "manifest", "host-table", "rule", "build", "refusal", "truncated")
+
+
+def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
     spec = json.loads((fixture / "edit.json").read_bytes())
     root = fixture / spec["root"]
     disk = fixture / spec["disk"]
@@ -111,9 +254,9 @@ def run(fixture, exe, other_build, evidence):
 
     counters = {}
 
-    def invoke(binary, retain):
+    def invoke(binary, retain, directory=store_root):
         output.unlink(missing_ok=True)
-        args = [binary, "--tm-batch-retained", store_root] if retain else [binary, "--tm-batch"]
+        args = [binary, "--tm-batch-retained", directory] if retain else [binary, "--tm-batch"]
         p = subprocess.run([*args,manifest,output],capture_output=True,env=env)
         diagnostics = sorted(x for x in p.stdout.splitlines() if x.startswith(b"REFUSAL"))
         if p.returncode:
@@ -121,12 +264,23 @@ def run(fixture, exe, other_build, evidence):
         if retain:
             counters.clear()
             counters.update((k.decode(), int(v)) for k, v in
-                            re.findall(rb"(pair_hits|closed_hits|evaluated_pairs|evaluated_closed|written)=(\d+)", p.stderr))
+                            re.findall(rb"(request_hits|pair_hits|closed_hits|evaluated_pairs|evaluated_closed|pairs_read|project_read|missing_local_bindings|missing_frontier_bindings|written)=(\d+)", p.stderr))
+            reads=re.search(rb"\breads=(\d+) parses=(\d+)",p.stdout)
+            counters["reads"],counters["parses"]=map(int,reads.groups())
             assert "written" in counters, "retained run did not report its publication"
         return output.read_bytes(), diagnostics
 
     with tempfile.TemporaryDirectory(dir=fixture) as tmp:
         parent_lookup(exe,Path(tmp),env)
+        inherited_inventory(exe,Path(tmp),env)
+        (evidence/"inherited-inventory.txt").write_text("changed inherited inventory revalidated; cold and warm both refused\n")
+        host_representative(exe,Path(tmp),env)
+        (evidence/"representative.txt").write_text("unchanged first request hit; one changed pair on the second request; exact cold receipt\n")
+        rows=contribution_edits(exe,Path(tmp),env)
+        with (evidence/"contribution-matrix.tsv").open("w") as f:
+            f.write("scenario\tstatus\tchanged_receipt\n")
+            for name,row in [("several-file",rows[0]),("closed-contribution",rows[1]),("same-edit-forward",rows[0]),("same-edit-reversed",rows[1])]:
+                f.write(f"{name}\tPASS\t{row.decode()}\n")
         backup = Path(tmp) / "seed"
         original = invoke(exe, True)
         seeded = counters.copy()
@@ -134,8 +288,7 @@ def run(fixture, exe, other_build, evidence):
         shutil.copytree(cache, backup)
         passed = True
         try:
-            for case in ("unchanged","comment","answer-change","same-stamp","add","delete",
-                         "manifest","host-table","rule","build","refusal","truncated"):
+            for case in scenarios:
                 bin_path = other_build if case == "build" else exe
                 shutil.rmtree(cache)
                 shutil.copytree(backup,cache)
@@ -175,30 +328,42 @@ def run(fixture, exe, other_build, evidence):
                     query=fixture/spec["query"]
                     write(query,b"not a query!\n" if case=="refusal" else query.read_bytes()+b"\n")
                 elif case=="truncated":
-                    pair=next(cache.glob("pairs-*.postcard"))
+                    pair=cache/"session.postcard"
                     with pair.open("r+b") as f:
                         f.truncate(pair.stat().st_size//2)
                 warm=invoke(bin_path,True)
                 trial=counters.copy()
                 cold=invoke(bin_path,False)
                 hit=invoke(bin_path,True)
-                ok=warm==cold==hit
+                with tempfile.TemporaryDirectory(dir=fixture) as fresh_root:
+                    reference=invoke(bin_path,True,Path(fresh_root))
+                    truth=typed_packets(Path(fresh_root)/".ryo_cache")
+                    observed=typed_packets(cache)
+                    typed_equal=all(observed.get(k)==v for k,v in truth.items())
+                ok=warm==cold==hit==reference and typed_equal and bool(truth)
                 if case in ("answer-change","same-stamp","delete","host-table"):
                     ok &= cold[0]!=original[0]
+                if case=="host-table":
+                    changed=sum(a!=b for a,b in zip(cold[0].splitlines(),original[0].splitlines()))
+                    ok &= 0 < changed < len(cold[0].splitlines()) and trial["request_hits"]>0
                 if case=="refusal":
-                    ok &= bool(cold[1])
+                    ok &= bool(cold[1]) and any(r[0][0] is not None for r in truth.values())
                 if case == "unchanged":
                     ok &= trial["written"] == trial["evaluated_pairs"] == trial["evaluated_closed"] == 0
+                    ok &= trial["pairs_read"] == trial["project_read"] == 0 and trial["request_hits"]==len(truth)
+                if case=="comment":
+                    ok &= trial["reads"]==trial["parses"]==1
+                    ok &= trial["missing_local_bindings"]==trial["missing_frontier_bindings"]==0
                 if case in ("build","truncated"):
                     ok &= trial["written"] > 0 and trial["evaluated_pairs"] == seeded["evaluated_pairs"]
                 passed &= ok
                 with (evidence/"session-matrix.tsv").open("a") as f:
                     w=csv.writer(f,delimiter="\t",lineterminator="\n")
                     if f.tell()==0:
-                        w.writerow(["scenario","pass","bytes","warm_sha256","cold_sha256","refusals","pairs_scheduled","closed_scheduled","written_B"])
+                        w.writerow(["scenario","pass","bytes","warm_sha256","cold_sha256","refusals","pairs_scheduled","closed_scheduled","written_B","typed_requests_checked","typed_equal","source_reads","source_parses","lower_table_read_B"])
                     w.writerow([case,ok,len(cold[0]),hashlib.sha256(warm[0]).hexdigest(),
                                 hashlib.sha256(cold[0]).hexdigest(),len(cold[1]),
-                                trial["evaluated_pairs"],trial["evaluated_closed"],trial["written"]])
+                                trial["evaluated_pairs"],trial["evaluated_closed"],trial["written"],len(truth),typed_equal,trial["reads"],trial["parses"],trial["pairs_read"]+trial["project_read"]])
                 reset()
         finally:
             reset()

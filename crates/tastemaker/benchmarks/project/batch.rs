@@ -48,6 +48,7 @@ enum Work {
     },
     Pairs(Vec<usize>),
     Refused(String),
+    Invalid(String),
 }
 
 struct ProjectSpec {
@@ -78,6 +79,7 @@ impl Authorities {
 struct Batch {
     schedule: session::Schedule,
     bindings: Vec<(usize, Rc<[Hosted]>)>,
+    host_rows: std::collections::HashSet<Rc<[Vec<super::HostCell>]>>,
     binding_ids: HashMap<(usize, Rc<[Hosted]>), usize>,
     queries: HashMap<String, Rc<str>>,
     work: Vec<Work>,
@@ -130,25 +132,27 @@ impl Batch {
         self.register_query(query, req, closed)
     }
 
+    fn prepared_rule(&mut self,query:Rc<str>,parameters:&Parameters)->usize{
+        let t = thread_cpu();
+        let rule = self
+            .schedule
+            .prepare(query.clone(), parameters.clone(), || {
+                let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
+                ctx.parameters
+                    .insert("query".into(), parameters.clone());
+                Program::prepare("query", &query, ctx, &declaration(), Some("/"))
+            });
+        self.clocks.prepare += thread_cpu() - t;
+        rule
+    }
     fn register_query(
         &mut self,
         query: Rc<str>,
         mut req: Input,
         closed: Option<&Path>,
     ) -> Result<Work, String> {
-        let t = thread_cpu();
-        let rule = self
-            .schedule
-            .prepare(query.clone(), req.parameters.clone(), || {
-                let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
-                ctx.parameters
-                    .insert("query".into(), req.parameters.clone());
-                Program::prepare("query", &query, ctx, &declaration(), Some("/"))
-            });
-        self.clocks.prepare += thread_cpu() - t;
-        let program = self.schedule.programs[rule]
-            .as_ref()
-            .map_err(Clone::clone)?;
+        let rule=self.prepared_rule(query.clone(),&req.parameters);
+        let program=match &self.schedule.programs[rule]{Ok(p)=>p,Err(reason)=>return Ok(Work::Invalid(reason.clone()))};
         req.hosted
             .retain(|h| program.bases.iter().any(|n| n == &h.name));
         let shape: Vec<_> = req
@@ -225,7 +229,7 @@ impl Batch {
                     .hosted
                     .iter()
                     .map(|t| Hosted {
-                        rows: Vec::new(),
+                        rows: Rc::default(),
                         ..t.clone()
                     })
                     .collect::<Vec<_>>();
@@ -355,7 +359,16 @@ impl Batch {
         Ok(Work::Pairs(pairs))
     }
 
-    fn binding(&mut self, rule: usize, hosted: Vec<Hosted>) -> usize {
+    fn binding(&mut self, rule: usize, mut hosted: Vec<Hosted>) -> usize {
+        // Only the immutable payload is shared. Each declaration keeps its schema,
+        // completeness and file-valued cells in the requesting scope.
+        for table in &mut hosted {
+            if let Some(rows) = self.host_rows.get(&table.rows) {
+                table.rows = Rc::clone(rows);
+            } else {
+                self.host_rows.insert(Rc::clone(&table.rows));
+            }
+        }
         let hosted: Rc<[Hosted]> = hosted.into();
         let host_key = hosted.clone();
         *self.binding_ids.entry((rule, host_key)).or_insert_with(|| {
@@ -373,6 +386,13 @@ impl Batch {
     }
 
     fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> Vec<Answer> {
+        // The closed, store-disabled capture cannot register another request.
+        // Release the admission-only maps before the reader and join heaps grow.
+        self.project_keys = Default::default();
+        self.authorities = Default::default();
+        self.contracts = Default::default();
+        self.cuts = Default::default();
+        self.local_bindings = Default::default();
         self.release_admission();
         let mut state = Active::default();
         self.epoch(readers, &mut state);
@@ -385,6 +405,7 @@ impl Batch {
         self.roots.clear();
         self.queries.clear();
         self.binding_ids.clear();
+        self.host_rows.clear();
     }
 
     fn epoch<L: session::source::Source>(&mut self,languages:&[L],state:&mut Active<L::File,L::Dictionary>) {
@@ -474,6 +495,14 @@ impl Batch {
                 },
                 &mut self.clocks,
             );
+            if !*keep && store.is_none() {
+                // Other readers have disjoint files. Answers and project contributions
+                // already own everything the closed phase will read from this group.
+                self.schedule.delivered(&files);
+                for i in files {
+                    self.schedule.sources[i].provided = None;
+                }
+            }
         }
         if let Some(s)=store.as_deref_mut() {s.local(self,world,answers,aliases,contributions);}
         if !*keep {
@@ -491,7 +520,7 @@ impl Batch {
         }
         self.schedule.delivered(&pending);
         self.finish_projects(languages, contributions, world, answers, populations, manifest_failures, *keep,store.as_deref_mut());
-        if let Some(s)=store {manifest_failures.extend(s.unread());}
+
     }
 
     fn finish_projects<L: session::source::Source>(
@@ -693,7 +722,7 @@ impl Batch {
         match work {
             Work::Project(result) => receipt.append(result)?,
             Work::Closed { .. } => return Err("project inputs still open"),
-            Work::Refused(reason) => return Err(reason),
+            Work::Refused(reason) | Work::Invalid(reason) => return Err(reason),
             Work::Pairs(slots) => {
                 for &slot in slots {
                     receipt.append(&answers[slot])?;
@@ -827,6 +856,14 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
         session.roots = serde_json::from_slice(&bytes).expect("source roots and their inventories");
     }
     session.authorities = Authorities::from_input().expect("repository declarations");
+    let mut store=root.map(|p|stored::Store::open(p).expect("open request store"));
+    let authority=store.as_mut().map(|s| {
+        ["TM_CORPUS_INVENTORIES","TM_CORPUS_PROJECTS"].map(|name|std::env::var_os(name).map(|p|
+            s.contract_file(Path::new(&p)).expect("read declared session inputs")))
+    });
+    enum Entry { Stored(stored::Key), Evaluate(usize,Option<stored::Key>) }
+    let mut entries=Vec::new();
+    let mut inherited_inventories=Vec::new();
     let file = std::fs::File::open(manifest).expect("input manifest");
     let mut invocations = Vec::new();
     let mut inputs = HashMap::new();
@@ -846,34 +883,72 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
             closed.map(Path::to_owned),
         );
         let idx = *inputs.entry(key).or_insert_with(|| {
-            let result = std::fs::read(req)
-                .map_err(|e| e.to_string())
-                .and_then(|bytes| serde_json::from_slice(&bytes).map_err(|e| e.to_string()))
-                .and_then(|input| session.register(pack, input, closed))
-                .unwrap_or_else(Work::Refused);
-            session.work.push(result);
-            session.work.len() - 1
+            let contract=store.as_mut().and_then(|s| {
+                let input=s.contract_file(Path::new(req))?;
+                let query=s.contract_file(&Path::new(pack).join("rules/query/query.ryoql"))?;
+                let inventory=match closed{Some(p)=>Some(s.contract_file(p)?),None=>None};
+                Some(stored::key((input,query,inventory,authority)))
+            });
+            if let (Some(s),Some(k))=(&mut store,contract) && let Some((answer,_))=s.lookup(k) {
+                entries.push(Entry::Stored(answer));
+            }else {
+                let result=std::fs::read(req).map_err(|e|e.to_string())
+                    .and_then(|bytes|serde_json::from_slice::<Input>(&bytes).map_err(|e|e.to_string()))
+                    .and_then(|input|{
+                        let inherited=if closed.is_none() && store.is_some(){session.roots.get(&input.root).cloned()}else{None};
+                        let work=session.register(pack,input,closed)?;
+                        if let (Some(p),Some(s))=(inherited,&mut store) && matches!(work,Work::Closed{..}|Work::Project(_)){
+                            let expected=s.contract_file(&p);
+                            inherited_inventories.push((session.work.len(),p,expected));
+                        }
+                        Ok(work)
+                    }).unwrap_or_else(Work::Refused);
+                let idx = session.work.len();
+                session.work.push(result);
+                if store.is_none() {
+                    return idx;
+                }
+                entries.push(Entry::Evaluate(idx,contract));
+            }
+            entries.len()-1
         });
         invocations.push((idx, id.to_owned(), oracle.to_owned()));
     }
     drop(inputs);
     let registration = thread_cpu() - start - session.clocks.prepare - session.clocks.project;
-    let answers = if let Some(root)=root {
-        let mut store=stored::Store::open(root).expect("read session store");
+    let answers=if let Some(s)=&mut store {
         let mut state=Active::default();
-        session.epoch_with_store(readers,&mut state,Some(&mut store));
-        store.prune();
-        let written=store.publish().expect("publish session snapshot");
-        eprintln!("retained pair_hits={} closed_hits={} evaluated_pairs={} evaluated_closed={} written={written}",store.file_hits,store.closed_hits,store.evaluated_pairs,store.evaluated_closed);
+        if !session.work.is_empty(){session.epoch_with_store(readers,&mut state,Some(s));}
+        for (i,path,expected) in inherited_inventories {s.inventory(i,path,expected);}
         state.answers
-    } else {session.run_sources(readers)};
-    let t = thread_cpu();
-    let mut out = std::io::BufWriter::new(std::fs::File::create(output).unwrap());
-    let results: Vec<_> = session
-        .work
-        .iter()
-        .map(|work| Batch::answer(work, &answers).map(|r| (digest(&r.rows), r.unknowns)))
-        .collect();
+    }else{session.run_sources(readers)};
+    let t=thread_cpu();
+    let mut out=std::io::BufWriter::new(std::fs::File::create(output).unwrap());
+    let results:Vec<Result<(String,Vec<(String,String)>),String>>=entries.into_iter().chain(
+        (0..if store.is_none() { session.work.len() } else { 0 }).map(|i| Entry::Evaluate(i,None))
+    ).map(|entry|{
+        let packet=match entry {
+            Entry::Stored(k)=>k,
+            Entry::Evaluate(i,id)=>{
+                if let Work::Invalid(reason)=&session.work[i] {
+                    if let (Some(s),Some(k))=(&mut store,id){s.decline(k,reason);}
+                    return Err(reason.clone())
+                }
+                let r=Batch::answer(&session.work[i],&answers).map_err(str::to_owned)?;
+                if let (Some(s),Some(k))=(&mut store,id) && let Some(k)=s.save(k,i,&r){k}
+                else{return Ok((digest(&r.rows),r.unknowns.into_iter().cloned().collect()))}
+            }
+        };
+        let p=store.as_ref().unwrap().packet(&packet);
+        if let Some(reason)=&p.refusal{return Err(reason.clone())}
+        Ok((p.digest.clone(),p.unknowns.clone()))
+    }).collect();
+    if let Some(s)=&mut store{
+        let pub_start=thread_cpu();
+        let written=s.publish().expect("publish session snapshot");
+        eprintln!("publication_cpu={:.6}",thread_cpu()-pub_start);s.costs();
+        eprintln!("retained request_hits={} pair_hits={} closed_hits={} evaluated_pairs={} evaluated_closed={} written={written}",s.request_hits,s.file_hits,s.closed_hits,s.evaluated_pairs,s.evaluated_closed);
+    }
     let mut refusals = BTreeMap::new();
     for (i, id, expected) in invocations {
         match &results[i] {
@@ -891,7 +966,7 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
                 writeln!(out).unwrap();
             }
             Err(reason) => {
-                *refusals.entry(*reason).or_insert(0usize) += 1;
+                *refusals.entry(reason.as_str()).or_insert(0usize) += 1;
                 writeln!(out, "{id}\trefused\t").unwrap();
             }
         }

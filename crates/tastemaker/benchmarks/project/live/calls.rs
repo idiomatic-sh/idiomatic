@@ -125,7 +125,7 @@ fn table(t: sdk::HostRelation) -> Result<Hosted, String> {
                 })
                 .collect()
         })
-        .collect::<Result<_, String>>()?;
+        .collect::<Result<Rc<[_]>, String>>()?;
     Ok(Hosted {
         name: t.name.0.into(),
         columns,
@@ -267,21 +267,7 @@ impl Live {
         paths.sort_unstable();
         paths.dedup();
         let key = (authority.clone(), overlay);
-        let root = if let Some(id) = self.versions.get(&key) {
-            id.clone()
-        } else {
-            let id: Rc<str> = Rc::from(format!("check-input:{}", self.versions.len()));
-            for (p, v) in &key.1 {
-                self.batch.schedule.provide(&id, p.clone(), v.clone())?;
-            }
-            self.versions.insert(key.clone(), id.clone());
-            id
-        };
-        for p in listed {
-            if !key.1.contains_key(p.0.as_ref()) {
-                self.batch.schedule.listed(&root, &physical, &p.0)?;
-            }
-        }
+        let mut prepared_root=None;
         let filter = self.globs(&req.files)?;
         let hosted = req
             .hosted
@@ -289,6 +275,19 @@ impl Live {
             .map(table)
             .collect::<Result<Vec<_>, _>>()?;
         let mut ids = Vec::new();
+        let scope=if let Some(s)=&mut self.store{
+            // The unread list belongs to the union of requested project relations.
+            // File-only requests have no dependency on this peer inventory.
+            let peers=req.rules.iter().map(|(id,rule)|{
+                let parameters=rule.parameters.iter().map(|(k,v)|Ok((&k.0,parameter(v.clone())?))).collect::<Result<Vec<_>,String>>()?;
+                Ok(super::stored::key((id.as_ref(),rule.query.as_ref(),&rule.include,&rule.exclude,parameters)))
+            }).collect::<Result<Vec<_>,String>>()?;
+            let shape=hosted.iter().map(|h|(&h.name,&h.columns)).collect::<Vec<_>>();
+            s.overlay(std::path::Path::new(&*physical),&paths,super::stored::key((peers,shape)),&key.1);
+            Some(super::stored::key((&physical,&authority)))
+        }else{None};
+        let host_keys=self.store.as_ref().map(|_|hosted.iter().map(super::stored::key).collect::<Vec<_>>());
+        let mut restored_unread=BTreeMap::<String,usize>::new();
         self.batch.work.clear();
         for (id, rule) in req.rules {
             if rule.applicability != sdk::RuleApplicability::Always || !rule.observations.is_empty()
@@ -313,10 +312,46 @@ impl Live {
                 .into_iter()
                 .map(|(k, v)| Ok((k.0, parameter(v)?)))
                 .collect::<Result<_, String>>()?;
+            let query:Rc<str>=Rc::from(rule.query.as_ref());
+            let contract=scope.map(|scope|{
+                let rule=self.batch.prepared_rule(query.clone(),&parameters);
+                let plan=self.batch.schedule.programs[rule].as_ref().ok();
+                let consumed:Vec<_>=hosted.iter().enumerate().filter(|(_,t)|plan.is_some_and(|p|p.bases.contains(&t.name)))
+                    .map(|(i,_)|host_keys.as_ref().unwrap()[i]).collect();
+                super::stored::key((scope,&query,&parameters,&files,consumed))
+            });
+            if let (Some(store),Some(k))=(&mut self.store,contract)
+                && let Some((packet,unread))=store.lookup(k){
+                if let Some(reason)=&store.packet(&packet).refusal{return Err(format!("{id}: {reason}"))}
+                let mut counts=BTreeMap::<String,usize>::new();
+                for p in unread{*counts.entry(p).or_default()+=1;}
+                for (p,n) in counts{let total=restored_unread.entry(p).or_default();*total=(*total).max(n);}
+                ids.push((id,Ok(packet)));
+                continue
+            }
+            if prepared_root.is_none(){
+        let root = if let Some(id) = self.versions.get(&key) {
+            id.clone()
+        } else {
+            let id: Rc<str> = Rc::from(format!("check-input:{}", self.versions.len()));
+            for (p, v) in &key.1 {
+                self.batch.schedule.provide(&id, p.clone(), v.clone())?;
+            }
+            self.versions.insert(key.clone(), id.clone());
+            id
+        };
+        for p in &listed {
+            if !key.1.contains_key(p.0.as_ref()) {
+                self.batch.schedule.listed(&root, &physical, &p.0)?;
+            }
+        }
+                prepared_root=Some(root);
+            }
+            let root=prepared_root.as_ref().unwrap();
             let work = self
                 .batch
                 .register_query(
-                    Rc::from(rule.query.as_ref()),
+                    query,
                     Input {
                         root: root.to_string(),
                         files,
@@ -328,19 +363,33 @@ impl Live {
                     None,
                 )
                 .map_err(|e| format!("{id}: {e}"))?;
+            if let super::Work::Invalid(reason)=&work{
+                if let (Some(store),Some(k))=(&mut self.store,contract){store.decline(k,reason);}
+                return Err(format!("{id}: {reason}"))
+            }
+            ids.push((id,Err((self.batch.work.len(),contract))));
             self.batch.work.push(work);
-            ids.push(id);
         }
         if let Some(store)=&mut self.store {
-            self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));
+            if !self.batch.work.is_empty(){self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));}else{self.state.manifest_failures.clear();}
         } else {
             self.batch.epoch(&self.languages,&mut self.state);
         }
         let mut out = LiveReport::default();
         let start = thread_cpu();
-        for (id, work) in ids.into_iter().zip(&self.batch.work) {
-            let receipt =
-                Batch::answer(work, &self.state.answers).map_err(|e| format!("{id}: {e}"))?;
+        for (id,entry) in ids {
+            let held;
+            let receipt=match entry {
+                Ok(k)=>{
+                    held=self.store.as_ref().unwrap().packet(&k).report();
+                    super::Receipt {rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
+                }
+                Err((i,k))=>{
+                    let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e|format!("{id}: {e}"))?;
+                    if let (Some(store),Some(k))=(&mut self.store,k){store.save(k,i,&r);}
+                    r
+                }
+            };
             for row in receipt.rows {
                 let subject = row
                     .identity
@@ -369,8 +418,10 @@ impl Live {
                 out.unread.push(p.0);
             }
         }
-        out.unread
-            .extend(self.state.manifest_failures.iter().map(|p| p.0.clone()));
+        let mut manifest=BTreeMap::<String,usize>::new();
+        for p in &self.state.manifest_failures{*manifest.entry(p.0.to_string()).or_default()+=1;}
+        for (p,n) in restored_unread{let total=manifest.entry(p).or_default();*total=(*total).max(n);}
+        for (p,n) in manifest{out.unread.extend(std::iter::repeat_n(Box::<str>::from(p),n));}
         out.unread.sort_unstable();
         self.batch.clocks.assemble += thread_cpu() - start;
         Ok(out)
