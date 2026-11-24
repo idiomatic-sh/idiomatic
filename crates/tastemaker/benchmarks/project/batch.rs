@@ -374,14 +374,18 @@ impl Batch {
     }
 
     fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> Vec<Answer> {
+        self.release_admission();
+        let mut state = Active::default();
+        self.epoch(readers, &mut state);
+        state.answers
+    }
+
+    fn release_admission(&mut self) {
         self.schedule.close();
         self.inventories.clear();
         self.roots.clear();
         self.queries.clear();
         self.binding_ids.clear();
-        let mut state = Active::default();
-        self.epoch(readers, &mut state);
-        state.answers
     }
 
     fn epoch<L: session::source::Source>(&mut self,languages:&[L],state:&mut Active<L::File,L::Dictionary>) {
@@ -414,6 +418,7 @@ impl Batch {
         contributions.resize_with(self.schedule.sources.len(), || None);
         if let Some(s)=store.as_deref_mut() {
             s.admit(self,world,answers,contributions);
+            if !*keep {self.release_admission();}
         }
         let pending: Vec<_> = std::mem::take(&mut self.schedule.pending)
             .into_iter()
