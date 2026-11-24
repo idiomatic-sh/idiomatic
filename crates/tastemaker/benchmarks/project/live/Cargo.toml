@@ -48,6 +48,9 @@ memchr="2"
 postcard={version="1",default-features=false,features=["use-std"]}
 tempfile="3"
 object={version="=0.37.3",default-features=false,features=["read","std"]}
+ryo_toml = { package = "idiomatic-sh-ryo-toml", path = "../../../../ryo/languages/toml" }
+ryo_json = { package = "idiomatic-sh-ryo-json", path = "../../../../ryo/languages/json" }
+ryo_markdown = { package = "idiomatic-sh-ryo-markdown", path = "../../../../ryo/languages/markdown" }
 
 [target.'cfg(all(target_os = "linux", any(target_arch = "aarch64", target_arch = "x86_64", target_arch = "powerpc64", target_arch = "riscv64")))'.dependencies]
 tikv-jemalloc-sys = "0.6.1"

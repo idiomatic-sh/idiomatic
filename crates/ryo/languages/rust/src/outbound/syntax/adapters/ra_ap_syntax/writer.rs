@@ -16,6 +16,7 @@ use rustc_literal_escaper::unescape_str;
 use ryo::languages::{self, Flag, NameText, Offset};
 
 pub(crate) trait Output {
+    fn string_values(&self) -> bool { true }
     fn numeric_values(&self) -> bool { true }
     fn enter(&mut self, kind: languages::KindBits, start: Offset);
     fn leave(&mut self, end: Offset);
@@ -119,7 +120,7 @@ pub(super) fn emit(
             );
             let from = usize::try_from(cursor.position.0).unwrap_or(usize::MAX);
             let to = usize::try_from(end.0).unwrap_or(usize::MAX);
-            let value = (*kind == SyntaxKind::STRING)
+            let value = (*kind == SyntaxKind::STRING && builder.string_values())
                 .then(|| {
                     let written = text.0.get(from..to)?;
                     decoded(StringLiteral(written))

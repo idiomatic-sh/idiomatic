@@ -136,7 +136,7 @@ pub(crate) fn select_marks(plan: &FinishPlan) -> Vec<(usize, Option<usize>, bool
             FinishStep::Select(select) => Some((
                 place,
                 match select.probe {
-                    ProbeMark::Unmarked => None,
+                    ProbeMark::Unmarked | ProbeMark::Filtered(_) => None,
                     ProbeMark::Probed(source) => Some(source.0),
                 },
                 select.count == CountMark::Counted,

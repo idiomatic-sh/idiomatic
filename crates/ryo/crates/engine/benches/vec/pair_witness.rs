@@ -21,7 +21,7 @@ fn contains(bits: &Nodes, id: u32) -> bool {
             .is_some_and(|w| w & (1u64 << (id % 64)) != 0)
     })
 }
-impl<const PROFILE: bool> File<'_, PROFILE> {
+impl<const PROFILE: bool, const BATCH: bool> File<'_, PROFILE, BATCH> {
     /// The same lazy path test can answer either an existence probe or a
     /// request for all survivors. A shared conjunction materializes once.
     pub(super) fn edge(&mut self, edge: Edge, output: Option<&mut Vec<u64>>) -> Option<bool> {

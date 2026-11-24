@@ -51,6 +51,9 @@ pub(in crate::outbound::plan_codec::adapters::json) enum ListedNodeSchema {
         items: Option<Vec<(String, ExpressionSchema)>>,
         /// Its condition, or `null`.
         cond: Option<ExpressionSchema>,
+        /// Optional test pushed from the sole reader.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        pushed: Option<ExpressionSchema>,
         /// The probed source of a semijoin.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         semi: Option<usize>,
@@ -274,8 +277,12 @@ impl From<&FinishStep> for NodeSchema {
                     RowCondition::Every => None,
                     RowCondition::Tested(condition) => Some(condition.into()),
                 },
+                pushed: match &select.probe {
+                    ProbeMark::Filtered(test) => Some(ExpressionSchema::from(test.as_ref())),
+                    _ => None,
+                },
                 semi: match select.probe {
-                    ProbeMark::Unmarked => None,
+                    ProbeMark::Unmarked | ProbeMark::Filtered(_) => None,
                     ProbeMark::Probed(place) => Some(place.0),
                 },
                 count: match select.count {
@@ -359,7 +366,7 @@ impl From<NodeSchema> for FinishStep {
         };
         match listed {
             ListedNodeSchema::Base { rel } => Self::Base(RelationName(rel.into())),
-            ListedNodeSchema::Select { src, items, cond, semi, count } => Self::Select(SelectStep {
+            ListedNodeSchema::Select { src, items, cond, pushed, semi, count } => Self::Select(SelectStep {
                 sources: src
                     .into_iter()
                     .map(|(step, alias)| SelectSource {
@@ -376,7 +383,13 @@ impl From<NodeSchema> for FinishStep {
                     )
                 }),
                 condition: cond.map_or(RowCondition::Every, |condition| RowCondition::Tested(condition.into())),
-                probe: semi.map_or(ProbeMark::Unmarked, |place| ProbeMark::Probed(SourceOrdinal(place))),
+                probe: if let Some(place) = semi {
+                    ProbeMark::Probed(SourceOrdinal(place))
+                } else if let Some(test) = pushed {
+                    ProbeMark::Filtered(Box::new(test.into()))
+                } else {
+                    ProbeMark::Unmarked
+                },
                 count: if count.is_some() { CountMark::Counted } else { CountMark::Unmarked },
             }),
             ListedNodeSchema::Axis { args, exists } => Self::Axis(AxisStep {

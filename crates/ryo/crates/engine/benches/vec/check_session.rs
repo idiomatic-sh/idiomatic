@@ -24,6 +24,8 @@ use source::Source as FileSource;
 #[path = "check_session/frontier.rs"]
 mod frontier;
 pub(crate) use frontier::World;
+#[cfg(feature = "product-session")]
+pub(crate) use frontier::SharedFrontier;
 #[path = "check_session/shared.rs"]
 mod shared;
 
@@ -40,7 +42,7 @@ type Parameters =
 type Result<T> = std::result::Result<T, String>;
 pub(crate) type Answer = Result<Reported>;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct Reported {
     pub rows: Vec<finish::answer::Row>,
     pub unknowns: Vec<(String, String)>,
@@ -72,6 +74,7 @@ pub(crate) struct Program {
     pub plan: Plan,
     pub syntax: Box<ryo_values::domain::program::types::WrittenProgram>,
     pub bases: Vec<String>,
+    base_steps: Vec<(usize, Option<l::Relation>)>,
     requirements: (bool, Vec<Vec<String>>, Vec<Vec<String>>),
 }
 
@@ -89,11 +92,11 @@ impl Program {
             .pop()
             .ok_or("missing query emit")?
             .1;
-        let bases = plan
-            .nodes
-            .iter()
-            .filter_map(|n| n.base().map(str::to_owned))
-            .collect();
+        let (bases, base_steps) = plan.nodes.iter().enumerate().filter_map(|(offset, step)| {
+            step.base().map(|name| {
+                (name.to_owned(), (offset, relations::service::relation_named(NameRef(name))))
+            })
+        }).unzip();
         let syntax = match pack
             .programs
             .rules
@@ -111,6 +114,7 @@ impl Program {
             typed,
             requirements,
             bases,
+            base_steps,
         })
     }
 }
@@ -119,15 +123,39 @@ impl Program {
 pub(crate) struct Clock {
     pub(crate) readers: BTreeMap<String, ReaderParts>,
     pub inventory: f64,
+    pub inventory_wall: f64,
+    pub join_wall: f64,
+    pub shard_critical_wall: f64,
+    pub shard_busy_wall: f64,
+    pub largest_file_wall: f64,
+    pub largest_file: String,
+    pub measure_file_wall: bool,
     pub join: f64,
     pub prepare: f64,
     pub read_parse: f64,
     pub(crate) read_versions: f64,
     pub(crate) build_file: f64,
     pub screen: f64,
+    pub bound_proofs: f64,
+    pub literal_positions: usize,
+    pub requirement_programs: usize,
+    pub requirement_bindings: usize,
     pub evaluate: f64,
     pub project: f64,
     pub assemble: f64,
+    pub project_wall: f64,
+    pub project_workers_cpu: f64,
+    pub project_prepare_wall: f64,
+    pub project_provider_wall: f64,
+    pub project_number_wall: f64,
+    pub project_numbered: usize,
+    pub empty_project_epochs: usize,
+    pub project_shards: usize,
+    pub delivery_workers_cpu: f64,
+    pub file_workers_cpu: f64,
+    pub file_shards: usize,
+    pub empty_file_epochs: usize,
+    pub omitted_file_bindings: usize,
     pub files: usize,
     pub reads: usize,
     pub unique_pairs: usize,
@@ -236,19 +264,25 @@ impl Schedule {
     }
 
     /// Attach immutable caller bytes before admitting any consumer of this source root.
-    pub(crate) fn provide(&mut self, root: &Arc<str>, path: String, bytes: Arc<[u8]>) -> Result<()> {
-        let key = (Rc::from(path.as_str()), bytes.clone());
-        let id = match self.supplied_ids.get(&key) {
-            Some(&id) => id,
+    pub(crate) fn provide(
+        &mut self,
+        root: &Arc<str>,
+        path: &str,
+        bytes: &Arc<[u8]>,
+    ) -> Result<Arc<[u8]>> {
+        let key = (Rc::from(path), bytes.clone());
+        let (id, canonical) = match self.supplied_ids.get_key_value(&key) {
+            Some(((_, held), &id)) => (id, held.clone()),
             None => {
                 let ids = self.source_ids.entry(root.clone()).or_default();
-                let id = Self::source_in(&mut self.sources, ids, root, &path)?;
-                self.sources[id].provided = Some(bytes);
+                let id = Self::source_in(&mut self.sources, ids, root, path)?;
+                self.sources[id].provided = Some(bytes.clone());
                 self.supplied_ids.insert(key, id);
-                id
+                (id, bytes.clone())
             }
         };
-        self.alias_source(root, &path, id)
+        self.alias_source(root, path, id)?;
+        Ok(canonical)
     }
 
     pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str) -> Result<()> {
@@ -282,34 +316,48 @@ impl Schedule {
             })
             .collect()
     }
-    pub(crate) fn admit(
+    pub(crate) fn admit_paths(
         &mut self,
-        root: String,
+        root: &Arc<str>,
         files: &[String],
         binding: usize,
+        known_binding: bool,
+        mut resolved: impl FnMut(usize),
     ) -> Result<Vec<usize>> {
-        let root: Arc<str> = root.into();
         let ids = self.source_ids.entry(root.clone()).or_default();
-        let mut pairs = Vec::with_capacity(files.len());
-        for path in files {
-            let src = Self::source_in(&mut self.sources, ids, &root, path)?;
-            let source = &mut self.sources[src];
-            if let Some(&slot) = source.known.get(&binding) {
-                pairs.push(slot);
-                continue;
-            }
-            let first = source.bindings.is_empty();
-            let slot = *source.bindings.entry(binding).or_insert_with(|| {
-                let slot = self.pairs;
-                self.pairs += 1;
-                if first {
-                    self.pending.insert(src);
-                }
-                slot
-            });
-            pairs.push(slot);
+        files.iter().map(|path| {
+            let src = Self::source_in(&mut self.sources, ids, root, path)?;
+            resolved(src);
+            Ok(Self::slot(&mut self.sources[src], src, binding, known_binding, &mut self.pairs, &mut self.pending))
+        }).collect()
+    }
+
+    pub(crate) fn admit_ids(&mut self, sources: &[usize], binding: usize, known_binding: bool) -> Vec<usize> {
+        sources.iter().map(|&src| {
+            Self::slot(&mut self.sources[src], src, binding, known_binding, &mut self.pairs, &mut self.pending)
+        }).collect()
+    }
+
+    fn slot(
+        source: &mut Source,
+        src: usize,
+        binding: usize,
+        known_binding: bool,
+        pairs: &mut usize,
+        pending: &mut BTreeSet<usize>,
+    ) -> usize {
+        if known_binding && let Some(&slot) = source.known.get(&binding) {
+            return slot;
         }
-        Ok(pairs)
+        let first = source.bindings.is_empty();
+        *source.bindings.entry(binding).or_insert_with(|| {
+            let slot = *pairs;
+            *pairs += 1;
+            if first {
+                pending.insert(src);
+            }
+            slot
+        })
     }
 }
 
@@ -330,7 +378,7 @@ impl<'p> std::ops::IndexMut<&usize> for Bindings<'p> {
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 struct SummaryColumns {
     kinds: bool,
     fields: bool,
@@ -352,7 +400,7 @@ fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
 
 struct Bound<'p> {
     fact_mask: FactMask,
-    summary: SummaryColumns,
+    requirements: Rc<BoundRequirements>,
     projects_words: bool,
     reads_fields: bool,
     screenable: Option<bool>,
@@ -366,11 +414,38 @@ struct Bound<'p> {
     facts: Vec<l::Relation>,
     filters: BTreeMap<usize,Vec<(usize,u64)>>,
     hosted: Tables,
-    shape: Vec<Vec<(bool, u32)>>,
-    words: Vec<Vec<u32>>,
-    never: bool,
+
     lines: bool,
     coverage: reader_run::coverage::Coverage,
+}
+
+#[derive(Eq, Hash, PartialEq)]
+struct BoundRequirements {
+    never: bool,
+    shape: Vec<Vec<(bool, u32)>>,
+    words: Vec<Vec<u32>>,
+    summary: SummaryColumns,
+}
+
+impl BoundRequirements {
+    fn new(program: &Program, run: &mut Run) -> Self {
+        let (never, shape, words) = &program.requirements;
+        let summary = SummaryColumns {
+            kinds: shape.iter().flatten().any(|v| v.starts_with("k:")),
+            fields: shape.iter().flatten().any(|v| v.starts_with("f:")),
+            words: !words.is_empty(),
+        };
+        let shape = shape.iter().map(|clause| {
+            clause.iter().map(|value| {
+                let (kind, term) = value.split_once(':').expect("shape term");
+                (kind == "k", run.sym(term.as_bytes()))
+            }).collect()
+        }).collect();
+        let words = words.iter().map(|clause| {
+            clause.iter().map(|word| run.sym(word.as_bytes())).collect()
+        }).collect();
+        Self { never: *never, shape, words, summary }
+    }
 }
 
 fn bind<'p, L: FileSource>(
@@ -380,20 +455,17 @@ fn bind<'p, L: FileSource>(
     run: &mut Run,
     hosted: Tables,
     cut: Option<&finish::partition::Partition>,
+    (requirements, test): (Rc<BoundRequirements>, usize),
 ) -> Result<Bound<'p>> {
     let mut facts = Vec::new();
-    let mut projects_words = !program.requirements.2.is_empty();
-    let mut reads_fields = program.requirements.1.iter().flatten().any(|term| term.starts_with("f:"));
-    for (at, step) in program.plan.nodes.iter().enumerate() {
-        if step.op != "base" || cut.is_some_and(|c| !c.file_steps[at]) {
+    let mut projects_words = requirements.summary.words;
+    let mut reads_fields = requirements.summary.fields;
+    for (name, (at, relation)) in program.bases.iter().zip(&program.base_steps) {
+        if cut.is_some_and(|c| !c.file_steps[*at]) || hosted.iter().any(|(n, _)| n == name) {
             continue;
         }
-        let name = step.base().ok_or("base relation")?;
-        if hosted.iter().any(|(n, _)| n == name) {
-            continue;
-        }
-        let rel = relations::service::relation_named(NameRef(name))
-            .ok_or_else(|| format!("undeclared {name}"))?;
+        let rel = relation.ok_or_else(|| format!("undeclared {name}"))?;
+        let name = name.as_str();
         projects_words |= matches!(rel, l::Relation::SyntaxTree | l::Relation::SemanticSyntax | l::Relation::TokenLink);
         reads_fields |= matches!(rel, l::Relation::SemanticChild | l::Relation::SyntaxChild);
         if relations::service::class_of(rel) == relations::types::Class::Engine {
@@ -421,33 +493,15 @@ fn bind<'p, L: FileSource>(
             facts.push(rel);
         }
     }
-    let (never, shape, words) = &program.requirements;
-    let summary = SummaryColumns {
-        kinds: shape.iter().flatten().any(|v| v.starts_with("k:")),
-        fields: shape.iter().flatten().any(|v| v.starts_with("f:")),
-        words: !words.is_empty(),
-    };
-    let shape = shape
-        .iter()
-        .map(|clause| {
-            clause
-                .iter()
-                .map(|v| {
-                    let (kind, term) = v.split_once(':').unwrap();
-                    (kind == "k", run.sym(term.as_bytes()))
-                })
-                .collect()
-        })
-        .collect();
-    let words = words
-        .iter()
-        .map(|clause| clause.iter().map(|w| run.sym(w.as_bytes())).collect())
-        .collect();
-    let mut exec = Exec::new(&program.plan);
     let filters: BTreeMap<usize, Vec<(usize, u64)>>=cut.into_iter().flat_map(|c|&c.filters).map(|(&node,alts)|{
         (node,alts.iter().map(|(col,w)|(*col,u64::from(run.sym(w)))).collect())
     }).collect();
-    let projections = finish::session::contribution::Projection::bind(&mut exec, run, cut, &filters);
+    let projections = cut.filter(|partition| !partition.columns.is_empty()).map_or_else(
+        BTreeMap::new,
+        |partition| finish::session::contribution::Projection::bind(
+            &mut Exec::new(&program.plan), run, Some(partition), &filters,
+        ),
+    );
     let outputs = registry.identify(&projections, cut);
     let mut fact_mask = FactMask::default();
     for &rel in &facts {
@@ -456,7 +510,7 @@ fn bind<'p, L: FileSource>(
     }
     Ok(Bound {
         fact_mask,
-        summary,
+        requirements,
         reads_fields,
         projects_words,
         screenable: None,
@@ -467,12 +521,9 @@ fn bind<'p, L: FileSource>(
         filters,
         plan: &program.plan,
         slots: Vec::with_capacity(program.plan.nodes.len()),
-        test: 0,
+        test,
         facts,
         hosted,
-        shape,
-        words,
-        never: *never,
         lines: program
             .bases
             .iter()
@@ -601,12 +652,18 @@ fn versions<'s>(
 pub(crate) struct ReaderState {
     run: Run,
     screens: pairs::Retained,
+    patterns: crate::pair_checks::SymbolMatches,
+    requirements: HashMap<usize, (Rc<BoundRequirements>, usize)>,
+    requirement_ids: HashMap<Rc<BoundRequirements>, usize>,
+    previous_plan: Option<shared::PreviousPlan>,
     unknown: Option<HashMap<u32, u32>>,
     bytes: HashMap<usize, (Arc<[u8]>, u32)>,
 }
 
 #[derive(Default)]
 struct Contents {
+    ready: SummaryColumns,
+    answers: crate::pair_checks::AtomAnswers,
     kinds: rustc_hash::FxHashSet<u32>,
     fields: rustc_hash::FxHashSet<u32>,
     words: rustc_hash::FxHashSet<u32>,
@@ -622,6 +679,8 @@ struct HeldFile<F: Default, D: Default> {
     text: Vec<u32>,
     recovery: Option<ryo_execution_domain::domain::coverage::types::Recovery>,
     contents: Contents,
+    literals: std::cell::RefCell<crate::pair_checks::LiteralPositions>,
+    proof_atoms: crate::pair_checks::AtomAnswers,
     known: BTreeSet<l::Relation>,
     facts: l::contract::Collect,
 }
@@ -643,8 +702,8 @@ pub(crate) fn visit<L: FileSource>(
     contributions: &mut (impl Slots<Option<Rc<project::Contribution>>> + ?Sized),
     programs: &[Result<Program>],
     program_of: &[usize],
-    contracts: &HashMap<usize, &completeness::Contract>,
-    cut_of: &[Option<&finish::partition::Partition>],
+    contracts: &[Arc<completeness::Contract>],
+    cut_of: &[Option<Arc<finish::partition::Partition>>],
     world: &mut World,
     sources: &[Source],
     selected: &[usize],
@@ -680,6 +739,15 @@ pub(crate) fn visit<L: FileSource>(
         }
     }
     let mut checks = (!keep).then(|| pairs::Checks::new(parser, programs, program_of, &needed, cut_of));
+    let mut local_requirements = HashMap::new();
+    let mut local_ids = HashMap::new();
+    let (reader_requirements, requirement_ids) = if keep {
+        (&mut state.requirements, &mut state.requirement_ids)
+    } else {
+        (&mut local_requirements, &mut local_ids)
+    };
+    let local_patterns = crate::pair_checks::SymbolMatches::default();
+    let pattern_cache = if keep { &state.patterns } else { &local_patterns };
     clocks.prepare += thread_cpu() - t;
     let mut bound = Bindings { index: vec![usize::MAX; program_of.len()], entries: Vec::new() };
     let mut registry = finish::session::contribution::Registry::default();
@@ -697,24 +765,39 @@ pub(crate) fn visit<L: FileSource>(
     for (binding, needed) in needed.into_iter().enumerate() {
         if !needed { continue; }
         let entry = (|| {
-            let program = programs[program_of[binding]].as_ref().map_err(Clone::clone)?;
+            let program_id = program_of[binding];
+            let program = programs[program_id].as_ref().map_err(Clone::clone)?;
             let tables = host(binding, &mut run)?;
-            let mut b = bind(&mut registry, program, parser, &mut run, tables, cut_of[binding].as_deref())?;
-            merged.add(&mut b, &mut run);
+            clocks.requirement_bindings += 1;
+            let requirements = reader_requirements.entry(program_id)
+                .or_insert_with(|| {
+                    clocks.requirement_programs += 1;
+                    let requirements = Rc::new(BoundRequirements::new(program, &mut run));
+                    if let Some((known, &id)) = requirement_ids.get_key_value(&requirements) {
+                        return (known.clone(), id);
+                    }
+                    let id = requirement_ids.len();
+                    requirement_ids.insert(requirements.clone(), id);
+                    (requirements, id)
+                })
+                .clone();
+            let mut b = bind(&mut registry, program, parser, &mut run, tables,
+                cut_of[binding].as_deref(), requirements)?;
+            merged.add(&mut b, &mut run, program_id, keep);
             Ok(b)
         })();
         bound.index[binding] = bound.entries.len();
         bound.entries.push(entry);
     }
-    let (plan, supplied, test_count) = merged.finish();
+    let (plan, supplied) = merged.finish(keep.then_some(&mut state.previous_plan), &mut bound);
     let mut exec = Exec::new(&plan);
-    let mut test_results = vec![None; test_count];
     clocks.prepare += thread_cpu() - start;
     let mut carried_symbols = HashMap::new();
     if let Some(dictionary) = reader_id.and_then(|id| world.project_words.get(id)) {
         carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
     }
     for group in by_path.values() {
+        let file_start = clocks.measure_file_wall.then(std::time::Instant::now);
         let t = thread_cpu();
         let versions = versions(
             group,
@@ -743,7 +826,7 @@ pub(crate) fn visit<L: FileSource>(
             let mut have_plan = false;
             let mut projects_words = keep;
             let mut projects_fields = keep;
-            let mut summary = SummaryColumns { kinds: keep, fields: keep, words: keep };
+            let mut summary = SummaryColumns::default();
             for (&binding, &slot) in jobs.iter() {
                 match &bound[&binding] {
                     Ok(b) => {
@@ -751,10 +834,10 @@ pub(crate) fn visit<L: FileSource>(
                         for (word, bits) in required.iter_mut().zip(b.fact_mask) { *word |= bits; }
                         projects_words |= b.projects_words;
                         projects_fields |= b.reads_fields;
-                        if cut_of[binding].is_none() && !b.never {
-                            summary.kinds |= b.summary.kinds;
-                            summary.fields |= b.summary.fields;
-                            summary.words |= b.summary.words;
+                        if cut_of[binding].is_none() && !b.requirements.never {
+                            summary.kinds |= b.requirements.summary.kinds;
+                            summary.fields |= b.requirements.summary.fields;
+                            summary.words |= b.requirements.summary.words;
                         }
                     }
                     Err(reason) => answers.set(slot, Err(reason.clone())),
@@ -806,6 +889,7 @@ pub(crate) fn visit<L: FileSource>(
                     },
                 };
 
+                if !session_open && projects_words { requested.push(l::Relation::SyntaxTree); }
                 let build_start = thread_cpu();
                 let result = parser.build(
                     request,
@@ -875,7 +959,17 @@ pub(crate) fn visit<L: FileSource>(
             let native = if reused { held.lent.take() } else { L::lent(elements) };
             let tree = native.as_deref().unwrap_or(tree);
             let contents = &mut held.contents;
-            if !reused && (summary.kinds || summary.fields || summary.words) {
+            if !reused {
+                contents.ready = SummaryColumns::default();
+                contents.answers.clear();
+            }
+            summary.kinds &= !contents.ready.kinds;
+            summary.fields &= !contents.ready.fields;
+            summary.words &= !contents.ready.words;
+            if summary.kinds || summary.fields || summary.words {
+                contents.ready.kinds |= summary.kinds;
+                contents.ready.fields |= summary.fields;
+                contents.ready.words |= summary.words;
                 if summary.kinds {
                     contents.kinds.clear();
                     contents.kinds.extend(l::node_table::kind_codes(tree).iter()
@@ -895,29 +989,26 @@ pub(crate) fn visit<L: FileSource>(
                     l::node_table::kind_codes(tree).len(), summary.kinds.then_some(&mut contents.kinds),
                     summary.fields.then_some(&mut contents.fields), summary.words.then_some(&mut contents.words));
             }
-            let Contents { kinds, fields, words } = &*contents;
+            let Contents { kinds, fields, words, answers: coarse, .. } = contents;
             use ryo_execution_domain::domain::coverage::service::partial_of;
             let recovery = held.recovery.unwrap_or_else(|| L::recovery(&elements));
-            test_results.fill(None);
             let mut active = Vec::new();
             for (&binding, &slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
                 let excluded = cut_of[binding].is_none()
-                    && *test_results[b.test].get_or_insert_with(|| b.never
-                        || !b.shape.iter().all(|c| {
-                            c.iter().any(|(k, v)| {
-                                if *k {
-                                    kinds.contains(v)
-                                } else {
-                                    fields.contains(v)
-                                }
+                    && coarse.get(b.test).unwrap_or_else(|| {
+                        let impossible = b.requirements.never
+                            || !b.requirements.shape.iter().all(|c| {
+                                c.iter().any(|(k, v)| if *k { kinds.contains(v) } else { fields.contains(v) })
                             })
-                        })
-                        || !b.words.iter().all(|c| c.iter().any(|v| words.contains(v))));
+                            || !b.requirements.words.iter().all(|c| c.iter().any(|v| words.contains(v)));
+                        coarse.set(b.test, impossible);
+                        impossible
+                    });
                 if excluded && b.facts.is_empty() {
                     let whole = recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
                     if whole || {
-                        let rels: Vec<_> = contracts[&binding].needs.reads.iter()
+                        let rels: Vec<_> = contracts[binding].needs.reads.iter()
                             .map(|r| r.relation()).collect();
                         partial_of(&[], recovery, &rels).is_empty()
                     } {
@@ -1000,22 +1091,32 @@ pub(crate) fn visit<L: FileSource>(
             if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
             {
                 distinct.get_mut().clear();
-                let mut evaluate = |screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
-                    screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct,
+                if !reused {
+                    held.literals.get_mut().clear();
+                    held.proof_atoms.clear();
+                }
+                let scanned = held.literals.get_mut().scanned();
+                let mut evaluate = |scope, screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
+                    let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
+                    screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
                         &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, unknown, cut_of, &said);
                 };
                 if let Some(screen) = &mut checks {
-                    evaluate(screen, &mut active, |binding| binding);
+                    evaluate(0, screen, &mut active, |binding| binding);
                 } else if selected.len() > 1 {
                     // A one-source open admission cannot amortize preparing a reader screen.
                     // Its coarse requirements and ordinary executor still apply.
                     let prepare = state.screens.groups(parser, programs, program_of, cut_of, &mut active,
-                        |screen, jobs| evaluate(screen, jobs, |_| 0));
+                        |index, screen, jobs| evaluate(index, screen, jobs, |_| 0));
                     clocks.prepare += prepare;
+                    clocks.bound_proofs -= prepare;
                     clocks.screen -= prepare;
                 }
+                clocks.literal_positions += held.literals.get_mut().scanned() - scanned;
             }
-            clocks.screen += thread_cpu() - t;
+            let proof_time = thread_cpu() - t;
+            clocks.screen += proof_time;
+            clocks.bound_proofs += proof_time;
             let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
             let t = thread_cpu();
             let lines = active
@@ -1038,7 +1139,7 @@ pub(crate) fn visit<L: FileSource>(
             let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
             for (binding, slot, excluded) in active {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
-                let contract = &contracts[&binding];
+                let contract = &contracts[binding];
                 let b = bound[&binding].as_mut().unwrap();
                 let mut local_coverage = BTreeMap::new();
                 let unknowns = if said.is_empty()
@@ -1137,6 +1238,13 @@ pub(crate) fn visit<L: FileSource>(
                 retention.put(index, previous.saturating_add(end.wrapping_sub(start)), file);
             }
             clocks.evaluate += thread_cpu() - t;
+        }
+        if let Some(start) = file_start {
+            let elapsed = start.elapsed().as_secs_f64();
+            if elapsed > clocks.largest_file_wall {
+                clocks.largest_file_wall = elapsed;
+                clocks.largest_file.clone_from(&sources[group[0]].path);
+            }
         }
         if let Some(boundaries) = &mut world.boundaries {
             boundaries.push((group[0], world.run.paths.len(), world.run.texts.len()));

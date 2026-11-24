@@ -404,6 +404,9 @@ fn parameters(step: &FinishStep) -> Args {
                 "captures",
                 Param::strings(a.captures.iter().map(|v| v.0.as_ref())),
             );
+            set("capture-columns", Param::CaptureColumns(super::capture::columns(
+                &a.pattern.0, a.captures.iter().map(|column| column.0.as_ref()),
+            )));
         }
         FitsRendered(a) => {
             set(

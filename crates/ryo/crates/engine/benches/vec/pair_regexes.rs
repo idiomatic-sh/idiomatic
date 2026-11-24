@@ -89,6 +89,10 @@ impl Pattern {
     pub(in super::super) fn as_str(&self) -> &str {
         &self.text
     }
+    #[allow(dead_code, reason = "Session proof identities distinguish glob sets from regexes")]
+    pub(in super::super) fn is_glob(&self) -> bool {
+        matches!(self.matcher.get(), Some(Some(Matcher::Globs(..))))
+    }
     pub(in super::super) fn initialized(&self) -> bool {
         self.matcher.get().is_some()
     }
