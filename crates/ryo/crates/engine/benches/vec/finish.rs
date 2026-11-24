@@ -12,8 +12,7 @@ use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 use rustc_hash::FxHashMap;
 
-#[path = "operators.rs"]
-pub(crate) mod operators;
+pub(crate) use ryo_operators::profile as operators;
 
 #[path = "finish/plan_load.rs"]
 mod plan_load;

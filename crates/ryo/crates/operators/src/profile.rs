@@ -1,5 +1,6 @@
 //! Optional operator ledger, adapted from the contribution observer.
 //! Nesting removes child CPU from the enclosing operator's clock.
+use cpu_time::ThreadTime;
 use std::{
     cell::RefCell,
     collections::{BTreeMap, HashMap},
@@ -11,6 +12,10 @@ use std::{
 
 static OUTPUT: OnceLock<Mutex<BufWriter<File>>> = OnceLock::new();
 
+/// Open the diagnostic ledger. Call this before submitting profiled work.
+///
+/// # Errors
+/// The file cannot be created or a ledger is already configured.
 pub fn configure(path: &Path) -> std::io::Result<()> {
     let output = BufWriter::new(File::create(path)?);
     OUTPUT
@@ -34,7 +39,8 @@ struct Frame {
 
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
 
-pub(crate) fn query(id: usize, text: &str) {
+/// Record the complete text that owns this program ID.
+pub fn query(id: usize, text: &str) {
     if OUTPUT.get().is_some() {
         STATE.with_borrow_mut(|state| {
             state.queries.entry(id).or_insert_with(|| text.to_owned());
@@ -42,9 +48,12 @@ pub(crate) fn query(id: usize, text: &str) {
     }
 }
 
-pub(crate) struct Scope(Option<(usize, &'static str)>);
+/// Restores the previous program attribution at the end of a scope.
+pub struct Scope(Option<(usize, &'static str)>);
 
-pub(crate) fn scope(id: usize, phase: &'static str) -> Scope {
+/// Attribute work on the current worker to a program and phase.
+#[must_use]
+pub fn scope(id: usize, phase: &'static str) -> Scope {
     if OUTPUT.get().is_some() {
         Scope(STATE.with_borrow_mut(|state| state.context.replace((id, phase))))
     } else {
@@ -60,12 +69,18 @@ impl Drop for Scope {
     }
 }
 
-fn clock() -> u64 {
-    (super::super::thread_cpu() * 1e9) as u64
+fn elapsed(start: ThreadTime) -> u64 {
+    start
+        .try_elapsed()
+        .ok()
+        .and_then(|time| u64::try_from(time.as_nanos()).ok())
+        .unwrap_or_default()
 }
 
+/// Open a timed operator for a configured program, ignoring a nested use of the same node.
 #[inline]
-pub(crate) fn enter(node: usize, input: usize) -> Option<u64> {
+#[must_use]
+pub fn enter(node: usize, input: usize) -> Option<ThreadTime> {
     if OUTPUT.get().is_none() {
         return None;
     }
@@ -73,16 +88,18 @@ pub(crate) fn enter(node: usize, input: usize) -> Option<u64> {
         if state.context.is_none() || state.stack.last().is_some_and(|frame| frame.node == node) {
             return None;
         }
+        let start = ThreadTime::try_now().ok()?;
         state.stack.push(Frame {
             node,
             input: input as u64,
             children: 0,
         });
-        Some(clock())
+        Some(start)
     })
 }
 
-pub(crate) fn rows_in(rows: usize) {
+/// Add input rows to the current operator.
+pub fn rows_in(rows: usize) {
     if OUTPUT.get().is_some() {
         STATE.with_borrow_mut(|state| {
             if let Some(frame) = state.stack.last_mut() {
@@ -92,45 +109,52 @@ pub(crate) fn rows_in(rows: usize) {
     }
 }
 
-pub(crate) fn leave(start: u64, kind: &str, rows: usize, ran: bool) {
-    let elapsed = clock() - start;
+/// Close the current timing and add its self CPU and row counts to the ledger.
+pub fn leave(start: ThreadTime, kind: &str, rows: usize, ran: bool) {
+    let took = elapsed(start);
     STATE.with_borrow_mut(|state| {
-        let frame = state.stack.pop().expect("operator frame");
-        let (query, phase) = state.context.expect("operator query");
-        // Reuse the key's owned kind between calls. Cached reads stay in the CPU
-        // column but contribute no new runs or output.
+        let (Some(frame), Some((query, phase))) = (state.stack.pop(), state.context) else {
+            return;
+        };
+        // Cached reads still contribute CPU but did no new runs or output.
         let key = (query, phase, kind.to_owned());
         let metrics = state.metrics.entry(key).or_default();
         metrics[0] += u64::from(ran);
         metrics[1] += frame.input;
         metrics[2] += rows as u64 * u64::from(ran);
-        metrics[3] += elapsed.saturating_sub(frame.children);
+        metrics[3] += took.saturating_sub(frame.children);
         if let Some(parent) = state.stack.last_mut() {
             parent.input += rows as u64;
-            parent.children += clock() - start;
+            parent.children += elapsed(start);
         }
     });
 }
 
-pub(crate) fn flush() {
-    if let Some(output) = OUTPUT.get() {
-        STATE.with_borrow_mut(|state| {
-            let mut out = output.lock().expect("operator output");
-            for (id, text) in std::mem::take(&mut state.queries) {
-                write!(out, "query\t{id}\t").expect("write query text");
-                for byte in text.as_bytes() {
-                    write!(out, "{byte:02x}").expect("write query bytes");
-                }
-                writeln!(out).expect("finish query");
+/// Write this worker's accumulated diagnostic rows to the configured ledger.
+///
+/// # Errors
+/// The ledger cannot be locked, written or flushed.
+pub fn flush() -> std::io::Result<()> {
+    let Some(output) = OUTPUT.get() else {
+        return Ok(());
+    };
+    STATE.with_borrow_mut(|state| {
+        let mut out = output
+            .lock()
+            .map_err(|_| std::io::Error::other("operator ledger lock"))?;
+        for (id, text) in std::mem::take(&mut state.queries) {
+            write!(out, "query\t{id}\t")?;
+            for byte in text.as_bytes() {
+                write!(out, "{byte:02x}")?;
             }
-            for ((query, phase, kind), [runs, input, output, ns]) in state.metrics.drain() {
-                writeln!(
-                    out,
-                    "operator\t{query}\t{phase}\t{kind}\t{runs}\t{input}\t{output}\t{ns}"
-                )
-                .expect("write operator");
-            }
-            out.flush().expect("flush operator ledger");
-        });
-    }
+            writeln!(out)?;
+        }
+        for ((query, phase, kind), [runs, input, output, ns]) in state.metrics.drain() {
+            writeln!(
+                out,
+                "operator\t{query}\t{phase}\t{kind}\t{runs}\t{input}\t{output}\t{ns}"
+            )?;
+        }
+        out.flush()
+    })
 }

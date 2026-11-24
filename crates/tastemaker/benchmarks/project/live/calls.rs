@@ -264,7 +264,7 @@ impl Live {
         let count = req.rules.len();
         self.batch.workers = options.workers;
         let result = self.answer(req, linked, options.reverse_files, limit.is_none());
-        crate::finish::operators::flush();
+        crate::finish::operators::flush().map_err(|error| error.to_string())?;
         let mut last = MEASURED
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
