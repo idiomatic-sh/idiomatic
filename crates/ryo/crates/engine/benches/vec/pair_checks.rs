@@ -10,7 +10,7 @@ mod counts;
 #[path = "pair_witness.rs"]
 mod witness;
 
-type Bits = Rc<Vec<u64>>;
+pub(super) type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
 type Nodes = Option<Bits>;
 type SymbolColumn<'a> = dyn Fn(Source, usize, Id, &super::pair_summary::regexes::Matcher) -> Option<bool> + 'a;
@@ -264,7 +264,7 @@ pub(super) struct Scratch {
     touched: Vec<Id>,
 }
 
-struct File<'a, const PROFILE: bool, const BATCH: bool> {
+struct File<'a, const PROFILE: bool> {
     owner: usize,
     reader_class: &'a std::cell::Cell<usize>,
     file_owner: Vec<usize>,
@@ -348,7 +348,7 @@ impl Table {
     }
 }
 
-impl<const PROFILE: bool, const BATCH: bool> File<'_, PROFILE, BATCH> {
+impl<const PROFILE: bool> File<'_, PROFILE> {
     fn complete(&mut self, slots: &[usize]) -> bool {
         let n = node_table::element_count(self.t).0 as u32;
         slots.iter().all(|&slot| {
@@ -374,7 +374,7 @@ impl<const PROFILE: bool, const BATCH: bool> File<'_, PROFILE, BATCH> {
             return result;
         }
         if !PROFILE {
-            if BATCH && let Some(shared) = &self.atoms
+            if let Some(shared) = &self.atoms
                 && let Some(atom) = shared.slots[id]
             {
                 if let Some(value) = shared.answers.get(atom) {
@@ -1120,9 +1120,9 @@ impl Program {
     ) -> u64 {
         #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            return self.evaluate::<true, false>(t, src, path, syntax_text, words, read, alive, exact, known, None, None);
+            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact, known, None, None);
         }
-        self.evaluate::<false, false>(t, src, path, syntax_text, words, read, alive, exact, known, None, None)
+        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact, known, None, None)
     }
 
     #[allow(dead_code, reason = "Session roots are selected by active bindings")]
@@ -1138,14 +1138,18 @@ impl Program {
         known: &[(Id, bool)],
         selected: &[u64],
         atoms: Option<SharedAtoms<'_>>,
+        exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
-        if atoms.as_ref().is_some_and(|a| a.cached_roots(&self.roots, selected, alive)) {
+        let want_exact = exact.is_some() && self.exact.iter().any(|(root, _)| {
+            selected.get(root / 64).is_some_and(|mask| mask & (1 << (root % 64)) != 0)
+        });
+        if !want_exact && atoms.as_ref().is_some_and(|a| a.cached_roots(&self.roots, selected, alive)) {
             return 0;
         }
-        self.evaluate::<false, true>(t, src, Some(path), syntax_text, words, read, alive, None, known, Some(selected), atoms)
+        self.evaluate::<false>(t, src, Some(path), syntax_text, words, read, alive, exact, known, Some(selected), atoms)
     }
 
-    fn evaluate<const PROFILE: bool, const BATCH: bool>(
+    fn evaluate<const PROFILE: bool>(
         &self,
         t: &NodeTable,
         src: &[u8],
@@ -1185,7 +1189,7 @@ impl Program {
         buffers.sets.resize(self.domains.len(), None);
         buffers.needs.reset(self.needs.len());
         buffers.literal_ids.clear();
-        let mut f = File::<PROFILE, BATCH> {
+        let mut f = File::<PROFILE> {
             reader_class: &reader_class,
             owner: 0,
             file_owner: if PROFILE {
@@ -1219,32 +1223,30 @@ impl Program {
             steps: 0,
         };
         for &(need, value) in known { f.needs.set(need, value); }
-        if BATCH {
-            let selected = selected.expect("batch roots");
-            each(selected, |rule| {
-                let rule = rule as usize;
-                alive[rule] = f.pass(self.roots[rule].1);
-            });
+        let mut root = |index: usize| {
+            f.owner = index;
+            alive[index] = f.pass(self.roots[index].1);
+        };
+        if let Some(selected) = selected {
+            each(selected, |index| root(index as usize));
         } else {
-            for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
-                if PROFILE {
-                    f.owner = rule;
-                }
-                if *a {
-                    *a = f.pass(*root)
+            for (index, (active, (_, proof))) in alive.iter_mut().zip(&self.roots).enumerate() {
+                if *active {
+                    f.owner = index;
+                    *active = f.pass(*proof);
                 }
             }
         }
         if let Some(out) = exact.as_mut() {
             for (rule, cert) in &self.exact {
                 let rule = *rule;
-                if PROFILE {
-                    f.owner = rule;
+                f.owner = rule;
+                if selected.is_some_and(|mask| mask[rule / 64] & (1 << (rule % 64)) == 0) {
+                    continue;
                 }
-                if alive[rule] && !f.pass(cert.guard) && f.complete(&cert.facts) {
-                    let nodes = f
-                        .nodes(cert.nodes)
-                        .expect("certified domains contain only total node tests");
+                if alive[rule] && !f.pass(cert.guard) && f.complete(&cert.facts)
+                    && let Some(nodes) = f.nodes(cert.nodes)
+                {
                     out.push((rule, nodes));
                 }
             }

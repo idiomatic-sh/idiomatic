@@ -4,8 +4,8 @@ mod atoms;
 
 use super::{FileId, FileSource, Program, Result, Run, l, reader_run};
 use crate::{
-    pair_checks::{AtomAnswers, SharedAtoms, SyntaxText},
-    pair_summary::{self, Source as FactSource},
+    pair_checks::{AtomAnswers, Bits, SharedAtoms, SyntaxText},
+    pair_summary::{self, LocationColumn, Source as FactSource},
 };
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use std::{collections::{BTreeSet, HashMap}, sync::Arc};
@@ -20,6 +20,7 @@ pub(super) struct Checks {
     words: l::FileWords,
     row_guards: Vec<(usize, l::Relation)>,
     known: Vec<(usize, bool)>,
+    exact: Vec<(usize, Bits)>,
 }
 fn vocabulary<L: FileSource>(parser: Option<&L>) -> crate::first::Vocab {
     let kinds = parser.map_or_else(Vec::new, FileSource::kinds);
@@ -139,6 +140,7 @@ impl Checks {
             domains,
             row_guards,
             known: Vec::new(),
+            exact: Vec::new(),
             selected: vec![0; live.len().div_ceil(64)],
             atoms: Vec::new(),
             live,
@@ -169,12 +171,15 @@ impl Checks {
     ) {
         self.live.fill(false);
         self.selected.fill(0);
+        self.exact.clear();
         let mut any = false;
+        let mut local = false;
         for &(binding, _, excluded) in active.iter() {
             if !excluded && let Some(roots) = &self.roots[root_for(binding)]
                 && bound[&binding].as_ref().expect("active binding").screenable != Some(false)
             {
                 any |= !roots.is_empty();
+                local |= cuts[binding].is_none() && !roots.is_empty();
                 for root in roots.iter().copied().chain(self.domains[root_for(binding)].iter().map(|&(_, d)| d)) {
                     self.selected[root / 64] |= 1 << (root % 64);
                 }
@@ -237,7 +242,13 @@ impl Checks {
                 &self.known,
                 &self.selected,
                 atoms,
+                (local && text.is_some() && partials.is_empty()).then_some(&mut self.exact),
             );
+            for (root, nodes) in &self.exact {
+                if nodes.iter().all(|&word| word == 0) {
+                    self.live[*root] = false;
+                }
+            }
         }
         for (binding, _, excluded) in active {
             if *excluded {
@@ -282,6 +293,62 @@ impl Checks {
             }
         }
     }
+
+    /// Tables in emit order for a local binding whose every output has a proof.
+    /// The caller establishes binding completeness and uses the shared row writer.
+    #[allow(dead_code, reason = "row delivery plugs into the shared visit")]
+    pub(super) fn exact_locations<'a>(
+        &'a self,
+        binding: usize,
+        tree: &'a l::NodeTable,
+        file: FileId,
+    ) -> Option<impl Iterator<Item = super::Table> + 'a> {
+        let roots = self.roots[binding].as_deref()?;
+        let lookup = |root: &usize| {
+            self.exact.binary_search_by_key(root, |(index, _)| *index)
+                .ok()
+                .map(|index| &self.exact[index].1)
+        };
+        if roots.is_empty() || roots.iter().any(|root| lookup(root).is_none()) {
+            return None;
+        }
+        Some(roots.iter().map(move |root| {
+            let certificate = self.program.exact.binary_search_by_key(root, |(index, _)| *index)
+                .expect("exact mask has a certificate");
+            location_table(tree, file, &self.program.exact[certificate].1.columns,
+                lookup(root).expect("all outputs have masks"))
+        }))
+    }
+}
+
+fn location_table(
+    tree: &l::NodeTable,
+    file: FileId,
+    columns: &[LocationColumn],
+    mask: &[u64],
+) -> super::Table {
+    use crate::finish::Ty;
+    let (names, types): (Vec<String>, Vec<Ty>) = columns.iter().map(|col| match col {
+        LocationColumn::File => ("file".to_owned(), Ty::File),
+        LocationColumn::Span => ("span".to_owned(), Ty::Span),
+        LocationColumn::Node => ("id".to_owned(), Ty::Node),
+    }).unzip();
+    let rows = mask.iter().map(|word| word.count_ones() as usize).sum();
+    let mut out = super::Table::retained(names.into(), types.into(), rows);
+    let starts = l::node_table::starts(tree);
+    let ends = l::node_table::ends(tree);
+    crate::pair_checks::each(mask, |node| {
+        let n = node as usize;
+        for (dst, col) in out.cols.iter_mut().zip(columns) {
+            dst.push(match col {
+                LocationColumn::File => u64::from(file.0),
+                LocationColumn::Span => (u64::from(starts[n]) << 32) | u64::from(ends[n]),
+                LocationColumn::Node => u64::from(node),
+            });
+        }
+    });
+    out.n = rows;
+    out
 }
 
 fn domain_steps(cut: Option<&crate::finish::partition::Partition>) -> Vec<(usize, usize)> {

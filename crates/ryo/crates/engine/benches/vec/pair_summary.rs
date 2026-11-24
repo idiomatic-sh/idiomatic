@@ -18,6 +18,7 @@ mod compact;
 pub(super) mod cost;
 #[path = "pair_exact.rs"]
 mod exact;
+pub(super) use exact::LocationColumn;
 #[path = "pair_groups.rs"]
 mod groups;
 #[path = "pair_patterns.rs"]
@@ -1856,9 +1857,7 @@ fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: Option<&[usize
         }
     }
     phase("live");
-    let previous_exact = b.out.exact.len();
-    let mut exclusions = exact::prepare(b, plan, &live).into_iter().peekable();
-    if targets.is_some() { b.out.exact.truncate(previous_exact); }
+    let mut exclusions = exact::prepare(b, plan, &live, targets).into_iter().peekable();
     b.positive = true;
     // Proofs are complete before this point. Widen only positive witnesses.
     b.early_omit = omit;
