@@ -348,7 +348,7 @@ fn native_difference(bytes: &[u8]) -> String {
     let (mut base, mut direct) = (l::Elements::default(), l::Elements::default());
     let (mut left, mut right) = (l::Symbols::default(), l::Symbols::default());
     parser.build_file(req, &mut base, &mut left, &[]).expect("Rust fixture");
-    parser.build_native_file(req, &mut direct, &mut right, &[]).expect("native Rust fixture");
+    parser.build_native_file(req, &mut direct, &mut right, l::NodeAccess::Inspect(&[])).expect("native Rust fixture");
     let lent = l::native_table(&direct).expect("native Rust table");
     if l::node_table::embedded_segments(lent).next().is_some()
         || usize::from(l::node_table::own_end(lent)) != l::positions(&base).count() {

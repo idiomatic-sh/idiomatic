@@ -151,8 +151,9 @@ impl<P: ParseUseCase> ParseEngine for P {
         request: ParseRequest<'_>,
         table: &mut Elements,
         symbols: &mut Symbols,
-        wanted: &[Relation],
+        access: crate::domain::elements::types::NodeAccess<'_>,
     ) -> Result<(), ParseError> {
+        let wanted = match access { crate::domain::elements::types::NodeAccess::Inspect(rows) | crate::domain::elements::types::NodeAccess::Query(rows) => rows };
         let Some(native) = self.native_reader() else {
             return super::service::build_wanted_in(self, request, table, symbols, wanted);
         };
@@ -160,7 +161,7 @@ impl<P: ParseUseCase> ParseEngine for P {
             return Err(ParseError::Unsupported);
         }
         crate::domain::elements::service::read_native(table, symbols, request.bytes, native,
-            request.fields == super::types::FieldRequest::Wanted);
+            request.fields == super::types::FieldRequest::Wanted, access);
         super::service::finish_file(self, request, table, symbols, super::service::demanded(self, wanted));
         Ok(())
     }

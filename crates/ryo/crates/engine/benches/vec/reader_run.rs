@@ -362,7 +362,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             notes: l::NoteRequest::Unwanted,
         };
         parser
-            .build_native_file(parse, &mut elements, &mut symbols, &all)
+            .build_native_file(parse, &mut elements, &mut symbols, l::NodeAccess::Query(&all))
             .expect("parse file");
         let mut provider = reader::ReaderFacts::new(id.0, &unknown_words);
         reader::project_tree(
