@@ -17,27 +17,55 @@ assert cfg.count(k) == 1
 workspace.write_text(cfg.replace(k,k+'idiomatic-sh-ryo-relations = { path = "../ryo/crates/relations" }\n'))
 adapter = core / 'src/outbound/analysis/adapters/ryo/adapter.rs'
 s = adapter.read_text()
-start = s.index('        let linter = self', s.index('    fn lint(&self,'))
-end = s.index('\n    }', start)
-s = s[:start] + '''        // Validation and the workspace check share the caller's existing worker.
-        // Its thread-local state ends when this check's pool is dropped.
-        let pool = self.settings.pool.0.as_ref().map_err(engine)?;
-        if pool.current_num_threads() != 1 {
-            return Err(engine("this benchmark requires one worker"));
-        }
+start = s.index("    fn lint(&self,")
+end = s.index("    fn relations(", start)
+s = s[:start] + """    fn lint(&self, request: AnalysisRequest) -> Result<AnalysisReport, AnalysisError> {
+        self.lint_benchmark_round(vec![request]).pop().expect("one result")
+    }
+
+    fn lint_benchmark_round(
+        &self, requests: Vec<AnalysisRequest>,
+    ) -> Vec<Result<AnalysisReport, AnalysisError>> {
+        let pool = match self.settings.pool.0.as_ref() {
+            Ok(pool) if pool.current_num_threads() == 1 => pool,
+            Ok(_) => return requests.into_iter().map(|_| Err(engine("this benchmark requires one worker"))).collect(),
+            Err(reason) => return requests.into_iter().map(|_| Err(engine(reason))).collect(),
+        };
         thread_local! { static SESSION: std::cell::RefCell<tm_project_session::Live> = Default::default(); }
         let budget = match self.settings.memory {
             Memory::Machine => ryo::linter::MemoryBudget::Machine,
             Memory::Bytes(bytes) => std::num::NonZero::new(bytes.0).map_or(
                 ryo::linter::MemoryBudget::Machine, ryo::linter::MemoryBudget::Bytes),
         };
-        pool.install(|| SESSION.with(|s| {
-            let mut session=s.borrow_mut();
-            session.use_cache(self.cache.as_deref())?;
-            session.lint(sdk,&self.languages,budget)
-        }))
-            .map(schemas::session_report)
-            .map_err(engine)''' + s[end:]
+        let mut results = requests.into_iter().map(schemas::request).collect::<Vec<_>>();
+        let mut positions = Vec::new();
+        let mut valid = Vec::new();
+        let mut answers = Vec::with_capacity(results.len());
+        for (index, result) in results.drain(..).enumerate() {
+            match result {
+                Ok(request) => {
+                    positions.push(index);
+                    valid.push(request);
+                    answers.push(None);
+                }
+                Err(reason) => answers.push(Some(Err(reason))),
+            }
+        }
+        let results = pool.install(|| SESSION.with(|slot| {
+            let mut session = slot.borrow_mut();
+            if let Err(reason) = session.use_cache(self.cache.as_deref()) {
+                return valid.into_iter().map(|_| Err(reason.clone())).collect();
+            }
+            session.lint_round(valid, &self.languages, budget)
+        }));
+        assert_eq!(results.len(), positions.len());
+        for (index, result) in positions.into_iter().zip(results) {
+            answers[index] = Some(result.map(schemas::session_report).map_err(engine));
+        }
+        answers.into_iter().map(Option::unwrap).collect()
+    }
+
+""" + s[end:]
 adapter.write_text(s)
 schema = adapter.with_name('schemas.rs')
 with schema.open('a') as f:
@@ -152,3 +180,7 @@ with lib.open('a') as out:
 main=cli/'main.rs'
 s=main.read_text().replace('#[path = "languages.rs"]\nmod benchmark_languages;\n\n','').replace('benchmark_languages::linked()', 'tastemaker_cli::benchmark_languages()')
 main.write_text(s)
+
+# This module transforms the pinned benchmark host only.
+import runpy
+runpy.run_path(str(library / "link-rounds.py"))["link_rounds"](core, library)

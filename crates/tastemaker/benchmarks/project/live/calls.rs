@@ -22,11 +22,23 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct LiveReport {
     pub findings: Vec<(Box<str>, sdk::Slot, Vec<(Box<str>, sdk::Slot)>)>,
     pub unknowns: Vec<(Box<str>, String, String)>,
     pub unread: Vec<Box<str>>,
+}
+
+type WorkEntry = (
+    sdk::RuleId,
+    Result<super::stored::Key, (usize, Option<super::stored::Key>)>,
+);
+
+struct Pending {
+    ids: Vec<WorkEntry>,
+    paths: Rc<Vec<String>>,
+    projects: std::collections::BTreeSet<usize>,
+    restored_unread: BTreeMap<String, usize>,
 }
 
 pub struct Live {
@@ -144,26 +156,86 @@ impl Live {
         linked: &sdk::Languages,
         memory: sdk::MemoryBudget,
     ) -> Result<LiveReport, String> {
+        self.lint_round(vec![req], linked, memory)
+            .pop()
+            .expect("one request has one result")
+    }
+
+    pub fn lint_round(
+        &mut self,
+        mut requests: Vec<sdk::LintRequest>,
+        linked: &sdk::Languages,
+        memory: sdk::MemoryBudget,
+    ) -> Vec<Result<LiveReport, String>> {
+        // The optional retained store's overlay describes one request. Keep its
+        // existing observation boundary until it can carry per-request overlays.
+        if self.store.is_some() && requests.len() > 1 {
+            return requests.into_iter().map(|request| self.lint(request, linked, memory)).collect();
+        }
+        if requests.is_empty() {
+            return Vec::new();
+        }
+        let evidence = std::env::var_os("TM_ROUND_RECEIPTS").is_some().then(|| {
+            requests.iter_mut().map(|request| {
+                // Given fixture roots are names allocated by the host. The exact
+                // supplied corpus, path names and request parameters stay in the key.
+                let fixture = matches!(request.corpus, sdk::Corpus::Given(_));
+                let root = fixture.then(|| std::mem::take(&mut request.root));
+                let key = super::stored::key(format!("{request:?}"));
+                if let Some(root) = root {
+                    request.root = root;
+                }
+                key
+            }).collect::<Vec<_>>()
+        });
         let t = thread_cpu();
         let limit = match memory {
             sdk::MemoryBudget::Machine => None,
             sdk::MemoryBudget::Bytes(n) => Some(n.get()),
-            _ => return Err("unsupported memory budget".into()),
+            _ => return requests.into_iter().map(|_| Err("unsupported memory budget".into())).collect(),
         };
         self.state.retention.configure(limit, allocated::bytes);
-        let count = req.rules.len();
-        let result = self.answer(req, linked);
+        if self.languages.is_empty() {
+            self.languages = linked.0.iter().cloned().map(Pinned::from).collect();
+        }
+        let count = requests.iter().map(|request| request.rules.len()).sum::<usize>();
+        self.batch.work.clear();
+        let pending = requests.into_iter().map(|request| {
+            let start = self.batch.work.len();
+            let result = self.admit(request);
+            if result.is_err() {
+                self.batch.work.truncate(start);
+            }
+            result
+        }).collect::<Vec<_>>();
+        if !self.batch.work.is_empty() {
+            if let Some(store) = &mut self.store {
+                self.batch.epoch_with_store(&self.languages, &mut self.state, Some(store));
+            } else {
+                self.batch.epoch(&self.languages, &mut self.state);
+            }
+        }
+        let results = pending.into_iter().map(|request| {
+            request.and_then(|request| self.deliver(request, linked))
+        }).collect::<Vec<_>>();
+        let elapsed = thread_cpu() - t;
+        if let Some(keys) = evidence {
+            for (key, result) in keys.into_iter().zip(&results) {
+                eprintln!("TM_ROUND_RECEIPT\t{key:02x?}\t{result:?}");
+            }
+        }
         let mut last = MEASURED
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let c = &self.batch.clocks;
-        last.calls += 1;
+        last.calls += results.len();
+        last.rounds.push(results.len());
         last.requests += count;
-        last.refused += usize::from(result.is_err());
-        if let Err(reason) = &result {
+        for reason in results.iter().filter_map(|result| result.as_ref().err()) {
+            last.refused += 1;
             *last.reasons.entry(reason.clone()).or_default() += 1;
         }
-        last.elapsed += thread_cpu() - t;
+        last.elapsed += elapsed;
         last.parts = [
             c.prepare,
             c.read_parse,
@@ -189,17 +261,10 @@ impl Live {
             c.skipped,
             c.evaluated,
         ];
-        result
+        results
     }
 
-    fn answer(
-        &mut self,
-        req: sdk::LintRequest,
-        linked: &sdk::Languages,
-    ) -> Result<LiveReport, String> {
-        if self.languages.is_empty() {
-            self.languages = linked.0.iter().cloned().map(Pinned::from).collect();
-        }
+    fn admit(&mut self, req: sdk::LintRequest) -> Result<Pending, String> {
         if req.source_language != sdk::SourceLanguage::Recognized
             || req.project_search_scope != sdk::ProjectSearchScope::Undeclared
             || req.given_project_inventory != Default::default()
@@ -248,7 +313,7 @@ impl Live {
         }else{None};
         let host_keys=self.store.as_ref().map(|_|hosted.iter().map(super::stored::key).collect::<Vec<_>>());
         let mut restored_unread=BTreeMap::<String,usize>::new();
-        self.batch.work.clear();
+        let mut projects = std::collections::BTreeSet::new();
         for (id, rule) in req.rules {
             if rule.applicability != sdk::RuleApplicability::Always || !rule.observations.is_empty()
             {
@@ -324,14 +389,17 @@ impl Live {
                 if let (Some(store),Some(k))=(&mut self.store,contract){store.decline(k,reason);}
                 return Err(format!("{id}: {reason}"))
             }
+            if let super::Work::Closed { project: Some(id), .. } = &work {
+                projects.insert(*id);
+            }
             ids.push((id,Err((self.batch.work.len(),contract))));
             self.batch.work.push(work);
         }
-        if let Some(store)=&mut self.store {
-            if !self.batch.work.is_empty(){self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));}else{self.state.manifest_failures.clear();}
-        } else {
-            self.batch.epoch(&self.languages,&mut self.state);
-        }
+        Ok(Pending { ids, paths, projects, restored_unread })
+    }
+
+    fn deliver(&mut self, request: Pending, linked: &sdk::Languages) -> Result<LiveReport, String> {
+        let Pending { ids, paths, projects, restored_unread } = request;
         let mut out = LiveReport::default();
         let start = thread_cpu();
         for (id,entry) in ids {
@@ -373,7 +441,13 @@ impl Live {
             }
         }
         let mut manifest=BTreeMap::<String,usize>::new();
-        for p in &self.state.manifest_failures{*manifest.entry(p.0.to_string()).or_default()+=1;}
+        for project in projects {
+            if let Some((_, Ok(population))) = self.state.populations.get(&project) {
+                for refused in &population.refused {
+                    *manifest.entry(refused.path.0.to_string()).or_default() += 1;
+                }
+            }
+        }
         for (p,n) in restored_unread{let total=manifest.entry(p).or_default();*total=(*total).max(n);}
         for (p,n) in manifest{out.unread.extend(std::iter::repeat_n(Box::<str>::from(p),n));}
         out.unread.sort_unstable();
@@ -400,6 +474,7 @@ pub fn capture_retained(linked:sdk::Languages,manifest:&str,output:&str,root:&st
 #[derive(Default)]
 struct Measurement {
     sessions: usize,
+    rounds: Vec<usize>,
     project_counts: [usize; 4],
     calls: usize,
     requests: usize,
@@ -412,6 +487,7 @@ struct Measurement {
 }
 static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measurement {
     sessions: 0,
+    rounds: Vec::new(),
     project_counts: [0; 4],
     calls: 0,
     requests: 0,
@@ -430,6 +506,9 @@ pub fn print_measurement() {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     for (reason, count) in &m.reasons {
         eprintln!("UNANSWERED\t{count}\t{reason}");
+    }
+    if m.rounds.iter().any(|&size| size > 1) {
+        eprintln!("TM_ROUND_SIZES {:?}", m.rounds);
     }
     let [versions,hits,evictions,peak_charge]=m.retained;
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
