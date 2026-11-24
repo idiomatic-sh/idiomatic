@@ -59,6 +59,9 @@ def inspect_table(data, output, diagnostics, admitted):
     admitted_set = set(admitted)
     for _ in range(count):
         reader.take(16)
+        refusal = reader.string() if reader.take(1)[0] else None
+        if refusal is not None:
+            assert refusal in diagnostics
         origin = reader.string()
         assert origin in admitted_set and origin not in origins
         origins.add(origin)

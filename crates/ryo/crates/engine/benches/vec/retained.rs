@@ -27,6 +27,7 @@ pub(crate) enum UnknownOrigin {
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 struct Answer {
+    admission_refusal: Option<String>,
     origin: String,
     findings: Vec<Finding>,
     refusals: Vec<(String, String)>,
@@ -44,6 +45,13 @@ pub(crate) struct Capture {
 }
 
 impl Capture {
+    #[allow(dead_code, reason = "only hosts that refuse a whole admission use this outcome")]
+    pub(crate) fn refused_admission(&mut self, message: &str) {
+        self.files = self.versions.keys().map(|origin| {
+            let answer = Answer { origin: origin.clone(), admission_refusal: Some(message.into()), ..Default::default() };
+            (origin.clone(), answer)
+        }).collect();
+    }
     pub(crate) fn visited(&mut self, origin: &str, bytes: &[u8]) {
         if !self
             .versions
@@ -430,6 +438,10 @@ fn publish(
 }
 
 fn report(rows: &Records, keys: &[Key], out: &Path, dedup: bool) -> io::Result<bool> {
+    if let Some(reason) = keys.first().and_then(|k|rows[k].admission_refusal.as_ref()) {
+        eprintln!("{reason}");
+        return Ok(false);
+    }
     let mut failures = BTreeMap::new();
     let mut lines = Vec::new();
     for k in keys {

@@ -168,7 +168,9 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
     let mut reader_rows = Vec::new();
     for name in bases {
         let Some(relation) = catalog::relation_named(NameRef(name)) else {
-            eprintln!("no catalog declaration for {name}");
+            let message=format!("no catalog declaration for {name}");
+            if let Some(c)=capture.as_deref_mut() {c.refused_admission(&message);}
+            eprintln!("{message}");
             return false;
         };
         if catalog::class_of(relation) == ryo_relations::domain::relations::types::Class::Engine {
@@ -181,7 +183,9 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
         if ryo_relations::domain::catalog::service::scope_of(relation)
             == ryo_relations::domain::catalog::types::RowScope::Project
         {
-            eprintln!("project-scoped {name} needs a project reader and a complete inventory");
+            let message=format!("project-scoped {name} needs a project reader and a complete inventory");
+            if let Some(c)=capture.as_deref_mut() {c.refused_admission(&message);}
+            eprintln!("{message}");
             return false;
         }
         if parser.includes_expansions(relation) {
@@ -301,7 +305,9 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
                 // The parser writes a complete empty relation for a construct its
                 // language lacks. Only an unimplemented reader leaves the answer open.
                 if parser.absence_of(rel) == Some(l::AbsenceCause::NotYetRead) {
-                    eprintln!("provider does not yet read {name}");
+                    let message=format!("provider does not yet read {name}");
+            if let Some(c)=capture.as_deref_mut() {c.refused_admission(&message);}
+            eprintln!("{message}");
                     return false;
                 }
                 reads.insert(rel);
