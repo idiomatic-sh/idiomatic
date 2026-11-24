@@ -28,6 +28,9 @@ pub(in super::super) fn file_steps(
     }
     let plan = exec.plan;
     let mut local = Vec::with_capacity(plan.nodes.len());
+    // Source-independent literal relations can be read in a file join or after
+    // the last file. Emitting the literal itself still requires one closed answer.
+    let mut literal = Vec::with_capacity(plan.nodes.len());
     for (i, step) in plan.nodes.iter().enumerate() {
         // Use the schema that evaluation itself will bind. A request with no admitted
         // files must still refuse an unknown relation or a malformed projection.
@@ -43,7 +46,19 @@ pub(in super::super) fn file_steps(
             }
             Ok(false)
         };
-        let here = if !step.inputs.iter().all(|&source| local[source]) {
+        let op = step.op.as_str();
+        let constant = op == "rows" || (!step.inputs.is_empty()
+            && step.inputs.iter().all(|&source| literal[source])
+            && matches!(op, "select" | "project" | "extend" | "union" | "difference" | "intersection"));
+        literal.push(constant);
+        let local_inputs = step.inputs.iter().all(|&source| local[source]);
+        let with_literals = match op {
+            "select" => step.inputs.iter().any(|&source| local[source])
+                && step.inputs.iter().all(|&source| local[source] || literal[source]),
+            "antijoin" => local[exec.arg_rel(i, "left")?] && literal[exec.arg_rel(i, "right")?],
+            _ => false,
+        };
+        let here = if constant || !(local_inputs || with_literals) {
             false
         } else {
             match step.op.as_str() {
@@ -81,7 +96,9 @@ pub(in super::super) fn file_steps(
                                 }
                             }
                         }
-                        components.iter().all(|&c| c == components[0])
+                        let mut file_components = step.inputs.iter().zip(components)
+                            .filter_map(|(&input, component)| local[input].then_some(component));
+                        file_components.next().is_some_and(|root| file_components.all(|other| other == root))
                     }
                 }
                 "project" => {
@@ -96,6 +113,7 @@ pub(in super::super) fn file_steps(
                     }
                     held
                 }
+                "antijoin" if with_literals => true,
                 "antijoin" | "as-of" | "ordered-match" => {
                     keys_hold(exec, run, "left", "left-on")?
                         && keys_hold(exec, run, "right", "right-on")?
