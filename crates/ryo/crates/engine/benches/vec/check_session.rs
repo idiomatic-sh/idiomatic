@@ -125,6 +125,7 @@ pub(crate) struct Clock {
     pub(crate) read_versions: f64,
     pub(crate) build_file: f64,
     pub screen: f64,
+    pub bound_proofs: f64,
     pub evaluate: f64,
     pub project: f64,
     pub assemble: f64,
@@ -443,11 +444,15 @@ fn bind<'p, L: FileSource>(
         .iter()
         .map(|clause| clause.iter().map(|w| run.sym(w.as_bytes())).collect())
         .collect();
-    let mut exec = Exec::new(&program.plan);
     let filters: BTreeMap<usize, Vec<(usize, u64)>>=cut.into_iter().flat_map(|c|&c.filters).map(|(&node,alts)|{
         (node,alts.iter().map(|(col,w)|(*col,u64::from(run.sym(w)))).collect())
     }).collect();
-    let projections = finish::session::contribution::Projection::bind(&mut exec, run, cut, &filters);
+    let projections = cut.filter(|partition| !partition.columns.is_empty()).map_or_else(
+        BTreeMap::new,
+        |partition| finish::session::contribution::Projection::bind(
+            &mut Exec::new(&program.plan), run, Some(partition), &filters,
+        ),
+    );
     let outputs = registry.identify(&projections, cut);
     let mut fact_mask = FactMask::default();
     for &rel in &facts {
@@ -601,12 +606,14 @@ fn versions<'s>(
 pub(crate) struct ReaderState {
     run: Run,
     screens: pairs::Retained,
+    previous_plan: Option<shared::PreviousPlan>,
     unknown: Option<HashMap<u32, u32>>,
     bytes: HashMap<usize, (Arc<[u8]>, u32)>,
 }
 
 #[derive(Default)]
 struct Contents {
+    ready: SummaryColumns,
     kinds: rustc_hash::FxHashSet<u32>,
     fields: rustc_hash::FxHashSet<u32>,
     words: rustc_hash::FxHashSet<u32>,
@@ -700,13 +707,13 @@ pub(crate) fn visit<L: FileSource>(
             let program = programs[program_of[binding]].as_ref().map_err(Clone::clone)?;
             let tables = host(binding, &mut run)?;
             let mut b = bind(&mut registry, program, parser, &mut run, tables, cut_of[binding].as_deref())?;
-            merged.add(&mut b, &mut run);
+            merged.add(&mut b, &mut run, program_of[binding], keep);
             Ok(b)
         })();
         bound.index[binding] = bound.entries.len();
         bound.entries.push(entry);
     }
-    let (plan, supplied, test_count) = merged.finish();
+    let (plan, supplied, test_count) = merged.finish(keep.then_some(&mut state.previous_plan), &mut bound);
     let mut exec = Exec::new(&plan);
     let mut test_results = vec![None; test_count];
     clocks.prepare += thread_cpu() - start;
@@ -743,7 +750,7 @@ pub(crate) fn visit<L: FileSource>(
             let mut have_plan = false;
             let mut projects_words = keep;
             let mut projects_fields = keep;
-            let mut summary = SummaryColumns { kinds: keep, fields: keep, words: keep };
+            let mut summary = SummaryColumns::default();
             for (&binding, &slot) in jobs.iter() {
                 match &bound[&binding] {
                     Ok(b) => {
@@ -876,7 +883,16 @@ pub(crate) fn visit<L: FileSource>(
             let native = if reused { held.lent.take() } else { L::lent(elements) };
             let tree = native.as_deref().unwrap_or(tree);
             let contents = &mut held.contents;
-            if !reused && (summary.kinds || summary.fields || summary.words) {
+            if !reused {
+                contents.ready = SummaryColumns::default();
+            }
+            summary.kinds &= !contents.ready.kinds;
+            summary.fields &= !contents.ready.fields;
+            summary.words &= !contents.ready.words;
+            if summary.kinds || summary.fields || summary.words {
+                contents.ready.kinds |= summary.kinds;
+                contents.ready.fields |= summary.fields;
+                contents.ready.words |= summary.words;
                 if summary.kinds {
                     contents.kinds.clear();
                     contents.kinds.extend(l::node_table::kind_codes(tree).iter()
@@ -896,7 +912,7 @@ pub(crate) fn visit<L: FileSource>(
                     l::node_table::kind_codes(tree).len(), summary.kinds.then_some(&mut contents.kinds),
                     summary.fields.then_some(&mut contents.fields), summary.words.then_some(&mut contents.words));
             }
-            let Contents { kinds, fields, words } = &*contents;
+            let Contents { kinds, fields, words, .. } = &*contents;
             use ryo_execution_domain::domain::coverage::service::partial_of;
             let recovery = held.recovery.unwrap_or_else(|| L::recovery(&elements));
             test_results.fill(None);
@@ -1013,10 +1029,13 @@ pub(crate) fn visit<L: FileSource>(
                     let prepare = state.screens.groups(parser, programs, program_of, cut_of, &mut active,
                         |screen, jobs| evaluate(screen, jobs, |_| 0));
                     clocks.prepare += prepare;
+                    clocks.bound_proofs -= prepare;
                     clocks.screen -= prepare;
                 }
             }
-            clocks.screen += thread_cpu() - t;
+            let proof_time = thread_cpu() - t;
+            clocks.screen += proof_time;
+            clocks.bound_proofs += proof_time;
             let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
             let t = thread_cpu();
             let lines = active
