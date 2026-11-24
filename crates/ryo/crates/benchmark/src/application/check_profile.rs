@@ -36,6 +36,17 @@ pub fn profile(
     let root = target.join("benchmark/check/profile");
     fs::create_dir_all(&root)?;
     let image = root.join("images").join(revision.trim());
+    let other = other
+        .map(|directory| -> Result<_, Error> {
+            let directory = directory.canonicalize()?;
+            if !(directory.join("ordinary").is_file() && directory.join("heap").is_file()) {
+                return Err(Error::Invalid(
+                    "other build must contain both saved Tastemaker images".into(),
+                ));
+            }
+            Ok(directory)
+        })
+        .transpose()?;
     let cached = image.join("ordinary").is_file() && image.join("heap").is_file();
     if !cached {
         build(repo, &bench, &image, revision.trim())?;
@@ -61,6 +72,10 @@ pub fn profile(
         written,
         "The ordinary release allocator supplies the phase clocks, samples and instructions. The same source built with Rust's system allocator supplies Heaptrack data.\n"
     )?;
+    writeln!(written, "First build images: `{}`.\n", image.display())?;
+    if let Some(other) = &other {
+        writeln!(written, "Second build images: `{}`.\n", other.display())?;
+    }
     let mut totals = BTreeMap::new();
     for (name, workspace) in [("root", source.clone()), ("ryo", source.join("crates/ryo"))] {
         let command = registered_command(&workspace)?;
@@ -76,15 +91,9 @@ pub fn profile(
             name.to_owned(),
             super::corpus_profile::metrics(&profile, &first)?,
         );
-        if let Some(other) = other {
+        if let Some(other) = &other {
             let second = directory.join(name).join("other");
-            let compared = check(
-                &other.canonicalize()?,
-                &workspace,
-                &command,
-                &second,
-                budget,
-            )?;
+            let compared = check(other, &workspace, &command, &second, budget)?;
             let second_phases = fs::read_to_string(&compared.native.stderr)?;
             writeln!(written, "\n# {name} — second build\n")?;
             profile_evidence::phases(&second_phases, &mut written)?;
@@ -105,6 +114,7 @@ pub fn profile(
         "Profile tables: {}",
         directory.join("profile.md").display()
     )?;
+    writeln!(progress, "Profile images: {}", image.display())?;
     Ok(())
 }
 

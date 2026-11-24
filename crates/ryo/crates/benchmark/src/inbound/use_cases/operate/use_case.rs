@@ -236,6 +236,7 @@ impl OperateUseCaseImpl {
                     "Profile tables: {}",
                     layout.root.join("profile.md").display()
                 )?;
+                writeln!(observations, "Profile images: {}", layout.root.display())?;
                 output.write_all(&written)?;
             } else {
                 let published = self.evidence.select(
