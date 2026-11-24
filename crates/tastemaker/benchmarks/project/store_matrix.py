@@ -15,6 +15,7 @@ import runpy
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -200,7 +201,7 @@ def inherited_inventory(executable,scratch,env):
         if prior is not None:assert prior!=results[0]
         prior=results[0]
 
-FULL_CAPTURE_EDITS = ("unchanged", "comment", "answer-change", "same-stamp", "add", "delete",
+FULL_CAPTURE_EDITS = ("unchanged", "comment", "answer-change", "same-stamp", "young-stamp", "add", "delete",
                       "manifest", "host-table", "rule", "build", "refusal", "truncated")
 
 
@@ -271,6 +272,10 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
             counters.clear()
             counters.update((k.decode(), int(v)) for k, v in
                             re.findall(rb"(request_hits|pair_hits|closed_hits|evaluated_pairs|evaluated_closed|pairs_read|project_read|blocks_read|missing_local_bindings|missing_frontier_bindings|written)=(\d+)", p.stderr))
+            stamps = re.search(rb"\bstamps stats=(\d+) hits=(\d+) young=(\d+) changed=(\d+)", p.stderr)
+            counters.update(zip(("stamp_stats", "stamp_hits", "stamp_young", "stamp_changed"), map(int, stamps.groups())))
+            observed_read = re.search(rb"observations source_reads=(\d+)", p.stderr)
+            counters["observed_source_reads"] = int(observed_read[1])
             blocks = re.search(rb"block_table read=(\d+)", p.stderr)
             counters["blocks_read"] = int(blocks[1]) if blocks else 0
             reads=re.search(rb"\breads=(\d+) parses=(\d+)",p.stdout)
@@ -310,6 +315,14 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
                         prior=path.stat()
                         write(path,bytes(b if b in (10,13) else 32 for b in path.read_bytes()))
                         os.utime(path,ns=(prior.st_atime_ns,prior.st_mtime_ns))
+                        assert path.stat().st_ctime_ns != prior.st_ctime_ns
+                elif case == "young-stamp":
+                    # A future mtime is ineligible regardless of which second
+                    # the process starts in. Bytes and the cold answer stay equal.
+                    for path in sources:
+                        prior = path.stat()
+                        write(path, path.read_bytes())
+                        os.utime(path, ns=(prior.st_atime_ns, time.time_ns() + 60_000_000_000))
                 elif case == "add":
                     for directory in (root,disk):
                         added=directory/extra
@@ -351,6 +364,10 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
                 ok=warm==cold==hit==reference and typed_equal and bool(truth)
                 if case in ("answer-change","same-stamp","delete","host-table"):
                     ok &= cold[0]!=original[0]
+                if case=="same-stamp":
+                    ok &= trial["stamp_changed"] > 0
+                if case=="young-stamp":
+                    ok &= trial["stamp_young"] > 0 and trial["observed_source_reads"] > 0 and cold == original
                 if case=="host-table":
                     changed=sum(a!=b for a,b in zip(cold[0].splitlines(),original[0].splitlines()))
                     ok &= 0 < changed < len(cold[0].splitlines()) and trial["request_hits"]>0
@@ -368,10 +385,11 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
                 with (evidence/"session-matrix.tsv").open("a") as f:
                     w=csv.writer(f,delimiter="\t",lineterminator="\n")
                     if f.tell()==0:
-                        w.writerow(["scenario","pass","bytes","warm_sha256","cold_sha256","refusals","pairs_scheduled","closed_scheduled","written_B","typed_requests_checked","typed_equal","source_reads","source_parses","lower_table_read_B"])
+                        w.writerow(["scenario","pass","bytes","warm_sha256","cold_sha256","refusals","pairs_scheduled","closed_scheduled","written_B","typed_requests_checked","typed_equal","source_reads","source_parses","lower_table_read_B","stamp_stats","stamp_hits","stamp_young","stamp_changed"])
                     w.writerow([case,ok,len(cold[0]),hashlib.sha256(warm[0]).hexdigest(),
                                 hashlib.sha256(cold[0]).hexdigest(),len(cold[1]),
-                                trial["evaluated_pairs"],trial["evaluated_closed"],trial["written"],len(truth),typed_equal,trial["reads"],trial["parses"],trial["pairs_read"]+trial["project_read"]+trial["blocks_read"]])
+                                trial["evaluated_pairs"],trial["evaluated_closed"],trial["written"],len(truth),typed_equal,trial["reads"],trial["parses"],trial["pairs_read"]+trial["project_read"]+trial["blocks_read"],
+                                trial["stamp_stats"],trial["stamp_hits"],trial["stamp_young"],trial["stamp_changed"]])
                 reset()
         finally:
             reset()

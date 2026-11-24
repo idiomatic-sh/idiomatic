@@ -1,5 +1,5 @@
 //! Typed calls from the pinned check. A refusal returns to the host as an error.
-use super::super::HostCell;
+use super::super::{HostCell, Parameters};
 use super::{Active, Authority, Batch, Hosted, Input};
 use crate::thread_cpu;
 #[path = "pinned.rs"]
@@ -236,17 +236,33 @@ impl Live {
             .map(|t| self.cache.table(t, host_keys.as_mut()))
             .collect::<Result<Vec<_>, _>>()?;
         let mut ids = Vec::new();
-        let scope=if let Some(s)=&mut self.store{
-            // The unread list belongs to the union of requested project relations.
-            // File-only requests have no dependency on this peer inventory.
-            let peers=req.rules.iter().map(|(id,rule)|{
-                let parameters=rule.parameters.iter().map(|(k,v)|Ok((&k.0,parameter(v.clone())?))).collect::<Result<Vec<_>,String>>()?;
-                Ok(super::stored::key((id.as_ref(),rule.query.as_ref(),&rule.include,&rule.exclude,parameters)))
-            }).collect::<Result<Vec<_>,String>>()?;
-            let shape=hosted.iter().map(|h|(&h.name,&h.columns)).collect::<Vec<_>>();
-            s.overlay(std::path::Path::new(&*physical),self.cache.path_digest(&paths),super::stored::key((peers,shape)),&key.1);
-            Some(super::stored::key((&physical,&authority)))
-        }else{None};
+        let mut retained_rules = Vec::new();
+        let scope = if self.store.is_some() {
+            // The host supplies the inventory and relations in memory. Reuse
+            // the prepared program, selection and table identities across calls.
+            let mut peers = Vec::with_capacity(req.rules.len());
+            for (id, rule) in &req.rules {
+                let parameters = rule.parameters.iter()
+                    .map(|(k, v)| Ok((k.0.clone(), parameter(v.clone())?)))
+                    .collect::<Result<Parameters, String>>()?;
+                let query = self.cache.query(rule.query.as_ref());
+                let program = self.batch.prepared_rule(query.clone(), &parameters);
+                let digest = self.cache.program_digest(program, &query, &parameters);
+                peers.push(super::stored::key((id.as_ref(), digest, &rule.include, &rule.exclude)));
+                retained_rules.push((query, parameters, program, digest));
+            }
+            let shape = hosted.iter().map(|h| (&h.name, &h.columns)).collect::<Vec<_>>();
+            self.store.as_mut().unwrap().overlay(
+                std::path::Path::new(&*physical),
+                self.cache.path_digest(&paths),
+                super::stored::key((peers, shape)),
+                &key.1,
+            );
+            Some(super::stored::key((&physical, &authority)))
+        } else {
+            None
+        };
+        let mut retained_rules = retained_rules.into_iter();
         let mut restored_unread=BTreeMap::<String,usize>::new();
         self.batch.work.clear();
         for (id, rule) in req.rules {
@@ -264,19 +280,24 @@ impl Live {
                 &inc.1,
                 &exc.1,
             );
-            let parameters = rule
-                .parameters
-                .into_iter()
-                .map(|(k, v)| Ok((k.0, parameter(v)?)))
-                .collect::<Result<_, String>>()?;
-            let query = self.cache.query(rule.query.as_ref());
-            let contract=scope.map(|scope|{
-                let rule=self.batch.prepared_rule(query.clone(),&parameters);
-                let plan=self.batch.schedule.programs[rule].as_ref().ok();
-                let consumed:Vec<_>=hosted.iter().enumerate().filter(|(_,t)|plan.is_some_and(|p|p.bases.contains(&t.name)))
-                    .map(|(i,_)|host_keys.as_ref().unwrap()[i]).collect();
-                super::stored::key((scope,self.cache.program_digest(rule,&query,&parameters),self.cache.path_digest(&files),consumed))
-            });
+            let (query, parameters, contract) = if let Some(scope) = scope {
+                let (query, parameters, program, digest) =
+                    retained_rules.next().expect("retained rule identity");
+                let plan = self.batch.schedule.programs[program].as_ref().ok();
+                let consumed: Vec<_> = hosted.iter().enumerate()
+                    .filter(|(_, table)| plan.is_some_and(|p| p.bases.contains(&table.name)))
+                    .map(|(i, _)| host_keys.as_ref().unwrap()[i])
+                    .collect();
+                let identity = super::stored::key((
+                    scope, digest, self.cache.path_digest(&files), consumed,
+                ));
+                (query, parameters, Some(identity))
+            } else {
+                let parameters = rule.parameters.into_iter()
+                    .map(|(k, v)| Ok((k.0, parameter(v)?)))
+                    .collect::<Result<_, String>>()?;
+                (self.cache.query(rule.query.as_ref()), parameters, None)
+            };
             if let (Some(store),Some(k))=(&mut self.store,contract)
                 && let Some((packet,unread))=store.lookup(k){
                 let mut counts=BTreeMap::<String,usize>::new();
