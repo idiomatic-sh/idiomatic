@@ -927,9 +927,7 @@ pub(crate) fn visit<L: FileSource>(
                     .collect::<BTreeMap<_,_>>().into_values().collect::<Vec<_>>()
             });
             let cached_ready = cached.as_ref().is_some_and(|(_, file)| file.recovery.is_some());
-            let mut spent_in_visit = 0.;
             let mut consume = |loan: Option<(l::NumberedFile<'_>, &mut l::Symbols)>| {
-                let inside = thread_cpu();
                 let (scoped_tree, mut scoped_facts, mut scoped_symbols, words, fields, coverage, notes) = match loan {
                     Some((file, symbols)) => {
                         use ryo_execution_domain::domain::coverage::types::Recovery;
@@ -1412,9 +1410,9 @@ pub(crate) fn visit<L: FileSource>(
                 std::mem::swap(&mut held.facts, &mut packet.rows);
             }
             clocks.evaluate += thread_cpu() - t;
-            spent_in_visit += thread_cpu() - inside;
             };
-            let before_visit = thread_cpu();
+            let mut spent_in_visit = 0.;
+            let before_visit = scoped.filter(|_| !cached_ready).map(|_| thread_cpu());
             let mut called = false;
             let result = if cached_ready { None } else {
                 scoped.map(|supplier| supplier.visit(request, &requested,
@@ -1423,7 +1421,9 @@ pub(crate) fn visit<L: FileSource>(
                     &mut l::Symbols::default(), &mut |file, dictionary| {
                         assert!(!called, "a file version was supplied twice");
                         called = true;
+                        let start = thread_cpu();
                         consume(Some((file, dictionary)));
+                        spent_in_visit = thread_cpu() - start;
                     }))
             };
             match result {
@@ -1435,7 +1435,7 @@ pub(crate) fn visit<L: FileSource>(
                     for &(_, slot) in jobs.iter() { answers.set(slot, Err(reason.clone())); }
                 }
             }
-            if called {
+            if let Some(before_visit) = before_visit {
                 // The supplier's elapsed clock spans the callback. The common
                 // visit has already charged its inspection and execution.
                 clocks.build_file += (thread_cpu() - before_visit - spent_in_visit).max(0.);
