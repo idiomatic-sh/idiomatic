@@ -26,7 +26,7 @@ pub struct LiveReport {
 
 pub struct Live {
     batch: Batch,
-    state: Active<release_sdk::languages::Elements, Dictionary>,
+    state: Active<pinned::File, Dictionary>,
     languages: Vec<Pinned>,
     filters: HashMap<Vec<sdk::Glob>, Rc<GlobSet>>,
     versions: HashMap<(Authority, BTreeMap<String, Rc<[u8]>>), Rc<str>>,
