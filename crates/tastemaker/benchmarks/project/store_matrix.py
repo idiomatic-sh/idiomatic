@@ -209,6 +209,45 @@ def contribution_edits(executable, scratch, env):
     return result["forward"]
 
 
+def project_note_probe(executable, scratch, env):
+    """A retained edit can write provider notes before admitting the old project."""
+    root = scratch / "project-note"
+    pack = root / "pack/rules/query"
+    pack.mkdir(parents=True)
+    (pack / "query.ryoql").write_text(
+        'let witness = select * from "module-identity";\n'
+        'emit witness subject file key(path);\n'
+    )
+    source = root / "example.py"
+    source.write_text("value = 1\n")
+    request = root / "request"
+    request.write_text(json.dumps(dict(root=str(root), files=[source.name],
+                                       repository={"Disk": str(root)}, parameters={}, hosted=[])))
+    inventory = root / "inventory"
+    inventory.write_text(json.dumps([source.name]))
+    manifest = root / "manifest"
+    manifest.write_text(f"project-note\t{pack.parents[1]}\t{request}\tunused\t{inventory}\n")
+    cache = root / "cache"
+    tick = source.stat().st_ctime_ns // 1_000_000_000 + 1
+    time.sleep(max(0, tick - time.time()) + 0.01)
+
+    def invoke(retained):
+        mode = ["--tm-batch-retained", cache] if retained else ["--tm-batch"]
+        output = root / "receipt"
+        p = subprocess.run([executable, *mode, manifest, output], env=env, capture_output=True)
+        assert p.returncode == 0, p.stderr
+        result = output.read_bytes()
+        assert b"refused" not in result, p.stdout
+        return result, p.stderr
+
+    old, _ = invoke(True)
+    assert old == invoke(False)[0]
+    source.write_text(source.read_text() + "# unchanged module identity\n")
+    edited, trace = invoke(True)
+    assert edited == invoke(False)[0] == old
+    assert b"closed_proof candidates=1 " in trace, trace
+
+
 def host_representative(executable,scratch,env):
     """A request hit removes the former representative for the shared local cut."""
     root=scratch/"representative";pack=root/"pack/rules/query";pack.mkdir(parents=True)
@@ -348,6 +387,8 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
         parent_lookup(exe,Path(tmp),env)
         inherited_inventory(exe,Path(tmp),env)
         (evidence/"inherited-inventory.txt").write_text("changed inherited inventory revalidated; cold and warm both refused\n")
+        project_note_probe(exe,Path(tmp),env)
+        (evidence/"project-note-probe.txt").write_text("edited provider-note probe matches the cold receipt\n")
         host_representative(exe,Path(tmp),env)
         (evidence/"representative.txt").write_text("unchanged first request hit; one changed pair on the second request; exact cold receipt\n")
         rows=contribution_edits(exe,Path(tmp),env)
