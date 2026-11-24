@@ -1,0 +1,5 @@
+//! `greeting show`.
+
+pub fn show(request: ShowRequest) -> Result<ShowError, ShowReport> {
+    Err(ShowError { reason: request.name })
+}

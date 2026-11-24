@@ -107,6 +107,13 @@ pub enum SyntaxAcceptance {
     Undetermined,
 }
 
+/// A provider’s direct writer for preorder positions, token flags and expansion origins.
+#[derive(Clone, Copy, Debug)]
+pub struct NativeReader {
+    /// Write each parser position once and record origins of expanded elements.
+    pub read: fn(&[u8], &mut crate::domain::node_table::types::NodeTable, &mut Vec<Expanded>, &mut Vec<Flags>, bool),
+}
+
 /// The element table of one file: its syntax tree in pre-order, column by column, 28 bytes for
 /// each element. An element's descendants are the `size` elements after it; the root is its own
 /// parent. The columns are cleared between files and never reallocated.
@@ -145,6 +152,8 @@ pub struct TableState(ElementsEngine);
 /// What the engine keeps of a file's table beside its columns: names, kind index, decoded texts, expansions, open nodes, notes.
 #[derive(Debug, Default)]
 pub(crate) struct ElementsEngine {
+    /// Fully parsed preorder columns lent to the native executor and the semantic readers.
+    pub native: Option<std::sync::Arc<crate::domain::node_table::types::NodeTable>>,
     /// Parser acceptance for this source; legacy providers remain conservative by default.
     pub syntax_acceptance: SyntaxAcceptance,
     /// Source line starts, populated only when source-location is requested; storage is reused.

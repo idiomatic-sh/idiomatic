@@ -1,0 +1,8 @@
+//! The interface.
+
+pub(crate) mod sealed {
+    /// The seal.
+    pub trait Sealed {}
+
+    pub(crate) fn helper() {}
+}

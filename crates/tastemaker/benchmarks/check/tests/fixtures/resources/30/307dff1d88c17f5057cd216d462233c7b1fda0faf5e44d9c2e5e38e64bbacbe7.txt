@@ -1,0 +1,8 @@
+[package]
+name = "idiomatic-sh-ryo-demo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk" }
+ryo_language = { package = "idiomatic-sh-ryo-language", path = "../../crates/language" }

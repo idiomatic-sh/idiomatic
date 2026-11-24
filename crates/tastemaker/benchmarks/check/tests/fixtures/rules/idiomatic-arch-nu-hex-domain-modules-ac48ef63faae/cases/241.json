@@ -1,0 +1,112 @@
+{
+  "stamp": 241,
+  "rule": "idiomatic.arch/nu-hex/domain-modules",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/domain.rs"
+  ],
+  "given": {
+    "src/greeting/domain.rs": "97c28953d2bbbca23a2e28c7fa52bcd83e3476cef72277929d0ad006e2e4c34a",
+    "tastemaker.toml": "9b99b3e209d0e839828eb5b143dd56d85b029be84db25a75b172f0aba4b7727e"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/nu-hex/domain-modules",
+      "include": [
+        "**/domain.rs",
+        "**/domain.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-domain-modules-ac48ef63faae"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/domain.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/greeting/domain.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                91,
+                288
+              ]
+            }
+          ],
+          [
+            "kind",
+            "fn"
+          ],
+          [
+            "problem",
+            "is not a concept's module"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              91,
+              288
+            ]
+          },
+          "fn"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/domain.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

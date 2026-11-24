@@ -1,0 +1,12 @@
+pub struct Invalid;
+
+/// Checked by a method returning its own type by name, with a field visible outside the module.
+pub struct Name {
+    pub text: String,
+    checked: (),
+}
+impl Name {
+    pub fn renamed(&self, text: &str) -> Result<Name, Invalid> {
+        if text.is_empty() { Err(Invalid) } else { Ok(Name { text: text.to_owned(), checked: self.checked }) }
+    }
+}

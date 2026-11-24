@@ -1,0 +1,34 @@
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = Vec<&'static str>;
+type Value = String;
+type Failure = crate::outcome::Outcome;
+
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "show prints a greeting",
+        word: Word::Succeeds,
+        input: || vec!["show"],
+        expect: Expect::Value(String::from("hello")),
+    },
+    Case {
+        name: "show ends in error when the service fails",
+        word: Word::Fails,
+        input: || vec!["show"],
+        expect: Expect::Error(crate::outcome::Outcome::Error),
+    },
+];
+
+fn subject(line: Input) -> Result<Value, Failure> {
+    todo!()
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}

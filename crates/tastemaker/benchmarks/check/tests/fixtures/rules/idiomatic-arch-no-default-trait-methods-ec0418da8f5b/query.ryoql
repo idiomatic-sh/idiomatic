@@ -1,0 +1,12 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let fns = select * from tree-nodes where kind = "fn";
+let lists = select * from tree-nodes where kind = "assoc-item-list";
+let traits = select * from tree-nodes where kind = "trait";
+let blocks = select * from tree-nodes where kind = "block-expr";
+let fn-lists = select l."id" as "function", l."file" as "file", l."span" as "span", r."parent" as "list" from fns as l join "syntax-child" as r on l."id" = r."child";
+let in-lists = select l."function" as "function", l."file" as "file", l."span" as "span", l."list" as "list" from fn-lists as l join lists as r on l."list" = r."id";
+let list-owners = select l."function" as "function", l."file" as "file", l."span" as "span", r."parent" as "owner" from in-lists as l join "syntax-child" as r on l."list" = r."child";
+let in-traits = select l."function" as "function", l."file" as "file", l."span" as "span" from list-owners as l join traits as r on l."owner" = r."id";
+let function-children = select l."function" as "function", l."file" as "file", l."span" as "span", r."child" as "child" from in-traits as l join "syntax-child" as r on l."function" = r."parent";
+let with-body = select l."function" as "function", l."file" as "file", l."span" as "span" from function-children as l join blocks as r on l."child" = r."id";
+emit with-body subject "file" key("span");

@@ -1,0 +1,6 @@
+//! The rows each relation fixture gives.
+
+/// The rows.
+pub(super) fn expected() -> u8 {
+    1
+}

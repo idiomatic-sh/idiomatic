@@ -1,0 +1,7 @@
+//! The names port.
+
+/// What every names adapter implements.
+pub trait NamesPort {
+    /// Rows.
+    fn rows(&self) -> usize;
+}

@@ -1,0 +1,149 @@
+{
+  "stamp": 73,
+  "rule": "idiomatic.arch/layer-order",
+  "dependency": "Project",
+  "admitted": [
+    "Cargo.toml",
+    "crates/core/Cargo.toml",
+    "crates/core/src/lib.rs",
+    "crates/values/Cargo.toml",
+    "crates/values/src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "e8d6c11c04fee7803426b48b1764d404ea1e8776372d6dbdf352d74cdfff10ef",
+    "crates/core/Cargo.toml": "f6912903429206c5a85b83c60cbdc95f2ba71ce37af6cc58993a21e263f0e020",
+    "crates/core/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/values/Cargo.toml": "bd60c8c378aef99f3008e6056f9330bbaaba98d3b72c8db577ed03170e308f65",
+    "crates/values/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "35c5c46feed4c7c005930500ac6a35e49cccbbaf062e6ae8eb18495ec60fc6c0"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/layer-order",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "layers": [
+          [
+            "cli"
+          ],
+          [
+            "markdown",
+            "python",
+            "rust",
+            "toml"
+          ],
+          [
+            "sdk"
+          ],
+          [
+            "core"
+          ],
+          [
+            "query_language"
+          ],
+          [
+            "values"
+          ],
+          [
+            "language"
+          ]
+        ]
+      },
+      "query": "idiomatic-arch-layer-order-2fc4481a0979"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "crates/core/Cargo.toml",
+        "crates/core/src/lib.rs",
+        "crates/values/Cargo.toml",
+        "crates/values/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "from",
+            "values"
+          ],
+          [
+            "file",
+            {
+              "file": "crates/values/Cargo.toml"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                105
+              ]
+            }
+          ],
+          [
+            "to",
+            "core"
+          ]
+        ],
+        "key": [
+          {
+            "file": "crates/values/Cargo.toml"
+          },
+          "core"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/values/Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

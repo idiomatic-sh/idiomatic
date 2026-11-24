@@ -152,7 +152,7 @@ mod subject_scope;
 #[path = "finish/partition.rs"]
 pub(super) mod partition;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Deserialize, serde::Serialize)]
 pub(super) enum Ty {
     Node,
     Sym,
@@ -364,6 +364,8 @@ pub(super) struct Run {
     pub(super) root_dir: String,
     /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
     pub(super) project: FxHashMap<String, project::Answered>,
+    /// Exact refusal returned by the current provider call on bound inputs.
+    pub(super) provider_refusal: Option<String>,
     /// Functions a step asked that are not in the step set (the rule is refused).
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
@@ -402,7 +404,7 @@ impl Run {
         self.lower_symbols.insert(symbol, lower);
         lower
     }
-    fn text(&self, s: u32) -> &[u8] {
+    pub(crate) fn text(&self, s: u32) -> &[u8] {
         &self.texts[s as usize]
     }
     fn re(&mut self, p: &str) -> Result<Rc<Bound<regex::bytes::Regex>>, String> {

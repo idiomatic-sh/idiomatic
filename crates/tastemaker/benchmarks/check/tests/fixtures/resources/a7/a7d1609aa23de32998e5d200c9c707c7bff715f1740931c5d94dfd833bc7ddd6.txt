@@ -1,0 +1,7 @@
+//! The languages resource.
+
+mod types;
+
+pub use dep::Other as Other;
+pub use dep::Thing as Thing;
+pub use types::Local;

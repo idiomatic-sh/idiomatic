@@ -1,0 +1,138 @@
+{
+  "stamp": 120,
+  "rule": "idiomatic.arch/no-silent-skip",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "tastemaker.toml",
+    "tests/samples.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "tastemaker.toml": "9250445095855db148429cdfe3a2f857a4c8321ea0be14be64b5f7da80f979ce",
+    "tests/samples.rs": "bebb6ccdf8dc86ab9dcff5bc148f5623512ee0d650b648cb8c08fb9dfc55e043"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-silent-skip",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-silent-skip-e2d29bbae45e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "tastemaker.toml",
+        "tests/samples.rs"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "tests/samples.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                607,
+                615
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              607,
+              615
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "tests/samples.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "tests/samples.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                871,
+                884
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              871,
+              884
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "tests/samples.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

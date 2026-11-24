@@ -1,0 +1,130 @@
+{
+  "stamp": 195,
+  "rule": "idiomatic.arch/crate/thiserror-in-errors",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/greeting.rs",
+    "src/greeting/types.rs",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "2be7368698156f3b198d216b671017568d26d441515bd157d3ec761d32af1310",
+    "src/greeting.rs": "04c50cd39090925998df95489d5b2fc5952508a78b2e6300b27bfb87acfee750",
+    "src/greeting/errors.rs": "234c519bf9ef522494e17176ffa29b551980be58d714aab62d64da8f08e0c5cd",
+    "src/greeting/types.rs": "66a1da5501f4e6e918a0f2bb9761e0329c297b06da0984f3f040e3f92a8a6ead",
+    "src/lib.rs": "7f655ea9b864338d8bfc0a5ede2572c3617f849332ee923ad58c62ffea1bd8fe",
+    "tastemaker.toml": "49ecfd4091804091db77e485642ee0596d5a96518b6202e0da583d819857a479"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/errors.rs",
+        "**/errors.rs/**"
+      ],
+      "id": "idiomatic.arch/crate/thiserror-in-errors",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-thiserror-in-errors-749b78e75367"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/greeting.rs",
+        "src/greeting/errors.rs",
+        "src/greeting/types.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/greeting/types.rs#15"
+          ],
+          [
+            "kind",
+            "ident"
+          ],
+          [
+            "file",
+            {
+              "file": "src/greeting/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                16,
+                25
+              ]
+            }
+          ],
+          [
+            "text",
+            "thiserror"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              16,
+              25
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

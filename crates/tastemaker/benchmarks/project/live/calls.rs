@@ -31,13 +31,20 @@ pub struct LiveReport {
 
 pub struct Live {
     batch: Batch,
-    state: Active<release_sdk::languages::Elements, Dictionary>,
+    store:Option<super::stored::Store>,
+    directory:Option<std::path::PathBuf>,
+    state: Active<pinned::File, Dictionary>,
     languages: Vec<Pinned>,
     filters: HashMap<Vec<sdk::Glob>, (usize, Rc<GlobSet>)>,
     cache: CallCache,
     versions: HashMap<(Authority, BTreeMap<String, Rc<[u8]>>), Rc<str>>,
 }
 
+impl Drop for Live {
+    fn drop(&mut self){
+        if let Some(store)=&mut self.store && let Err(e)=store.publish(){eprintln!("publish completed session: {e}");}
+    }
+}
 impl Default for Live {
     fn default() -> Self {
         MEASURED
@@ -46,6 +53,7 @@ impl Default for Live {
             .sessions += 1;
         Self {
             batch: Batch::default(),
+            store:None, directory:None,
             state: Active {
                 keep: true,
                 ..Default::default()
@@ -108,6 +116,14 @@ fn slot(v: &Option<Cell>) -> sdk::Slot {
 }
 
 impl Live {
+    pub fn use_cache(&mut self,directory:Option<&std::path::Path>)->Result<(),String>{
+        if self.directory.as_deref()!=directory {
+            if let Some(old)=&mut self.store {old.publish().map_err(|e|e.to_string())?;}
+            self.store=directory.map(|p|super::stored::Store::directory(p.to_owned())).transpose().map_err(|e|e.to_string())?;
+            self.directory=directory.map(std::path::Path::to_owned);
+        }
+        Ok(())
+    }
     fn globs(&mut self, names: &[sdk::Glob]) -> Result<(usize, Rc<GlobSet>), String> {
         if let Some(found) = self.filters.get(names) {
             return Ok(found.clone());
@@ -275,7 +291,11 @@ impl Live {
             self.batch.work.push(work);
             ids.push(id);
         }
-        self.batch.epoch(&self.languages, &mut self.state);
+        if let Some(store)=&mut self.store {
+            self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));
+        } else {
+            self.batch.epoch(&self.languages,&mut self.state);
+        }
         let mut out = LiveReport::default();
         let start = thread_cpu();
         for (id, work) in ids.into_iter().zip(&self.batch.work) {
@@ -321,6 +341,11 @@ impl Live {
 pub fn capture(linked: sdk::Languages, manifest: &str, output: &str) {
     let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
     super::batch_with_sources(&readers, manifest, output);
+}
+
+pub fn capture_retained(linked:sdk::Languages,manifest:&str,output:&str,root:&str){
+    let readers:Vec<_>=linked.0.into_iter().map(Pinned::from).collect();
+    super::batch_mode(&readers,manifest,output,Some(std::path::Path::new(root)));
 }
 
 #[derive(Default)]

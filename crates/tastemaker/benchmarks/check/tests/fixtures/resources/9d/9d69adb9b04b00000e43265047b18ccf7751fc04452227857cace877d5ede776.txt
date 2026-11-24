@@ -1,0 +1,10 @@
+//! What the `greet` use case promises, in its own vocabulary.
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Runs `greet`.
+    fn greet(&self, name: &str) -> String;
+
+    /// Runs `farewell`.
+    fn farewell(&self, name: &str) -> String;
+}

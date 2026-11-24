@@ -1,0 +1,97 @@
+{
+  "stamp": 269,
+  "rule": "idiomatic.ryo/language-test-entries",
+  "dependency": "One file",
+  "admitted": [
+    "demo/Cargo.toml",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "demo/Cargo.toml": "5700603c624f478a2b030c694ddda3e8d25ddecc1b6d347269028353ba28a633",
+    "tastemaker.toml": "f962317efe44f97fe35a22360def18ce1769c52d8a00d090a21672ab65d582ed"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/language-test-entries",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-language-test-entries-cba3394ff57f"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "demo/Cargo.toml",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "demo/Cargo.toml"
+            }
+          ],
+          [
+            "target",
+            "conformance"
+          ]
+        ],
+        "key": [
+          {
+            "file": "demo/Cargo.toml"
+          },
+          "conformance"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "demo/Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

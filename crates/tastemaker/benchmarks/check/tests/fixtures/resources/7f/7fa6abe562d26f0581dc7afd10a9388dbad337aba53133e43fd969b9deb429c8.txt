@@ -1,0 +1,9 @@
+//! The facts port.
+
+/// What every `facts` adapter implements.
+pub trait FactsPort {
+    /// Opens the spill.
+    fn open(&self) -> std::fs::File;
+    /// Closes the spill.
+    fn close(&self, spill: std::fs::File);
+}

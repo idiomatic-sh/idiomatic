@@ -1,0 +1,3 @@
+//! The greeting domain's services, one module per concept.
+
+pub(crate) mod polite;

@@ -1,0 +1,6 @@
+//! The wiring of `check`.
+
+pub(crate) fn build(store: &Store) {
+    let primary = analysis::factory::ryo_kept(crate::languages::linked(), store);
+    let counting = analysis::factory::ryo_kept(crate::languages::linked(), store);
+}

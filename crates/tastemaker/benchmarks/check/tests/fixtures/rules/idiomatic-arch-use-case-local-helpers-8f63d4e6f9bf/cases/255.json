@@ -1,0 +1,107 @@
+{
+  "stamp": 255,
+  "rule": "idiomatic.arch/use-case/local-helpers",
+  "dependency": "One file",
+  "admitted": [
+    "src/inbound/use_cases/run/service.rs"
+  ],
+  "given": {
+    "src/inbound/use_cases/run/service.rs": "0886f7f95c37a99307ad8c1fe627cd71b4edadc64af249895c2592d98422adb1",
+    "tastemaker.toml": "96e856bb05818003ab1272e98561563bd2d72ead657cfcac6c7580f650318cc6"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/use-case/local-helpers",
+      "include": [
+        "src/inbound/use_cases/run/service.rs",
+        "src/inbound/use_cases/run/service.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-local-helpers-8f63d4e6f9bf"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/inbound/use_cases/run/service.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/run/service.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                47
+              ]
+            }
+          ],
+          [
+            "dir",
+            "src/inbound/use_cases/run"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              47
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/run/service.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

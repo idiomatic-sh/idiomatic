@@ -1,0 +1,108 @@
+{
+  "stamp": 251,
+  "rule": "idiomatic.arch/port/plain-port-types",
+  "dependency": "One file",
+  "admitted": [
+    "src/outbound/store/types.rs"
+  ],
+  "given": {
+    "src/outbound/store/types.rs": "dad971652fd268124fe4148459f800e54e55c9fbe6b307068a3199b37c379071",
+    "tastemaker.toml": "3b0cf6d143ed41cf66ea41c19805498c27d30ed914b1ffd41a316794df7be6df"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/port/plain-port-types",
+      "include": [
+        "src/outbound/*/types.rs",
+        "src/outbound/*/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-port-plain-port-types-618836f311f6"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/outbound/store/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/outbound/store/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                36,
+                99
+              ]
+            }
+          ],
+          [
+            "problem",
+            "does not derive `Clone` (only a type with a lifetime parameter, a borrowed view, is exempt): a port's types are plain data a caller can copy"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              36,
+              99
+            ]
+          },
+          "does not derive `Clone` (only a type with a lifetime parameter, a borrowed view, is exempt): a port's types are plain data a caller can copy"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/store/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

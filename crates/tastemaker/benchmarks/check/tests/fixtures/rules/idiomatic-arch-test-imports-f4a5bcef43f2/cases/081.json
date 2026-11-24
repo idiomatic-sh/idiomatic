@@ -1,0 +1,176 @@
+{
+  "stamp": 81,
+  "rule": "idiomatic.arch/test-imports",
+  "dependency": "Project",
+  "admitted": [],
+  "given": {
+    "tastemaker.toml": "8777c36ea7939a51a20961278d2d27b0c16bad868537a04a05c832224c1ba4bd"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/manifest-excludes",
+      "include": [
+        "**/tastemaker.toml",
+        "**/tastemaker.toml/**"
+      ],
+      "parameters": {
+        "allowlist-keys": [
+          {
+            "definition": "idiomatic.arch/no-heap-accounting",
+            "key": "owners"
+          },
+          {
+            "definition": "idiomatic.arch/entry-traits-witnessed",
+            "key": "non-entries"
+          },
+          {
+            "definition": "idiomatic.arch/test-imports",
+            "key": "test-contracts"
+          }
+        ],
+        "edge-composition-roles": [
+          {
+            "glob": "cli/Cargo.toml"
+          },
+          {
+            "glob": "cli/build.rs"
+          },
+          {
+            "glob": "cli/src/**"
+          },
+          {
+            "glob": "**/benchmarks/provider/**"
+          }
+        ],
+        "generated-roles": [
+          {
+            "glob": "**/src/languages.rs"
+          },
+          {
+            "glob": "**/src/tastemaker.toml"
+          }
+        ],
+        "input-roots": [
+          {
+            "glob": "**/tests/fixtures/**"
+          }
+        ],
+        "key-roles": [
+          {
+            "glob": "**/accounting/**",
+            "key": "owners"
+          }
+        ],
+        "public-roots": [
+          "ryo::",
+          "ryo_sdk::"
+        ],
+        "role-globs": [
+          {
+            "glob": "**/*_test.rs"
+          },
+          {
+            "glob": "**/*_test/**"
+          },
+          {
+            "glob": "**/test.rs"
+          },
+          {
+            "glob": "**/tests.rs"
+          },
+          {
+            "glob": "**/tests/**"
+          },
+          {
+            "glob": "**/tests/bdd.rs"
+          },
+          {
+            "glob": "**/tests/allocation.rs"
+          },
+          {
+            "glob": "**/acceptance.rs"
+          },
+          {
+            "glob": "**/fixtures/**"
+          },
+          {
+            "glob": "**/fixtures.rs"
+          },
+          {
+            "glob": "**/benches/**"
+          }
+        ]
+      },
+      "query": "idiomatic-arch-manifest-excludes-fc022bdeb63e"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/test-imports",
+      "include": [
+        "tests/**",
+        "tests/**/**"
+      ],
+      "parameters": {
+        "allowed": [],
+        "test-contracts": [
+          {
+            "path": "ryo_execution_runtime::outbound::facts::interface::FactsPort"
+          }
+        ]
+      },
+      "query": "idiomatic-arch-test-imports-f4a5bcef43f2"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": [
+      [
+        "tastemaker.toml",
+        "project phase diagnostic emit: named producer is incomplete: every source partition was explicitly skipped"
+      ]
+    ]
+  }
+}

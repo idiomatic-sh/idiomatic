@@ -1,0 +1,126 @@
+{
+  "stamp": 209,
+  "rule": "idiomatic.arch/idiomatic-rust/field-written-never-read",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "src/config.rs",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/config.rs": "ce716a6503fb83168e116b6e8c433d69a22ca7e35a921e36f600092e1a2cf36e",
+    "src/lib.rs": "03bf9eb48748aa66e6b93d09b166475ac8dba07b1dc3ee9187190fb31a0c895a",
+    "tastemaker.toml": "d512df9875a9d8d04b60effee57c0227bb087775b49be9316ae5723f4bfe6a4b"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/field-written-never-read",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "trivial-derives": [
+          "derive",
+          "Debug",
+          "Clone",
+          "Copy",
+          "Default"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-field-written-never-read-73a82ea15135"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/config.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "crate",
+            "."
+          ],
+          [
+            "field",
+            "size"
+          ],
+          [
+            "file",
+            {
+              "file": "src/config.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                48,
+                57
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              48,
+              57
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/config.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

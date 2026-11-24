@@ -1,0 +1,232 @@
+{
+  "stamp": 259,
+  "rule": "declarations-entries",
+  "dependency": "One file",
+  "admitted": [
+    ".tastemaker-rendered/0804aacbfbbea303.Cargo.lock",
+    "Cargo.lock"
+  ],
+  "given": {
+    "Cargo.lock": "cab3c319a062072cd280df54ff4786200bf6cfe548a2c8674c0289dfa35ae214",
+    "tastemaker.toml": "d7bb337a81c6246da43e9078d4613044572923bec3ade7377c9cfce0c0030c2d"
+  },
+  "beside": {
+    ".tastemaker-rendered/0804aacbfbbea303.Cargo.lock": "cab3c319a062072cd280df54ff4786200bf6cfe548a2c8674c0289dfa35ae214"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "Cargo.lock"
+          },
+          "cargo-lock",
+          "idiomatic.arch",
+          "cargo-lock",
+          "0.1.0",
+          ""
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "Cargo.lock",
+        ".tastemaker-rendered/0804aacbfbbea303.Cargo.lock"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "Cargo.lock",
+        ".tastemaker-rendered/0804aacbfbbea303.Cargo.lock"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "Cargo.lock",
+        ".tastemaker-rendered/0804aacbfbbea303.Cargo.lock"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "Cargo.lock",
+        ".tastemaker-rendered/0804aacbfbbea303.Cargo.lock"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "Cargo.lock",
+        ".tastemaker-rendered/0804aacbfbbea303.Cargo.lock"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "Cargo.lock",
+        ".tastemaker-rendered/0804aacbfbbea303.Cargo.lock"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "Cargo.lock",
+        ".tastemaker-rendered/0804aacbfbbea303.Cargo.lock"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "Cargo.lock",
+        ".tastemaker-rendered/0804aacbfbbea303.Cargo.lock"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.lock",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "decoded",
+            null
+          ],
+          [
+            "key",
+            "version"
+          ],
+          [
+            "kind",
+            "integer"
+          ],
+          [
+            "occurrence",
+            "Cargo.lock#7"
+          ],
+          [
+            "ordinal",
+            0
+          ],
+          [
+            "owner",
+            "Cargo.lock#0"
+          ],
+          [
+            "file",
+            {
+              "file": "Cargo.lock"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                91,
+                98
+              ]
+            }
+          ],
+          [
+            "text",
+            "4"
+          ],
+          [
+            "boolean",
+            "false"
+          ],
+          [
+            "integer",
+            4
+          ],
+          [
+            "float",
+            null
+          ],
+          [
+            "datetime",
+            null
+          ],
+          [
+            "radix",
+            10
+          ]
+        ],
+        "key": [
+          "Cargo.lock#7"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "Cargo.lock"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

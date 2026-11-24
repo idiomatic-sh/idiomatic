@@ -1,0 +1,9 @@
+use ryo::languages;
+
+pub struct ProjectUseCaseImpl;
+
+impl languages::Project for ProjectUseCaseImpl {
+    fn manifests(&self) -> &'static [languages::ManifestName] {
+        &[]
+    }
+}

@@ -30,6 +30,9 @@ mod shared;
 mod retention;
 pub(crate) use retention::Retention;
 
+#[path="check_session/stored_block.rs"]
+pub(crate) mod stored_block;
+
 type Parameters =
     BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
 
@@ -113,8 +116,11 @@ impl Program {
 
 #[derive(Default)]
 pub(crate) struct Clock {
+    pub(crate) readers: BTreeMap<String, ReaderParts>,
     pub prepare: f64,
     pub read_parse: f64,
+    pub(crate) read_versions: f64,
+    pub(crate) build_file: f64,
     pub screen: f64,
     pub evaluate: f64,
     pub project: f64,
@@ -129,6 +135,16 @@ pub(crate) struct Clock {
     pub refused: usize,
 }
 
+#[derive(Default)]
+pub(crate) struct ReaderParts {
+    pub total: f64,
+    pub read: f64,
+    pub build: f64,
+    pub tree: f64,
+    pub facts: f64,
+    pub parsed: usize,
+}
+
 /// The root and path identify the caller's immutable effective source. This
 /// distinguishes in-memory replacements staged at different roots.
 pub(crate) struct Source {
@@ -136,8 +152,8 @@ pub(crate) struct Source {
     pub path: String,
     pub bindings: BTreeMap<usize, usize>,
     known: BTreeMap<usize, usize>,
-    project: bool,
-    provided: Option<Rc<[u8]>>,
+    pub(crate) project: bool,
+    pub(crate) provided: Option<Rc<[u8]>>,
 }
 
 /// Per-check program identities and the inverse admission index. The caller binds
@@ -149,7 +165,7 @@ pub(crate) struct Schedule {
     supplied_ids: HashMap<(Rc<str>, Rc<[u8]>), usize>,
     pub pending: BTreeSet<usize>,
     pub programs: Vec<Result<Program>>,
-    prepared: HashMap<(Rc<str>, Parameters), usize>,
+    pub(crate) prepared: HashMap<(Rc<str>, Parameters), usize>,
     pub pairs: usize,
 }
 
@@ -481,6 +497,7 @@ struct Contents {
 struct HeldFile<F: Default, D: Default> {
     symbols: D,
     native: F,
+    lent: Option<std::sync::Arc<l::NodeTable>>,
     tree: l::NodeTable,
     fields: Vec<u32>,
     text: Vec<u32>,
@@ -513,6 +530,9 @@ pub(crate) fn visit<L: FileSource>(
     mut host: impl FnMut(usize, &mut Run) -> Result<Tables>,
     clocks: &mut Clock,
 ) {
+    let before = (clocks.read_parse, clocks.read_versions, clocks.build_file, clocks.files);
+    let mut tree_cpu = 0.;
+    let mut fact_cpu = 0.;
     let mut run = std::mem::take(&mut state.run);
     let unknown = state.unknown.get_or_insert_with(|| {
         run.file_field_codes = true;
@@ -578,7 +598,9 @@ pub(crate) fn visit<L: FileSource>(
             &mut state.bytes,
             keep,
         );
-        clocks.read_parse += thread_cpu() - t;
+        let elapsed = thread_cpu() - t;
+        clocks.read_versions += elapsed;
+        clocks.read_parse += elapsed;
         for Version {
             origin: index,
             project_slots,
@@ -640,7 +662,8 @@ pub(crate) fn visit<L: FileSource>(
                     },
                 };
                 let requested: Vec<_> = wanted.into_iter().collect();
-                parser.build(
+                let build_start = thread_cpu();
+                let result = parser.build(
                     request,
                     &mut elements,
                     &mut symbols,
@@ -649,7 +672,9 @@ pub(crate) fn visit<L: FileSource>(
                     } else {
                         &requested
                     },
-                )
+                );
+                clocks.build_file += thread_cpu() - build_start;
+                result
             } else {
                 // Every registered reader declined this path. Its host populations
                 // still exist and no source reader contributes syntax or semantic rows.
@@ -685,6 +710,7 @@ pub(crate) fn visit<L: FileSource>(
                 run.field_sym.clone_from(&held.fields);
                 provider.text = std::mem::take(&mut held.text);
             } else {
+                let tree_start = thread_cpu();
                 L::tree(
                     &elements,
                     &symbols,
@@ -693,12 +719,15 @@ pub(crate) fn visit<L: FileSource>(
                     &mut tree,
                     &mut provider,
                 );
+                tree_cpu += thread_cpu() - tree_start;
                 if keep {
                     held.fields.clone_from(&run.field_sym);
                 }
             }
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
+            let native = if reused { held.lent.take() } else { L::lent(elements) };
+            let tree = native.as_deref().unwrap_or(tree);
             let contents = &mut held.contents;
             if !reused {
                 contents.kinds.clear();
@@ -765,14 +794,17 @@ pub(crate) fn visit<L: FileSource>(
             if let Some(parser) = &parser
                 && !missing.is_empty()
             {
-                if let Err(reason) = parser.fill(
+                let fact_start = thread_cpu();
+                let filled = parser.fill(
                     &mut elements,
                     &mut symbols,
                     &bytes,
                     id,
                     &missing,
                     &mut packet.rows,
-                ) {
+                );
+                fact_cpu += thread_cpu() - fact_start;
+                if let Err(reason) = filled {
                     for &slot in jobs.values() {
                         answers[slot] = Err(reason.clone());
                     }
@@ -935,6 +967,7 @@ pub(crate) fn visit<L: FileSource>(
             drop(version);
             if keep {
                 held.recovery = Some(recovery);
+                held.lent = native;
                 held.native = L::File::default();
                 held.text = provider.text;
                 packet.rows.partials = partials;
@@ -950,6 +983,13 @@ pub(crate) fn visit<L: FileSource>(
             clocks.evaluate += thread_cpu() - t;
         }
     }
+    let parts = clocks.readers.entry(parser.map_or("unclaimed", FileSource::name).to_owned()).or_default();
+    parts.total += clocks.read_parse - before.0;
+    parts.read += clocks.read_versions - before.1;
+    parts.build += clocks.build_file - before.2;
+    parts.parsed += clocks.files - before.3;
+    parts.tree += tree_cpu;
+    parts.facts += fact_cpu;
     if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }
     if keep {
         state.run = run;

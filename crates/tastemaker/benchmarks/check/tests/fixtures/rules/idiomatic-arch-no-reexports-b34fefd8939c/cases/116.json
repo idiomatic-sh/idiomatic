@@ -1,0 +1,120 @@
+{
+  "stamp": 116,
+  "rule": "idiomatic.arch/no-reexports",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "macros/src/lib.rs",
+    "src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "9c0c2a4bb6ce2c7dda7e2077a749c19d9ddedb7da9d8bb269d82a7b2b368040c",
+    "macros/Cargo.toml": "15d52ae1a606358f4521a8ee6f15803a56c0846c8ab4838a736538eb2a733404",
+    "macros/src/lib.rs": "3037dfa356be3e46c3be6468bed45f2cf20ca9c94c35e935674944634c28d5f4",
+    "src/lib.rs": "3bb0bc9bbe5eb75951f96a126eaf07ff66101ec59598ca2a51638ac9ef2666b7",
+    "tastemaker.toml": "ed520bb067b2610cd4563d095cfdae979eadf95d2b1bba24789c9ccb2f4f0807"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-reexports",
+      "include": [
+        "**/src/lib.rs",
+        "**/src/lib.rs/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-no-reexports-b34fefd8939c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "macros/Cargo.toml",
+        "macros/src/lib.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                28
+              ]
+            }
+          ],
+          [
+            "kind",
+            "use"
+          ],
+          [
+            "problem",
+            "declaration has explicit forwarding visibility"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              28
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

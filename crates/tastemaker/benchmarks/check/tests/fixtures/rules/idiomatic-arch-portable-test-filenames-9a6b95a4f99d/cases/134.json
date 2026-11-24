@@ -1,0 +1,154 @@
+{
+  "stamp": 134,
+  "rule": "idiomatic.arch/portable-test-filenames",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "tastemaker.toml",
+    "tests/init.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "tastemaker.toml": "97f0a669834c32e129d659d5a478628a6567258507763a6805a1763fe800f65d",
+    "tests/init.rs": "1c5df8dd8a635be9ed948ccdf16f712b1dd3ae58e425c62b61469eecf6b6715d"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/portable-test-filenames",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-portable-test-filenames-9a6b95a4f99d"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "tastemaker.toml",
+        "tests/init.rs"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "owner",
+            "tests/init.rs#1"
+          ],
+          [
+            "file",
+            {
+              "file": "tests/init.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                216,
+                227
+              ]
+            }
+          ],
+          [
+            "value",
+            "star*.txt"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              216,
+              227
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "tests/init.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "owner",
+            "tests/init.rs#1"
+          ],
+          [
+            "file",
+            {
+              "file": "tests/init.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                269,
+                280
+              ]
+            }
+          ],
+          [
+            "value",
+            "what?.txt"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              269,
+              280
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "tests/init.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

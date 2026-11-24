@@ -1,0 +1,9 @@
+use ryo::languages::Parse;
+
+pub struct ParseContract;
+
+impl Parse for ParseContract {
+    fn read_tree(&self, request: &Request) -> Vec<u8> {
+        Vec::new()
+    }
+}

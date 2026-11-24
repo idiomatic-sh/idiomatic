@@ -42,6 +42,7 @@ fn id_after(count: Count) -> Position {
 /// ```
 pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
     let columns = &mut table.0;
+    columns.visible = None;
     columns.kind.clear();
     columns.parent.clear();
     columns.subtree_end.clear();
@@ -1025,11 +1026,15 @@ pub fn children_of(table: &NodeTable, id: Position) -> &[Position] {
 /// ```
 #[must_use]
 pub fn ids_of_kind(table: &NodeTable, kind: KindBits) -> &[Position] {
-    table
+    let ids: &[Position] = table
         .0
         .by_kind
         .get(usize::from(kind.0))
-        .map_or(&[], Vec::as_slice)
+        .map_or(&[], Vec::as_slice);
+    match table.0.visible {
+        Some(limit) => &ids[..ids.partition_point(|id| usize::from(*id) < limit)],
+        None => ids,
+    }
 }
 
 /// The ids of every element that fills `field` in its parent, in id order; field zero lists the elements that fill none.
@@ -1051,11 +1056,15 @@ pub fn ids_of_kind(table: &NodeTable, kind: KindBits) -> &[Position] {
 /// ```
 #[must_use]
 pub fn ids_of_field(table: &NodeTable, field: FieldCode) -> &[Position] {
-    table
+    let ids: &[Position] = table
         .0
         .by_field
         .get(usize::from(field.0))
-        .map_or(&[], Vec::as_slice)
+        .map_or(&[], Vec::as_slice);
+    match table.0.visible {
+        Some(limit) => &ids[..ids.partition_point(|id| usize::from(*id) < limit)],
+        None => ids,
+    }
 }
 
 /// The kind code of every element, by id: the column itself, for an engine that reads it whole.
@@ -1075,7 +1084,7 @@ pub fn ids_of_field(table: &NodeTable, field: FieldCode) -> &[Position] {
 /// ```
 #[must_use]
 pub fn kind_codes(table: &NodeTable) -> &[u16] {
-    &table.0.kind
+    &table.0.kind[..element_count(table).0]
 }
 
 /// The field code of every element, by id (zero: none): the column itself.
@@ -1095,7 +1104,7 @@ pub fn kind_codes(table: &NodeTable) -> &[u16] {
 /// ```
 #[must_use]
 pub fn field_codes(table: &NodeTable) -> &[u16] {
-    &table.0.field
+    &table.0.field[..element_count(table).0]
 }
 
 /// The parent id of every element, by id (a root's is itself): the column itself.
@@ -1117,7 +1126,7 @@ pub fn field_codes(table: &NodeTable) -> &[u16] {
 /// ```
 #[must_use]
 pub fn parent_ids(table: &NodeTable) -> &[u32] {
-    &table.0.parent
+    &table.0.parent[..element_count(table).0]
 }
 
 /// The first byte of every element, by id: the column itself.
@@ -1137,7 +1146,7 @@ pub fn parent_ids(table: &NodeTable) -> &[u32] {
 /// ```
 #[must_use]
 pub fn starts(table: &NodeTable) -> &[u32] {
-    &table.0.start
+    &table.0.start[..element_count(table).0]
 }
 
 /// The byte after the last of every element, by id: the column itself.
@@ -1157,7 +1166,7 @@ pub fn starts(table: &NodeTable) -> &[u32] {
 /// ```
 #[must_use]
 pub fn ends(table: &NodeTable) -> &[u32] {
-    &table.0.end
+    &table.0.end[..element_count(table).0]
 }
 
 /// The sets of every element, by id, as a `structured` builder wrote them (empty for any other builder).
@@ -1260,7 +1269,7 @@ pub fn node_count(table: &NodeTable) -> Count {
 /// ```
 #[must_use]
 pub fn element_count(table: &NodeTable) -> Count {
-    Count(table.0.kind.len())
+    Count(table.0.visible.unwrap_or(table.0.kind.len()))
 }
 
 /// A text the table keeps, by its record.
@@ -1449,4 +1458,40 @@ pub fn embedded_segments(table: &NodeTable) -> impl Iterator<Item = EmbeddedSpan
         root: each.root,
         end: each.end,
     })
+}
+
+/// Expansion segments use the builder's host/offset machinery. Their origins
+/// live in the semantic file. The evaluator sees the file's concrete prefix.
+pub(crate) fn expose_concrete(table: &mut NodeTable, end: Position) {
+    let columns = &mut table.0;
+    let limit = usize::from(end);
+    if limit == columns.kind.len() {
+        return;
+    }
+    columns.visible = Some(limit);
+    columns.embedded.retain(|segment| segment.root < end);
+    for (code, ids) in columns.by_kind.iter().enumerate() {
+        if ids.first().is_some_and(|first| *first >= end) {
+            columns.present.0[code / PRESENCE_BITS].0 &= !(1 << (code % PRESENCE_BITS));
+        }
+    }
+}
+
+/// Assigns grammatical roles that require the completed sibling list.
+/// Role and index storage are reused between files.
+pub fn classify_fields(table: &mut NodeTable, classify: impl Fn(&NodeTable, Position) -> FieldCode) {
+    let mut roles = std::mem::take(&mut table.0.field);
+    for ids in &mut table.0.by_field {
+        ids.clear();
+    }
+    for (index, role) in roles.iter_mut().enumerate() {
+        let id = id_after(Count(index));
+        *role = classify(table, id).0;
+        let field = usize::from(*role);
+        if table.0.by_field.len() <= field {
+            table.0.by_field.resize_with(field + 1, Vec::new);
+        }
+        table.0.by_field[field].push(id);
+    }
+    table.0.field = roles;
 }

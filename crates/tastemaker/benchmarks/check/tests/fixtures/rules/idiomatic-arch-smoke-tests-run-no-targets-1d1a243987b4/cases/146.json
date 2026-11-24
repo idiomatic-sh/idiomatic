@@ -1,0 +1,141 @@
+{
+  "stamp": 146,
+  "rule": "idiomatic.arch/smoke-tests-run-no-targets",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "distribution/registries/cargo/smoke_test.rs",
+    "distribution/smoke_test.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "distribution/registries/cargo/smoke_test.rs": "58b22a735c704eef9c3cbee8054825da33daf57e72c0ce4aa037e443862d86ad",
+    "distribution/smoke_test.rs": "982ccffa988143be35fa93ea192cf5361dacec03879cba7da6d83c22e23a879a",
+    "tastemaker.toml": "584cb3a27aced63e738758a1d8d8b3258f69090b9b241f9e89902d4d03ce0f8e"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/smoke-tests-run-no-targets",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-smoke-tests-run-no-targets-1d1a243987b4"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "distribution/registries/cargo/smoke_test.rs",
+        "distribution/smoke_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "distribution/registries/cargo/smoke_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                237,
+                248
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              237,
+              248
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "distribution/registries/cargo/smoke_test.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "distribution/smoke_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                235,
+                246
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              235,
+              246
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "distribution/smoke_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,7 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let impls = select * from tree-nodes where kind = "impl";
+let for-keywords = select * from tree-tokens where kind = "for-kw";
+let trait-impl-ids = select l."parent" as "id" from "syntax-child" as l join for-keywords as r on l."child" = r."id";
+let inherent = antijoin(left=impls, right=trait-impl-ids, left-on=["id"], right-on=["id"]);
+emit inherent subject "file" key("span");

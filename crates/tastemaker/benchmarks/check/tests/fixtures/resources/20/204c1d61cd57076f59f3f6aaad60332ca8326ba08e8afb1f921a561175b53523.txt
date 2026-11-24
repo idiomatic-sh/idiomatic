@@ -1,0 +1,4 @@
+//! The typed fixtures of the language.
+
+mod kinds;
+mod relations;

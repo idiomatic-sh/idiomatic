@@ -1,0 +1,14 @@
+//! A module added beside the root, reachable from it.
+
+use parser_lib as pl;
+
+/// The tokens of a tree.
+pub fn tokens(text: &str) -> Vec<pl::Token> {
+    let _ = text;
+    Vec::new()
+}
+
+/// The span of a tree, a type of the library the domain reads in place.
+pub fn span() -> tree_lib::Span {
+    tree_lib::Span::default()
+}

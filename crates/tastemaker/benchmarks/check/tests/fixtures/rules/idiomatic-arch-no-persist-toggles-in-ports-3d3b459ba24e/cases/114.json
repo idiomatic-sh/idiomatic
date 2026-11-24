@@ -1,0 +1,115 @@
+{
+  "stamp": 114,
+  "rule": "idiomatic.arch/no-persist-toggles-in-ports",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/outbound/analysis/types.rs"
+  ],
+  "given": {
+    "src/outbound/analysis/types.rs": "119771dea7b9dc60d77bb5ec7b56c55ea85ee1dac6356b77f0259eb259ac318b",
+    "tastemaker.toml": "c4c569ae49f2801cd2c17dae576a051b8dcdcdc308ca9a6c9ce171a749401da5"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-persist-toggles-in-ports",
+      "include": [
+        "src/outbound/*/interface.rs",
+        "src/outbound/*/interface.rs/**",
+        "src/outbound/*/types.rs",
+        "src/outbound/*/types.rs/**"
+      ],
+      "parameters": {
+        "toggles": [
+          "Keeping",
+          "ImageKeeping",
+          "Writing"
+        ]
+      },
+      "query": "idiomatic-arch-no-persist-toggles-in-ports-3d3b459ba24e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/outbound/analysis/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/outbound/analysis/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                235,
+                242
+              ]
+            }
+          ],
+          [
+            "text",
+            "Keeping"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              235,
+              242
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/analysis/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

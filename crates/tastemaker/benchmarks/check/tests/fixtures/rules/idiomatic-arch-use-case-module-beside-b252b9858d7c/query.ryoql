@@ -1,0 +1,7 @@
+let files = project(from="filesystem.file", columns=["path"]);
+let bodies = capture(from=files, path="path", pattern="{*root}/src/inbound/use_cases/{use_case}/use_case.rs", captures=["root", "use_case"]);
+let modules = capture(from=files, path="path", pattern="{*root}/src/inbound/use_cases/{use_case}.rs", captures=["root", "use_case"]);
+let module-keys = project(from=modules, columns=["root", "use_case"]);
+let bare = antijoin(left=bodies, right=module-keys, left-on=["root", "use_case"], right-on=["root", "use_case"]);
+let bare-rows = project(from=bare, columns=["path", "use_case"]);
+emit bare-rows subject "path" key("use_case");

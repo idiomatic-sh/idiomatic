@@ -1,0 +1,5 @@
+let named = select * from "tastemaker.only";
+let ran = select * from "tastemaker.evaluated";
+let reached = select o."scenario" as "scenario", o."place" as "place", o."only" as "only" from named as o join ran as v on o."scenario" = v."scenario" where v."rule" = o."only" or ends_with(v."rule", concat("/", o."only")) or ends_with(v."rule", concat("#", o."only"));
+let unran = antijoin(left=named, right=reached, left-on=["scenario", "place"], right-on=["scenario", "place"]);
+emit unran subject "scenario" key("scenario", "place", "only");

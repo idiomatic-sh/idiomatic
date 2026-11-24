@@ -59,7 +59,7 @@ where
 }
 
 /// The language's requirement when a wanted reader looks at what completion adds; else none: no model is prepared for it.
-fn demanded<L: ParseUseCase + ?Sized>(language: &L, wanted: &[Relation]) -> CompletionRequirement {
+pub(super) fn demanded<L: ParseUseCase + ?Sized>(language: &L, wanted: &[Relation]) -> CompletionRequirement {
     let mut slots = wanted
         .iter()
         .filter_map(|relation| slot_of(language, *relation));
@@ -78,6 +78,17 @@ fn build_recognized<L: ParseUseCase + ?Sized>(
 ) -> Result<(), ParseError> {
     let mut builder = table_builder(table, symbols, request.bytes);
     language.read_tree(&request, &mut builder)?;
+    finish_file(language, request, table, symbols, requirement);
+    Ok(())
+}
+
+pub(super) fn finish_file<L: ParseUseCase + ?Sized>(
+    language: &L,
+    request: ParseRequest<'_>,
+    table: &mut Elements,
+    symbols: &mut Symbols,
+    requirement: CompletionRequirement,
+) {
     crate::application::completion::service::complete::<L::FileModel>(
         completion(table, symbols, request.bytes, request.file),
         ByteSlice(language.configuration_identity().0.as_bytes()),
@@ -86,7 +97,6 @@ fn build_recognized<L: ParseUseCase + ?Sized>(
         |completed| language.complete(&request, completed),
         |tree, from, model| language.extend_file_model(tree, from, model),
     );
-    Ok(())
 }
 
 /// Does only what the language's library does for the file the request names, through a builder that builds nothing: no table, no

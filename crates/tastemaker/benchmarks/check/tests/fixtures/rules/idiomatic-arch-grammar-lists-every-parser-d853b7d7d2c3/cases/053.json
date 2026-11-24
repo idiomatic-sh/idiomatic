@@ -1,0 +1,135 @@
+{
+  "stamp": 53,
+  "rule": "idiomatic.arch/grammar-lists-every-parser",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/adapter.rs",
+    "src/constants.rs",
+    "src/lib.rs",
+    "src/words.rs"
+  ],
+  "given": {
+    "Cargo.toml": "bb42f1dc383a0d5245cdb1808c2ff2995669fb3c28251851c093eef71fa64e1a",
+    "src/adapter.rs": "4118df8f644ed0446afe52893ef1d9a7efdafa516d74183f67ac79e4a5c4c0ae",
+    "src/constants.rs": "8bcb0cef803177b2e0e967eaa853ea07e3ae019b24288b337ad610697dd7657c",
+    "src/lib.rs": "15bcd9434985e260707e44667e2fdaf77b04ccac0857de04f7077781124c8b1c",
+    "src/words.rs": "f8ffe81bb0c7ed06822f426b845f308d7bce729d9b1aa35c1c72281f38ce8172",
+    "tastemaker.toml": "3466efd4bcf39623884cd4e423438c44270e04e0fc714af900c026ea4b96480f"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/grammar-lists-every-parser",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {
+        "field": [
+          "name"
+        ],
+        "grammar": [
+          "src/constants.rs"
+        ],
+        "input": [
+          "&mut Input*"
+        ],
+        "parsers": [
+          "src/adapter.rs"
+        ]
+      },
+      "query": "idiomatic-arch-grammar-lists-every-parser-d853b7d7d2c3"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/adapter.rs",
+        "src/constants.rs",
+        "src/lib.rs",
+        "src/words.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "window"
+          ],
+          [
+            "file",
+            {
+              "file": "src/adapter.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                202,
+                269
+              ]
+            }
+          ],
+          [
+            "problem",
+            "is a parser function with no row in the grammar table"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              202,
+              269
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/adapter.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

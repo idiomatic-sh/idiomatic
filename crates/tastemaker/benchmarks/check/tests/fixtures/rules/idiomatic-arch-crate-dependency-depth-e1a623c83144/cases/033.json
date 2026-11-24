@@ -1,0 +1,136 @@
+{
+  "stamp": 33,
+  "rule": "idiomatic.arch/crate-dependency-depth",
+  "dependency": "Project",
+  "admitted": [
+    "Cargo.toml",
+    "crates/alpha/Cargo.toml",
+    "crates/alpha/src/lib.rs",
+    "crates/beta/Cargo.toml",
+    "crates/beta/src/lib.rs",
+    "crates/delta/Cargo.toml",
+    "crates/delta/src/lib.rs",
+    "crates/gamma/Cargo.toml",
+    "crates/gamma/src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "e8d6c11c04fee7803426b48b1764d404ea1e8776372d6dbdf352d74cdfff10ef",
+    "crates/alpha/Cargo.toml": "d72413031f3bdb0266e00055663941489b5ea0fb46ae7728ffb60c0239e39849",
+    "crates/alpha/src/lib.rs": "127522b9ed1f935b8c6dc0e5046575624ba1dfc1fc472ea2e7c465907579d016",
+    "crates/beta/Cargo.toml": "0cbecf449c51cc304a40c879ab3c003ec8ae7800481e5d006e6944c096cd930a",
+    "crates/beta/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/delta/Cargo.toml": "c70d0cc9e41940d8d550acef0328208013748526c35891b242bf901fb71a7f6b",
+    "crates/delta/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/gamma/Cargo.toml": "157a420f0b5d5a68e63bfbde240974d1d703c6914f1f1b75b11e8eae810fdb62",
+    "crates/gamma/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "5bbbb328dec4159d073aecd9acf3522aff2d7107b55d8d2646ebf6e1e7f3f164"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/crate-dependency-depth",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "kinds": [
+          "normal",
+          "build"
+        ],
+        "max-reach": 2,
+        "optional": false
+      },
+      "query": "idiomatic-arch-crate-dependency-depth-e1a623c83144"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "crates/alpha/Cargo.toml",
+        "crates/alpha/src/lib.rs",
+        "crates/beta/Cargo.toml",
+        "crates/beta/src/lib.rs",
+        "crates/delta/Cargo.toml",
+        "crates/delta/src/lib.rs",
+        "crates/gamma/Cargo.toml",
+        "crates/gamma/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "crates/alpha/Cargo.toml"
+            }
+          ],
+          [
+            "reached",
+            3
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                104
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "crates/alpha/Cargo.toml"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/alpha/Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

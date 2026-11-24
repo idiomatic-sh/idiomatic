@@ -1,0 +1,18 @@
+//! The names port, implemented with memory.
+
+use crate::outbound::names::errors::NamesError;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// The memory names adapter.
+#[derive(Debug)]
+pub(crate) struct NamesMemoryAdapter;
+
+impl NamesPort for NamesMemoryAdapter {
+    fn stored(&self, asked: &Asked) -> Result<Greeting, NamesError> {
+        if asked.0 == "Ada" {
+            return Ok(Greeting("hello, Ada"));
+        }
+        Err(NamesError::Missing)
+    }
+}

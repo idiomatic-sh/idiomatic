@@ -1,0 +1,11 @@
+//! The grammar table.
+
+pub struct GrammarLine {
+    pub name: &'static str,
+    pub form: &'static str,
+}
+
+pub const GRAMMAR: &[GrammarLine] = &[
+    GrammarLine { name: "program", form: "select" },
+    GrammarLine { name: crate::words::SELECT, form: "\"select\" word" },
+];

@@ -1,0 +1,1 @@
+//! The `x` service: pure functions over the domain's types, with no IO and no ports.

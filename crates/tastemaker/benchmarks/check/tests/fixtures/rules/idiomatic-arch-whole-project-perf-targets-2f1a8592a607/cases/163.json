@@ -1,0 +1,151 @@
+{
+  "stamp": 163,
+  "rule": "idiomatic.arch/whole-project-perf-targets",
+  "dependency": "One file",
+  "admitted": [
+    "pin.toml"
+  ],
+  "given": {
+    "pin.toml": "4c679543ccec6e5e8417d9146c243557104e318e7499363ff72cae0ffa97bd98",
+    "tastemaker.toml": "f78ba570847eb8cf96270e98f9c604de7f43ecad4f80fe052ac49b0f8197c37b"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/whole-project-perf-targets",
+      "include": [
+        "pin.toml",
+        "pin.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-whole-project-perf-targets-2f1a8592a607"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "pin.toml",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "decoded",
+            "crates/ruff_cache/src"
+          ],
+          [
+            "key",
+            "directory"
+          ],
+          [
+            "kind",
+            "string"
+          ],
+          [
+            "occurrence",
+            "pin.toml#19"
+          ],
+          [
+            "ordinal",
+            2
+          ],
+          [
+            "owner",
+            "pin.toml#0"
+          ],
+          [
+            "file",
+            {
+              "file": "pin.toml"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                103,
+                112
+              ]
+            }
+          ],
+          [
+            "text",
+            "\"crates/ruff_cache/src\""
+          ],
+          [
+            "boolean",
+            "false"
+          ],
+          [
+            "integer",
+            0
+          ],
+          [
+            "float",
+            null
+          ],
+          [
+            "datetime",
+            null
+          ],
+          [
+            "radix",
+            0
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              103,
+              112
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "pin.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

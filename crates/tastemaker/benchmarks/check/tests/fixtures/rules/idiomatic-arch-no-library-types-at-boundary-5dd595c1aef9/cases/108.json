@@ -1,0 +1,519 @@
+{
+  "stamp": 108,
+  "rule": "idiomatic.arch/no-library-types-at-boundary",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/lib.rs",
+    "src/reading.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "c2cf8d7303c45d23330c98694a0f81ba57fd55fab626fefcc9b4387d7953c368",
+    "src/reading.rs": "6b4877f5a480404ed1ef2ef987ffd29ef93bc1a20145f5c315820bcb63c010bc",
+    "tastemaker.toml": "710854ff30aefbae95328d597d8e77e7637c06ce9f4f844b1e0bc801b36afeb2"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-library-types-at-boundary",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {
+        "contracts": [
+          "contract_sdk::*"
+        ],
+        "domain-libraries": [
+          "tree_lib::*"
+        ],
+        "libraries": [
+          "parser_lib::*"
+        ]
+      },
+      "query": "idiomatic-arch-no-library-types-at-boundary-5dd595c1aef9"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/reading.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                255,
+                259
+              ]
+            }
+          ],
+          [
+            "target",
+            "Tree"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              255,
+              259
+            ]
+          },
+          "Tree"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                315,
+                335
+              ]
+            }
+          ],
+          [
+            "target",
+            "parser_lib::Node"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              315,
+              335
+            ]
+          },
+          "parser_lib::Node"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                406,
+                422
+              ]
+            }
+          ],
+          [
+            "target",
+            "parser_lib::Leaf"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              406,
+              422
+            ]
+          },
+          "parser_lib::Leaf"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                467,
+                483
+              ]
+            }
+          ],
+          [
+            "target",
+            "parser_lib::Tree"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              467,
+              483
+            ]
+          },
+          "parser_lib::Tree"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                495,
+                504
+              ]
+            }
+          ],
+          [
+            "target",
+            "nest::Out"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              495,
+              504
+            ]
+          },
+          "nest::Out"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                573,
+                590
+              ]
+            }
+          ],
+          [
+            "target",
+            "parser_lib::Visit"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              573,
+              590
+            ]
+          },
+          "parser_lib::Visit"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                696,
+                700
+              ]
+            }
+          ],
+          [
+            "target",
+            "Tree"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              696,
+              700
+            ]
+          },
+          "Tree"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                760,
+                776
+              ]
+            }
+          ],
+          [
+            "target",
+            "parser_lib::Tree"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              760,
+              776
+            ]
+          },
+          "parser_lib::Tree"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                825,
+                829
+              ]
+            }
+          ],
+          [
+            "target",
+            "Tree"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              825,
+              829
+            ]
+          },
+          "Tree"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                842,
+                862
+              ]
+            }
+          ],
+          [
+            "target",
+            "parser_lib::Exported"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              842,
+              862
+            ]
+          },
+          "parser_lib::Exported"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/reading.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                138,
+                147
+              ]
+            }
+          ],
+          [
+            "target",
+            "pl::Token"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              138,
+              147
+            ]
+          },
+          "pl::Token"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/reading.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/reading.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                277,
+                291
+              ]
+            }
+          ],
+          [
+            "target",
+            "tree_lib::Span"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              277,
+              291
+            ]
+          },
+          "tree_lib::Span"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/reading.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

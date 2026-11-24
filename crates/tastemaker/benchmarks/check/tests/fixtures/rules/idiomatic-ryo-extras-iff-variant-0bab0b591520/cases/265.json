@@ -1,0 +1,100 @@
+{
+  "stamp": 265,
+  "rule": "idiomatic.ryo/extras-iff-variant",
+  "dependency": "Several readers",
+  "admitted": [
+    "demo/Cargo.toml",
+    "demo/src/domain/syntax/types.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "demo/Cargo.toml": "8a3cd5a81b3f9a621aa493d90c45f42ab571d4e42b8ae5aff351cb0a02d06d82",
+    "demo/src/domain/syntax/types.rs": "9fc2b8c1f94111a72f6ce32e063756267b276e9dd64f73c2ec84ee2af4c60745",
+    "tastemaker.toml": "2a05396ae2f4eee946c5cd64ef424ef7b914f8bc1260cbad01d98ad368b80e3a"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/extras-iff-variant",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-extras-iff-variant-0bab0b591520"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "demo/Cargo.toml",
+        "demo/src/domain/syntax/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "demo/src/domain/syntax/types.rs"
+            }
+          ],
+          [
+            "problem",
+            "the kind enum has an `Extra` variant and the language has no concept `extras`: write src/domain/extras/types.rs, the extras and why the standard lacks each"
+          ]
+        ],
+        "key": [
+          {
+            "file": "demo/src/domain/syntax/types.rs"
+          },
+          "the kind enum has an `Extra` variant and the language has no concept `extras`: write src/domain/extras/types.rs, the extras and why the standard lacks each"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "demo/src/domain/syntax/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

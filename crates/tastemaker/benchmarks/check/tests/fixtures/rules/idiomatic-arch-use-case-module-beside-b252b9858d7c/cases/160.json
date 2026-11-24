@@ -1,0 +1,95 @@
+{
+  "stamp": 160,
+  "rule": "idiomatic.arch/use-case-module-beside",
+  "dependency": "One file",
+  "admitted": [
+    "greeting/src/inbound/use_cases/greet/use_case.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "greeting/src/inbound/use_cases/greet/use_case.rs": "1a6feefdcf9c35bff4c4f5ac665b607d6169f42e4c7923f6a658a8a926d9ccd5",
+    "tastemaker.toml": "4fad5a9791e2419a6953dbcc4ead783ccc91195aee868ac63e65af01019c42c8"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/use-case-module-beside",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-module-beside-b252b9858d7c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "greeting/src/inbound/use_cases/greet/use_case.rs"
+            }
+          ],
+          [
+            "use_case",
+            "greet"
+          ]
+        ],
+        "key": [
+          "greet"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "greeting/src/inbound/use_cases/greet/use_case.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

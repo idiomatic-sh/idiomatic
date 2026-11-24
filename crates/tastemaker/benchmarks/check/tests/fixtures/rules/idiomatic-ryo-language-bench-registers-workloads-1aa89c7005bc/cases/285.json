@@ -1,0 +1,91 @@
+{
+  "stamp": 285,
+  "rule": "idiomatic.ryo/language/bench-registers-workloads",
+  "dependency": "One file",
+  "admitted": [
+    "benchmarks/provider/bench.rs"
+  ],
+  "given": {
+    "benchmarks/provider/bench.rs": "eb93fdf725015d9e767ca1de536dd333cdcb4f3c892f6b438e74f9641302317c",
+    "tastemaker.toml": "94f3467ffbc73fa0c252553cbaaef6754c452650ef7471750e304efed885adb0"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/language/bench-registers-workloads",
+      "include": [
+        "benchmarks/provider/bench.rs",
+        "benchmarks/provider/bench.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-language-bench-registers-workloads-1aa89c7005bc"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "benchmarks/provider/bench.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "benchmarks/provider/bench.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "benchmarks/provider/bench.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "benchmarks/provider/bench.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

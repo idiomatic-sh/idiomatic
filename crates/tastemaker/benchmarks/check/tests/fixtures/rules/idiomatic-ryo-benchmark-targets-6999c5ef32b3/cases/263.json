@@ -1,0 +1,95 @@
+{
+  "stamp": 263,
+  "rule": "idiomatic.ryo/benchmark-targets",
+  "dependency": "Several readers",
+  "admitted": [
+    "language/Cargo.toml",
+    "language/benchmarks/provider/bench.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "language/Cargo.toml": "2a1a838463eb9d514790115dce4200e227230aa4dba6d55ecc093b5213327c12",
+    "language/benchmarks/provider/bench.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "50c1e23a80532a931784431b97b14247d7bebe2fc57430d53ebc5206f97dc6f9"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/benchmark-targets",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-benchmark-targets-6999c5ef32b3"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "language/Cargo.toml",
+        "language/benchmarks/provider/bench.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "language/benchmarks/provider/bench.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "language/benchmarks/provider/bench.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "language/benchmarks/provider/bench.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

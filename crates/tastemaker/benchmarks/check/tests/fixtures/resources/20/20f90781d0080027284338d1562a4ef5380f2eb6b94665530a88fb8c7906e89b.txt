@@ -1,0 +1,14 @@
+//! A file.
+
+/// Someone to greet.
+pub struct Name {
+    pub text: String,
+}
+
+impl TryFrom<String> for Name {
+    type Error = ();
+
+    fn try_from(raw: String) -> Result<Self, Self::Error> {
+        Ok(Self { text: raw })
+    }
+}

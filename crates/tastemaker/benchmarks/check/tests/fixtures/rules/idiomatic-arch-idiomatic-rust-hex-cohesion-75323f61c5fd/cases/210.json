@@ -1,0 +1,137 @@
+{
+  "stamp": 210,
+  "rule": "idiomatic.arch/idiomatic-rust/hex-cohesion",
+  "dependency": "Project",
+  "admitted": [
+    "src/inbound.rs",
+    "src/inbound/use_cases.rs",
+    "src/inbound/use_cases/count.rs",
+    "src/inbound/use_cases/count/use_case.rs",
+    "src/inbound/use_cases/greet.rs",
+    "src/inbound/use_cases/greet/use_case.rs",
+    "src/lib.rs",
+    "src/outbound.rs",
+    "src/outbound/clock.rs",
+    "src/outbound/clock/interface.rs",
+    "src/outbound/names.rs",
+    "src/outbound/names/interface.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/inbound.rs": "8dac0e3f923ac6e285eb76048b99ba296693931c418093bacc110a7d2ac5f367",
+    "src/inbound/use_cases.rs": "1d215d156d4834f84d6d8fac8264d2069f3c33e08cf75e756a583014b5ccac59",
+    "src/inbound/use_cases/count.rs": "a94eebfff2a1e3f46f0ed67b1ebd9ca8dd4cd815b79e53b5a81922fbdd206f51",
+    "src/inbound/use_cases/count/use_case.rs": "1fcb6fb6329d8b6fb93943653345012dfb360aa119523a4e0e4b4cb42b6c230c",
+    "src/inbound/use_cases/greet.rs": "a94eebfff2a1e3f46f0ed67b1ebd9ca8dd4cd815b79e53b5a81922fbdd206f51",
+    "src/inbound/use_cases/greet/use_case.rs": "3db68283c192def518c66d46f242b9cbad38e9bc2632b6cbac1a9b7503f38264",
+    "src/lib.rs": "ebca8aca2dcae586164c666644e4f3e6516ee0e979a204df1debb46257b9d58f",
+    "src/outbound.rs": "15fa9a01ea42962e48eb5e9ef1a5d75d84ea2d47b5703981ece43c16dc7d16ad",
+    "src/outbound/clock.rs": "2f2b833372b6d7355cd8edee14f05ba7be4ed6ffc7becbb2adef36833ed2afb4",
+    "src/outbound/clock/interface.rs": "ceee18fafa0f3d889481399fbe7d365d78e2de0a28543ebfe61e22fe0edc971c",
+    "src/outbound/names.rs": "2f2b833372b6d7355cd8edee14f05ba7be4ed6ffc7becbb2adef36833ed2afb4",
+    "src/outbound/names/interface.rs": "216538e20870cb99b2e7dbb1df4cd6084e29f13f192446123454be2f17193729",
+    "tastemaker.toml": "b3be77b243925f88a70de4fec2fc671a847af5d73e4e4b60f4c33bc3b01c8144"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/hex-cohesion",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-idiomatic-rust-hex-cohesion-75323f61c5fd"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/inbound.rs",
+        "src/inbound/use_cases.rs",
+        "src/inbound/use_cases/count.rs",
+        "src/inbound/use_cases/count/use_case.rs",
+        "src/inbound/use_cases/greet.rs",
+        "src/inbound/use_cases/greet/use_case.rs",
+        "src/lib.rs",
+        "src/outbound.rs",
+        "src/outbound/clock.rs",
+        "src/outbound/clock/interface.rs",
+        "src/outbound/names.rs",
+        "src/outbound/names/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                30
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/inbound/use_cases.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

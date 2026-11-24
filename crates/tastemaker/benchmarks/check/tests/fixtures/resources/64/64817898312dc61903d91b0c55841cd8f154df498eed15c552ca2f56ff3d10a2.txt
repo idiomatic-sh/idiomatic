@@ -1,0 +1,2 @@
+//! The `demo` domain's `naming` concept.
+mod types;

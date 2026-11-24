@@ -1,0 +1,103 @@
+{
+  "stamp": 256,
+  "rule": "idiomatic.arch/use-case/use-case-declares",
+  "dependency": "One file",
+  "admitted": [
+    "src/inbound/use_cases/greet/use_case.rs"
+  ],
+  "given": {
+    "src/inbound/use_cases/greet/use_case.rs": "3d8f57ebbddf2571baa1bd52c7d321ef4748a6f90679c699f37270a2aa641ee7",
+    "tastemaker.toml": "b1169af5e85b1a79b9c0be6474eeb72543c5651ad73707511984d00f8f9b49b1"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/use-case/use-case-declares",
+      "include": [
+        "src/inbound/use_cases/greet/use_case.rs",
+        "src/inbound/use_cases/greet/use_case.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-use-case-declares-e0d415f0b53f"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/inbound/use_cases/greet/use_case.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/greet/use_case.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                525,
+                590
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              525,
+              590
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/greet/use_case.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

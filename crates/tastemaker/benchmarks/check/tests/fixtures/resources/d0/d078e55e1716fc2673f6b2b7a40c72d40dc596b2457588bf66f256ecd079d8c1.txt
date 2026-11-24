@@ -1,0 +1,9 @@
+//! The names port, implemented with edge.
+
+use foreign_core::outbound::names::interface::NamesPort;
+
+/// The edge names adapter.
+#[derive(Debug)]
+pub(crate) struct NamesEdgeAdapter;
+
+impl NamesPort for NamesEdgeAdapter {}

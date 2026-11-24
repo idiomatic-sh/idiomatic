@@ -1,0 +1,7 @@
+//! The `short` application operation.
+
+/// The operation, holding the ports it is given.
+pub struct ShortService {
+    /// The store it reads.
+    pub store: u8,
+}

@@ -1,0 +1,7 @@
+//! What the names port asks of the outside.
+
+/// What every names adapter implements.
+pub trait NamesPort {
+    /// Runs.
+    fn run(&self);
+}

@@ -1,0 +1,4 @@
+//! The demo.
+
+/// Runs.
+pub fn run() {}

@@ -1,0 +1,15 @@
+//! The parser functions.
+
+pub struct Input<'a>(pub &'a str);
+
+pub fn program(input: &mut Input<'_>) -> usize {
+    input.0.len()
+}
+
+pub fn select(input: &mut Input<'_>) -> usize {
+    input.0.len()
+}
+
+pub fn window(input: &mut Input<'_>) -> usize {
+    input.0.len()
+}

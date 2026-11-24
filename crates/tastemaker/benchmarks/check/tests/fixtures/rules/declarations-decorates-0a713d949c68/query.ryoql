@@ -1,0 +1,2 @@
+let rows = select * from "decorates";
+emit rows subject "file" key("occurrence");

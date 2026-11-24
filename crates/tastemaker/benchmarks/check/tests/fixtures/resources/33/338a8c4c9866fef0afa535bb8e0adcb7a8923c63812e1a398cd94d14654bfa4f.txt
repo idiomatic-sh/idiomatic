@@ -1,0 +1,3 @@
+//! The farewell use case body.
+
+pub struct Farewell;

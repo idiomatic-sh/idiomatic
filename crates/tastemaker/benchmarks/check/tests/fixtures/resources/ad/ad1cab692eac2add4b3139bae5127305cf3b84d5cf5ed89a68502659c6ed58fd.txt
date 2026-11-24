@@ -1,0 +1,16 @@
+//! The wiring of `greeting show`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingShowConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts {
+    pub greeting: &'static str,
+}
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingShowConnections, parts: GreetingShowParts) {
+    let _ = (connections, parts);
+}

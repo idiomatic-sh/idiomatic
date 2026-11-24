@@ -1,0 +1,184 @@
+{
+  "stamp": 131,
+  "rule": "idiomatic.arch/parse-errors",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "e385e2b0947080d3c4879c42d6658dd3a6d1763c013494e7e8acaa2d6252122d",
+    "tastemaker.toml": "eb35702fe142f35e462d71706034ca08734d647c1198e623aedc1b6bb3ca7cc1"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/parse-errors",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-parse-errors-82c06898c430"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                42,
+                42
+              ]
+            }
+          ],
+          [
+            "message",
+            "expected SEMICOLON"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              42,
+              42
+            ]
+          },
+          "expected SEMICOLON"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                52,
+                52
+              ]
+            }
+          ],
+          [
+            "message",
+            "expected R_CURLY"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              52,
+              52
+            ]
+          },
+          "expected R_CURLY"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                52,
+                52
+              ]
+            }
+          ],
+          [
+            "message",
+            "expected SEMICOLON"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              52,
+              52
+            ]
+          },
+          "expected SEMICOLON"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

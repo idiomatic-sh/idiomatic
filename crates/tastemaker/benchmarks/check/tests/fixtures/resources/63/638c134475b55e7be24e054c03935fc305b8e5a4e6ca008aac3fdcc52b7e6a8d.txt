@@ -1,0 +1,7 @@
+//! Builds the facts adapters.
+
+/// The memory adapter.
+#[must_use]
+pub fn memory(window: Window) -> impl crate::outbound::facts::interface::FactsPort {
+    super::adapters::memory::adapter::FactsMemoryAdapter
+}

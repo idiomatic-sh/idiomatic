@@ -26,9 +26,10 @@ impl<'p> Finisher<'p> {
         vocab: &Vocab,
         args: &[&str],
         request: Option<(&str, &serde_json::Value)>,
+        paths:Option<&[String]>,
     ) -> Self {
         let t0 = thread_cpu();
-        let list = files(args[1]);
+        let list = paths.map_or_else(||files(args[1]),|p|p.to_vec());
         let root = format!("{}/", args[2].trim_end_matches('/'));
         let mut run = finish::Run::default();
         run.empty = run.sym(b"");
@@ -124,8 +125,8 @@ impl<'p> Finisher<'p> {
         }
         true
     }
-    pub(super) fn end(self, walk_time: f64) {
-        self.inner.end(walk_time, |locations| locations.dedup());
+    pub(super) fn end(self, walk_time:f64)->bool {
+        self.inner.end(walk_time, |locations| locations.dedup())
     }
     /// The second half on one walked file of the direct-columns walk (its own model by parts, built on demand).
     pub(super) fn column_file(

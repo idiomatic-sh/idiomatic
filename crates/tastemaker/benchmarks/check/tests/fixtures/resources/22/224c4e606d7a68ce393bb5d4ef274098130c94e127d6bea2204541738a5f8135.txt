@@ -1,0 +1,7 @@
+//! What `greet` promises.
+
+/// The promise.
+pub trait GreetInterface {
+    /// Does it.
+    fn run(&self);
+}

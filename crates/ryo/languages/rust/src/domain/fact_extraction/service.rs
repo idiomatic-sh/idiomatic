@@ -59,7 +59,7 @@ pub(crate) fn note_of<'a>(tree: &Tree<'a>) -> Note<'a> {
         declared: Vec::new(),
         written: Vec::new(),
     };
-    if !tree.elements.size.is_empty() {
+    if languages::positions(tree.elements).next().is_some() {
         declarations(tree, Position(0), &mut Vec::new(), &mut note.declared);
         written_paths(tree, &mut note.written);
     }
@@ -154,16 +154,16 @@ fn written_paths<'a>(tree: &Tree<'a>, out: &mut Vec<WrittenNote<'a>>) {
         kind_bits(Kind::Node(Node::Path)),
     );
     let mut prefix: Vec<TokenText<'a>> = Vec::new();
-    for (place, bits) in tree.elements.kind.iter().enumerate() {
-        let node = Position(u32::try_from(place).unwrap_or(u32::MAX));
-        if *bits == use_bits {
+    for node in languages::positions(tree.elements) {
+        let bits = languages::kind_at(tree.elements, node);
+        if bits == use_bits {
             if let Some(use_tree) = child(tree, node, Kind::Node(Node::UseTree)) {
                 prefix.clear();
                 flatten(tree, use_tree, &mut prefix, node, out);
             }
             continue;
         }
-        if *bits != path_bits || kind(tree, parent(tree, node)) == Kind::Node(Node::Path) {
+        if bits != path_bits || kind(tree, parent(tree, node)) == Kind::Node(Node::Path) {
             continue;
         }
         let mut segments: Vec<NoteName<'a>> = Vec::new();

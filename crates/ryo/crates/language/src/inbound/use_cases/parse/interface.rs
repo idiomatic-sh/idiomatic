@@ -32,6 +32,9 @@ macro_rules! syntax_methods {
 
 /// What a language offers for its files.
 pub trait ParseUseCase: Send + Sync {
+    /// A preorder writer for engines which consume the native columns directly.
+    fn native_reader(&self) -> Option<crate::domain::elements::types::NativeReader> { None }
+
     /// The optional capabilities of the project's relations this provider promises to answer, including proven language absence. Those of
     /// its files' trees are never listed here: they are read from what its `Semantics` answers, so the two cannot disagree.
     fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability];

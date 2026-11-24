@@ -1,0 +1,100 @@
+{
+  "stamp": 162,
+  "rule": "idiomatic.arch/value-companions",
+  "dependency": "Several readers",
+  "admitted": [
+    "src/types/token/value_test.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "src/types/token/value_test.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "bd5b2ffefbe226ed0bce38b691ce0ab9a165e7a5f129cdd1d05939913cce2089"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/value-companions",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-value-companions-e8c141716c3a"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/types/token/value_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "src/types/token/value_test.rs"
+            }
+          ],
+          [
+            "root",
+            "src"
+          ],
+          [
+            "value",
+            "token"
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/types/token/value_test.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/types/token/value_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

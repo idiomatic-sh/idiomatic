@@ -1,0 +1,105 @@
+{
+  "stamp": 286,
+  "rule": "idiomatic.ryo/language/contract-methods",
+  "dependency": "Several files",
+  "admitted": [
+    "src/outbound/greeting/fixtures/contract.rs",
+    "src/outbound/greeting/interface.rs"
+  ],
+  "given": {
+    "src/outbound/greeting/fixtures/contract.rs": "738d3dbfb8f70e99d3a99aed8180fe4c951aab714d91b2342a9f23ea8c443a43",
+    "src/outbound/greeting/interface.rs": "a53d7e8430744fc76e8923502ebe39bdb91eb51afc124a2b5008e592fa9fa63d",
+    "tastemaker.toml": "a1e41f4fffecb1601f969ed5d31b5d4626d22665aab36646ac18fee5f00cba14"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/language/contract-methods",
+      "include": [
+        "src/outbound/greeting/fixtures/contract.rs",
+        "src/outbound/greeting/fixtures/contract.rs/**",
+        "src/outbound/greeting/interface.rs",
+        "src/outbound/greeting/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-language-contract-methods-6853f6d3aa6e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/outbound/greeting/fixtures/contract.rs",
+        "src/outbound/greeting/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "method",
+            "shout"
+          ],
+          [
+            "hex",
+            "src/outbound/greeting"
+          ],
+          [
+            "file",
+            {
+              "file": "src/outbound/greeting/fixtures/contract.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/outbound/greeting/fixtures/contract.rs"
+          },
+          "shout"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/greeting/fixtures/contract.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

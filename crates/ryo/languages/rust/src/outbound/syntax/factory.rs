@@ -9,6 +9,6 @@ use super::types::OpaqueMacros;
 #[must_use]
 pub(crate) fn ra_ap_syntax(
     opaque: OpaqueMacros<'static>,
-) -> impl crate::outbound::syntax::interface::SyntaxPort {
+) -> super::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter {
     super::adapters::ra_ap_syntax::adapter::SyntaxRaApSyntaxAdapter::new(opaque)
 }

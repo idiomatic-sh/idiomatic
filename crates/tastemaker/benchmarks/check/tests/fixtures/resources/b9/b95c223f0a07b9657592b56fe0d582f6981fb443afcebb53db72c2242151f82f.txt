@@ -1,0 +1,19 @@
+//! The names port, implemented with edge.
+
+use foreign_core::outbound::names::interface::NamesPort;
+use super::settings::NamesEdgeSettings;
+
+/// The edge names adapter, configured by its settings.
+#[derive(Debug)]
+pub(crate) struct NamesEdgeAdapter {
+    settings: NamesEdgeSettings,
+}
+
+impl NamesEdgeAdapter {
+    /// The adapter over `settings`, which its composition chooses.
+    pub(crate) fn new(settings: NamesEdgeSettings) -> Self {
+        Self { settings }
+    }
+}
+
+impl NamesPort for NamesEdgeAdapter {}

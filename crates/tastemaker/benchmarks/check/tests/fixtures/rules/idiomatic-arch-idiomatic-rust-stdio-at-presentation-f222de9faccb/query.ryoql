@@ -1,0 +1,11 @@
+let calls = project(from="static-call", columns=["file", "span", "target"]);
+let references = project(from="reference", columns=["file", "span", "target"]);
+let imports = project(from="static-import", columns=["file", "span", "target"]);
+let written-0 = union(left=calls, right=references);
+let written = union(left=written-0, right=imports);
+let streams = select * from written where glob_any(target, "{std::io::stdout,std::io::stderr,::std::io::stdout,::std::io::stderr,io::stdout,io::stderr,anstream::stdout,anstream::stderr,::anstream::stdout,::anstream::stderr}");
+let bare-imported = select l."file" as "file" from imports as l where glob_any(l."target", "{std::io::stdout,std::io::stderr,io::stdout,io::stderr,anstream::stdout,anstream::stderr}");
+let bare-written = select * from calls where glob_any(target, "{stdout,stderr}");
+let bare = select l."file" as "file", l."span" as "span", l."target" as "target" from bare-written as l join bare-imported as r on l."file" = r."file";
+let found = union(left=streams, right=bare);
+emit found subject "file" key("span");

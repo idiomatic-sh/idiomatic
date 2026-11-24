@@ -1,0 +1,4 @@
+//! `greeting`: one bench module per command.
+
+mod list;
+mod show;

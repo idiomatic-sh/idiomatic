@@ -56,6 +56,7 @@ pub fn clear_elements(elements: &mut Elements) {
         *added = Count(0);
     }
     let engine = engine_mut(elements);
+    engine.native = None;
     engine.line_starts.0.clear();
     engine.source_order = SourceOrder::Forward;
     engine.field_names.clear();
@@ -78,6 +79,60 @@ pub fn clear_elements(elements: &mut Elements) {
     engine.syntax_acceptance = SyntaxAcceptance::Undetermined;
 }
 
+/// The columns made directly by a native parser, shared with semantic reads.
+pub fn native_table(elements: &Elements) -> Option<&std::sync::Arc<crate::domain::node_table::types::NodeTable>> {
+    engine(elements).native.as_ref()
+}
+
+/// Prepare semantic storage from one file's native preorder graph. Concrete and
+/// expanded positions refer to the same columns. Only public text symbols and
+/// token flags are kept beside the tree.
+pub fn read_native(
+    elements: &mut Elements,
+    symbols: &mut crate::domain::symbols::types::Symbols,
+    bytes: crate::domain::symbols::types::ByteSlice<'_>,
+    reader: super::types::NativeReader,
+    fields: bool,
+) {
+    use crate::domain::{node_table::service as t, symbols::service::{clear_symbols, intern}};
+    let native = engine_mut(elements).native.take().and_then(std::sync::Arc::into_inner);
+    clear_elements(elements);
+    clear_symbols(symbols);
+    let mut table = native.unwrap_or_default();
+    let mut origins = std::mem::take(&mut engine_mut(elements).expanded);
+    origins.clear();
+    (reader.read)(bytes.0, &mut table, &mut origins, &mut elements.flags.as_mut().values, fields);
+    let own = t::own_end(&table);
+    let mut previous_host = None;
+    let mut ordinal = 0;
+    for i in 0..table.0.embedded.len() {
+        let host = table.0.embedded[i].host;
+        let root = table.0.embedded[i].root;
+        if previous_host != Some(host) {
+            ordinal = t::children_of(&table, host).len();
+            previous_host = Some(host);
+        }
+        table.0.ordinal[usize::from(root)] = ChildOrdinal(ordinal.try_into().expect("child ordinal"));
+        ordinal += 1;
+    }
+    for (i, &flags) in elements.flags.as_ref().values.iter().enumerate() {
+        let text = if flags.0 & TOKEN.0 != 0 {
+            intern(symbols, bytes, Offset(table.0.start[i]), Offset(table.0.end[i]))
+        } else { NO_SYMBOL };
+        elements.text.as_mut().values.push(text);
+    }
+    let hidden = table.0.kind.len() - usize::from(own);
+    elements.flags.as_mut().added = Count(hidden);
+    elements.text.as_mut().added = Count(hidden);
+    let state = engine_mut(elements);
+    state.diagnostics = std::mem::take(&mut table.0.diagnostics);
+    state.syntax_acceptance = table.0.acceptance;
+    state.expanded = origins;
+    state.expanded_from = (hidden > 0).then_some(own);
+    t::expose_concrete(&mut table, own);
+    state.native = Some(std::sync::Arc::new(table));
+}
+
 /// The parser's acceptance decision, conservative for providers that did not supply one.
 #[must_use]
 pub fn syntax_acceptance(elements: &Elements) -> SyntaxAcceptance {
@@ -97,12 +152,14 @@ pub(crate) fn engine_mut(elements: &mut Elements) -> &mut ElementsEngine {
 /// The position the next element takes: the table holds this many elements, those the language added for reading included.
 #[must_use]
 pub fn end_of(elements: &Elements) -> Position {
+    if let Some(t) = native_table(elements) { return Position(t.0.kind.len().try_into().expect("file position")); }
     Position(u32::try_from(elements.kind.as_ref().values.len()).unwrap_or(u32::MAX))
 }
 
 /// How many elements the file's own tree has: the table without the elements the language added for reading.
 #[must_use]
 pub fn real_count(elements: &Elements) -> Count {
+    if let Some(t) = native_table(elements) { return crate::domain::node_table::service::element_count(t); }
     Count(elements.kind.len())
 }
 
@@ -122,12 +179,14 @@ pub fn expanded_positions(elements: &Elements) -> impl Iterator<Item = Position>
 /// The kind of the element at `position`, as the language numbers it.
 #[must_use]
 pub fn kind_at(elements: &Elements, position: Position) -> KindBits {
+    if let Some(t) = native_table(elements) { return KindBits(t.0.kind[usize::from(position)]); }
     number(&elements.kind, position)
 }
 
 /// Where the element at `position` starts.
 #[must_use]
 pub fn start_at(elements: &Elements, position: Position) -> Offset {
+    if let Some(t) = native_table(elements) { return Offset(t.0.start[usize::from(position)]); }
     number(&elements.start, position)
 }
 
@@ -173,6 +232,7 @@ pub(crate) fn number_mut<T>(column: &mut Numbers<T>, at: Position) -> &mut T {
 /// The parent of the element at `at`; the root is its own.
 #[must_use]
 pub fn parent_at(elements: &Elements, at: Position) -> Position {
+    if let Some(t) = native_table(elements) { return Position(t.0.parent[usize::from(at)]); }
     number(&elements.parent, at)
 }
 
@@ -185,6 +245,7 @@ pub fn flags_at(elements: &Elements, at: Position) -> Flags {
 /// How many elements are below the element at `at`: none below a token.
 #[must_use]
 pub fn size_at(elements: &Elements, at: Position) -> Extent {
+    if let Some(t) = native_table(elements) { return Extent(t.0.subtree_end[usize::from(at)].0 - at.0 - 1); }
     number(&elements.size, at)
 }
 
@@ -197,6 +258,7 @@ pub fn last_at(elements: &Elements, at: Position) -> Position {
 /// Where the element at `position` ends.
 #[must_use]
 pub fn end_at(elements: &Elements, position: Position) -> Offset {
+    if let Some(t) = native_table(elements) { return Offset(t.0.end[usize::from(position)]); }
     number(&elements.end, position)
 }
 
@@ -255,13 +317,14 @@ pub fn first_token_text(elements: &Elements, of: Position) -> Option<Symbol> {
 /// The place of the element at `at` among its parent's children.
 #[must_use]
 pub fn ordinal_at(elements: &Elements, at: Position) -> ChildOrdinal {
+    if let Some(t) = native_table(elements) { return t.0.ordinal[usize::from(at)]; }
     number(&elements.ordinal, at)
 }
 
 /// How many elements the table holds.
 #[must_use]
 pub fn element_count(elements: &Elements) -> Count {
-    Count(elements.kind.len())
+    real_count(elements)
 }
 
 /// What the names of the kinds of the file add up to: the same for every file of a language, and not for another.
@@ -296,6 +359,7 @@ pub fn notes_mut(elements: &mut Elements) -> &mut Bytes {
 /// a language that names none never writes them, and a language reads the tree while its roles are being written.
 #[must_use]
 pub fn field_at(elements: &Elements, at: Position) -> FieldId {
+    if let Some(t) = native_table(elements) { return FieldId(t.0.field[usize::from(at)]); }
     if elements.field.as_ref().values.is_empty() {
         NO_FIELD
     } else {

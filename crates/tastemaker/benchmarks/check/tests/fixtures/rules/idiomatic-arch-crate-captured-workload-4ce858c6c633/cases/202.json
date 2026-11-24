@@ -1,0 +1,2177 @@
+{
+  "stamp": 202,
+  "rule": "idiomatic.arch/crate/captured-workload",
+  "dependency": "Several readers",
+  "admitted": [
+    "greeting/Cargo.toml",
+    "greeting/src/outbound/names/adapters/recorded/adapter.rs"
+  ],
+  "given": {
+    "Cargo.toml": "5b880d17acaf250e965355ca93daa4cce7b74a7fa2fd9030c997d6a2a8bba742",
+    "greeting/Cargo.toml": "19a6230cb973e374aba123a490ec3af7d2e20bdbc4a6aabfd18f6fde74381fca",
+    "greeting/README.md": "26b9d6c4cb78344c0d1e2faa6f51e3da051a1aa312c7c94dac824ccd9a633764",
+    "greeting/benches/performance.rs": "064554951f14e668f8467c9ef46ab9d020e3280431d43f7d3d7faa5a0a912c47",
+    "greeting/src/cases.rs": "f21d9704ca9168361d64fd5bbe2daa2a80be5b833b0e07b4e0f1a67e7f7825fb",
+    "greeting/src/inbound.rs": "d13ffd2108db0f663d13387828b7c0008af7ebfb067f328b180c1f1284ceb897",
+    "greeting/src/inbound/use_cases.rs": "5b119b7125bdd1e6a019d05e577ce8a6abc67d592e94e21310e5c67051ac8054",
+    "greeting/src/inbound/use_cases/greet.rs": "3b1008488757b61160d85a034ead50e0da49a27bc4ee45323fd1a5199050cb66",
+    "greeting/src/inbound/use_cases/greet/acceptance.feature": "71dd78e4ebdb045b70515e3377cbdede7d7cc36d5f2abd3b51e17349ee3b40be",
+    "greeting/src/inbound/use_cases/greet/acceptance.rs": "4602cd14343ece53363a9038a0ef80985726a3b29ac275faa2ad7e9973ae92ff",
+    "greeting/src/inbound/use_cases/greet/errors.rs": "5d70c67db4212b3211659be2a361ca6ed8afa77c9de8ebc8291dee0fc164eacb",
+    "greeting/src/inbound/use_cases/greet/interface.rs": "6c280d6abc6633c375d8b6bfdc8bffb5448d9efafd1d159c7b9fff1d12843783",
+    "greeting/src/inbound/use_cases/greet/use_case.rs": "78c2907d22a4367a4769823d3e15da7c7327f46e2982c43591b6a7f9d951123c",
+    "greeting/src/inbound/use_cases/greet/use_case_test.rs": "4d738348876dc0795e507b18323a0604c0dc55bea243225e9a3e7f31c5fff247",
+    "greeting/src/lib.rs": "7f7fb8ab0718d821354985807747763f8f8548eac5c409289b917ffb41f87f96",
+    "greeting/src/outbound.rs": "45c43671c5f7db1cf37f52fd2bc46f4d9da01adc5085303e8ea9da8f550c1d37",
+    "greeting/src/outbound/names.rs": "05f68848d5df5014f93172eb76bf409f2925c33bdcbb99bd7a848189aec064e2",
+    "greeting/src/outbound/names/adapters.rs": "336c5d125ec472144ca03978b75ce5ca85ff3cf40619fa26843f673db4c21b8e",
+    "greeting/src/outbound/names/adapters/memory.rs": "3b3cfb9b6f1a49a71d6d9dca30ba607946e2aa85d3c8b3c4b2fab7833de7fc1c",
+    "greeting/src/outbound/names/adapters/memory/adapter.rs": "1a6b04fae5218b34926e8d3e420156e52771fb7af68395716314963d81418f6a",
+    "greeting/src/outbound/names/adapters/memory/adapter_test.rs": "15b466bd762ff2f913d651cd307a48cffa1cbccb7d5f3dc0aa02dbf7665321a5",
+    "greeting/src/outbound/names/adapters/memory/schemas.rs": "d1ec7fee082f8090c8286bc3d9ffa9e5d27c2b35f9a9176004ffec7231375962",
+    "greeting/src/outbound/names/adapters/memory/schemas_test.rs": "205ae50af1357d482f3fb06cb3c8c524a5cdff428a7a6af214c54bcbac5dca2f",
+    "greeting/src/outbound/names/adapters/recorded/adapter.rs": "9442f4d216962af997060410af458ace870e8b7cecb12d8c2763fbe54f2e6e3f",
+    "greeting/src/outbound/names/errors.rs": "ba858dac84283b267cf3261d204f6da944b322e20d0ee40fc08a8714d59b0e08",
+    "greeting/src/outbound/names/factory.rs": "17a7cd0bbf2f23ea2371315873d07eb1b70cb68b488ae5fa4e5b9efd27475108",
+    "greeting/src/outbound/names/fixtures.rs": "0fdf81172614b057ab76fd5c262845a81f3519c778c0eb1a4223949f7dc4b525",
+    "greeting/src/outbound/names/fixtures/contract.rs": "72472b73c73e30d6bd0282e3d3844844b5c315bb3ace903795997f05a47a7442",
+    "greeting/src/outbound/names/fixtures/fake.rs": "1f842c80ee69eb718894f51fe584ebebc73268531904b60c63d464f9253b4583",
+    "greeting/src/outbound/names/fixtures/fake_test.rs": "b2a58e010e74afd153177390a6928a1071b6a2a55e4cde4df7eb9252ee77443c",
+    "greeting/src/outbound/names/interface.rs": "b7b2e69459e59c545fa90f491a57bf5064576d38730281daf99b8589588590a2",
+    "greeting/src/outbound/names/types.rs": "d17a5317f80d360e8882fdbf23d5195c38122ca73c272ed5ade9c3cb389d7323",
+    "greeting/tests/bdd.rs": "eee44f496555c9b2dbcef12526c3ae0d3b29c600dbc72ab1b2831b780be4bcf0",
+    "tastemaker.toml": "2aa28dc0be08f27e6df7d5ced2b56e71530a438aec129ce59588829b1e9c7e1d"
+  },
+  "beside": {
+    ".tastemaker-rendered/1408ae54bbddd839.use_case_test.rs": "4929c237229d6be9a2eaa61f37bb52f7e83aca1d1ac471920bb34da9cb84f9ae",
+    ".tastemaker-rendered/22e173d441c14575.names.rs": "6d38a0d71ab34f28f8587c0227a3cd5c34afd4b5875be9114b47c45d44b8bf88",
+    ".tastemaker-rendered/27c7cbc3c1a0aacc.schemas_test.rs": "5e62c986ae4572467f48eb35f467d5bc6fe5507e5f33ea505183935cc70ddfdf",
+    ".tastemaker-rendered/282300a880534bc9.fixtures.rs": "75f8bcff42c675e2daafb4dda113143179b38f485cc26ad8640b4ae84943f3e2",
+    ".tastemaker-rendered/38cf623e2c324663.lib.rs": "4648462eb143a97d2a74e38c8c0da346f1740fb4be8055e65e4811538a6a00b6",
+    ".tastemaker-rendered/4d4538624bc8cb0e.acceptance.rs": "39ebe50f6e2f3fe5f54c923712286dbf7205d2f73e4d1317c0655df54075b802",
+    ".tastemaker-rendered/595bf14a4c9e8461.Cargo.toml": "4351bf1db09dda03f8a1f83175634f9aa1859e8bec7364df2cc4f8d343a99924",
+    ".tastemaker-rendered/5b99ed66d4275d8c.schemas.rs": "734b20cb8a0ed929a6a711586e1cc80302410f34ed2efe00e079fdbce0f6b1fd",
+    ".tastemaker-rendered/5e154ee8526b0841.inbound.rs": "78b42b04de49b1b55451a76feb18c3c51a57b549ad0821f047316f13e3532ca1",
+    ".tastemaker-rendered/641622f53f39b5e8.acceptance.feature": "3a0d2c05b6f411c577a868ba256975dae26206873f8a0968bb94232866a06480",
+    ".tastemaker-rendered/68154cb436284b0e.interface.rs": "db69c88d73f38bac928cde07edfa02c57aa4e91dddb25ffbbfe78683c9567139",
+    ".tastemaker-rendered/75c86ea71a386fe3.factory.rs": "17a7cd0bbf2f23ea2371315873d07eb1b70cb68b488ae5fa4e5b9efd27475108",
+    ".tastemaker-rendered/7c154cc902ff70c7.adapter_test.rs": "96e49f0c5c7ccffa1becf8112401b22ff2d32c741e8058cb91515473d5dd022d",
+    ".tastemaker-rendered/7eff38d4d18612d9.adapters.rs": "336c5d125ec472144ca03978b75ce5ca85ff3cf40619fa26843f673db4c21b8e",
+    ".tastemaker-rendered/967c3a8de78536aa.performance.rs": "064554951f14e668f8467c9ef46ab9d020e3280431d43f7d3d7faa5a0a912c47",
+    ".tastemaker-rendered/a111af46a4f83083.memory.rs": "95946121cbce50f2f52ade1fea5570105f61d5ad399e470164c220cb1a66bbde",
+    ".tastemaker-rendered/a4fc6cad30f3953b.interface.rs": "075f1a54d6394d97bf0479e6e774ed23079ab6b7e02eb05073724641f552fdf3",
+    ".tastemaker-rendered/ac1e069d42bc5d95.outbound.rs": "dae0d3d255c9e4ddf7e6d4d05ec0d89b54505fabaa21e21c359e9914ed6c0338",
+    ".tastemaker-rendered/b10576cfdd75e83f.bdd.rs": "eee44f496555c9b2dbcef12526c3ae0d3b29c600dbc72ab1b2831b780be4bcf0",
+    ".tastemaker-rendered/b10a44c545358b85.greet.rs": "c1c7439d2f516843b21da5b06ebc63f7036202cccb4b43662e62d96ee990242b",
+    ".tastemaker-rendered/b32389d778c05d4d.fake_test.rs": "b2a58e010e74afd153177390a6928a1071b6a2a55e4cde4df7eb9252ee77443c",
+    ".tastemaker-rendered/b9a8e0b018393488.use_case.rs": "11a84e941b5148322862c3d13ca5f7340f278f13bca22acbd07e0ccc60d257f4",
+    ".tastemaker-rendered/bdc2b87bbf89f0c5.errors.rs": "a972bc3b5f4792c1bcca5d98a53d3f6c645f1f4be2fe4e89b3bc47062774b3b9",
+    ".tastemaker-rendered/cf08ab5f10d328c3.errors.rs": "80ed7fe5b19f86823c713402e9b1f4138b953999f5497169445fdddef5f87324",
+    ".tastemaker-rendered/dedd977443fb4034.cases.rs": "0a2e5cd60c72f8c1ec917e7fffb59b8d8c2b1f9c4dbf16e4285c6a0816e41f21",
+    ".tastemaker-rendered/e13d56de1d59dadc.adapter.rs": "7570d05a8274ed84afd4e65478d85589975d3a2ace8abf03a5716fcaf651840c",
+    ".tastemaker-rendered/e55a9b111c115e73.contract.rs": "9588ce485f503f21b41adfbf055587f1f1731d03ebbdff1c3b0d9a317fa18461",
+    ".tastemaker-rendered/e72f9319b9d34aba.adapter.rs": "76f3c3d9080df92c407f585116aa5ccf603aa47419a05fb8caefca399e578830",
+    ".tastemaker-rendered/e7d519cb6f9e3d6a.fake.rs": "ae18833ffbaea5d66ae643768b3efe9b603969c10808aed84e531559363af84e",
+    ".tastemaker-rendered/f350cf5ea3e62c6d.use_cases.rs": "b16bc8faf2973880c47f123dff1e284f12921995603866e7144e69f05a5297f7",
+    ".tastemaker-rendered/f74c9d6075ecb7ef.types.rs": "29426c94068aa21bdb41e21cf512d60b0e41d024400d585baf7ae4b715ce0212",
+    ".tastemaker-rendered/fd4a54eb39a82d6a.README.md": "26b9d6c4cb78344c0d1e2faa6f51e3da051a1aa312c7c94dac824ccd9a633764"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "greeting/Cargo.toml"
+          },
+          "cargo-package",
+          "idiomatic.arch",
+          "cargo-package",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "greeting/README.md"
+          },
+          "crate-readme",
+          "idiomatic.arch",
+          "crate-readme",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "greeting/benches/performance.rs"
+          },
+          "crate-bench",
+          "idiomatic.arch",
+          "crate-bench",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "greeting/src/cases.rs"
+          },
+          "cases",
+          "idiomatic.arch",
+          "cases",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "greeting/src/inbound.rs"
+          },
+          "inbound",
+          "idiomatic.arch",
+          "inbound",
+          "0.3.7",
+          "nu-hex"
+        ],
+        [
+          {
+            "file": "greeting/src/inbound/use_cases.rs"
+          },
+          "use-cases",
+          "idiomatic.arch",
+          "use-cases",
+          "0.3.7",
+          "nu-hex"
+        ],
+        [
+          {
+            "file": "greeting/src/inbound/use_cases/greet.rs"
+          },
+          "use-case-module",
+          "idiomatic.arch",
+          "use-case-module",
+          "0.3.7",
+          "nu-hex"
+        ],
+        [
+          {
+            "file": "greeting/src/inbound/use_cases/greet/acceptance.feature"
+          },
+          "acceptance-feature",
+          "idiomatic.arch",
+          "acceptance-feature",
+          "0.1.3",
+          "use-case"
+        ],
+        [
+          {
+            "file": "greeting/src/inbound/use_cases/greet/acceptance.rs"
+          },
+          "acceptance-steps",
+          "idiomatic.arch",
+          "acceptance-steps",
+          "0.1.3",
+          "use-case"
+        ],
+        [
+          {
+            "file": "greeting/src/inbound/use_cases/greet/errors.rs"
+          },
+          "errors",
+          "idiomatic.arch",
+          "errors",
+          "0.1.0",
+          "use-case"
+        ],
+        [
+          {
+            "file": "greeting/src/inbound/use_cases/greet/interface.rs"
+          },
+          "interface",
+          "idiomatic.arch",
+          "interface",
+          "0.1.0",
+          "use-case"
+        ],
+        [
+          {
+            "file": "greeting/src/inbound/use_cases/greet/use_case.rs"
+          },
+          "use-case",
+          "idiomatic.arch",
+          "use-case",
+          "0.1.3",
+          "use-case"
+        ],
+        [
+          {
+            "file": "greeting/src/inbound/use_cases/greet/use_case_test.rs"
+          },
+          "use-case-test",
+          "idiomatic.arch",
+          "use-case-test",
+          "0.1.3",
+          "use-case"
+        ],
+        [
+          {
+            "file": "greeting/src/lib.rs"
+          },
+          "crate-root",
+          "idiomatic.arch",
+          "crate-root",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound.rs"
+          },
+          "outbound",
+          "idiomatic.arch",
+          "outbound",
+          "0.3.7",
+          "nu-hex"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names.rs"
+          },
+          "port-module",
+          "idiomatic.arch",
+          "port-module",
+          "0.3.7",
+          "nu-hex"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/adapters.rs"
+          },
+          "adapters",
+          "idiomatic.arch",
+          "adapters",
+          "0.3.4",
+          "port"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/adapters/memory.rs"
+          },
+          "adapter-module",
+          "idiomatic.arch",
+          "adapter-module",
+          "0.2.0",
+          "port"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/adapters/memory/adapter.rs"
+          },
+          "adapter",
+          "idiomatic.arch",
+          "adapter",
+          "0.4.0",
+          "adapter"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/adapters/memory/adapter_test.rs"
+          },
+          "adapter-test",
+          "idiomatic.arch",
+          "adapter-test",
+          "0.4.0",
+          "adapter"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/adapters/memory/schemas.rs"
+          },
+          "schemas",
+          "idiomatic.arch",
+          "schemas",
+          "0.1.0",
+          "adapter"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/adapters/memory/schemas_test.rs"
+          },
+          "schemas-test",
+          "idiomatic.arch",
+          "schemas-test",
+          "0.1.0",
+          "adapter"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/adapters/recorded/adapter.rs"
+          },
+          "adapter",
+          "idiomatic.arch",
+          "adapter",
+          "0.4.0",
+          "adapter"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/errors.rs"
+          },
+          "errors",
+          "idiomatic.arch",
+          "errors",
+          "0.1.0",
+          "port"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/factory.rs"
+          },
+          "factory",
+          "idiomatic.arch",
+          "factory",
+          "0.3.4",
+          "port"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/fixtures.rs"
+          },
+          "fixtures",
+          "idiomatic.arch",
+          "fixtures",
+          "0.3.4",
+          "port"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/fixtures/contract.rs"
+          },
+          "contract",
+          "idiomatic.arch",
+          "contract",
+          "0.3.4",
+          "port"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/fixtures/fake.rs"
+          },
+          "fake",
+          "idiomatic.arch",
+          "fake",
+          "0.3.4",
+          "port"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/fixtures/fake_test.rs"
+          },
+          "fake-test",
+          "idiomatic.arch",
+          "fake-test",
+          "0.3.4",
+          "port"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/interface.rs"
+          },
+          "interface",
+          "idiomatic.arch",
+          "interface",
+          "0.1.0",
+          "port"
+        ],
+        [
+          {
+            "file": "greeting/src/outbound/names/types.rs"
+          },
+          "types",
+          "idiomatic.arch",
+          "types",
+          "0.1.0",
+          "port"
+        ],
+        [
+          {
+            "file": "greeting/tests/bdd.rs"
+          },
+          "bdd-runner",
+          "idiomatic.arch",
+          "bdd-runner",
+          "0.13.2",
+          "crate"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "condition:greeting/cases",
+      "include": [
+        "greeting/src/inbound.rs"
+      ],
+      "parameters": {},
+      "query": "condition-cli-cases-3b0774d4ea81"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "condition:greeting/features",
+      "include": [
+        "greeting/src/inbound/use_cases/greet.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-cli-no-root-composition-39d48f7a8311"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "condition:greeting/library-only",
+      "include": [
+        "greeting/src/lib.rs"
+      ],
+      "parameters": {},
+      "query": "condition-greeting-library-only-90d011cd7b47"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "condition:greeting/src/inbound/use_cases/greet/implemented",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/use_case.rs"
+      ],
+      "parameters": {},
+      "query": "condition-greeting-src-inbound-use_cases-greet-implemented-839de3432650"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "greeting/Cargo.toml",
+        ".tastemaker-rendered/595bf14a4c9e8461.Cargo.toml",
+        "greeting/README.md",
+        ".tastemaker-rendered/fd4a54eb39a82d6a.README.md",
+        "greeting/benches/performance.rs",
+        ".tastemaker-rendered/967c3a8de78536aa.performance.rs",
+        "greeting/src/cases.rs",
+        ".tastemaker-rendered/dedd977443fb4034.cases.rs",
+        "greeting/src/inbound.rs",
+        ".tastemaker-rendered/5e154ee8526b0841.inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/f350cf5ea3e62c6d.use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/b10a44c545358b85.greet.rs",
+        "greeting/src/inbound/use_cases/greet/acceptance.feature",
+        ".tastemaker-rendered/641622f53f39b5e8.acceptance.feature",
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        ".tastemaker-rendered/4d4538624bc8cb0e.acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        ".tastemaker-rendered/cf08ab5f10d328c3.errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        ".tastemaker-rendered/68154cb436284b0e.interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        ".tastemaker-rendered/b9a8e0b018393488.use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        ".tastemaker-rendered/1408ae54bbddd839.use_case_test.rs",
+        "greeting/src/lib.rs",
+        ".tastemaker-rendered/38cf623e2c324663.lib.rs",
+        "greeting/src/outbound.rs",
+        ".tastemaker-rendered/ac1e069d42bc5d95.outbound.rs",
+        "greeting/src/outbound/names.rs",
+        ".tastemaker-rendered/22e173d441c14575.names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        ".tastemaker-rendered/7eff38d4d18612d9.adapters.rs",
+        "greeting/src/outbound/names/adapters/memory.rs",
+        ".tastemaker-rendered/a111af46a4f83083.memory.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        ".tastemaker-rendered/e72f9319b9d34aba.adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/7c154cc902ff70c7.adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        ".tastemaker-rendered/5b99ed66d4275d8c.schemas.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs",
+        ".tastemaker-rendered/27c7cbc3c1a0aacc.schemas_test.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        ".tastemaker-rendered/e13d56de1d59dadc.adapter.rs",
+        "greeting/src/outbound/names/errors.rs",
+        ".tastemaker-rendered/bdc2b87bbf89f0c5.errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        ".tastemaker-rendered/75c86ea71a386fe3.factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        ".tastemaker-rendered/282300a880534bc9.fixtures.rs",
+        "greeting/src/outbound/names/fixtures/contract.rs",
+        ".tastemaker-rendered/e55a9b111c115e73.contract.rs",
+        "greeting/src/outbound/names/fixtures/fake.rs",
+        ".tastemaker-rendered/e7d519cb6f9e3d6a.fake.rs",
+        "greeting/src/outbound/names/fixtures/fake_test.rs",
+        ".tastemaker-rendered/b32389d778c05d4d.fake_test.rs",
+        "greeting/src/outbound/names/interface.rs",
+        ".tastemaker-rendered/a4fc6cad30f3953b.interface.rs",
+        "greeting/src/outbound/names/types.rs",
+        ".tastemaker-rendered/f74c9d6075ecb7ef.types.rs",
+        "greeting/tests/bdd.rs",
+        ".tastemaker-rendered/b10576cfdd75e83f.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "greeting/Cargo.toml",
+        ".tastemaker-rendered/595bf14a4c9e8461.Cargo.toml",
+        "greeting/README.md",
+        ".tastemaker-rendered/fd4a54eb39a82d6a.README.md",
+        "greeting/benches/performance.rs",
+        ".tastemaker-rendered/967c3a8de78536aa.performance.rs",
+        "greeting/src/cases.rs",
+        ".tastemaker-rendered/dedd977443fb4034.cases.rs",
+        "greeting/src/inbound.rs",
+        ".tastemaker-rendered/5e154ee8526b0841.inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/f350cf5ea3e62c6d.use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/b10a44c545358b85.greet.rs",
+        "greeting/src/inbound/use_cases/greet/acceptance.feature",
+        ".tastemaker-rendered/641622f53f39b5e8.acceptance.feature",
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        ".tastemaker-rendered/4d4538624bc8cb0e.acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        ".tastemaker-rendered/cf08ab5f10d328c3.errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        ".tastemaker-rendered/68154cb436284b0e.interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        ".tastemaker-rendered/b9a8e0b018393488.use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        ".tastemaker-rendered/1408ae54bbddd839.use_case_test.rs",
+        "greeting/src/lib.rs",
+        ".tastemaker-rendered/38cf623e2c324663.lib.rs",
+        "greeting/src/outbound.rs",
+        ".tastemaker-rendered/ac1e069d42bc5d95.outbound.rs",
+        "greeting/src/outbound/names.rs",
+        ".tastemaker-rendered/22e173d441c14575.names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        ".tastemaker-rendered/7eff38d4d18612d9.adapters.rs",
+        "greeting/src/outbound/names/adapters/memory.rs",
+        ".tastemaker-rendered/a111af46a4f83083.memory.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        ".tastemaker-rendered/e72f9319b9d34aba.adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/7c154cc902ff70c7.adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        ".tastemaker-rendered/5b99ed66d4275d8c.schemas.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs",
+        ".tastemaker-rendered/27c7cbc3c1a0aacc.schemas_test.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        ".tastemaker-rendered/e13d56de1d59dadc.adapter.rs",
+        "greeting/src/outbound/names/errors.rs",
+        ".tastemaker-rendered/bdc2b87bbf89f0c5.errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        ".tastemaker-rendered/75c86ea71a386fe3.factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        ".tastemaker-rendered/282300a880534bc9.fixtures.rs",
+        "greeting/src/outbound/names/fixtures/contract.rs",
+        ".tastemaker-rendered/e55a9b111c115e73.contract.rs",
+        "greeting/src/outbound/names/fixtures/fake.rs",
+        ".tastemaker-rendered/e7d519cb6f9e3d6a.fake.rs",
+        "greeting/src/outbound/names/fixtures/fake_test.rs",
+        ".tastemaker-rendered/b32389d778c05d4d.fake_test.rs",
+        "greeting/src/outbound/names/interface.rs",
+        ".tastemaker-rendered/a4fc6cad30f3953b.interface.rs",
+        "greeting/src/outbound/names/types.rs",
+        ".tastemaker-rendered/f74c9d6075ecb7ef.types.rs",
+        "greeting/tests/bdd.rs",
+        ".tastemaker-rendered/b10576cfdd75e83f.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "greeting/Cargo.toml",
+        ".tastemaker-rendered/595bf14a4c9e8461.Cargo.toml",
+        "greeting/README.md",
+        ".tastemaker-rendered/fd4a54eb39a82d6a.README.md",
+        "greeting/benches/performance.rs",
+        ".tastemaker-rendered/967c3a8de78536aa.performance.rs",
+        "greeting/src/cases.rs",
+        ".tastemaker-rendered/dedd977443fb4034.cases.rs",
+        "greeting/src/inbound.rs",
+        ".tastemaker-rendered/5e154ee8526b0841.inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/f350cf5ea3e62c6d.use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/b10a44c545358b85.greet.rs",
+        "greeting/src/inbound/use_cases/greet/acceptance.feature",
+        ".tastemaker-rendered/641622f53f39b5e8.acceptance.feature",
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        ".tastemaker-rendered/4d4538624bc8cb0e.acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        ".tastemaker-rendered/cf08ab5f10d328c3.errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        ".tastemaker-rendered/68154cb436284b0e.interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        ".tastemaker-rendered/b9a8e0b018393488.use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        ".tastemaker-rendered/1408ae54bbddd839.use_case_test.rs",
+        "greeting/src/lib.rs",
+        ".tastemaker-rendered/38cf623e2c324663.lib.rs",
+        "greeting/src/outbound.rs",
+        ".tastemaker-rendered/ac1e069d42bc5d95.outbound.rs",
+        "greeting/src/outbound/names.rs",
+        ".tastemaker-rendered/22e173d441c14575.names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        ".tastemaker-rendered/7eff38d4d18612d9.adapters.rs",
+        "greeting/src/outbound/names/adapters/memory.rs",
+        ".tastemaker-rendered/a111af46a4f83083.memory.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        ".tastemaker-rendered/e72f9319b9d34aba.adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/7c154cc902ff70c7.adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        ".tastemaker-rendered/5b99ed66d4275d8c.schemas.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs",
+        ".tastemaker-rendered/27c7cbc3c1a0aacc.schemas_test.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        ".tastemaker-rendered/e13d56de1d59dadc.adapter.rs",
+        "greeting/src/outbound/names/errors.rs",
+        ".tastemaker-rendered/bdc2b87bbf89f0c5.errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        ".tastemaker-rendered/75c86ea71a386fe3.factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        ".tastemaker-rendered/282300a880534bc9.fixtures.rs",
+        "greeting/src/outbound/names/fixtures/contract.rs",
+        ".tastemaker-rendered/e55a9b111c115e73.contract.rs",
+        "greeting/src/outbound/names/fixtures/fake.rs",
+        ".tastemaker-rendered/e7d519cb6f9e3d6a.fake.rs",
+        "greeting/src/outbound/names/fixtures/fake_test.rs",
+        ".tastemaker-rendered/b32389d778c05d4d.fake_test.rs",
+        "greeting/src/outbound/names/interface.rs",
+        ".tastemaker-rendered/a4fc6cad30f3953b.interface.rs",
+        "greeting/src/outbound/names/types.rs",
+        ".tastemaker-rendered/f74c9d6075ecb7ef.types.rs",
+        "greeting/tests/bdd.rs",
+        ".tastemaker-rendered/b10576cfdd75e83f.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "greeting/Cargo.toml",
+        ".tastemaker-rendered/595bf14a4c9e8461.Cargo.toml",
+        "greeting/README.md",
+        ".tastemaker-rendered/fd4a54eb39a82d6a.README.md",
+        "greeting/benches/performance.rs",
+        ".tastemaker-rendered/967c3a8de78536aa.performance.rs",
+        "greeting/src/cases.rs",
+        ".tastemaker-rendered/dedd977443fb4034.cases.rs",
+        "greeting/src/inbound.rs",
+        ".tastemaker-rendered/5e154ee8526b0841.inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/f350cf5ea3e62c6d.use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/b10a44c545358b85.greet.rs",
+        "greeting/src/inbound/use_cases/greet/acceptance.feature",
+        ".tastemaker-rendered/641622f53f39b5e8.acceptance.feature",
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        ".tastemaker-rendered/4d4538624bc8cb0e.acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        ".tastemaker-rendered/cf08ab5f10d328c3.errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        ".tastemaker-rendered/68154cb436284b0e.interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        ".tastemaker-rendered/b9a8e0b018393488.use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        ".tastemaker-rendered/1408ae54bbddd839.use_case_test.rs",
+        "greeting/src/lib.rs",
+        ".tastemaker-rendered/38cf623e2c324663.lib.rs",
+        "greeting/src/outbound.rs",
+        ".tastemaker-rendered/ac1e069d42bc5d95.outbound.rs",
+        "greeting/src/outbound/names.rs",
+        ".tastemaker-rendered/22e173d441c14575.names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        ".tastemaker-rendered/7eff38d4d18612d9.adapters.rs",
+        "greeting/src/outbound/names/adapters/memory.rs",
+        ".tastemaker-rendered/a111af46a4f83083.memory.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        ".tastemaker-rendered/e72f9319b9d34aba.adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/7c154cc902ff70c7.adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        ".tastemaker-rendered/5b99ed66d4275d8c.schemas.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs",
+        ".tastemaker-rendered/27c7cbc3c1a0aacc.schemas_test.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        ".tastemaker-rendered/e13d56de1d59dadc.adapter.rs",
+        "greeting/src/outbound/names/errors.rs",
+        ".tastemaker-rendered/bdc2b87bbf89f0c5.errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        ".tastemaker-rendered/75c86ea71a386fe3.factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        ".tastemaker-rendered/282300a880534bc9.fixtures.rs",
+        "greeting/src/outbound/names/fixtures/contract.rs",
+        ".tastemaker-rendered/e55a9b111c115e73.contract.rs",
+        "greeting/src/outbound/names/fixtures/fake.rs",
+        ".tastemaker-rendered/e7d519cb6f9e3d6a.fake.rs",
+        "greeting/src/outbound/names/fixtures/fake_test.rs",
+        ".tastemaker-rendered/b32389d778c05d4d.fake_test.rs",
+        "greeting/src/outbound/names/interface.rs",
+        ".tastemaker-rendered/a4fc6cad30f3953b.interface.rs",
+        "greeting/src/outbound/names/types.rs",
+        ".tastemaker-rendered/f74c9d6075ecb7ef.types.rs",
+        "greeting/tests/bdd.rs",
+        ".tastemaker-rendered/b10576cfdd75e83f.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "greeting/Cargo.toml",
+        ".tastemaker-rendered/595bf14a4c9e8461.Cargo.toml",
+        "greeting/README.md",
+        ".tastemaker-rendered/fd4a54eb39a82d6a.README.md",
+        "greeting/benches/performance.rs",
+        ".tastemaker-rendered/967c3a8de78536aa.performance.rs",
+        "greeting/src/cases.rs",
+        ".tastemaker-rendered/dedd977443fb4034.cases.rs",
+        "greeting/src/inbound.rs",
+        ".tastemaker-rendered/5e154ee8526b0841.inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/f350cf5ea3e62c6d.use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/b10a44c545358b85.greet.rs",
+        "greeting/src/inbound/use_cases/greet/acceptance.feature",
+        ".tastemaker-rendered/641622f53f39b5e8.acceptance.feature",
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        ".tastemaker-rendered/4d4538624bc8cb0e.acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        ".tastemaker-rendered/cf08ab5f10d328c3.errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        ".tastemaker-rendered/68154cb436284b0e.interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        ".tastemaker-rendered/b9a8e0b018393488.use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        ".tastemaker-rendered/1408ae54bbddd839.use_case_test.rs",
+        "greeting/src/lib.rs",
+        ".tastemaker-rendered/38cf623e2c324663.lib.rs",
+        "greeting/src/outbound.rs",
+        ".tastemaker-rendered/ac1e069d42bc5d95.outbound.rs",
+        "greeting/src/outbound/names.rs",
+        ".tastemaker-rendered/22e173d441c14575.names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        ".tastemaker-rendered/7eff38d4d18612d9.adapters.rs",
+        "greeting/src/outbound/names/adapters/memory.rs",
+        ".tastemaker-rendered/a111af46a4f83083.memory.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        ".tastemaker-rendered/e72f9319b9d34aba.adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/7c154cc902ff70c7.adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        ".tastemaker-rendered/5b99ed66d4275d8c.schemas.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs",
+        ".tastemaker-rendered/27c7cbc3c1a0aacc.schemas_test.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        ".tastemaker-rendered/e13d56de1d59dadc.adapter.rs",
+        "greeting/src/outbound/names/errors.rs",
+        ".tastemaker-rendered/bdc2b87bbf89f0c5.errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        ".tastemaker-rendered/75c86ea71a386fe3.factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        ".tastemaker-rendered/282300a880534bc9.fixtures.rs",
+        "greeting/src/outbound/names/fixtures/contract.rs",
+        ".tastemaker-rendered/e55a9b111c115e73.contract.rs",
+        "greeting/src/outbound/names/fixtures/fake.rs",
+        ".tastemaker-rendered/e7d519cb6f9e3d6a.fake.rs",
+        "greeting/src/outbound/names/fixtures/fake_test.rs",
+        ".tastemaker-rendered/b32389d778c05d4d.fake_test.rs",
+        "greeting/src/outbound/names/interface.rs",
+        ".tastemaker-rendered/a4fc6cad30f3953b.interface.rs",
+        "greeting/src/outbound/names/types.rs",
+        ".tastemaker-rendered/f74c9d6075ecb7ef.types.rs",
+        "greeting/tests/bdd.rs",
+        ".tastemaker-rendered/b10576cfdd75e83f.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-literals",
+      "include": [
+        "greeting/README.md",
+        ".tastemaker-rendered/fd4a54eb39a82d6a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-literals-aee9fab8c749"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "greeting/Cargo.toml",
+        ".tastemaker-rendered/595bf14a4c9e8461.Cargo.toml",
+        "greeting/README.md",
+        ".tastemaker-rendered/fd4a54eb39a82d6a.README.md",
+        "greeting/benches/performance.rs",
+        ".tastemaker-rendered/967c3a8de78536aa.performance.rs",
+        "greeting/src/cases.rs",
+        ".tastemaker-rendered/dedd977443fb4034.cases.rs",
+        "greeting/src/inbound.rs",
+        ".tastemaker-rendered/5e154ee8526b0841.inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/f350cf5ea3e62c6d.use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/b10a44c545358b85.greet.rs",
+        "greeting/src/inbound/use_cases/greet/acceptance.feature",
+        ".tastemaker-rendered/641622f53f39b5e8.acceptance.feature",
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        ".tastemaker-rendered/4d4538624bc8cb0e.acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        ".tastemaker-rendered/cf08ab5f10d328c3.errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        ".tastemaker-rendered/68154cb436284b0e.interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        ".tastemaker-rendered/b9a8e0b018393488.use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        ".tastemaker-rendered/1408ae54bbddd839.use_case_test.rs",
+        "greeting/src/lib.rs",
+        ".tastemaker-rendered/38cf623e2c324663.lib.rs",
+        "greeting/src/outbound.rs",
+        ".tastemaker-rendered/ac1e069d42bc5d95.outbound.rs",
+        "greeting/src/outbound/names.rs",
+        ".tastemaker-rendered/22e173d441c14575.names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        ".tastemaker-rendered/7eff38d4d18612d9.adapters.rs",
+        "greeting/src/outbound/names/adapters/memory.rs",
+        ".tastemaker-rendered/a111af46a4f83083.memory.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        ".tastemaker-rendered/e72f9319b9d34aba.adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/7c154cc902ff70c7.adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        ".tastemaker-rendered/5b99ed66d4275d8c.schemas.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs",
+        ".tastemaker-rendered/27c7cbc3c1a0aacc.schemas_test.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        ".tastemaker-rendered/e13d56de1d59dadc.adapter.rs",
+        "greeting/src/outbound/names/errors.rs",
+        ".tastemaker-rendered/bdc2b87bbf89f0c5.errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        ".tastemaker-rendered/75c86ea71a386fe3.factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        ".tastemaker-rendered/282300a880534bc9.fixtures.rs",
+        "greeting/src/outbound/names/fixtures/contract.rs",
+        ".tastemaker-rendered/e55a9b111c115e73.contract.rs",
+        "greeting/src/outbound/names/fixtures/fake.rs",
+        ".tastemaker-rendered/e7d519cb6f9e3d6a.fake.rs",
+        "greeting/src/outbound/names/fixtures/fake_test.rs",
+        ".tastemaker-rendered/b32389d778c05d4d.fake_test.rs",
+        "greeting/src/outbound/names/interface.rs",
+        ".tastemaker-rendered/a4fc6cad30f3953b.interface.rs",
+        "greeting/src/outbound/names/types.rs",
+        ".tastemaker-rendered/f74c9d6075ecb7ef.types.rs",
+        "greeting/tests/bdd.rs",
+        ".tastemaker-rendered/b10576cfdd75e83f.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-prose",
+      "include": [
+        "greeting/README.md",
+        ".tastemaker-rendered/fd4a54eb39a82d6a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-prose-ab90c113c201"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "greeting/Cargo.toml",
+        ".tastemaker-rendered/595bf14a4c9e8461.Cargo.toml",
+        "greeting/README.md",
+        ".tastemaker-rendered/fd4a54eb39a82d6a.README.md",
+        "greeting/benches/performance.rs",
+        ".tastemaker-rendered/967c3a8de78536aa.performance.rs",
+        "greeting/src/cases.rs",
+        ".tastemaker-rendered/dedd977443fb4034.cases.rs",
+        "greeting/src/inbound.rs",
+        ".tastemaker-rendered/5e154ee8526b0841.inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/f350cf5ea3e62c6d.use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/b10a44c545358b85.greet.rs",
+        "greeting/src/inbound/use_cases/greet/acceptance.feature",
+        ".tastemaker-rendered/641622f53f39b5e8.acceptance.feature",
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        ".tastemaker-rendered/4d4538624bc8cb0e.acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        ".tastemaker-rendered/cf08ab5f10d328c3.errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        ".tastemaker-rendered/68154cb436284b0e.interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        ".tastemaker-rendered/b9a8e0b018393488.use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        ".tastemaker-rendered/1408ae54bbddd839.use_case_test.rs",
+        "greeting/src/lib.rs",
+        ".tastemaker-rendered/38cf623e2c324663.lib.rs",
+        "greeting/src/outbound.rs",
+        ".tastemaker-rendered/ac1e069d42bc5d95.outbound.rs",
+        "greeting/src/outbound/names.rs",
+        ".tastemaker-rendered/22e173d441c14575.names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        ".tastemaker-rendered/7eff38d4d18612d9.adapters.rs",
+        "greeting/src/outbound/names/adapters/memory.rs",
+        ".tastemaker-rendered/a111af46a4f83083.memory.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        ".tastemaker-rendered/e72f9319b9d34aba.adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/7c154cc902ff70c7.adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        ".tastemaker-rendered/5b99ed66d4275d8c.schemas.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs",
+        ".tastemaker-rendered/27c7cbc3c1a0aacc.schemas_test.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        ".tastemaker-rendered/e13d56de1d59dadc.adapter.rs",
+        "greeting/src/outbound/names/errors.rs",
+        ".tastemaker-rendered/bdc2b87bbf89f0c5.errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        ".tastemaker-rendered/75c86ea71a386fe3.factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        ".tastemaker-rendered/282300a880534bc9.fixtures.rs",
+        "greeting/src/outbound/names/fixtures/contract.rs",
+        ".tastemaker-rendered/e55a9b111c115e73.contract.rs",
+        "greeting/src/outbound/names/fixtures/fake.rs",
+        ".tastemaker-rendered/e7d519cb6f9e3d6a.fake.rs",
+        "greeting/src/outbound/names/fixtures/fake_test.rs",
+        ".tastemaker-rendered/b32389d778c05d4d.fake_test.rs",
+        "greeting/src/outbound/names/interface.rs",
+        ".tastemaker-rendered/a4fc6cad30f3953b.interface.rs",
+        "greeting/src/outbound/names/types.rs",
+        ".tastemaker-rendered/f74c9d6075ecb7ef.types.rs",
+        "greeting/tests/bdd.rs",
+        ".tastemaker-rendered/b10576cfdd75e83f.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "greeting/Cargo.toml",
+        ".tastemaker-rendered/595bf14a4c9e8461.Cargo.toml",
+        "greeting/README.md",
+        ".tastemaker-rendered/fd4a54eb39a82d6a.README.md",
+        "greeting/benches/performance.rs",
+        ".tastemaker-rendered/967c3a8de78536aa.performance.rs",
+        "greeting/src/cases.rs",
+        ".tastemaker-rendered/dedd977443fb4034.cases.rs",
+        "greeting/src/inbound.rs",
+        ".tastemaker-rendered/5e154ee8526b0841.inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/f350cf5ea3e62c6d.use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/b10a44c545358b85.greet.rs",
+        "greeting/src/inbound/use_cases/greet/acceptance.feature",
+        ".tastemaker-rendered/641622f53f39b5e8.acceptance.feature",
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        ".tastemaker-rendered/4d4538624bc8cb0e.acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        ".tastemaker-rendered/cf08ab5f10d328c3.errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        ".tastemaker-rendered/68154cb436284b0e.interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        ".tastemaker-rendered/b9a8e0b018393488.use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        ".tastemaker-rendered/1408ae54bbddd839.use_case_test.rs",
+        "greeting/src/lib.rs",
+        ".tastemaker-rendered/38cf623e2c324663.lib.rs",
+        "greeting/src/outbound.rs",
+        ".tastemaker-rendered/ac1e069d42bc5d95.outbound.rs",
+        "greeting/src/outbound/names.rs",
+        ".tastemaker-rendered/22e173d441c14575.names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        ".tastemaker-rendered/7eff38d4d18612d9.adapters.rs",
+        "greeting/src/outbound/names/adapters/memory.rs",
+        ".tastemaker-rendered/a111af46a4f83083.memory.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        ".tastemaker-rendered/e72f9319b9d34aba.adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/7c154cc902ff70c7.adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        ".tastemaker-rendered/5b99ed66d4275d8c.schemas.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs",
+        ".tastemaker-rendered/27c7cbc3c1a0aacc.schemas_test.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        ".tastemaker-rendered/e13d56de1d59dadc.adapter.rs",
+        "greeting/src/outbound/names/errors.rs",
+        ".tastemaker-rendered/bdc2b87bbf89f0c5.errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        ".tastemaker-rendered/75c86ea71a386fe3.factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        ".tastemaker-rendered/282300a880534bc9.fixtures.rs",
+        "greeting/src/outbound/names/fixtures/contract.rs",
+        ".tastemaker-rendered/e55a9b111c115e73.contract.rs",
+        "greeting/src/outbound/names/fixtures/fake.rs",
+        ".tastemaker-rendered/e7d519cb6f9e3d6a.fake.rs",
+        "greeting/src/outbound/names/fixtures/fake_test.rs",
+        ".tastemaker-rendered/b32389d778c05d4d.fake_test.rs",
+        "greeting/src/outbound/names/interface.rs",
+        ".tastemaker-rendered/a4fc6cad30f3953b.interface.rs",
+        "greeting/src/outbound/names/types.rs",
+        ".tastemaker-rendered/f74c9d6075ecb7ef.types.rs",
+        "greeting/tests/bdd.rs",
+        ".tastemaker-rendered/b10576cfdd75e83f.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter-writer-layering",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/*.rs",
+        "greeting/src/outbound/names/adapters/memory/*.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/*.rs",
+        "greeting/src/outbound/names/adapters/recorded/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-writer-layering-fda916e46fae"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/adapter-binding",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs/**"
+      ],
+      "parameters": {
+        "core": "crate",
+        "port": "names"
+      },
+      "query": "idiomatic-arch-adapter-adapter-binding-4ef2c09a575f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/adapter-contract",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/adapter_test.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-adapter-contract-688a7c9f65a9"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/adapter-name",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-adapter-name-138d898d80e2"
+    },
+    {
+      "exclude": [
+        "greeting/src/outbound/names/adapters/memory/*_test.rs",
+        "greeting/src/outbound/names/adapters/memory/*_test.rs/**",
+        "greeting/src/outbound/names/adapters/memory/fixtures.rs",
+        "greeting/src/outbound/names/adapters/memory/fixtures.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/*_test.rs",
+        "greeting/src/outbound/names/adapters/recorded/*_test.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/fixtures.rs",
+        "greeting/src/outbound/names/adapters/recorded/fixtures.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/adapter-owns-no-adapter",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/*.rs",
+        "greeting/src/outbound/names/adapters/memory/*.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/*.rs",
+        "greeting/src/outbound/names/adapters/recorded/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-adapter-owns-no-adapter-3e2a0dd864cc"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/adapter-scope",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/*.rs",
+        "greeting/src/outbound/names/adapters/memory/*.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/*.rs",
+        "greeting/src/outbound/names/adapters/recorded/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-adapter-scope-f7208ba35be9"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/hollow-settings",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/settings.rs",
+        "greeting/src/outbound/names/adapters/memory/settings.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/settings.rs",
+        "greeting/src/outbound/names/adapters/recorded/settings.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-hollow-settings-a4d401f19f6d"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/no-wildcard-into-domain-enum",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs/**",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs/**",
+        "greeting/src/outbound/names/adapters/memory/writer.rs",
+        "greeting/src/outbound/names/adapters/memory/writer.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/schemas.rs",
+        "greeting/src/outbound/names/adapters/recorded/schemas.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/writer.rs",
+        "greeting/src/outbound/names/adapters/recorded/writer.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-no-wildcard-into-domain-enum-29c478c576b3"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/schemas-members",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/*.rs",
+        "greeting/src/outbound/names/adapters/memory/*.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/*.rs",
+        "greeting/src/outbound/names/adapters/recorded/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-schemas-members-b73652864b66"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/settings-name",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/settings.rs",
+        "greeting/src/outbound/names/adapters/memory/settings.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/settings.rs",
+        "greeting/src/outbound/names/adapters/recorded/settings.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-settings-name-bc176d266d25"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/stateless-adapters",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs/**",
+        "greeting/src/outbound/names/adapters/memory/connection.rs",
+        "greeting/src/outbound/names/adapters/memory/connection.rs/**",
+        "greeting/src/outbound/names/adapters/memory/errors.rs",
+        "greeting/src/outbound/names/adapters/memory/errors.rs/**",
+        "greeting/src/outbound/names/adapters/memory/settings.rs",
+        "greeting/src/outbound/names/adapters/memory/settings.rs/**",
+        "greeting/src/outbound/names/adapters/memory/types.rs",
+        "greeting/src/outbound/names/adapters/memory/types.rs/**",
+        "greeting/src/outbound/names/adapters/memory/writer.rs",
+        "greeting/src/outbound/names/adapters/memory/writer.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/connection.rs",
+        "greeting/src/outbound/names/adapters/recorded/connection.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/errors.rs",
+        "greeting/src/outbound/names/adapters/recorded/errors.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/settings.rs",
+        "greeting/src/outbound/names/adapters/recorded/settings.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/types.rs",
+        "greeting/src/outbound/names/adapters/recorded/types.rs/**",
+        "greeting/src/outbound/names/adapters/recorded/writer.rs",
+        "greeting/src/outbound/names/adapters/recorded/writer.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-stateless-adapters-290675d4e374"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/bdd-members",
+      "include": [
+        "greeting/src/inbound/contracts/*.rs",
+        "greeting/src/inbound/contracts/*.rs/**",
+        "greeting/src/inbound/contracts/*/acceptance.*",
+        "greeting/src/inbound/contracts/*/acceptance.*/**",
+        "greeting/src/inbound/use_cases/*.rs",
+        "greeting/src/inbound/use_cases/*.rs/**",
+        "greeting/src/inbound/use_cases/*/acceptance.*",
+        "greeting/src/inbound/use_cases/*/acceptance.*/**",
+        "greeting/tests/bdd.rs",
+        "greeting/tests/bdd.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-bdd-members-16101641f22e"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/case-expectation",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-case-expectation-d0aa767a915e"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/collection-members",
+      "include": [
+        "greeting/src/**/collections.rs",
+        "greeting/src/**/collections.rs/**",
+        "greeting/src/**/collections/**",
+        "greeting/src/**/collections/**/**"
+      ],
+      "parameters": {
+        "item-trait": []
+      },
+      "query": "idiomatic-arch-collection-members-91da55cccd3f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/bdd-runner",
+      "include": [
+        "greeting/src/inbound/contracts/*/acceptance.rs",
+        "greeting/src/inbound/contracts/*/acceptance.rs/**",
+        "greeting/src/inbound/use_cases/*/acceptance.rs",
+        "greeting/src/inbound/use_cases/*/acceptance.rs/**",
+        "greeting/tests/bdd.rs",
+        "greeting/tests/bdd.rs/**"
+      ],
+      "parameters": {
+        "world": "Behavior"
+      },
+      "query": "idiomatic-arch-crate-bdd-runner-67e896de24e5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/captured-workload",
+      "include": [
+        "greeting/Cargo.toml",
+        "greeting/Cargo.toml/**",
+        "greeting/benches/performance/captured/bench.rs",
+        "greeting/benches/performance/captured/bench.rs/**",
+        "greeting/src/**/adapters/recorded/adapter.rs",
+        "greeting/src/**/adapters/recorded/adapter.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-captured-workload-4ce858c6c633"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/error-shape",
+      "include": [
+        "greeting/**",
+        "greeting/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-error-shape-505aa5cd3814"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/fixtures-feature",
+      "include": [
+        "greeting/Cargo.toml",
+        "greeting/Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-fixtures-feature-30d24fb9b0ff"
+    },
+    {
+      "exclude": [
+        "greeting/**/errors.rs",
+        "greeting/**/errors.rs/**",
+        "greeting/**/schemas.rs",
+        "greeting/**/schemas.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/thiserror-in-errors",
+      "include": [
+        "greeting/**",
+        "greeting/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-thiserror-in-errors-749b78e75367"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/error-name",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        "greeting/src/outbound/names/errors.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-error-name-ee126fc64f46"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/extension-point-ports",
+      "include": [
+        "greeting/**",
+        "greeting/**/**"
+      ],
+      "parameters": {
+        "exposed": []
+      },
+      "query": "idiomatic-arch-extension-point-ports-d6269e1f7c08"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/factory-calls",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        "greeting/src/outbound/names/adapters/recorded/**",
+        "greeting/src/outbound/names/errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/types.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-factory-calls-6bd421048346"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/hollow-artifacts",
+      "include": [
+        "greeting/src/cases.rs",
+        "greeting/src/inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        "greeting/src/lib.rs",
+        "greeting/src/outbound.rs",
+        "greeting/src/outbound/names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        "greeting/src/outbound/names/adapters/memory/**",
+        "greeting/src/outbound/names/adapters/recorded/**",
+        "greeting/src/outbound/names/errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/types.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-artifacts-759d6bcc4a88"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/hollow-types",
+      "include": [
+        "greeting/src/outbound/names/types.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-types-ee060a3a9ae5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/interface-shape",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs/**",
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-interface-shape-441c0cb6f540"
+    },
+    {
+      "exclude": [
+        "greeting/**/*_test.rs",
+        "greeting/**/*_test.rs/**",
+        "greeting/**/acceptance.rs",
+        "greeting/**/acceptance.rs/**",
+        "greeting/**/adapters/**",
+        "greeting/**/adapters/**/**",
+        "greeting/**/fixtures.rs",
+        "greeting/**/fixtures.rs/**",
+        "greeting/**/fixtures/**",
+        "greeting/**/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/io-at-boundary",
+      "include": [
+        "greeting/src/application/**",
+        "greeting/src/application/**/**",
+        "greeting/src/domain/**",
+        "greeting/src/domain/**/**",
+        "greeting/src/inbound/use_cases/**",
+        "greeting/src/inbound/use_cases/**/**",
+        "greeting/src/outbound/**",
+        "greeting/src/outbound/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-io-at-boundary-182f2043a341"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/item-contract",
+      "include": [
+        "greeting/src/**/collections/**",
+        "greeting/src/**/collections/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-item-contract-9f28a4c166b5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/kind-suffix~c77715d4aaa7ecd5",
+      "include": [
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/interface.rs/**"
+      ],
+      "parameters": {
+        "exposed": [],
+        "kind": "port"
+      },
+      "query": "idiomatic-arch-kind-suffix-6b576e02d2b0"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/kind-suffix~e58b9743894c3717",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs/**"
+      ],
+      "parameters": {
+        "exposed": [],
+        "kind": "use-case"
+      },
+      "query": "idiomatic-arch-kind-suffix-6b576e02d2b0"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/layer-matrix",
+      "include": [
+        "greeting/src/**",
+        "greeting/src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-layer-matrix-8dfbc867818d"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-domain-aliases",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        "greeting/src/outbound/names/errors.rs",
+        "greeting/src/outbound/names/types.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-domain-aliases-092adbcaed6b"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-inherent-impls",
+      "include": [
+        "greeting/src/outbound/names/types.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-inherent-impls-7fae24f601c8"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-runtime-fixtures",
+      "include": [
+        "greeting/src/cases.rs",
+        "greeting/src/inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        "greeting/src/lib.rs",
+        "greeting/src/outbound.rs",
+        "greeting/src/outbound/names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        "greeting/src/outbound/names/adapters/recorded/**",
+        "greeting/src/outbound/names/errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/types.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-runtime-fixtures-3026c70f4acb"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-vacuous-tests",
+      "include": [
+        "greeting/src/cases.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-vacuous-tests-ce4ca1fdc7f5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/nu-hex/core-fakes",
+      "include": [
+        "greeting/src/outbound/*/fixtures/fake.rs",
+        "greeting/src/outbound/*/fixtures/fake.rs/**",
+        "greeting/src/outbound/*/interface.rs",
+        "greeting/src/outbound/*/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-core-fakes-8ff4d158d83c"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/nu-hex/domain-modules",
+      "include": [
+        "greeting/src/domain.rs",
+        "greeting/src/domain.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-domain-modules-ac48ef63faae"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/nu-hex/fixture-location",
+      "include": [
+        "greeting/src/domain/*/collections/*/fixtures/contract.rs",
+        "greeting/src/domain/*/collections/*/fixtures/contract.rs/**",
+        "greeting/src/outbound/*/fixtures/contract.rs",
+        "greeting/src/outbound/*/fixtures/contract.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-fixture-location-d90c0f972d91"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/nu-hex/plugin-schemas",
+      "include": [
+        "greeting/src/outbound/**",
+        "greeting/src/outbound/**/**"
+      ],
+      "parameters": {
+        "plugins": []
+      },
+      "query": "idiomatic-arch-nu-hex-plugin-schemas-45221de544bb"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/nu-hex/public-application-service",
+      "include": [
+        "greeting/src/application/*.rs",
+        "greeting/src/application/*.rs/**",
+        "greeting/src/application/*/service.rs",
+        "greeting/src/application/*/service.rs/**",
+        "greeting/src/application/*/service_test.rs",
+        "greeting/src/application/*/service_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-public-application-service-e43b40d4220f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/orphan-rust-files",
+      "include": [
+        "greeting/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-orphan-rust-files-d1ff19eef5c2"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/port/config-in-factory",
+      "include": [
+        "greeting/src/outbound/names/factory.rs",
+        "greeting/src/outbound/names/factory.rs/**",
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-port-config-in-factory-de44ecb7001c"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/port/contract-methods",
+      "include": [
+        "greeting/src/outbound/names/fixtures/contract.rs",
+        "greeting/src/outbound/names/fixtures/contract.rs/**",
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-port-contract-methods-fa48970c241d"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/port/factory-name",
+      "include": [
+        "greeting/src/outbound/names/factory.rs",
+        "greeting/src/outbound/names/factory.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-port-factory-name-255def5435da"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/port/no-round-trip",
+      "include": [
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/interface.rs/**",
+        "greeting/src/outbound/names/types.rs",
+        "greeting/src/outbound/names/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-port-no-round-trip-468e9122e31a"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/port/plain-port-types",
+      "include": [
+        "greeting/src/outbound/names/types.rs",
+        "greeting/src/outbound/names/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-port-plain-port-types-618836f311f6"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/proof-beside",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        "greeting/src/outbound/names/adapters/memory/**",
+        "greeting/src/outbound/names/adapters/recorded/**",
+        "greeting/src/outbound/names/errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/types.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-proof-beside-60adcfa5cb16"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/public-fields",
+      "include": [
+        "greeting/src/outbound/names/types.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-public-fields-26f8cb4c2d3d"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/schema-name",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/schemas.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-schema-name-126b87b6fe13"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/schema-visibility",
+      "include": [
+        "greeting/src/outbound/names/adapters/memory/schemas.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-schema-visibility-96fa3d7bb5a7"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-directory-layout",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/use_case_test/**",
+        "greeting/src/inbound/use_cases/greet/use_case_test/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-directory-layout-212f6972e13c"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-runners-match-rows",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-runners-match-rows-4e5621332882"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-shape",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-shape-45f9971bbe85"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/thin-command",
+      "include": [
+        "greeting/**/interface.rs",
+        "greeting/**/interface.rs/**",
+        "greeting/src/resources/*/*/command.rs",
+        "greeting/src/resources/*/*/command.rs/**",
+        "greeting/src/resources/*/*/entry.rs",
+        "greeting/src/resources/*/*/entry.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-thin-command-bc8edb1a20ee"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/unit-cases",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        "greeting/src/outbound/names/adapters/memory/**",
+        "greeting/src/outbound/names/adapters/recorded/**",
+        "greeting/src/outbound/names/errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/types.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unit-cases-a9a46cde7eef"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case-module-beside",
+      "include": [
+        "greeting/src/inbound/use_cases/**",
+        "greeting/src/inbound/use_cases/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-module-beside-b252b9858d7c"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/contract-only-files",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/fixtures/**/*.rs",
+        "greeting/src/inbound/use_cases/greet/fixtures/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-contract-only-files-08e96d8946bd"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/implemented-shape",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/*.rs",
+        "greeting/src/inbound/use_cases/greet/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-implemented-shape-557b22252dff"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/local-helpers",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/fixtures/contract.rs",
+        "greeting/src/inbound/use_cases/greet/fixtures/contract.rs/**",
+        "greeting/src/inbound/use_cases/greet/service.rs",
+        "greeting/src/inbound/use_cases/greet/service.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-local-helpers-8f63d4e6f9bf"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/use-case-declares",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-use-case-declares-e0d415f0b53f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/use-case-methods",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/fixtures/contract.rs",
+        "greeting/src/inbound/use_cases/greet/fixtures/contract.rs/**",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs/**"
+      ],
+      "parameters": {
+        "kind": "use-case"
+      },
+      "query": "idiomatic-arch-use-case-use-case-methods-f1156f4aab1f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/use-case-ports",
+      "include": [
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-use-case-ports-b6cd506292b4"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/validation-at-edges",
+      "include": [
+        "greeting/src/cases.rs",
+        "greeting/src/inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        "greeting/src/lib.rs",
+        "greeting/src/outbound.rs",
+        "greeting/src/outbound/names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        "greeting/src/outbound/names/adapters/recorded/**",
+        "greeting/src/outbound/names/errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/types.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-validation-at-edges-282bc1c4e5c3"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/value-companions",
+      "include": [
+        "greeting/src/outbound/names/types/**",
+        "greeting/src/outbound/names/types/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-value-companions-e8c141716c3a"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-edges",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-edges-5c4aa0cd1a93"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-names",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-names-30e865419592"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-owners",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-owners-2799ccd20598"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-packages",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-packages-af0ac9d1e4da"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-scopes",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-scopes-949cb7045580"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "greeting/Cargo.toml",
+        "greeting/README.md",
+        "greeting/benches/performance.rs",
+        "greeting/src/cases.rs",
+        "greeting/src/inbound.rs",
+        "greeting/src/inbound/use_cases.rs",
+        "greeting/src/inbound/use_cases/greet.rs",
+        "greeting/src/inbound/use_cases/greet/acceptance.feature",
+        "greeting/src/inbound/use_cases/greet/acceptance.rs",
+        "greeting/src/inbound/use_cases/greet/errors.rs",
+        "greeting/src/inbound/use_cases/greet/interface.rs",
+        "greeting/src/inbound/use_cases/greet/use_case.rs",
+        "greeting/src/inbound/use_cases/greet/use_case_test.rs",
+        "greeting/src/lib.rs",
+        "greeting/src/outbound.rs",
+        "greeting/src/outbound/names.rs",
+        "greeting/src/outbound/names/adapters.rs",
+        "greeting/src/outbound/names/adapters/memory.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter.rs",
+        "greeting/src/outbound/names/adapters/memory/adapter_test.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas.rs",
+        "greeting/src/outbound/names/adapters/memory/schemas_test.rs",
+        "greeting/src/outbound/names/adapters/recorded/adapter.rs",
+        "greeting/src/outbound/names/errors.rs",
+        "greeting/src/outbound/names/factory.rs",
+        "greeting/src/outbound/names/fixtures.rs",
+        "greeting/src/outbound/names/fixtures/contract.rs",
+        "greeting/src/outbound/names/fixtures/fake.rs",
+        "greeting/src/outbound/names/fixtures/fake_test.rs",
+        "greeting/src/outbound/names/interface.rs",
+        "greeting/src/outbound/names/types.rs",
+        "greeting/tests/bdd.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "crate",
+            "greeting"
+          ],
+          [
+            "path",
+            {
+              "file": "greeting/src/outbound/names/adapters/recorded/adapter.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "greeting/src/outbound/names/adapters/recorded/adapter.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "greeting/src/outbound/names/adapters/recorded/adapter.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

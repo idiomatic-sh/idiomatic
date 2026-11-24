@@ -1,0 +1,5 @@
+//! The syntax port, implemented with demo_parser.
+
+use demo_parser::Parser;
+
+pub struct SyntaxDemoParserAdapter;

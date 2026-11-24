@@ -1,0 +1,19 @@
+//! `greeting`: one module per command.
+
+pub mod list;
+pub mod show;
+
+/// The `greeting` commands.
+#[derive(clap::Subcommand)]
+pub enum GreetingCommand {
+    List(list::command::ListArguments),
+    Show(show::command::ShowArguments),
+}
+
+/// Runs one `greeting` command.
+pub fn run(command: GreetingCommand) -> crate::outcome::Outcome {
+    match command {
+        GreetingCommand::List(arguments) => list::command::run(arguments),
+        GreetingCommand::Show(arguments) => show::command::run(arguments),
+    }
+}

@@ -1,0 +1,4 @@
+[package]
+name = "view_ownership_fixture"
+version = "0.1.0"
+edition = "2024"

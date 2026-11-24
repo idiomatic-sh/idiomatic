@@ -1,0 +1,95 @@
+{
+  "stamp": 11,
+  "rule": "idiomatic.arch/bounded-store",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/inbound/use_cases/up/use_case_test.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/inbound/use_cases/up/use_case_test.rs": "f5a121d1decabb3715faa76a4cab2638a5cde7de68dc936c68e6644697b582c7",
+    "tastemaker.toml": "7af9b7767398d2c8637dc6890e309f1612fb64a5b109a817b32c5b0ccb2d21a7"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/bounded-store",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-bounded-store-bd17961645c9"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/inbound/use_cases/up/use_case_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/up/use_case_test.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/inbound/use_cases/up/use_case_test.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/up/use_case_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

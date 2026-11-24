@@ -168,6 +168,14 @@ pub(crate) struct World {
 }
 
 impl World {
+    pub(crate) fn frontier(&self, slot: usize) -> Option<&[Part]> {
+        self.frontiers.get(&slot).map(FileFrontier::parts)
+    }
+
+    pub(crate) fn restore_frontier(&mut self, slot: usize, parts: Box<[Part]>) {
+        self.frontiers.insert(slot, FileFrontier::Rows(parts));
+    }
+
     pub fn file(&mut self, path: &str) -> u32 {
         if let Some(&i) = self.files.get(path) {
             return i;
@@ -198,7 +206,7 @@ impl World {
         self.frontiers.insert(slot, FileFrontier::Empty(parts.clone()));
     }
     pub(super) fn productive(&self, slot: usize) -> bool {
-        self.frontiers.get(&slot).is_some_and(|v| v.parts().iter().any(|(_, block)| block.n != 0))
+        self.frontier(slot).is_some_and(|parts| parts.iter().any(|(_, block)| block.n != 0))
     }
     fn carry(
         &mut self,
@@ -299,7 +307,7 @@ impl World {
         use finish::population::Population;
         let mut tables: Vec<_> = cut.iter().map(|_| Population::default()).collect();
         for slot in slots {
-            let parts = self.frontiers.get(slot).ok_or("missing file frontier")?.parts();
+            let parts = self.frontier(*slot).ok_or("missing file frontier")?;
             if parts.len() != cut.len() {
                 return Err("incomplete file frontier".into());
             }

@@ -1,0 +1,5 @@
+/// The directory of the source inventory, under the cache.
+#[must_use]
+pub fn inventory(cache: &std::path::Path) -> std::path::PathBuf {
+    cache.join("source-inventory-v1")
+}

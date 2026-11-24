@@ -1,0 +1,91 @@
+{
+  "stamp": 180,
+  "rule": "idiomatic.arch/ci/workflow-test",
+  "dependency": "One file",
+  "admitted": [
+    "ci/workflows_test.py"
+  ],
+  "given": {
+    "ci/workflows_test.py": "a052e7737e58b35dfa2b792fa9e66609935c46ff48e1f98e050843b62c5cd771",
+    "tastemaker.toml": "d9583b51aa9244eb91f3bf8c7eca8fd43f85d8ed810158e653939b48c69e8cdb"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/ci/workflow-test",
+      "include": [
+        "ci/**",
+        "ci/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-ci-workflow-test-94826cfe7aab"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "ci/workflows_test.py",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "ci/workflows_test.py"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "ci/workflows_test.py"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "ci/workflows_test.py"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

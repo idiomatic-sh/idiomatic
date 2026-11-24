@@ -1,0 +1,35 @@
+//! Engine.
+
+/// What a request runs.
+pub trait Request {
+    /// Runs one file through the production route.
+    fn run_file(&self, path: &str) -> usize;
+    /// Opens one file's session for the engine's own tests and harnesses only.
+    #[cfg(any(test, feature = "fixtures"))]
+    fn open_file(&self, path: &str) -> usize;
+}
+
+/// The bound a test reads.
+#[cfg(any(test, feature = "fixtures"))]
+pub const PROBE_LIMIT: usize = 3;
+
+/// The engine's request.
+pub struct Engine;
+
+impl Request for Engine {
+    fn run_file(&self, path: &str) -> usize {
+        path.len()
+    }
+    #[cfg(any(test, feature = "fixtures"))]
+    fn open_file(&self, path: &str) -> usize {
+        path.len()
+    }
+}
+
+/// How many files the engine runs.
+pub fn run(engine: &Engine) -> usize {
+    engine.run_file("a.rs")
+}
+
+#[cfg(any(test, feature = "fixtures"))]
+pub mod fixtures;

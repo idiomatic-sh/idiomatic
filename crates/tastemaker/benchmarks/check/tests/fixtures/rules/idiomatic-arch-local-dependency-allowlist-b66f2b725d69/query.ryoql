@@ -1,0 +1,14 @@
+param allowed-siblings: set<string>;
+let dependencies = select source, target, package, origin from "package-dependency";
+let explicit_paths = select source, target, package from dependencies where origin = "path";
+let resolved = select l.source as source, l.target as target, l.package as package from dependencies as l join "filesystem.file" as r on l.target = r.path;
+let candidates = union(left=explicit_paths, right=resolved);
+let sources = capture(from=candidates, path="source", pattern="{*parent}/{from}/Cargo.toml", captures=["parent", "from"]);
+let targets = capture(from=sources, path="target", pattern="{*target-parent}/{to}/Cargo.toml", captures=["target-parent", "to"]);
+let allowed = select source, target, package from targets as l where l.parent = l."target-parent" and l.to in $allowed-siblings;
+let own_manifest = select source, target, package from candidates as l where l.source = l.target;
+let permitted = union(left=allowed, right=own_manifest);
+let denied = antijoin(left=candidates, right=permitted, left-on=["source", "target", "package"], right-on=["source", "target", "package"]);
+let documents = select file, span from "syntax-tree" where kind = "toml" and text = "";
+let located = select l.source as file, r.span as span, l.target as target, l.package as package from denied as l join documents as r on l.source = r.file;
+emit located subject "file" key("file", "target", "package");

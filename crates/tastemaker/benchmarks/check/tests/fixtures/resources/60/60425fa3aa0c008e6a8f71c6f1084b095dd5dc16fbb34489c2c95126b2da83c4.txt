@@ -1,0 +1,6 @@
+use demo_greeting::outbound::names::interface::NamesPort;
+use crate::names::adapters::store::types::Entry;
+
+pub struct NamesMemoryAdapter;
+
+impl NamesPort for NamesMemoryAdapter {}

@@ -1,0 +1,97 @@
+{
+  "stamp": 246,
+  "rule": "idiomatic.arch/nu-hex/use-case-features",
+  "dependency": "One file",
+  "admitted": [
+    "app/src/inbound/use_cases/greet.rs"
+  ],
+  "given": {
+    "app/src/inbound/use_cases/greet.rs": "302c01595084a19e9f9045bd7881d9bbd0f52a1e01b5979c604892c0a9f6b97b",
+    "tastemaker.toml": "986edfc30103683972312ac7a99a7b09299e183c9b40b762f104e487f405e3eb"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/nu-hex/use-case-features",
+      "include": [
+        "app/src/inbound/use_cases/*.rs",
+        "app/src/inbound/use_cases/*.rs/**",
+        "app/src/inbound/use_cases/*/acceptance.feature",
+        "app/src/inbound/use_cases/*/acceptance.feature/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-use-case-features-cdafb04db046"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "app/src/inbound/use_cases/greet.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "app/src/inbound/use_cases/greet.rs"
+            }
+          ],
+          [
+            "use_case",
+            "greet"
+          ]
+        ],
+        "key": [
+          {
+            "file": "app/src/inbound/use_cases/greet.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "app/src/inbound/use_cases/greet.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

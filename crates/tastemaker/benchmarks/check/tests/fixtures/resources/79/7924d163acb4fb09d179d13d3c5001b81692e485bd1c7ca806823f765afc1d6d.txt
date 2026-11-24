@@ -1,0 +1,22 @@
+[package]
+name = "demo-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+autobenches = false
+
+[dev-dependencies]
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true

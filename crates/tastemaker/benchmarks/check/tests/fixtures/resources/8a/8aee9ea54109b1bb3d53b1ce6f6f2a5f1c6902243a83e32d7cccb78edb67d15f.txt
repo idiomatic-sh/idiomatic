@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/no-heap-accounting", description = "The definition under test, placed alone.", include = ["**/*.rs"], params = { owners = ["**/file_dag/derived/ledger.rs", "**/file_dag/derived/ledger/**"] } }]

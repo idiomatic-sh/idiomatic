@@ -1,0 +1,1 @@
+fn run() { std::fs::create_dir_all("cache"); }

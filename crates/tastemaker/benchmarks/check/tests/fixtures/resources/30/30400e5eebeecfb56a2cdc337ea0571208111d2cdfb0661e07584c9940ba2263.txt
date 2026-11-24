@@ -1,0 +1,6 @@
+# Demo
+
+```console
+$ demo greeting show
+Hello!
+```

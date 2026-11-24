@@ -1,0 +1,10 @@
+#[derive(Debug)]
+pub(crate) struct Config {
+    size: u32,
+}
+
+impl Config {
+    pub(crate) fn new(size: u32) -> Self {
+        Self { size }
+    }
+}

@@ -1,0 +1,156 @@
+{
+  "stamp": 128,
+  "rule": "idiomatic.arch/operator-meaning-once",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "engine/Cargo.toml",
+    "engine/src/application.rs",
+    "engine/src/application/dispatch.rs",
+    "engine/src/domain.rs",
+    "engine/src/domain/operator.rs",
+    "engine/src/domain/operator/contract.rs",
+    "engine/src/lib.rs",
+    "tastemaker.toml",
+    "values/Cargo.toml",
+    "values/src/kinds.rs",
+    "values/src/lib.rs"
+  ],
+  "given": {
+    "engine/Cargo.toml": "7bfe6a4bd43d2cbb3624beeb1f04fbadffd21075b4790b02ad06426f0611fe65",
+    "engine/src/application.rs": "ed9de64b6a57f36a0a9fbd8092932296ac1493df9b2a6e70ddd69f1c39eeaba2",
+    "engine/src/application/dispatch.rs": "f5e42c9987fb8652664774b6cbe74f2894b548257a4c49e310e3c6a96531dc00",
+    "engine/src/domain.rs": "1e12edba9cbea0d207a12f097bd377ba80d4f95cdef024d8804023c1f2417e84",
+    "engine/src/domain/operator.rs": "502b9c920caafb382010d7ab8ec652661fea407e758bf2ae17336acde3e8043f",
+    "engine/src/domain/operator/contract.rs": "1db6a061b548cf43662cda471b0af3f965dd6351a995101ff9d6d31008ac88e1",
+    "engine/src/lib.rs": "6bce8f88a2552e89ce66eea45097e6da3d6787aa0a00a1480b9270e25945b525",
+    "tastemaker.toml": "6153424fe7c947b6363ccaf9f5ee2294b8d7068055d32285926b2fc9350daff2",
+    "values/Cargo.toml": "c9d0aa05a1074633bfeffb467ff82ef4454b5389a1ee7a68a5baa062fcd5f9c5",
+    "values/src/kinds.rs": "c3bb0a9a8e42bcfb52e42dbd0896b6aff040c491e335c3f3e507422f38b78dfb",
+    "values/src/lib.rs": "46025959be3d5d2b16d379499a4d5e6d386ade85af887667b1d3fa6cfee3ab1a"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/operator-meaning-once",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "calls": [
+          "{OperatorCall,*::OperatorCall}::*"
+        ],
+        "engine": [
+          "engine/src/**"
+        ],
+        "engine-calls": [
+          "{OperatorCall,*::OperatorCall}::{Evaluate,ReduceCount}"
+        ],
+        "functions": [
+          "engine/src/application/pass.rs",
+          "engine/src/application/pass/**"
+        ],
+        "kinds": [
+          "values/src/kinds.rs"
+        ],
+        "modules": [
+          "engine/src/domain/operator.rs",
+          "engine/src/domain/operator/**"
+        ]
+      },
+      "query": "idiomatic-arch-operator-meaning-once-7ae52a6ac2a6"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "engine/Cargo.toml",
+        "engine/src/application.rs",
+        "engine/src/application/dispatch.rs",
+        "engine/src/domain.rs",
+        "engine/src/domain/operator.rs",
+        "engine/src/domain/operator/contract.rs",
+        "engine/src/lib.rs",
+        "tastemaker.toml",
+        "values/Cargo.toml",
+        "values/src/kinds.rs",
+        "values/src/lib.rs"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "engine/src/application/dispatch.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                193,
+                212
+              ]
+            }
+          ],
+          [
+            "problem",
+            "names a call of the operators the engine does not make"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              193,
+              212
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "engine/src/application/dispatch.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

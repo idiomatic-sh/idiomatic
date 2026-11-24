@@ -1,0 +1,115 @@
+{
+  "stamp": 54,
+  "rule": "idiomatic.arch/hollow-artifacts",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/item.rs"
+  ],
+  "given": {
+    "src/greeting/item.rs": "1fd94e8e6a24739435d87e680a8817f4488f91c561aefff4290cf46f38d1dd1d",
+    "tastemaker.toml": "19855a2ebac74eaa8a23bf329154f6bdfb4405a4f7c74c75c18244d9643eaa41"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/hollow-artifacts",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-artifacts-759d6bcc4a88"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/item.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/greeting/item.rs#14"
+          ],
+          [
+            "file",
+            {
+              "file": "src/greeting/item.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                18,
+                27
+              ]
+            }
+          ],
+          [
+            "kind",
+            "name"
+          ],
+          [
+            "what",
+            "this type holds nothing and implements no trait: a placeholder"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              18,
+              27
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/item.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

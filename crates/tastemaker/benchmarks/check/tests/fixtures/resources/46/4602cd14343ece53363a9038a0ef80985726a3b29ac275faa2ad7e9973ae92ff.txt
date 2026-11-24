@@ -1,0 +1,40 @@
+//! The steps of the `greet` feature: each a cucumber expression over the world, one to six lines, asserting the part's own results.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given(expr = "a names port that holds Ada")]
+fn holds_ada(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[given(expr = "a name nobody stored")]
+fn nobody_stored(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[given(expr = "an empty name")]
+fn empty_name(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[when(expr = "greet runs")]
+fn runs(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[then(expr = "{word} is answered")]
+fn answered(world: &mut Behavior, word: String) {
+    let _ = (world, word);
+}
+
+#[then(expr = "{word} is refused")]
+fn refused(world: &mut Behavior, word: String) {
+    let _ = (world, word);
+}
+
+#[then(expr = "{word} is passed on")]
+fn passed_on(world: &mut Behavior, word: String) {
+    let _ = (world, word);
+}

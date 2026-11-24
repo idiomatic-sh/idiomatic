@@ -1,0 +1,111 @@
+{
+  "stamp": 208,
+  "rule": "idiomatic.arch/idiomatic-rust/bounded-engine-state",
+  "dependency": "Project",
+  "admitted": [
+    "src/inbound/use_cases/lint/use_case.rs"
+  ],
+  "given": {
+    "Cargo.toml": "87cfbd9d47510937bbe8a6852079e85137fa1d20adf40ec2f15b95e022fe3168",
+    "src/inbound/use_cases/lint/fixtures/contract.rs": "53288edebefa20b9de4850b2b8b6c5cd19fcac7ced04e92ef03264b349198d18",
+    "src/inbound/use_cases/lint/use_case.rs": "89f3d5410afdee7e8cf68722e658242b229a3b65b1873c8f5b2c43aaee349024",
+    "tastemaker.toml": "e15df8f772a5c52e988a8b933aa0fc94194e25e9eb2b6232a27c25283da68f22"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/bounded-engine-state",
+      "include": [
+        "**/src/application/*/*.rs",
+        "**/src/application/*/*.rs/**",
+        "**/src/inbound/use_cases/*/*.rs",
+        "**/src/inbound/use_cases/*/*.rs/**",
+        "**/src/outbound/*/adapters/*/*.rs",
+        "**/src/outbound/*/adapters/*/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-bounded-engine-state-2dad47575b71"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/inbound/use_cases/lint/fixtures/contract.rs",
+        "src/inbound/use_cases/lint/use_case.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/lint/use_case.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                94,
+                99
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              94,
+              99
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/lint/use_case.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

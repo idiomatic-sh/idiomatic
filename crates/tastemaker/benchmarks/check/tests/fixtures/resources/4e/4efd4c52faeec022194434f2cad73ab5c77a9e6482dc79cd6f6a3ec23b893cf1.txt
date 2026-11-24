@@ -1,0 +1,4 @@
+//! A collection and its catalog.
+
+pub mod catalog;
+pub mod collections;

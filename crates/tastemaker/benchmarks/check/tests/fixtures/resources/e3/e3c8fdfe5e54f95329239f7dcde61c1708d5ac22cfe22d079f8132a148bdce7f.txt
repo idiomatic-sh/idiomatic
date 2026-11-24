@@ -1,0 +1,6 @@
+//! A crate that reaches past the surface of its library.
+
+use ryo::linter::LintRequest;
+use ryo::operator::Operator;
+
+pub fn run(_request: LintRequest, _operator: Operator) {}

@@ -1,0 +1,7 @@
+//! `greeting show`'s workload.
+
+pub(crate) fn show() -> cli::outcome::Outcome {
+    cli::resources::greeting::show::command::run(
+        cli::resources::greeting::show::command::ShowArguments {},
+    )
+}

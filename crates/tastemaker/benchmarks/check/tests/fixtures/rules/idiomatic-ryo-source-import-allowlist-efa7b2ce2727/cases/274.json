@@ -1,0 +1,123 @@
+{
+  "stamp": 274,
+  "rule": "idiomatic.ryo/source-import-allowlist",
+  "dependency": "Several files",
+  "admitted": [
+    "demo/src/tastemaker.toml",
+    "demo/tastemaker.toml",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "demo/src/tastemaker.toml": "7d08a7c52d8cf654a8878a8c9e1c828b0b87715a5fb02640f8c5978b6dade242",
+    "demo/tastemaker.toml": "615309daca16f5188f96809a94a831e733ec95944f67cc550cbf62fad8b81d25",
+    "tastemaker.toml": "b0be9e3f6d75d493badce03246c7dbec1811ad003f88a3aad949fbc36b8d765b"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/source-import-allowlist",
+      "include": [
+        "**/tastemaker.toml",
+        "**/tastemaker.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-source-import-allowlist-efa7b2ce2727"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "demo/src/tastemaker.toml",
+        "demo/tastemaker.toml",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "list",
+            "imports-allow"
+          ],
+          [
+            "file",
+            {
+              "file": "demo/src/tastemaker.toml"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                35,
+                54
+              ]
+            }
+          ],
+          [
+            "kind",
+            "string"
+          ],
+          [
+            "decoded",
+            "private_engine::*"
+          ],
+          [
+            "language",
+            "demo"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              35,
+              54
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "demo/src/tastemaker.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

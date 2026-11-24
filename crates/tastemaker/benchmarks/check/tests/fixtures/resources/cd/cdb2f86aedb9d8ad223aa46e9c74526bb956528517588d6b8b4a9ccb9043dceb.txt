@@ -1,0 +1,2 @@
+//! The `polite` service's cases, on values alone.
+

@@ -1,0 +1,33 @@
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+    Case { name: "one stays one", word: Word::Succeeds, input: one, expect: Expect::Value(1) },
+    Case { name: "zero is refused", word: Word::Refuses, input: zero, expect: Expect::Error(Failure::Empty) },
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}
+
+#[test]
+fn fails() {
+    run(CASES, Word::Fails, subject);
+}
+
+#[test]
+fn rejects() {
+    run(CASES, Word::Rejects, subject);
+}
+
+#[allow(dead_code)]
+fn probe(result: Result<u8, ()>) {
+    assert!(result.is_err());
+}

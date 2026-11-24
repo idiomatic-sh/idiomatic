@@ -53,5 +53,5 @@ fn declaration() -> first::Language {
 }
 
 fn main() {
-    reader_cli::main(ryo_typescript::linked, declaration);
+    reader_cli::main(ryo_typescript::linked, declaration, ".ryo_cache");
 }

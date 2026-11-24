@@ -1,0 +1,5 @@
+pub struct FunctionItem;
+
+impl ReadItem for FunctionItem {
+    const READER: u8 = 0;
+}

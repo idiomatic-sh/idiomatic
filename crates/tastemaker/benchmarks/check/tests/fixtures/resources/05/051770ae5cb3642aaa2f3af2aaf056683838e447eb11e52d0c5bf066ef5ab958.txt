@@ -1,0 +1,6 @@
+//! The product README's Usage, each command run and its output compared.
+
+#[test]
+fn readme() {
+    trycmd::TestCases::new().case("../README.md");
+}

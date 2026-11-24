@@ -1,0 +1,3 @@
+workspace = { name = "scenario", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/crates/ryo/tastemaker" }, { package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.ryo/source-import-allowlist", include = ["**/tastemaker.toml"] }]

@@ -1,0 +1,14 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let files = select * from tree-nodes where kind = "source-file";
+let item-edges = select r."child" as "child" from files as l join "syntax-child" as r on l."id" = r."parent";
+let items = select r."id" as "id", r."kind" as "kind", r."file" as "file", r."span" as "span" from item-edges as l join tree-nodes as r on l."child" = r."id";
+let other-rows = select * from items where kind != "module";
+let other-projected = project(from=other-rows, columns=["file", "span", "kind"]);
+let other = extend(from=other-projected, values={"problem": "is not a concept's module"});
+let modules = select * from items where kind = "module";
+let module-children = select r."child" as "child", l."kind" as "kind", l."file" as "file", l."span" as "span" from modules as l join "syntax-child" as r on l."id" = r."parent";
+let bodies = select * from tree-nodes where kind = "item-list";
+let inline-rows = select l."kind" as "kind", l."file" as "file", l."span" as "span" from module-children as l join bodies as r on l."child" = r."id";
+let inline = extend(from=inline-rows, values={"problem": "is written inline rather than in its `domain/<concept>/` directory"});
+let findings = union(left=other, right=inline);
+emit findings subject "file" key("span", "kind");

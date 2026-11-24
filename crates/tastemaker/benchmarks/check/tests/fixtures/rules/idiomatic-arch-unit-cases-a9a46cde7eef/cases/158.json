@@ -1,0 +1,110 @@
+{
+  "stamp": 158,
+  "rule": "idiomatic.arch/unit-cases",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/domain/short/service_test.rs"
+  ],
+  "given": {
+    "src/greeting/domain/short/service_test.rs": "9640a97f4d71aa0640327030fac49183fcca9afc6dec48ef3caa7efff38ed90b",
+    "tastemaker.toml": "04e48ca760c6bbbb287bc8243487ef47bc9c1bd115b6e78c955daad488838733"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/unit-cases",
+      "include": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "**/errors.rs",
+        "**/errors.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unit-cases-a9a46cde7eef"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/domain/short/service_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/greeting/domain/short/service_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                257
+              ]
+            }
+          ],
+          [
+            "problem",
+            "has no `succeeds` row"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              257
+            ]
+          },
+          "has no `succeeds` row"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/domain/short/service_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

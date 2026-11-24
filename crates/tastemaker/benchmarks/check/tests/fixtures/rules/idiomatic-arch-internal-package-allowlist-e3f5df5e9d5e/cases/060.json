@@ -1,0 +1,87 @@
+{
+  "stamp": 60,
+  "rule": "idiomatic.arch/internal-package-allowlist",
+  "dependency": "Project",
+  "admitted": [
+    "crates/operators/Cargo.toml"
+  ],
+  "given": {
+    "Cargo.toml": "e8d6c11c04fee7803426b48b1764d404ea1e8776372d6dbdf352d74cdfff10ef",
+    "crates/operators/Cargo.toml": "e1acc039d937a437c65f01510fd5324564c97aa991d449b3d9345ef603754e9e",
+    "crates/operators/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "f5b1e20551b72937f67c591649d2e53294b0871a05fca91a0a0ed5ffe9d4039c"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/internal-package-allowlist",
+      "include": [
+        "crates/operators/Cargo.toml",
+        "crates/operators/Cargo.toml/**"
+      ],
+      "parameters": {
+        "allowed-packages": [
+          "language",
+          "values"
+        ],
+        "internal-packages": [
+          "operators",
+          "core",
+          "derived",
+          "language",
+          "values"
+        ]
+      },
+      "query": "idiomatic-arch-internal-package-allowlist-e3f5df5e9d5e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "crates/operators/Cargo.toml",
+        "crates/operators/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": []
+  }
+}

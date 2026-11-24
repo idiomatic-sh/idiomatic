@@ -1,0 +1,3 @@
+closed = false
+variables = { domain-libraries = [], libraries = ["demo_parser::*"] }
+imports-allow = [{ variable = "libraries" }, { variable = "domain-libraries" }]

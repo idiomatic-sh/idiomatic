@@ -1,0 +1,153 @@
+{
+  "stamp": 207,
+  "rule": "idiomatic.arch/idiomatic-rust/application-service-boundaries",
+  "dependency": "Project",
+  "admitted": [
+    "src/application.rs",
+    "src/application/alpha.rs",
+    "src/application/alpha/service.rs",
+    "src/application/alpha/types.rs",
+    "src/application/beta.rs",
+    "src/application/beta/service.rs",
+    "src/application/beta/types.rs",
+    "src/domain.rs",
+    "src/domain/value.rs",
+    "src/inbound.rs",
+    "src/inbound/use_cases.rs",
+    "src/inbound/use_cases/lint.rs",
+    "src/inbound/use_cases/lint/use_case.rs",
+    "src/lib.rs",
+    "src/outbound.rs",
+    "src/outbound/store.rs",
+    "src/outbound/store/interface.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/application.rs": "0d7800f80b6d34e17553b27a9b44a95820e1842b6f8cc2e3e1aa55fcfaa3b5bd",
+    "src/application/alpha.rs": "e101b2b8066fd5d06567947c511ef96aab49db8166077d9dd425ff2ea468f619",
+    "src/application/alpha/service.rs": "79c4dfd729c38e323964730da8b0b4018535e0cd4aebeeeb0eae42be7937b317",
+    "src/application/alpha/types.rs": "1f4ffaace84a3b9eaae34633335bfcdb960202dc96acc3536392019ba99ba5f4",
+    "src/application/beta.rs": "e101b2b8066fd5d06567947c511ef96aab49db8166077d9dd425ff2ea468f619",
+    "src/application/beta/service.rs": "ae36a2750966b0866247dc295166c1f9b26f4aa39b57131a6725408ad8901f56",
+    "src/application/beta/types.rs": "e53e87cb50fd43192ae5f5ac02265ca8350031ba5c64fc12077b9cb8a6dab83e",
+    "src/domain.rs": "8338c893f64bdd337054113520897ef704a57707aaebcf80b7d65ccf05ef0612",
+    "src/domain/value.rs": "87c5a5677ec2a669ddbd833b993a9df368321b8dd4d522006b1e3d2638d32b43",
+    "src/inbound.rs": "113ed7f18294510504f07675d70099504a826146251540a242ce76200c2ee3a9",
+    "src/inbound/use_cases.rs": "686fbbea155a8e08ffb1fbaee97d3be41faa4efae4ae48cbe38d6817862c21bd",
+    "src/inbound/use_cases/lint.rs": "382d522d470171a0904044b99585c5a86ac52828cc8b6dd1c8a48eb4c91378b3",
+    "src/inbound/use_cases/lint/use_case.rs": "d24c325b259ae5f0bc2358165ee99ba1b0410f79d905a8314b3b25fb9b04d446",
+    "src/lib.rs": "d2c3ae528608202d0e70bcb6553b2100a2404d0a819409d2de50f7947d188df3",
+    "src/outbound.rs": "bb8ff5e30a212d1316ad59a4502ddf22d43b4b7addbaf00499f6a0bcb66a9667",
+    "src/outbound/store.rs": "032147bcf2c27f02f230178772254e83d5d1cc58ca876e1832fd059a8f0b03de",
+    "src/outbound/store/interface.rs": "b8404922644da4764f7a120aa098798a67f22080cb4e96468fc93f470dd200bb",
+    "tastemaker.toml": "7f67dc2213e11bfe154271eeb0135ec922134d9d6b904aaf6c6f14e4c58f8b6e"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/application-service-boundaries",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-application-service-boundaries-488f26694dd1"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/application.rs",
+        "src/application/alpha.rs",
+        "src/application/alpha/service.rs",
+        "src/application/alpha/types.rs",
+        "src/application/beta.rs",
+        "src/application/beta/service.rs",
+        "src/application/beta/types.rs",
+        "src/domain.rs",
+        "src/domain/value.rs",
+        "src/inbound.rs",
+        "src/inbound/use_cases.rs",
+        "src/inbound/use_cases/lint.rs",
+        "src/inbound/use_cases/lint/use_case.rs",
+        "src/lib.rs",
+        "src/outbound.rs",
+        "src/outbound/store.rs",
+        "src/outbound/store/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/application/alpha/service.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                76
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              76
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/application/alpha/service.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

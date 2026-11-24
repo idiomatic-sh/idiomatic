@@ -1,0 +1,11 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let idents = select * from tree-tokens where kind = "ident";
+let names = select * from idents where glob_any(text, "thread_local");
+let name-parents = select r."parent" as "id", l."file" as "file", l."span" as "span" from names as l join "syntax-child" as r on l."id" = r."child";
+let name-refs = select * from tree-nodes where kind = "name-ref";
+let refs = select l."id" as "id", l."file" as "file", l."span" as "span" from name-parents as l join name-refs as r on l."id" = r."id";
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let in-calls = axis(from=refs, relation="syntax-child", direction=ancestor, domain=macro-calls);
+let found = select l."id" as "id", l."file" as "file", l."span" as "span" from refs as l join in-calls as r on l."id" = r."id";
+emit found subject "file" key("span");

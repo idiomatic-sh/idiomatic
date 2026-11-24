@@ -1,0 +1,7 @@
+pub trait Language {
+    fn name(&self) -> usize;
+
+    fn kinds(&self) -> usize {
+        0
+    }
+}

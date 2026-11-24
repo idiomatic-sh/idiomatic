@@ -1,0 +1,9 @@
+use super::interface::GreetingInterface;
+
+pub struct GreetingFake;
+
+impl GreetingInterface for GreetingFake {
+    fn greet(&self) -> String {
+        String::new()
+    }
+}

@@ -1,0 +1,21 @@
+#![allow(dead_code)]
+//! The steps of the `greet` feature.
+
+use cucumber::{given, then, when};
+
+use super::Behavior;
+
+#[given("an accepted input")]
+fn accepted(world: &mut Behavior) {
+    let _ = world;
+}
+
+#[when(expr = "greet runs on {string}")]
+fn runs(world: &mut Behavior, name: String) {
+    let _ = (world, name);
+}
+
+#[then("it is accepted")]
+fn is_accepted(world: &mut Behavior) {
+    let _ = world;
+}

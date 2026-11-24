@@ -1,0 +1,117 @@
+{
+  "stamp": 5,
+  "rule": "idiomatic.arch/adapter-writer-layering",
+  "dependency": "One file",
+  "admitted": [
+    "src/adapter.rs",
+    "src/lib.rs",
+    "src/schemas.rs",
+    "src/types.rs",
+    "src/writer.rs"
+  ],
+  "given": {
+    "Cargo.toml": "17eb15d1c0ed327c296c20c2abac2971e14a87946801bc6d15344a2f30fbddf8",
+    "src/adapter.rs": "cd7d13fb518adbb23219ddf91669297b2cc6a6d549a4e51338a7f34cb87ff780",
+    "src/lib.rs": "5fbcd32bdf5a3d51e91819487551a4080074626253abe3a15e4844e24d450e7b",
+    "src/schemas.rs": "cb15915adc329719e229bef1aea18354917f9882bad2f5b06246ff1f7da532e1",
+    "src/types.rs": "f8b110c4558fe689c3708d2563da234509d9f67502be95ef82cb41bb9fc797e8",
+    "src/writer.rs": "d6efa51ee293ab108ea3a5071c4e51c4e95cb826db968b7ca8d80026d00ee1ff",
+    "tastemaker.toml": "078f9a3410ffccbcae1d398681dcce0dda9f0cd879135175e9c930a19f464454"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/adapter-writer-layering",
+      "include": [
+        "src/*.rs",
+        "src/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-writer-layering-fda916e46fae"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/adapter.rs",
+        "src/lib.rs",
+        "src/schemas.rs",
+        "src/types.rs",
+        "src/writer.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/writer.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                17,
+                36
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              17,
+              36
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/writer.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

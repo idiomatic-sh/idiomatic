@@ -1,0 +1,6 @@
+let features = capture(from="filesystem.file", path="path", pattern="{*root}/src/inbound/use_cases/{use_case}/acceptance.feature", captures=["root", "use_case"]);
+let use-cases = capture(from="filesystem.file", path="path", pattern="{*root}/src/inbound/use_cases/{use_case}.rs", captures=["root", "use_case"]);
+let feature-keys = project(from=features, columns=["root", "use_case"]);
+let unfeatured = antijoin(left=use-cases, right=feature-keys, left-on=["root", "use_case"], right-on=["root", "use_case"]);
+let unfeatured-rows = project(from=unfeatured, columns=["path", "use_case"]);
+emit unfeatured-rows subject "path" key("path");

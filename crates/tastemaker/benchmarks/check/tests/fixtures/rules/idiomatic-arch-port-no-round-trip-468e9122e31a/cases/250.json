@@ -1,0 +1,110 @@
+{
+  "stamp": 250,
+  "rule": "idiomatic.arch/port/no-round-trip",
+  "dependency": "One file",
+  "admitted": [
+    "src/outbound/facts/interface.rs"
+  ],
+  "given": {
+    "src/outbound/facts/interface.rs": "7fa6abe562d26f0581dc7afd10a9388dbad337aba53133e43fd969b9deb429c8",
+    "tastemaker.toml": "1c6ac6c168dc7261529bc70f92ce4eae15f2d830c686ac49c407796a0921c039"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/port/no-round-trip",
+      "include": [
+        "src/outbound/*/interface.rs",
+        "src/outbound/*/interface.rs/**",
+        "src/outbound/*/types.rs",
+        "src/outbound/*/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-port-no-round-trip-468e9122e31a"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/outbound/facts/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/outbound/facts/interface.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                152,
+                216
+              ]
+            }
+          ],
+          [
+            "handle",
+            "File"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              152,
+              216
+            ]
+          },
+          "File"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/facts/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

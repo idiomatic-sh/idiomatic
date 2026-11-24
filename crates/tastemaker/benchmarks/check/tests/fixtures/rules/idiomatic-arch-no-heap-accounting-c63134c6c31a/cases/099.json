@@ -1,0 +1,110 @@
+{
+  "stamp": 99,
+  "rule": "idiomatic.arch/no-heap-accounting",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "e6af1588dcc959567c216f58053e832859812a7a271373e57e251072e2d34464",
+    "src/lib.rs": "2c6172b6f9c4a4d4fb64aac3a57006ee1aef2896e9b2ade40fe527bb4d7505a9",
+    "tastemaker.toml": "8aee9ea54109b1bb3d53b1ce6f6f2a5f1c6902243a83e32d7cccb78edb67d15f"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-heap-accounting",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {
+        "owners": [
+          "**/file_dag/derived/ledger.rs",
+          "**/file_dag/derived/ledger/**"
+        ]
+      },
+      "query": "idiomatic-arch-no-heap-accounting-c63134c6c31a"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                51,
+                99
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              51,
+              99
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,26 @@
+//! The shape of the data this edge does not control, and its checked conversion into the core's types and back.
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// The name as the edge is given it.
+pub(super) struct NameSchema {
+    pub(super) text: String,
+}
+
+/// Why a name was refused.
+pub(super) enum NameSchemaError {
+    Empty,
+}
+
+impl TryFrom<NameSchema> for String {
+    type Error = NameSchemaError;
+
+    fn try_from(schema: NameSchema) -> Result<Self, Self::Error> {
+        if schema.text.is_empty() {
+            return Err(NameSchemaError::Empty);
+        }
+        Ok(schema.text)
+    }
+}

@@ -1,0 +1,7 @@
+//! The `polite` service: free functions named by verb over the domain's types, with no IO and no ports.
+
+/// Whether the phrase opens politely.
+#[must_use]
+pub fn is_polite(phrase: &str) -> bool {
+    phrase.starts_with("good day")
+}

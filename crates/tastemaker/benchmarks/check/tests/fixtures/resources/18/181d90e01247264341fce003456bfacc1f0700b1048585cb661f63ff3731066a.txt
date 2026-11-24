@@ -1,0 +1,9 @@
+//! The memory adapter of the names port.
+
+use crate::cases::{Case, Word, run};
+
+const CASES: &[Case<(), (), ()>] = &[];
+
+fn subject(input: ()) -> Result<(), ()> {
+    todo!()
+}

@@ -1,0 +1,3 @@
+//! The greeting domain's concepts, one module each.
+
+pub mod polite;

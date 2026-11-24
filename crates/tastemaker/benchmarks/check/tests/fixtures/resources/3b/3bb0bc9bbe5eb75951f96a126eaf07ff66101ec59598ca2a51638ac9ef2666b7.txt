@@ -1,0 +1,4 @@
+pub use crate::inner::Thing;
+mod inner {
+    pub struct Thing;
+}

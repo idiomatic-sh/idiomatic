@@ -1,0 +1,1 @@
+fn refuses() { assert!(matches!(open(), Err(ReadError::Missing))); }

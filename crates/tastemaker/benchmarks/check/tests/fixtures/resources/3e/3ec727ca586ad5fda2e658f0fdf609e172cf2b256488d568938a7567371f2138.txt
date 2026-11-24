@@ -1,0 +1,2 @@
+struct Marker;
+type Count = usize;

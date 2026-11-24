@@ -1,0 +1,41 @@
+//! The `polite` service's cases.
+
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = u8;
+type Value = u8;
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "keeps what it is given",
+        word: Word::Succeeds,
+        input: || 1,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: "refuses nothing",
+        word: Word::Refuses,
+        input: || 0,
+        expect: Expect::Error(()),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(input: Input) -> Result<Value, Failure> {
+    if input == 0 {
+        return Err(());
+    }
+    Ok(input)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}

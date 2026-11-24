@@ -1,0 +1,120 @@
+{
+  "stamp": 144,
+  "rule": "idiomatic.arch/schema-confined",
+  "dependency": "One file",
+  "admitted": [
+    "src/commands/greeting/show/command.rs"
+  ],
+  "given": {
+    "src/commands/greeting/show/command.rs": "2d526aa11bdfb6d4bb965ad28959c11af9a8686785684308605b4cd627fc4166",
+    "tastemaker.toml": "dde1e58e87897d6a734c079ef76c4cd469e19af41cd7717ab28338ef1bd35d2c"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/schemas.rs",
+        "**/schemas.rs/**",
+        "**/schemas_test.rs",
+        "**/schemas_test.rs/**"
+      ],
+      "id": "idiomatic.arch/schema-confined",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-schema-confined-d020ee301d6a"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/commands/greeting/show/command.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/commands/greeting/show/command.rs#53"
+          ],
+          [
+            "kind",
+            "ident"
+          ],
+          [
+            "file",
+            {
+              "file": "src/commands/greeting/show/command.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                124,
+                144
+              ]
+            }
+          ],
+          [
+            "text",
+            "ArgumentsSchemaError"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              124,
+              144
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/commands/greeting/show/command.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

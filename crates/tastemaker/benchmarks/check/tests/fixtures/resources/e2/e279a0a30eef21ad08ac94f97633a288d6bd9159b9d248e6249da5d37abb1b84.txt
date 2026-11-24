@@ -1,0 +1,12 @@
+//! The connections of `greeting show`: it opens the stores the edge reads and writes and returns their
+//! clients. This is the only I/O of the edge; the composition takes the clients it returns and only constructs.
+
+/// The clients of the stores `greeting show` reaches, opened once.
+pub(crate) struct GreetingShowConnections {
+    pub(crate) greetings: std::path::PathBuf,
+}
+
+/// Opens the stores and returns their clients.
+pub(crate) fn connect() -> GreetingShowConnections {
+    GreetingShowConnections { greetings: std::path::PathBuf::from("greetings") }
+}
