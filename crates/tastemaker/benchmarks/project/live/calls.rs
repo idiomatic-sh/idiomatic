@@ -212,14 +212,8 @@ impl Live {
                 Rc::<[u8]>::from(source.text.0.as_bytes()),
             );
         }
-        let mut paths: Vec<String> = listed
-            .iter()
-            .map(|p| p.0.to_string())
-            .chain(overlay.keys().cloned())
-            .collect();
-        paths.sort_unstable();
-        paths.dedup();
-        let (inventory, paths) = self.cache.inventory(paths);
+        let (inventory, paths) = self.cache.inventory(listed.iter().map(|p| p.0.as_ref())
+            .chain(overlay.keys().map(String::as_str)).collect());
         let key = (authority.clone(), overlay);
         let root = if let Some(id) = self.versions.get(&key) {
             id.clone()
@@ -253,12 +247,10 @@ impl Live {
             }
             let inc = self.globs(&rule.include)?;
             let exc = self.globs(&rule.exclude)?;
-            let files = self.cache.files((inventory, filter.0, inc.0, exc.0), || {
-                paths.iter().filter(|p| {
+            let files = self.cache.files((inventory, filter.0, inc.0, exc.0), |p| {
                     (req.files.is_empty() || filter.1.is_match(p))
                         && (rule.include.is_empty() || inc.1.is_match(p))
                         && !exc.1.is_match(p)
-                }).cloned().collect()
             });
             let parameters = rule
                 .parameters

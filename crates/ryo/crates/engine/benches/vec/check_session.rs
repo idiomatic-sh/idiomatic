@@ -177,7 +177,7 @@ impl Schedule {
             self.programs.len() - 1
         })
     }
-    fn source(&mut self, root: &Rc<str>, path: String) -> Result<usize> {
+    fn source(&mut self, root: &Rc<str>, path: &str) -> Result<usize> {
         let rel = Path::new(&path);
         if rel
             .components()
@@ -187,11 +187,11 @@ impl Schedule {
         }
         Ok(*self
             .source_ids
-            .entry((root.clone(), Rc::from(path.as_str())))
+            .entry((root.clone(), Rc::from(path)))
             .or_insert_with(|| {
                 self.sources.push(Source {
                     root: root.clone(),
-                    path,
+                    path:path.to_owned(),
                     bindings: BTreeMap::new(),
                     known: BTreeMap::new(),
                     project: false,
@@ -207,7 +207,7 @@ impl Schedule {
         let id = match self.supplied_ids.get(&key) {
             Some(&id) => id,
             None => {
-                let id = self.source(root, path.clone())?;
+                let id = self.source(root, &path)?;
                 self.sources[id].provided = Some(bytes);
                 self.supplied_ids.insert(key, id);
                 id
@@ -217,7 +217,7 @@ impl Schedule {
     }
 
     pub(crate) fn listed(&mut self, root: &Rc<str>, directory: &Rc<str>, path: &str) -> Result<()> {
-        let id = self.source(directory, path.to_owned())?;
+        let id = self.source(directory, path)?;
         self.alias_source(root, path, id)
     }
 
@@ -237,7 +237,7 @@ impl Schedule {
         paths
             .iter()
             .map(|p| {
-                let index = self.source(&root, p.clone())?;
+                let index = self.source(&root, p)?;
                 self.sources[index].project = true;
                 self.pending.insert(index);
                 Ok(index)
@@ -247,7 +247,7 @@ impl Schedule {
     pub(crate) fn admit(
         &mut self,
         root: String,
-        files: Vec<String>,
+        files: &[String],
         binding: usize,
     ) -> Result<Vec<usize>> {
         let root: Rc<str> = root.into();

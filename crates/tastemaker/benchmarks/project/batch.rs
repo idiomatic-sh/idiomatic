@@ -27,13 +27,18 @@ use std::{
 #[derive(Deserialize)]
 struct Input {
     root: String,
-    files: Vec<String>,
+    #[serde(deserialize_with = "read_paths")]
+    files: Rc<Vec<String>>,
     #[serde(default, deserialize_with = "read_inventory")]
     inventory: Option<Rc<Vec<String>>>,
     repository: Option<Authority>,
     hosted: Vec<Hosted>,
     #[serde(deserialize_with = "read_parameters")]
     parameters: Parameters,
+}
+
+fn read_paths<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Rc<Vec<String>>, D::Error> {
+    Vec::<String>::deserialize(input).map(Rc::new)
 }
 
 fn read_inventory<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Option<Rc<Vec<String>>>, D::Error> {
@@ -53,7 +58,7 @@ enum Work {
         pairs: Vec<usize>,
         binding: usize,
         inventory: Rc<Vec<String>>,
-        files: Vec<String>,
+        files: Rc<Vec<String>>,
     },
     Pairs(Vec<usize>),
     Refused(String),
@@ -290,7 +295,7 @@ impl Batch {
                         .any(|h| h.columns.iter().any(|(_, k)| k == "File"));
                     let needs_inventory = program.bases.iter().any(|n| n == "filesystem.file");
                     (!has_file && (!req.files.is_empty() || !needs_inventory)).then(|| {
-                        let mut paths = req.files.clone();
+                        let mut paths = req.files.as_ref().clone();
                         paths.sort_unstable();
                         Rc::new(paths)
                     })
@@ -338,7 +343,7 @@ impl Batch {
                 // Caller rows are consumed only after closure. Sources with the same
                 // prepared program and caller schema produce identical local outputs.
                 let local = *self.local_bindings.entry(schema_key).or_insert(binding);
-                self.schedule.admit(req.root, req.files.clone(), local)?
+                self.schedule.admit(req.root, &req.files, local)?
             } else {
                 Vec::new()
             };
@@ -356,7 +361,7 @@ impl Batch {
         }
         let binding = self.binding(rule, req.hosted);
         self.bound_contracts.insert(binding, contract);
-        let pairs = self.schedule.admit(req.root, req.files, binding)?;
+        let pairs = self.schedule.admit(req.root, &req.files, binding)?;
         Ok(Work::Pairs(pairs))
     }
 

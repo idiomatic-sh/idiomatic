@@ -9,8 +9,9 @@ type Selection = (usize, usize, usize, usize);
 
 #[derive(Default)]
 pub(super) struct CallCache {
-    paths: HashMap<Rc<Vec<String>>, usize>,
-    selections: HashMap<Selection, Rc<Vec<String>>>,
+    paths: Vec<Rc<Vec<String>>>,
+    path_hashes: HashMap<u64, Vec<usize>>,
+    selections: HashMap<Selection, usize>,
     queries: HashSet<Rc<str>>,
     schemas: HashMap<(String, Vec<(String, String)>), usize>,
     rows: Vec<Rc<[HostCell]>>,
@@ -19,26 +20,50 @@ pub(super) struct CallCache {
 }
 
 impl CallCache {
-    pub(super) fn inventory(&mut self, paths: Vec<String>) -> (usize, Rc<Vec<String>>) {
-        if let Some((found, id)) = self.paths.get_key_value(&paths) {
-            return (*id, found.clone());
+    // Both callers supply sorted, unique paths. Compare full content on hash collisions.
+    fn intern_paths(&mut self, paths: &[&str]) -> usize {
+        let mut hash = DefaultHasher::new();
+        paths.hash(&mut hash);
+        let bucket = self.path_hashes.entry(hash.finish()).or_default();
+        if let Some(id) = bucket.iter().find(|&&id| {
+            self.paths[id]
+                .iter()
+                .map(String::as_str)
+                .eq(paths.iter().copied())
+        }) {
+            return *id;
         }
-        let paths = Rc::new(paths);
         let id = self.paths.len();
-        self.paths.insert(paths.clone(), id);
-        (id, paths)
+        self.paths
+            .push(Rc::new(paths.iter().map(|&path| path.to_owned()).collect()));
+        bucket.push(id);
+        id
+    }
+
+    pub(super) fn inventory(&mut self, mut paths: Vec<&str>) -> (usize, Rc<Vec<String>>) {
+        paths.sort_unstable();
+        paths.dedup();
+        let id = self.intern_paths(&paths);
+        (id, self.paths[id].clone())
     }
 
     pub(super) fn files(
         &mut self,
         key: Selection,
-        select: impl FnOnce() -> Vec<String>,
-    ) -> Vec<String> {
-        let paths = self
-            .selections
-            .entry(key)
-            .or_insert_with(|| Rc::new(select()));
-        paths.as_ref().clone()
+        admits: impl Fn(&str) -> bool,
+    ) -> Rc<Vec<String>> {
+        if let Some(&id) = self.selections.get(&key) {
+            return self.paths[id].clone();
+        }
+        let inventory = self.paths[key.0].clone();
+        let selected: Vec<_> = inventory
+            .iter()
+            .map(String::as_str)
+            .filter(|p| admits(p))
+            .collect();
+        let id = self.intern_paths(&selected);
+        self.selections.insert(key, id);
+        self.paths[id].clone()
     }
 
     pub(super) fn query(&mut self, query: &str) -> Rc<str> {
