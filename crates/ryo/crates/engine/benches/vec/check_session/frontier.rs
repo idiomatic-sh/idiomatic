@@ -9,6 +9,7 @@ use std::{
 pub(super) struct FileInputs<'a> {
     columns: BTreeMap<&'a str, Vec<bool>>,
     carried_bases: HashMap<String, Rc<Block>>,
+    produced: HashMap<usize, Rc<Block>>,
 }
 impl<'a> FileInputs<'a> {
     pub(super) fn new(
@@ -46,6 +47,7 @@ impl<'a> FileInputs<'a> {
         Self {
             columns: shared_columns,
             carried_bases: HashMap::new(),
+            produced: HashMap::new(),
         }
     }
     pub(super) fn contribute(
@@ -72,10 +74,13 @@ impl<'a> FileInputs<'a> {
                 .base()
                 .filter(|name| !hosted.iter().any(|(bound, _)| bound.as_str() == *name))
         };
+        let outputs = &b.outputs;
+        let share = |n: usize| outputs.get(&n).filter(|_| local_coverage.is_empty());
         let missing: Vec<_> = cut
             .inputs
             .iter()
             .copied()
+            .filter(|&n| !share(n).is_some_and(|id| self.produced.contains_key(id)))
             .filter(|&n| !shared_base(n).is_some_and(|name| self.carried_bases.contains_key(name)))
             .collect();
         let tables = {
@@ -88,10 +93,11 @@ impl<'a> FileInputs<'a> {
                     facts_view,
                     local,
                     &missing,
+                    &b.projections,
                     local_coverage,
                 )?;
-                for (n, t) in tables {
-                    let filtered = b.filters.get(&n).map(|terms| {
+                for (n, t, projected) in tables {
+                    let filtered = b.filters.get(&n).filter(|_| !projected).map(|terms| {
                         let mut rows = Vec::new();
                         for r in 0..t.n {
                             if terms.iter().any(|&(c, w)| t.cols[c][r] == w) {
@@ -120,6 +126,7 @@ impl<'a> FileInputs<'a> {
                     if let Some(name) = shared_base(n) {
                         self.carried_bases.insert(name.to_owned(), table);
                     } else {
+                        if let Some(id) = share(n) { self.produced.insert(*id,table.clone()); }
                         derived.insert(n, table);
                     }
                 }
@@ -130,7 +137,7 @@ impl<'a> FileInputs<'a> {
                     let t = if let Some(name) = shared_base(n) {
                         self.carried_bases.get(name).cloned()
                     } else {
-                        derived.remove(&n)
+                        derived.remove(&n).or_else(|| share(n).and_then(|id|self.produced.get(id)).cloned())
                     };
                     Ok((n, t.ok_or("missing local output")?))
                 })

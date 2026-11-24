@@ -267,6 +267,8 @@ impl Schedule {
 struct Bound<'p> {
     screenable: Option<bool>,
     empty_frontier: Option<Vec<(usize, Rc<Table>)>>,
+    outputs: HashMap<usize,usize>,
+    projections: BTreeMap<usize,finish::session::contribution::Projection>,
     exec: Exec<'p>,
     facts: Vec<l::Relation>,
     filters: BTreeMap<usize,Vec<(usize,u64)>>,
@@ -279,6 +281,7 @@ struct Bound<'p> {
 }
 
 fn bind<'p, L: FileSource>(
+    registry: &mut finish::session::contribution::Registry,
     program: &'p Program,
     parser: Option<&L>,
     run: &mut Run,
@@ -338,13 +341,17 @@ fn bind<'p, L: FileSource>(
         .iter()
         .map(|clause| clause.iter().map(|w| run.sym(w.as_bytes())).collect())
         .collect();
-    let exec = Exec::new(&program.plan);
-    let filters=cut.into_iter().flat_map(|c|&c.filters).map(|(&node,alts)|{
+    let mut exec = Exec::new(&program.plan);
+    let filters: BTreeMap<usize, Vec<(usize, u64)>>=cut.into_iter().flat_map(|c|&c.filters).map(|(&node,alts)|{
         (node,alts.iter().map(|(col,w)|(*col,u64::from(run.sym(w)))).collect())
     }).collect();
+    let projections = finish::session::contribution::Projection::bind(&mut exec, run, cut, &filters);
+    let outputs = registry.identify(&projections, cut);
     Ok(Bound {
         screenable: None,
         empty_frontier: None,
+        outputs,
+        projections,
         filters,
         exec,
         facts,
@@ -524,6 +531,7 @@ pub(crate) fn visit<L: FileSource>(
     let mut checks = pairs::Checks::new(parser, programs, program_of, sources, selected, cut_of);
     clocks.prepare += thread_cpu() - t;
     let mut bound = HashMap::new();
+    let mut registry = finish::session::contribution::Registry::default();
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
@@ -562,7 +570,7 @@ pub(crate) fn visit<L: FileSource>(
                 let entry = bound.entry(binding).or_insert_with(|| {
                     let p = program.as_ref().map_err(Clone::clone)?;
                     let tables = host(binding, &mut run)?;
-                    bind(p, parser, &mut run, tables, cut_of[binding].as_deref())
+                    bind(&mut registry, p, parser, &mut run, tables, cut_of[binding].as_deref())
                 });
                 if let Err(reason) = entry {
                     answers[slot] = Err(reason.clone());

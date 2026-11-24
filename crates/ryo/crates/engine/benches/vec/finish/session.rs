@@ -1,6 +1,8 @@
 //! Evaluate a closed set of typed populations once, after the final file.
 #[path = "session_certificate.rs"]
 pub(in super::super) mod certificate;
+#[path = "session/contribution.rs"]
+pub(in super::super) mod contribution;
 use super::population::Inputs;
 use super::{E, Exec, File, FileVersion, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};
 use std::{collections::BTreeMap, rc::Rc};
@@ -411,8 +413,9 @@ pub(in super::super) fn gather(
     facts: &mut dyn Provider,
     local: &[(String, Rc<Table>)],
     cut: &[usize],
+    projections: &BTreeMap<usize,contribution::Projection>,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
-) -> R<Vec<(usize, Rc<Table>)>> {
+) -> R<Vec<(usize, Rc<Table>, bool)>> {
     let mut frame = File::new(version, exec.plan.nodes.len());
     for (name, table) in local {
         frame.fills.insert(name.clone(), table.clone());
@@ -430,7 +433,12 @@ pub(in super::super) fn gather(
     let mut result = Vec::with_capacity(cut.len());
     run.missing.clear();
     for &i in cut {
-        result.push((i, exec.eval(&mut frame, run, facts, i)?));
+        if incomplete.is_empty()
+            && let Some(table) = contribution::gather(projections, i, &mut frame, run) {
+            result.push((i, table, true));
+        } else {
+            result.push((i, exec.eval(&mut frame, run, facts, i)?, false));
+        }
     }
     if !run.missing.is_empty() {
         return Err(format!("unimplemented functions {:?}", run.missing));
