@@ -344,9 +344,6 @@ pub(super) struct Run {
     pub(super) texts: Vec<Box<[u8]>>,
     pub(super) ids: FxHashMap<Box<[u8]>, u32>,
     pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
-    // Symbol IDs belong to this run. Each bound pattern retains a bounded set
-    // of recent answers, including collisions checked against the full ID.
-    glob_answers: FxHashMap<u32, [Option<(u32, bool)>; 16]>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
@@ -4054,7 +4051,7 @@ fn static_ty(e: &E) -> Ty {
         E::Col(_, _, t) => *t,
         E::Num(_) => Ty::Num,
         // redo-honest: `integer_successor(a, b)` is a test (the shipping engine's `Test::IntegerSuccessor`)
-        E::Call(n, _) if matches!(n.as_str(), "integer_successor" | "glob_any") => Ty::Flag,
+        E::Call(n, _) if n == "integer_successor" => Ty::Flag,
         E::Text(_) | E::Call(..) => Ty::Sym,
         _ => Ty::Flag,
     }
@@ -4259,34 +4256,9 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
             v
         }
         "glob_any" => {
-            use ryo_matching::inbound::use_cases::matching::{
-                interface::MatchingUseCase, types::{GlobPattern, MatchOutcome, SearchText},
-                use_case::MatchingUseCaseImpl,
-            };
-            let key = if vs[0].ty() == Ty::Sym && vs[1].ty() == Ty::Sym {
-                u32::try_from(vs[0].1).ok().zip(u32::try_from(vs[1].1).ok())
-            } else {
-                None
-            };
-            if let Some((subject, pattern)) = key
-                && let Some(Some((saved, answer))) = run.glob_answers.get(&pattern)
-                    .map(|answers| answers[subject as usize % answers.len()])
-                && saved == subject
-            {
-                return flag(answer);
-            }
-            let subject = text_of(run, vs[0]);
-            let pattern = text_of(run, vs[1]);
-            let matched = MatchingUseCaseImpl::new().matches_text_glob(
-                GlobPattern(&String::from_utf8_lossy(&pattern)),
-                SearchText(&String::from_utf8_lossy(&subject)),
-            );
-            let answer = matched == MatchOutcome::Matches;
-            if let Some((subject, pattern)) = key {
-                let answers = run.glob_answers.entry(pattern).or_default();
-                answers[subject as usize % answers.len()] = Some((subject, answer));
-            }
-            flag(answer)
+            let g = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();
+            let re = run.re(&glob_pattern(&g)).expect("a glob");
+            flag(re.is_match(&text_of(run, vs[0])))
         }
         "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&text_of(run, vs[0])), &String::from_utf8_lossy(&text_of(run, vs[1])))),
         // redo-honest: the shipping engine's meaning (operators numeric_values::integer_successor): whether the right is

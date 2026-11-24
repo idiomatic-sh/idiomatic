@@ -47,7 +47,7 @@ impl Schedule {
         for n in &p.needs {
             price.push(match n {
                 Need::InvalidPattern(_) => unreachable!("proof validation happens at load"),
-                Need::Any | Need::Empty | Need::PathMatches(_) | Need::PathGlob(_) | Need::SourceContains(_) => 0,
+                Need::Any | Need::Empty | Need::PathMatches(_) | Need::SourceContains(_) => 0,
                 Need::Terms(_, children) => children.iter().map(|&id| price[id]).max().unwrap_or(0),
                 Need::Some(d) => cost[*d],
                 Need::Both(a, b) | Need::Either(a, b) => price[*a].max(price[*b]),
