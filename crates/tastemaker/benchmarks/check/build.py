@@ -19,7 +19,7 @@ def source_identity(name):
         inputs = []
     else:
         pin = tomllib.loads((ROOT / "tastemaker.toml").read_text())["tastemaker"]
-        paths = [f"idiomatic-sh-tastemaker-v{pin}^{{commit}}", "HEAD:crates/ryo/cli/benches/readers/shipping.rs"]
+        paths = [f"idiomatic-sh-tastemaker-v{pin}^{{commit}}"]
         inputs = ["capture.rs.in", "reference.rs.in"]
     objects = subprocess.check_output(["git", "rev-parse", *paths], cwd=ROOT, text=True).splitlines()
     files = [HERE / "build.py", *(HERE / "worker" / f for f in inputs)]
@@ -82,14 +82,8 @@ def reference(stage, target, dest, tag):
     insert(adapter / "adapter.rs", ".map(report)", ".inspect(|r| capture::answer(stamp, r))\n            .map(report)")
     insert(tm / "crates/core/Cargo.toml", "[dependencies]", "[dependencies]\nserde_json.workspace = true\nsha2.workspace = true")
     insert(cli / "Cargo.toml", "[dependencies]", '[[bin]]\nname = "tm-case-reference"\npath = "src/case_reference.rs"\n\n[dependencies]\nsha2.workspace = true')
-    # Reuse the reader harness's typed host cells, parameter conversion and row encoding.
-    codec = (ROOT / "crates/ryo/cli/benches/readers/shipping.rs").read_text().split("pub(super) fn run(")[0]
-    # The frozen oracle supplies complete SDK cohorts in its own request envelope.
-    imports, declarations = codec.split("#[derive(serde::Deserialize)]\nstruct Request {", 1)
-    _, hosted = declarations.split("#[derive(serde::Deserialize)]\nstruct Hosted {", 1)
-    codec = imports.replace("path::{Path, PathBuf}", "path::PathBuf") + "#[derive(serde::Deserialize)]\nstruct Hosted {" + hosted
     allocator = (cli / "src/main.rs").read_text().split("fn main()")[0]
-    (cli / "src/case_reference.rs").write_text(allocator + codec.replace("//!", "//") + (HERE / "worker/reference.rs.in").read_text())
+    (cli / "src/case_reference.rs").write_text(allocator + (HERE / "worker/reference.rs.in").read_text())
     (cli / "src/main.rs").touch()
     build(tm / "Cargo.toml", target, dest,
           ["build", "--profile", "bench", "-p", "idiomatic-sh-tastemaker", "--bin", "tm", "--bin", "tm-case-reference"],

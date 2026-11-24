@@ -144,7 +144,7 @@ impl Checks {
         bound: &mut super::Bindings<'_>,
         run: &mut Run,
         tree: &l::NodeTable,
-        text: &[u32],
+        text: Option<&[u32]>,
         bytes: &[u8],
         path: &str,
         id: FileId,
@@ -192,8 +192,8 @@ impl Checks {
                 tree,
                 bytes,
                 Some(path.as_bytes()),
-                Some(SyntaxText {
-                    ids: text,
+                text.map(|ids| SyntaxText {
+                    ids,
                     symbols: &run.texts,
                     patterns: Some(&self.patterns),
                     column: Some(&column),
@@ -205,7 +205,7 @@ impl Checks {
                     };
                     requested.contains(&rel)
                         && !partials.iter().any(|p| p.relation == rel)
-                        && packet.columns(rel, symbols, bytes, id, text.len(), words, out)
+                        && packet.columns(rel, symbols, bytes, id, l::node_table::kind_codes(tree).len(), words, out)
                 },
                 &mut self.live,
                 None,

@@ -63,8 +63,6 @@ enum Lit {
 enum Key {
     Kind(u16),
     Field(u16),
-    /// The name tokens spelling one required word (step 3).
-    Word(u16),
 }
 
 #[derive(Clone)]
@@ -131,10 +129,10 @@ fn load_rules(path: &str, vocab: &Vocab) -> Vec<Rule> {
                     }
                 }
                 let parsed = if let Some(eq) = lit.strip_prefix("eq:") {
-                    let v: Vec<String> = serde_json::from_str(eq).expect("eq json");
+                    let v: Vec<String> = json_input::literals(eq);
                     Lit::Eq(v.into_iter().map(String::into_bytes).collect())
                 } else if let Some(re) = lit.strip_prefix("re:") {
-                    let v: Vec<String> = serde_json::from_str(re).expect("re json");
+                    let v: Vec<String> = json_input::literals(re);
                     Lit::Re(regex::bytes::Regex::new(&v.join("|")).expect("regex"))
                 } else {
                     Lit::None
@@ -300,7 +298,6 @@ fn bucket<'t>(table: &'t NodeTable, cols: &'t Columns, key: Key) -> Bucket<'t> {
             let (a, b) = (cols.field_offsets[usize::from(f)] as usize, cols.field_offsets[usize::from(f) + 1] as usize);
             Bucket::Own(&cols.by_field[a..b])
         }
-        Key::Word(_) => Bucket::Own(&[]),
     }
 }
 
@@ -384,7 +381,7 @@ fn census(walk: &impl Walk, vocab: &Vocab, list: &str, literals: &str, out: &str
     let lits: Vec<String> = std::fs::read_to_string(literals)
         .expect("literals")
         .lines()
-        .map(|l| serde_json::from_str::<String>(l).expect("literal json"))
+        .map(|l| json_input::literal(l))
         .collect();
     let mut kinds = vec![0u64; vocab.kind_names.len().max(256)];
     let mut fields = vec![0u64; vocab.field_names.len().max(256)];
@@ -433,7 +430,7 @@ fn census(walk: &impl Walk, vocab: &Vocab, list: &str, literals: &str, out: &str
     let mut t: Vec<_> = texts.into_iter().collect();
     t.sort();
     for ((l, k), c) in t {
-        w.push_str(&format!("text\t{}\t{}\t{c}\n", serde_json::to_string(&lits[l]).expect("json"), vocab.kind_names[usize::from(k)]));
+        w.push_str(&format!("text\t{}\t{}\t{c}\n", finish::json_output::quoted(&lits[l]), vocab.kind_names[usize::from(k)]));
     }
     std::fs::write(out, w).expect("write census");
     println!("census: files walked {walked}, elements {elements}");
@@ -510,30 +507,21 @@ fn run_check(args:&[&str],mut capture:Option<&mut finisher::retained::Capture>, 
                     finish_args.extend(["--request", args[at + 1]]);
                 }
                 // redo-lowering: `--finish <pack dir>` prepares the plan in this process from the rule text (the one parser,
-                // the engine's lowering); `--finish <plan file>` reads a plan prepared beforehand (the oracle).
                 let t0 = thread_cpu();
                 type_expression::load_lists(finish_args[0]);
                 let request_path = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
-                let pack_dir = std::path::Path::new(finish_args[0]).is_dir();
-                let document = request_path.filter(|_| pack_dir).map(request::metadata);
-                let mut pack = None;
-                let plan = if pack_dir {
-                    // `--request F`: the run's request, for the rule context the lowering reads
-                    let context = document.as_ref().map(request::context_from).unwrap_or_default();
-                    let read = lower::read_pack(std::path::Path::new(finish_args[0]), context);
-                    println!("start-up pack: read {:.4} parse {:.4} s", read.read, read.parse);
-                    let plan = lower::second_half_plan(&read, true);
-                    pack = Some((finish_args[0], read));
-                    plan
-                } else {
-                    finish::load(finish_args[0])
-                };
+                let mut document = request_path.map(json_input::metadata);
+                let context = document.as_mut().map(|d| std::mem::take(&mut d.context)).unwrap_or_default();
+                let read = lower::read_pack(std::path::Path::new(finish_args[0]), context);
+                println!("start-up pack: read {:.4} parse {:.4} s", read.read, read.parse);
+                let same_pack = std::fs::canonicalize(args[4]).ok() == std::fs::canonicalize(finish_args[0]).ok();
+                let plan = lower::second_half_plan(&read, same_pack);
                 println!("start-up total {:.4} s", thread_cpu() - t0);
                 let lowered = thread_cpu();
                 let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args, request_path.zip(document.as_ref()), paths);
                 drop(document);
                 fin.capture = capture.as_deref_mut().map(std::mem::take);
-                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)), paths);
+                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), Some((finish_args[0], &read)), paths);
                 if let Some(c) = capture.take() { *c = fin.capture.take().unwrap(); }
                 let walked = thread_cpu();
                 let ok = fin.end(0.0);
@@ -541,14 +529,12 @@ fn run_check(args:&[&str],mut capture:Option<&mut finisher::retained::Capture>, 
                     eprintln!("retained_evaluation_ms lowering={:.3} setup_walk_and_replay={:.3} finish_report={:.3}",
                         (lowered-t0)*1000.,(walked-lowered)*1000.,(thread_cpu()-walked)*1000.);
                 }
-                // redo-union pass 2 c18: the plan (30 k nodes of JSON) is not dropped one by one at exit
                 std::mem::forget(plan);
                 return ok;
             } else {
                 run_funnel(&walk, settings, &vocab, &args[2..], None, None, paths);
             }
         }
-        Some("finish") => run_finish(&walk, settings, &vocab, &args[2..]),
         Some("kfloor") => kernel_floor(&walk, args[2]),
         _ => eprintln!("usage: vec census <files> <literals> <out> | vec run <mode> <files> <anchors> [--batch N] [--repeat K] [--rules-out F]"),
     }
@@ -578,11 +564,9 @@ fn python_language(vocab: &Vocab) -> first::Language {
 fn target_settings_from(args:&[&str])->ryo_python::settings::PythonParserSettings {
     for option in ["--request", "--applicability"] {
         if let Some(path) = args.windows(2).find(|pair| pair[0] == option).map(|pair| &pair[1])
-            && let Ok(text) = std::fs::read_to_string(path)
-            && let Ok(request) = serde_json::from_str::<serde_json::Value>(&text)
-            && let Some(identity) = request["parser_configuration"].as_str()
+            && let Some(identity) = json_input::configuration(path)
         {
-            return ryo_python::settings::PythonParserSettings::from_identity(identity).unwrap_or_else(|| panic!("parser configuration {identity}"));
+            return ryo_python::settings::PythonParserSettings::from_identity(&identity).unwrap_or_else(|| panic!("parser configuration {identity}"));
         }
     }
     if std::env::var_os("VEC_PY310").is_some() {
@@ -845,17 +829,11 @@ mod funnel;
 #[path = "../../../../crates/engine/benches/vec/spec.rs"]
 mod spec;
 
-#[path = "../../../../crates/engine/benches/vec/file_seeds.rs"]
-mod file_seeds;
-#[path = "../../../../crates/engine/benches/vec/facts.rs"]
-mod facts;
-#[path = "../../../../crates/engine/benches/vec/survivors.rs"]
-mod survivors;
 #[path = "../../../../crates/engine/benches/vec/finish.rs"]
 mod finish;
 #[path = "../../../../crates/engine/benches/vec/lower.rs"]
 mod lower;
-use request::rule_context;
+use json_input::rule_context;
 #[path = "../../../../crates/engine/benches/vec/first.rs"]
 mod first;
 #[path = "../../../../crates/engine/benches/vec/pair_summary.rs"]
@@ -870,7 +848,7 @@ mod pair_checks;
 mod pair_provider;
 #[path = "../../../../crates/engine/benches/vec/host_columns.rs"]
 mod host_columns;
-mod request;
+mod json_input;
 #[path = "../../../../crates/engine/benches/vec/finisher.rs"]
 mod finisher;
 mod visit;
@@ -904,22 +882,6 @@ thread_local! {
 }
 
 /// The visit's facts as the finish's provider.
-struct Facts<'v, 'f, 'w> {
-    facts: &'v mut FileFacts<'f>,
-    words: &'w mut languages::FileWords,
-    filled: languages::FilledColumns,
-    time: f64,
-    rows: u64,
-    by_rel: HashMap<String, (f64, u64, u64)>,
-    file: u32,
-    /// redo-general: the provider's project (its packaging knowledge, run-wide) and this file's bytes, for the relations it
-    /// answers for a project.
-    project: &'w mut provider_packaging::Project,
-    src: &'w [u8],
-}
-
-/// 6f probe: the visit's facts through the direct-columns walk: the reader's fills, the provider's render, and the
-/// evaluation region (`ColumnFile::evaluation_region`).
 struct ColFacts<'v, 'a, 'f, 'w> {
     file: &'v mut ryo_python::fixtures::columns::ColumnFile<'a, 'f>,
     words: &'w mut languages::FileWords,
@@ -1453,67 +1415,6 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
     }
 }
 
-impl finish::Provider for Facts<'_, '_, '_> {
-    fn fill(&mut self, run: &mut finish::Run, rel: &str, scope: finish::Scope<'_>) -> Result<finish::Table, String> {
-        // redo-general: a project's relations from the provider's project (its packaging knowledge)
-        let file = match scope {
-            finish::Scope::File(file) => file,
-            finish::Scope::Files(files) => return self.project.fill(run, rel, files, self.file, self.facts.table, self.src),
-        };
-        if file != self.file {
-            return Err(format!("{rel}: asked for file {file}, this provider holds file {}", self.file));
-        }
-        if rel == fact_catalog::RELATIVE_IMPORT_REL {
-            let imports = self.fill(run, "static-import", finish::Scope::File(file))?;
-            return relative_import::targets(run, &imports, self.file, |run| {
-                self.project.fill(run, provider_packaging::MODULE_IDENTITY_REL, &[self.file], self.file, self.facts.table, self.src)
-            });
-        }
-        let t0 = thread_cpu();
-        let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
-        let relation = relation.ok_or_else(|| format!("{rel} needs VEC_COLWALK"))?;
-        self.filled.0.clear();
-        let answer = self.facts.facts.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
-        let mut t = match answer {
-            languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
-            languages::FactAnswer::Refused(_) => {
-                let reason = format!("{rel} not answered");
-                run.provider_refusal = Some(reason.clone());
-                Err(reason)
-            }
-            languages::FactAnswer::Partial(_) => Err(format!("{rel} not answered")),
-        }?;
-        // the walk names its file FileId(0): that cell is this provider's file (a cell naming another file is kept)
-        for c in 0..t.tys.len() {
-            if t.tys[c] == finish::Ty::File {
-                t.cols[c].iter_mut().filter(|v| **v == 0).for_each(|v| *v = u64::from(self.file));
-            }
-        }
-        let dt = thread_cpu() - t0;
-        self.time += dt;
-        self.rows += t.n as u64;
-        let e = self.by_rel.entry(rel.to_owned()).or_default();
-        e.0 += dt;
-        e.1 += t.n as u64;
-        e.2 += 1;
-        Ok(t)
-    }
-
-    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
-        let context = match context {
-            "assignment-target" => languages::RenderContext::AssignmentTarget,
-            "attribute-receiver" => languages::RenderContext::AttributeReceiver,
-            "positional-argument" => languages::RenderContext::PositionalArgument,
-            other => return Err(format!("render context {other}")),
-        };
-        match self.facts.facts.render(languages::RenderRequest { node: languages::NodeId(u64::from(node)), context }) {
-            languages::RenderOutcome::Known(t) => Ok(Some(t.0.as_bytes().to_vec())),
-            languages::RenderOutcome::NotApplicable => Ok(None),
-            languages::RenderOutcome::Unsupported(_) => Err("render unsupported".to_owned()),
-        }
-    }
-}
-
 /// `vec kfloor <files>`: the floor of the finish's batch steps per row on Django's real node tables (each file's own
 /// columns, cache-resident as a step would see them): gather, filter, position read, hash build and probe, set knock-out,
 /// and a next-token walk. Each kernel runs over every file; ns per row-op, thread clock, median of 5.
@@ -1614,64 +1515,11 @@ fn kernel_floor(walk: &impl Walk, list: &str) {
     });
 }
 
-/// `vec finish <plan.json> <files> <root> [--rules A,B] [--seed rule-file.tsv] [--out findings.jsonl] [--stats stats.tsv]
-/// [--check-bases]`: each rule's whole lowered query run per file (`finish.rs`); findings as the reference writes them.
-fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str]) {
-    let plan = finish::load(args[0]);
-    type_expression::load_lists(args[0]);
-    let list = files(args[1]);
-    let mut fin = visit::Finisher::new(&plan, walk, vocab, args, None,None);
-    let seed: Option<std::collections::HashSet<(String, String)>> =
-        flag(args, "--seed").map(|p| std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect());
-    let mut seed_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
-    for (r, f) in seed.iter().flatten() {
-        seed_by_path.entry(f.as_str()).or_default().insert(r.as_str());
-    }
-    // 6f probe: `VEC_COLWALK` walks through the direct-columns walk (the provider's own model is reachable there, for the
-    // evaluation region); `--dump F` writes every emit's rows instead of findings.
-    let colwalk = std::env::var_os("VEC_COLWALK").is_some();
-    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::with_settings(
-        ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),
-        settings,
-    );
-    let mut table = NodeTable::default();
-    let mut scratch = Default::default();
-    let mut walk_time = 0f64;
-    let mut rss_peak = 0u64;
-    for (file_no, path) in list.iter().enumerate() {
-        let w0 = thread_cpu();
-        let in_fin = fin.time;
-        let bytes = std::fs::read(path).expect("read");
-        // 7: the (rule, file) seeds read by file once, not a key copied per rule
-        let seed_here = seed_by_path.get(path.as_str());
-        let wanted = fin.wanted(path, &|e| seed.is_none() || seed_here.is_some_and(|s| s.contains(plan.emits[e].0.as_str())));
-        if !fin.visits(&wanted) {
-            continue;
-        }
-        if colwalk {
-            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| fin.column_file(file_no, path, file, &bytes, &wanted));
-        } else {
-            let _ = ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |mut file| fin.reader_file(file_no, path, &mut file, &bytes, &wanted));
-        }
-        walk_time += thread_cpu() - w0 - (fin.time - in_fin);
-        // 7: `VEC_RSS_TRACE`: the files after which the process's resident peak rose by 32 MiB or more
-        if std::env::var_os("VEC_RSS_TRACE").is_some() {
-            let hwm = std::fs::read_to_string("/proc/self/status").ok().and_then(|st| st.lines().find(|l| l.starts_with("VmHWM:")).and_then(|l| l.split_whitespace().nth(1)?.parse::<u64>().ok())).unwrap_or(0);
-            if hwm >= rss_peak + 32 * 1024 {
-                eprintln!("rss peak {} MiB after {}", hwm / 1024, path);
-                rss_peak = hwm;
-            }
-        }
-    }
-    fin.end(walk_time);
-}
-
-/// redo-general: the byte strings one of which a file's source must hold for a `source-matches` pattern of the plan to
-/// match in it: each pattern's literal set (regex-syntax's extractor) where it is finite and holds no empty string;
-/// distinct, in plan order. (A `matches` call tests a cell's text, which need not be the source's: not read here.)
-fn source_literals(patterns: &[String]) -> Vec<Vec<u8>> {
+/// Finite, nonempty literal alternatives in the plan's source-matching expressions.
+fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
     let mut out: Vec<Vec<u8>> = Vec::new();
-    for p in patterns {
+    for n in plan.nodes.iter().filter(|n| n.op == "source-matches") {
+        let Some(p) = n.args()["pattern"].as_str() else { continue };
         let Ok(hir) = regex_syntax::ParserBuilder::new().utf8(false).build().parse(p) else { continue };
         let seq = regex_syntax::hir::literal::Extractor::new().extract(&hir);
         let Some(lits) = seq.literals() else { continue };
@@ -1687,40 +1535,23 @@ fn source_literals(patterns: &[String]) -> Vec<Vec<u8>> {
     out
 }
 
-/// `vec funnel <way> <files> <anchors> <plans> [--repeat K] [--rules-out F] [--hits-out F]`: ways `cands`, `structure`,
-/// `interp`, `spec`, `knock`.
-/// `<anchors>` a directory: the pack; the first half's spec is prepared in this process from its parsed rules (`first.rs`), the
-/// parse shared with the second half's when `--finish` names the same pack (`pack`); `<anchors>` and `<plans>` files: the
-/// spec prepared beforehand (the oracle path).
-fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>, paths:Option<&[String]>) {
+/// Prepare the file funnel from a rule pack. A finish stage over the same pack reuses its parsed programs.
+fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>, paths: Option<&[String]>) {
     let way = args[0];
-    let patterns: Vec<String> = if let Some((_, prepared)) = pack {
-        use ryo_values::domain::finish_plans::types::FinishStep;
-        prepared.typed.borrow().as_ref().into_iter().flat_map(|p| p.steps.iter()).filter_map(|s| {
-            if let FinishStep::SourceMatches(a) = s { Some(a.pattern.0.to_string()) } else { None }
-        }).collect()
-    } else if let Some(path) = flag(args,"--finish") {
-        // Legacy plan file is an external input.
-        let input: serde_json::Value = serde_json::from_slice(&std::fs::read(path).expect("finish plan")).expect("finish plan");
-        input["nodes"].as_array().into_iter().flatten().filter(|n| n["op"] == "source-matches")
-            .filter_map(|n|n["args"]["pattern"].as_str().map(str::to_owned)).collect()
-    } else {Vec::new()};
-    let list = paths.map_or_else(||files(args[1]),|p|p.to_vec());
-    let mut fact_catalog = facts::Catalog::default();
-    let mut interner = facts::Interner { ids: facts::Table::named(&flag(args, "--hasher").unwrap_or_else(|| "std".to_owned())), ..Default::default() };
+    let list = paths.map_or_else(|| files(args[1]), <[String]>::to_vec);
     let f0 = thread_cpu();
     let no_skip = std::env::var_os("VEC_NO_SKIP").is_some();
     let mut pairs = None;
     let mut pair_steps = 0;
     let mut pair_cpu = 0.0;
     let mut exact_rows = Vec::new();
-    let (rules, frules, words) = if std::path::Path::new(args[2]).is_dir() {
+    let (rules, frules, words) = {
         let owned;
         let read = match pack {
             Some((dir, read)) if std::fs::canonicalize(dir).ok() == std::fs::canonicalize(args[2]).ok() => read,
             _ => {
                 let request = flag(args, "--request");
-                owned = lower::read_pack(std::path::Path::new(args[2]), request::rule_context(request.as_deref()));
+                owned = lower::read_pack(std::path::Path::new(args[2]), json_input::rule_context(request.as_deref()));
                 println!("start-up first half pack: read {:.4} parse {:.4} s", owned.read, owned.parse);
                 &owned
             }
@@ -1735,7 +1566,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         }
         let f2 = thread_cpu();
         let rules = rules_of_skips(&prepared.skips, vocab);
-        let (frules, words) = funnel::build(&prepared.rules, vocab, &mut fact_catalog, &mut interner);
+        let (frules, words) = funnel::build(&prepared.rules);
         pairs = Some(prepared.pairs);
         let f3 = thread_cpu();
         println!(
@@ -1743,61 +1574,14 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             f2 - f1, f3 - f2, f3 - f0, frules.len()
         );
         (rules, frules, words)
-    } else {
-        let rules = load_rules(args[2], vocab);
-        let (frules, words) = funnel::load(args[3], vocab, &mut fact_catalog, &mut interner);
-        println!("start-up first half: from the files: load {:.4} s; rules {} node {} plans {}", thread_cpu() - f0, frules.len(), frules.iter().filter(|r| r.node).count(), frules.iter().map(|r| r.plans.len()).sum::<usize>());
-        (rules, frules, words)
     };
     let use_facts = args.contains(&"--facts");
-    let slots_n = fact_catalog.relations.len();
-    let mut store = facts::Store { remap_on: args.contains(&"--remap"), ..Default::default() };
-    let token_pass = args.contains(&"--token-pass");
-    let check_links = args.contains(&"--check-token-links");
-    let token_slot = fact_catalog.names.iter().position(|n| n == "token-link");
-    // redo-general: the provider's token order (its lexical model), the same one the second half reads
-    let token_kinds = provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied());
-    let link_ids = [u64::from(interner.id(b"next-token")), u64::from(interner.id(b"matching-delimiter")), u64::from(interner.id(b"enclosing-delimiter"))];
-    let (mut token_time, mut token_files, mut model_only_files, mut token_only_files) = (0f64, 0u64, 0u64, 0u64);
-    let (mut link_rows_provider, mut link_rows_mine, mut link_mismatch) = (0u64, 0u64, 0u64);
     let mut fwords = ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names");
-    let mut filled = languages::FilledColumns::default();
-    // cols prototype: the provider writes the facts directly as per-node columns and keyed lists
     let direct = args.contains(&"--direct");
-    let check_direct = args.contains(&"--check-direct");
-    // ablations: every fact asked whole (no yes/no form); every fact asked in every file (no per-file decision)
-    let no_yes_no = args.contains(&"--no-yes-no");
-    let ask_all = args.contains(&"--ask-all");
-    let no_project = args.contains(&"--no-project");
-    let plant = std::env::var("COLS_PLANT").is_ok_and(|v| v == "1");
     let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::with_settings(
         ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),
         settings,
     );
-    store.direct_on = direct;
-    if args.contains(&"--regex-set") {
-        interner.set = Some(regex::bytes::RegexSet::new(interner.regexes.iter().map(|r| r.as_str())).expect("regex set"));
-    }
-    if let Some(t) = token_slot {
-        store.token_slot = Some((t, fact_catalog.column(t, "source"), fact_catalog.column(t, "target"), u64::from(interner.id(b"next-token"))));
-    }
-    let mut asks: Vec<ryo_python::fixtures::columns::Ask> = Vec::new();
-    let mut ask_of: Vec<(usize, usize)> = Vec::new();
-    let (mut direct_fill, mut direct_write, mut direct_files) = (0f64, 0f64, vec![0u64; slots_n]);
-    let mut model_time = 0f64;
-    let per_fact = args.contains(&"--per-fact");
-    let mut fact_time = vec![0f64; slots_n];
-    let (mut direct_rows, mut direct_exists_files) = (vec![0u64; slots_n], vec![0u64; slots_n]);
-    // the check: rows compared and differing, by slot; yes/no answers compared and differing; answers differing; reference
-    // cells that do not fit 32 bits
-    let (mut chk_rows, mut chk_diff, mut chk_yes, mut chk_yes_diff, mut chk_answer_diff, mut chk_wide) =
-        (vec![0u64; slots_n], vec![0u64; slots_n], vec![0u64; slots_n], vec![0u64; slots_n], vec![0u64; slots_n], vec![0u64; slots_n]);
-    let (mut chk_multi, mut chk_shown) = (vec![0u64; slots_n], 0usize);
-    let mut chk_cols: Vec<Vec<String>> = vec![Vec::new(); slots_n];
-    let (mut fill_time, mut write_time) = (vec![0f64; slots_n], vec![0f64; slots_n]);
-    let (mut fill_files, mut fill_rows, mut unanswered) = (vec![0u64; slots_n], vec![0u64; slots_n], vec![0u64; slots_n]);
-    let mut model_files = 0u64;
-    let mut decide_time = 0f64;
     let word_src = flag(args, "--words").unwrap_or_else(|| "none".to_owned());
     let word_skip = args.contains(&"--word-skip");
     let compare = args.contains(&"--compare");
@@ -1812,7 +1596,11 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         .expect("aho-corasick");
     // redo-general: the byte patterns of the `bytes6` probe from the plan's own text patterns (`source_literals`), not a list
     // of particular rules' bytes; at most 64 (one bit each)
-    let byte_patterns:Vec<Vec<u8>>=if word_src=="bytes6" {source_literals(&patterns).into_iter().take(64).collect()}else{Vec::new()};
+    let byte_patterns: Vec<Vec<u8>> = if word_src == "bytes6" {
+        fin.as_deref().map(|f| source_literals(f.plan())).unwrap_or_default().into_iter().take(64).collect()
+    } else {
+        Vec::new()
+    };
     let bytes_ac = aho_corasick::AhoCorasick::new(&byte_patterns).expect("byte patterns");
     if flag(args, "--words").as_deref() == Some("bytes6") {
         println!("byte patterns from the plan: {} {:?}", byte_patterns.len(), byte_patterns.iter().map(|p| String::from_utf8_lossy(p).into_owned()).collect::<Vec<_>>());
@@ -1830,59 +1618,28 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let mut fixed_memo: Vec<u32> = Vec::new();
     let (mut missing_in_src, mut extra_in_src, mut present_total, mut distinct_total) = (0u64, 0u64, 0u64, 0u64);
     let (mut alive_kinds, mut alive_both, mut rule_files) = (0u64, 0u64, 0u64);
-    let mut word_entry_bound = 0u64;
-    let repeat: usize = flag(args, "--repeat").map_or(1, |b| b.parse().expect("repeat"));
     let by_name: HashMap<&str, usize> = rules.iter().enumerate().map(|(i, r)| (r.name.as_str(), i)).collect();
     let skip_of: Vec<Option<usize>> = frules.iter().map(|r| by_name.get(r.name.as_str()).copied()).collect();
     // the kinds-and-fields skip of each plan rule, flat: a clause is its kind words then its field words
     let mut skip = Skip::new(skip_of.iter().map(|i| i.map_or((false, &[][..]), |i| (rules[i].never, rules[i].clauses.as_slice()))), frules.iter().map(|r| r.cnfs.as_slice()), words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
     let mut kinds: Vec<u64> = Vec::new();
     let fields_width = vocab.field_names.len();
-    let mut units = funnel::units(&frules);
-    if args.contains(&"--only-knock-units") {
-        units.retain(|u| u.knock);
-    }
-    let group_list = funnel::groups(&frules, &units);
     let structured = matches!(way, "structure" | "spec" | "knock");
     // the table writes the structure the checks read (element sets, the plans' enclosing columns) as ids are numbered
-    let enclosing: Vec<ryo::languages::KindSet> = fact_catalog.enc_sets.iter().map(|s| ryo::languages::KindSet(*s)).collect();
-    if structured {
-        cwalk.structured(enclosing.clone());
-    }
-    let max_regs = frules.iter().flat_map(|r| r.plans.iter().map(|p| p.regs)).max().unwrap_or(1).max(1);
-    // each plan's place in `plan_on`: whether this file enters its disjunct at it (always, for a disjunct of one plan)
-    let plan_base: Vec<usize> = frules.iter().scan(0, |a, r| { let b = *a; *a += r.plans.len(); Some(b) }).collect();
-    let mut plan_on = vec![true; frules.iter().map(|r| r.plans.len()).sum::<usize>()];
-    let mut cands = vec![0u64; units.len()];
-    let mut surv = vec![0u64; units.len()];
-    let mut unit_steps = vec![0u64; units.len()];
-    let mut knock_steps = 0u64;
-    let mut sv = survivors::Survivors::default();
+    let enclosing = Vec::new();
+    if structured { cwalk.structured(Vec::new()); }
     let mut phases = Phases::default();
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
     let mut cols = Columns::default();
-    let mut regs = vec![0u32; max_regs + 1];
-    let mut rows = funnel::Rows::default();
-    let mut file_mask: Vec<u64> = Vec::new();
-    let mut marked: Vec<u32> = Vec::new();
-    let mut stamp = 0u32;
-    let mut last = vec![0u32; units.len()];
-    let mut buf: Vec<u32> = Vec::new();
-    let mut remaining: Vec<u32> = Vec::new();
     let (mut kinds_alive, mut words_alive, mut alive): (Vec<bool>, Vec<bool>, Vec<bool>) = (Vec::new(), Vec::new(), Vec::new());
     // one pass: `--dump <file>` writes per file a hash of each part the first half reads (dump.rs)
     let dump_out = flag(args, "--dump");
     let mut dumped = String::new();
-    let mut reader_dump = String::new();
-    // Only a rule/file bit crosses this seam. Explicit enumeration or diagnostic
-    // outputs retain the exhaustive evaluator and its per-unit accounting.
-    let seed_only = (fin.is_some() || args.contains(&"--file-seeds")) && way == "spec" && direct && use_facts
-        && word_src == "table" && word_skip && repeat == 1
-        && !ask_all && !check_direct && !per_fact && !plant && dump_out.is_none()
-        && !["--enumerate-nodes", "--rules-out", "--surv-out", "--hits-out", "--alive-out", "--only-knock-units"].iter().any(|flag| args.contains(flag))
-        && std::env::var_os("VEC_NO_SKIP").is_none() && std::env::var_os("VEC_NO_PREFIX").is_none();
-    let mut file_seeds = seed_only.then(|| file_seeds::FileSeeds::new(&frules));
+    let alive_out = flag(args, "--alive-out");
+    let rules_out = flag(args, "--rules-out");
+    let mut alive_pairs = Vec::new();
+    let mut files_per_rule = vec![0u64; frules.len()];
     let seed_out = flag(args, "--seed-out");
     let mut seed_dump = String::new();
     let started = thread_cpu();
@@ -1896,8 +1653,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         }
         f.emit_names().map(|(_, name)| by_name.get(name).cloned().unwrap_or_default()).collect()
     }).unwrap_or_default();
-    let mut in_seed = vec![false; frules.len()];
-    let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
+    let mut wanted = Vec::new();
     let mut exact_counts = vec![(0u64, 0u64, 0u64); frules.len()];
     let mut exact_log = flag(args, "--exact-out").map(|p| std::io::BufWriter::new(std::fs::File::create(p).expect("exact pairs")));
     let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
@@ -1913,9 +1669,6 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             let origin=f.run.paths[file_no].clone();
             f.capture.as_mut().unwrap().visited(&origin,&bytes);
         }
-        let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
-        store.reset(slots_n);
-        reader_dump.clear();
         let mut visit_time = 0f64;
         // the file's skip, made once (inside the walk when the provider's facts are decided there, else after it): the
         // columns read, the required words present, and which rules can match by kinds and fields and by words
@@ -2069,19 +1822,19 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                 rule_files += frules.len() as u64;
                 alive_kinds += kinds_alive.iter().filter(|a| **a).count() as u64;
                 alive_both += alive.iter().filter(|a| **a).count() as u64;
-                for (ri, a) in alive.iter().enumerate() {
-                    if *a && !seed_only {
-                        sv.alive.push((ri as u32, file_no as u32));
+                if alive_out.is_some() || rules_out.is_some() {
+                    for (ri, can_run) in alive.iter().enumerate() {
+                        if *can_run {
+                            files_per_rule[ri] += 1;
+                            if alive_out.is_some() { alive_pairs.push((ri, file_no)); }
+                        }
                     }
                 }
                 phases.add("skip tests", thread_cpu() - c3);
                 }
             }};
         }
-        // the file's prefix: the structure pass, then each live unit's plans over its bucket (inside the fact visit when the
-        // walk lends the file there, so the second half can run on the same parsed file after it)
-        let mut prefixed = false;
-        macro_rules! prefix {
+        macro_rules! dump_table {
             ($t:expr) => {{
                 let t: &NodeTable = $t;
                 if dump_out.is_some() {
@@ -2105,561 +1858,33 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     h.rows(&word_offsets);
                     h.rows(&word_pos);
                     h.line(&mut dumped, file_no, "words");
-                    for (i, (slot, kc)) in ask_of.iter().enumerate() {
-                        let mut h = dump::Hashed::default();
-                        h.row(&asks[i]);
-                        h.row(&store.direct.tables[i]);
-                        h.line(&mut dumped, file_no, &format!("fact/{}/{kc}/{}", fact_catalog.names[*slot], asks[i].exists));
-                    }
-                    dumped.push_str(&reader_dump);
-                }
-                if way != "structure" && way != "words" {
-                    let ctx = funnel::Ctx {
-                        table: t,
-                        src: &bytes,
-                        sets: node_table::element_sets(t),
-                        facts: &store,
-                        enc: node_table::enclosing_ids(t),
-                        matches: &interner.matches,
-                    };
-                    let elements = node_table::element_count(t).0 as usize;
-                    if marked.len() < elements {
-                        marked.resize(elements, 0);
-                    }
-                    let fill = |key: &Key, buf: &mut Vec<u32>| {
-                        buf.clear();
-                        match *key {
-                            Key::Word(w) => buf.extend_from_slice(&word_pos[word_offsets[usize::from(w)] as usize..word_offsets[usize::from(w) + 1] as usize]),
-                            Key::Kind(k) => buf.extend(node_table::ids_of_kind(t, KindBits(k)).iter().map(|p| p.0)),
-                            Key::Field(f) => buf.extend(node_table::ids_of_field(t, languages::FieldCode(f)).iter().map(|p| p.0)),
-                        }
-                    };
-                    let c4 = thread_cpu();
-                    // no census: each disjunct with alternatives enters this file at the one whose buckets hold the fewest of
-                    // the file's nodes (any of them covers every node that can match)
-                    let bucket_len = |key: &Key| match *key {
-                        Key::Word(w) => (word_offsets[usize::from(w) + 1] - word_offsets[usize::from(w)]) as usize,
-                        Key::Kind(k) => node_table::ids_of_kind(t, KindBits(k)).len(),
-                        Key::Field(f) => node_table::ids_of_field(t, languages::FieldCode(f)).len(),
-                    };
-                    for (ri, rule) in frules.iter().enumerate() {
-                        if !alive[ri] {
-                            continue;
-                        }
-                        for alts in &rule.alts {
-                            let size = |p: &usize| rule.plans[*p].keys.iter().map(bucket_len).sum::<usize>();
-                            let best = alts.iter().min_by_key(|p| size(p)).copied();
-                            for p in alts {
-                                plan_on[plan_base[ri] + p] = Some(*p) == best;
-                            }
-                        }
-                    }
-                    for r in 0..repeat {
-                        let first = r == 0;
-                        let mut file_surv = vec![0u64; units.len()];
-                        let k0 = thread_cpu();
-                        if way == "knock" {
-                            for u in &mut last {
-                                *u = 0;
-                            }
-                            for g in &group_list {
-                                file_mask.clear();
-                                file_mask.resize(g.words(), 0);
-                                let mut i = 0;
-                                for (slot, u) in g.slot_unit.iter().enumerate() {
-                                    if alive[units[*u].rule] {
-                                        file_mask[slot / 64] |= 1 << (slot % 64);
-                                    }
-                                    i += 1;
-                                }
-                                let _ = i;
-                                if file_mask.iter().all(|w| *w == 0) {
-                                    continue;
-                                }
-                                fill(&g.key, &mut buf);
-                                let s = funnel::knock(&ctx, g, &buf, &file_mask, &mut file_surv, &mut last);
-                                if first {
-                                    knock_steps += s;
-                                    for u in &g.units {
-                                        if alive[units[*u].rule] {
-                                            cands[*u] += buf.len() as u64;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        if way == "knock" {
-                            phases.add("prefixes: knock-out units", (thread_cpu() - k0) / repeat as f64);
-                        }
-                        for (ui, unit) in units.iter().enumerate() {
-                            if !alive[unit.rule] || (way == "knock" && unit.knock) {
-                                continue;
-                            }
-                            let on = |p: &usize| plan_on[plan_base[unit.rule] + p];
-                            if !unit.plans.iter().any(on) {
-                                continue;
-                            }
-                            let rule = &frules[unit.rule];
-                            if word_skip && !unit.plans.iter().any(|p| funnel::cnf_holds(&rule.plans[*p].words, &present)) {
-                                continue;
-                            }
-                            fill(&unit.key, &mut buf);
-                            if first && word_src == "table" {
-                                // what entering from the rarest required word would start from: per plan the fewest name tokens of
-                                // a clause's words, never more than the bucket
-                                for p in &unit.plans {
-                                    let plan = &rule.plans[*p];
-                                    if word_skip && !funnel::cnf_holds(&plan.words, &present) {
-                                        continue;
-                                    }
-                                    let fewest = plan
-                                        .words
-                                        .iter()
-                                        .map(|cl| cl.iter().map(|w| u64::from(word_offsets[usize::from(*w) + 1] - word_offsets[usize::from(*w)])).sum::<u64>())
-                                        .min()
-                                        .unwrap_or(u64::MAX);
-                                    word_entry_bound += fewest.min(buf.len() as u64);
-                                }
-                            }
-                            let mut n_s = 0u64;
-                            let mut s = 0u64;
-                            match way {
-                                "cands" => {}
-                                "interp" => {
-                                    for &n in &buf {
-                                        for p in unit.plans.iter().filter(|p| on(p)) {
-                                            regs[0] = n;
-                                            if funnel::exec(&ctx, &rule.plans[*p].ops, 0, &mut regs, &mut s) {
-                                                n_s += 1;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                                _ => {
-                                    // each plan runs over the candidates no earlier plan of the unit kept: the first from the
-                                    // bucket itself, the next ones from what is left (made only when a later plan reads it)
-                                    stamp = stamp.wrapping_add(1);
-                                    let mut left = false;
-                                    for (pi, p) in unit.plans.iter().enumerate() {
-                                        let from: &[u32] = if left { &remaining } else { &buf };
-                                        if from.is_empty() {
-                                            break;
-                                        }
-                                        let plan = &rule.plans[*p];
-                                        if !on(p) || (word_skip && !funnel::cnf_holds(&plan.words, &present)) {
-                                            continue;
-                                        }
-                                        rows.enter(plan.regs.max(1), from);
-                                        for stage in &plan.stages {
-                                            if rows.len() == 0 {
-                                                break;
-                                            }
-                                            stage(&ctx, &mut rows, &mut s);
-                                        }
-                                        let mut kept = 0;
-                                        for j in 0..rows.len() {
-                                            let n = rows.d[j * rows.r] as usize;
-                                            if marked[n] != stamp {
-                                                marked[n] = stamp;
-                                                kept += 1;
-                                                if first {
-                                                    sv.nodes.push(n as u32);
-                                                }
-                                            }
-                                        }
-                                        n_s += kept;
-                                        if pi + 1 < unit.plans.len() && kept > 0 {
-                                            if left {
-                                                remaining.retain(|n| marked[*n as usize] != stamp);
-                                            } else {
-                                                remaining.clear();
-                                                remaining.extend(buf.iter().filter(|n| marked[**n as usize] != stamp));
-                                                left = true;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            if first {
-                                sv.close(unit.rule, file_no);
-                            }
-                            if first {
-                                cands[ui] += buf.len() as u64;
-                                file_surv[ui] += n_s;
-                                unit_steps[ui] += s;
-                            }
-                        }
-                        if first {
-                            let mut any = vec![false; frules.len()];
-                            for (ui, unit) in units.iter().enumerate() {
-                                surv[ui] += file_surv[ui];
-                                if file_surv[ui] > 0 {
-                                    any[unit.rule] = true;
-                                }
-                            }
-                            for (ri, a) in any.iter().enumerate() {
-                                if *a {
-                                    sv.hits.push((ri as u32, file_no as u32));
-                                }
-                            }
-                        }
-                    }
-                    phases.add("prefixes", (thread_cpu() - c4) / repeat as f64);
                 }
             }};
         }
+        let mut dumped_table = false;
         let ok = if use_facts && direct {
             cwalk
                 .walked(path, &bytes, &mut table, &mut |file| {
                     let p0 = thread_cpu();
                     let ft = file.table;
-                    let n = node_table::element_count(ft).0;
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
                     prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
                     prepared = true;
-                    let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
-                    if let Some(seeds) = &mut file_seeds {
-                        let now = thread_cpu();
-                        seeds.choose(&frules, &index, &alive, &present, &mut in_seed);
-                        phases.add("seed candidates", thread_cpu() - now);
-                        let now = thread_cpu();
-                        let ctx = funnel::Ctx { table: ft, src: &bytes, sets: node_table::element_sets(ft),
-                            enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
-                        seeds.probe(&frules, &index, &ctx, &mut in_seed);
-                        phases.add("seed checks", thread_cpu() - now);
-                    }
-                    let v0 = thread_cpu();
-                    let mut needed = vec![ask_all; slots_n];
-                    let mut valued = vec![ask_all; slots_n];
-                    let mut key_needed: Vec<(usize, usize)> = Vec::new();
-                    if let Some(seeds) = &file_seeds {
-                        seeds.requests(&mut needed, &mut valued, &mut key_needed);
-                    } else {
-                        for (ri, r) in frules.iter().enumerate() {
-                            if r.slots.is_empty() || !kinds_alive[ri] || !words_alive[ri] {
-                                continue;
-                            }
-                            for s in &r.slots {
-                                needed[*s] = true;
-                            }
-                            for s in &r.valued {
-                                valued[*s] = true;
-                            }
-                            for k in &r.keyed {
-                                if !key_needed.contains(k) {
-                                    key_needed.push(*k);
-                                }
-                            }
-                        }
-                    }
-                    let v1 = thread_cpu();
-                    decide_time += v1 - v0;
-                    let model_needed = needed.iter().enumerate().any(|(i, x)| *x && Some(i) != token_slot);
-                    let tokens_needed = token_slot.is_some_and(|t| needed[t]);
-                    if model_needed {
-                        model_files += 1;
-                    }
-                    if tokens_needed && !model_needed {
-                        token_only_files += 1;
-                    }
-                    if model_needed && !tokens_needed {
-                        model_only_files += 1;
-                    }
-                    if tokens_needed {
-                        token_files += 1;
-                    }
-                    let n = n as usize;
-                    asks.clear();
-                    ask_of.clear();
-                    for slot in 0..slots_n {
-                        if !needed[slot] || Some(slot) == token_slot {
-                            continue;
-                        }
-                        let exists = !valued[slot] && !check_direct && !no_yes_no;
-                        if exists {
-                            direct_exists_files[slot] += 1;
-                        }
-                        direct_files[slot] += 1;
-                        let full = check_direct || no_project || ask_all;
-                        let columns = if full { u64::MAX } else { fact_catalog.read_columns[slot] };
-                        for &kc in &fact_catalog.key_columns[slot] {
-                            if !full && !key_needed.contains(&(slot, kc)) {
-                                continue;
-                            }
-                            asks.push(ryo_python::fixtures::columns::Ask { relation: fact_catalog.relations[slot], key: kc, exists, columns });
-                            ask_of.push((slot, kc));
-                            if check_direct {
-                                asks.push(ryo_python::fixtures::columns::Ask { relation: fact_catalog.relations[slot], key: kc, exists: true, columns });
-                                ask_of.push((slot, kc));
-                            }
-                        }
-                    }
-                    let m = thread_cpu();
-                    file.prepare(&asks);
-                    let a = thread_cpu();
-                    model_time += a - m;
-                    if per_fact {
-                        store.direct.tables.resize_with(asks.len().max(store.direct.tables.len()), Default::default);
-                        for (i, ask) in asks.iter().enumerate() {
-                            let c = thread_cpu();
-                            file.column(ask, &mut interner, &mut store.direct.tables[i]);
-                            fact_time[ask_of[i].0] += thread_cpu() - c;
-                        }
-                    } else {
-                        file.columns(&asks, &mut interner, &mut store.direct);
-                    }
-                    let b = thread_cpu();
-                    direct_fill += b - a;
-                    for (i, (slot, kc)) in ask_of.iter().enumerate() {
-                        if check_direct && asks[i].exists {
-                            continue;
-                        }
-                        store.direct_of[*slot].push((*kc, i));
-                        store.answered[*slot] = true;
-                        let t = &store.direct.tables[i];
-                        direct_rows[*slot] += t.rows as u64;
-                        // the regex bits of the texts the plans test by regex, once a text
-                        for &c in &fact_catalog.re_columns[*slot] {
-                            let Some(col) = t.columns.get(c) else { continue };
-                            if col.is_empty() {
-                                continue;
-                            }
-                            match t.layout {
-                                ryo_python::fixtures::columns::Layout::Keyed => {
-                                    for v in col {
-                                        interner.ensure_matched(*v);
-                                    }
-                                }
-                                ryo_python::fixtures::columns::Layout::PerNode => {
-                                    for (wi, w) in t.present.iter().enumerate() {
-                                        let mut w = *w;
-                                        while w != 0 {
-                                            let k = wi * 64 + w.trailing_zeros() as usize;
-                                            w &= w - 1;
-                                            interner.ensure_matched(col[k]);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    direct_write += thread_cpu() - b;
-                    if let Some(t) = token_slot
-                        && tokens_needed
-                    {
-                        let a = thread_cpu();
-                        store.token_order(ft, &token_kinds, n);
-                        store.answered[t] = true;
-                        token_time += thread_cpu() - a;
-                    }
-                    if check_direct {
-                        languages::facts::clear_words(&mut fwords);
-                        let keyed_rows = |t: &ryo_python::fixtures::columns::FactTable, cols: &[usize]| -> Vec<Vec<u32>> {
-                            let mut out = Vec::new();
-                            for k in 0..n {
-                                if !t.present.get(k / 64).is_some_and(|w| w >> (k % 64) & 1 == 1) {
-                                    continue;
-                                }
-                                for r in t.rows_of(k) {
-                                    let r = t.row(r);
-                                    let mut row = vec![k as u32];
-                                    row.extend(cols.iter().map(|c| t.columns[*c][r]));
-                                    out.push(row);
-                                }
-                            }
-                            out
-                        };
-                        let mut kept = std::mem::take(&mut store.direct);
-                        // the plant (`COLS_PLANT=1`): one value of the first written column of each whole table is changed, and
-                        // one yes/no bit dropped; the check must count them
-                        if plant {
-                            for (i, t) in kept.tables.iter_mut().enumerate().take(asks.len()) {
-                                if asks[i].exists {
-                                    if let Some(w) = t.present.iter_mut().find(|w| **w != 0) {
-                                        *w &= *w - 1;
-                                    }
-                                    continue;
-                                }
-                                let first = t.present.iter().enumerate().find(|(_, w)| **w != 0).map(|(wi, w)| wi * 64 + w.trailing_zeros() as usize);
-                                if let Some(k) = first {
-                                    let r = t.rows_of(k).start;
-                                    let r = t.row(r);
-                                    if let Some(col) = t.columns.iter_mut().find(|c| c.len() > r) {
-                                        col[r] ^= 1;
-                                    }
-                                }
-                            }
-                        }
-                        let mut i = 0;
-                        while i < asks.len() {
-                            let (slot, kc) = ask_of[i];
-                            let (whole, yes) = (&kept.tables[i], &kept.tables[i + 1]);
-                            filled.0.clear();
-                            let answer = file.fill(fact_catalog.relations[slot], languages::Wanted::Whole, &mut fwords, &mut filled);
-                            let answered = matches!(answer, languages::FactAnswer::Answered(_));
-                            if answered != whole.answered || answered != yes.answered {
-                                chk_answer_diff[slot] += 1;
-                            }
-                            if answered && whole.answered {
-                                store.write(&fact_catalog, slot, &filled, &fwords, &mut interner, n);
-                                let cols: Vec<usize> = (0..whole.columns.len())
-                                    .filter(|c| match whole.layout {
-                                        ryo_python::fixtures::columns::Layout::PerNode => whole.columns[*c].len() == n && n > 0,
-                                        ryo_python::fixtures::columns::Layout::Keyed => !whole.columns[*c].is_empty(),
-                                    })
-                                    .collect();
-                                for c in &cols {
-                                    let name = fact_catalog.column_name(slot, *c);
-                                    if !chk_cols[slot].contains(&name) {
-                                        chk_cols[slot].push(name);
-                                    }
-                                }
-                                let mut mine = keyed_rows(whole, &cols);
-                                let cells = &store.cells[slot];
-                                let mut theirs: Vec<Vec<u32>> = (0..store.rows[slot])
-                                    .map(|r| {
-                                        let mut row = vec![cells[kc][r] as u32];
-                                        for c in &cols {
-                                            if cells[*c][r] >> 32 != 0 {
-                                                chk_wide[slot] += 1;
-                                            }
-                                            row.push(cells[*c][r] as u32);
-                                        }
-                                        row
-                                    })
-                                    .collect();
-                                mine.sort_unstable();
-                                theirs.sort_unstable();
-                                let mut keys: Vec<u32> = theirs.iter().map(|r| r[0]).collect();
-                                let all = keys.len();
-                                keys.dedup();
-                                chk_multi[slot] += (all - keys.len()) as u64;
-                                chk_rows[slot] += theirs.len() as u64;
-                                let (mut x, mut y, mut d) = (0, 0, 0u64);
-                                while x < mine.len() || y < theirs.len() {
-                                    match (mine.get(x), theirs.get(y)) {
-                                        (Some(a), Some(b)) if a == b => {
-                                            x += 1;
-                                            y += 1;
-                                        }
-                                        (Some(a), Some(b)) if a < b => {
-                                            if chk_shown < 20 {
-                                                chk_shown += 1;
-                                                eprintln!("check {} {}: only direct {a:?} (cols {cols:?})", fact_catalog.names[slot], path);
-                                            }
-                                            d += 1;
-                                            x += 1;
-                                        }
-                                        (Some(_), None) => {
-                                            d += 1;
-                                            x += 1;
-                                        }
-                                        (_, Some(b)) => {
-                                            if chk_shown < 20 {
-                                                chk_shown += 1;
-                                                eprintln!("check {} {}: only reader {b:?} (cols {cols:?})", fact_catalog.names[slot], path);
-                                            }
-                                            d += 1;
-                                            y += 1;
-                                        }
-                                        (None, None) => break,
-                                    }
-                                }
-                                chk_diff[slot] += d;
-                                // the yes/no answers: the nodes with a row
-                                let yes_nodes: Vec<u32> = (0..n as u32).filter(|k| yes.present.get(*k as usize / 64).is_some_and(|w| w >> (k % 64) & 1 == 1)).collect();
-                                chk_yes[slot] += keys.len() as u64;
-                                let (mut x, mut y) = (0, 0);
-                                while x < yes_nodes.len() || y < keys.len() {
-                                    match (yes_nodes.get(x), keys.get(y)) {
-                                        (Some(a), Some(b)) if a == b => {
-                                            x += 1;
-                                            y += 1;
-                                        }
-                                        (Some(a), Some(b)) if a < b => {
-                                            chk_yes_diff[slot] += 1;
-                                            x += 1;
-                                        }
-                                        (Some(_), None) => {
-                                            chk_yes_diff[slot] += 1;
-                                            x += 1;
-                                        }
-                                        (_, Some(_)) => {
-                                            chk_yes_diff[slot] += 1;
-                                            y += 1;
-                                        }
-                                        (None, None) => break,
-                                    }
-                                }
-                            }
-                            i += 2;
-                        }
-                        store.direct = kept;
-                        // the token order against the provider's next-token rows
-                        if let Some(t) = token_slot
-                            && tokens_needed
-                        {
-                            filled.0.clear();
-                            let _ = file.fill(fact_catalog.relations[t], languages::Wanted::Whole, &mut fwords, &mut filled);
-                            store.write(&fact_catalog, t, &filled, &fwords, &mut interner, n);
-                            let (sc, tc, kc) = (fact_catalog.column(t, "source"), fact_catalog.column(t, "target"), fact_catalog.column(t, "link-kind"));
-                            let next_id = u64::from(interner.id(b"next-token"));
-                            let cells = &store.cells[t];
-                            let mut theirs: Vec<(u32, u32)> = (0..store.rows[t]).filter(|r| cells[kc][*r] == next_id).map(|r| (cells[sc][r] as u32, cells[tc][r] as u32)).collect();
-                            let mut mine: Vec<(u32, u32)> = store.next_token.iter().enumerate().filter(|(_, v)| **v != u32::MAX).map(|(k, v)| (k as u32, *v)).collect();
-                            let mut back: Vec<(u32, u32)> = store.prev_token.iter().enumerate().filter(|(_, v)| **v != u32::MAX).map(|(k, v)| (*v, k as u32)).collect();
-                            theirs.sort_unstable();
-                            mine.sort_unstable();
-                            back.sort_unstable();
-                            chk_rows[t] += theirs.len() as u64;
-                            chk_diff[t] += u64::from(mine != theirs) * (mine.len().abs_diff(theirs.len()).max(1) as u64) + u64::from(back != theirs);
-                        }
-                    }
                     if dump_out.is_some() {
-                        // the reader's rows of every relation the plans ask, whole
-                        for slot in 0..slots_n {
-                            languages::facts::clear_words(&mut fwords);
-                            filled.0.clear();
-                            let answer = file.fill(fact_catalog.relations[slot], languages::Wanted::Whole, &mut fwords, &mut filled);
-                            let mut h = dump::Hashed::default();
-                            h.row(&answer);
-                            h.rows(&filled.0);
-                            h.line(&mut reader_dump, file_no, &format!("reader/{}", fact_catalog.names[slot]));
-                        }
+                        dump_table!(ft);
+                        dumped_table = true;
                     }
-                    // one parse a file: the prefix and then the second half on this walked file, before the walk drops it
-                    if let Some(seeds) = &mut file_seeds {
-                        let now = thread_cpu();
-                        let ctx = funnel::Ctx { table: ft, src: &bytes, sets: node_table::element_sets(ft),
-                            enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
-                        seeds.resolve(&frules, &index, &ctx, &mut in_seed);
-                        phases.add("seed checks", thread_cpu() - now);
-                    } else {
-                        prefix!(ft);
-                        if fin.is_some() || seed_out.is_some() {
-                            sv.seed_of_file(hits0, alive0, &node_class, &mut in_seed);
-                        }
-                    }
-                    prefixed = true;
                     let handoff = thread_cpu();
                     if seed_out.is_some() {
                         use std::fmt::Write as _;
-                        for (r, seeded) in in_seed.iter().enumerate() {
+                        for (r, seeded) in alive.iter().enumerate() {
                             if *seeded { writeln!(seed_dump, "{file_no}\t{}", frules[r].name).expect("write file seed"); }
                         }
                     }
                     if let Some(fin) = fin.as_deref_mut() {
-                        // redo-honest: `VEC_NO_PREFIX` seeds every rule the skip kept, survivors or not (a check of the
-                        // prefix: a node-class rule's findings must not depend on its prefix plans finding survivors)
-                        if std::env::var_os("VEC_NO_PREFIX").is_some() {
-                            for (r, _) in &sv.alive[alive0..] {
-                                in_seed[*r as usize] = true;
-                            }
-                        }
                         let before_wanted = fin.time;
-                        let mut wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
+                        fin.wanted_into( |e| emit_rules[e].iter().any(|r| alive.get(*r) == Some(&true)), &mut wanted);
                         if !exact_rows.is_empty() {
                             wanted.retain(|&e| {
                                 let [ri] = emit_rules[e].as_slice() else { return true };
@@ -2677,91 +1902,23 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                             });
                         }
                         // wanted() already charges its own time to the second half.
-                        if seed_only { phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0)); }
+                        phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0));
                         if fin.visits(&wanted) {
-                            fin.column_file(file_no, path, file, &bytes, &wanted);
+                            fin.column_file(file_no, file, &bytes, &wanted);
                         }
-                    } else if seed_only {
+                    } else {
                         phases.add("seed handoff", thread_cpu() - handoff);
                     }
                     visit_time += thread_cpu() - p0;
                 })
                 .is_ok()
         } else if use_facts {
-            // the provider's facts are lent only while the walk runs: decide here which files need them (some rule that
-            // tests a fact survived the kinds-and-words skip), then fill those relations and write their columns
             ryo_python::fixtures::walking::walked_structured(walk, path, &bytes, &[], &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
                 let p0 = thread_cpu();
-                let ft = file.table;
-                let n = node_table::element_count(ft).0;
-                prepare!(ft, |rel,words,out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_))));
+                prepare!(file.table, |rel, words, out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r, languages::Wanted::Whole, words, out), languages::FactAnswer::Answered(_))));
                 prepared = true;
-                let v0 = thread_cpu();
-                let mut needed = vec![false; slots_n];
-                for (ri, r) in frules.iter().enumerate() {
-                    if r.slots.is_empty() || !kinds_alive[ri] || !words_alive[ri] {
-                        continue;
-                    }
-                    for s in &r.slots {
-                        needed[*s] = true;
-                    }
-                }
-                let v1 = thread_cpu();
-                decide_time += v1 - v0;
-                let model_needed = needed.iter().enumerate().any(|(i, x)| *x && Some(i) != token_slot);
-                let tokens_needed = token_slot.is_some_and(|t| needed[t]);
-                if model_needed {
-                    model_files += 1;
-                }
-                if tokens_needed && !model_needed {
-                    token_only_files += 1;
-                }
-                if model_needed && !tokens_needed {
-                    model_only_files += 1;
-                }
-                if tokens_needed {
-                    token_files += 1;
-                }
-                languages::facts::clear_words(&mut fwords);
-                for slot in 0..slots_n {
-                    if !needed[slot] {
-                        continue;
-                    }
-                    if Some(slot) == token_slot && (token_pass || check_links) {
-                        let a = thread_cpu();
-                        store.token_links(&fact_catalog, slot, ft, &token_kinds, link_ids, n);
-                        token_time += thread_cpu() - a;
-                        if check_links {
-                            let col = |name: &str| fact_catalog.column(slot, name);
-                            let (sc, tc, kc) = (col("source"), col("target"), col("link-kind"));
-                            let mine: std::collections::BTreeSet<(u64, u64, u64)> = (0..store.rows[slot]).map(|r| (store.cells[slot][sc][r], store.cells[slot][tc][r], store.cells[slot][kc][r])).collect();
-                            link_rows_mine += store.rows[slot] as u64;
-                            filled.0.clear();
-                            let _ = file.facts.fill(fact_catalog.relations[slot], languages::Wanted::Whole, &mut fwords, &mut filled);
-                            store.write(&fact_catalog, slot, &filled, &fwords, &mut interner, n);
-                            let theirs: std::collections::BTreeSet<(u64, u64, u64)> = (0..store.rows[slot]).map(|r| (store.cells[slot][sc][r], store.cells[slot][tc][r], store.cells[slot][kc][r])).collect();
-                            link_rows_provider += store.rows[slot] as u64;
-                            link_mismatch += mine.symmetric_difference(&theirs).count() as u64;
-                        }
-                        continue;
-                    }
-                    let a = thread_cpu();
-                    filled.0.clear();
-                    let answer = file.facts.fill(fact_catalog.relations[slot], languages::Wanted::Whole, &mut fwords, &mut filled);
-                    let b = thread_cpu();
-                    fill_time[slot] += b - a;
-                    fill_files[slot] += 1;
-                    if matches!(answer, languages::FactAnswer::Answered(_)) {
-                        store.write(&fact_catalog, slot, &filled, &fwords, &mut interner, n);
-                        fill_rows[slot] += store.rows[slot] as u64;
-                    } else {
-                        unanswered[slot] += 1;
-                    }
-                    write_time[slot] += thread_cpu() - b;
-                }
                 visit_time += thread_cpu() - p0;
-            })
-            .is_ok()
+            }).is_ok()
         } else {
             let mut builder = if structured { node_table::structured(&mut table, walk_kinds(walk), &enclosing) } else { node_table::builder(&mut table, walk_kinds(walk)) };
             let ok = walk
@@ -2785,8 +1942,8 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         if !prepared {
             prepare!(t, |_,_,_| false);
         }
-        if !prefixed {
-            prefix!(t);
+        if dump_out.is_some() && !dumped_table {
+            dump_table!(t);
         }
     }
     // the second half's time inside this walk is not the first half's
@@ -2802,36 +1959,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         "words: {n_words} required words; word src {word_src}; present (file, word) {present_total}; distinct name-token words summed over files {distinct_total}; compare: in the table but not the source scan {missing_in_src}, in the source scan only {extra_in_src}"
     );
     println!("byte patterns: files by number of patterns present {byte_files:?}; patterns seen anywhere {byte_hits:#b}");
-    println!("skip: rule-files {rule_files} alive by kinds {alive_kinds} by kinds and words {alive_both}; entry bound from the rarest required word {word_entry_bound}");
-    if use_facts {
-        println!("facts: files that needed the model (some fact-testing rule survived the skip) {model_files}; deciding {decide_time:.4} s");
-        for slot in 0..slots_n {
-            println!(
-                "fact {}: files {} rows {} unanswered {} provider fill {:.4} s column write {:.4} s",
-                fact_catalog.names[slot], fill_files[slot], fill_rows[slot], unanswered[slot], fill_time[slot], write_time[slot]
-            );
-        }
-        println!(
-            "files: needing the semantic model {model_files}, needing token links {token_files}, token links only {token_only_files}, model only {model_only_files}; token pass {token_time:.4} s; link check: mine {link_rows_mine} provider {link_rows_provider} differing {link_mismatch}; enclosing kind sets {}; text lookups {}",
-            fact_catalog.enc_sets.len(),
-            interner.lookups
-        );
-        println!("facts total: provider fills {:.4} s column writes {:.4} s; interned texts {}", fill_time.iter().sum::<f64>(), write_time.iter().sum::<f64>(), interner.matches.len());
-        if direct {
-            for slot in 0..slots_n {
-                println!(
-                    "direct {}: files {} (yes/no only {}) rows {} time {:.4} s check: rows {} differing {} keys with more than one row {} yes/no keys {} differing {} answers differing {} wide cells {} columns compared beside the key {:?}",
-                    fact_catalog.names[slot], direct_files[slot], direct_exists_files[slot], direct_rows[slot], fact_time[slot], chk_rows[slot], chk_diff[slot], chk_multi[slot], chk_yes[slot], chk_yes_diff[slot], chk_answer_diff[slot], chk_wide[slot], chk_cols[slot]
-                );
-            }
-            println!(
-                "direct total: model build {model_time:.4} s provider columns {direct_fill:.4} s our writes (regex bits) {direct_write:.4} s token order {token_time:.4} s deciding {decide_time:.4} s; unwritten reads {}; check rows {} differing {}",
-                store.unwritten.get(),
-                chk_rows.iter().sum::<u64>(),
-                chk_diff.iter().sum::<u64>() + chk_yes_diff.iter().sum::<u64>() + chk_answer_diff.iter().sum::<u64>()
-            );
-        }
-    }
+    println!("skip: rule-files {rule_files} alive by kinds {alive_kinds} by kinds and words {alive_both}");
     if let Some(program) = &pairs {
         for (ri, _) in &program.exact {
             println!("EXACT\t{}\t{}\t{}\t{}", frules[*ri].name, exact_counts[*ri].0, exact_counts[*ri].1, exact_counts[*ri].2);
@@ -2841,63 +1969,26 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         meter.report(p);
     }
     println!("pair summary checks {pair_steps} CPU {pair_cpu:.4} s");
-    let knock_units = units.iter().filter(|u| u.knock).count();
-    let steps: u64 = unit_steps.iter().sum();
-    println!(
-        "funnel {way} repeat {repeat}: rules {} with plans {} plans {} units {} knock-out units {knock_units} groups {} (tests {}, words {})",
-        frules.len(),
-        frules.iter().filter(|r| !r.plans.is_empty()).count(),
-        frules.iter().map(|r| r.plans.len()).sum::<usize>(),
-        units.len(),
-        group_list.len(),
-        group_list.iter().map(funnel::Group::tests).sum::<usize>(),
-        group_list.iter().map(funnel::Group::words).sum::<usize>()
-    );
     println!("thread CPU total {total:.4} s");
     for (n, s) in &phases.0 {
         println!("phase {n}: {s:.4} s");
     }
     if let Some(path) = seed_out { std::fs::write(path, seed_dump).expect("write file seeds"); }
-    if let Some(seeds) = file_seeds {
-        let c = seeds.counts;
-        println!("file seeds: {} elements, {} disjuncts deferred to facts; survivors count one witness per node rule and file", c.elements, c.deferred);
-        println!("candidates {} survivors {} steps {} knock-steps 0 rule-files-with-survivors {}", c.candidates, c.witnesses, c.steps, c.witnesses);
-    } else {
-        let knock_c: u64 = units.iter().enumerate().filter(|(_, u)| u.knock).map(|(i, _)| cands[i]).sum();
-        let knock_s: u64 = units.iter().enumerate().filter(|(_, u)| u.knock).map(|(i, _)| surv[i]).sum();
-        println!(
-            "candidates {} survivors {} steps {steps} knock-steps {knock_steps} (knock-out units: candidates {knock_c} survivors {knock_s}) rule-files-with-survivors {}",
-            cands.iter().sum::<u64>(),
-            surv.iter().sum::<u64>(),
-            sv.hits.len()
-        );
-    }
-    if let Some(path) = flag(args, "--rules-out") {
-        let mut w = String::from("rule\tunits\tcandidates\tsurvivors\tsteps\tfiles\n");
-        let mut files_of = vec![0u64; frules.len()];
-        for (r, _) in &sv.alive {
-            files_of[*r as usize] += 1;
+    if let Some(path) = rules_out {
+        let mut rows = String::from("rule\tunits\tcandidates\tsurvivors\tsteps\tfiles\n");
+        for (r, files) in frules.iter().zip(files_per_rule) {
+            use std::fmt::Write as _;
+            writeln!(rows, "{}\t0\t0\t0\t0\t{files}", r.name).unwrap();
         }
-        for (ri, r) in frules.iter().enumerate() {
-            let mine: Vec<usize> = (0..units.len()).filter(|u| units[*u].rule == ri).collect();
-            let c: u64 = mine.iter().map(|u| cands[*u]).sum();
-            let s: u64 = mine.iter().map(|u| surv[*u]).sum();
-            let k: u64 = mine.iter().map(|u| unit_steps[*u]).sum();
-            w.push_str(&format!("{}\t{}\t{c}\t{s}\t{k}\t{}\n", r.name, mine.len(), files_of[ri]));
+        std::fs::write(path, rows).expect("rules out");
+    }
+    if let Some(path) = alive_out {
+        use std::fmt::Write as _;
+        let mut rows = String::new();
+        for (rule, file) in alive_pairs {
+            writeln!(rows, "{}\t{}", frules[rule].name, list[file]).unwrap();
         }
-        std::fs::write(path, w).expect("rules out");
-    }
-    // the dumps for comparing, after the timed part
-    let names: Vec<String> = frules.iter().map(|r| r.name.clone()).collect();
-    let name_refs: Vec<&str> = names.iter().map(String::as_str).collect();
-    if let Some(path) = flag(args, "--alive-out") {
-        std::fs::write(path, survivors::Survivors::pairs_text(&sv.alive, &name_refs, &list)).expect("alive out");
-    }
-    if let Some(path) = flag(args, "--surv-out") {
-        std::fs::write(path, sv.surv_text(&name_refs, &list)).expect("survivors out");
-    }
-    if let Some(path) = flag(args, "--hits-out") {
-        std::fs::write(path, survivors::Survivors::pairs_text(&sv.hits, &name_refs, &list)).expect("hits out");
+        std::fs::write(path, rows).expect("alive out");
     }
 }
 

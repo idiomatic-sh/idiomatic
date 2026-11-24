@@ -57,22 +57,17 @@ impl Report {
             .rows
             .iter()
             .map(|r| Row {
-                rule: r.rule.clone(),
-                identity: r.identity.clone(),
-                columns: r
-                    .columns
-                    .iter()
-                    .map(|(n, v)| {
-                        (
-                            n.clone(),
-                            v.as_ref().map(|c| match c {
-                                Cell::Text(s) => Value::Text(s.clone()),
-                                Cell::File(s) => Value::File(s.clone()),
-                                Cell::Number(i) => Value::Number(i.0),
-                                Cell::Span(s) => Value::Span(s.start.0, s.end.0),
-                            }),
-                        )
-                    })
+                rule: r.layout.rule.clone(),
+                identity: r.layout.identity.to_vec(),
+                columns: r.layout.names.iter().zip(r.cells()).map(|(name, cell)| {
+                    let value = cell.map(|cell| match cell {
+                        Cell::Text(text) => Value::Text(text.as_ref().into()),
+                        Cell::File(path) => Value::File(path.as_ref().into()),
+                        Cell::Number(n) => Value::Number(n.0),
+                        Cell::Span(s) => Value::Span(s.start.0, s.end.0),
+                    });
+                    (name.as_str().into(), value)
+                })
                     .collect(),
             })
             .collect();
@@ -85,27 +80,17 @@ impl Report {
         let rows = self
             .rows
             .iter()
-            .map(|r| finish::answer::Row {
-                rule: r.rule.clone(),
-                identity: r.identity.clone(),
-                columns: r
-                    .columns
-                    .iter()
-                    .map(|(n, v)| {
-                        (
-                            n.clone(),
-                            v.as_ref().map(|v| match v {
-                                Value::Text(s) => Cell::Text(s.clone()),
-                                Value::File(s) => Cell::File(s.clone()),
-                                Value::Number(n) => Cell::Number(Integer(*n)),
-                                Value::Span(s, e) => Cell::Span(Span {
-                                    start: Offset(*s),
-                                    end: Offset(*e),
-                                }),
-                            }),
-                        )
-                    })
-                    .collect(),
+            .map(|r| {
+                let columns = r.columns.iter().map(|(name, cell)| {
+                    let value = cell.as_ref().map(|cell| match cell {
+                        Value::Text(text) => Cell::Text(text.as_ref().into()),
+                        Value::File(path) => Cell::File(path.as_ref().into()),
+                        Value::Number(n) => Cell::Number(Integer(*n)),
+                        Value::Span(start, end) => Cell::Span(Span { start: Offset(*start), end: Offset(*end) }),
+                    });
+                    (name.to_string(), value)
+                }).collect();
+                finish::answer::Row::restored(r.rule.clone(), r.identity.clone().into(), columns)
             })
             .collect();
         session::Reported {

@@ -100,14 +100,14 @@ fn parameter(v: sdk::ParameterValue) -> Result<PlanConstant, String> {
     })
 }
 
-fn slot(v: &Option<Cell>) -> sdk::Slot {
+fn slot(v: &Option<Cell<std::sync::Arc<str>>>) -> sdk::Slot {
     let Some(c) = v else {
         return sdk::Slot::Nothing;
     };
     use release_sdk::languages::{Offset, Span};
     sdk::Slot::Is(match c {
-        Cell::File(p) => sdk::Cell::File(sdk::RelativePath(p.clone())),
-        Cell::Text(s) => sdk::Cell::Text(sdk::HostText(s.clone())),
+        Cell::File(p) => sdk::Cell::File(sdk::RelativePath(p.as_ref().into())),
+        Cell::Text(s) => sdk::Cell::Text(sdk::HostText(s.as_ref().into())),
         Cell::Number(n) => sdk::Cell::Number(sdk::HostNumber(n.0)),
         Cell::Span(s) => sdk::Cell::Span(Span {
             start: Offset(s.start.0),
@@ -307,17 +307,14 @@ impl Live {
             let receipt =
                 Batch::answer(work, &self.state.answers).map_err(|e| format!("{id}: {e}"))?;
             for row in receipt.rows {
-                let subject = row
-                    .identity
-                    .first()
-                    .and_then(|i| row.columns.get(*i))
+                let subject = row.layout.identity.first()
+                    .map(|&i| row.value(i))
                     .ok_or("missing row subject")?;
                 out.findings.push((
                     id.as_ref().into(),
-                    slot(&subject.1),
-                    row.columns
-                        .iter()
-                        .map(|(n, v)| (n.clone(), slot(v)))
+                    slot(&subject),
+                    row.layout.names.iter().zip(row.cells())
+                        .map(|(n, v)| (n.as_str().into(), slot(&v)))
                         .collect(),
                 ));
             }
@@ -414,6 +411,6 @@ pub fn capture_one(
 ) -> Result<(), String> {
     let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
     let bytes = std::fs::read(input).map_err(|e| e.to_string())?;
-    let req = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    let req = crate::json_input::decode(&bytes).map_err(|e| e.to_string())?;
     super::one_source(&readers, pack, req, out)
 }

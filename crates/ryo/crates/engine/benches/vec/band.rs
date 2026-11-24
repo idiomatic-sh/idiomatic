@@ -16,18 +16,18 @@ pub(super) struct Shape {
     /// (probed column, kept expression) equalities.
     pub(super) eqs: Vec<(usize, E)>,
     /// The band column of the probed source, and its bounds: (op with the probed column on the left, kept expression).
-    pub(super) band: Option<(usize, Vec<(String, E)>)>,
+    pub(super) band: Option<(usize, Vec<(Op, E)>)>,
     /// Every other test.
     pub(super) rest: Vec<E>,
 }
 
-fn flip(o: &str) -> &'static str {
-    match o {
-        "<" => ">",
-        "<=" => ">=",
-        ">" => "<",
-        ">=" => "<=",
-        _ => "=",
+fn flip(op: Op) -> Op {
+    match op {
+        Op::Lt => Op::Gt,
+        Op::Le => Op::Ge,
+        Op::Gt => Op::Lt,
+        Op::Ge => Op::Le,
+        other => other,
     }
 }
 
@@ -46,26 +46,26 @@ pub(super) fn shape(conj: &[E], pb: usize, ty: &[Ty]) -> Shape {
             continue;
         }
         if let E::Cmp(o, x, y) = c {
-            let sides = [(&**x, &**y, o.as_str()), (&**y, &**x, flip(o.as_str()))];
+            let sides = [(&**x, &**y, *o), (&**y, &**x, flip(*o))];
             let mut placed = false;
             for (a, b, op) in sides {
                 let E::Col(si, col, _) = *a else { continue };
                 if si != pb || refs_of(b) != kb {
                     continue;
                 }
-                if op == "=" && *o == Op::Eq {
+                if op == Op::Eq {
                     s.eqs.push((col, b.clone()));
                     placed = true;
                     break;
                 }
-                if matches!(op, "<" | "<=" | ">" | ">=") && ty[col] == Ty::Num {
+                if matches!(op, Op::Lt | Op::Le | Op::Gt | Op::Ge) && ty[col] == Ty::Num {
                     match &mut s.band {
                         None => {
-                            s.band = Some((col, vec![(op.to_owned(), b.clone())]));
+                            s.band = Some((col, vec![(op, b.clone())]));
                             placed = true;
                         }
                         Some((bc, bs)) if *bc == col => {
-                            bs.push((op.to_owned(), b.clone()));
+                            bs.push((op, b.clone()));
                             placed = true;
                         }
                         Some(_) => {}
@@ -263,11 +263,12 @@ impl Exec<'_> {
                         continue;
                     }
                     let x = v.1 as i64;
-                    match op.as_str() {
-                        ">" => lo = lo.max(x.saturating_add(1)),
-                        ">=" => lo = lo.max(x),
-                        "<" => hi = hi.min(x.saturating_sub(1)),
-                        _ => hi = hi.min(x),
+                    match *op {
+                        Op::Gt => lo = lo.max(x.saturating_add(1)),
+                        Op::Ge => lo = lo.max(x),
+                        Op::Lt => hi = hi.min(x.saturating_sub(1)),
+                        Op::Le => hi = hi.min(x),
+                        _ => unreachable!("only inequality bounds form a band"),
                     }
                 }
                 if none || lo > hi {
@@ -280,7 +281,7 @@ impl Exec<'_> {
             let band_terms: Vec<E> = if later.is_empty() {
                 Vec::new()
             } else {
-                sh.band.as_ref().map(|(c, bs)| bs.iter().map(|(op, e)| E::Cmp(Op::of(op), Box::new(E::Col(pb, *c, Ty::Num)), Box::new(e.clone()))).collect()).unwrap_or_default()
+                sh.band.as_ref().map(|(c, bs)| bs.iter().map(|(op, e)| E::Cmp(*op, Box::new(E::Col(pb, *c, Ty::Num)), Box::new(e.clone()))).collect()).unwrap_or_default()
             };
             if count && recheck.is_empty() && band_terms.is_empty() && sh.rest.is_empty() {
                 if !run_rows.is_empty() {

@@ -78,7 +78,7 @@ fn field_members(v: &ViewSpec) -> Option<Vec<u32>> {
 #[derive(Default)]
 pub(super) struct Compiler {
     fields: FxHashMap<Vec<u32>, Rc<Kernel>>,
-    programs: FxHashMap<(Native, Vec<String>), Option<Rc<Kernel>>>,
+    programs: FxHashMap<(Native, Vec<super::cold_list::FilterKey>), Option<Rc<Kernel>>>,
     inventory: BTreeMap<(&'static str, bool), (usize, usize)>,
 }
 

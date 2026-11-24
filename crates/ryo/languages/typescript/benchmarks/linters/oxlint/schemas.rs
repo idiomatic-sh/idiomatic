@@ -103,7 +103,7 @@ impl TryFrom<OxlintReportSchema<'_>> for RunReport {
             selected,
         } = schema;
         check_status(output)?;
-        let report: ReportSchema = serde_json::from_slice(&output.stdout.0)
+        let report: ReportSchema = crate::json_input::decode(&output.stdout.0)
             .map_err(|error| Error::Json(Box::new(error)))?;
         if (output.status.0 == 0_i32) != report.diagnostics.is_empty() {
             return Err(Error::Invalid(constants::CONTRADICTORY_STATUS.into()));

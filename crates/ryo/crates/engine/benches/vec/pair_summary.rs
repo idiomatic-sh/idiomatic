@@ -81,6 +81,7 @@ pub(super) enum Need {
     Terms(bool, Box<[Id]>),
     Any,
     PathMatches(usize, bool),
+    PathGlob(usize),
     SyntaxMatches(usize, bool),
     InvalidPattern(usize), // proof prerequisite, resolved during plan compaction
     SourceContains(usize),
@@ -122,6 +123,7 @@ pub(super) struct Program {
     pub roots: Vec<(String, Id)>,
     pub skips: Vec<(bool, Vec<Vec<String>>, Vec<Vec<String>>)>,
     pub regexes: Vec<regexes::Pattern>,
+    pub path_globs: Vec<String>,
     pub text_kinds: Vec<u16>,
     pub symbols: Map<String, Id>,
     pub max_text: usize,
@@ -977,8 +979,15 @@ impl Builder<'_> {
         {
             let glob;
             let pattern = if &*f.function.0 == "glob_any" {
-                let Some(pattern) = super::glob_pattern(&pattern.0) else { return ANY };
-                glob = pattern;
+                let Some(compiled) = super::glob_pattern(&pattern.0) else {
+                    let slot = self.out.path_globs.iter().position(|p| p == &*pattern.0)
+                        .unwrap_or_else(|| {
+                            self.out.path_globs.push(pattern.0.to_string());
+                            self.out.path_globs.len() - 1
+                        });
+                    return self.need(Need::PathGlob(slot));
+                };
+                glob = compiled;
                 &glob
             } else {
                 &*pattern.0
@@ -1734,6 +1743,7 @@ pub(super) fn prepare_plans(
             paths: Vec::new(),
             file_only: Vec::new(),
             regexes: Vec::new(),
+            path_globs: Vec::new(),
             text_kinds: language.text_kinds.clone(),
             symbols: Map::default(),
             max_text: 0,

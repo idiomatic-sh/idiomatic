@@ -1,5 +1,5 @@
 //! Resolve expressions in the lowering's typed select directly against source schemas.
-use super::{E, Exec, J, Op, PNode, R, Rc, Run, Schema, Ty, TextTest, symbol_predicate, glob_pattern};
+use super::{E, Exec, Op, PNode, R, Rc, Run, Schema, Ty, TextTest, symbol_predicate, glob_pattern};
 use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
 type Sources = [(Option<String>, Rc<Schema>)];
 
@@ -11,10 +11,10 @@ fn alias(a: &SourceAlias) -> Option<&str> {
 }
 impl PNode {
     pub(super) fn alias(&self, i: usize) -> Option<&str> {
-        if let Some(FinishStep::Select(s)) = self.step() {
+        if let FinishStep::Select(s) = self.step() {
             alias(&s.sources[i].alias)
         } else {
-            self.external()?["src"][i][1].as_str()
+            None
         }
     }
 }
@@ -25,18 +25,13 @@ impl Exec<'_> {
         n: &PNode,
         sources: &Sources,
     ) -> R<Option<E>> {
-        if let Some(FinishStep::Select(s)) = n.step() {
+        if let FinishStep::Select(s) = n.step() {
             return match &s.condition {
                 RowCondition::Every => Ok(None),
                 RowCondition::Tested(e) => self.typed_expr(run, e, sources).map(Some),
             };
         }
-        let c = &n.external().ok_or("select")?["cond"];
-        if c.is_null() {
-            Ok(None)
-        } else {
-            self.expr(run, c, sources).map(Some)
-        }
+        Err("not a select".into())
     }
     pub(super) fn select_items(
         &self,
@@ -44,7 +39,7 @@ impl Exec<'_> {
         n: &PNode,
         sources: &Sources,
     ) -> R<Option<Vec<(String, E)>>> {
-        if let Some(FinishStep::Select(s)) = n.step() {
+        if let FinishStep::Select(s) = n.step() {
             return match &s.columns {
                 SelectedColumns::All => Ok(None),
                 SelectedColumns::Items(items) => items
@@ -59,20 +54,7 @@ impl Exec<'_> {
                     .map(Some),
             };
         }
-        match &n.external().ok_or("select")?["items"] {
-            J::Null => Ok(None),
-            J::Array(items) => items
-                .iter()
-                .map(|i| {
-                    Ok((
-                        super::external_text(&i[0])?.to_owned(),
-                        self.expr(run, &i[1], sources)?,
-                    ))
-                })
-                .collect::<R<_>>()
-                .map(Some),
-            _ => Err("items".into()),
-        }
+        Err("not a select".into())
     }
     pub(super) fn column_expr(
         run: &mut Run,
