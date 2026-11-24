@@ -174,6 +174,7 @@ impl Batch {
     }
 
     fn run(&mut self, languages: Vec<Language>) -> Vec<Answer> {
+        let inventory_start = thread_cpu();
         self.schedule.close();
         self.inventories.clear();
         self.roots.clear();
@@ -209,6 +210,7 @@ impl Batch {
             .map(|l| l.0.into_iter().next())
             .chain([None]);
         let paths: Arc<[String]> = self.schedule.sources.iter().map(|s| s.path.clone()).collect();
+        self.clocks.inventory += thread_cpu() - inventory_start;
         for (language, files) in readers.zip(groups) {
             if files.is_empty() {
                 continue;
@@ -232,6 +234,7 @@ impl Batch {
                 &mut self.clocks,
             );
         }
+        let merge_start = thread_cpu();
         for work in &mut self.work {
             if let Work::Pairs(pairs) = work {
                 for slot in pairs {
@@ -239,6 +242,7 @@ impl Batch {
                 }
             }
         }
+        self.clocks.merge += thread_cpu() - merge_start;
         self.finish_projects();
         answers
     }
@@ -457,7 +461,7 @@ pub(crate) fn batch(languages: Vec<Language>, manifest: &str, output: &str, work
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
     println!(
-        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6}",
+        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6} inventory={:.6} merge={:.6}",
         session.schedule.programs.len(),
         session.bindings.len(),
         session.schedule.sources.len(),
@@ -474,6 +478,8 @@ pub(crate) fn batch(languages: Vec<Language>, manifest: &str, output: &str, work
         c.project,
         c.assemble,
         registration,
+        c.inventory,
+        c.merge,
     );
 }
 

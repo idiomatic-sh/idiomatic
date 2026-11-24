@@ -41,6 +41,9 @@ impl Program {
             .iter()
             .filter_map(|n| n.base().map(str::to_owned))
             .collect();
+        for node in &plan.nodes {
+            let _ = node.args();
+        }
         let layout = finish::Layout::prepare(&plan);
         Ok(Self {
             plan,
@@ -54,6 +57,8 @@ impl Program {
 #[derive(Default)]
 pub(crate) struct Clock {
     pub prepare: f64,
+    pub inventory: f64,
+    pub merge: f64,
     pub read_parse: f64,
     pub screen: f64,
     pub evaluate: f64,

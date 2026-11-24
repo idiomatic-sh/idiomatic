@@ -1,6 +1,6 @@
 //! A relative path and all its overlaid versions belong to one worker, so the
 //! existing version/binding deduplication sees every consumer of that path.
-use super::{Answer, Clock, Program, Result, Run, Source, Tables, l, visit_groups};
+use super::{Answer, Clock, Program, Result, Run, Source, Tables, l, thread_cpu, visit_groups};
 use crate::finisher::workers;
 use std::{collections::BTreeMap, num::NonZeroUsize, path::Path, sync::Arc};
 
@@ -44,6 +44,7 @@ pub(crate) fn visit(
     host: impl Fn(usize, &mut Run) -> Result<Tables> + Sync,
     clocks: &mut Clock,
 ) {
+    let inventory_start = thread_cpu();
     let parser = language.map(|lang| lang.parse_engine());
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
     for &index in selected {
@@ -61,6 +62,7 @@ pub(crate) fn visit(
             .saturating_mul(source.bindings.len().max(1) as u64))
     })
     .expect("closed path groups");
+    clocks.inventory += thread_cpu() - inventory_start;
     let work = |ids: &[usize], sink: &mut Sink<'_>| {
         visit_groups(
             parser.as_deref(),
@@ -86,6 +88,7 @@ pub(crate) fn visit(
             (output, time)
         },
     );
+    let merge_start = thread_cpu();
     for (part, time) in completed {
         for (slot, target) in part.aliases {
             aliases[slot] = target;
@@ -106,4 +109,5 @@ pub(crate) fn visit(
         clocks.skipped += time.skipped;
         clocks.evaluated += time.evaluated;
     }
+    clocks.merge += thread_cpu() - merge_start;
 }
