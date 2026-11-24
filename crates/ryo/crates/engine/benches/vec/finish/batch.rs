@@ -2,7 +2,7 @@
 //! postings and node IDs are local to a partition. Each output keeps its tag
 //! implicitly in its slot until the ordinary file sink consumes it.
 use super::*;
-use std::collections::BinaryHeap;
+use smallvec::SmallVec;
 
 /// Sorted physical nodes reached by at least one file. Scratch survives batches;
 /// unrelated plan slots are neither cleared nor visited.
@@ -10,12 +10,27 @@ use std::collections::BinaryHeap;
 pub(in super::super) struct Demand {
     masks: Vec<u32>,
     whole: Vec<u32>,
-    pending: BinaryHeap<usize>,
+    pending: Vec<u64>,
+    highest: usize,
     ordered: Vec<(usize, u32, u32)>,
 }
 impl Demand {
     pub(in super::super) fn include(&mut self, node: usize, files: u32) {
         self.select(node, files, true);
+    }
+    fn pop(&mut self) -> Option<usize> {
+        loop {
+            let word = self.pending.get_mut(self.highest)?;
+            if *word != 0 {
+                let bit = 63 - word.leading_zeros() as usize;
+                *word ^= 1_u64 << bit;
+                return Some(64 * self.highest + bit);
+            }
+            if self.highest == 0 {
+                return None;
+            }
+            self.highest -= 1;
+        }
     }
     fn select(&mut self, node: usize, files: u32, whole: bool) {
         if self.masks.len() <= node {
@@ -23,7 +38,12 @@ impl Demand {
             self.masks.resize(node + 1, 0);
         }
         if self.masks[node] == 0 {
-            self.pending.push(node);
+            let word = node / 64;
+            if self.pending.len() <= word {
+                self.pending.resize(word + 1, 0);
+            }
+            self.pending[word] |= 1_u64 << (node % 64);
+            self.highest = self.highest.max(word);
         }
         self.masks[node] |= files;
         if whole {
@@ -46,8 +66,10 @@ impl Lane<'_, '_> {
         visit: impl FnOnce(&mut File<'_>, &mut Run, &mut dyn Provider) -> T,
     ) -> T {
         std::mem::swap(self.fields, &mut run.field_sym);
-        run.root_dir.clear();
-        run.root_dir.push_str(self.root);
+        if run.root_dir != self.root {
+            run.root_dir.clear();
+            run.root_dir.push_str(self.root);
+        }
         let value = visit(self.frame, run, self.facts);
         std::mem::swap(self.fields, &mut run.field_sym);
         value
@@ -70,8 +92,8 @@ impl Exec<'_> {
         }
         roots(demand);
         // Descending node order collects the entire mask before visiting inputs.
-        while let Some(node) = demand.pending.pop() {
-            let mask = std::mem::take(&mut demand.masks[node]);
+        while let Some(node) = demand.pop() {
+            let mut mask = std::mem::take(&mut demand.masks[node]);
             let whole = std::mem::take(&mut demand.whole[node]);
             if self.is_constant(run, node) {
                 continue;
@@ -80,12 +102,33 @@ impl Exec<'_> {
             // An indexed native view already represents its entire operator
             // tree. Only whole consumers need a gathered table for that view.
             if !matches!(self.view(run, node), Ok(Some(_))) {
+                // An empty required result has no input demand. Check it before
+                // distributing its mask, as the single-file producer does.
+                if !sw!("VEC_NO_KNOWN") {
+                    for (i, lane) in lanes.iter_mut().enumerate() {
+                        let bit = 1 << i;
+                        if mask & bit != 0
+                            && lane.enter(run, |f, r, p| self.known_empty(f, r, p, node))
+                        {
+                            mask &= !bit;
+                        }
+                    }
+                    if mask == 0 {
+                        continue;
+                    }
+                }
                 for &dep in &step.inputs {
                     let full = step.op == "union" || self.frames[node].gate as usize == dep;
-                    demand.select(dep, mask, full);
+                    let unary_source =
+                        step.op == "select" && step.inputs.len() == 1 && step.semi().is_none();
+                    // Keyed sources, the right side of a negative join and
+                    // counted bands are asked for by their consumer as needed.
+                    if full || unary_source {
+                        demand.select(dep, mask, full);
+                    }
                 }
             }
-            demand.ordered.push((node, mask, whole));
+            demand.ordered.push((node, mask, whole & mask));
         }
         let mut grouped = 0;
         let mut partitions = 0;
@@ -146,8 +189,16 @@ impl Exec<'_> {
             std::mem::swap(lane.fields, &mut run.field_sym);
             let rows = view_rows_for(lane.frame, run, view, node, true);
             std::mem::swap(lane.fields, &mut run.field_sym);
-            let output = Table::with_rows(schema.names.clone(), schema.tys.clone(), rows.len());
-            inputs.push((i, rows, output));
+            if rows.is_empty() {
+                let empty = self.empty_rc(run, node)?;
+                if !lane.frame.cursor_views.remove(&node) {
+                    self.stats.ran(node);
+                }
+                lane.frame.vmat.insert(node, empty);
+            } else {
+                let output = Table::with_rows(schema.names.clone(), schema.tys.clone(), rows.len());
+                inputs.push((i, rows, output));
+            }
         }
         for (col, &pick) in view.map.iter().enumerate() {
             for (id, rows, table) in &mut inputs {
@@ -204,14 +255,10 @@ impl Exec<'_> {
             }
             return self.materialize_partitions(run, lanes, node, whole, &view);
         }
-        let mut active = Vec::new();
+        let mut active = SmallVec::<[usize; 4]>::new();
         let empty = self.empty_rc(run, node)?;
         for (i, lane) in lanes.iter_mut().enumerate() {
             if mask & (1 << i) == 0 || lane.frame.memo[node].is_some() {
-                continue;
-            }
-            if !sw!("VEC_NO_KNOWN") && lane.enter(run, |f, r, p| self.known_empty(f, r, p, node)) {
-                lane.frame.remember(node, Res::Tab(empty.clone()));
                 continue;
             }
             active.push(i);
@@ -220,7 +267,7 @@ impl Exec<'_> {
             return Ok(0);
         }
         let a = plan.nodes[node].args();
-        let mut ready = Vec::with_capacity(active.len());
+        let mut ready = SmallVec::<[(usize, Option<Rc<Table>>); 4]>::with_capacity(active.len());
         let first = self.frames[node].first;
         for id in active {
             let input = if self.frames[node].gate < frame::MISSING && op != "union" {
