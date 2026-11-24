@@ -125,6 +125,39 @@ fn captured(
     result
 }
 
+/// A closed capture may omit a split that cannot survive any direct consumer.
+/// Every participating select reads this result as its only input. An emit,
+/// a different operator or an unknown predicate contributes no proof.
+pub(super) fn required_equalities(
+    exec: &mut super::Exec<'_>, run: &mut super::Run, node: usize,
+) -> Vec<(usize, usize)> {
+    use super::{E, Op};
+    if exec.plan.emits.iter().any(|e| e.1 == node) {
+        return Vec::new();
+    }
+    let mut common: Option<Vec<(usize, usize)>> = None;
+    for index in 0..exec.consumers[node].len() {
+        let user = exec.consumers[node][index];
+        let step = &exec.plan.nodes[user];
+        if step.op != "select" || step.inputs.as_slice() != [node] {
+            return Vec::new();
+        }
+        let Ok(plan) = exec.sel(run, user) else { return Vec::new() };
+        let terms: Vec<_> = plan.conj.iter().filter_map(|e| {
+            if let E::Cmp(Op::Eq, a, b) = e
+                && let (E::Col(0, x, tx), E::Col(0, y, ty)) = (&**a, &**b)
+                && tx == ty {
+                return Some(((*x).min(*y), (*x).max(*y)));
+            }
+            None
+        }).collect();
+        let kept = common.get_or_insert_with(|| terms.clone());
+        kept.retain(|term| terms.contains(term));
+        if kept.is_empty() { break; }
+    }
+    common.unwrap_or_default()
+}
+
 pub(super) fn write(
     run: &mut super::Run,
     input: &super::Table,
@@ -133,6 +166,7 @@ pub(super) fn write(
     separator: Option<&str>,
     columns: &[Option<usize>],
     project: bool,
+    equal: &[(usize, usize)],
     out: &mut super::Table,
 ) -> super::R<()> {
     let mut by_path = super::FxHashMap::default();
@@ -165,8 +199,16 @@ pub(super) fn write(
             &single
         };
         for way in 0..ways.count {
-            input.row(r, &mut row);
             let start = way * columns.len();
+            let word_at = |i: usize| {
+                if i < input.cols.len() { input.cols[i][r] }
+                else { ways.cells[start + i - input.cols.len()] }
+            };
+            if equal.iter().any(|&(a, b)| {
+                let x = word_at(a);
+                x == super::NULL || x != word_at(b)
+            }) { continue; }
+            input.row(r, &mut row);
             row.extend_from_slice(&ways.cells[start..start + columns.len()]);
             out.push_row(&row);
         }
