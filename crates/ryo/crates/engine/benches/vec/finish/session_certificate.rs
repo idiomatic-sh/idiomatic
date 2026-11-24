@@ -8,6 +8,7 @@ pub(crate) fn certified_empty(
     exec: &mut Exec<'_>,
     run: &mut Run,
     tables: &[(String, Rc<Table>)],
+    frontier: Option<&finish::partition::Partition>,
 ) -> bool {
     // Accept a compiled literal pattern after select preparation has validated it.
     fn total(expr: &E, run: &Run) -> bool {
@@ -17,13 +18,17 @@ pub(crate) fn certified_empty(
                     "lower" => args.len() == 1,
                     "starts_with" | "ends_with" => args.len() == 2,
                     "concat" => true,
-                    "glob_any" => matches!(args.as_slice(), [_, E::Text(id)] if run.prepared_globs.contains_key(id)),
+                    "glob_any" => {
+                        matches!(args.as_slice(), [_, E::Text(id)] if run.prepared_globs.contains_key(id))
+                    }
                     _ => false,
                 };
                 arity && args.iter().all(|arg| total(arg, run))
             }
             E::Seed(..) | E::Cmp(Op::Other, ..) => false,
-            E::In(a, b, _) | E::And(a, b) | E::Or(a, b) | E::Cmp(_, a, b) => total(a, run) && total(b, run),
+            E::In(a, b, _) | E::And(a, b) | E::Or(a, b) | E::Cmp(_, a, b) => {
+                total(a, run) && total(b, run)
+            }
             E::Null(a, _) | E::Not(a) | E::Re(a, _) => total(a, run),
             E::List(items) => items.iter().all(|arg| total(arg, run)),
             E::Col(..) | E::Lit(_) | E::Text(_) | E::Num(_) => true,
@@ -46,6 +51,9 @@ pub(crate) fn certified_empty(
     let check = |exec: &mut Exec<'_>, run: &mut Run| -> R<()> {
         let plan = exec.plan;
         for (i, step) in plan.nodes.iter().enumerate() {
+            if frontier.is_some_and(|cut| !cut.file_steps[i]) {
+                continue;
+            }
             let _schema = exec.schema(run, i)?;
             let arg_column = |ex: &mut Exec<'_>, run: &mut Run, input, name: &str| -> R<()> {
                 let source = ex.arg_rel(i, input)?;
@@ -127,6 +135,9 @@ pub(crate) fn certified_empty(
                 _ => return Err("file operator without an empty-answer certificate".into()),
             }
         }
+        if frontier.is_some() {
+            return Ok(());
+        }
         for (_, i, subject, keys) in &plan.emits {
             let schema = exec.schema(run, *i)?;
             for name in std::iter::once(subject).chain(keys) {
@@ -136,4 +147,26 @@ pub(crate) fn certified_empty(
         Ok(())
     };
     check(exec, run).is_ok()
+}
+
+/// Preserve the frontier schema even when no output can contain any rows.
+pub(crate) fn empty_frontier(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    steps: &[usize],
+) -> R<Vec<(usize, Rc<Table>)>> {
+    steps
+        .iter()
+        .map(|&step| {
+            let schema = exec.schema(run, step)?;
+            Ok((
+                step,
+                Rc::new(Table::with_rows(
+                    schema.names.clone(),
+                    schema.tys.clone(),
+                    0,
+                )),
+            ))
+        })
+        .collect()
 }

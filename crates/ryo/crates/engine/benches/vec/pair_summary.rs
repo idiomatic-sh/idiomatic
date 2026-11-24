@@ -1692,12 +1692,13 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
 
 /// Relations supplied as rows may have a different population from the tree.
 pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, language: &Language, reader_rows: &[String], syntax_symbols: bool) -> Program {
-    prepare_plans(&[plan], vocab, language, reader_rows, None, syntax_symbols)
+    prepare_plans(&[plan], None, vocab, language, reader_rows, None, syntax_symbols)
 }
 
 /// Prepared texts share one set of file and node tests without renumbering their executor steps.
 pub(super) fn prepare_plans(
     plans: &[&FinishPlan],
+    targets: Option<&[Vec<usize>]>,
     vocab: &Vocab,
     language: &Language,
     reader_rows: &[String],
@@ -1757,8 +1758,8 @@ pub(super) fn prepare_plans(
     b.need(Need::Any);
     b.need(Need::Empty);
     let omit = cost::omitted();
-    for plan in plans {
-        prepare_roots(&mut b, plan, omit, &mut phase);
+    for (i, plan) in plans.iter().enumerate() {
+        prepare_roots(&mut b, plan, targets.map(|ts| ts[i].as_slice()), omit, &mut phase);
     }
     // The separate raw-word index has no proof that every provider value has
     // a raw spelling (for example, a normalized or resolved identifier).
@@ -1789,15 +1790,19 @@ pub(super) fn prepare_plans(
     b.out
 }
 
-fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, omit: u16, phase: &mut impl FnMut(&str)) {
+fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: Option<&[usize]>, omit: u16, phase: &mut impl FnMut(&str)) {
     b.counts.clear();
     b.positive = false;
     b.early_omit = 0;
     let language = b.language;
     let mut live = vec![false; plan.steps.len()];
-    for r in &plan.rules {
-        if let RuleEmit::Written(e) = &r.emit {
-            live[e.step.0] = true;
+    if let Some(steps) = targets {
+        for &step in steps { live[step] = true; }
+    } else {
+        for r in &plan.rules {
+            if let RuleEmit::Written(e) = &r.emit {
+                live[e.step.0] = true;
+            }
         }
     }
     for (i, s) in plan.steps.iter().enumerate().rev() {
@@ -1828,7 +1833,9 @@ fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, omit: u16, phase: &mut 
         }
     }
     phase("live");
+    let previous_exact = b.out.exact.len();
     let mut exclusions = exact::prepare(b, plan, &live).into_iter().peekable();
+    if targets.is_some() { b.out.exact.truncate(previous_exact); }
     b.positive = true;
     // Proofs are complete before this point. Widen only positive witnesses.
     b.early_omit = omit;
@@ -1868,19 +1875,28 @@ fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, omit: u16, phase: &mut 
             println!("WITNESS\t{step}\t{}\t{:?}", row.need, row.domains);
         }
     }
-    for r in &plan.rules {
-        let (need, skip) = match &r.emit {
-            RuleEmit::Written(e) => (rows[e.step.0].need, skips[e.step.0].root()),
-            RuleEmit::Unwritten => (ANY, Default::default()),
-        };
+    let mut push = |name, step: Option<usize>| {
+        let (need, skip) = step.map_or_else(|| (ANY, Default::default()), |i| {
+            (rows[i].need, skips[i].root())
+        });
         let early = b.file_guard(need);
         let root = if early == ANY || early == need {
             need
         } else {
             b.need(Need::Both(early, need))
         };
-        b.out.roots.push((r.rule.0.to_string(), root));
+        b.out.roots.push((name, root));
         b.out.skips.push(skip);
+    };
+    if let Some(steps) = targets {
+        for &step in steps { push(String::new(), Some(step)); }
+    } else {
+        for rule in &plan.rules {
+            let step = match &rule.emit {
+                RuleEmit::Written(e) => Some(e.step.0),
+                RuleEmit::Unwritten => None,
+            };
+            push(rule.rule.0.to_string(), step);
+        }
     }
-
 }

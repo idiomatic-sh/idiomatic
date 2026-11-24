@@ -9,7 +9,7 @@ use std::collections::{BTreeSet, HashMap};
 
 pub(super) struct Checks {
     program: pair_summary::Program,
-    roots: Vec<Option<usize>>,
+    roots: Vec<Vec<usize>>,
     live: Vec<bool>,
     patterns: crate::pair_checks::SymbolMatches,
     words: l::FileWords,
@@ -23,24 +23,40 @@ impl Checks {
         selected: &[usize],
         cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
     ) -> Self {
-        let mut needed = vec![false; programs.len()];
+        let mut needed = vec![false; program_of.len()];
         for &source in selected {
             for &binding in sources[source].bindings.keys() {
-                if cuts[binding].is_none() {
-                    needed[program_of[binding]] = true;
-                }
+                needed[binding] = true;
             }
         }
-        let mut roots = vec![None; programs.len()];
+        let mut steps = vec![BTreeSet::new(); programs.len()];
+        let mut roots = vec![Vec::new(); program_of.len()];
+        for (binding, outputs) in roots.iter_mut().enumerate().filter(|(b, _)| needed[*b]) {
+            let id = program_of[binding];
+            let Ok(program) = &programs[id] else { continue };
+            if let Some(partition) = &cuts[binding] {
+                outputs.extend_from_slice(&partition.inputs);
+            } else {
+                outputs.extend(program.plan.emits.iter().map(|e| e.1));
+            }
+            steps[id].extend(outputs.iter().copied());
+        }
         let mut plans = Vec::new();
+        let mut targets = Vec::new();
+        let mut indices = HashMap::new();
         let mut bases = BTreeSet::new();
-        for (id, program) in programs.iter().enumerate() {
-            if needed[id]
-                && let Ok(program) = program
-            {
-                roots[id] = Some(plans.len());
-                plans.push(program.typed.as_ref());
-                bases.extend(program.bases.iter().map(String::as_str));
+        for (id, wanted) in steps.into_iter().enumerate().filter(|(_, s)| !s.is_empty()) {
+            let program = programs[id].as_ref().expect("prepared file program");
+            for &step in &wanted {
+                indices.insert((id, step), indices.len());
+            }
+            targets.push(wanted.into_iter().collect());
+            plans.push(program.typed.as_ref());
+            bases.extend(program.bases.iter().map(String::as_str));
+        }
+        for (binding, outputs) in roots.iter_mut().enumerate() {
+            for step in outputs {
+                *step = indices[&(program_of[binding], *step)];
             }
         }
         let mut language = crate::declaration();
@@ -72,6 +88,7 @@ impl Checks {
             .collect();
         let program = pair_summary::prepare_plans(
             &plans,
+            Some(&targets),
             &vocab,
             &language,
             &supplied,
@@ -90,7 +107,6 @@ impl Checks {
     pub(super) fn exclude(
         &mut self,
         active: &mut [(usize, usize, bool)],
-        program_of: &[usize],
         bound: &mut HashMap<usize, Result<Bound<'_>>>,
         run: &mut Run,
         tree: &l::NodeTable,
@@ -103,52 +119,47 @@ impl Checks {
         packet: &reader_run::packet::Packet,
         cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
     ) {
-        let root = |binding: usize| {
-            if cuts[binding].is_none() {
-                self.roots[program_of[binding]]
-            } else {
-                None
-            }
-        };
         self.live.fill(false);
         let mut any = false;
-        for &(b, _, excluded) in active.iter() {
-            if !excluded && let Some(r) = root(b) {
-                self.live[r] = true;
-                any = true;
+        for &(binding, _, excluded) in active.iter() {
+            if !excluded {
+                for &root in &self.roots[binding] {
+                    self.live[root] = true;
+                    any = true;
+                }
             }
         }
-        if !any {
-            return;
+        if any {
+            self.program.file_columns(
+                tree,
+                bytes,
+                Some(path.as_bytes()),
+                Some(SyntaxText {
+                    ids: text,
+                    symbols: &run.texts,
+                    patterns: Some(&self.patterns),
+                }),
+                &mut self.words,
+                |source, words, out| {
+                    let FactSource::Catalog(rel) = source else {
+                        return false;
+                    };
+                    requested.contains(&rel)
+                        && packet.columns(rel, symbols, bytes, id, text.len(), words, out)
+                },
+                &mut self.live,
+                None,
+            );
         }
-        self.program.file_columns(
-            tree,
-            bytes,
-            Some(path.as_bytes()),
-            Some(SyntaxText {
-                ids: text,
-                symbols: &run.texts,
-                patterns: Some(&self.patterns),
-            }),
-            &mut self.words,
-            |source, words, out| {
-                let FactSource::Catalog(rel) = source else {
-                    return false;
-                };
-                requested.contains(&rel)
-                    && packet.columns(rel, symbols, bytes, id, text.len(), words, out)
-            },
-            &mut self.live,
-            None,
-        );
         for (binding, _, excluded) in active {
-            if !*excluded && root(*binding).is_some_and(|r| !self.live[r]) {
+            if !*excluded && self.roots[*binding].iter().all(|&r| !self.live[r]) {
                 let b = bound.get_mut(binding).unwrap().as_mut().unwrap();
                 *excluded = *b.screenable.get_or_insert_with(|| {
                     crate::finish::session::certificate::certified_empty(
                         &mut b.exec,
                         run,
                         &b.hosted,
+                        cuts[*binding].as_deref(),
                     )
                 });
             }

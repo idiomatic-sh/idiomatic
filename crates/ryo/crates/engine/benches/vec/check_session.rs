@@ -259,6 +259,7 @@ impl Schedule {
 
 struct Bound<'p> {
     screenable: Option<bool>,
+    empty_frontier: Option<Vec<(usize, Rc<Table>)>>,
     exec: Exec<'p>,
     facts: Vec<l::Relation>,
     hosted: Tables,
@@ -332,6 +333,7 @@ fn bind<'p, L: FileSource>(
     let exec = Exec::new(&program.plan);
     Ok(Bound {
         screenable: None,
+        empty_frontier: None,
         exec,
         facts,
         hosted,
@@ -765,7 +767,7 @@ pub(crate) fn visit<L: FileSource>(
                 && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
             {
                 checks.exclude(
-                    &mut active, program_of, &mut bound, &mut run, tree, &provider.text,
+                    &mut active, &mut bound, &mut run, tree, &provider.text,
                     &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, cut_of,
                 );
             }
@@ -829,6 +831,14 @@ pub(crate) fn visit<L: FileSource>(
                     contract.report(&partial, &source.path)
                 };
                 if excluded && unknowns.is_empty() {
+                    if let Some(cut) = &cut_of[binding] {
+                        let tables = b.empty_frontier.get_or_insert_with(|| {
+                            finish::session::certificate::empty_frontier(&mut b.exec, &mut run, &cut.inputs)
+                                .expect("certified file output schemas")
+                        });
+                        if !tables.is_empty() { world.file(&source.path); }
+                        world.frontiers.insert(slot, tables.clone());
+                    }
                     answers[slot] = Ok(Reported::default());
                     clocks.skipped += 1;
                     continue;
