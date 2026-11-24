@@ -270,7 +270,7 @@ pub(crate) struct Environment {
     pub authority: Authority,
     /// Durable authority, selected reader and effective overlay. The store
     /// separately verifies the disk entries the provider actually observed.
-    pub(super) version_scope: Option<super::stored::Key>,
+    pub(crate) version_scope: Option<[u8; 32]>,
     pub supplied: BTreeSet<String>,
     epoch: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     observations: std::sync::Mutex<(usize, BTreeMap<std::path::PathBuf, l::ObservedEntryState>)>,

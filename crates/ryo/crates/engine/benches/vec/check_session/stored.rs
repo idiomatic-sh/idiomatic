@@ -30,6 +30,18 @@ pub(super) fn key(value: impl Hash) -> Key {
     *h.0.finalize().as_bytes()
 }
 
+impl session::Source {
+    /// Attach the source's stable contextual inputs to its effective byte and
+    /// permission key. A file record also needs the provider's observed-entry
+    /// proof before its rows can be restored. Reader settings scope the store.
+    fn version_key(&self, effective: Key) -> Option<Key> {
+        match self.environment.as_deref() {
+            Some(environment) => Some(key((environment.version_scope?, effective))),
+            None => Some(effective),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct Report {
     // None means only the closed operator consumed this contribution.

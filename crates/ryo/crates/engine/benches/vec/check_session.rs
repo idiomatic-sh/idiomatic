@@ -188,17 +188,6 @@ pub(crate) struct Source {
     pub(crate) provided: Option<Arc<[u8]>>,
 }
 
-impl Source {
-    /// Attach the source's stable contextual inputs to its effective byte and
-    /// permission key. A file record also needs the provider's observed-entry
-    /// proof before its rows can be restored. Reader settings scope the store.
-    pub(crate) fn version_key(&self, effective: stored::Key) -> Option<stored::Key> {
-        match self.environment.as_deref() {
-            Some(environment) => Some(stored::key((environment.version_scope?, effective))),
-            None => Some(effective),
-        }
-    }
-}
 
 
 pub(crate) use ryo_values::domain::files::types::ExecutablePermission as Permission;
