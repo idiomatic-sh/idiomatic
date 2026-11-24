@@ -223,8 +223,8 @@ const POOL_CELLS: usize = 1 << 22;
 /// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 16 = 2^18).
 const CLASSES: usize = 20;
 
-/// redo-alloc: a pooled column with room for `n` cells (no more than 32 times that), or a new one with room for the next
-/// power of two (so it is found again by its class); for an unknown size (`n` 0) one of the small classes (up to 512
+/// redo-alloc: a pooled column with room for `n` cells (no more than 32 times that), or a new one with the requested
+/// capacity; for an unknown size (`n` 0) one of the small classes (up to 512
 /// cells) or an empty one.
 #[inline]
 fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
@@ -237,11 +237,11 @@ fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
             }
             // a column just below the room asked: grown once here
             let mut v = v;
-            v.reserve(n);
+            v.reserve_exact(n);
             return v;
         }
     }
-    Vec::with_capacity(if n >= 16 { n.next_power_of_two() } else { n })
+    Vec::with_capacity(n)
 }
 
 impl Drop for Table {

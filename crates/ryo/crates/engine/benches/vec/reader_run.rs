@@ -384,7 +384,6 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
         println!("VEC_NO_SKIP: checking every selected file/emit pair");
     }
     let mut wanted = Vec::new();
-    let mut literal_positions = std::cell::RefCell::new(super::pair_checks::LiteralPositions::default());
     let mut active = vec![0u64; plan.emits.len()];
     let mut elements = l::Elements::default();
     let mut table = l::NodeTable::default();
@@ -394,7 +393,6 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
     let reader_relations: Vec<_> = relations.iter().copied()
         .chain(std::iter::once(l::Relation::SyntaxTree)).collect();
     for (index, path) in req.files.iter().enumerate() {
-        literal_positions.get_mut().clear();
         if fin.retained_file(path) { continue; }
         let t0 = thread_cpu();
         let bytes = std::fs::read(Path::new(&req.root).join(path)).expect("read source");
@@ -470,7 +468,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
                     ids: &provider.text,
                     symbols: &fin.run.texts,
                     dictionary: &fin.run.ids,
-                    positions: &literal_positions,
+                    positions: &std::cell::RefCell::default(),
                     distinct: None,
                     patterns: None,
                     column: None,
