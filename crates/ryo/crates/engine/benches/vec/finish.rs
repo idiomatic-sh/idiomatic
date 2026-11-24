@@ -1237,20 +1237,6 @@ pub(super) enum Op {
     Ge,
     Other,
 }
-impl Op {
-    pub(super) fn as_str(self) -> &'static str {
-        match self {
-            Op::Eq => "=",
-            Op::Ne => "!=",
-            Op::Lt => "<",
-            Op::Le => "<=",
-            Op::Gt => ">",
-            Op::Ge => ">=",
-            Op::Other => "?",
-        }
-    }
-}
-
 /// A node's column names and types, known from the plan before any file.
 pub(super) struct Schema {
     names: Names,
