@@ -3,7 +3,10 @@
 use super::{Exec, FxHashMap, NULL, Run, Table, Ty};
 use ryo_relations::domain::relations::types::{Integer, Offset, Span};
 use ryo_values::domain::row_texts::types::Cell;
-use std::{collections::hash_map::Entry, sync::{Arc, RwLock}};
+use std::{
+    collections::hash_map::Entry,
+    sync::{Arc, RwLock},
+};
 
 pub(crate) type Value = Option<Cell<Arc<str>>>;
 
@@ -76,7 +79,11 @@ pub(crate) struct Row {
 
 impl Row {
     /// Rebuild a row from the stable cell values at the retention boundary.
-    pub(crate) fn restored(rule: Box<str>, identity: Box<[usize]>, columns: Vec<(String, Value)>) -> Self {
+    pub(crate) fn restored(
+        rule: Box<str>,
+        identity: Box<[usize]>,
+        columns: Vec<(String, Value)>,
+    ) -> Self {
         let mut dictionary = Words::default();
         let mut names = Vec::with_capacity(columns.len());
         let mut types = Vec::with_capacity(columns.len());
@@ -86,7 +93,9 @@ impl Row {
             let (ty, word) = match cell {
                 None => (Ty::Sym, NULL),
                 Some(Cell::Number(n)) => (Ty::Num, n.0 as u64),
-                Some(Cell::Span(s)) => (Ty::Span, (u64::from(s.start.0) << 32) | u64::from(s.end.0)),
+                Some(Cell::Span(s)) => {
+                    (Ty::Span, (u64::from(s.start.0) << 32) | u64::from(s.end.0))
+                }
                 Some(Cell::File(path)) => {
                     let id = dictionary.paths.len() as u64;
                     dictionary.paths.push(path);
@@ -102,7 +111,13 @@ impl Row {
             words.push(word);
         }
         Self {
-            layout: Arc::new(Layout { rule, names: names.into(), identity, types: types.into(), words: Arc::new(RwLock::new(dictionary)) }),
+            layout: Arc::new(Layout {
+                rule,
+                names: names.into(),
+                identity,
+                types: types.into(),
+                words: Arc::new(RwLock::new(dictionary)),
+            }),
             words: words.into(),
         }
     }
@@ -113,13 +128,17 @@ impl Row {
             return None;
         }
         Some(match self.layout.types[index] {
-            Ty::Sym => Cell::Text(self.layout.words.read().expect("answer words").symbols[&(word as u32)].clone()),
+            Ty::Sym => Cell::Text(
+                self.layout.words.read().expect("answer words").symbols[&(word as u32)].clone(),
+            ),
             Ty::Node => {
                 let words = self.layout.words.read().expect("answer words");
                 let path = &words.paths[(word >> 32) as usize];
                 Cell::Text(format!("{path}#{}", word as u32).into())
             }
-            Ty::File => Cell::File(self.layout.words.read().expect("answer words").paths[word as usize].clone()),
+            Ty::File => Cell::File(
+                self.layout.words.read().expect("answer words").paths[word as usize].clone(),
+            ),
             Ty::Span => Cell::Span(Span {
                 start: Offset((word >> 32) as u32),
                 end: Offset(word as u32),
@@ -190,13 +209,7 @@ pub(crate) fn typed(
                         .paths
                         .get(file)
                         .ok_or_else(|| format!("file outside the run: {word}"))?;
-                    let text = match run.path_sym.get(file) {
-                        Some(id) => {
-                            std::str::from_utf8(run.text(*id)).map_err(|e| e.to_string())?
-                        }
-                        None => path.as_str(),
-                    };
-                    word = u64::from(dictionary.path(text)?);
+                    word = u64::from(dictionary.path(path)?);
                 }
                 Ty::Sym if run.absent_word == Some(word as u32) => word = NULL,
                 Ty::Sym => {
