@@ -134,8 +134,8 @@ impl<'p> Finisher<'p> {
     fn file_inner(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
         self.files_run += 1;
         let plan = self.plan;
-        let version = finish::FileVersion::new(ft, bytes, file_no as u32, pv.syntax_text());
-        let mut f = finish::File::new(&version, plan.nodes.len());
+        let mut f = finish::File::new(ft, bytes, file_no as u32, plan.nodes.len());
+        if let Some(text) = pv.syntax_text() { f.set_text(text); }
         let run = &mut self.run;
         if self.check {
             for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {

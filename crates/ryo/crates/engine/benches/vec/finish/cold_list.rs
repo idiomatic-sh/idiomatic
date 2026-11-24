@@ -325,7 +325,7 @@ impl Plan {
                     first.as_slice(),
                     rows.shadow(),
                     "file {}, list {key}, node {node}",
-                    f.version.file
+                    f.file
                 );
             } else {
                 seen.first = Some(Rc::new(rows.shadow()));
