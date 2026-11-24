@@ -65,7 +65,7 @@ def link_capture(release, library):
     s = manifest.read_text()
     deps = '[dependencies]\n'
     assert s.count(deps) == 1
-    manifest.write_text(s.replace(deps, deps + f'tm-project-session = {{ path = "{library}" }}\n'))
+    manifest.write_text(s.replace(deps, deps + f'rayon.workspace = true\ntm-project-session = {{ path = "{library}" }}\n'))
     main = cli / 'src/main.rs'
     s = main.read_text()
     declaration = 'fn main() -> std::process::ExitCode {'
@@ -101,6 +101,13 @@ fn main() -> std::process::ExitCode {
             arguments.next().expect("worker count").parse().expect("positive worker count")
         });
         assert!(arguments.next().is_none(), "unexpected batch argument");
+        // The one-worker replay enters from main. Let linked project jobs execute
+        // there so its phase clock accounts for the entire check.
+        if workers.or_else(|| std::thread::available_parallelism().ok())
+            .is_none_or(|n| n.get() == 1) {
+            rayon::ThreadPoolBuilder::new().num_threads(1).use_current_thread()
+                .build_global().expect("initialize one-worker replay");
+        }
         tm_project_session::capture_then(benchmark_languages::linked(), &manifest, &output, workers, || {
             std::io::Write::flush(&mut std::io::stdout()).expect("flush capture log");
             std::process::exit(0);
