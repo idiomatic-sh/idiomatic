@@ -733,11 +733,11 @@ impl Batch {
                             return Err("source frontier has not been closed".into());
                         }
                     }
-                    let numbers: Vec<_> = inventory.iter().map(|p| world.file(p)).collect();
+                    let numbers = readers.numbers(i, inventory, world);
                     execute_ids(
                         &mut exec,
                         &mut world.run,
-                        &numbers,
+                        numbers,
                         &carried,
                         inventory,
                         files,

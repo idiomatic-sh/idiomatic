@@ -4,7 +4,27 @@ use super::{Work, finish, session};
 use finish::{partition::Partition, population::Inputs};
 use std::{collections::HashMap, rc::Rc};
 
+// While Closed is being prepared, Work holds every allocation alive. The
+// pointer shortcut avoids hashing the same list again. Separate allocations
+// compare by their complete, ordered contents, including repetitions.
+#[derive(Default)]
+struct PathLists<'a> {
+    allocations: HashMap<*const Vec<String>, usize>,
+    lists: HashMap<&'a [String], usize>,
+}
+
+impl<'a> PathLists<'a> {
+    fn id(&mut self, paths: &'a Rc<Vec<String>>) -> usize {
+        let next = self.lists.len();
+        *self.allocations.entry(Rc::as_ptr(paths)).or_insert_with(|| {
+            *self.lists.entry(paths.as_slice()).or_insert(next)
+        })
+    }
+}
+
 pub(super) struct Closed {
+    inventory: Vec<usize>,
+    numbers: Vec<Option<Vec<u32>>>,
     pub(super) duplicate: Vec<Option<usize>>,
     reads: Vec<Option<usize>>,
     last: HashMap<usize, usize>,
@@ -17,6 +37,8 @@ impl Closed {
     pub(super) fn new(work: &[Work], cut_of: &[Option<Rc<Partition>>], keep: bool) -> Self {
         // Slots name a canonical source version and binding. Order and repetitions
         // are part of the population identity. A live host can open another epoch.
+        let mut lists = PathLists::default();
+        let mut inventory_ids = vec![0; work.len()];
         let mut owners = HashMap::new();
         let mut duplicate = vec![None; work.len()];
         let mut scopes = HashMap::new();
@@ -37,13 +59,14 @@ impl Closed {
             };
             // Answer equality also depends on admission and host values. Scope
             // identifiers carry their authority and input-version inventory.
+            inventory_ids[i] = lists.id(inventory);
             let owner = *owners
                 .entry((
                     *binding,
                     *project,
                     pairs.as_slice(),
-                    inventory.as_slice(),
-                    files.as_slice(),
+                    inventory_ids[i],
+                    lists.id(files),
                 ))
                 .or_insert(i);
             if owner != i {
@@ -74,6 +97,8 @@ impl Closed {
         drop(owners);
 
         Self {
+            numbers: vec![None; lists.lists.len()],
+            inventory: inventory_ids,
             duplicate,
             reads,
             last,
@@ -82,6 +107,15 @@ impl Closed {
             shared: HashMap::new(),
             keep,
         }
+    }
+    pub(super) fn numbers(
+        &mut self,
+        request: usize,
+        paths: &[String],
+        world: &mut session::World,
+    ) -> &[u32] {
+        self.numbers[self.inventory[request]]
+            .get_or_insert_with(|| paths.iter().map(|path| world.file(path)).collect())
     }
     pub(super) fn inputs(
         &mut self,
