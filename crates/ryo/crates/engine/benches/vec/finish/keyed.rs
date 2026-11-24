@@ -64,6 +64,7 @@ impl Exec<'_> {
     /// Whether `node`, not made in this file, is read by key on its column `col`.
     #[inline]
     pub(super) fn keyed_ok(&mut self, f: &File<'_>, run: &mut Run, node: usize, col: usize) -> R<bool> {
+        if let Some(input)=f.population(node) {return Ok(input.can_probe(col));}
         if f.memo[node].is_some() {
             return Ok(false);
         }
@@ -78,6 +79,11 @@ impl Exec<'_> {
     /// `by_size`: the caller judged the keys against the step's size already (a join's driver).
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
     pub(super) fn keyed(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], by_size: bool) -> R<Option<Rc<Table>>> {
+        if let Some(input) = f.population(node) {
+            if !input.can_probe(col) { return Ok(None); }
+            let sc=self.schema(run,node)?;
+            return Ok(Some(input.probe(&sc.names,&sc.tys,col,keys)));
+        }
         if !self.keyed_ok(f, run, node, col)? {
             return Ok(None);
         }
@@ -137,6 +143,7 @@ impl Exec<'_> {
     /// with `make` (the caller reads the step either way: whole, or by key, which makes those inputs too); else it is
     /// unknown (`usize::MAX`). 0 only when the step is empty.
     pub(super) fn keyed_size(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, make: bool) -> R<usize> {
+        if let Some(input)=f.population(node) { return Ok(input.n); }
         if let Some(Res::Tab(t)) = &f.memo[node] {
             return Ok(t.n);
         }
