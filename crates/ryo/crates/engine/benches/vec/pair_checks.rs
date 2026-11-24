@@ -61,9 +61,17 @@ impl FileSymbols {
     }
 
     fn any(&mut self, column: &[u32], mut accepts: impl FnMut(u32) -> bool) -> bool {
-        if self.words.iter().copied().any(&mut accepts) {
-            return true;
-        }
+        self.words.iter().copied().any(&mut accepts)
+            || std::iter::from_fn(|| self.next_distinct(column)).any(accepts)
+    }
+
+    fn contains(&mut self, column: &[u32], symbol: u32) -> bool {
+        self.seen.get(symbol as usize / 64)
+            .is_some_and(|word| word & (1 << (symbol % 64)) != 0)
+            || std::iter::from_fn(|| self.next_distinct(column)).any(|id| id == symbol)
+    }
+
+    fn next_distinct(&mut self, column: &[u32]) -> Option<u32> {
         while self.next < column.len() {
             let id = column[self.next];
             self.next += 1;
@@ -75,12 +83,10 @@ impl FileSymbols {
             if self.seen[block] & bit == 0 {
                 self.seen[block] |= bit;
                 self.words.push(id);
-                if accepts(id) {
-                    return true;
-                }
+                return Some(id);
             }
         }
-        false
+        None
     }
 }
 
@@ -149,8 +155,8 @@ struct Table {
     cells: FilledColumns,
     index: Map<usize, Map<Id, Vec<u32>>>,
 }
-/// File-local positions for reader-interned symbols. A presence query stops on
-/// its first witness. A position query finishes the same scan.
+/// File-local positions for reader-interned symbols, built on first demand
+/// for node positions.
 #[derive(Default)]
 pub(super) struct LiteralPositions {
     heads: Map<u32, u32>,
@@ -175,24 +181,12 @@ impl LiteralPositions {
         self.heads.get(&symbol).copied().unwrap_or(Self::END)
     }
 
-    fn scan(&mut self, column: &[u32], until: Option<u32>) -> bool {
+    fn positions(&mut self, symbol: u32, column: &[u32]) -> Bits {
         for &symbol in &column[self.previous.len()..] {
             let position = self.previous.len() as u32;
             let previous = self.heads.insert(symbol, position).unwrap_or(Self::END);
             self.previous.push(previous);
-            if until == Some(symbol) {
-                return true;
-            }
         }
-        false
-    }
-
-    fn contains(&mut self, symbol: u32, column: &[u32]) -> bool {
-        self.head(symbol) != Self::END || self.scan(column, Some(symbol))
-    }
-
-    fn positions(&mut self, symbol: u32, column: &[u32]) -> Bits {
-        self.scan(column, None);
         let mut pos = self.head(symbol);
         let mut mask = Vec::new();
         while pos != Self::END {
@@ -481,7 +475,10 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 Domain::Text(literal) if self.syntax_text.is_some() => {
                     let column = self.syntax_text.unwrap();
                     self.literal_id(x, literal.as_bytes(), column)
-                        .is_some_and(|symbol| column.positions.borrow_mut().contains(symbol, column.ids))
+                        .is_some_and(|symbol| match column.distinct {
+                            Some(seen) => seen.borrow_mut().contains(column.ids, symbol),
+                            None => column.ids.contains(&symbol),
+                        })
                 }
                 Domain::SpanMatching(kind, pattern) if self.p.file_only[x] => {
                     node_table::ids_of_kind(self.t, languages::KindBits(*kind)).iter().any(|pos| {
