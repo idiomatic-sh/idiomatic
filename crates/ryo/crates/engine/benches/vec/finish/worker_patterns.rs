@@ -7,14 +7,19 @@ use ryo_values::domain::finish_plans::{
     expressions::types::{PlanConstant, PlanExpression},
     types::{FinishStep, RowCondition, SelectedColumns},
 };
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 #[derive(Default)]
-pub(crate) struct Patterns(FxHashMap<String, OnceLock<R<Regex>>>);
+pub(crate) struct Patterns(FxHashMap<String, R<Regex>>);
 
 impl Patterns {
     pub(crate) fn for_workers(plan: &Plan, run: &mut Run) -> Arc<Self> {
         let mut patterns = Self::default();
+        for (name, compiled) in &run.regexes {
+            let _ = patterns
+                .0
+                .insert(name.clone(), Ok(compiled.as_ref().clone()));
+        }
         for node in &plan.nodes {
             match node.step() {
                 FinishStep::Capture(s) => patterns.add(s.pattern.0.to_string()),
@@ -33,20 +38,15 @@ impl Patterns {
                 _ => {}
             }
         }
-        for (name, compiled) in &run.regexes {
-            let slot = patterns.0.entry(name.clone()).or_default();
-            let _ = slot.set(Ok(compiled.as_ref().clone()));
-        }
         let shared = Arc::new(patterns);
         run.worker_patterns = Some(shared.clone());
         shared
     }
     pub(super) fn get(&self, pattern: &str) -> Option<R<Regex>> {
-        let slot = self.0.get(pattern)?;
-        Some(slot.get_or_init(|| compile(pattern)).clone())
+        self.0.get(pattern).cloned()
     }
     fn add(&mut self, pattern: String) {
-        self.0.entry(pattern).or_default();
+        self.0.entry(pattern).or_insert_with_key(|p| compile(p));
     }
     fn collect(&mut self, e: &PlanExpression) {
         use PlanExpression::*;

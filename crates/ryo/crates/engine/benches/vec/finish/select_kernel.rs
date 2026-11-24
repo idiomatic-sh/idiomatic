@@ -34,7 +34,7 @@ enum P {
     /// Any other comparison, by `compare`.
     Cmp(Op, Opd, Opd),
     In(Opd, Vec<V>, bool),
-    Re(Opd, Rc<regex::bytes::Regex>),
+    Re(Opd, std::sync::Arc<regex::bytes::Regex>),
     And(Box<P>, Box<P>),
     Or(Box<P>, Box<P>),
     Not(Box<P>),

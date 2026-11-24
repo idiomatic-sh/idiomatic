@@ -12,7 +12,7 @@ pub(crate) struct Settings<'p> {
     dump: Option<String>,
     project: std::sync::Arc<finish::project::Shared>,
     constants: std::sync::Arc<finish::constants::Constants>,
-    static_tests: std::sync::Arc<finish::known::Shared>,
+    static_tests: finish::known::Flat,
     shapes: std::sync::Arc<finish::worker_schemas::Shapes>,
     ids: hashbrown::HashTable<u32>,
     patterns: std::sync::Arc<finish::worker_patterns::Patterns>,
@@ -45,12 +45,13 @@ impl<'p> Finisher<'p> {
                 (name, (*cols).clone(), (*types).clone(), supplier)
             })
             .collect();
+        let static_tests = self.exec.freeze_static_tests(r);
         let shapes = self.exec.freeze_shapes(r, &self.emits);
         let settings = Settings {
             shapes,
             project: finish::project::share(r),
             constants: self.exec.share_constants(r),
-            static_tests: self.exec.share_static_tests(),
+            static_tests,
             ids: r.ids.clone(),
             patterns: finish::worker_patterns::Patterns::for_workers(self.plan, r),
             plan: self.plan,
@@ -82,7 +83,7 @@ impl<'p> Finisher<'p> {
 }
 
 impl<'p> Settings<'p> {
-    pub(crate) fn open(&self, tokens: Option<std::rc::Rc<dyn finish::TokenOrder>>) -> Finisher<'p> {
+    pub(crate) fn open(&self, tokens: Option<std::rc::Rc<dyn finish::TokenOrder>>) -> Finisher<'_> {
         let start = super::thread_cpu();
         let mut run = finish::Run::default();
         run.shared_projects = Some(self.project.clone());
@@ -135,13 +136,12 @@ impl<'p> Settings<'p> {
             check_out: None,
             alloc: [0; 2],
         };
-        worker.exec.worker_shapes = Some(finish::worker_schemas::Local::new(self.shapes.clone()));
+        self.shapes.attach(&mut worker.exec);
         worker.exec.use_constants(self.constants.clone());
-        worker.exec.shared_static = Some(self.static_tests.clone());
+        worker.exec.use_static_tests(&self.static_tests);
         worker.exec.cold_test_load(&mut worker.run);
         worker.exec.cold_load(&mut worker.run);
         worker.exec.col_load(&mut worker.run);
-        worker.exec.cache_counts(&worker.run, "open");
         worker.time += super::thread_cpu() - start;
         println!("worker executor and dictionary CPU {:.6} s", worker.time);
         worker
@@ -149,6 +149,7 @@ impl<'p> Settings<'p> {
 }
 
 pub(crate) struct Report {
+    project: Vec<(String, [u64; 3])>,
     findings: finish::json_output::Findings,
     failures: HashMap<String, (usize, String)>,
     rule_stats: Vec<[u64; 3]>,
@@ -167,15 +168,23 @@ pub(crate) struct Report {
 
 impl Finisher<'_> {
     pub(crate) fn report(self) -> Report {
-        self.exec.cache_counts(&self.run, "close");
         let start = super::thread_cpu();
         let report = self.into_report();
-        println!("worker executor release CPU {:.6} s", super::thread_cpu() - start);
+        println!(
+            "worker executor release CPU {:.6} s",
+            super::thread_cpu() - start
+        );
         report
     }
 
     fn into_report(self) -> Report {
         Report {
+            project: self
+                .run
+                .project
+                .into_iter()
+                .map(|(name, answer)| (name, answer.asks))
+                .collect(),
             findings: self.findings,
             failures: self.failed,
             rule_stats: self.rule_stats,
@@ -193,6 +202,9 @@ impl Finisher<'_> {
         }
     }
     pub(crate) fn merge(&mut self, r: Report) {
+        for (name, asks) in r.project {
+            sum(&mut self.run.project.entry(name).or_default().asks, &asks);
+        }
         self.findings.merge(r.findings);
         for (rule, failure) in r.failures {
             let slot = self.failed.entry(rule).or_insert_with(|| failure.clone());

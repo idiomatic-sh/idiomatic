@@ -50,8 +50,8 @@ const CAN: u8 = 16;
 /// redo-empty: the step has a leaf of the propagation (`emptyprop`).
 const EP_LEAF: u8 = 32;
 
-#[derive(Default)]
-pub(super) struct Flat {
+#[derive(Clone, Default)]
+pub(crate) struct Flat {
     recs: Vec<Rec>,
     ins: Vec<u32>,
     /// Kind sets: a length, then that many kind codes.
@@ -64,52 +64,20 @@ impl Flat {
     }
 }
 
-/// A bound static test uses provider kind *codes* and plan slot numbers only.
-struct Prepared {
-    flags: u8,
-    inputs: Box<[u32]>,
-    kinds: Box<[u16]>,
-}
-pub(crate) struct Shared(Vec<std::sync::OnceLock<Prepared>>);
-
-impl Flat {
-    fn export(&self, r: Rec) -> Prepared {
-        let inputs = r.ins as usize;
-        let kinds = r.kinds as usize;
-        Prepared {
-            flags: r.flags,
-            inputs: self.ins[inputs..inputs + usize::from(r.n_ins)].into(),
-            kinds: self.kinds[kinds..kinds + usize::from(r.n_kinds)].into(),
+impl<'p> Exec<'p> {
+    /// Kind codes, input indices and file-test flags are closed over the plan and provider.
+    /// Bind every slot on the primary before lending the three flat arrays to a worker.
+    pub(crate) fn freeze_static_tests(&mut self, run: &mut Run) -> Flat {
+        let plan = self.plan;
+        for (node, step) in plan.nodes.iter().enumerate() {
+            let _ = step.args();
+            self.rec(run, node);
         }
+        self.flat.as_ref().clone()
     }
 
-    fn install(&mut self, node: usize, p: &Prepared) -> Rec {
-        let rec = Rec {
-            flags: p.flags,
-            ins: self.ins.len() as u32,
-            n_ins: p.inputs.len() as u16,
-            kinds: self.kinds.len() as u32,
-            n_kinds: p.kinds.len() as u16,
-        };
-        self.ins.extend_from_slice(&p.inputs);
-        self.kinds.extend_from_slice(&p.kinds);
-        self.recs[node] = rec;
-        rec
-    }
-}
-
-impl Exec<'_> {
-    pub(crate) fn share_static_tests(&mut self) -> std::sync::Arc<Shared> {
-        let slots = self.flat.recs.iter().map(|&rec| {
-            let slot = std::sync::OnceLock::new();
-            if rec.flags & READY != 0 {
-                let _ = slot.set(self.flat.export(rec));
-            }
-            slot
-        }).collect();
-        let shared = std::sync::Arc::new(Shared(slots));
-        self.shared_static = Some(shared.clone());
-        shared
+    pub(crate) fn use_static_tests(&mut self, tests: &'p Flat) {
+        self.flat = std::borrow::Cow::Borrowed(tests);
     }
 }
 
@@ -235,22 +203,7 @@ impl Exec<'_> {
         if r.flags & READY != 0 {
             return r;
         }
-        self.bind_rec(run, node)
-    }
-
-    #[inline(never)]
-    fn bind_rec(&mut self, run: &mut Run, node: usize) -> Rec {
-        let Some(shared) = self.shared_static.clone() else {
-            return self.rec_of(run, node);
-        };
-        // Recursive bindings only follow edges towards inputs in the plan DAG.
-        let prepared = shared.0[node].get_or_init(|| {
-            let r = self.rec_of(run, node);
-            self.flat.export(r)
-        });
-        let own = self.flat.recs[node];
-        if own.flags & READY != 0 { return own; }
-        self.flat.install(node, prepared)
+        self.rec_of(run, node)
     }
 
     #[inline(never)]
@@ -264,12 +217,12 @@ impl Exec<'_> {
             return r;
         }
         // a cycle is impossible (a plan is a DAG); mark ready first all the same
-        self.flat.recs[node] = Rec { flags: READY | NEVER, ..Rec::default() };
+        self.flat.to_mut().recs[node] = Rec { flags: READY | NEVER, ..Rec::default() };
         let need = self.need(run, node);
         let mut r = Rec { flags: READY, ..Rec::default() };
         if need.never {
             r.flags |= NEVER;
-            self.flat.recs[node] = r;
+            self.flat.to_mut().recs[node] = r;
             return r;
         }
         let can_in: Vec<bool> = need.inputs.iter().map(|i| self.rec(run, *i).flags & CAN != 0).collect();
@@ -278,15 +231,16 @@ impl Exec<'_> {
         } else {
             need.inputs.iter().zip(&can_in).filter(|(_, c)| **c).map(|(i, _)| *i as u32).collect()
         };
-        r.ins = self.flat.ins.len() as u32;
+        let flat = self.flat.to_mut();
+        r.ins = flat.ins.len() as u32;
         r.n_ins = kept.len() as u16;
-        self.flat.ins.extend(kept);
-        r.kinds = self.flat.kinds.len() as u32;
+        flat.ins.extend(kept);
+        r.kinds = flat.kinds.len() as u32;
         for ks in need.kinds.iter() {
-            self.flat.kinds.push(ks.len() as u16);
-            self.flat.kinds.extend(ks.iter().copied());
+            flat.kinds.push(ks.len() as u16);
+            flat.kinds.extend(ks.iter().copied());
         }
-        r.n_kinds = (self.flat.kinds.len() - r.kinds as usize) as u16;
+        r.n_kinds = (flat.kinds.len() - r.kinds as usize) as u16;
         if need.all {
             r.flags |= ALL;
         }
@@ -299,7 +253,7 @@ impl Exec<'_> {
         if r.n_ins > 0 || r.n_kinds > 0 || need.file_test || r.flags & EP_LEAF != 0 {
             r.flags |= CAN;
         }
-        self.flat.recs[node] = r;
+        self.flat.to_mut().recs[node] = r;
         r
     }
 

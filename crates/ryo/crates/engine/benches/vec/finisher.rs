@@ -82,16 +82,17 @@ impl<'p> Finisher<'p> {
         me.exec.cold_test_load(&mut me.run);
         me.exec.cold_load(&mut me.run);
         me.exec.col_load(&mut me.run);
-        me.exec.cache_counts(&me.run, "open");
         me.time += thread_cpu() - t0;
         me
     }
+
+    pub(super) fn selected_emits(&self) -> &[usize] { &self.emits }
 
     /// The emits retained by the first half for this file.
     pub(super) fn wanted_into(&mut self, mut seeded: impl FnMut(usize) -> bool, out: &mut Vec<usize>) {
         let t0 = thread_cpu();
         out.clear();
-        out.extend(self.emits.iter().copied().filter(|&emit| seeded(emit)));
+        out.extend(self.selected_emits().iter().copied().filter(|&emit| seeded(emit)));
         self.time += thread_cpu() - t0;
     }
 
@@ -214,7 +215,6 @@ impl<'p> Finisher<'p> {
 
     /// Write final findings, dumps and statistics after the last file.
     pub(super) fn end(mut self, projection: finish::json_output::Projection<'_>) -> bool {
-        self.exec.cache_counts(&self.run, "close");
         let ok = self.failed.is_empty();
         self.exec.leaf_report(&mut self.run);
         self.exec.cold_report(&self.run);

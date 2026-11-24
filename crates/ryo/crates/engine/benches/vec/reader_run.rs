@@ -268,8 +268,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         kinds.width(),
         fields.width(),
     );
-    // The parser needs the union of declared relations before its first file. A particular
-    // emit's transitive relation mask is needed only when a file first asks for that emit.
+    // The parser and all workers use the same declared relations and numbered rule masks.
     let mut base_facts = vec![None; plan.nodes.len()];
     let mut distinct = BTreeSet::new();
     for (slot, n) in plan.nodes.iter().enumerate() {
@@ -296,14 +295,27 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         rel.map(|value| relations.binary_search(&value).expect("catalog relation"))
     }).collect();
     let width = relations.len().div_ceil(64);
-    // A rule reads the same relations on every worker. Publish its mask once.
-    let emitted_facts: Vec<_> = (0..plan.emits.len()).map(|_| std::sync::OnceLock::new()).collect();
     let selected = req.selected_rules.join(",");
     let mut options = vec!["--rules", &selected, "--applicability", request];
     if let Output::Path(path) = &output { options.extend(["--out", *path]); }
     if let Some(path) = req.step_stats.as_deref() { options.extend(["--stats", path]); }
     let mut fin = finisher::Finisher::new(&plan, run, &options, req.rule_applicability.as_ref().map(|accepted| (request, accepted)));
     fin.query_rows = QUERY_ROWS;
+    let mut emitted_facts = vec![0u64; width * plan.emits.len()];
+    {
+        let mut visited = vec![usize::MAX; plan.nodes.len()];
+        let mut pending = Vec::new();
+        for &emit in fin.selected_emits() {
+            let mask = &mut emitted_facts[emit * width..][..width];
+            pending.push(plan.emits[emit].1);
+            while let Some(slot) = pending.pop() {
+                if visited[slot] == emit { continue; }
+                visited[slot] = emit;
+                if let Some(bit) = base_bits[slot] { mask[bit / 64] |= 1 << (bit % 64); }
+                pending.extend_from_slice(&plan.nodes[slot].inputs);
+            }
+        }
+    }
     let startup = thread_cpu() - start;
     println!(
         "startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}",
@@ -326,24 +338,12 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     let settings = (shards.len() > 1).then(|| fin.worker_settings());
     let process = |ids: &[usize], fin: &mut finisher::Finisher<'_>, skip: &mut super::file_skip::Skip, memory: &mut Memory| {
     let mut state = decisions.state();
-    let mut visited = vec![usize::MAX; plan.nodes.len()];
-    let mut pending = Vec::new();
     let mut requested = vec![0u64; width];
     let mut facts = Vec::with_capacity(relations.len());
     let mut relations_for = |wanted: &[usize], facts: &mut Vec<l::Relation>| {
         requested.fill(0);
         for &emit in wanted {
-            let mask = emitted_facts[emit].get_or_init(|| {
-                let mut mask = vec![0u64; width];
-                pending.push(plan.emits[emit].1);
-                while let Some(slot) = pending.pop() {
-                    if visited[slot] == emit { continue; }
-                    visited[slot] = emit;
-                    if let Some(bit) = base_bits[slot] { mask[bit / 64] |= 1 << (bit % 64); }
-                    pending.extend_from_slice(&plan.nodes[slot].inputs);
-                }
-                mask
-            });
+            let mask = &emitted_facts[emit * width..][..width];
             for (word, &extra) in requested.iter_mut().zip(mask.iter()) {
                 *word |= extra;
             }
@@ -364,6 +364,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     let mut packet = packet::Packet::new();
     let mut coverage = coverage::Coverage::default();
     let mut symbols = l::Symbols::default();
+    let mut provider = reader::ReaderFacts::new(0, &unknown_words);
     for &index in ids {
         let path = &req.files[index];
         let t0 = thread_cpu();
@@ -379,7 +380,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         parser
             .build_file(parse, &mut elements, &mut symbols, &relations)
             .expect("parse file");
-        let mut provider = reader::ReaderFacts::new(id.0, &unknown_words);
+        provider.begin_file(id.0);
         reader::project_tree(
             &elements,
             &symbols,
@@ -485,7 +486,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             &wanted,
         );
         fills_made += provider.fills_made;
-        drop((provider, bytes));
+        drop(bytes);
         second_cpu += thread_cpu() - t1;
         memory.sample(2);
     }

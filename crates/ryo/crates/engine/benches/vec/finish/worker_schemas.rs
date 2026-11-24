@@ -1,13 +1,51 @@
 //! Closed output shapes depend on the prepared plan and the declared provider
 //! catalogue. Workers need neither source-word IDs nor table addresses to use one.
-use super::{Exec, FxHashMap, Rc, Run, Schema, Ty};
+use super::{E, Exec, FxHashMap, Rc, Run, Schema, SelPlan, Ty};
 use std::sync::Arc;
 
 const UNBOUND: u32 = u32::MAX;
 
 pub(crate) struct Shapes {
     slots: Vec<u32>,
+    selects: Vec<Option<Box<SelPlan>>>,
     unique: Vec<(Vec<String>, Vec<Ty>)>,
+}
+
+/// A visit can keep its bound select while it mutates other executor slots.
+pub(super) enum Selection<'p> {
+    Prepared(&'p SelPlan),
+    Local(Rc<SelPlan>),
+}
+
+impl std::ops::Deref for Selection<'_> {
+    type Target = SelPlan;
+    fn deref(&self) -> &SelPlan {
+        match self {
+            Self::Prepared(p) => p,
+            Self::Local(p) => p,
+        }
+    }
+}
+
+impl E {
+    fn has_matcher(&self) -> bool {
+        match self {
+            Self::Re(..) => true,
+            Self::List(xs) | Self::Call(_, xs) => xs.iter().any(Self::has_matcher),
+            Self::Cmp(_, a, b) | Self::In(a, b, _) | Self::And(a, b) | Self::Or(a, b) => {
+                a.has_matcher() || b.has_matcher()
+            }
+            Self::Not(x) => x.has_matcher(),
+            Self::Col(..) | Self::Lit(_) | Self::Text(_) | Self::Num(_) => false,
+        }
+    }
+}
+
+impl Shapes {
+    pub(crate) fn attach<'w>(self: &'w Arc<Self>, exec: &mut Exec<'w>) {
+        exec.worker_shapes = Some(Local::new(self.clone()));
+        exec.shared_sels = &self.selects;
+    }
 }
 
 pub(crate) struct Local {
@@ -82,6 +120,25 @@ impl Exec<'_> {
             unique.len(),
             super::super::thread_cpu() - t
         );
-        Arc::new(Shapes { slots, unique })
+        // These literal IDs precede the dictionary snapshot used by every child.
+        // A select containing a regex binds locally to keep its search cache private.
+        let selects = self
+            .sels
+            .iter()
+            .map(|slot| {
+                let plan = slot.as_deref()?;
+                if plan.conj.iter().any(E::has_matcher)
+                    || plan.items.iter().any(|(_, e)| e.has_matcher())
+                {
+                    return None;
+                }
+                Some(Box::new(plan.clone()))
+            })
+            .collect();
+        Arc::new(Shapes {
+            slots,
+            unique,
+            selects,
+        })
     }
 }

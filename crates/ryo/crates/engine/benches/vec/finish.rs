@@ -350,7 +350,7 @@ pub(super) struct Run {
     pub(super) texts: Vec<Box<[u8]>>,
     pub(super) ids: hashbrown::HashTable<u32>,
     pub(crate) worker_patterns: Option<std::sync::Arc<worker_patterns::Patterns>>,
-    pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
+    pub(super) regexes: FxHashMap<String, std::sync::Arc<regex::bytes::Regex>>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
@@ -415,12 +415,12 @@ impl Run {
     fn text(&self, s: u32) -> &[u8] {
         &self.texts[s as usize]
     }
-    fn re(&mut self, p: &str) -> Result<Rc<regex::bytes::Regex>, String> {
+    fn re(&mut self, p: &str) -> Result<std::sync::Arc<regex::bytes::Regex>, String> {
         if let Some(r) = self.regexes.get(p) {
             return Ok(r.clone());
         }
         let compiled = self.worker_patterns.as_ref().and_then(|patterns| patterns.get(p));
-        let r = Rc::new(compiled.unwrap_or_else(|| worker_patterns::compile(p))?);
+        let r = std::sync::Arc::new(compiled.unwrap_or_else(|| worker_patterns::compile(p))?);
         self.regexes.insert(p.to_owned(), r.clone());
         Ok(r)
     }
@@ -1226,7 +1226,7 @@ enum E {
     Or(Box<E>, Box<E>),
     Not(Box<E>),
     /// A text tested against a constant regex (from `matches` or `glob_any`), compiled once.
-    Re(Box<E>, Rc<regex::bytes::Regex>),
+    Re(Box<E>, std::sync::Arc<regex::bytes::Regex>),
 
 }
 
@@ -1301,6 +1301,7 @@ pub(super) enum Res {
 }
 
 /// A select compiled once a run.
+#[derive(Clone)]
 struct SelPlan {
     srcs: Vec<usize>,
     conj: Vec<E>,
@@ -1341,6 +1342,7 @@ pub(super) struct Exec<'p> {
     pub(crate) worker_shapes: Option<worker_schemas::Local>,
     views: Vec<Option<Option<Rc<ViewSpec>>>>,
     sels: Vec<Option<Rc<SelPlan>>>,
+    shared_sels: &'p [Option<Box<SelPlan>>],
     // Each reader group prepares its own column indices and interned names.
     select_preps: Vec<Option<Rc<select_kernel::Prep>>>,
     union_preps: Vec<Option<Rc<union_kernel::Prep>>>,
@@ -1359,8 +1361,7 @@ pub(super) struct Exec<'p> {
     u32_pool: Vec<Vec<u32>>,
     /// redo-union pass 2: what each step needs to return anything (`known`), and its shared empty answer.
     needs: Vec<Option<Rc<known::Need>>>,
-    flat: known::Flat,
-    pub(crate) shared_static: Option<std::sync::Arc<known::Shared>>,
+    flat: std::borrow::Cow<'p, known::Flat>,
     empties: Vec<Option<Rc<Table>>>,
     /// The view rows a keyed read of a view finds (reused).
     scratch_rows: Vec<u32>,
@@ -1431,6 +1432,7 @@ impl<'p> Exec<'p> {
             worker_shapes: None,
             views: vec![None; k],
             sels: vec![None; k],
+            shared_sels: &[],
             select_preps: vec![None; k],
             union_preps: vec![None; k],
             antijoin_preps: vec![None; k],
@@ -1445,8 +1447,7 @@ impl<'p> Exec<'p> {
             tally: band::Tally::default(),
             u32_pool: Vec::new(),
             needs: vec![None; k],
-            flat: known::Flat::new(k),
-            shared_static: None,
+            flat: std::borrow::Cow::Owned(known::Flat::new(k)),
             empties: vec![None; k],
             scratch_rows: Vec::new(),
             timing: sw!("VEC_STEP_TIME"),
@@ -1455,22 +1456,6 @@ impl<'p> Exec<'p> {
         }
     }
 
-
-    /// Two snapshots in a profiled worker expose the first-use writes to its run caches.
-    pub(crate) fn cache_counts(&self, run: &Run, stage: &str) {
-        if !self.timing { return; }
-        fn present<T>(slots: &[Option<T>]) -> usize {
-            slots.iter().filter(|v| v.is_some()).count()
-        }
-        println!(
-            "WORKER_STATE {:?} {stage} symbols={} regexes={} relations={} declared={} schemas={} views={} selects={} select_kernels={} union_kernels={} antijoin_kernels={} keyed_forms={} needs={} constants={} run_tables={} project_relations={}",
-            std::thread::current().id(), run.ids.len(), run.regexes.len(), run.rels.len(),
-            run.declared.len(), present(&self.schemas), present(&self.views), present(&self.sels),
-            present(&self.select_preps), present(&self.union_preps), present(&self.antijoin_preps),
-            present(&self.keyed_forms), present(&self.needs), present(&self.constant),
-            present(&self.run_memo), run.project.len(),
-        );
-    }
 
     /// Whether a step's rows are the same in every file: it reads only run-wide relations, through steps that read no file.
     fn is_constant(&mut self, run: &Run, node: usize) -> bool {
@@ -1707,9 +1692,12 @@ impl<'p> Exec<'p> {
     }
 
     /// A select's compiled form, once a run.
-    fn sel(&mut self, run: &mut Run, node: usize) -> R<Rc<SelPlan>> {
+    fn sel(&mut self, run: &mut Run, node: usize) -> R<worker_schemas::Selection<'p>> {
+        if let Some(Some(sp)) = self.shared_sels.get(node) {
+            return Ok(worker_schemas::Selection::Prepared(sp));
+        }
         if let Some(sp) = &self.sels[node] {
-            return Ok(sp.clone());
+            return Ok(worker_schemas::Selection::Local(sp.clone()));
         }
         let plan: &'p Plan = self.plan;
         let pn = &plan.nodes[node];
@@ -1747,7 +1735,7 @@ impl<'p> Exec<'p> {
         };
         let sp = Rc::new(SelPlan { srcs, conj, refs, items });
         self.sels[node] = Some(sp.clone());
-        Ok(sp)
+        Ok(worker_schemas::Selection::Local(sp))
     }
 
     /// The view a node is, when it is one: a tree relation, or a select of column picks and tests over one view.
