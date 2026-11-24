@@ -893,6 +893,45 @@ impl ColumnFile<'_, '_> {
         }
     }
 
+    /// Project the observed context of an import using the same dictionary as its syntax.
+    pub fn import_context<W>(
+        &self,
+        alias: &ImportAlias<'_>,
+        target: &str,
+        context: &mut W,
+        word: impl Fn(&mut W, &[u8]) -> u32,
+        prefixes: impl Fn(&mut W, &str) -> (u64, u64, bool),
+    ) -> [u64; 5] {
+        let empty = u64::from(word(context, b""));
+        let (module, package, namespace) = if alias.dots.is_empty() && !target.is_empty() {
+            let (module, package, namespace) = prefixes(context, target);
+            let namespace = if target == alias.module {
+                namespace
+            } else if !alias.module.is_empty()
+                && target
+                    .strip_prefix(alias.module)
+                    .is_some_and(|suffix| suffix.starts_with('.'))
+            {
+                prefixes(context, alias.module).2
+            } else {
+                false
+            };
+            (module, package, namespace)
+        } else {
+            (empty, empty, false)
+        };
+        let root = alias.module.split('.').next().unwrap_or_default();
+        let written = alias.written_module.split('.').next().unwrap_or_default();
+        let catalog = self.import_catalog(root);
+        [
+            word(context, written.as_bytes()).into(),
+            word(context, catalog.as_bytes()).into(),
+            module,
+            package,
+            namespace.into(),
+        ]
+    }
+
     /// Complete file-local import facts in the same dictionary as the syntax.
     pub(super) fn named_import(
         &self,
@@ -935,40 +974,35 @@ impl ColumnFile<'_, '_> {
             |context, file, a, head| {
                 let target = if head { a.module } else { a.target };
                 let root = a.module.split('.').next().unwrap_or_default();
-                let written = a.written_module.split('.').next().unwrap_or_default();
-                let (module, package, namespace) = if a.dots.is_empty() && !target.is_empty() {
-                    context.1.as_deref_mut().map_or_else(
-                        || (String::new(), String::new(), false),
-                        |prefixes| {
+                let observations = file.import_context(
+                    a,
+                    target,
+                    context,
+                    |context, bytes| {
+                        intern(
+                            context.0,
+                            std::str::from_utf8(bytes).expect("Python import vocabulary"),
+                        )
+                    },
+                    |context, target| {
+                        let prefixes = context.1.as_deref_mut();
+                        if let Some(prefixes) = prefixes {
                             let (module, package, namespace) = prefixes(target);
-                            let namespace = if target == a.module {
-                                namespace
-                            } else if !a.module.is_empty()
-                                && target
-                                    .strip_prefix(a.module)
-                                    .is_some_and(|suffix| suffix.starts_with('.'))
-                            {
-                                prefixes(a.module).2
-                            } else {
-                                false
-                            };
-                            (module, package, namespace)
-                        },
-                    )
-                } else {
-                    (String::new(), String::new(), false)
-                };
-                let mut word = |text: &str| u64::from(intern(context.0, text));
+                            (
+                                intern(context.0, &module).into(),
+                                intern(context.0, &package).into(),
+                                namespace,
+                            )
+                        } else {
+                            let empty = u64::from(intern(context.0, ""));
+                            (empty, empty, false)
+                        }
+                    },
+                );
                 (
-                    word(a.module),
-                    word(root),
-                    [
-                        word(written),
-                        word(file.import_catalog(root)),
-                        word(&module),
-                        word(&package),
-                        namespace.into(),
-                    ],
+                    intern(context.0, a.module).into(),
+                    intern(context.0, root).into(),
+                    observations,
                 )
             },
         )?;
