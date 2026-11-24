@@ -231,7 +231,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
     let mut program =
         super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows, true);
     let clauses_by_root = std::mem::take(&mut program.skips);
-    drop(typed);
+    drop((typed, vocab, declaration, reader_rows));
     let summaries_cpu = thread_cpu() - summaries_start;
     run.empty = run.sym(b"");
     let unknown_words = reader::public_words(&mut run, parser.unknown_reasons());
@@ -241,8 +241,9 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
         .iter()
         .map(|k| run.sym(k.0.as_bytes()))
         .collect();
+    drop(kind_names);
     run.root_dir = req.root.clone();
-    run.paths = req.files.clone().into();
+    run.paths = std::mem::take(&mut req.files).into();
     let mut kinds = Names::default();
     let mut fields = Names::default();
     let mut words = Names::default();
@@ -364,6 +365,8 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
         &args,
         req.rule_applicability.as_ref().map(|accepted| (request, accepted)),
     );
+    drop(args);
+    drop((std::mem::take(&mut req.selected_rules), req.rule_applicability.take(), selected));
     fin.query_rows = QUERY_ROWS;
     fin.capture = capture.as_deref_mut().map(std::mem::take);
     let startup = thread_cpu() - start;
@@ -393,7 +396,8 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
     let mut symbols = l::Symbols::default();
     let reader_relations: Vec<_> = relations.iter().copied()
         .chain(std::iter::once(l::Relation::SyntaxTree)).collect();
-    for (index, path) in req.files.iter().enumerate() {
+    let paths = fin.run.paths.clone();
+    for (index, path) in paths.iter().enumerate() {
         literal_positions.get_mut().clear();
         if fin.retained_file(path) { continue; }
         let t0 = thread_cpu();
