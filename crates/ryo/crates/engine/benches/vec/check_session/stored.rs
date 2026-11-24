@@ -168,8 +168,8 @@ pub(super) struct Store {
     supplied_versions: HashMap<usize, Key>,
     versions: Vec<Option<Key>>,
     pairs: Vec<Option<(usize, usize)>>,
+    program_keys: Vec<Key>,
     binding_keys: Vec<Key>,
-    binding_ids: HashMap<Key, usize>,
     plans: Vec<Option<(Vec<Proof>, Vec<String>)>>,
     keep_pairs: Vec<bool>,
     local_rows: Vec<bool>,
@@ -270,8 +270,8 @@ impl Store {
             supplied_versions: HashMap::new(),
             versions: vec![],
             pairs: vec![],
+            program_keys: vec![],
             binding_keys: vec![],
-            binding_ids: HashMap::new(),
             plans: vec![],
             keep_pairs: vec![],
             local_rows: vec![],
@@ -610,38 +610,41 @@ impl Store {
                 };
                 Some(key((&source.path, &source.reader, source.permission, d)))
             }));
-        let mut rules = vec![[0; 32]; b.schedule.programs.len()];
-        for ((text, params), &idx) in &b.schedule.prepared {
-            rules[idx] = key((text, params));
+        // Programs and bindings are appended to the schedule. Their effective
+        // inputs stay the same when earlier answers are delivered.
+        let prior_programs = self.program_keys.len();
+        if prior_programs < b.schedule.programs.len() {
+            self.program_keys.resize(b.schedule.programs.len(), [0; 32]);
+            for ((text, params), &idx) in &b.schedule.prepared {
+                if idx >= prior_programs {
+                    self.program_keys[idx] = key((text, params));
+                }
+            }
         }
-        let bindings: Vec<_> = b
-            .bindings
-            .iter()
-            .enumerate()
-            .map(|(binding, host)| {
-                let r = b.program_of[binding];
-                // The engine shares this pre-join work for every binding with the
-                // same declared host shape. Which caller first supplied the rows
-                // can change when all but one request is restored.
-                let digest = if b.cut_of[binding].is_some() {
-                    let shape = host
-                        .iter()
-                        .map(|h| (&h.name, &h.columns))
-                        .collect::<Vec<_>>();
-                    key((0u8, rules[r], shape))
-                } else {
-                    key((1u8, rules[r], host))
-                };
-                *self.binding_ids.entry(digest).or_insert_with(|| {
-                    self.binding_keys.push(digest);
-                    self.binding_keys.len() - 1
-                })
-            })
-            .collect();
+        self.binding_keys.extend(
+            b.bindings
+                .iter()
+                .enumerate()
+                .skip(self.binding_keys.len())
+                .map(|(binding, host)| {
+                    let rule = self.program_keys[b.program_of[binding]];
+                    // The projected work before a closed join uses the hosted
+                    // schema. The closed request key binds the consumed rows.
+                    if b.cut_of[binding].is_some() {
+                        let shape = host
+                            .iter()
+                            .map(|h| (&h.name, &h.columns))
+                            .collect::<Vec<_>>();
+                        key((0u8, rule, shape))
+                    } else {
+                        key((1u8, rule, host))
+                    }
+                }),
+        );
         self.pairs.resize(b.schedule.pairs, None);
         for (i, src) in b.schedule.sources.iter().enumerate() {
             for &(binding, slot) in &src.bindings {
-                self.pairs[slot] = Some((i, bindings[binding]));
+                self.pairs[slot] = Some((i, binding));
             }
         }
         let mut needed = vec![false; self.pairs.len()];
