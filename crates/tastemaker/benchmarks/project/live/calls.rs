@@ -246,6 +246,7 @@ impl Live {
             .collect();
         paths.sort_unstable();
         paths.dedup();
+        let paths = Rc::new(paths);
         let key = (authority.clone(), overlay);
         let root = if let Some(id) = self.versions.get(&key) {
             id.clone()
@@ -337,7 +338,7 @@ impl Live {
                     .push((id.as_ref().into(), p.clone(), msg.clone()));
             }
         }
-        for path in paths {
+        for path in Rc::unwrap_or_clone(paths) {
             let p = sdk::RelativePath(path.into());
             if linked.reads(&p) != release_sdk::languages::Recognition::Reads
                 && !linked.0.iter().any(|reader| reader.primary_role(release_sdk::languages::SourcePath(&p.0)) == release_language::domain::files::types::PrimaryFileRole::Configuration)

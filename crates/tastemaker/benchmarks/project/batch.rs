@@ -29,11 +29,20 @@ use std::{
 struct Input {
     root: String,
     files: Vec<String>,
-    inventory: Option<Vec<String>>,
+    #[serde(default, deserialize_with = "read_inventory")]
+    inventory: Option<Rc<Vec<String>>>,
     repository: Option<Authority>,
     hosted: Vec<Hosted>,
     #[serde(deserialize_with = "read_parameters")]
     parameters: Parameters,
+}
+
+fn read_inventory<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Option<Rc<Vec<String>>>, D::Error> {
+    Ok(Option::<Vec<String>>::deserialize(input)?.map(|mut paths| {
+        paths.sort_unstable();
+        paths.dedup();
+        Rc::new(paths)
+    }))
 }
 
 enum Work {
@@ -271,11 +280,6 @@ impl Batch {
             };
             let inventory = req
                 .inventory
-                .map(|mut paths| {
-                    paths.sort_unstable();
-                    paths.dedup();
-                    Rc::new(paths)
-                })
                 .or(snapshot)
                 .or_else(|| {
                     let has_file = req
