@@ -40,6 +40,7 @@ pub struct Live {
     cache: CallCache,
     reverse_files: bool,
     admission_wall: f64,
+    admission_workers_cpu: f64,
     delivery_wall: f64,
     file_epoch_wall: f64,
     versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
@@ -65,6 +66,7 @@ impl Default for Live {
             },
             reverse_files: std::env::var_os("TM_BENCH_REVERSE_FILES").is_some(),
             admission_wall: 0.0,
+            admission_workers_cpu: 0.0,
             delivery_wall: 0.0,
             file_epoch_wall: 0.0,
             store:None, directory:None,
@@ -111,6 +113,12 @@ fn parameter(v: sdk::ParameterValue) -> Result<PlanConstant, String> {
         ),
         _ => return Err("unsupported SDK parameter type".into()),
     })
+}
+
+fn parameters(
+    input: BTreeMap<sdk::ParameterName, sdk::ParameterValue>,
+) -> Result<super::Parameters, String> {
+    input.into_iter().map(|(k, v)| Ok((k.0, parameter(v)?))).collect()
 }
 
 fn slot(v: &Option<Cell<std::sync::Arc<str>>>) -> sdk::Slot {
@@ -179,7 +187,7 @@ impl Live {
             *last.reasons.entry(reason.clone()).or_default() += 1;
         }
         last.elapsed += thread_cpu() - t;
-        last.worker_cpu = c.delivery_workers_cpu + c.file_workers_cpu + c.project_workers_cpu;
+        last.worker_cpu = c.delivery_workers_cpu + c.file_workers_cpu + c.project_workers_cpu + self.admission_workers_cpu;
         last.file_shards = c.file_shards;
         last.call_wall += wall.elapsed().as_secs_f64();
         last.phase_wall = [
@@ -278,7 +286,29 @@ impl Live {
         let host_keys=self.store.as_ref().map(|_|hosted.iter().map(super::stored::key).collect::<Vec<_>>());
         let mut restored_unread=BTreeMap::<String,usize>::new();
         self.batch.work.clear();
-        for (id, rule) in req.rules {
+        let mut rules = req.rules.into_iter();
+        let mut prepared = Vec::new();
+        let workers = self.batch.workers.map_or(1, std::num::NonZeroUsize::get);
+        if self.store.is_none() && workers > 1 && rules.len() >= 128 {
+            prepared.extend(rules.by_ref().map(|(id, rule)| (id, rule, None)));
+            let chunk_size = prepared.len().div_ceil(workers);
+            self.admission_workers_cpu += std::thread::scope(|scope| {
+                let decode = |chunk: &mut [(_, sdk::Rule, Option<_>)]| {
+                    let start = thread_cpu();
+                    for (_, rule, typed) in chunk {
+                        *typed = Some(parameters(std::mem::take(&mut rule.parameters)));
+                    }
+                    thread_cpu() - start
+                };
+                let mut chunks = prepared.chunks_mut(chunk_size);
+                let first = chunks.next().expect("non-empty rules");
+                let children: Vec<_> = chunks.map(|chunk| scope.spawn(|| decode(chunk))).collect();
+                decode(first);
+                children.into_iter().map(|child| child.join().expect("admission worker panicked")).sum::<f64>()
+            });
+        }
+        let serial = rules.map(|(id, rule)| (id, rule, None));
+        for (id, rule, typed) in serial.chain(prepared) {
             if rule.applicability != sdk::RuleApplicability::Always || !rule.observations.is_empty()
             {
                 return Err(format!(
@@ -293,11 +323,7 @@ impl Live {
                 &inc.1,
                 &exc.1,
             );
-            let parameters = rule
-                .parameters
-                .into_iter()
-                .map(|(k, v)| Ok((k.0, parameter(v)?)))
-                .collect::<Result<_, String>>()?;
+            let parameters = typed.unwrap_or_else(|| parameters(rule.parameters))?;
             let query=self.cache.query(rule.query.as_ref());
             let contract=scope.map(|scope|{
                 let rule=self.batch.prepared_rule(query.clone(),&parameters);
