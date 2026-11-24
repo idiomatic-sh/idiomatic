@@ -5,15 +5,15 @@
 
 /// Calls `each` with the byte ranges of the slots, once per way `text` matches `pattern`. `separator` (redo-binding pass 6,
 /// merged by redo-int: the step's argument, it was `/`): the characters a `{name}` slot may not hold; none given: any.
-pub(super) fn matches(
+fn matches(
     pattern: &str,
     separator: Option<&str>,
     text: &str,
+    slots: &mut Vec<std::ops::Range<usize>>,
     each: &mut dyn FnMut(&[std::ops::Range<usize>]),
 ) {
-    let mut slots = Vec::new();
     let sep = separator.unwrap_or("");
-    walk(pattern, sep, text, text, &mut slots, each);
+    walk(pattern, sep, text, text, slots, each);
 }
 
 fn walk(
@@ -105,12 +105,13 @@ fn captured(
     pattern: &str,
     separator: Option<&str>,
     columns: &[Option<usize>],
+    slots: &mut Vec<std::ops::Range<usize>>,
 ) -> Ways {
     let mut result = Ways {
         count: 0,
         cells: Vec::new(),
     };
-    matches(pattern, separator, text, &mut |spans| {
+    matches(pattern, separator, text, slots, &mut |spans| {
         result.count += 1;
         for column in columns {
             let text = column
@@ -168,6 +169,9 @@ pub(super) fn write(
 ) -> super::R<()> {
     let mut by_path = super::FxHashMap::default();
     let mut row = Vec::new();
+    // Walking a split always pops its ranges before returning. Reuse the
+    // buffer across subjects while keeping only finished values in by_path.
+    let mut slots = Vec::new();
     let file = input.tys[path] == super::Ty::File;
     let paths = run.paths.clone();
     // Rows with the same subject have the same possible splits. Apply each
@@ -184,9 +188,9 @@ pub(super) fn write(
         let ways = if file {
             let path = paths.get(word as usize).ok_or("unbound capture file")?;
             if project {
-                by_path.entry(word).or_insert_with(|| captured(run, path, pattern, separator, columns))
+                by_path.entry(word).or_insert_with(|| captured(run, path, pattern, separator, columns, &mut slots))
             } else {
-                single = captured(run, path, pattern, separator, columns);
+                single = captured(run, path, pattern, separator, columns, &mut slots);
                 &single
             }
         } else {
@@ -195,7 +199,7 @@ pub(super) fn write(
                 continue;
             }
             let Ok(text) = String::from_utf8(run.text(symbol).to_vec()) else { continue };
-            single = captured(run, &text, pattern, separator, columns);
+            single = captured(run, &text, pattern, separator, columns, &mut slots);
             &single
         };
         if ways.count == 0 {
