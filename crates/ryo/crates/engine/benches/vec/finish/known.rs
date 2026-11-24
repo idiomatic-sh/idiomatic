@@ -65,6 +65,10 @@ impl Flat {
 }
 
 impl Exec<'_> {
+    pub(super) fn decided_empty(&self, file: &File<'_>, node: usize) -> bool {
+        matches!(file.known[node], YES | YES_EP)
+    }
+
     /// Whether a run of `node` in this file returns nothing, known without running it.
     #[inline(always)]
     pub(super) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {

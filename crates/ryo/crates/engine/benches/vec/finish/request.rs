@@ -27,7 +27,12 @@ impl Answer {
         }
     }
 
-    pub(crate) fn columns(self) -> R<Rc<Table>> {
+    pub(crate) struct Edge {
+    input: usize,
+    projected: Option<(u16, Columns)>,
+}
+
+fn columns(self) -> R<Rc<Table>> {
         match self {
             Self::Columns(table) => Ok(table),
             Self::Indexed { .. } => Err("closed scope requires owned column tables".into()),
@@ -65,7 +70,7 @@ pub(super) struct Requests {
 enum Demand {
     Native,
     Base(u16),
-    Inputs(Rc<[(usize, Columns)]>),
+    Inputs(Box<[Edge]>),
 }
 
 fn columns(expr: &E, source: usize, out: &mut Columns) {
@@ -96,6 +101,9 @@ impl Exec<'_> {
     fn bind_request(&mut self, run: &mut Run, node: usize) {
         if self.requests.steps[node].is_some() { return; }
         let plan = &self.plan.nodes[node];
+        // Mark before descending. Shared subtrees are bound once.
+        self.requests.steps[node] = Some(Demand::Native);
+        for &input in &plan.inputs { self.bind_request(run, input); }
         let demand = if let Some(rel) = plan.base() {
             if native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles) {
                 Demand::Native
@@ -103,48 +111,55 @@ impl Exec<'_> {
                 Demand::Base(slot(run, rel))
             }
         } else {
-            let mut inputs = Vec::new();
-            if plan.op == "select" && let Ok(select) = self.sel(run, node) {
-                for (i, &input) in select.srcs.iter().enumerate() {
-                    let mut mask = Columns::All;
-                    if select.srcs.len() == 1 && !plan.counted() && matches!(self.keyed_form(run, node), Ok(super::keyed::Form::Not)) {
-                        mask = Columns::default();
-                        for expr in select.conj.iter().chain(select.items.iter().map(|(_, e)| e)) {
-                            columns(expr, i, &mut mask);
-                        }
-                    }
-                    inputs.push((input, mask));
-                }
-            } else {
-                inputs.extend(plan.inputs.iter().map(|&input| (input, Columns::All)));
+            let mut edges: Vec<_> = plan.inputs.iter().copied()
+                .filter(|&input| !matches!(self.requests.steps[input], Some(Demand::Native)))
+                .map(|input| Edge { input, projected: None }).collect();
+            if edges.is_empty() {
+                return;
             }
-            Demand::Inputs(inputs.into())
+            if plan.op == "select" && !plan.counted()
+                && let Ok(select) = self.sel(run, node)
+                && select.srcs.len() == 1
+                && matches!(self.keyed_form(run, node), Ok(super::keyed::Form::Not))
+                && let Ok(Some(view)) = self.view(run, select.srcs[0])
+                && let Native::Fact(slot) = view.base
+            {
+                let mut mask = Columns::default();
+                for expr in select.conj.iter().chain(select.items.iter().map(|(_, e)| e)) {
+                    columns(expr, 0, &mut mask);
+                }
+                let mut base_columns = Columns::default();
+                for expr in &view.filter { columns(expr, 0, &mut base_columns); }
+                for (column, &base) in view.map.iter().enumerate() {
+                    if mask.contains(column) { base_columns.insert(base); }
+                }
+                if let Some(edge) = edges.iter_mut().find(|edge| edge.input == select.srcs[0]) {
+                    edge.projected = Some((slot, base_columns));
+                }
+            }
+            Demand::Inputs(edges.into_boxed_slice())
         };
         self.requests.steps[node] = Some(demand);
-        for &input in &plan.inputs { self.bind_request(run, input); }
     }
 
-    fn collect_request(&mut self, run: &mut Run, file: &mut File<'_>, provider: &mut dyn Provider, node: usize, mask: &Columns, prune: bool) {
-        if matches!(mask, Columns::All) && std::mem::replace(&mut self.requests.seen[node], true) { return; }
-        if prune && self.static_empty(file, run, provider, node) { return; }
-        if !matches!(mask, Columns::All) && let Ok(Some(view)) = self.view(run, node) {
-            if let Native::Fact(id) = view.base {
-                let projected = self.requests.masks[usize::from(id)].get_or_insert_with(Columns::default);
-                for expr in &view.filter { columns(expr, 0, projected); }
-                for (column, &base) in view.map.iter().enumerate() {
-                    if mask.contains(column) { projected.insert(base); }
-                }
-            }
-            return;
-        }
-        match self.requests.steps[node].as_ref().expect("bound request") {
+    fn collect_request(&mut self, run: &mut Run, file: &mut File<'_>, provider: &mut dyn Provider,
+        steps: &[Option<Demand>], node: usize, prune: bool) {
+        let demand = steps[node].as_ref().expect("bound request");
+        if matches!(demand, Demand::Native) || std::mem::replace(&mut self.requests.seen[node], true) { return; }
+        if prune && !self.plan.nodes[node].counted() && self.static_empty(file, run, provider, node) { return; }
+        match demand {
             Demand::Native => {}
-            Demand::Base(id) => { self.requests.masks[usize::from(*id)] = Some(Columns::All); }
-            Demand::Inputs(inputs) => {
-                // Keep the prepared inputs in this slot without cloning them per file.
-                let inputs = inputs.clone();
-                for (input, mask) in &*inputs {
-                    self.collect_request(run, file, provider, *input, mask, prune);
+            Demand::Base(slot) => { self.requests.masks[usize::from(*slot)] = Some(Columns::All); }
+            Demand::Inputs(edges) => {
+                for edge in edges {
+                    if let Some((slot, columns)) = &edge.projected {
+                        if !prune || !self.static_empty(file, run, provider, edge.input) {
+                            let mask = self.requests.masks[usize::from(*slot)].get_or_insert_with(Columns::default);
+                            mask.extend(columns);
+                        }
+                    } else {
+                        self.collect_request(run, file, provider, steps, edge.input, prune);
+                    }
                 }
             }
         }
@@ -169,7 +184,9 @@ impl Exec<'_> {
         }
         file.admitting = true;
         let prune = empty.is_some() && !sw!("VEC_NO_KNOWN") && !sw!("VEC_NO_SEMI");
-        for node in roots { self.collect_request(run, file, provider, node, &Columns::All, prune); }
+        let steps = std::mem::take(&mut self.requests.steps);
+        for node in roots { self.collect_request(run, file, provider, &steps, node, prune); }
+        self.requests.steps = steps;
         file.admitting = false;
         // A negative decision can change once the admitted fact columns are present.
         if prune { file.known.iter_mut().filter(|value| **value == super::known::NO).for_each(|value| *value = 0); }

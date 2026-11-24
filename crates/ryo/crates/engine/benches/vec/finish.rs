@@ -1717,14 +1717,17 @@ impl<'p> Exec<'p> {
         if let Some(t) = &self.run_memo[node] {
             return Ok(Res::Tab(t.clone()));
         }
+        if let Some(v) = self.view(run, node)? {
+            if self.decided_empty(f, node) {
+                return Ok(Res::Tab(self.empty_rc(run, node)?));
+            }
+            self.load_fact(f, run, v.base)?;
+            return Ok(Res::View(v));
+        }
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
             self.skipped(f, node);
             return Ok(Res::Tab(self.empty_rc(run, node)?));
-        }
-        if let Some(v) = self.view(run, node)? {
-            self.load_fact(f, run, v.base)?;
-            return Ok(Res::View(v));
         }
         // An empty driving step answers without visiting its remaining inputs.
         let gate = self.frames[node].gate;
