@@ -141,6 +141,38 @@ def contribution_edits(executable, scratch, env):
     return result["forward"]
 
 
+def host_representative(executable,scratch,env):
+    """A request hit removes the former representative for the shared local cut."""
+    root=scratch/"representative";pack=root/"pack/rules/query";pack.mkdir(parents=True)
+    (pack/"query.ryoql").write_text(
+        'let nodes = select id, file, span from "semantic-syntax" where kind = "function-def";\n'
+        'let allowed = select path from "tastemaker.placed";\n'
+        'let hits = select n.file as file, n.id as id, n.span as span from nodes as n join allowed as a on n.file = a.path;\n'
+        'emit hits subject file key(id,span);\n')
+    names=["a.py","b.py","c.py"]
+    for n in names:(root/n).write_text("def once(): return 1\n")
+    inv=root/"inventory";inv.write_text(json.dumps(names))
+    man=root/"manifest";lines=[]
+    for j,(paths,allowed) in enumerate([(names[:2],names[1]),([names[0],names[2]],names[2])]):
+        req=root/f"req{j}"
+        req.write_text(json.dumps(dict(root=str(root),files=paths,parameters={},
+            hosted=[dict(name="tastemaker.placed",columns=[["path","File"]],rows=[[{"file":allowed}]])])))
+        lines.append(f"{j}\t{pack.parents[1]}\t{req}\tunused\t{inv}\n")
+    man.write_text("".join(lines))
+    def invoke(warm):
+        out=root/"out"
+        args=["--tm-batch-retained",root] if warm else ["--tm-batch"]
+        p=subprocess.run([executable,*args,man,out],env=env,capture_output=True,check=True)
+        assert b"refused" not in out.read_bytes(),p.stdout
+        return out.read_bytes(),p.stderr
+    original,_=invoke(True)
+    (root/"c.py").write_text("pass\n")
+    answer,counters=invoke(True)
+    assert answer!=original and answer==invoke(False)[0]
+    assert b"request_hits=1 " in counters and b"evaluated_pairs=1 " in counters,counters
+    return answer
+
+
 def run(fixture, exe, other_build, evidence):
     spec = json.loads((fixture / "edit.json").read_bytes())
     root = fixture / spec["root"]
@@ -213,6 +245,8 @@ def run(fixture, exe, other_build, evidence):
 
     with tempfile.TemporaryDirectory(dir=fixture) as tmp:
         parent_lookup(exe,Path(tmp),env)
+        host_representative(exe,Path(tmp),env)
+        (evidence/"representative.txt").write_text("unchanged first request hit; one changed pair on the second request; exact cold receipt\n")
         rows=contribution_edits(exe,Path(tmp),env)
         with (evidence/"contribution-matrix.tsv").open("w") as f:
             f.write("scenario\tstatus\tchanged_receipt\n")
