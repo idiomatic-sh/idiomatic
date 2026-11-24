@@ -150,6 +150,7 @@ struct Job<'a> {
     project: Option<usize>,
     pairs: &'a [usize],
     inventory: &'a [String],
+    inventory_key: usize,
     files: &'a [String],
     hosted: &'a [Hosted],
     contract: &'a session::completeness::Contract,
@@ -167,6 +168,7 @@ pub(super) fn run(
     duplicate: &[Option<usize>],
 ) -> f64 {
     let mut programs = Vec::new();
+    let mut numbers = HashMap::<usize, Vec<u32>>::new();
     for slots in groups {
         let mut jobs = Vec::new();
         let mut plan = None;
@@ -176,15 +178,17 @@ pub(super) fn run(
             }
             let Work::Closed { pairs, project, binding, inventory, files } = &batch.work[slot]
                 else { unreachable!("closed program task") };
-            for path in inventory.iter() {
-                world.file(path);
-            }
+            let inventory_key = Rc::as_ptr(inventory) as usize;
+            numbers.entry(inventory_key).or_insert_with(|| {
+                inventory.iter().map(|path| world.file(path)).collect()
+            });
             plan = Some(&batch.schedule.programs[batch.program_of[*binding]].as_ref().unwrap().plan);
             jobs.push(Job {
                 slot,
                 project: *project,
                 pairs,
                 inventory,
+                inventory_key,
                 files,
                 hosted: &batch.bindings[*binding],
                 contract: &batch.bound_contracts[binding],
@@ -199,7 +203,6 @@ pub(super) fn run(
         jobs.iter().filter(|job| job.cut.is_some()).flat_map(|job| job.pairs.iter().copied())
     }));
     let available = &world.unavailable;
-    let files = &world.files;
     let paths = &world.run.paths;
     let words: Vec<&[u8]> = world.run.texts.iter().map(|word| word.as_ref()).collect();
     let empty = world.run.empty;
@@ -240,8 +243,7 @@ pub(super) fn run(
                     {
                         Inputs::Withheld(answer) => Ok(answer),
                         Inputs::Ready { carried, incomplete, unknowns } => {
-                            let numbers: Vec<_> = job.inventory.iter().map(|path| files[path]).collect();
-                            execute_ids(&mut exec, &mut run, &numbers, &carried,
+                            execute_ids(&mut exec, &mut run, &numbers[&job.inventory_key], &carried,
                                 job.inventory, job.files, job.hosted, p, &incomplete)
                                 .map(|rows| session::Reported { rows, unknowns })
                         }
