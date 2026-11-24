@@ -114,6 +114,17 @@ fn verify(
                         }
                     }
                 }
+                "group-min" | "group-max" => {
+                    for name in finish::strs(&step.args()["keys"])? {
+                        arg_column(exec, run, "from", name)?;
+                    }
+                    arg_column(exec, run, "from", finish::s(&step.args()["order"])?)?;
+                }
+                "span-between" => {
+                    for argument in ["start", "end"] {
+                        arg_column(exec, run, "from", finish::s(&step.args()[argument])?)?;
+                    }
+                }
                 "group-count" => {
                     if let Some(name) = step.args()["distinct"].as_str() {
                         arg_column(exec, run, "from", name)?;
