@@ -127,12 +127,28 @@ struct Local {
     frontier: Vec<(usize, usize)>,
     unavailable: Vec<(String, String)>,
 }
+// This length-prefixed postcard payload stays packed until a changed closed
+// answer actually requests a column from it.
+#[derive(Deserialize)]
+struct EncodedBlock(Vec<u8>);
+impl Serialize for EncodedBlock {
+    fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
+        out.serialize_bytes(&self.0)
+    }
+}
+impl EncodedBlock {
+    fn restore(&self, world: &mut session::World) -> Rc<finish::population::Block> {
+        let block: session::stored_block::StoredBlock =
+            postcard::from_bytes(&self.0).expect("block in checksum-verified table for this build");
+        block.restore(world)
+    }
+}
 #[derive(Default, Serialize, Deserialize)]
 struct FileAnswers {
     path: String,
     pairs: BTreeMap<Key, Local>,
     notes: Option<Notes>,
-    blocks: Vec<session::stored_block::StoredBlock>,
+    blocks: Vec<EncodedBlock>,
     #[serde(skip)]
     known_blocks: HashMap<Key, usize>,
 }
@@ -391,14 +407,18 @@ impl Store {
             })
             .collect();
         let mut inventories = HashMap::new();
-        let mut needed = BTreeSet::new();
-        let mut frontier = BTreeSet::new();
+        let mut needed = vec![false; self.pairs.len()];
+        let mut frontier = vec![false; self.pairs.len()];
         let mut projects = BTreeSet::new();
         self.closed = vec![None; b.work.len()];
         self.restored_unread.clear();
         for (i, work) in b.work.iter_mut().enumerate() {
             match work {
-                Work::Pairs(slots) => needed.extend(slots.iter().copied()),
+                Work::Pairs(slots) => {
+                    for &slot in slots.iter() {
+                        needed[slot] = true;
+                    }
+                }
                 Work::Closed {
                     project,
                     pairs,
@@ -430,8 +450,10 @@ impl Store {
                         self.closed_hits += 1;
                     } else {
                         self.evaluated_closed += 1;
-                        needed.extend(pairs.iter().copied());
-                        frontier.extend(pairs.iter().copied());
+                        for &slot in pairs.iter() {
+                            needed[slot] = true;
+                            frontier[slot] = true;
+                        }
                         if let Some(p) = project {
                             projects.extend(b.projects[*p].slots.iter().copied());
                         }
@@ -443,7 +465,10 @@ impl Store {
         let mut restored = HashMap::new();
         // Later live requests can consume a file answer delivered in an earlier epoch.
         // Its source no longer has a pending binding, but its stable pair key remains.
-        for slot in frontier {
+        for (slot, requested) in frontier.into_iter().enumerate() {
+            if !requested {
+                continue;
+            }
             if world.frontiers.contains_key(&slot) {
                 continue;
             }
@@ -491,7 +516,7 @@ impl Store {
                 src.project = false;
             }
             src.bindings.retain(|_, slot| {
-                if !needed.contains(slot) {
+                if !needed[*slot] {
                     return false;
                 }
                 let Some((_, bind)) = self.pairs[*slot] else {
@@ -561,7 +586,7 @@ impl Store {
                             let bytes = postcard::to_stdvec(&stored).expect("typed block");
                             let hash = *blake3::hash(&bytes).as_bytes();
                             *file.known_blocks.entry(hash).or_insert_with(|| {
-                                file.blocks.push(stored);
+                                file.blocks.push(EncodedBlock(bytes));
                                 file.blocks.len() - 1
                             })
                         });

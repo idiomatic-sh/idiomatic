@@ -1,7 +1,8 @@
 //! Stable names and typed columns for the portion of one source consumed by a closed query.
 use super::{World, finish};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, rc::Rc};
+use std::rc::Rc;
 
 #[derive(Serialize, Deserialize)]
 enum Words {
@@ -45,15 +46,22 @@ impl StoredBlock {
     pub(crate) fn save(block: &finish::population::Block, world: &World) -> Self {
         use finish::Ty;
         let mut words = Vec::new();
-        let mut lookup = HashMap::new();
-        let mut intern = |word: &[u8]| {
-            if let Some(i) = lookup.get(word) {
-                return *i;
-            }
-            let i = words.len() as u64;
-            lookup.insert(word.to_vec(), i);
-            words.push(word.to_vec());
-            i
+        #[derive(Clone, Copy, Hash, Eq, PartialEq)]
+        enum Word {
+            Path(u32),
+            Symbol(u32),
+        }
+        let mut lookup = FxHashMap::default();
+        let mut intern = |id: Word| {
+            *lookup.entry(id).or_insert_with(|| {
+                let bytes = match id {
+                    Word::Path(i) => world.run.paths[i as usize].as_bytes(),
+                    Word::Symbol(i) => world.run.text(i),
+                };
+                let index = words.len() as u64;
+                words.push(bytes.to_vec());
+                index
+            })
         };
         let columns = block
             .tys
@@ -67,13 +75,12 @@ impl StoredBlock {
                         continue;
                     }
                     *v = match ty {
-                        Ty::File => intern(world.run.paths[*v as usize].as_bytes()),
+                        Ty::File => intern(Word::Path(*v as u32)),
                         Ty::Node => {
-                            (intern(world.run.paths[(*v >> 32) as usize].as_bytes()) << 32)
-                                | (*v & 0xffff_ffff)
+                            (intern(Word::Path((*v >> 32) as u32)) << 32) | (*v & 0xffff_ffff)
                         }
                         Ty::Sym if world.run.absent_word == Some(*v as u32) => u64::MAX - 1,
-                        Ty::Sym => intern(world.run.text(*v as u32)),
+                        Ty::Sym => intern(Word::Symbol(*v as u32)),
                         _ => *v,
                     };
                 }
