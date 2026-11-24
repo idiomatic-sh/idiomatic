@@ -5,7 +5,7 @@ use super::{Key, Shards, finish, key, kind, session};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     fs,
     hash::Hash,
     io::Read,
@@ -76,6 +76,18 @@ impl FileObservation {
     }
 }
 
+/// Identifies the immutable evidence supplied by one admission in this store.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(in super::super) struct InputScope {
+    overlay: usize,
+    inventory: usize,
+}
+
+struct RequestInputs {
+    root: PathBuf,
+    supplied: BTreeMap<String, Key>,
+}
+
 pub(super) struct Observations {
     dir: PathBuf,
     started: i64,
@@ -96,13 +108,13 @@ pub(super) struct Observations {
     pub bytes: [usize; 3],
     pub group_hits: usize,
     inodes: HashMap<Stamp, Key>,
-    values: FxHashMap<(u32, Probe), Option<Key>>,
-    pub root: Option<PathBuf>,
-    pub inventory: Key,
-    pub overlay: HashMap<PathBuf, Key>,
-    pub groups: FxHashMap<Key, Option<Key>>,
-    effective_groups: HashSet<Key>,
-    inventory_groups: HashSet<Key>,
+    values: FxHashMap<(u32, Probe, Option<usize>), Option<Key>>,
+    groups: FxHashMap<(Key, Option<usize>, Option<usize>), Option<Key>>,
+    group_inputs: FxHashMap<Key, (bool, bool)>,
+    scopes: Vec<RequestInputs>,
+    scope_ids: FxHashMap<Key, usize>,
+    inventories: Vec<Key>,
+    inventory_ids: FxHashMap<Key, usize>,
 }
 impl Observations {
     pub fn new(dir: PathBuf, index: super::Index) -> Self {
@@ -131,59 +143,52 @@ impl Observations {
             group_hits: 0,
             inodes: HashMap::new(),
             values: FxHashMap::default(),
-            root: None,
-            inventory: [0; 32],
-            overlay: HashMap::new(),
             groups: FxHashMap::default(),
-            effective_groups: HashSet::new(),
-            inventory_groups: HashSet::new(),
+            group_inputs: FxHashMap::default(),
+            scopes: Vec::new(),
+            scope_ids: FxHashMap::default(),
+            inventories: Vec::new(),
+            inventory_ids: FxHashMap::default(),
         }
     }
-    pub fn overlay(
+    pub fn request_inputs(
         &mut self,
         root: &Path,
         inventory: Key,
         peers: Key,
-        values: &BTreeMap<String, (std::sync::Arc<[u8]>, crate::check_session::Permission)>,
-    ) {
-        let overlay = values
-            .iter()
-            .map(|(p, (data, mode))| (p.into(), key((blake3::hash(data).as_bytes(), mode))))
-            .collect();
-        let effective_changed = self.root.as_deref() != Some(root) || self.overlay != overlay;
-        let inventory = key((inventory, peers));
-        let inventory_changed = self.inventory != inventory;
-        if effective_changed {
-            self.overlay = overlay;
-            self.root = Some(root.to_owned());
-            for id in self.effective_groups.drain() {
-                self.groups.remove(&id);
+        supplied: BTreeMap<String, Key>,
+    ) -> InputScope {
+        let id = key((root, &supplied));
+        let overlay = *self.scope_ids.entry(id).or_insert_with(|| {
+            let index = self.scopes.len();
+            self.scopes.push(RequestInputs { root: root.to_owned(), supplied });
+            index
+        });
+        let digest = key((inventory, peers));
+        let inventory = *self.inventory_ids.entry(digest).or_insert_with(|| {
+            let index = self.inventories.len();
+            self.inventories.push(digest);
+            index
+        });
+        InputScope { overlay, inventory }
+    }
+
+    fn observe_in(&mut self, p: &Path, mode: Probe, overlay: Option<usize>) -> Option<Key> {
+        match mode {
+            Probe::Effective => {
+                let input = self.scopes.get(overlay?)?;
+                if let Some(value) = input.supplied.get(p.to_str()?) {
+                    return Some(*value);
+                }
+                let path = input.root.join(p);
+                self.observe(&path, Probe::Source)
             }
-        }
-        if inventory_changed {
-            self.inventory = inventory;
-            for id in self.inventory_groups.drain() {
-                self.groups.remove(&id);
-            }
-        }
-        if effective_changed || inventory_changed {
-            self.values.retain(|(_, mode), _| {
-                !(effective_changed && *mode == Probe::Effective
-                    || inventory_changed && *mode == Probe::Inventory)
-            });
+            _ => self.observe(p, mode),
         }
     }
+
     pub fn observe(&mut self, p: &Path, mode: Probe) -> Option<Key> {
-        if matches!(mode, Probe::Inventory) {
-            return Some(self.inventory);
-        }
-        if matches!(mode, Probe::Effective) {
-            if let Some(v) = self.overlay.get(p) {
-                return Some(*v);
-            }
-            let file = self.root.as_ref()?.join(p);
-            return self.observe(&file, Probe::Source);
-        }
+        debug_assert!(!matches!(mode, Probe::Effective | Probe::Inventory));
         if mode == Probe::Kind {
             if let Some(v) = self.kinds.get(p) {
                 self.path_hits += 1;
@@ -290,41 +295,41 @@ impl Observations {
                 .iter()
                 .all(|(path, prior)| kind(path).ok().map(key) == *prior)
     }
-    pub fn group(&mut self, id: Key, paths: &Group, names: &[PathBuf]) -> Option<Key> {
-        if let Some(v) = self.groups.get(&id) {
+    pub fn checked_groups(&self) -> usize {
+        self.groups.len()
+    }
+
+    pub fn group(&mut self, id: Key, paths: &Group, names: &[PathBuf], scope: Option<InputScope>) -> Option<Key> {
+        let &(effective, closed) = self.group_inputs.entry(id).or_insert_with(|| {
+            (paths.iter().any(|&(_, mode)| mode == Probe::Effective),
+             paths.iter().any(|&(_, mode)| mode == Probe::Inventory))
+        });
+        let overlay = if effective { Some(scope?.overlay) } else { None };
+        let inventory = if closed { Some(scope?.inventory) } else { None };
+        let group = (id, overlay, inventory);
+        if let Some(v) = self.groups.get(&group) {
             self.group_hits += 1;
             return *v;
         }
         let mut hash = super::Digest::default();
         paths.len().hash(&mut hash);
-        let result = paths
-            .iter()
-            .try_for_each(|&(i, m)| {
-                let d = if let Some(d) = self.values.get(&(i, m)) {
-                    *d
+        let result = paths.iter().try_for_each(|&(i, mode)| {
+            let digest = if mode == Probe::Inventory {
+                inventory.map(|index| self.inventories[index])
+            } else {
+                let binding = (i, mode, overlay.filter(|_| mode == Probe::Effective));
+                if let Some(digest) = self.values.get(&binding) {
+                    *digest
                 } else {
-                    let d = self.observe(names.get(i as usize)?, m);
-                    self.values.insert((i, m), d);
-                    d
-                }?;
-                d.hash(&mut hash);
-                Some(())
-            })
-            .map(|()| *hash.0.finalize().as_bytes());
-        if self.root.is_some() {
-            for &(_, mode) in paths {
-                match mode {
-                    Probe::Inventory => {
-                        self.inventory_groups.insert(id);
-                    }
-                    Probe::Effective => {
-                        self.effective_groups.insert(id);
-                    }
-                    _ => {}
+                    let digest = self.observe_in(names.get(i as usize)?, mode, binding.2);
+                    self.values.insert(binding, digest);
+                    digest
                 }
-            }
-        }
-        self.groups.insert(id, result);
+            }?;
+            digest.hash(&mut hash);
+            Some(())
+        }).map(|()| *hash.0.finalize().as_bytes());
+        self.groups.insert(group, result);
         result
     }
 }
@@ -471,6 +476,44 @@ pub(super) fn unpack_rows(data: &[u8]) -> Vec<finish::answer::Row> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interleaved_requests_keep_their_own_effective_inputs() {
+        let dir = tempfile::tempdir().unwrap();
+        let first = dir.path().join("first");
+        let second = dir.path().join("second");
+        fs::create_dir(&first).unwrap();
+        fs::create_dir(&second).unwrap();
+        fs::write(first.join("file"), b"one").unwrap();
+        fs::write(second.join("file"), b"two").unwrap();
+
+        let mut observed = Observations::new(dir.path().to_owned(), Default::default());
+        let inventory = key("inventory");
+        let peers = key("peers");
+        let disk = observed.request_inputs(&first, inventory, peers, BTreeMap::new());
+        let other_disk = observed.request_inputs(&second, inventory, peers, BTreeMap::new());
+        let other_inventory = observed.request_inputs(&first, key("other inventory"), peers, BTreeMap::new());
+        let supplied = observed.request_inputs(
+            &first, key("other inventory"), peers, BTreeMap::from([("file".into(), key("supplied"))]),
+        );
+        let names = ["file".into(), PathBuf::new()];
+        let paths = vec![(0, Probe::Effective)];
+        let id = key(&paths);
+        assert_eq!(observed.group(id, &paths, &names, None), None);
+        let value = observed.group(id, &paths, &names, Some(disk)).unwrap();
+        assert_eq!(observed.group(id, &paths, &names, Some(other_inventory)), Some(value));
+        assert_eq!(observed.checked_groups(), 1);
+        assert_ne!(observed.group(id, &paths, &names, Some(other_disk)), Some(value));
+        assert_ne!(observed.group(id, &paths, &names, Some(supplied)), Some(value));
+        assert_eq!(observed.group(id, &paths, &names, Some(disk)), Some(value));
+
+        let paths = vec![(1, Probe::Inventory)];
+        let id = key(&paths);
+        let value = observed.group(id, &paths, &names, Some(disk));
+        assert_eq!(observed.group(id, &paths, &names, Some(other_disk)), value);
+        assert_eq!(observed.checked_groups(), 4);
+        assert_ne!(observed.group(id, &paths, &names, Some(supplied)), value);
+    }
 
     #[test]
     fn both_timestamps_must_precede_the_snapshot_tick() {
