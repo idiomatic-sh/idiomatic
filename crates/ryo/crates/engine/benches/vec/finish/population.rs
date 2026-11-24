@@ -92,6 +92,7 @@ pub(crate) struct Block {
 #[cfg(feature = "product-session")]
 pub(crate) struct SharedBlock<'a> {
     block: &'a Arc<Vec<Words>>,
+    schema: (usize, usize),
     names: &'a [String],
     types: &'a [Ty],
     len: usize,
@@ -99,10 +100,13 @@ pub(crate) struct SharedBlock<'a> {
 }
 #[cfg(feature = "product-session")]
 impl SharedBlock<'_> {
-    pub(crate) fn local(&self) -> Rc<Block> {
+    pub(crate) fn local(&self, schemas: &mut LocalSchemas) -> Rc<Block> {
+        let (names, tys) = schemas.0.entry(self.schema).or_insert_with(|| {
+            (Rc::new(self.names.to_vec()), Rc::new(self.types.to_vec()))
+        });
         Rc::new(Block {
-            names: Rc::new(self.names.to_vec()),
-            tys: Rc::new(self.types.to_vec()),
+            names: names.clone(),
+            tys: tys.clone(),
             n: self.len,
             home: self.home,
             columns: self.block.clone(),
@@ -111,11 +115,16 @@ impl SharedBlock<'_> {
     }
 }
 
+#[cfg(feature = "product-session")]
+#[derive(Default)]
+pub(crate) struct LocalSchemas(FxHashMap<(usize, usize), (Names, Tys)>);
+
 impl Block {
     #[cfg(feature = "product-session")]
     pub(crate) fn share(&self) -> SharedBlock<'_> {
         SharedBlock {
             block: &self.columns,
+            schema: (Rc::as_ptr(&self.names) as usize, Rc::as_ptr(&self.tys) as usize),
             names: &self.names,
             types: &self.tys,
             len: self.n,

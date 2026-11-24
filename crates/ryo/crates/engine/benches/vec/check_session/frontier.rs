@@ -221,6 +221,7 @@ impl<'a> SharedFrontier<'a> {
         slots: &[usize],
         cut: &[usize],
         local: &mut HashMap<usize, Rc<Block>>,
+        schemas: &mut finish::population::LocalSchemas,
     ) -> Result<finish::population::Inputs> {
         use finish::population::Population;
         let mut tables: Vec<_> = cut.iter().map(|_| Population::default()).collect();
@@ -233,7 +234,7 @@ impl<'a> SharedFrontier<'a> {
                 if node != expected {
                     return Err("unbound column frontier".into());
                 }
-                let piece = local.entry(*id).or_insert_with(|| self.blocks[*id].local());
+                let piece = local.entry(*id).or_insert_with(|| self.blocks[*id].local(schemas));
                 out.add(piece)?;
             }
         }

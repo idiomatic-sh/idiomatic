@@ -225,6 +225,7 @@ pub(super) fn run(
             run.sym(text);
         }
         let mut local_blocks = HashMap::new();
+        let mut schemas = finish::population::LocalSchemas::default();
         let mut local_populations = HashMap::new();
         let mut output = Vec::new();
         for (plan, jobs) in programs.iter().skip(shard).step_by(count) {
@@ -239,7 +240,7 @@ pub(super) fn run(
                         None => None,
                     };
                     match inputs(&run, job.contract, available, job.pairs, job.inventory, job.files,
-                        job.cut, p, answers, |steps| frontier.joined(job.pairs, steps, &mut local_blocks))?
+                        job.cut, p, answers, |steps| frontier.joined(job.pairs, steps, &mut local_blocks, &mut schemas))?
                     {
                         Inputs::Withheld(answer) => Ok(answer),
                         Inputs::Ready { carried, incomplete, unknowns } => {
