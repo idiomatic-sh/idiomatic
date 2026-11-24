@@ -39,10 +39,11 @@ impl Observations {
         &mut self,
         root: &Path,
         inventory: &[String],
+        peers: Key,
         values: &BTreeMap<String, std::rc::Rc<[u8]>>,
     ) {
         self.root = Some(root.to_owned());
-        self.inventory = key(inventory);
+        self.inventory = key((inventory, peers));
         self.overlay = values
             .iter()
             .map(|(p, data)| (p.into(), *blake3::hash(data).as_bytes()))

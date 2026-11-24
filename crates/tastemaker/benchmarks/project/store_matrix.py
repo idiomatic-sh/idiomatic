@@ -173,6 +173,27 @@ def host_representative(executable,scratch,env):
     return answer
 
 
+def inherited_inventory(executable,scratch,env):
+    root=scratch/'inherited';pack=root/'pack/rules/query';pack.mkdir(parents=True)
+    (root/'src').mkdir()
+    (root/'src/lib.rs').write_text('pub mod child;\n')
+    (root/'src/child.rs').write_text('pub fn child() {}\n')
+    (pack/'query.ryoql').write_text('let listed = select l."path" as "file" from "filesystem.file" as l;\nlet p = select * from listed where glob_any(file, "src/lib.rs");\nlet c = select * from listed where glob_any(file, "src/child.rs");\nlet a = extend(from=p,values={"w":1});\nlet b = extend(from=c,values={"w":1});\nlet missing = antijoin(left=a,right=b,left-on=["w"],right-on=["w"]);\nemit missing subject file key(file);\n')
+    req=root/'req';req.write_text(json.dumps(dict(root=str(root),files=['src/lib.rs','src/child.rs'],parameters={},hosted=[])))
+    inv=root/'inventory';index=root/'roots';index.write_text(json.dumps({str(root):str(inv)}))
+    m=root/'manifest';m.write_text(f'lookup\t{pack.parents[1]}\t{req}\tunused\n')
+    env=dict(env,TM_CORPUS_INVENTORIES=str(index))
+    prior=None
+    for names in [['src/lib.rs','src/child.rs'],None]:
+        inv.write_text(json.dumps(names) if names is not None else "[truncated")
+        results=[]
+        for args in (['--tm-batch-retained',root],['--tm-batch']):
+            out=root/'out';p=subprocess.run([executable,*args,m,out],env=env,capture_output=True,check=True)
+            results.append(out.read_bytes())
+        assert results[0]==results[1],(results,p.stderr)
+        if prior is not None:assert prior!=results[0]
+        prior=results[0]
+
 def run(fixture, exe, other_build, evidence):
     spec = json.loads((fixture / "edit.json").read_bytes())
     root = fixture / spec["root"]
@@ -245,6 +266,8 @@ def run(fixture, exe, other_build, evidence):
 
     with tempfile.TemporaryDirectory(dir=fixture) as tmp:
         parent_lookup(exe,Path(tmp),env)
+        inherited_inventory(exe,Path(tmp),env)
+        (evidence/"inherited-inventory.txt").write_text("changed inherited inventory revalidated; cold and warm both refused\n")
         host_representative(exe,Path(tmp),env)
         (evidence/"representative.txt").write_text("unchanged first request hit; one changed pair on the second request; exact cold receipt\n")
         rows=contribution_edits(exe,Path(tmp),env)

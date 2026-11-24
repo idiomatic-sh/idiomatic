@@ -848,6 +848,7 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
     });
     enum Entry { Stored(stored::Key), Evaluate(usize,Option<stored::Key>) }
     let mut entries=Vec::new();
+    let mut inherited_inventories=Vec::new();
     let file = std::fs::File::open(manifest).expect("input manifest");
     let mut invocations = Vec::new();
     let mut inputs = HashMap::new();
@@ -877,8 +878,16 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
                 entries.push(Entry::Stored(answer));
             }else {
                 let result=std::fs::read(req).map_err(|e|e.to_string())
-                    .and_then(|bytes|serde_json::from_slice(&bytes).map_err(|e|e.to_string()))
-                    .and_then(|input|session.register(pack,input,closed)).unwrap_or_else(Work::Refused);
+                    .and_then(|bytes|serde_json::from_slice::<Input>(&bytes).map_err(|e|e.to_string()))
+                    .and_then(|input|{
+                        let inherited=if closed.is_none() && store.is_some(){session.roots.get(&input.root).cloned()}else{None};
+                        let work=session.register(pack,input,closed)?;
+                        if let (Some(p),Some(s))=(inherited,&mut store) && matches!(work,Work::Closed{..}|Work::Project(_)){
+                            let expected=s.contract_file(&p);
+                            inherited_inventories.push((session.work.len(),p,expected));
+                        }
+                        Ok(work)
+                    }).unwrap_or_else(Work::Refused);
                 entries.push(Entry::Evaluate(session.work.len(),contract));
                 session.work.push(result);
             }
@@ -891,6 +900,7 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
     let answers=if let Some(s)=&mut store {
         let mut state=Active::default();
         if !session.work.is_empty(){session.epoch_with_store(readers,&mut state,Some(s));}
+        for (i,path,expected) in inherited_inventories {s.inventory(i,path,expected);}
         state.answers
     }else{session.run_sources(readers)};
     let t=thread_cpu();

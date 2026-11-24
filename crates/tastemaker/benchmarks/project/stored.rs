@@ -378,9 +378,21 @@ impl Store {
         &mut self,
         root: &Path,
         inventory: &[String],
+        peers: Key,
         v: &BTreeMap<String, Rc<[u8]>>,
     ) {
-        self.observed.overlay(root, inventory, v);
+        self.observed.overlay(root, inventory, peers, v);
+    }
+    pub(super) fn inventory(&mut self, i: usize, path: PathBuf, expected: Option<Key>) {
+        let evidence = self.group(vec![(path, Probe::Bytes)]);
+        if expected.is_some()
+            && let Some(g) = evidence
+            && let Some((proof, _)) = &mut self.plans[i]
+        {
+            proof.push(g);
+        } else {
+            self.plans[i] = None;
+        }
     }
     pub(super) fn contract_file(&mut self, p: &Path) -> Option<Key> {
         self.observed.observe(p, Probe::Bytes)

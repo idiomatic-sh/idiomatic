@@ -271,12 +271,19 @@ impl Live {
             .map(table)
             .collect::<Result<Vec<_>, _>>()?;
         let mut ids = Vec::new();
-        let scope=self.store.as_mut().map(|s|{
-            s.overlay(std::path::Path::new(&*physical),&paths,&key.1);
-            super::stored::key((&physical,&authority))
-        });
+        let scope=if let Some(s)=&mut self.store{
+            // The unread list belongs to the union of requested project relations.
+            // File-only requests have no dependency on this peer inventory.
+            let peers=req.rules.iter().map(|(id,rule)|{
+                let parameters=rule.parameters.iter().map(|(k,v)|Ok((&k.0,parameter(v.clone())?))).collect::<Result<Vec<_>,String>>()?;
+                Ok(super::stored::key((id.as_ref(),rule.query.as_ref(),&rule.include,&rule.exclude,parameters)))
+            }).collect::<Result<Vec<_>,String>>()?;
+            let shape=hosted.iter().map(|h|(&h.name,&h.columns)).collect::<Vec<_>>();
+            s.overlay(std::path::Path::new(&*physical),&paths,super::stored::key((peers,shape)),&key.1);
+            Some(super::stored::key((&physical,&authority)))
+        }else{None};
         let host_keys=self.store.as_ref().map(|_|hosted.iter().map(super::stored::key).collect::<Vec<_>>());
-        let mut restored_unread=std::collections::BTreeSet::new();
+        let mut restored_unread=BTreeMap::<String,usize>::new();
         self.batch.work.clear();
         for (id, rule) in req.rules {
             if rule.applicability != sdk::RuleApplicability::Always || !rule.observations.is_empty()
@@ -312,7 +319,9 @@ impl Live {
             if let (Some(store),Some(k))=(&mut self.store,contract)
                 && let Some((packet,unread))=store.lookup(k){
                 if let Some(reason)=&store.packet(&packet).refusal{return Err(format!("{id}: {reason}"))}
-                restored_unread.extend(unread);
+                let mut counts=BTreeMap::<String,usize>::new();
+                for p in unread{*counts.entry(p).or_default()+=1;}
+                for (p,n) in counts{let total=restored_unread.entry(p).or_default();*total=(*total).max(n);}
                 ids.push((id,Ok(packet)));
                 continue
             }
@@ -405,9 +414,10 @@ impl Live {
                 out.unread.push(p.0);
             }
         }
-        out.unread
-            .extend(self.state.manifest_failures.iter().map(|p| p.0.clone()));
-        for p in restored_unread {if !out.unread.iter().any(|v|&**v==p){out.unread.push(p.into());}}
+        let mut manifest=BTreeMap::<String,usize>::new();
+        for p in &self.state.manifest_failures{*manifest.entry(p.0.to_string()).or_default()+=1;}
+        for (p,n) in restored_unread{let total=manifest.entry(p).or_default();*total=(*total).max(n);}
+        for (p,n) in manifest{out.unread.extend(std::iter::repeat_n(Box::<str>::from(p),n));}
         out.unread.sort_unstable();
         self.batch.clocks.assemble += thread_cpu() - start;
         Ok(out)
