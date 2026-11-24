@@ -1162,6 +1162,10 @@ impl File<'_> {
 /// Counters a run keeps: per node, own time, calls, rows out and rows touched.
 #[derive(Default)]
 pub(super) struct Stats {
+    /// Empty-propagation skips by step, decisions by outcome, and timed leaf reads.
+    pub(super) leaf_skips: Vec<u64>,
+    pub(super) leaf_emits: [u64; 3],
+    pub(super) leaf_times: [f64; 3],
     pub(super) fact_index_rows: u64,
     pub(super) total_runs: u64,
     pub(super) total_rows: u64,
@@ -1410,7 +1414,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { fact_index_rows: 0, total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
+            stats: Stats { leaf_skips: Vec::new(), leaf_emits: [0; 3], leaf_times: [0.0; 3], fact_index_rows: 0, total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
             schemas: vec![None; k],
             worker_shapes: None,
             views: vec![None; k],

@@ -259,12 +259,7 @@ const NO_FACT: u16 = u16::MAX;
 #[derive(Default)]
 pub(super) struct Leaves {
     by: Vec<Option<std::rc::Rc<[Leaf]>>>,
-    /// runs not made because the propagation's leaves decided them, by step
-    skipped: Vec<u64>,
-    /// emits asked in a file: decided empty by the old leaves, by the propagation's, or run
-    emits: [u64; 3],
-    /// `VEC_STEP_TIME`: seconds of the leaves' fills, literal reads, view reads
-    laps: [f64; 3],
+
 }
 
 /// The columns of source `si` an expression names.
@@ -309,34 +304,34 @@ impl Exec<'_> {
             2 => 0,
             _ => 2,
         };
-        self.leaves.emits[k] += 1;
+        self.stats.leaf_emits[k] += 1;
     }
 
     /// A step skipped (answered empty before the bracket) because the propagation's leaves decided it.
     #[inline]
     pub(super) fn skipped(&mut self, f: &File<'_>, node: usize) {
         if f.known[node] == super::known::YES_EP {
-            let l = &mut self.leaves;
-            if l.skipped.len() <= node {
-                l.skipped.resize(node + 1, 0);
+            let l = &mut self.stats;
+            if l.leaf_skips.len() <= node {
+                l.leaf_skips.resize(node + 1, 0);
             }
-            l.skipped[node] += 1;
+            l.leaf_skips[node] += 1;
         }
     }
 
     /// The skipped runs by step kind (report lines `EPSKIP`).
     pub(crate) fn print_skipped(&self, ops: &dyn Fn(usize) -> String) {
-        let l = &self.leaves;
+        let l = &self.stats;
         let mut by: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
-        for (n, k) in l.skipped.iter().enumerate() {
+        for (n, k) in l.leaf_skips.iter().enumerate() {
             if *k > 0 {
                 *by.entry(ops(n)).or_default() += k;
             }
         }
         let total: u64 = by.values().sum();
         println!("EPSKIP\tall\t{total}");
-        println!("EPLAPS\tleaves (VEC_STEP_TIME): fills asked {:.3} s, literal reads {:.3} s, small views read {:.3} s", l.laps[0], l.laps[1], l.laps[2]);
-        println!("EPEMIT\temits asked in a file {}: decided empty before running by the old leaves {}, by the propagation's {}; run {}", l.emits.iter().sum::<u64>(), l.emits[0], l.emits[1], l.emits[2]);
+        println!("EPLAPS\tleaves (VEC_STEP_TIME): fills asked {:.3} s, literal reads {:.3} s, small views read {:.3} s", l.leaf_times[0], l.leaf_times[1], l.leaf_times[2]);
+        println!("EPEMIT\temits asked in a file {}: decided empty before running by the old leaves {}, by the propagation's {}; run {}", l.leaf_emits.iter().sum::<u64>(), l.leaf_emits[0], l.leaf_emits[1], l.leaf_emits[2]);
         for (op, k) in by {
             println!("EPSKIP\t{op}\t{k}");
         }
@@ -392,7 +387,7 @@ impl Exec<'_> {
             if lf.rows {
                 let t0 = step_clock();
                 let e = self.ep_view_rows_empty(f, run, p, node);
-                self.leaves.laps[2] += step_clock() - t0;
+                self.stats.leaf_times[2] += step_clock() - t0;
                 if e {
                     return true;
                 }
@@ -404,7 +399,7 @@ impl Exec<'_> {
             let t0 = step_clock();
             let loaded = self.load_fact(f, run, p, base);
             let t1 = step_clock();
-            self.leaves.laps[0] += t1 - t0;
+            self.stats.leaf_times[0] += t1 - t0;
             if loaded.is_err() {
                 continue;
             }
@@ -425,7 +420,7 @@ impl Exec<'_> {
                     let Ok(Some(v)) = self.view(run, sp.srcs[i]) else { continue };
                     if i < 2 { lit_file(f, LIT_CONJ | (node << 1) | i, &sp.conj, i, base, &v.map).is_some_and(|r| r.is_empty()) } else { lit_rows(f, &sp.conj, i, base, &v.map).is_some_and(|r| r.is_empty()) }
                 };
-                self.leaves.laps[1] += step_clock() - t1;
+                self.stats.leaf_times[1] += step_clock() - t1;
                 if empty {
                     return true;
                 }
