@@ -56,19 +56,32 @@ pub(super) fn numbered(
     if count != 0 && end != 0 {
         map_segment(Position(0), Position(0), &mut positions)?;
     }
-    let published: std::collections::BTreeMap<_, _> = l::embedded_expressions(public)
-        .map(|s| (s.host, s.root))
-        .collect();
+    let mut published = std::collections::BTreeMap::new();
+    for segment in l::embedded_expressions(public) {
+        if published.insert(segment.host, segment).is_some() {
+            return Err(format!(
+                "more than one embedded parse for host {}",
+                segment.host.0
+            ));
+        }
+    }
     for segment in node_table::embedded_segments(table) {
         let host = positions[segment.host.0 as usize];
-        let root = published
-            .get(&host)
+        let matching = published
+            .remove(&host)
             .ok_or_else(|| format!("no embedded parse for host {}", host.0))?;
-        map_segment(segment.root, *root, &mut positions)?;
+        map_segment(segment.root, matching.root, &mut positions)?;
     }
-    if count != end || positions.contains(&unset) {
+    // The published parser also retains candidate string expressions. The walk
+    // selects which strings are type carriers. The unselected appended segments
+    // can have no cells in its answers, but every node the walk uses must bind.
+    let candidate_elements = published
+        .values()
+        .map(|segment| (segment.end.0 - segment.root.0) as usize)
+        .sum::<usize>();
+    if count + candidate_elements != end || positions.contains(&unset) {
         return Err(format!(
-            "incomplete numbered parse: {count} walk elements, {end} published elements"
+            "incomplete numbered parse: {count} walk elements, {end} published elements, {candidate_elements} from candidate expressions"
         ));
     }
     Ok(positions)
