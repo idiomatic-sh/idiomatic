@@ -316,12 +316,16 @@ fn give_bufs(mut b: Bufs) {
     BUFS.with(|s| s.borrow_mut().push(b));
 }
 
-impl Exec<'_> {
-    fn ksel_prep(&mut self, run: &mut Run, node: usize) -> R<Rc<Prep>> {
+impl<'p> Exec<'p> {
+    fn ksel_prep(&mut self, run: &mut Run, node: usize) -> R<super::worker_schemas::Binding<'p, Prep>> {
+        use super::worker_schemas::Binding;
         if let Some(prep) = &self.select_preps[node] {
             return Ok(prep.clone());
         }
-        let prep = Rc::new(self.ksel_make(run, node)?);
+        let prep = match self.shared_kernels.get(node).and_then(Option::as_deref) {
+            Some(recipe) => Binding::Prepared(recipe),
+            None => Binding::Local(Rc::new(self.ksel_make(run, node)?)),
+        };
         static LOG: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
         if let Some(path) = LOG.get_or_init(|| std::env::var_os("VEC_KSEL_LOG").map(Into::into)) {
             use std::io::Write;
@@ -340,7 +344,7 @@ impl Exec<'_> {
         Ok(prep)
     }
 
-    fn ksel_make(&mut self, run: &mut Run, node: usize) -> R<Prep> {
+    pub(super) fn ksel_make(&mut self, run: &mut Run, node: usize) -> R<Prep> {
         let plan = self.plan;
         let pn = &plan.nodes[node];
         // a semi step tries the band first (band.rs); where it declines, the kernels run it (`VEC_KSEL_NO_SEMI`: the old path)
