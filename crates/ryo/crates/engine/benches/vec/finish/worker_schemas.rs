@@ -8,17 +8,29 @@ const UNBOUND: u32 = u32::MAX;
 pub(crate) struct Shapes {
     slots: Vec<u32>,
     selects: Vec<Option<Box<SelPlan>>>,
+    kernels: Vec<Option<Box<super::select_kernel::Prep>>>,
     unique: Vec<(Vec<String>, Vec<Ty>)>,
 }
 
 /// A visit can keep its bound select while it mutates other executor slots.
-pub(super) enum Selection<'p> {
-    Prepared(&'p SelPlan),
-    Local(Rc<SelPlan>),
+pub(super) enum Binding<'p, T> {
+    Prepared(&'p T),
+    Local(Rc<T>),
 }
 
-impl std::ops::Deref for Selection<'_> {
-    type Target = SelPlan;
+impl<T> Clone for Binding<'_, T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Prepared(value) => Self::Prepared(value),
+            Self::Local(value) => Self::Local(value.clone()),
+        }
+    }
+}
+
+pub(super) type Selection<'p> = Binding<'p, SelPlan>;
+
+impl<T> std::ops::Deref for Binding<'_, T> {
+    type Target = T;
     fn deref(&self) -> &SelPlan {
         match self {
             Self::Prepared(p) => p,
@@ -45,6 +57,7 @@ impl Shapes {
     pub(crate) fn attach<'w>(self: &'w Arc<Self>, exec: &mut Exec<'w>) {
         exec.worker_shapes = Some(Local::new(self.clone()));
         exec.shared_sels = &self.selects;
+        exec.shared_kernels = &self.kernels;
     }
 }
 
@@ -122,7 +135,7 @@ impl Exec<'_> {
         );
         // These literal IDs precede the dictionary snapshot used by every child.
         // A select containing a regex binds locally to keep its search cache private.
-        let selects = self
+        let selects: Vec<_> = self
             .sels
             .iter()
             .map(|slot| {
@@ -135,7 +148,14 @@ impl Exec<'_> {
                 Some(Box::new(plan.clone()))
             })
             .collect();
+        // The predicates use fixed literal IDs. Entry recipes can also contain fact
+        // ordinals, so Settings preserves the completed fact prefix in every worker.
+        let kernels = selects.iter().enumerate().map(|(node, binding)| {
+            binding.as_ref()?;
+            self.ksel_make(run, node).ok().map(Box::new)
+        }).collect();
         Arc::new(Shapes {
+            kernels,
             slots,
             unique,
             selects,

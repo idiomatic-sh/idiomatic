@@ -1378,7 +1378,8 @@ pub(super) struct Exec<'p> {
     sels: Vec<Option<Rc<SelPlan>>>,
     shared_sels: &'p [Option<Box<SelPlan>>],
     // Each reader group prepares its own column indices and interned names.
-    select_preps: Vec<Option<Rc<select_kernel::Prep>>>,
+    shared_kernels: &'p [Option<Box<select_kernel::Prep>>],
+    select_preps: Vec<Option<worker_schemas::Binding<'p, select_kernel::Prep>>>,
     union_preps: Vec<Option<Rc<union_kernel::Prep>>>,
     antijoin_preps: Vec<Option<Rc<antijoin_kernel::Prep>>>,
     keyed_forms: Vec<Option<keyed::Form>>,
@@ -1458,6 +1459,7 @@ impl<'p> Exec<'p> {
             views: vec![None; k],
             sels: vec![None; k],
             shared_sels: &[],
+            shared_kernels: &[],
             select_preps: vec![None; k],
             union_preps: vec![None; k],
             antijoin_preps: vec![None; k],

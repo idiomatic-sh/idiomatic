@@ -26,6 +26,7 @@ pub(crate) struct Settings<'p> {
     absent: Option<u32>,
     file_fields: bool,
     reader_tables: rustc_hash::FxHashSet<String>,
+    facts: Vec<(String, usize)>,
     declarations: Vec<(String, Vec<String>, Vec<finish::Ty>, finish::Supplier)>,
 }
 
@@ -80,6 +81,7 @@ impl<'p> Finisher<'p> {
             absent: r.absent_word,
             file_fields: r.file_field_codes,
             reader_tables: r.reader_tables.clone(),
+            facts: r.fact_rels.clone(),
             declarations,
         };
         println!(
@@ -107,6 +109,7 @@ impl<'p> Settings<'p> {
         run.kind_sym.clone_from(&self.kind_sym);
         run.field_sym.clone_from(&self.field_sym);
         run.reader_tables.clone_from(&self.reader_tables);
+        run.fact_rels.clone_from(&self.facts);
         if let Some(tokens) = tokens {
             run.set_tokens(tokens, self.kind_sym.len());
         }
