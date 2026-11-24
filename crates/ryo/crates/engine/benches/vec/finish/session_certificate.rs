@@ -10,27 +10,23 @@ pub(crate) fn certified_empty(
     tables: &[(String, Rc<Table>)],
     frontier: Option<&finish::partition::Partition>,
 ) -> bool {
-    // Accept a compiled literal pattern after select preparation has validated it.
-    fn total(expr: &E, run: &Run) -> bool {
+    // Dynamic pattern compilation can refuse a non-empty intermediate even
+    // when the downstream emit is empty. A literal pattern is already E::TextTest.
+    fn total(expr: &E) -> bool {
         match expr {
             E::Call(name, args) => {
                 let arity = match name.as_str() {
                     "lower" => args.len() == 1,
                     "starts_with" | "ends_with" => args.len() == 2,
                     "concat" => true,
-                    "glob_any" => {
-                        matches!(args.as_slice(), [_, E::Text(id)] if run.prepared_globs.contains_key(id))
-                    }
                     _ => false,
                 };
-                arity && args.iter().all(|arg| total(arg, run))
+                arity && args.iter().all(total)
             }
             E::Seed(..) | E::Cmp(Op::Other, ..) => false,
-            E::In(a, b, _) | E::And(a, b) | E::Or(a, b) | E::Cmp(_, a, b) => {
-                total(a, run) && total(b, run)
-            }
-            E::Null(a, _) | E::Not(a) | E::Re(a, _) => total(a, run),
-            E::List(items) => items.iter().all(|arg| total(arg, run)),
+            E::In(a, b, _) | E::And(a, b) | E::Or(a, b) | E::Cmp(_, a, b) => total(a) && total(b),
+            E::Null(a, _) | E::Not(a) | E::TextTest(a, _) => total(a),
+            E::List(items) => items.iter().all(total),
             E::Col(..) | E::Lit(_) | E::Text(_) | E::Num(_) => true,
         }
     }
@@ -78,7 +74,7 @@ pub(crate) fn certified_empty(
                         .iter()
                         .chain(select.items.iter().map(|(_, e)| e))
                     {
-                        if !total(e, run) {
+                        if !total(e) {
                             return Err("partial scalar".into());
                         }
                     }
