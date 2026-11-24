@@ -264,7 +264,7 @@ impl Store {
             notes: Shards::new("project", snapshot.notes),
             requests: Shards::new("requests", snapshot.requests),
             groups: Shards::new("inputs", snapshot.groups),
-            packets: Packets::new(snapshot.packets, snapshot.packet_layers),
+            packets: Packets::new("answers", snapshot.packets, snapshot.packet_layers),
             observed: Observations::new(dir, snapshot.stamps),
             work_inputs: HashMap::new(),
             supplied_versions: HashMap::new(),
