@@ -165,6 +165,20 @@ impl World {
         i
     }
 
+    fn empty_block(&mut self, t: &Table) -> Rc<Block> {
+        let schema = (Rc::as_ptr(&t.names) as usize, Rc::as_ptr(&t.tys) as usize);
+        self.empty_blocks.entry(schema).or_insert_with(|| {
+            Rc::new(Block::new(0, t.names.clone(), t.tys.clone(), 0, Vec::new()))
+        }).clone()
+    }
+    pub(super) fn insert_empty(&mut self, slot: usize, path: &str, tables: &[(usize, Rc<Table>)]) {
+        if !tables.is_empty() { self.file(path); }
+        let blocks = tables.iter().map(|(i, t)| (*i, self.empty_block(t))).collect();
+        self.frontiers.insert(slot, blocks);
+    }
+    pub(super) fn productive(&self, slot: usize) -> bool {
+        self.frontiers.get(&slot).is_some_and(|v| v.iter().any(|(_, block)| block.n != 0))
+    }
     fn carry(
         &mut self,
         source: &Run,
@@ -183,14 +197,7 @@ impl World {
         }
         let origin = self.file(&source.paths[home as usize]);
         if t.n == 0 {
-            let schema = (Rc::as_ptr(&t.names) as usize, Rc::as_ptr(&t.tys) as usize);
-            return Ok(self
-                .empty_blocks
-                .entry(schema)
-                .or_insert_with(|| {
-                    Rc::new(Block::new(0, t.names.clone(), t.tys.clone(), 0, Vec::new()))
-                })
-                .clone());
+            return Ok(self.empty_block(t));
         }
         let mut columns = Vec::with_capacity(t.cols.len());
         for (c, (src, ty)) in t.cols.iter().zip(t.tys.iter()).enumerate() {

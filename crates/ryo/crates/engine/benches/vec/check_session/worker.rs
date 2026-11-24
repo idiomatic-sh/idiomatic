@@ -187,6 +187,8 @@ pub(crate) fn dispatch<L: FileSource>(
             clocks.unique_pairs += time.unique_pairs;
             clocks.skipped += time.skipped;
             clocks.evaluated += time.evaluated;
+            clocks.productive += time.productive;
+            clocks.refused += time.refused;
         }
         let start = thread_cpu();
         world.receive(transfers, sources);
