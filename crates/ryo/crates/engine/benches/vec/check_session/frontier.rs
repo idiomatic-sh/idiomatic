@@ -53,7 +53,7 @@ impl<'a> FileInputs<'a> {
     }
     pub(super) fn contribute(
         &mut self,
-        b: &Bound<'_>,
+        b: &mut Bound<'_>,
         exec: &mut finish::Exec<'_>,
         frame: &mut finish::File<'_>,
         run: &mut Run,
@@ -157,7 +157,16 @@ impl<'a> FileInputs<'a> {
                 })
                 .collect::<Result<Vec<_>>>()?
         };
-        world.frontiers.insert(slot, FileFrontier::Rows(tables.into_boxed_slice()));
+        let frontier = if !tables.is_empty() && tables.iter().all(|(_, block)| block.n == 0) {
+            // A successful zero-row execution has the same typed frontier as
+            // a zero-row certificate for this binding. Coverage and refusal
+            // remain separate from the population's row count.
+            let parts = b.empty_frontier.get_or_insert_with(|| tables.into());
+            FileFrontier::Empty(parts.clone())
+        } else {
+            FileFrontier::Rows(tables.into_boxed_slice())
+        };
+        world.frontiers.insert(slot, frontier);
         Ok(())
     }
 }
