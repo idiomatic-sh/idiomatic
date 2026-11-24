@@ -114,7 +114,7 @@ def typed_packets(cache):
             key=bytes(r.take(32))
             r.take(64*r.uint())
             result=packets[bytes(r.take(32))]
-            unread=[r.string() for _ in range(r.uint())]
+            unread=[(r.string(), r.string()) for _ in range(r.uint())]
             active[key]=(result,unread)
         assert r.at==len(r.data)
     return active

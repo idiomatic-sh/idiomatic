@@ -58,7 +58,7 @@ struct Pending {
     named_reader: bool,
     paths: Rc<Vec<String>>,
     projects: std::collections::BTreeSet<usize>,
-    restored_unread: BTreeMap<String, usize>,
+    restored_unread: BTreeMap<(String, String), usize>,
     memo: Option<(usize, CallKey)>,
 }
 
@@ -536,7 +536,7 @@ impl Live {
             None
         };
         let mut retained_rules = retained_rules.into_iter();
-        let mut restored_unread=BTreeMap::<String,usize>::new();
+        let mut restored_unread=BTreeMap::<(String, String),usize>::new();
         let mut projects = std::collections::BTreeSet::new();
         let mut rules = req.rules.into_iter();
         let mut prepared = Vec::new();
@@ -581,7 +581,7 @@ impl Live {
             };
             if let (Some(store),Some(k),Some((proof, _)))=(&mut self.store,contract,scope)
                 && let Some((packet,unread))=store.lookup_in(proof,k){
-                let mut counts=BTreeMap::<String,usize>::new();
+                let mut counts=BTreeMap::<(String, String),usize>::new();
                 for p in unread{*counts.entry(p.clone()).or_default()+=1;}
                 if let Some(reason)=&store.packet(&packet).refusal{return Err(rule_error(id, rule.query, linked, &hosted, reason.clone()))}
                 for (p,n) in counts{let total=restored_unread.entry(p).or_default();*total=(*total).max(n);}
@@ -733,11 +733,11 @@ impl Live {
                 }
             }
         }
-        for (path, count) in restored_unread {
+        for ((path, message), count) in restored_unread {
             let reasons = manifest.entry(path.into()).or_default();
-            if reasons.len() < count {
-                reasons.resize_with(count, || sdk::ReadFailure("retained manifest was unreadable".into()));
-            }
+            let reason = sdk::ReadFailure(message.into());
+            let present = reasons.iter().filter(|existing| **existing == reason).count();
+            reasons.extend(std::iter::repeat_n(reason, count.saturating_sub(present)));
         }
         for (path, mut reasons) in manifest {
             reasons.sort_unstable();
