@@ -187,13 +187,13 @@ impl ColumnWalk {
         request: languages::ParseRequest<'_>,
         elements: &languages::Elements,
         visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
-    ) -> Result<(), WalkError> {
+    ) -> Result<(), String> {
         let parsed = languages::retained_parse::<ruff_python_parser::Parsed<ruff_python_ast::Mod>>(elements)
-            .ok_or(WalkError::Unsupported)?;
+            .ok_or("parser did not retain this module")?;
         let walk = PythonWalk { ports: WalkPorts { settings, syntax: Arc::new(ruff_python_parser(settings)) } };
-        let words = super::walking::walk_words(&walk).map_err(|_| WalkError::Library)?;
+        let words = super::walking::walk_words(&walk).map_err(|error| format!("{error:?}"))?;
         let mut reader = Self::with_settings(words, settings);
-        let mut wrote = false;
+        let mut identity = Err("provider walk produced no numbered tree".to_owned());
         reader.visit_parse(request.path.0, request.bytes.0, &mut NodeTable::default(), Some(parsed), &mut |file| {
             // Positions are identities, including embedded nodes. Verify the two
             // publications in index order. Matching equal spans cannot establish identity.
@@ -202,20 +202,26 @@ impl ColumnWalk {
             let parents = node_table::parent_ids(table);
             let starts = node_table::starts(table);
             let ends = node_table::ends(table);
-            if kinds.len() != languages::end_of(elements).0 as usize { return; }
+            let supplied = languages::end_of(elements).0 as usize;
+            if kinds.len() != supplied {
+                identity = Err(format!("{}: walk has {} nodes, parse has {supplied}", request.path.0, kinds.len()));
+                return;
+            }
             for (i, &kind) in kinds.iter().enumerate() {
                 let at = Position(i as u32);
                 if kind != languages::kind_at(elements, at).0 ||
                     (i != 0 && parents[i] != languages::parent_at(elements, at).0) ||
                     starts[i] != languages::start_at(elements, at).0 || ends[i] != languages::end_at(elements, at).0 {
+                    identity = Err(format!("{}: node {i}: walk ({kind}, {}, {}..{}), parse ({}, {}, {}..{})",
+                        request.path.0, parents[i], starts[i], ends[i], languages::kind_at(elements, at).0, languages::parent_at(elements, at).0, languages::start_at(elements, at).0, languages::end_at(elements, at).0));
                     return;
                 }
             }
             file.set_file(request.file);
             visit(file);
-            wrote = true;
-        })?;
-        if wrote { Ok(()) } else { Err(WalkError::Library) }
+            identity = Ok(());
+        }).map_err(|error| error.to_string())?;
+        identity
     }
 
     fn visit_parse(&mut self, path: &str, bytes: &[u8], table: &mut NodeTable, parsed: Option<&ruff_python_parser::Parsed<ruff_python_ast::Mod>>, visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>)) -> Result<(), WalkError> {
