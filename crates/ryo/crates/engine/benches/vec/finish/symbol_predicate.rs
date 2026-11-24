@@ -44,6 +44,7 @@ impl<T: fmt::Debug> fmt::Debug for Bound<T> {
 #[derive(Clone, Debug)]
 pub(super) enum TextTest {
     Regex(Rc<Bound<Regex>>),
+    Glob(Rc<PreparedGlob>),
     LowerEqual(Rc<Bound<Rc<[u8]>>>),
 }
 
@@ -51,6 +52,7 @@ impl TextTest {
     #[inline]
     pub(super) fn symbol(&self, run: &Run, id: u32) -> bool {
         match self {
+            Self::Glob(glob) => glob.symbol(run, id),
             Self::Regex(re) => re.answer(id, || re.pattern.is_match(run.text(id))),
             Self::LowerEqual(lit) => lit.answer(id, || {
                 String::from_utf8_lossy(run.text(id)).to_lowercase().as_bytes() == lit.pattern.as_ref()
@@ -60,6 +62,7 @@ impl TextTest {
 
     pub(super) fn bytes(&self, bytes: &[u8]) -> bool {
         match self {
+            Self::Glob(glob) => glob.bytes(bytes),
             Self::Regex(re) => re.pattern.is_match(bytes),
             Self::LowerEqual(lit) => String::from_utf8_lossy(bytes).to_lowercase().as_bytes() == lit.pattern.as_ref(),
         }
@@ -67,6 +70,7 @@ impl TextTest {
 
     #[inline]
     pub(super) fn value(&self, run: &Run, v: V) -> bool {
+        if let Self::Glob(glob) = self { return glob.matches(run, v); }
         if v.ty() == Ty::Sym { self.symbol(run, v.1 as u32) } else { self.bytes(&text_of(run, v)) }
     }
 }
@@ -79,4 +83,49 @@ pub(super) fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Optio
     let test = run.folded_literals.entry(*id)
         .or_insert_with(|| Rc::new(Bound::new(run.texts[*id as usize].clone())));
     Some(E::TextTest(Box::new(col.clone()), TextTest::LowerEqual(test.clone())))
+}
+
+/// Interpreted globs often see a file's path on every row of its relations.
+pub(super) struct PreparedGlob {
+    pattern: u32,
+    matcher: ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs,
+    last: std::cell::Cell<Option<(u32, bool)>>,
+}
+
+// The compiled plan identity is independent of which subject was visited last.
+impl fmt::Debug for PreparedGlob {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Glob").field(&self.pattern).finish()
+    }
+}
+
+impl PreparedGlob {
+    pub(super) fn new(pattern: u32, matcher: ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs) -> Self {
+        Self { pattern, matcher, last: Default::default() }
+    }
+
+    fn bytes(&self, bytes: &[u8]) -> bool {
+        use ryo_matching::inbound::use_cases::matching::{
+            interface::MatchingUseCase, types::{MatchOutcome, SearchText}, use_case::MatchingUseCaseImpl,
+        };
+        let subject = String::from_utf8_lossy(bytes);
+        MatchingUseCaseImpl::new().matches_text_globs(&self.matcher, SearchText(&subject)) == MatchOutcome::Matches
+    }
+
+    fn symbol(&self, run: &Run, id: u32) -> bool {
+        if let Some((last, answer)) = self.last.get() && id == last {
+            return answer;
+        }
+        let answer = self.bytes(run.text(id));
+        self.last.set(Some((id, answer)));
+        answer
+    }
+
+    pub(super) fn matches(&self, run: &Run, value: V) -> bool {
+        match value.ty() {
+            Ty::Sym => self.symbol(run, value.1 as u32),
+            Ty::File => self.symbol(run, run.path_sym[value.1 as usize]),
+            _ => self.bytes(&text_of(run, value)),
+        }
+    }
 }
