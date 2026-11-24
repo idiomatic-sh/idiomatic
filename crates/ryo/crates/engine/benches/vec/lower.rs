@@ -203,13 +203,13 @@ pub(crate) fn read_pack(pack: &Path, context: RuleContext) -> ReadPack {
 /// The second half's plan, lowered in this process from the parsed pack: expansion, the three passes, then the typed plan
 /// shared with the executor and the first-half analysis.
 pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::finish::Plan {
-    finish_plan(pack, keep_for_first, true, None, None).unwrap_or_else(|reason| panic!("{reason}"))
+    finish_plan(pack, keep_for_first, true, None, None, None).unwrap_or_else(|reason| panic!("{reason}"))
 }
 
 /// Prepare the caller's query directly from its text. Bind typed host tables at execution.
 #[allow(dead_code, reason = "file-only benchmark binaries prepare rule packs")]
 pub(crate) fn query_plan(rule: &str, text: &str, context: RuleContext) -> Result<super::finish::Plan, String> {
-    query_parts(rule, text, context, false, None, Default::default(), &[]).map(|(plan, _)| plan)
+    query_parts(rule, text, context, false, None, Default::default(), &[], &mut Default::default()).map(|(plan, _)| plan)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -226,7 +226,9 @@ pub(crate) struct Observation {
     pub producers: Vec<Producer>,
 }
 
-pub(crate) fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool, separator: Option<&str>, modules: ParsedModules, observations: &[Observation]) -> Result<(super::finish::Plan, ReadPack), String> {
+pub(crate) type LiteralTables = std::collections::HashSet<Arc<ryo_values::domain::finish_plans::arguments::literals::types::RowsArguments>>;
+
+pub(crate) fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool, separator: Option<&str>, modules: ParsedModules, observations: &[Observation], literals: &mut LiteralTables) -> Result<(super::finish::Plan, ReadPack), String> {
     use ryo_engine::domain::plan_lowering::types::{ContextObservation, ObservationProducer};
     use ryo_values::domain::{descriptions::types::ColumnName, observations::types::ObservationName};
     let mut texts = PackTexts { rules: vec![(rule.into(), Some(text.into()))], fragments: Vec::new() };
@@ -249,11 +251,11 @@ pub(crate) fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep
     let mut programs = parsed(&texts, context);
     programs.fragments = modules;
     let pack = ReadPack { typed: Default::default(), programs, read: 0.0, parse: 0.0 };
-    let plan = finish_plan(&pack, keep, false, separator, (!observations.is_empty()).then_some(rule))?;
+    let plan = finish_plan(&pack, keep, false, separator, (!observations.is_empty()).then_some(rule), Some(literals))?;
     Ok((plan, pack))
 }
 
-fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>, emit: Option<&str>) -> Result<super::finish::Plan, String> {
+fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut LiteralTables>) -> Result<super::finish::Plan, String> {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
     let t1 = super::thread_cpu();
@@ -271,6 +273,17 @@ fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Opti
         use ryo_values::domain::{finish_plans::types::FinishStep, plan_parts::types::LiteralText};
         for step in &mut plan.steps {
             if let FinishStep::Capture(c)=step {c.separator.get_or_insert_with(||LiteralText(separator.into()));}
+        }
+    }
+    if let Some(tables) = literals {
+        for step in &mut plan.steps {
+            if let ryo_values::domain::finish_plans::types::FinishStep::Rows(rows) = step {
+                if let Some(existing) = tables.get(rows) {
+                    rows.clone_from(existing);
+                } else {
+                    tables.insert(rows.clone());
+                }
+            }
         }
     }
     let plan = std::sync::Arc::new(plan);

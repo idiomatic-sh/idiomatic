@@ -133,11 +133,11 @@ impl Batch {
         let t = thread_cpu();
         let rule = self
             .schedule
-            .prepare(query.clone(), parameters.clone(), |modules| {
+            .prepare(query.clone(), parameters.clone(), |modules, literals| {
                 let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
                 ctx.parameters
                     .insert("query".into(), parameters.clone());
-                Program::prepare("query", &query, ctx, Some("/"), modules)
+                Program::prepare("query", &query, ctx, Some("/"), modules, literals)
             });
         self.clocks.prepare += thread_cpu() - t;
         rule

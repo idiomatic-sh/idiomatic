@@ -88,8 +88,9 @@ impl Program {
         context: ryo_engine::domain::plan_lowering::types::RuleContext,
         capture_separator: Option<&str>,
         modules: ryo_values::domain::program::types::ParsedModules,
+        literals: &mut lower::LiteralTables,
     ) -> Result<Self> {
-        let (plan, pack) = lower::query_parts(alias, &query.text, context, true, capture_separator, modules, &query.observations)?;
+        let (plan, pack) = lower::query_parts(alias, &query.text, context, true, capture_separator, modules, &query.observations, literals)?;
         let typed = pack.typed.take().expect("prepared query");
         if typed.rules.is_empty() { return Err("missing query emit".into()); }
         let (bases, base_steps) = plan.nodes.iter().enumerate().filter_map(|(offset, step)| {
@@ -201,6 +202,7 @@ pub(crate) struct Schedule {
     pub pending: BTreeSet<usize>,
     pub programs: Vec<Result<Program>>,
     pub(crate) prepared: HashMap<(Query, Parameters), usize>,
+    literal_tables: lower::LiteralTables,
     module_catalogs: HashMap<query::Modules, Result<ryo_values::domain::program::types::ParsedModules>>,
     pub pairs: usize,
 }
@@ -228,6 +230,7 @@ impl Schedule {
     }
 
     pub(crate) fn close(&mut self) {
+        self.literal_tables.clear();
         self.prepared = HashMap::new();
         self.finish_preparation();
         self.source_ids = HashMap::new();
@@ -241,7 +244,7 @@ impl Schedule {
         &mut self,
         text: Query,
         parameters: Parameters,
-        make: impl FnOnce(ryo_values::domain::program::types::ParsedModules) -> Result<Program>,
+        make: impl FnOnce(ryo_values::domain::program::types::ParsedModules, &mut lower::LiteralTables) -> Result<Program>,
     ) -> usize {
         let catalog = text.modules.clone();
         *self.prepared.entry((text, parameters)).or_insert_with_key(|(query, _)| {
@@ -249,7 +252,7 @@ impl Schedule {
                 None => Ok(Default::default()),
                 Some(sources) => self.module_catalogs.entry(sources).or_insert_with(|| query.parse_modules()).clone(),
             };
-            self.programs.push(modules.and_then(make));
+            self.programs.push(modules.and_then(|modules| make(modules, &mut self.literal_tables)));
             self.programs.len() - 1
         })
     }

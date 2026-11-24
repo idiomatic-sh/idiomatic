@@ -203,7 +203,7 @@ pub enum FinishStep {
     /// `render-syntax`.
     RenderSyntax(RenderSyntaxArguments),
     /// `rows`.
-    Rows(RowsArguments),
+    Rows(std::sync::Arc<RowsArguments>),
     /// `prefixes`.
     Prefixes(PrefixesArguments),
     /// `subtree-class`.

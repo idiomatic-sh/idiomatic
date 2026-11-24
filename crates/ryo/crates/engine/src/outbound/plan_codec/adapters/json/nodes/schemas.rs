@@ -317,7 +317,7 @@ impl From<&FinishStep> for NodeSchema {
             FinishStep::Capture(args) => ListedNodeSchema::Capture { args: args.clone() },
             FinishStep::FitsRendered(args) => ListedNodeSchema::FitsRendered { args: args.clone() },
             FinishStep::RenderSyntax(args) => ListedNodeSchema::RenderSyntax { args: args.clone() },
-            FinishStep::Rows(args) => ListedNodeSchema::Rows { args: args.clone() },
+            FinishStep::Rows(args) => ListedNodeSchema::Rows { args: args.as_ref().clone() },
             FinishStep::Prefixes(args) => ListedNodeSchema::Prefixes { args: args.clone() },
             FinishStep::SubtreeClass(args) => ListedNodeSchema::SubtreeClass { args: args.clone() },
             FinishStep::Unlisted(unlisted) => {
@@ -416,7 +416,7 @@ impl From<NodeSchema> for FinishStep {
             ListedNodeSchema::Capture { args } => Self::Capture(args),
             ListedNodeSchema::FitsRendered { args } => Self::FitsRendered(args),
             ListedNodeSchema::RenderSyntax { args } => Self::RenderSyntax(args),
-            ListedNodeSchema::Rows { args } => Self::Rows(args),
+            ListedNodeSchema::Rows { args } => Self::Rows(args.into()),
             ListedNodeSchema::Prefixes { args } => Self::Prefixes(args),
             ListedNodeSchema::SubtreeClass { args } => Self::SubtreeClass(args),
         }

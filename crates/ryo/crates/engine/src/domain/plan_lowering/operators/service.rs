@@ -131,7 +131,7 @@ pub(crate) fn operator_step(
         OP_ROWS => {
             let columns = columns(&mut given, ARG_COLUMNS)?;
             let rows = constant_rows(&mut given, &columns)?;
-            FinishStep::Rows(RowsArguments { rows, columns })
+            FinishStep::Rows(RowsArguments { rows, columns }.into())
         }
         other => text_step(&mut given, other)?,
     };
