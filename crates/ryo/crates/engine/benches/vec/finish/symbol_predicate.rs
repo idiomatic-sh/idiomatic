@@ -15,7 +15,7 @@ impl<T> Bound<T> {
     }
 
     #[inline]
-    fn answer(&self, id: u32, test: impl FnOnce() -> bool) -> bool {
+    pub(super) fn answer(&self, id: u32, test: impl FnOnce() -> bool) -> bool {
         let id = id as usize;
         let page = id / 512;
         let mut pages = self.pages.borrow_mut();
@@ -45,6 +45,7 @@ impl<T: fmt::Debug> fmt::Debug for Bound<T> {
 pub(super) enum TextTest {
     Regex(Rc<Bound<Regex>>),
     Glob(Rc<PreparedGlob>),
+    Any(Rc<Bound<Box<[TextTest]>>>),
     LowerEqual(Rc<Bound<Rc<[u8]>>>),
 }
 
@@ -53,6 +54,7 @@ impl TextTest {
     pub(super) fn symbol(&self, run: &Run, id: u32) -> bool {
         match self {
             Self::Glob(glob) => glob.symbol(run, id),
+            Self::Any(tests) => tests.answer(id, || tests.pattern.iter().any(|test| test.symbol(run, id))),
             Self::Regex(re) => re.answer(id, || re.pattern.is_match(run.text(id))),
             Self::LowerEqual(lit) => lit.answer(id, || {
                 String::from_utf8_lossy(run.text(id)).to_lowercase().as_bytes() == lit.pattern.as_ref()
@@ -63,6 +65,7 @@ impl TextTest {
     pub(super) fn bytes(&self, bytes: &[u8]) -> bool {
         match self {
             Self::Glob(glob) => glob.bytes(bytes),
+            Self::Any(tests) => tests.pattern.iter().any(|test| test.bytes(bytes)),
             Self::Regex(re) => re.pattern.is_match(bytes),
             Self::LowerEqual(lit) => String::from_utf8_lossy(bytes).to_lowercase().as_bytes() == lit.pattern.as_ref(),
         }
@@ -71,6 +74,7 @@ impl TextTest {
     #[inline]
     pub(super) fn value(&self, run: &Run, v: V) -> bool {
         if let Self::Glob(glob) = self { return glob.matches(run, v); }
+        if v.ty() == Ty::File && matches!(self, Self::Any(_)) { return self.symbol(run, run.path_sym[v.1 as usize]); }
         if v.ty() == Ty::Sym { self.symbol(run, v.1 as u32) } else { self.bytes(&text_of(run, v)) }
     }
 }
@@ -121,5 +125,40 @@ impl PreparedGlob {
             Ty::File => self.symbol(run, run.path_sym[value.1 as usize]),
             _ => self.bytes(&text_of(run, value)),
         }
+    }
+}
+
+/// One bit per listed symbol. Empty stretches of the dictionary occupy no space.
+#[derive(Debug)]
+pub(super) struct SymbolSet(Box<[(u64, u64)]>);
+
+impl SymbolSet {
+    pub(super) fn bind(run: &Run, mut words: Vec<u64>) -> Rc<Self> {
+        words.sort_unstable();
+        words.dedup();
+        let mut sets = run.symbol_sets.borrow_mut();
+        if let Some(set) = sets.get(words.as_slice()) {
+            return Rc::clone(set);
+        }
+        let mut blocks = Vec::new();
+        for group in words.chunk_by(|a, b| a / 64 == b / 64) {
+            let block = group[0] / 64;
+            let bits = group.iter().fold(0, |bits, word| bits | (1u64 << (word % 64)));
+            blocks.push((block, bits));
+        }
+        let set = Rc::new(Self(blocks.into_boxed_slice()));
+        sets.insert(words.into_boxed_slice(), Rc::clone(&set));
+        set
+    }
+
+    #[inline]
+    pub(super) fn contains(&self, word: u64) -> bool {
+        let block = word / 64;
+        let bit = 1u64 << (word % 64);
+        if let [(index, bits)] = self.0.as_ref() {
+            return *index == block && bits & bit != 0;
+        }
+        self.0.binary_search_by_key(&block, |entry| entry.0)
+            .is_ok_and(|i| self.0[i].1 & bit != 0)
     }
 }
