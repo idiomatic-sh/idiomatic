@@ -1,0 +1,7 @@
+plan	steps	select	axis	project	captures	semijoins	emit_subject	emit_key
+fixtures-only-in-tests-original	76	47	3	1	5	20	file	span
+fixtures-only-in-tests-trial	81	47	8	1	5	14	file	span
+field-written-never-read-1-original	76	32	10	12	6	4	file	span
+field-written-never-read-1-trial	80	32	12	14	6	4	file	span
+field-written-never-read-2-original	76	32	10	12	6	4	file	span
+field-written-never-read-2-trial	80	32	12	14	6	4	file	span

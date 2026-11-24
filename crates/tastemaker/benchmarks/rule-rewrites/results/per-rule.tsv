@@ -1,0 +1,9 @@
+workload	rule	arm	evaluations	ordinary	contributions	productive	selects	child_rows	select_rows	loaded_pair_cpu_s	load_light_start	load_light_end
+forward	fixtures-only-in-tests	control	7830	0	7830	7830	147939	17493182	11526003	1.209469949	27.1015625	25.828125
+forward	fixtures-only-in-tests	fixtures-only-in-tests	7830	0	7830	7830	144095	17445653	10150876	1.310327672	23.7734375	23.0537109375
+forward	field-written-never-read	control	4871	0	4871	4238	55780	10380241	9112883	0.670403417	27.1015625	25.828125
+forward	field-written-never-read	field-written-never-read	4871	0	4871	4238	54034	5774169	4521610	0.502225952	20.4140625	20.1845703125
+live	fixtures-only-in-tests	control	7830	0	7830	7830	148003	17493434	11526127	1.264473064	25.828125	23.7734375
+live	fixtures-only-in-tests	fixtures-only-in-tests	7830	0	7830	7830	144140	17445731	10150914	1.485065146	23.0537109375	20.4140625
+live	field-written-never-read	control	4887	0	4887	4238	55713	10381666	9112843	0.668498335	25.828125	23.7734375
+live	field-written-never-read	field-written-never-read	4887	0	4887	4238	54113	5774193	4521629	0.511566275	20.1845703125	20.57275390625

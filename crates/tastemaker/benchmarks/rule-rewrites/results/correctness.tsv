@@ -1,0 +1,17 @@
+rule	workload	order	exact	total	rewritten_requests	byte_equal	sha256
+fixtures-only-in-tests	ryo	forward	46831	46831	14	True	813f817bffdaf8b3966b6fc731547f3160c6e2ca5c4c9dd6197843d0e6a948f1
+fixtures-only-in-tests	ryo	reverse	46831	46831	14	True	813f817bffdaf8b3966b6fc731547f3160c6e2ca5c4c9dd6197843d0e6a948f1
+fixtures-only-in-tests	root	forward	36279	36279	13	True	0b1e5f020d9ed0828b4a44420512f97e46d890bb938df5a4a9630451bf29d063
+fixtures-only-in-tests	tastemaker	forward	36315	36315	13	True	5a10503ee6fdf281b1f18fe8ed4da51d87d7ce6864a9de570667866170a6599e
+fixtures-only-in-tests	asymptote	forward	36271	36271	13	True	0a166a3168b7e8da4cefd5f39383ee9bee862d7c0c743fd2afe456465d10692e
+fixtures-only-in-tests	live Ryo	forward	46831	46831	see capture	True	99ea31859892c8fd377f71bb2ba66123a39c86d82715bb31a771a7d9b0ae9dfc
+fixtures-only-in-tests	frozen cases	forward	294	294	1	typed	-
+fixtures-only-in-tests	frozen cases	reverse	294	294	1	typed	-
+field-written-never-read	ryo	forward	46831	46831	37	True	813f817bffdaf8b3966b6fc731547f3160c6e2ca5c4c9dd6197843d0e6a948f1
+field-written-never-read	ryo	reverse	46831	46831	37	True	813f817bffdaf8b3966b6fc731547f3160c6e2ca5c4c9dd6197843d0e6a948f1
+field-written-never-read	root	forward	36279	36279	36	True	0b1e5f020d9ed0828b4a44420512f97e46d890bb938df5a4a9630451bf29d063
+field-written-never-read	tastemaker	forward	36315	36315	37	True	5a10503ee6fdf281b1f18fe8ed4da51d87d7ce6864a9de570667866170a6599e
+field-written-never-read	asymptote	forward	36271	36271	37	True	0a166a3168b7e8da4cefd5f39383ee9bee862d7c0c743fd2afe456465d10692e
+field-written-never-read	live Ryo	forward	46831	46831	see capture	True	99ea31859892c8fd377f71bb2ba66123a39c86d82715bb31a771a7d9b0ae9dfc
+field-written-never-read	frozen cases	forward	294	294	1	typed	-
+field-written-never-read	frozen cases	reverse	294	294	1	typed	-
