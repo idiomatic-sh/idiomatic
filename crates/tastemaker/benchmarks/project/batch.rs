@@ -21,7 +21,7 @@ use serde::Deserialize;
 use crate::{json_input, json_output};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     io::{BufRead, Write},
     path::{Path, PathBuf},
     rc::Rc,
@@ -118,6 +118,8 @@ struct Batch {
     schedule: session::Schedule,
     program_of: Vec<usize>,
     bindings: Vec<Arc<[Hosted]>>,
+    replay_file_sets: HashSet<Rc<Vec<String>>>,
+    shared_replay_files: [usize; 2],
     host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
     binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
     queries: HashMap<String, Rc<str>>,
@@ -392,6 +394,17 @@ impl Batch {
                 Vec::new()
             };
             self.clocks.project += thread_cpu() - t;
+            if sdk.is_none() {
+                // Closed requests retain their ordered file list beyond admission.
+                // Share equal capture lists and discard the lookup before executing.
+                if let Some(existing) = self.replay_file_sets.get(req.files.as_ref()) {
+                    self.shared_replay_files[0] += 1;
+                    self.shared_replay_files[1] += req.files.iter().map(String::len).sum::<usize>();
+                    req.files = existing.clone();
+                } else {
+                    self.replay_file_sets.insert(req.files.clone());
+                }
+            }
             return Ok(Work::Closed {
                 pairs,
                 project,
@@ -493,6 +506,7 @@ impl Batch {
 
     fn release_admission(&mut self) {
         self.host_rows.clear();
+        self.replay_file_sets = HashSet::new();
         self.last_sources = None;
         self.schedule.close();
         self.inventories.clear();
@@ -1094,6 +1108,8 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         "PROJECT_POPULATIONS inventories={} builds={} relations={} repeated_relations={}",
         session.projects.len(), session.populations_built, session.relations_built, session.relations_rebuilt,
     );
+    let [lists, path_bytes] = session.shared_replay_files;
+    println!("ADMISSION_REPLAY aliased_file_sets={lists} duplicate_path_bytes_removed={path_bytes}");
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
     for (name, r) in &c.readers {
