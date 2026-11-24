@@ -82,13 +82,13 @@ fn walk(
 }
 
 /// The slot names of `pattern`, in order.
-pub(super) fn names(pattern: &str) -> Vec<String> {
-    let mut out = Vec::new();
+pub(super) fn names(pattern: &str) -> smallvec::SmallVec<[&str; 8]> {
+    let mut out = smallvec::SmallVec::new();
     let mut rest = pattern;
     while let Some(o) = rest.find('{') {
         let after = &rest[o + 1..];
         let Some(c) = after.find('}') else { break };
-        out.push(after[..c].trim_start_matches('*').to_owned());
+        out.push(after[..c].trim_start_matches('*'));
         rest = &after[c + 1..];
     }
     out

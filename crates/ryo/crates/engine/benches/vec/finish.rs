@@ -1258,6 +1258,7 @@ pub(super) struct Exec<'p> {
     sels: Vec<Option<Rc<SelPlan>>>,
     // Each reader group prepares its own column indices and interned names.
     select_preps: Vec<Option<Rc<select_kernel::Prep>>>,
+    capture_columns: FxHashMap<usize, Box<[Option<usize>]>>,
     union_preps: Vec<Option<Rc<union_kernel::Prep>>>,
     antijoin_preps: Vec<Option<Rc<antijoin_kernel::Prep>>>,
     subject_scope: subject_scope::Scope,
@@ -1318,6 +1319,7 @@ impl<'p> Exec<'p> {
             views: vec![None; k],
             sels: vec![None; k],
             select_preps: vec![None; k],
+            capture_columns: FxHashMap::default(),
             union_preps: vec![None; k],
             antijoin_preps: vec![None; k],
             subject_scope: Default::default(),
@@ -2319,11 +2321,8 @@ impl<'p> Exec<'p> {
             "capture" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let pc = from.col(s(&a["path"])?)?;
-                let caps = strs(&a["captures"])?;
-                // redo-honest: every split of the text into the slots (capture.rs), not the first regex match
+                // The names and their ordering belong to this prepared step.
                 let pattern = s(&a["pattern"])?;
-                let slot_names = capture::names(pattern);
-                let at: Vec<Option<usize>> = caps.map(|c| slot_names.iter().position(|n| n == c)).collect();
                 let separator = a.get("separator").and_then(Param::as_str);
                 let mut out = self.empty(run, node)?;
                 let equal = if f.after_last_file {
@@ -2331,7 +2330,17 @@ impl<'p> Exec<'p> {
                 } else {
                     Vec::new()
                 };
-                capture::write(run, &from, pc, pattern, separator, &at, f.after_last_file, &equal, &mut out)?;
+                let at = match self.capture_columns.entry(node) {
+                    std::collections::hash_map::Entry::Occupied(columns) => columns.into_mut(),
+                    std::collections::hash_map::Entry::Vacant(columns) => {
+                        let names = capture::names(pattern);
+                        let at = strs(&a["captures"])?
+                            .map(|name| names.iter().position(|&n| n == name))
+                            .collect();
+                        columns.insert(at)
+                    }
+                };
+                capture::write(run, &from, pc, pattern, separator, at, f.after_last_file, &equal, &mut out)?;
                 Ok(out)
             }
             "group-ordinal" => {

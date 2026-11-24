@@ -790,6 +790,9 @@ impl Exec<'_> {
         let i2 = self.inner;
         let all: u64 = if conj.len() >= 64 { u64::MAX } else { (1u64 << conj.len()) - 1 };
         if k == 1 {
+            if sel.is_empty() && used == all {
+                return self.empty_rc(run, node);
+            }
             let t6 = Clk::now();
             let out = self.ksel_one(run, f, node, kp, &srcs, sel, used == all, &mut b.seen, &mut b.left, &mut b.right)?;
             if prof {
@@ -1079,6 +1082,9 @@ impl Exec<'_> {
             prof_add(3, t2.elapsed() - (self.inner - i2));
         }
         let n = left.len();
+        if n == 0 {
+            return self.empty_rc(run, node);
+        }
         // redo-alloc: the columns taken with the join's room
         let mut out = self.empty_rows(run, node, n)?;
         for (c, (si, sc)) in kp.items.iter().enumerate() {
@@ -1100,9 +1106,6 @@ impl Exec<'_> {
         out.n = n;
         if prof {
             prof_add(4, t3.elapsed());
-        }
-        if n == 0 {
-            return self.empty_rc(run, node);
         }
         Ok(super::recycle::rc(out))
     }
@@ -1174,11 +1177,14 @@ impl Exec<'_> {
         if kept.len() == n {
             return Ok(out);
         }
-        let mut d = self.empty(run, node)?;
-        for (c, col) in out.cols.iter().enumerate() {
-            d.cols[c].extend(kept.iter().map(|r| col[*r as usize]));
+        // Kept positions are increasing, so every move reads an untouched cell.
+        for column in &mut out.cols {
+            for (destination, &source) in kept.iter().enumerate() {
+                column[destination] = column[source as usize];
+            }
+            column.truncate(kept.len());
         }
-        d.n = kept.len();
-        Ok(d)
+        out.n = kept.len();
+        Ok(out)
     }
 }
