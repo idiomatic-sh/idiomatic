@@ -1403,10 +1403,10 @@ impl<'p> Exec<'p> {
             }
         }
         let layout = std::sync::Arc::new(Layout { frames: frame::frames(plan), consumers, emitted: plan.emits.iter().map(|e|e.1).collect() });
-        Self::with_layout(plan, layout)
+        Self::with_layout(plan, layout, None)
     }
 
-    pub(crate) fn with_layout(plan: &'p Plan, layout: std::sync::Arc<Layout>) -> Self {
+    pub(crate) fn with_layout(plan: &'p Plan, layout: std::sync::Arc<Layout>, tests: Option<&'p known::Flat>) -> Self {
         let k = plan.nodes.len();
         Exec {
             plan,
@@ -1430,7 +1430,7 @@ impl<'p> Exec<'p> {
             tally: band::Tally::default(),
             u32_pool: Vec::new(),
             needs: vec![None; k],
-            flat: std::borrow::Cow::Owned(known::Flat::new(k)),
+            flat: tests.map_or_else(|| std::borrow::Cow::Owned(known::Flat::new(k)), std::borrow::Cow::Borrowed),
             empties: vec![None; k],
             scratch_rows: Vec::new(),
             timing: sw!("VEC_STEP_TIME"),
