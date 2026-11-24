@@ -117,15 +117,15 @@ impl Exec<'_> {
             }
         }
     }
-    // The SDK exposes the empty spelling for absent symbols as well as actual empty text.
+    // A symbol without a source spelling compares as empty text. Its emitted identity is preserved.
     pub(super) fn compare_expr(run: &Run, op: Op, left: E, right: E) -> E {
         let column = match (&left, &right) {
             (col @ E::Col(_, _, Ty::Sym), E::Text(t)) |
             (E::Text(t), col @ E::Col(_, _, Ty::Sym)) if *t == run.empty => Some(col),
             _ => None,
         };
-        if let (Some(absent), Some(col), Op::Eq | Op::Ne) = (run.absent_word, column, op) {
-            return E::In(Box::new(col.clone()), Box::new(E::List(vec![E::Text(run.empty), E::Text(absent)])), op == Op::Ne);
+        if let (Some(_), Some(col), Op::Eq | Op::Ne) = (run.absent_word, column, op) {
+            return Self::membership_expr(run, col.clone(), E::List(vec![E::Text(run.empty)]), op == Op::Ne);
         }
         E::Cmp(op, Box::new(left), Box::new(right))
     }
@@ -134,6 +134,7 @@ impl Exec<'_> {
             && items.iter().any(|e| matches!(e, E::Text(t) if *t == run.empty))
         {
             items.push(E::Text(absent));
+            items.extend(run.unresolved_words.iter().copied().map(E::Text));
         }
         E::In(Box::new(value), Box::new(list), negated)
     }

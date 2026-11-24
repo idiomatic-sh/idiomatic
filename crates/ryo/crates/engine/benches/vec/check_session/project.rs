@@ -29,6 +29,16 @@ pub(crate) enum Authority {
     Disk(String),
 }
 
+impl super::World {
+    pub(crate) fn declare_words<L: super::FileSource>(&mut self, readers: &[L]) {
+        self.run.empty = self.run.sym(b"");
+        reader::public_words(&mut self.run, &[]);
+        self.project_words = readers.iter()
+            .map(|reader| reader::public_words(&mut self.run, &reader.words()))
+            .collect();
+    }
+}
+
 impl Authority {
     fn observe(&self, files: &[l::FilePath], path: l::FilePath) -> EntryObservation {
         use l::ObservedEntryState as State;
@@ -75,6 +85,14 @@ pub(crate) fn collect<L: super::FileSource>(
     contributions: &[Rc<Contribution>],
     wanted: &[l::Relation],
 ) -> Result<Population> {
+    // A missing repository root cannot establish that its children are absent.
+    if let Authority::Disk(root) = authority {
+        let entry = std::fs::metadata(root)
+            .map_err(|e| format!("unavailable project root {root}: {e}"))?;
+        if !entry.is_dir() {
+            return Err(format!("project root is not a directory: {root}"));
+        }
+    }
     if inventory.len() != contributions.len() {
         return Err("incomplete project inputs".into());
     }
@@ -150,7 +168,6 @@ pub(crate) fn collect<L: super::FileSource>(
     let mut consulted = BTreeSet::new();
     let mut partials = Vec::new();
     let mut symbols = l::Symbols::default();
-    let unknown = std::collections::HashMap::new();
     for (i, lang) in readers.iter().enumerate() {
         request.notes = notes(i);
         let mut rows = l::contract::Collect::default();
@@ -177,7 +194,7 @@ pub(crate) fn collect<L: super::FileSource>(
                 col.push(match ty {
                     finish::Ty::Sym => u64::from(reader::symbol(
                         &mut world.run,
-                        &unknown,
+                        &world.project_words[i],
                         &symbols,
                         &[],
                         l::Symbol(word as u32),

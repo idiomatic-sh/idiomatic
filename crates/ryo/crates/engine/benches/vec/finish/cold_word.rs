@@ -96,7 +96,7 @@ fn compare(run: &Run, ty: Ty, op: Op, literal: &E, reverse: bool) -> Option<Word
             Box::new(move |_, w| w != NULL && accept((w as i64).cmp(&(value as i64))))
         }
         (Ty::Sym, Ty::Sym | Ty::Num | Ty::Flag | Ty::File)
-        | (Ty::File | Ty::Num | Ty::Flag, Ty::Sym) => {
+        | (Ty::File | Ty::Num | Ty::Flag, Ty::Sym) | (Ty::File, Ty::File) => {
             let rhs = super::text_of(run, super::V::new(right, value)).into_owned();
             match ty {
                 Ty::Sym => Box::new(move |r, w| w != NULL && accept(r.text(w as u32).cmp(&rhs))),

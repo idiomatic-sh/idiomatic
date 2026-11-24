@@ -77,7 +77,7 @@ pub(crate) struct Row {
 impl Row {
     pub(crate) fn value(&self, index: usize) -> Value {
         let word = self.words[index];
-        if word == NULL {
+        if word == NULL && self.layout.types[index] != Ty::Num {
             return None;
         }
         Some(match self.layout.types[index] {
