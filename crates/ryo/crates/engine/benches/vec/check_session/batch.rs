@@ -47,8 +47,6 @@ struct Batch {
     program_of: Vec<usize>,
     class_of: Vec<usize>,
     bindings: Vec<Arc<[Hosted]>>,
-    replay_file_sets: HashSet<Rc<Vec<String>>>,
-    shared_replay_files: [usize; 2],
     host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
     binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
     work: Vec<Work>,
@@ -183,10 +181,10 @@ impl Batch {
         }
         if class.closed {
             let t = thread_cpu();
-            let snapshot = inventory_for(&req.root)?;
-            let inventory = req
-                .inventory
-                .or(snapshot)
+            let inventory = match req.inventory {
+                Some(paths) => Some(paths),
+                None => inventory_for(&req.root)?,
+            }
                 .or_else(|| {
                     (!class.file_cells && (!req.files.is_empty() || !class.file_inventory)).then(|| {
                         let mut paths = req.files.as_ref().clone();
@@ -234,17 +232,6 @@ impl Batch {
                 Vec::new()
             };
             self.clocks.project += thread_cpu() - t;
-            if sdk.is_none() {
-                // Closed requests retain their ordered file list beyond admission.
-                // Share equal capture lists and discard the lookup before executing.
-                if let Some(existing) = self.replay_file_sets.get(req.files.as_ref()) {
-                    self.shared_replay_files[0] += 1;
-                    self.shared_replay_files[1] += req.files.iter().map(String::len).sum::<usize>();
-                    req.files = existing.clone();
-                } else {
-                    self.replay_file_sets.insert(req.files.clone());
-                }
-            }
             return Ok(Work::Closed {
                 pairs,
                 project,
@@ -338,7 +325,6 @@ impl Batch {
 
     fn release_admission(&mut self) {
         self.host_rows.clear();
-        self.replay_file_sets = HashSet::new();
         self.last_sources = None;
         self.schedule.close();
         self.binding_ids.clear();

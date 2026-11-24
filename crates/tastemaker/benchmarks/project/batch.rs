@@ -80,6 +80,8 @@ impl Authorities {
 
 #[derive(Default)]
 struct ReplayInputs {
+    file_sets: HashSet<Rc<Vec<String>>>,
+    shared_files: [usize; 2],
     queries: HashMap<String, Rc<str>>,
     inventories: HashMap<PathBuf, Rc<Vec<String>>>,
     roots: HashMap<String, PathBuf>,
@@ -104,7 +106,17 @@ impl ReplayInputs {
         if req.repository.is_none() {
             req.repository = self.authorities.roots.get(&req.root).or(self.authorities.default.as_ref()).cloned();
         }
-        batch.register_query(query.into(), req, |root| self.inventory(root, closed), None)
+        let mut work = batch.register_query(query.into(), req, |root| self.inventory(root, closed), None)?;
+        if let Work::Closed { files, .. } = &mut work {
+            if let Some(existing) = self.file_sets.get(files.as_ref()) {
+                self.shared_files[0] += 1;
+                self.shared_files[1] += files.iter().map(String::len).sum::<usize>();
+                files.clone_from(existing);
+            } else {
+                self.file_sets.insert(files.clone());
+            }
+        }
+        Ok(work)
     }
 
     fn inventory(&mut self, root: &str, closed: Option<&Path>) -> Result<Option<Rc<Vec<String>>>, String> {
@@ -312,6 +324,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         invocations.push((idx, Box::<str>::from(id), expected));
     }
     drop(inputs);
+    let [lists, path_bytes] = replay.shared_files;
     drop(replay);
     drop(expected_text);
     let invocations = invocations.into_boxed_slice();
@@ -377,7 +390,6 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     );
     let [empty, eval, operators, posting, capture] = session.closed_reuse;
     eprintln!("CLOSED_REUSE empty_emits={empty} evaluations={eval} operators={operators} posting_builds={posting} capture_splits={capture}");
-    let [lists, path_bytes] = session.shared_replay_files;
     println!("ADMISSION_REPLAY aliased_file_sets={lists} duplicate_path_bytes_removed={path_bytes}");
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
