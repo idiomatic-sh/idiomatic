@@ -181,11 +181,12 @@ def run(spec, evidence):
                     exe = spec["other_build"]
                 elif scenario in ("refused", "refused-reverse", "refused-input"):
                     program.write_text(spec["refused_query"])
-                    invoke("retained", j, exe, "refusing-seed")
+                    refusing = invoke("retained", j, exe, "refusing-seed")
                     if scenario == "refused-reverse":
                         j["files"].reverse()
                     elif scenario == "refused-input":
-                        edit.write_bytes(previous + spec["comment"].encode())
+                        # Change the provider relation the previously refusing emit requests.
+                        program.write_bytes(rule)
                 elif scenario == "truncated" and seed:
                     store.write_bytes(seed[:len(seed)//2])
                 if j != base:
@@ -212,6 +213,8 @@ def run(spec, evidence):
                     errors.append("cold output, status or refusals differ")
                 if stored != reference:
                     errors.append("snapshot differs from a fresh evaluation")
+                if scenario == "refused-input" and cold[2] == refusing[2]:
+                    errors.append("the changed provider request did not change its refusal")
                 if scenario == "refused" and not cold[2] and cold[0] == 0:
                     errors.append("fixture did not refuse")
                 if scenario in ("finding-edit", "same-stamp") and cold[1] == unchanged_output:
