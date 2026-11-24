@@ -30,6 +30,38 @@ pub(crate) fn certified_empty(
     tables: &[(String, Rc<Table>)],
     frontier: Option<&finish::partition::Partition>,
 ) -> bool {
+    verify(exec, run, tables, frontier, None).is_ok()
+}
+
+/// Applies only when every emit is an antijoin and its *left input* is proven
+/// empty for this file. A different output may independently demand its right.
+pub(crate) fn certified_empty_left(
+    exec: &mut Exec<'_>, run: &mut Run, tables: &[(String, Rc<Table>)],
+) -> R<()> {
+    let plan = exec.plan;
+    let mut demanded = vec![false; plan.nodes.len()];
+    let mut pending = Vec::new();
+    for (_, output, _, _) in &plan.emits {
+        let frame = exec.frames[*output];
+        let left = exec.arg_rel(*output, "left")?;
+        if frame.op != finish::frame::Op::Antijoin || frame.gate as usize != left {
+            return Err("emit has no empty-left antijoin gate".into());
+        }
+        pending.push(left);
+    }
+    while let Some(step) = pending.pop() {
+        if !std::mem::replace(&mut demanded[step], true) {
+            pending.extend(plan.nodes[step].inputs.iter().copied());
+        }
+    }
+    for (_, output, _, _) in &plan.emits { demanded[*output] = true; }
+    verify(exec, run, tables, None, Some(&demanded))
+}
+
+fn verify(
+    exec: &mut Exec<'_>, run: &mut Run, tables: &[(String, Rc<Table>)],
+    frontier: Option<&finish::partition::Partition>, demanded: Option<&[bool]>,
+) -> R<()> {
     for (name, table) in tables {
         if run
             .catalog(name)
@@ -47,7 +79,7 @@ pub(crate) fn certified_empty(
     let check = |exec: &mut Exec<'_>, run: &mut Run| -> R<()> {
         let plan = exec.plan;
         for (i, step) in plan.nodes.iter().enumerate() {
-            if frontier.is_some_and(|cut| !cut.file_steps[i]) {
+            if frontier.is_some_and(|cut| !cut.file_steps[i]) || demanded.is_some_and(|read| !read[i]) {
                 continue;
             }
             let _schema = exec.schema(run, i)?;
@@ -142,7 +174,7 @@ pub(crate) fn certified_empty(
         }
         Ok(())
     };
-    check(exec, run).is_ok()
+    check(exec, run)
 }
 
 /// Preserve the frontier schema even when no output can contain any rows.

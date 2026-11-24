@@ -1147,9 +1147,7 @@ pub(crate) fn visit<L: FileSource>(
                 };
                 if let Some(screen) = &mut checks {
                     evaluate(0, screen, &mut active, |binding| binding);
-                } else if selected.len() > 1 {
-                    // A one-source open admission cannot amortize preparing a reader screen.
-                    // Its coarse requirements and ordinary executor still apply.
+                } else {
                     let prepare = state.screens.groups(parser, programs, program_of, cut_of, &mut active,
                         |index, screen, jobs| evaluate(index, screen, jobs, |_| 0));
                     clocks.prepare += prepare;
