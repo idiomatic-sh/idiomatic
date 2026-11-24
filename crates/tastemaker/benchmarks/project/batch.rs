@@ -75,7 +75,8 @@ impl Authorities {
 #[derive(Default)]
 struct Batch {
     schedule: session::Schedule,
-    bindings: Vec<(usize, Rc<[Hosted]>)>,
+    program_of: Vec<usize>,
+    bindings: Vec<Rc<[Hosted]>>,
     host_rows: std::collections::HashSet<Rc<[Vec<super::HostCell>]>>,
     binding_ids: HashMap<(usize, Rc<[Hosted]>), usize>,
     queries: HashMap<String, Rc<str>>,
@@ -87,7 +88,7 @@ struct Batch {
     authorities: Authorities,
     projects: Vec<ProjectSpec>,
     cuts: HashMap<(usize, Vec<(String, Vec<(String, String)>)>), Rc<finish::partition::Partition>>,
-    cut_of: HashMap<usize, Rc<finish::partition::Partition>>,
+    cut_of: Vec<Option<Rc<finish::partition::Partition>>>,
     local_bindings: HashMap<(usize, Vec<(String, Vec<(String, String)>)>), usize>,
     project_keys: HashMap<(String, Authority, Rc<Vec<String>>), usize>,
     contracts:
@@ -328,7 +329,7 @@ impl Batch {
             let binding = self.binding(rule, req.hosted);
             self.bound_contracts.insert(binding, Rc::clone(&contract));
             let pairs = if let Some(c) = cut {
-                self.cut_of.insert(binding, c);
+                self.cut_of[binding] = Some(c);
                 // Caller rows are consumed only after closure. Sources with the same
                 // prepared program and caller schema produce identical local outputs.
                 let local = *self.local_bindings.entry(schema_key).or_insert(binding);
@@ -367,7 +368,9 @@ impl Batch {
         let hosted: Rc<[Hosted]> = hosted.into();
         let host_key = hosted.clone();
         *self.binding_ids.entry((rule, host_key)).or_insert_with(|| {
-            self.bindings.push((rule, hosted));
+            self.program_of.push(rule);
+            self.cut_of.push(None);
+            self.bindings.push(hosted);
             self.bindings.len() - 1
         })
     }
@@ -410,9 +413,6 @@ impl Batch {
         if world.run.texts.is_empty() {
             world.declare_words(languages);
         }
-        let cuts: Vec<_> = (0..self.bindings.len())
-            .map(|i| self.cut_of.get(&i).cloned())
-            .collect();
         aliases.extend(aliases.len()..self.schedule.pairs);
         answers.resize_with(self.schedule.pairs, || Err(String::new()));
         contributions.resize_with(self.schedule.sources.len(), || None);
@@ -440,7 +440,6 @@ impl Batch {
                 }
             }
         }
-        let rules: Vec<_> = self.bindings.iter().map(|(r, _)| *r).collect();
         self.clocks.pairs = self.schedule.pairs;
         let readers = languages.iter().map(Some).chain([None]);
         for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
@@ -455,16 +454,16 @@ impl Batch {
                 &manifests,
                 contributions,
                 &self.schedule.programs,
-                &rules,
+                &self.program_of,
                 &self.bound_contracts,
-                &cuts,
+                &self.cut_of,
                 world,
                 &self.schedule.sources,
                 &files,
                 aliases,
                 answers,
                 |binding, run| {
-                    Ok(bind_tables(&self.bindings[binding].1, run, |_| None)?
+                    Ok(bind_tables(&self.bindings[binding], run, |_| None)?
                         .into_iter()
                         .map(|(n, t)| (n, Rc::new(t)))
                         .collect())
@@ -505,11 +504,12 @@ impl Batch {
         let mut groups = BTreeMap::new();
         for (i, work) in self.work.iter().enumerate() {
             if let Work::Closed { binding, .. } = work {
-                let (rule, tables) = &self.bindings[*binding];
+                let rule = self.program_of[*binding];
+                let tables = &self.bindings[*binding];
                 let mut schema: Vec<_> = tables.iter().map(|t| (&t.name, &t.columns)).collect();
                 schema.sort_unstable();
                 groups
-                    .entry((*rule, schema))
+                    .entry((rule, schema))
                     .or_insert_with(Vec::new)
                     .push(i);
             }
@@ -630,7 +630,7 @@ impl Batch {
                         withheld.unknowns.extend(unknowns);
                         return Ok(withheld);
                     }
-                    if let Some(cut) = self.cut_of.get(binding) {
+                    if let Some(cut) = &self.cut_of[*binding] {
                         for &slot in pairs {
                             if let Some(partials) = world.unavailable.get(&slot) {
                                 for (relation, file) in partials {
@@ -662,7 +662,7 @@ impl Batch {
                         &carried,
                         inventory,
                         files,
-                        &self.bindings[*binding].1,
+                        &self.bindings[*binding],
                         p,
                         &incomplete,
                     )
