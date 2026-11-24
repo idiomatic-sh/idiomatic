@@ -205,6 +205,15 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Need::Any => true,
             Need::Empty => false,
             Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
+            Need::PathGlob(slot) => self.path.is_none_or(|path| {
+                use ryo_matching::inbound::use_cases::matching::{
+                    interface::MatchingUseCase, types::{GlobPattern, MatchOutcome, SearchText},
+                    use_case::MatchingUseCaseImpl,
+                };
+                MatchingUseCaseImpl::new().matches_text_glob(
+                    GlobPattern(&self.p.path_globs[slot]), SearchText(&String::from_utf8_lossy(path)),
+                ) == MatchOutcome::Matches
+            }),
             Need::PathMatches(re) => self
                 .path
                 .is_none_or(|path| self.p.regexes[re].is_match(path)),
