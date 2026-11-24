@@ -101,7 +101,7 @@ struct Ways {
 
 fn captured(
     run: &mut super::Run,
-    symbol: u32,
+    text: &str,
     pattern: &str,
     separator: Option<&str>,
     columns: &[Option<usize>],
@@ -110,10 +110,7 @@ fn captured(
         count: 0,
         cells: Vec::new(),
     };
-    let Ok(text) = String::from_utf8(run.text(symbol).to_vec()) else {
-        return result;
-    };
-    matches(pattern, separator, &text, &mut |spans| {
+    matches(pattern, separator, text, &mut |spans| {
         result.count += 1;
         for column in columns {
             let text = column
@@ -177,25 +174,22 @@ pub(super) fn write(
         if word == super::NULL {
             continue;
         }
-        let symbol = if file {
+        let single;
+        let ways = if file {
             let path = paths.get(word as usize).ok_or("unbound capture file")?;
-            run.sym(path.as_bytes())
+            if project {
+                by_path.entry(word).or_insert_with(|| captured(run, path, pattern, separator, columns))
+            } else {
+                single = captured(run, path, pattern, separator, columns);
+                &single
+            }
         } else {
-            let sym = u32::try_from(word).map_err(|_| "unbound capture text")?;
-            if run.absent_word == Some(sym) {
+            let symbol = u32::try_from(word).map_err(|_| "unbound capture text")?;
+            if run.absent_word == Some(symbol) {
                 continue;
             }
-            sym
-        };
-        // A closed relation can contain many edges from the same file. Only
-        // the selected captures depend on its path. Preserve every input row.
-        let single;
-        let ways = if project && file {
-            by_path
-                .entry(symbol)
-                .or_insert_with(|| captured(run, symbol, pattern, separator, columns))
-        } else {
-            single = captured(run, symbol, pattern, separator, columns);
+            let Ok(text) = String::from_utf8(run.text(symbol).to_vec()) else { continue };
+            single = captured(run, &text, pattern, separator, columns);
             &single
         };
         for way in 0..ways.count {

@@ -1,5 +1,5 @@
 //! Bind typed pair witnesses to the source adapter's actual row populations.
-use super::{Bound, FileId, FileSource, Program, Result, Run, Source, l, reader_run};
+use super::{FileId, FileSource, Program, Result, Run, Source, l, reader_run};
 use crate::{
     pair_checks::SyntaxText,
     pair_summary::{self, Source as FactSource},
@@ -128,7 +128,7 @@ impl Checks {
     pub(super) fn exclude(
         &mut self,
         active: &mut [(usize, usize, bool)],
-        bound: &mut HashMap<usize, Result<Bound<'_>>>,
+        bound: &mut super::Bindings<'_>,
         run: &mut Run,
         tree: &l::NodeTable,
         text: &[u32],
@@ -185,7 +185,7 @@ impl Checks {
         }
         for (binding, _, excluded) in active {
             if !*excluded && self.roots[*binding].iter().all(|&r| !self.live[r]) {
-                let b = bound.get_mut(binding).unwrap().as_mut().unwrap();
+                let b = bound[binding].as_mut().unwrap();
                 if partials.iter().any(|p| b.facts.contains(&p.relation)) {
                     continue;
                 }

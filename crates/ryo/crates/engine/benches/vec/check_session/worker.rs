@@ -2,16 +2,19 @@
 //! immutable project contributions by the original admission slot.
 use super::*;
 use std::num::NonZeroUsize;
-pub(crate) enum Slots<'a, T> {
-    Direct(&'a mut [T]),
-    Buffered(&'a mut Vec<(usize, T)>),
+pub(crate) trait Slots<T> {
+    fn set(&mut self, slot: usize, value: T);
 }
-impl<T> Slots<'_, T> {
-    pub(super) fn set(&mut self, slot: usize, value: T) {
-        match self {
-            Self::Direct(all) => all[slot] = value,
-            Self::Buffered(changes) => changes.push((slot, value)),
-        }
+
+impl<T> Slots<T> for [T] {
+    fn set(&mut self, slot: usize, value: T) {
+        self[slot] = value;
+    }
+}
+
+impl<T> Slots<T> for Vec<(usize, T)> {
+    fn set(&mut self, slot: usize, value: T) {
+        self.push((slot, value));
     }
 }
 
@@ -52,7 +55,7 @@ pub(crate) fn dispatch<L: FileSource>(
             parser,
             reader_id,
             manifests,
-            &mut Slots::Direct(contributions),
+            contributions,
             programs,
             rules,
             contracts,
@@ -60,8 +63,8 @@ pub(crate) fn dispatch<L: FileSource>(
             world,
             sources,
             selected,
-            &mut Slots::Direct(aliases),
-            &mut Slots::Direct(answers),
+            aliases,
+            answers,
             host,
             clocks,
         );
@@ -116,7 +119,7 @@ pub(crate) fn dispatch<L: FileSource>(
             parser,
             reader_id,
             manifests,
-            &mut Slots::Buffered(&mut notes),
+            &mut notes,
             programs,
             rules,
             contracts,
@@ -124,8 +127,8 @@ pub(crate) fn dispatch<L: FileSource>(
             &mut part,
             sources,
             files,
-            &mut Slots::Buffered(&mut links),
-            &mut Slots::Buffered(&mut a),
+            &mut links,
+            &mut a,
             &host,
             &mut time,
         );

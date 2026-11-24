@@ -267,6 +267,23 @@ impl Schedule {
     }
 }
 
+/// Admission assigns dense binding IDs. Only bindings used by this reader own an executor.
+struct Bindings<'p>(Vec<Option<Box<Result<Bound<'p>>>>>);
+
+impl<'p> std::ops::Index<&usize> for Bindings<'p> {
+    type Output = Result<Bound<'p>>;
+
+    fn index(&self, id: &usize) -> &Self::Output {
+        self.0[*id].as_deref().expect("prepared binding")
+    }
+}
+
+impl<'p> std::ops::IndexMut<&usize> for Bindings<'p> {
+    fn index_mut(&mut self, id: &usize) -> &mut Self::Output {
+        self.0[*id].as_deref_mut().expect("prepared binding")
+    }
+}
+
 struct Bound<'p> {
     screenable: Option<bool>,
     empty_frontier: Option<Vec<(usize, Rc<Table>)>>,
@@ -376,8 +393,8 @@ struct Version {
 fn versions(
     group: &[usize],
     sources: &[Source],
-    answers: &mut Slots<Answer>,
-    aliases: &mut Slots<usize>,
+    answers: &mut (impl Slots<Answer> + ?Sized),
+    aliases: &mut (impl Slots<usize> + ?Sized),
     reads: &mut usize,
     retained: &mut HashMap<usize, (Arc<[u8]>, u32)>,
     keep: bool,
@@ -441,7 +458,10 @@ fn versions(
                     files[i].project_slots.push(idx);
                 }
                 for (&binding, &slot) in &src.bindings {
-                    aliases.set(slot, *files[i].jobs.entry(binding).or_insert(slot));
+                    let origin = *files[i].jobs.entry(binding).or_insert(slot);
+                    if origin != slot {
+                        aliases.set(slot, origin);
+                    }
                 }
             }
             Err(e) => {
@@ -497,7 +517,7 @@ pub(crate) fn visit<L: FileSource>(
     parser: Option<&L>,
     reader_id: Option<usize>,
     manifests: &BTreeSet<&str>,
-    contributions: &mut Slots<Option<Rc<project::Contribution>>>,
+    contributions: &mut (impl Slots<Option<Rc<project::Contribution>>> + ?Sized),
     programs: &[Result<Program>],
     program_of: &[usize],
     contracts: &HashMap<usize, &completeness::Contract>,
@@ -505,8 +525,8 @@ pub(crate) fn visit<L: FileSource>(
     world: &mut World,
     sources: &[Source],
     selected: &[usize],
-    aliases: &mut Slots<usize>,
-    answers: &mut Slots<Answer>,
+    aliases: &mut (impl Slots<usize> + ?Sized),
+    answers: &mut (impl Slots<Answer> + ?Sized),
     mut host: impl FnMut(usize, &mut Run) -> Result<Tables>,
     clocks: &mut Clock,
 ) {
@@ -529,7 +549,7 @@ pub(crate) fn visit<L: FileSource>(
     let t = thread_cpu();
     let mut checks = pairs::Checks::new(parser, programs, program_of, sources, selected, cut_of);
     clocks.prepare += thread_cpu() - t;
-    let mut bound = HashMap::new();
+    let mut bound = Bindings((0..program_of.len()).map(|_| None).collect());
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
@@ -565,12 +585,14 @@ pub(crate) fn visit<L: FileSource>(
             let t = thread_cpu();
             for (&binding, &slot) in &jobs {
                 let program = &programs[program_of[binding]];
-                let entry = bound.entry(binding).or_insert_with(|| {
-                    let p = program.as_ref().map_err(Clone::clone)?;
-                    let tables = host(binding, &mut run)?;
-                    bind(p, parser, &mut run, tables, cut_of[binding].as_deref())
+                let entry = bound.0[binding].get_or_insert_with(|| {
+                    let result = program.as_ref().map_err(Clone::clone).and_then(|p| {
+                        let tables = host(binding, &mut run)?;
+                        bind(p, parser, &mut run, tables, cut_of[binding].as_deref())
+                    });
+                    Box::new(result)
                 });
-                if let Err(reason) = entry {
+                if let Err(reason) = entry.as_ref() {
                     answers.set(slot, Err(reason.clone()));
                 }
             }
@@ -815,7 +837,7 @@ pub(crate) fn visit<L: FileSource>(
             for (binding, slot, excluded) in active {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
                 let contract = &contracts[&binding];
-                let b = bound.get_mut(&binding).unwrap().as_mut().unwrap();
+                let b = bound[&binding].as_mut().unwrap();
                 let mut local_coverage = BTreeMap::new();
                 let unknowns = if said.is_empty()
                     && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole

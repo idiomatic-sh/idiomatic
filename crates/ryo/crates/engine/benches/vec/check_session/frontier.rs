@@ -13,7 +13,7 @@ pub(super) struct FileInputs<'a> {
 impl<'a> FileInputs<'a> {
     pub(super) fn new(
         active: &[(usize, usize, bool)],
-        bound: &HashMap<usize, Result<Bound<'_>>>,
+        bound: &super::Bindings<'_>,
         programs: &'a [Result<Program>],
         program_of: &[usize],
         cut_of: &[Option<&Partition>],
