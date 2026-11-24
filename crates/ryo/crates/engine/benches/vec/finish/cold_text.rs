@@ -9,7 +9,7 @@ use std::rc::Rc;
 pub(super) struct Plan {
     by_symbol: Vec<u32>,
     slots: usize,
-    by_bytes: FxHashMap<Box<[u8]>, u32>,
+    by_bytes: FxHashMap<Rc<[u8]>, u32>,
     one_byte: Vec<u32>,
     longest: usize,
     tests: FxHashMap<Vec<String>, Rc<Predicate>>,
@@ -115,7 +115,8 @@ pub(super) fn candidates(
         indexed = f.n;
         let empty = run.cold_text.symbol_slot(run.empty);
         let memo = f.text_memo.borrow();
-        for (i, (&kind, &symbol)) in f.kind.iter().zip(memo.iter()).enumerate() {
+        for (i, &kind) in f.kind.iter().enumerate() {
+            let symbol = memo.get(i).copied().unwrap_or(u32::MAX);
             let slot = if symbol != u32::MAX {
                 run.cold_text.symbol_slot(symbol)
             } else if File::has_text(run, kind) {

@@ -32,6 +32,14 @@ pub(super) fn step_clock() -> f64 {
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
+#[path = "finish/symbol_predicate.rs"]
+mod symbol_predicate;
+use symbol_predicate::{Bound, TextTest};
+
+#[path = "finish/file_version.rs"]
+mod file_version;
+pub(super) use file_version::FileVersion;
+
 #[path = "finish/answer.rs"]
 pub(super) mod answer;
 #[path = "finish/recycle.rs"]
@@ -302,9 +310,11 @@ pub(super) struct Run {
     cold: cold_list::Plan,
     cold_entries: cold_entries::Audit,
     cold_text: cold_text::Plan,
-    pub(super) texts: Vec<Box<[u8]>>,
-    pub(super) ids: FxHashMap<Box<[u8]>, u32>,
-    pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
+    pub(super) texts: Vec<Rc<[u8]>>,
+    pub(super) ids: FxHashMap<Rc<[u8]>, u32>,
+    regexes: FxHashMap<String, Rc<Bound<regex::bytes::Regex>>>,
+    lower_symbols: FxHashMap<u32, u32>,
+    folded_literals: FxHashMap<u32, Rc<Bound<Rc<[u8]>>>>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
@@ -350,18 +360,28 @@ impl Run {
             return *i;
         }
         let i = self.texts.len() as u32;
-        self.texts.push(t.into());
-        self.ids.insert(t.into(), i);
+        let text = Rc::<[u8]>::from(t);
+        self.texts.push(Rc::clone(&text));
+        self.ids.insert(text, i);
         i
+    }
+    fn lower_symbol(&mut self, symbol: u32) -> u32 {
+        if let Some(&lower) = self.lower_symbols.get(&symbol) {
+            return lower;
+        }
+        let text = String::from_utf8_lossy(self.text(symbol)).to_lowercase();
+        let lower = self.sym(text.as_bytes());
+        self.lower_symbols.insert(symbol, lower);
+        lower
     }
     fn text(&self, s: u32) -> &[u8] {
         &self.texts[s as usize]
     }
-    fn re(&mut self, p: &str) -> Result<Rc<regex::bytes::Regex>, String> {
+    fn re(&mut self, p: &str) -> Result<Rc<Bound<regex::bytes::Regex>>, String> {
         if let Some(r) = self.regexes.get(p) {
             return Ok(r.clone());
         }
-        let r = Rc::new(regex::bytes::Regex::new(p).map_err(|e| format!("regex {p}: {e}"))?);
+        let r = Rc::new(Bound::new(regex::bytes::Regex::new(p).map_err(|e| format!("regex {p}: {e}"))?));
         self.regexes.insert(p.to_owned(), r.clone());
         Ok(r)
     }
@@ -673,27 +693,9 @@ pub(super) struct File<'a> {
     cold: cold_list::PerFile,
     keyed_sizes: FxHashMap<usize, usize>,
     owed_fills: Vec<bool>,
-    present_fields: std::cell::OnceCell<rustc_hash::FxHashSet<u32>>,
-    cold_roots: Vec<(u16, u32)>,
+    version: &'a FileVersion<'a>,
     cold_text: cold_text::Dictionary,
-    pub(super) table: &'a NodeTable,
-    pub(super) src: &'a [u8],
-    pub(super) file: u32,
     after_last_file: bool,
-    pub(super) n: usize,
-    pub(super) kind: Vec<u16>,
-    pub(super) start: Vec<u32>,
-    pub(super) end: Vec<u32>,
-    pub(super) parent: Vec<u32>,
-    /// redo-fills c4: each element's field code (`node_table::field_of`), read as a column.
-    field: Vec<u16>,
-    pub(super) line_starts: Vec<u32>,
-    text_memo: RefCell<Vec<u32>>,
-    by_start: RefCell<Option<Index>>,
-    by_end: RefCell<Option<Index>>,
-    /// 6e: elements by start line and by end line (a keyed list made on first ask).
-    by_line: [RefCell<Option<Index>>; 2],
-    tokens: RefCell<Option<Rc<Tokens>>>,
     memo: Vec<Option<Res>>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
@@ -708,8 +710,6 @@ pub(super) struct File<'a> {
     fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
     /// redo-union pass 2: whether a step is known empty in this file from its kinds, seeds and per-file tests (`known`).
     known: Vec<u8>,
-    /// The kinds the file has, one bit a kind code (made at the first ask).
-    kind_bits: Vec<u64>,
     /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
     /// next file (no 30 k-entry table made and dropped a file).
     touched: Vec<u32>,
@@ -727,12 +727,6 @@ thread_local! {
 /// and free of each; their answers given back to the pools, recycle.rs).
 #[derive(Default)]
 struct FileBufs {
-    kind: Vec<u16>,
-    start: Vec<u32>,
-    end: Vec<u32>,
-    parent: Vec<u32>,
-    line_starts: Vec<u32>,
-    text_memo: Vec<u32>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
@@ -740,7 +734,6 @@ struct FileBufs {
     lazies: FxHashMap<usize, Rc<Lazy>>,
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
-    kind_bits: Vec<u64>,
 }
 
 /// A map's tables given back (recycle.rs) and the map emptied, its room kept.
@@ -774,12 +767,6 @@ impl Drop for File<'_> {
         SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
         // redo-alloc: the file's buffers and maps emptied and kept for the next file
         let mut b = FileBufs {
-            kind: std::mem::take(&mut self.kind),
-            start: std::mem::take(&mut self.start),
-            end: std::mem::take(&mut self.end),
-            parent: std::mem::take(&mut self.parent),
-            line_starts: std::mem::take(&mut self.line_starts),
-            text_memo: std::mem::take(self.text_memo.get_mut()),
             vrows: std::mem::take(&mut self.vrows),
             vmat: std::mem::take(&mut self.vmat),
             index: std::mem::take(&mut self.index),
@@ -787,14 +774,7 @@ impl Drop for File<'_> {
             lazies: std::mem::take(&mut self.lazies),
             facts: std::mem::take(&mut self.facts),
             fact_ix: std::mem::take(self.fact_ix.get_mut()),
-            kind_bits: std::mem::take(&mut self.kind_bits),
         };
-        b.kind.clear();
-        b.start.clear();
-        b.end.clear();
-        b.parent.clear();
-        b.line_starts.clear();
-        b.text_memo.clear();
         for (_, r) in b.vrows.drain() {
             r.recycle();
         }
@@ -809,7 +789,6 @@ impl Drop for File<'_> {
             recycle::recycle(t);
         }
         b.fact_ix.clear();
-        b.kind_bits.clear();
         // a map grown far past a usual file is not kept (its room would stay with the worker)
         if b.vrows.capacity() > 1 << 12 || b.index.capacity() > 1 << 12 || b.fact_ix.capacity() > 1 << 12 {
             return;
@@ -842,41 +821,22 @@ pub(super) trait Provider {
     fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String>;
 }
 
+impl<'a> std::ops::Deref for File<'a> {
+    type Target = FileVersion<'a>;
+    fn deref(&self) -> &Self::Target { self.version }
+}
+
 impl File<'_> {
-    pub(super) fn new<'a>(table: &'a NodeTable, src: &'a [u8], file: u32, nodes: usize) -> File<'a> {
-        let n = node_table::element_count(table).0;
-        // redo-alloc: the last file's emptied buffers and maps (none at the first file)
-        let mut b = SPARE_BUFS.with(|s| s.borrow_mut().take()).unwrap_or_default();
-        b.kind.reserve(n);
-        b.start.reserve(n);
-        b.end.reserve(n);
-        b.parent.reserve(n);
-        b.line_starts.push(0);
-        b.text_memo.resize(n, u32::MAX);
+    pub(super) fn new<'a>(version: &'a FileVersion<'a>, nodes: usize) -> File<'a> {
+        let b = SPARE_BUFS.with(|s| s.borrow_mut().take()).unwrap_or_default();
         let mut f = File {
-            table,
-            src,
-            file,
+            version,
             after_last_file: false,
-            n,
-            kind: b.kind,
-            start: b.start,
-            end: b.end,
-            parent: b.parent,
-            field: Vec::with_capacity(n),
-            line_starts: b.line_starts,
-            text_memo: RefCell::new(b.text_memo),
-            by_start: RefCell::new(None),
-            by_end: RefCell::new(None),
-            by_line: [RefCell::new(None), RefCell::new(None)],
-            tokens: RefCell::new(None),
             memo: Vec::new(),
             vrows: b.vrows,
             cold: cold_list::PerFile::default(),
             keyed_sizes: FxHashMap::default(),
             owed_fills: Vec::new(),
-            present_fields: Default::default(),
-            cold_roots: Vec::new(),
             cold_text: cold_text::Dictionary::default(),
             vmat: b.vmat,
             cursor_views: Default::default(),
@@ -887,7 +847,6 @@ impl File<'_> {
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
             known: Vec::new(),
-            kind_bits: b.kind_bits,
             touched: Vec::new(),
             fact_read: Vec::new(),
         };
@@ -895,47 +854,13 @@ impl File<'_> {
             let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
             (f.memo, f.known, f.touched) = if memo.len() == nodes && known.len() == nodes { (memo, known, touched) } else { (vec![None; nodes], vec![0; nodes], Vec::new()) };
         });
-        for i in 0..n as u32 {
-            let p = Position(i);
-            f.kind.push(node_table::kind_of(table, p).0);
-            let s = node_table::span_of(table, p);
-            f.start.push(s.start.0);
-            f.end.push(s.end.0);
-            f.parent.push(node_table::parent_of(table, p).0);
-            let field = node_table::field_of(table, p).0;
-            f.field.push(field);
-            if i != 0 && f.parent[i as usize] == i {
-                f.cold_roots.push((field, i));
-            }
-        }
-        if sw!("VEC_COLD_COUNT") { cold_bucket::roots(f.cold_roots.len(), f.cold_roots.capacity()); }
-        let mut i = 0;
-        while i < src.len() {
-            match src[i] {
-                b'\n' => f.line_starts.push(i as u32 + 1),
-                b'\r' => {
-                    if i + 1 < src.len() && src[i + 1] == b'\n' {
-                        i += 1;
-                    }
-                    f.line_starts.push(i as u32 + 1);
-                }
-                _ => {}
-            }
-            i += 1;
+        if sw!("VEC_COLD_COUNT") {
+            let roots = version.extra_roots();
+            cold_bucket::roots(roots.len(), roots.capacity());
         }
         f
     }
-    pub(super) fn set_text(&mut self, symbols: &[u32]) {
-        self.text_memo.get_mut().copy_from_slice(symbols);
-    }
 
-    fn line(&self, off: u32) -> i64 {
-        self.line_starts.partition_point(|s| *s <= off) as i64
-    }
-    fn column(&self, off: u32) -> i64 {
-        let l = self.line_starts.partition_point(|s| *s <= off) - 1;
-        i64::from(off - self.line_starts[l])
-    }
     fn has_text(run: &Run, k: u16) -> bool {
         run.text_kind.get(usize::from(k)).copied().unwrap_or(false)
     }
@@ -947,9 +872,11 @@ impl File<'_> {
         }
     }
     fn elem_text(&self, run: &mut Run, p: u32) -> u32 {
-        let m = self.text_memo.borrow()[p as usize];
-        if m != u32::MAX {
-            return m;
+        let mut memo = self.text_memo.borrow_mut();
+        if let Some(&m) = memo.get(p as usize) {
+            if m != u32::MAX { return m; }
+        } else {
+            memo.resize(self.n, u32::MAX);
         }
         let k = self.kind[p as usize];
         let s = if Self::has_text(run, k) {
@@ -957,7 +884,7 @@ impl File<'_> {
         } else {
             run.empty
         };
-        self.text_memo.borrow_mut()[p as usize] = s;
+        memo[p as usize] = s;
         s
     }
     fn has_parent(&self, p: u32) -> bool {
@@ -1261,7 +1188,7 @@ enum E {
     /// redo-binding: the null test (`x is null`, `x is not null` when the flag is set): whether a value is the absent cell.
     Null(Box<E>, bool),
     /// A text tested against a constant regex (from `matches` or `glob_any`), compiled once.
-    Re(Box<E>, Rc<regex::bytes::Regex>),
+    TextTest(Box<E>, TextTest),
     /// The survivor handoff: whether a node id is in survivor set `k` of this file (the prefix's roots for a rule).
     Seed(Box<E>, usize),
 }
@@ -1738,20 +1665,23 @@ impl<'p> Exec<'p> {
             "call" => {
                 let name = s(&a[1])?.to_owned();
                 let args: Vec<E> = a[2].as_array().ok_or("args")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?;
+                if name == "lower" && let [E::Text(symbol)] = args.as_slice() {
+                    return Ok(E::Text(run.lower_symbol(*symbol)));
+                }
                 match (name.as_str(), args.get(1)) {
                     ("matches", Some(E::Text(t))) if args.len() == 2 => {
                         let re = run.re(&String::from_utf8_lossy(run.text(*t)).into_owned())?;
-                        E::Re(Box::new(args[0].clone()), re)
+                        E::TextTest(Box::new(args[0].clone()), TextTest::Regex(re))
                     }
                     ("glob_any", Some(E::Text(t))) if args.len() == 2 => {
                         let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                        E::Re(Box::new(args[0].clone()), re)
+                        E::TextTest(Box::new(args[0].clone()), TextTest::Regex(re))
                     }
                     ("glob_any", Some(E::List(items))) if args.len() == 2 => {
                         let mut tests = items.iter().map(|item| {
                             let E::Text(t) = item else { return Err("glob pattern must be text".to_owned()); };
                             let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                            Ok(E::Re(Box::new(args[0].clone()), re))
+                            Ok(E::TextTest(Box::new(args[0].clone()), TextTest::Regex(re)))
                         }).collect::<R<Vec<_>>>()?.into_iter();
                         match tests.next() {
                             Some(first) => tests.fold(first, |left, right| E::Or(Box::new(left), Box::new(right))),
@@ -1765,6 +1695,12 @@ impl<'p> Exec<'p> {
                 let op = Op::of(s(&a[1])?);
                 let left = self.expr(run, &a[2], names)?;
                 let right = self.expr(run, &a[3], names)?;
+                if matches!(op, Op::Eq | Op::Ne)
+                    && let Some(test) = symbol_predicate::folded_literal(run, &left, &right)
+                        .or_else(|| symbol_predicate::folded_literal(run, &right, &left))
+                {
+                    return Ok(if op == Op::Eq { test } else { E::Not(Box::new(test)) });
+                }
                 // The SDK tests the spelling of a literal. Both an unpublished
                 // symbol and an actual empty string match the empty spelling.
                 let column = match (&left, &right) {
@@ -2463,7 +2399,7 @@ impl<'p> Exec<'p> {
                 let col: Vec<u64> = (0..from.n)
                     .map(|i| {
                         let t = run.text(from.cols[tc][i] as u32).to_vec();
-                        let r = re.replace_all(&t, regex::bytes::NoExpand(&rep)).into_owned();
+                        let r = re.pattern.replace_all(&t, regex::bytes::NoExpand(&rep)).into_owned();
                         u64::from(run.sym(&r))
                     })
                     .collect();
@@ -3539,7 +3475,7 @@ impl<'p> Exec<'p> {
                 counted.set((off, lines));
                 line0.unwrap_or(0) + lines
             };
-            for m in re.captures_iter(text) {
+            for m in re.pattern.captures_iter(text) {
                 let w = m.get(0).expect("whole");
                 let g = match &cap {
                     Some(c) => match m.name(c) {
@@ -3921,7 +3857,7 @@ fn remap(e: &E, map: &[usize]) -> E {
         E::Or(x, y) => E::Or(b(x), b(y)),
         E::Not(x) => E::Not(b(x)),
         E::Null(x, n) => E::Null(b(x), *n),
-        E::Re(x, r) => E::Re(b(x), r.clone()),
+        E::TextTest(x, r) => E::TextTest(b(x), r.clone()),
         E::Seed(x, k) => E::Seed(b(x), *k),
         other => other.clone(),
     }
@@ -4204,7 +4140,7 @@ fn refs_of(e: &E) -> u64 {
         E::Col(s, _, _) => 1 << s,
         E::List(v) | E::Call(_, v) => v.iter().map(refs_of).fold(0, |a, b| a | b),
         E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => refs_of(a) | refs_of(b),
-        E::Not(a) | E::Null(a, _) | E::Re(a, _) | E::Seed(a, _) => refs_of(a),
+        E::Not(a) | E::Null(a, _) | E::TextTest(a, _) | E::Seed(a, _) => refs_of(a),
         _ => 0,
     }
 }
@@ -4355,12 +4291,9 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             };
             flag(hit != *neg)
         }
-        E::Re(a, re) => {
+        E::TextTest(a, re) => {
             let x = eval(run, f, srcs, cur, a);
-            flag(match x.ty() {
-                Ty::Sym => re.is_match(run.text(x.1 as u32)),
-                _ => re.is_match(&text_of(run, x)),
-            })
+            flag(re.value(run, x))
         }
         E::Call(name, args) => {
             // redo-alloc: up to four arguments on the stack (the common sizes), more in a list
@@ -4387,7 +4320,7 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
         "matches" => {
             let p = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();
             let re = run.re(&p).expect("a regex");
-            flag(re.is_match(&text_of(run, vs[0])))
+            flag(TextTest::Regex(re).value(run, vs[0]))
         }
         "starts_with" => flag(text_of(run, vs[0]).starts_with(&text_of(run, vs[1]))),
         "ends_with" => flag(text_of(run, vs[0]).ends_with(&text_of(run, vs[1]))),
@@ -4405,6 +4338,7 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
             apply(case, &[input], &mut output);
             V::new(Ty::Sym, u64::from(run.sym(output.0.as_bytes())))
         }
+        "lower" if vs[0].ty() == Ty::Sym => V::new(Ty::Sym, u64::from(run.lower_symbol(vs[0].1 as u32))),
         "lower" => {
             let s = String::from_utf8_lossy(&text_of(run, vs[0])).to_lowercase();
             V::new(Ty::Sym, u64::from(run.sym(s.as_bytes())))
@@ -4426,7 +4360,7 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
         "glob_any" => {
             let g = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();
             let re = run.re(&glob_pattern(&g)).expect("a glob");
-            flag(re.is_match(&text_of(run, vs[0])))
+            flag(TextTest::Regex(re).value(run, vs[0]))
         }
         "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&text_of(run, vs[0])), &String::from_utf8_lossy(&text_of(run, vs[1])))),
         // redo-honest: the shipping engine's meaning (operators numeric_values::integer_successor): whether the right is

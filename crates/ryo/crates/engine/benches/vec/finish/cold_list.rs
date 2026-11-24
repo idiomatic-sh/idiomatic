@@ -164,7 +164,7 @@ fn normalized(e: &E) -> Value {
             json!(["in", neg, normalized(a), items])
         }
         E::Call(name, xs) => json!(["call", name, xs.iter().map(normalized).collect::<Vec<_>>()]),
-        E::Re(a, re) => json!(["re", normalized(a), re.as_str()]),
+        E::TextTest(a, re) => json!(["text-test", normalized(a), format!("{re:?}")]),
         E::Seed(a, k) => json!(["seed", normalized(a), k]),
         E::List(xs) => json!(["list", xs.iter().map(normalized).collect::<Vec<_>>()]),
         _ => json!(format!("{e:?}")),
@@ -194,7 +194,7 @@ fn uses(e: &E, col: usize) -> bool {
         E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) | E::In(a, b, _) => {
             uses(a, col) || uses(b, col)
         }
-        E::Not(a) | E::Null(a, _) | E::Seed(a, _) | E::Re(a, _) => uses(a, col),
+        E::Not(a) | E::Null(a, _) | E::Seed(a, _) | E::TextTest(a, _) => uses(a, col),
         E::Call(_, xs) | E::List(xs) => xs.iter().any(|e| uses(e, col)),
         _ => false,
     }
@@ -305,7 +305,7 @@ impl Plan {
                     first.as_slice(),
                     rows.shadow(),
                     "file {}, list {key}, node {node}",
-                    f.file
+                    f.version.file
                 );
             } else {
                 seen.first = Some(Rc::new(rows.shadow()));
