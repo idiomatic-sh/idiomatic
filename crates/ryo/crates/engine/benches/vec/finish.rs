@@ -340,6 +340,39 @@ impl Table {
 }
 
 /// The run: texts, regexes, kind and field names, file paths.
+/// Append-only spellings addressed by the executor's stable numeric word IDs.
+#[derive(Clone)]
+pub(crate) struct Texts {
+    bytes: Vec<u8>,
+    offsets: Vec<usize>,
+}
+
+impl Default for Texts {
+    fn default() -> Self {
+        Self { bytes: Vec::new(), offsets: vec![0] }
+    }
+}
+
+impl Texts {
+    pub(crate) fn len(&self) -> usize {
+        self.offsets.len() - 1
+    }
+
+    pub(crate) fn push(&mut self, text: &[u8]) {
+        self.bytes.extend_from_slice(text);
+        self.offsets.push(self.bytes.len());
+    }
+}
+
+impl std::ops::Index<usize> for Texts {
+    type Output = [u8];
+
+    fn index(&self, id: usize) -> &[u8] {
+        let bounds = &self.offsets[id..=id + 1];
+        &self.bytes[bounds[0]..bounds[1]]
+    }
+}
+
 #[derive(Default)]
 pub(super) struct Run {
     pub(super) fill_dump: Vec<(u32, String)>,
@@ -348,7 +381,7 @@ pub(super) struct Run {
     cold: cold_list::Plan,
     cold_entries: cold_entries::Audit,
     cold_text: cold_text::Plan,
-    pub(super) texts: Vec<Box<[u8]>>,
+    pub(super) texts: Texts,
     pub(super) ids: hashbrown::HashTable<u32>,
     pub(crate) worker_patterns: Option<std::sync::Arc<worker_patterns::Patterns>>,
     pub(super) regexes: FxHashMap<String, std::sync::Arc<regex::bytes::Regex>>,
@@ -400,16 +433,16 @@ impl Run {
     }
 
     pub(super) fn lookup_word(&self, text: &[u8]) -> Option<u32> {
-        self.ids.find(Self::word_hash(text), |&id| &*self.texts[id as usize] == text).copied()
+        self.ids.find(Self::word_hash(text), |&id| &self.texts[id as usize] == text).copied()
     }
 
     pub(super) fn sym(&mut self, text: &[u8]) -> u32 {
-        if let Some(id) = self.lookup_word(text) {
+        let hash = Self::word_hash(text);
+        if let Some(&id) = self.ids.find(hash, |&id| &self.texts[id as usize] == text) {
             return id;
         }
-        let hash = Self::word_hash(text);
         let id = u32::try_from(self.texts.len()).expect("word ID");
-        self.texts.push(text.into());
+        self.texts.push(text);
         let _ = self.ids.insert_unique(hash, id, |&key| Self::word_hash(&self.texts[key as usize]));
         id
     }

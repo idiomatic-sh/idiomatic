@@ -305,7 +305,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
             }
         }
     }
-    let name_is = |run: &finish::Run, s: u32, t: &[u8]| &*run.texts[s as usize] == t;
+    let name_is = |run: &finish::Run, s: u32, t: &[u8]| &run.texts[s as usize] == t;
     // keyed values of a dictionary: each key paired with the first unpaired value after it
     let keyed_values = |d: u32| -> Vec<u32> {
         if kind[d as usize] != k_dict {

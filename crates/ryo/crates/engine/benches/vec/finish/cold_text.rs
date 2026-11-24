@@ -33,7 +33,7 @@ pub(super) fn slots(run: &mut Run, words: &[u32]) -> Vec<usize> {
                     plan.one_byte[usize::from(*byte)] = slot;
                 } else {
                     plan.longest = plan.longest.max(text.len());
-                    plan.by_bytes.insert(text.clone(), slot);
+                    plan.by_bytes.insert(text.into(), slot);
                 }
                 plan.by_symbol[sym] = slot;
                 plan.slots += 1;

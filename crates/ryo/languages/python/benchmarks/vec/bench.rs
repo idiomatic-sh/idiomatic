@@ -950,7 +950,7 @@ impl ColFacts<'_, '_, '_, '_> {
     /// The position of the file's module node (the scope the implicit-symbol rows name).
     fn module_position(&self, run: &finish::Run) -> Option<u32> {
         let n = node_table::element_count(self.file.table).0 as u32;
-        (0..n).find(|p| &*run.texts[run.kind_sym[usize::from(node_table::kind_of(self.file.table, Position(*p)).0)] as usize] == b"module")
+        (0..n).find(|p| &run.texts[run.kind_sym[usize::from(node_table::kind_of(self.file.table, Position(*p)).0)] as usize] == b"module")
     }
 
     fn whole_fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {

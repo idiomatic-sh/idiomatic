@@ -18,7 +18,7 @@ pub(crate) struct Settings<'p> {
     patterns: std::sync::Arc<finish::worker_patterns::Patterns>,
     root: String,
     paths: std::sync::Arc<[String]>,
-    text: Vec<Box<[u8]>>,
+    text: finish::Texts,
     kind_sym: Vec<u32>,
     field_sym: Vec<u32>,
     link_sym: [u32; 3],
