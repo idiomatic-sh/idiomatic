@@ -1,12 +1,15 @@
 //! The collector's adapter for the registered real check workloads.
-use crate::application::profile_evidence;
-use profile_tools::{self as standard, CommandLine, Observer};
+use super::{
+    profile_evidence,
+    profile_workload::{self, Images, Workload},
+};
+use profile_tools::CommandLine;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{
     collections::BTreeMap,
     ffi::OsString,
     fs,
-    io::{self, Write},
+    io::{BufReader, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     time::Duration,
@@ -76,51 +79,62 @@ pub fn profile(
     if let Some(other) = &other {
         writeln!(written, "Second build images: `{}`.\n", other.display())?;
     }
+    let ordinary = Images {
+        ordinary: image.join("ordinary"),
+        heap: image.join("heap"),
+    };
+    let other = other.map(|directory| Images {
+        ordinary: directory.join("ordinary"),
+        heap: directory.join("heap"),
+    });
     let mut totals = BTreeMap::new();
     for (name, workspace) in [("root", source.clone()), ("ryo", source.join("crates/ryo"))] {
-        let command = registered_command(&workspace)?;
-        let first = directory.join(name).join("first");
+        let arguments = registered_command(&workspace)?;
+        let root = directory.join(name);
+        let cache = workspace.join(".tastemaker_cache");
         let budget = Duration::from_secs(if name == "root" { 900 } else { 480 });
-        let (profile, diagnostic) = check(&image, &workspace, &command, &first, budget)?;
-        let first_phases = fs::read_to_string(&profile.native.stderr)?;
-        writeln!(written, "\n# {name}\n")?;
-        profile_evidence::phases(&first_phases, &mut written)?;
-        standard::run_table(
+        totals.extend(profile_workload::profile(
+            Workload {
+                name,
+                root: &root,
+                exits: &[0, 1],
+                instruction_budget: budget,
+            },
+            &ordinary,
+            other.as_ref(),
             &mut written,
-            &[
-                ("Ordinary", &profile.native),
-                ("Operator observer", &diagnostic),
-            ],
-        )?;
-        let operators = write_operators(&first, &mut written)?;
-        standard::report(&mut written, &profile, &first)?;
-        totals.insert(
-            name.to_owned(),
-            super::corpus_profile::metrics(&profile, &first)?,
-        );
-        if let Some(other) = &other {
-            let second = directory.join(name).join("other");
-            let (compared, diagnostic) = check(other, &workspace, &command, &second, budget)?;
-            let second_phases = fs::read_to_string(&compared.native.stderr)?;
-            writeln!(written, "\n# {name} — second build\n")?;
-            profile_evidence::phases(&second_phases, &mut written)?;
-            standard::run_table(
-                &mut written,
-                &[
-                    ("Ordinary", &compared.native),
-                    ("Operator observer", &diagnostic),
-                ],
-            )?;
-            let other_operators = write_operators(&second, &mut written)?;
-            standard::report(&mut written, &compared, &second)?;
-            standard::compare(&mut written, (&profile, &first), (&compared, &second))?;
-            profile_evidence::phase_delta(&first_phases, &second_phases, &mut written)?;
-            operators.compare(&other_operators, &mut written)?;
-            totals.insert(
-                format!("{name}/other"),
-                super::corpus_profile::metrics(&compared, &second)?,
-            );
-        }
+            |image, observer, path| {
+                if cache.exists() {
+                    fs::remove_dir_all(&cache)?;
+                }
+                let mut command: Vec<_> = arguments
+                    .iter()
+                    .cloned()
+                    .chain(["--workers".into(), "1".into()])
+                    .collect();
+                let mut environment = BTreeMap::from([("RAYON_NUM_THREADS".into(), "1".into())]);
+                if observer.is_none() {
+                    command.push("--timings=chrome".into());
+                    let _prior = environment.insert("TMPDIR".into(), path.as_os_str().to_owned());
+                }
+                Ok((
+                    CommandLine {
+                        executable: image.to_owned(),
+                        arguments: command,
+                        environment,
+                        directory: workspace.clone(),
+                    },
+                    (),
+                ))
+            },
+            |native, (), destination| {
+                let log = fs::read_to_string(&native.stderr)?;
+                let ledger = BufReader::new(fs::File::open(
+                    destination.join("engine/ryo-operators.tsv"),
+                )?);
+                Ok(profile_evidence::live(&log, ledger)?)
+            },
+        )?);
     }
     serde_json::to_writer_pretty(output, &totals)
         .map_err(|error| Error::Invalid(error.to_string()))?;
@@ -131,63 +145,6 @@ pub fn profile(
     )?;
     writeln!(progress, "Profile images: {}", image.display())?;
     Ok(())
-}
-
-fn write_operators(
-    directory: &Path,
-    output: &mut impl Write,
-) -> io::Result<profile_evidence::OperatorProfile> {
-    let file = directory.join("engine/ryo-operators.tsv");
-    profile_evidence::operators(io::BufReader::new(fs::File::open(file)?), output)
-}
-
-fn check(
-    images: &Path,
-    workspace: &Path,
-    arguments: &[OsString],
-    destination: &Path,
-    budget: Duration,
-) -> io::Result<(standard::Profile, standard::Observation)> {
-    let cache = workspace.join(".tastemaker_cache");
-    let invocation = |observer| -> io::Result<CommandLine> {
-        if cache.exists() {
-            fs::remove_dir_all(&cache)?;
-        }
-        let command = arguments
-            .iter()
-            .cloned()
-            .chain(["--workers".into(), "1".into()]);
-        Ok(CommandLine {
-            executable: images.join(if observer == Observer::Heap {
-                "heap"
-            } else {
-                "ordinary"
-            }),
-            arguments: command.collect(),
-            environment: BTreeMap::from([("RAYON_NUM_THREADS".into(), "1".into())]),
-            directory: workspace.to_owned(),
-        })
-    };
-    let profile = standard::collect(destination, &[0, 1], budget, |observer, _| {
-        invocation(observer)
-    })?;
-    let engine = destination.join("engine");
-    fs::create_dir_all(&engine)?;
-    let mut diagnostic = invocation(Observer::Native)?;
-    diagnostic.arguments.push("--timings=chrome".into());
-    let _existing = diagnostic
-        .environment
-        .insert("TMPDIR".into(), engine.as_os_str().to_owned());
-    let observed = standard::observe(&diagnostic, Observer::Native, &engine)?;
-    if !observed.status.code().is_some_and(|status| status <= 1)
-        || !standard::same_stdout(&profile.native, &observed, Observer::Native)?
-    {
-        return Err(io::Error::other(format!(
-            "operator observer changed the ordinary output; see {}",
-            observed.stderr.display()
-        )));
-    }
-    Ok((profile, observed))
 }
 
 fn registered_command(workspace: &Path) -> Result<Vec<OsString>, Error> {

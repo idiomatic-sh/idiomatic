@@ -1,5 +1,7 @@
 //! Summarize Ryo's engine-owned counters beside the standard tool output.
-use ryo_benchmark_contracts::domain::reports::types::CoverageAccounting;
+use ryo_benchmark_contracts::domain::{
+    measurements::types::WorkerPhases, reports::types::CoverageAccounting,
+};
 use serde::Deserialize;
 use std::{
     collections::{BTreeMap, btree_map::Entry},
@@ -16,53 +18,157 @@ const PHASES: [(&str, &str); 7] = [
     ("assembly", "Delivery"),
 ];
 
-pub(crate) fn pair_counts(coverage: CoverageAccounting, output: &mut impl Write) -> io::Result<()> {
+const COUNTS: [&str; 7] = [
+    "Calls",
+    "Requests",
+    "Failed calls",
+    "Selected pairs",
+    "Evaluated pairs",
+    "Skipped pairs",
+    "Unknown or unread pairs",
+];
+
+pub(crate) struct EngineEvidence {
+    clocks: [Option<f64>; 7],
+    execution: f64,
+    parse_wall: Option<u64>,
+    counts: [Option<u64>; 7],
+    operators: OperatorProfile,
+}
+
+pub(crate) fn live(log: &str, ledger: impl BufRead) -> io::Result<EngineEvidence> {
+    let fields = phase_fields(log)?;
+    let mut clocks = [None; 7];
+    for (clock, (key, _)) in clocks.iter_mut().zip(PHASES) {
+        *clock = Some(phase_time(&fields, key)?);
+    }
+    let mut counts = [None; 7];
+    for (count, key) in counts.iter_mut().zip([
+        "calls",
+        "requests",
+        "failed_calls",
+        "distinct_pairs",
+        "evaluated",
+        "skipped",
+        "unknown",
+    ]) {
+        *count = fields.get(key).map(|value| number(value)).transpose()?;
+    }
+    Ok(EngineEvidence {
+        execution: clocks[2..6].iter().flatten().sum(),
+        clocks,
+        parse_wall: None,
+        counts,
+        operators: operators(ledger)?,
+    })
+}
+
+pub(crate) fn worker(
+    clock: WorkerPhases,
+    coverage: CoverageAccounting,
+    ledger: impl BufRead,
+) -> io::Result<EngineEvidence> {
     let CoverageAccounting::Accounted(coverage) = coverage else {
         return Err(invalid(
             "registered candidate did not account for its selected pairs",
         ));
     };
-    writeln!(output, "| Rule and file pairs | Count |\n|---|---:|")?;
-    for (name, count) in [
-        ("Selected", coverage.selected.0),
-        ("Evaluated", coverage.evaluated.0),
-        ("Skipped", coverage.skipped.0),
-        ("Unknown or unread", coverage.unknown_or_unread.0),
-    ] {
-        writeln!(output, "| {name} | {count} |")?;
-    }
-    writeln!(output)
+    let [selected, evaluated, skipped, unknown] = [
+        coverage.selected.0,
+        coverage.evaluated.0,
+        coverage.skipped.0,
+        coverage.unknown_or_unread.0,
+    ]
+    .map(|count| u64::try_from(count).map_err(io::Error::other));
+    let (operators, parse_wall) = linter(ledger)?;
+    Ok(EngineEvidence {
+        clocks: [
+            Some(clock.preparation.as_secs_f64()),
+            Some(clock.admission.as_secs_f64()),
+            None,
+            None,
+            None,
+            None,
+            Some(clock.delivery.as_secs_f64()),
+        ],
+        execution: clock.execution.as_secs_f64(),
+        parse_wall: Some(parse_wall),
+        counts: [
+            Some(1),
+            Some(1),
+            Some(0),
+            Some(selected?),
+            Some(evaluated?),
+            Some(skipped?),
+            Some(unknown?),
+        ],
+        operators,
+    })
 }
 
-/// Write the CPU ledger the ordinary engine reports after the last SDK call.
-///
-/// # Errors
-/// The observer's record is absent or truncated, or the output cannot be written.
-pub fn phases(log: &str, mut output: impl Write) -> io::Result<()> {
-    let fields = phase_fields(log)?;
-    writeln!(output, "## Phase clocks and engine counts\n")?;
-    writeln!(output, "| Part | Ryo CPU-s |\n|---|---:|")?;
-    let mut total = 0.;
-    for (key, title) in PHASES {
-        let time = phase_time(&fields, key)?;
-        total += time;
-        writeln!(output, "| {title} | {time:.6} |")?;
-    }
-    writeln!(output, "| Total Ryo | {total:.6} |\n")?;
-    writeln!(output, "| Counter | Count |\n|---|---:|")?;
-    for key in [
-        "calls",
-        "requests",
-        "failed_calls",
-        "distinct_pairs",
-        "skipped",
-        "evaluated",
-    ] {
-        if let Some(value) = fields.get(key) {
-            writeln!(output, "| {key} | {value} |")?;
+impl EngineEvidence {
+    pub(crate) fn write(&self, output: &mut impl Write) -> io::Result<()> {
+        writeln!(output, "## Phase clocks and engine counts\n")?;
+        writeln!(output, "| Part | CPU-s |\n|---|---:|")?;
+        for ((_, title), clock) in PHASES.into_iter().zip(self.clocks) {
+            writeln!(output, "| {title} | {} |", seconds(clock))?;
         }
+        writeln!(output, "| Combined SDK execution | {:.6} |", self.execution)?;
+        let total = self.clocks[0].unwrap_or_default()
+            + self.clocks[1].unwrap_or_default()
+            + self.execution
+            + self.clocks[6].unwrap_or_default();
+        writeln!(output, "| Total Ryo | {total:.6} |\n")?;
+        let parse = self
+            .parse_wall
+            .map_or("Unavailable".into(), |ns| ns.to_string());
+        writeln!(
+            output,
+            "Provider parse wall from the operator pass (ns): {parse}.\n"
+        )?;
+        writeln!(output, "| Counter | Count |\n|---|---:|")?;
+        for (label, count) in COUNTS.into_iter().zip(self.counts) {
+            let count = count.map_or("Unavailable".into(), |count| count.to_string());
+            writeln!(output, "| {label} | {count} |")?;
+        }
+        self.operators.write(output)
     }
-    Ok(())
+
+    pub(crate) fn compare(&self, other: &Self, output: &mut impl Write) -> io::Result<()> {
+        writeln!(output, "\n| Part | First CPU-s | Second CPU-s | Change s |")?;
+        writeln!(output, "|---|---:|---:|---:|")?;
+        for (((_, label), old), new) in PHASES.into_iter().zip(self.clocks).zip(other.clocks) {
+            phase_delta(output, label, old, new)?;
+        }
+        phase_delta(
+            output,
+            "Combined SDK execution",
+            Some(self.execution),
+            Some(other.execution),
+        )?;
+        self.operators.compare(&other.operators, output)
+    }
+}
+
+fn seconds(clock: Option<f64>) -> String {
+    clock.map_or("Unavailable".into(), |clock| format!("{clock:.6}"))
+}
+
+fn phase_delta(
+    output: &mut impl Write,
+    label: &str,
+    old: Option<f64>,
+    new: Option<f64>,
+) -> io::Result<()> {
+    let delta = old.zip(new).map_or("Unavailable".into(), |(old, new)| {
+        format!("{:+.6}", new - old)
+    });
+    writeln!(
+        output,
+        "| {label} | {} | {} | {delta} |",
+        seconds(old),
+        seconds(new)
+    )
 }
 
 fn phase_fields(log: &str) -> io::Result<BTreeMap<&str, &str>> {
@@ -86,23 +192,6 @@ fn phase_time(fields: &BTreeMap<&str, &str>, key: &str) -> io::Result<f64> {
         .and_then(|word| word.parse::<f64>().ok())
         .filter(|seconds| seconds.is_finite() && *seconds >= 0.)
         .ok_or_else(|| invalid(format!("invalid Ryo phase clock {key}")))
-}
-
-pub(crate) fn phase_delta(base: &str, candidate: &str, mut output: impl Write) -> io::Result<()> {
-    let first = phase_fields(base)?;
-    let second = phase_fields(candidate)?;
-    writeln!(output, "\n| Part | First CPU-s | Second CPU-s | Change s |")?;
-    writeln!(output, "|---|---:|---:|---:|")?;
-    for (key, title) in PHASES {
-        let old = phase_time(&first, key)?;
-        let new = phase_time(&second, key)?;
-        writeln!(
-            output,
-            "| {title} | {old:.6} | {new:.6} | {:+.6} |",
-            new - old
-        )?;
-    }
-    Ok(())
 }
 
 /// A row's logical operator runs, input and output row totals, and self CPU ns.
@@ -143,7 +232,7 @@ struct TraceEvent {
 ///
 /// # Errors
 /// Returns an error for missing, malformed or inconsistent engine records.
-pub(crate) fn linter(ledger: impl BufRead, mut output: impl Write) -> io::Result<OperatorProfile> {
+fn linter(ledger: impl BufRead) -> io::Result<(OperatorProfile, u64)> {
     let mut kinds = BTreeMap::<String, Counts>::new();
     let mut rules = BTreeMap::<String, Counts>::new();
     let mut parse_ns = 0u64;
@@ -193,29 +282,20 @@ pub(crate) fn linter(ledger: impl BufRead, mut output: impl Write) -> io::Result
     if runs_reported == 0 {
         return Err(invalid("missing native operator counters"));
     }
-    writeln!(output, "## Phase clocks and engine counts\n")?;
-    writeln!(output, "| Part | Observed wall ns |\n|---|---:|")?;
-    writeln!(output, "| Provider parse | {parse_ns} |")?;
-    writeln!(
-        output,
-        "\nShared nodes are counted once by kind and attributed to every owning rule.\n"
-    )?;
-    let operators = OperatorProfile {
-        kinds,
-        queries: rules,
-    };
-    operators.write(&mut output, "Top twenty rules")?;
-    Ok(operators)
+    Ok((
+        OperatorProfile {
+            kinds,
+            queries: rules,
+        },
+        parse_ns,
+    ))
 }
 
 /// Reduce the observer's typed TSV into counts by operator and by query text.
 ///
 /// # Errors
 /// The ledger is absent or inconsistent, or the report cannot be written.
-pub(crate) fn operators(
-    ledger: impl BufRead,
-    mut output: impl Write,
-) -> io::Result<OperatorProfile> {
+fn operators(ledger: impl BufRead) -> io::Result<OperatorProfile> {
     let mut queries = BTreeMap::new();
     let mut kinds = BTreeMap::<String, Counts>::new();
     let mut per_query = BTreeMap::<u64, Counts>::new();
@@ -253,18 +333,16 @@ pub(crate) fn operators(
             .ok_or_else(|| invalid("operator without query text"))?;
         add(texts.entry(query).or_default(), counts);
     }
-    let operators = OperatorProfile {
+    Ok(OperatorProfile {
         kinds,
         queries: texts,
-    };
-    operators.write(&mut output, "Top twenty query texts")?;
-    Ok(operators)
+    })
 }
 
 impl OperatorProfile {
-    fn write(&self, output: &mut impl Write, query_title: &str) -> io::Result<()> {
+    fn write(&self, output: &mut impl Write) -> io::Result<()> {
         write_operators(output, "Operators by kind", &self.kinds, usize::MAX)?;
-        write_operators(output, query_title, &self.queries, 20)
+        write_operators(output, "Top twenty queries", &self.queries, 20)
     }
 
     pub(crate) fn compare(&self, other: &Self, output: &mut impl Write) -> io::Result<()> {

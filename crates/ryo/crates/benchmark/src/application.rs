@@ -15,6 +15,7 @@ pub mod inventory_verification;
 pub mod measurement;
 pub mod process_discrepancy;
 pub mod profile_evidence;
+pub(crate) mod profile_workload;
 pub mod project_request;
 pub mod receipt_validation;
 pub mod registered_certification;

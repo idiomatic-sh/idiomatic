@@ -2,7 +2,6 @@
 use ryo_benchmark_contracts::domain::measurements::types::WorkerPhases;
 use std::{
     fs, io,
-    io::Write,
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -42,51 +41,6 @@ impl Clock {
         }
         write(path, self.samples)
     }
-}
-
-pub(crate) fn table(
-    output: &mut impl Write,
-    first: Option<WorkerPhases>,
-    second: Option<WorkerPhases>,
-) -> io::Result<()> {
-    let Some(first) = first else {
-        return writeln!(
-            output,
-            "Ordinary worker phase clocks unavailable in this image.\n"
-        );
-    };
-    let rows = |clock: WorkerPhases| {
-        [
-            clock.preparation,
-            clock.admission,
-            clock.execution,
-            clock.delivery,
-        ]
-        .map(|time| time.as_secs_f64())
-    };
-    let parts = [
-        "Preparation",
-        "Admission",
-        "SDK execution (combined)",
-        "Delivery",
-    ];
-    if let Some(second) = second {
-        writeln!(output, "| Part | First CPU-s | Second CPU-s | Change s |")?;
-        writeln!(output, "|---|---:|---:|---:|")?;
-        for ((part, first), second) in parts.into_iter().zip(rows(first)).zip(rows(second)) {
-            writeln!(
-                output,
-                "| {part} | {first:.6} | {second:.6} | {:+.6} |",
-                second - first
-            )?;
-        }
-    } else {
-        writeln!(output, "| Part | CPU-s |\n|---|---:|")?;
-        for (part, first) in parts.into_iter().zip(rows(first)) {
-            writeln!(output, "| {part} | {first:.6} |")?;
-        }
-    }
-    writeln!(output)
 }
 
 pub(crate) fn observation_file(request_state: &Path) -> Option<PathBuf> {
