@@ -11,7 +11,7 @@ type Aliases = HashMap<String, String>;
 pub(super) struct PreviousPlan {
     inputs: Vec<(usize, Aliases)>,
     plan: Rc<Plan>,
-    slots: Vec<Vec<usize>>,
+    slots: Vec<Rc<Vec<usize>>>,
 }
 
 #[derive(Default)]
@@ -49,6 +49,8 @@ impl ReaderPlan {
     }
 
     fn append(&mut self, b: &mut Bound<'_>, given: &Aliases) {
+        let slots = Rc::make_mut(&mut b.slots);
+        slots.reserve(b.plan.nodes.len());
         for node in &b.plan.nodes {
             let mut step = node.step().clone();
             if let FinishStep::Base(relation) = &mut step {
@@ -56,8 +58,8 @@ impl ReaderPlan {
                     relation.0 = alias.as_str().into();
                 }
             }
-            let slot = self.steps.append(step, &b.slots);
-            b.slots.push(slot);
+            let slot = self.steps.append(step, slots);
+            slots.push(slot);
         }
         for (rule, output, subject, keys) in &b.plan.emits {
             self.outputs.push((
