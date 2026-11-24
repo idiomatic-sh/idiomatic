@@ -29,7 +29,7 @@ type Nodes = Option<Bits>;
 #[derive(Clone, Copy)]
 pub(super) struct SyntaxText<'a> {
     pub ids: &'a [u32],
-    pub symbols: &'a [Box<[u8]>],
+    pub symbols: &'a [std::rc::Rc<[u8]>],
 }
 impl<'a> SyntaxText<'a> {
     fn at(self, index: usize) -> &'a [u8] {

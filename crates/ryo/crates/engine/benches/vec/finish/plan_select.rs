@@ -80,10 +80,13 @@ impl Exec<'_> {
         }
     }
     pub(super) fn call_expr(run: &mut Run, name: &str, args: Vec<E>) -> R<E> {
+        if name == "lower" && let [E::Text(symbol)] = args.as_slice() {
+            return Ok(E::Text(run.lower_symbol(*symbol)));
+        }
         match (name, args.get(1)) {
             ("matches", Some(E::Text(t))) if args.len() == 2 => {
                 let re = run.re(&String::from_utf8_lossy(run.text(*t)).into_owned())?;
-                Ok(E::Re(Box::new(args.into_iter().next().unwrap()), re))
+                Ok(E::TextTest(Box::new(args.into_iter().next().unwrap()), super::TextTest::Regex(re)))
             }
             ("glob_any", Some(E::Text(t))) if args.len() == 2 => {
                 glob_test(run, &args[0], *t)
@@ -128,6 +131,12 @@ impl Exec<'_> {
                 };
                 let left = bind(&c.left)?;
                 let right = bind(&c.right)?;
+                if matches!(op, Op::Eq | Op::Ne)
+                    && let Some(test) = super::symbol_predicate::folded_literal(run, &left, &right)
+                        .or_else(|| super::symbol_predicate::folded_literal(run, &right, &left))
+                {
+                    return Ok(if op == Op::Eq { test } else { E::Not(Box::new(test)) });
+                }
                 // SDK literal comparisons use the spelling. Both an unpublished
                 // symbol and a published empty string have the empty spelling.
                 let column = match (&left, &right) {
@@ -174,7 +183,7 @@ impl Exec<'_> {
 /// evaluator handles every other literal with the production text matcher.
 fn glob_test(run: &mut Run, subject: &E, pattern: u32) -> R<E> {
     match glob_pattern(&String::from_utf8_lossy(run.text(pattern))) {
-        Some(regex) => Ok(E::Re(Box::new(subject.clone()), run.re(&regex)?)),
+        Some(regex) => Ok(E::TextTest(Box::new(subject.clone()), super::TextTest::Regex(run.re(&regex)?))),
         None => {
             use ryo_matching::inbound::use_cases::matching::{
                 interface::MatchingUseCase, types::GlobPattern, use_case::MatchingUseCaseImpl,
@@ -184,11 +193,11 @@ fn glob_test(run: &mut Run, subject: &E, pattern: u32) -> R<E> {
             } else {
                 let text = String::from_utf8_lossy(run.text(pattern));
                 let matcher = MatchingUseCaseImpl::new().compile_text_globs(&[GlobPattern(&text)]);
-                let glob = Rc::new(super::prepared_glob::PreparedGlob::new(pattern, matcher));
+                let glob = Rc::new(super::symbol_predicate::PreparedGlob::new(pattern, matcher));
                 run.prepared_globs.insert(pattern, Rc::clone(&glob));
                 glob
             };
-            Ok(E::Glob(Box::new(subject.clone()), glob))
+            Ok(E::TextTest(Box::new(subject.clone()), super::TextTest::Glob(glob)))
         }
     }
 }
