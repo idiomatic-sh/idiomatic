@@ -371,7 +371,7 @@ impl Live {
         // Validation and fixture calls usually contain a single request.
         // Keep the existing per-request writer and amortize launches over a batch.
         if self.store.is_none() && count > 1 && ids.len() >= 128 {
-            let receipts = ids.iter().map(|(id, entry)| {
+            let mut receipts = ids.iter().map(|(id, entry)| {
                 let (i, _) = entry.as_ref().err().expect("fresh receipt");
                 let receipt = Batch::answer(&self.batch.work[*i], &self.state.answers)
                     .map_err(|e| format!("{id}: {e}"))?;
@@ -381,7 +381,7 @@ impl Live {
             let other_cpu = std::thread::scope(|scope| {
                 let mut chunks = receipts.chunks_mut(chunk_size);
                 let first = chunks.next().expect("non-empty requests");
-                let children: Vec<_> = chunks.map(|chunk| scope.spawn(|| {
+                let children: Vec<_> = chunks.map(|chunk| scope.spawn(move || {
                     let start = thread_cpu();
                     let result = render_chunk(chunk);
                     (result, thread_cpu() - start)
