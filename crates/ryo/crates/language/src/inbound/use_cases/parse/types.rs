@@ -196,8 +196,11 @@ pub trait ParseEngine: Send + Sync {
         request: ParseRequest<'_>,
         table: &mut Elements,
         symbols: &mut Symbols,
-        wanted: &[Relation],
-    ) -> Result<(), ParseError> { self.build_file(request, table, symbols, wanted) }
+        access: crate::domain::elements::types::NodeAccess<'_>,
+    ) -> Result<(), ParseError> {
+        let wanted = match access { crate::domain::elements::types::NodeAccess::Inspect(rows) | crate::domain::elements::types::NodeAccess::Query(rows) => rows };
+        self.build_file(request, table, symbols, wanted)
+    }
 
 
     /// Builds the tree of a file explicitly assigned to this provider, completed for what the readers of `wanted` look at; no row

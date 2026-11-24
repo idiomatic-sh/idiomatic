@@ -124,7 +124,7 @@ impl Source for Linked {
         wanted: &[l::Relation],
     ) -> Result<()> {
         self.parser
-            .build_native_file(req, file, dict, wanted)
+            .build_native_file(req, file, dict, l::NodeAccess::Query(wanted))
             .map_err(|e| format!("{e:?}"))
     }
     fn notes(file: &Self::File) -> l::Bytes {

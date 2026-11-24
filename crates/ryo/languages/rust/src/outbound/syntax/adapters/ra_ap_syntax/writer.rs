@@ -16,6 +16,7 @@ use rustc_literal_escaper::unescape_str;
 use ryo::languages::{self, Flag, NameText, Offset};
 
 pub(crate) trait Output {
+    fn numeric_values(&self) -> bool { true }
     fn enter(&mut self, kind: languages::KindBits, start: Offset);
     fn leave(&mut self, end: Offset);
     fn token(&mut self, kind: languages::KindBits, start: Offset, end: Offset, decoded: Option<NameText<'_>>);
@@ -127,6 +128,7 @@ pub(super) fn emit(
             builder.token(kind_bits(kind_of(*kind)), cursor.position, end, value.as_ref().map(|v| NameText(&v.0)));
             if cursor.literal == Flag::Raised
                 && matches!(kind, SyntaxKind::INT_NUMBER | SyntaxKind::FLOAT_NUMBER)
+                && builder.numeric_values()
                 && let Some(written) = text.0.get(from..to)
             {
                 numeric(builder, TokenText(written));

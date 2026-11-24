@@ -107,11 +107,20 @@ pub enum SyntaxAcceptance {
     Undetermined,
 }
 
+/// Columns the consumer can inspect in addition to the rows of requested relations.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum NodeAccess<'a> {
+    /// The public graph, including parser properties and element origins.
+    Inspect(&'a [ryo_relations::domain::relations::types::Relation]),
+    /// The executor reads the native syntax columns and the requested provider rows.
+    Query(&'a [ryo_relations::domain::relations::types::Relation]),
+}
+
 /// A provider’s direct writer for preorder positions, token flags and expansion origins.
 #[derive(Clone, Copy, Debug)]
 pub struct NativeReader {
     /// Write each parser position once and record origins of expanded elements.
-    pub read: fn(&[u8], &mut crate::domain::node_table::types::NodeTable, &mut Vec<Expanded>, &mut Vec<Flags>, bool),
+    pub read: fn(&[u8], &mut crate::domain::node_table::types::NodeTable, &mut Vec<Expanded>, &mut Vec<Flags>, bool, NodeAccess<'_>),
 }
 
 /// The element table of one file: its syntax tree in pre-order, column by column, 28 bytes for
