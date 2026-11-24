@@ -47,7 +47,7 @@ class Postcard:
         return bytes(self.take(self.uint())).decode()
 
 
-def inspect_table(data, output, refused, admitted):
+def inspect_table(data, output, diagnostics, admitted):
     if data is None:
         return 0
     reader = Postcard(data)
@@ -55,20 +55,24 @@ def inspect_table(data, output, refused, admitted):
     count = reader.uint()
     public = {tuple(sorted(json.loads(line).items())) for line in output.splitlines() if line}
     origins = set()
+    outcomes = {}
+    admitted_set = set(admitted)
     for _ in range(count):
         reader.take(16)
         origin = reader.string()
-        assert origin in admitted and origin not in origins
+        assert origin in admitted_set and origin not in origins
         origins.add(origin)
-        # The origin may contain both findings and deterministic refusals.
+        findings, refusals = [], []
+        outcomes[origin] = findings, refusals
         for _ in range(reader.uint()):
             rule, subject = reader.string(), reader.string()
             start, end = reader.uint(), reader.uint()
             row = dict(rule=rule, file=subject, start=start, end=end)
-            assert tuple(sorted(row.items())) in public, (origin, row)
+            findings.append((rule, tuple(sorted(row.items()))))
         for _ in range(reader.uint()):
             emit, reason = reader.string(), reader.string()
             assert emit and reason
+            refusals.append((emit, reason))
         for _ in range(reader.uint()):
             reader.string()
             if reader.take(1)[0]:
@@ -79,6 +83,19 @@ def inspect_table(data, output, refused, admitted):
             for _ in range((0, 1, 1, 2)[origin_kind]):
                 reader.uint()
     assert reader.at == len(reader.data)
+    first = {}
+    visible = set()
+    for origin in admitted:
+        if origin not in outcomes:
+            continue
+        findings, refusals = outcomes[origin]
+        visible.update(row for emit, row in findings if emit not in first)
+        for emit, reason in refusals:
+            first.setdefault(emit, f"FAILED {emit}: {origin}: {reason}")
+    assert visible <= public, "stored findings include a result absent from cold"
+    if count == len(admitted):
+        assert visible == public, "complete snapshot omitted a finding"
+        assert sorted(first.values()) == sorted(line for line in diagnostics if line.startswith("FAILED "))
     return count
 
 
@@ -221,10 +238,8 @@ def run(spec, evidence):
                     errors.append("edit did not change a finding")
                 if scenario == "unchanged":
                     unchanged_output = cold[1]
-                refused = {line.split(": ", 2)[1] for line in cold[2]
-                           if line.startswith("FAILED ") and line.count(": ")>=2}
                 try:
-                    rows = inspect_table(stored, cold[1], refused, set(j["files"]))
+                    rows = inspect_table(stored, cold[1], cold[2], j["files"])
                     if scenario == "refused-reverse" and spec.get("lang") == "python" and rows:
                         if hits["trial"] != rows:
                             errors.append("reverse traversal did not replay stable outcomes")
