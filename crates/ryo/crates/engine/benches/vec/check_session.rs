@@ -208,9 +208,10 @@ pub(crate) struct Schedule {
 }
 
 impl Schedule {
-    pub(crate) fn delivered(&mut self, ids: &[usize], keep: bool) {
+    pub(crate) fn delivered(&mut self, ids: &[usize], keep: bool, reusable: impl Fn(usize) -> bool) {
         for &i in ids {
             let source = &mut self.sources[i];
+            if keep { source.bindings.retain(|&(binding, _)| reusable(binding)); }
             if keep && source.known.is_empty() {
                 source.known = std::mem::take(&mut source.bindings);
             } else if keep {

@@ -726,8 +726,8 @@ impl Live {
         }
         let mut manifest = BTreeMap::<Box<str>, Vec<sdk::ReadFailure>>::new();
         for project in projects {
-            if let Some((_, Ok(population))) = self.state.populations.get(&project) {
-                for refused in &population.refused {
+            if let Some(unread) = self.state.project_unread.get(&project) {
+                for refused in unread {
                     manifest.entry(refused.path.0.clone()).or_default()
                         .push(sdk::ReadFailure(refused.reason.0.clone()));
                 }

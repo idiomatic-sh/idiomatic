@@ -79,6 +79,7 @@ struct Active<F: Default, D: Default> {
     answers: ReportSlots,
     aliases: session::worker::PairAliases,
     contributions: Vec<Option<Rc<project::Contribution>>>,
+    project_unread: HashMap<usize, Vec<l::Refused>>,
     populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
 }
 
@@ -222,13 +223,12 @@ impl Batch {
             {
                 return Ok(Work::Project(Rc::new(Ok(session::Reported::skipped(&inventory)))));
             }
-            let existing = self.bindings.len();
             let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()));
             let pairs = if class.cut.is_some() {
                 // Caller rows are consumed only after closure. Sources with the same
                 // prepared program and caller schema produce identical local outputs.
                 let local = *self.local_bindings.entry(class.id).or_insert(binding);
-                self.admit(&req.root, &req.files, local, local < existing, sdk)?
+                self.admit(&req.root, &req.files, local, false, sdk)?
             } else {
                 Vec::new()
             };
@@ -352,12 +352,26 @@ impl Batch {
             aliases,
             contributions,
             populations,
+            project_unread,
         } = state;
         if world.run.texts.is_empty() {
             world.declare_words(languages);
         }
         answers.grow(self.schedule.pairs);
         contributions.resize_with(self.schedule.sources.len(), || None);
+        // A later round may need notes that were released after a project closed.
+        let needed_projects: BTreeSet<_> = self.work.iter().filter_map(|work| match work {
+            Work::Closed { project, .. } => *project,
+            _ => None,
+        }).collect();
+        for project in needed_projects {
+            for &id in &self.projects[project].slots {
+                if contributions[id].is_none() {
+                    self.schedule.sources[id].project = true;
+                    self.schedule.pending.insert(id);
+                }
+            }
+        }
         if let Some(s)=store.as_deref_mut() {
             let started = thread_cpu();
             s.admit(self,world,answers,contributions);
@@ -435,7 +449,7 @@ impl Batch {
                 if !*keep && store.is_none() {
                     // Other readers have disjoint files. Answers and project contributions
                     // already own everything the closed phase will read from this group.
-                    self.schedule.delivered(&files, *keep);
+                    self.schedule.delivered(&files, *keep, |id| self.cut_of[id].is_none());
                     for i in files {
                         self.schedule.sources[i].provided = None;
                     }
@@ -463,8 +477,8 @@ impl Batch {
         if !*keep {
             *aliases=Default::default();
         }
-        self.schedule.delivered(&pending, *keep);
-        self.finish_projects(languages, contributions, world, answers, populations, *keep,store.as_deref_mut());
+        self.schedule.delivered(&pending, *keep, |id| self.cut_of[id].is_none());
+        self.finish_projects(languages, contributions, world, answers, populations, project_unread, *keep,store.as_deref_mut());
 
     }
 
@@ -475,6 +489,7 @@ impl Batch {
         world: &mut session::World,
         answers: &ReportSlots,
         populations: &mut HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
+        project_unread: &mut HashMap<usize, Vec<l::Refused>>,
         keep: bool,
         mut store:Option<&mut stored::Store>,
     ) {
@@ -537,11 +552,12 @@ impl Batch {
                 )
             })();
             self.clocks.project_provider_wall += provider.elapsed().as_secs_f64();
+            if let Ok(p) = &population && !p.refused.is_empty() {
+                project_unread.insert(id, p.refused.clone());
+            } else { project_unread.remove(&id); }
             populations.insert(id, (s.wanted.clone(), population));
         }
-        if !keep {
-            *contributions=Vec::new();
-        }
+        contributions.clear();
         self.clocks.project_prepare_wall += wall.elapsed().as_secs_f64();
         if groups.is_empty() {
             self.clocks.empty_project_epochs += 1;
@@ -550,7 +566,7 @@ impl Batch {
             return;
         }
         self.file_catalog.declare(&mut world.run);
-        let mut readers=readers::Closed::new(&self.work,&self.cut_of,keep);
+        let mut readers=readers::Closed::new(&self.work,&self.cut_of);
         #[cfg(feature = "product-session")]
         let workers = self.workers.map_or(1, std::num::NonZeroUsize::get);
         #[cfg(feature = "product-session")]
@@ -562,6 +578,7 @@ impl Batch {
             let worker_cpu = closed_workers::run(
                 workers, self, world, populations, answers, groups.into_iter(), &mut readers,
             );
+            readers.release_finished(world, |id| { populations.remove(&id); });
             self.clocks.project_workers_cpu += worker_cpu;
             self.clocks.project_number_wall += readers.number_wall;
             self.clocks.project_numbered += readers.numbered;
