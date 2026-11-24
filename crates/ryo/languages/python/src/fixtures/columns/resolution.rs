@@ -349,41 +349,70 @@ impl ColumnFile<'_, '_> {
         if read.model.flow.state == FlowState::Incomplete {
             return false;
         }
-        let mut sites = HashMap::new();
-        for event in &read.model.flow.events {
-            match event.kind {
-                FlowEventKind::Read | FlowEventKind::Wildcard => continue,
-                _ => {}
+        let events = read.model.flow.events.iter().filter_map(|event| {
+            if matches!(event.kind, FlowEventKind::Read | FlowEventKind::Wildcard) {
+                return None;
             }
-            let key = NamespaceKey {
-                scope: event.scope,
-                name: event.name,
-            };
-            let ordinal = event.ordinal.0 as u64;
-            let entry = sites.entry(key).or_insert((ordinal, None, None));
-            entry.0 = entry.0.min(ordinal);
-            if matches!(
+            let name = text_of(&read.model.names, event.name)?.0;
+            let scope = table_id(read.tree.segments, event.scope);
+            let write_at = matches!(
                 event.kind,
                 FlowEventKind::Bind | FlowEventKind::Delete | FlowEventKind::Cleanup
-            ) {
+            )
+            .then(|| {
+                ryo::languages::node_table::span_of(table, table_id(read.tree.segments, event.at))
+                    .start
+                    .0
+            });
+            Some((scope, name, event.ordinal.0 as u64, write_at))
+        });
+        Self::visit_namespace_schedule(events, |scope, name, first, mutation, written| {
+            visit(scope.0, name, first, mutation, written);
+        });
+        true
+    }
+
+    /// Project first declaration and mutation sites from the file's binding schedule.
+    /// Each input is a namespace, its canonical name, a schedule ordinal, and the
+    /// byte offset when the event changes the binding.
+    pub fn visit_namespace_schedule<K: Eq + std::hash::Hash>(
+        events: impl Iterator<Item = (Position, K, u64, Option<u32>)>,
+        mut visit: impl FnMut(Position, K, u64, Option<u64>, Option<u32>),
+    ) {
+        let mut sites = HashMap::new();
+        for (scope, name, ordinal, mutation) in events {
+            let entry = sites.entry((scope, name)).or_insert((ordinal, None, None));
+            entry.0 = entry.0.min(ordinal);
+            if let Some(start) = mutation {
                 entry.1 = Some(entry.1.map_or(ordinal, |prior: u64| prior.min(ordinal)));
-                let node = table_id(read.tree.segments, event.at);
-                let start = ryo::languages::node_table::span_of(table, node).start.0;
                 entry.2 = Some(entry.2.map_or(start, |prior: u32| prior.min(start)));
             }
         }
-        for (key, (first, mutation, written)) in sites {
-            if let Some(name) = text_of(&read.model.names, key.name) {
-                visit(
-                    table_id(read.tree.segments, key.scope).0,
-                    name.0,
-                    first,
-                    mutation,
-                    written,
-                );
-            }
+        for ((scope, name), (first, mutation, written)) in sites {
+            visit(scope, name, first, mutation, written);
         }
-        true
+    }
+
+    /// Write namespace sites over the same public schedule as the binding-event rows.
+    pub fn published_namespace_sites(
+        file: ryo::languages::FileId,
+        events: impl Iterator<Item = (Position, ryo::languages::Symbol, u64, Option<u32>)>,
+    ) -> Vec<ryo::languages::FactColumn> {
+        let mut columns = vec![Vec::new(); Self::NAMESPACE_SITES_SCHEMA.columns.len()];
+        Self::visit_namespace_schedule(events, |scope, name, first, mutation, written| {
+            let cells = [
+                u64::from(scope.0),
+                u64::from(name.0),
+                first,
+                mutation.unwrap_or(u64::MAX),
+                written.map_or(u64::MAX, u64::from),
+                u64::from(file.0),
+            ];
+            for (column, cell) in columns.iter_mut().zip(cells) {
+                column.push(cell);
+            }
+        });
+        qualify_cells(&Self::NAMESPACE_SITES_SCHEMA, file, columns)
     }
 }
 
