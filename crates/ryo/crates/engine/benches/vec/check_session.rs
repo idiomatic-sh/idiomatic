@@ -59,7 +59,7 @@ impl From<Vec<finish::answer::Row>> for Reported {
 pub(crate) type Tables = Vec<(String, Rc<Table>)>;
 
 pub(crate) struct Program {
-    typed: Rc<ryo_values::domain::finish_plans::types::FinishPlan>,
+    typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
     pub plan: Plan,
     pub syntax: Box<ryo_values::domain::program::types::WrittenProgram>,
     pub bases: Vec<String>,
