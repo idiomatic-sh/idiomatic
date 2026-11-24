@@ -1,6 +1,6 @@
 //! Check that skipping an empty local emit also preserves evaluation errors.
 use super::super as finish;
-use finish::{E, Exec, Op, R, Run, Table, Ty};
+use finish::{E, Exec, R, Run, Table, Ty};
 use std::rc::Rc;
 
 // Dynamic pattern compilation can refuse a non-empty intermediate even

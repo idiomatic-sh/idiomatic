@@ -48,6 +48,7 @@ enum Filter<'a> {
     All,
     Code(&'a [u16], u16),
     Codes(&'a [u16], &'a [u16]),
+    KindMask(&'a [u16], &'a [bool]),
     Tests,
 }
 
@@ -67,6 +68,12 @@ impl<'a> Filter<'a> {
                 codes => Self::Codes(column, codes),
             });
         }
+        if single
+            && let Some(super::cold_test::Kernel::Columns(_, program)) = v.cold_test.get().map(|k| k.as_ref())
+            && let Some(mask) = program.kind_mask()
+        {
+            return Some(Self::KindMask(&f.kind, mask));
+        }
         // A generic expression can intern text. Preserve evaluation across rows
         // for those filters. A singleton has the original evaluation order.
         if single || matches!(v.base, Native::Fact(_)) && v.tests.iter().all(fact_test) {
@@ -81,6 +88,7 @@ impl<'a> Filter<'a> {
             Self::All => true,
             Self::Code(column, code) => column[row as usize] == *code,
             Self::Codes(column, codes) => codes.contains(&column[row as usize]),
+            Self::KindMask(kinds, mask) => mask[usize::from(kinds[row as usize])],
             Self::Tests => view_cols::row_holds(f, run, v, row),
         }
     }

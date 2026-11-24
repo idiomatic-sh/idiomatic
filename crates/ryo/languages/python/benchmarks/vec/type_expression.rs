@@ -38,15 +38,9 @@ const NAMED_MODULES: [&[u8]; 3] = [b"typing", b"_typeshed.", b"typing_extensions
 /// The lists of the run's plan (set once, before the first file).
 pub(super) static LISTS: std::sync::OnceLock<Lists> = std::sync::OnceLock::new();
 
-/// redo-binding pass 6/7: sets `LISTS` from the pack's inputs to the facts: `<pack dir>/inputs/type-expression.tsv` when
-/// the second half is prepared from a pack, else beside the plan file (`<plan>.inputs/type-expression.tsv`, made by the
-/// plan script from the pack's `inputs/`); no file, no list.
-pub(super) fn load_lists(plan_or_pack: &str) {
-    let path = if std::path::Path::new(plan_or_pack).is_dir() {
-        format!("{}/inputs/type-expression.tsv", plan_or_pack.trim_end_matches('/'))
-    } else {
-        format!("{}.inputs/type-expression.tsv", plan_or_pack.trim_end_matches(".json"))
-    };
+/// Read type-expression declarations from the rule pack.
+pub(super) fn load_lists(pack: &str) {
+    let path = std::path::Path::new(pack).join("inputs/type-expression.tsv");
     let lists = match std::fs::read_to_string(path) {
         Ok(t) => Lists::parse(&t).expect("the type-expression input"),
         Err(_) => Lists::default(),

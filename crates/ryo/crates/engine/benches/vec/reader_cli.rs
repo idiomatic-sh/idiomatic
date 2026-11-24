@@ -21,18 +21,8 @@ pub(super) fn rule_context(
     request: Option<&str>,
 ) -> ryo_engine::domain::plan_lowering::types::RuleContext {
     if let Some(path) = request {
-        let context: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(path).expect("request")).expect("JSON request");
-        return context_from(&context);
+        super::finish::json_input::check_context(path);
     }
-    Default::default()
-}
-
-pub(super) fn context_from(context: &serde_json::Value) -> ryo_engine::domain::plan_lowering::types::RuleContext {
-        assert!(
-            context["rule_context"].is_null() && context["rule_observations"].is_null(),
-            "this host provides no named context tables"
-        );
     Default::default()
 }
 
@@ -45,7 +35,7 @@ pub(super) fn main(link: fn() -> ryo::languages::Language, declaration: fn() -> 
         .collect();
     if let [mode, pack, request, output] = args.as_slice() && mode == "--retain-findings" {
         let ok = super::finisher::retained::check(pack.as_ref(),request.as_ref(),output.as_ref(),cache_name,false,false,
-            |_,capture| reader_run::evaluate_files::<false>(start,link(),declaration(),pack,request,output,None,capture))
+            |_,capture| reader_run::evaluate_files::<false>(start,link(),declaration(),pack,request,reader_run::Output::Path(output),None,capture))
             .expect("retained findings");
         if !ok { std::process::exit(1); }
         return;

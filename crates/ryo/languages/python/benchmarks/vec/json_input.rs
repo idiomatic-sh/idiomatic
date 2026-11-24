@@ -12,7 +12,7 @@ use serde_json::Value;
 
 /// Read the parts used by the planner and file frame. A request may carry a large
 /// project manifest and file list for the host; serde validates and skips those values.
-pub(super) fn metadata(path: &str) -> Value {
+fn fields(path: &str) -> Value {
     use serde::de::{IgnoredAny, MapAccess, Visitor};
     struct Metadata;
     impl<'de> Visitor<'de> for Metadata {
@@ -26,11 +26,17 @@ pub(super) fn metadata(path: &str) -> Value {
             let mut fields = serde_json::Map::new();
             while let Some(name) = entries.next_key::<String>()? {
                 match name.as_str() {
-                    "named_tables" | "rule_context" | "rule_observations" | "selected_rules"
-                    | "project_search_roots" | "rule_applicability" => {
+                    "named_tables"
+                    | "rule_context"
+                    | "rule_observations"
+                    | "selected_rules"
+                    | "project_search_roots"
+                    | "rule_applicability" => {
                         fields.insert(name, entries.next_value()?);
                     }
-                    _ => { entries.next_value::<IgnoredAny>()?; }
+                    _ => {
+                        entries.next_value::<IgnoredAny>()?;
+                    }
                 }
             }
             Ok(Value::Object(fields))
@@ -148,13 +154,10 @@ pub(super) fn rule_context(request: Option<&str>) -> RuleContext {
     let Some(path) = request else {
         return RuleContext::default();
     };
-    let r: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(path).expect("request"))
-            .expect("request json");
-    context_from(&r)
+    context_from(&fields(path))
 }
 
-pub(super) fn context_from(r: &Value) -> RuleContext {
+fn context_from(r: &Value) -> RuleContext {
     let tables = match r.get("named_tables") {
         Some(tables) => named_tables(tables),
         None => recorded_tables(r),
@@ -194,4 +197,53 @@ pub(super) fn context_from(r: &Value) -> RuleContext {
         observations,
         ..RuleContext::default()
     }
+}
+
+pub(super) struct Metadata {
+    pub context: RuleContext,
+    pub accepted: Option<super::finish::json_input::Accepted>,
+    pub search_roots: Option<Vec<String>>,
+}
+
+pub(super) fn metadata(path: &str) -> Metadata {
+    let input = fields(path);
+    Metadata {
+        context: context_from(&input),
+        accepted: input.get("rule_applicability").map(|v| {
+            v.as_object()
+                .into_iter()
+                .flatten()
+                .filter(|(_, v)| v.as_str() == Some("accepted-syntax"))
+                .map(|(k, _)| k.clone())
+                .collect()
+        }),
+        search_roots: input
+            .get("project_search_roots")
+            .and_then(Value::as_array)
+            .map(|roots| {
+                roots
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_owned)
+                    .collect()
+            }),
+    }
+}
+
+pub(super) fn configuration(path: &str) -> Option<String> {
+    #[derive(serde::Deserialize)]
+    struct Settings {
+        parser_configuration: Option<String>,
+    }
+    serde_json::from_slice::<Settings>(&std::fs::read(path).ok()?)
+        .ok()?
+        .parser_configuration
+}
+
+pub(super) fn literal(text: &str) -> String {
+    serde_json::from_str(text).expect("text literal")
+}
+
+pub(super) fn literals(text: &str) -> Vec<String> {
+    serde_json::from_str(text).expect("text literals")
 }

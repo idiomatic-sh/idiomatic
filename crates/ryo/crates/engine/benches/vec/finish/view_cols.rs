@@ -14,7 +14,6 @@ pub(super) enum Test {
     /// `col in [ids]` (`true`: `not in`).
     In(usize, std::rc::Rc<super::symbol_predicate::SymbolSet>, bool),
     /// `col is null` (`true`: `is not null`).
-    Null(usize, bool),
     /// `a = b` (`true`) or `a != b` (`false`) on two columns of one type.
     Cols(usize, usize, bool),
     Not(Box<Test>),
@@ -51,6 +50,9 @@ fn one(run: &Run, e: &E) -> Test {
         E::Not(a) => Test::Not(Box::new(one(run, a))),
         E::And(a, b) => Test::And(Box::new(one(run, a)), Box::new(one(run, b))),
         E::Or(a, b) => Test::Or(Box::new(one(run, a)), Box::new(one(run, b))),
+        E::Not(a) => Test::Not(Box::new(one(a))),
+        E::And(a, b) => Test::And(Box::new(one(a)), Box::new(one(b))),
+        E::Or(a, b) => Test::Or(Box::new(one(a)), Box::new(one(b))),
         _ => Test::Eval(e.clone()),
     }
 }
@@ -85,7 +87,6 @@ fn holds(f: &File<'_>, run: &mut Run, base: Native, t: &Test, row: u32) -> bool 
             let x = cell(f, run, base, row, *c);
             (x != NULL && vs.contains(x)) != *neg
         }
-        Test::Null(c, not) => (cell(f, run, base, row, *c) == NULL) != *not,
         Test::Cols(a, b, want) => {
             let (x, y) = (cell(f, run, base, row, *a), cell(f, run, base, row, *b));
             (x == y && x != NULL) == *want
@@ -136,11 +137,6 @@ pub(super) fn retain_original(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &
                         let x = col[*r as usize];
                         (x != NULL && vs.contains(x)) != *neg
                     });
-                    continue;
-                }
-                Test::Null(c, not) => {
-                    let col = &tab.cols[*c];
-                    rows.retain(|r| (col[*r as usize] == NULL) != *not);
                     continue;
                 }
                 _ => {}

@@ -108,7 +108,7 @@ impl Capture {
     pub(crate) fn contains(&self, origin: &str) -> bool {
         !self.prior_refusal && self.reusable.contains_key(origin)
     }
-    pub(crate) fn replay(&mut self, origin: &str, output: &mut Vec<String>, failures: &mut std::collections::HashMap<String, String>) -> bool {
+    pub(crate) fn replay(&mut self, origin: &str, output: &mut Vec<Finding>, failures: &mut std::collections::HashMap<String, String>) -> bool {
         if self.prior_refusal {
             return false;
         }
@@ -117,7 +117,7 @@ impl Capture {
         };
         for finding in &answer.findings {
             if !failures.contains_key(&finding.rule) {
-                output.push(serde_json::to_string(finding).expect("finding output"));
+                output.push(finding.clone());
             }
         }
         for (emit, reason) in &answer.refusals {
