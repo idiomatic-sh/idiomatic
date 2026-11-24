@@ -78,6 +78,7 @@ constructor = s[s.index("        let linter = self", start):s.index("        ryo
 constructor = constructor.replace(".map_err(Clone::clone)?;", ".map_err(Clone::clone);")
 memory = constructor.index("                    match self.settings.memory")
 constructor = constructor[:memory] + constructor[constructor.index("                    self.cache.clone(),", memory):]
+constructor = constructor.replace('                    self.cache.clone(),', '                    if std::env::var_os("TM_CHECK_SESSION").as_deref() == Some(std::ffi::OsStr::new("retained")) {\n                        self.cache.clone()\n                    } else {\n                        ryo::linter::Cache::None\n                    },')
 s = s[:start] + """    fn lint(&self, request: AnalysisRequest) -> Result<AnalysisReport, AnalysisError> {
         self.lint_benchmark_round(vec![request]).pop().expect("one result")
     }

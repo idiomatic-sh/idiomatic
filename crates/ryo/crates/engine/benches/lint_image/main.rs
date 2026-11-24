@@ -38,8 +38,12 @@ struct Finding {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
-    let [pack, input, output] = &args[..] else {
-        return Err("expected PACK REQUEST OUTPUT".into());
+    let (retain, args) = match args.split_first() {
+        Some((mode, rest)) if mode == "--retain-findings" => (true, rest),
+        _ => (false, args.as_slice()),
+    };
+    let [pack, input, output] = args else {
+        return Err("expected [--retain-findings] PACK REQUEST OUTPUT".into());
     };
     let mut request: Input = serde_json::from_reader(fs::File::open(input)?)?;
     let pack = std::path::Path::new(pack);
@@ -108,6 +112,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
         );
     }
+    let cache = if retain {
+        sdk::Cache::At(request.root.join(".ryo_cache"))
+    } else {
+        sdk::Cache::None
+    };
     let request = sdk::LintRequest {
         root: request.root,
         corpus: sdk::Corpus::Listed(request.files.into_iter().map(sdk::RelativePath).collect()),
@@ -130,7 +139,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let engine = sdk::Linter::new(
         languages,
         sdk::Workers(NonZeroUsize::MIN).into(),
-        sdk::Cache::None,
+        cache,
     );
     eprintln!("HARNESS_STARTUP process_cpu={:.6}", cpu_time::ProcessTime::now().as_duration().as_secs_f64());
     let [answer]: [Result<sdk::LintReport, sdk::LintError>; 1] = engine
