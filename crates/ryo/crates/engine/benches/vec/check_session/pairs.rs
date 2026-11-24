@@ -23,7 +23,7 @@ impl Checks {
         program_of: &[usize],
         sources: &[Source],
         selected: &[usize],
-        cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
+        cuts: &[Option<&crate::finish::partition::Partition>],
     ) -> Self {
         let mut needed = vec![false; program_of.len()];
         for &source in selected {
@@ -138,7 +138,7 @@ impl Checks {
         symbols: &l::Symbols,
         requested: &[l::Relation],
         packet: &reader_run::packet::Packet,
-        cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
+        cuts: &[Option<&crate::finish::partition::Partition>],
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
     ) {
         self.live.fill(false);

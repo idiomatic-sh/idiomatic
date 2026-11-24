@@ -318,6 +318,7 @@ pub(super) struct Transfer {
 impl World {
     pub(super) fn transfer(mut self, prefix: usize) -> Transfer {
         self.empty_blocks.clear();
+        self.empty_blocks.clear();
         let mut ids = HashMap::new();
         let mut blocks = Vec::new();
         let mut slots = Vec::new();
