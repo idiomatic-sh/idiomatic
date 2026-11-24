@@ -270,7 +270,7 @@ pub(crate) struct Environment {
     pub authority: Authority,
     pub supplied: BTreeSet<String>,
     epoch: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-    observations: std::sync::Mutex<(usize, BTreeMap<String, l::ObservedEntryState>)>,
+    observations: std::sync::Mutex<(usize, BTreeMap<std::path::PathBuf, l::ObservedEntryState>)>,
 }
 
 impl Environment {
@@ -282,7 +282,7 @@ impl Environment {
     /// Borrow the complete set of physical lookups made in this admission.
     /// Supplied overlay entries have their own version proofs. Unknown states
     /// are passed through so the store can decline to retain an answer.
-    pub(crate) fn observed(&self, mut read: impl FnMut(&str, l::ObservedEntryState)) {
+    pub(crate) fn observed(&self, mut read: impl FnMut(&Path, l::ObservedEntryState)) {
         let epoch = self.epoch.load(std::sync::atomic::Ordering::Relaxed);
         let memo = self.observations.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if memo.0 == epoch {
@@ -294,7 +294,7 @@ impl Environment {
 
     // File and project suppliers read the same physical entry in this epoch.
     // Overlay entries are answered before this lookup and never enter the disk memo.
-    fn physical(&self, path: &str) -> l::ObservedEntryState {
+    fn physical(&self, path: &Path) -> l::ObservedEntryState {
         let epoch = self.epoch.load(std::sync::atomic::Ordering::Relaxed);
         let mut memo = self.observations.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         if memo.0 != epoch {
@@ -302,7 +302,8 @@ impl Environment {
             memo.0 = epoch;
         }
         if let Some(&state) = memo.1.get(path) { return state; }
-        let state = self.authority.observe(&[], l::FilePath(path.into())).state;
+        let state = path.to_str().map_or(l::ObservedEntryState::Unknown, |path|
+            self.authority.observe(&[], l::FilePath(path.into())).state);
         memo.1.insert(path.into(), state);
         state
     }
@@ -317,12 +318,12 @@ impl l::FileProject for Environment {
 
     fn entry(&self, path: &Path) -> l::ObservedEntryState {
         use l::ObservedEntryState as State;
-        let Some(path) = path.to_str() else { return State::Unknown; };
+        let Some(path) = path.to_str() else { return self.physical(path); };
         if self.supplied.contains(path) { return State::File; }
         let prefix = format!("{path}/");
         if self.supplied.range(prefix.clone()..).next().is_some_and(|p| p.starts_with(&prefix)) {
             return State::Directory;
         }
-        self.physical(path)
+        self.physical(Path::new(path))
     }
 }
