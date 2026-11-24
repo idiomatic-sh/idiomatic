@@ -4196,7 +4196,7 @@ fn eval_cell(
             flag(hit != *neg)
         }
         E::Glob(a, g) => {
-            let value = eval(run, f, srcs, cur, a);
+            let value = eval_cell(run, read, a);
             flag(g.matches(run, value))
         }
         E::Re(a, re) => {
