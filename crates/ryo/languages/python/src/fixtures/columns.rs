@@ -748,34 +748,31 @@ impl ColumnFile<'_, '_> {
             table.answered = false;
             return;
         }
-        let tree = syntax.tree;
-        let names = &tree.named.names;
-        let empty = crate::domain::model::names::service::find(names, NameText(""));
-        let wildcard = crate::domain::model::names::service::find(names, NameText(crate::domain::name_facts::constants::EVERYTHING));
-        let wanted = !ask.exists && table.wants(name_at);
-        let mut emit = |id: Position, at: usize| {
-            let code = tree.named.lexical.name[at];
-            if Some(code) == empty || Some(code) == wildcard { return; }
+        let wants_name = !ask.exists && table.wants(name_at);
+        let mut emit = |id: Position, node: AnyNodeRef<'_>| {
+            let name = match node {
+                AnyNodeRef::ExprName(name) => name.id.as_str(),
+                AnyNodeRef::Identifier(identifier) => identifier.id.as_str(),
+                _ => return,
+            };
+            if name.is_empty() || name == crate::domain::name_facts::constants::EVERYTHING { return; }
             if ask.exists {
                 table.mark(id.0);
                 table.rows += 1;
             } else {
-                let name = if wanted { self.memo.name(ids, names, code) } else { 0 };
-                table.put(id.0, &[(name_at, name)]);
+                let word = if wants_name { ids.id(name.as_bytes()) } else { 0 };
+                table.put(id.0, &[(name_at, word)]);
             }
         };
         for kind in [Kind::Node(Node::Name), Kind::Extra(TypedExtra::Identifier)] {
-            let ids = node_table::ids_of_kind(syntax.table, crate::domain::syntax::service::kind_bits(kind));
-            for &id in ids.iter().take_while(|id| usize::from(**id) < syntax.nodes.len()) {
-                emit(id, usize::from(id));
+            for Numbered { id, node } in nodes_of_kind(syntax, kind) {
+                emit(id, node);
             }
         }
-        // Embedded rows follow all own rows, in parser order across kinds.
-        let first = syntax.nodes.len();
-        for (place, class) in tree.named.lexical.class.iter().enumerate().skip(first) {
-            if matches!(class, NodeClass::Name | NodeClass::Identifier) {
-                emit(table_id(tree.segments, Position(place as u32)), place);
-            }
+        let tree = syntax.tree;
+        let first = tree.segments.first().map_or(tree.nodes.len(), |segment| usize::from(segment.first));
+        for (place, node) in tree.nodes.iter().enumerate().skip(first) {
+            emit(table_id(tree.segments, Position(place as u32)), *node);
         }
     }
 
