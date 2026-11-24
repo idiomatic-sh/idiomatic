@@ -68,6 +68,34 @@ impl BlockWords {
     }
 }
 
+#[cfg(feature = "product-session")]
+pub(crate) struct SharedWords<'a>(Vec<(&'a [u8], bool)>);
+
+#[cfg(feature = "product-session")]
+impl super::Run {
+    pub(crate) fn share_words(&self) -> SharedWords<'_> {
+        SharedWords(self.texts.iter().enumerate().map(|(slot, word)| {
+            // The absent and unresolved words deliberately occupy distinct
+            // slots even if their spelling matches an interned string.
+            (word.as_ref(), self.ids.get(word.as_ref()) == Some(&(slot as u32)))
+        }).collect())
+    }
+}
+
+#[cfg(feature = "product-session")]
+impl SharedWords<'_> {
+    pub(crate) fn install(&self, run: &mut super::Run) {
+        run.texts.reserve(self.0.len());
+        for (slot, &(bytes, interned)) in self.0.iter().enumerate() {
+            let word = Rc::<[u8]>::from(bytes);
+            if interned {
+                run.ids.insert(word.clone(), slot as u32);
+            }
+            run.texts.push(word);
+        }
+    }
+}
+
 /// File-local row numbers and identifiers typically occupy only part of a word.
 /// All representations decode to the exact canonical u64, including public nulls.
 #[cfg_attr(feature = "product-session", derive(Clone))]

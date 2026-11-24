@@ -204,7 +204,7 @@ pub(super) fn run(
     }));
     let available = &world.unavailable;
     let paths = &world.run.paths;
-    let words: Vec<&[u8]> = world.run.texts.iter().map(|word| word.as_ref()).collect();
+    let words = world.run.share_words();
     let empty = world.run.empty;
     let absent_word = world.run.absent_word;
     let unresolved_words = &world.run.unresolved_words;
@@ -221,9 +221,7 @@ pub(super) fn run(
         run.absent_word = absent_word;
         run.unresolved_words.clone_from(unresolved_words);
         run.link_sym = link_sym;
-        for text in &words {
-            run.sym(text);
-        }
+        words.install(&mut run);
         let mut local_blocks = HashMap::new();
         let mut schemas = finish::population::LocalSchemas::default();
         let mut local_populations = HashMap::new();
