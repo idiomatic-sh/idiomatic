@@ -277,15 +277,16 @@ impl Parse for ParseContract {
 
 #[cfg(feature = "fixtures")]
 impl languages::FileRelations for ParseContract {
+    fn uses_project(&self) -> bool { true }
     fn declarations(&self) -> &'static [languages::FileRelation] {
         crate::fixtures::columns::ColumnFile::named_schemas()
     }
 
     fn read(&self, schemas: &[&languages::FileRelation], request: languages::ParseRequest<'_>, elements: &languages::Elements,
-        tree: &languages::NodeTable, symbols: &mut languages::Symbols) -> Vec<Result<Vec<languages::FactColumn>, languages::ParseError>> {
+        tree: &languages::NodeTable, symbols: &mut languages::Symbols, project: Option<&dyn languages::FileProject>) -> Vec<Result<Vec<languages::FactColumn>, languages::ParseError>> {
         use crate::fixtures::{columns::ColumnWalk, comment_positions};
         if schemas.iter().all(|schema| comment_positions::SCHEMAS.contains(schema)) {
-            return comment_positions::Comments.read(schemas, request, elements, tree, symbols);
+            return comment_positions::Comments.read(schemas, request, elements, tree, symbols, project);
         }
         let mut result = None;
         let read = ColumnWalk::retained(self.settings, request, elements, &mut |file| {
@@ -293,8 +294,30 @@ impl languages::FileRelations for ParseContract {
             let generic = |word: &[u8]| lists.is_some_and(|l| l.generic.contains(word));
             let argument = |word: &[u8]| lists.is_some_and(|l| l.argument_forms.contains(word));
             let modules = lists.map_or(&[][..], |l| l.modules.as_slice());
-            result = Some(file.answer_named_facts(schemas, request.file, request.path.0, request.bytes, symbols,
-                Some((&generic, &argument, modules)), None, None));
+            let uses_package = schemas.iter().any(|s| match s.name {
+                "import-head" => file.import_statement_count() != 0,
+                "relative-import-target" => file.has_relative_imports(),
+                _ => false,
+            });
+            let package = project.filter(|_| uses_package).map(|project| crate::fixtures::import_environment::package(project, request.path.0)).transpose();
+            let observed_package = package.as_ref().ok().and_then(Option::as_ref)
+                .map(|(parent, root)| (parent.as_deref(), root.as_str()));
+            let mut failure = None;
+            let mut prefixes = |target: &str| {
+                match crate::fixtures::import_environment::prefixes(project.expect("declared roots"), target) {
+                    Ok(prefixes) => prefixes,
+                    Err(error) => { failure = Some(error); Default::default() }
+                }
+            };
+            let lookup = project.filter(|p| p.roots().is_some()).map(|_| &mut prefixes as &mut dyn FnMut(&str) -> (String, String, bool));
+            let mut answers = file.answer_named_facts(schemas, request.file, request.path.0, request.bytes, symbols,
+                Some((&generic, &argument, modules)), observed_package, lookup);
+            for (schema, answer) in schemas.iter().zip(&mut answers) {
+                if let Some(error) = failure.as_ref().filter(|_| schema.name == "import-head") {
+                    *answer = Err(languages::ParseError::Library { reason: languages::ToolMessage(error.as_str().into()) });
+                }
+            }
+            result = Some(answers);
         });
         result.unwrap_or_else(|| schemas.iter().map(|_| Err(languages::ParseError::Library {
             reason: languages::ToolMessage(format!("retained Python node identities unavailable: {read:?}").into())

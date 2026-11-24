@@ -161,6 +161,7 @@ pub(crate) struct ReaderParts {
 /// The root and path identify the caller's immutable effective source. This
 /// distinguishes in-memory replacements staged at different roots.
 pub(crate) struct Source {
+    environment: Option<Arc<project::Environment>>,
     pub(crate) permission: Permission,
     pub root: Arc<str>,
     pub path: String,
@@ -180,8 +181,8 @@ type PathIds = HashMap<Rc<str>, usize>;
 pub(crate) struct Schedule {
     pub sources: Vec<Source>,
     source_ids: HashMap<Arc<str>, PathIds>,
-    supplied_ids: HashMap<(Rc<str>, Arc<[u8]>, Permission, Option<Arc<str>>), usize>,
-    named_disk_ids: HashMap<(Arc<str>, Arc<str>), PathIds>,
+    supplied_ids: HashMap<(Rc<str>, Arc<[u8]>, Permission, Option<Arc<str>>, Option<Arc<str>>), usize>,
+    named_disk_ids: HashMap<(Arc<str>, Option<Arc<str>>, Option<Arc<str>>), PathIds>,
     pub pending: BTreeSet<usize>,
     pub programs: Vec<Result<Program>>,
     pub(crate) prepared: HashMap<(Query, Parameters), usize>,
@@ -248,6 +249,7 @@ impl Schedule {
         ids.insert(Rc::from(path), id);
         sources.push(Source {
             root: root.clone(),
+            environment: None,
             path: path.to_owned(),
             reader: None,
             bindings: BTreeMap::new(),
@@ -267,13 +269,15 @@ impl Schedule {
         bytes: &Arc<[u8]>,
         permission: Permission,
         reader: &Option<Arc<str>>,
+        environment: &Option<Arc<project::Environment>>,
     ) -> Result<Arc<[u8]>> {
-        let key = (Rc::from(path), bytes.clone(), permission, reader.clone());
+        let key = (Rc::from(path), bytes.clone(), permission, reader.clone(), environment.as_ref().map(|e| e.id.clone()));
         let (id, canonical) = match self.supplied_ids.get_key_value(&key) {
-            Some(((_, held, _, _), &id)) => (id, held.clone()),
+            Some(((_, held, _, _, _), &id)) => (id, held.clone()),
             None => {
                 let ids = self.source_ids.entry(root.clone()).or_default();
                 let id = Self::source_in(&mut self.sources, ids, root, path)?;
+                self.sources[id].environment = environment.clone();
                 self.sources[id].provided = Some(bytes.clone());
                 self.sources[id].permission = permission;
                 self.sources[id].reader = reader.clone();
@@ -285,13 +289,15 @@ impl Schedule {
         Ok(canonical)
     }
 
-    pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str, reader: &Option<Arc<str>>) -> Result<()> {
-        let ids = match reader {
-            Some(name) => self.named_disk_ids.entry((directory.clone(), name.clone())).or_default(),
-            None => self.source_ids.entry(directory.clone()).or_default(),
+    pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str, reader: &Option<Arc<str>>, environment: &Option<Arc<project::Environment>>) -> Result<()> {
+        let ids = if reader.is_some() || environment.is_some() {
+            self.named_disk_ids.entry((directory.clone(), reader.clone(), environment.as_ref().map(|e| e.id.clone()))).or_default()
+        } else {
+            self.source_ids.entry(directory.clone()).or_default()
         };
         let id = Self::source_in(&mut self.sources, ids, directory, path)?;
         self.sources[id].reader = reader.clone();
+        self.sources[id].environment = environment.clone();
         self.alias_source(root, path, id)
     }
 
@@ -577,7 +583,7 @@ fn versions<'s>(
                 (Arc::clone(bytes), None, Some(*mode))
             } else {
                 let meta = std::fs::metadata(&path)?;
-                let inode = (meta.dev(), meta.ino());
+                let inode = (meta.dev(), meta.ino(), src.environment.as_ref().map(|e| &e.id));
                 if let Some(&i) = inodes.get(&inode) {
                     return Ok(i);
                 }
@@ -595,7 +601,7 @@ fn versions<'s>(
             }
             // Length and executable mode usually decide before the byte comparison.
             // The ordered key also handles different files of equal length exactly.
-            let key = (data.len(), src.provided.as_ref().map(|_| src.permission), perm, Arc::clone(&data));
+            let key = (data.len(), src.provided.as_ref().map(|_| src.permission), perm, src.environment.as_ref().map(|e| &e.id), Arc::clone(&data));
             let i = *contents.entry(key).or_insert_with(|| {
                 let i = files.len();
                 files.push(Version {
@@ -1131,7 +1137,7 @@ pub(crate) fn visit<L: FileSource>(
                 }
                 if !demanded.is_empty() {
                     let schemas: Vec<_> = demanded.into_values().collect();
-                    let answers = parser.named_rows(&schemas, request, elements, tree, symbols);
+                    let answers = parser.named_rows(&schemas, request, elements, tree, symbols, source.environment.as_deref().map(|e| e as &dyn l::FileProject));
                     if answers.len() != schemas.len() {
                         for schema in schemas {
                             named_errors.insert(schema.name, "provider returned the wrong number of named tables".to_owned());

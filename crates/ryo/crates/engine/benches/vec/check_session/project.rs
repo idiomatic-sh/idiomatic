@@ -257,3 +257,30 @@ pub(crate) fn collect<L: super::FileSource>(
         observations: request.observed_entries.0.to_vec(),
     })
 }
+
+/// Source-independent observations shared by every contextual file in an immutable overlay.
+pub(crate) struct Environment {
+    pub id: std::sync::Arc<str>,
+    pub authority: Authority,
+    pub supplied: BTreeSet<String>,
+}
+
+impl l::FileProject for Environment {
+    fn roots(&self) -> Option<&[String]> {
+        match &self.authority {
+            Authority::Scoped { roots, .. } => Some(roots),
+            _ => None,
+        }
+    }
+
+    fn entry(&self, path: &Path) -> l::ObservedEntryState {
+        use l::ObservedEntryState as State;
+        let Some(path) = path.to_str() else { return State::Unknown; };
+        if self.supplied.contains(path) { return State::File; }
+        let prefix = format!("{path}/");
+        if self.supplied.range(prefix.clone()..).next().is_some_and(|p| p.starts_with(&prefix)) {
+            return State::Directory;
+        }
+        self.authority.observe(&[], l::FilePath(path.into())).state
+    }
+}

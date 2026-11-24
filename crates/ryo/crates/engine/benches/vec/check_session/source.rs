@@ -10,8 +10,9 @@ pub(crate) use ryo_language::inbound::use_cases::parse::named::FileRelation;
 pub(crate) type Columns = Vec<ryo_relations::domain::relations::types::FactColumn>;
 
 pub(crate) trait Source: Clone + Sync {
+    fn uses_project(&self) -> bool { false }
     fn declarations(&self) -> &'static [FileRelation] { &[] }
-    fn named_rows(&self, relations: &[&FileRelation], _: l::ParseRequest<'_>, _: &Self::File, _: &l::NodeTable, _: &mut Self::Dictionary) -> Vec<Result<Columns>> {
+    fn named_rows(&self, relations: &[&FileRelation], _: l::ParseRequest<'_>, _: &Self::File, _: &l::NodeTable, _: &mut Self::Dictionary, _: Option<&dyn l::FileProject>) -> Vec<Result<Columns>> {
         relations.iter().map(|schema| Err(format!("provider does not supply {}", schema.name))).collect()
     }
 
@@ -91,6 +92,7 @@ impl From<l::Language> for Linked {
     }
 }
 impl Source for Linked {
+    fn uses_project(&self) -> bool { self.parser.file_relations().is_some_and(|p| p.uses_project()) }
     fn begin_render(&self, request: l::ParseRequest<'_>, file: &mut Self::File) -> l::SemanticSlot {
         let mut slot = ryo_language::domain::elements::service::take_semantics(file);
         self.parser.begin_semantics(&request, file, &mut slot);
@@ -99,9 +101,9 @@ impl Source for Linked {
     fn declarations(&self) -> &'static [FileRelation] {
         self.parser.file_relations().map_or(&[], |supplier| supplier.declarations())
     }
-    fn named_rows(&self, relations: &[&FileRelation], request: l::ParseRequest<'_>, file: &Self::File, tree: &l::NodeTable, dict: &mut Self::Dictionary) -> Vec<Result<Columns>> {
+    fn named_rows(&self, relations: &[&FileRelation], request: l::ParseRequest<'_>, file: &Self::File, tree: &l::NodeTable, dict: &mut Self::Dictionary, project: Option<&dyn l::FileProject>) -> Vec<Result<Columns>> {
         match self.parser.file_relations() {
-            Some(supplier) => supplier.read(relations, request, file, tree, dict).into_iter().map(|answer| answer.map_err(|error| error.to_string())).collect(),
+            Some(supplier) => supplier.read(relations, request, file, tree, dict, project).into_iter().map(|answer| answer.map_err(|error| error.to_string())).collect(),
             None => relations.iter().map(|schema| Err(format!("no provider for {}", schema.name))).collect(),
         }
     }

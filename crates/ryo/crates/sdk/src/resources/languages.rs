@@ -53,7 +53,7 @@ pub use ryo_language::domain::semantics::types::{SemanticSession, SemanticSlot};
 
 pub use ryo_language::inbound::use_cases::parse::types::ParseRequest;
 /// Provider declarations and answers for additional file-scoped relations.
-pub use ryo_language::inbound::use_cases::parse::named::{FileRelation, FileRelations};
+pub use ryo_language::inbound::use_cases::parse::named::{FileProject, FileRelation, FileRelations};
 /// A provider column in its native symbol and numbered-file dictionary.
 pub use ryo_relations::domain::relations::types::FactColumn;
 

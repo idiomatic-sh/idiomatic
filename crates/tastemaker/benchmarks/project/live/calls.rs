@@ -171,6 +171,7 @@ struct Live {
     file_epoch_wall: f64,
     parallel_rows: usize,
     delivery_dictionaries: usize,
+    environments: HashMap<Arc<str>, Arc<crate::check_session::project::Environment>>,
     versions: HashMap<(Authority, BTreeMap<String, (Arc<[u8]>, crate::check_session::Permission)>, Option<Arc<str>>), Arc<str>>,
 }
 
@@ -215,6 +216,7 @@ impl Default for Live {
             epochs: 0,
             shared_overlay_files: 0,
             shared_overlay_bytes: 0,
+            environments: HashMap::new(),
             versions: HashMap::new(),
         }
     }
@@ -693,8 +695,13 @@ impl Live {
             id.clone()
         } else {
             let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
+            use crate::check_session::source::Source as _;
+            let environment = self.languages.iter().any(|p| p.uses_project() && reader.as_deref().is_none_or(|name| name == p.name())).then(|| Arc::new(crate::check_session::project::Environment {
+                id: id.clone(), authority: authority.clone(), supplied: key.1.keys().cloned().collect(),
+            }));
+            if let Some(project) = &environment { self.environments.insert(id.clone(), project.clone()); }
             for (path, (bytes, permission)) in &mut key.1 {
-                let shared = self.batch.schedule.provide(&id, path, bytes, *permission, &reader).map_err(execution)?;
+                let shared = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &environment).map_err(execution)?;
                 // The scheduler already owns the exact path and bytes. Retain
                 // its allocation in the version key and drop the duplicate.
                 if !Arc::ptr_eq(bytes, &shared) {
@@ -708,7 +715,7 @@ impl Live {
         };
         for p in &listed {
             if !key.1.contains_key(p.0.as_ref()) {
-                self.batch.schedule.listed(&root, &physical, &p.0, &reader).map_err(execution)?;
+                self.batch.schedule.listed(&root, &physical, &p.0, &reader, &self.environments.get(&root).cloned()).map_err(execution)?;
             }
         }
                 prepared_root=Some(root);

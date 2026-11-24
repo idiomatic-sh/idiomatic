@@ -160,6 +160,7 @@ impl l::FileRelations for Comments {
         _: &l::Elements,
         tree: &l::NodeTable,
         symbols: &mut l::Symbols,
+        _: Option<&dyn l::FileProject>,
     ) -> Vec<Result<Vec<l::FactColumn>, l::ParseError>> {
         let bytes = request.bytes;
         let file = request.file;
