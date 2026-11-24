@@ -32,7 +32,7 @@ impl Stored {
                     if id != NULL && id >= prefix as u64 {
                         spellings
                             .entry(id)
-                            .or_insert_with(|| run.texts[id as usize].clone());
+                            .or_insert_with(|| Box::from(&run.texts[id as usize]));
                     }
                 }
             }
