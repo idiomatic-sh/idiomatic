@@ -44,6 +44,8 @@ pub struct Live {
     admission_shards: usize,
     delivery_wall: f64,
     file_epoch_wall: f64,
+    parallel_rows: usize,
+    delivery_dictionaries: usize,
     versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
 }
 
@@ -73,6 +75,8 @@ impl Default for Live {
             admission_shards: 0,
             delivery_wall: 0.0,
             file_epoch_wall: 0.0,
+            parallel_rows: 0,
+            delivery_dictionaries: 0,
             store:None, directory:None,
             state: Active {
                 keep: true,
@@ -193,6 +197,8 @@ impl Live {
         last.elapsed += thread_cpu() - t;
         last.worker_cpu = c.delivery_workers_cpu + c.file_workers_cpu + c.project_workers_cpu + self.admission_workers_cpu;
         last.file_shards = c.file_shards;
+        last.parallel_rows = self.parallel_rows;
+        last.delivery_dictionaries = self.delivery_dictionaries;
         last.empty_file_epochs = c.empty_file_epochs;
         last.omitted_file_bindings = c.omitted_file_bindings;
         last.project_shards = c.project_shards;
@@ -422,18 +428,22 @@ impl Live {
                     let result = render_chunk(chunk);
                     (result, thread_cpu() - start)
                 })).collect();
-                out = render_chunk(first)?;
+                let (report, mut dictionaries) = render_chunk(first)?;
+                out = report;
                 let mut cpu = 0.;
                 for child in children {
                     let (part, time) = child.join().expect("receipt worker panicked");
-                    let part = part?;
+                    let (part, count) = part?;
+                    dictionaries += count;
                     out.findings.extend(part.findings);
                     out.unknowns.extend(part.unknowns);
                     cpu += time;
                 }
-                Ok::<_, String>(cpu)
+                Ok::<_, String>((cpu, dictionaries))
             })?;
-            self.batch.clocks.delivery_workers_cpu += other_cpu;
+            self.parallel_rows += out.findings.len();
+            self.delivery_dictionaries += other_cpu.1;
+            self.batch.clocks.delivery_workers_cpu += other_cpu.0;
         } else {
             for (id,entry) in ids {
                 let held;
@@ -448,7 +458,7 @@ impl Live {
                         r
                     }
                 };
-                render_receipt(id.as_ref(), receipt, &mut out)?;
+                render_receipt(id.as_ref(), receipt, &mut out, None)?;
             }
         }
         for path in Rc::unwrap_or_clone(paths) {
@@ -470,30 +480,47 @@ impl Live {
     }
 }
 
-fn render_chunk(entries: &mut [(&str, super::Receipt<'_>)]) -> Result<LiveReport, String> {
+type Dictionaries<'a> =
+    HashMap<usize, std::sync::RwLockReadGuard<'a, crate::finish::answer::Words>>;
+
+fn render_chunk(entries: &mut [(&str, super::Receipt<'_>)]) -> Result<(LiveReport, usize), String> {
     let mut result = LiveReport::default();
+    let mut dictionaries = Dictionaries::new();
     for (id, receipt) in entries {
-        render_receipt(id, std::mem::take(receipt), &mut result)?;
+        render_receipt(id, std::mem::take(receipt), &mut result, Some(&mut dictionaries))?;
     }
-    Ok(result)
+    Ok((result, dictionaries.len()))
 }
 
-fn render_receipt(id: &str, receipt: super::Receipt<'_>, out: &mut LiveReport) -> Result<(), String> {
+fn render_receipt<'a>(
+    id: &str,
+    receipt: super::Receipt<'a>,
+    out: &mut LiveReport,
+    mut dictionaries: Option<&mut Dictionaries<'a>>,
+) -> Result<(), String> {
     for row in receipt.rows {
+        let words = dictionaries.as_deref_mut().map(|dictionaries| {
+            let table = row.dictionary();
+            &**dictionaries.entry(std::ptr::from_ref(table) as usize)
+                .or_insert_with(|| table.read().expect("answer dictionary"))
+        });
+        let value = |column| match words {
+            Some(words) => row.value_from(column, words),
+            None => row.value(column),
+        };
         let subject = row.layout.identity.first()
-            .map(|&i| row.value(i))
+            .map(|&i| value(i))
             .ok_or("missing row subject")?;
         out.findings.push((
             id.into(),
             slot(&subject),
-            row.layout.names.iter().zip(row.cells())
+            row.layout.names.iter().zip((0..row.width()).map(value))
                 .map(|(n, v)| (n.as_str().into(), slot(&v)))
                 .collect(),
         ));
     }
     for (p, msg) in receipt.unknowns {
-        out.unknowns
-            .push((id.into(), p.clone(), msg.clone()));
+        out.unknowns.push((id.into(), p.clone(), msg.clone()));
     }
     Ok(())
 }
@@ -524,6 +551,8 @@ struct Measurement {
     elapsed: f64,
     worker_cpu: f64,
     file_shards: usize,
+    parallel_rows: usize,
+    delivery_dictionaries: usize,
     empty_file_epochs: usize,
     omitted_file_bindings: usize,
     admission_shards: usize,
@@ -545,6 +574,8 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     elapsed: 0.0,
     worker_cpu: 0.0,
     file_shards: 0,
+    parallel_rows: 0,
+    delivery_dictionaries: 0,
     empty_file_epochs: 0,
     omitted_file_bindings: 0,
     admission_shards: 0,
@@ -569,6 +600,7 @@ pub fn print_measurement() {
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;
     let [admission_wall, file_wall, project_wall, delivery_wall] = m.phase_wall;
+    eprintln!("LIVE_DELIVERY rows={} dictionary_borrows={}", m.parallel_rows, m.delivery_dictionaries);
     eprintln!(
         "LIVE_WORKERS empty_file_epochs={} omitted_file_bindings={} file_shards={} admission_shards={} project_shards={} child_cpu={:.6} project_prepare_wall={:.6} project_execute_wall={:.6}",
         m.empty_file_epochs, m.omitted_file_bindings, m.file_shards, m.admission_shards, m.project_shards, m.worker_cpu,

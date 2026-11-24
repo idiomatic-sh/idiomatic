@@ -12,7 +12,7 @@ pub(crate) type Value = Option<Cell<Arc<str>>>;
 
 /// Only strings named by a retained answer outlive the input file.
 #[derive(Default)]
-pub(super) struct Words {
+pub(crate) struct Words {
     symbols: FxHashMap<u32, Arc<str>>,
     paths: Vec<Arc<str>>,
     path_ids: FxHashMap<Arc<str>, u32>,
@@ -123,23 +123,49 @@ impl Row {
         }
     }
 
+    #[inline]
     pub(crate) fn value(&self, index: usize) -> Value {
-        let word = self.words[index];
-        if word == NULL && self.layout.types[index] != Ty::Num {
-            return None;
-        }
-        Some(match self.layout.types[index] {
-            Ty::Sym => Cell::Text(
-                self.layout.words.read().expect("answer words").symbols[&(word as u32)].clone(),
-            ),
+        self.decode(index, |ty, word| {
+            Self::text(ty, word, &self.layout.words.read().expect("answer words"))
+        })
+    }
+
+    #[cfg(feature = "product-session")]
+    pub(crate) fn dictionary(&self) -> &RwLock<Words> {
+        &self.layout.words
+    }
+
+    #[cfg(feature = "product-session")]
+    pub(crate) fn value_from(&self, index: usize, words: &Words) -> Value {
+        self.decode(index, |ty, word| Self::text(ty, word, words))
+    }
+
+    #[cfg(feature = "product-session")]
+    pub(crate) fn width(&self) -> usize {
+        self.words.len()
+    }
+
+    fn text(ty: Ty, word: u64, words: &Words) -> Cell<Arc<str>> {
+        match ty {
+            Ty::Sym => Cell::Text(words.symbols[&(word as u32)].clone()),
             Ty::Node => {
-                let words = self.layout.words.read().expect("answer words");
                 let path = &words.paths[(word >> 32) as usize];
                 Cell::Text(format!("{path}#{}", word as u32).into())
             }
-            Ty::File => Cell::File(
-                self.layout.words.read().expect("answer words").paths[word as usize].clone(),
-            ),
+            Ty::File => Cell::File(words.paths[word as usize].clone()),
+            _ => unreachable!("only file, node and spelling cells read the dictionary"),
+        }
+    }
+
+    #[inline]
+    fn decode(&self, index: usize, text: impl FnOnce(Ty, u64) -> Cell<Arc<str>>) -> Value {
+        let word = self.words[index];
+        let ty = self.layout.types[index];
+        if word == NULL && ty != Ty::Num {
+            return None;
+        }
+        Some(match ty {
+            Ty::Sym | Ty::Node | Ty::File => text(ty, word),
             Ty::Span => Cell::Span(Span {
                 start: Offset((word >> 32) as u32),
                 end: Offset(word as u32),
