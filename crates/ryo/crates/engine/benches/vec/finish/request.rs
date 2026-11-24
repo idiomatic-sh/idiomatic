@@ -141,7 +141,8 @@ impl Exec<'_> {
     }
 
     fn guard(&mut self, run: &mut Run, node: usize, prune: bool) -> Option<usize> {
-        (prune && !self.plan.nodes[node].counted() && self.can_decide_empty(run, node)).then_some(node)
+        if !prune || self.plan.nodes[node].counted() { return None; }
+        self.empty_guard(run, node)
     }
 
     fn bind_request(&mut self, run: &mut Run, node: usize, shared: &mut FxHashMap<Demand, u32>, prune: bool) -> u32 {
@@ -189,7 +190,9 @@ impl Exec<'_> {
                 *entry = self.demand(guard, Reads::Base(slot, base_columns), shared);
             }
             let guard = self.guard(run, node, prune);
-            if guard.is_none() && let [(_, only)] = inputs.as_slice() {
+            if let [(_, only)] = inputs.as_slice()
+                && (guard.is_none() || self.requests.graph[*only as usize].guard == guard)
+            {
                 *only
             } else {
                 self.demand(guard, Reads::Inputs(inputs.into_iter().map(|(_, demand)| demand).collect()), shared)

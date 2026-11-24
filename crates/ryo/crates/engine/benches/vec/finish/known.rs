@@ -42,6 +42,8 @@ pub(super) struct Rec {
     n_ins: u16,
     n_kinds: u16,
     kinds: u32,
+    /// One plus the step number, if this decision is exactly another step's.
+    alias: u32,
     flags: u8,
 }
 const READY: u8 = 1;
@@ -67,12 +69,15 @@ impl Flat {
 }
 
 impl Exec<'_> {
-    pub(super) fn can_decide_empty(&mut self, run: &mut Run, node: usize) -> bool {
-        self.rec(run, node).flags & CAN != 0
+    pub(super) fn empty_guard(&mut self, run: &mut Run, node: usize) -> Option<usize> {
+        let rec = self.rec(run, node);
+        (rec.flags & CAN != 0).then(|| rec.alias.checked_sub(1).map_or(node, |id| id as usize))
     }
 
     pub(super) fn decided_empty(&self, file: &File<'_>, node: usize) -> bool {
+        let alias = self.flat.recs[node].alias.checked_sub(1);
         matches!(file.known[node], YES | YES_EP)
+            || alias.is_some_and(|id| matches!(file.known[id as usize], YES | YES_EP))
     }
 
     /// Whether a run of `node` in this file returns nothing, known without running it.
@@ -235,6 +240,11 @@ impl Exec<'_> {
         }
         if !sw!("VEC_NO_EMPTYPROP") && self.ep_has_leaf(run, node) {
             r.flags |= EP_LEAF;
+        }
+        if r.n_ins == 1 && r.n_kinds == 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
+            let child = self.flat.ins[r.ins as usize];
+            let alias = self.flat.recs[child as usize].alias;
+            r.alias = if alias == 0 { child + 1 } else { alias };
         }
         if r.n_ins > 0 || r.n_kinds > 0 || need.file_test || r.flags & EP_LEAF != 0 {
             r.flags |= CAN;
