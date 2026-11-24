@@ -23,7 +23,8 @@ impl<'a> PathLists<'a> {
 }
 
 pub(super) struct Closed {
-    inventory: Vec<usize>,
+    scopes: HashMap<usize, [usize; 3]>,
+    repeats: HashMap<[usize; 3], usize>,
     numbers: Vec<Option<Vec<u32>>>,
     pub(super) duplicate: Vec<Option<usize>>,
     reads: Vec<Option<usize>>,
@@ -38,7 +39,8 @@ impl Closed {
         // Slots name a canonical source version and binding. Order and repetitions
         // are part of the population identity. A live host can open another epoch.
         let mut lists = PathLists::default();
-        let mut inventory_ids = vec![0; work.len()];
+        let mut request_scopes = HashMap::new();
+        let mut repeats = HashMap::new();
         let mut owners = HashMap::new();
         let mut duplicate = vec![None; work.len()];
         let mut scopes = HashMap::new();
@@ -59,18 +61,19 @@ impl Closed {
             };
             // Answer equality also depends on admission and host values. Scope
             // identifiers carry their authority and input-version inventory.
-            inventory_ids[i] = lists.id(inventory);
+            let scope = [*binding, lists.id(inventory), lists.id(files)];
+            request_scopes.insert(i, scope);
             let owner = *owners
                 .entry((
-                    *binding,
+                    scope,
                     *project,
                     pairs.as_slice(),
-                    inventory_ids[i],
-                    lists.id(files),
                 ))
                 .or_insert(i);
             if owner != i {
                 duplicate[i] = Some(owner);
+            } else {
+                *repeats.entry(scope).or_insert(0) += 1;
             }
             if let Some(p) = project {
                 *providers.entry(*p).or_default() += 1;
@@ -98,7 +101,8 @@ impl Closed {
 
         Self {
             numbers: vec![None; lists.lists.len()],
-            inventory: inventory_ids,
+            scopes: request_scopes,
+            repeats,
             duplicate,
             reads,
             last,
@@ -108,13 +112,19 @@ impl Closed {
             keep,
         }
     }
+    pub(super) fn scope(&self, request: usize) -> [usize; 3] { self.scopes[&request] }
+
+    pub(super) fn may_repeat(&self, scope: [usize; 3]) -> bool {
+        self.repeats.get(&scope).is_some_and(|&n| n > 1)
+    }
+
     pub(super) fn numbers(
         &mut self,
         request: usize,
         paths: &[String],
         world: &mut session::World,
     ) -> &[u32] {
-        self.numbers[self.inventory[request]]
+        self.numbers[self.scopes[&request][1]]
             .get_or_insert_with(|| paths.iter().map(|path| world.file(path)).collect())
     }
     pub(super) fn inputs(
@@ -169,5 +179,58 @@ impl Closed {
             }
         }
         None
+    }
+}
+
+/// Compare complete typed contents only for scopes that can actually repeat.
+/// Bound retention to small inputs and outputs of this prepared program.
+#[derive(Default)]
+pub(super) struct Evaluated {
+    entries: HashMap<[usize; 3], Vec<Evaluation>>,
+    cells: usize,
+    pub(super) hits: usize,
+}
+
+struct Evaluation {
+    project: Option<std::collections::BTreeMap<String, Rc<finish::Table>>>,
+    inputs: Inputs,
+    answer: session::Reported,
+}
+
+impl Evaluated {
+    pub(super) fn find(
+        &mut self,
+        scope: [usize; 3],
+        project: Option<&super::Population>,
+        inputs: &Inputs,
+    ) -> Option<session::Reported> {
+        let project = project.map(|p| &p.tables);
+        let match_ = self.entries.get(&scope)?.iter().find(|entry| {
+            entry.inputs.len() == inputs.len()
+                && entry.project.as_ref() == project
+                && entry.inputs.iter().zip(inputs).all(|((slot, a),(other, b))| {
+                    slot == other && a.same_rows(b)
+                })
+        })?;
+        self.hits += 1;
+        Some(match_.answer.clone())
+    }
+
+    pub(super) fn remember(
+        &mut self,
+        scope: [usize; 3],
+        project: Option<&super::Population>,
+        inputs: &Inputs,
+        answer: &session::Reported,
+    ) {
+        let cells = inputs.values().map(|p| p.cells()).sum::<usize>()
+            + project.iter().flat_map(|p| p.tables.values()).map(|t| t.n.saturating_mul(t.cols.len().max(1))).sum::<usize>();
+        if cells > 4096 || self.cells.saturating_add(cells.max(1)) > 16384 || answer.rows.len() > 32 { return; }
+        self.cells += cells.max(1);
+        self.entries.entry(scope).or_default().push(Evaluation {
+            project: project.map(|p| p.tables.clone()),
+            inputs: inputs.clone(),
+            answer: answer.clone(),
+        });
     }
 }

@@ -40,7 +40,7 @@ type Parameters =
 type Result<T> = std::result::Result<T, String>;
 pub(crate) type Answer = Result<Reported>;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct Reported {
     pub rows: Vec<finish::answer::Row>,
     pub unknowns: Vec<(String, String)>,

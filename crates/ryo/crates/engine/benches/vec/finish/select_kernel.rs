@@ -928,7 +928,18 @@ impl Exec<'_> {
                         // a table made for this execution (probed, or put in place) is indexed by sorting its (key, row)
                         // pairs in the worker's buffer and searched by halving; a step's own table by its index, once a file
                         let fresh = *tn > usize::MAX - 64;
-                        let ix = if fresh && !sw!("VEC_KSEL_INDEX") {
+                        let posting = if f.after_last_file && !fresh && tab_cols.len() == 1
+                            && sel.len() < t.n && t.n <= u32::MAX as usize
+                            && !f.index.contains_key(tn)
+                        {
+                            f.population(sp.srcs[si])
+                                .filter(|p| p.is_materialized(t) && p.can_probe(col))
+                                .cloned()
+                        } else { None };
+                        let ix = if posting.is_some() {
+                            super::session::reuse::posting();
+                            None
+                        } else if fresh && !sw!("VEC_KSEL_INDEX") {
                             let pairs = &mut b.pairs;
                             pairs.clear();
                             if tab_cols.len() == 1 {
@@ -965,6 +976,10 @@ impl Exec<'_> {
                                 }
                             };
                             let rows: &[u32] = match &ix {
+                                None if let Some(posting) = &posting => {
+                                    posting.matching_rows(col, key, hits);
+                                    hits
+                                }
                                 Some(ix) => match ix.get(&key) {
                                     Some(rows) => rows,
                                     None => continue,

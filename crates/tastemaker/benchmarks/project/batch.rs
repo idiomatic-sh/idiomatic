@@ -106,6 +106,7 @@ struct Admission {
 
 #[derive(Default)]
 struct Batch {
+    closed_reuse: [usize; 5],
     workers: Option<std::num::NonZeroUsize>,
     schedule: session::Schedule,
     program_of: Vec<usize>,
@@ -640,9 +641,12 @@ impl Batch {
             }
         }
         let mut readers=readers::Closed::new(&self.work,&self.cut_of,keep);
+        let mut reused = [0; 3];
         for ((rule, _), requests) in groups {
             let plan = &self.schedule.programs[rule].as_ref().unwrap().plan;
             let mut exec = finish::Exec::new(plan);
+            let mut operators = finish::session::reuse::Reuse::new(requests.len());
+            let mut evaluated = readers::Evaluated::default();
             for i in requests {
                 let Work::Closed {
                     pairs,
@@ -655,6 +659,7 @@ impl Batch {
                     unreachable!()
                 };
                 let population = project.map(|p| populations[&p].1.as_ref()).transpose();
+                let scope = readers.scope(i);
                 let answer = if let Some(prior)=readers.duplicate[i] {
                     let Work::Project(value)=&self.work[prior] else {unreachable!("same binding evaluated in request order")};
                     value.clone()
@@ -727,8 +732,12 @@ impl Batch {
                             return Err("source frontier has not been closed".into());
                         }
                     }
+                    let reusable = unknowns.is_empty() && incomplete.is_empty() && readers.may_repeat(scope);
+                    if reusable && let Some(answer) = evaluated.find(scope, p, &carried) {
+                        return Ok(answer);
+                    }
                     let numbers = readers.numbers(i, inventory, world);
-                    execute_ids(
+                    let rows = execute_ids(
                         &mut exec,
                         &mut world.run,
                         numbers,
@@ -738,8 +747,11 @@ impl Batch {
                         &self.bindings[*binding],
                         p,
                         &incomplete,
-                    )
-                    .map(|rows| session::Reported { rows, unknowns })
+                        Some((&mut operators, scope)),
+                    )?;
+                    let reported = session::Reported { rows, unknowns };
+                    if reusable { evaluated.remember(scope, p, &carried, &reported); }
+                    Ok(reported)
                 }))};
                 exec.release_request();
                 if let Some(s)=store.as_deref_mut() {
@@ -751,6 +763,15 @@ impl Batch {
                 }
                 self.work[i] = Work::Project(answer);
             }
+            reused[0] += operators.empty_emits;
+            reused[1] += evaluated.hits;
+            reused[2] += operators.restored;
+        }
+        let (posting, capture) = finish::session::reuse::take_counts();
+        for (count, additional) in self.closed_reuse.iter_mut().zip([
+            reused[0], reused[1], reused[2], posting, capture,
+        ]) {
+            *count += additional;
         }
         self.clocks.project += thread_cpu() - t;
     }
@@ -1031,6 +1052,8 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         "PROJECT_POPULATIONS inventories={} builds={} relations={} repeated_relations={}",
         session.projects.len(), session.populations_built, session.relations_built, session.relations_rebuilt,
     );
+    let [empty, eval, operators, posting, capture] = session.closed_reuse;
+    eprintln!("CLOSED_REUSE empty_emits={empty} evaluations={eval} operators={operators} posting_builds={posting} capture_splits={capture}");
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
     for (name, r) in &c.readers {

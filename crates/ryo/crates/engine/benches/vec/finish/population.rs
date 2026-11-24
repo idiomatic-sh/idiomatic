@@ -155,6 +155,7 @@ pub(crate) struct Population {
     schema: Option<(Names, Tys)>,
     pieces: Vec<Rc<Block>>,
     by_file: OnceCell<FxHashMap<u32, Vec<usize>>>,
+    offsets: OnceCell<Vec<u32>>,
     pub(crate) n: usize,
     local_files: OnceCell<Vec<bool>>,
     materialized: OnceCell<Rc<Table>>,
@@ -199,6 +200,39 @@ impl Population {
                 Rc::new(out)
             })
             .clone()
+    }
+
+    pub(crate) fn same_rows(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other) || (
+            self.n == other.n && self.schema == other.schema
+                && self.pieces.len() == other.pieces.len()
+                && self.pieces.iter().zip(&other.pieces).all(|(a,b)| {
+                    Rc::ptr_eq(a,b) || (
+                        a.n == b.n && a.home == b.home
+                            && a.columns.iter().zip(&b.columns).all(|(x,y)| {
+                                (0..a.n).all(|i| x.at(i) == y.at(i))
+                            })
+                    )
+                })
+        )
+    }
+
+    pub(crate) fn cells(&self) -> usize {
+        self.n.saturating_mul(self.schema.as_ref().map_or(1, |(names,_)| names.len().max(1)))
+    }
+
+    /// Use the carried posting while preserving the whole table's row order.
+    pub(super) fn matching_rows(&self, col: usize, key: u64, hits: &mut Vec<u32>) {
+        let offsets = self.offsets.get_or_init(|| {
+            let mut start = 0;
+            self.pieces.iter().map(|piece| {
+                let offset = start;
+                start += piece.n as u32;
+                offset
+            }).collect()
+        });
+        hits.clear();
+        self.each_match(col, key, |piece, _, row| hits.push(offsets[piece] + row as u32));
     }
 
     pub(super) fn is_materialized(&self, t: &Rc<Table>) -> bool {

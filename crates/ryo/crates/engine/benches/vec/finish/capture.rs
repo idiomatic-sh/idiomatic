@@ -167,6 +167,7 @@ pub(super) fn write(
     out: &mut super::Table,
 ) -> super::R<()> {
     let mut by_path = super::FxHashMap::default();
+    let mut recent: [Option<(u64, Ways)>; 2] = [None, None];
     let mut row = Vec::new();
     let file = input.tys[path] == super::Ty::File;
     let paths = run.paths.clone();
@@ -180,23 +181,39 @@ pub(super) fn write(
         if word == super::NULL {
             continue;
         }
-        let single;
-        let ways = if file {
-            let path = paths.get(word as usize).ok_or("unbound capture file")?;
-            if project {
-                by_path.entry(word).or_insert_with(|| captured(run, path, pattern, separator, columns))
-            } else {
-                single = captured(run, path, pattern, separator, columns);
-                &single
+        let mut split = || -> super::R<Ways> {
+            if file {
+                let path = paths.get(word as usize).ok_or("unbound capture file")?;
+                return Ok(captured(run, path, pattern, separator, columns));
             }
-        } else {
             let symbol = u32::try_from(word).map_err(|_| "unbound capture text")?;
             if run.absent_word == Some(symbol) {
-                continue;
+                return Ok(Ways { count: 0, cells: Vec::new() });
             }
-            let Ok(text) = String::from_utf8(run.text(symbol).to_vec()) else { continue };
-            single = captured(run, &text, pattern, separator, columns);
-            &single
+            let text = run.texts.get(symbol as usize).ok_or("unbound capture text")?.clone();
+            Ok(match std::str::from_utf8(&text) {
+                Ok(text) => captured(run, text, pattern, separator, columns),
+                Err(_) => Ways { count: 0, cells: Vec::new() },
+            })
+        };
+        let ways = if project {
+            use std::collections::hash_map::Entry;
+            match by_path.entry(word) {
+                Entry::Occupied(entry) => {
+                    if !file { super::session::reuse::capture(); }
+                    entry.into_mut()
+                }
+                Entry::Vacant(entry) => entry.insert(split()?),
+            }
+        } else {
+            if recent[1].as_ref().is_some_and(|(subject,_)| *subject == word) {
+                super::session::reuse::capture();
+                recent.swap(0, 1);
+            } else {
+                let ways = split()?;
+                recent[1] = recent[0].replace((word, ways));
+            }
+            &recent[0].as_ref().expect("split stored").1
         };
         if ways.count == 0 {
             continue;
