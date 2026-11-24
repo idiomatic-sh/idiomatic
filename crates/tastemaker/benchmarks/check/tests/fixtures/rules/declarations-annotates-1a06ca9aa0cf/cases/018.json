@@ -1,0 +1,214 @@
+{
+  "stamp": 18,
+  "rule": "declarations-annotates",
+  "dependency": "One file",
+  "admitted": [
+    ".tastemaker-rendered/1c54747595ccf884.composition.rs",
+    "src/resources/greeting/show/composition.rs"
+  ],
+  "given": {
+    "src/lib.rs": "83bad714186fc0346b49b3bd40ad113f1054636e5962e914fe4bc99cd85596de",
+    "src/resources/greeting/show/composition.rs": "95cc63cc29e0373e2144a393cc5ab3929122dcbb7370f6fa61956a154484b604",
+    "tastemaker.toml": "d777e7c89d842adf67009ec161e1b4fe5057c1f23a9a0aa83324f02f1c5e8568"
+  },
+  "beside": {
+    ".tastemaker-rendered/1c54747595ccf884.composition.rs": "794f41b0c87cff285d4f83e87779dc22a27ffc3736090809d48d988859ae1343"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "src/resources/greeting/show/composition.rs"
+          },
+          "composition",
+          "idiomatic.arch",
+          "composition",
+          "0.2.0",
+          ""
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/1c54747595ccf884.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/1c54747595ccf884.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/1c54747595ccf884.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/1c54747595ccf884.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/1c54747595ccf884.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/1c54747595ccf884.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/1c54747595ccf884.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/1c54747595ccf884.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/client-at-adapter",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "libraries": [
+          "rusqlite::*"
+        ]
+      },
+      "query": "idiomatic-arch-client-at-adapter-517b4c08559c"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/lib.rs",
+        "src/resources/greeting/show/composition.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "occurrence",
+            ".tastemaker-rendered/1c54747595ccf884.composition.rs#51"
+          ],
+          [
+            "owner",
+            ".tastemaker-rendered/1c54747595ccf884.composition.rs#47"
+          ],
+          [
+            "annotation",
+            "GreetingShowParts"
+          ],
+          [
+            "file",
+            {
+              "file": ".tastemaker-rendered/1c54747595ccf884.composition.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                439,
+                456
+              ]
+            }
+          ]
+        ],
+        "key": [
+          ".tastemaker-rendered/1c54747595ccf884.composition.rs#51"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": ".tastemaker-rendered/1c54747595ccf884.composition.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

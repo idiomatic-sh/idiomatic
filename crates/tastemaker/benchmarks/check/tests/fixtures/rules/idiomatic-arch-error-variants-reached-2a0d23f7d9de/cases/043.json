@@ -1,0 +1,127 @@
+{
+  "stamp": 43,
+  "rule": "idiomatic.arch/error-variants-reached",
+  "dependency": "Project",
+  "admitted": [
+    "src/read/errors.rs"
+  ],
+  "given": {
+    "src/read/errors.rs": "e29e96ef10efe6cf77ce253b7e6945da4725a5ee5526fb0db27ff39684d644d7",
+    "src/read/helper.rs": "970302f595486b3b9167a955af76360a9f7faad852052b10189da764e9af40d8",
+    "tastemaker.toml": "a86cadc081fef827dcfffbc10d888636c8960494ad0e151a32515a35bed13666"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/error-variants-reached",
+      "include": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "**/errors.rs",
+        "**/errors.rs/**",
+        "**/test.rs",
+        "**/test.rs/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-error-variants-reached-2a0d23f7d9de"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/read/errors.rs",
+        "src/read/helper.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "enum",
+            "ReadError"
+          ],
+          [
+            "crate",
+            "."
+          ],
+          [
+            "id",
+            "src/read/errors.rs#13"
+          ],
+          [
+            "file",
+            {
+              "file": "src/read/errors.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                21,
+                28
+              ]
+            }
+          ],
+          [
+            "variant",
+            "Missing"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              21,
+              28
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/read/errors.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

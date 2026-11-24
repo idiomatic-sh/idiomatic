@@ -1,0 +1,78 @@
+{
+  "stamp": 48,
+  "rule": "idiomatic.arch/fixture-fakes",
+  "dependency": "Several files",
+  "admitted": [
+    "src/greeting/fixtures.rs",
+    "src/greeting/interface.rs"
+  ],
+  "given": {
+    "src/greeting/fixtures.rs": "d4eee78301ece2ad908788eab303ca0c9bfd8d558a289c94d584d15463e989b7",
+    "src/greeting/interface.rs": "59ceb07a4d304e9182bf291e71f04cd7126b3b80bc8b656913840ba96683620a",
+    "src/greeting/types.rs": "f40be84d9a60067056638ddc333a20b1e96674f5c639109c99581d786a1090e1",
+    "tastemaker.toml": "cefec63554eb579e879689b68882a716645717a8ed571431557ecd56dfedbafb"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/fixture-fakes",
+      "include": [
+        "**/fixtures.rs",
+        "**/fixtures.rs/**",
+        "**/interface.rs",
+        "**/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-fixture-fakes-9c50576250c0"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/fixtures.rs",
+        "src/greeting/interface.rs",
+        "src/greeting/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": []
+  }
+}

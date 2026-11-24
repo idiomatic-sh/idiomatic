@@ -1,0 +1,5 @@
+use crate::domain::beta::types::Beta;
+
+pub struct Alpha {
+    pub beta: Option<Box<Beta>>,
+}

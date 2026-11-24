@@ -1,0 +1,295 @@
+{
+  "stamp": 20,
+  "rule": "idiomatic.arch/cli/no-root-composition",
+  "dependency": "One file",
+  "admitted": [],
+  "given": {
+    "src/languages.rs": "cc5d9da0f2d0aeefaac28691d4592686cb6c31b1b1deef00c336f881d8860b1b",
+    "src/lib.rs": "83bad714186fc0346b49b3bd40ad113f1054636e5962e914fe4bc99cd85596de",
+    "src/output.rs": "80e2fd165579cb33b776bd2199810cf0db1d8ca75411b4c043337844df3b2535",
+    "tastemaker.toml": "3704c81f0abcef1cb26a59b8cd9906d9ac8fdc408e6dbb0d92db765d1af82e3e"
+  },
+  "beside": {
+    ".tastemaker-rendered/0f1973ecb9f73c9c.output.rs": "84de149c507e1e4184d82d2d1ba8d6eda847a963e433d0402ee8e046bc47ff11",
+    ".tastemaker-rendered/380eb845a248ba26.languages.rs": "0d59333bf5ff0107b783ac58d178fa9799efb622f38b3c39d38ec6bdc0ef87e5"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "src/languages.rs"
+          },
+          "languages",
+          "idiomatic.arch",
+          "languages",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "src/output.rs"
+          },
+          "output",
+          "idiomatic.arch",
+          "output",
+          "0.12.3",
+          "cli"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "src/languages.rs",
+        ".tastemaker-rendered/380eb845a248ba26.languages.rs",
+        "src/output.rs",
+        ".tastemaker-rendered/0f1973ecb9f73c9c.output.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "src/languages.rs",
+        ".tastemaker-rendered/380eb845a248ba26.languages.rs",
+        "src/output.rs",
+        ".tastemaker-rendered/0f1973ecb9f73c9c.output.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "src/languages.rs",
+        ".tastemaker-rendered/380eb845a248ba26.languages.rs",
+        "src/output.rs",
+        ".tastemaker-rendered/0f1973ecb9f73c9c.output.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "src/languages.rs",
+        ".tastemaker-rendered/380eb845a248ba26.languages.rs",
+        "src/output.rs",
+        ".tastemaker-rendered/0f1973ecb9f73c9c.output.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "src/languages.rs",
+        ".tastemaker-rendered/380eb845a248ba26.languages.rs",
+        "src/output.rs",
+        ".tastemaker-rendered/0f1973ecb9f73c9c.output.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "src/languages.rs",
+        ".tastemaker-rendered/380eb845a248ba26.languages.rs",
+        "src/output.rs",
+        ".tastemaker-rendered/0f1973ecb9f73c9c.output.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "src/languages.rs",
+        ".tastemaker-rendered/380eb845a248ba26.languages.rs",
+        "src/output.rs",
+        ".tastemaker-rendered/0f1973ecb9f73c9c.output.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "src/languages.rs",
+        ".tastemaker-rendered/380eb845a248ba26.languages.rs",
+        "src/output.rs",
+        ".tastemaker-rendered/0f1973ecb9f73c9c.output.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/cli/no-root-composition",
+      "include": [
+        "src/composition.rs",
+        "src/composition.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-cli-no-root-composition-39d48f7a8311"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/client-at-adapter",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "libraries": [
+          "rusqlite::*"
+        ]
+      },
+      "query": "idiomatic-arch-client-at-adapter-517b4c08559c"
+    },
+    {
+      "exclude": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "src/languages.rs",
+        "src/languages.rs/**",
+        "src/resources/*/*/**",
+        "src/resources/*/*/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/factory-calls",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-factory-calls-6bd421048346"
+    },
+    {
+      "exclude": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "src/resources/*/*/**",
+        "src/resources/*/*/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/hollow-artifacts",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-artifacts-759d6bcc4a88"
+    },
+    {
+      "exclude": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "src/resources/*/*/**",
+        "src/resources/*/*/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-runtime-fixtures",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-runtime-fixtures-3026c70f4acb"
+    },
+    {
+      "exclude": [
+        "**/tests/fixtures/**",
+        "**/tests/fixtures/**/**",
+        "**/tests/ui/**",
+        "**/tests/ui/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/orphan-rust-files",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-orphan-rust-files-d1ff19eef5c2"
+    },
+    {
+      "exclude": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "src/resources/*/*/**",
+        "src/resources/*/*/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/validation-at-edges",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-validation-at-edges-282bc1c4e5c3"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/languages.rs",
+        "src/lib.rs",
+        "src/output.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": []
+  }
+}

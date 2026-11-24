@@ -1,0 +1,100 @@
+{
+  "stamp": 271,
+  "rule": "idiomatic.ryo/readers-in-items",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "demo/Cargo.toml",
+    "demo/src/domain/scopes/collections/scopes/function/item.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "demo/Cargo.toml": "7b0bc2933d740ab63868e8ec82495aa2c0bcb664f944b4e467f0f97f2ada6ad5",
+    "demo/src/domain/scopes/collections/scopes/function/item.rs": "a52b8653d8c97bfa7f24918e088f3dde827ba2489199989728d8d8bca8c0df33",
+    "tastemaker.toml": "c66c06cbd5acdb032364b56fa565fda9b3147ad87f7889e3710b2d2613f05553"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/readers-in-items",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "homes": [
+          "**/src/domain/{relations,manifests,links}/collections/*/*/item.rs",
+          "**/src/inbound/contracts/parse/readers/*/composition.rs"
+        ]
+      },
+      "query": "idiomatic-ryo-readers-in-items-b81b7f45ee8c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "demo/Cargo.toml",
+        "demo/src/domain/scopes/collections/scopes/function/item.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "demo/src/domain/scopes/collections/scopes/function/item.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "demo/src/domain/scopes/collections/scopes/function/item.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "demo/src/domain/scopes/collections/scopes/function/item.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

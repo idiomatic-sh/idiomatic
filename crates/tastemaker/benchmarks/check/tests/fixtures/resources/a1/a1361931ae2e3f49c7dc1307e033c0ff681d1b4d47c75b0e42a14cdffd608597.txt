@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.ryo", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/crates/ryo/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.ryo/fact-reads-through-lookup", description = "The definition under test, placed alone.", include = ["src/application/file_dag/file_pass/**"], params = { forbidden = ["*Relation::*", "*FactsWorker", "{,::}crate::outbound::*::adapters", "{,::}crate::outbound::*::adapters::*", "{,::}crate::outbound::*::factory", "{,::}crate::outbound::*::factory::*"] } }]

@@ -1,0 +1,11 @@
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "demo"
+path = "src/lib.rs"
+
+[dev-dependencies]
+other = { package = "demo-other", path = "../other" }

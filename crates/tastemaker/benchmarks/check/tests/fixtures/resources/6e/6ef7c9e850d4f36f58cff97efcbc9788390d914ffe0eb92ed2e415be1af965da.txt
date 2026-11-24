@@ -1,0 +1,31 @@
+//! What every greeting adapter must pass.
+
+use super::fixtures::{Fixture, cases};
+use super::super::interface::GreetingPort;
+
+pub(super) fn check(adapter: &impl GreetingPort) {
+    shows(adapter, &cases());
+}
+
+pub fn conform<Adapter: GreetingPort>(adapter: &Adapter) {
+    check(adapter);
+    let _ = measured(adapter);
+    let _ = bounded(adapter);
+}
+
+fn shows(adapter: &impl GreetingPort, fixture: &Fixture) {
+    assert_eq!(adapter.show(), fixture.expected);
+}
+
+fn measured(adapter: &dyn GreetingPort) -> usize {
+    adapter.show().len()
+}
+
+fn bounded<Adapter>(adapter: &Adapter) -> bool
+where
+    Adapter: GreetingPort,
+{
+    adapter.show().is_empty()
+}
+
+pub struct Stub;

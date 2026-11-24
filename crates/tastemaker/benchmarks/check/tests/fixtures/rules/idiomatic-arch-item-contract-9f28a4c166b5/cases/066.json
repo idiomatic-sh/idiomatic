@@ -1,0 +1,106 @@
+{
+  "stamp": 66,
+  "rule": "idiomatic.arch/item-contract",
+  "dependency": "Several files",
+  "admitted": [
+    "src/collections/passes/fixtures.rs",
+    "src/collections/passes/fixtures/contract.rs",
+    "src/collections/passes/pass_a/item_test.rs"
+  ],
+  "given": {
+    "src/collections/passes/fixtures.rs": "5a520defa657bc9c58700b6158cdaea1d75e4a2d84abed55164e524b9e111a41",
+    "src/collections/passes/fixtures/contract.rs": "776600231cdc0d4fc7531e5d3bab77d2a9e13d9b9d0134c1c2d4976ac6445e57",
+    "src/collections/passes/pass_a/item_test.rs": "7bfb2f07d8e3131bc2bcb228090f814f8bc985d8949db470eb959bef31d3bc12",
+    "tastemaker.toml": "17c3a1a64097d70c4c69a11f3eca8cfa2a8fc02b41a2724a8041fab366db695c"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/item-contract",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-item-contract-9f28a4c166b5"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/collections/passes/fixtures.rs",
+        "src/collections/passes/fixtures/contract.rs",
+        "src/collections/passes/pass_a/item_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/collections/passes/pass_a/item_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                47
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/collections/passes/pass_a/item_test.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/collections/passes/pass_a/item_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

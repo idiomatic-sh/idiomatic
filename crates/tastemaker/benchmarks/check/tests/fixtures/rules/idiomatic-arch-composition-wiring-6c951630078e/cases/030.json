@@ -1,0 +1,111 @@
+{
+  "stamp": 30,
+  "rule": "idiomatic.arch/composition-wiring",
+  "dependency": "One file",
+  "admitted": [
+    "src/commands/check/run/composition.rs"
+  ],
+  "given": {
+    "src/commands/check/run/composition.rs": "3ccfc758d229fdd7e99db63f921c17303681663eb18877e114a8ae54d9d535dd",
+    "tastemaker.toml": "5dc0a54148b25a9300a43697934550e92d7b1d2fdd2533a341b76e58386e1caa"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/composition-wiring",
+      "include": [
+        "src/commands/**/composition.rs",
+        "src/commands/**/composition.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-composition-wiring-6c951630078e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/commands/check/run/composition.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/commands/check/run/composition.rs#13"
+          ],
+          [
+            "file",
+            {
+              "file": "src/commands/check/run/composition.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                11,
+                18
+              ]
+            }
+          ],
+          [
+            "text",
+            "factory"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              11,
+              18
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/commands/check/run/composition.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

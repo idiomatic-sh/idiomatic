@@ -1,0 +1,20 @@
+//! What the schemas of this adapter accept and refuse, one row of `CASES` for each input.
+
+use crate::cases::{Case, Word, run};
+
+type Input = ();
+type Value = ();
+type Failure = ();
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Converts one wire input through the schemas; the author states it.
+fn subject(_input: Input) -> Result<Value, Failure> {
+    Err(())
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

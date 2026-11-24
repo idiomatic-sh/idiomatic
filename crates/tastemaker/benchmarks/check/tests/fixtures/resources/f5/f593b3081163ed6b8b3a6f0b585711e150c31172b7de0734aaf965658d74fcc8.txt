@@ -1,0 +1,8 @@
+//! The command benches' entry: every command's workload, taken for its rounds and printed as one Bencher Metric Format
+//! document on stdout, which Asymptote's `performance` tool judges against its lock. It asserts no budget.
+mod measure;
+mod greeting;
+
+fn main() {
+    measure::print(&[]);
+}

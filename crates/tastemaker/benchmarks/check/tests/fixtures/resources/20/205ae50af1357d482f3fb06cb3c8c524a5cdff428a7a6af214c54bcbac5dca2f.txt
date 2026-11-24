@@ -1,0 +1,40 @@
+//! What the schemas of the memory names adapter accept and refuse.
+
+use super::schemas::{StoredNameSchemaError, StoredNameSchema};
+use crate::cases::{Case, Expect, Word, run};
+use crate::outbound::names::types::Asked;
+
+type Input = StoredNameSchema;
+type Value = Asked;
+type Failure = StoredNameSchemaError;
+
+/// The rows of the stored names the schemas accept and refuse.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "a stored name becomes the name asked for",
+        word: Word::Succeeds,
+        input: || StoredNameSchema { text: "Ada" },
+        expect: Expect::Value(Asked("Ada")),
+    },
+    Case {
+        name: "an empty stored name is refused",
+        word: Word::Refuses,
+        input: || StoredNameSchema { text: "" },
+        expect: Expect::Error(StoredNameSchemaError::Empty),
+    },
+];
+
+/// Converts one stored name through the schemas.
+fn subject(stored: Input) -> Result<Value, Failure> {
+    Asked::try_from(stored)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}

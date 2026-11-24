@@ -1,0 +1,112 @@
+{
+  "stamp": 152,
+  "rule": "idiomatic.arch/test-runners-match-rows",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/domain/short/service_test.rs"
+  ],
+  "given": {
+    "src/greeting/domain/short/service_test.rs": "63e899143423eda6c24662d84ea6713d70dda29f315e56df46695f3e868771dd",
+    "tastemaker.toml": "63e9e3c6292e2fc4b7c1303ec14dae83ae07532339cd06ea20b58dbb42ec090d"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/test-runners-match-rows",
+      "include": [
+        "**/*_test.rs",
+        "**/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-runners-match-rows-4e5621332882"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/domain/short/service_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/greeting/domain/short/service_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                258,
+                271
+              ]
+            }
+          ],
+          [
+            "word",
+            "Refuses"
+          ],
+          [
+            "problem",
+            "has a row in `CASES` and no runner `run(CASES, Word::<word>, subject)`"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              258,
+              271
+            ]
+          },
+          "has a row in `CASES` and no runner `run(CASES, Word::<word>, subject)`"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/domain/short/service_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

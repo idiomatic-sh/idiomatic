@@ -1,0 +1,184 @@
+{
+  "stamp": 148,
+  "rule": "idiomatic.arch/storage-shapes-in-schemas",
+  "dependency": "Project",
+  "admitted": [
+    "crates/core/src/domain/keeping/types.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "crates/core/src/domain/keeping/types.rs": "fde4c569135ba490117d9beccc2f371b126dcd4da409a1cb27766185c2419d08",
+    "tastemaker.toml": "5e08191036461774d31cdd69362aa1cbe80b4df47f743976c1166c1f34621522"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/outbound/*/adapters/*/schemas.rs",
+        "**/outbound/*/adapters/*/schemas.rs/**",
+        "**/outbound/*/adapters/*/schemas/**",
+        "**/outbound/*/adapters/*/schemas/**/**"
+      ],
+      "id": "idiomatic.arch/storage-shapes-in-schemas",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-storage-shapes-in-schemas-5207535ee25c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "crates/core/src/domain/keeping/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "Interner"
+          ],
+          [
+            "file",
+            {
+              "file": "crates/core/src/domain/keeping/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                115,
+                123
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              115,
+              123
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/core/src/domain/keeping/types.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "name",
+            "TextRef"
+          ],
+          [
+            "file",
+            {
+              "file": "crates/core/src/domain/keeping/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                43,
+                50
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              43,
+              50
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/core/src/domain/keeping/types.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "name",
+            "strings"
+          ],
+          [
+            "file",
+            {
+              "file": "crates/core/src/domain/keeping/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                153,
+                160
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              153,
+              160
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/core/src/domain/keeping/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

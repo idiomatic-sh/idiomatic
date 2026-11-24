@@ -1,0 +1,10 @@
+param patterns: set<string>;
+let comments = project(from="comment", columns=["file", "span", "text"]);
+let prose = project(from="prose", columns=["file", "span", "text"]);
+let literals = select l."file" as "file", l."span" as "span", l."value" as "text" from "string-literal" as l;
+let data = select l."file" as "file", l."span" as "span", l."decoded" as "text" from "entry" as l where l."kind" = "string";
+let written = union(left=comments, right=prose);
+let coded = union(left=written, right=literals);
+let texts = union(left=coded, right=data);
+let tracker = select * from texts where glob_any(text, $patterns);
+emit tracker subject "file" key("span");

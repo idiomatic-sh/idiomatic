@@ -1,0 +1,103 @@
+{
+  "stamp": 170,
+  "rule": "idiomatic.arch/adapter/no-wildcard-into-domain-enum",
+  "dependency": "One file",
+  "admitted": [
+    "adapter.rs"
+  ],
+  "given": {
+    "adapter.rs": "30830872ed7bf100e57c760e23bb290c8cf884011396cb05ea85406027cbad87",
+    "tastemaker.toml": "57b18ce7f86b1caf78947019e6564bbab940e845eafb8be3d788e506c400b776"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/adapter/no-wildcard-into-domain-enum",
+      "include": [
+        "adapter.rs",
+        "adapter.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-no-wildcard-into-domain-enum-29c478c576b3"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "adapter.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "adapter.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                100,
+                101
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              100,
+              101
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "adapter.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

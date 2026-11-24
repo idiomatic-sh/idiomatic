@@ -1,0 +1,113 @@
+{
+  "stamp": 102,
+  "rule": "idiomatic.arch/no-json-in-process",
+  "dependency": "Project",
+  "admitted": [
+    "src/output.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "src/output.rs": "8336d2236422a5d450f5f102895c9b45593456fe57a8de88fac21241a52003ce",
+    "tastemaker.toml": "c2e49fe4a7d6e40f5c83150c385c749c45a1bf3bfe632667455f420f21d4eb95"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "**/adapters/**",
+        "**/adapters/**/**"
+      ],
+      "id": "idiomatic.arch/no-json-in-process",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-json-in-process-c80151a053ac"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/output.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/output.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                18,
+                28
+              ]
+            }
+          ],
+          [
+            "text",
+            "serde_json"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              18,
+              28
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/output.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

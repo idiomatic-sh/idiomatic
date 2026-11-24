@@ -1,0 +1,544 @@
+{
+  "stamp": 199,
+  "rule": "idiomatic.arch/use-case-module-beside",
+  "dependency": "Several files",
+  "admitted": [
+    "app/src/inbound/use_cases/greet.rs",
+    "app/src/inbound/use_cases/greet/acceptance.feature"
+  ],
+  "given": {
+    "Cargo.toml": "da4ff5aefd3ea1d692631076fed612134d19e099f16b1ec516317fc69c722314",
+    "app/Cargo.toml": "cd9639298c3f5b19abba67c99c0e85757d5db263defa127cb30f3a0dd11d0942",
+    "app/README.md": "d758842d369f9653b64382b44a1a31cba8e7b8b0e02e730de56a4143cc3bacab",
+    "app/benches/performance.rs": "f7ea047050902665b0427ce828c5b93dedb2418c577cef1a85124121a99054b7",
+    "app/src/cases.rs": "f21d9704ca9168361d64fd5bbe2daa2a80be5b833b0e07b4e0f1a67e7f7825fb",
+    "app/src/inbound.rs": "e1a3696e19bd53ca0dae29e2670fba299cfeb96088abbdc3e6813f6c5da28a52",
+    "app/src/inbound/use_cases/greet.rs": "302c01595084a19e9f9045bd7881d9bbd0f52a1e01b5979c604892c0a9f6b97b",
+    "app/src/inbound/use_cases/greet/acceptance.feature": "308b0a77b4fda61e2266da999304865cab122a5684798ae94eb30071a801869e",
+    "app/src/lib.rs": "dd569c7c48128e3b35fa8c650c6b5b8a19582de6d5118c62a5f53fd5fd0d10ff",
+    "app/tests/bdd.rs": "db3bbeaf3ecabc4babbf0b63d15f39d0bae068350f34d25c1dbf0759cf2ab7b8",
+    "tastemaker.toml": "0f903dad4aaa362d02b0bfb5ab821924a940471c7645658861ffb52f882e3d0a"
+  },
+  "beside": {
+    ".tastemaker-rendered/234c091f8ef45cca.lib.rs": "dd569c7c48128e3b35fa8c650c6b5b8a19582de6d5118c62a5f53fd5fd0d10ff",
+    ".tastemaker-rendered/304d80b24b8d895a.README.md": "3d68f7e77ad5101b6c6ecf52aca5ee80049524b8697e28191245f906102f3603",
+    ".tastemaker-rendered/3c31fa690dcf739c.cases.rs": "0a2e5cd60c72f8c1ec917e7fffb59b8d8c2b1f9c4dbf16e4285c6a0816e41f21",
+    ".tastemaker-rendered/dbc73c8c702a2bc3.performance.rs": "f7ea047050902665b0427ce828c5b93dedb2418c577cef1a85124121a99054b7",
+    ".tastemaker-rendered/e7991db4b3d05d7b.Cargo.toml": "97943059d239abc1b8268262dfe7a6738cbffa2e527c5e9811ee8098052da027",
+    ".tastemaker-rendered/ea527ff38dace714.bdd.rs": "f77633e08731187b70037b5ed99d7eb2765df0075a66a14108e3a2c1f81a6d3a"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "app/Cargo.toml"
+          },
+          "cargo-package",
+          "idiomatic.arch",
+          "cargo-package",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "app/README.md"
+          },
+          "crate-readme",
+          "idiomatic.arch",
+          "crate-readme",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "app/benches/performance.rs"
+          },
+          "crate-bench",
+          "idiomatic.arch",
+          "crate-bench",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "app/src/cases.rs"
+          },
+          "cases",
+          "idiomatic.arch",
+          "cases",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "app/src/lib.rs"
+          },
+          "crate-root",
+          "idiomatic.arch",
+          "crate-root",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "app/tests/bdd.rs"
+          },
+          "bdd-runner",
+          "idiomatic.arch",
+          "bdd-runner",
+          "0.13.2",
+          "crate"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "condition:app/cases",
+      "include": [
+        "app/src/inbound.rs"
+      ],
+      "parameters": {},
+      "query": "condition-cli-cases-3b0774d4ea81"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "condition:app/features",
+      "include": [
+        "app/src/inbound/use_cases/greet.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-cli-no-root-composition-39d48f7a8311"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "app/Cargo.toml",
+        ".tastemaker-rendered/e7991db4b3d05d7b.Cargo.toml",
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md",
+        "app/benches/performance.rs",
+        ".tastemaker-rendered/dbc73c8c702a2bc3.performance.rs",
+        "app/src/cases.rs",
+        ".tastemaker-rendered/3c31fa690dcf739c.cases.rs",
+        "app/src/lib.rs",
+        ".tastemaker-rendered/234c091f8ef45cca.lib.rs",
+        "app/tests/bdd.rs",
+        ".tastemaker-rendered/ea527ff38dace714.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "app/Cargo.toml",
+        ".tastemaker-rendered/e7991db4b3d05d7b.Cargo.toml",
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md",
+        "app/benches/performance.rs",
+        ".tastemaker-rendered/dbc73c8c702a2bc3.performance.rs",
+        "app/src/cases.rs",
+        ".tastemaker-rendered/3c31fa690dcf739c.cases.rs",
+        "app/src/lib.rs",
+        ".tastemaker-rendered/234c091f8ef45cca.lib.rs",
+        "app/tests/bdd.rs",
+        ".tastemaker-rendered/ea527ff38dace714.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "app/Cargo.toml",
+        ".tastemaker-rendered/e7991db4b3d05d7b.Cargo.toml",
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md",
+        "app/benches/performance.rs",
+        ".tastemaker-rendered/dbc73c8c702a2bc3.performance.rs",
+        "app/src/cases.rs",
+        ".tastemaker-rendered/3c31fa690dcf739c.cases.rs",
+        "app/src/lib.rs",
+        ".tastemaker-rendered/234c091f8ef45cca.lib.rs",
+        "app/tests/bdd.rs",
+        ".tastemaker-rendered/ea527ff38dace714.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "app/Cargo.toml",
+        ".tastemaker-rendered/e7991db4b3d05d7b.Cargo.toml",
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md",
+        "app/benches/performance.rs",
+        ".tastemaker-rendered/dbc73c8c702a2bc3.performance.rs",
+        "app/src/cases.rs",
+        ".tastemaker-rendered/3c31fa690dcf739c.cases.rs",
+        "app/src/lib.rs",
+        ".tastemaker-rendered/234c091f8ef45cca.lib.rs",
+        "app/tests/bdd.rs",
+        ".tastemaker-rendered/ea527ff38dace714.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "app/Cargo.toml",
+        ".tastemaker-rendered/e7991db4b3d05d7b.Cargo.toml",
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md",
+        "app/benches/performance.rs",
+        ".tastemaker-rendered/dbc73c8c702a2bc3.performance.rs",
+        "app/src/cases.rs",
+        ".tastemaker-rendered/3c31fa690dcf739c.cases.rs",
+        "app/src/lib.rs",
+        ".tastemaker-rendered/234c091f8ef45cca.lib.rs",
+        "app/tests/bdd.rs",
+        ".tastemaker-rendered/ea527ff38dace714.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-literals",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-literals-aee9fab8c749"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "app/Cargo.toml",
+        ".tastemaker-rendered/e7991db4b3d05d7b.Cargo.toml",
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md",
+        "app/benches/performance.rs",
+        ".tastemaker-rendered/dbc73c8c702a2bc3.performance.rs",
+        "app/src/cases.rs",
+        ".tastemaker-rendered/3c31fa690dcf739c.cases.rs",
+        "app/src/lib.rs",
+        ".tastemaker-rendered/234c091f8ef45cca.lib.rs",
+        "app/tests/bdd.rs",
+        ".tastemaker-rendered/ea527ff38dace714.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-prose",
+      "include": [
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md"
+      ],
+      "parameters": {},
+      "query": "declarations-prose-ab90c113c201"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "app/Cargo.toml",
+        ".tastemaker-rendered/e7991db4b3d05d7b.Cargo.toml",
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md",
+        "app/benches/performance.rs",
+        ".tastemaker-rendered/dbc73c8c702a2bc3.performance.rs",
+        "app/src/cases.rs",
+        ".tastemaker-rendered/3c31fa690dcf739c.cases.rs",
+        "app/src/lib.rs",
+        ".tastemaker-rendered/234c091f8ef45cca.lib.rs",
+        "app/tests/bdd.rs",
+        ".tastemaker-rendered/ea527ff38dace714.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "app/Cargo.toml",
+        ".tastemaker-rendered/e7991db4b3d05d7b.Cargo.toml",
+        "app/README.md",
+        ".tastemaker-rendered/304d80b24b8d895a.README.md",
+        "app/benches/performance.rs",
+        ".tastemaker-rendered/dbc73c8c702a2bc3.performance.rs",
+        "app/src/cases.rs",
+        ".tastemaker-rendered/3c31fa690dcf739c.cases.rs",
+        "app/src/lib.rs",
+        ".tastemaker-rendered/234c091f8ef45cca.lib.rs",
+        "app/tests/bdd.rs",
+        ".tastemaker-rendered/ea527ff38dace714.bdd.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/bdd-members",
+      "include": [
+        "app/src/inbound/contracts/*.rs",
+        "app/src/inbound/contracts/*.rs/**",
+        "app/src/inbound/contracts/*/acceptance.*",
+        "app/src/inbound/contracts/*/acceptance.*/**",
+        "app/src/inbound/use_cases/*.rs",
+        "app/src/inbound/use_cases/*.rs/**",
+        "app/src/inbound/use_cases/*/acceptance.*",
+        "app/src/inbound/use_cases/*/acceptance.*/**",
+        "app/tests/bdd.rs",
+        "app/tests/bdd.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-bdd-members-16101641f22e"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/collection-members",
+      "include": [
+        "app/src/**/collections.rs",
+        "app/src/**/collections.rs/**",
+        "app/src/**/collections/**",
+        "app/src/**/collections/**/**"
+      ],
+      "parameters": {
+        "item-trait": []
+      },
+      "query": "idiomatic-arch-collection-members-91da55cccd3f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/bdd-runner",
+      "include": [
+        "app/src/inbound/contracts/*/acceptance.rs",
+        "app/src/inbound/contracts/*/acceptance.rs/**",
+        "app/src/inbound/use_cases/*/acceptance.rs",
+        "app/src/inbound/use_cases/*/acceptance.rs/**",
+        "app/tests/bdd.rs",
+        "app/tests/bdd.rs/**"
+      ],
+      "parameters": {
+        "world": "Behavior"
+      },
+      "query": "idiomatic-arch-crate-bdd-runner-67e896de24e5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/captured-workload",
+      "include": [
+        "app/Cargo.toml",
+        "app/Cargo.toml/**",
+        "app/benches/performance/captured/bench.rs",
+        "app/benches/performance/captured/bench.rs/**",
+        "app/src/**/adapters/recorded/adapter.rs",
+        "app/src/**/adapters/recorded/adapter.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-captured-workload-4ce858c6c633"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/error-shape",
+      "include": [
+        "app/**",
+        "app/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-error-shape-505aa5cd3814"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/fixtures-feature",
+      "include": [
+        "app/Cargo.toml",
+        "app/Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-fixtures-feature-30d24fb9b0ff"
+    },
+    {
+      "exclude": [
+        "app/**/errors.rs",
+        "app/**/errors.rs/**",
+        "app/**/schemas.rs",
+        "app/**/schemas.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/thiserror-in-errors",
+      "include": [
+        "app/**",
+        "app/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-thiserror-in-errors-749b78e75367"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/extension-point-ports",
+      "include": [
+        "app/**",
+        "app/**/**"
+      ],
+      "parameters": {
+        "exposed": []
+      },
+      "query": "idiomatic-arch-extension-point-ports-d6269e1f7c08"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/item-contract",
+      "include": [
+        "app/src/**/collections/**",
+        "app/src/**/collections/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-item-contract-9f28a4c166b5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-vacuous-tests",
+      "include": [
+        "app/src/cases.rs",
+        "app/src/cases.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-vacuous-tests-ce4ca1fdc7f5"
+    },
+    {
+      "exclude": [
+        "app/**/tests/fixtures/**",
+        "app/**/tests/fixtures/**/**",
+        "app/**/tests/ui/**",
+        "app/**/tests/ui/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/orphan-rust-files",
+      "include": [
+        "app/**",
+        "app/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-orphan-rust-files-d1ff19eef5c2"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/thin-command",
+      "include": [
+        "app/**/interface.rs",
+        "app/**/interface.rs/**",
+        "app/src/resources/*/*/command.rs",
+        "app/src/resources/*/*/command.rs/**",
+        "app/src/resources/*/*/entry.rs",
+        "app/src/resources/*/*/entry.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-thin-command-bc8edb1a20ee"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case-module-beside",
+      "include": [
+        "app/src/inbound/use_cases/**",
+        "app/src/inbound/use_cases/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-module-beside-b252b9858d7c"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "app/Cargo.toml",
+        "app/README.md",
+        "app/benches/performance.rs",
+        "app/src/cases.rs",
+        "app/src/inbound.rs",
+        "app/src/inbound/use_cases/greet.rs",
+        "app/src/inbound/use_cases/greet/acceptance.feature",
+        "app/src/lib.rs",
+        "app/tests/bdd.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": []
+  }
+}

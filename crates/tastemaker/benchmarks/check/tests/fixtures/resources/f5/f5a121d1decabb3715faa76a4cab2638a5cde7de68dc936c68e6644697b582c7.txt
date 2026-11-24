@@ -1,0 +1,8 @@
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("an_accepted_finding_is_recorded"),
+        word: Word::Succeeds,
+        input: || 1,
+        expect: Expect::Value(true),
+    },
+];

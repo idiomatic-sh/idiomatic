@@ -1,0 +1,8 @@
+//! What the memory names adapter promises beyond the core's contract.
+
+use super::adapter::NamesMemoryAdapter;
+
+#[test]
+fn passes_the_fixtures::contract() {
+    demo_greeting::outbound::names::fixtures::contract::check(&NamesMemoryAdapter);
+}

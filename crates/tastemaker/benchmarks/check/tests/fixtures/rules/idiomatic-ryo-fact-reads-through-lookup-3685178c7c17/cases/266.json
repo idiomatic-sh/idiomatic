@@ -1,0 +1,116 @@
+{
+  "stamp": 266,
+  "rule": "idiomatic.ryo/fact-reads-through-lookup",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/application/file_dag/file_pass/service.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/application/file_dag/file_pass/service.rs": "e8cd9fcdb0df6ad80becc85785c6866c3a6a8ca66e4ca290d39f4a604bcd4ed0",
+    "src/lib.rs": "3093a1f58d270386db958168e0097142e5a666d9cebd81f328250f17a379b30a",
+    "tastemaker.toml": "a1361931ae2e3f49c7dc1307e033c0ff681d1b4d47c75b0e42a14cdffd608597"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/fact-reads-through-lookup",
+      "include": [
+        "src/application/file_dag/file_pass/**",
+        "src/application/file_dag/file_pass/**/**"
+      ],
+      "parameters": {
+        "forbidden": [
+          "*Relation::*",
+          "*FactsWorker",
+          "{,::}crate::outbound::*::adapters",
+          "{,::}crate::outbound::*::adapters::*",
+          "{,::}crate::outbound::*::factory",
+          "{,::}crate::outbound::*::factory::*"
+        ]
+      },
+      "query": "idiomatic-ryo-fact-reads-through-lookup-3685178c7c17"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/application/file_dag/file_pass/service.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/application/file_dag/file_pass/service.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                203,
+                224
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              203,
+              224
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/application/file_dag/file_pass/service.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

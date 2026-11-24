@@ -1,0 +1,119 @@
+{
+  "stamp": 147,
+  "rule": "idiomatic.arch/stable-ids",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "d9c08fa0fdc140b320307147cfb1c122f484ee3400e8bf668074bc8d5f850ee1",
+    "tastemaker.toml": "50546ababaf59c6ebf916701dbd63dc9bfb1485d7f1a70a9b5e3c36557313417"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/stable-ids",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-stable-ids-761a17188f33"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/lib.rs#132"
+          ],
+          [
+            "kind",
+            "string"
+          ],
+          [
+            "text",
+            "\"{RENDERED}/{position}.{file}\""
+          ],
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                177,
+                207
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              177,
+              207
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

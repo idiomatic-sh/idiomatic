@@ -1,0 +1,17 @@
+//! The `polite` concept's failures.
+
+/// Why a `polite` operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum PoliteError {
+    /// The name is empty.
+    #[error("the name is empty")]
+    Empty,
+}
+
+impl PoliteError {
+    /// Whether the name can be fixed by the caller.
+    #[must_use]
+    pub fn fixable(&self) -> bool {
+        matches!(self, Self::Empty)
+    }
+}

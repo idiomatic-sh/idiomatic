@@ -1,0 +1,11 @@
+//! The wiring of `greeting show`: the edge takes the parts its caller supplies, chooses each
+//! implementation, and builds the service it calls. It only constructs: the verb opens no client, so it
+//! has no connections. Nothing here implements a port.
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingShowParts;
+
+/// Wires the service from the supplied dependencies; it only constructs.
+pub(crate) fn compose(parts: GreetingShowParts) {
+    let GreetingShowParts = parts;
+}

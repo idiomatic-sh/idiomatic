@@ -1,0 +1,112 @@
+{
+  "stamp": 12,
+  "rule": "idiomatic.arch/cache-names-once",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/domain/resources.rs"
+  ],
+  "given": {
+    "src/domain/resources.rs": "612999cf0c1cb6c20ce1455fdcb80c442d86c0399568e911f085cd6216f6f64f",
+    "tastemaker.toml": "894d92d30ffaa779a5c058e7b100113d1b24c5bea65d08469054bb10d72d71a3"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/cache-names-once",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {
+        "locations": [
+          ".*_cache",
+          ".*_cache/**"
+        ]
+      },
+      "query": "idiomatic-arch-cache-names-once-918d058a01f0"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/domain/resources.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/domain/resources.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                98,
+                117
+              ]
+            }
+          ],
+          [
+            "value",
+            ".tastemaker_cache"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              98,
+              117
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/domain/resources.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

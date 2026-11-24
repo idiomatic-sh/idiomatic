@@ -1,0 +1,9 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let images = select * from tree-tokens where kind = "ident" and glob_any(text, "{Image,*Image}") and glob_any(file, "**/outbound/*/interface.rs");
+let image-refs = select l."id" as "token", l."file" as "file", l."span" as "span", l."text" as "text", r."parent" as "id" from images as l join "syntax-child" as r on l."id" = r."child";
+let signatures = select * from tree-nodes where glob_any(kind, "{param-list,ret-type}");
+let signature-holders = project(from=signatures, columns=["id"]);
+let in-signatures = axis(from=image-refs, relation="syntax-child", direction=ancestor, domain=signature-holders);
+let crossing = project(from=in-signatures, columns=["token", "file", "span", "text"]);
+emit crossing subject "file" key("span");

@@ -1,0 +1,10 @@
+//! Dispatch: the one evaluation call.
+
+use operators::OperatorCall;
+
+pub fn run(call: OperatorCall) -> usize {
+    match call {
+        OperatorCall::Evaluate(operation) => operation,
+        OperatorCall::Union(left, right) => left + right,
+    }
+}

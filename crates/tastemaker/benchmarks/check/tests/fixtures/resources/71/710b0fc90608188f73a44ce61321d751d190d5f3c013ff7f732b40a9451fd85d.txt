@@ -1,0 +1,4 @@
+//! The types of the port.
+
+/// What a run read, as the adapter keeps it.
+pub struct StoreGeneration(pub std::sync::Arc<dyn std::any::Any + Send + Sync>);

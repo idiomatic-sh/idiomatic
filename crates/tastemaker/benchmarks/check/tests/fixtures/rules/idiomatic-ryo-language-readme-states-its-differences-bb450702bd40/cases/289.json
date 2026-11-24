@@ -1,0 +1,100 @@
+{
+  "stamp": 289,
+  "rule": "idiomatic.ryo/language/readme-states-its-differences",
+  "dependency": "One file",
+  "admitted": [
+    "README.md"
+  ],
+  "given": {
+    "README.md": "e9c458ad656423a095feb940dd0d6b35a4d20a3baeef747014628e59179b37ea",
+    "tastemaker.toml": "5c1a2ae3b2a610f01ab0131b31e068c0e38fec2aaf51cc00ff492711a6e612ee"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/language/readme-states-its-differences",
+      "include": [
+        "README.md",
+        "README.md/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-language-readme-states-its-differences-bb450702bd40"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "README.md",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "README.md"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                71
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "README.md"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "README.md"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

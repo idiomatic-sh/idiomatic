@@ -1,0 +1,5 @@
+mod shapes;
+
+pub(crate) fn area() -> f64 {
+    shapes::radius() * 2.0
+}

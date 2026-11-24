@@ -1,0 +1,2 @@
+//! The language providers this build links, one per enabled feature: each is linked for its
+//! registration, which discovery finds, and is named nowhere else.

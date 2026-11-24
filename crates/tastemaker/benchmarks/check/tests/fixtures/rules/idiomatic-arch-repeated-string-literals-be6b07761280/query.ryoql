@@ -1,0 +1,12 @@
+param min-files: integer;
+param allowed: set<string>;
+let long = select * from "string-literal" where import = "false" and glob_any(value, "??????*") and glob_any(value, "*[!a-z]*");
+let fixed_places = select id, file from "syntax-tree" where kind = "attr" or kind = "cfg-atom" or kind = "abi";
+let written = select occurrence as id, file from long;
+let fixed = axis(from=written, relation="syntax-child", direction=nearest-ancestor, domain=fixed_places);
+let free = antijoin(left=long, right=fixed, left-on=["occurrence"], right-on=["id"]);
+let literals = select * from free where value not in $allowed;
+let spread = group-count(from=literals, keys=["value"], count="files", distinct="file");
+let repeated = select * from spread where files >= $min-files;
+let occurrences = select r."files" as "files", l."file" as "file", l."span" as "span", l."value" as "value" from literals as l join repeated as r on l."value" = r."value";
+emit occurrences subject "file" key("span");

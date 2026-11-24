@@ -1,0 +1,113 @@
+{
+  "stamp": 279,
+  "rule": "idiomatic.ryo/contract/contract-fills-buffers",
+  "dependency": "One file",
+  "admitted": [
+    "src/inbound/contracts/parse/contract.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/inbound/contracts/parse/contract.rs": "6e37a98448623514e07c4330547a28d17f45b0b7676c1a4d437cf019f272d8f1",
+    "tastemaker.toml": "8dfbd185af4442a1edd882fcba515d5c3abeef8b1b7a60486dc2956e3a4daf52"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/contract/contract-fills-buffers",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-contract-contract-fills-buffers-60e1d5a5d86f"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/inbound/contracts/parse/contract.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/inbound/contracts/parse/contract.rs#51"
+          ],
+          [
+            "file",
+            {
+              "file": "src/inbound/contracts/parse/contract.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                132,
+                135
+              ]
+            }
+          ],
+          [
+            "text",
+            "Vec"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              132,
+              135
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/contracts/parse/contract.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

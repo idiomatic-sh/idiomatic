@@ -1,0 +1,3495 @@
+{
+  "stamp": 236,
+  "rule": "idiomatic.arch/layer-matrix",
+  "dependency": "Project",
+  "admitted": [
+    "demo/src/domain.rs",
+    "demo/src/domain/greeting.rs",
+    "demo/src/domain/greeting/service.rs",
+    "demo/src/domain/naming.rs",
+    "demo/src/domain/naming/types.rs",
+    "demo/src/inbound.rs",
+    "demo/src/inbound/use_cases.rs",
+    "demo/src/inbound/use_cases/greet.rs",
+    "demo/src/inbound/use_cases/greet/types.rs",
+    "demo/src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "6273654275af265fbb4a13068002f6389c91d856ef7070440565464263cd286c",
+    "demo/Cargo.toml": "7b0bc2933d740ab63868e8ec82495aa2c0bcb664f944b4e467f0f97f2ada6ad5",
+    "demo/src/domain.rs": "7044e3b109ffcfcb14a0a5f5aa0b980d9446251221858584fd1d89002d70f426",
+    "demo/src/domain/greeting.rs": "db7b8b73f19456f05b9fcc9f126b343e758094ee1c0c51b01672c62c5459345f",
+    "demo/src/domain/greeting/service.rs": "b38a33755ad25ccdcc51036cbdb649b8ced07c12605e4a7845ecc8e2296c4e12",
+    "demo/src/domain/naming.rs": "89db1fe0ad95d9bf12b3d5b11de6367b5c2819b427b715f8e900457ebbe2e2f4",
+    "demo/src/domain/naming/types.rs": "bb78f18653dcad9e7956dd23f4c558b118483f4bd0f09ffcde9aeb8889fb1329",
+    "demo/src/inbound.rs": "bea255f11cf12710792e9cc927c797d499e73a76c1a5f987257f328f89f9a3d8",
+    "demo/src/inbound/use_cases.rs": "e5a92826edd43408fd2fa590bfebad51dedf3833d1ab0f756c5820f3d2d7f98a",
+    "demo/src/inbound/use_cases/greet.rs": "71ec9b5d3b5f2c9f9d68616c4e4368914ada57d364924ded700cbb1b555688f3",
+    "demo/src/inbound/use_cases/greet/types.rs": "544e1ce92336af908ee8208695a54ba0c070faa2159991ac5377c00ea607d986",
+    "demo/src/lib.rs": "cfd5376db778aec2b5d7a17d4b106ddeba3137687f2124f4eb96ac84938a56d2",
+    "tastemaker.toml": "d12645ae7a72c98f2c1ff5b2bd18d5170b71f5de2ec8d232b937ac8e42cec924"
+  },
+  "beside": {
+    ".tastemaker-rendered/0829b9a2eca8b456.types.rs": "caed8d21ff30242697f09bb0491087f64a8cad283e1239d04cf6564e766c18cf",
+    ".tastemaker-rendered/098f34ea3b40f3d5.types.rs": "4494ac41dfa6ed1978bec84f03aa58108519c6bdaf4dd725ab93a493eca5be85",
+    ".tastemaker-rendered/18117c908ca8525f.greet.rs": "d31ed73f721b5ca863440dfa9ec10d76588ad8819e160e74509d895e5fee667f",
+    ".tastemaker-rendered/1f53d85d15bdd9ea.greeting.rs": "74fdf4fe6030851c43df41a294ea53e943af3a9027496cf34b6f4bcce7fb8a8f",
+    ".tastemaker-rendered/2bf9a2d506c6b1aa.service.rs": "98e5a88b6e2cfb244d2e62af371f3458cf5d5794b809ea827bb03fc067f3f2f4",
+    ".tastemaker-rendered/4eed9d62f777886c.inbound.rs": "70572d22d1cf2fe53f8f579cdfbeddf0e8a544663129b735dc397542fddf6fc8",
+    ".tastemaker-rendered/57a821c950958f1b.naming.rs": "64817898312dc61903d91b0c55841cd8f154df498eed15c552ca2f56ff3d10a2",
+    ".tastemaker-rendered/79f34a21a85b8849.use_cases.rs": "bb8808a6e803b6bf1dfe93ea60494a8eb0703952ddd87768037ce45eba8f443a",
+    ".tastemaker-rendered/951be92cb6caf098.domain.rs": "e6fec0f44d496c313acc8bfbae607f42e89ca65330f554cccfe80a75e035362b"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "demo/src/domain.rs"
+          },
+          "domain-concepts",
+          "idiomatic.arch",
+          "domain-concepts",
+          "0.3.7",
+          "nu-hex"
+        ],
+        [
+          {
+            "file": "demo/src/domain/greeting.rs"
+          },
+          "concept-module",
+          "idiomatic.arch",
+          "concept-module",
+          "0.3.7",
+          "nu-hex"
+        ],
+        [
+          {
+            "file": "demo/src/domain/greeting/service.rs"
+          },
+          "service",
+          "idiomatic.arch",
+          "service",
+          "0.1.3",
+          "concept"
+        ],
+        [
+          {
+            "file": "demo/src/domain/naming.rs"
+          },
+          "concept-module",
+          "idiomatic.arch",
+          "concept-module",
+          "0.3.7",
+          "nu-hex"
+        ],
+        [
+          {
+            "file": "demo/src/domain/naming/types.rs"
+          },
+          "types",
+          "idiomatic.arch",
+          "types",
+          "0.1.0",
+          "concept"
+        ],
+        [
+          {
+            "file": "demo/src/inbound.rs"
+          },
+          "inbound",
+          "idiomatic.arch",
+          "inbound",
+          "0.3.7",
+          "nu-hex"
+        ],
+        [
+          {
+            "file": "demo/src/inbound/use_cases.rs"
+          },
+          "use-cases",
+          "idiomatic.arch",
+          "use-cases",
+          "0.3.7",
+          "nu-hex"
+        ],
+        [
+          {
+            "file": "demo/src/inbound/use_cases/greet.rs"
+          },
+          "use-case-module",
+          "idiomatic.arch",
+          "use-case-module",
+          "0.3.7",
+          "nu-hex"
+        ],
+        [
+          {
+            "file": "demo/src/inbound/use_cases/greet/types.rs"
+          },
+          "types",
+          "idiomatic.arch",
+          "types",
+          "0.1.0",
+          "use-case"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "condition:demo/library-only",
+      "include": [
+        "demo/src/lib.rs"
+      ],
+      "parameters": {},
+      "query": "condition-greeting-library-only-90d011cd7b47"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "condition:demo/src/domain/greeting/has-service",
+      "include": [
+        "demo/src/domain/greeting/**"
+      ],
+      "parameters": {},
+      "query": "condition-crates-x-src-domain-a-has-service-d08a9be0f4d6"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "demo/src/domain.rs",
+        ".tastemaker-rendered/951be92cb6caf098.domain.rs",
+        "demo/src/domain/greeting.rs",
+        ".tastemaker-rendered/1f53d85d15bdd9ea.greeting.rs",
+        "demo/src/domain/greeting/service.rs",
+        ".tastemaker-rendered/2bf9a2d506c6b1aa.service.rs",
+        "demo/src/domain/naming.rs",
+        ".tastemaker-rendered/57a821c950958f1b.naming.rs",
+        "demo/src/domain/naming/types.rs",
+        ".tastemaker-rendered/098f34ea3b40f3d5.types.rs",
+        "demo/src/inbound.rs",
+        ".tastemaker-rendered/4eed9d62f777886c.inbound.rs",
+        "demo/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/79f34a21a85b8849.use_cases.rs",
+        "demo/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/18117c908ca8525f.greet.rs",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        ".tastemaker-rendered/0829b9a2eca8b456.types.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "demo/src/domain.rs",
+        ".tastemaker-rendered/951be92cb6caf098.domain.rs",
+        "demo/src/domain/greeting.rs",
+        ".tastemaker-rendered/1f53d85d15bdd9ea.greeting.rs",
+        "demo/src/domain/greeting/service.rs",
+        ".tastemaker-rendered/2bf9a2d506c6b1aa.service.rs",
+        "demo/src/domain/naming.rs",
+        ".tastemaker-rendered/57a821c950958f1b.naming.rs",
+        "demo/src/domain/naming/types.rs",
+        ".tastemaker-rendered/098f34ea3b40f3d5.types.rs",
+        "demo/src/inbound.rs",
+        ".tastemaker-rendered/4eed9d62f777886c.inbound.rs",
+        "demo/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/79f34a21a85b8849.use_cases.rs",
+        "demo/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/18117c908ca8525f.greet.rs",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        ".tastemaker-rendered/0829b9a2eca8b456.types.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "demo/src/domain.rs",
+        ".tastemaker-rendered/951be92cb6caf098.domain.rs",
+        "demo/src/domain/greeting.rs",
+        ".tastemaker-rendered/1f53d85d15bdd9ea.greeting.rs",
+        "demo/src/domain/greeting/service.rs",
+        ".tastemaker-rendered/2bf9a2d506c6b1aa.service.rs",
+        "demo/src/domain/naming.rs",
+        ".tastemaker-rendered/57a821c950958f1b.naming.rs",
+        "demo/src/domain/naming/types.rs",
+        ".tastemaker-rendered/098f34ea3b40f3d5.types.rs",
+        "demo/src/inbound.rs",
+        ".tastemaker-rendered/4eed9d62f777886c.inbound.rs",
+        "demo/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/79f34a21a85b8849.use_cases.rs",
+        "demo/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/18117c908ca8525f.greet.rs",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        ".tastemaker-rendered/0829b9a2eca8b456.types.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "demo/src/domain.rs",
+        ".tastemaker-rendered/951be92cb6caf098.domain.rs",
+        "demo/src/domain/greeting.rs",
+        ".tastemaker-rendered/1f53d85d15bdd9ea.greeting.rs",
+        "demo/src/domain/greeting/service.rs",
+        ".tastemaker-rendered/2bf9a2d506c6b1aa.service.rs",
+        "demo/src/domain/naming.rs",
+        ".tastemaker-rendered/57a821c950958f1b.naming.rs",
+        "demo/src/domain/naming/types.rs",
+        ".tastemaker-rendered/098f34ea3b40f3d5.types.rs",
+        "demo/src/inbound.rs",
+        ".tastemaker-rendered/4eed9d62f777886c.inbound.rs",
+        "demo/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/79f34a21a85b8849.use_cases.rs",
+        "demo/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/18117c908ca8525f.greet.rs",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        ".tastemaker-rendered/0829b9a2eca8b456.types.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "demo/src/domain.rs",
+        ".tastemaker-rendered/951be92cb6caf098.domain.rs",
+        "demo/src/domain/greeting.rs",
+        ".tastemaker-rendered/1f53d85d15bdd9ea.greeting.rs",
+        "demo/src/domain/greeting/service.rs",
+        ".tastemaker-rendered/2bf9a2d506c6b1aa.service.rs",
+        "demo/src/domain/naming.rs",
+        ".tastemaker-rendered/57a821c950958f1b.naming.rs",
+        "demo/src/domain/naming/types.rs",
+        ".tastemaker-rendered/098f34ea3b40f3d5.types.rs",
+        "demo/src/inbound.rs",
+        ".tastemaker-rendered/4eed9d62f777886c.inbound.rs",
+        "demo/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/79f34a21a85b8849.use_cases.rs",
+        "demo/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/18117c908ca8525f.greet.rs",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        ".tastemaker-rendered/0829b9a2eca8b456.types.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "demo/src/domain.rs",
+        ".tastemaker-rendered/951be92cb6caf098.domain.rs",
+        "demo/src/domain/greeting.rs",
+        ".tastemaker-rendered/1f53d85d15bdd9ea.greeting.rs",
+        "demo/src/domain/greeting/service.rs",
+        ".tastemaker-rendered/2bf9a2d506c6b1aa.service.rs",
+        "demo/src/domain/naming.rs",
+        ".tastemaker-rendered/57a821c950958f1b.naming.rs",
+        "demo/src/domain/naming/types.rs",
+        ".tastemaker-rendered/098f34ea3b40f3d5.types.rs",
+        "demo/src/inbound.rs",
+        ".tastemaker-rendered/4eed9d62f777886c.inbound.rs",
+        "demo/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/79f34a21a85b8849.use_cases.rs",
+        "demo/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/18117c908ca8525f.greet.rs",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        ".tastemaker-rendered/0829b9a2eca8b456.types.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "demo/src/domain.rs",
+        ".tastemaker-rendered/951be92cb6caf098.domain.rs",
+        "demo/src/domain/greeting.rs",
+        ".tastemaker-rendered/1f53d85d15bdd9ea.greeting.rs",
+        "demo/src/domain/greeting/service.rs",
+        ".tastemaker-rendered/2bf9a2d506c6b1aa.service.rs",
+        "demo/src/domain/naming.rs",
+        ".tastemaker-rendered/57a821c950958f1b.naming.rs",
+        "demo/src/domain/naming/types.rs",
+        ".tastemaker-rendered/098f34ea3b40f3d5.types.rs",
+        "demo/src/inbound.rs",
+        ".tastemaker-rendered/4eed9d62f777886c.inbound.rs",
+        "demo/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/79f34a21a85b8849.use_cases.rs",
+        "demo/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/18117c908ca8525f.greet.rs",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        ".tastemaker-rendered/0829b9a2eca8b456.types.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "demo/src/domain.rs",
+        ".tastemaker-rendered/951be92cb6caf098.domain.rs",
+        "demo/src/domain/greeting.rs",
+        ".tastemaker-rendered/1f53d85d15bdd9ea.greeting.rs",
+        "demo/src/domain/greeting/service.rs",
+        ".tastemaker-rendered/2bf9a2d506c6b1aa.service.rs",
+        "demo/src/domain/naming.rs",
+        ".tastemaker-rendered/57a821c950958f1b.naming.rs",
+        "demo/src/domain/naming/types.rs",
+        ".tastemaker-rendered/098f34ea3b40f3d5.types.rs",
+        "demo/src/inbound.rs",
+        ".tastemaker-rendered/4eed9d62f777886c.inbound.rs",
+        "demo/src/inbound/use_cases.rs",
+        ".tastemaker-rendered/79f34a21a85b8849.use_cases.rs",
+        "demo/src/inbound/use_cases/greet.rs",
+        ".tastemaker-rendered/18117c908ca8525f.greet.rs",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        ".tastemaker-rendered/0829b9a2eca8b456.types.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/composition.rs",
+        "demo/**/composition.rs/**",
+        "demo/**/connections.rs",
+        "demo/**/connections.rs/**",
+        "demo/**/factory.rs",
+        "demo/**/factory.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/main.rs",
+        "demo/**/main.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter-at-root",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-at-root-8ccfc0aeebd0"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/allow-attributes-per-file",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "max-allows": 3
+      },
+      "query": "idiomatic-arch-allow-attributes-per-file-7755ae1aab61"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        "demo/nodirectory/**",
+        "demo/nodirectory/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/cache-names-once",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "locations": [
+          ".*_cache",
+          ".*_cache/**"
+        ]
+      },
+      "query": "idiomatic-arch-cache-names-once-918d058a01f0"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/case-expectation",
+      "include": [
+        "demo/src/domain/greeting/*_test.rs",
+        "demo/src/domain/greeting/*_test.rs/**",
+        "demo/src/domain/naming/*_test.rs",
+        "demo/src/domain/naming/*_test.rs/**",
+        "demo/src/inbound/use_cases/greet/*_test.rs",
+        "demo/src/inbound/use_cases/greet/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-case-expectation-d0aa767a915e"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/case-vocabulary",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-case-vocabulary-cde01a553815"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/corpus/**",
+        "demo/**/tests/fixtures/corpus/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/cases-not-empty",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/benches/**/*.rs",
+        "demo/**/benches/**/*.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**/*.rs",
+        "demo/**/fixtures/**/*.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/tests/**/*.rs",
+        "demo/**/tests/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-cases-not-empty-dd2805b75f98"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/schemas_test.rs",
+        "demo/**/schemas_test.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        "demo/nodirectory/**",
+        "demo/nodirectory/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/client-at-adapter",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-client-at-adapter-517b4c08559c"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/**/tests/ui/**",
+        "demo/**/tests/ui/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/collection-directory",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "max-items": 3
+      },
+      "query": "idiomatic-arch-collection-directory-0c8561226ccc"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/composition-opens-nothing",
+      "include": [
+        "demo/**/composition.rs",
+        "demo/**/composition.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-composition-opens-nothing-6c56c89f7164"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/concept/fns-only-in-service",
+      "include": [
+        "demo/src/domain/greeting/errors.rs",
+        "demo/src/domain/greeting/errors.rs/**",
+        "demo/src/domain/greeting/types.rs",
+        "demo/src/domain/greeting/types.rs/**",
+        "demo/src/domain/naming/errors.rs",
+        "demo/src/domain/naming/errors.rs/**",
+        "demo/src/domain/naming/types.rs",
+        "demo/src/domain/naming/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-concept-fns-only-in-service-4aa3960d3cfe"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/concept/service-has-fn",
+      "include": [
+        "demo/src/domain/greeting/service.rs",
+        "demo/src/domain/greeting/service.rs/**",
+        "demo/src/domain/naming/service.rs",
+        "demo/src/domain/naming/service.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-concept-service-has-fn-84bb81d64e1f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/concept/service-shape",
+      "include": [
+        "demo/src/domain/greeting/service.rs",
+        "demo/src/domain/greeting/service.rs/**",
+        "demo/src/domain/naming/service.rs",
+        "demo/src/domain/naming/service.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-concept-service-shape-f4bcd64c0a34"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        "demo/nodirectory/**",
+        "demo/nodirectory/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/constants-once",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-constants-once-0a1464117276"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/deep-function-nesting",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "max-depth": 1
+      },
+      "query": "idiomatic-arch-deep-function-nesting-b7fff9763eb9"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/deep-nesting",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "max-depth": 4
+      },
+      "query": "idiomatic-arch-deep-nesting-9cfb56d2bda3"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/digest-not-stamp-alone",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-digest-not-stamp-alone-210be811b851"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/error-name",
+      "include": [
+        "demo/src/domain/greeting/errors.rs",
+        "demo/src/domain/greeting/errors.rs/**",
+        "demo/src/domain/naming/errors.rs",
+        "demo/src/domain/naming/errors.rs/**",
+        "demo/src/inbound/use_cases/greet/errors.rs",
+        "demo/src/inbound/use_cases/greet/errors.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-error-name-ee126fc64f46"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/error-variants-reached",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/errors.rs",
+        "demo/**/errors.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-error-variants-reached-2a0d23f7d9de"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/exit-status-checked",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/benches/**/*.rs",
+        "demo/**/benches/**/*.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**/*.rs",
+        "demo/**/fixtures/**/*.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/tests/**/*.rs",
+        "demo/**/tests/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-exit-status-checked-3fff5a1192fc"
+    },
+    {
+      "exclude": [
+        "demo/src/domain/greeting/*_test.rs",
+        "demo/src/domain/greeting/*_test.rs/**",
+        "demo/src/domain/greeting/composition.rs",
+        "demo/src/domain/greeting/composition.rs/**",
+        "demo/src/domain/greeting/fixtures.rs",
+        "demo/src/domain/greeting/fixtures.rs/**",
+        "demo/src/domain/naming/*_test.rs",
+        "demo/src/domain/naming/*_test.rs/**",
+        "demo/src/domain/naming/composition.rs",
+        "demo/src/domain/naming/composition.rs/**",
+        "demo/src/domain/naming/fixtures.rs",
+        "demo/src/domain/naming/fixtures.rs/**",
+        "demo/src/inbound/use_cases/greet/*_test.rs",
+        "demo/src/inbound/use_cases/greet/*_test.rs/**",
+        "demo/src/inbound/use_cases/greet/acceptance.rs",
+        "demo/src/inbound/use_cases/greet/acceptance.rs/**",
+        "demo/src/inbound/use_cases/greet/composition.rs",
+        "demo/src/inbound/use_cases/greet/composition.rs/**",
+        "demo/src/inbound/use_cases/greet/fixtures.rs",
+        "demo/src/inbound/use_cases/greet/fixtures.rs/**",
+        "demo/src/inbound/use_cases/greet/fixtures/*.rs",
+        "demo/src/inbound/use_cases/greet/fixtures/*.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/factory-calls",
+      "include": [
+        "demo/src/domain/greeting/*.rs",
+        "demo/src/domain/greeting/*.rs/**",
+        "demo/src/domain/naming/*.rs",
+        "demo/src/domain/naming/*.rs/**",
+        "demo/src/inbound/use_cases/greet/*.rs",
+        "demo/src/inbound/use_cases/greet/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-factory-calls-6bd421048346"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/fixture-fakes",
+      "include": [
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-fixture-fakes-9c50576250c0"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/fixtures-reach",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**",
+        "demo/**/Cargo.toml",
+        "demo/**/Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-fixtures-reach-d2dc5909cd87"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/factory.rs",
+        "demo/**/factory.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/format-names-in-adapters",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-format-names-in-adapters-95a7140e9a3c"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/hollow-artifacts",
+      "include": [
+        "demo/src/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-artifacts-759d6bcc4a88"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/hollow-types",
+      "include": [
+        "demo/src/domain/greeting/types.rs",
+        "demo/src/domain/greeting/types.rs/**",
+        "demo/src/domain/greeting/types/*.rs",
+        "demo/src/domain/greeting/types/*.rs/**",
+        "demo/src/domain/greeting/types/*/value.rs",
+        "demo/src/domain/greeting/types/*/value.rs/**",
+        "demo/src/domain/naming/types.rs",
+        "demo/src/domain/naming/types.rs/**",
+        "demo/src/domain/naming/types/*.rs",
+        "demo/src/domain/naming/types/*.rs/**",
+        "demo/src/domain/naming/types/*/value.rs",
+        "demo/src/domain/naming/types/*/value.rs/**",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        "demo/src/inbound/use_cases/greet/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-types-ee060a3a9ae5"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/application-service-boundaries",
+      "include": [
+        "demo/**/src/application/**/*.rs",
+        "demo/**/src/application/**/*.rs/**",
+        "demo/**/src/application/*.rs",
+        "demo/**/src/application/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-application-service-boundaries-488f26694dd1"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/bounded-engine-state",
+      "include": [
+        "demo/**/src/application/*/*.rs",
+        "demo/**/src/application/*/*.rs/**",
+        "demo/**/src/inbound/use_cases/*/*.rs",
+        "demo/**/src/inbound/use_cases/*/*.rs/**",
+        "demo/**/src/outbound/*/adapters/*/*.rs",
+        "demo/**/src/outbound/*/adapters/*/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-bounded-engine-state-2dad47575b71"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/field-written-never-read",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "trivial-derives": [
+          "Debug",
+          "Clone",
+          "Copy",
+          "Default",
+          "PartialEq",
+          "Eq",
+          "Hash",
+          "PartialOrd",
+          "Ord"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-field-written-never-read-73a82ea15135"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/hex-cohesion",
+      "include": [
+        "demo/**/src/inbound/use_cases.rs",
+        "demo/**/src/inbound/use_cases.rs/**",
+        "demo/**/src/inbound/use_cases/**",
+        "demo/**/src/inbound/use_cases/**/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-idiomatic-rust-hex-cohesion-75323f61c5fd"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/**/tests/ui/**",
+        "demo/**/tests/ui/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/module-cycles",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-module-cycles-b09a2afdeccd"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-bool",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-bool-bb55a7bdc33b"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-char",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-char-0ea97ff21769"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-floats",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-floats-d792eaa4923d"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-integers",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-integers-ad13a6339614"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-keys",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-keys-517f02c5e91e"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-text",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-text-467b98178fff"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-tuples",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-tuples-9accc8eb2040"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-callable-domain-fields",
+      "include": [
+        "demo/**/src/domain/**/*.rs",
+        "demo/**/src/domain/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-callable-domain-fields-49231b2e419e"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-domain-concept-cycles",
+      "include": [
+        "demo/**/src/domain/**",
+        "demo/**/src/domain/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-domain-concept-cycles-29d5c899982d"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/build.rs",
+        "demo/**/build.rs/**",
+        "demo/**/composition.rs",
+        "demo/**/composition.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-hardcoded-paths",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-hardcoded-paths-d5e498208092"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-panicking-closure",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-panicking-closure-4d7031473542"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-sentinel-values",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-sentinel-values-7d1bf6e0097e"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-string-literals",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-string-literals-9dca1ab55f34"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-sync-in-public-api",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-sync-in-public-api-62776ab621a3"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-thread-local-outside-adapters",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-thread-local-outside-adapters-9f50b868f0d9"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/shadowed-prelude",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "names": [
+          "Option",
+          "Result",
+          "Vec",
+          "String",
+          "Box",
+          "Some",
+          "None",
+          "Ok",
+          "Err",
+          "Default",
+          "Clone",
+          "Copy",
+          "Send",
+          "Sync",
+          "Sized",
+          "Drop",
+          "Fn",
+          "FnMut",
+          "FnOnce",
+          "From",
+          "Into",
+          "Iterator",
+          "ToString",
+          "ToOwned",
+          "AsRef",
+          "AsMut",
+          "Extend",
+          "IntoIterator"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-shadowed-prelude-d834f95a309b"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/stdio-at-presentation",
+      "include": [
+        "demo/src/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-stdio-at-presentation-f222de9faccb"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/test-names-nothing-beside",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-test-names-nothing-beside-336dd854a628"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/unix-behind-cfg",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-unix-behind-cfg-70e6c0e8fdbf"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/variants-benched",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**",
+        "demo/**/Cargo.toml",
+        "demo/**/Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-variants-benched-f69ceac4f075"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/import-directions~12b073b0fd68cbef",
+      "include": [
+        "demo/src/domain.rs",
+        "demo/src/inbound.rs",
+        "demo/src/lib.rs"
+      ],
+      "parameters": {
+        "forbidden": [
+          "*UseCase"
+        ]
+      },
+      "query": "idiomatic-arch-import-directions-7dfe82972132"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/import-directions~481b935997320cc7",
+      "include": [
+        "demo/src/domain/**"
+      ],
+      "parameters": {
+        "forbidden": [
+          "*::application",
+          "*::application::*",
+          "{,::}crate::inbound",
+          "{,::}crate::inbound::*",
+          "{,::}crate::outbound",
+          "{,::}crate::outbound::*",
+          "*::outbound::*::adapters",
+          "*::outbound::*::adapters::*",
+          "*::outbound::*::factory",
+          "*::outbound::*::factory::*",
+          "*::use_case",
+          "*::use_case::*Impl",
+          "*::inbound::use_cases::*::interface::*UseCase",
+          "*UseCase",
+          "languages::Parse",
+          "languages::Project",
+          "*::languages::Parse",
+          "*::languages::Project",
+          "*::languages::\\*",
+          "*::inbound::use_cases::*::interface",
+          "*::inbound::use_cases::*::interface::\\*",
+          "*::output::schemas",
+          "*::output::schemas::*"
+        ]
+      },
+      "query": "idiomatic-arch-import-directions-7dfe82972132"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/import-directions~83616605efc36096",
+      "include": [
+        "demo/src/inbound/use_cases/**"
+      ],
+      "parameters": {
+        "forbidden": [
+          "{,::}crate::outbound::*::adapters",
+          "{,::}crate::outbound::*::adapters::*",
+          "{,::}crate::outbound::*::factory",
+          "{,::}crate::outbound::*::factory::*",
+          "*::use_case",
+          "*::use_case::*Impl",
+          "*::output::schemas",
+          "*::output::schemas::*"
+        ]
+      },
+      "query": "idiomatic-arch-import-directions-7dfe82972132"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/interface-shape",
+      "include": [
+        "demo/src/inbound/use_cases/greet/interface.rs",
+        "demo/src/inbound/use_cases/greet/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-interface-shape-441c0cb6f540"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/io-at-boundary",
+      "include": [
+        "demo/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-io-at-boundary-182f2043a341"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/kind-suffix",
+      "include": [
+        "demo/src/inbound/use_cases/greet/interface.rs",
+        "demo/src/inbound/use_cases/greet/interface.rs/**"
+      ],
+      "parameters": {
+        "exposed": [],
+        "kind": "use-case"
+      },
+      "query": "idiomatic-arch-kind-suffix-6b576e02d2b0"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/layer-matrix",
+      "include": [
+        "demo/src/**",
+        "demo/src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-layer-matrix-8dfbc867818d"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/lossy-float-literals",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "limit": "1e15"
+      },
+      "query": "idiomatic-arch-lossy-float-literals-70271bf8c124"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/macro-paths-hygienic",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-macro-paths-hygienic-658db0fe53f0"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/mirrored-types",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-mirrored-types-743308f0dfa4"
+    },
+    {
+      "exclude": [
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/module-declares",
+      "include": [
+        "demo/**/Cargo.toml",
+        "demo/**/Cargo.toml/**",
+        "demo/**/src/**",
+        "demo/**/src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-module-declares-a3de709ad656"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/nested-function-count",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "max-nested": 2
+      },
+      "query": "idiomatic-arch-nested-function-count-df1e967862c6"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-any-in-ports",
+      "include": [
+        "demo/**/src/outbound/*/interface.rs",
+        "demo/**/src/outbound/*/interface.rs/**",
+        "demo/**/src/outbound/*/types.rs",
+        "demo/**/src/outbound/*/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-any-in-ports-474996fccaf8"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-constant-assertions",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-constant-assertions-993ced1cb7bf"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-deep-stored-types",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "derives": [
+          "*Serialize*",
+          "*Deserialize*"
+        ]
+      },
+      "query": "idiomatic-arch-no-deep-stored-types-714ca88ba318"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-domain-aliases",
+      "include": [
+        "demo/src/domain/greeting/errors.rs",
+        "demo/src/domain/greeting/errors.rs/**",
+        "demo/src/domain/greeting/types.rs",
+        "demo/src/domain/greeting/types.rs/**",
+        "demo/src/domain/naming/errors.rs",
+        "demo/src/domain/naming/errors.rs/**",
+        "demo/src/domain/naming/types.rs",
+        "demo/src/domain/naming/types.rs/**",
+        "demo/src/inbound/use_cases/greet/errors.rs",
+        "demo/src/inbound/use_cases/greet/errors.rs/**",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        "demo/src/inbound/use_cases/greet/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-domain-aliases-092adbcaed6b"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-drilled-settings",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "types": [
+          "*BuildName*",
+          "*EngineBuild*",
+          "*ProgramBuild*",
+          "*WorkerCount*",
+          "*Workers*",
+          "*MemoryBudget*",
+          "*Settings*",
+          "*Setting*"
+        ]
+      },
+      "query": "idiomatic-arch-no-drilled-settings-e607aff6245b"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-env-reads",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "exceptions": [
+          "PAGER"
+        ]
+      },
+      "query": "idiomatic-arch-no-env-reads-c8f504956cae"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-filter-map-parse",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-filter-map-parse-311a20a82ed9"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-format-versions",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-format-versions-b08980b6dc12"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-heap-accounting",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "owners": []
+      },
+      "query": "idiomatic-arch-no-heap-accounting-c63134c6c31a"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-ignored-tests",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-ignored-tests-a6ebd7d5dd93"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-inherent-impls",
+      "include": [
+        "demo/src/domain/greeting/types.rs",
+        "demo/src/domain/greeting/types.rs/**",
+        "demo/src/domain/naming/types.rs",
+        "demo/src/domain/naming/types.rs/**",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        "demo/src/inbound/use_cases/greet/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-inherent-impls-7fae24f601c8"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-inline-modules",
+      "include": [
+        "demo/src/domain/greeting/**",
+        "demo/src/domain/naming/**",
+        "demo/src/inbound/use_cases/greet/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-inline-modules-d5ab72a17bd4"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/connections.rs",
+        "demo/**/connections.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/fixtures/*.rs",
+        "demo/**/fixtures/*.rs/**",
+        "demo/**/main.rs",
+        "demo/**/main.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-json-in-process",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-json-in-process-c80151a053ac"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-ok-on-result",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-ok-on-result-4248b381d028"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-packed-strings",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-packed-strings-0a762d08597c"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-path-exists",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-path-exists-81fd1bc67f00"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-persist-toggles-in-ports",
+      "include": [
+        "demo/**/src/outbound/*/interface.rs",
+        "demo/**/src/outbound/*/interface.rs/**",
+        "demo/**/src/outbound/*/types.rs",
+        "demo/**/src/outbound/*/types.rs/**"
+      ],
+      "parameters": {
+        "toggles": [
+          "Keeping",
+          "ImageKeeping",
+          "Writing"
+        ]
+      },
+      "query": "idiomatic-arch-no-persist-toggles-in-ports-3d3b459ba24e"
+    },
+    {
+      "exclude": [
+        "demo/**/dtos.rs",
+        "demo/**/dtos.rs/**",
+        "demo/**/schemas.rs",
+        "demo/**/schemas.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-public-options",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-no-public-options-b64b6f8fd783"
+    },
+    {
+      "exclude": [
+        "demo/**/src/lib.rs",
+        "demo/**/src/lib.rs/**",
+        "demo/**/src/resources.rs",
+        "demo/**/src/resources.rs/**",
+        "demo/**/src/resources/*.rs",
+        "demo/**/src/resources/*.rs/**",
+        "demo/**/src/resources/*/contract.rs",
+        "demo/**/src/resources/*/contract.rs/**",
+        "demo/**/src/resources/*/macros/*.rs",
+        "demo/**/src/resources/*/macros/*.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-reexports",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-no-reexports-b34fefd8939c"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-runtime-fixtures",
+      "include": [
+        "demo/src/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-runtime-fixtures-3026c70f4acb"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-serde-in-domain",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-serde-in-domain-3461e7963478"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/corpus/**",
+        "demo/**/tests/fixtures/corpus/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-silent-skip",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/benches/**/*.rs",
+        "demo/**/benches/**/*.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**/*.rs",
+        "demo/**/fixtures/**/*.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/tests/**/*.rs",
+        "demo/**/tests/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-silent-skip-e2d29bbae45e"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/build.rs",
+        "demo/**/build.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        "demo/cli/src/**",
+        "demo/cli/src/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-temp-in-use-cases",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "libraries": [
+          "tempfile",
+          "tempfile::*",
+          "*::temp_dir",
+          "temp_dir"
+        ],
+        "methods": [
+          "scratch",
+          "discard"
+        ]
+      },
+      "query": "idiomatic-arch-no-temp-in-use-cases-655728e96a47"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-unwrap-or-on-lookup",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-unwrap-or-on-lookup-92da167255cf"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-whole-state-ports",
+      "include": [
+        "demo/**/outbound/*/interface.rs",
+        "demo/**/outbound/*/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-whole-state-ports-79454cc424bc"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/nu-hex/core-fakes",
+      "include": [
+        "demo/src/outbound/*/fixtures/fake.rs",
+        "demo/src/outbound/*/fixtures/fake.rs/**",
+        "demo/src/outbound/*/interface.rs",
+        "demo/src/outbound/*/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-core-fakes-8ff4d158d83c"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/nu-hex/domain-modules",
+      "include": [
+        "demo/src/domain.rs",
+        "demo/src/domain.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-domain-modules-ac48ef63faae"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/nu-hex/fixture-location",
+      "include": [
+        "demo/src/domain/*/collections/*/fixtures/contract.rs",
+        "demo/src/domain/*/collections/*/fixtures/contract.rs/**",
+        "demo/src/outbound/*/fixtures/contract.rs",
+        "demo/src/outbound/*/fixtures/contract.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-fixture-location-d90c0f972d91"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/nu-hex/plugin-schemas",
+      "include": [
+        "demo/src/outbound/**",
+        "demo/src/outbound/**/**"
+      ],
+      "parameters": {
+        "plugins": []
+      },
+      "query": "idiomatic-arch-nu-hex-plugin-schemas-45221de544bb"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/nu-hex/public-application-service",
+      "include": [
+        "demo/src/application/*.rs",
+        "demo/src/application/*.rs/**",
+        "demo/src/application/*/service.rs",
+        "demo/src/application/*/service.rs/**",
+        "demo/src/application/*/service_test.rs",
+        "demo/src/application/*/service_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-public-application-service-e43b40d4220f"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/one-cache-one-engine",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "kept": [
+          "ryo_kept",
+          "*::ryo_kept",
+          "Cache::At",
+          "*::Cache::At",
+          "lint"
+        ]
+      },
+      "query": "idiomatic-arch-one-cache-one-engine-f7f8b736c4fe"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/cli/src/outcome.rs",
+        "demo/**/cli/src/outcome.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/one-type-per-name",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-one-type-per-name-5436b254d4c7"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/ordered-output",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-ordered-output-d6d0793a39c1"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/orphan-rust-files",
+      "include": [
+        "demo/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-orphan-rust-files-d1ff19eef5c2"
+    },
+    {
+      "exclude": [
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/src/commands/**",
+        "demo/**/src/commands/**/**",
+        "demo/**/src/resources/**",
+        "demo/**/src/resources/**/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/parallel-members",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "independent": [
+          "languages",
+          "relations",
+          "language"
+        ],
+        "roles": [
+          "adapters",
+          "methods",
+          "commands",
+          "macros",
+          "tests",
+          "benches",
+          "fixtures",
+          "src",
+          "domain",
+          "inbound",
+          "outbound",
+          "application",
+          "use_cases",
+          "contracts",
+          "collections"
+        ]
+      },
+      "query": "idiomatic-arch-parallel-members-47b0e6f7e53d"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/**/tests/ui/**",
+        "demo/**/tests/ui/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/parse-errors",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-parse-errors-82c06898c430"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/port-takes-no-settings",
+      "include": [
+        "demo/**/src/outbound/*/interface.rs",
+        "demo/**/src/outbound/*/interface.rs/**"
+      ],
+      "parameters": {
+        "location-names": [
+          "directory",
+          "cache",
+          "store",
+          "temp",
+          "scratch"
+        ],
+        "locations": [
+          "MachinePath",
+          "PathBuf",
+          "Path",
+          "SystemPath"
+        ],
+        "settings": [
+          "BuildName",
+          "EngineBuild",
+          "ProgramBuild",
+          "Build",
+          "WorkerCount",
+          "Workers",
+          "MemoryBudget",
+          "SourceBytes",
+          "Expanding",
+          "Logging"
+        ]
+      },
+      "query": "idiomatic-arch-port-takes-no-settings-e543f041bd2d"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/corpus/**",
+        "demo/**/tests/fixtures/corpus/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/portable-test-filenames",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/benches/**/*.rs",
+        "demo/**/benches/**/*.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**/*.rs",
+        "demo/**/fixtures/**/*.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/tests/**/*.rs",
+        "demo/**/tests/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-portable-test-filenames-9a6b95a4f99d"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/print-in-library",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-print-in-library-a9682733e37e"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/private-checked-fields",
+      "include": [
+        "demo/**/types.rs",
+        "demo/**/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-private-checked-fields-641ca103670e"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/proof-beside",
+      "include": [
+        "demo/src/domain/greeting/*.rs",
+        "demo/src/domain/greeting/*.rs/**",
+        "demo/src/domain/naming/*.rs",
+        "demo/src/domain/naming/*.rs/**",
+        "demo/src/inbound/use_cases/greet/*.rs",
+        "demo/src/inbound/use_cases/greet/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-proof-beside-60adcfa5cb16"
+    },
+    {
+      "exclude": [
+        "demo/**/cli/src/output/**",
+        "demo/**/cli/src/output/**/**",
+        "demo/**/cli/src/timings.rs",
+        "demo/**/cli/src/timings.rs/**",
+        "demo/**/src/lib.rs",
+        "demo/**/src/lib.rs/**",
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/pub-item-unreferenced-elsewhere",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-pub-item-unreferenced-elsewhere-7918e6318e78"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/public-fields",
+      "include": [
+        "demo/src/domain/greeting/types.rs",
+        "demo/src/domain/greeting/types.rs/**",
+        "demo/src/domain/naming/types.rs",
+        "demo/src/domain/naming/types.rs/**",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        "demo/src/inbound/use_cases/greet/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-public-fields-26f8cb4c2d3d"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/repeated-bound-strings",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "min-files": 3
+      },
+      "query": "idiomatic-arch-repeated-bound-strings-f243bea52a84"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/languages/**",
+        "demo/languages/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/repeated-string-literals",
+      "include": [
+        "demo/**/constants.rs",
+        "demo/**/constants.rs/**",
+        "demo/**/schemas.rs",
+        "demo/**/schemas.rs/**"
+      ],
+      "parameters": {
+        "allowed": [],
+        "min-files": 3
+      },
+      "query": "idiomatic-arch-repeated-string-literals-be6b07761280"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/requests-carry-no-settings",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "requests": [
+          "*Request",
+          "Session"
+        ],
+        "settings": [
+          "workers",
+          "memory",
+          "memory_budget",
+          "cache",
+          "build",
+          "logging"
+        ]
+      },
+      "query": "idiomatic-arch-requests-carry-no-settings-4b4fc96b4425"
+    },
+    {
+      "exclude": [
+        "demo/**/schemas.rs",
+        "demo/**/schemas.rs/**",
+        "demo/**/schemas_test.rs",
+        "demo/**/schemas_test.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/schema-confined",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-schema-confined-d020ee301d6a"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/serialize-dont-format",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-serialize-dont-format-6c5faf936f25"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/stable-ids",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-stable-ids-761a17188f33"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/outbound/*/adapters/*/*/schemas.rs",
+        "demo/**/outbound/*/adapters/*/*/schemas.rs/**",
+        "demo/**/outbound/*/adapters/*/schemas.rs",
+        "demo/**/outbound/*/adapters/*/schemas.rs/**",
+        "demo/**/outbound/*/adapters/*/schemas/**",
+        "demo/**/outbound/*/adapters/*/schemas/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/storage-shapes-in-schemas",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-storage-shapes-in-schemas-5207535ee25c"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/stream-discipline",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-stream-discipline-9d3a6883e890"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-directory-layout",
+      "include": [
+        "demo/src/inbound/use_cases/greet/use_case_test/**",
+        "demo/src/inbound/use_cases/greet/use_case_test/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-directory-layout-212f6972e13c"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/**/tests/ui/**",
+        "demo/**/tests/ui/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-imports",
+      "include": [
+        "demo/**/Cargo.toml",
+        "demo/**/Cargo.toml/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/tests/**/*.rs",
+        "demo/**/tests/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed": [
+          "*::types",
+          "*::types::*",
+          "*::errors",
+          "*::errors::*",
+          "*::factory",
+          "*::factory::*",
+          "*::contract",
+          "*::contract::*",
+          "*::linked",
+          "*::linked::*",
+          "*::cases",
+          "*::cases::*",
+          "*::selects"
+        ],
+        "test-contracts": []
+      },
+      "query": "idiomatic-arch-test-imports-f4a5bcef43f2"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-runners-match-rows",
+      "include": [
+        "demo/src/domain/greeting/*_test.rs",
+        "demo/src/domain/greeting/*_test.rs/**",
+        "demo/src/domain/naming/*_test.rs",
+        "demo/src/domain/naming/*_test.rs/**",
+        "demo/src/inbound/use_cases/greet/*_test.rs",
+        "demo/src/inbound/use_cases/greet/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-runners-match-rows-4e5621332882"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-shape",
+      "include": [
+        "demo/src/domain/greeting/*_test.rs",
+        "demo/src/domain/greeting/*_test.rs/**",
+        "demo/src/domain/naming/*_test.rs",
+        "demo/src/domain/naming/*_test.rs/**",
+        "demo/src/inbound/use_cases/greet/*_test.rs",
+        "demo/src/inbound/use_cases/greet/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-shape-45f9971bbe85"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/connections.rs",
+        "demo/**/connections.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/fixtures/*.rs",
+        "demo/**/fixtures/*.rs/**",
+        "demo/**/main.rs",
+        "demo/**/main.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/threads-at-adapter",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-threads-at-adapter-45024d49131b"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/todo-comments",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-todo-comments-15b1937e5e3a"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/unfinished-macros",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unfinished-macros-a81ceca878c8"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/unit-cases",
+      "include": [
+        "demo/src/domain/greeting/*.rs",
+        "demo/src/domain/greeting/*.rs/**",
+        "demo/src/domain/greeting/*_test/**/*.rs",
+        "demo/src/domain/greeting/*_test/**/*.rs/**",
+        "demo/src/domain/naming/*.rs",
+        "demo/src/domain/naming/*.rs/**",
+        "demo/src/domain/naming/*_test/**/*.rs",
+        "demo/src/domain/naming/*_test/**/*.rs/**",
+        "demo/src/inbound/use_cases/greet/*.rs",
+        "demo/src/inbound/use_cases/greet/*.rs/**",
+        "demo/src/inbound/use_cases/greet/*_test/**/*.rs",
+        "demo/src/inbound/use_cases/greet/*_test/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unit-cases-a9a46cde7eef"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/unsafe-without-safety",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unsafe-without-safety-b8e00bef65a7"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/contract-only-files",
+      "include": [
+        "demo/src/inbound/use_cases/greet/fixtures/**/*.rs",
+        "demo/src/inbound/use_cases/greet/fixtures/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-contract-only-files-08e96d8946bd"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/implemented-shape",
+      "include": [
+        "demo/src/inbound/use_cases/greet/*.rs",
+        "demo/src/inbound/use_cases/greet/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-implemented-shape-557b22252dff"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/local-helpers",
+      "include": [
+        "demo/src/inbound/use_cases/greet/fixtures/contract.rs",
+        "demo/src/inbound/use_cases/greet/fixtures/contract.rs/**",
+        "demo/src/inbound/use_cases/greet/service.rs",
+        "demo/src/inbound/use_cases/greet/service.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-local-helpers-8f63d4e6f9bf"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/use-case-declares",
+      "include": [
+        "demo/src/inbound/use_cases/greet/use_case.rs",
+        "demo/src/inbound/use_cases/greet/use_case.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-use-case-declares-e0d415f0b53f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/use-case-methods",
+      "include": [
+        "demo/src/inbound/use_cases/greet/fixtures/contract.rs",
+        "demo/src/inbound/use_cases/greet/fixtures/contract.rs/**",
+        "demo/src/inbound/use_cases/greet/interface.rs",
+        "demo/src/inbound/use_cases/greet/interface.rs/**"
+      ],
+      "parameters": {
+        "kind": "use-case"
+      },
+      "query": "idiomatic-arch-use-case-use-case-methods-f1156f4aab1f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case/use-case-ports",
+      "include": [
+        "demo/src/inbound/use_cases/greet/use_case.rs",
+        "demo/src/inbound/use_cases/greet/use_case.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-use-case-ports-b6cd506292b4"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/validation-at-edges",
+      "include": [
+        "demo/src/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-validation-at-edges-282bc1c4e5c3"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/value-companions",
+      "include": [
+        "demo/src/domain/greeting/types/**",
+        "demo/src/domain/greeting/types/**/**",
+        "demo/src/domain/naming/types/**",
+        "demo/src/domain/naming/types/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-value-companions-e8c141716c3a"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-edges",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-edges-5c4aa0cd1a93"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-names",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-names-30e865419592"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-owners",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-owners-2799ccd20598"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-packages",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-packages-af0ac9d1e4da"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-scopes",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-scopes-949cb7045580"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "demo/Cargo.toml",
+        "demo/src/domain.rs",
+        "demo/src/domain/greeting.rs",
+        "demo/src/domain/greeting/service.rs",
+        "demo/src/domain/naming.rs",
+        "demo/src/domain/naming/types.rs",
+        "demo/src/inbound.rs",
+        "demo/src/inbound/use_cases.rs",
+        "demo/src/inbound/use_cases/greet.rs",
+        "demo/src/inbound/use_cases/greet/types.rs",
+        "demo/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "demo/src/domain/greeting/service.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                17,
+                70
+              ]
+            }
+          ],
+          [
+            "from-layer",
+            "domain"
+          ],
+          [
+            "to-layer",
+            "inbound"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              17,
+              70
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "demo/src/domain/greeting/service.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

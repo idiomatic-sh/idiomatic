@@ -1,0 +1,6 @@
+pub fn map(status: Status) -> Level {
+    match status {
+        Status::Ok => Level::Fine,
+        _ => Level::Broken,
+    }
+}

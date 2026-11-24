@@ -1,0 +1,7 @@
+//! Builds the names adapters, one function each.
+
+/// The memory names adapter.
+#[must_use]
+pub fn memory() -> super::adapters::memory::adapter::NamesMemoryAdapter {
+    super::adapters::memory::adapter::NamesMemoryAdapter
+}

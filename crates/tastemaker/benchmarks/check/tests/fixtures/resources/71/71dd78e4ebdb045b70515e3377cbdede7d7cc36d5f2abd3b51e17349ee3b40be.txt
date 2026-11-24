@@ -1,0 +1,33 @@
+Feature: greet
+
+  Rule: greet answers what its caller sees
+
+    @succeeds
+    Scenario Outline: greet succeeds
+      Given <input>
+      When greet runs
+      Then <expected> is answered
+
+      Examples:
+        | name | input | expected |
+        | the person named | a names port that holds Ada | hello, Ada |
+
+    @refuses
+    Scenario Outline: greet refuses
+      Given <input>
+      When greet runs
+      Then <expected> is refused
+
+      Examples:
+        | name | input | expected |
+        | an empty name | an empty name | Empty |
+
+    @fails
+    Scenario Outline: greet fails
+      Given <input>
+      When greet runs
+      Then <expected> is passed on
+
+      Examples:
+        | name | input | expected |
+        | a name nobody stored | a name nobody stored | Missing |

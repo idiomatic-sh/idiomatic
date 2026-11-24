@@ -1,0 +1,76 @@
+{
+  "stamp": 72,
+  "rule": "idiomatic.arch/kind-suffix",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/outbound/language/interface.rs"
+  ],
+  "given": {
+    "src/outbound/language/interface.rs": "e2d973b0d04410fdc67f5be60f63dc1a5468bb4f354365aefe511c7dd21b96e2",
+    "tastemaker.toml": "67d1520bf8ed048b045fd51429c56970debabf7d65027c09bae78e3fad56bf17"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/kind-suffix",
+      "include": [
+        "**/interface.rs",
+        "**/interface.rs/**"
+      ],
+      "parameters": {
+        "exposed": [
+          "language"
+        ],
+        "kind": "port"
+      },
+      "query": "idiomatic-arch-kind-suffix-6b576e02d2b0"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/outbound/language/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": []
+  }
+}

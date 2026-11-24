@@ -1,0 +1,31 @@
+//! The `greet` use case.
+
+use std::sync::Arc;
+
+use super::interface::GreetUseCase;
+
+/// `greet`, over the port it calls.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over its port.
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+
+    fn named(&self, name: &str) -> String {
+        self.names.load(name)
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &str) -> String {
+        self.named(name)
+    }
+}
+
+fn compare(left: &str, right: &str) -> bool {
+    left == right
+}

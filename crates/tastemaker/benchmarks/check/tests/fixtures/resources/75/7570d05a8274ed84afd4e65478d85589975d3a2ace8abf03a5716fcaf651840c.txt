@@ -1,0 +1,9 @@
+//! The names port, implemented with recorded.
+
+use crate::outbound::names::interface::NamesPort;
+
+/// The recorded names adapter.
+#[derive(Debug)]
+pub(crate) struct NamesRecordedAdapter;
+
+impl NamesPort for NamesRecordedAdapter {}

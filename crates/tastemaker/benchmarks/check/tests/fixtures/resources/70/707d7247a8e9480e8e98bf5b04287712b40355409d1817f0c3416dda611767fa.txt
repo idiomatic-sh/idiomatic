@@ -1,0 +1,12 @@
+# demo-app
+
+Greets whoever asks, in one sentence.
+
+## Usage
+
+How a program uses demo-app, in one line.
+
+```rust
+let greeting = demo_app::greet("world");
+assert_eq!(greeting, "hello, world");
+```

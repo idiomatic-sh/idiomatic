@@ -1,0 +1,181 @@
+{
+  "stamp": 44,
+  "rule": "idiomatic.arch/exit-status-checked",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "tastemaker.toml",
+    "tests/code.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "tastemaker.toml": "e9f6839e5bb8efd4d8af32076740ee12a856ee2cc8c636ac4abc7f47aabeb9b4",
+    "tests/code.rs": "c2ab21d9f8923dee4af10e0da19c3d3f03cca0a7ddf1738a9cf36097fbe91264"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/exit-status-checked",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-exit-status-checked-3fff5a1192fc"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "tastemaker.toml",
+        "tests/code.rs"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "tests/code.rs#159"
+          ],
+          [
+            "file",
+            {
+              "file": "tests/code.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                246,
+                252
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              246,
+              252
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "tests/code.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "id",
+            "tests/code.rs#244"
+          ],
+          [
+            "file",
+            {
+              "file": "tests/code.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                433,
+                439
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              433,
+              439
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "tests/code.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "id",
+            "tests/code.rs#393"
+          ],
+          [
+            "file",
+            {
+              "file": "tests/code.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                713,
+                719
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              713,
+              719
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "tests/code.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

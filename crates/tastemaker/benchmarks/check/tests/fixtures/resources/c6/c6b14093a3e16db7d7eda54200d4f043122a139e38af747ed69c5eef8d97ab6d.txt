@@ -1,0 +1,1 @@
+//! Proves `-n/--dry-run`: what a command that writes would write, and nothing written.

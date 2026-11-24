@@ -1,0 +1,8 @@
+//! The outcome.
+
+#[cfg(test)]
+#[path = "outcome_test.rs"]
+mod tests;
+
+/// Done.
+pub fn done() {}

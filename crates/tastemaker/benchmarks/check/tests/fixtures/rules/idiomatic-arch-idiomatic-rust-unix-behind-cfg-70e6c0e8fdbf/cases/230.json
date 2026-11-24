@@ -1,0 +1,105 @@
+{
+  "stamp": 230,
+  "rule": "idiomatic.arch/idiomatic-rust/unix-behind-cfg",
+  "dependency": "One file",
+  "admitted": [
+    "src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "e18af2d1dacc8411ef6cfa31ec8b03ff5042ccecbe126c08b0fa9eb96f8420b7",
+    "tastemaker.toml": "a262074351258f6fe0124a9b960f47917eef4718e2454007e873741d6b8e26c1"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/unix-behind-cfg",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-unix-behind-cfg-70e6c0e8fdbf"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                35,
+                48
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              35,
+              48
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

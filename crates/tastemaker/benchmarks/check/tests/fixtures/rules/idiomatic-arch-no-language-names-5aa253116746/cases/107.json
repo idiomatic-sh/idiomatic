@@ -1,0 +1,120 @@
+{
+  "stamp": 107,
+  "rule": "idiomatic.arch/no-language-names",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "crates/core/src/domain/x/constants.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "crates/core/src/domain/x/constants.rs": "7e8066f856d3cebb64f0808a51e0df9b78b7c078dd3b3e3670145b6173aaa2e0",
+    "tastemaker.toml": "0757755270de2f363bc3cdd3236c42b1169befb6aa29faddfff54a7ceab90ad6"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-language-names",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "languages": [
+          "python",
+          "rust"
+        ],
+        "written": [
+          "go",
+          "Go",
+          "Go[!A-Za-z0-9]*",
+          "*[!A-Za-z0-9]Go",
+          "*[!A-Za-z0-9]Go[!A-Za-z0-9]*",
+          "*JavaScript*"
+        ]
+      },
+      "query": "idiomatic-arch-no-language-names-5aa253116746"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "crates/core/src/domain/x/constants.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "crates/core/src/domain/x/constants.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                27,
+                65
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "crates/core/src/domain/x/constants.rs"
+          },
+          {
+            "span": [
+              27,
+              65
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/core/src/domain/x/constants.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

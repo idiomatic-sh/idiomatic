@@ -1,0 +1,103 @@
+{
+  "stamp": 58,
+  "rule": "idiomatic.arch/interface-present-unless-item-trait",
+  "dependency": "Several files",
+  "admitted": [
+    "src/collections/shapes/circle/item.rs",
+    "src/collections/shapes/interface.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/collections/shapes/circle/item.rs": "f833f64656ff4159fd3558fc0481aa1f1775bdc54eced0fd90c17dd2c9ab82c5",
+    "src/collections/shapes/interface.rs": "c3964bfd0ad95cd3da8de0631d107d7472a66b2c9ac4a8d0e1a83baa7f83a798",
+    "tastemaker.toml": "5cc77abb59f557fdc173c0db2ccdf9acd0ed3b91d54382505324732472c9f8f6"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/interface-present-unless-item-trait",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-interface-present-unless-item-trait-2b9e5891c30b"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/collections/shapes/circle/item.rs",
+        "src/collections/shapes/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/collections/shapes/interface.rs"
+            }
+          ],
+          [
+            "dir",
+            "src/collections/shapes"
+          ],
+          [
+            "problem",
+            "declares its own trait in `interface.rs`, but no item imports it: the items implement the trait of another crate (the collection's pair in `item-trait`), so delete the file"
+          ]
+        ],
+        "key": [
+          "src/collections/shapes",
+          "declares its own trait in `interface.rs`, but no item imports it: the items implement the trait of another crate (the collection's pair in `item-trait`), so delete the file"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/collections/shapes/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

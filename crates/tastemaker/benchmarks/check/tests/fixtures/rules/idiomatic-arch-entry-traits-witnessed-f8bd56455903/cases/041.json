@@ -1,0 +1,137 @@
+{
+  "stamp": 41,
+  "rule": "idiomatic.arch/entry-traits-witnessed",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "src/interface.rs",
+    "src/lib.rs",
+    "tastemaker.toml",
+    "tests/witness.rs"
+  ],
+  "given": {
+    "Cargo.toml": "1cebb9493aef042a11366e22d8a6e8548dabe19c54d9b07e6f02d44600f6fa22",
+    "src/interface.rs": "68bf44c10b23d525986fe234c0503c28dddbf92ab870d7b879c7a0de821f9149",
+    "src/lib.rs": "8d09a176240eb56b66b6adb5d6076df5f5ec067e828491aab55d9d5b425c5ff8",
+    "tastemaker.toml": "68891b0368d4fc8140756cef3ae1b3cdd67e7018669c28930dac49fe869c4dd7",
+    "tests/witness.rs": "46c891acf01b9056e4a9e8f5708fc75cfd2a68e65f5649c02e0794f838c91504"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/entry-traits-witnessed",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "implementer": [
+          "Witness"
+        ],
+        "interfaces": [
+          "src/interface.rs"
+        ],
+        "non-entries": [
+          {
+            "trait": "PreparedQueries",
+            "why": "reads the plans a program was prepared from and takes no root"
+          }
+        ],
+        "witness": [
+          "tests/witness.rs"
+        ]
+      },
+      "query": "idiomatic-arch-entry-traits-witnessed-f8bd56455903"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/interface.rs",
+        "src/lib.rs",
+        "tastemaker.toml",
+        "tests/witness.rs"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "NewStage"
+          ],
+          [
+            "file",
+            {
+              "file": "src/interface.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                162,
+                170
+              ]
+            }
+          ],
+          [
+            "problem",
+            "is neither implemented by the witness nor named as no entry with its reason"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              162,
+              170
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

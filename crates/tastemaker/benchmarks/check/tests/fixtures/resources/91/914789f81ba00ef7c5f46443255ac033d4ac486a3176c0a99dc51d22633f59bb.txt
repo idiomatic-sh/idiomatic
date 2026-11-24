@@ -1,0 +1,6 @@
+//! `check`.
+
+/// The report, as text.
+pub fn text(report: &Report) -> String {
+    serde_json::to_string(report).unwrap_or_default()
+}

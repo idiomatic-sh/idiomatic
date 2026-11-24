@@ -1,0 +1,2 @@
+use crate::shared::contract as engine;
+pub mod inner { pub fn work() { engine::run(); } }

@@ -1,0 +1,118 @@
+{
+  "stamp": 247,
+  "rule": "idiomatic.arch/port/config-in-factory",
+  "dependency": "Several files",
+  "admitted": [
+    "src/outbound/facts/factory.rs",
+    "src/outbound/facts/interface.rs"
+  ],
+  "given": {
+    "src/outbound/facts/factory.rs": "638c134475b55e7be24e054c03935fc305b8e5a4e6ca008aac3fdcc52b7e6a8d",
+    "src/outbound/facts/interface.rs": "c1b7ff44f247b914159186ef67f455cb747d2db56967c57c3d61148b4d7be23f",
+    "tastemaker.toml": "1efbfe37d7909bb14ca3c4ab10ff39f463e65c766cfc44dccc8db47bc66db07c"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/port/config-in-factory",
+      "include": [
+        "src/outbound/*/factory.rs",
+        "src/outbound/*/factory.rs/**",
+        "src/outbound/*/interface.rs",
+        "src/outbound/*/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-port-config-in-factory-de44ecb7001c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/outbound/facts/factory.rs",
+        "src/outbound/facts/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/outbound/facts/interface.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                133,
+                139
+              ]
+            }
+          ],
+          [
+            "text",
+            "Window"
+          ],
+          [
+            "problem",
+            "is a parameter of the port's factory too: the factory injects it, the method must not take it again"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              133,
+              139
+            ]
+          },
+          "Window",
+          "is a parameter of the port's factory too: the factory injects it, the method must not take it again"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/facts/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

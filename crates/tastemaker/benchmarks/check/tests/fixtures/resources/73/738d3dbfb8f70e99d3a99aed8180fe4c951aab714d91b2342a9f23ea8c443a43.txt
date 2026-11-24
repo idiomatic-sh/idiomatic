@@ -1,0 +1,24 @@
+//! What every `greeting` adapter must pass.
+
+use super::super::interface::GreetingPort;
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = &'static str;
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[Case {
+    name: "shows a greeting",
+    word: Word::Succeeds,
+    input: || (),
+    expect: Expect::Value("hello"),
+}];
+
+/// Runs the contract's rows against one implementation.
+pub fn check(adapter: &impl GreetingPort) {
+    run(CASES, Word::Succeeds, |()| Ok(adapter.show()));
+}

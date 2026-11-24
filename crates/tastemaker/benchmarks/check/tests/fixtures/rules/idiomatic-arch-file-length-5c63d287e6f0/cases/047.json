@@ -1,0 +1,108 @@
+{
+  "stamp": 47,
+  "rule": "idiomatic.arch/file-length",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "notes.md"
+  ],
+  "given": {
+    "notes.md": "76ee24fdeb7907d8858d8c934069513523a95c8de7ac8511b8b945eba03cc8d8",
+    "tastemaker.toml": "fea5751889efb21fa918ab13406f66104aa76d600663746a653934d0f1ade70d"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "tastemaker.toml",
+        "tastemaker.toml/**"
+      ],
+      "id": "idiomatic.arch/file-length",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "max-lines": 3
+      },
+      "query": "idiomatic-arch-file-length-5c63d287e6f0"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "notes.md",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "landing",
+            "no split is named for this kind of file, so examine it for one: sections, concepts or repeated items that could each be a file of their own, and split along that"
+          ],
+          [
+            "ignore",
+            "This kind of file (Markdown, Gherkin, JSON and other kinds without a line comment) cannot hold an ignore, so split or shorten it."
+          ],
+          [
+            "lines",
+            4
+          ],
+          [
+            "path",
+            {
+              "file": "notes.md"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "notes.md"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "notes.md"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

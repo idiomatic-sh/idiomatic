@@ -1,0 +1,12 @@
+pub(crate) mod target_test;
+
+/// Every registry's targets run once and print exactly their findings.
+#[test]
+fn targets_have_their_findings() {
+    let failed = REGISTRIES
+        .iter()
+        .filter_map(|(registry, _, languages)| target_test::findings(registry, *languages).err())
+        .map(|error| error.to_string())
+        .collect::<Vec<_>>();
+    assert!(failed.is_empty(), "{}", failed.join("\n"));
+}

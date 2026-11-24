@@ -1,0 +1,1 @@
+use crate::domain::operator::contract::types::PrimitiveSemantics; pub struct PrimitiveSemanticsBridge; impl PrimitiveSemantics for PrimitiveSemanticsBridge {}

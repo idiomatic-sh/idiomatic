@@ -1,0 +1,111 @@
+{
+  "stamp": 212,
+  "rule": "idiomatic.arch/idiomatic-rust/no-bare-bool",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "8ca8c865cc74b4b56f7f7d35bba692c99c97e6ed61c4d571e6157b35bce10b4c",
+    "tastemaker.toml": "603270e19034dcec02c5a206a42ebe9e7eee9627a0993bffbfe3e46867841409"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-bool",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/constants.rs",
+          "**/errors.rs"
+        ],
+        "libraries": []
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-bool-bb55a7bdc33b"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                39,
+                43
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              39,
+              43
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

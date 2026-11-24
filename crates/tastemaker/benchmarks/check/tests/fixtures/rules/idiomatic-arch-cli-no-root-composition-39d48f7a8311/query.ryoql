@@ -1,0 +1,2 @@
+let files = project(from="filesystem.file", columns=["path"]);
+emit files subject "path" key("path");

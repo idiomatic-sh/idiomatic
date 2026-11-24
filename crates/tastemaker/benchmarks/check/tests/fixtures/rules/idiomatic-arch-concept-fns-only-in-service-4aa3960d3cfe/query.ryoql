@@ -1,0 +1,6 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let files = select * from tree-nodes where glob_any(kind, "{source-file,item-list}");
+let kids = select l."id" as "id", r."child" as "child" from files as l join "syntax-child" as r on l."id" = r."parent";
+let fns = select * from tree-nodes where kind = "fn";
+let found = select r."file" as "file", r."span" as "span" from kids as l join fns as r on l."child" = r."id";
+emit found subject "file" key("span");

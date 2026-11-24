@@ -1,0 +1,5 @@
+//! A grammar's adapter and its table.
+
+mod adapter;
+mod constants;
+mod words;

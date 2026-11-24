@@ -1,0 +1,31 @@
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(Entity)]
+pub fn entity(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Relation, attributes(relation))]
+pub fn relation(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Scalar)]
+pub fn scalar(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Catalog)]
+pub fn catalog(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro_derive(Features)]
+pub fn features(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}
+
+#[proc_macro]
+pub fn table(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}

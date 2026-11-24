@@ -1,0 +1,14 @@
+let got = select * from "tastemaker.found";
+let named = select * from "tastemaker.only";
+let picked = select f."scenario" as "scenario", f."finding" as "finding", f."rule" as "rule", f."path" as "path", f."line" as "line" from got as f join named as o on f."scenario" = o."scenario" where f."full" = o."only" or ends_with(f."full", concat("/", o."only")) or ends_with(f."full", concat("#", o."only"));
+let unnamed = antijoin(left=got, right=named, left-on=["scenario"], right-on=["scenario"]);
+let free = project(from=unnamed, columns=["scenario", "finding", "rule", "path", "line"]);
+let kept = union(left=picked, right=free);
+let found-count = group-count(from=kept, keys=["scenario", "rule", "path", "line"], count="found", distinct="finding");
+let wanted = select * from "tastemaker.expected";
+let expected-count = group-count(from=wanted, keys=["scenario", "rule", "path", "line"], count="expected", distinct="finding");
+let over = select f."scenario" as "scenario", f."rule" as "rule", f."path" as "path", f."line" as "line", f."found" as "found", e."expected" as "expected" from found-count as f join expected-count as e on f."scenario" = e."scenario" and f."rule" = e."rule" and f."path" = e."path" and f."line" = e."line" where f."found" > e."expected";
+let unexpected = antijoin(left=found-count, right=expected-count, left-on=["scenario", "rule", "path", "line"], right-on=["scenario", "rule", "path", "line"]);
+let none = extend(from=unexpected, values={"expected": 0});
+let extra = union(left=over, right=none);
+emit extra subject "scenario" key("scenario", "rule", "path", "line");

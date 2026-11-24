@@ -1,0 +1,6 @@
+//! Wires the greeting.
+
+/// Wires it.
+pub fn build() {
+    crate::resources::store();
+}

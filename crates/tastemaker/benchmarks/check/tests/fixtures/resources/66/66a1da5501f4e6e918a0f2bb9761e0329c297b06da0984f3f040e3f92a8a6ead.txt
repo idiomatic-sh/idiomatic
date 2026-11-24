@@ -1,0 +1,3 @@
+#[derive(Debug, thiserror::Error)]
+#[error("out of range")]
+pub struct RangeError;

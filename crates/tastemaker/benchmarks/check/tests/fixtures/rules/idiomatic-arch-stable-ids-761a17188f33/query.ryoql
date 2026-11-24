@@ -1,0 +1,8 @@
+let strings = select * from "syntax-tree" where kind = "string";
+let spaceless = select * from strings where not glob_any(text, "* *");
+let prefixed = select * from spaceless where glob_any(text, "?\{*PREFIX\}\{\}?") or glob_any(text, "?\{*PREFIX\}\{number\}?") or glob_any(text, "?\{*PREFIX\}\{index\}?") or glob_any(text, "?\{*PREFIX\}\{n\}?") or glob_any(text, "?\{*PREFIX\}\{i\}?");
+let positioned = select * from spaceless where glob_any(text, "*\{position\}*") or glob_any(text, "*\{ordinal\}*");
+let dashed = select * from spaceless where glob_any(text, "?*-\{number\}?") or glob_any(text, "?*-\{index\}?") or glob_any(text, "?*-\{n\}?") or glob_any(text, "?*-\{i\}?");
+let some = union(left=prefixed, right=positioned);
+let found = union(left=some, right=dashed);
+emit found subject "file" key("span");

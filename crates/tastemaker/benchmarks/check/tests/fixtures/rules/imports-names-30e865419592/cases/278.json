@@ -1,0 +1,368 @@
+{
+  "stamp": 278,
+  "rule": "imports-names",
+  "dependency": "One file",
+  "admitted": [
+    "composition.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "composition.rs": "5277644cd7b1bd5b40012b27a71eb7a584ae785953b958590f6e831011105b49",
+    "tastemaker.toml": "9399769c54d726838ff0ec0c8bbdd6e9ee771e7b68991f86a3eacc6800b1bef2"
+  },
+  "beside": {
+    ".tastemaker-rendered/d10a4d188530db6a.composition.rs": "25c615fc919c75cb0ec93ec61b3a74b93248d8fe8ebf61a5c73555b4620ee8e8"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "composition.rs"
+          },
+          "composition",
+          "idiomatic.ryo",
+          "composition-root",
+          "0.2.5",
+          "benchmark-linter"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "composition.rs",
+        ".tastemaker-rendered/d10a4d188530db6a.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "composition.rs",
+        ".tastemaker-rendered/d10a4d188530db6a.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "composition.rs",
+        ".tastemaker-rendered/d10a4d188530db6a.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "composition.rs",
+        ".tastemaker-rendered/d10a4d188530db6a.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "composition.rs",
+        ".tastemaker-rendered/d10a4d188530db6a.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "composition.rs",
+        ".tastemaker-rendered/d10a4d188530db6a.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "composition.rs",
+        ".tastemaker-rendered/d10a4d188530db6a.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "composition.rs",
+        ".tastemaker-rendered/d10a4d188530db6a.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/file-length",
+      "include": [
+        "*.rs",
+        "*.rs/**",
+        "composition/**/*.rs",
+        "composition/**/*.rs/**"
+      ],
+      "parameters": {
+        "max-lines": 400
+      },
+      "query": "idiomatic-arch-file-length-5c63d287e6f0"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/import-directions",
+      "include": [
+        "compiler_feature_test.rs",
+        "compiler_feature_test.rs/**",
+        "engine_test.rs",
+        "engine_test.rs/**",
+        "engine_test/**/*.rs",
+        "engine_test/**/*.rs/**",
+        "frontend_projection.rs",
+        "frontend_projection.rs/**",
+        "frontend_projection/**",
+        "frontend_projection/**/**",
+        "mod.rs",
+        "mod.rs/**",
+        "project_context_test.rs",
+        "project_context_test.rs/**",
+        "sharing.rs",
+        "sharing.rs/**",
+        "sharing/**",
+        "sharing/**/**",
+        "tests.rs",
+        "tests.rs/**",
+        "worker_request_input.rs",
+        "worker_request_input.rs/**",
+        "worker_request_input_constants.rs",
+        "worker_request_input_constants.rs/**"
+      ],
+      "parameters": {
+        "forbidden": [
+          "ryo_core",
+          "ryo_core::*",
+          "ryo_execution::application",
+          "ryo_execution::application::*",
+          "ryo_execution::domain",
+          "ryo_execution::domain::*",
+          "ryo_operators::application",
+          "ryo_operators::application::*",
+          "ryo_operators::domain",
+          "ryo_operators::domain::*",
+          "ryo_matching::application",
+          "ryo_matching::application::*",
+          "ryo_matching::domain",
+          "ryo_matching::domain::*"
+        ]
+      },
+      "query": "idiomatic-arch-import-directions-7dfe82972132"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/orphan-rust-files",
+      "include": [
+        "*.rs",
+        "*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-orphan-rust-files-d1ff19eef5c2"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.ryo/benchmark-linter/companions",
+      "include": [
+        "adapter.rs",
+        "adapter.rs/**",
+        "adapter_test.rs",
+        "adapter_test.rs/**",
+        "bench.rs",
+        "bench.rs/**",
+        "benchmark.toml",
+        "benchmark.toml/**",
+        "composition.rs",
+        "composition.rs/**",
+        "composition/**/*.rs",
+        "composition/**/*.rs/**",
+        "rules/*/cases.toml",
+        "rules/*/cases.toml/**",
+        "rules/*/query.ryoql",
+        "rules/*/query.ryoql/**",
+        "schemas.rs",
+        "schemas.rs/**",
+        "schemas_test.rs",
+        "schemas_test.rs/**",
+        "settings.rs",
+        "settings.rs/**",
+        "tests.rs",
+        "tests.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-benchmark-linter-companions-02a9918f7a40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-edges",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-edges-5c4aa0cd1a93"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-names",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-names-30e865419592"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-owners",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-owners-2799ccd20598"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-packages",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-packages-af0ac9d1e4da"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-scopes",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-scopes-949cb7045580"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "composition.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "occurrence",
+            "composition.rs#4"
+          ],
+          [
+            "owner",
+            "composition.rs#0"
+          ],
+          [
+            "binding",
+            "verify"
+          ],
+          [
+            "target",
+            "ryo_benchmark::application::run::inventory::verify"
+          ],
+          [
+            "file",
+            {
+              "file": "composition.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                4,
+                54
+              ]
+            }
+          ]
+        ],
+        "key": [
+          "composition.rs#4"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "composition.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "stamp": 39,
+  "rule": "idiomatic.arch/distribution-wiring",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "project/cli/Cargo.toml",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "project/cli/Cargo.toml": "a203bad9286720f9076bd85d2ff191d6b291ab1eba8c89fb6f4562a6eabd5246",
+    "tastemaker.toml": "7afa82be844e5a6d400330ad5d535f24729419e8949b0d72eb46cdce04f67548"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/distribution-wiring",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-distribution-wiring-3a9cdbfaef77"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "project/cli/Cargo.toml",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "project/cli/Cargo.toml"
+            }
+          ],
+          [
+            "product",
+            "project"
+          ],
+          [
+            "reason",
+            "distribution is not placed"
+          ]
+        ],
+        "key": [
+          {
+            "file": "project/cli/Cargo.toml"
+          },
+          "distribution is not placed"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "project/cli/Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

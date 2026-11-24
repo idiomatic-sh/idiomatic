@@ -1,0 +1,166 @@
+{
+  "stamp": 125,
+  "rule": "idiomatic.arch/no-whole-state-ports",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/outbound.rs",
+    "src/outbound/store.rs",
+    "src/outbound/store/interface.rs",
+    "src/outbound/store/types.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "975b7da244e9a4851587b3f2f77eb9ed3c0ec6aa2f138965cb3df9f49b9b2a4d",
+    "src/outbound.rs": "b929d667895405f152a3ab344ef5a1404da72312d84418afa7e842a323f44293",
+    "src/outbound/store.rs": "9a93f6c30c2b8e7b80bf9a3ad1bad344ae18df94fbfa0d037d9802f14e53ad27",
+    "src/outbound/store/interface.rs": "6d402fbbef080081a294f13a7a3f6f1b7aee6f5c85708d4c62a491ced0cbda5b",
+    "src/outbound/store/types.rs": "3ecff4dcf5dbd4ffe0cc4dfcb69cbbc105ab4d4b878d0fc7ad98c8da50b06ec3",
+    "tastemaker.toml": "1ce8dc366f0ba0394165c8f18a4215e78c4b81f3efa55397cc05a23077095701"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-whole-state-ports",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-whole-state-ports-79454cc424bc"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/outbound.rs",
+        "src/outbound/store.rs",
+        "src/outbound/store/interface.rs",
+        "src/outbound/store/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "token",
+            "src/outbound/store/interface.rs#128"
+          ],
+          [
+            "file",
+            {
+              "file": "src/outbound/store/interface.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                265,
+                270
+              ]
+            }
+          ],
+          [
+            "text",
+            "Image"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              265,
+              270
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/store/interface.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "token",
+            "src/outbound/store/interface.rs#83"
+          ],
+          [
+            "file",
+            {
+              "file": "src/outbound/store/interface.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                180,
+                185
+              ]
+            }
+          ],
+          [
+            "text",
+            "Image"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              180,
+              185
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/store/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

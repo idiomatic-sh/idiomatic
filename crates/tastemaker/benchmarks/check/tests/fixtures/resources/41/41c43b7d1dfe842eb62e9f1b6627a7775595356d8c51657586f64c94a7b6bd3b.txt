@@ -1,0 +1,3 @@
+//! The `greet` contract.
+
+pub mod contract;

@@ -1,0 +1,5 @@
+//! Cell.
+
+pub struct Row {
+    pub v: f64,
+}

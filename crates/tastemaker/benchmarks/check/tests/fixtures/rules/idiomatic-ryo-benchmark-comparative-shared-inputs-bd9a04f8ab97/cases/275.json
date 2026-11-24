@@ -1,0 +1,99 @@
+{
+  "stamp": 275,
+  "rule": "idiomatic.ryo/benchmark/comparative-shared-inputs",
+  "dependency": "Several readers",
+  "admitted": [
+    "benchmark.toml",
+    "linters/tool/bench.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "benchmark.toml": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "linters/tool/bench.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "894460730cbcbffd620a62771a8d9a52bf7846f230ef2a903d7b5e52e77dad9b"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/benchmark/comparative-shared-inputs",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-benchmark-comparative-shared-inputs-bd9a04f8ab97"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "benchmark.toml",
+        "linters/tool/bench.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "linters/tool/bench.rs"
+            }
+          ],
+          [
+            "group",
+            "comparative"
+          ]
+        ],
+        "key": [
+          {
+            "file": "linters/tool/bench.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "linters/tool/bench.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

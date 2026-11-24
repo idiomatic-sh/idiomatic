@@ -1,0 +1,5 @@
+#![allow(clippy::disallowed_methods)]
+
+pub fn mode() -> Result<String, std::env::VarError> {
+    std::env::var("PRODUCT_MODE")
+}

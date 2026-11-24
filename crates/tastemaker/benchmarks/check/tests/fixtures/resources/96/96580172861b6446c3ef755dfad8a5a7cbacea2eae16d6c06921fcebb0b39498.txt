@@ -1,0 +1,4 @@
+//! The derived views.
+
+/// Derives the views.
+pub fn derive() {}

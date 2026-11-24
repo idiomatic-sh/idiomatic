@@ -1,0 +1,256 @@
+{
+  "stamp": 38,
+  "rule": "declarations-decorates",
+  "dependency": "One file",
+  "admitted": [
+    ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs",
+    "project/distribution/smoke_test.rs"
+  ],
+  "given": {
+    "project/cli/Cargo.toml": "a203bad9286720f9076bd85d2ff191d6b291ab1eba8c89fb6f4562a6eabd5246",
+    "project/distribution/smoke_test.rs": "379e40dbf3c7a116ca1092d4dea8bf3abd4c5478e0439c8c9e54e38d4dc02e80",
+    "tastemaker.toml": "50794f745d1c2ebe95e1eaf17496397b51ba0a9683c59203167b32d655c0435f"
+  },
+  "beside": {
+    ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs": "568449c3735c4924cbed20dbb49e2d716d0b7e032b6b0d4aa89087435b4e3c09"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "project/distribution/smoke_test.rs"
+          },
+          "smoke-test",
+          "idiomatic.arch",
+          "smoke-test",
+          "0.3.5",
+          "distribution"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "project/distribution/smoke_test.rs",
+        ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "project/distribution/smoke_test.rs",
+        ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "project/distribution/smoke_test.rs",
+        ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "project/distribution/smoke_test.rs",
+        ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "project/distribution/smoke_test.rs",
+        ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "project/distribution/smoke_test.rs",
+        ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "project/distribution/smoke_test.rs",
+        ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "project/distribution/smoke_test.rs",
+        ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/distribution-wiring",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-distribution-wiring-3a9cdbfaef77"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/distribution/pin-revision",
+      "include": [
+        "project/distribution/registries/*/targets/*/pin.toml",
+        "project/distribution/registries/*/targets/*/pin.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-distribution-pin-revision-4b6aaf53f3e3"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/smoke-tests-run-no-targets",
+      "include": [
+        "project/distribution/registries/*/smoke_test.rs",
+        "project/distribution/registries/*/smoke_test.rs/**",
+        "project/distribution/smoke_test.rs",
+        "project/distribution/smoke_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-smoke-tests-run-no-targets-1d1a243987b4"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/whole-project-perf-targets",
+      "include": [
+        "project/distribution/registries/*/targets/*/pin.toml",
+        "project/distribution/registries/*/targets/*/pin.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-whole-project-perf-targets-2f1a8592a607"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "project/cli/Cargo.toml",
+        "project/distribution/smoke_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "occurrence",
+            ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs#12"
+          ],
+          [
+            "declaration",
+            ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs#11"
+          ],
+          [
+            "ordinal",
+            0
+          ],
+          [
+            "target",
+            "path"
+          ],
+          [
+            "arguments",
+            "\"registries/cargo/smoke_test.rs\""
+          ],
+          [
+            "file",
+            {
+              "file": ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                417,
+                459
+              ]
+            }
+          ]
+        ],
+        "key": [
+          ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs#12"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": ".tastemaker-rendered/d99b12cebd58d51f.smoke_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

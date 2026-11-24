@@ -1,0 +1,13 @@
+//! The entry traits and a read-only one.
+
+pub trait FileExecution {
+    fn run(&self);
+}
+
+pub trait PreparedQueries {
+    fn plans(&self) -> usize;
+}
+
+pub trait NewStage {
+    fn admit(&self);
+}

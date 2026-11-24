@@ -1,0 +1,1 @@
+use crate::domain::derived_views::collections::views::registration::registered;

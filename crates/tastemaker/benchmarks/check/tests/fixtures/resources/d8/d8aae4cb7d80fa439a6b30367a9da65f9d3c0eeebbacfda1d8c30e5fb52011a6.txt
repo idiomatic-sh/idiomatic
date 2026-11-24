@@ -1,0 +1,13 @@
+use ryo::languages::{self, Reader, AbsenceCause, Support};
+
+pub struct ParseUseCaseImpl;
+
+impl languages::Parse for ParseUseCaseImpl {
+    fn function(&self) -> Support<Reader<languages::Function>> {
+        Support::Reads(FunctionItem::READER)
+    }
+
+    fn comment(&self) -> Support<Reader<languages::Comment>> {
+        Support::NotInThisLanguage(AbsenceCause::NoSuchConstruct)
+    }
+}

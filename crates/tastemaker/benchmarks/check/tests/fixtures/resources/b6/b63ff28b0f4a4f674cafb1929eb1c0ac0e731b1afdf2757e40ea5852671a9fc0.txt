@@ -1,0 +1,3 @@
+pub(crate) fn fail() -> &'static str {
+    "configuration missing"
+}

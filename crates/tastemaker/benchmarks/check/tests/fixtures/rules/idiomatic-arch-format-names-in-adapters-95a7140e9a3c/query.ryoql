@@ -1,0 +1,2 @@
+let versioned = select l."file" as "file", l."span" as "span", l."value" as "value" from "string-literal" as l where glob_any(value, "*-v[0-9]*");
+emit versioned subject "file" key("span");

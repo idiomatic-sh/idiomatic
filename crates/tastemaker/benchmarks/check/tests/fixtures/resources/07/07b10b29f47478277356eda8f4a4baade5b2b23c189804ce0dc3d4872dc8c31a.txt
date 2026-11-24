@@ -1,0 +1,6 @@
+//! What the edge names adapter is configured with.
+
+/// The edge names adapter's settings: the values and parts its
+/// composition chooses.
+#[derive(Debug)]
+struct NamesEdgeSettings {}

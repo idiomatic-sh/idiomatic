@@ -1,0 +1,6 @@
+//! What the `names` port asks of the outside, in the core's own vocabulary: plain data in and out,
+//! and the handles (traits this file declares) it hands back. It never takes an adapter's
+//! configuration (a directory, a budget, a client): the port's factory takes that.
+
+/// What every `names` adapter implements.
+pub trait NamesPort {}

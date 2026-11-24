@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/operator-meaning-once", description = "The definition under test, placed alone.", include = ["**"], params = { calls = ["{OperatorCall,*::OperatorCall}::*"], engine = ["engine/src/**"], engine-calls = ["{OperatorCall,*::OperatorCall}::{Evaluate,ReduceCount}"], functions = ["engine/src/application/pass.rs", "engine/src/application/pass/**"], kinds = ["values/src/kinds.rs"], modules = ["engine/src/domain/operator.rs", "engine/src/domain/operator/**"] } }]

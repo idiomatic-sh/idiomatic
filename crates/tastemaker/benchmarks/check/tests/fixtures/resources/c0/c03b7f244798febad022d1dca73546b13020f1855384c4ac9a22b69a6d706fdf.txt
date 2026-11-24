@@ -1,0 +1,23 @@
+fn pinned(folders: &[std::path::PathBuf]) -> usize {
+    let mut seen = 0;
+    for folder in folders {
+        for entry in std::fs::read_dir(&folder).into_iter().flatten().flatten() {
+            seen += usize::from(entry.path().is_file());
+        }
+    }
+    seen
+}
+fn manifests_below(directory: &std::path::Path, found: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(directory) else {
+        return;
+    };
+    for entry in entries.filter_map(Result::ok) {
+        found.push(entry.path().display().to_string());
+    }
+}
+fn listed(directory: &std::path::Path) -> usize {
+    if let Ok(entries) = std::fs::read_dir(directory) {
+        return entries.count();
+    }
+    0
+}

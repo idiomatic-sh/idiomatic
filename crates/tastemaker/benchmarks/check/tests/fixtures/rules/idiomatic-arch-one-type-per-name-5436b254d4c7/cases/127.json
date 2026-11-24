@@ -1,0 +1,146 @@
+{
+  "stamp": 127,
+  "rule": "idiomatic.arch/one-type-per-name",
+  "dependency": "Several readers",
+  "admitted": [
+    "crates/core/src/domain/perf/types.rs",
+    "crates/core/src/domain/violations/types.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "crates/core/src/domain/perf/types.rs": "debe49a9256bcb02d4a41b5f7f00377f10cefa6b9820596c9645356ec6a13c16",
+    "crates/core/src/domain/violations/types.rs": "84d279bbdccdee0091842342b31c8297d20d168587c79cf4772cdeb37b608c38",
+    "tastemaker.toml": "14cd802b0cce3480f4fc0c7200538a278f2c08ed2d77a5cd6f5cd554d25adfa4"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/one-type-per-name",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-one-type-per-name-5436b254d4c7"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "crates/core/src/domain/perf/types.rs",
+        "crates/core/src/domain/violations/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "Standing"
+          ],
+          [
+            "file",
+            {
+              "file": "crates/core/src/domain/perf/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                98,
+                106
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              98,
+              106
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/core/src/domain/perf/types.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "name",
+            "Standing"
+          ],
+          [
+            "file",
+            {
+              "file": "crates/core/src/domain/violations/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                119,
+                127
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              119,
+              127
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/core/src/domain/violations/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,11 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let files = select * from tree-nodes where kind = "source-file";
+let kids = select l."id" as "id", l."file" as "file", l."span" as "span", r."child" as "child" from files as l join "syntax-child" as r on l."id" = r."parent";
+let fns = select * from tree-nodes where kind = "fn";
+let with-fn = select l."id" as "id" from kids as l join fns as r on l."child" = r."id";
+let macros = select * from tree-nodes where kind = "macro-rules";
+let with-macro = select l."id" as "id" from kids as l join macros as r on l."child" = r."id";
+let with-verb = union(left=with-fn, right=with-macro);
+let hollow = antijoin(left=files, right=with-verb, left-on=["id"], right-on=["id"]);
+let rows = project(from=hollow, columns=["file", "span"]);
+emit rows subject "file" key("span");

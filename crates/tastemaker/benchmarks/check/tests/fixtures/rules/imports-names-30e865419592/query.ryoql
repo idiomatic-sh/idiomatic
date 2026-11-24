@@ -1,0 +1,2 @@
+let rows = select * from "static-import";
+emit rows subject "file" key("occurrence");

@@ -1,0 +1,6 @@
+let files = capture(from="filesystem.file", path="path", pattern="{*dir}/{name}.tsv", captures=["dir", "name"]);
+let root-files = capture(from="filesystem.file", path="path", pattern="{name}.tsv", captures=["name"]);
+let nested = project(from=files, columns=["path"]);
+let top = project(from=root-files, columns=["path"]);
+let found = union(left=nested, right=top);
+emit found subject "path" key("path");

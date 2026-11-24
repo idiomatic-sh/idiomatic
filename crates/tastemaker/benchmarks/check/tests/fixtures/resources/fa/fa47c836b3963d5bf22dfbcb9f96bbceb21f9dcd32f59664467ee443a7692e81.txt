@@ -1,0 +1,3 @@
+//! The core.
+
+pub mod outcome;

@@ -1,0 +1,10 @@
+use super::types::{Build, Image};
+
+/// What a run kept.
+pub trait CachePort {
+    /// What the last run of this build kept, or an empty image.
+    fn load(&self, build: &Build) -> Image;
+
+    /// Keeps what this run found.
+    fn save(&self, build: &Build, image: &Image);
+}

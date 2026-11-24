@@ -1,0 +1,2 @@
+/// A value of the resource itself.
+pub struct Local;

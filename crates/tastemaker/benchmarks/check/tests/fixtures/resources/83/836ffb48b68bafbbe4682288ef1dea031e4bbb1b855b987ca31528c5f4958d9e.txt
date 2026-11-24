@@ -1,0 +1,8 @@
+pub struct Thing;
+
+#[macro_export]
+macro_rules! make {
+    () => {
+        crate::Thing
+    };
+}

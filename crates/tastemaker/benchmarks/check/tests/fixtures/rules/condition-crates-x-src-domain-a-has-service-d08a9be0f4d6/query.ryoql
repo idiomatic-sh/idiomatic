@@ -1,0 +1,4 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let files = select * from tree-nodes where kind = "source-file";
+let found = project(from=files, columns=["file", "span"]);
+emit found subject "file" key("span");

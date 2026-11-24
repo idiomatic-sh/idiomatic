@@ -1,0 +1,112 @@
+{
+  "stamp": 13,
+  "rule": "idiomatic.arch/case-expectation",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/domain/short/service_test.rs"
+  ],
+  "given": {
+    "src/greeting/domain/short/service_test.rs": "5970b29b5e2f83ce04baf0c230db449a05ca815e4dd291ac25776f1d08ec4e3a",
+    "tastemaker.toml": "499249d9503c579fbc44b6a1ca6e2818b05ae2835385150c9223ae4f122c18dc"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/case-expectation",
+      "include": [
+        "**/*_test.rs",
+        "**/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-case-expectation-d0aa767a915e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/domain/short/service_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/greeting/domain/short/service_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                667,
+                673
+              ]
+            }
+          ],
+          [
+            "text",
+            "is_err"
+          ],
+          [
+            "problem",
+            "asks only whether the result is Ok or Err"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              667,
+              673
+            ]
+          },
+          "asks only whether the result is Ok or Err"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/domain/short/service_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

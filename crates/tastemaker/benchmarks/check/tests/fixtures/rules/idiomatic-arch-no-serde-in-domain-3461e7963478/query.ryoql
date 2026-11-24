@@ -1,0 +1,10 @@
+let derive-rows = select l."file" as "file", l."span" as "span", l."arguments" as "what" from "decorates" as l where l."target" = "derive";
+let derives = select * from derive-rows where glob_any(what, "{*Serialize*,*Deserialize*}");
+let imports = select l."file" as "file", l."span" as "span", l."target" as "what" from "static-import" as l where glob_any(l."target", "{serde,serde::*,serde_*}");
+let calls = select l."file" as "file", l."span" as "span", l."target" as "what" from "static-call" as l where glob_any(l."target", "{serde::*,serde_*::*}");
+let written = union(left=derives, right=imports);
+let used = union(left=written, right=calls);
+let inward = select * from used where not glob_any(file, "{**/outbound/*/adapters/*/schemas.rs,**/outbound/*/adapters/*/schemas/**,**/cli/src/resources/**/schemas.rs,**/cli/src/output/schemas.rs,**/crates/sdk/src/resources/**/types.rs,**/crates/sdk/src/resources/**/schemas.rs}");
+let governed-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "adapter" and glob_any(l."template", "{schemas}");
+let outside = antijoin(left=inward, right=governed-roles, left-on=["file"], right-on=["file"]);
+emit outside subject "file" key("span");

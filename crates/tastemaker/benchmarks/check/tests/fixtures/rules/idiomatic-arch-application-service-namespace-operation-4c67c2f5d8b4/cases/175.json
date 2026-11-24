@@ -1,0 +1,71 @@
+{
+  "stamp": 175,
+  "rule": "idiomatic.arch/application-service/namespace-operation",
+  "dependency": "One file",
+  "admitted": [
+    "src/short/fixtures.rs"
+  ],
+  "given": {
+    "src/short/fixtures.rs": "01e7955096696d23fad0953142ca502970efc970736d3213827140cbd36e0a2b",
+    "tastemaker.toml": "96268117abdc9b899f61da84484e922d4d9114e04a1bd4b4910ee31737aee848"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/application-service/namespace-operation",
+      "include": [
+        "src/short/*.rs",
+        "src/short/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-application-service-namespace-operation-4c67c2f5d8b4"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/short/fixtures.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": []
+  }
+}

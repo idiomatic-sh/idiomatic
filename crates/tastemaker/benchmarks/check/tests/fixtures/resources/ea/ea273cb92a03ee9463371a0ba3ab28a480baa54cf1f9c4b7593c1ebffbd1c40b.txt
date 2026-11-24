@@ -1,0 +1,15 @@
+//! The wiring of `greeting list`: the edge takes the clients its connections opened and the parts its
+//! caller supplies, chooses each implementation, passes each client to each factory that needs it, and
+//! builds the service it calls. It only constructs: opening a store is the connections' I/O. Nothing here
+//! implements a port.
+
+use super::connections::GreetingListConnections;
+
+/// The dependencies the caller supplies.
+pub(crate) struct GreetingListParts;
+
+/// Wires the service from the clients and the supplied dependencies; it only constructs.
+pub(crate) fn compose(connections: GreetingListConnections, parts: GreetingListParts) {
+    let GreetingListConnections = connections;
+    let GreetingListParts = parts;
+}

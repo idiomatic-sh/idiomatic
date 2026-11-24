@@ -1,0 +1,4 @@
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let identifiers = select * from tree-tokens where kind = "ident";
+let thiserror = select * from identifiers where text = "thiserror";
+emit thiserror subject "file" key("span");

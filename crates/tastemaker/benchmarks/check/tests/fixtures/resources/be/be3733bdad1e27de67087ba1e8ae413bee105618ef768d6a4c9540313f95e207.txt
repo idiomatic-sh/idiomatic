@@ -1,0 +1,10 @@
+use super::adapters::{disk::StorageDiskAdapter, memory::StorageMemoryAdapter};
+use super::interface::StorageInterface;
+
+pub fn memory() -> impl StorageInterface {
+    StorageMemoryAdapter::new()
+}
+
+pub fn disk() -> impl StorageInterface {
+    StorageDiskAdapter::new()
+}

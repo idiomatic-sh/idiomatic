@@ -1,0 +1,4 @@
+//! The external resource this adapter receives from the edge.
+// Define the named Connection handle and its resource-opening operation here.
+// Keep session state private; bind the handle and any typed partition in the port factory.
+// Prove isolation, lifetime and failed publication in the existing adapter contract tests.

@@ -1,0 +1,12 @@
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let tests = select * from listed-files where file = "ci/workflows_test.py";
+let scopes = project(from="scope", columns=["parent", "child"]);
+let modules = select * from scopes where parent = child;
+let outermost = select l."parent" as "parent", l."child" as "child" from scopes as l join modules as r on l."parent" = r."child";
+let enclosed = antijoin(left=scopes, right=outermost, left-on=["child"], right-on=["child"]);
+let module-functions = antijoin(left="function", right=enclosed, left-on=["id"], right-on=["child"]);
+let check-tests = select * from module-functions where name = "test_every_workflow_checks_through_one_asymptote_call";
+let trigger-tests = select * from module-functions where name = "test_every_workflow_runs_only_on_its_allowed_triggers";
+let workflow-tested = select l."file" as "file" from check-tests as l join trigger-tests as r on l."file" = r."file";
+let findings = antijoin(left=tests, right=workflow-tested, left-on=["file"], right-on=["file"]);
+emit findings subject "file" key("file");

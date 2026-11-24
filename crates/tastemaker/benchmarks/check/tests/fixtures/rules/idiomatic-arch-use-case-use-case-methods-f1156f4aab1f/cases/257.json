@@ -1,0 +1,118 @@
+{
+  "stamp": 257,
+  "rule": "idiomatic.arch/use-case/use-case-methods",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/inbound/use_cases/greet/interface.rs"
+  ],
+  "given": {
+    "src/inbound/use_cases/greet/interface.rs": "9d69adb9b04b00000e43265047b18ccf7751fc04452227857cace877d5ede776",
+    "tastemaker.toml": "bed36843b19f9157ae5960a1774b59727fa0787c75aff59b7b893affcce86749"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/use-case/use-case-methods",
+      "include": [
+        "src/inbound/use_cases/greet/interface.rs",
+        "src/inbound/use_cases/greet/interface.rs/**"
+      ],
+      "parameters": {
+        "kind": "use-case"
+      },
+      "query": "idiomatic-arch-use-case-use-case-methods-f1156f4aab1f"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/inbound/use_cases/greet/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "method",
+            "farewell"
+          ],
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/greet/interface.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                196,
+                262
+              ]
+            }
+          ],
+          [
+            "part",
+            "greet"
+          ],
+          [
+            "problem",
+            "declares a method other than its own:"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              196,
+              262
+            ]
+          },
+          "farewell"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/greet/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,14 @@
+param library: set<string>;
+param surface: set<string>;
+let imports = project(from="static-import", columns=["file", "span", "target"]);
+let references = project(from="reference", columns=["file", "span", "target"]);
+let written = union(left=imports, right=references);
+let externs = select * from "defines" where kind = "import" and refinement = "extern-crate";
+let extern-children = select l."file" as "file", l."span" as "span", r."child" as "child" from externs as l join "syntax-child" as r on l."id" = r."parent";
+let extern-refs = select l."file" as "file", l."span" as "span", r."id" as "ref" from extern-children as l join "syntax-tree" as r on l."child" = r."id" where r."kind" = "name-ref";
+let extern-tokens = select l."file" as "file", l."span" as "span", r."child" as "token" from extern-refs as l join "syntax-child" as r on l."ref" = r."parent";
+let extern-crates = select l."file" as "file", l."span" as "span", r."text" as "target" from extern-tokens as l join "syntax-tree" as r on l."token" = r."id" where r."kind" = "ident";
+let mentions = union(left=written, right=extern-crates);
+let named = select * from mentions where glob_any(target, $library);
+let outside = select * from named where not glob_any(target, $surface);
+emit outside subject "file" key("span");

@@ -1,0 +1,8 @@
+//! What an implementation of the greeting runs.
+
+use other::fixtures::contract;
+
+/// Runs the contract.
+pub fn run() {
+    contract::check();
+}

@@ -1,0 +1,7 @@
+#[test]
+fn installs_and_runs() {
+    let directory = tempfile::tempdir().unwrap();
+    let installed = command(directory.path()).unwrap();
+    assert!(has_version(&output(Command::new(&installed).arg("--version")).unwrap()));
+    super::target_test::installed_findings("cargo", &installed).unwrap();
+}

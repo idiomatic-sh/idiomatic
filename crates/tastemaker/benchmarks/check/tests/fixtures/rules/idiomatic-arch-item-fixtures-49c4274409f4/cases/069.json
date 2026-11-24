@@ -1,0 +1,72 @@
+{
+  "stamp": 69,
+  "rule": "idiomatic.arch/item-fixtures",
+  "dependency": "Several readers",
+  "admitted": [
+    "crates/core/src/domain/syntax/collections/operators/placeholder/item.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "crates/core/src/domain/syntax/collections/operators/placeholder/item.rs": "28669212845c95ff8095b73203fa866b0cb5d984c7407247846639f294ec9325",
+    "tastemaker.toml": "a5ba2121cc7f82795538a2f3a53385399f836c7e952edce989823996b394dabf"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/item-fixtures",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-item-fixtures-49c4274409f4"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "crates/core/src/domain/syntax/collections/operators/placeholder/item.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": []
+  }
+}

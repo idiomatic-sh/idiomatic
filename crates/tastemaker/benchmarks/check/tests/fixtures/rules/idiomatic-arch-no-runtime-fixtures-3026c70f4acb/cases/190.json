@@ -1,0 +1,725 @@
+{
+  "stamp": 190,
+  "rule": "idiomatic.arch/no-runtime-fixtures",
+  "dependency": "Project",
+  "admitted": [
+    "src/domain/greeting/lowering.rs"
+  ],
+  "given": {
+    "Cargo.toml": "e99681e71617c41e3dfbb0516d07a2baa7f1400f84fbf7ad475dd92cb3808f01",
+    "src/cases.rs": "5bcc185ba13bf6e23ec7ad4396472b773c51253675efd9be9240ec0d4a37db29",
+    "src/domain.rs": "5b5d8f2225558848ca4b6238a6eb593fb03ad0478ec1a5427106b3e64f8670c4",
+    "src/domain/greeting/fixtures/inputs.rs": "d93e9421e232c6275397212fdd0cdb42c8fea84f35b8fc940abc70cb4a82a3c8",
+    "src/domain/greeting/lowering.rs": "39650f95cb3f70233b63e7b4198302877814cb09abeeceaf634955edf3a68b06",
+    "src/domain/greeting/lowering/rows.rs": "0ed9469271a79c65111a50257b394f71cdcb58f9c011b46f534d4910cc099dfa",
+    "src/domain/greeting/lowering/rows/cells/service.rs": "4d21441ae8b629f51d32aeb8e741e83c389d0036af54038c2fccbf123c6cde5a",
+    "src/domain/greeting/lowering/rows/cells/types.rs": "28de97a6e095bdaa309c03a3654e32a80c0b07e77c919ce7b943967063fdb1f0",
+    "src/domain/greeting/lowering/service_test/shape.rs": "294662d23952fdb3b0a23e7174f59d715510979f91f8f9fd850e0bc14cee0009",
+    "src/domain/greeting/lowering/service_test/shape/test.rs": "b73ba7e6398684af009cb20a698d01d8557ba8146692a25df74f3ea75ddaf08d",
+    "src/domain/greeting/service_test/order.rs": "294662d23952fdb3b0a23e7174f59d715510979f91f8f9fd850e0bc14cee0009",
+    "src/domain/greeting/service_test/order/test.rs": "1ac10ee1d32ddcf25e4c7a5fc7c8086e26050ff916b3d350898c9f37a168bb08",
+    "src/domain/polite.rs": "3a4e1de918cc06c9bd22cad0173429a3029575135283723ef0726b4ed93756cc",
+    "src/lib.rs": "43f9302cb4a27ff9de2c193fff261ccacce65515de21727e9f266fc6d337b903",
+    "tastemaker.toml": "db7205ffc9900295fc77af3bc1bce6222bb09a44f51f0f4c31aa86e65fdd1c16"
+  },
+  "beside": {
+    ".tastemaker-rendered/1f7da21355996306.order.rs": "d2f4d44bbe7706a25628783dac200602f41d7ab1a4800a82a2ed359cd270fdbc",
+    ".tastemaker-rendered/5073cd8c5f9ff77f.types.rs": "d2903e8a553e12bdae7d50f2632c7932781c90a1b24a12d04e5815530be1ab4f",
+    ".tastemaker-rendered/6b86437d62fe5d6f.lowering.rs": "93867b4b9da4ca3391f6571fffe832556b2a9be7aa820140708dda0eb1be2893",
+    ".tastemaker-rendered/a8c61aa87de2b0a9.rows.rs": "93867b4b9da4ca3391f6571fffe832556b2a9be7aa820140708dda0eb1be2893",
+    ".tastemaker-rendered/ac7259732b162ee2.inputs.rs": "d995ad703a7d26e44a1c016e768ddbc97b09bce62beb742001107256c8a84b33",
+    ".tastemaker-rendered/d3dcc2355f25b2e1.service.rs": "ae0581c24f0515ca8be906232bcec74f5cbd0bba18e5c1789daa9977b7e4b935",
+    ".tastemaker-rendered/d61a35c382e27712.test.rs": "3b8742c9e0f659181b12fd06efb68338ca95c3d68792abd2db2855ac854adfff",
+    ".tastemaker-rendered/e6cabb70420babab.test.rs": "85ea289a42f7c2d845ec66255e411801dac9605fc71b0319fafb9e50bfa56ad3",
+    ".tastemaker-rendered/fd1cb96b8a92d62a.shape.rs": "d2f4d44bbe7706a25628783dac200602f41d7ab1a4800a82a2ed359cd270fdbc"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "src/domain/greeting/fixtures/inputs.rs"
+          },
+          "fixture-files",
+          "idiomatic.arch",
+          "concept-fixtures",
+          "0.1.3",
+          "concept"
+        ],
+        [
+          {
+            "file": "src/domain/greeting/lowering.rs"
+          },
+          "part-module",
+          "idiomatic.arch",
+          "part-module",
+          "0.1.0",
+          "concept"
+        ],
+        [
+          {
+            "file": "src/domain/greeting/lowering/rows.rs"
+          },
+          "nested-part-module",
+          "idiomatic.arch",
+          "part-module",
+          "0.1.0",
+          "concept"
+        ],
+        [
+          {
+            "file": "src/domain/greeting/lowering/rows/cells/service.rs"
+          },
+          "part-service",
+          "idiomatic.arch",
+          "service",
+          "0.1.3",
+          "concept"
+        ],
+        [
+          {
+            "file": "src/domain/greeting/lowering/rows/cells/types.rs"
+          },
+          "part-types",
+          "idiomatic.arch",
+          "types",
+          "0.1.0",
+          "concept"
+        ],
+        [
+          {
+            "file": "src/domain/greeting/lowering/service_test/shape.rs"
+          },
+          "part-group-module",
+          "idiomatic.arch",
+          "test-group-module",
+          "0.2.0",
+          "concept"
+        ],
+        [
+          {
+            "file": "src/domain/greeting/lowering/service_test/shape/test.rs"
+          },
+          "part-group-test",
+          "idiomatic.arch",
+          "unit-test",
+          "0.1.0",
+          "concept"
+        ],
+        [
+          {
+            "file": "src/domain/greeting/service_test/order.rs"
+          },
+          "group-module",
+          "idiomatic.arch",
+          "test-group-module",
+          "0.2.0",
+          "concept"
+        ],
+        [
+          {
+            "file": "src/domain/greeting/service_test/order/test.rs"
+          },
+          "group-test",
+          "idiomatic.arch",
+          "unit-test",
+          "0.1.0",
+          "concept"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "src/domain/greeting/fixtures/inputs.rs",
+        ".tastemaker-rendered/ac7259732b162ee2.inputs.rs",
+        "src/domain/greeting/lowering.rs",
+        ".tastemaker-rendered/6b86437d62fe5d6f.lowering.rs",
+        "src/domain/greeting/lowering/rows.rs",
+        ".tastemaker-rendered/a8c61aa87de2b0a9.rows.rs",
+        "src/domain/greeting/lowering/rows/cells/service.rs",
+        ".tastemaker-rendered/d3dcc2355f25b2e1.service.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        ".tastemaker-rendered/5073cd8c5f9ff77f.types.rs",
+        "src/domain/greeting/lowering/service_test/shape.rs",
+        ".tastemaker-rendered/fd1cb96b8a92d62a.shape.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        ".tastemaker-rendered/e6cabb70420babab.test.rs",
+        "src/domain/greeting/service_test/order.rs",
+        ".tastemaker-rendered/1f7da21355996306.order.rs",
+        "src/domain/greeting/service_test/order/test.rs",
+        ".tastemaker-rendered/d61a35c382e27712.test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "src/domain/greeting/fixtures/inputs.rs",
+        ".tastemaker-rendered/ac7259732b162ee2.inputs.rs",
+        "src/domain/greeting/lowering.rs",
+        ".tastemaker-rendered/6b86437d62fe5d6f.lowering.rs",
+        "src/domain/greeting/lowering/rows.rs",
+        ".tastemaker-rendered/a8c61aa87de2b0a9.rows.rs",
+        "src/domain/greeting/lowering/rows/cells/service.rs",
+        ".tastemaker-rendered/d3dcc2355f25b2e1.service.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        ".tastemaker-rendered/5073cd8c5f9ff77f.types.rs",
+        "src/domain/greeting/lowering/service_test/shape.rs",
+        ".tastemaker-rendered/fd1cb96b8a92d62a.shape.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        ".tastemaker-rendered/e6cabb70420babab.test.rs",
+        "src/domain/greeting/service_test/order.rs",
+        ".tastemaker-rendered/1f7da21355996306.order.rs",
+        "src/domain/greeting/service_test/order/test.rs",
+        ".tastemaker-rendered/d61a35c382e27712.test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "src/domain/greeting/fixtures/inputs.rs",
+        ".tastemaker-rendered/ac7259732b162ee2.inputs.rs",
+        "src/domain/greeting/lowering.rs",
+        ".tastemaker-rendered/6b86437d62fe5d6f.lowering.rs",
+        "src/domain/greeting/lowering/rows.rs",
+        ".tastemaker-rendered/a8c61aa87de2b0a9.rows.rs",
+        "src/domain/greeting/lowering/rows/cells/service.rs",
+        ".tastemaker-rendered/d3dcc2355f25b2e1.service.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        ".tastemaker-rendered/5073cd8c5f9ff77f.types.rs",
+        "src/domain/greeting/lowering/service_test/shape.rs",
+        ".tastemaker-rendered/fd1cb96b8a92d62a.shape.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        ".tastemaker-rendered/e6cabb70420babab.test.rs",
+        "src/domain/greeting/service_test/order.rs",
+        ".tastemaker-rendered/1f7da21355996306.order.rs",
+        "src/domain/greeting/service_test/order/test.rs",
+        ".tastemaker-rendered/d61a35c382e27712.test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "src/domain/greeting/fixtures/inputs.rs",
+        ".tastemaker-rendered/ac7259732b162ee2.inputs.rs",
+        "src/domain/greeting/lowering.rs",
+        ".tastemaker-rendered/6b86437d62fe5d6f.lowering.rs",
+        "src/domain/greeting/lowering/rows.rs",
+        ".tastemaker-rendered/a8c61aa87de2b0a9.rows.rs",
+        "src/domain/greeting/lowering/rows/cells/service.rs",
+        ".tastemaker-rendered/d3dcc2355f25b2e1.service.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        ".tastemaker-rendered/5073cd8c5f9ff77f.types.rs",
+        "src/domain/greeting/lowering/service_test/shape.rs",
+        ".tastemaker-rendered/fd1cb96b8a92d62a.shape.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        ".tastemaker-rendered/e6cabb70420babab.test.rs",
+        "src/domain/greeting/service_test/order.rs",
+        ".tastemaker-rendered/1f7da21355996306.order.rs",
+        "src/domain/greeting/service_test/order/test.rs",
+        ".tastemaker-rendered/d61a35c382e27712.test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "src/domain/greeting/fixtures/inputs.rs",
+        ".tastemaker-rendered/ac7259732b162ee2.inputs.rs",
+        "src/domain/greeting/lowering.rs",
+        ".tastemaker-rendered/6b86437d62fe5d6f.lowering.rs",
+        "src/domain/greeting/lowering/rows.rs",
+        ".tastemaker-rendered/a8c61aa87de2b0a9.rows.rs",
+        "src/domain/greeting/lowering/rows/cells/service.rs",
+        ".tastemaker-rendered/d3dcc2355f25b2e1.service.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        ".tastemaker-rendered/5073cd8c5f9ff77f.types.rs",
+        "src/domain/greeting/lowering/service_test/shape.rs",
+        ".tastemaker-rendered/fd1cb96b8a92d62a.shape.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        ".tastemaker-rendered/e6cabb70420babab.test.rs",
+        "src/domain/greeting/service_test/order.rs",
+        ".tastemaker-rendered/1f7da21355996306.order.rs",
+        "src/domain/greeting/service_test/order/test.rs",
+        ".tastemaker-rendered/d61a35c382e27712.test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "src/domain/greeting/fixtures/inputs.rs",
+        ".tastemaker-rendered/ac7259732b162ee2.inputs.rs",
+        "src/domain/greeting/lowering.rs",
+        ".tastemaker-rendered/6b86437d62fe5d6f.lowering.rs",
+        "src/domain/greeting/lowering/rows.rs",
+        ".tastemaker-rendered/a8c61aa87de2b0a9.rows.rs",
+        "src/domain/greeting/lowering/rows/cells/service.rs",
+        ".tastemaker-rendered/d3dcc2355f25b2e1.service.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        ".tastemaker-rendered/5073cd8c5f9ff77f.types.rs",
+        "src/domain/greeting/lowering/service_test/shape.rs",
+        ".tastemaker-rendered/fd1cb96b8a92d62a.shape.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        ".tastemaker-rendered/e6cabb70420babab.test.rs",
+        "src/domain/greeting/service_test/order.rs",
+        ".tastemaker-rendered/1f7da21355996306.order.rs",
+        "src/domain/greeting/service_test/order/test.rs",
+        ".tastemaker-rendered/d61a35c382e27712.test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "src/domain/greeting/fixtures/inputs.rs",
+        ".tastemaker-rendered/ac7259732b162ee2.inputs.rs",
+        "src/domain/greeting/lowering.rs",
+        ".tastemaker-rendered/6b86437d62fe5d6f.lowering.rs",
+        "src/domain/greeting/lowering/rows.rs",
+        ".tastemaker-rendered/a8c61aa87de2b0a9.rows.rs",
+        "src/domain/greeting/lowering/rows/cells/service.rs",
+        ".tastemaker-rendered/d3dcc2355f25b2e1.service.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        ".tastemaker-rendered/5073cd8c5f9ff77f.types.rs",
+        "src/domain/greeting/lowering/service_test/shape.rs",
+        ".tastemaker-rendered/fd1cb96b8a92d62a.shape.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        ".tastemaker-rendered/e6cabb70420babab.test.rs",
+        "src/domain/greeting/service_test/order.rs",
+        ".tastemaker-rendered/1f7da21355996306.order.rs",
+        "src/domain/greeting/service_test/order/test.rs",
+        ".tastemaker-rendered/d61a35c382e27712.test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "src/domain/greeting/fixtures/inputs.rs",
+        ".tastemaker-rendered/ac7259732b162ee2.inputs.rs",
+        "src/domain/greeting/lowering.rs",
+        ".tastemaker-rendered/6b86437d62fe5d6f.lowering.rs",
+        "src/domain/greeting/lowering/rows.rs",
+        ".tastemaker-rendered/a8c61aa87de2b0a9.rows.rs",
+        "src/domain/greeting/lowering/rows/cells/service.rs",
+        ".tastemaker-rendered/d3dcc2355f25b2e1.service.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        ".tastemaker-rendered/5073cd8c5f9ff77f.types.rs",
+        "src/domain/greeting/lowering/service_test/shape.rs",
+        ".tastemaker-rendered/fd1cb96b8a92d62a.shape.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        ".tastemaker-rendered/e6cabb70420babab.test.rs",
+        "src/domain/greeting/service_test/order.rs",
+        ".tastemaker-rendered/1f7da21355996306.order.rs",
+        "src/domain/greeting/service_test/order/test.rs",
+        ".tastemaker-rendered/d61a35c382e27712.test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/case-expectation",
+      "include": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs/**",
+        "src/domain/greeting/service_test/order/test.rs",
+        "src/domain/greeting/service_test/order/test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-case-expectation-d0aa767a915e"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/concept/fns-only-in-service",
+      "include": [
+        "src/domain/greeting/errors.rs",
+        "src/domain/greeting/errors.rs/**",
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs/**",
+        "src/domain/greeting/types.rs",
+        "src/domain/greeting/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-concept-fns-only-in-service-4aa3960d3cfe"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/concept/service-has-fn",
+      "include": [
+        "src/domain/greeting/lowering/rows/cells/service.rs",
+        "src/domain/greeting/lowering/rows/cells/service.rs/**",
+        "src/domain/greeting/service.rs",
+        "src/domain/greeting/service.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-concept-service-has-fn-84bb81d64e1f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/concept/service-shape",
+      "include": [
+        "src/domain/greeting/lowering/rows/cells/service.rs",
+        "src/domain/greeting/lowering/rows/cells/service.rs/**",
+        "src/domain/greeting/service.rs",
+        "src/domain/greeting/service.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-concept-service-shape-f4bcd64c0a34"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/error-name",
+      "include": [
+        "src/domain/greeting/errors.rs",
+        "src/domain/greeting/errors.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-error-name-ee126fc64f46"
+    },
+    {
+      "exclude": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**",
+        "src/domain/greeting/composition.rs",
+        "src/domain/greeting/composition.rs/**",
+        "src/domain/greeting/fixtures.rs",
+        "src/domain/greeting/fixtures.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/factory-calls",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-factory-calls-6bd421048346"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/hollow-artifacts",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-artifacts-759d6bcc4a88"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/hollow-types",
+      "include": [
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs/**",
+        "src/domain/greeting/types.rs",
+        "src/domain/greeting/types.rs/**",
+        "src/domain/greeting/types/*.rs",
+        "src/domain/greeting/types/*.rs/**",
+        "src/domain/greeting/types/*/value.rs",
+        "src/domain/greeting/types/*/value.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-types-ee060a3a9ae5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-domain-aliases",
+      "include": [
+        "src/domain/greeting/errors.rs",
+        "src/domain/greeting/errors.rs/**",
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs/**",
+        "src/domain/greeting/types.rs",
+        "src/domain/greeting/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-domain-aliases-092adbcaed6b"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-inherent-impls",
+      "include": [
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs/**",
+        "src/domain/greeting/types.rs",
+        "src/domain/greeting/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-inherent-impls-7fae24f601c8"
+    },
+    {
+      "exclude": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**",
+        "src/domain/greeting/fixtures.rs",
+        "src/domain/greeting/fixtures.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-runtime-fixtures",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-runtime-fixtures-3026c70f4acb"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-vacuous-tests",
+      "include": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs/**",
+        "src/domain/greeting/service_test/order/test.rs",
+        "src/domain/greeting/service_test/order/test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-vacuous-tests-ce4ca1fdc7f5"
+    },
+    {
+      "exclude": [
+        "src/domain/greeting/**/tests/fixtures/**",
+        "src/domain/greeting/**/tests/fixtures/**/**",
+        "src/domain/greeting/**/tests/ui/**",
+        "src/domain/greeting/**/tests/ui/**/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/orphan-rust-files",
+      "include": [
+        "src/domain/greeting/**",
+        "src/domain/greeting/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-orphan-rust-files-d1ff19eef5c2"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/proof-beside",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-proof-beside-60adcfa5cb16"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/public-fields",
+      "include": [
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs/**",
+        "src/domain/greeting/types.rs",
+        "src/domain/greeting/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-public-fields-26f8cb4c2d3d"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-group-namespace",
+      "include": [
+        "src/domain/greeting/lowering.rs",
+        "src/domain/greeting/lowering/rows.rs",
+        "src/domain/greeting/lowering/service_test/shape.rs",
+        "src/domain/greeting/service_test/order.rs"
+      ],
+      "parameters": {
+        "case-table": "refused"
+      },
+      "query": "idiomatic-arch-test-group-namespace-cf4021889810"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-runners-match-rows",
+      "include": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs/**",
+        "src/domain/greeting/service_test/order/test.rs",
+        "src/domain/greeting/service_test/order/test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-runners-match-rows-4e5621332882"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-shape",
+      "include": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs/**",
+        "src/domain/greeting/service_test/order/test.rs",
+        "src/domain/greeting/service_test/order/test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-shape-45f9971bbe85"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/unit-cases",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**",
+        "src/domain/greeting/*_test/**/*.rs",
+        "src/domain/greeting/*_test/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unit-cases-a9a46cde7eef"
+    },
+    {
+      "exclude": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**",
+        "src/domain/greeting/schemas.rs",
+        "src/domain/greeting/schemas.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/validation-at-edges",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-validation-at-edges-282bc1c4e5c3"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/value-companions",
+      "include": [
+        "src/domain/greeting/types/**",
+        "src/domain/greeting/types/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-value-companions-e8c141716c3a"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/cases.rs",
+        "src/domain.rs",
+        "src/domain/greeting/fixtures/inputs.rs",
+        "src/domain/greeting/lowering.rs",
+        "src/domain/greeting/lowering/rows.rs",
+        "src/domain/greeting/lowering/rows/cells/service.rs",
+        "src/domain/greeting/lowering/rows/cells/types.rs",
+        "src/domain/greeting/lowering/service_test/shape.rs",
+        "src/domain/greeting/lowering/service_test/shape/test.rs",
+        "src/domain/greeting/service_test/order.rs",
+        "src/domain/greeting/service_test/order/test.rs",
+        "src/domain/polite.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": [
+      [
+        "src/domain/polite.rs",
+        "analyzed-source is read only in part in src/domain/polite.rs: src/domain/polite.rs declares module `domain::polite::collections` with no source files"
+      ],
+      [
+        "src/domain/polite.rs",
+        "analyzed-source is read only in part in src/domain/polite.rs: src/domain/polite.rs declares module `domain::polite::service_test` with no source files"
+      ],
+      [
+        "src/domain/polite.rs",
+        "analyzed-source is read only in part in src/domain/polite.rs: src/domain/polite.rs declares module `domain::polite::service` with no source files"
+      ]
+    ]
+  }
+}

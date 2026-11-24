@@ -1,0 +1,11 @@
+//! What every item of the collection must pass.
+
+use super::super::interface::ItemInterface;
+
+/// The shared rows.
+pub const CASES: &[u8] = &[];
+
+/// Runs the shared rows against one item.
+pub fn check(item: &impl ItemInterface) {
+    let _ = item;
+}

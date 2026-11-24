@@ -1,0 +1,1 @@
+//! One nested part: its module file declares the part's role files.

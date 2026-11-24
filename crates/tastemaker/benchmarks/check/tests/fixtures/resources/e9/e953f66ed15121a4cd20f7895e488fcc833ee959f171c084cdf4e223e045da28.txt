@@ -1,0 +1,6 @@
+pub fn respond(result: Result<(u8, u8), ()>) -> u8 {
+    match result {
+        Ok((first, second)) => first + second,
+        Err(()) => 2,
+    }
+}

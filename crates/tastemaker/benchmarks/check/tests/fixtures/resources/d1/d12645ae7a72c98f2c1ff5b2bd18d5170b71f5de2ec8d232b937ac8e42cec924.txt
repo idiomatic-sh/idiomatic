@@ -1,0 +1,6 @@
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+specs = [
+  { spec = "idiomatic.arch/nu-hex", include = ["demo"], params = { exposed = [], plugins = [], implements = [], item-trait = [] } },
+  { spec = "idiomatic.arch/idiomatic-rust", include = ["demo"], params = { test-contracts = [], apart = "nodirectory", allowed-paths = ["**/tests/**"], heap-accounting-owners = [], internal-crates = [], libraries = ["rayon::*"] } },
+]

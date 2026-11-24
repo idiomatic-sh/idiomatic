@@ -1,0 +1,259 @@
+{
+  "stamp": 109,
+  "rule": "idiomatic.arch/no-machine-paths-shipped",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "README.md",
+    "data.toml",
+    "src/lib.rs",
+    "src/paths.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "README.md": "6107ca1ed03a00198c010aaacacc3baa4ef01ac1fd12004d7d24c33c4d7f9232",
+    "data.toml": "59a8b5d0a8de18a58006ef8c3d0cabbae28054cc6dba8e444df81a59e6637e13",
+    "src/lib.rs": "6616b63752dc7c67a0c7030bef70ad5bc5eb27dcedafdf602f8c8d55174744a0",
+    "src/paths.rs": "e2e44910415b5277b5b0be271366fca2a5128ad5de2a5727944815d759965803",
+    "tastemaker.toml": "b68fd2e7ed53637860cd97cd1bdd3ee9f60c49e6b90d27bbdd6b7245fb3d0ae9"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "tastemaker.toml",
+        "tastemaker.toml/**"
+      ],
+      "id": "idiomatic.arch/no-machine-paths-shipped",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-machine-paths-shipped-059c9d29c38a"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "README.md",
+        "data.toml",
+        "src/lib.rs",
+        "src/paths.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "README.md#10"
+          ],
+          [
+            "kind",
+            "text"
+          ],
+          [
+            "text",
+            " in /workspaces/fixture/crates."
+          ],
+          [
+            "file",
+            {
+              "file": "README.md"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                26,
+                57
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              26,
+              57
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "README.md"
+        }
+      },
+      {
+        "columns": [
+          [
+            "id",
+            "README.md#15"
+          ],
+          [
+            "kind",
+            "code-flow-value"
+          ],
+          [
+            "text",
+            "$ cat /tmp/fixture-run/report.json\n"
+          ],
+          [
+            "file",
+            {
+              "file": "README.md"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                70,
+                105
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              70,
+              105
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "README.md"
+        }
+      },
+      {
+        "columns": [
+          [
+            "id",
+            "data.toml#13"
+          ],
+          [
+            "kind",
+            "basic-string"
+          ],
+          [
+            "text",
+            "\"/home/someone/.cache/fixture\""
+          ],
+          [
+            "file",
+            {
+              "file": "data.toml"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                20,
+                50
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              20,
+              50
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "data.toml"
+        }
+      },
+      {
+        "columns": [
+          [
+            "id",
+            "src/paths.rs#2"
+          ],
+          [
+            "kind",
+            "comment"
+          ],
+          [
+            "text",
+            "// Written against /Users/someone/fixture."
+          ],
+          [
+            "file",
+            {
+              "file": "src/paths.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                42
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              42
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/paths.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

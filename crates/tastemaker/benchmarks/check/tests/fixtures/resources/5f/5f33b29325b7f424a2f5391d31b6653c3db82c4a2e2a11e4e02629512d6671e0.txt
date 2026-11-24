@@ -1,0 +1,3 @@
+//! The adapter's traversal and serialization of its external representation.
+// Implement the external visitor or writer here, using the adjacent schemas and plain types.
+// Keep entry points private or pub(super); the port implementation owns orchestration.

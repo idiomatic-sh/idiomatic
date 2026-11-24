@@ -1,0 +1,150 @@
+{
+  "stamp": 126,
+  "rule": "idiomatic.arch/one-cache-one-engine",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "cli/src/resources/workspace/check/composition.rs"
+  ],
+  "given": {
+    "cli/src/resources/workspace/check/composition.rs": "b3ccf8960697a2e746a475383bb0ba17168ad51242e48b947e95b989b4d252af",
+    "tastemaker.toml": "cac105e54d85028fd792f699588655d64f35afc5e8484d22de89975a3e6a3dfd"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/one-cache-one-engine",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {
+        "kept": [
+          "ryo_kept",
+          "*::ryo_kept",
+          "Cache::At",
+          "*::Cache::At",
+          "lint"
+        ]
+      },
+      "query": "idiomatic-arch-one-cache-one-engine-f7f8b736c4fe"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "cli/src/resources/workspace/check/composition.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "target",
+            "analysis::factory::ryo_kept"
+          ],
+          [
+            "file",
+            {
+              "file": "cli/src/resources/workspace/check/composition.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                166,
+                193
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              166,
+              193
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "cli/src/resources/workspace/check/composition.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "target",
+            "analysis::factory::ryo_kept"
+          ],
+          [
+            "file",
+            {
+              "file": "cli/src/resources/workspace/check/composition.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                83,
+                110
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              83,
+              110
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "cli/src/resources/workspace/check/composition.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

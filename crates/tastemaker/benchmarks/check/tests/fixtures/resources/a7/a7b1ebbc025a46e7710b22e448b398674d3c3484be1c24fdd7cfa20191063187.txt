@@ -1,0 +1,7 @@
+//! What the `scheduler` port asks of the outside.
+
+/// What every `scheduler` adapter implements.
+pub trait SchedulerPort: Send + Sync {
+    /// How many workers the adapter runs jobs on.
+    fn workers(&self) -> WorkerCount;
+}

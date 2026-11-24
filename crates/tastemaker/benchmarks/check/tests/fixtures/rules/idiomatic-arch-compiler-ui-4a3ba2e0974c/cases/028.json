@@ -1,0 +1,108 @@
+{
+  "stamp": 28,
+  "rule": "idiomatic.arch/compiler-ui",
+  "dependency": "One file",
+  "admitted": [
+    "tests/compile_fail.rs"
+  ],
+  "given": {
+    "tastemaker.toml": "8947107a1d51d4cbd761e686a198ad889903ae370beedcd9be38ca1a3cac774a",
+    "tests/compile_fail.rs": "edd5819acb8ee3fa79a9ccbe62e5314a76658a6b2a11a26267754d704e689747"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/compiler-ui",
+      "include": [
+        "tests/compile_fail.rs",
+        "tests/compile_fail.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-compiler-ui-4a3ba2e0974c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "tastemaker.toml",
+        "tests/compile_fail.rs"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "tests/compile_fail.rs#0"
+          ],
+          [
+            "kind",
+            "source-file"
+          ],
+          [
+            "file",
+            {
+              "file": "tests/compile_fail.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                112
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "tests/compile_fail.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "tests/compile_fail.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

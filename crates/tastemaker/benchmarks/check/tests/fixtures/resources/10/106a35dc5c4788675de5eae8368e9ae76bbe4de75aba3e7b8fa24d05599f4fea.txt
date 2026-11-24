@@ -1,0 +1,3 @@
+repository = "https://github.com/honojs/hono"
+tag = "v4.6.9"
+directory = "."

@@ -1,0 +1,122 @@
+{
+  "stamp": 137,
+  "rule": "idiomatic.arch/pub-item-unreferenced-elsewhere",
+  "dependency": "Several readers",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/shapes.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "5d7c12116314f41f75f53142322532bbfc9503e122d7ff91555127ee5fd7e42b",
+    "src/shapes.rs": "857854cb94569ee527287217c469132208feda9e1d97ae9769ab2485bc2be08d",
+    "tastemaker.toml": "9be74ca578f8bda576002aff16ea1d5a5de1ec5de99db3c34c6269338fd6d9af"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/pub-item-unreferenced-elsewhere",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-pub-item-unreferenced-elsewhere-e317da2b4804"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/shapes.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "item",
+            "src/shapes.rs#31"
+          ],
+          [
+            "kind",
+            "function"
+          ],
+          [
+            "name",
+            "diameter"
+          ],
+          [
+            "file",
+            {
+              "file": "src/shapes.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                43,
+                51
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              43,
+              51
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/shapes.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

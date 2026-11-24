@@ -1,0 +1,6 @@
+//! The demo language's kinds.
+
+pub(crate) enum NodeKind {
+    Other,
+    Fn,
+}

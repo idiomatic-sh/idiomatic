@@ -1,0 +1,1 @@
+pub enum Kind { Stored } pub struct RegisteredRepresentation { kind: Kind } impl RegisteredRepresentation { fn item(&self) -> &'static dyn super::super::super::collections::representations::interface::RepresentationsItem { match self.kind { Kind::Stored => &super::super::super::collections::representations::stored::item::StoredItem } } }

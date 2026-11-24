@@ -1,0 +1,27 @@
+//! What the schemas of `greeting show` accept and refuse.
+
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = Vec<&'static str>;
+type Value = ();
+type Failure = ();
+
+/// The rows of the accepted and the refused command lines.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "the command line is accepted",
+        word: Word::Succeeds,
+        input: || vec!["show"],
+        expect: Expect::Value(()),
+    },
+];
+
+/// Checks one command line through the schemas.
+fn subject(line: Input) -> Result<Value, Failure> {
+    todo!("convert the command line into the core's types")
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

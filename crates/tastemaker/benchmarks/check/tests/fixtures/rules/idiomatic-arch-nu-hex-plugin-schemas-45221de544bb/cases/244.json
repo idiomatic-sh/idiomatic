@@ -1,0 +1,108 @@
+{
+  "stamp": 244,
+  "rule": "idiomatic.arch/nu-hex/plugin-schemas",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/outbound/names/interface.rs",
+    "src/outbound/relation/interface.rs",
+    "src/outbound/relation/schemas.rs"
+  ],
+  "given": {
+    "src/outbound/names/interface.rs": "b16377e92c85520fd4d28913352713529bef3c66784655b53d8db15447f14e05",
+    "src/outbound/relation/interface.rs": "266aef003e41e5e4122bb2c9127bb5033d5d0d6751a494ac90c0dafb6110ecf7",
+    "src/outbound/relation/schemas.rs": "69e468d0209c58538ef4ad470f44799203c56d7181ed1ec22f7492b9bb21c01a",
+    "tastemaker.toml": "b62d4b195f920b16faffab2cbf25622cbdd661b4b7707d2455745b99cad7b0c8"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/nu-hex/plugin-schemas",
+      "include": [
+        "src/outbound/**",
+        "src/outbound/**/**"
+      ],
+      "parameters": {
+        "plugins": [
+          "relation"
+        ]
+      },
+      "query": "idiomatic-arch-nu-hex-plugin-schemas-45221de544bb"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/outbound/names/interface.rs",
+        "src/outbound/relation/interface.rs",
+        "src/outbound/relation/schemas.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "src/outbound/relation/interface.rs"
+            }
+          ],
+          [
+            "port",
+            "relation"
+          ],
+          [
+            "problem",
+            "is a plugin port and has no `schemas_test.rs` holding the inputs its schemas accept and refuse"
+          ]
+        ],
+        "key": [
+          "relation",
+          "is a plugin port and has no `schemas_test.rs` holding the inputs its schemas accept and refuse"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/relation/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}
