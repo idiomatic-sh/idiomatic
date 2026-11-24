@@ -390,7 +390,8 @@ impl Store {
         let bindings: Vec<_> = b
             .bindings
             .iter()
-            .map(|(r, host)| key((rules[*r], host)))
+            .zip(&b.program_of)
+            .map(|(host, &program)| key((rules[program], host)))
             .collect();
         self.pairs.resize(b.schedule.pairs, None);
         for (i, src) in b.schedule.sources.iter().enumerate() {
