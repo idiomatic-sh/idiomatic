@@ -155,7 +155,15 @@ def run(spec, evidence):
                 store.parent.mkdir(exist_ok=True)
                 store.write_bytes(data)
 
+        changed_input = None
+
         def reset():
+            nonlocal changed_input
+            if changed_input is not None:
+                first, first_bytes, first_stamp = changed_input
+                first.write_bytes(first_bytes)
+                os.utime(first, ns=(first_stamp.st_atime_ns, first_stamp.st_mtime_ns))
+                changed_input = None
             edit.write_bytes(previous)
             os.utime(edit, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns))
             added.unlink(missing_ok=True)
@@ -209,6 +217,7 @@ def run(spec, evidence):
                         first = root / j["files"][0]
                         first_bytes = first.read_bytes()
                         first_stamp = first.stat()
+                        changed_input = (first, first_bytes, first_stamp)
                         first.write_bytes(first_bytes + spec["comment"].encode())
                     elif scenario == "refused-input":
                         # Change the provider relation the previously refusing emit requests.
@@ -261,9 +270,6 @@ def run(spec, evidence):
                 except (ValueError, AssertionError) as failure:
                     rows = -1
                     errors.append(repr(failure))
-                if scenario == "refused-edit":
-                    first.write_bytes(first_bytes)
-                    os.utime(first, ns=(first_stamp.st_atime_ns, first_stamp.st_mtime_ns))
                 passed &= not errors
                 with (evidence / "matrix.tsv").open("a") as log:
                     writer=csv.writer(log,delimiter="\t",lineterminator="\n")
