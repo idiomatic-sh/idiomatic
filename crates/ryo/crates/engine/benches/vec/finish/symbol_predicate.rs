@@ -5,14 +5,22 @@ use std::{cell::RefCell, fmt, rc::Rc};
 
 pub(super) struct Bound<T> {
     pub(super) pattern: T,
-    pages: RefCell<Vec<Option<Box<AnswerPage>>>>,
+    pages: RefCell<AnswerPages>,
 }
 
 #[derive(Default)]
-struct AnswerPage {
-    tested: [u64; 8],
-    // An all-negative page needs only its tested bitmap.
-    matches: Option<Box<[u64; 8]>>,
+struct AnswerPages {
+    // Zero means this range of 512 symbols has never been queried.
+    slots: Vec<u32>,
+    tested: Vec<TestedPage>,
+    exceptions: Vec<[u64; 8]>,
+}
+
+struct TestedPage {
+    seen: [u64; 8],
+    default: bool,
+    // Only a page with both outcomes needs a second bitmap.
+    exceptions: Option<std::num::NonZeroU32>,
 }
 
 impl<T> Bound<T> {
@@ -25,21 +33,43 @@ impl<T> Bound<T> {
         let id = id as usize;
         let page = id / 512;
         let mut pages = self.pages.borrow_mut();
-        if pages.len() <= page {
-            pages.resize_with(page + 1, || None);
+        if pages.slots.len() <= page {
+            pages.slots.resize(page + 1, 0);
         }
-        let answers = pages[page].get_or_insert_with(Default::default);
         let word = id % 512 / 64;
         let bit = 1u64 << (id % 64);
-        if answers.tested[word] & bit != 0 {
-            return answers.matches.as_ref().is_some_and(|m| m[word] & bit != 0);
+        let slot = pages.slots[page];
+        if slot == 0 {
+            let answer = test();
+            let mut seen = [0; 8];
+            seen[word] = bit;
+            pages.tested.push(TestedPage { seen, default: answer, exceptions: None });
+            pages.slots[page] = pages.tested.len() as u32;
+            return answer;
         }
-        let yes = test();
-        if yes {
-            answers.matches.get_or_insert_with(Default::default)[word] |= bit;
+        let slot = slot as usize - 1;
+        let entry = &pages.tested[slot];
+        if entry.seen[word] & bit != 0 {
+            let opposite = entry.exceptions.is_some_and(|index| {
+                pages.exceptions[index.get() as usize - 1][word] & bit != 0
+            });
+            return entry.default ^ opposite;
         }
-        answers.tested[word] |= bit;
-        yes
+        let answer = test();
+        if answer != entry.default {
+            let index = match entry.exceptions {
+                Some(index) => index.get() as usize - 1,
+                None => {
+                    let index = pages.exceptions.len();
+                    pages.exceptions.push([0; 8]);
+                    pages.tested[slot].exceptions = std::num::NonZeroU32::new((index + 1) as u32);
+                    index
+                }
+            };
+            pages.exceptions[index][word] |= bit;
+        }
+        pages.tested[slot].seen[word] |= bit;
+        answer
     }
 }
 
