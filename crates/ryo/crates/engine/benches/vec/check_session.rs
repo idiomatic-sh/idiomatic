@@ -2,6 +2,7 @@
 //! bound program and source version. Parser scratch is released after its last consumer.
 use super::{finish, first, lower, reader, reader_run, thread_cpu};
 use finish::{Exec, Plan, Provider, Run, Table};
+use super::pair_skip::{BoundSummary as BoundRequirements, Demand, FileSummary};
 use ryo::languages::{self as l, ByteSlice, FileId, SourcePath};
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use std::{
@@ -421,13 +422,6 @@ impl<'p> std::ops::IndexMut<&usize> for Bindings<'p> {
     }
 }
 
-#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
-struct SummaryColumns {
-    kinds: bool,
-    fields: bool,
-    words: bool,
-}
-
 type FactMask = [u64; relations::service::ALL.len().div_ceil(64)];
 
 fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
@@ -464,35 +458,6 @@ struct Bound<'p> {
     coverage: reader_run::coverage::Coverage,
 }
 
-#[derive(Eq, Hash, PartialEq)]
-struct BoundRequirements {
-    never: bool,
-    shape: Vec<Vec<(bool, u32)>>,
-    words: Vec<Vec<u32>>,
-    summary: SummaryColumns,
-}
-
-impl BoundRequirements {
-    fn new(program: &Program, run: &mut Run) -> Self {
-        let (never, shape, words) = &program.requirements;
-        let summary = SummaryColumns {
-            kinds: shape.iter().flatten().any(|v| v.starts_with("k:")),
-            fields: shape.iter().flatten().any(|v| v.starts_with("f:")),
-            words: !words.is_empty(),
-        };
-        let shape = shape.iter().map(|clause| {
-            clause.iter().map(|value| {
-                let (kind, term) = value.split_once(':').expect("shape term");
-                (kind == "k", run.sym(term.as_bytes()))
-            }).collect()
-        }).collect();
-        let words = words.iter().map(|clause| {
-            clause.iter().map(|word| run.sym(word.as_bytes())).collect()
-        }).collect();
-        Self { never: *never, shape, words, summary }
-    }
-}
-
 fn bind<'p, L: FileSource>(
     registry: &mut finish::session::contribution::Registry,
     program: &'p Program,
@@ -504,8 +469,8 @@ fn bind<'p, L: FileSource>(
 ) -> Result<Bound<'p>> {
     let mut named = Vec::new();
     let mut facts = Vec::new();
-    let mut projects_words = requirements.summary.words;
-    let mut reads_fields = requirements.summary.fields;
+    let mut projects_words = requirements.demand().words;
+    let mut reads_fields = requirements.demand().fields;
     for (name, (at, relation)) in program.bases.iter().zip(&program.base_steps) {
         if cut.is_some_and(|c| !c.file_steps[*at]) || hosted.iter().any(|(n, _)| n == name) {
             continue;
@@ -715,15 +680,6 @@ pub(crate) struct ReaderState {
 }
 
 #[derive(Default)]
-struct Contents {
-    ready: SummaryColumns,
-    answers: crate::pair_checks::AtomAnswers,
-    kinds: rustc_hash::FxHashSet<u32>,
-    fields: rustc_hash::FxHashSet<u32>,
-    words: rustc_hash::FxHashSet<u32>,
-}
-
-#[derive(Default)]
 struct HeldFile<F: Default, D: Default> {
     symbols: D,
     native: F,
@@ -732,7 +688,7 @@ struct HeldFile<F: Default, D: Default> {
     fields: Vec<u32>,
     text: Vec<u32>,
     recovery: Option<ryo_execution_domain::domain::coverage::types::Recovery>,
-    contents: Contents,
+    contents: FileSummary,
     literals: std::cell::RefCell<crate::pair_checks::LiteralPositions>,
     proof_atoms: crate::pair_checks::AtomAnswers,
     known: BTreeSet<l::Relation>,
@@ -833,7 +789,7 @@ pub(crate) fn visit<L: FileSource>(
             let requirements = reader_requirements.entry(program_id)
                 .or_insert_with(|| {
                     clocks.requirement_programs += 1;
-                    let requirements = Rc::new(BoundRequirements::new(program, &mut run));
+                    let requirements = Rc::new(BoundRequirements::bind(&program.requirements, |word| run.sym(word)));
                     if let Some((known, &id)) = requirement_ids.get_key_value(&requirements) {
                         return (known.clone(), id);
                     }
@@ -891,7 +847,6 @@ pub(crate) fn visit<L: FileSource>(
             let mut needs_native = false;
             let mut projects_words = cached.is_some();
             let mut projects_fields = cached.is_some();
-            let mut summary = SummaryColumns::default();
             for (&binding, &slot) in jobs.iter() {
                 match &bound[&binding] {
                     Ok(b) => {
@@ -903,11 +858,6 @@ pub(crate) fn visit<L: FileSource>(
                         for (word, bits) in required.iter_mut().zip(b.fact_mask) { *word |= bits; }
                         projects_words |= b.projects_words;
                         projects_fields |= b.reads_fields;
-                        if cut_of[binding].is_none() && !b.requirements.never {
-                            summary.kinds |= b.requirements.summary.kinds;
-                            summary.fields |= b.requirements.summary.fields;
-                            summary.words |= b.requirements.summary.words;
-                        }
                     }
                     Err(reason) => answers.set(slot, Err(reason.clone())),
                 }
@@ -1025,36 +975,8 @@ pub(crate) fn visit<L: FileSource>(
             let tree = native.as_deref().unwrap_or(tree);
             let contents = &mut held.contents;
             if !reused {
-                contents.ready = SummaryColumns::default();
-                contents.answers.clear();
+                contents.reset();
             }
-            summary.kinds &= !contents.ready.kinds;
-            summary.fields &= !contents.ready.fields;
-            summary.words &= !contents.ready.words;
-            if summary.kinds || summary.fields || summary.words {
-                contents.ready.kinds |= summary.kinds;
-                contents.ready.fields |= summary.fields;
-                contents.ready.words |= summary.words;
-                if summary.kinds {
-                    contents.kinds.clear();
-                    contents.kinds.extend(l::node_table::kind_codes(tree).iter()
-                        .map(|&k| run.kind_sym[usize::from(k)]));
-                }
-                if summary.fields {
-                    contents.fields.clear();
-                    contents.fields.extend(l::node_table::field_codes(tree).iter()
-                        .map(|&f| run.field_sym[usize::from(f)]));
-                }
-                if summary.words {
-                    contents.words.clear();
-                    contents.words.extend(provider.text.iter().copied());
-                    contents.words.insert(run.empty);
-                }
-                L::expanded_summary(elements, symbols, &bytes, &mut run, unknown,
-                    l::node_table::kind_codes(tree).len(), summary.kinds.then_some(&mut contents.kinds),
-                    summary.fields.then_some(&mut contents.fields), summary.words.then_some(&mut contents.words));
-            }
-            let Contents { kinds, fields, words, answers: coarse, .. } = contents;
             use ryo_execution_domain::domain::coverage::service::partial_of;
             let recovery = held.recovery.unwrap_or_else(|| L::recovery(&elements));
             let mut active = Vec::new();
@@ -1072,15 +994,27 @@ pub(crate) fn visit<L: FileSource>(
                     }
                     continue;
                 }
+                let numbered_complete = parser.is_some()
+                    && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
                 let excluded = cut_of[binding].is_none()
-                    && coarse.get(b.test).unwrap_or_else(|| {
-                        let impossible = b.requirements.never
-                            || !b.requirements.shape.iter().all(|c| {
-                                c.iter().any(|(k, v)| if *k { kinds.contains(v) } else { fields.contains(v) })
-                            })
-                            || !b.requirements.words.iter().all(|c| c.iter().any(|v| words.contains(v)));
-                        coarse.set(b.test, impossible);
-                        impossible
+                    && contents.excludes(b.test, &b.requirements, |out| {
+                        out.populate(
+                            tree,
+                            &mut run,
+                            Demand {
+                                kinds: numbered_complete,
+                                fields: numbered_complete && provider.projects_fields,
+                                words: numbered_complete && provider.projects_words,
+                            },
+                            &provider.text,
+                            |run, out| {
+                                L::expanded_summary(
+                                    elements, symbols, &bytes, run, unknown,
+                                    l::node_table::kind_codes(tree).len(),
+                                    out.kinds, out.fields, out.words,
+                                );
+                            },
+                        )
                     });
                 if excluded && b.facts.is_empty() && !unknown_permission {
                     let whole = recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
