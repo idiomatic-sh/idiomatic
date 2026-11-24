@@ -52,7 +52,7 @@ impl Exec<'_> {
     pub(super) fn answer_layout(
         &mut self,
         run: &mut Run,
-        emit: usize,
+        emit: (usize, usize),
         rule: &str,
         table: &Table,
         subject: &str,

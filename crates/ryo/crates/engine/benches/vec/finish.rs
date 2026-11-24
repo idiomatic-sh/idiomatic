@@ -1247,7 +1247,7 @@ fn truthy(v: V) -> bool {
 // ------------------------------------------------------------------------------------------------ the executor
 
 pub(super) struct Exec<'p> {
-    answer_layouts: FxHashMap<usize, Rc<answer::Layout>>,
+    answer_layouts: FxHashMap<(usize, usize), Rc<answer::Layout>>,
     pub(super) plan: &'p Plan,
     pub(super) stats: Stats,
     schemas: Vec<Option<Rc<Schema>>>,

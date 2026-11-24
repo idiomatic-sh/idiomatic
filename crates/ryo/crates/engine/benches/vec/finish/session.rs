@@ -179,7 +179,7 @@ pub(in super::super) fn evaluate_covered(
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        let layout = exec.answer_layout(run, emit, rule, &t, subject, keys)?;
+        let layout = exec.answer_layout(run, (0, emit), rule, &t, subject, keys)?;
         let mut seen = BTreeMap::new();
         for i in 0..t.n {
             let subject = layout.identity[0];
@@ -315,6 +315,7 @@ pub(in super::super) fn pair(
     frame: &mut File<'_>,
     run: &mut Run,
     facts: &mut dyn Provider,
+    program: usize,
     plan: &super::Plan,
     slots: &[usize],
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
@@ -331,7 +332,7 @@ pub(in super::super) fn pair(
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        let layout = exec.answer_layout(run, emit, rule, &t, subject, keys)?;
+        let layout = exec.answer_layout(run, (program, emit), rule, &t, subject, keys)?;
         let mut seen = BTreeMap::new();
         for r in 0..t.n {
             let row = answer::typed(run, &t, r, Some(frame.file as usize), &layout)?;

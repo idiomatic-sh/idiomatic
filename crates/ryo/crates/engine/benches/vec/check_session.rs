@@ -942,7 +942,7 @@ pub(crate) fn visit<L: FileSource>(
                     clocks.refused += usize::from(answers[slot].is_err());
                     continue;
                 }
-                let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, &b.slots, &local_coverage);
+                let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, program_of[binding], b.plan, &b.slots, &local_coverage);
                 if value.is_err() { frame = None; exec.release_request(); }
                 answers[slot] = value
                 .map(|rows| Reported { rows, unknowns });
