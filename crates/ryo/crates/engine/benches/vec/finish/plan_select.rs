@@ -1,5 +1,5 @@
 //! Resolve expressions in the lowering's typed select directly against source schemas.
-use super::{E, Exec, Op, PNode, R, Rc, Run, Schema, Ty, glob_pattern};
+use super::{E, Exec, Op, PNode, R, Rc, Run, Schema, Ty, TextTest, symbol_predicate, glob_pattern};
 use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
 type Sources = [(Option<String>, Rc<Schema>)];
 
@@ -80,10 +80,13 @@ impl Exec<'_> {
         }
     }
     pub(super) fn call_expr(run: &mut Run, name: &str, args: Vec<E>) -> R<E> {
+        if name == "lower" && let [E::Text(symbol)] = args.as_slice() {
+            return Ok(E::Text(run.lower_symbol(*symbol)));
+        }
         match (name, args.get(1)) {
             ("matches", Some(E::Text(t))) if args.len() == 2 => {
                 let re = run.re(&String::from_utf8_lossy(run.text(*t)).into_owned())?;
-                Ok(E::Re(Box::new(args.into_iter().next().unwrap()), re))
+                Ok(E::TextTest(Box::new(args.into_iter().next().unwrap()), TextTest::Regex(re)))
             }
             ("glob_any", Some(E::Text(t))) if args.len() == 2 => Self::glob_test(run, &args[0], *t),
             ("glob_any", Some(E::List(items))) if args.len() == 2 => {
@@ -103,7 +106,7 @@ impl Exec<'_> {
     }
     fn glob_test(run: &mut Run, subject: &E, pattern: u32) -> R<E> {
         match glob_pattern(&String::from_utf8_lossy(run.text(pattern))) {
-            Some(regex) => Ok(E::Re(Box::new(subject.clone()), run.re(&regex)?)),
+            Some(regex) => Ok(E::TextTest(Box::new(subject.clone()), TextTest::Regex(run.re(&regex)?))),
             None => {
                 use ryo_matching::inbound::use_cases::matching::{
                     interface::MatchingUseCase, types::GlobPattern, use_case::MatchingUseCaseImpl,
@@ -118,7 +121,13 @@ impl Exec<'_> {
         }
     }
     // A symbol without a source spelling compares as empty text. Its emitted identity is preserved.
-    pub(super) fn compare_expr(run: &Run, op: Op, left: E, right: E) -> E {
+    pub(super) fn compare_expr(run: &mut Run, op: Op, left: E, right: E) -> E {
+        if matches!(op, Op::Eq | Op::Ne)
+            && let Some(test) = symbol_predicate::folded_literal(run, &left, &right)
+                .or_else(|| symbol_predicate::folded_literal(run, &right, &left))
+        {
+            return if op == Op::Eq { test } else { E::Not(Box::new(test)) };
+        }
         let column = match (&left, &right) {
             (col @ E::Col(_, _, Ty::Sym), E::Text(t)) |
             (E::Text(t), col @ E::Col(_, _, Ty::Sym)) if *t == run.empty => Some(col),

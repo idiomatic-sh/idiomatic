@@ -10,8 +10,8 @@
 //! runs the interpreter's `select` instead (the oracle). A node with a form the kernels do not cover goes to the
 //! interpreter's `select` too (`VEC_KSEL_LOG=<path>` lists each node's path once a run).
 
-use super::{E, Exec, File, Native, Op, Provider, R, Run, Src, Table, Ty, V, NULL};
-use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, text_of, truthy, view_holds, view_rows};
+use super::{E, Exec, File, Native, Op, TextTest, Provider, R, Run, Src, Table, Ty, V, NULL};
+use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, truthy, view_holds, view_rows};
 use rustc_hash::FxHashSet;
 
 use std::cell::RefCell;
@@ -34,7 +34,8 @@ enum P {
     /// Any other comparison, by `compare`.
     Cmp(Op, Opd, Opd),
     In(Opd, Vec<V>, bool),
-    Re(Opd, Rc<regex::bytes::Regex>),
+    SymbolTest(usize, usize, TextTest),
+    TextTest(Opd, TextTest),
     And(Box<P>, Box<P>),
     Or(Box<P>, Box<P>),
     Not(Box<P>),
@@ -88,8 +89,9 @@ fn compile(e: &E) -> P {
                 _ => P::Old(e.clone()),
             }
         }
-        E::Re(a, re) => match opd(a) {
-            Some(x) => P::Re(x, re.clone()),
+        E::TextTest(a, re) => match opd(a) {
+            Some(Opd::Col(s, c, Ty::Sym)) => P::SymbolTest(s, c, re.clone()),
+            Some(x) => P::TextTest(x, re.clone()),
             None => P::Old(e.clone()),
         },
         _ => P::Old(e.clone()),
@@ -128,12 +130,13 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
             let x = val(run, f, srcs, cur, a);
             items.iter().any(|y| super::member_eq(run, x, *y)) != *neg
         }
-        P::Re(a, re) => {
+        P::SymbolTest(s, c, test) => {
+            let symbol = get(run, f, srcs, cur, *s, *c) as u32;
+            test.symbol(run, symbol)
+        }
+        P::TextTest(a, re) => {
             let x = val(run, f, srcs, cur, a);
-            match x.ty() {
-                Ty::Sym => re.is_match(run.text(x.1 as u32)),
-                _ => re.is_match(&text_of(run, x)),
-            }
+            re.value(run, x)
         }
         P::And(a, b) => holds(run, f, srcs, cur, a) && holds(run, f, srcs, cur, b),
         P::Or(a, b) => holds(run, f, srcs, cur, a) || holds(run, f, srcs, cur, b),
@@ -148,6 +151,11 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
 fn filter(run: &mut Run, f: &File<'_>, srcs: &[Src], si: usize, p: &P, sel: &mut Vec<u32>) {
     if let Src::Tab(t, _) = &srcs[si] {
         match p {
+            P::SymbolTest(s, c, test) if *s == si => {
+                let column = &t.cols[*c];
+                sel.retain(|r| test.symbol(run, column[*r as usize] as u32));
+                return;
+            }
             P::EqCK(s, c, k, want) if *s == si => {
                 let col = &t.cols[*c][..];
                 let (k, want) = (*k, *want);
@@ -603,6 +611,7 @@ impl Exec<'_> {
         // made yet and not a view would have the other made first, so it is made in its turn instead
         if let Some((i, _, _)) = deferred
             && i == 0
+            && f.population(sp.srcs[i]).is_none()
             && f.memo[sp.srcs[1]].is_none()
             && self.view(run, sp.srcs[1])?.is_none()
         {

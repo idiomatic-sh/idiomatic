@@ -111,6 +111,7 @@ pub(super) enum FilterKey {
     InExpr(bool, Box<Self>, Box<Self>),
     Call(String, Vec<Self>),
     Re(Box<Self>, String),
+    LowerEqual(Box<Self>, Rc<[u8]>),
     List(Vec<Self>),
 }
 
@@ -180,7 +181,8 @@ fn normalized(e: &E) -> FilterKey {
             K::In(*neg, Box::new(normalized(a)), items)
         }
         E::Call(name, xs) => K::Call(name.clone(), xs.iter().map(normalized).collect()),
-        E::Re(a, re) => K::Re(Box::new(normalized(a)), re.as_str().into()),
+        E::TextTest(a, super::TextTest::Regex(re)) => K::Re(Box::new(normalized(a)), re.pattern.as_str().into()),
+        E::TextTest(a, super::TextTest::LowerEqual(lit)) => K::LowerEqual(Box::new(normalized(a)), lit.pattern.clone()),
         E::List(xs) => K::List(xs.iter().map(normalized).collect()),
         E::Col(s, c, ty) => K::Col(*s, *c, *ty),
         E::Lit(v) => K::Lit(*v),
@@ -212,7 +214,7 @@ fn uses(e: &E, col: usize) -> bool {
         E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) | E::In(a, b, _) => {
             uses(a, col) || uses(b, col)
         }
-        E::Not(a) | E::Re(a, _) => uses(a, col),
+        E::Not(a) | E::TextTest(a, _) => uses(a, col),
         E::Call(_, xs) | E::List(xs) => xs.iter().any(|e| uses(e, col)),
         _ => false,
     }
@@ -323,7 +325,7 @@ impl Plan {
                     first.as_slice(),
                     rows.shadow(),
                     "file {}, list {key}, node {node}",
-                    f.file
+                    f.version.file
                 );
             } else {
                 seen.first = Some(Rc::new(rows.shadow()));
