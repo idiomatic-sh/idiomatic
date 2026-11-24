@@ -9,8 +9,40 @@ use strum::IntoEnumIterator as _;
 
 use crate::domain::labels::service::{category, kind_role, token_role};
 use crate::domain::labels::types::{Category, Closing, Field, Following, Precedence};
-use crate::domain::syntax::service::{child, is_root, is_token, kind, parent};
-use crate::domain::syntax::types::{Kind, Leaf, Rootness};
+use crate::domain::syntax::service::{kind, parent, is_token};
+use crate::domain::syntax::service::kind_of;
+use crate::domain::syntax::types::{Kind, Leaf};
+
+/// Navigation used by the grammar for field roles. The same rules apply to either file layout.
+pub(crate) trait FieldTree {
+    fn parent(&self, at: Position) -> Position;
+    fn kind(&self, at: Position) -> Kind;
+    fn leaf(&self, at: Position) -> Leaf;
+    fn children(&self, at: Position) -> impl Iterator<Item = Position> + '_;
+}
+
+impl FieldTree for Tree<'_> {
+    fn parent(&self, at: Position) -> Position { parent(self, at) }
+    fn kind(&self, at: Position) -> Kind { kind(self, at) }
+    fn leaf(&self, at: Position) -> Leaf { is_token(self, at) }
+    fn children(&self, at: Position) -> impl Iterator<Item = Position> + '_ {
+        languages::children(self.elements, at)
+    }
+}
+
+impl FieldTree for languages::NodeTable {
+    fn parent(&self, at: Position) -> Position { languages::node_table::parent_of(self, at) }
+    fn kind(&self, at: Position) -> Kind { kind_of(languages::node_table::kind_of(self, at)) }
+    fn leaf(&self, at: Position) -> Leaf {
+        match self.kind(at) {
+            Kind::Token(_) => Leaf::Token,
+            Kind::Node(_) | Kind::Extra(_) => Leaf::Node,
+        }
+    }
+    fn children(&self, at: Position) -> impl Iterator<Item = Position> + '_ {
+        languages::node_table::children_of(self, at).iter().copied()
+    }
+}
 
 /// The number the element table holds for a role.
 #[must_use]
@@ -34,12 +66,12 @@ pub(crate) fn fields() -> impl Iterator<Item = Field> {
 }
 
 /// Whether `at` comes after the first token of kind `marker` among the children of its parent.
-fn after(tree: &Tree<'_>, at: Position, marker: Kind) -> Following {
-    for each in languages::children(tree.elements, parent(tree, at)) {
+fn after(tree: &impl FieldTree, at: Position, marker: Kind) -> Following {
+    for each in tree.children(tree.parent(at)) {
         if each == at {
             return Following::Before;
         }
-        if is_token(tree, each) == Leaf::Token && kind(tree, each) == marker {
+        if tree.leaf(each) == Leaf::Token && tree.kind(each) == marker {
             return Following::After;
         }
     }
@@ -47,11 +79,11 @@ fn after(tree: &Tree<'_>, at: Position, marker: Kind) -> Following {
 }
 
 /// Whether the parent of `at` has no node after it: the tokens that close it (a brace, a semicolon) do not count.
-fn closing(tree: &Tree<'_>, at: Position) -> Closing {
-    let followed = languages::children(tree.elements, parent(tree, at))
+fn closing(tree: &impl FieldTree, at: Position) -> Closing {
+    let followed = tree.children(tree.parent(at))
         .skip_while(|each| *each != at)
         .skip(1)
-        .any(|each| is_token(tree, each) == Leaf::Node);
+        .any(|each| tree.leaf(each) == Leaf::Node);
     if followed {
         Closing::NotLast
     } else {
@@ -60,11 +92,11 @@ fn closing(tree: &Tree<'_>, at: Position) -> Closing {
 }
 
 /// Whether a node other than an attribute stands before `at` under its parent.
-fn nodes_before(tree: &Tree<'_>, at: Position) -> Precedence {
-    let before = languages::children(tree.elements, parent(tree, at))
+fn nodes_before(tree: &impl FieldTree, at: Position) -> Precedence {
+    let before = tree.children(tree.parent(at))
         .take_while(|each| *each != at)
         .filter(|each| {
-            is_token(tree, *each) == Leaf::Node && kind(tree, *each) != Kind::Node(Node::Attr)
+            tree.leaf(*each) == Leaf::Node && tree.kind(*each) != Kind::Node(Node::Attr)
         })
         .count();
     if before == 0 {
@@ -79,7 +111,7 @@ fn nodes_before(tree: &Tree<'_>, at: Position) -> Precedence {
     clippy::wildcard_enum_match_arm,
     reason = "a parent kind the grammar gives no positional label to leaves its children with no role here, and `kind_role` then decides by the child's own kind, so the default is right for every kind not named; `fields/service_test.rs` holds a row for each role this function gives, and the walk and oracle rails compare the role of every element of the Rust suite, so a kind that needs a role fails there"
 )]
-fn positional_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) -> Field {
+fn positional_role(tree: &impl FieldTree, at: Position, parent_kind: Kind, element: Kind) -> Field {
     let what = category(element);
     match parent_kind {
         Kind::Node(
@@ -133,7 +165,7 @@ fn positional_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Ki
     clippy::wildcard_enum_match_arm,
     reason = "a parent kind the grammar gives no positional label to leaves its children with no role here, and `kind_role` then decides by the child's own kind, so the default is right for every kind not named; `fields/service_test.rs` holds a row for each role this function gives, and the walk and oracle rails compare the role of every element of the Rust suite, so a kind that needs a role fails there"
 )]
-fn branch_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) -> Field {
+fn branch_role(tree: &impl FieldTree, at: Position, parent_kind: Kind, element: Kind) -> Field {
     let what = category(element);
     match parent_kind {
         Kind::Node(Node::IfExpr) => match what {
@@ -179,7 +211,7 @@ fn branch_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) 
     clippy::wildcard_enum_match_arm,
     reason = "a parent kind the grammar gives no positional label to leaves its children with no role here, and `kind_role` then decides by the child's own kind, so the default is right for every kind not named; `fields/service_test.rs` holds a row for each role this function gives, and the walk and oracle rails compare the role of every element of the Rust suite, so a kind that needs a role fails there"
 )]
-fn member_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) -> Field {
+fn member_role(tree: &impl FieldTree, at: Position, parent_kind: Kind, element: Kind) -> Field {
     let what = category(element);
     match parent_kind {
         Kind::Node(Node::RecordExprFieldList) => match element {
@@ -214,7 +246,7 @@ fn member_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) 
     clippy::wildcard_enum_match_arm,
     reason = "a parent kind the grammar gives no positional label to leaves its children with no role here, and `kind_role` then decides by the child's own kind, so the default is right for every kind not named; `fields/service_test.rs` holds a row for each role this function gives, and the walk and oracle rails compare the role of every element of the Rust suite, so a kind that needs a role fails there"
 )]
-fn declaration_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: Kind) -> Field {
+fn declaration_role(tree: &impl FieldTree, at: Position, parent_kind: Kind, element: Kind) -> Field {
     let what = category(element);
     match parent_kind {
         Kind::Node(Node::ArgList) if what == Category::Expression => Field::Args,
@@ -260,7 +292,7 @@ fn declaration_role(tree: &Tree<'_>, at: Position, parent_kind: Kind, element: K
         Kind::Node(Node::MacroRules) if element == Kind::Node(Node::TokenTree) => Field::Body,
         Kind::Node(Node::Impl) if what == Category::Type => {
             if after(tree, at, Kind::Token(Token::ForKw)) == Following::After
-                || child(tree, parent(tree, at), Kind::Token(Token::ForKw)).is_none()
+                || !tree.children(tree.parent(at)).any(|each| tree.kind(each) == Kind::Token(Token::ForKw))
             {
                 Field::SelfTy
             } else {
@@ -334,10 +366,10 @@ fn binding_role(parent_kind: Kind, element: Kind) -> Field {
 }
 
 /// Whether a node of kind `wanted` stands before `at` under its parent.
-fn nodes_before_of_kind(tree: &Tree<'_>, at: Position, wanted: Kind) -> Precedence {
-    let before = languages::children(tree.elements, parent(tree, at))
+fn nodes_before_of_kind(tree: &impl FieldTree, at: Position, wanted: Kind) -> Precedence {
+    let before = tree.children(tree.parent(at))
         .take_while(|each| *each != at)
-        .filter(|each| kind(tree, *each) == wanted)
+        .filter(|each| tree.kind(*each) == wanted)
         .count();
     if before == 0 {
         Precedence::Alone
@@ -348,12 +380,12 @@ fn nodes_before_of_kind(tree: &Tree<'_>, at: Position, wanted: Kind) -> Preceden
 
 /// The role of the element at `at` under its parent; `None` for the root and for an edge the grammar gives no role.
 #[must_use]
-pub(crate) fn field_of(tree: &Tree<'_>, at: Position) -> Field {
-    if is_root(tree, at) == Rootness::Root {
+pub(crate) fn field_of(tree: &impl FieldTree, at: Position) -> Field {
+    if tree.parent(at) == at {
         return Field::None;
     }
-    let (parent_kind, element) = (kind(tree, parent(tree, at)), kind(tree, at));
-    if is_token(tree, at) == Leaf::Token {
+    let (parent_kind, element) = (tree.kind(tree.parent(at)), tree.kind(at));
+    if tree.leaf(at) == Leaf::Token {
         return token_role(parent_kind, element);
     }
     let role = positional_role(tree, at, parent_kind, element);

@@ -10,3 +10,5 @@ mod writer;
 
 #[cfg(test)]
 mod adapter_test;
+
+pub(crate) mod native;

@@ -644,6 +644,8 @@ pub(crate) fn visit<L: FileSource>(
             }
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
+            let native = L::lent(elements);
+            let tree = native.as_deref().unwrap_or(tree);
             let contents = &mut held.contents;
             if !reused {
                 contents.kinds.clear();

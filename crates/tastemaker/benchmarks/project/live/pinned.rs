@@ -1,6 +1,6 @@
 //! Adapt the SDK that the product actually linked. Node positions, unknown names,
 //! provider notes and relation widths must come from that same provider revision.
-use crate::{check_session::source::Source, finish::Run, reader};
+use crate::{check_session::source::{Linked, Source}, finish::Run, reader};
 use release_relations::domain::{
     labels::types::NameRef as OldName, relations::service as original,
 };
@@ -17,10 +17,14 @@ type Result<T> = std::result::Result<T, String>;
 pub(super) struct Pinned {
     language: old::Language,
     parser: Arc<dyn old::contract::ParseEngine>,
+    native: Option<Linked>,
 }
 impl From<old::Language> for Pinned {
     fn from(language: old::Language) -> Self {
+        let rust = ryo_rust::linked();
+        let native = (rust.name().0.as_ref() == language.name().0.as_ref()).then(|| Linked::from(rust));
         Self {
+            native,
             parser: language.parse_engine(),
             language,
         }
@@ -194,8 +198,23 @@ fn project_request(r: &l::ProjectRequest) -> Result<old::ProjectRequest> {
     })
 }
 
+pub(super) enum File {
+    Released(old::Elements),
+    Native(l::Elements),
+}
+
+impl Default for File {
+    fn default() -> Self { Self::Released(Default::default()) }
+}
+
 impl Source for Pinned {
-    type File = old::Elements;
+    type File = File;
+    fn lent(f: &File) -> Option<Arc<l::NodeTable>> {
+        match f {
+            File::Native(f) => Linked::lent(f),
+            File::Released(_) => None,
+        }
+    }
     type Dictionary = Dictionary;
     fn reads(&self, path: &str) -> bool {
         self.parser.recognition(&old::ParseRequest {
@@ -215,6 +234,7 @@ impl Source for Pinned {
             .collect()
     }
     fn kinds(&self) -> Vec<&'static str> {
+        if let Some(parser) = &self.native { return parser.kinds(); }
         self.parser
             .kind_names()
             .0
@@ -249,8 +269,14 @@ impl Source for Pinned {
         req: l::ParseRequest<'_>,
         f: &mut Self::File,
         dict: &mut Dictionary,
-        _: &[l::Relation],
+        wanted: &[l::Relation],
     ) -> Result<()> {
+        if let Some(parser) = &self.native {
+            if matches!(f, File::Released(_)) { *f = File::Native(Default::default()); }
+            let File::Native(file) = f else { unreachable!() };
+            return parser.build(req, file, &mut dict.out, wanted);
+        }
+        let File::Released(f) = f else { unreachable!() };
         self.parser
             .build_file(
                 old::ParseRequest {
@@ -272,9 +298,10 @@ impl Source for Pinned {
             .map_err(|e| format!("{e:?}"))
     }
     fn notes(f: &Self::File) -> l::Bytes {
-        l::Bytes(old::contract::notes_of(f).0.clone())
+        match f { File::Released(f) => l::Bytes(old::contract::notes_of(f).0.clone()), File::Native(f) => Linked::notes(f) }
     }
     fn recovery(f: &Self::File) -> Recovery {
+        let f = match f { File::Released(f) => f, File::Native(f) => return Linked::recovery(f) };
         if old::has_incomplete_syntax(f) != old::SyntaxCompleteness::Incomplete {
             return Recovery::Whole;
         }
@@ -292,6 +319,10 @@ impl Source for Pinned {
         tree: &mut l::NodeTable,
         p: &mut reader::ReaderFacts<'_>,
     ) {
+        let f = match f {
+            File::Released(f) => f,
+            File::Native(f) => return Linked::tree(f, &dict.out, bytes, run, tree, p),
+        };
         use l::node_table as t;
         let mut b = t::builder(tree, l::Count(run.kind_sym.len()));
         let mut open = Vec::new();
@@ -352,6 +383,10 @@ impl Source for Pinned {
         fields: &mut FxHashSet<u32>,
         words: &mut FxHashSet<u32>,
     ) {
+        let f = match f {
+            File::Released(f) => f,
+            File::Native(f) => return Linked::expanded_summary(f, &dict.out, bytes, run, unknown, start, kinds, fields, words),
+        };
         for i in start as u32..old::end_of(f).0 {
             let at = old::Position(i);
             kinds.insert(run.kind_sym[usize::from(old::kind_at(f, at).0)]);
@@ -380,6 +415,10 @@ impl Source for Pinned {
         w: &[l::Relation],
         out: &mut l::contract::Collect,
     ) -> Result<()> {
+        let f = match f {
+            File::Released(f) => f,
+            File::Native(f) => return self.native.as_ref().expect("native reader").fill(f, &mut d.out, bytes, id, w, out),
+        };
         let wanted = w
             .iter()
             .copied()

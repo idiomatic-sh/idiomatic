@@ -26,6 +26,9 @@ pub fn property_at(
     property: PropertyId,
 ) -> Option<NameText<'_>> {
     let table = engine(elements);
+    if let Some(native) = &table.native {
+        return crate::domain::node_table::service::property_of(native, at, property);
+    }
     // Spike (ryo-fmx3, host3): the search starts at this thread's last answer and widens from there: readers ask in tree
     // order, so a lookup reads a few neighbouring entries, not a bisection of the whole file's entries.
     thread_local! {

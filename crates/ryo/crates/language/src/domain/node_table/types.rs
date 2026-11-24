@@ -33,6 +33,8 @@ pub struct NodeTable(pub(crate) NodeTableEngine);
 /// The private columns of a `NodeTable`, one entry per id unless said otherwise.
 #[derive(Debug, Default)]
 pub(crate) struct NodeTableEngine {
+    /// End of the concrete view, for providers whose semantic population includes appended trees.
+    pub(crate) visible: Option<usize>,
     /// Kind code of each node and token, in the language's own numbering: the column an engine reads as it is.
     pub(crate) kind: Vec<u16>,
     /// Parent id of each node and token (a root is its own parent; an embedded root's parent is its host).

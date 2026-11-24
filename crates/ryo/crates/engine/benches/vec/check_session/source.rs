@@ -9,6 +9,7 @@ use std::{collections::HashMap, sync::Arc};
 pub(crate) trait Source: Clone {
     type File: Default;
     type Dictionary: Default;
+    fn lent(_: &Self::File) -> Option<Arc<l::NodeTable>> { None }
     fn reads(&self, path: &str) -> bool;
     fn manifests(&self) -> Vec<&'static str>;
     fn words(&self) -> Vec<l::UnknownName>;
@@ -78,6 +79,7 @@ impl From<l::Language> for Linked {
 impl Source for Linked {
     type File = l::Elements;
     type Dictionary = l::Symbols;
+    fn lent(f: &Self::File) -> Option<Arc<l::NodeTable>> { l::native_table(f).cloned() }
     fn reads(&self, path: &str) -> bool {
         self.parser.recognition(&l::ParseRequest {
             file: l::FileId(0),
@@ -120,7 +122,7 @@ impl Source for Linked {
         wanted: &[l::Relation],
     ) -> Result<()> {
         self.parser
-            .build_file(req, file, dict, wanted)
+            .build_native_file(req, file, dict, wanted)
             .map_err(|e| format!("{e:?}"))
     }
     fn notes(file: &Self::File) -> l::Bytes {

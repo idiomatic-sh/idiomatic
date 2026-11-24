@@ -13,7 +13,7 @@ use super::types::{
     ArgumentGrammar, ArgumentList, Cursor, Expansion, HeldMacro, MacroArgument, MacroName,
     NodeChildren, Open, RustText, Step, Walker,
 };
-use super::writer::emit;
+use super::writer::{emit, Output};
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::{OpaqueMacros, SourceText};
 use ra_ap_parser::{LexedStr, PrefixEntryPoint, TopEntryPoint};
@@ -35,6 +35,12 @@ impl SyntaxRaApSyntaxAdapter {
 
 impl SyntaxPort for SyntaxRaApSyntaxAdapter {
     fn read(&self, text: SourceText<'_>, builder: &mut languages::TableBuilder<'_>) {
+        self.walk(text, builder);
+    }
+}
+
+impl SyntaxRaApSyntaxAdapter {
+    pub(crate) fn walk(&self, text: SourceText<'_>, builder: &mut impl Output) {
         let repaired = repaired(text);
         let whole = RustText(&repaired.0);
         let lexed = LexedStr::new(Edition::CURRENT, whole.0);
@@ -42,9 +48,8 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
         let output = TopEntryPoint::SourceFile.parse(&input);
         for (error, message) in lexed.errors() {
             let range = lexed.text_range(error);
-            languages::diagnose(
-                builder,
-                languages::ReportText(message),
+            builder.diagnostic(
+                message,
                 offset(Count(range.start)),
                 offset(Count(range.end)),
             );
@@ -73,7 +78,7 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
         let mut pending = std::collections::VecDeque::from(std::mem::take(&mut walker.found));
         let mut number = 0_u32;
         while let Some(expansion) = pending.pop_front() {
-            languages::adopt(builder, expansion.host);
+            builder.adopt(expansion.host);
             let made = languages::ExpansionId(number);
             number = number.saturating_add(1);
             for argument in expansion.arguments {
@@ -83,12 +88,12 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
                 walker.held = None;
                 for step in argument.steps {
                     if matches!(step, Step::Enter(_) | Step::Token(..)) {
-                        languages::mark_expansion(builder, cursor.next, expansion.host, made);
+                        builder.origin(cursor.next, expansion.host, made);
                     }
                     feed(&mut walker, builder, whole, step, &mut cursor);
                 }
             }
-            languages::release(builder);
+            builder.release();
             pending.extend(walker.found.drain(..));
         }
     }
@@ -98,7 +103,7 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
 /// token tree is held until it is whole, and then its arguments are read, when the call is one whose arguments are code.
 pub(super) fn feed(
     walker: &mut Walker,
-    builder: &mut languages::TableBuilder<'_>,
+    builder: &mut impl Output,
     text: RustText<'_>,
     step: Step,
     cursor: &mut Cursor,

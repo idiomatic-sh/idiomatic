@@ -146,6 +146,25 @@ impl<P: ParseUseCase> ParseEngine for P {
         super::service::build_wanted_in(self, request, table, symbols, wanted)
     }
 
+    fn build_native_file(
+        &self,
+        request: ParseRequest<'_>,
+        table: &mut Elements,
+        symbols: &mut Symbols,
+        wanted: &[Relation],
+    ) -> Result<(), ParseError> {
+        let Some(native) = self.native_reader() else {
+            return super::service::build_wanted_in(self, request, table, symbols, wanted);
+        };
+        if self.recognizes(&request) == super::types::Recognition::Declines {
+            return Err(ParseError::Unsupported);
+        }
+        crate::domain::elements::service::read_native(table, symbols, request.bytes, native);
+        let mut done = crate::domain::completion::service::completion(table, symbols, request.bytes, request.file);
+        self.complete(&request, &mut done);
+        Ok(())
+    }
+
     fn build_file_explicit(
         &self,
         request: ParseRequest<'_>,

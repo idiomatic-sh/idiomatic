@@ -1,0 +1,73 @@
+//! A Rust file in concrete preorder. Lexical leaves keep the same positions as their
+//! parser events. Parsed macro arguments follow the concrete prefix.
+use super::{adapter::SyntaxRaApSyntaxAdapter, writer::Output};
+use crate::domain::fields::service::{field_bits, field_of};
+use crate::domain::syntax::{constants::OPAQUE_MACROS, service::kinds};
+use crate::outbound::syntax::types::{OpaqueMacros, SourceText};
+use ryo::languages::{self as l, node_table as t};
+
+struct Writer<'a, 'b> {
+    table: &'a mut l::NodeTableBuilder<'b>,
+    host: Option<l::Position>,
+    depth: usize,
+    origins: &'a mut Vec<l::ExpandedPosition>,
+}
+
+impl Writer<'_, '_> {
+    fn begin_root(&mut self) {
+        if self.depth == 0 && let Some(host) = self.host {
+            t::embed(self.table, host, l::EmbeddedText {
+                text: l::NameText(""), mapping: l::EmbeddedMapping::Exact(l::Offset(0)),
+            });
+        }
+    }
+}
+
+impl Output for Writer<'_, '_> {
+    fn enter(&mut self, kind: l::KindBits, start: l::Offset) {
+        self.begin_root();
+        t::enter_node(self.table, kind, l::FieldCode(0), start);
+        self.depth += 1;
+    }
+    fn leave(&mut self, end: l::Offset) {
+        self.depth -= 1;
+        t::leave_node(self.table, end);
+    }
+    fn token(&mut self, kind: l::KindBits, start: l::Offset, end: l::Offset, decoded: Option<l::NameText<'_>>) {
+        self.enter(kind, start);
+        if let Some(text) = decoded {
+            t::node_property(self.table, l::PropertyId(0), text);
+        }
+        self.leave(end);
+    }
+    fn property(&mut self, key: l::PropertyId, value: l::NameText<'_>) {
+        t::node_property(self.table, key, value);
+    }
+    fn formatted(&mut self, key: l::PropertyId, value: std::fmt::Arguments<'_>) -> std::fmt::Result {
+        t::node_property_fmt(self.table, key, value)
+    }
+    fn diagnostic(&mut self, message: &str, start: l::Offset, end: l::Offset) {
+        t::diagnose(self.table, start, end, l::NameText(message));
+    }
+    fn adopt(&mut self, host: l::Position) {
+        self.host = Some(host);
+    }
+    fn origin(&mut self, element: l::Position, host: l::Position, expansion: l::ExpansionId) {
+        self.origins.push(l::ExpandedPosition { element, call_site: host, expansion });
+    }
+    fn release(&mut self) {
+        self.host = None;
+    }
+}
+
+/// Reads directly into the table that the evaluator borrows. The first origin
+/// belongs to the element at `node_table::own_end`.
+pub fn read(bytes: &[u8], table: &mut l::NodeTable, origins: &mut Vec<l::ExpandedPosition>) {
+    origins.clear();
+    let mut builder = t::builder(table, l::Count(kinds().count()));
+    SyntaxRaApSyntaxAdapter::new(OpaqueMacros(&OPAQUE_MACROS)).walk(
+        SourceText(bytes), &mut Writer { table: &mut builder, host: None, depth: 0, origins },
+    );
+    t::finished(&mut builder);
+    t::classify_fields(table, |tree, at| l::FieldCode(field_bits(field_of(tree, at)).0));
+}
