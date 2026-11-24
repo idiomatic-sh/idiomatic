@@ -9,7 +9,7 @@ type Digest = [u8; 32];
 type Key = [u8; 16];
 type Records = BTreeMap<Key, Answer>;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) struct Finding {
     pub rule: String,
     pub file: String,
@@ -17,7 +17,7 @@ pub(crate) struct Finding {
     pub end: u64,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) enum UnknownOrigin {
     Partition,
     Field(u32),
@@ -549,7 +549,12 @@ pub(crate) fn check(
     let mut next = Records::new();
     {
         for (p, k) in req.files.iter().zip(&first.keys) {
-            if let Some(a) = capture.files.remove(p) {
+            if let Some(mut a) = capture.files.remove(p) {
+                // A relation's evaluation order may follow run-local symbol numbers.
+                // These vectors are multisets. Persist a stable order with duplicates intact.
+                a.findings.sort_unstable();
+                a.refusals.sort_unstable();
+                a.unknowns.sort_unstable();
                 next.insert(*k, a);
             }
         }
