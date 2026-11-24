@@ -13,20 +13,20 @@ pub(super) fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {
 
 /// The fill of `rel` in file `file` by its supplier (the host's or the provider's), or its empty table where the supplier
 /// says the file has no row of it.
-pub(super) fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str, file: u32) -> R<Table> {
+pub(super) fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str, file: u32) -> R<std::rc::Rc<Table>> {
     if let Supplier::Host = run.supplier(rel) {
         if !sw!("VEC_NO_FILL_LEN") && super::host::host_len(rel) == Some(0) {
-            return empty_fill(run, rel);
+            return empty_fill(run, rel).map(super::recycle::rc);
         }
-        return super::host::host_fill(run, rel, file).unwrap_or_else(|| Err(format!("the host supplies no {rel}")));
+        return super::host::host_fill(run, rel, file).unwrap_or_else(|| Err(format!("the host supplies no {rel}"))).map(super::recycle::rc);
     }
     let scope = Scope::File(file);
     if sw!("VEC_NO_FILL_LEN") {
-        return p.fill(run, rel, scope);
+        return p.shared_fill(run, rel, scope);
     }
     match p.fill_len(run, rel, scope) {
-        Some(0) => empty_fill(run, rel),
-        _ => p.fill(run, rel, scope),
+        Some(0) => empty_fill(run, rel).map(super::recycle::rc),
+        _ => p.shared_fill(run, rel, scope),
     }
 }
 
@@ -48,7 +48,7 @@ impl Exec<'_> {
         }
         let t = fill_or_empty(run, p, rel, f.file)?;
         let n = t.n;
-        f.fills.insert(rel.to_owned(), super::recycle::rc(t)); // redo-alloc: kept answers
+        f.fills.insert(rel.to_owned(), t); // redo-alloc: kept answers
         Ok(n)
     }
 }

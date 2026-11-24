@@ -778,7 +778,7 @@ pub(super) trait Provider {
     /// Every row of `rel` in `scope`, each cell as the run names it (a file cell is the run's number of the file it names).
     fn fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Table, String>;
     fn shared_fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Rc<Table>, String> {
-        self.fill(run,rel,scope).map(Rc::new)
+        self.fill(run,rel,scope).map(recycle::rc)
     }
     /// redo-fills pass 2: how many rows `fill(rel, scope)` answers, where known without making them; None: not known.
     fn fill_len(&mut self, _run: &mut Run, _rel: &str, _scope: Scope<'_>) -> Option<usize> {
@@ -2461,7 +2461,7 @@ impl<'p> Exec<'p> {
         }
         if !f.fills.contains_key(&rel) {
             let t = fill_len::fill_or_empty(run, p, &rel, f.file)?;
-            f.fills.insert(rel.clone(), recycle::rc(t));
+            f.fills.insert(rel.clone(), t);
         }
         if f.facts.len() <= i {
             f.facts.resize(i + 1, None);
@@ -2494,8 +2494,9 @@ impl<'p> Exec<'p> {
         let t = fill_len::fill_or_empty(run, p, rel, f.file);
         fill_prof::site(was);
         let t = t?;
-        f.fills.insert(rel.to_owned(), recycle::rc(t.clone()));
-        Ok(t)
+        let owned = t.copy();
+        f.fills.insert(rel.to_owned(), t);
+        Ok(owned)
     }
 
     fn antijoin(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args) -> R<Table> {

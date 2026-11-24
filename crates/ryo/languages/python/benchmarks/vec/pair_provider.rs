@@ -3,45 +3,31 @@ use super::{fact_catalog, first::WalkFact, pair_summary::Source};
 use ryo::languages::{
     CellKind, CellWord, FactAnswer, FileWords, FilledColumn, FilledColumns, Wanted,
 };
-use ryo_python::fixtures::columns::{BindingSite, ColumnFile};
+use ryo_python::fixtures::columns::ColumnFile;
 
-use CellKind::{File, Node, Number};
+use CellKind::{File, Node};
 
 #[path = "pair_predecessor.rs"]
 pub(super) mod predecessor;
-#[path = "pair_sites.rs"]
-pub(super) mod sites;
-
-// Columns of the actual binding-site answer are shared with the second-half adapter.
-pub(super) const SITES: &[(&str, CellKind)] = &[
-    ("binding", Node),
-    ("stores", Number),
-    ("removals", Number),
-    ("later", Number),
-    ("statement", Node),
-    ("series-end", Node),
-    ("next", Node),
-    ("file", File),
-];
 pub(super) const FACTS: &[WalkFact] = &[
     WalkFact {
-        name: fact_catalog::BINDING_READ_REL,
-        columns: sites::READ_WITNESS,
+        name: ColumnFile::BINDING_READ_SCHEMA.name,
+        columns: ColumnFile::BINDING_READ_SCHEMA.columns,
         exact: true,
     },
     WalkFact {
-        name: fact_catalog::ASSIGNMENT_SOURCE_REL,
-        columns: sites::ASSIGNMENT,
+        name: ColumnFile::ASSIGNMENT_SOURCE_SCHEMA.name,
+        columns: ColumnFile::ASSIGNMENT_SOURCE_SCHEMA.columns,
         exact: true,
     },
     WalkFact {
-        name: fact_catalog::NAMESPACE_SITES_REL,
-        columns: sites::NAMESPACE,
+        name: ColumnFile::NAMESPACE_SITES_SCHEMA.name,
+        columns: ColumnFile::NAMESPACE_SITES_SCHEMA.columns,
         exact: true,
     },
     WalkFact {
-        name: fact_catalog::BINDING_SITES_REL,
-        columns: SITES,
+        name: ColumnFile::BINDING_SITES_SCHEMA.name,
+        columns: ColumnFile::BINDING_SITES_SCHEMA.columns,
         exact: true,
     },
     WalkFact {
@@ -58,18 +44,6 @@ pub(super) const FACTS: &[WalkFact] = &[
     },
 ];
 
-pub(super) fn site_cells(site: BindingSite, file: usize) -> [u64; 8] {
-    [
-        u64::from(site.binding),
-        site.stores as u64,
-        site.removals as u64,
-        site.later as u64,
-        site.statement.map_or(super::finish::NULL, u64::from),
-        u64::from(site.series_end),
-        site.next.map_or(super::finish::NULL, u64::from),
-        file as u64,
-    ]
-}
 pub(super) fn read(
     file: &mut ColumnFile<'_, '_>,
     number: usize,
@@ -94,28 +68,16 @@ pub(super) fn read(
         .map(|_| FilledColumn(Vec::new()))
         .collect();
     match name {
-        fact_catalog::BINDING_SITES_REL => file.visit_binding_sites(|site| {
-            for (col, cell) in out.0.iter_mut().zip(site_cells(site, number)) {
-                col.0.push(CellWord(cell));
-            }
-        }),
-        fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL | fact_catalog::BINDING_READ_REL => sites::visit(
-            name,
-            file,
-            number as u64,
-            |s| {
-                ryo::languages::facts::intern(
-                    words,
-                    ryo_relations::domain::terms::types::NameText(s),
-                )
-                .0
-            },
+        fact_catalog::BINDING_SITES_REL | fact_catalog::ASSIGNMENT_SOURCE_REL |
+        fact_catalog::NAMESPACE_SITES_REL | fact_catalog::BINDING_READ_REL => file.visit_site_relation(
+            name, number as u64,
+            |s| ryo::languages::facts::intern(words, ryo_relations::domain::terms::types::NameText(s)).0,
             |row| {
                 for (col, &cell) in out.0.iter_mut().zip(row) {
                     col.0.push(CellWord(cell));
                 }
             },
-        ),
+        ).is_ok(),
         fact_catalog::PREDECESSOR_REL => predecessor::read(file, number, words, out),
         fact_catalog::RELATIVE_IMPORT_REL => {
             for (node, _, _, _) in file.relative_imports() {

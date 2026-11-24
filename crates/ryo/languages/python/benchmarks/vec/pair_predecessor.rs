@@ -6,17 +6,7 @@ use ryo_relations::domain::{
 };
 use std::sync::OnceLock;
 
-pub(crate) const COLUMNS: &[(&str, CellKind)] = &[
-    ("reference", CellKind::Node),
-    ("event", CellKind::Node),
-    ("kind", CellKind::Symbol),
-    ("namespace", CellKind::Symbol),
-    ("scope", CellKind::Node),
-    ("depth", CellKind::Number),
-    ("ordinal", CellKind::Number),
-    ("context", CellKind::Symbol),
-    ("file", CellKind::File),
-];
+pub(crate) const COLUMNS: &[(&str, CellKind)] = ColumnFile::PREDECESSOR_SCHEMA.columns;
 
 pub(crate) const LOOKUP: [&str; 8] = [
     "reference",
