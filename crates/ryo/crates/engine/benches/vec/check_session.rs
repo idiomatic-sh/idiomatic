@@ -23,6 +23,8 @@ use source::Source as FileSource;
 #[path = "check_session/frontier.rs"]
 mod frontier;
 pub(crate) use frontier::World;
+#[path = "check_session/shared.rs"]
+mod shared;
 
 type Parameters =
     BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
@@ -267,7 +269,9 @@ impl Schedule {
 struct Bound<'p> {
     screenable: Option<bool>,
     empty_frontier: Option<Vec<(usize, Rc<Table>)>>,
-    exec: Exec<'p>,
+    plan: &'p Plan,
+    slots: Vec<usize>,
+    test: usize,
     facts: Vec<l::Relation>,
     filters: BTreeMap<usize,Vec<(usize,u64)>>,
     hosted: Tables,
@@ -338,7 +342,6 @@ fn bind<'p, L: FileSource>(
         .iter()
         .map(|clause| clause.iter().map(|w| run.sym(w.as_bytes())).collect())
         .collect();
-    let exec = Exec::new(&program.plan);
     let filters=cut.into_iter().flat_map(|c|&c.filters).map(|(&node,alts)|{
         (node,alts.iter().map(|(col,w)|(*col,u64::from(run.sym(w)))).collect())
     }).collect();
@@ -346,7 +349,9 @@ fn bind<'p, L: FileSource>(
         screenable: None,
         empty_frontier: None,
         filters,
-        exec,
+        plan: &program.plan,
+        slots: Vec::with_capacity(program.plan.nodes.len()),
+        test: 0,
         facts,
         hosted,
         shape,
@@ -521,15 +526,38 @@ pub(crate) fn visit<L: FileSource>(
         run.path_sym.push(word);
     }
     let t = thread_cpu();
-    let mut checks = pairs::Checks::new(parser, programs, program_of, sources, selected, cut_of);
+    let mut needed = vec![false; program_of.len()];
+    for &index in selected {
+        for &binding in sources[index].bindings.keys() {
+            needed[binding] = true;
+        }
+    }
+    let mut checks = pairs::Checks::new(parser, programs, program_of, &needed, cut_of);
     clocks.prepare += thread_cpu() - t;
-    let mut bound = HashMap::new();
+    let mut bound: HashMap<usize, Result<Bound<'_>>> = HashMap::new();
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
     for &index in selected {
         by_path.entry(&sources[index].path).or_default().push(index);
     }
+    let start = thread_cpu();
+    let mut merged = shared::ReaderPlan::default();
+    for (binding, needed) in needed.into_iter().enumerate() {
+        if !needed { continue; }
+        let entry = (|| {
+            let program = programs[program_of[binding]].as_ref().map_err(Clone::clone)?;
+            let tables = host(binding, &mut run)?;
+            let mut b = bind(program, parser, &mut run, tables, cut_of[binding].as_deref())?;
+            merged.add(&mut b, &mut run);
+            Ok(b)
+        })();
+        bound.insert(binding, entry);
+    }
+    let (plan, supplied, test_count) = merged.finish();
+    let mut exec = Exec::new(&plan);
+    let mut test_results = vec![None; test_count];
+    clocks.prepare += thread_cpu() - start;
     let mut carried_symbols = HashMap::new();
     if let Some(dictionary) = reader_id.and_then(|id| world.project_words.get(id)) {
         carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
@@ -558,13 +586,7 @@ pub(crate) fn visit<L: FileSource>(
             let id = FileId(index.try_into().expect("file ID"));
             let t = thread_cpu();
             for (&binding, &slot) in &jobs {
-                let program = &programs[program_of[binding]];
-                let entry = bound.entry(binding).or_insert_with(|| {
-                    let p = program.as_ref().map_err(Clone::clone)?;
-                    let tables = host(binding, &mut run)?;
-                    bind(p, parser, &mut run, tables, cut_of[binding].as_deref())
-                });
-                if let Err(reason) = entry {
+                if let Err(reason) = &bound[&binding] {
                     answers[slot] = Err(reason.clone());
                 }
             }
@@ -683,6 +705,7 @@ pub(crate) fn visit<L: FileSource>(
             let Contents { kinds, fields, words } = &*contents;
             use ryo_execution_domain::domain::coverage::service::partial_of;
             let recovery = L::recovery(&elements);
+            test_results.fill(None);
             let mut active = Vec::new();
             for (&binding, &slot) in &jobs {
                 let Ok(b) = &bound[&binding] else { continue };
@@ -692,7 +715,7 @@ pub(crate) fn visit<L: FileSource>(
                 let partials = partial_of(&[], recovery, &rels);
                 let unknowns = c.report(&partials, &source.path);
                 let excluded = cut_of[binding].is_none()
-                    && (b.never
+                    && *test_results[b.test].get_or_insert_with(|| b.never
                         || !b.shape.iter().all(|c| {
                             c.iter().any(|(k, v)| {
                                 if *k {
@@ -805,6 +828,7 @@ pub(crate) fn visit<L: FileSource>(
                     table.n = 1;
                     (name.to_owned(), Rc::new(table))
                 });
+            let mut frame = None;
             let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
             for (binding, slot, excluded) in active {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
@@ -849,7 +873,7 @@ pub(crate) fn visit<L: FileSource>(
                 if excluded && unknowns.is_empty() {
                     if let Some(cut) = &cut_of[binding] {
                         let tables = b.empty_frontier.get_or_insert_with(|| {
-                            finish::session::certificate::empty_frontier(&mut b.exec, &mut run, &cut.inputs)
+                            finish::session::certificate::empty_frontier(&mut Exec::new(b.plan), &mut run, &cut.inputs)
                                 .expect("certified file output schemas")
                         });
                         world.insert_empty(slot, &source.path, tables);
@@ -862,10 +886,18 @@ pub(crate) fn visit<L: FileSource>(
                 let version = version.get_or_init(|| {
                     finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text())
                 });
+                let make_frame = || finish::session::frame(version, &plan, &supplied, lines.as_ref());
+                let mut restricted;
+                let current = if local_coverage.is_empty() {
+                    frame.get_or_insert_with(make_frame)
+                } else {
+                    restricted = make_frame();
+                    &mut restricted
+                };
                 if let Some(cut) = &cut_of[binding] {
-                    let local: Vec<_> = lines.iter().filter(|_| b.lines).cloned().collect();
-                    let value=shared.contribute(b,&mut run,id.0,version,&mut facts_view,&local,cut,
-                        &local_coverage,world,&mut carried_symbols,reader_id,unknown,slot);
+                    let value = shared.contribute(b, &mut exec, current, &mut run, id.0, &mut facts_view, cut,
+                        &local_coverage, world, &mut carried_symbols, reader_id, unknown, slot);
+                    if value.is_err() { frame = None; exec.release_request(); }
                     answers[slot] = value.map(|()| {
                         Reported {
                             rows: Vec::new(),
@@ -876,14 +908,9 @@ pub(crate) fn visit<L: FileSource>(
                     clocks.refused += usize::from(answers[slot].is_err());
                     continue;
                 }
-                answers[slot] = finish::session::pair(
-                    &mut b.exec,
-                    &mut run,
-                    version,
-                    &mut facts_view,
-                    b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
-                    &local_coverage,
-                )
+                let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, &b.slots, &local_coverage);
+                if value.is_err() { frame = None; exec.release_request(); }
+                answers[slot] = value
                 .map(|rows| Reported { rows, unknowns });
                 clocks.productive += usize::from(answers[slot].as_ref().is_ok_and(|r| !r.rows.is_empty()));
                 clocks.refused += usize::from(answers[slot].is_err());
@@ -898,6 +925,7 @@ pub(crate) fn visit<L: FileSource>(
             clocks.evaluate += thread_cpu() - t;
         }
     }
+    if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }
     if keep {
         state.run = run;
     }

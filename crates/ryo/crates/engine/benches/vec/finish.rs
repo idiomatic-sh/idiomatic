@@ -152,7 +152,7 @@ mod subject_scope;
 #[path = "finish/partition.rs"]
 pub(super) mod partition;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(super) enum Ty {
     Node,
     Sym,
@@ -199,7 +199,7 @@ pub(super) type Names = Rc<Vec<String>>;
 pub(super) type Tys = Rc<Vec<Ty>>;
 
 /// A column table.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub(super) struct Table {
     pub(super) names: Names,
     pub(super) tys: Tys,

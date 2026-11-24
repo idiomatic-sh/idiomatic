@@ -14,6 +14,7 @@ pub(crate) mod fixtures;
 pub(crate) mod given;
 pub(crate) mod joins;
 pub(crate) mod numbering;
+pub mod shared;
 pub(crate) mod readers;
 pub(crate) mod operators;
 pub(crate) mod semijoins;
