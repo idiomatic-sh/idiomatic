@@ -179,14 +179,14 @@ pub fn expanded_positions(elements: &Elements) -> impl Iterator<Item = Position>
 /// The kind of the element at `position`, as the language numbers it.
 #[must_use]
 pub fn kind_at(elements: &Elements, position: Position) -> KindBits {
-    if let Some(t) = native_table(elements) { return crate::domain::node_table::service::kind_of(t, position); }
+    if let Some(t) = native_table(elements) { return KindBits(t.0.kind[usize::from(position)]); }
     number(&elements.kind, position)
 }
 
 /// Where the element at `position` starts.
 #[must_use]
 pub fn start_at(elements: &Elements, position: Position) -> Offset {
-    if let Some(t) = native_table(elements) { return crate::domain::node_table::service::span_of(t, position).start; }
+    if let Some(t) = native_table(elements) { return Offset(t.0.start[usize::from(position)]); }
     number(&elements.start, position)
 }
 
@@ -232,7 +232,7 @@ pub(crate) fn number_mut<T>(column: &mut Numbers<T>, at: Position) -> &mut T {
 /// The parent of the element at `at`; the root is its own.
 #[must_use]
 pub fn parent_at(elements: &Elements, at: Position) -> Position {
-    if let Some(t) = native_table(elements) { return crate::domain::node_table::service::parent_of(t, at); }
+    if let Some(t) = native_table(elements) { return Position(t.0.parent[usize::from(at)]); }
     number(&elements.parent, at)
 }
 
@@ -245,7 +245,7 @@ pub fn flags_at(elements: &Elements, at: Position) -> Flags {
 /// How many elements are below the element at `at`: none below a token.
 #[must_use]
 pub fn size_at(elements: &Elements, at: Position) -> Extent {
-    if let Some(t) = native_table(elements) { return Extent(crate::domain::node_table::service::subtree_end_of(t, at).0 - at.0 - 1); }
+    if let Some(t) = native_table(elements) { return Extent(t.0.subtree_end[usize::from(at)].0 - at.0 - 1); }
     number(&elements.size, at)
 }
 
@@ -258,7 +258,7 @@ pub fn last_at(elements: &Elements, at: Position) -> Position {
 /// Where the element at `position` ends.
 #[must_use]
 pub fn end_at(elements: &Elements, position: Position) -> Offset {
-    if let Some(t) = native_table(elements) { return crate::domain::node_table::service::span_of(t, position).end; }
+    if let Some(t) = native_table(elements) { return Offset(t.0.end[usize::from(position)]); }
     number(&elements.end, position)
 }
 
@@ -317,7 +317,7 @@ pub fn first_token_text(elements: &Elements, of: Position) -> Option<Symbol> {
 /// The place of the element at `at` among its parent's children.
 #[must_use]
 pub fn ordinal_at(elements: &Elements, at: Position) -> ChildOrdinal {
-    if let Some(t) = native_table(elements) { return crate::domain::node_table::service::ordinal_of(t, at); }
+    if let Some(t) = native_table(elements) { return t.0.ordinal[usize::from(at)]; }
     number(&elements.ordinal, at)
 }
 
@@ -359,7 +359,7 @@ pub fn notes_mut(elements: &mut Elements) -> &mut Bytes {
 /// a language that names none never writes them, and a language reads the tree while its roles are being written.
 #[must_use]
 pub fn field_at(elements: &Elements, at: Position) -> FieldId {
-    if let Some(t) = native_table(elements) { return FieldId(crate::domain::node_table::service::field_of(t, at).0); }
+    if let Some(t) = native_table(elements) { return FieldId(t.0.field[usize::from(at)]); }
     if elements.field.as_ref().values.is_empty() {
         NO_FIELD
     } else {
