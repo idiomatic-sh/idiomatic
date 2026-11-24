@@ -295,7 +295,7 @@ impl languages::FileRelations for ParseContract {
         }
         use crate::fixtures::columns::ColumnFile;
         let projected: Vec<_> = schemas.iter().copied().filter(|s| **s != ColumnFile::NAMESPACE_SITES_SCHEMA).collect();
-        let schedule = (projected.len() != schemas.len()).then(|| {
+        let mut schedule = (projected.len() != schemas.len()).then(|| {
             use crate::domain::binding_results::types::EventKind;
             let tree = languages::Tree { elements, source: request.bytes, file: request.file };
             let mut scratch;
@@ -317,6 +317,18 @@ impl languages::FileRelations for ParseContract {
                 Some((event.scope, event.name, event.ordinal.0 as u64, mutation))
             })))
         });
+        let mut schedule_uses = schemas.len() - projected.len();
+        let mut next_schedule = || {
+            schedule_uses -= 1;
+            if schedule_uses == 0 {
+                schedule.take().expect("requested schedule")
+            } else {
+                schedule.as_ref().expect("requested schedule").clone()
+            }
+        };
+        if projected.is_empty() {
+            return schemas.iter().map(|_| next_schedule()).collect();
+        }
         let mut result = None;
         let read = ColumnWalk::retained(self.settings, request, elements, &mut |file, positions| {
             let lists = self.named.as_ref().map(|(_, lists)| lists);
@@ -356,7 +368,7 @@ impl languages::FileRelations for ParseContract {
         })).collect());
         let mut answers = answers.into_iter();
         schemas.iter().map(|schema| if **schema == ColumnFile::NAMESPACE_SITES_SCHEMA {
-            schedule.as_ref().expect("requested schedule").clone()
+            next_schedule()
         } else {
             answers.next().expect("requested projection")
         }).collect()
