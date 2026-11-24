@@ -4,6 +4,9 @@ use super::{Active, Authority, Batch, Hosted, Input};
 use crate::thread_cpu;
 #[path = "pinned.rs"]
 mod pinned;
+#[path = "call_cache.rs"]
+mod call_cache;
+use call_cache::CallCache;
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use pinned::{Dictionary, Pinned};
 use release_sdk::linter as sdk;
@@ -28,7 +31,8 @@ pub struct Live {
     batch: Batch,
     state: Active<release_sdk::languages::Elements, Dictionary>,
     languages: Vec<Pinned>,
-    filters: HashMap<Vec<sdk::Glob>, Rc<GlobSet>>,
+    filters: HashMap<Vec<sdk::Glob>, (usize, Rc<GlobSet>)>,
+    cache: CallCache,
     versions: HashMap<(Authority, BTreeMap<String, Rc<[u8]>>), Rc<str>>,
 }
 
@@ -46,6 +50,7 @@ impl Default for Live {
             },
             languages: Vec::new(),
             filters: HashMap::new(),
+            cache: CallCache::default(),
             versions: HashMap::new(),
         }
     }
@@ -84,48 +89,6 @@ fn parameter(v: sdk::ParameterValue) -> Result<PlanConstant, String> {
     })
 }
 
-fn table(t: sdk::HostRelation) -> Result<Hosted, String> {
-    let columns = t
-        .columns
-        .into_iter()
-        .map(|c| {
-            let kind = match c.kind {
-                sdk::HostKind::File => "File",
-                sdk::HostKind::Text => "Text",
-                sdk::HostKind::Number => "Number",
-                _ => return Err("unsupported SDK host column type".to_owned()),
-            };
-            Ok((c.name.0.into(), kind.to_owned()))
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    let rows = t
-        .rows
-        .into_iter()
-        .map(|r| {
-            if r.0.len() != columns.len() {
-                return Err("host row width disagrees with declaration".into());
-            }
-            r.0.into_iter()
-                .zip(&columns)
-                .map(|(v, (_, kind))| {
-                    Ok(match (kind.as_str(), v) {
-                        ("File", sdk::Cell::File(p)) => HostCell::File { file: p.0.into() },
-                        ("Text", sdk::Cell::Text(s)) => HostCell::Text(s.0.into()),
-                        ("Number", sdk::Cell::Number(n)) => HostCell::Number(n.0),
-                        _ => return Err("host cell disagrees with declaration".to_owned()),
-                    })
-                })
-                .collect()
-        })
-        .collect::<Result<Rc<[_]>, String>>()?;
-    Ok(Hosted {
-        name: t.name.0.into(),
-        columns,
-        rows,
-        partial: None,
-    })
-}
-
 fn slot(v: &Option<Cell>) -> sdk::Slot {
     let Some(c) = v else {
         return sdk::Slot::Nothing;
@@ -143,7 +106,7 @@ fn slot(v: &Option<Cell>) -> sdk::Slot {
 }
 
 impl Live {
-    fn globs(&mut self, names: &[sdk::Glob]) -> Result<Rc<GlobSet>, String> {
+    fn globs(&mut self, names: &[sdk::Glob]) -> Result<(usize, Rc<GlobSet>), String> {
         if let Some(found) = self.filters.get(names) {
             return Ok(found.clone());
         }
@@ -156,7 +119,7 @@ impl Live {
                     .map_err(|e| e.to_string())?,
             );
         }
-        let set = Rc::new(builder.build().map_err(|e| e.to_string())?);
+        let set = (self.filters.len(), Rc::new(builder.build().map_err(|e| e.to_string())?));
         self.filters.insert(names.to_vec(), set.clone());
         Ok(set)
     }
@@ -246,7 +209,7 @@ impl Live {
             .collect();
         paths.sort_unstable();
         paths.dedup();
-        let paths = Rc::new(paths);
+        let (inventory, paths) = self.cache.inventory(paths);
         let key = (authority.clone(), overlay);
         let root = if let Some(id) = self.versions.get(&key) {
             id.clone()
@@ -267,7 +230,7 @@ impl Live {
         let hosted = req
             .hosted
             .into_iter()
-            .map(table)
+            .map(|t| self.cache.table(t))
             .collect::<Result<Vec<_>, _>>()?;
         let mut ids = Vec::new();
         self.batch.work.clear();
@@ -280,15 +243,13 @@ impl Live {
             }
             let inc = self.globs(&rule.include)?;
             let exc = self.globs(&rule.exclude)?;
-            let files = paths
-                .iter()
-                .filter(|p| {
-                    (req.files.is_empty() || filter.is_match(p))
-                        && (rule.include.is_empty() || inc.is_match(p))
-                        && !exc.is_match(p)
-                })
-                .cloned()
-                .collect();
+            let files = self.cache.files((inventory, filter.0, inc.0, exc.0), || {
+                paths.iter().filter(|p| {
+                    (req.files.is_empty() || filter.1.is_match(p))
+                        && (rule.include.is_empty() || inc.1.is_match(p))
+                        && !exc.1.is_match(p)
+                }).cloned().collect()
+            });
             let parameters = rule
                 .parameters
                 .into_iter()
@@ -297,7 +258,7 @@ impl Live {
             let work = self
                 .batch
                 .register_query(
-                    Rc::from(rule.query.as_ref()),
+                    self.cache.query(rule.query.as_ref()),
                     Input {
                         root: root.to_string(),
                         files,
