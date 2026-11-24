@@ -442,6 +442,7 @@ impl Batch {
         }
         self.clocks.pairs = self.schedule.pairs;
         let readers = languages.iter().map(Some).chain([None]);
+        let mut source_names = session::SourceNames::default();
         for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
             if files.is_empty() {
                 continue;
@@ -449,6 +450,7 @@ impl Batch {
             session::visit(
                 &mut reader_states[reader_id],
                 *keep,
+                &mut source_names,
                 language,
                 (reader_id != unclaimed).then_some(reader_id),
                 &manifests,
@@ -471,6 +473,7 @@ impl Batch {
                 &mut self.clocks,
             );
         }
+        drop(source_names);
         if !*keep {
             reader_states.clear();
         }
@@ -803,10 +806,10 @@ pub(crate) fn batch(languages: Vec<Language>, manifest: &str, output: &str) {
         .into_iter()
         .map(session::source::Linked::from)
         .collect();
-    batch_with_sources(&readers, manifest, output);
+    batch_with_sources(&readers, manifest, output, || {});
 }
 
-fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str, output: &str) {
+fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str, output: &str, completed: impl FnOnce()) {
     let start = thread_cpu();
     let mut session = Batch::default();
     if let Some(index) = std::env::var_os("TM_CORPUS_INVENTORIES") {
@@ -904,6 +907,7 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
         c.assemble,
         registration,
     );
+    completed();
 }
 
 /// Standalone scenario entry, using the same scheduler and full typed output.

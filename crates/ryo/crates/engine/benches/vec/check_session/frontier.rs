@@ -13,7 +13,7 @@ pub(super) struct FileInputs<'a> {
 impl<'a> FileInputs<'a> {
     pub(super) fn new(
         active: &[(usize, usize, bool)],
-        bound: &HashMap<usize, Result<Bound<'_>>>,
+        bound: &super::Bindings<'_>,
         programs: &'a [Result<Program>],
         program_of: &[usize],
         cut_of: &[Option<Rc<Partition>>],
@@ -23,7 +23,7 @@ impl<'a> FileInputs<'a> {
             let Some(cut) = &cut_of[binding] else {
                 continue;
             };
-            let b = bound[&binding].as_ref().expect("active binding");
+            let b = bound[binding].as_ref().expect("active binding");
             let plan = &programs[program_of[binding]].as_ref().unwrap().plan;
             for (&node, columns) in &cut.columns {
                 let Some(name) = plan.nodes[node].base() else {

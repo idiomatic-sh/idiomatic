@@ -41,7 +41,7 @@ pub(crate) trait Source: Clone {
         start: usize,
         kinds: &mut FxHashSet<u32>,
         fields: &mut FxHashSet<u32>,
-        words: &mut FxHashSet<u32>,
+        words: Option<&mut FxHashSet<u32>>,
     );
     fn fill(
         &self,
@@ -158,7 +158,7 @@ impl Source for Linked {
         start: usize,
         kinds: &mut FxHashSet<u32>,
         fields: &mut FxHashSet<u32>,
-        words: &mut FxHashSet<u32>,
+        mut words: Option<&mut FxHashSet<u32>>,
     ) {
         for i in start as u32..l::end_of(file).0 {
             let at = l::Position(i);
@@ -170,13 +170,15 @@ impl Source for Linked {
                 bytes,
                 l::field_name_at(file, at),
             ));
-            words.insert(reader::symbol(
-                run,
-                unknown,
-                dict,
-                bytes,
-                l::text_at(file, at),
-            ));
+            if let Some(words) = words.as_deref_mut() {
+                words.insert(reader::symbol(
+                    run,
+                    unknown,
+                    dict,
+                    bytes,
+                    l::text_at(file, at),
+                ));
+            }
         }
     }
     fn fill(

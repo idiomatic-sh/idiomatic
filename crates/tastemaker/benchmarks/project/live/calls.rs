@@ -355,8 +355,14 @@ impl Live {
 
 /// Replay a closed capture with exactly the parsers linked into this release.
 pub fn capture(linked: sdk::Languages, manifest: &str, output: &str) {
+    capture_then(linked, manifest, output, || {});
+}
+
+/// The capture host can terminate after its final typed receipt and phase log.
+/// Returning callers release the batch through the ordinary scope.
+pub fn capture_then(linked: sdk::Languages, manifest: &str, output: &str, completed: impl FnOnce()) {
     let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
-    super::batch_with_sources(&readers, manifest, output);
+    super::batch_with_sources(&readers, manifest, output, completed);
 }
 
 #[derive(Default)]

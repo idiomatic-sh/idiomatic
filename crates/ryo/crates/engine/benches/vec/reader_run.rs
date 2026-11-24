@@ -432,6 +432,8 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
                 super::pair_checks::SyntaxText {
                     ids: &provider.text,
                     symbols: &fin.run.texts,
+                    dictionary: &fin.run.ids,
+                    distinct: None,
                     patterns: None,
                     column: None,
                 },

@@ -113,6 +113,7 @@ pub(super) struct Fact {
 }
 
 pub(super) struct Program {
+    pub scratch: std::cell::RefCell<super::pair_checks::Scratch>,
     pub meter: Option<cost::Meter>,
     pub paths: Vec<Option<paths::Edge>>,
     pub file_only: Vec<bool>,
@@ -1730,6 +1731,7 @@ pub(super) fn prepare_plans(
         early_omit: 0,
         signatures: Vec::with_capacity(steps),
         out: Program {
+            scratch: Default::default(),
             meter: None,
             paths: Vec::new(),
             file_only: Vec::new(),

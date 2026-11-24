@@ -80,7 +80,10 @@ fn main() -> std::process::ExitCode {
     if mode.as_deref() == Some("--tm-batch") {
         let manifest = arguments.next().expect("manifest");
         let output = arguments.next().expect("output");
-        tm_project_session::capture(benchmark_languages::linked(), &manifest, &output);
+        tm_project_session::capture_then(benchmark_languages::linked(), &manifest, &output, || {
+            std::io::Write::flush(&mut std::io::stdout()).expect("flush capture log");
+            std::process::exit(0);
+        });
         return std::process::ExitCode::SUCCESS;
     }'''))
 
