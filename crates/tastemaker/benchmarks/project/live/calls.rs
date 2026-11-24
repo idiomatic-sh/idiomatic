@@ -1,6 +1,6 @@
 //! Typed calls from the pinned check. A refusal returns to the host as an error.
 use super::super::HostCell;
-use super::{Active, Authority, Batch, Hosted, Input};
+use super::{Active, Authority, Batch, Hosted, Input, LiveAdmission};
 use crate::thread_cpu;
 #[path = "pinned.rs"]
 mod pinned;
@@ -17,16 +17,27 @@ use ryo_values::domain::finish_plans::expressions::types::{
 use ryo_values::domain::plan_parts::types::{LiteralText, WholeNumber};
 use ryo_values::domain::row_texts::types::Cell;
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, VecDeque},
     rc::Rc,
     sync::Arc,
 };
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct LiveReport {
     pub findings: Vec<(Box<str>, sdk::Slot, Vec<(Box<str>, sdk::Slot)>)>,
     pub unknowns: Vec<(Box<str>, String, String)>,
     pub unread: Vec<Box<str>>,
+}
+
+// This cache accepts only immutable, parameterless requests with a pure report.
+// The version already identifies the normalized input bytes for Given authority.
+#[derive(PartialEq)]
+struct CallKey {
+    version: Option<Arc<str>>,
+    inventory: usize,
+    filter: usize,
+    tables: Vec<usize>,
+    rules: Vec<(sdk::RuleId, Rc<str>, usize, usize)>,
 }
 
 pub struct Live {
@@ -37,6 +48,13 @@ pub struct Live {
     languages: Vec<Pinned>,
     filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
+    completed_calls: [VecDeque<(CallKey, LiveReport)>; 2],
+    skipped_calls: usize,
+    skipped_rules: usize,
+    registered_tables: usize,
+    delivered_cells: usize,
+    delivered_rows: usize,
+    epochs: usize,
     versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
 }
 
@@ -61,6 +79,13 @@ impl Default for Live {
             languages: Vec::new(),
             filters: HashMap::new(),
             cache: CallCache::default(),
+            completed_calls: Default::default(),
+            skipped_calls: 0,
+            skipped_rules: 0,
+            registered_tables: 0,
+            delivered_cells: 0,
+            delivered_rows: 0,
+            epochs: 0,
             versions: HashMap::new(),
         }
     }
@@ -99,20 +124,43 @@ fn parameter(v: sdk::ParameterValue) -> Result<PlanConstant, String> {
     })
 }
 
-fn slot(v: &Option<Cell<std::sync::Arc<str>>>) -> sdk::Slot {
+fn slot(v: Option<Cell>) -> sdk::Slot {
     let Some(c) = v else {
         return sdk::Slot::Nothing;
     };
     use release_sdk::languages::{Offset, Span};
     sdk::Slot::Is(match c {
-        Cell::File(p) => sdk::Cell::File(sdk::RelativePath(p.as_ref().into())),
-        Cell::Text(s) => sdk::Cell::Text(sdk::HostText(s.as_ref().into())),
+        Cell::File(p) => sdk::Cell::File(sdk::RelativePath(p)),
+        Cell::Text(s) => sdk::Cell::Text(sdk::HostText(s)),
         Cell::Number(n) => sdk::Cell::Number(sdk::HostNumber(n.0)),
         Cell::Span(s) => sdk::Cell::Span(Span {
             start: Offset(s.start.0),
             end: Offset(s.end.0),
         }),
     })
+}
+
+fn unread_path(linked: &sdk::Languages, path: &sdk::RelativePath) -> bool {
+    linked.reads(path) != release_sdk::languages::Recognition::Reads
+        && !linked.0.iter().any(|reader| {
+            reader.primary_role(release_sdk::languages::SourcePath(&path.0))
+                == release_language::domain::files::types::PrimaryFileRole::Configuration
+        })
+}
+
+fn small_report(report: &LiveReport) -> bool {
+    fn bytes(slot: &sdk::Slot) -> usize {
+        match slot {
+            sdk::Slot::Is(sdk::Cell::File(path)) => path.0.len(),
+            sdk::Slot::Is(sdk::Cell::Text(text)) => text.0.len(),
+            _ => 0,
+        }
+    }
+    report.unknowns.is_empty() && report.unread.is_empty() && report.findings.len() <= 16
+        && report.findings.iter().all(|(id, subject, columns)| {
+            columns.len() <= 16 && id.len() + bytes(subject)
+                + columns.iter().map(|(name, cell)| name.len() + bytes(cell)).sum::<usize>() <= 256
+        })
 }
 
 impl Live {
@@ -152,7 +200,7 @@ impl Live {
         };
         self.state.retention.configure(limit, allocated::bytes);
         let count = req.rules.len();
-        let result = self.answer(req, linked);
+        let result = self.answer(req, linked, limit.is_none());
         let mut last = MEASURED
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -175,6 +223,9 @@ impl Live {
         last.retained = self.state.retention.counts();
         last.reused_binding_entries = self.batch.reused_binding_entries;
         last.pattern_visits = self.cache.pattern_visits;
+        last.registration = [self.batch.source_lookups_removed, self.epochs, self.skipped_calls,
+            self.skipped_rules, self.batch.host_binding_counts[0], self.batch.host_binding_counts[1],
+            self.registered_tables, self.delivered_rows, self.delivered_cells, self.batch.slot_lookups_removed];
         last.project_counts = [
             self.batch.projects.len(),
             self.batch.populations_built,
@@ -198,6 +249,7 @@ impl Live {
         &mut self,
         req: sdk::LintRequest,
         linked: &sdk::Languages,
+        unbounded: bool,
     ) -> Result<LiveReport, String> {
         if self.languages.is_empty() {
             self.languages = linked.0.iter().cloned().map(Pinned::from).collect();
@@ -231,11 +283,49 @@ impl Live {
         let key = (authority.clone(), overlay);
         let mut prepared_root=None;
         let filter = self.globs(&req.files)?;
-        let hosted = req
+        let (table_ids, hosted): (Vec<_>, Vec<_>) = req
             .hosted
             .into_iter()
             .map(|t| self.cache.table(t))
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .unzip();
+        self.registered_tables += hosted.len();
+        let memoize = unbounded && self.store.is_none() && authority == Authority::Given
+            && table_ids.len() <= 32 && !req.rules.is_empty() && req.rules.len() <= 16
+            && req.rules.iter().all(|(id, rule)| id.as_ref().len() <= 256
+                && rule.applicability == sdk::RuleApplicability::Always
+                && rule.observations.is_empty() && rule.parameters.is_empty());
+        let memo_pool = usize::from(!paths.is_empty());
+        let memo = if memoize {
+            let mut rules = Vec::with_capacity(req.rules.len());
+            for (id, rule) in &req.rules {
+                rules.push((id.clone(), self.cache.query(rule.query.as_ref()),
+                    self.globs(&rule.include)?.0, self.globs(&rule.exclude)?.0));
+            }
+            let memo = CallKey {
+                version: self.versions.get(&key).cloned(),
+                inventory,
+                filter: filter.0,
+                tables: table_ids.clone(),
+                rules,
+            };
+            if self.batch.schedule.pending.is_empty()
+                && let Some((_, report)) = self.completed_calls[memo_pool].iter().find(|(saved, _)| saved == &memo)
+                && paths.iter().all(|path| !unread_path(linked, &sdk::RelativePath(path.as_str().into())))
+            {
+                let start = thread_cpu();
+                let report = report.clone();
+                self.batch.clocks.assemble += thread_cpu() - start;
+                self.skipped_calls += 1;
+                self.skipped_rules += memo.rules.len();
+                return Ok(report);
+            }
+            Some(memo)
+        } else {
+            None
+        };
+        self.batch.last_sources = None;
         let mut ids = Vec::new();
         let scope=if let Some(s)=&mut self.store{
             // The unread list belongs to the union of requested project relations.
@@ -260,7 +350,7 @@ impl Live {
             }
             let inc = self.globs(&rule.include)?;
             let exc = self.globs(&rule.exclude)?;
-            let files = self.cache.files(
+            let (selection, files) = self.cache.files(
                 (inventory, filter.0, inc.0, exc.0),
                 &filter.1,
                 &inc.1,
@@ -320,6 +410,7 @@ impl Live {
                         parameters,
                     },
                     None,
+                    Some(LiveAdmission { version: root, selection, host_tables: &table_ids }),
                 )
                 .map_err(|e| format!("{id}: {e}"))?;
             if let super::Work::Invalid(reason)=&work{
@@ -329,6 +420,8 @@ impl Live {
             ids.push((id,Err((self.batch.work.len(),contract))));
             self.batch.work.push(work);
         }
+        self.epochs += 1;
+        self.batch.last_sources = None;
         if let Some(store)=&mut self.store {
             if !self.batch.work.is_empty(){self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));}else{self.state.manifest_failures.clear();}
         } else {
@@ -350,16 +443,15 @@ impl Live {
                 }
             };
             for row in receipt.rows {
-                let subject = row.layout.identity.first()
-                    .map(|&i| row.value(i))
-                    .ok_or("missing row subject")?;
-                out.findings.push((
-                    id.as_ref().into(),
-                    slot(&subject),
-                    row.layout.names.iter().zip(row.cells())
-                        .map(|(n, v)| (n.as_str().into(), slot(&v)))
-                        .collect(),
-                ));
+                let columns: Vec<_> = row.layout.names.iter()
+                    .zip(row.cells_with(|text| Box::<str>::from(text.as_ref())))
+                    .map(|(name, value)| (name.as_str().into(), slot(value)))
+                    .collect();
+                let subject = row.layout.identity.first().and_then(|&i| columns.get(i))
+                    .ok_or("missing row subject")?.1.clone();
+                self.delivered_rows += 1;
+                self.delivered_cells += columns.len();
+                out.findings.push((id.as_ref().into(), subject, columns));
             }
             for (p, msg) in receipt.unknowns {
                 out.unknowns
@@ -368,9 +460,7 @@ impl Live {
         }
         for path in Rc::unwrap_or_clone(paths) {
             let p = sdk::RelativePath(path.into());
-            if linked.reads(&p) != release_sdk::languages::Recognition::Reads
-                && !linked.0.iter().any(|reader| reader.primary_role(release_sdk::languages::SourcePath(&p.0)) == release_language::domain::files::types::PrimaryFileRole::Configuration)
-            {
+            if unread_path(linked, &p) {
                 out.unread.push(p.0);
             }
         }
@@ -379,6 +469,16 @@ impl Live {
         for (p,n) in restored_unread{let total=manifest.entry(p).or_default();*total=(*total).max(n);}
         for (p,n) in manifest{out.unread.extend(std::iter::repeat_n(Box::<str>::from(p),n));}
         out.unread.sort_unstable();
+        if let Some(mut memo) = memo && small_report(&out)
+            && let Some(version) = prepared_root
+        {
+            memo.version = Some(version);
+            let entries = &mut self.completed_calls[memo_pool];
+            if entries.len() == 128 {
+                entries.pop_front();
+            }
+            entries.push_back((memo, out.clone()));
+        }
         self.batch.clocks.assemble += thread_cpu() - start;
         Ok(out)
     }
@@ -413,6 +513,7 @@ struct Measurement {
     retained: [u64; 4],
     reused_binding_entries: usize,
     pattern_visits: [usize; 4],
+    registration: [usize; 10],
 }
 static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measurement {
     sessions: 0,
@@ -427,6 +528,7 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     retained: [0; 4],
     reused_binding_entries: 0,
     pattern_visits: [0; 4],
+    registration: [0; 10],
 });
 
 /// Print the one executor's cumulative counters to the benchmark log after the host renders.
@@ -440,6 +542,8 @@ pub fn print_measurement() {
     eprintln!("ADMISSION_EPOCH reused_binding_entries={}", m.reused_binding_entries);
     let [before, after, selections, searches] = m.pattern_visits;
     eprintln!("ADMISSION_PATHS prior_visits={before} visits={after} indexed_selections={selections} searches={searches}");
+    let [paths, epochs, calls, rules, host_uses, row_hashes, tables, rows, cells, slots] = m.registration;
+    eprintln!("ADMISSION_SMALL source_lookups_removed={paths} slot_lookups_removed={slots} epochs={epochs} whole_calls_reused={calls} registrations_removed={rules} bound_host_uses={host_uses} row_hashes_removed={row_hashes} supplied_tables={tables} delivery_rows={rows} delivery_cells={cells}");
     let [versions,hits,evictions,peak_charge]=m.retained;
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;

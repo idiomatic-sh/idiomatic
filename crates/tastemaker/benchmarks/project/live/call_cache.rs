@@ -56,7 +56,7 @@ impl PathFilter {
         };
         // On a small inventory the binary searches can exceed the cost of a scan.
         if prefixes.is_empty()
-            || prefixes.len() * (inventory.len().max(1).ilog2() as usize + 1) >= inventory.len()
+            || Self::range_search_cost(prefixes.len(), inventory.len()) >= inventory.len()
         {
             return None;
         }
@@ -65,6 +65,11 @@ impl PathFilter {
             let end = start + inventory[start..].partition_point(|path| path.starts_with(prefix.as_ref()));
             start..end
         }).collect())
+    }
+
+    fn range_search_cost(ranges: usize, paths: usize) -> usize {
+        // Each prefix has two binary searches; budget both in path comparisons.
+        ranges.saturating_mul(2 * (paths.max(1).ilog2() as usize + 1))
     }
 
     fn matches(&self, path: &str, empty_matches: bool) -> bool {
@@ -115,7 +120,7 @@ pub(super) struct CallCache {
     schemas: HashMap<(String, Vec<(String, String)>), usize>,
     rows: Vec<std::sync::Arc<[HostCell]>>,
     by_hash: HashMap<(usize, u64), Vec<usize>>,
-    tables: HashMap<(usize, Vec<usize>), Hosted>,
+    tables: HashMap<(usize, Vec<usize>), (usize, Hosted)>,
     pub(super) pattern_visits: [usize; 4],
 }
 
@@ -153,9 +158,9 @@ impl CallCache {
         request: &PathFilter,
         include: &PathFilter,
         exclude: &PathFilter,
-    ) -> Rc<Vec<String>> {
+    ) -> (usize, Rc<Vec<String>>) {
         if let Some(&id) = self.selections.get(&key) {
-            return self.paths[id].clone();
+            return (id, self.paths[id].clone());
         }
         let inventory = self.paths[key.0].clone();
         let literals = [request.candidates(), include.candidates()]
@@ -181,7 +186,11 @@ impl CallCache {
                     .flatten()
                     .min_by_key(|ranges| ranges.iter().map(|range| range.len()).sum::<usize>());
                 self.pattern_visits[0] += inventory.len();
-                if let Some(ranges) = ranges {
+                if let Some(ranges) = ranges.filter(|ranges| {
+                    ranges.iter().map(|range| range.len()).sum::<usize>()
+                        + PathFilter::range_search_cost(ranges.len(), inventory.len())
+                        < inventory.len()
+                }) {
                     let count = ranges.iter().map(|range| range.len()).sum::<usize>();
                     self.pattern_visits[1] += count;
                     self.pattern_visits[2] += 1;
@@ -195,7 +204,7 @@ impl CallCache {
         };
         let id = self.intern_paths(&selected);
         self.selections.insert(key, id);
-        self.paths[id].clone()
+        (id, self.paths[id].clone())
     }
 
     pub(super) fn query(&mut self, query: &str) -> Rc<str> {
@@ -207,7 +216,7 @@ impl CallCache {
         owned
     }
 
-    pub(super) fn table(&mut self, t: sdk::HostRelation) -> Result<Hosted, String> {
+    pub(super) fn table(&mut self, t: sdk::HostRelation) -> Result<(usize, Hosted), String> {
         let columns = t
             .columns
             .into_iter()
@@ -277,6 +286,7 @@ impl CallCache {
             rows,
             partial: None,
         };
+        let table = (self.tables.len(), table);
         self.tables.insert(key, table.clone());
         Ok(table)
     }

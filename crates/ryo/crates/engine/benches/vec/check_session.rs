@@ -282,34 +282,48 @@ impl Schedule {
             })
             .collect()
     }
-    pub(crate) fn admit(
+    pub(crate) fn admit_paths(
         &mut self,
-        root: String,
+        root: &Arc<str>,
         files: &[String],
         binding: usize,
+        known_binding: bool,
+        mut resolved: impl FnMut(usize),
     ) -> Result<Vec<usize>> {
-        let root: Arc<str> = root.into();
         let ids = self.source_ids.entry(root.clone()).or_default();
-        let mut pairs = Vec::with_capacity(files.len());
-        for path in files {
-            let src = Self::source_in(&mut self.sources, ids, &root, path)?;
-            let source = &mut self.sources[src];
-            if let Some(&slot) = source.known.get(&binding) {
-                pairs.push(slot);
-                continue;
-            }
-            let first = source.bindings.is_empty();
-            let slot = *source.bindings.entry(binding).or_insert_with(|| {
-                let slot = self.pairs;
-                self.pairs += 1;
-                if first {
-                    self.pending.insert(src);
-                }
-                slot
-            });
-            pairs.push(slot);
+        files.iter().map(|path| {
+            let src = Self::source_in(&mut self.sources, ids, root, path)?;
+            resolved(src);
+            Ok(Self::slot(&mut self.sources[src], src, binding, known_binding, &mut self.pairs, &mut self.pending))
+        }).collect()
+    }
+
+    pub(crate) fn admit_ids(&mut self, sources: &[usize], binding: usize, known_binding: bool) -> Vec<usize> {
+        sources.iter().map(|&src| {
+            Self::slot(&mut self.sources[src], src, binding, known_binding, &mut self.pairs, &mut self.pending)
+        }).collect()
+    }
+
+    fn slot(
+        source: &mut Source,
+        src: usize,
+        binding: usize,
+        known_binding: bool,
+        pairs: &mut usize,
+        pending: &mut BTreeSet<usize>,
+    ) -> usize {
+        if known_binding && let Some(&slot) = source.known.get(&binding) {
+            return slot;
         }
-        Ok(pairs)
+        let first = source.bindings.is_empty();
+        *source.bindings.entry(binding).or_insert_with(|| {
+            let slot = *pairs;
+            *pairs += 1;
+            if first {
+                pending.insert(src);
+            }
+            slot
+        })
     }
 }
 

@@ -95,6 +95,13 @@ impl Authorities {
 
 type HostSchema = Vec<(String, Vec<(String, String)>)>;
 
+#[derive(Clone, Copy)]
+struct LiveAdmission<'a> {
+    version: &'a Arc<str>,
+    selection: usize,
+    host_tables: &'a [usize],
+}
+
 struct Admission {
     id: usize,
     contract: Arc<session::completeness::Contract>,
@@ -127,6 +134,10 @@ struct Batch {
     admissions: HashMap<(usize, HostSchema), Rc<Admission>>,
     bound_contracts: Vec<Arc<session::completeness::Contract>>,
     reused_binding_entries: usize,
+    host_binding_counts: [usize; 2],
+    last_sources: Option<(Arc<str>, usize, Vec<usize>)>,
+    source_lookups_removed: usize,
+    slot_lookups_removed: usize,
     clocks: Clock,
     populations_built: usize,
     relations_built: usize,
@@ -136,6 +147,7 @@ struct Batch {
 #[derive(Default)]
 struct Active<F: Default, D: Default> {
     keep: bool,
+    manifests: Option<BTreeSet<&'static str>>,
     retention: session::Retention<F,D>,
     readers: Vec<session::ReaderState>,
     world: session::World,
@@ -246,7 +258,7 @@ impl Batch {
             }
         };
         self.clocks.prepare += thread_cpu() - t;
-        self.register_query(query, req, closed)
+        self.register_query(query, req, closed, None)
     }
 
     fn prepared_rule(&mut self,query:Rc<str>,parameters:&Parameters)->usize{
@@ -267,11 +279,20 @@ impl Batch {
         query: Rc<str>,
         mut req: Input,
         closed: Option<&Path>,
+        sdk: Option<LiveAdmission<'_>>,
     ) -> Result<Work, String> {
         let rule=self.prepared_rule(query.clone(),&req.parameters);
         let program=match &self.schedule.programs[rule]{Ok(p)=>p,Err(reason)=>return Ok(Work::Invalid(reason.clone()))};
-        req.hosted
-            .retain(|h| program.bases.iter().any(|n| n == &h.name));
+        let mut host_ids = Vec::new();
+        let mut position = 0;
+        req.hosted.retain(|host| {
+            let referenced = program.bases.iter().any(|name| name == &host.name);
+            if let Some(live) = sdk && referenced {
+                host_ids.push(live.host_tables[position]);
+            }
+            position += 1;
+            referenced
+        });
         let shape: Vec<_> = req
             .hosted
             .iter()
@@ -360,12 +381,13 @@ impl Batch {
             {
                 return Ok(Work::Project(Rc::new(Ok(session::Reported::skipped(&inventory)))));
             }
-            let binding = self.binding(rule, &class, req.hosted);
+            let existing = self.bindings.len();
+            let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()));
             let pairs = if class.cut.is_some() {
                 // Caller rows are consumed only after closure. Sources with the same
                 // prepared program and caller schema produce identical local outputs.
                 let local = *self.local_bindings.entry(class.id).or_insert(binding);
-                self.schedule.admit(req.root, &req.files, local)?
+                self.admit(&req.root, &req.files, local, local < existing, sdk)?
             } else {
                 Vec::new()
             };
@@ -381,15 +403,53 @@ impl Batch {
         if req.files.is_empty() {
             return Err("no complete source contribution for query".into());
         }
-        let binding = self.binding(rule, &class, req.hosted);
-        let pairs = self.schedule.admit(req.root, &req.files, binding)?;
+        let existing = self.bindings.len();
+        let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()));
+        let pairs = self.admit(&req.root, &req.files, binding, binding < existing, sdk)?;
         Ok(Work::Pairs(pairs))
     }
 
-    fn binding(&mut self, rule: usize, class: &Admission, mut hosted: Vec<Hosted>) -> usize {
+    fn admit(
+        &mut self,
+        root: &str,
+        files: &[String],
+        binding: usize,
+        known_binding: bool,
+        sdk: Option<LiveAdmission<'_>>,
+    ) -> Result<Vec<usize>, String> {
+        let Some(LiveAdmission { version, selection, .. }) = sdk else {
+            return self.schedule.admit_paths(&Arc::from(root), files, binding, true, |_| {});
+        };
+        // Slot histories precede this binding. A fresh ID cannot be in any of them.
+        if !known_binding {
+            self.slot_lookups_removed += files.len();
+        }
+        if let Some((prior, id, sources)) = &self.last_sources
+            && Arc::ptr_eq(prior, version) && *id == selection
+        {
+            self.source_lookups_removed += sources.len();
+            return Ok(self.schedule.admit_ids(sources, binding, known_binding));
+        }
+        let mut sources = Vec::with_capacity(files.len());
+        let pairs = self.schedule.admit_paths(version, files, binding, known_binding, |src| sources.push(src))?;
+        self.last_sources = Some((version.clone(), selection, sources));
+        Ok(pairs)
+    }
+
+    fn binding(
+        &mut self,
+        rule: usize,
+        class: &Admission,
+        mut hosted: Vec<Hosted>,
+        canonical: Option<&[usize]>,
+    ) -> usize {
         let mut payloads = Vec::with_capacity(hosted.len());
-        for table in &mut hosted {
-            let id = if let Some((rows, &id)) = self.host_rows.get_key_value(&table.rows) {
+        for (position, table) in hosted.iter_mut().enumerate() {
+            let id = if let Some(ids) = canonical {
+                self.host_binding_counts[0] += 1;
+                self.host_binding_counts[1] += table.rows.len();
+                ids[position]
+            } else if let Some((rows, &id)) = self.host_rows.get_key_value(&table.rows) {
                 table.rows = rows.clone();
                 id
             } else {
@@ -433,6 +493,7 @@ impl Batch {
 
     fn release_admission(&mut self) {
         self.host_rows.clear();
+        self.last_sources = None;
         self.schedule.close();
         self.inventories.clear();
         self.roots.clear();
@@ -451,6 +512,7 @@ impl Batch {
     ) {
         let Active {
             keep,
+            manifests,
             retention,
             readers: reader_states,
             world,
@@ -473,7 +535,9 @@ impl Batch {
         let pending: Vec<_> = std::mem::take(&mut self.schedule.pending)
             .into_iter()
             .collect();
-        let manifests: BTreeSet<_> = languages.iter().flat_map(|l| l.manifests()).collect();
+        let manifests = manifests.get_or_insert_with(|| {
+            languages.iter().flat_map(|language| language.manifests()).collect()
+        });
         let unclaimed = languages.len();
         reader_states.resize_with(unclaimed + 1, Default::default);
         let mut groups = vec![Vec::new(); unclaimed + 1];
@@ -512,7 +576,7 @@ impl Batch {
                 *keep,
                 language,
                 (reader_id != unclaimed).then_some(reader_id),
-                &manifests,
+                manifests,
                 contributions,
                 &self.schedule.programs,
                 &self.program_of,
