@@ -111,7 +111,7 @@ pub(super) enum FilterKey {
     InExpr(bool, Box<Self>, Box<Self>),
     Call(String, Vec<Self>),
     Re(Box<Self>, String),
-    LowerEqual(Box<Self>, Box<[u8]>),
+    Glob(Box<Self>, u32),
     List(Vec<Self>),
 }
 
@@ -181,10 +181,8 @@ fn normalized(e: &E) -> FilterKey {
             K::In(*neg, Box::new(normalized(a)), items)
         }
         E::Call(name, xs) => K::Call(name.clone(), xs.iter().map(normalized).collect()),
-        E::TextTest(a, test) => match test {
-            super::TextTest::Regex(re) => K::Re(Box::new(normalized(a)), re.pattern.as_str().into()),
-            super::TextTest::LowerEqual(lit) => K::LowerEqual(Box::new(normalized(a)), lit.pattern.as_ref().into()),
-        },
+        E::Glob(a, g) => K::Glob(Box::new(normalized(a)), g.pattern),
+        E::Re(a, re) => K::Re(Box::new(normalized(a)), re.as_str().into()),
         E::List(xs) => K::List(xs.iter().map(normalized).collect()),
         E::Col(s, c, ty) => K::Col(*s, *c, *ty),
         E::Lit(v) => K::Lit(*v),
@@ -216,7 +214,7 @@ fn uses(e: &E, col: usize) -> bool {
         E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) | E::In(a, b, _) => {
             uses(a, col) || uses(b, col)
         }
-        E::Not(a) | E::TextTest(a, _) => uses(a, col),
+        E::Not(a) | E::Re(a, _) | E::Glob(a, _) => uses(a, col),
         E::Call(_, xs) | E::List(xs) => xs.iter().any(|e| uses(e, col)),
         _ => false,
     }
