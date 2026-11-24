@@ -52,6 +52,7 @@ pub(crate) trait Indexed {
 pub(super) struct Requests {
     by_step: Vec<u32>,
     graph: Vec<Demand>,
+    shared: FxHashMap<Demand, u32>,
     seen: Vec<bool>,
     pending: Vec<u32>,
     masks: Vec<Option<Columns>>,
@@ -119,14 +120,14 @@ pub(super) fn slot(run: &mut Run, relation: &str) -> u16 {
 }
 
 impl Exec<'_> {
-    /// Compile the provider-bearing part of the typed plan once. Flatten
-    /// aliases without an empty decision and share identical read branches.
-    pub(crate) fn bind_provider_reads(&mut self, run: &mut Run, roots: impl IntoIterator<Item = usize>) {
+    /// Compile provider-bearing branches the first time a rule survives screening.
+    fn bind_provider_reads(&mut self, run: &mut Run, roots: impl IntoIterator<Item = usize>, prune: bool) {
         self.requests.by_step.resize(self.plan.nodes.len(), UNBOUND);
-        let mut shared = FxHashMap::default();
+        let mut shared = std::mem::take(&mut self.requests.shared);
         for node in roots {
-            self.bind_request(run, node, &mut shared);
+            self.bind_request(run, node, &mut shared, prune);
         }
+        self.requests.shared = shared;
         self.requests.seen.resize(self.requests.graph.len(), false);
     }
 
@@ -139,11 +140,11 @@ impl Exec<'_> {
         })
     }
 
-    fn guard(&mut self, run: &mut Run, node: usize) -> Option<usize> {
-        (!self.plan.nodes[node].counted() && self.can_decide_empty(run, node)).then_some(node)
+    fn guard(&mut self, run: &mut Run, node: usize, prune: bool) -> Option<usize> {
+        (prune && !self.plan.nodes[node].counted() && self.can_decide_empty(run, node)).then_some(node)
     }
 
-    fn bind_request(&mut self, run: &mut Run, node: usize, shared: &mut FxHashMap<Demand, u32>) -> u32 {
+    fn bind_request(&mut self, run: &mut Run, node: usize, shared: &mut FxHashMap<Demand, u32>, prune: bool) -> u32 {
         let known = self.requests.by_step[node];
         if known != UNBOUND {
             return known;
@@ -156,18 +157,18 @@ impl Exec<'_> {
                 NO_READ
             } else {
                 let slot = slot(run, rel);
-                let guard = self.guard(run, node);
+                let guard = self.guard(run, node, prune);
                 self.demand(guard, Reads::Base(slot, Columns::All), shared)
             }
         } else {
             let mut inputs: Vec<_> = plan.inputs.iter().copied()
-                .map(|input| (input, self.bind_request(run, input, shared)))
+                .map(|input| (input, self.bind_request(run, input, shared, prune)))
                 .filter(|&(_, read)| read != NO_READ)
                 .collect();
             if inputs.is_empty() {
                 return NO_READ;
             }
-            if plan.op == "select" && !plan.counted()
+            if plan.op == "select" && plan.inputs.len() == 1 && !plan.counted()
                 && let Ok(select) = self.sel(run, node)
                 && select.srcs.len() == 1
                 && matches!(self.keyed_form(run, node), Ok(super::keyed::Form::Not))
@@ -184,10 +185,10 @@ impl Exec<'_> {
                 for (column, &base) in view.map.iter().enumerate() {
                     if mask.contains(column) { base_columns.insert(base); }
                 }
-                let guard = self.guard(run, *input);
+                let guard = self.guard(run, *input, prune);
                 *entry = self.demand(guard, Reads::Base(slot, base_columns), shared);
             }
-            let guard = self.guard(run, node);
+            let guard = self.guard(run, node, prune);
             if guard.is_none() && let [(_, only)] = inputs.as_slice() {
                 *only
             } else {
@@ -228,7 +229,9 @@ impl Exec<'_> {
     /// The request owns scopes and projection masks only until the provider returns.
     /// Results belong to the shared file version, including refusals for that file.
     pub(crate) fn open_file(&mut self, file: &mut File<'_>, run: &mut Run, provider: &mut dyn Provider,
-        roots: impl IntoIterator<Item = usize>, checks: &[&str], empty: Option<&[&str]>) -> R<Vec<Reply>> {
+        roots: impl IntoIterator<Item = usize> + Clone, checks: &[&str], empty: Option<&[&str]>) -> R<Vec<Reply>> {
+        let prune = empty.is_some() && !sw!("VEC_NO_KNOWN") && !sw!("VEC_NO_SEMI");
+        self.bind_provider_reads(run, roots.clone(), prune);
         self.requests.masks.resize_with(run.fact_rels.len(), || None);
         self.requests.masks.fill(None);
         if let Some(empty) = empty {
@@ -239,11 +242,9 @@ impl Exec<'_> {
             }
         }
         file.admitting = true;
-        let prune = empty.is_some() && !sw!("VEC_NO_KNOWN") && !sw!("VEC_NO_SEMI");
         self.collect_request(run, file, provider, roots, prune);
         file.admitting = false;
-        // A negative decision can change once the admitted fact columns are present.
-        if prune { file.known.iter_mut().filter(|value| **value == super::known::NO).for_each(|value| *value = 0); }
+        if prune { file.known.iter_mut().filter(|value| **value == super::known::NO_LATE).for_each(|value| *value = 0); }
         self.admit_packet(file.version, run, provider, checks)
     }
 

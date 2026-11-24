@@ -383,7 +383,7 @@ impl Exec<'_> {
     /// Whether one of the step's leaves holds in this file: a provider relation it reads has no rows, or a literal test
     /// on it no row of the file satisfies, or a child field it requires is absent. A fill a leaf reads is asked here
     /// (once a file, the fill the step would read).
-    pub(super) fn ep_leaf_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+    pub(super) fn ep_leaf_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, late: &mut bool) -> bool {
         let leaves = self.ep_leaves(run, node);
         for lf in leaves.iter() {
             if !lf.fields.is_empty() && !self.ep_field_present(f, run, &lf.fields) {
@@ -391,7 +391,7 @@ impl Exec<'_> {
             }
             if lf.rows {
                 let t0 = step_clock();
-                let e = self.ep_view_rows_empty(f, run, p, node);
+                let e = self.ep_view_rows_empty(f, run, p, node, late);
                 self.leaves.laps[2] += step_clock() - t0;
                 if e {
                     return true;
@@ -403,7 +403,7 @@ impl Exec<'_> {
             if f.version.proven.borrow().get(usize::from(lf.fact)) == Some(&true) { return true; }
             let base = Native::Fact(lf.fact);
             let t0 = step_clock();
-            if f.admitting { continue; }
+            if f.admitting { *late = true; continue; }
             if lf.own && self.admitted_rows(f, run, lf.fact) == Some(0) { return true; }
             if !lf.lit { continue; }
             let loaded = self.load_fact(f, run, base);
@@ -439,10 +439,11 @@ impl Exec<'_> {
     }
 
     /// cycle 4: whether a view has no row in this file (its entry, then its tests), read only where its entry is small.
-    fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+    fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, late: &mut bool) -> bool {
         let Ok(Some(v)) = self.view(run, node) else { return false };
+        if f.admitting && matches!(v.base, Native::Fact(_)) { *late = true; return false; }
         if let Native::Fact(id) = v.base && self.admitted_rows(f, run, id) == Some(0) { return true; }
-        if (f.admitting && matches!(v.base, Native::Fact(_))) || self.load_fact(f, run, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
+        if self.load_fact(f, run, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
             return false;
         }
         let entry = match super::kind_set(run, &v.filter, 0, v.base, &[]) {

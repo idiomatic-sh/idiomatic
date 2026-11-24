@@ -81,7 +81,6 @@ impl<'p> Finisher<'p> {
         me.exec.cold_test_load(&mut me.run);
         me.exec.cold_load(&mut me.run);
         me.exec.col_load(&mut me.run);
-        me.exec.bind_provider_reads(&mut me.run, me.emits.iter().map(|&emit| plan.emits[emit].1));
         me.time += thread_cpu() - t0;
         me
     }

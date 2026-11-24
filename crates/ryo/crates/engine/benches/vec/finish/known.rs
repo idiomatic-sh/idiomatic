@@ -30,6 +30,8 @@ const YES: u8 = 2;
 const BUSY: u8 = 3;
 /// redo-empty: known empty by the propagation's own leaves (directly or through an input): counted apart.
 pub(super) const YES_EP: u8 = 4;
+/// No proof yet, and a leaf waiting for the provider's packet could change the answer.
+pub(super) const NO_LATE: u8 = 5;
 
 /// pass 2: a step's needs in flat arrays (one record a step, its lists in shared arrays), for the per-file decisions:
 /// the inputs kept are those that can be known empty themselves (`CAN`); a step none of whose needs can is never
@@ -79,7 +81,7 @@ impl Exec<'_> {
         if f.after_last_file { return false; }
         match f.known[node] {
             YES | YES_EP => return true,
-            NO | BUSY => {}
+            NO | NO_LATE | BUSY => {}
             _ => {
                 if self.static_empty_(f, run, p, node) {
                     return true;
@@ -110,7 +112,7 @@ impl Exec<'_> {
     pub(super) fn static_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         if f.after_last_file { return false; }
         match f.known[node] {
-            NO | BUSY => false,
+            NO | NO_LATE | BUSY => false,
             YES | YES_EP => true,
             _ => self.static_empty_(f, run, p, node),
         }
@@ -150,6 +152,7 @@ impl Exec<'_> {
             e = self.file_fails_of(f, run, node);
         }
         let mut ep = false;
+        let mut late = false;
         if !e && r.n_ins > 0 {
             let (a, b) = (r.ins as usize, r.ins as usize + usize::from(r.n_ins));
             if r.flags & ALL != 0 {
@@ -157,6 +160,7 @@ impl Exec<'_> {
                     let x = self.flat.ins[i] as usize;
                     let y = self.static_empty(f, run, p, x);
                     ep |= y && f.known[x] == YES_EP;
+                    late |= f.known[x] == NO_LATE;
                     y
                 });
             } else {
@@ -164,6 +168,7 @@ impl Exec<'_> {
                     let x = self.flat.ins[i] as usize;
                     let y = self.static_empty(f, run, p, x);
                     ep = y && f.known[x] == YES_EP;
+                    late |= f.known[x] == NO_LATE;
                     y
                 });
             }
@@ -171,10 +176,10 @@ impl Exec<'_> {
         // redo-empty: the leaves the propagation adds (a fill with no rows, a literal no row of the file holds), after the
         // inputs: a fill is not asked where an input decides already
         if !e && r.flags & EP_LEAF != 0 {
-            e = self.ep_leaf_empty(f, run, p, node);
+            e = self.ep_leaf_empty(f, run, p, node, &mut late);
             ep = e;
         }
-        f.known[node] = if e && ep { YES_EP } else if e { YES } else { NO };
+        f.known[node] = if e && ep { YES_EP } else if e { YES } else if late { NO_LATE } else { NO };
         e
     }
 
