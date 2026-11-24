@@ -448,6 +448,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
                     ids: &provider.text,
                     symbols: &fin.run.texts,
                     patterns: None,
+                    column: None,
                 },
                 &bytes,
                 path,

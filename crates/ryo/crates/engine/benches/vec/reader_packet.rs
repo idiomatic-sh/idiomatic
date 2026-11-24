@@ -53,6 +53,17 @@ impl Packet {
         let slot = catalog::number_of(relation).0;
         (self.ready && self.requested[slot]).then(|| !self.offsets[slot].is_empty())
     }
+    /// Visit a complete symbol column without interpreting unrelated node IDs.
+    pub(crate) fn any_symbol(
+        &self, relation: l::Relation, column: usize, mut matches: impl FnMut(l::Symbol) -> bool,
+    ) -> Option<bool> {
+        self.has_rows(relation)?;
+        if catalog::kinds(relation).get(column) != Some(&CellKind::Symbol) {
+            return None;
+        }
+        let starts = &self.offsets[catalog::number_of(relation).0];
+        Some(starts.iter().any(|&at| matches(l::Symbol(self.rows.words[at + column] as u32))))
+    }
     pub(crate) fn columns(
         &self,
         relation: l::Relation,

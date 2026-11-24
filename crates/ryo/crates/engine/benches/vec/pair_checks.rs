@@ -13,12 +13,14 @@ mod witness;
 type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
 type Nodes = Option<Bits>;
+type SymbolColumn<'a> = dyn Fn(Source, usize, &super::pair_summary::regexes::Matcher) -> Option<bool> + 'a;
 /// The exact syntax text column supplied by a host with per-position symbol IDs.
 #[derive(Clone, Copy)]
 pub(super) struct SyntaxText<'a> {
     pub ids: &'a [u32],
     pub symbols: &'a [std::rc::Rc<[u8]>],
     pub patterns: Option<&'a SymbolMatches>,
+    pub column: Option<&'a SymbolColumn<'a>>,
 }
 /// The reader owns symbol identities for the lifetime of this dictionary.
 #[derive(Default)]
@@ -248,6 +250,15 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 }
                 Domain::Field(k) => {
                     !node_table::ids_of_field(self.t, languages::FieldCode(*k)).is_empty()
+                }
+                Domain::Matching(slot, column, pattern)
+                    if self.syntax_text.is_some_and(|view| view.column.is_some())
+                        && self.p.facts[*slot].kinds[*column] == languages::CellKind::Symbol =>
+                {
+                    let view = self.syntax_text.unwrap();
+                    let found = self.p.regexes[*pattern].compiled().and_then(|p|
+                        (view.column.unwrap())(self.p.facts[*slot].source, *column, p));
+                    found.unwrap_or_else(|| self.nodes(x).is_none_or(|bits| !bits.is_empty()))
                 }
                 Domain::Fact(slot, None) => {
                     let table = &mut self.facts[*slot];
