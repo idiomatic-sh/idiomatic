@@ -12,7 +12,6 @@ const RELATIVE_IMPORT: FileRelation = FileRelation {
     ],
 };
 
-type Columns = Result<Vec<l::FactColumn>, l::ParseError>;
 type Covered = Result<l::FileRows, l::ParseError>;
 type TypingInputs<'a> = (
     &'a dyn Fn(&[u8]) -> bool,
@@ -80,32 +79,6 @@ impl ColumnFile<'_, '_> {
                 format!("incomplete {extent} for {}", schema.name).into(),
             )),
         })
-    }
-
-    /// Answer complete tables for readers of the original named-fact interface.
-    pub fn answer_named_facts(
-        &mut self,
-        schemas: &[&FileRelation],
-        file: l::FileId,
-        path: &str,
-        bytes: l::ByteSlice<'_>,
-        symbols: &mut l::Symbols,
-        typing: Option<TypingInputs<'_>>,
-        package: Option<(Option<&str>, &str)>,
-        prefixes: Option<ImportPrefixes<'_>>,
-    ) -> Vec<Columns> {
-        self.answer_named_facts_covered(
-            schemas, file, path, bytes, symbols, typing, package, prefixes,
-        )
-        .into_iter()
-        .map(|answer| {
-            let l::FileRows { columns, partial } = answer?;
-            match partial {
-                Some(reason) => Err(l::ParseError::Library { reason }),
-                None => Ok(columns),
-            }
-        })
-        .collect()
     }
 
     /// Answer named tables from the numbered Python file. The result follows request order.
