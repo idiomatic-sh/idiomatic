@@ -109,6 +109,7 @@ struct Batch {
     workers: Option<std::num::NonZeroUsize>,
     schedule: session::Schedule,
     program_of: Vec<usize>,
+    class_of: Vec<usize>,
     bindings: Vec<Rc<[Hosted]>>,
     host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
     binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
@@ -126,6 +127,7 @@ struct Batch {
     admissions: HashMap<(usize, HostSchema), Rc<Admission>>,
     bound_contracts: HashMap<usize, Rc<session::completeness::Contract>>,
     clocks: Clock,
+    empty_reader_epochs: usize,
     populations_built: usize,
     relations_built: usize,
     relations_rebuilt: usize,
@@ -140,7 +142,6 @@ struct Active<F: Default, D: Default> {
     answers: Vec<Answer>,
     aliases: Vec<usize>,
     contributions: Vec<Option<Rc<project::Contribution>>>,
-    manifest_failures: Vec<l::FilePath>,
     populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
 }
 
@@ -404,6 +405,7 @@ impl Batch {
         // all its cells by value, so the binding lookup need not hash them again.
         *self.binding_ids.entry((class, payloads)).or_insert_with(|| {
             self.program_of.push(rule);
+            self.class_of.push(class);
             self.cut_of.push(None);
             self.bindings.push(hosted.into());
             self.bindings.len() - 1
@@ -457,7 +459,6 @@ impl Batch {
             answers,
             aliases,
             contributions,
-            manifest_failures,
             populations,
         } = state;
         if world.run.texts.is_empty() {
@@ -473,71 +474,75 @@ impl Batch {
         let pending: Vec<_> = std::mem::take(&mut self.schedule.pending)
             .into_iter()
             .collect();
-        let manifests: BTreeSet<_> = languages.iter().flat_map(|l| l.manifests()).collect();
-        let unclaimed = languages.len();
-        reader_states.resize_with(unclaimed + 1, Default::default);
-        let mut groups = vec![Vec::new(); unclaimed + 1];
-        for &i in &pending {
-            let src = &self.schedule.sources[i];
-            if src.bindings.is_empty() && contributions[i].is_some() {
-                continue;
-            }
-            let path = src.path.as_str();
-            let mut found = languages.iter().enumerate().filter(|(_, l)| l.reads(path));
-            match (found.next(), found.next()) {
-                (Some((index, _)), None) => groups[index].push(i),
-                (None, None) => groups[unclaimed].push(i),
-                _ => {
-                    for &slot in src.bindings.values() {
-                        answers[slot] = Err(format!("multiple source readers for {}", src.path));
+        self.clocks.pairs = self.schedule.pairs;
+        if pending.is_empty() {
+            self.empty_reader_epochs += 1;
+        } else {
+            let manifests: BTreeSet<_> = languages.iter().flat_map(|l| l.manifests()).collect();
+            let unclaimed = languages.len();
+            reader_states.resize_with(unclaimed + 1, Default::default);
+            let mut groups = vec![Vec::new(); unclaimed + 1];
+            for &i in &pending {
+                let src = &self.schedule.sources[i];
+                if src.bindings.is_empty() && contributions[i].is_some() {
+                    continue;
+                }
+                let path = src.path.as_str();
+                let mut found = languages.iter().enumerate().filter(|(_, l)| l.reads(path));
+                match (found.next(), found.next()) {
+                    (Some((index, _)), None) => groups[index].push(i),
+                    (None, None) => groups[unclaimed].push(i),
+                    _ => {
+                        for &slot in src.bindings.values() {
+                            answers[slot] = Err(format!("multiple source readers for {}", src.path));
+                        }
                     }
                 }
             }
-        }
-        self.clocks.pairs = self.schedule.pairs;
-        let cuts: Vec<_> = self.cut_of.iter().map(|cut| cut.as_deref()).collect();
-        let contracts = self.bound_contracts.iter().map(|(&id, c)| (id, c.as_ref())).collect();
-        let hosted: Vec<_> = self.bindings.iter().map(|t| t.as_ref()).collect();
-        let paths = (!*keep).then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
-        let readers = languages.iter().map(Some).chain([None]);
-        for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
-            if files.is_empty() {
-                continue;
-            }
-            session::worker::dispatch(
-                self.workers,
-                languages,
-                paths.as_ref(),
-                &mut reader_states[reader_id],
-                retention,
-                *keep,
-                language,
-                (reader_id != unclaimed).then_some(reader_id),
-                &manifests,
-                contributions,
-                &self.schedule.programs,
-                &self.program_of,
-                &contracts,
-                &cuts,
-                world,
-                &self.schedule.sources,
-                &files,
-                aliases,
-                answers,
-                |binding, run| {
-                    Ok(bind_tables(hosted[binding], run, |_| None)?
-                        .into_iter()
-                        .map(|(n, t)| (n, Rc::new(t)))
-                        .collect())
-                },
-                &mut self.clocks,
-            );
-            if !*keep && store.is_none() {
-                // Other readers have disjoint files. Answers and project contributions
-                // already own everything the closed phase will read from this group.
-                self.schedule.delivered(&files, *keep);
-                for i in files {
-                    self.schedule.sources[i].provided = None;
+            let cuts: Vec<_> = self.cut_of.iter().map(|cut| cut.as_deref()).collect();
+            let contracts = self.bound_contracts.iter().map(|(&id, c)| (id, c.as_ref())).collect();
+            let hosted: Vec<_> = self.bindings.iter().map(|t| t.as_ref()).collect();
+            let paths = (!*keep).then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
+            let readers = languages.iter().map(Some).chain([None]);
+            for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
+                if files.is_empty() {
+                    continue;
+                }
+                session::worker::dispatch(
+                    self.workers,
+                    languages,
+                    paths.as_ref(),
+                    &mut reader_states[reader_id],
+                    retention,
+                    *keep,
+                    language,
+                    (reader_id != unclaimed).then_some(reader_id),
+                    &manifests,
+                    contributions,
+                    &self.schedule.programs,
+                    &self.program_of,
+                    &contracts,
+                    &cuts,
+                    world,
+                    &self.schedule.sources,
+                    &files,
+                    aliases,
+                    answers,
+                    |binding, run| {
+                        Ok(bind_tables(hosted[binding], run, |_| None)?
+                            .into_iter()
+                            .map(|(n, t)| (n, Rc::new(t)))
+                            .collect())
+                    },
+                    &mut self.clocks,
+                );
+                if !*keep && store.is_none() {
+                    // Other readers have disjoint files. Answers and project contributions
+                    // already own everything the closed phase will read from this group.
+                    self.schedule.delivered(&files, *keep);
+                    for i in files {
+                        self.schedule.sources[i].provided = None;
+                    }
                 }
             }
         }
@@ -556,7 +561,7 @@ impl Batch {
             *aliases=Vec::new();
         }
         self.schedule.delivered(&pending, *keep);
-        self.finish_projects(languages, contributions, world, answers, populations, manifest_failures, *keep,store.as_deref_mut());
+        self.finish_projects(languages, contributions, world, answers, populations, *keep,store.as_deref_mut());
 
     }
 
@@ -567,7 +572,6 @@ impl Batch {
         world: &mut session::World,
         answers: &[Answer],
         populations: &mut HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
-        manifest_failures: &mut Vec<l::FilePath>,
         keep: bool,
         mut store:Option<&mut stored::Store>,
     ) {
@@ -578,11 +582,9 @@ impl Batch {
         for (i, work) in self.work.iter().enumerate() {
             if let Work::Closed { binding, .. } = work {
                 let rule = self.program_of[*binding];
-                let tables = &self.bindings[*binding];
-                let mut schema: Vec<_> = tables.iter().map(|t| (&t.name, &t.columns)).collect();
-                schema.sort_unstable();
+                // Admission has already identified the program and ordered host schema.
                 groups
-                    .entry((rule, schema))
+                    .entry((rule, self.class_of[*binding]))
                     .or_insert_with(Vec::new)
                     .push(i);
             }
@@ -632,12 +634,6 @@ impl Batch {
         }
         if !keep {
             *contributions=Vec::new();
-        }
-        manifest_failures.clear();
-        for id in active {
-            if let Ok(population) = &populations[&id].1 {
-                manifest_failures.extend(population.refused.iter().map(|r| r.path.clone()));
-            }
         }
         let mut readers=readers::Closed::new(&self.work,&self.cut_of,keep);
         for ((rule, _), requests) in groups {

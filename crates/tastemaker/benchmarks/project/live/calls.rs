@@ -156,7 +156,7 @@ impl Live {
         linked: &sdk::Languages,
         memory: sdk::MemoryBudget,
     ) -> Result<LiveReport, String> {
-        self.lint_round(vec![req], linked, memory)
+        self.lint_round(vec![req], linked, memory, false)
             .pop()
             .expect("one request has one result")
     }
@@ -166,16 +166,17 @@ impl Live {
         mut requests: Vec<sdk::LintRequest>,
         linked: &sdk::Languages,
         memory: sdk::MemoryBudget,
+        receipts: bool,
     ) -> Vec<Result<LiveReport, String>> {
         // The optional retained store's overlay describes one request. Keep its
         // existing observation boundary until it can carry per-request overlays.
         if self.store.is_some() && requests.len() > 1 {
-            return requests.into_iter().map(|request| self.lint(request, linked, memory)).collect();
+            return requests.into_iter().flat_map(|request| self.lint_round(vec![request], linked, memory, receipts)).collect();
         }
         if requests.is_empty() {
             return Vec::new();
         }
-        let evidence = std::env::var_os("TM_ROUND_RECEIPTS").is_some().then(|| {
+        let evidence = receipts.then(|| {
             requests.iter_mut().map(|request| {
                 // Given fixture roots are names allocated by the host. The exact
                 // supplied corpus, path names and request parameters stay in the key.
@@ -199,7 +200,6 @@ impl Live {
             self.languages = linked.0.iter().cloned().map(Pinned::from).collect();
         }
         let count = requests.iter().map(|request| request.rules.len()).sum::<usize>();
-        self.batch.work.clear();
         let pending = requests.into_iter().map(|request| {
             let start = self.batch.work.len();
             let result = self.admit(request);
@@ -218,6 +218,7 @@ impl Live {
         let results = pending.into_iter().map(|request| {
             request.and_then(|request| self.deliver(request, linked))
         }).collect::<Vec<_>>();
+        self.batch.work.clear();
         let elapsed = thread_cpu() - t;
         if let Some(keys) = evidence {
             for (key, result) in keys.into_iter().zip(&results) {
@@ -230,6 +231,7 @@ impl Live {
         let c = &self.batch.clocks;
         last.calls += results.len();
         last.rounds.push(results.len());
+        last.empty_reader_epochs = self.batch.empty_reader_epochs;
         last.requests += count;
         for reason in results.iter().filter_map(|result| result.as_ref().err()) {
             last.refused += 1;
@@ -475,6 +477,7 @@ pub fn capture_retained(linked:sdk::Languages,manifest:&str,output:&str,root:&st
 struct Measurement {
     sessions: usize,
     rounds: Vec<usize>,
+    empty_reader_epochs: usize,
     project_counts: [usize; 4],
     calls: usize,
     requests: usize,
@@ -488,6 +491,7 @@ struct Measurement {
 static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measurement {
     sessions: 0,
     rounds: Vec::new(),
+    empty_reader_epochs: 0,
     project_counts: [0; 4],
     calls: 0,
     requests: 0,
@@ -508,7 +512,8 @@ pub fn print_measurement() {
         eprintln!("UNANSWERED\t{count}\t{reason}");
     }
     if m.rounds.iter().any(|&size| size > 1) {
-        eprintln!("TM_ROUND_SIZES {:?}", m.rounds);
+        eprintln!("TM_ROUND_COUNTS epochs={} max_width={} closed_only={}",
+            m.rounds.len(), m.rounds.iter().max().unwrap(), m.empty_reader_epochs);
     }
     let [versions,hits,evictions,peak_charge]=m.retained;
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");

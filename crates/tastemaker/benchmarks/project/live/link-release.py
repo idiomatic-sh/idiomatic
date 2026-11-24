@@ -23,6 +23,18 @@ s = s[:start] + """    fn lint(&self, request: AnalysisRequest) -> Result<Analys
         self.lint_benchmark_round(vec![request]).pop().expect("one result")
     }
 
+    fn benchmark_round_capacity(&self) -> usize {
+        // This is a bound on pending fixture continuations, separate from Ryo's
+        // measured byte budget for retained file storage. One oversized call
+        // always makes progress on its own.
+        const MAX_PENDING: u64 = 16;
+        const MIN_SLOT_BYTES: u64 = 1024 * 1024;
+        match self.settings.memory {
+            Memory::Machine => MAX_PENDING as usize,
+            Memory::Bytes(bytes) => (bytes.0 / MIN_SLOT_BYTES).clamp(1, MAX_PENDING) as usize,
+        }
+    }
+
     fn lint_benchmark_round(
         &self, requests: Vec<AnalysisRequest>,
     ) -> Vec<Result<AnalysisReport, AnalysisError>> {
@@ -56,7 +68,8 @@ s = s[:start] + """    fn lint(&self, request: AnalysisRequest) -> Result<Analys
             if let Err(reason) = session.use_cache(self.cache.as_deref()) {
                 return valid.into_iter().map(|_| Err(reason.clone())).collect();
             }
-            session.lint_round(valid, &self.languages, budget)
+            session.lint_round(valid, &self.languages, budget,
+                crate::inbound::use_cases::validate::rounds::receipt_mode().is_some())
         }));
         assert_eq!(results.len(), positions.len());
         for (index, result) in positions.into_iter().zip(results) {

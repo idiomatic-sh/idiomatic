@@ -11,7 +11,10 @@ def link_rounds(core: Path, library: Path):
     interface = core / "src/outbound/analysis/interface.rs"
     s = interface.read_text()
     at = "    /// Every relation a query may read"
-    s = replace(s, at, """    /// The benchmark's ordered batch, with one result per request.
+    s = replace(s, at, """    /// Bound pending proof continuations in the linked benchmark.
+    fn benchmark_round_capacity(&self) -> usize { 1 }
+
+    /// The benchmark's ordered batch, with one result per request.
     fn lint_benchmark_round(
         &self, requests: Vec<AnalysisRequest>,
     ) -> Vec<Result<AnalysisReport, AnalysisError>> {
@@ -26,7 +29,11 @@ def link_rounds(core: Path, library: Path):
     at.with_name("round_host.rs").write_bytes((library / "round-host.rs").read_bytes())
     # Keep module docs at the start of the source.
     s = replace(s, "impl ValidateUseCase for ValidateUseCaseImpl {",
-                '#[path = "round_host.rs"]\nmod rounds;\n\nimpl ValidateUseCase for ValidateUseCaseImpl {')
+                "impl ValidateUseCase for ValidateUseCaseImpl {")
+    validation = core / "src/inbound/use_cases/validate.rs"
+    with validation.open("a") as module:
+        module.write('\n#[path = "validate/round_host.rs"]\npub(crate) mod rounds;\n')
+    s = s + "\nuse super::rounds;\n"
     for method in (
         "prove", "template_proof", "template_proof_cases", "rule_proof", "rule_cases",
         "project_cases", "verdicts", "project_case", "spec_cases", "template_cases",

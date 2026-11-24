@@ -6,33 +6,64 @@ use crate::outbound::analysis::{
 };
 use std::{
     cell::RefCell,
-    future::{Future, poll_fn},
+    future::poll_fn,
     rc::Rc,
+    sync::OnceLock,
     task::{Context, Poll, Waker},
 };
 
 type Answer = Result<AnalysisReport, AnalysisError>;
 type Delivery = Rc<RefCell<Option<Answer>>>;
-type Queue = Vec<(AnalysisRequest, Delivery)>;
+
+struct Ready {
+    calls: Vec<(AnalysisRequest, Delivery)>,
+    capacity: usize,
+}
 
 thread_local! {
-    static REQUESTS: RefCell<Option<Queue>> = const { RefCell::new(None) };
+    static REQUESTS: RefCell<Option<Ready>> = const { RefCell::new(None) };
+}
+
+// Receipt mode can select a round of one for the gate. The normal linked check
+// batches automatically. Nothing in the engine reads this setting.
+pub(crate) fn receipt_mode() -> Option<&'static str> {
+    static MODE: OnceLock<Option<String>> = OnceLock::new();
+    MODE.get_or_init(|| std::env::var("TM_ROUND_RECEIPTS").ok())
+        .as_deref()
 }
 
 pub(super) fn enabled() -> bool {
-    std::env::var_os("TM_BENCH_ROUNDS").is_some()
+    receipt_mode() != Some("serial")
+}
+
+fn may_queue() -> bool {
+    REQUESTS.with(|queue| {
+        queue
+            .borrow()
+            .as_ref()
+            .is_none_or(|ready| ready.calls.len() < ready.capacity)
+    })
 }
 
 pub(super) async fn lint(analysis: &dyn AnalysisPort, request: AnalysisRequest) -> Answer {
     let mut request = Some(request);
-    let delivery = REQUESTS.with(|queue| {
-        let mut queue = queue.borrow_mut();
-        queue.as_mut().map(|queue| {
+    let delivery = poll_fn(|_| {
+        REQUESTS.with(|queue| {
+            let mut queue = queue.borrow_mut();
+            let Some(ready) = queue.as_mut() else {
+                return Poll::Ready(None);
+            };
+            if ready.calls.len() == ready.capacity {
+                return Poll::Pending;
+            }
             let delivery = Delivery::default();
-            queue.push((request.take().unwrap(), delivery.clone()));
-            delivery
+            ready
+                .calls
+                .push((request.take().unwrap(), delivery.clone()));
+            Poll::Ready(Some(delivery))
         })
-    });
+    })
+    .await;
     match delivery {
         None => analysis.lint(request.unwrap()),
         Some(delivery) => {
@@ -46,32 +77,41 @@ pub(super) async fn lint(analysis: &dyn AnalysisPort, request: AnalysisRequest) 
 }
 
 pub(super) async fn ordered<F: Future>(futures: impl IntoIterator<Item = F>) -> Vec<F::Output> {
-    let mut pending: Vec<_> = futures
-        .into_iter()
-        .map(|future| (Some(Box::pin(future)), None))
-        .collect();
+    let mut waiting = futures.into_iter().fuse();
+    let mut pending = Vec::<(usize, std::pin::Pin<Box<F>>)>::new();
+    let mut outputs = Vec::<Option<F::Output>>::new();
     poll_fn(|context| {
-        let mut waiting = false;
-        for (future, value) in &mut pending {
-            if let Some(next) = future {
-                match next.as_mut().poll(context) {
-                    Poll::Ready(out) => {
-                        *value = Some(out);
-                        *future = None;
-                    }
-                    Poll::Pending => waiting = true,
+        let mut remaining = Vec::new();
+        for (index, mut future) in pending.drain(..) {
+            if may_queue()
+                && let Poll::Ready(value) = future.as_mut().poll(context)
+            {
+                outputs[index] = Some(value);
+            } else {
+                remaining.push((index, future));
+            }
+        }
+        let mut finished = false;
+        while may_queue() {
+            let Some(next) = waiting.next() else {
+                finished = true;
+                break;
+            };
+            let index = outputs.len();
+            let mut next = Box::pin(next);
+            match next.as_mut().poll(context) {
+                Poll::Ready(value) => outputs.push(Some(value)),
+                Poll::Pending => {
+                    outputs.push(None);
+                    remaining.push((index, next));
                 }
             }
         }
-        if waiting {
-            Poll::Pending
+        pending = remaining;
+        if finished && pending.is_empty() {
+            Poll::Ready(outputs.drain(..).map(Option::unwrap).collect())
         } else {
-            Poll::Ready(
-                pending
-                    .iter_mut()
-                    .map(|(_, result)| result.take().unwrap())
-                    .collect(),
-            )
+            Poll::Pending
         }
     })
     .await
@@ -88,6 +128,7 @@ pub(super) async fn together<A: Future, B: Future>(left: A, right: B) -> (A::Out
             a = Some(out);
         }
         if b.is_none()
+            && may_queue()
             && let Poll::Ready(out) = right.as_mut().poll(cx)
         {
             b = Some(out);
@@ -105,14 +146,22 @@ pub(super) fn drive<F: Future>(analysis: &dyn AnalysisPort, proofs: F) -> F::Out
     struct Reset;
     impl Drop for Reset {
         fn drop(&mut self) {
-            REQUESTS.with(|queue| {
-                queue.borrow_mut().take();
-            });
+            REQUESTS.with(|queue| drop(queue.borrow_mut().take()));
         }
     }
-    let batched = enabled();
-    let _reset = batched.then(|| {
-        REQUESTS.with(|queue| assert!(queue.borrow_mut().replace(Vec::new()).is_none()));
+    let _reset = enabled().then(|| {
+        let capacity = analysis.benchmark_round_capacity();
+        REQUESTS.with(|queue| {
+            assert!(
+                queue
+                    .borrow_mut()
+                    .replace(Ready {
+                        calls: Vec::with_capacity(capacity),
+                        capacity,
+                    })
+                    .is_none()
+            )
+        });
         Reset
     });
     let mut proofs = std::pin::pin!(proofs);
@@ -121,13 +170,12 @@ pub(super) fn drive<F: Future>(analysis: &dyn AnalysisPort, proofs: F) -> F::Out
         match proofs.as_mut().poll(&mut context) {
             Poll::Ready(out) => return out,
             Poll::Pending => {
-                let work =
-                    REQUESTS.with(|queue| std::mem::take(queue.borrow_mut().as_mut().unwrap()));
+                let (requests, deliveries): (Vec<_>, Vec<_>) = REQUESTS
+                    .with(|queue| queue.borrow_mut().as_mut().unwrap().calls.drain(..).unzip());
                 assert!(
-                    !work.is_empty(),
+                    !requests.is_empty(),
                     "only a queued lint answer can suspend a proof"
                 );
-                let (requests, deliveries): (Vec<_>, Vec<_>) = work.into_iter().unzip();
                 let answers = analysis.lint_benchmark_round(requests);
                 assert_eq!(answers.len(), deliveries.len());
                 for (delivery, answer) in deliveries.into_iter().zip(answers) {
