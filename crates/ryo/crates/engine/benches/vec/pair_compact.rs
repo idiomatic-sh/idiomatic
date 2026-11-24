@@ -54,7 +54,7 @@ impl Reachable<'_> {
                 *a = self.file(*a);
                 *b = self.file(*b);
             }
-            Need::PathGlob(_) | Need::PathMatches(..) | Need::SyntaxMatches(..) | Need::SourceContains(_) | Need::Any | Need::Empty => {}
+            Need::CapturedPath(_) | Need::PathGlob(_) | Need::PathMatches(..) | Need::SyntaxMatches(..) | Need::SourceContains(_) | Need::Any | Need::Empty => {}
         }
         let alias = match value {
             Need::Any if old != ANY => Some(ANY),
