@@ -21,7 +21,7 @@ pub(super) struct Pinned {
 }
 impl From<old::Language> for Pinned {
     fn from(language: old::Language) -> Self {
-        let native = [ryo_rust::linked_0_1_4, ryo_toml::linked, ryo_json::linked].into_iter()
+        let native = [ryo_rust::linked_0_1_4, ryo_toml::linked, ryo_json::linked, ryo_markdown::linked].into_iter()
             .map(|linked| linked())
             .find(|provider| provider.name().0.as_ref() == language.name().0.as_ref())
             .map(Linked::from);
