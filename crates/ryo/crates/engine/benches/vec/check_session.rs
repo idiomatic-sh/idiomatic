@@ -314,19 +314,19 @@ impl Schedule {
 }
 
 /// Admission assigns dense binding IDs. Only bindings used by this reader own an executor.
-struct Bindings<'p>(Vec<Option<Box<Result<Bound<'p>>>>>);
+struct Bindings<'p> { index: Vec<usize>, entries: Vec<Result<Bound<'p>>> }
 
 impl<'p> std::ops::Index<&usize> for Bindings<'p> {
     type Output = Result<Bound<'p>>;
 
     fn index(&self, id: &usize) -> &Self::Output {
-        self.0[*id].as_deref().expect("prepared binding")
+        &self.entries[self.index[*id]]
     }
 }
 
 impl<'p> std::ops::IndexMut<&usize> for Bindings<'p> {
     fn index_mut(&mut self, id: &usize) -> &mut Self::Output {
-        self.0[*id].as_deref_mut().expect("prepared binding")
+        &mut self.entries[self.index[*id]]
     }
 }
 
@@ -337,7 +337,21 @@ struct SummaryColumns {
     words: bool,
 }
 
+type FactMask = [u64; relations::service::ALL.len().div_ceil(64)];
+
+fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
+    out.clear();
+    for (group, mut bits) in mask.into_iter().enumerate() {
+        while bits != 0 {
+            let id = group * 64 + bits.trailing_zeros() as usize;
+            out.push(relations::service::ALL[id]);
+            bits &= bits - 1;
+        }
+    }
+}
+
 struct Bound<'p> {
+    fact_mask: FactMask,
     summary: SummaryColumns,
     projects_words: bool,
     reads_fields: bool,
@@ -435,7 +449,13 @@ fn bind<'p, L: FileSource>(
     }).collect();
     let projections = finish::session::contribution::Projection::bind(&mut exec, run, cut, &filters);
     let outputs = registry.identify(&projections, cut);
+    let mut fact_mask = FactMask::default();
+    for &rel in &facts {
+        let id = relations::service::number_of(rel).0;
+        fact_mask[id / 64] |= 1 << (id % 64);
+    }
     Ok(Bound {
+        fact_mask,
         summary,
         reads_fields,
         projects_words,
@@ -641,8 +661,11 @@ pub(crate) fn visit<L: FileSource>(
     }
     let mut checks = (!keep).then(|| pairs::Checks::new(parser, programs, program_of, &needed, cut_of));
     clocks.prepare += thread_cpu() - t;
-    let mut bound = Bindings((0..program_of.len()).map(|_| None).collect());
+    let mut bound = Bindings { index: vec![usize::MAX; program_of.len()], entries: Vec::new() };
     let mut registry = finish::session::contribution::Registry::default();
+    let mut requested = Vec::new();
+    let mut facts = Vec::new();
+    let mut distinct = std::cell::RefCell::new(crate::pair_checks::FileSymbols::default());
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
@@ -660,7 +683,8 @@ pub(crate) fn visit<L: FileSource>(
             merged.add(&mut b, &mut run);
             Ok(b)
         })();
-        bound.0[binding] = Some(Box::new(entry));
+        bound.index[binding] = bound.entries.len();
+        bound.entries.push(entry);
     }
     let (plan, supplied, test_count) = merged.finish();
     let mut exec = Exec::new(&plan);
@@ -695,12 +719,16 @@ pub(crate) fn visit<L: FileSource>(
             let source = &sources[index];
             let id = FileId(index.try_into().expect("file ID"));
             let t = thread_cpu();
+            let mut required = FactMask::default();
+            let mut have_plan = false;
             let mut projects_words = keep;
             let mut projects_fields = keep;
             let mut summary = SummaryColumns { kinds: keep, fields: keep, words: keep };
             for (&binding, &slot) in &jobs {
                 match &bound[&binding] {
                     Ok(b) => {
+                        have_plan = true;
+                        for (word, bits) in required.iter_mut().zip(b.fact_mask) { *word |= bits; }
                         projects_words |= b.projects_words;
                         projects_fields |= b.reads_fields;
                         if cut_of[binding].is_none() && !b.never {
@@ -713,12 +741,8 @@ pub(crate) fn visit<L: FileSource>(
                 }
             }
             clocks.prepare += thread_cpu() - t;
-            let wanted: BTreeSet<_> = jobs
-                .keys()
-                .filter_map(|b| bound[b].as_ref().ok())
-                .flat_map(|b| b.facts.iter().copied())
-                .collect();
-            if project_slots.is_empty() && jobs.keys().all(|b| bound[b].is_err()) {
+            requested_facts(required, &mut requested);
+            if project_slots.is_empty() && !have_plan {
                 continue;
             }
             let t = thread_cpu();
@@ -730,7 +754,7 @@ pub(crate) fn visit<L: FileSource>(
             // An opaque provider dictionary and its projected rows are one version.
             // Rebuild them together if a later binding asks for additional facts.
             if let Some((credit, file)) = cached.as_mut()
-                && !wanted.is_subset(&file.known)
+                && !requested.iter().all(|rel| file.known.contains(rel))
             {
                 *file = HeldFile::default();
                 *credit = 0;
@@ -761,7 +785,7 @@ pub(crate) fn visit<L: FileSource>(
                         l::NoteRequest::Wanted
                     },
                 };
-                let requested: Vec<_> = wanted.into_iter().collect();
+
                 let build_start = thread_cpu();
                 let result = parser.build(
                     request,
@@ -886,11 +910,11 @@ pub(crate) fn visit<L: FileSource>(
             }
             clocks.screen += thread_cpu() - t;
             let t = thread_cpu();
-            let wanted: BTreeSet<_> = active
-                .iter()
-                .flat_map(|(b, _, _)| bound[b].as_ref().unwrap().facts.iter().copied())
-                .collect();
-            let facts: Vec<_> = wanted.into_iter().collect();
+            let mut required = FactMask::default();
+            for (binding, _, _) in &active {
+                for (word, bits) in required.iter_mut().zip(bound[binding].as_ref().unwrap().fact_mask) { *word |= bits; }
+            }
+            requested_facts(required, &mut facts);
             packet.clear();
             if keep {
                 std::mem::swap(&mut held.facts, &mut packet.rows);
@@ -955,8 +979,9 @@ pub(crate) fn visit<L: FileSource>(
             let t = thread_cpu();
             if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
             {
+                distinct.get_mut().clear();
                 let mut evaluate = |screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
-                    screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()),
+                    screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct,
                         &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, unknown, cut_of, &said);
                 };
                 if let Some(screen) = &mut checks {

@@ -145,6 +145,7 @@ impl Checks {
         run: &mut Run,
         tree: &l::NodeTable,
         text: Option<&[u32]>,
+        distinct: &std::cell::RefCell<crate::pair_checks::FileSymbols>,
         bytes: &[u8],
         path: &str,
         id: FileId,
@@ -195,6 +196,8 @@ impl Checks {
                 text.map(|ids| SyntaxText {
                     ids,
                     symbols: &run.texts,
+                    dictionary: &run.ids,
+                    distinct: Some(distinct),
                     patterns: Some(&self.patterns),
                     column: Some(&column),
                 }),
