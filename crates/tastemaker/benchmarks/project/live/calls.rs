@@ -207,10 +207,23 @@ fn slot(v: Option<Cell>) -> sdk::Slot {
     })
 }
 
-fn unread_path(linked: &sdk::Languages, path: &sdk::RelativePath) -> bool {
-    linked.reads(path) != release_sdk::languages::Recognition::Reads
+fn unread_path(linked: &sdk::Languages, path: &str) -> bool {
+    use release_sdk::languages::{
+        ByteSlice, FieldRequest, FileId, NoteRequest, ParseRequest, Recognition, SourcePath,
+    };
+    let request = ParseRequest {
+        path: SourcePath(path),
+        file: FileId(0),
+        bytes: ByteSlice(&[]),
+        notes: NoteRequest::Unwanted,
+        fields: FieldRequest::Unwanted,
+    };
+    !linked
+        .0
+        .iter()
+        .any(|reader| reader.parse_engine().recognition(&request) == Recognition::Reads)
         && !linked.0.iter().any(|reader| {
-            reader.primary_role(release_sdk::languages::SourcePath(&path.0))
+            reader.primary_role(SourcePath(path))
                 == release_language::domain::files::types::PrimaryFileRole::Configuration
         })
 }
@@ -432,7 +445,7 @@ impl Live {
             };
             if self.batch.schedule.pending.is_empty()
                 && let Some((_, report)) = self.completed_calls[memo_pool].iter().find(|(saved, _)| saved == &memo)
-                && paths.iter().all(|path| !unread_path(linked, &sdk::RelativePath(path.as_str().into())))
+                && paths.iter().all(|path| !unread_path(linked, path))
             {
                 let start = thread_cpu();
                 let report = report.clone();
@@ -667,12 +680,11 @@ impl Live {
             }
             }
         }
-        for path in Rc::unwrap_or_clone(paths) {
-            let p = sdk::RelativePath(path.into());
-            if unread_path(linked, &p) {
-                out.unread.push(p.0);
-            }
-        }
+        out.unread.extend(
+            paths.iter()
+                .filter(|path| unread_path(linked, path))
+                .map(|path| Box::<str>::from(path.as_str())),
+        );
         let mut manifest=BTreeMap::<String,usize>::new();
         for p in &self.state.manifest_failures{*manifest.entry(p.0.to_string()).or_default()+=1;}
         for (p,n) in restored_unread{let total=manifest.entry(p).or_default();*total=(*total).max(n);}

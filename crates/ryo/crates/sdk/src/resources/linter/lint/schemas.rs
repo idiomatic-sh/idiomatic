@@ -101,8 +101,9 @@ impl TryFrom<&str> for Glob {
 
     fn try_from(text: &str) -> Result<Self, Self::Error> {
         // A glob is the text the matching reads: the schema keeps the text, and the run makes it ready among its rule's globs.
-        match super::composition::build_matching().parse(&CoreGlob(text.into())) {
-            Ok(()) => Ok(Self(text.into())),
+        let glob = CoreGlob(text.into());
+        match super::composition::build_matching().parse(&glob) {
+            Ok(()) => Ok(Self(glob.0)),
             Err(MatchingError::BadGlob { glob, reason }) => Err(GlobSchemaError { glob, reason }),
             Err(MatchingError::InvalidRegex { reason }) => Err(GlobSchemaError {
                 glob: text.into(),

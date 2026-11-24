@@ -49,6 +49,11 @@ pub(crate) fn compile_globs(globs: &[PathGlob<'_>]) -> Result<GlobSet, GlobRefus
 
 /// Validate a glob without constructing a request cache.
 pub(crate) fn parse_glob(glob: PathGlob<'_>) -> Result<(), CompilerReason> {
+    // Every character outside glob syntax is valid as a literal. No token
+    // stream or regex needs to be constructed to validate one.
+    if !glob.0.contains(['*', '?', '[', ']', '{', '}', '\\']) {
+        return Ok(());
+    }
     GlobBuilder::new(glob.0)
         .literal_separator(true)
         .build()
