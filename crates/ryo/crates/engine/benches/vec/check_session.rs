@@ -120,6 +120,9 @@ pub(crate) struct Clock {
     pub screen: f64,
     pub bound_proofs: f64,
     pub literal_positions: usize,
+    pub witnesses: [usize; 4],
+    pub named_counts: [usize; 3],
+    pub named_cpu: f64,
     pub requirement_programs: usize,
     pub requirement_bindings: usize,
     pub bulk_screen_files: usize,
@@ -1096,7 +1099,7 @@ pub(crate) fn visit<L: FileSource>(
                 let mut evaluate = |scope, screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
                     let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                     screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
-                        &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, unknown, cut_of, &said);
+                        &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, unknown, cut_of, &said, &mut clocks.witnesses);
                     if said.is_empty() && provider.projects_words {
                         for &(binding, slot, excluded) in jobs.iter() {
                             if excluded || cut_of[binding].is_some() { continue; }
@@ -1140,6 +1143,8 @@ pub(crate) fn visit<L: FileSource>(
                 }
                 if !demanded.is_empty() {
                     let schemas: Vec<_> = demanded.into_values().collect();
+                    let named_start = thread_cpu();
+                    clocks.named_counts[0] += 1;
                     let answers = parser.named_rows(&schemas, request, elements, tree, symbols, source.environment.as_deref().map(|e| e as &dyn l::FileProject));
                     if answers.len() != schemas.len() {
                         for schema in schemas {
@@ -1149,11 +1154,18 @@ pub(crate) fn visit<L: FileSource>(
                         for (schema, answer) in schemas.into_iter().zip(answers) {
                             let table = answer.and_then(|cols| named::table(cols, schema, id, L::symbols(symbols), &bytes, &mut run, unknown));
                             match table {
-                                Ok(table) => named_tables.push((schema.name.to_owned(), Rc::new(table))),
+                                Ok(table) => {
+                                    clocks.named_counts[1] += 1;
+                                    clocks.named_counts[2] += table.n;
+                                    named_tables.push((schema.name.to_owned(), Rc::new(table)));
+                                }
                                 Err(error) => { named_errors.insert(schema.name, error); }
                             }
                         }
                     }
+                    let elapsed = thread_cpu() - named_start;
+                    clocks.named_cpu += elapsed;
+                    clocks.read_parse += elapsed;
                 }
             }
             let mut semantics = None;

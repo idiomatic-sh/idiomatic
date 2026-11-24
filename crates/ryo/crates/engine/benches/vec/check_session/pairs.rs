@@ -172,6 +172,7 @@ impl Checks {
         unknown: &HashMap<u32, u32>,
         cuts: &[Option<Arc<crate::finish::partition::Partition>>],
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
+        witnesses: &mut [usize; 4],
     ) {
         self.live.fill(false);
         self.selected.fill(0);
@@ -261,11 +262,18 @@ impl Checks {
             let Some(roots) = &self.roots[root_for(*binding)] else { continue };
             let cut = cuts[*binding].as_deref();
             let b = bound[binding].as_mut().unwrap();
-            if partials.iter().any(|p| b.facts.contains(&p.relation)) {
+            if b.screenable == Some(false) {
+                // This binding was deliberately left out of the selected witness set.
+                witnesses[0] += 1;
                 continue;
             }
             let any_absent = roots.iter().any(|&r| !self.live[r]);
             if !any_absent && !self.domains[root_for(*binding)].iter().any(|&(_, d)| !self.live[d]) {
+                continue;
+            }
+            witnesses[1] += 1;
+            if partials.iter().any(|p| b.facts.contains(&p.relation)) {
+                witnesses[2] += 1;
                 continue;
             }
             if !*b.screenable.get_or_insert_with(|| {
@@ -276,6 +284,7 @@ impl Checks {
                     cut,
                 )
             }) {
+                witnesses[3] += 1;
                 continue;
             }
             if roots.iter().all(|&r| !self.live[r]) {
