@@ -170,14 +170,14 @@ pub(in super::super) fn evaluate(
 
 /// Run one already prepared file program and deliver its complete typed rows. Caller
 /// tables have already been numbered in this request and belong to this binding.
-pub(in super::super) fn pair(
+pub(in super::super) fn pair<'tables>(
     exec: &mut Exec<'_>,
     run: &mut Run,
     path: u32,
     tree: &NodeTable,
     bytes: &[u8],
     facts: &mut dyn Provider,
-    supplied: &[(String, Rc<Table>)],
+    supplied: impl IntoIterator<Item = &'tables (String, Rc<Table>)>,
 ) -> R<json_output::Records> {
     let plan = exec.plan;
     let mut frame = File::new(tree, bytes, path, plan.nodes.len());

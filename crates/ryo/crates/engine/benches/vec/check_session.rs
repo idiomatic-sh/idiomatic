@@ -158,12 +158,13 @@ struct Bound<'p> {
     shape: Vec<Vec<(bool, u32)>>,
     words: Vec<Vec<u32>>,
     never: bool,
+    lines: bool,
     coverage: reader_run::coverage::Coverage,
 }
 
 fn bind<'p>(
     program: &'p Program,
-    parser: &dyn l::contract::ParseEngine,
+    parser: Option<&dyn l::contract::ParseEngine>,
     run: &mut Run,
     hosted: Tables,
 ) -> Result<Bound<'p>> {
@@ -187,13 +188,13 @@ fn bind<'p>(
         if catalog::service::scope_of(rel) == catalog::types::RowScope::Project {
             return Err(format!("{name} needs closed project facts"));
         }
-        if parser.includes_expansions(rel) {
+        if parser.is_some_and(|p| p.includes_expansions(rel)) {
             run.reader_tables.insert(name.clone());
         }
         if catalog::service::fact_form(rel) != relations::types::FactForm::NodeTable
             || run.reader_tables.contains(name)
         {
-            if parser.absence_of(rel) == Some(l::AbsenceCause::NotYetRead) {
+            if parser.and_then(|p| p.absence_of(rel)) == Some(l::AbsenceCause::NotYetRead) {
                 return Err(format!("provider does not read {name}"));
             }
             facts.push(rel);
@@ -224,6 +225,10 @@ fn bind<'p>(
         shape,
         words,
         never: *never,
+        lines: program
+            .bases
+            .iter()
+            .any(|n| n == relations::service::name(l::Relation::FilesystemLineCount).0),
         coverage: Default::default(),
     })
 }
@@ -300,7 +305,7 @@ fn versions(
 /// schema. Symbols and file IDs live in the reader session. Source trees never
 /// escape the visit. Every request for the same pair refers to its answer slot.
 pub(crate) fn visit(
-    language: l::Language,
+    language: Option<l::Language>,
     programs: &[Result<Program>],
     program_of: &[usize],
     sources: &[Source],
@@ -310,18 +315,23 @@ pub(crate) fn visit(
     mut host: impl FnMut(usize, &mut Run) -> Result<Tables>,
     clocks: &mut Clock,
 ) {
-    let parser = language.parse_engine();
+    let parser = language.map(|lang| lang.parse_engine());
     let mut run = Run::default();
     run.file_field_codes = true;
     run.empty = run.sym(b"");
     run.links();
-    let unknown = reader::public_words(&mut run, parser.unknown_reasons());
-    run.kind_sym = parser
-        .kind_names()
-        .0
-        .iter()
-        .map(|k| run.sym(k.0.as_bytes()))
-        .collect();
+    let unknown = reader::public_words(
+        &mut run,
+        parser.as_ref().map_or(&[], |p| p.unknown_reasons()),
+    );
+    if let Some(p) = &parser {
+        run.kind_sym = p
+            .kind_names()
+            .0
+            .iter()
+            .map(|k| run.sym(k.0.as_bytes()))
+            .collect();
+    }
     // A local path may have many source versions. The IDs here identify the version.
     for src in sources {
         run.paths.push(src.path.clone());
@@ -356,7 +366,7 @@ pub(crate) fn visit(
                 let entry = bound.entry(binding).or_insert_with(|| {
                     let p = program.as_ref().map_err(Clone::clone)?;
                     let tables = host(binding, &mut run)?;
-                    bind(p, &*parser, &mut run, tables)
+                    bind(p, parser.as_deref(), &mut run, tables)
                 });
                 if let Err(reason) = entry {
                     answers[slot] = Err(reason.clone());
@@ -374,7 +384,8 @@ pub(crate) fn visit(
             let t = thread_cpu();
             run.root_dir.clear();
             run.root_dir.push_str(&source.root);
-            let result = {
+            let result = if let Some(parser) = &parser {
+                clocks.files += 1;
                 let request = l::ParseRequest {
                     file: id,
                     path: SourcePath(&source.path),
@@ -390,8 +401,11 @@ pub(crate) fn visit(
                         &wanted.into_iter().collect::<Vec<_>>(),
                     )
                     .map_err(|e| format!("{e:?}"))
+            } else {
+                // Every registered reader declined this path. Its host populations
+                // still exist and no source reader contributes syntax or semantic rows.
+                Ok(())
             };
-            clocks.files += 1;
             if let Err(reason) = result {
                 for &slot in jobs.values() {
                     answers[slot] = Err(reason.clone());
@@ -500,7 +514,9 @@ pub(crate) fn visit(
                 .collect();
             let facts: Vec<_> = wanted.into_iter().collect();
             packet.clear();
-            if !facts.is_empty() {
+            if let Some(parser) = &parser
+                && !facts.is_empty()
+            {
                 parser.walk_file(
                     &mut elements,
                     &mut symbols,
@@ -515,6 +531,22 @@ pub(crate) fn visit(
             let mut view = packet.view(&mut provider, &symbols, &bytes);
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
+            let lines = active
+                .iter()
+                .any(|(b, _)| bound[b].as_ref().unwrap().lines)
+                .then(|| {
+                    let name = relations::service::name(l::Relation::FilesystemLineCount).0;
+                    let (_, columns, types) =
+                        run.catalog(name).expect("host line-count declaration");
+                    let mut table = Table::with_rows(columns, types, 1);
+                    table.cols[0].push(u64::from(id.0));
+                    table.cols[1].push(
+                        bytes.iter().filter(|&&b| b == b'\n').count() as u64
+                            + u64::from(bytes.last().is_some_and(|&b| b != b'\n')),
+                    );
+                    table.n = 1;
+                    (name.to_owned(), Rc::new(table))
+                });
             for (binding, slot) in active {
                 let p = programs[program_of[binding]].as_ref().unwrap();
                 let b = bound.get_mut(&binding).unwrap().as_mut().unwrap();
@@ -533,7 +565,7 @@ pub(crate) fn visit(
                     &tree,
                     &bytes,
                     &mut view,
-                    &b.hosted,
+                    b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
                 );
             }
             clocks.evaluate += thread_cpu() - t;
