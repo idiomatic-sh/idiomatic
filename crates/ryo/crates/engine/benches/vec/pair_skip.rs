@@ -262,7 +262,7 @@ enum Shape {
 }
 
 #[derive(Eq, Hash, PartialEq)]
-struct Clause<T> {
+struct BoundClause<T> {
     id: usize,
     terms: Rc<[T]>,
 }
@@ -280,24 +280,24 @@ impl PrerequisiteClauses {
         seen: &mut FxHashMap<Rc<[T]>, usize>,
         terms: Vec<T>,
         next: usize,
-    ) -> Clause<T> {
+    ) -> BoundClause<T> {
         if let Some((stored, &id)) = seen.get_key_value(terms.as_slice()) {
-            return Clause {
+            return BoundClause {
                 id,
                 terms: stored.clone(),
             };
         }
         let terms: Rc<[T]> = terms.into();
         seen.insert(terms.clone(), next);
-        Clause { id: next, terms }
+        BoundClause { id: next, terms }
     }
 
-    fn shape(&mut self, terms: Vec<Shape>) -> Clause<Shape> {
+    fn shape(&mut self, terms: Vec<Shape>) -> BoundClause<Shape> {
         let next = self.shape.len() + self.words.len();
         Self::intern(&mut self.shape, terms, next)
     }
 
-    fn words(&mut self, terms: Vec<u32>) -> Clause<u32> {
+    fn words(&mut self, terms: Vec<u32>) -> BoundClause<u32> {
         let next = self.shape.len() + self.words.len();
         Self::intern(&mut self.words, terms, next)
     }
@@ -307,8 +307,8 @@ impl PrerequisiteClauses {
 #[derive(Eq, Hash, PartialEq)]
 pub(super) struct BoundSummary {
     never: bool,
-    shape: Vec<Clause<Shape>>,
-    words: Vec<Clause<u32>>,
+    shape: Vec<BoundClause<Shape>>,
+    words: Vec<BoundClause<u32>>,
     demand: Demand,
 }
 
@@ -546,7 +546,7 @@ impl FileSummary {
 /// decisions, like the native file skip's held mask and stamped word memo.
 fn clause_missing<T>(
     answers: &mut AtomAnswers,
-    clause: &Clause<T>,
+    clause: &BoundClause<T>,
     absent: impl FnMut(&T) -> bool,
 ) -> bool {
     if let Some(value) = answers.get(clause.id) {
