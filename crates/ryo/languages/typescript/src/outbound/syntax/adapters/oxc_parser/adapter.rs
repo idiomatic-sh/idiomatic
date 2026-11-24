@@ -48,7 +48,7 @@ impl<'a> Visit<'a> for VisitorStack<'a> {
                 ]);
             self.decoded.push(Decoded {
                 span: kind.span(),
-                value: DecodedText(value.to_string()),
+                value: value.as_str(),
                 token_kind: if import_options {
                     Token::Keyword
                 } else {
@@ -59,7 +59,7 @@ impl<'a> Visit<'a> for VisitorStack<'a> {
         if let Some(value) = kind.as_private_identifier() {
             self.decoded.push(Decoded {
                 span: value.span,
-                value: DecodedText(value.name.to_string()),
+                value: value.name.as_str(),
                 token_kind: Token::PrivateIdentifierToken,
             });
         }
@@ -75,14 +75,14 @@ impl<'a> Visit<'a> for VisitorStack<'a> {
         {
             self.decoded.push(Decoded {
                 span: template.span,
-                value: DecodedText(cooked.to_string()),
+                value: cooked.as_str(),
                 token_kind: Token::Template,
             });
         }
         if let AstKind::StringLiteral(literal) = kind {
             self.decoded.push(Decoded {
                 span: literal.span,
-                value: DecodedText(literal.value.to_string()),
+                value: literal.value.as_str(),
                 token_kind: Token::String,
             });
         }
@@ -301,7 +301,7 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
                 };
                 if let Some(decoded) = found {
                     piece.kind = Kind::Token(decoded.token_kind);
-                    piece.text = Text::Decoded(decoded.value.clone());
+                    piece.text = Text::Decoded(DecodedText(decoded.value.to_owned()));
                 }
                 leaves.push(piece);
             }

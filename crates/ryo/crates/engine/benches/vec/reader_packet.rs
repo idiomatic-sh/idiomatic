@@ -4,6 +4,7 @@ use super::super::{finish, reader};
 use rustc_hash::FxHashMap;
 use ryo::languages::{self as l, ByteSlice, CellKind, CellWord, FileWords, FilledColumns};
 use ryo_relations::domain::relations::service as catalog;
+use std::rc::Rc;
 
 const RELATIONS: usize = catalog::ALL.len();
 
@@ -135,6 +136,7 @@ impl Packet {
             symbols,
             bytes,
             resolved: FxHashMap::default(),
+            materialized: FxHashMap::default(),
             renderer: None,
         }
     }
@@ -162,6 +164,7 @@ pub(crate) struct View<'a, 'words> {
     symbols: &'a l::Symbols,
     bytes: &'a [u8],
     resolved: FxHashMap<u32, u32>,
+    materialized: FxHashMap<l::Relation, Rc<finish::Table>>,
 }
 impl finish::Provider for View<'_, '_> {
     fn syntax_text(&self) -> Option<&[u32]> {
@@ -202,6 +205,36 @@ impl finish::Provider for View<'_, '_> {
         name: &str,
         scope: finish::Scope<'_>,
     ) -> Result<finish::Table, String> {
+        let (rel, names, tys) = self.layout(run, name, scope)?;
+        if let Some(table) = self.materialized.get(&rel) {
+            return Ok(table.copy());
+        }
+        Ok(self.transpose(run, rel, names, tys))
+    }
+
+    fn shared_fill(
+        &mut self,
+        run: &mut finish::Run,
+        name: &str,
+        scope: finish::Scope<'_>,
+    ) -> Result<Rc<finish::Table>, String> {
+        let (rel, names, tys) = self.layout(run, name, scope)?;
+        if let Some(table) = self.materialized.get(&rel) {
+            return Ok(Rc::clone(table));
+        }
+        let table = Rc::new(self.transpose(run, rel, names, tys));
+        self.materialized.insert(rel, Rc::clone(&table));
+        Ok(table)
+    }
+}
+
+impl View<'_, '_> {
+    fn layout(
+        &self,
+        run: &mut finish::Run,
+        name: &str,
+        scope: finish::Scope<'_>,
+    ) -> Result<(l::Relation, finish::Names, finish::Tys), String> {
         if !matches!(scope, finish::Scope::File(f) if f == self.parsed.file) {
             return Err(format!(
                 "relation {name} requested outside this reader's file"
@@ -216,38 +249,41 @@ impl finish::Provider for View<'_, '_> {
         if let Some(cause) = self.packet.partial(rel) {
             return Err(format!("partial {name}: {cause}"));
         }
-        let i = catalog::number_of(rel).0;
-        if !self.packet.requested[i] {
+        if !self.packet.requested[catalog::number_of(rel).0] {
             return Err(format!("no reader for {name}"));
         }
-        let offsets = &self.packet.offsets[i];
-        let width = tys.len();
+        Ok((rel, names, tys))
+    }
+
+    fn transpose(
+        &mut self,
+        run: &mut finish::Run,
+        rel: l::Relation,
+        names: finish::Names,
+        tys: finish::Tys,
+    ) -> finish::Table {
+        let offsets = &self.packet.offsets[catalog::number_of(rel).0];
+        let words = &self.packet.rows.words;
         let mut table = finish::Table::with_rows(names, tys, offsets.len());
-        for &at in offsets {
-            let row = &self.packet.rows.words[at..at + width];
-            for ((column, &raw), ty) in table.cols.iter_mut().zip(row).zip(table.tys.iter()) {
-                let value = match ty {
-                    finish::Ty::Sym => {
-                        let id = raw as u32;
-                        u64::from(*self.resolved.entry(id).or_insert_with(|| {
-                            reader::symbol(run, self.parsed.unknown, self.symbols, self.bytes, l::Symbol(id))
-                        }))
-                    }
-                    finish::Ty::Node => {
-                        assert_eq!(
-                            raw >> 32,
-                            u64::from(self.parsed.file),
-                            "foreign node in file-scoped answer"
-                        );
-                        u64::from(raw as u32)
-                    }
-                    _ => raw,
-                };
-                column.push(value);
+        for (index, (column, ty)) in table.cols.iter_mut().zip(table.tys.iter()).enumerate() {
+            let cells = offsets.iter().map(|&at| words[at + index]);
+            match ty {
+                finish::Ty::Sym => column.extend(cells.map(|raw| {
+                    let id = raw as u32;
+                    u64::from(*self.resolved.entry(id).or_insert_with(|| {
+                        reader::symbol(run, self.parsed.unknown, self.symbols, self.bytes, l::Symbol(id))
+                    }))
+                })),
+                finish::Ty::Node => column.extend(cells.map(|raw| {
+                    assert_eq!(raw >> 32, u64::from(self.parsed.file),
+                               "foreign node in file-scoped answer");
+                    u64::from(raw as u32)
+                })),
+                _ => column.extend(cells),
             }
         }
         table.n = offsets.len();
         self.parsed.fills_made += 1;
-        Ok(table)
+        table
     }
 }
