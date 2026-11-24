@@ -386,6 +386,13 @@ impl Batch {
     }
 
     fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> Vec<Answer> {
+        // The closed, store-disabled capture cannot register another request.
+        // Release the admission-only maps before the reader and join heaps grow.
+        self.project_keys = Default::default();
+        self.authorities = Default::default();
+        self.contracts = Default::default();
+        self.cuts = Default::default();
+        self.local_bindings = Default::default();
         self.release_admission();
         let mut state = Active::default();
         self.epoch(readers, &mut state);
@@ -488,6 +495,14 @@ impl Batch {
                 },
                 &mut self.clocks,
             );
+            if !*keep && store.is_none() {
+                // Other readers have disjoint files. Answers and project contributions
+                // already own everything the closed phase will read from this group.
+                self.schedule.delivered(&files);
+                for i in files {
+                    self.schedule.sources[i].provided = None;
+                }
+            }
         }
         if let Some(s)=store.as_deref_mut() {s.local(self,world,answers,aliases,contributions);}
         if !*keep {
@@ -888,8 +903,12 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
                         }
                         Ok(work)
                     }).unwrap_or_else(Work::Refused);
-                entries.push(Entry::Evaluate(session.work.len(),contract));
+                let idx = session.work.len();
                 session.work.push(result);
+                if store.is_none() {
+                    return idx;
+                }
+                entries.push(Entry::Evaluate(idx,contract));
             }
             entries.len()-1
         });
@@ -905,7 +924,9 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
     }else{session.run_sources(readers)};
     let t=thread_cpu();
     let mut out=std::io::BufWriter::new(std::fs::File::create(output).unwrap());
-    let results:Vec<Result<(String,Vec<(String,String)>),String>>=entries.into_iter().map(|entry|{
+    let results:Vec<Result<(String,Vec<(String,String)>),String>>=entries.into_iter().chain(
+        (0..if store.is_none() { session.work.len() } else { 0 }).map(|i| Entry::Evaluate(i,None))
+    ).map(|entry|{
         let packet=match entry {
             Entry::Stored(k)=>k,
             Entry::Evaluate(i,id)=>{
