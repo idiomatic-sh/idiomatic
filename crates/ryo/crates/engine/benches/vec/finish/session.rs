@@ -19,7 +19,7 @@ fn scalar(expr: &E) -> R<()> {
             scalar(a)?;
             scalar(b)
         }
-        E::Null(a, _) | E::Not(a) | E::Re(a, _) => scalar(a),
+        E::Null(a, _) | E::Not(a) | E::TextTest(a, _) => scalar(a),
         E::List(items) => items.iter().try_for_each(scalar),
         E::Col(..) | E::Lit(_) | E::Text(_) | E::Num(_) => Ok(()),
     }

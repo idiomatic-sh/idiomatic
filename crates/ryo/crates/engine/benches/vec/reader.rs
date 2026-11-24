@@ -28,12 +28,12 @@ pub(super) fn public_words(run: &mut Run, reasons: &[l::UnknownName]) -> HashMap
     let mut unknown = HashMap::new();
     if run.absent_word.is_none() {
         let absent = u32::try_from(run.texts.len()).expect("word id");
-        run.texts.push(Box::default());
+        run.texts.push(Default::default());
         run.absent_word = Some(absent);
     }
     for reason in reasons {
         let number = u32::try_from(run.texts.len()).expect("word id");
-        run.texts.push(format!("unknown: {}", reason.text.0).into_bytes().into_boxed_slice());
+        run.texts.push(format!("unknown: {}", reason.text.0).into_bytes().into());
         run.unresolved_words.push(number);
         unknown.insert(l::unknown_symbol(reason.reason).0, number);
     }
