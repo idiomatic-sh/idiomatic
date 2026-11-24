@@ -97,6 +97,10 @@ impl<'p> Finisher<'p> {
         self.time += thread_cpu() - t0;
     }
 
+    pub(super) fn plan(&self) -> &'p finish::Plan {
+        self.plan
+    }
+
     /// Whether a file with these emits to run is visited at all.
     pub(super) fn visits(&self, wanted: &[usize]) -> bool {
         !wanted.is_empty() || self.check

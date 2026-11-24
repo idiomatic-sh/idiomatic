@@ -197,7 +197,7 @@ impl Admission {
             let declarations = hosted
                 .iter()
                 .map(|t| Hosted {
-                    rows: Rc::default(),
+                    rows: Default::default(),
                     name: t.name.clone(),
                     columns: t.columns.clone(),
                     partial: t.partial.clone(),
