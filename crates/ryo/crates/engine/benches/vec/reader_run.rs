@@ -10,7 +10,7 @@ use std::path::Path;
 pub(super) mod packet;
 
 #[path = "reader_pairs.rs"]
-mod pairs;
+pub(super) mod pairs;
 
 #[path = "reader_coverage.rs"]
 pub(super) mod coverage;
@@ -206,7 +206,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         .expect("executor must hand over the typed plan");
     assert!(typed.unplanned.is_empty());
     let mut program =
-        super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows);
+        super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows, true);
     let prepared: Vec<_> = program
         .roots
         .iter()
@@ -433,6 +433,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
                 super::pair_checks::SyntaxText {
                     ids: &provider.text,
                     symbols: &fin.run.texts,
+                    patterns: None,
                 },
                 &bytes,
                 path,

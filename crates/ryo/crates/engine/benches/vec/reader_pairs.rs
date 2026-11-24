@@ -8,7 +8,7 @@ use super::packet::Packet;
 use rustc_hash::FxHashMap;
 use ryo::languages::{self as l, FileWords};
 
-pub(super) fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> first::Vocab {
+pub(in super::super) fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> first::Vocab {
     fn codes(names: &[l::NameText<'_>]) -> std::collections::HashMap<String, u16> {
         let mut codes = std::collections::HashMap::new();
         let mut ambiguous = std::collections::HashSet::new();

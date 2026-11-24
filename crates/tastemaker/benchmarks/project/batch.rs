@@ -13,7 +13,6 @@ use ryo::{
 };
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use serde::Deserialize;
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -860,7 +859,7 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
     println!(
-        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6}",
+        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6}",
         session.schedule.programs.len(),
         session.bindings.len(),
         session.schedule.sources.len(),
@@ -869,7 +868,7 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
         c.pairs,
         c.unique_pairs,
         c.skipped,
-        c.evaluated,
+        c.evaluated, c.productive, c.evaluated-c.productive-c.refused, c.refused,
         c.prepare,
         c.read_parse,
         c.screen,
@@ -884,14 +883,14 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
 pub(crate) fn one(
     languages: Vec<Language>,
     pack: &str,
-    input: Value,
+    input: &[u8],
     output: &str,
 ) -> Result<(), String> {
     let readers: Vec<_> = languages
         .into_iter()
         .map(session::source::Linked::from)
         .collect();
-    let req = serde_json::from_value(input).map_err(|e| e.to_string())?;
+    let req = serde_json::from_slice(input).map_err(|e| e.to_string())?;
     one_source(&readers, pack, req, output)
 }
 

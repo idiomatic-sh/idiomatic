@@ -18,6 +18,30 @@ type Nodes = Option<Bits>;
 pub(super) struct SyntaxText<'a> {
     pub ids: &'a [u32],
     pub symbols: &'a [Box<[u8]>],
+    pub patterns: Option<&'a SymbolMatches>,
+}
+/// The reader owns symbol identities for the lifetime of this dictionary.
+#[derive(Default)]
+pub(super) struct SymbolMatches(std::cell::RefCell<Vec<(usize, u32, bool)>>);
+
+impl SyntaxText<'_> {
+    fn matches(self, index: usize, regex: &regex::bytes::Regex, polarity: bool) -> bool {
+        let Some(patterns) = self.patterns else {
+            return self.ids.iter().any(|&id| regex.is_match(&self.symbols[id as usize]) == polarity);
+        };
+        let mut entries = patterns.0.borrow_mut();
+        if entries.is_empty() {
+            entries.resize(4096, (usize::MAX, 0, false));
+        }
+        self.ids.iter().any(|&id| {
+            let slot = (index.wrapping_mul(0x9e3779b9) ^ id as usize) & (entries.len() - 1);
+            let entry = &mut entries[slot];
+            if (entry.0, entry.1) != (index, id) {
+                *entry = (index, id, regex.is_match(&self.symbols[id as usize]));
+            }
+            entry.2 == polarity
+        })
+    }
 }
 impl<'a> SyntaxText<'a> {
     fn at(self, index: usize) -> &'a [u8] {
@@ -161,9 +185,12 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Need::Any => true,
             Need::Empty => false,
             Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
-            Need::PathMatches(re) => self
-                .path
-                .is_none_or(|path| self.p.regexes[re].is_match(path)),
+            Need::PathMatches(re,yes) => self.path.is_none_or(|p|
+                self.p.regexes[re].compiled().is_none_or(|r| r.is_match(p) == yes)),
+            Need::SyntaxMatches(re,yes) => self.syntax_text.is_none_or(|col|{
+                self.p.regexes[re].compiled().is_none_or(|r|
+                    col.matches(re, r, yes))
+            }),
             Need::Terms(all, ref terms) => {
                 if all {
                     terms.iter().all(|i| self.pass(*i))
