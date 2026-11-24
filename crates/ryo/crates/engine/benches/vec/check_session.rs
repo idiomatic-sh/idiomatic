@@ -221,9 +221,15 @@ impl Schedule {
             source.project = false;
         }
     }
+    /// The complete lowered program is cached by its source and inputs. Parsed
+    /// module bodies are scratch shared by preparations in the current round.
+    pub(crate) fn finish_preparation(&mut self) {
+        self.module_catalogs = HashMap::new();
+    }
+
     pub(crate) fn close(&mut self) {
         self.prepared = HashMap::new();
-        self.module_catalogs.clear();
+        self.finish_preparation();
         self.source_ids = HashMap::new();
         self.supplied_ids = HashMap::new();
         self.named_disk_ids = HashMap::new();
@@ -817,6 +823,7 @@ pub(crate) fn visit<L: FileSource>(
         bound.index[binding] = bound.entries.len();
         bound.entries.push(entry);
     }
+    drop(language);
     let (plan, supplied) = merged.finish(keep.then_some(&mut state.previous_plan), &mut bound);
     let mut exec = Exec::new(&plan);
     clocks.prepare += thread_cpu() - start;

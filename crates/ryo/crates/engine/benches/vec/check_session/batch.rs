@@ -340,6 +340,7 @@ impl Batch {
         state: &mut Active<L::File, L::Dictionary>,
         mut store:Option<&mut stored::Store>,
     ) {
+        self.schedule.finish_preparation();
         let Active {
             paths,
             keep,
