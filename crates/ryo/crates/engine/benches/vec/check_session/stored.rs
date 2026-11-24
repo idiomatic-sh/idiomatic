@@ -146,6 +146,7 @@ struct Snapshot {
     blocks: Segments,
     stamps: Index,
     empty_schemas: Vec<Key>,
+    request_layers: Vec<Key>,
 }
 pub(super) struct Store {
     dir: PathBuf,
@@ -160,7 +161,7 @@ pub(super) struct Store {
     empty_schemas: Vec<Key>,
     schema_ids: HashMap<Key, u32>,
     notes: Shards<Notes>,
-    requests: Shards<Record>,
+    requests: Packets<Record>,
     groups: Shards<Group>,
     packets: Packets<Packet>,
     observed: Observations,
@@ -168,8 +169,8 @@ pub(super) struct Store {
     supplied_versions: HashMap<usize, Key>,
     versions: Vec<Option<Key>>,
     pairs: Vec<Option<(usize, usize)>>,
+    program_keys: Vec<Key>,
     binding_keys: Vec<Key>,
-    binding_ids: HashMap<Key, usize>,
     plans: Vec<Option<(Vec<Proof>, Vec<String>)>>,
     keep_pairs: Vec<bool>,
     local_rows: Vec<bool>,
@@ -262,7 +263,7 @@ impl Store {
                 .collect(),
             empty_schemas: snapshot.empty_schemas,
             notes: Shards::new("project", snapshot.notes),
-            requests: Shards::new("requests", snapshot.requests),
+            requests: Packets::new("requests", snapshot.requests, snapshot.request_layers),
             groups: Shards::new("inputs", snapshot.groups),
             packets: Packets::new("answers", snapshot.packets, snapshot.packet_layers),
             observed: Observations::new(dir, snapshot.stamps),
@@ -270,8 +271,8 @@ impl Store {
             supplied_versions: HashMap::new(),
             versions: vec![],
             pairs: vec![],
+            program_keys: vec![],
             binding_keys: vec![],
-            binding_ids: HashMap::new(),
             plans: vec![],
             keep_pairs: vec![],
             local_rows: vec![],
@@ -351,13 +352,14 @@ impl Store {
             build: self.build,
             files: self.files.index.clone(),
             notes: self.notes.index.clone(),
-            requests: self.requests.index.clone(),
+            requests: self.requests.index().clone(),
             groups: self.groups.index.clone(),
             packets: self.packets.index().clone(),
             packet_layers: self.packets.layers.clone(),
             blocks: self.blocks.index.clone(),
             stamps: self.observed.stamps.index.clone(),
             empty_schemas: self.empty_schemas.clone(),
+            request_layers: self.requests.layers.clone(),
         })
         .map_err(io::Error::other)?;
         if bytes != self.previous {
@@ -610,38 +612,41 @@ impl Store {
                 };
                 Some(key((&source.path, &source.reader, source.permission, d)))
             }));
-        let mut rules = vec![[0; 32]; b.schedule.programs.len()];
-        for ((text, params), &idx) in &b.schedule.prepared {
-            rules[idx] = key((text, params));
+        // Programs and bindings are appended to the schedule. Their effective
+        // inputs stay the same when earlier answers are delivered.
+        let prior_programs = self.program_keys.len();
+        if prior_programs < b.schedule.programs.len() {
+            self.program_keys.resize(b.schedule.programs.len(), [0; 32]);
+            for ((text, params), &idx) in &b.schedule.prepared {
+                if idx >= prior_programs {
+                    self.program_keys[idx] = key((text, params));
+                }
+            }
         }
-        let bindings: Vec<_> = b
-            .bindings
-            .iter()
-            .enumerate()
-            .map(|(binding, host)| {
-                let r = b.program_of[binding];
-                // The engine shares this pre-join work for every binding with the
-                // same declared host shape. Which caller first supplied the rows
-                // can change when all but one request is restored.
-                let digest = if b.cut_of[binding].is_some() {
-                    let shape = host
-                        .iter()
-                        .map(|h| (&h.name, &h.columns))
-                        .collect::<Vec<_>>();
-                    key((0u8, rules[r], shape))
-                } else {
-                    key((1u8, rules[r], host))
-                };
-                *self.binding_ids.entry(digest).or_insert_with(|| {
-                    self.binding_keys.push(digest);
-                    self.binding_keys.len() - 1
-                })
-            })
-            .collect();
+        self.binding_keys.extend(
+            b.bindings
+                .iter()
+                .enumerate()
+                .skip(self.binding_keys.len())
+                .map(|(binding, host)| {
+                    let rule = self.program_keys[b.program_of[binding]];
+                    // The projected work before a closed join uses the hosted
+                    // schema. The closed request key binds the consumed rows.
+                    if b.cut_of[binding].is_some() {
+                        let shape = host
+                            .iter()
+                            .map(|h| (&h.name, &h.columns))
+                            .collect::<Vec<_>>();
+                        key((0u8, rule, shape))
+                    } else {
+                        key((1u8, rule, host))
+                    }
+                }),
+        );
         self.pairs.resize(b.schedule.pairs, None);
         for (i, src) in b.schedule.sources.iter().enumerate() {
             for &(binding, slot) in &src.bindings {
-                self.pairs[slot] = Some((i, bindings[binding]));
+                self.pairs[slot] = Some((i, binding));
             }
         }
         let mut needed = vec![false; self.pairs.len()];
@@ -1024,5 +1029,70 @@ impl Store {
             paths.push((path, probe));
         }
         self.group(paths, None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use session::source::Linked;
+
+    #[test]
+    fn answers_replay_after_publish_with_each_requests_inputs() {
+        let root = tempfile::tempdir().unwrap();
+        let open = || Store::open(root.path(), &[] as &[Linked]).unwrap();
+        let inventory = key("one closed inventory");
+        let peers = key("same bound peers");
+        let supplied = |body: &str| BTreeMap::from([("input".to_owned(), key(body))]);
+        let scope = |store: &mut Store, body| {
+            store.request_inputs(root.path(), inventory, peers, supplied(body))
+        };
+        let mut store = open();
+        for (request, body) in [("first", "old bytes"), ("second", "new bytes")] {
+            let input = scope(&mut store, body);
+            let evidence = store.group(
+                vec![("input".into(), Probe::Effective), (PathBuf::new(), Probe::Inventory)],
+                Some(input),
+            ).unwrap();
+            store.put(key(request), Packet::declined(request), vec![evidence], vec![], String::new);
+        }
+        assert!(store.publish().unwrap() > 0);
+
+        let mut store = open();
+        let new = scope(&mut store, "new bytes");
+        let old = scope(&mut store, "old bytes");
+        for (input, request) in [(new, "second"), (old, "first"), (new, "second")] {
+            let (packet, _) = store.lookup_in(input, key(request)).unwrap();
+            assert_eq!(store.packet(&packet).refusal.as_deref(), Some(request));
+        }
+        assert!(store.lookup_in(new, key("first")).is_none());
+        assert!(store.lookup_in(old, key("second")).is_none());
+        assert!(store.lookup(key("first")).is_none());
+        assert_eq!(store.publish().unwrap(), 0);
+
+        let evidence = store.group(
+            vec![("input".into(), Probe::Effective)],
+            Some(old),
+        ).unwrap();
+        store.put(
+            key("first"),
+            Packet::declined("replacement"),
+            vec![evidence],
+            vec![],
+            String::new,
+        );
+        let shards = store.requests.index().clone();
+        assert!(store.publish().unwrap() > 0);
+        assert_eq!(store.requests.index(), &shards);
+        assert_eq!(store.requests.layers.len(), 1);
+
+        let mut store = open();
+        let old = scope(&mut store, "old bytes");
+        let new = scope(&mut store, "new bytes");
+        for (input, key_name, text) in [(old, "first", "replacement"), (new, "second", "second")] {
+            let (packet, _) = store.lookup_in(input, key(key_name)).unwrap();
+            assert_eq!(store.packet(&packet).refusal.as_deref(), Some(text));
+        }
+        assert!(store.lookup_in(new, key("first")).is_none());
     }
 }
