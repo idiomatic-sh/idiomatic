@@ -169,6 +169,7 @@ impl Live {
             *last.reasons.entry(reason.clone()).or_default() += 1;
         }
         last.elapsed += thread_cpu() - t;
+        last.bound_proofs = c.bound_proofs;
         last.parts = [
             c.prepare,
             c.read_parse,
@@ -363,6 +364,7 @@ struct Measurement {
     reasons: BTreeMap<String, usize>,
     elapsed: f64,
     parts: [f64; 6],
+    bound_proofs: f64,
     counts: [usize; 8],
     retained: [u64; 4],
 }
@@ -375,6 +377,7 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     reasons: BTreeMap::new(),
     elapsed: 0.0,
     parts: [0.0; 6],
+    bound_proofs: 0.,
     counts: [0; 8],
     retained: [0; 4],
 });
@@ -397,11 +400,12 @@ pub fn print_measurement() {
         m.sessions,
     );
     eprintln!(
-        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6}",
+        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6} bound_proofs={:.6}",
         m.calls,
         m.requests,
         m.refused,
-        m.elapsed - m.parts.iter().sum::<f64>()
+        m.elapsed - m.parts.iter().sum::<f64>(),
+        m.bound_proofs
     );
 }
 

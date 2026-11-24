@@ -13,7 +13,7 @@ mod witness;
 type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
 type Nodes = Option<Bits>;
-type SymbolColumn<'a> = dyn Fn(Source, usize, &super::pair_summary::regexes::Matcher) -> Option<bool> + 'a;
+type SymbolColumn<'a> = dyn Fn(Source, usize, Id, &super::pair_summary::regexes::Matcher) -> Option<bool> + 'a;
 /// The exact syntax text column supplied by a host with per-position symbol IDs.
 #[derive(Clone, Copy)]
 pub(super) struct SyntaxText<'a> {
@@ -70,7 +70,7 @@ impl FileSymbols {
 }
 
 impl SymbolMatches {
-    fn with_predicate<R>(&self, index: usize, regex: &super::pair_summary::regexes::Matcher,
+    pub(super) fn with_predicate<R>(&self, index: usize, regex: &super::pair_summary::regexes::Matcher,
         symbols: &[Rc<[u8]>], apply: impl FnOnce(&mut dyn FnMut(u32) -> bool) -> R) -> R {
         let mut entries = self.0.borrow_mut();
         if entries.is_empty() {
@@ -116,11 +116,91 @@ struct Table {
     cells: FilledColumns,
     index: Map<usize, Map<Id, Vec<u32>>>,
 }
+/// File-local positions for reader-interned symbols. A presence query stops on
+/// its first witness. A position query finishes the same scan.
+#[derive(Default)]
+struct Literals {
+    heads: Map<u32, u32>,
+    previous: Vec<u32>,
+    symbols: Map<Id, Option<u32>>,
+}
+
+impl Literals {
+    const END: u32 = u32::MAX;
+
+    fn clear(&mut self) {
+        self.heads.clear();
+        self.previous.clear();
+        self.symbols.clear();
+    }
+
+    fn symbol(&mut self, domain: Id, literal: &[u8], column: SyntaxText<'_>) -> Option<u32> {
+        *self.symbols.entry(domain).or_insert_with(|| column.dictionary.get(literal).copied())
+    }
+
+    fn head(&self, symbol: u32) -> u32 {
+        self.heads.get(&symbol).copied().unwrap_or(Self::END)
+    }
+
+    fn scan(&mut self, column: &[u32], until: Option<u32>) {
+        for &symbol in &column[self.previous.len()..] {
+            let position = self.previous.len() as u32;
+            let previous = self.heads.insert(symbol, position).unwrap_or(Self::END);
+            self.previous.push(previous);
+            if until == Some(symbol) {
+                break;
+            }
+        }
+    }
+
+    fn contains(&mut self, symbol: u32, column: &[u32]) -> bool {
+        if self.head(symbol) == Self::END {
+            self.scan(column, Some(symbol));
+        }
+        self.head(symbol) != Self::END
+    }
+
+    fn positions(&mut self, symbol: u32, column: &[u32]) -> Bits {
+        self.scan(column, None);
+        let mut pos = self.head(symbol);
+        let mut mask = Vec::new();
+        while pos != Self::END {
+            insert(&mut mask, pos);
+            pos = self.previous[pos as usize];
+        }
+        Rc::new(mask)
+    }
+}
+
+#[derive(Default)]
+struct Answers(Vec<(u64, u64)>);
+
+impl Answers {
+    fn reset(&mut self, count: usize) {
+        self.0.resize(count.div_ceil(64), (0, 0));
+        self.0.fill((0, 0));
+    }
+
+    fn get(&self, id: Id) -> Option<bool> {
+        let (known, yes) = self.0[id / 64];
+        let bit = 1 << (id % 64);
+        (known & bit != 0).then_some(yes & bit != 0)
+    }
+
+    fn set(&mut self, id: Id, value: bool) {
+        let (known, yes) = &mut self.0[id / 64];
+        let bit = 1 << (id % 64);
+        *known |= bit;
+        if value { *yes |= bit; } else { *yes &= !bit; }
+    }
+}
+
 /// Empty between files. Only materialized node masks need clearing.
 #[derive(Default)]
 pub(super) struct Scratch {
     sets: Vec<Option<Nodes>>,
-    needs: Vec<Option<bool>>,
+    needs: Answers,
+    literals: Literals,
     touched: Vec<Id>,
 }
 
@@ -142,7 +222,8 @@ struct File<'a, const PROFILE: bool> {
     words: &'a mut FileWords,
     facts: Vec<Table>,
     sets: &'a mut [Option<Nodes>],
-    needs: &'a mut [Option<bool>],
+    needs: &'a mut Answers,
+    literals: &'a mut Literals,
     touched: &'a mut Vec<Id>,
     texts: Option<Map<&'a [u8], Vec<u32>>>,
     steps: u64,
@@ -224,12 +305,12 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         if PROFILE {
             self.stats[class].calls += 1;
         }
-        if let Some(result) = &self.needs[id] {
+        if let Some(result) = self.needs.get(id) {
             if PROFILE {
                 self.stats[class].hits += 1;
                 self.stats[class].cross += u64::from(self.file_owner[id] != self.owner);
             }
-            return *result;
+            return result;
         }
         if !PROFILE {
             return self.pass_miss(id);
@@ -317,7 +398,8 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 }
                 Domain::Text(literal) if self.syntax_text.is_some() => {
                     let column = self.syntax_text.unwrap();
-                    column.dictionary.get(literal.as_bytes()).is_some_and(|id| column.ids.contains(id))
+                    self.literals.symbol(x, literal.as_bytes(), column)
+                        .is_some_and(|symbol| self.literals.contains(symbol, column.ids))
                 }
                 Domain::SpanMatching(kind, pattern) if self.p.file_only[x] => {
                     node_table::ids_of_kind(self.t, languages::KindBits(*kind)).iter().any(|pos| {
@@ -339,7 +421,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 {
                     let view = self.syntax_text.unwrap();
                     let found = self.p.regexes[*pattern].compiled().and_then(|p|
-                        (view.column.unwrap())(self.p.facts[*slot].source, *column, p));
+                        (view.column.unwrap())(self.p.facts[*slot].source, *column, *pattern, p));
                     found.unwrap_or_else(|| self.nodes(x).is_none_or(|bits| !bits.is_empty()))
                 }
                 Domain::Fact(slot, None) => {
@@ -347,7 +429,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     if !table.read && self.p.facts[*slot].key.is_some() {
                         // A bare file-level existence guard alone cannot justify building
                         // a keyed table. A subsequent constrained check can still request it.
-                        self.needs[id] = Some(true);
+                        self.needs.set(id, true);
                         return true;
                     }
                     table.load(
@@ -361,7 +443,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 _ => self.nodes(x).is_none_or(|b| !b.is_empty()),
             },
         };
-        self.needs[id] = Some(yes);
+        self.needs.set(id, yes);
         yes
     }
     fn nodes(&mut self, id: Id) -> Nodes {
@@ -477,19 +559,16 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                         }),
                 ))
             }
+            Domain::Text(t) if self.syntax_text.is_some() => {
+                let column = self.syntax_text.unwrap();
+                Some(self.literals.symbol(id, t.as_bytes(), column).map_or_else(
+                    || Rc::new(Vec::new()),
+                    |symbol| self.literals.positions(symbol, column.ids),
+                ))
+            }
             Domain::Text(t) => {
                 let by_text = self.texts.get_or_insert_with(|| {
                     let mut m = Map::<&[u8], Vec<u32>>::default();
-                    if let Some(column) = self.syntax_text {
-                        let wanted: Map<_, _> = self.p.texts.iter().filter_map(|s|
-                            column.dictionary.get(s.as_slice()).map(|&id| (id, s.as_slice()))).collect();
-                        for (i, id) in column.ids.iter().enumerate() {
-                            if let Some(&text) = wanted.get(id) {
-                                m.entry(text).or_default().push(i as u32);
-                            }
-                        }
-                        return m;
-                    }
                     for i in self.p.text_kinds.iter().flat_map(|k| {
                         node_table::ids_of_kind(self.t, languages::KindBits(*k))
                             .iter()
@@ -975,8 +1054,8 @@ impl Program {
         };
         let mut buffers = self.scratch.take();
         buffers.sets.resize(self.domains.len(), None);
-        buffers.needs.resize(self.needs.len(), None);
-        buffers.needs.fill(None);
+        buffers.needs.reset(self.needs.len());
+        buffers.literals.clear();
         let mut f = File::<PROFILE> {
             reader_class: &reader_class,
             owner: 0,
@@ -1004,11 +1083,12 @@ impl Program {
             facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
             sets: &mut buffers.sets,
             needs: &mut buffers.needs,
+            literals: &mut buffers.literals,
             touched: &mut buffers.touched,
             texts: None,
             steps: 0,
         };
-        for &(need, value) in known { f.needs[need] = Some(value); }
+        for &(need, value) in known { f.needs.set(need, value); }
         for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
             if PROFILE {
                 f.owner = rule;

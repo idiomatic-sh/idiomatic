@@ -17,6 +17,12 @@ pub(super) struct Checks {
     row_guards: Vec<(usize, l::Relation)>,
     known: Vec<(usize, bool)>,
 }
+fn vocabulary<L: FileSource>(parser: Option<&L>) -> crate::first::Vocab {
+    let kinds = parser.map_or_else(Vec::new, FileSource::kinds);
+    let names: Vec<_> = kinds.into_iter().map(l::NameText).collect();
+    reader_run::pairs::vocabulary(&names, l::FieldNames(Vec::new()))
+}
+
 impl Checks {
     pub(super) fn new<L: FileSource>(
         parser: Option<&L>,
@@ -33,10 +39,10 @@ impl Checks {
             domains[binding] = domain_steps(cuts[binding].as_deref());
             *outputs = target_steps(program, cuts[binding].as_deref());
         }
-        Self::from_roots(parser, programs, program_of, roots, domains)
+        Self::from_roots(parser, &vocabulary(parser), programs, program_of, roots, domains)
     }
     fn from_roots<L: FileSource>(
-        parser: Option<&L>, programs: &[Result<Program>], program_of: &[usize],
+        parser: Option<&L>, vocab: &crate::first::Vocab, programs: &[Result<Program>], program_of: &[usize],
         mut roots: Vec<Vec<usize>>, mut domains: Vec<Vec<(usize, usize)>>,
     ) -> Self {
         let mut steps = vec![BTreeSet::new(); programs.len()];
@@ -86,16 +92,13 @@ impl Checks {
                 }
             }
         }
-        let kinds = parser.map_or_else(Vec::new, FileSource::kinds);
-        let names: Vec<_> = kinds.into_iter().map(l::NameText).collect();
-        let vocab = reader_run::pairs::vocabulary(&names, l::FieldNames(Vec::new()));
-        language.text_kinds = (0..names.len())
+        language.text_kinds = (0..vocab.kind_names.len())
             .map(|k| u16::try_from(k).expect("kind code"))
             .collect();
         let program = pair_summary::prepare_plans(
             &plans,
             Some(&targets),
-            &vocab,
+            vocab,
             &language,
             &supplied,
             Some(crate::finish::host::CURRENT_FILE),
@@ -178,15 +181,20 @@ impl Checks {
                     self.known.push((need, exists));
                 }
             }
-            let column = |source, index, pattern: &pair_summary::regexes::Matcher| {
+            let column = |source, index, predicate, pattern: &pair_summary::regexes::Matcher| {
                 let FactSource::Catalog(rel) = source else { return None };
                 if partials.iter().any(|p| p.relation == rel) { return None; }
-                packet.any_symbol(rel, index, |word| {
-                    if let Some(text) = l::text_of(symbols, l::ByteSlice(bytes), word) {
-                        return pattern.is_match(text.0.as_bytes());
-                    }
-                    let value = unknown.get(&word.0).copied().or(run.absent_word);
-                    value.is_none_or(|id| pattern.is_match(&run.texts[id as usize]))
+                self.patterns.with_predicate(predicate, pattern, &run.texts, |test| {
+                    packet.any_symbol(rel, index, |word| {
+                        if let Some(text) = l::text_of(symbols, l::ByteSlice(bytes), word) {
+                            let subject = text.0.as_bytes();
+                            return match run.ids.get(subject) {
+                                Some(&id) => test(id),
+                                None => pattern.is_match(subject),
+                            };
+                        }
+                        unknown.get(&word.0).copied().or(run.absent_word).is_none_or(|id| test(id))
+                    })
                 })
             };
             self.program.file_columns(
@@ -275,6 +283,7 @@ fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partit
 /// vocabulary and a prepared program's output steps survive those boundaries.
 #[derive(Default)]
 pub(super) struct Retained {
+    vocabulary: Option<crate::first::Vocab>,
     shapes: HashMap<(usize, Vec<usize>, Vec<(usize, usize)>), usize>,
     bindings: Vec<Option<usize>>,
     programs: Vec<Checks>,
@@ -296,7 +305,8 @@ impl Retained {
             let domains = domain_steps(cuts[binding].as_deref());
             let index = *self.shapes.entry((id, steps, domains)).or_insert_with_key(|(_, steps, domains)| {
                 let start = super::thread_cpu();
-                let screen = Checks::from_roots(parser, std::slice::from_ref(&programs[id]),
+                let vocab = self.vocabulary.get_or_insert_with(|| vocabulary(parser));
+                let screen = Checks::from_roots(parser, vocab, std::slice::from_ref(&programs[id]),
                     &[0], vec![steps.clone()], vec![domains.clone()]);
                 let index = self.programs.len();
                 self.programs.push(screen);
