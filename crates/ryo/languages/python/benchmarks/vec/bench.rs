@@ -1230,7 +1230,7 @@ impl ColFacts<'_, '_, '_, '_> {
     /// redo-binding pass 4: `deferred-visit` (deferred_visit.rs) from `type-expression`, `annotation-evaluation`, the node
     /// table, the file's embedded expressions, its name (a stub) and its annotations future.
     fn deferred_visit(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
-        let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
+        let stub = run.paths[self.file_no as usize].ends_with(".pyi");
         let evaluations = self.fact(run, fact_catalog::ANNOTATION_EVALUATION_REL)?;
         let embedded = self.whole(run, "embedded-expression")?;
         let features = self.whole(run, "compiler-feature")?;

@@ -1,5 +1,5 @@
 //! Bind typed pair witnesses to the source adapter's actual row populations.
-use super::{Bound, FileId, FileSource, Program, Result, Run, l, reader_run};
+use super::{FileId, FileSource, Program, Result, Run, l, reader_run};
 use crate::{
     pair_checks::SyntaxText,
     pair_summary::{self, Source as FactSource},
@@ -22,7 +22,7 @@ impl Checks {
         programs: &[Result<Program>],
         program_of: &[usize],
         needed: &[bool],
-        cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
+        cuts: &[Option<&crate::finish::partition::Partition>],
     ) -> Self {
         let mut roots = vec![Vec::new(); program_of.len()];
         for (binding, outputs) in roots.iter_mut().enumerate().filter(|(b, _)| needed[*b]) {
@@ -133,7 +133,7 @@ impl Checks {
         &mut self,
         root_for: impl Fn(usize) -> usize,
         active: &mut [(usize, usize, bool)],
-        bound: &mut HashMap<usize, Result<Bound<'_>>>,
+        bound: &mut super::Bindings<'_>,
         run: &mut Run,
         tree: &l::NodeTable,
         text: &[u32],
@@ -144,7 +144,7 @@ impl Checks {
         requested: &[l::Relation],
         packet: &reader_run::packet::Packet,
         unknown: &HashMap<u32, u32>,
-        cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
+        cuts: &[Option<&crate::finish::partition::Partition>],
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
     ) {
         self.live.fill(false);
@@ -206,7 +206,7 @@ impl Checks {
         for (binding, _, excluded) in active {
             if !*excluded && self.roots[root_for(*binding)].as_ref()
                 .is_some_and(|roots| roots.iter().all(|&r| !self.live[r])) {
-                let b = bound.get_mut(binding).unwrap().as_mut().unwrap();
+                let b = bound[binding].as_mut().unwrap();
                 if partials.iter().any(|p| b.facts.contains(&p.relation)) {
                     continue;
                 }
@@ -241,7 +241,7 @@ pub(super) struct Retained {
 impl Retained {
     pub(super) fn groups<L: FileSource>(
         &mut self, parser: Option<&L>, programs: &[Result<Program>], program_of: &[usize],
-        cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
+        cuts: &[Option<&crate::finish::partition::Partition>],
         active: &mut [(usize, usize, bool)],
         mut visit: impl FnMut(&mut Checks, &mut [(usize, usize, bool)]),
     ) -> f64 {

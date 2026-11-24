@@ -57,7 +57,7 @@ impl ReaderPlan {
     }
 
     pub(super) fn finish(self) -> (Plan, Tables, usize) {
-        let mut plan = finish::from_typed(Rc::new(FinishPlan {
+        let mut plan = finish::from_typed(std::sync::Arc::new(FinishPlan {
             steps: self.steps.finish(),
             rules: Vec::new(),
             unplanned: Vec::new(),

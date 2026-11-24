@@ -13,10 +13,10 @@ pub(super) struct FileInputs<'a> {
 impl<'a> FileInputs<'a> {
     pub(super) fn new(
         active: &[(usize, usize, bool)],
-        bound: &HashMap<usize, Result<Bound<'_>>>,
+        bound: &super::Bindings<'_>,
         programs: &'a [Result<Program>],
         program_of: &[usize],
-        cut_of: &[Option<Rc<Partition>>],
+        cut_of: &[Option<&Partition>],
     ) -> Self {
         let mut shared_columns = BTreeMap::<&str, Vec<bool>>::new();
         for &(binding, _, _) in active {
@@ -160,6 +160,7 @@ impl FileFrontier {
 #[derive(Default)]
 pub(crate) struct World {
     pub run: Run,
+    pub(super) boundaries: Option<Vec<(usize, usize, usize)>>,
     pub(super) project_words: Vec<HashMap<u32, u32>>,
     pub files: HashMap<String, u32>,
     frontiers: HashMap<usize, FileFrontier>,
@@ -180,9 +181,7 @@ impl World {
             return i;
         }
         let i = u32::try_from(self.run.paths.len()).expect("file number");
-        self.run.paths.push(path.to_owned());
-        let sym = self.run.sym(path.as_bytes());
-        self.run.path_sym.push(sym);
+        std::sync::Arc::make_mut(&mut self.run.paths).push(path.to_owned());
         self.files.insert(path.to_owned(), i);
         i
     }
@@ -327,5 +326,127 @@ impl World {
     pub fn release(&mut self, slot: usize) {
         self.frontiers.remove(&slot);
         self.unavailable.remove(&slot);
+    }
+}
+
+/// Slot ordinals survive the join. A repeated block in different request frontiers
+/// is transferred once, including the reference to its file and symbol domains.
+pub(super) struct Transfer {
+    slots: Vec<(usize, Vec<(usize, usize)>)>,
+    blocks: Vec<finish::population::CarriedBlock>,
+    schemas: finish::population::CarriedSchemas,
+    paths: Vec<String>,
+    words: Vec<Vec<u8>>,
+    prefix: usize,
+    boundaries: Vec<(usize, usize, usize)>,
+    unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
+}
+
+impl World {
+    pub(super) fn transfer(mut self, prefix: usize) -> Transfer {
+        self.empty_blocks.clear();
+        let mut ids = HashMap::new();
+        let mut blocks = Vec::new();
+        let mut slots = Vec::new();
+        for (slot, frontier) in self.frontiers {
+            let pieces = frontier.parts()
+                .iter().cloned()
+                .map(|(node, block)| {
+                    let id = *ids.entry(Rc::as_ptr(&block)).or_insert_with(|| {
+                        let id = blocks.len();
+                        blocks.push(block);
+                        id
+                    });
+                    (node, id)
+                })
+                .collect();
+            slots.push((slot, pieces));
+        }
+        let mut schemas = finish::population::CarriedSchemas::default();
+        Transfer {
+            slots,
+            blocks: blocks
+                .into_iter()
+                .map(|b| {
+                    Rc::try_unwrap(b)
+                        .ok()
+                        .expect("worker owns all frontier blocks")
+                        .carry(&mut schemas)
+                })
+                .collect(),
+            schemas,
+            paths: std::sync::Arc::unwrap_or_clone(self.run.paths),
+            prefix,
+            boundaries: self.boundaries.unwrap_or_default(),
+            words: self
+                .run
+                .texts
+                .into_iter()
+                .skip(prefix)
+                .map(|s| s.to_vec())
+                .collect(),
+            unavailable: self.unavailable,
+        }
+    }
+
+    /// The serial reader visits relative paths lexically. Assign file and symbol
+    /// ordinals in that same order, including cross-file references first seen
+    /// in another path's frontier. Worker completion order has no effect.
+    pub(super) fn receive(&mut self, parts: Vec<Transfer>, sources: &[super::Source]) {
+        let mut groups = Vec::new();
+        let mut maps = Vec::with_capacity(parts.len());
+        for (worker, part) in parts.iter().enumerate() {
+            let mut file = 0;
+            let mut word = part.prefix;
+            for &(source, files, words) in &part.boundaries {
+                groups.push((
+                    &sources[source].path,
+                    worker,
+                    file..files,
+                    (word - part.prefix)..(words - part.prefix),
+                ));
+                file = files;
+                word = words;
+            }
+            maps.push((
+                Vec::with_capacity(file),
+                (0..part.prefix as u32).collect::<Vec<_>>(),
+            ));
+        }
+        groups.sort_unstable_by(|a, b| a.0.cmp(b.0));
+        for (_, worker, file, word) in groups {
+            let (files, symbols) = &mut maps[worker];
+            let part = &parts[worker];
+            symbols.extend(part.words[word].iter().map(|w| self.run.sym(w)));
+            files.extend(part.paths[file].iter().map(|p| self.file(p)));
+        }
+        for (part, (files, symbols)) in parts.into_iter().zip(maps) {
+            self.receive_blocks(part, &files, &symbols);
+        }
+    }
+
+    fn receive_blocks(&mut self, part: Transfer, files: &[u32], symbols: &[u32]) {
+        let schemas = part.schemas.receive();
+        let blocks: Vec<_> = part
+            .blocks
+            .into_iter()
+            .map(|b| Rc::new(b.receive(files, symbols, &schemas)))
+            .collect();
+        for (slot, ids) in part.slots {
+            self.frontiers.insert(
+                slot,
+                FileFrontier::Rows(ids.into_iter()
+                    .map(|(n, i)| (n, blocks[i].clone()))
+                    .collect()),
+            );
+        }
+        for (slot, set) in part.unavailable {
+            self.unavailable.insert(
+                slot,
+                set.into_iter()
+                    .map(|(name, file)| (name, files[file as usize]))
+                    .collect(),
+            );
+        }
     }
 }

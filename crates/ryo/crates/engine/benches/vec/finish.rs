@@ -345,8 +345,7 @@ pub(super) struct Run {
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
     pub(super) file_field_codes: bool,
-    pub(super) paths: Vec<String>,
-    pub(super) path_sym: Vec<u32>,
+    pub(super) paths: std::sync::Arc<Vec<String>>,
     pub(super) empty: u32,
     /// The SDK symbol without a published value, distinct from an empty string.
     pub(super) absent_word: Option<u32>,
@@ -538,7 +537,7 @@ pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &
 pub(super) struct PNode {
     pub(super) op: String,
     source: plan_load::Source,
-    args: std::cell::OnceCell<Args>,
+    args: std::sync::OnceLock<Args>,
     pub(super) inputs: Vec<usize>,
     /// 7: the relation arguments (`args.<name>.rel`), by name.
     pub(super) rels: Vec<(String, usize)>,
@@ -4242,7 +4241,7 @@ fn text_of(run: &Run, v: V) -> std::borrow::Cow<'_, [u8]> {
     use std::borrow::Cow;
     match v.ty() {
         Ty::Sym => Cow::Borrowed(run.text(v.1 as u32)),
-        Ty::File => Cow::Borrowed(run.text(run.path_sym[v.1 as usize])),
+        Ty::File => Cow::Borrowed(run.paths[v.1 as usize].as_bytes()),
         Ty::Num => Cow::Owned((v.1 as i64).to_string().into_bytes()),
         Ty::Flag => Cow::Borrowed(if v.1 == 1 { b"true".as_slice() } else { b"false".as_slice() }),
         _ => Cow::Borrowed(&[]),

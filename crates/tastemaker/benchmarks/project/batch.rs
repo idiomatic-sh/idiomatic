@@ -92,10 +92,11 @@ impl Authorities {
 
 #[derive(Default)]
 struct Batch {
+    workers: Option<std::num::NonZeroUsize>,
     schedule: session::Schedule,
     program_of: Vec<usize>,
     bindings: Vec<Rc<[Hosted]>>,
-    host_rows: std::collections::HashSet<Rc<[Rc<[super::HostCell]>]>>,
+    host_rows: std::collections::HashSet<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>>,
     binding_ids: HashMap<(usize, Rc<[Hosted]>), usize>,
     queries: HashMap<String, Rc<str>>,
     work: Vec<Work>,
@@ -244,7 +245,7 @@ impl Batch {
                     .hosted
                     .iter()
                     .map(|t| Hosted {
-                        rows: Rc::default(),
+                        rows: std::sync::Arc::default(),
                         ..t.clone()
                     })
                     .collect::<Vec<_>>();
@@ -374,9 +375,9 @@ impl Batch {
         // completeness and file-valued cells in the requesting scope.
         for table in &mut hosted {
             if let Some(rows) = self.host_rows.get(&table.rows) {
-                table.rows = Rc::clone(rows);
+                table.rows = std::sync::Arc::clone(rows);
             } else {
-                self.host_rows.insert(Rc::clone(&table.rows));
+                self.host_rows.insert(std::sync::Arc::clone(&table.rows));
             }
         }
         let hosted: Rc<[Hosted]> = hosted.into();
@@ -468,12 +469,19 @@ impl Batch {
             }
         }
         self.clocks.pairs = self.schedule.pairs;
+        let cuts: Vec<_> = self.cut_of.iter().map(|cut| cut.as_deref()).collect();
+        let contracts = self.bound_contracts.iter().map(|(&id, c)| (id, c.as_ref())).collect();
+        let hosted: Vec<_> = self.bindings.iter().map(|t| t.as_ref()).collect();
+        let paths = (!*keep).then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
         let readers = languages.iter().map(Some).chain([None]);
         for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
             if files.is_empty() {
                 continue;
             }
-            session::visit(
+            session::worker::dispatch(
+                self.workers,
+                languages,
+                paths.as_ref(),
                 &mut reader_states[reader_id],
                 retention,
                 *keep,
@@ -483,15 +491,15 @@ impl Batch {
                 contributions,
                 &self.schedule.programs,
                 &self.program_of,
-                &self.bound_contracts,
-                &self.cut_of,
+                &contracts,
+                &cuts,
                 world,
                 &self.schedule.sources,
                 &files,
                 aliases,
                 answers,
                 |binding, run| {
-                    Ok(bind_tables(&self.bindings[binding], run, |_| None)?
+                    Ok(bind_tables(hosted[binding], run, |_| None)?
                         .into_iter()
                         .map(|(n, t)| (n, Rc::new(t)))
                         .collect())
@@ -841,12 +849,23 @@ pub(crate) fn batch(languages: Vec<Language>, manifest: &str, output: &str) {
     batch_with_sources(&readers, manifest, output);
 }
 
-fn batch_with_sources<L: session::source::Source>(readers: &[L],manifest:&str,output:&str){
-    batch_mode(readers,manifest,output,None)
+fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str, output: &str) {
+    batch_with_workers(readers, manifest, output, None);
+}
+fn batch_with_workers<L: session::source::Source>(
+    readers: &[L],
+    manifest: &str,
+    output: &str,
+    workers: Option<std::num::NonZeroUsize>,
+) {
+    batch_mode_with_workers(readers, manifest, output, None, workers)
 }
 fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,root:Option<&Path>){
+    batch_mode_with_workers(readers, manifest, output, root, None)
+}
+fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&str, output:&str, root:Option<&Path>, workers:Option<std::num::NonZeroUsize>){
     let start = thread_cpu();
-    let mut session = Batch::default();
+    let mut session = Batch { workers, ..Default::default() };
     if let Some(index) = std::env::var_os("TM_CORPUS_INVENTORIES") {
         let bytes = std::fs::read(index).expect("closed input inventories");
         session.roots = serde_json::from_slice(&bytes).expect("source roots and their inventories");
@@ -936,7 +955,7 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
             r.parsed, r.total, r.read, r.build, r.tree, r.facts, r.total - r.read - r.build - r.tree - r.facts);
     }
     println!(
-        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6} read_versions={:.6} reader_build={:.6} reader_projection_facts={:.6}",
+        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6} read_versions={:.6} reader_build={:.6} reader_projection_facts={:.6} inventory={:.6} join={:.6}",
         session.schedule.programs.len(),
         session.bindings.len(),
         session.schedule.sources.len(),
@@ -956,6 +975,8 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
         c.read_versions,
         c.build_file,
         c.read_parse - c.read_versions - c.build_file,
+        c.inventory,
+        c.join,
     );
 }
 

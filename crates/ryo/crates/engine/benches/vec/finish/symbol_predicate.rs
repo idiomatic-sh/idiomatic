@@ -5,6 +5,7 @@ use std::{cell::RefCell, fmt, rc::Rc};
 
 pub(super) struct Bound<T> {
     pub(super) pattern: T,
+    last_file: std::cell::Cell<Option<(u32, bool)>>,
     pages: RefCell<AnswerPages>,
 }
 
@@ -25,7 +26,17 @@ struct TestedPage {
 
 impl<T> Bound<T> {
     pub(super) fn new(pattern: T) -> Self {
-        Self { pattern, pages: RefCell::default() }
+        Self { pattern, last_file: Default::default(), pages: RefCell::default() }
+    }
+
+    #[inline]
+    fn file_answer(&self, id: u32, test: impl FnOnce() -> bool) -> bool {
+        if let Some((previous, answer)) = self.last_file.get() && previous == id {
+            return answer;
+        }
+        let answer = test();
+        self.last_file.set(Some((id, answer)));
+        answer
     }
 
     #[inline]
@@ -111,7 +122,7 @@ impl TextTest {
     #[inline]
     pub(super) fn value(&self, run: &Run, v: V) -> bool {
         if let Self::Glob(glob) = self { return glob.matches(run, v); }
-        if v.ty() == Ty::File && matches!(self, Self::Any(_)) { return self.symbol(run, run.path_sym[v.1 as usize]); }
+        if v.ty() == Ty::File && let Self::Any(tests) = self { return tests.file_answer(v.1 as u32, || self.bytes(run.paths[v.1 as usize].as_bytes())); }
         if v.ty() == Ty::Sym { self.symbol(run, v.1 as u32) } else { self.bytes(&text_of(run, v)) }
     }
 }
@@ -159,7 +170,7 @@ impl PreparedGlob {
     pub(super) fn matches(&self, run: &Run, value: V) -> bool {
         match value.ty() {
             Ty::Sym => self.symbol(run, value.1 as u32),
-            Ty::File => self.symbol(run, run.path_sym[value.1 as usize]),
+            Ty::File => self.matcher.file_answer(value.1 as u32, || self.bytes(run.paths[value.1 as usize].as_bytes())),
             _ => self.bytes(&text_of(run, value)),
         }
     }
