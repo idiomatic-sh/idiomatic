@@ -260,7 +260,9 @@ def run(fixture, exe, other_build, evidence):
         if retain:
             counters.clear()
             counters.update((k.decode(), int(v)) for k, v in
-                            re.findall(rb"(request_hits|pair_hits|closed_hits|evaluated_pairs|evaluated_closed|written)=(\d+)", p.stderr))
+                            re.findall(rb"(request_hits|pair_hits|closed_hits|evaluated_pairs|evaluated_closed|pairs_read|project_read|missing_local_bindings|missing_frontier_bindings|written)=(\d+)", p.stderr))
+            reads=re.search(rb"\breads=(\d+) parses=(\d+)",p.stdout)
+            counters["reads"],counters["parses"]=map(int,reads.groups())
             assert "written" in counters, "retained run did not report its publication"
         return output.read_bytes(), diagnostics
 
@@ -345,16 +347,20 @@ def run(fixture, exe, other_build, evidence):
                     ok &= bool(cold[1]) and any(r[0][0] is not None for r in truth.values())
                 if case == "unchanged":
                     ok &= trial["written"] == trial["evaluated_pairs"] == trial["evaluated_closed"] == 0
+                    ok &= trial["pairs_read"] == trial["project_read"] == 0 and trial["request_hits"]==len(truth)
+                if case=="comment":
+                    ok &= trial["reads"]==trial["parses"]==1
+                    ok &= trial["missing_local_bindings"]==trial["missing_frontier_bindings"]==0
                 if case in ("build","truncated"):
                     ok &= trial["written"] > 0 and trial["evaluated_pairs"] == seeded["evaluated_pairs"]
                 passed &= ok
                 with (evidence/"session-matrix.tsv").open("a") as f:
                     w=csv.writer(f,delimiter="\t",lineterminator="\n")
                     if f.tell()==0:
-                        w.writerow(["scenario","pass","bytes","warm_sha256","cold_sha256","refusals","pairs_scheduled","closed_scheduled","written_B","typed_requests_checked","typed_equal"])
+                        w.writerow(["scenario","pass","bytes","warm_sha256","cold_sha256","refusals","pairs_scheduled","closed_scheduled","written_B","typed_requests_checked","typed_equal","source_reads","source_parses","lower_table_read_B"])
                     w.writerow([case,ok,len(cold[0]),hashlib.sha256(warm[0]).hexdigest(),
                                 hashlib.sha256(cold[0]).hexdigest(),len(cold[1]),
-                                trial["evaluated_pairs"],trial["evaluated_closed"],trial["written"],len(truth),typed_equal])
+                                trial["evaluated_pairs"],trial["evaluated_closed"],trial["written"],len(truth),typed_equal,trial["reads"],trial["parses"],trial["pairs_read"]+trial["project_read"]])
                 reset()
         finally:
             reset()
