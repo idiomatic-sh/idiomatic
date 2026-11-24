@@ -136,8 +136,22 @@ impl<'a> FileInputs<'a> {
                 })
                 .collect::<Result<Vec<_>>>()?
         };
-        world.frontiers.insert(slot, tables);
+        world.frontiers.insert(slot, FileFrontier::Rows(tables.into_boxed_slice()));
         Ok(())
+    }
+}
+type Part = (usize, Rc<Block>);
+pub(super) type EmptyFrontier = Rc<[Part]>;
+enum FileFrontier {
+    Rows(Box<[Part]>),
+    Empty(EmptyFrontier),
+}
+impl FileFrontier {
+    fn parts(&self) -> &[Part] {
+        match self {
+            Self::Rows(parts) => parts,
+            Self::Empty(parts) => parts,
+        }
     }
 }
 /// A frontier's words cross the reader's symbol pool and its local node number
@@ -148,7 +162,7 @@ pub(crate) struct World {
     pub run: Run,
     pub(super) project_words: Vec<HashMap<u32, u32>>,
     pub files: HashMap<String, u32>,
-    frontiers: HashMap<usize, Vec<(usize, Rc<finish::population::Block>)>>,
+    frontiers: HashMap<usize, FileFrontier>,
     empty_blocks: HashMap<(usize, usize), Rc<finish::population::Block>>,
     pub unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
 }
@@ -172,13 +186,19 @@ impl World {
             Rc::new(Block::new(0, t.names.clone(), t.tys.clone(), 0, Vec::new()))
         }).clone()
     }
-    pub(super) fn insert_empty(&mut self, slot: usize, path: &str, tables: &[(usize, Rc<Table>)]) {
-        if !tables.is_empty() { self.file(path); }
-        let blocks = tables.iter().map(|(i, t)| (*i, self.empty_block(t))).collect();
-        self.frontiers.insert(slot, blocks);
+    pub(super) fn insert_empty(
+        &mut self, slot: usize, path: &str, binding: &mut Bound<'_>, run: &mut Run, cut: &Partition,
+    ) {
+        let parts = binding.empty_frontier.get_or_insert_with(|| {
+            let tables = finish::session::certificate::empty_frontier(&mut binding.exec, run, &cut.inputs)
+                .expect("certified file output schemas");
+            tables.iter().map(|(id, t)| (*id, self.empty_block(t))).collect()
+        });
+        if !parts.is_empty() { self.file(path); }
+        self.frontiers.insert(slot, FileFrontier::Empty(parts.clone()));
     }
     pub(super) fn productive(&self, slot: usize) -> bool {
-        self.frontiers.get(&slot).is_some_and(|v| v.iter().any(|(_, block)| block.n != 0))
+        self.frontiers.get(&slot).is_some_and(|v| v.parts().iter().any(|(_, block)| block.n != 0))
     }
     fn carry(
         &mut self,
@@ -279,7 +299,7 @@ impl World {
         use finish::population::Population;
         let mut tables: Vec<_> = cut.iter().map(|_| Population::default()).collect();
         for slot in slots {
-            let parts = self.frontiers.get(slot).ok_or("missing file frontier")?;
+            let parts = self.frontiers.get(slot).ok_or("missing file frontier")?.parts();
             if parts.len() != cut.len() {
                 return Err("incomplete file frontier".into());
             }

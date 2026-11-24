@@ -266,7 +266,7 @@ impl Schedule {
 
 struct Bound<'p> {
     screenable: Option<bool>,
-    empty_frontier: Option<Vec<(usize, Rc<Table>)>>,
+    empty_frontier: Option<frontier::EmptyFrontier>,
     exec: Exec<'p>,
     facts: Vec<l::Relation>,
     filters: BTreeMap<usize,Vec<(usize,u64)>>,
@@ -856,11 +856,7 @@ pub(crate) fn visit<L: FileSource>(
                 };
                 if excluded && unknowns.is_empty() {
                     if let Some(cut) = &cut_of[binding] {
-                        let tables = b.empty_frontier.get_or_insert_with(|| {
-                            finish::session::certificate::empty_frontier(&mut b.exec, &mut run, &cut.inputs)
-                                .expect("certified file output schemas")
-                        });
-                        world.insert_empty(slot, &source.path, tables);
+                        world.insert_empty(slot, &source.path, b, &mut run, cut);
                     }
                     answers[slot] = Ok(Reported::default());
                     clocks.skipped += 1;
