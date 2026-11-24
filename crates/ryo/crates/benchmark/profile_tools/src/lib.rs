@@ -112,14 +112,7 @@ pub fn observe_before(
         }
         Observer::Heap => {
             timed
-                .args([
-                    "prlimit",
-                    "--as=2147483648",
-                    "--",
-                    "heaptrack",
-                    "--raw",
-                    "-o",
-                ])
+                .args(["heaptrack", "--raw", "-o"])
                 .arg(directory.join("heaptrack"));
         }
         Observer::Instructions => {
