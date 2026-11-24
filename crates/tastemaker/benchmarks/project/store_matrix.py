@@ -97,7 +97,19 @@ def typed_packets(cache):
             else:
                 replacements.pop(key,None)
         assert r.at==len(r.data)
-    for key,(base,copied) in replacements.items():
+    references={}
+    for digest in requests:
+        path=cache/f"requests-{digest}.postcard"
+        r=reader(path.read_bytes())
+        for _ in range(r.uint()):
+            key=bytes(r.take(32))
+            r.take(64*r.uint())
+            packet=bytes(r.take(32))
+            unread=[r.string() for _ in range(r.uint())]
+            references[key]=(packet,unread)
+        assert r.at==len(r.data)
+    for key in {packet for packet,_ in references.values()} & replacements.keys():
+        base,copied=replacements[key]
         assert base not in replacements
         previous=packets[base][-1]
         reason,digest,unknowns,literals=packets[key]
@@ -110,18 +122,7 @@ def typed_packets(cache):
             assembled.extend(previous[source:source+length])
         assembled.extend(literals[literal:])
         packets[key]=(reason,digest,unknowns,bytes(assembled))
-    active={}
-    for digest in requests:
-        path=cache/f"requests-{digest}.postcard"
-        r=reader(path.read_bytes())
-        for _ in range(r.uint()):
-            key=bytes(r.take(32))
-            r.take(64*r.uint())
-            result=packets[bytes(r.take(32))]
-            unread=[r.string() for _ in range(r.uint())]
-            active[key]=(result,unread)
-        assert r.at==len(r.data)
-    return active
+    return {key:(packets[packet],unread) for key,(packet,unread) in references.items()}
 
 
 def contribution_edits(executable, scratch, env):
