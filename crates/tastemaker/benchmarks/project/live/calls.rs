@@ -118,7 +118,7 @@ fn table(t: sdk::HostRelation) -> Result<Hosted, String> {
                 })
                 .collect()
         })
-        .collect::<Result<Rc<[_]>, String>>()?;
+        .collect::<Result<std::sync::Arc<[_]>, String>>()?;
     Ok(Hosted {
         name: t.name.0.into(),
         columns,

@@ -225,7 +225,7 @@ impl Batch {
                     .hosted
                     .iter()
                     .map(|t| Hosted {
-                        rows: Rc::default(),
+                        rows: std::sync::Arc::default(),
                         ..t.clone()
                     })
                     .collect::<Vec<_>>();

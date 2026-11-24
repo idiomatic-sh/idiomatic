@@ -8,7 +8,6 @@ use serde_json::json;
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufRead as _, Write as _};
-use std::rc::Rc;
 
 #[derive(Deserialize)]
 struct Request {
