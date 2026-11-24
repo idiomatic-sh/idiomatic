@@ -392,15 +392,6 @@ impl ColumnFile<'_, '_> {
             && completeness.lexical == languages::SyntaxCompleteness::Complete
     }
 
-    /// Literal identifier spellings in the declared columns occur in these source bytes.
-    /// Decoded embedded trees and Unicode identifier normalization may spell a word differently.
-    #[must_use]
-    pub fn plain_spellings(&self) -> bool {
-        let syntax = &self.file.syntax;
-        self.complete() && syntax.tree.segments.is_empty()
-            && syntax.text.0.is_ascii()
-    }
-
     /// redo-fills pass 2: the run's number of this file: the file every row of the file names (its file cells and the file
     /// part of its node ids) is this one, not `FileId(0)`.
     pub fn set_file(&mut self, file: FileId) {
@@ -625,19 +616,6 @@ impl ColumnFile<'_, '_> {
         }
     }
 
-    /// Existence of a complete relation without writing other cells of its rows.
-    pub fn summary_presence(&mut self,relation:Relation)->Option<bool> {
-        match relation {
-            Relation::BindingEvent|Relation::BindingRead=>{
-                let read=self.file.semantics(ModelPart::Flow);
-                Some(read.model.flow.state==FlowState::Incomplete || if relation==Relation::BindingEvent {
-                    !read.model.flow.events.is_empty()
-                }else{!read.model.flow.reads.is_empty()})
-            }
-            Relation::LiteralProperties=>Some(nodes_of_kind(&self.file.syntax,Kind::Node(Node::Constant)).any(|v|properties(v.node).is_some())),
-            _=>self.projected_keys(relation).map(|mut keys|keys.next().is_some())
-        }
-    }
     /// Complete keys for the shape relation when every native node has a shape.
     /// Escape commands and their ancestors can lack a class, so a file containing
     /// one uses the ordinary shape reader. Embedded segments have separate ids.

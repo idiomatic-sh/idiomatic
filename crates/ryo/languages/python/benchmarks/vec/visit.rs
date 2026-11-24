@@ -137,7 +137,26 @@ impl<'p> Finisher<'p> {
         let mut project = std::mem::take(&mut self.project);
         let mut direct_memo = std::mem::take(&mut self.direct_memo);
         direct_memo.new_file();
-        let empty = std::mem::take(&mut file.empty);
+        let mut empty = std::mem::take(&mut file.empty);
+        if !file.has_relative_imports() {
+            empty.push(super::fact_catalog::RELATIVE_IMPORT_REL);
+        }
+        if file.complete() {
+            if empty.contains(&"static-import") {
+                empty.extend([super::import_syntax::ALIASES, super::import_syntax::CONTEXTUAL_ALIASES, super::import_syntax::ENTRIES]);
+            }
+            if empty.contains(&"comment") {
+                empty.push(super::import_syntax::LINE_COMMENTS);
+            }
+            let annotated = super::annotation_evaluation::has_annotation(&mut self.run, ft);
+            if !annotated { empty.push(super::fact_catalog::ANNOTATION_EVALUATION_REL); }
+            if empty.contains(&"embedded-expression") && !self.run.paths[file_no].ends_with(".pyi")
+                && (file.immediate_annotations || !annotated)
+                && !super::deferred_visit::has_type_parameters(&mut self.run, ft)
+            {
+                empty.extend([super::fact_catalog::DEFERRED_VISIT_REL, super::fact_catalog::DEFERRED_RESOLUTION_REL]);
+            }
+        }
         let mut pv = ColFacts {
             import_comments: Default::default(),
             file,
