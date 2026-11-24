@@ -92,7 +92,7 @@ pub fn read_native(
     symbols: &mut crate::domain::symbols::types::Symbols,
     bytes: crate::domain::symbols::types::ByteSlice<'_>,
     reader: super::types::NativeReader,
-    fields: bool,
+    columns: super::types::NativeColumns,
     access: super::types::NodeAccess<'_>,
 ) {
     use crate::domain::{node_table::service as t, symbols::service::{clear_symbols, intern}};
@@ -102,7 +102,7 @@ pub fn read_native(
     let mut table = native.unwrap_or_default();
     let mut origins = std::mem::take(&mut engine_mut(elements).expanded);
     origins.clear();
-    (reader.read)(bytes.0, &mut table, &mut origins, &mut elements.flags.as_mut().values, fields, access);
+    (reader.read)(bytes.0, &mut table, &mut origins, &mut elements.flags.as_mut().values, columns, access);
     let own = t::own_end(&table);
     let mut previous_host = None;
     let mut ordinal = 0;
