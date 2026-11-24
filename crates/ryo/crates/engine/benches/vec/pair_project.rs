@@ -78,6 +78,15 @@ impl Builder<'_> {
             SelectedColumns::All => l==r,
             SelectedColumns::Items(items)=>items.iter().find(|item|item.name==*r).is_some_and(|item|matches!(&item.value,PlanExpression::Column(c) if c.column==*l && selected(c))),
         }){return None}
+        if let RowCondition::Tested(term) = &q.condition
+            && let Some((col, re, positive)) = self.glob_test(term, &|c| {
+                selected(c).then(|| left.column(&c.column.0)).flatten()
+            })
+            && col.attr == Attribute::FilePath
+        {
+            // The same left row supplies every right key if its file passes.
+            return Some(self.need(Need::PathMatches(re, !positive)));
+        }
         let RowCondition::Tested(PlanExpression::Call(f)) = &q.condition else {
             return None;
         };
