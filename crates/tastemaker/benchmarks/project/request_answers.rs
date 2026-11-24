@@ -271,53 +271,46 @@ impl Packet {
 }
 
 pub(super) fn pack_rows<'a>(input: impl IntoIterator<Item = &'a finish::answer::Row>) -> Vec<u8> {
-        use ryo_values::domain::row_texts::types::Cell;
-        let mut words = Vec::new();
-        let mut dictionary = HashMap::new();
-        fn intern(s: std::sync::Arc<str>, words: &mut Vec<Box<str>>, dictionary: &mut HashMap<std::sync::Arc<str>, u32>) -> u32 {
-            if let Some(&i) = dictionary.get(&s) {return i;}
-            let i=u32::try_from(words.len()).expect("packet dictionary");
-            words.push(s.as_ref().into());dictionary.insert(s,i);i
-        }
-        let mut schemas = Vec::new();
-        let mut ids = BTreeMap::new();
-        let mut previous = None;
-        let rows = input.into_iter()
-            .map(|r| {
-                let shape = (
-                    &r.layout.rule,
-                    &r.layout.names,
-                    &r.layout.identity,
-                );
-                let schema = if let Some((prior, id)) = previous && std::sync::Arc::ptr_eq(prior, &r.layout) { id } else { *ids.entry(shape).or_insert_with(|| {
-                    let i = schemas.len();
-                    schemas.push(Schema {
-                        rule: r.layout.rule.clone(),
-                        columns: r.layout.names.iter().map(|n| n.as_str().into()).collect(),
-                        identity: r.layout.identity.to_vec(),
-                    });
-                    i
-                }) };
-                previous = Some((&r.layout, schema));
-                PackedRow {
-                    schema,
-                    values: r.cells()
-                        .map(|c| {
-                            c.map(|v| match v {
-                                Cell::File(s) => {
-                                    PackedValue::File(intern(s, &mut words, &mut dictionary))
-                                }
-                                Cell::Text(s) => {
-                                    PackedValue::Text(intern(s, &mut words, &mut dictionary))
-                                }
-                                Cell::Number(n) => PackedValue::Number(n.0),
-                                Cell::Span(s) => PackedValue::Span(s.start.0, s.end.0),
-                            })
-                        })
-                        .collect(),
-                }
+    use ryo_values::domain::row_texts::types::Cell;
+    use std::sync::Arc;
+
+    fn intern(word: Arc<str>, words: &mut Vec<Box<str>>, dictionary: &mut HashMap<Arc<str>, u32>) -> u32 {
+        *dictionary.entry(word).or_insert_with_key(|s| {
+            let i = u32::try_from(words.len()).expect("packet dictionary");
+            words.push(s.as_ref().into());
+            i
+        })
+    }
+
+    let mut words = Vec::new();
+    let mut dictionary = HashMap::new();
+    let mut schemas = Vec::new();
+    let mut ids = BTreeMap::new();
+    let mut previous = None;
+    let rows = input.into_iter().map(|r| {
+        let schema = if let Some((prior, id)) = previous && Arc::ptr_eq(prior, &r.layout) {
+            id
+        } else {
+            let shape = (&r.layout.rule, &r.layout.names, &r.layout.identity);
+            *ids.entry(shape).or_insert_with(|| {
+                let i = schemas.len();
+                schemas.push(Schema {
+                    rule: r.layout.rule.clone(),
+                    columns: r.layout.names.iter().map(|n| n.as_str().into()).collect(),
+                    identity: r.layout.identity.to_vec(),
+                });
+                i
             })
-            .collect();
+        };
+        previous = Some((&r.layout, schema));
+        let values = r.cells().map(|cell| cell.map(|v| match v {
+            Cell::File(s) => PackedValue::File(intern(s, &mut words, &mut dictionary)),
+            Cell::Text(s) => PackedValue::Text(intern(s, &mut words, &mut dictionary)),
+            Cell::Number(n) => PackedValue::Number(n.0),
+            Cell::Span(s) => PackedValue::Span(s.start.0, s.end.0),
+        })).collect();
+        PackedRow { schema, values }
+    }).collect();
     postcard::to_stdvec(&Rows { words, schemas, rows }).expect("typed request rows")
 }
 
