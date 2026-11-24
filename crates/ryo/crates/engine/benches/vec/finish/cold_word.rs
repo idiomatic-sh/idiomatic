@@ -101,7 +101,7 @@ fn compare(run: &Run, ty: Ty, op: Op, literal: &E, reverse: bool) -> Option<Word
             match ty {
                 Ty::Sym => Box::new(move |r, w| w != NULL && accept(r.text(w as u32).cmp(&rhs))),
                 Ty::File => Box::new(move |r, w| {
-                    w != NULL && accept(r.text(r.path_sym[w as usize]).cmp(&rhs))
+                    w != NULL && accept(r.paths[w as usize].as_bytes().cmp(&rhs))
                 }),
                 Ty::Flag => {
                     let yes = accept(b"true".as_slice().cmp(&rhs));
@@ -124,7 +124,7 @@ pub(super) fn as_bytes(ty: Ty) -> for<'a> fn(&'a Run, u64) -> std::borrow::Cow<'
     use std::borrow::Cow;
     match ty {
         Ty::Sym => |r, w| Cow::Borrowed(r.text(w as u32)),
-        Ty::File => |r, w| Cow::Borrowed(r.text(r.path_sym[w as usize])),
+        Ty::File => |r, w| Cow::Borrowed(r.paths[w as usize].as_bytes()),
         Ty::Num => |_, w| Cow::Owned((w as i64).to_string().into_bytes()),
         Ty::Flag => |_, w| Cow::Borrowed(if w == 1 { b"true" } else { b"false" }),
         _ => |_, _| Cow::Borrowed(&[]),
@@ -133,7 +133,7 @@ pub(super) fn as_bytes(ty: Ty) -> for<'a> fn(&'a Run, u64) -> std::borrow::Cow<'
 fn text_predicate(ty: Ty, test: impl Fn(&[u8]) -> bool + 'static) -> Test {
     match ty {
         Ty::Sym => Box::new(move |r, w| test(r.text(w as u32))),
-        Ty::File => Box::new(move |r, w| test(r.text(r.path_sym[w as usize]))),
+        Ty::File => Box::new(move |r, w| test(r.paths[w as usize].as_bytes())),
         _ => {
             let read = as_bytes(ty);
             Box::new(move |r, w| test(&read(r, w)))

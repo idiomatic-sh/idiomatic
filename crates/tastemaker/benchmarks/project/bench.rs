@@ -212,9 +212,8 @@ fn execute_populations(
 ) -> Result<Vec<finish::answer::Row>, String> {
     // Host File cells are numbered by the full inventory. Admission restricts
     // source contributions and the final subjects, not the host's numbering.
-    if run.paths != inventory {
-        run.path_sym = inventory.iter().map(|p| run.sym(p.as_bytes())).collect();
-        run.paths = inventory.to_vec();
+    if run.paths.as_slice() != inventory {
+        run.paths = inventory.to_vec().into();
     }
     let numbers: Vec<_> = (0..inventory.len() as u32).collect();
     execute_ids(

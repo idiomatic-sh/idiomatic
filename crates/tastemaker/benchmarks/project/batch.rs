@@ -435,6 +435,7 @@ impl Batch {
         self.clocks.pairs = self.schedule.pairs;
         let contracts = self.bound_contracts.iter().map(|(&id, c)| (id, c.as_ref())).collect();
         let hosted: Vec<_> = self.bindings.iter().map(|(_, t)| t.as_ref()).collect();
+        let paths = (!*keep).then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
         let readers = languages.iter().map(Some).chain([None]);
         for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
             if files.is_empty() {
@@ -443,6 +444,7 @@ impl Batch {
             session::worker::dispatch(
                 self.workers,
                 languages,
+                paths.as_ref(),
                 &mut reader_states[reader_id],
                 *keep,
                 language,

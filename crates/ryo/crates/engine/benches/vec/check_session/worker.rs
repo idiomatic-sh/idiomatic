@@ -18,6 +18,7 @@ impl<T> Slots<'_, T> {
 pub(crate) fn dispatch<L: FileSource>(
     request: Option<NonZeroUsize>,
     languages: &[L],
+    paths: Option<&Arc<Vec<String>>>,
     state: &mut ReaderState<L::File, L::Dictionary>,
     keep: bool,
     parser: Option<&L>,
@@ -42,6 +43,7 @@ pub(crate) fn dispatch<L: FileSource>(
         .min(selected.len());
     // An open epoch retains reader-native symbols and files across successive calls.
     if keep || count <= 1 {
+        if let Some(paths)=paths { state.run.paths=paths.clone(); }
         visit(
             state,
             keep,
@@ -104,8 +106,10 @@ pub(crate) fn dispatch<L: FileSource>(
         let mut links = Vec::new();
         let mut notes = Vec::new();
         let mut time = Clock::default();
+        let mut local = ReaderState::default();
+        local.run.paths=paths.expect("closed file inventory").clone();
         visit(
-            &mut ReaderState::default(),
+            &mut local,
             false,
             parser,
             reader_id,

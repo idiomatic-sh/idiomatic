@@ -160,9 +160,7 @@ impl World {
             return i;
         }
         let i = u32::try_from(self.run.paths.len()).expect("file number");
-        self.run.paths.push(path.to_owned());
-        let sym = self.run.sym(path.as_bytes());
-        self.run.path_sym.push(sym);
+        std::sync::Arc::make_mut(&mut self.run.paths).push(path.to_owned());
         self.files.insert(path.to_owned(), i);
         i
     }
@@ -343,7 +341,7 @@ impl World {
                 })
                 .collect(),
             schemas,
-            paths: self.run.paths,
+            paths: std::sync::Arc::unwrap_or_clone(self.run.paths),
             prefix,
             boundaries: self.boundaries.unwrap_or_default(),
             words: self

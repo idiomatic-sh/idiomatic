@@ -20,15 +20,12 @@ pub(super) fn write(run: &mut Run, from: &Table, col: usize, out: &mut Table) ->
         if cell == NULL {
             continue;
         }
-        let word = match from.tys[col] {
-            Ty::File => *run
-                .path_sym
-                .get(cell as usize)
-                .ok_or("unbound words file")?,
-            Ty::Sym => cell as u32,
+        let bytes = match from.tys[col] {
+            Ty::File => run.paths.get(cell as usize).ok_or("unbound words file")?.as_bytes(),
+            Ty::Sym => run.text(cell as u32),
             _ => continue,
         };
-        let text = std::str::from_utf8(run.text(word)).map_err(|e| e.to_string())?;
+        let text = std::str::from_utf8(bytes).map_err(|e| e.to_string())?;
         split(CellText(text), WordScratch(&mut scratch), &mut emitted);
         from.row(i, &mut row);
         for w in emitted.0.drain(..) {

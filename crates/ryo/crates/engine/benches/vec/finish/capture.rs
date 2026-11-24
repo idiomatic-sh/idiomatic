@@ -138,14 +138,14 @@ pub(super) fn write(
     let mut by_path = super::FxHashMap::default();
     let mut row = Vec::new();
     let file = input.tys[path] == super::Ty::File;
+    let paths = run.paths.clone();
     for (r, &word) in input.cols[path].iter().enumerate() {
         if word == super::NULL {
             continue;
         }
         let symbol = if file {
-            *run.path_sym
-                .get(word as usize)
-                .ok_or("unbound capture file")?
+            let path = paths.get(word as usize).ok_or("unbound capture file")?;
+            run.sym(path.as_bytes())
         } else {
             let sym = u32::try_from(word).map_err(|_| "unbound capture text")?;
             if run.absent_word == Some(sym) {

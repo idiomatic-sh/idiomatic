@@ -511,10 +511,9 @@ pub(crate) fn visit<L: FileSource>(
         }
         public
     });
-    for src in &sources[run.paths.len()..] {
-        run.paths.push(src.path.clone());
-        let word = run.sym(src.path.as_bytes());
-        run.path_sym.push(word);
+    if run.paths.len() < sources.len() {
+        let start = run.paths.len();
+        Arc::make_mut(&mut run.paths).extend(sources[start..].iter().map(|src| src.path.clone()));
     }
     let mut bound = HashMap::new();
     let mut scratch = HeldFile::default();
