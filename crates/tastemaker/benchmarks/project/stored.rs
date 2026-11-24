@@ -3,8 +3,6 @@
 use super::{
     Answer, Authority, Batch, Path, PathBuf, Population, Rc, Work, finish, l, project, session,
 };
-use ryo_relations::domain::relations::types::{Integer, Offset, Span};
-use ryo_values::domain::row_texts::types::Cell;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -31,27 +29,6 @@ pub(super) fn key(value: impl Hash) -> Key {
     *h.0.finalize().as_bytes()
 }
 
-#[derive(Serialize, Deserialize)]
-enum Value {
-    File(Box<str>),
-    Text(Box<str>),
-    Number(i64),
-    Span(u32, u32),
-}
-
-impl Value {
-    fn cell(&self) -> Cell<std::sync::Arc<str>> {
-        match self {
-            Self::File(s) => Cell::File(s.as_ref().into()),
-            Self::Text(s) => Cell::Text(s.as_ref().into()),
-            Self::Number(n) => Cell::Number(Integer(*n)),
-            Self::Span(a, b) => Cell::Span(Span {
-                start: Offset(*a),
-                end: Offset(*b),
-            }),
-        }
-    }
-}
 #[derive(Serialize, Deserialize)]
 struct Report {
     // None means only the closed operator consumed this contribution.

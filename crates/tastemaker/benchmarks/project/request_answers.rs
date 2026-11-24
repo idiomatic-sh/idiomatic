@@ -1,7 +1,7 @@
 //! A packet preserves caller order, repeated rows and typed nulls. The capture
 //! boundary also consumes the canonical findings digest; live calls use the rows.
 use super::super::Receipt;
-use super::{Key, Value, finish, key, kind, session};
+use super::{Key, finish, key, kind, session};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
@@ -322,34 +322,20 @@ pub(super) fn pack_rows<'a>(input: impl IntoIterator<Item = &'a finish::answer::
 }
 
 pub(super) fn unpack_rows(data: &[u8]) -> Vec<finish::answer::Row> {
-        let Rows {
-            words,
-            schemas,
-            rows,
-        } = postcard::from_bytes(data).expect("verified request packet");
-        rows
-                .into_iter()
-                .map(|r| {
-                    let s = &schemas[r.schema];
-                    finish::answer::Row::restored(s.rule.clone(),s.identity.clone().into(),s
-                            .columns
-                            .iter()
-                            .map(|n| n.to_string())
-                            .zip(r.values.into_iter().map(|c| {
-                                c.map(|v| match v {
-                                    PackedValue::File(i) => {
-                                        Value::File(words[i as usize].clone()).cell()
-                                    }
-                                    PackedValue::Text(i) => {
-                                        Value::Text(words[i as usize].clone()).cell()
-                                    }
-                                    PackedValue::Number(n) => Value::Number(n).cell(),
-                                    PackedValue::Span(a, b) => Value::Span(a, b).cell(),
-                                })
-                            }))
-                            .collect())
-                })
-                .collect()
+    use finish::Ty;
+    let Rows { words, schemas, rows } = postcard::from_bytes(data).expect("verified request packet");
+    let mut restored = finish::answer::RestoredRows::new(words, schemas.len());
+    rows.into_iter().map(|r| {
+        let schema = &schemas[r.schema];
+        let cells = r.values.into_iter().map(|v| match v {
+            None => (Ty::Sym, finish::NULL),
+            Some(PackedValue::File(i)) => (Ty::File, u64::from(i)),
+            Some(PackedValue::Text(i)) => (Ty::Sym, u64::from(i)),
+            Some(PackedValue::Number(n)) => (Ty::Num, n as u64),
+            Some(PackedValue::Span(a, b)) => (Ty::Span, (u64::from(a) << 32) | u64::from(b)),
+        });
+        restored.row(r.schema, &schema.rule, &schema.columns, &schema.identity, cells)
+    }).collect()
 }
 
 mod payload {
