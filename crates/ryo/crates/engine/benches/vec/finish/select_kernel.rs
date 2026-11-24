@@ -122,7 +122,6 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
                 Op::Le => ord != Greater,
                 Op::Gt => ord == Greater,
                 Op::Ge => ord != Less,
-                Op::Other => false,
             }
         }
         P::In(a, items, neg) => {

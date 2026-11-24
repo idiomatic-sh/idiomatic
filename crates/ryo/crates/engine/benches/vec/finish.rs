@@ -1235,7 +1235,6 @@ pub(super) enum Op {
     Le,
     Gt,
     Ge,
-    Other,
 }
 /// A node's column names and types, known from the plan before any file.
 pub(super) struct Schema {
@@ -4202,7 +4201,6 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
                 Op::Le => ord != Greater,
                 Op::Gt => ord == Greater,
                 Op::Ge => ord != Less,
-                Op::Other => false,
             })
         }
         E::In(a, b, neg) => {

@@ -1,12 +1,11 @@
 //! Evaluate a closed set of typed populations once, after the final file.
-use super::{E, Exec, File, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};
+use super::{E, Exec, File, NodeTable, Provider, R, Run, Scope, Table, Ty, answer};
 use std::{collections::BTreeMap, rc::Rc};
 
 // Check the scalar subset before visiting any rows. Unimplemented functions on
 // an empty input would otherwise escape the executor's runtime missing-function check.
 fn scalar(expr: &E) -> R<()> {
     match expr {
-        E::Cmp(Op::Other, ..) => Err("unsupported project comparison".into()),
         E::Call(name, args) => match name.as_str() {
             "starts_with" | "ends_with" | "concat" | "matches" | "glob_any" | "lower"
             | "snake" | "pascal" | "camel" | "kebab" => {
