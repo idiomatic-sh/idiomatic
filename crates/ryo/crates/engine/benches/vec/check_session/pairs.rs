@@ -9,7 +9,7 @@ use std::collections::{BTreeSet, HashMap};
 
 pub(super) struct Checks {
     program: pair_summary::Program,
-    roots: Vec<Vec<usize>>,
+    roots: Vec<Option<Vec<usize>>>,
     live: Vec<bool>,
     patterns: crate::pair_checks::SymbolMatches,
     words: l::FileWords,
@@ -24,17 +24,21 @@ impl Checks {
         needed: &[bool],
         cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
     ) -> Self {
-        let mut steps = vec![BTreeSet::new(); programs.len()];
         let mut roots = vec![Vec::new(); program_of.len()];
         for (binding, outputs) in roots.iter_mut().enumerate().filter(|(b, _)| needed[*b]) {
             let id = program_of[binding];
             let Ok(program) = &programs[id] else { continue };
-            if let Some(partition) = &cuts[binding] {
-                outputs.extend_from_slice(&partition.inputs);
-            } else {
-                outputs.extend(program.plan.emits.iter().map(|e| e.1));
-            }
-            steps[id].extend(outputs.iter().copied());
+            *outputs = target_steps(program, cuts[binding].as_deref());
+        }
+        Self::from_roots(parser, programs, program_of, roots)
+    }
+    fn from_roots<L: FileSource>(
+        parser: Option<&L>, programs: &[Result<Program>], program_of: &[usize],
+        mut roots: Vec<Vec<usize>>,
+    ) -> Self {
+        let mut steps = vec![BTreeSet::new(); programs.len()];
+        for (binding, outputs) in roots.iter().enumerate() {
+            steps[program_of[binding]].extend(outputs.iter().copied());
         }
         let mut plans = Vec::new();
         let mut targets = Vec::new();
@@ -90,6 +94,13 @@ impl Checks {
             Some(crate::finish::host::CURRENT_FILE),
             true,
         );
+        // All requested outputs must be impossible to discharge the binding.
+        // One unconditional output makes testing its siblings unnecessary.
+        let roots = roots.into_iter().map(|outputs| {
+            let unconditional = outputs.iter().any(|&r|
+                matches!(program.needs[program.roots[r].1], pair_summary::Need::Any));
+            (!unconditional).then_some(outputs)
+        }).collect();
         let live = vec![false; program.roots.len()];
         let row_guards = program
             .needs
@@ -120,6 +131,7 @@ impl Checks {
     }
     pub(super) fn exclude(
         &mut self,
+        root_for: impl Fn(usize) -> usize,
         active: &mut [(usize, usize, bool)],
         bound: &mut HashMap<usize, Result<Bound<'_>>>,
         run: &mut Run,
@@ -131,14 +143,17 @@ impl Checks {
         symbols: &l::Symbols,
         requested: &[l::Relation],
         packet: &reader_run::packet::Packet,
+        unknown: &HashMap<u32, u32>,
         cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
     ) {
         self.live.fill(false);
         let mut any = false;
         for &(binding, _, excluded) in active.iter() {
-            if !excluded {
-                for &root in &self.roots[binding] {
+            if !excluded && let Some(roots) = &self.roots[root_for(binding)]
+                && bound[&binding].as_ref().expect("active binding").screenable != Some(false)
+            {
+                for &root in roots {
                     self.live[root] = true;
                     any = true;
                 }
@@ -153,6 +168,17 @@ impl Checks {
                     self.known.push((need, exists));
                 }
             }
+            let column = |source, index, pattern: &pair_summary::regexes::Matcher| {
+                let FactSource::Catalog(rel) = source else { return None };
+                if partials.iter().any(|p| p.relation == rel) { return None; }
+                packet.any_symbol(rel, index, |word| {
+                    if let Some(text) = l::text_of(symbols, l::ByteSlice(bytes), word) {
+                        return pattern.is_match(text.0.as_bytes());
+                    }
+                    let value = unknown.get(&word.0).copied().or(run.absent_word);
+                    value.is_none_or(|id| pattern.is_match(&run.texts[id as usize]))
+                })
+            };
             self.program.file_columns(
                 tree,
                 bytes,
@@ -161,6 +187,7 @@ impl Checks {
                     ids: text,
                     symbols: &run.texts,
                     patterns: Some(&self.patterns),
+                    column: Some(&column),
                 }),
                 &mut self.words,
                 |source, words, out| {
@@ -177,7 +204,8 @@ impl Checks {
             );
         }
         for (binding, _, excluded) in active {
-            if !*excluded && self.roots[*binding].iter().all(|&r| !self.live[r]) {
+            if !*excluded && self.roots[root_for(*binding)].as_ref()
+                .is_some_and(|roots| roots.iter().all(|&r| !self.live[r])) {
                 let b = bound.get_mut(binding).unwrap().as_mut().unwrap();
                 if partials.iter().any(|p| b.facts.contains(&p.relation)) {
                     continue;
@@ -192,5 +220,59 @@ impl Checks {
                 });
             }
         }
+    }
+}
+
+fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partition>) -> Vec<usize> {
+    match cut {
+        Some(cut) => cut.inputs.clone(),
+        None => program.plan.emits.iter().map(|emit| emit.1).collect(),
+    }
+}
+
+/// Open sessions receive more host bindings after each SDK call. A reader's
+/// vocabulary and a prepared program's output steps survive those boundaries.
+#[derive(Default)]
+pub(super) struct Retained {
+    shapes: HashMap<(usize, Vec<usize>), usize>,
+    bindings: Vec<Option<usize>>,
+    programs: Vec<Checks>,
+}
+impl Retained {
+    pub(super) fn groups<L: FileSource>(
+        &mut self, parser: Option<&L>, programs: &[Result<Program>], program_of: &[usize],
+        cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
+        active: &mut [(usize, usize, bool)],
+        mut visit: impl FnMut(&mut Checks, &mut [(usize, usize, bool)]),
+    ) -> f64 {
+        let mut prepare = 0.;
+        self.bindings.resize(program_of.len(), None);
+        for &(binding, _, excluded) in active.iter() {
+            if excluded || self.bindings[binding].is_some() { continue; }
+            let id = program_of[binding];
+            let program = programs[id].as_ref().expect("active program");
+            let mut steps = target_steps(program, cuts[binding].as_deref());
+            steps.sort_unstable();
+            steps.dedup();
+            let index = *self.shapes.entry((id, steps)).or_insert_with_key(|(_, steps)| {
+                let start = super::thread_cpu();
+                let screen = Checks::from_roots(parser, std::slice::from_ref(&programs[id]),
+                    &[0], vec![steps.clone()]);
+                let index = self.programs.len();
+                self.programs.push(screen);
+                prepare += super::thread_cpu() - start;
+                index
+            });
+            self.bindings[binding] = Some(index);
+        }
+        let group = |job: &(usize, usize, bool)| (!job.2).then(|| self.bindings[job.0]).flatten();
+        let sort = !active.is_sorted_by_key(group);
+        if sort { active.sort_unstable_by_key(group); }
+        for jobs in active.chunk_by_mut(|a, b| group(a) == group(b)) {
+            if let Some(index) = group(&jobs[0]) { visit(&mut self.programs[index], jobs); }
+        }
+        // FileInputs shares contributions in the schedule's original binding order.
+        if sort { active.sort_unstable_by_key(|job| job.0); }
+        prepare
     }
 }

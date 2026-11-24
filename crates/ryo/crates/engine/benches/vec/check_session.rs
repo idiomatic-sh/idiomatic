@@ -272,7 +272,7 @@ impl Schedule {
 
 struct Bound<'p> {
     screenable: Option<bool>,
-    empty_frontier: Option<Vec<(usize, Rc<Table>)>>,
+    empty_frontier: Option<frontier::EmptyFrontier>,
     plan: &'p Plan,
     slots: Vec<usize>,
     test: usize,
@@ -465,6 +465,7 @@ fn versions(
 #[derive(Default)]
 pub(crate) struct ReaderState {
     run: Run,
+    screens: pairs::Retained,
     unknown: Option<HashMap<u32, u32>>,
     bytes: HashMap<usize, (Rc<[u8]>, u32)>,
 }
@@ -536,7 +537,7 @@ pub(crate) fn visit<L: FileSource>(
             needed[binding] = true;
         }
     }
-    let mut checks = pairs::Checks::new(parser, programs, program_of, &needed, cut_of);
+    let mut checks = (!keep).then(|| pairs::Checks::new(parser, programs, program_of, &needed, cut_of));
     clocks.prepare += thread_cpu() - t;
     let mut bound: HashMap<usize, Result<Bound<'_>>> = HashMap::new();
     let mut scratch = HeldFile::default();
@@ -719,11 +720,6 @@ pub(crate) fn visit<L: FileSource>(
             let mut active = Vec::new();
             for (&binding, &slot) in &jobs {
                 let Ok(b) = &bound[&binding] else { continue };
-                let p = programs[program_of[binding]].as_ref().unwrap();
-                let c = &contracts[&binding];
-                let rels: Vec<_> = c.needs.reads.iter().map(|r| r.relation()).collect();
-                let partials = partial_of(&[], recovery, &rels);
-                let unknowns = c.report(&partials, &source.path);
                 let excluded = cut_of[binding].is_none()
                     && *test_results[b.test].get_or_insert_with(|| b.never
                         || !b.shape.iter().all(|c| {
@@ -736,13 +732,17 @@ pub(crate) fn visit<L: FileSource>(
                             })
                         })
                         || !b.words.iter().all(|c| c.iter().any(|v| words.contains(v))));
-                if excluded && partials.is_empty() && b.facts.is_empty() {
-                    answers[slot] = Ok(Reported {
-                        rows: Vec::new(),
-                        unknowns,
-                    });
-                    clocks.skipped += 1;
-                    continue;
+                if excluded && b.facts.is_empty() {
+                    let whole = recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
+                    if whole || {
+                        let rels: Vec<_> = contracts[&binding].needs.reads.iter()
+                            .map(|r| r.relation()).collect();
+                        partial_of(&[], recovery, &rels).is_empty()
+                    } {
+                        answers[slot] = Ok(Reported::default());
+                        clocks.skipped += 1;
+                        continue;
+                    }
                 }
                 active.push((binding, slot, excluded));
             }
@@ -814,10 +814,20 @@ pub(crate) fn visit<L: FileSource>(
             let t = thread_cpu();
             if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
             {
-                checks.exclude(
-                    &mut active, &mut bound, &mut run, tree, &provider.text,
-                    &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, cut_of, &said,
-                );
+                let mut evaluate = |screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
+                    screen.exclude(root, jobs, &mut bound, &mut run, tree, &provider.text,
+                        &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, unknown, cut_of, &said);
+                };
+                if let Some(screen) = &mut checks {
+                    evaluate(screen, &mut active, |binding| binding);
+                } else if selected.len() > 1 {
+                    // A one-source open admission cannot amortize preparing a reader screen.
+                    // Its coarse requirements and ordinary executor still apply.
+                    let prepare = state.screens.groups(parser, programs, program_of, cut_of, &mut active,
+                        |screen, jobs| evaluate(screen, jobs, |_| 0));
+                    clocks.prepare += prepare;
+                    clocks.screen -= prepare;
+                }
             }
             clocks.screen += thread_cpu() - t;
             let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
@@ -882,11 +892,7 @@ pub(crate) fn visit<L: FileSource>(
                 };
                 if excluded && unknowns.is_empty() {
                     if let Some(cut) = &cut_of[binding] {
-                        let tables = b.empty_frontier.get_or_insert_with(|| {
-                            finish::session::certificate::empty_frontier(&mut Exec::new(b.plan), &mut run, &cut.inputs)
-                                .expect("certified file output schemas")
-                        });
-                        world.insert_empty(slot, &source.path, tables);
+                        world.insert_empty(slot, &source.path, b, &mut run, cut);
                     }
                     answers[slot] = Ok(Reported::default());
                     clocks.skipped += 1;
