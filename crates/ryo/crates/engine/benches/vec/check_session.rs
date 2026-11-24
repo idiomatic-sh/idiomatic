@@ -1,7 +1,7 @@
 //! Schedule all consumers of a source before walking it. Keep the emitted rows per
 //! bound program and source version. Parser scratch is released after its last consumer.
 use super::{finish, first, lower, reader, reader_run, thread_cpu};
-use finish::{Exec, Plan, Run, Table};
+use finish::{Exec, Plan, Provider, Run, Table};
 use ryo::languages::{self as l, ByteSlice, FileId, SourcePath};
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use std::{
@@ -528,6 +528,7 @@ pub(crate) fn visit(
             }
             let partials = std::mem::take(&mut packet.rows.partials);
             packet.index(&facts);
+            let version = std::cell::OnceCell::new();
             let mut view = packet.view(&mut provider, &symbols, &bytes);
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
@@ -561,9 +562,7 @@ pub(crate) fn visit(
                 answers[slot] = finish::session::pair(
                     &mut b.exec,
                     &mut run,
-                    id.0,
-                    &tree,
-                    &bytes,
+                    version.get_or_init(|| finish::FileVersion::new(&tree, &bytes, id.0, view.syntax_text())),
                     &mut view,
                     b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
                 );
