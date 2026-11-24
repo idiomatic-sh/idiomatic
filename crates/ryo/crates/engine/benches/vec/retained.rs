@@ -302,6 +302,7 @@ struct Inputs {
     keys: Vec<Key>,
     versions: BTreeMap<String, Digest>,
     observations: Vec<(PathBuf, Stamp)>,
+    source_observations: Vec<(PathBuf, Stamp)>,
     phase_ms: [f64; 3],
 }
 
@@ -367,6 +368,7 @@ fn inputs(
     let scope_ms = ms() - pack_ms;
     let mut versions = BTreeMap::new();
     let mut keys = Vec::with_capacity(req.files.len());
+    let mut source_observations = Vec::with_capacity(req.files.len());
     for name in &req.files {
         if versions.contains_key(name) {
             return Err(invalid("repeated input"));
@@ -380,7 +382,7 @@ fn inputs(
         use std::os::unix::fs::PermissionsExt;
         let metadata = fs::metadata(&p)?;
         field(&mut file, &metadata.permissions().mode().to_le_bytes());
-        observations.push((p.clone(), stamp(&metadata)));
+        source_observations.push((p.clone(), stamp(&metadata)));
         let version = *blake3::hash(&fs::read(p)?).as_bytes();
         field(&mut file, &version);
         versions.insert(name.to_owned(), version);
@@ -391,6 +393,7 @@ fn inputs(
         keys,
         versions,
         observations,
+        source_observations,
         phase_ms: [pack_ms, scope_ms, ms() - pack_ms - scope_ms],
     })
 }
@@ -542,11 +545,15 @@ pub(crate) fn check(
         versions: std::mem::take(&mut first.versions),
         ..Capture::default()
     };
-    for (key, path) in first.keys.iter().zip(&req.files) {
+    for ((key, path), obs) in first.keys.iter().zip(&req.files).zip(first.source_observations) {
         if let Some(answer) = old.remove(key)
             && answer.origin == *path
         {
             capture.reusable.insert(path.clone(), answer);
+        } else {
+            // A prior immutable row already proves its key. Only freshly evaluated
+            // bytes and the shared scope need another observation before publication.
+            first.observations.push(obs);
         }
     }
     let ok = evaluate(&first.request, Some(&mut capture));
