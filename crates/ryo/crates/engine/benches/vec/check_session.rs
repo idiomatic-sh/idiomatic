@@ -2,7 +2,7 @@
 //! bound program and source version. Parser scratch is released after its last consumer.
 use super::{finish, first, lower, reader, reader_run, thread_cpu};
 use finish::{Exec, Plan, Provider, Run, Table};
-use super::pair_skip::{BoundSummary as BoundRequirements, Demand, FileSummary};
+use super::pair_skip::{BoundSummary as BoundRequirements, Demand, FileSummary, PrerequisiteClauses};
 use ryo::languages::{self as l, ByteSlice, FileId, SourcePath};
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use std::{
@@ -680,6 +680,7 @@ pub(crate) struct ReaderState {
     screens: pairs::Retained,
     patterns: crate::pair_checks::SymbolMatches,
     requirements: HashMap<usize, (Rc<BoundRequirements>, usize)>,
+    prerequisite_clauses: PrerequisiteClauses,
     requirement_ids: HashMap<Rc<BoundRequirements>, usize>,
     previous_plan: Option<shared::PreviousPlan>,
     unknown: Option<HashMap<u32, u32>>,
@@ -766,10 +767,11 @@ pub(crate) fn visit<L: FileSource>(
     let language = reader_declaration(parser);
     let mut local_requirements = HashMap::new();
     let mut local_ids = HashMap::new();
-    let (reader_requirements, requirement_ids) = if keep {
-        (&mut state.requirements, &mut state.requirement_ids)
+    let mut local_clauses = PrerequisiteClauses::default();
+    let (reader_requirements, requirement_ids, prerequisite_clauses) = if keep {
+        (&mut state.requirements, &mut state.requirement_ids, &mut state.prerequisite_clauses)
     } else {
-        (&mut local_requirements, &mut local_ids)
+        (&mut local_requirements, &mut local_ids, &mut local_clauses)
     };
     let local_patterns = crate::pair_checks::SymbolMatches::default();
     let pattern_cache = if keep { &state.patterns } else { &local_patterns };
@@ -799,7 +801,7 @@ pub(crate) fn visit<L: FileSource>(
                     clocks.requirement_programs += 1;
                     let (_, clauses) = reader_run::file_requirements(&program.typed, &language)
                         .pop().expect("prepared program has an emit");
-                    let requirements = Rc::new(BoundRequirements::bind(&clauses, |word| run.sym(word)));
+                    let requirements = Rc::new(BoundRequirements::bind(&clauses, prerequisite_clauses, |word| run.sym(word)));
                     if let Some((known, &id)) = requirement_ids.get_key_value(&requirements) {
                         return (known.clone(), id);
                     }
