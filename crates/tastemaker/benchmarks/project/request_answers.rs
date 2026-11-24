@@ -335,6 +335,32 @@ pub(super) fn unpack_rows(data: &[u8]) -> Vec<finish::answer::Row> {
     }).collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn restored_rows_preserve_nulls_negative_one_and_duplicate_packets() {
+        let rows = Rows {
+            words: vec!["same bytes".into()],
+            schemas: vec![Schema {
+                rule: "query".into(),
+                columns: vec!["subject".into(), "value".into()],
+                identity: vec![0],
+            }],
+            rows: vec![
+                PackedRow { schema: 0, values: vec![Some(PackedValue::File(0)), Some(PackedValue::Number(-1))] },
+                PackedRow { schema: 0, values: vec![Some(PackedValue::Text(0)), None] },
+                PackedRow { schema: 0, values: vec![Some(PackedValue::File(0)), Some(PackedValue::Number(-1))] },
+            ],
+        };
+        let encoded = postcard::to_stdvec(&rows).unwrap();
+        let restored = unpack_rows(&encoded);
+        assert!(std::sync::Arc::ptr_eq(&restored[0].layout, &restored[2].layout));
+        assert_eq!(pack_rows(&restored), encoded);
+    }
+}
+
 mod payload {
     use serde::{Deserialize, Deserializer, Serializer};
     pub(super) fn serialize<S: Serializer>(bytes: &[u8], s: S) -> Result<S::Ok, S::Error> {
