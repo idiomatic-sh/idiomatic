@@ -136,7 +136,7 @@ pub(crate) struct View<'a, 'words> {
 }
 impl finish::Provider for View<'_, '_> {
     fn syntax_text(&self) -> Option<&[u32]> {
-        Some(&self.parsed.text)
+        self.parsed.projects_words.then_some(self.parsed.text.as_slice())
     }
     fn render(&mut self, _: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
         Err(format!(

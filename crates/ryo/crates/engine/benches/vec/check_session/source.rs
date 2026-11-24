@@ -41,9 +41,9 @@ pub(crate) trait Source: Clone {
         run: &mut Run,
         unknown: &HashMap<u32, u32>,
         start: usize,
-        kinds: &mut FxHashSet<u32>,
-        fields: &mut FxHashSet<u32>,
-        words: &mut FxHashSet<u32>,
+        kinds: Option<&mut FxHashSet<u32>>,
+        fields: Option<&mut FxHashSet<u32>>,
+        words: Option<&mut FxHashSet<u32>>,
     );
     fn fill(
         &self,
@@ -160,27 +160,33 @@ impl Source for Linked {
         run: &mut Run,
         unknown: &HashMap<u32, u32>,
         start: usize,
-        kinds: &mut FxHashSet<u32>,
-        fields: &mut FxHashSet<u32>,
-        words: &mut FxHashSet<u32>,
+        mut kinds: Option<&mut FxHashSet<u32>>,
+        mut fields: Option<&mut FxHashSet<u32>>,
+        mut words: Option<&mut FxHashSet<u32>>,
     ) {
         for i in start as u32..l::end_of(file).0 {
             let at = l::Position(i);
-            kinds.insert(run.kind_sym[usize::from(l::kind_at(file, at).0)]);
-            fields.insert(reader::symbol(
-                run,
-                unknown,
-                dict,
-                bytes,
-                l::field_name_at(file, at),
-            ));
-            words.insert(reader::symbol(
-                run,
-                unknown,
-                dict,
-                bytes,
-                l::text_at(file, at),
-            ));
+            if let Some(kinds) = kinds.as_deref_mut() {
+                kinds.insert(run.kind_sym[usize::from(l::kind_at(file, at).0)]);
+            }
+            if let Some(fields) = fields.as_deref_mut() {
+                fields.insert(reader::symbol(
+                    run,
+                    unknown,
+                    dict,
+                    bytes,
+                    l::field_name_at(file, at),
+                ));
+            }
+            if let Some(words) = words.as_deref_mut() {
+                words.insert(reader::symbol(
+                    run,
+                    unknown,
+                    dict,
+                    bytes,
+                    l::text_at(file, at),
+                ));
+            }
         }
     }
     fn fill(

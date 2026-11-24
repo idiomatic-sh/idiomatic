@@ -283,7 +283,16 @@ impl Schedule {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+struct SummaryColumns {
+    kinds: bool,
+    fields: bool,
+    words: bool,
+}
+
 struct Bound<'p> {
+    summary: SummaryColumns,
+    projects_words: bool,
     reads_fields: bool,
     screenable: Option<bool>,
     empty_frontier: Option<Vec<(usize, Rc<Table>)>>,
@@ -308,6 +317,7 @@ fn bind<'p, L: FileSource>(
     cut: Option<&finish::partition::Partition>,
 ) -> Result<Bound<'p>> {
     let mut facts = Vec::new();
+    let mut projects_words = !program.requirements.2.is_empty();
     let mut reads_fields = program.requirements.1.iter().flatten().any(|term| term.starts_with("f:"));
     for (at, step) in program.plan.nodes.iter().enumerate() {
         if step.op != "base" || cut.is_some_and(|c| !c.file_steps[at]) {
@@ -319,6 +329,7 @@ fn bind<'p, L: FileSource>(
         }
         let rel = relations::service::relation_named(NameRef(name))
             .ok_or_else(|| format!("undeclared {name}"))?;
+        projects_words |= matches!(rel, l::Relation::SyntaxTree | l::Relation::SemanticSyntax | l::Relation::TokenLink);
         reads_fields |= matches!(rel, l::Relation::SemanticChild | l::Relation::SyntaxChild);
         if relations::service::class_of(rel) == relations::types::Class::Engine {
             let (_, names, tys) = run.catalog(name).ok_or("no engine schema")?;
@@ -346,6 +357,11 @@ fn bind<'p, L: FileSource>(
         }
     }
     let (never, shape, words) = &program.requirements;
+    let summary = SummaryColumns {
+        kinds: shape.iter().flatten().any(|v| v.starts_with("k:")),
+        fields: shape.iter().flatten().any(|v| v.starts_with("f:")),
+        words: !words.is_empty(),
+    };
     let shape = shape
         .iter()
         .map(|clause| {
@@ -366,7 +382,9 @@ fn bind<'p, L: FileSource>(
         (node,alts.iter().map(|(col,w)|(*col,u64::from(run.sym(w)))).collect())
     }).collect();
     Ok(Bound {
+        summary,
         reads_fields,
+        projects_words,
         screenable: None,
         empty_frontier: None,
         filters,
@@ -611,9 +629,21 @@ pub(crate) fn visit<L: FileSource>(
             let source = &sources[index];
             let id = FileId(index.try_into().expect("file ID"));
             let t = thread_cpu();
+            let mut projects_words = keep;
+            let mut projects_fields = keep;
+            let mut summary = SummaryColumns { kinds: keep, fields: keep, words: keep };
             for (&binding, &slot) in &jobs {
-                if let Err(reason) = &bound[&binding] {
-                    answers[slot] = Err(reason.clone());
+                match &bound[&binding] {
+                    Ok(b) => {
+                        projects_words |= b.projects_words;
+                        projects_fields |= b.reads_fields;
+                        if cut_of[binding].is_none() && !b.never {
+                            summary.kinds |= b.summary.kinds;
+                            summary.fields |= b.summary.fields;
+                            summary.words |= b.summary.words;
+                        }
+                    }
+                    Err(reason) => answers[slot] = Err(reason.clone()),
                 }
             }
             clocks.prepare += thread_cpu() - t;
@@ -654,7 +684,7 @@ pub(crate) fn visit<L: FileSource>(
                     path: SourcePath(&source.path),
                     bytes: ByteSlice(&bytes),
                     // Later calls can widen the relations asked of a retained file.
-                    fields: if session_open || jobs.keys().any(|b| bound[b].as_ref().is_ok_and(|b| b.reads_fields)) {
+                    fields: if projects_fields {
                         l::FieldRequest::Wanted
                     } else {
                         l::FieldRequest::Unwanted
@@ -710,6 +740,8 @@ pub(crate) fn visit<L: FileSource>(
                 }
             }
             let mut provider = reader::ReaderFacts::new(id.0, &unknown);
+            provider.projects_words = projects_words;
+            provider.projects_fields = projects_fields;
             if reused {
                 run.field_sym.clone_from(&held.fields);
                 provider.text = std::mem::take(&mut held.text);
@@ -733,18 +765,25 @@ pub(crate) fn visit<L: FileSource>(
             let native = L::lent(elements);
             let tree = native.as_deref().unwrap_or(tree);
             let contents = &mut held.contents;
-            if !reused {
-                contents.kinds.clear();
-                contents.fields.clear();
-                contents.words.clear();
-                contents.kinds.extend(l::node_table::kind_codes(tree).iter()
-                    .map(|&k| run.kind_sym[usize::from(k)]));
-                contents.fields.extend(l::node_table::field_codes(tree).iter()
-                    .map(|&f| run.field_sym[usize::from(f)]));
-                contents.words.extend(provider.text.iter().copied());
-                contents.words.insert(run.empty);
+            if !reused && (summary.kinds || summary.fields || summary.words) {
+                if summary.kinds {
+                    contents.kinds.clear();
+                    contents.kinds.extend(l::node_table::kind_codes(tree).iter()
+                        .map(|&k| run.kind_sym[usize::from(k)]));
+                }
+                if summary.fields {
+                    contents.fields.clear();
+                    contents.fields.extend(l::node_table::field_codes(tree).iter()
+                        .map(|&f| run.field_sym[usize::from(f)]));
+                }
+                if summary.words {
+                    contents.words.clear();
+                    contents.words.extend(provider.text.iter().copied());
+                    contents.words.insert(run.empty);
+                }
                 L::expanded_summary(elements, symbols, &bytes, &mut run, unknown,
-                    provider.text.len(), &mut contents.kinds, &mut contents.fields, &mut contents.words);
+                    l::node_table::kind_codes(tree).len(), summary.kinds.then_some(&mut contents.kinds),
+                    summary.fields.then_some(&mut contents.fields), summary.words.then_some(&mut contents.words));
             }
             let Contents { kinds, fields, words } = &*contents;
             use ryo_execution_domain::domain::coverage::service::partial_of;
@@ -852,7 +891,7 @@ pub(crate) fn visit<L: FileSource>(
             if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
             {
                 checks.exclude(
-                    &mut active, &mut bound, &mut run, tree, &provider.text,
+                    &mut active, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()),
                     &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, cut_of, &said,
                 );
             }
