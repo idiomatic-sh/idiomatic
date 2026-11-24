@@ -50,7 +50,7 @@ pub(super) fn packet_receipt(
     }
     .to_string()
 }
-pub(super) fn write_unknowns(out: impl std::io::Write, unknowns: &[&(String, String)]) {
+pub(super) fn write_unknowns<T: std::borrow::Borrow<(String, String)> + serde::Serialize>(out: impl std::io::Write, unknowns: &[T]) {
     serde_json::to_writer(out, unknowns).expect("write unknown findings");
 }
 pub(super) fn write_findings(findings: &[Finding], path: &std::path::Path) {
