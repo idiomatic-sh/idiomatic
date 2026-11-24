@@ -236,19 +236,25 @@ impl Schedule {
     }
 
     /// Attach immutable caller bytes before admitting any consumer of this source root.
-    pub(crate) fn provide(&mut self, root: &Arc<str>, path: String, bytes: Arc<[u8]>) -> Result<()> {
-        let key = (Rc::from(path.as_str()), bytes.clone());
-        let id = match self.supplied_ids.get(&key) {
-            Some(&id) => id,
+    pub(crate) fn provide(
+        &mut self,
+        root: &Arc<str>,
+        path: &str,
+        bytes: &Arc<[u8]>,
+    ) -> Result<Arc<[u8]>> {
+        let key = (Rc::from(path), bytes.clone());
+        let (id, canonical) = match self.supplied_ids.get_key_value(&key) {
+            Some(((_, held), &id)) => (id, held.clone()),
             None => {
                 let ids = self.source_ids.entry(root.clone()).or_default();
-                let id = Self::source_in(&mut self.sources, ids, root, &path)?;
-                self.sources[id].provided = Some(bytes);
+                let id = Self::source_in(&mut self.sources, ids, root, path)?;
+                self.sources[id].provided = Some(bytes.clone());
                 self.supplied_ids.insert(key, id);
-                id
+                (id, bytes.clone())
             }
         };
-        self.alias_source(root, &path, id)
+        self.alias_source(root, path, id)?;
+        Ok(canonical)
     }
 
     pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str) -> Result<()> {

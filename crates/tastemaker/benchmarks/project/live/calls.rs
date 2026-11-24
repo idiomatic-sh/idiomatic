@@ -55,6 +55,8 @@ pub struct Live {
     delivered_cells: usize,
     delivered_rows: usize,
     epochs: usize,
+    shared_overlay_files: usize,
+    shared_overlay_bytes: usize,
     versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
 }
 
@@ -86,6 +88,8 @@ impl Default for Live {
             delivered_cells: 0,
             delivered_rows: 0,
             epochs: 0,
+            shared_overlay_files: 0,
+            shared_overlay_bytes: 0,
             versions: HashMap::new(),
         }
     }
@@ -223,6 +227,7 @@ impl Live {
         last.retained = self.state.retention.counts();
         last.reused_binding_entries = self.batch.reused_binding_entries;
         last.pattern_visits = self.cache.pattern_visits;
+        last.overlay = [self.shared_overlay_files, self.shared_overlay_bytes];
         last.registration = [self.batch.source_lookups_removed, self.epochs, self.skipped_calls,
             self.skipped_rules, self.batch.host_binding_counts[0], self.batch.host_binding_counts[1],
             self.registered_tables, self.delivered_rows, self.delivered_cells, self.batch.slot_lookups_removed];
@@ -280,7 +285,7 @@ impl Live {
         }
         let (inventory, paths) = self.cache.inventory(listed.iter().map(|p| p.0.as_ref())
             .chain(overlay.keys().map(String::as_str)).collect());
-        let key = (authority.clone(), overlay);
+        let mut key = (authority.clone(), overlay);
         let mut prepared_root=None;
         let filter = self.globs(&req.files)?;
         let (table_ids, hosted): (Vec<_>, Vec<_>) = req
@@ -383,8 +388,15 @@ impl Live {
             id.clone()
         } else {
             let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
-            for (p, v) in &key.1 {
-                self.batch.schedule.provide(&id, p.clone(), v.clone())?;
+            for (path, bytes) in &mut key.1 {
+                let shared = self.batch.schedule.provide(&id, path, bytes)?;
+                // The scheduler already owns the exact path and bytes. Retain
+                // its allocation in the version key and drop the duplicate.
+                if !Arc::ptr_eq(bytes, &shared) {
+                    self.shared_overlay_files += 1;
+                    self.shared_overlay_bytes += bytes.len();
+                    *bytes = shared;
+                }
             }
             self.versions.insert(key.clone(), id.clone());
             id
@@ -514,6 +526,7 @@ struct Measurement {
     reused_binding_entries: usize,
     pattern_visits: [usize; 4],
     registration: [usize; 10],
+    overlay: [usize; 2],
 }
 static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measurement {
     sessions: 0,
@@ -529,6 +542,7 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     reused_binding_entries: 0,
     pattern_visits: [0; 4],
     registration: [0; 10],
+    overlay: [0; 2],
 });
 
 /// Print the one executor's cumulative counters to the benchmark log after the host renders.
@@ -544,6 +558,8 @@ pub fn print_measurement() {
     eprintln!("ADMISSION_PATHS prior_visits={before} visits={after} indexed_selections={selections} searches={searches}");
     let [paths, epochs, calls, rules, host_uses, row_hashes, tables, rows, cells, slots] = m.registration;
     eprintln!("ADMISSION_SMALL source_lookups_removed={paths} slot_lookups_removed={slots} epochs={epochs} whole_calls_reused={calls} registrations_removed={rules} bound_host_uses={host_uses} row_hashes_removed={row_hashes} supplied_tables={tables} delivery_rows={rows} delivery_cells={cells}");
+    let [files, bytes] = m.overlay;
+    eprintln!("ADMISSION_OVERLAY shared_versions={files} duplicate_source_bytes_removed={bytes}");
     let [versions,hits,evictions,peak_charge]=m.retained;
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;
