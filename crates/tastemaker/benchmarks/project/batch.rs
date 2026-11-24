@@ -868,7 +868,7 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
     println!(
-        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6}",
+        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6}",
         session.schedule.programs.len(),
         session.bindings.len(),
         session.schedule.sources.len(),
@@ -877,7 +877,7 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
         c.pairs,
         c.unique_pairs,
         c.skipped,
-        c.evaluated,
+        c.evaluated, c.productive, c.evaluated-c.productive-c.refused, c.refused,
         c.prepare,
         c.read_parse,
         c.screen,
