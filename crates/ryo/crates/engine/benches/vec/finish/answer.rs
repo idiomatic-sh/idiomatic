@@ -123,23 +123,24 @@ impl Row {
         }
     }
 
-    pub(crate) fn value(&self, index: usize) -> Value {
+    fn decode<T: From<String> + From<&'static str>, D: std::ops::Deref<Target = Words>>(
+        &self,
+        index: usize,
+        dictionary: impl FnOnce() -> D,
+        text: impl FnOnce(&Arc<str>) -> T,
+    ) -> Option<Cell<T>> {
         let word = self.words[index];
         if word == NULL && self.layout.types[index] != Ty::Num {
             return None;
         }
         Some(match self.layout.types[index] {
-            Ty::Sym => Cell::Text(
-                self.layout.words.read().expect("answer words").symbols[&(word as u32)].clone(),
-            ),
+            Ty::Sym => Cell::Text(text(&dictionary().symbols[&(word as u32)])),
             Ty::Node => {
-                let words = self.layout.words.read().expect("answer words");
+                let words = dictionary();
                 let path = &words.paths[(word >> 32) as usize];
                 Cell::Text(format!("{path}#{}", word as u32).into())
             }
-            Ty::File => Cell::File(
-                self.layout.words.read().expect("answer words").paths[word as usize].clone(),
-            ),
+            Ty::File => Cell::File(text(&dictionary().paths[word as usize])),
             Ty::Span => Cell::Span(Span {
                 start: Offset((word >> 32) as u32),
                 end: Offset(word as u32),
@@ -149,8 +150,21 @@ impl Row {
         })
     }
 
+    pub(crate) fn value(&self, index: usize) -> Value {
+        self.decode(index, || self.layout.words.read().expect("answer words"), Arc::clone)
+    }
+
+    /// Borrow the retained dictionary once while projecting all cells of a row.
+    pub(crate) fn cells_with<'a, T: From<String> + From<&'static str>>(
+        &'a self,
+        text: impl Fn(&Arc<str>) -> T + 'a,
+    ) -> impl Iterator<Item = Option<Cell<T>>> + 'a {
+        let dictionary = self.layout.words.read().expect("answer words");
+        (0..self.words.len()).map(move |i| self.decode(i, || &*dictionary, &text))
+    }
+
     pub(crate) fn cells(&self) -> impl Iterator<Item = Value> + '_ {
-        (0..self.words.len()).map(|i| self.value(i))
+        self.cells_with(Arc::clone)
     }
 }
 
