@@ -14,7 +14,12 @@ use std::{
 ///
 /// # Errors
 /// A captured result cannot be read or the report cannot be written.
-pub fn report(output: &mut impl io::Write, profile: &Profile, directory: &Path) -> io::Result<()> {
+pub fn report(
+    output: &mut impl io::Write,
+    profile: &Profile,
+    directory: &Path,
+    same_image: bool,
+) -> io::Result<()> {
     run_table(
         output,
         &[
@@ -43,14 +48,24 @@ pub fn report(output: &mut impl io::Write, profile: &Profile, directory: &Path) 
                     output,
                     "| Image | Allocation events | Total requested bytes |\n|---|---:|---:|"
                 )?;
+                if same_image {
+                    writeln!(
+                        output,
+                        "| Ordinary with Heaptrack | {} | {} |\n",
+                        heap.allocations, heap.bytes
+                    )?;
+                    writeln!(output, "All passes use the same allocator image.")?;
+                } else {
+                    writeln!(
+                        output,
+                        "| Ordinary | Collection unavailable | Collection unavailable |\n| Heap-compatible | {} | {} |\n",
+                        heap.allocations, heap.bytes
+                    )?;
+                    writeln!(output, "Allocation-count parity is unverified.")?;
+                }
                 writeln!(
                     output,
-                    "| Ordinary | Collection unavailable | Collection unavailable |\n| Heap-compatible | {} | {} |\n",
-                    heap.allocations, heap.bytes
-                )?;
-                writeln!(
-                    output,
-                    "Allocation-count parity is unverified. Heaptrack provides cumulative requested bytes for the whole image and live bytes by site at the peak.\n"
+                    "Heaptrack provides cumulative requested bytes for the whole image and live bytes by site at the peak.\n"
                 )?;
                 let text = fs::read_to_string(&report)?;
                 let peak = text

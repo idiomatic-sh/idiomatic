@@ -1,7 +1,7 @@
 //! The same profile pipeline for every registered image and workload.
 use super::profile_evidence::EngineEvidence;
-use profile_tools::{self as standard, CommandLine, Observer};
 use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use profile_tools::{self as standard, CommandLine, Observer};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -97,12 +97,20 @@ pub(crate) fn profile<T>(
         }
         let evidence = engine(&profile.native, ordinary, &destination)?;
         writeln!(report, "\n# {} — {folder} build\n", workload.name)?;
-        writeln!(
-            report,
-            "Ordinary image `{}`. Heaptrack image `{}` uses Rust's system allocator.\n",
-            images.ordinary.display(),
-            images.heap.display()
-        )?;
+        if images.ordinary == images.heap {
+            writeln!(
+                report,
+                "All tools use the same allocator-compatible image `{}`.\n",
+                images.ordinary.display()
+            )?;
+        } else {
+            writeln!(
+                report,
+                "Ordinary image `{}`. Heaptrack image `{}` uses Rust's system allocator.\n",
+                images.ordinary.display(),
+                images.heap.display()
+            )?;
+        }
         if let Some(evidence) = &evidence {
             evidence.write(report)?;
         }
@@ -111,7 +119,12 @@ pub(crate) fn profile<T>(
             clocked.push(("Operator observer", diagnostic));
         }
         standard::run_table(report, &clocked)?;
-        standard::report(report, &profile, &destination)?;
+        standard::report(
+            report,
+            &profile,
+            &destination,
+            images.ordinary == images.heap,
+        )?;
         let key = if folder == "first" {
             workload.name.to_owned()
         } else {

@@ -52,7 +52,7 @@ pub enum Observer {
 pub struct Observation {
     /// Exit status of the tool or, for an ordinary run, its child.
     pub status: ExitStatus,
-    /// Elapsed time including the observer but excluding report generation.
+    /// Elapsed time including the observer, excluding scheduler wait and report generation.
     pub elapsed: Duration,
     /// One-minute system load readings before and after the run.
     pub load: [Option<f64>; 2],
@@ -152,7 +152,19 @@ pub fn observe_before(
         .stdout(File::create(&stdout)?)
         .stderr(File::create(&stderr)?)
         .status()?;
-    let elapsed = start.elapsed();
+    let elapsed = if command.launcher.is_empty() {
+        start.elapsed()
+    } else {
+        // The meter starts inside the resource lease.
+        let timing = fs::read_to_string(&resources)?;
+        let wall = timing
+            .lines()
+            .last()
+            .and_then(|line| line.split_ascii_whitespace().next());
+        wall.and_then(|seconds| seconds.parse().ok())
+            .and_then(|seconds| Duration::try_from_secs_f64(seconds).ok())
+            .ok_or_else(|| io::Error::other("invalid GNU time wall clock"))?
+    };
     let mut payload = command.answer.clone().unwrap_or(stdout);
     if let Some(prefix) = &command.workspace_prefix
         && payload.is_file()
