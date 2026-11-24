@@ -224,7 +224,7 @@ impl Batch {
                     .hosted
                     .iter()
                     .map(|t| Hosted {
-                        rows: Vec::new(),
+                        rows: Rc::default(),
                         ..t.clone()
                     })
                     .collect::<Vec<_>>();
