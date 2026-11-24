@@ -216,17 +216,34 @@ impl ColumnFile<'_, '_> {
             words,
             inputs: HashMap::new(),
         };
-        for schema in schemas {
-            let rows = if !Self::TYPING_SCHEMAS.contains(schema) {
-                Err(format!("no semantic relation {}", schema.name))
-            } else if semantic.file.file.syntax.completeness.syntax
-                != l::SyntaxCompleteness::Complete
-            {
-                Err(format!("incomplete {}", schema.name))
-            } else {
-                semantic.answer(*schema)
-            };
-            output(schema, rows.map(|table| table.cols), &semantic.words.words);
+        // Compute dependencies once, then move each requested table into its answer.
+        let prepared: Vec<_> = schemas
+            .iter()
+            .map(|schema| {
+                if !Self::TYPING_SCHEMAS.contains(schema) {
+                    Err(format!("no semantic relation {}", schema.name))
+                } else if semantic.file.file.syntax.completeness.syntax
+                    != l::SyntaxCompleteness::Complete
+                {
+                    Err(format!("incomplete {}", schema.name))
+                } else {
+                    semantic.prepare(*schema)
+                }
+            })
+            .collect();
+        for (index, (schema, prepared)) in schemas.iter().zip(prepared).enumerate() {
+            let rows = prepared.map(|()| {
+                if schemas[index + 1..].contains(schema) {
+                    semantic.inputs[schema.name].cols.clone()
+                } else {
+                    semantic
+                        .inputs
+                        .remove(schema.name)
+                        .expect("prepared semantic relation")
+                        .cols
+                }
+            });
+            output(schema, rows, &semantic.words.words);
         }
         *semantic.file.words = semantic.words.words;
     }
@@ -242,15 +259,20 @@ struct Semantics<'a, 'p, 'f> {
 }
 
 impl Semantics<'_, '_, '_> {
-    fn answer(&mut self, schema: FileRelation) -> Result<InputTable, String> {
-        match schema.name {
+    fn prepare(&mut self, schema: FileRelation) -> Result<(), String> {
+        if self.inputs.contains_key(schema.name) {
+            return Ok(());
+        }
+        let rows = match schema.name {
             "type-expression" => self.types(),
             "annotation-evaluation" => self.annotations(),
             "deferred-visit" => self.visits(),
             "deferred-resolution" => self.resolution(),
             "scheduled-read-predecessor" => self.predecessor(),
             _ => unreachable!("semantic schema was checked"),
-        }
+        }?;
+        let _ = self.inputs.insert(schema.name, rows);
+        Ok(())
     }
 
     fn read<R: CatalogRelation>(
@@ -361,24 +383,27 @@ impl Semantics<'_, '_, '_> {
 
     fn visits(&mut self) -> Result<InputTable, String> {
         let mut output = InputTable::empty(&VISIT);
-        let evaluations = self.annotations()?;
+        self.prepare(ANNOTATION)?;
         self.embedded()?;
         let future = self.features()?.enabled;
         if !self.stub
             && self.inputs["embedded"].n == 0
-            && !deferred_visit::lazy_any(&mut self.words, &evaluations, future)?
+            && !deferred_visit::lazy_any(&mut self.words, &self.inputs[ANNOTATION.name], future)?
             && !deferred_visit::has_type_parameters(&mut self.words, self.file.table)
         {
             return Ok(output);
         }
+        let empty;
         let types = if self.stub {
-            self.types()?
+            self.prepare(TYPE)?;
+            &self.inputs[TYPE.name]
         } else {
-            InputTable::empty(&TYPE)
+            empty = InputTable::empty(&TYPE);
+            &empty
         };
         let inputs = deferred_visit::Inputs {
-            types: &types,
-            evaluations: &evaluations,
+            types,
+            evaluations: &self.inputs[ANNOTATION.name],
             embedded: &self.inputs["embedded"],
             stub: self.stub,
             future,
@@ -393,17 +418,13 @@ impl Semantics<'_, '_, '_> {
 
     fn resolution(&mut self) -> Result<InputTable, String> {
         use l::BindingEventColumn::{Kind, Occurrence, Ordinal};
-        use l::BindingReadColumn::{Name, Reference, Scope};
         use l::ImplicitSymbolColumn;
         let mut output = InputTable::empty(&RESOLUTION);
-        let visits = self.visits()?;
-        if visits.n == 0 {
+        self.prepare(VISIT)?;
+        if self.inputs[VISIT.name].n == 0 {
             return Ok(output);
         }
-        self.read::<l::BindingRead>(
-            "reads",
-            &[("reference", Reference), ("name", Name), ("scope", Scope)],
-        )?;
+        self.reads()?;
         self.read::<l::BindingEvent>(
             "events",
             &[
@@ -439,7 +460,7 @@ impl Semantics<'_, '_, '_> {
             implicit: &self.inputs["implicit"],
             targets: &self.inputs["targets"],
             finals: &finals,
-            visits: &visits,
+            visits: &self.inputs[VISIT.name],
         };
         let rows = deferred_resolution::rows(&mut self.words, self.file.table, &inputs)?;
         for (reference, occurrence, kind, point) in rows {
@@ -448,8 +469,21 @@ impl Semantics<'_, '_, '_> {
         Ok(output)
     }
 
+    fn reads(&mut self) -> Result<(), String> {
+        use l::BindingReadColumn::{Context, Name, Reference, Scope};
+        self.read::<l::BindingRead>(
+            "reads",
+            &[
+                ("reference", Reference),
+                ("name", Name),
+                ("scope", Scope),
+                ("context", Context),
+            ],
+        )
+    }
+
     fn predecessor(&mut self) -> Result<InputTable, String> {
-        use l::{BindingReadColumn as Read, BindingResolutionColumn as Lookup};
+        use l::BindingResolutionColumn as Lookup;
         self.read::<l::BindingResolution>(
             "lookups",
             &[
@@ -463,22 +497,20 @@ impl Semantics<'_, '_, '_> {
                 ("context", Lookup::Context),
             ],
         )?;
-        let read = InputTable::read::<l::BindingRead>(
-            self.file,
-            &mut self.words.words,
-            &[
-                ("reference", Read::Reference),
-                ("scope", Read::Scope),
-                ("context", Read::Context),
-            ],
-        )?;
+        self.reads()?;
         let [deletion, own, routed, none] = [b"deletion".as_slice(), b"own", b"routed", b"none"]
             .map(|text| u64::from(self.words.symbol(text)));
         let lookup = &self.inputs["lookups"];
+        let read = &self.inputs["reads"];
+        let read_columns = [
+            col(read, "reference")?,
+            col(read, "scope")?,
+            col(read, "context")?,
+        ];
         let mut out = InputTable::empty(&PREDECESSOR);
         ColumnFile::visit_scheduled_predecessors(
             (0..lookup.n).map(|i| std::array::from_fn(|column| lookup.cols[column][i])),
-            (0..read.n).map(|i| std::array::from_fn(|column| read.cols[column][i])),
+            (0..read.n).map(|i| read_columns.map(|column| read.cols[column][i])),
             [deletion, own, routed, none],
             self.number,
             |row| out.push(&row),
