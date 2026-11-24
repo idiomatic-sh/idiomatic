@@ -152,6 +152,12 @@ pub(super) fn required_equalities(
     common.unwrap_or_default()
 }
 
+#[derive(Default)]
+pub(super) struct Scratch {
+    row: Vec<u64>,
+    slots: Vec<std::ops::Range<usize>>,
+}
+
 pub(super) fn write(
     run: &mut super::Run,
     input: &super::Table,
@@ -162,11 +168,11 @@ pub(super) fn write(
     project: bool,
     equal: &[(usize, usize)],
     out: &mut super::Table,
+    scratch: &mut Scratch,
 ) -> super::R<()> {
     let mut by_path = super::FxHashMap::default();
     let mut recent: [Option<(u64, Ways)>; 2] = [None, None];
-    let mut row = Vec::new();
-    let mut slots = Vec::new();
+    let Scratch { row, slots } = scratch;
     let separator = separator.unwrap_or("");
     let file = input.tys[path] == super::Ty::File;
     let paths = run.paths.clone();
@@ -195,14 +201,14 @@ pub(super) fn write(
         if subjects.len() == 1 && !project {
             // Stream splits in their original order when no other row needs them.
             let mut input_width = None;
-            walk(pattern, separator, text, text, &mut slots, &mut |spans| {
+            walk(pattern, separator, text, text, slots, &mut |spans| {
                 let width = *input_width.get_or_insert_with(|| {
-                    input.row(first_row, &mut row);
+                    input.row(first_row, row);
                     row.len()
                 });
-                append_cells(run, text, columns, spans, &mut row);
+                append_cells(run, text, columns, spans, row);
                 if equal.iter().all(|&(a, b)| row[a] != super::NULL && row[a] == row[b]) {
-                    out.push_row(&row);
+                    out.push_row(row);
                 }
                 row.truncate(width);
             });
@@ -215,14 +221,14 @@ pub(super) fn write(
                     if !file { super::session::reuse::capture(); }
                     entry.into_mut()
                 }
-                Entry::Vacant(entry) => entry.insert(captured(run, text, pattern, separator, columns, &mut slots)),
+                Entry::Vacant(entry) => entry.insert(captured(run, text, pattern, separator, columns, slots)),
             }
         } else {
             if recent[1].as_ref().is_some_and(|(subject,_)| *subject == word) {
                 super::session::reuse::capture();
                 recent.swap(0, 1);
             } else {
-                let ways = captured(run, text, pattern, separator, columns, &mut slots);
+                let ways = captured(run, text, pattern, separator, columns, slots);
                 recent[1] = recent[0].replace((word, ways));
             }
             &recent[0].as_ref().expect("split stored").1
@@ -241,9 +247,9 @@ pub(super) fn write(
                     let x = word_at(a);
                     x == super::NULL || x != word_at(b)
                 }) { continue; }
-                input.row(r, &mut row);
+                input.row(r, row);
                 row.extend_from_slice(&ways.cells[start..start + columns.len()]);
-                out.push_row(&row);
+                out.push_row(row);
             }
         }
     }

@@ -1287,6 +1287,7 @@ pub(super) struct Exec<'p> {
     empties: Vec<Option<Rc<Table>>>,
     /// The view rows a keyed read of a view finds (reused).
     scratch_rows: Vec<u32>,
+    capture_scratch: capture::Scratch,
     /// `VEC_STEP_TIME`: each step run under the step clock (`timed_body`).
     timing: bool,
     col: col::Kernels,
@@ -1352,6 +1353,7 @@ impl<'p> Exec<'p> {
             flat: known::Flat::new(k),
             empties: vec![None; k],
             scratch_rows: Vec::new(),
+            capture_scratch: capture::Scratch::default(),
             timing: sw!("VEC_STEP_TIME"),
             col: col::Kernels::default(),
             cold_compiler: Default::default(),
@@ -2335,7 +2337,7 @@ impl<'p> Exec<'p> {
                 } else {
                     Vec::new()
                 };
-                capture::write(run, &from, pc, pattern, separator, at, f.after_last_file, &equal, &mut out)?;
+                capture::write(run, &from, pc, pattern, separator, at, f.after_last_file, &equal, &mut out, &mut self.capture_scratch)?;
                 Ok(out)
             }
             "group-ordinal" => {

@@ -11,6 +11,14 @@ pub(super) struct FileInputs<'a> {
     columns: BTreeMap<&'a str, Vec<bool>>,
     carried_bases: HashMap<String, Rc<Block>>,
     produced: HashMap<usize, Rc<Block>>,
+    scratch: Scratch,
+}
+
+#[derive(Default)]
+struct Scratch {
+    missing: Vec<usize>,
+    gathered: Vec<(usize, Rc<Table>, bool)>,
+    derived: Vec<Part>,
 }
 impl<'a> FileInputs<'a> {
     pub(super) fn new(
@@ -49,6 +57,7 @@ impl<'a> FileInputs<'a> {
             columns: shared_columns,
             carried_bases: HashMap::new(),
             produced: HashMap::new(),
+            scratch: Scratch::default(),
         }
     }
     pub(super) fn contribute(
@@ -66,7 +75,7 @@ impl<'a> FileInputs<'a> {
         reader: Option<usize>,
         words: &HashMap<u32, u32>,
         slot: usize,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let plan = b.plan;
         let nodes = &plan.nodes;
         let hosted = &b.hosted;
@@ -83,7 +92,8 @@ impl<'a> FileInputs<'a> {
             .filter(|(home, _)| *home == id && local_coverage.is_empty())
             .map(|(_, bits)| bits);
         let omitted = |i: usize| absent.is_some_and(|a| a[i]);
-        let missing: Vec<_> = cut
+        let mut scratch = std::mem::take(&mut self.scratch);
+        scratch.missing.extend(cut
             .inputs
             .iter()
             .enumerate()
@@ -91,21 +101,21 @@ impl<'a> FileInputs<'a> {
             .map(|(_, n)| *n)
             .filter(|&n| !share(n).is_some_and(|id| self.produced.contains_key(id)))
             .filter(|&n| !shared_base(n).is_some_and(|name| self.carried_bases.contains_key(name)))
-            .collect();
-        let tables = {
-            let mut derived = BTreeMap::new();
-            if !missing.is_empty() {
-                let tables = finish::session::gather(
+        );
+        let tables = (|| {
+            if !scratch.missing.is_empty() {
+                finish::session::gather(
                     exec,
                     run,
                     frame,
                     facts_view,
                     &b.slots,
-                    &missing,
+                    &scratch.missing,
                     &b.projections,
                     local_coverage,
+                    &mut scratch.gathered,
                 )?;
-                for (n, t, projected) in tables {
+                for (n, t, projected) in scratch.gathered.drain(..) {
                     let filtered = b.filters.get(&n).filter(|_| !projected).map(|terms| {
                         let mut rows = Vec::new();
                         for r in 0..t.n {
@@ -136,10 +146,13 @@ impl<'a> FileInputs<'a> {
                         self.carried_bases.insert(name.to_owned(), table);
                     } else {
                         if let Some(id) = share(n) { self.produced.insert(*id,table.clone()); }
-                        derived.insert(n, table);
+                        scratch.derived.push((n, table));
                     }
                 }
             }
+            // Gather visits inputs in cut order. Consume derived blocks in
+            // that order without rebuilding a keyed container for each pair.
+            let mut derived = scratch.derived.drain(..).peekable();
             cut.inputs
                 .iter()
                 .enumerate()
@@ -151,14 +164,24 @@ impl<'a> FileInputs<'a> {
                     let t = if let Some(name) = shared_base(n) {
                         self.carried_bases.get(name).cloned()
                     } else {
-                        derived.remove(&n).or_else(|| share(n).and_then(|id|self.produced.get(id)).cloned())
+                        if derived.peek().is_some_and(|(node, _)| *node == n) {
+                            derived.next().map(|(_, block)| block)
+                        } else {
+                            share(n).and_then(|id| self.produced.get(id)).cloned()
+                        }
                     };
                     Ok((n, t.ok_or("missing local output")?))
                 })
-                .collect::<Result<Vec<_>>>()?
-        };
+                .collect::<Result<Vec<_>>>()
+        })();
+        scratch.missing.clear();
+        scratch.gathered.clear();
+        scratch.derived.clear();
+        self.scratch = scratch;
+        let tables = tables?;
+        let productive = tables.iter().any(|(_, block)| block.n != 0);
         world.frontiers.insert(slot, FileFrontier::Rows(tables.into_boxed_slice()));
-        Ok(())
+        Ok(productive)
     }
 }
 type Part = (usize, Rc<Block>);
@@ -277,9 +300,6 @@ impl World {
         });
         if !parts.is_empty() { self.file(path); }
         self.frontiers.insert(slot, FileFrontier::Empty(parts.clone()));
-    }
-    pub(super) fn productive(&self, slot: usize) -> bool {
-        self.frontiers.get(&slot).is_some_and(|v| v.parts().iter().any(|(_, block)| block.n != 0))
     }
     fn carry(
         &mut self,
