@@ -191,6 +191,9 @@ pub(super) struct Store {
     absent_local: usize,
     absent_frontier: usize,
     restored_blocks: usize,
+    packets_packed: usize,
+    packed_rows: usize,
+    pack_cpu: f64,
 }
 fn table(dir: &Path, name: &str, digest: Key) -> PathBuf {
     dir.join(format!(
@@ -273,6 +276,9 @@ impl Store {
             absent_local: 0,
             absent_frontier: 0,
             restored_blocks: 0,
+            packets_packed: 0,
+            packed_rows: 0,
+            pack_cpu: 0.0,
         })
     }
     pub(super) fn publish(&mut self) -> Res<usize> {
@@ -351,6 +357,7 @@ impl Store {
     pub(super) fn costs(&self) {
         eprintln!("table_read_cpu pairs={:.6} project={:.6} requests={:.6} inputs={:.6} answers={:.6}",
             self.files.read_cpu, self.notes.read_cpu, self.requests.read_cpu, self.groups.read_cpu, self.packets.read_cpu);
+        eprintln!("packets_packed={} packed_rows={} packet_build_cpu={:.6}", self.packets_packed, self.packed_rows, self.pack_cpu);
         let o = &self.observed;
         eprintln!("observation_open_cpu={:.6}", o.open_cpu);
         eprintln!(
@@ -432,7 +439,12 @@ impl Store {
     }
     pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
         let (proof, unread) = self.plans.get_mut(idx)?.take()?;
-        Some(self.put(id, Packet::save(r), proof, unread))
+        let start = crate::thread_cpu();
+        let k = self.put(id, Packet::save(r), proof, unread);
+        self.pack_cpu += crate::thread_cpu() - start;
+        self.packets_packed += 1;
+        self.packed_rows += r.rows.len();
+        Some(k)
     }
     pub(super) fn decline(&mut self, id: Key, reason: &str) {
         self.put(id, Packet::declined(reason), vec![], vec![]);
