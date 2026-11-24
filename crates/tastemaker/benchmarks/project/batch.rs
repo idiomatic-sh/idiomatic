@@ -360,7 +360,7 @@ impl Batch {
         // completeness and file-valued cells in the requesting scope.
         for table in &mut hosted {
             if let Some(rows) = self.host_rows.get(&table.rows) {
-                table.rows = Rc::clone(rows);
+                table.rows = std::sync::Arc::clone(rows);
             } else {
                 self.host_rows.insert(std::sync::Arc::clone(&table.rows));
             }
