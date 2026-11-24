@@ -129,6 +129,7 @@ pub(crate) struct Clock {
     pub project: f64,
     pub assemble: f64,
     pub project_wall: f64,
+    pub project_workers_cpu: f64,
     pub delivery_workers_cpu: f64,
     pub file_workers_cpu: f64,
     pub file_shards: usize,

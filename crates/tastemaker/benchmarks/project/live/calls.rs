@@ -179,7 +179,7 @@ impl Live {
             *last.reasons.entry(reason.clone()).or_default() += 1;
         }
         last.elapsed += thread_cpu() - t;
-        last.worker_cpu = c.delivery_workers_cpu + c.file_workers_cpu;
+        last.worker_cpu = c.delivery_workers_cpu + c.file_workers_cpu + c.project_workers_cpu;
         last.file_shards = c.file_shards;
         last.call_wall += wall.elapsed().as_secs_f64();
         last.phase_wall = [
@@ -193,7 +193,7 @@ impl Live {
             c.read_parse,
             c.screen,
             c.evaluate,
-            c.project,
+            c.project + c.project_workers_cpu,
             c.assemble + c.delivery_workers_cpu,
         ];
         last.retained = self.state.retention.counts();

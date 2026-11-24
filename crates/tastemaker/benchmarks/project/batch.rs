@@ -599,12 +599,24 @@ impl Batch {
                 _ => None,
             })
             .collect();
+        let prepare = |id: usize| {
+            let s = &self.projects[id];
+            let contributions = s.slots.iter().map(|&slot| {
+                contributions[slot].as_deref().ok_or_else(|| {
+                    format!("missing project input {}", self.schedule.sources[slot].path)
+                })
+            }).collect::<Result<Vec<_>, _>>()?;
+            Ok(project::ProjectInput {
+                authority: &s.authority,
+                inventory: &s.paths,
+                contributions,
+                wanted: s.wanted.iter().copied().collect(),
+            })
+        };
+        let mut pending = Vec::new();
         for &id in &active {
             let s = &self.projects[id];
-            if populations
-                .get(&id)
-                .is_some_and(|(wanted, _)| wanted == &s.wanted)
-            {
+            if populations.get(&id).is_some_and(|(wanted, _)| wanted == &s.wanted) {
                 continue;
             }
             self.populations_built += 1;
@@ -612,27 +624,50 @@ impl Batch {
             if let Some((prior, _)) = populations.get(&id) {
                 self.relations_rebuilt += s.wanted.intersection(prior).count();
             }
-            let population = (|| {
-                let sources = s
-                    .slots
-                    .iter()
-                    .map(|&slot| {
-                        contributions[slot].clone().ok_or_else(|| {
-                            format!("missing project input {}", self.schedule.sources[slot].path)
-                        })
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-                project::collect(
-                    world,
-                    languages,
-                    &s.authority,
-                    &s.paths,
-                    &sources,
-                    &s.wanted.iter().copied().collect::<Vec<_>>(),
-                )
-            })();
-            populations.insert(id, (s.wanted.clone(), population));
+            pending.push((id, prepare(id)));
         }
+        let project_workers = self.workers.map_or(1, std::num::NonZeroUsize::get)
+            .min(pending.len().div_ceil(8));
+        let mut publish = |(id, input): &(usize, Result<project::ProjectInput<'_>, String>), packet| {
+            let population = input.as_ref().map_err(Clone::clone)
+                .and_then(|input| input.publish(world, packet?));
+            populations.insert(*id, (self.projects[*id].wanted.clone(), population));
+        };
+        let load = |(_, input): &(usize, Result<project::ProjectInput<'_>, String>)| {
+            input.as_ref().map_err(Clone::clone).and_then(|input| input.read(languages))
+        };
+        if project_workers > 1 {
+            let other = std::thread::scope(|scope| {
+                let mut channels = Vec::with_capacity(project_workers - 1);
+                for shard in 1..project_workers {
+                    let (send, recv) = std::sync::mpsc::sync_channel(1);
+                    let pending = &pending;
+                    let load = &load;
+                    let handle = scope.spawn(move || {
+                        let start = thread_cpu();
+                        for input in pending.iter().skip(shard).step_by(project_workers) {
+                            if send.send(load(input)).is_err() { break; }
+                        }
+                        thread_cpu() - start
+                    });
+                    channels.push((recv, handle));
+                }
+                for (i, input) in pending.iter().enumerate() {
+                    let shard = i % project_workers;
+                    let packet = if shard == 0 { load(input) } else {
+                        channels[shard - 1].0.recv().expect("population packet")
+                    };
+                    publish(input, packet);
+                }
+                channels.into_iter().map(|(_, handle)| handle.join().expect("population worker panicked")).sum::<f64>()
+            });
+            self.clocks.project_workers_cpu += other;
+        } else {
+            for input in &pending {
+                publish(input, load(input));
+            }
+        }
+        drop(pending);
         if !keep {
             *contributions=Vec::new();
         }
