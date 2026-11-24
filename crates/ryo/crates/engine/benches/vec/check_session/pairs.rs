@@ -76,7 +76,7 @@ impl Checks {
                 *step = indices[&(program_of[binding], *step)];
             }
         }
-        let mut language = crate::declaration();
+        let mut language = super::reader_declaration(parser);
         language.fact_family = reader_run::fact_family;
         let mut supplied = Vec::new();
         for name in bases {

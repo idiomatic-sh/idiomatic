@@ -28,6 +28,7 @@ strum.workspace = true
 oxc_allocator = "=0.142.0"
 oxc_ast = "=0.142.0"
 oxc_ast_visit = "=0.142.0"
+oxc_syntax = "=0.142.0"
 oxc_parser = "=0.142.0"
 oxc_span = "=0.142.0"
 oxc_semantic = { version = "=0.142.0", features = ["cfg"] }
@@ -52,7 +53,6 @@ rustc-hash = "2"
 regex = "1"
 cpu-time = "1"
 unicode-width = "=0.2.2"
-oxc_syntax = "=0.142.0"
 tikv-jemallocator.workspace = true
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
 dhat.workspace = true

@@ -113,12 +113,7 @@ pub const FILE_SET_FACTS: &[&str] = &[
     "binding-use", "binding-shadow", "binding-resolution",
 ];
 
-/// How a column's literal is spelled in the source as a word: whole, or its last segment after a separator.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Spelling {
-    Whole,
-    LastSegment(char),
-}
+pub use ryo::languages::Spelling;
 
 /// The (relation, column) pairs whose text is spelled in the file as a name: a reference to `a.b.c` spells `c` (or imports
 /// it under an alias by a statement that spells `c`); an identifier's and a definition's name are spelled whole.

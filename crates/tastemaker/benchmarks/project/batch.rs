@@ -10,7 +10,7 @@ use crate::check_session::{query::Query, report_slots::ReportSlots};
 use crate::check_session::project::{self, Authority, Population};
 use crate::{
     check_session::{self as session, Answer, Clock, Program},
-    declaration, thread_cpu,
+    thread_cpu,
 };
 use ryo::languages as l;
 use ryo::{
@@ -239,7 +239,7 @@ impl Batch {
                 let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
                 ctx.parameters
                     .insert("query".into(), parameters.clone());
-                Program::prepare("query", &query, ctx, &declaration(), Some("/"), modules)
+                Program::prepare("query", &query, ctx, Some("/"), modules)
             });
         self.clocks.prepare += thread_cpu() - t;
         rule

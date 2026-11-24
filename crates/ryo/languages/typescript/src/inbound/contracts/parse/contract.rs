@@ -135,6 +135,10 @@ impl Parse for ParseContract {
         Count(kinds().count())
     }
 
+    fn source_words(&self) -> Option<ryo::languages::SourceWords> {
+        Some(ryo::languages::SourceWords { identifier: oxc_syntax::identifier::is_identifier_name, columns: &[] })
+    }
+
     fn stable_fields(&self) -> languages::FieldNames {
         use crate::domain::fields::service::{field_name, fields};
         languages::FieldNames(fields().map(field_name).collect())

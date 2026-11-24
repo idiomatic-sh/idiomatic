@@ -91,6 +91,10 @@ impl ParseUseCase for ParseUseCaseImpl {
 
 /// Every `ParseUseCase` is a `ParseEngine`: the engine reads it through the use case's own drive.
 impl<P: ParseUseCase> ParseEngine for P {
+    fn source_words(&self) -> Option<super::named::SourceWords> {
+        ParseUseCase::source_words(self)
+    }
+
     fn file_relations(&self) -> Option<&dyn super::named::FileRelations> {
         ParseUseCase::file_relations(self)
     }

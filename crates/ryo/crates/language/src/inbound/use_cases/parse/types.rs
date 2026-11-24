@@ -143,6 +143,9 @@ pub struct KindNames(pub Vec<ryo_relations::domain::terms::types::NameText<'stat
 /// What the engine asks of a language: the same reading as `ParseUseCase`, behind an interface alone and with what the language works
 /// out of each file kept inside the call, so that languages of different models are held side by side. Every `ParseUseCase` is one.
 pub trait ParseEngine: Send + Sync {
+    /// Necessary spelling guarantees for this implementation's syntax and fact columns.
+    fn source_words(&self) -> Option<super::named::SourceWords> { None }
+
     /// Provider-owned file relations beyond the shared catalog.
     fn file_relations(&self) -> Option<&dyn super::named::FileRelations> { None }
 

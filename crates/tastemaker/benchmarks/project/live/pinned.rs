@@ -211,6 +211,7 @@ impl Default for File {
 }
 
 impl Source for Pinned {
+    fn source_words(&self) -> Option<l::SourceWords> { self.native.as_ref().and_then(Source::source_words) }
     fn uses_project(&self) -> bool { self.native.as_ref().is_some_and(Source::uses_project) }
     fn begin_render(&self, request: l::ParseRequest<'_>, file: &mut File) -> l::SemanticSlot {
         match (&self.native, file) {

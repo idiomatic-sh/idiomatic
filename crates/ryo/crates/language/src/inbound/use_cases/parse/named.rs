@@ -5,6 +5,24 @@ use crate::domain::{
 };
 use ryo_relations::domain::relations::types::{CellKind, FactColumn};
 
+/// Which part of a column value must occur as a source word.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Spelling {
+    /// The complete value.
+    Whole,
+    /// Its suffix after the last separator.
+    LastSegment(char),
+}
+
+/// Necessary lexical conditions for complete projected syntax words.
+#[derive(Clone, Copy)]
+pub struct SourceWords {
+    /// Whether a literal is a single identifier in this language.
+    pub identifier: fn(&str) -> bool,
+    /// Relations whose named column guarantees a spelled word.
+    pub columns: &'static [(&'static str, &'static str, Spelling)],
+}
+
 /// Ordered public schema. Cells use the same file, node, span and symbol identities as
 /// the provider's other file-scoped answers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

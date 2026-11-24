@@ -64,7 +64,21 @@ pub(crate) struct Program {
     pub bases: Vec<String>,
     base_steps: Vec<(usize, Option<l::Relation>)>,
     renders: bool,
-    requirements: (bool, Vec<Vec<String>>, Vec<Vec<String>>),
+}
+
+fn reader_declaration<L: FileSource>(parser: Option<&L>) -> first::Language {
+    let mut language = crate::declaration();
+    if let Some(words) = parser.and_then(FileSource::source_words) {
+        language.is_identifier = words.identifier;
+        language.spelled.extend(words.columns.iter().map(|&(relation, column, spelling)| {
+            let separator = match spelling {
+                l::Spelling::Whole => None,
+                l::Spelling::LastSegment(c) => Some(c),
+            };
+            (relation.to_owned(), column.to_owned(), separator)
+        }));
+    }
+    language
 }
 
 impl Program {
@@ -72,16 +86,12 @@ impl Program {
         alias: &str,
         query: &Query,
         context: ryo_engine::domain::plan_lowering::types::RuleContext,
-        declaration: &first::Language,
         capture_separator: Option<&str>,
         modules: ryo_values::domain::program::types::ParsedModules,
     ) -> Result<Self> {
         let (plan, pack) = lower::query_parts(alias, &query.text, context, true, capture_separator, modules, &query.observations)?;
         let typed = pack.typed.take().expect("prepared query");
-        let requirements = reader_run::file_requirements(&typed, declaration)
-            .pop()
-            .ok_or("missing query emit")?
-            .1;
+        if typed.rules.is_empty() { return Err("missing query emit".into()); }
         let (bases, base_steps) = plan.nodes.iter().enumerate().filter_map(|(offset, step)| {
             step.base().map(|name| {
                 (name.to_owned(), (offset, relations::service::relation_named(NameRef(name))))
@@ -94,7 +104,6 @@ impl Program {
             plan,
             accepted_only: query.accepted_only,
             typed,
-            requirements,
             bases,
             base_steps,
         })
@@ -754,6 +763,7 @@ pub(crate) fn visit<L: FileSource>(
     if keep && bulk_screen {
         clocks.bulk_screen_files += selected.len();
     }
+    let language = reader_declaration(parser);
     let mut local_requirements = HashMap::new();
     let mut local_ids = HashMap::new();
     let (reader_requirements, requirement_ids) = if keep {
@@ -787,7 +797,9 @@ pub(crate) fn visit<L: FileSource>(
             let requirements = reader_requirements.entry(program_id)
                 .or_insert_with(|| {
                     clocks.requirement_programs += 1;
-                    let requirements = Rc::new(BoundRequirements::bind(&program.requirements, |word| run.sym(word)));
+                    let (_, clauses) = reader_run::file_requirements(&program.typed, &language)
+                        .pop().expect("prepared program has an emit");
+                    let requirements = Rc::new(BoundRequirements::bind(&clauses, |word| run.sym(word)));
                     if let Some((known, &id)) = requirement_ids.get_key_value(&requirements) {
                         return (known.clone(), id);
                     }

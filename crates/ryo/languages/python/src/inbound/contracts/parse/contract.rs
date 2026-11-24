@@ -61,6 +61,11 @@ impl Parse for ParseContract {
         Some(self)
     }
 
+    #[cfg(feature = "fixtures")]
+    fn source_words(&self) -> Option<ryo::languages::SourceWords> {
+        Some(ryo::languages::SourceWords { identifier: crate::fixtures::columns::is_identifier, columns: &crate::fixtures::columns::SPELLED_COLUMNS })
+    }
+
     type FileModel = Declarations;
 
     fn begin_semantics(

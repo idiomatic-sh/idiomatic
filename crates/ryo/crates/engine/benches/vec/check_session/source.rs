@@ -10,6 +10,7 @@ pub(crate) use ryo_language::inbound::use_cases::parse::named::FileRelation;
 pub(crate) type Columns = Vec<ryo_relations::domain::relations::types::FactColumn>;
 
 pub(crate) trait Source: Clone + Sync {
+    fn source_words(&self) -> Option<l::SourceWords> { None }
     fn uses_project(&self) -> bool { false }
     fn declarations(&self) -> &'static [FileRelation] { &[] }
     fn named_rows(&self, relations: &[&FileRelation], _: l::ParseRequest<'_>, _: &Self::File, _: &l::NodeTable, _: &mut Self::Dictionary, _: Option<&dyn l::FileProject>) -> Vec<Result<Columns>> {
@@ -92,6 +93,7 @@ impl From<l::Language> for Linked {
     }
 }
 impl Source for Linked {
+    fn source_words(&self) -> Option<l::SourceWords> { self.parser.source_words() }
     fn uses_project(&self) -> bool { self.parser.file_relations().is_some_and(|p| p.uses_project()) }
     fn begin_render(&self, request: l::ParseRequest<'_>, file: &mut Self::File) -> l::SemanticSlot {
         let mut slot = ryo_language::domain::elements::service::take_semantics(file);

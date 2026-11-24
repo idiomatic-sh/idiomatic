@@ -32,6 +32,9 @@ macro_rules! syntax_methods {
 
 /// What a language offers for its files.
 pub trait ParseUseCase: Send + Sync {
+    /// Necessary spelling guarantees for this implementation's syntax and fact columns.
+    fn source_words(&self) -> Option<super::named::SourceWords> { None }
+
     /// Provider-owned file relations beyond the shared catalog.
     fn file_relations(&self) -> Option<&dyn super::named::FileRelations> { None }
 

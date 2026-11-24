@@ -115,6 +115,10 @@ impl Parse for ParseContract {
         languages::Count(kinds().count())
     }
 
+    fn source_words(&self) -> Option<ryo::languages::SourceWords> {
+        Some(ryo::languages::SourceWords { identifier: |word| ra_ap_syntax::utils::is_identifier(word, ra_ap_parser::Edition::CURRENT), columns: &[] })
+    }
+
     fn stable_fields(&self) -> languages::FieldNames {
         languages::FieldNames(fields().map(field_name).collect())
     }
