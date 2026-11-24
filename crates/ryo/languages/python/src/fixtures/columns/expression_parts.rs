@@ -1,7 +1,7 @@
 //! Syntactic operands at calls and binary expressions.
 use super::{ColumnFile, Kind, Node, Numbered};
 use crate::domain::node::service::{id_of, place_of_id, table_id};
-use crate::domain::syntax::service::kind_bits;
+use crate::domain::syntax::service::{kind_bits, kind_name, kind_of};
 use ruff_python_ast::{AnyNodeRef, Expr, Operator};
 use ryo::languages::{Position, node_table};
 
@@ -442,7 +442,7 @@ impl ColumnFile<'_, '_> {
 
     /// The next token in the same lexical stream after skipping comments and nonterminating newlines.
     pub fn next_code_token(&self, id: Position) -> Option<Position> {
-        use crate::domain::{syntax::service::kind_of, tokens::types::Token};
+        use crate::domain::tokens::types::Token;
         for at in id.0 + 1..node_table::own_end(self.table).0 {
             let position = Position(at);
             match kind_of(node_table::kind_of(self.table, position)) {
@@ -456,7 +456,7 @@ impl ColumnFile<'_, '_> {
 
     /// Consecutive opening delimiter tokens can have comments and nonterminating newlines between them.
     pub fn visit_nested_delimiters(&self, mut visit: impl FnMut(Position, Position)) {
-        use crate::domain::{syntax::service::kind_of, tokens::types::Token};
+        use crate::domain::tokens::types::Token;
         let end = node_table::own_end(self.table).0;
         for opener in [Token::Lpar, Token::Lsqb, Token::Lbrace] {
             for &id in node_table::ids_of_kind(self.table, kind_bits(Kind::Token(opener))) {
@@ -474,7 +474,6 @@ impl ColumnFile<'_, '_> {
     }
 }
 
-use crate::domain::syntax::service::{kind_name, kind_of};
 use ryo::languages::{self as l, CellKind, FileRelation};
 
 const CALL_SITE: &str = "call-site";
@@ -683,7 +682,7 @@ impl ColumnFile<'_, '_> {
         {
             return Err(format!("incomplete {}", schema.name));
         }
-        let mut columns = vec![l::FactColumn::default(); schema.columns.len()];
+        let mut columns = vec![Vec::new(); schema.columns.len()];
         self.visit_expression_relation(
             schema.name,
             src,
@@ -693,16 +692,13 @@ impl ColumnFile<'_, '_> {
                 l::intern_derived(symbols, l::ByteSlice(src), l::NameText(text)).0
             },
             |row| {
-                for ((out, (_, kind)), &cell) in columns.iter_mut().zip(schema.columns).zip(row) {
-                    out.0.push(if *kind == CellKind::Node && cell != u64::MAX {
-                        (u64::from(file.0) << 32) | cell
-                    } else {
-                        cell
-                    });
+                debug_assert_eq!(columns.len(), row.len());
+                for (out, &cell) in columns.iter_mut().zip(row) {
+                    out.push(cell);
                 }
             },
         )?;
-        Ok(columns)
+        Ok(super::resolution::qualify_cells(schema, file, columns))
     }
 
     /// Write expression rows in language order using local node positions.
@@ -773,8 +769,8 @@ impl ColumnFile<'_, '_> {
             }
         } else if relation == EXPR_STATEMENTS {
             self.visit_expression_statements(|statement, value| {
-                let kind = ryo::languages::node_table::kind_of(self.table, value);
-                let span = ryo::languages::node_table::span_of(self.table, value);
+                let kind = node_table::kind_of(self.table, value);
+                let span = node_table::span_of(self.table, value);
                 write(&[
                     statement.0.into(),
                     value.0.into(),
@@ -785,7 +781,7 @@ impl ColumnFile<'_, '_> {
             });
         } else if relation == WITH_HEADER {
             self.visit_with_headers(|id, colon| {
-                let s = ryo::languages::node_table::span_of(self.table, colon);
+                let s = node_table::span_of(self.table, colon);
                 write(&[
                     id.0.into(),
                     colon.0.into(),
@@ -812,7 +808,7 @@ impl ColumnFile<'_, '_> {
             }
         } else if relation == DICT_KEYS {
             self.visit_dictionary_keys(|dict, key, count| {
-                let begin = ryo::languages::node_table::span_of(self.table, key).start.0;
+                let begin = node_table::span_of(self.table, key).start.0;
                 write(&[
                     dict.0.into(),
                     key.0.into(),
@@ -880,8 +876,7 @@ impl ColumnFile<'_, '_> {
                                 let _ = slot.comma.get_or_insert(position);
                                 slot.commas += 1;
                             } else if token_kind == name_kind {
-                                let span =
-                                    ryo::languages::node_table::span_of(self.table, position);
+                                let span = node_table::span_of(self.table, position);
                                 if source.get(span.start.0 as usize..span.end.0 as usize)
                                     == Some(b"yield")
                                 {

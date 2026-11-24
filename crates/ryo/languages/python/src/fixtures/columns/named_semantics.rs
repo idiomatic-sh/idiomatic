@@ -258,7 +258,7 @@ impl Semantics<'_, '_, '_> {
     {
         if !self.inputs.contains_key(name) {
             let table = InputTable::read::<R>(self.file, &mut self.words.words, projection)?;
-            self.inputs.insert(name, table);
+            let _ = self.inputs.insert(name, table);
         }
         Ok(())
     }
