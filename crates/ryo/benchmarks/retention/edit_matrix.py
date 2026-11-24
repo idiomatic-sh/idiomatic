@@ -166,7 +166,7 @@ def run(spec, evidence):
             restore_store(None)
             invoke("retained", base, spec["exe"], "seed")
             seed = snap()
-            for scenario in ("unchanged","edit","finding-edit","same-stamp","add","delete","manifest-settings","rule-pack","build","refused","refused-reverse","refused-input","truncated"):
+            for scenario in ("unchanged","edit","finding-edit","same-stamp","add","delete","manifest-settings","rule-pack","build","refused","refused-reverse","refused-edit","refused-input","truncated"):
                 reset()
                 restore_store(seed)
                 exe = spec["exe"]
@@ -196,11 +196,17 @@ def run(spec, evidence):
                     program.write_bytes(rule+b"\n")
                 elif scenario == "build":
                     exe = spec["other_build"]
-                elif scenario in ("refused", "refused-reverse", "refused-input"):
+                elif scenario in ("refused", "refused-reverse", "refused-edit", "refused-input"):
                     program.write_text(spec["refused_query"])
                     refusing = invoke("retained", j, exe, "refusing-seed")
                     if scenario == "refused-reverse":
                         j["files"].reverse()
+                    elif scenario == "refused-edit":
+                        # Keep the refusing plan fixed and change the effective bytes of its first input.
+                        first = root / j["files"][0]
+                        first_bytes = first.read_bytes()
+                        first_stamp = first.stat()
+                        first.write_bytes(first_bytes + spec["comment"].encode())
                     elif scenario == "refused-input":
                         # Change the provider relation the previously refusing emit requests.
                         program.write_bytes(rule)
@@ -243,12 +249,18 @@ def run(spec, evidence):
                     if scenario == "refused-reverse" and spec.get("lang") == "python" and rows:
                         if hits["trial"] != rows:
                             errors.append("reverse traversal did not replay stable outcomes")
+                    if scenario == "refused-edit" and spec.get("lang") == "python" and rows:
+                        if hits["trial"] != rows - 1 or not cold[2]:
+                            errors.append("changed refusing input must miss once and retain the diagnostic")
                     if scenario == "unchanged" and cold[0] == 0 and j["files"]:
                         if not rows or not hits["trial"]:
                             errors.append("no completed file reused on an unchanged successful corpus")
                 except (ValueError, AssertionError) as failure:
                     rows = -1
                     errors.append(repr(failure))
+                if scenario == "refused-edit":
+                    first.write_bytes(first_bytes)
+                    os.utime(first, ns=(first_stamp.st_atime_ns, first_stamp.st_mtime_ns))
                 passed &= not errors
                 with (evidence / "matrix.tsv").open("a") as log:
                     writer=csv.writer(log,delimiter="\t",lineterminator="\n")
