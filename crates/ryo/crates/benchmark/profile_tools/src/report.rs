@@ -76,6 +76,11 @@ pub fn report(output: &mut impl io::Write, profile: &Profile, directory: &Path) 
             if path.starts_with("samples/") {
                 samples(output, &text)?;
             } else {
+                writeln!(
+                    output,
+                    "Total executed instructions: {}.\n",
+                    instructions(directory)?
+                )?;
                 functions(output, &text)?;
             }
             writeln!(output, "\nFull tool report: `{}`.", report.display())?;
