@@ -399,7 +399,7 @@ impl Store {
         );
         eprintln!("rendered_packets={}", self.rendered_packets);
         eprintln!(
-            "block_table blocks_read={} blocks_written={} blocks_read_cpu={:.6} empty_schemas={}",
+            "block_table read={} written={} read_cpu={:.6} empty_schemas={}",
             self.blocks.read_bytes,
             self.blocks.write_bytes,
             self.blocks.read_cpu,

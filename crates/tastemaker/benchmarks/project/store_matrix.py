@@ -271,6 +271,8 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
             counters.clear()
             counters.update((k.decode(), int(v)) for k, v in
                             re.findall(rb"(request_hits|pair_hits|closed_hits|evaluated_pairs|evaluated_closed|pairs_read|project_read|blocks_read|missing_local_bindings|missing_frontier_bindings|written)=(\d+)", p.stderr))
+            blocks = re.search(rb"block_table read=(\d+)", p.stderr)
+            counters["blocks_read"] = int(blocks[1]) if blocks else 0
             reads=re.search(rb"\breads=(\d+) parses=(\d+)",p.stdout)
             counters["reads"],counters["parses"]=map(int,reads.groups())
             assert "written" in counters, "retained run did not report its publication"
