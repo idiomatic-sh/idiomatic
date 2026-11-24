@@ -6,6 +6,7 @@ use std::sync::Arc;
 const UNBOUND: u32 = u32::MAX;
 
 pub(crate) struct Shapes {
+    leaves: Vec<Option<Box<[super::emptyprop::Leaf]>>>,
     slots: Vec<u32>,
     selects: Vec<Option<Box<SelPlan>>>,
     kernels: Vec<Option<Box<super::select_kernel::Prep>>>,
@@ -13,12 +14,12 @@ pub(crate) struct Shapes {
 }
 
 /// A visit can keep its bound select while it mutates other executor slots.
-pub(super) enum Binding<'p, T> {
+pub(super) enum Binding<'p, T: ?Sized> {
     Prepared(&'p T),
     Local(Rc<T>),
 }
 
-impl<T> Clone for Binding<'_, T> {
+impl<T: ?Sized> Clone for Binding<'_, T> {
     fn clone(&self) -> Self {
         match self {
             Self::Prepared(value) => Self::Prepared(value),
@@ -29,7 +30,7 @@ impl<T> Clone for Binding<'_, T> {
 
 pub(super) type Selection<'p> = Binding<'p, SelPlan>;
 
-impl<T> std::ops::Deref for Binding<'_, T> {
+impl<T: ?Sized> std::ops::Deref for Binding<'_, T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         match self {
@@ -56,6 +57,7 @@ impl E {
 impl Shapes {
     pub(crate) fn attach<'w>(self: &'w Arc<Self>, exec: &mut Exec<'w>) {
         exec.worker_shapes = Some(Local::new(self.clone()));
+        exec.shared_leaves = &self.leaves;
         exec.shared_sels = &self.selects;
         exec.shared_kernels = &self.kernels;
     }
@@ -155,6 +157,7 @@ impl Exec<'_> {
             self.ksel_make(run, node).ok().map(Box::new)
         }).collect();
         Arc::new(Shapes {
+            leaves: self.leaves.for_workers(),
             kernels,
             slots,
             unique,
