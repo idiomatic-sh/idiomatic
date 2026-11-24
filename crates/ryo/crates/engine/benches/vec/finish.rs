@@ -57,7 +57,7 @@ pub(super) use file_version::FileVersion;
 #[path = "finish/answer.rs"]
 pub(super) mod answer;
 #[path = "finish/recycle.rs"]
-pub(super) mod recycle;
+mod recycle;
 #[path = "finish/inline_key.rs"]
 mod inline_key;
 #[path = "finish/col/mod.rs"]

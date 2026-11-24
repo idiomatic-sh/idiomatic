@@ -155,7 +155,7 @@ impl finish::Provider for View<'_, '_> {
         ))
     }
     fn answer(&mut self, run: &mut finish::Run, asks: &[finish::request::Asked<'_>], replies: &mut Vec<finish::request::Reply>) {
-        replies.extend(asks.iter().map(|ask| self.table(run, ask.relation, ask.scope, ask.columns).map(finish::recycle::rc)));
+        replies.extend(asks.iter().map(|ask| self.table(run, ask.relation, ask.scope, ask.columns).map(std::rc::Rc::new)));
     }
 }
 
