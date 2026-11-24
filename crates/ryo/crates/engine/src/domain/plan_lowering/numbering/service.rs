@@ -11,6 +11,15 @@ use ryo_values::domain::finish_plans::types::FinishStep;
 /// and is compared as it is; only a step that holds one is copied into its identity.
 pub(crate) fn numbered(expansion: &mut Expansion<'_>, step: FinishStep) -> StepNumber {
     let Expansion { steps, numbers, hasher, .. } = expansion;
+    interned(steps, numbers, hasher, step)
+}
+
+pub(crate) fn interned(
+    steps: &mut Vec<FinishStep>,
+    numbers: &mut hashbrown::HashTable<(u64, StepNumber)>,
+    hasher: &hashbrown::DefaultHashBuilder,
+    step: FinishStep,
+) -> StepNumber {
     let mapped = holds_map(&step);
     let identity_form = mapped.then(|| identity(&step));
     let key = identity_form.as_ref().unwrap_or(&step);
