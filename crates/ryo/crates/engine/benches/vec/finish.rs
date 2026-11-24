@@ -402,7 +402,7 @@ impl Run {
         self.lower_symbols.insert(symbol, lower);
         lower
     }
-    fn text(&self, s: u32) -> &[u8] {
+    pub(crate) fn text(&self, s: u32) -> &[u8] {
         &self.texts[s as usize]
     }
     fn re(&mut self, p: &str) -> Result<Rc<Bound<regex::bytes::Regex>>, String> {
