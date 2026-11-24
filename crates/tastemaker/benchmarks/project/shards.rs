@@ -12,6 +12,7 @@ pub(super) type Index = BTreeMap<u8, Key>;
 pub(super) struct Shards<T> {
     name: &'static str,
     pub read_bytes: usize,
+    pub read_cpu: f64,
     pub write_bytes: usize,
     pub index: Index,
     opened: BTreeMap<u8, BTreeMap<Key, T>>,
@@ -22,6 +23,7 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
         Self {
             name,
             read_bytes: 0,
+            read_cpu: 0.0,
             write_bytes: 0,
             index,
             opened: BTreeMap::new(),
@@ -32,7 +34,10 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
         self.opened.entry(key[0]).or_insert_with(|| {
             if let Some(d) = self.index.get(&key[0]).copied() {
                 let path = table(dir, self.name, d);
-                if let Some(rows) = load(&path, d) {
+                let start = crate::thread_cpu();
+                let rows = load(&path, d);
+                self.read_cpu += crate::thread_cpu() - start;
+                if let Some(rows) = rows {
                     self.read_bytes += fs::metadata(path).map_or(0, |m| m.len() as usize);
                     return rows;
                 }
@@ -107,6 +112,7 @@ pub(super) struct Records<T> {
     rows: BTreeMap<Key, T>,
     changed: BTreeSet<Key>,
     pub read_bytes: usize,
+    pub read_cpu: f64,
     pub write_bytes: usize,
 }
 impl<T: Serialize + DeserializeOwned + Default> Records<T> {
@@ -117,6 +123,7 @@ impl<T: Serialize + DeserializeOwned + Default> Records<T> {
             rows: BTreeMap::new(),
             changed: BTreeSet::new(),
             read_bytes: 0,
+            read_cpu: 0.0,
             write_bytes: 0,
         }
     }
@@ -145,6 +152,7 @@ impl<T: Serialize + DeserializeOwned + Default> Records<T> {
         if self.rows.contains_key(k) {
             return;
         }
+        let start = crate::thread_cpu();
         if let Some((f, entries, base)) = self.part(dir, k[0])
             && let Some((off, len, hash)) = entries.get(k)
         {
@@ -157,6 +165,7 @@ impl<T: Serialize + DeserializeOwned + Default> Records<T> {
                 self.rows.insert(*k, row);
             }
         }
+        self.read_cpu += crate::thread_cpu() - start;
     }
     pub fn get(&self, k: &Key) -> Option<&T> {
         self.rows.get(k)

@@ -81,6 +81,12 @@ pub(crate) struct Block {
 }
 
 impl Block {
+    pub(crate) fn constant(&self, column: usize) -> Option<u64> {
+        match self.columns[column] {
+            Words::Constant(value) => Some(value),
+            _ => None,
+        }
+    }
     pub(crate) fn words(&self,col:usize)->Vec<u64>{
         let mut out=Vec::with_capacity(self.n);
         self.columns[col].append(self.n,&mut out);

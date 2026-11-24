@@ -467,7 +467,9 @@ impl Batch {
         answers.resize_with(self.schedule.pairs, || Err(String::new()));
         contributions.resize_with(self.schedule.sources.len(), || None);
         if let Some(s)=store.as_deref_mut() {
+            let started = thread_cpu();
             s.admit(self,world,answers,contributions);
+            eprintln!("store_admit_cpu={:.6}", thread_cpu()-started);
             if !*keep {self.release_admission();}
         }
         let pending: Vec<_> = std::mem::take(&mut self.schedule.pending)
@@ -541,7 +543,11 @@ impl Batch {
                 }
             }
         }
-        if let Some(s)=store.as_deref_mut() {s.local(self,world,answers,aliases,contributions);}
+        if let Some(s)=store.as_deref_mut() {
+            let started = thread_cpu();
+            s.local(self,world,answers,aliases,contributions);
+            eprintln!("store_local_cpu={:.6}", thread_cpu()-started);
+        }
         if !*keep {
             reader_states.clear();
         }
@@ -744,7 +750,7 @@ impl Batch {
                 exec.release_request();
                 if let Some(s)=store.as_deref_mut() {
                     let pop=project.and_then(|id| populations[&id].1.as_ref().ok());
-                    s.closed(i,&answer,pop,project.map(|id| &self.projects[id].authority));
+                    s.closed(i,&answer,pop,project.map(|id| (id, &self.projects[id].authority)));
                 }
                 if let Some(finished)=readers.release(i,pairs,*project,world) {
                     populations.remove(&finished);
@@ -976,7 +982,8 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     }else{session.run_sources(readers)};
     let t=thread_cpu();
     let mut out=std::io::BufWriter::new(std::fs::File::create(output).unwrap());
-    let results:Vec<Result<(String,Vec<(String,String)>),String>>=entries.into_iter().chain(
+    enum Output { Packet(stored::Key), Computed(String, Vec<(String,String)>) }
+    let results:Vec<Result<Output,String>>=entries.into_iter().chain(
         (0..if store.is_none() { session.work.len() } else { 0 }).map(|i| Entry::Evaluate(i,None))
     ).map(|entry|{
         let packet=match entry {
@@ -988,12 +995,10 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
                 }
                 let r=Batch::answer(&session.work[i],&answers).map_err(str::to_owned)?;
                 if let (Some(s),Some(k))=(&mut store,id) && let Some(k)=s.save(k,i,&r){k}
-                else{return Ok((digest(&r.rows),r.unknowns.into_iter().cloned().collect()))}
+                else{return Ok(Output::Computed(digest(&r.rows),r.unknowns.into_iter().cloned().collect()))}
             }
         };
-        let p=store.as_ref().unwrap().packet(&packet);
-        if let Some(reason)=&p.refusal{return Err(reason.clone())}
-        Ok((p.digest.clone(),p.unknowns.clone()))
+        Ok(Output::Packet(packet))
     }).collect();
     if let Some(s)=&mut store{
         let pub_start=thread_cpu();
@@ -1003,7 +1008,18 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     }
     let mut refusals = BTreeMap::new();
     for (i, id, expected) in invocations {
-        match &results[i] {
+        let receipt = match &results[i] {
+            Ok(Output::Packet(k)) => {
+                let packet = store.as_ref().unwrap().packet(k);
+                match &packet.refusal {
+                    Some(reason) => Err(reason),
+                    None => Ok((&packet.digest, &packet.unknowns)),
+                }
+            }
+            Ok(Output::Computed(d, u)) => Ok((d, u)),
+            Err(reason) => Err(reason),
+        };
+        match receipt {
             Ok((d, unknowns)) => {
                 let status = if d.as_str() == expected.as_ref() && unknowns.is_empty() {
                     "exact"
