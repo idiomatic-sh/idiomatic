@@ -52,11 +52,21 @@ pub(super) fn measure_corpus(
         corpus.bench,
         &selected,
     )?;
+    let profile = crate::application::corpus_profile::active(corpus.cache)?;
     let mut costs = Vec::new();
     let mut failures = Vec::new();
-    for project in &corpus.projects {
-        match measure_project(boundaries, corpus, project, &selected, observations) {
-            Ok(cost) => costs.push(cost),
+    for (index, project) in corpus.projects.iter().enumerate() {
+        let profiling = profile.as_ref().map(|profile| (profile, index));
+        match measure_project(
+            boundaries,
+            corpus,
+            project,
+            &selected,
+            profiling,
+            observations,
+        ) {
+            Ok(Some(cost)) => costs.push(cost),
+            Ok(None) => {}
             Err(error) => {
                 writeln!(
                     observations,
@@ -71,6 +81,9 @@ pub(super) fn measure_corpus(
         return Err(Error::Invalid(format!(
             "corpus comparisons failed: {failures:?}"
         )));
+    }
+    if let Some(profile) = profile {
+        return profile.finish();
     }
     let evidence = boundaries.evidence;
     evidence.costs(corpus.language.id, &ProjectCosts(costs))?;
@@ -126,8 +139,9 @@ fn measure_project(
     corpus: &CorpusMeasurement<'_>,
     project: &Project,
     selected: &[ryo::linter::RuleId],
+    profiling: Option<(&crate::application::corpus_profile::CorpusProfile, usize)>,
     observations: &mut dyn std::io::Write,
-) -> Result<ProjectCost, Error> {
+) -> Result<Option<ProjectCost>, Error> {
     let language = &corpus.language;
     let contestants = boundaries.contestants;
     let certified = Certification {
@@ -227,6 +241,35 @@ fn measure_project(
         contestants.suite.fingerprint(ArtifactSet(&paths))?,
         language.valid_profile.0
     )?;
+    if let Some((profile, index)) = profiling {
+        profile.project(index, &project.name.0, |state, trace| {
+            let mut candidate = request(
+                contestants.context,
+                &project_corpus,
+                workspace.root(),
+                &files,
+                &tracked_paths,
+                state.join("state"),
+            )?;
+            if trace.is_some() {
+                use ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On;
+                candidate.performance.diagnostics.execution = On;
+                candidate.performance.diagnostics.steps = On;
+            }
+            let mut invocation = contestants.candidate.prepare(&candidate)?;
+            if let Some(trace) = trace {
+                use ryo_benchmark_contracts::domain::requests::constants::DIAGNOSTIC_RYO;
+                let command = invocation
+                    .arguments
+                    .first_mut()
+                    .ok_or_else(|| Error::Invalid("candidate has no diagnostic command".into()))?;
+                *command = DIAGNOSTIC_RYO.into();
+                invocation.arguments.push(trace.as_os_str().to_owned());
+            }
+            Ok(invocation)
+        })?;
+        return Ok(None);
+    }
     let accepted_file = accepted_file(contestants.suite, corpus.bench, project)?;
     let mut runs: [Vec<Measurement>; 3] = Default::default();
     let mut store = None;
@@ -374,13 +417,13 @@ fn measure_project(
         }
     }
     let [cold, warm, edited] = runs;
-    Ok(ProjectCost {
+    Ok(Some(ProjectCost {
         project: project.name.clone(),
         cold: measurement_cost(&cold)?,
         warm: measurement_cost(&warm)?,
         edited: measurement_cost(&edited)?,
         store: store.unwrap_or(StoreSize::default()),
-    })
+    }))
 }
 
 /// Require two reports to agree in full, naming what was compared when they differ.

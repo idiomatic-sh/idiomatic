@@ -89,13 +89,6 @@ pub(super) fn worker(
     let frontend_diagnostic = frontend_diagnostic()?;
     let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
         match (tracing, trace_path) {
-            (WorkerTracing::Chrome, Some(path)) => Arc::new(
-                ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
-                    languages,
-                    Some(path.into()),
-                    frontend_diagnostic.clone(),
-                ),
-            ),
             (WorkerTracing::JsonLines, Some(path)) => Arc::new(
                 ryo_benchmark::outbound::engine::factory::local_with_diagnostic_events(
                     languages,

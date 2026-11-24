@@ -1711,6 +1711,18 @@ impl<'p> Exec<'p> {
     /// A node's answer in this file: its slot, else made once (`make`).
     #[inline]
     pub(super) fn res(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+        #[cfg(feature = "product-session")]
+        if let Some(start) = crate::operators::enter(node, 0) {
+            let fresh = f.memo[node].is_none() && self.run_memo[node].is_none();
+            let out = self.res_body(f, run, p, node);
+            crate::operators::leave(start, &self.plan.nodes[node].op, match &out { Ok(Res::Tab(t)) => t.n, _ => 0 }, fresh && matches!(&out, Ok(Res::Tab(_))));
+            return out;
+        }
+        self.res_body(f, run, p, node)
+    }
+
+    #[inline]
+    fn res_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         match &f.memo[node] {
             Some(Res::Tab(t)) => Ok(Res::Tab(t.clone())),
             Some(Res::View(v)) => {
@@ -1814,6 +1826,18 @@ impl<'p> Exec<'p> {
     /// reads that table through its index on `col` (made once a file). A view is read in place where its base has a
     /// keyed read for the column; a closure is read through its adjacency (`lazy`), not made whole.
     fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
+        #[cfg(feature = "product-session")]
+        if let Some(start) = crate::operators::enter(node, keys.len()) {
+            let fresh = true;
+            let out = self.probe_body(f, run, p, node, col, keys);
+            crate::operators::leave(start, &self.plan.nodes[node].op, out.as_ref().map_or(0, |t| t.n), fresh && out.is_ok());
+            return out;
+        }
+        self.probe_body(f, run, p, node, col, keys)
+    }
+
+    #[inline]
+    fn probe_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
         if let Some(input) = f.population(node) {
             let sc=self.schema(run,node)?;
             if input.can_probe(col) { return Ok(input.probe(&sc.names,&sc.tys,col,keys)); }
@@ -1895,6 +1919,18 @@ impl<'p> Exec<'p> {
 
     /// A node's rows as a table (a view is made whole here, once a file).
     pub(super) fn eval(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+        #[cfg(feature = "product-session")]
+        if let Some(start) = crate::operators::enter(node, 0) {
+            let fresh = !matches!(&f.memo[node], Some(Res::Tab(_))) && !f.vmat.contains_key(&node) && self.run_memo[node].is_none();
+            let out = self.eval_body(f, run, p, node);
+            crate::operators::leave(start, &self.plan.nodes[node].op, out.as_ref().map_or(0, |t| t.n), fresh && out.is_ok());
+            return out;
+        }
+        self.eval_body(f, run, p, node)
+    }
+
+    #[inline]
+    fn eval_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
         match self.res(f, run, p, node)? {
             Res::Tab(t) => Ok(t),
             Res::View(v) => {
@@ -3504,6 +3540,8 @@ fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize,
             if sw!("VEC_COLD_PHASE") { run.cold.phase(node, middle - before, cold_list::clock() - middle); }
         }).into()
     };
+    #[cfg(feature = "product-session")]
+    crate::operators::rows_in(entered);
     let rows = slot.resolve(f.table);
     if sw!("VEC_LEAF_PROFILE") {
         leaf_scan::row_list(node, materialize, entered, rows.len(), start);

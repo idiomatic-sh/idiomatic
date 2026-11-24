@@ -65,3 +65,8 @@ fn declaration() -> first::Language {
 mod project_bench;
 
 pub use project_bench::{check_options, configure_bench_check, HostPhase, Live, LiveOptions, LiveReport, host_snapshot, host_wall, capture, capture_then, capture_retained, capture_one, print_measurement};
+
+#[path = "../../../../ryo/crates/engine/benches/vec/operators.rs"]
+mod operators;
+
+pub use operators::configure as profile_operators;

@@ -40,7 +40,7 @@ impl From<BenchOperation> for crate::outbound::evidence::types::MeasureClass {
     fn from(operation: BenchOperation) -> Self {
         match operation {
             BenchOperation::Bench => Self::Deterministic,
-            BenchOperation::Timing => Self::Timing,
+            BenchOperation::Timing | BenchOperation::Profile => Self::Timing,
         }
     }
 }

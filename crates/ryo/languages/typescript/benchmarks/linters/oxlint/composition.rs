@@ -11,7 +11,7 @@ use ryo_benchmark::outbound::suite::types::ArtifactPath;
 use ryo_benchmark_contracts::domain::receipts::constants::VERIFY_CASES;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_benchmark_contracts::domain::requests::constants::{
-    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, PROFILE_RYO,
+    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID,
     RUN_RYO, VERIFY_REFERENCE_CASES, VERIFY_TOOL,
 };
 use std::{path::PathBuf, sync::Arc};
@@ -20,7 +20,6 @@ mod commands;
 pub(crate) mod constants;
 mod locations;
 mod measure;
-pub(crate) mod profile;
 /// Dispatch benchmark commands and retain the complete certification-to-observation timeline.
 pub(crate) fn run(
     arguments: Vec<BenchmarkArgument>,
@@ -32,7 +31,7 @@ pub(crate) fn run(
         Arc::new(ryo_benchmark::outbound::suite::factory::local());
     let command = args.next();
     match command.as_deref() {
-        Some(RUN_RYO | PROFILE_RYO | DIAGNOSTIC_RYO) => worker(
+        Some(RUN_RYO | DIAGNOSTIC_RYO) => worker(
             args.map(BenchmarkArgument),
             WorkerCommand(command.as_deref().unwrap_or_default())
                 .tracing()

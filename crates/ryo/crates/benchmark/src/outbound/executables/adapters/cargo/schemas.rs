@@ -9,11 +9,16 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 /// The build target directory of the workspace in the current directory.
-pub(super) fn target_directory(cargo: &OsStr) -> Result<PathBuf, Error> {
-    MetadataCommand::new()
+pub(super) fn target_directory(cargo: &OsStr, directory: Option<&Path>) -> Result<PathBuf, Error> {
+    let mut command = MetadataCommand::new();
+    command
         .cargo_path(cargo)
         .no_deps()
-        .other_options(vec![LOCKED.to_owned()])
+        .other_options(vec![LOCKED.to_owned()]);
+    if let Some(directory) = directory {
+        command.current_dir(directory);
+    }
+    command
         .exec()
         .map(|metadata| metadata.target_directory.into_std_path_buf())
         .map_err(|error| Error::Invalid(error.to_string()))

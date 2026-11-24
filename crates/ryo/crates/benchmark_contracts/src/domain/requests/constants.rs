@@ -18,8 +18,6 @@ pub const WORKER_SHA256: &str = "worker_sha256";
 pub const REQUEST_FILE: &str = "--request-file";
 /// The timed worker command of a linter's benchmark executable: no tracing.
 pub const RUN_RYO: &str = "run-ryo";
-/// The profiling worker command: a Chrome trace.
-pub const PROFILE_RYO: &str = "profile-ryo";
 /// The diagnostic worker command: flushed JSONL events.
 pub const DIAGNOSTIC_RYO: &str = "diagnostic-ryo";
 /// The accounted full-input measure command.

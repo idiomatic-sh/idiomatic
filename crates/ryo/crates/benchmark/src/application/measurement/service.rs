@@ -100,10 +100,12 @@ pub(crate) fn observe(
         RunOrder::ReferenceFirst => constants::REFERENCE_FIRST,
         RunOrder::CandidateFirst => constants::CANDIDATE_FIRST,
     };
+    let load = crate::outbound::profile_tools::standard::load()
+        .map_or_else(|| "unavailable".to_owned(), |load| format!("{load:.2}"));
     match measurement.resources {
         ResourceObservation::Collected(resources) => writeln!(
             output,
-            "sample: name={} order={order} wall_seconds={} cpu_seconds={} rss_bytes={}",
+            "sample: name={} order={order} wall_seconds={} cpu_seconds={} rss_bytes={} load_1m={load}",
             name.0,
             measurement.wall.as_secs_f64(),
             resources.cpu.as_secs_f64(),
@@ -111,10 +113,24 @@ pub(crate) fn observe(
         )?,
         ResourceObservation::WallOnly => writeln!(
             output,
-            "sample: name={} order={order} wall_seconds={} resources=absent",
+            "sample: name={} order={order} wall_seconds={} resources=absent load_1m={load}",
             name.0,
             measurement.wall.as_secs_f64()
         )?,
+    }
+    if let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+        coverage,
+    ) = measurement.report.coverage
+    {
+        writeln!(
+            output,
+            "pairs: name={} order={order} selected={} evaluated={} skipped={} unavailable={}",
+            name.0,
+            coverage.selected.0,
+            coverage.evaluated.0,
+            coverage.skipped.0,
+            coverage.unknown_or_unread.0,
+        )?;
     }
     Ok(())
 }

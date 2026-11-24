@@ -19,7 +19,7 @@
 //! The command returns verified identities and explicit errors; process differences count within documented discrepancies and never as raw full-report equality. Authoring adapters delegate to this command using a pinned validator executable. They do not match process failures themselves.
 //!
 //! For authoring tools that delegate process-receipt checks, set both `RYO_BENCHMARK_RECEIPT_VALIDATOR` to the absolute path of this collector and `RYO_BENCHMARK_RECEIPT_VALIDATOR_SHA256` to the independently recorded SHA256 of its bytes. Missing or incorrect configuration fails receipt validation and is retained in the shard error; it never falls back to local matching. A shard with no receipt is unfinished and is rerun on resume.
-use ryo_benchmark::domain::operations::types::BenchDirectory;
+use ryo_benchmark::domain::operations::types::{BenchDirectory, BenchOperation};
 use ryo_benchmark::{
     inbound::use_cases::{
         collect::{
@@ -79,23 +79,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(ryo_benchmark::domain::operations::types::OperationVerb)
         .and_then(ryo_benchmark::domain::operations::service::operation)
     {
-        let [_verb, bench] = arguments.as_slice() else {
-            return Err(operate_constants::USAGE.into());
+        let profiling = operation == BenchOperation::Profile;
+        let (bench, other) = match arguments.as_slice() {
+            [_verb, bench] => (bench, None),
+            [_verb, bench, other] if profiling => (bench, Some(other.into())),
+            _ => return Err(operate_constants::USAGE.into()),
         };
+        let executables = Arc::new(ryo_benchmark::outbound::executables::factory::cargo(
+            operate_constants::BUILD_TOOL.into(),
+            std::env::join_paths(
+                // ignore: idiomatic.arch/no-env-reads - the reference tool is the first of its name in the starting build tool's toolchain, then on the search path, the operating system's convention for finding a command
+                std::env::var_os(operate_constants::TOOLCHAIN_TOOL)
+                    .map(std::path::PathBuf::from)
+                    .and_then(|tool| tool.parent().map(std::path::Path::to_path_buf))
+                    .into_iter()
+                    .chain(std::env::split_paths(
+                        &std::env::var_os(operate_constants::SEARCH_PATH).unwrap_or_default(),
+                    )),
+            )?,
+        ));
+        let bench_path = std::path::Path::new(bench);
+        if profiling && ryo_benchmark::application::check_profile::registered(bench_path) {
+            let target = ryo_benchmark::outbound::executables::interface::ExecutablesPort::target(
+                executables.as_ref(),
+            )?;
+            ryo_benchmark::application::check_profile::profile(
+                bench_path,
+                &target,
+                other.as_deref(),
+                &mut std::io::stdout().lock(),
+                &mut std::io::stderr().lock(),
+            )?;
+            return Ok(());
+        }
         let operate = OperateUseCaseImpl::new(
-            Arc::new(ryo_benchmark::outbound::executables::factory::cargo(
-                operate_constants::BUILD_TOOL.into(),
-                std::env::join_paths(
-                    // ignore: idiomatic.arch/no-env-reads - the reference tool is the first of its name in the starting build tool's toolchain, then on the search path, the operating system's convention for finding a command
-                    std::env::var_os(operate_constants::TOOLCHAIN_TOOL)
-                        .map(std::path::PathBuf::from)
-                        .and_then(|tool| tool.parent().map(std::path::Path::to_path_buf))
-                        .into_iter()
-                        .chain(std::env::split_paths(
-                            &std::env::var_os(operate_constants::SEARCH_PATH).unwrap_or_default(),
-                        )),
-                )?,
-            )),
+            executables,
             Arc::new(ryo_benchmark::outbound::suite::factory::local()),
             Arc::new(inventory::factory::local()),
             Arc::new(ryo_benchmark::outbound::receipts::factory::local(
@@ -112,14 +130,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Box::new(std::io::sink()),
             )),
         );
-        let report = operate.operate(
-            &OperationRequest {
-                operation,
-                bench: BenchDirectory(bench.into()),
-            },
-            &mut std::io::stdout().lock(),
-            &mut std::io::stderr().lock(),
-        )?;
+        let request = OperationRequest {
+            operation,
+            bench: BenchDirectory(bench.into()),
+        };
+        let mut out = std::io::stdout().lock();
+        let mut log = std::io::stderr().lock();
+        let report = if profiling {
+            operate.profile(&request, other, &mut out, &mut log)?
+        } else {
+            operate.operate(&request, &mut out, &mut log)?
+        };
         return if report.verdict == OperationVerdict::Passed {
             Ok(())
         } else {

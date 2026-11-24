@@ -1197,6 +1197,8 @@ pub(crate) fn visit<L: FileSource>(
                     restricted = make_frame();
                     &mut restricted
                 };
+                #[cfg(feature = "product-session")]
+                let _profile = crate::operators::scope(program_of[binding], "file");
                 if let Some(cut) = &cut_of[binding] {
                     let value = shared.contribute(b, &mut exec, current, &mut run, id.0, &mut facts_view, cut,
                         &local_coverage, world, &mut carried_symbols, reader_id, unknown, slot);
