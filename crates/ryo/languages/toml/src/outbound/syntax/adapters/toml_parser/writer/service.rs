@@ -38,6 +38,8 @@ pub(in super::super) fn unread(
 
 /// The receiver of the parser's events: it writes them into the table as nodes and tokens.
 pub(in super::super) struct Writer<'b, 'w, 's> {
+    /// The admitted relations read decoded keys or scalar values.
+    pub(in super::super) values: bool,
     /// The tree, and where its last token ends.
     pub(in super::super) tree: languages::Lossless<'b, 'w>,
     /// The text parsed, which an unquoted scalar's bytes are read from to decode it.
@@ -285,6 +287,10 @@ impl Writer<'_, '_, '_> {
         said: Decoded,
     ) {
         let kind = scalar_kind(classified);
+        if !self.values {
+            self.token(kind, span);
+            return;
+        }
         let written = self
             .source
             .input()

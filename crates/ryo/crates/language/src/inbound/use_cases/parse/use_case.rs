@@ -143,7 +143,7 @@ impl<P: ParseUseCase> ParseEngine for P {
         symbols: &mut Symbols,
         wanted: &[Relation],
     ) -> Result<(), ParseError> {
-        super::service::build_wanted_in(self, request, table, symbols, wanted)
+        super::service::build_wanted_in(self, request, table, symbols, crate::domain::elements::types::NodeAccess::Inspect(wanted))
     }
 
     fn build_native_file(
@@ -155,7 +155,7 @@ impl<P: ParseUseCase> ParseEngine for P {
     ) -> Result<(), ParseError> {
         let wanted = match access { crate::domain::elements::types::NodeAccess::Inspect(rows) | crate::domain::elements::types::NodeAccess::Query(rows) => rows };
         let Some(native) = self.native_reader() else {
-            return super::service::build_wanted_in(self, request, table, symbols, wanted);
+            return super::service::build_wanted_in(self, request, table, symbols, access);
         };
         if self.recognizes(&request) == Recognition::Declines {
             return Err(ParseError::Unsupported);

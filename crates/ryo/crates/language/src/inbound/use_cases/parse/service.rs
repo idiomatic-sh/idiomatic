@@ -75,10 +75,12 @@ fn build_recognized<L: ParseUseCase + ?Sized>(
     table: &mut Elements,
     symbols: &mut Symbols,
     requirement: CompletionRequirement,
+    requested: Option<&[Relation]>,
 ) -> Result<(), ParseError> {
     let mut builder = table_builder(table, symbols, request.bytes);
+    builder.as_mut().requested = requested;
     language.read_tree(&request, &mut builder)?;
-    finish_file(language, request, table, symbols, requirement, None);
+    finish_file(language, request, table, symbols, requirement, requested);
     Ok(())
 }
 
@@ -130,7 +132,7 @@ pub(crate) fn build_wanted_in<L>(
     request: ParseRequest<'_>,
     table: &mut Elements,
     symbols: &mut Symbols,
-    wanted: &[Relation],
+    access: crate::domain::elements::types::NodeAccess<'_>,
 ) -> Result<(), ParseError>
 where
     L: ParseUseCase + ?Sized,
@@ -138,8 +140,13 @@ where
     if language.recognizes(&request) == Recognition::Declines {
         return Err(ParseError::Unsupported);
     }
+    use crate::domain::elements::types::NodeAccess;
+    let (wanted, requested) = match access {
+        NodeAccess::Inspect(rows) => (rows, None),
+        NodeAccess::Query(rows) => (rows, Some(rows)),
+    };
     let requirement = demanded(language, wanted);
-    build_recognized(language, request, table, symbols, requirement)
+    build_recognized(language, request, table, symbols, requirement, requested)
 }
 
 /// Builds the tree of a file explicitly assigned to the language, completed for what the readers of `wanted` look at: no row is
@@ -164,6 +171,7 @@ pub(crate) fn build_explicit_in<L: ParseUseCase + ?Sized>(
         table,
         symbols,
         demanded(language, wanted),
+        None,
     )
 }
 
@@ -183,7 +191,7 @@ pub(crate) fn read_in<L>(
 where
     L: ParseUseCase + ?Sized,
 {
-    build_wanted_in(language, request, table, symbols, wanted)?;
+    build_wanted_in(language, request, table, symbols, crate::domain::elements::types::NodeAccess::Inspect(wanted))?;
     walk_in(
         language,
         table,

@@ -276,9 +276,30 @@ pub(crate) enum ModelReadiness {
 #[derive(Debug)]
 pub struct TableBuilder<'a>(BuilderEngine<'a>);
 
+impl TableBuilder<'_> {
+    /// Keep decoded token values for the listed consumers and report whether they are needed.
+    /// A caller inspecting the public tree receives every property.
+    #[must_use]
+    pub fn decode_for(&mut self, relations: &[ryo_relations::domain::relations::types::Relation]) -> bool {
+        self.0.keep_decoded = self.reads_any(relations);
+        self.0.keep_decoded
+    }
+
+    /// Whether one of the given provider relations can be read from this file.
+    /// An inspectable public tree supplies every relation.
+    #[must_use]
+    pub fn reads_any(&self, relations: &[ryo_relations::domain::relations::types::Relation]) -> bool {
+        self.0.requested.is_none_or(|rows| relations.iter().any(|r| rows.contains(r)))
+    }
+}
+
 /// What a [`TableBuilder`] writes through, the engine's: the table, the names and the file's bytes.
 #[derive(Debug)]
 pub(crate) struct BuilderEngine<'a> {
+    /// Whether to retain the parser's decoded token values alongside their raw spelling.
+    pub keep_decoded: bool,
+    /// The provider relations admitted on this file in a closed query.
+    pub requested: Option<&'a [ryo_relations::domain::relations::types::Relation]>,
     /// The worker's table.
     pub elements: &'a mut Elements,
     /// The names of the tokens, interned as the table is built.
