@@ -1539,10 +1539,9 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let way = args[0];
     let disk_paths;
     let list = match paths {
-        Some(request) => request.files.as_slice(),
+        Some(req) => req.files.as_slice(),
         None => { disk_paths = files(args[1]); &disk_paths }
     };
-
     let f0 = thread_cpu();
     let no_skip = std::env::var_os("VEC_NO_SKIP").is_some();
     let mut pairs = None;

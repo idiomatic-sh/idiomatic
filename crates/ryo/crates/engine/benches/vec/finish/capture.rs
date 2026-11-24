@@ -164,6 +164,7 @@ pub(super) fn write(
     out: &mut super::Table,
 ) -> super::R<()> {
     let mut by_path = super::FxHashMap::default();
+    let mut recent: [Option<(u64, Ways)>; 2] = [None, None];
     let mut row = Vec::new();
     let mut slots = Vec::new();
     let separator = separator.unwrap_or("");
@@ -187,11 +188,11 @@ pub(super) fn write(
             if run.absent_word == Some(symbol) {
                 continue;
             }
-            symbol_text = std::rc::Rc::clone(&run.texts[symbol as usize]);
+            symbol_text = std::rc::Rc::clone(run.texts.get(symbol as usize).ok_or("unbound capture text")?);
             let Ok(text) = std::str::from_utf8(&symbol_text) else { continue };
             text
         };
-        if subjects.len() == 1 && !(file && project) {
+        if subjects.len() == 1 && !project {
             // Stream splits in their original order when no other row needs them.
             let mut input_width = None;
             walk(pattern, separator, text, text, &mut slots, &mut |spans| {
@@ -207,14 +208,24 @@ pub(super) fn write(
             });
             continue;
         }
-        let shared;
-        let ways = if file && project {
-            by_path.entry(word).or_insert_with(|| {
-                captured(run, text, pattern, separator, columns, &mut slots)
-            })
+        let ways = if project {
+            use std::collections::hash_map::Entry;
+            match by_path.entry(word) {
+                Entry::Occupied(entry) => {
+                    if !file { super::session::reuse::capture(); }
+                    entry.into_mut()
+                }
+                Entry::Vacant(entry) => entry.insert(captured(run, text, pattern, separator, columns, &mut slots)),
+            }
         } else {
-            shared = captured(run, text, pattern, separator, columns, &mut slots);
-            &shared
+            if recent[1].as_ref().is_some_and(|(subject,_)| *subject == word) {
+                super::session::reuse::capture();
+                recent.swap(0, 1);
+            } else {
+                let ways = captured(run, text, pattern, separator, columns, &mut slots);
+                recent[1] = recent[0].replace((word, ways));
+            }
+            &recent[0].as_ref().expect("split stored").1
         };
         if ways.count == 0 {
             continue;

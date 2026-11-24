@@ -33,8 +33,8 @@ pub(crate) fn dispatch<L: FileSource>(
     contributions: &mut [Option<Rc<project::Contribution>>],
     programs: &[Result<Program>],
     rules: &[usize],
-    contracts: &HashMap<usize, &completeness::Contract>,
-    cuts: &[Option<&finish::partition::Partition>],
+    contracts: &[Arc<completeness::Contract>],
+    cuts: &[Option<Arc<finish::partition::Partition>>],
     world: &mut World,
     sources: &[Source],
     selected: &[usize],
@@ -47,9 +47,11 @@ pub(crate) fn dispatch<L: FileSource>(
         .or_else(|| std::thread::available_parallelism().ok())
         .map_or(1, NonZeroUsize::get)
         .min(selected.len());
-    // An open epoch retains reader-native symbols and files across successive calls.
-    if keep || count <= 1 {
-        if let Some(paths) = paths {
+    // Reuse the open reader for small SDK calls and when a finite cache budget
+    // requires a single global admission order.
+    let parallel_open = keep && paths.is_some() && selected.len() >= 128 && !retention.has_limit();
+    if (keep && !parallel_open) || count <= 1 {
+        if !keep && let Some(paths) = paths {
             state.run.paths = paths.clone();
         }
         visit(
@@ -74,6 +76,7 @@ pub(crate) fn dispatch<L: FileSource>(
         );
         return;
     }
+    let inventory_wall = std::time::Instant::now();
     let inventory_start = thread_cpu();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
     for &id in selected {
@@ -106,7 +109,12 @@ pub(crate) fn dispatch<L: FileSource>(
         *total = total.saturating_add(weight);
     }
     clocks.inventory += thread_cpu() - inventory_start;
+    clocks.inventory_wall += inventory_wall.elapsed().as_secs_f64();
+    clocks.file_shards += shards.len();
+    let snapshots = &state.bytes;
     let work = |files: &[usize]| {
+        let wall = std::time::Instant::now();
+        let start = thread_cpu();
         let mut part = World::default();
         part.boundaries = Some(Vec::new());
         part.declare_words(languages);
@@ -114,13 +122,18 @@ pub(crate) fn dispatch<L: FileSource>(
         let mut a = Vec::new();
         let mut links = Vec::new();
         let mut notes = Vec::new();
-        let mut time = Clock::default();
+        let mut time = Clock { measure_file_wall: true, ..Default::default() };
         let mut local = ReaderState::default();
-        local.run.paths = paths.expect("closed file inventory").clone();
+        local.run.paths = paths.expect("file worker inventory").clone();
+        if parallel_open {
+            local.bytes.extend(files.iter().filter_map(|id| {
+                snapshots.get(id).map(|value| (*id, value.clone()))
+            }));
+        }
         visit(
             &mut local,
             &mut Retention::default(),
-            false,
+            parallel_open,
             parser,
             reader_id,
             manifests,
@@ -159,7 +172,7 @@ pub(crate) fn dispatch<L: FileSource>(
                     .expect("closed worker owns each contribution")
             })
             .collect();
-        (a, links, slots, owned, part.transfer(prefix), time)
+        (a, links, slots, owned, part.transfer(prefix), time, local.bytes, thread_cpu() - start, wall.elapsed().as_secs_f64())
     };
     std::thread::scope(|scope| {
         let threads: Vec<_> = shards[1..]
@@ -168,11 +181,23 @@ pub(crate) fn dispatch<L: FileSource>(
             .collect();
         let first = work(&shards[0]);
         let mut transfers = Vec::with_capacity(shards.len());
-        for (a, links, slots, notes, part, time) in std::iter::once(first).chain(
+        let mut bytes = Vec::new();
+        let mut longest = 0.0_f64;
+        for (index, (a, links, slots, notes, part, time, snapshots, worker_cpu, worker_wall)) in std::iter::once(first).chain(
             threads
                 .into_iter()
                 .map(|t| t.join().expect("file worker panicked")),
-        ) {
+        ).enumerate() {
+            if index > 0 {
+                clocks.file_workers_cpu += worker_cpu;
+            }
+            longest = longest.max(worker_wall);
+            clocks.shard_busy_wall += worker_wall;
+            if time.largest_file_wall > clocks.largest_file_wall {
+                clocks.largest_file_wall = time.largest_file_wall;
+                clocks.largest_file.clone_from(&time.largest_file);
+            }
+            let merge_wall = std::time::Instant::now();
             let start = thread_cpu();
             for (id, answer) in a {
                 answers[id] = answer;
@@ -182,10 +207,14 @@ pub(crate) fn dispatch<L: FileSource>(
             }
             let notes: Vec<_> = notes.into_iter().map(Rc::new).collect();
             for (slot, id) in slots {
-                contributions[slot] = Some(notes[id].clone());
+                if contributions[slot].is_none() {
+                    contributions[slot] = Some(notes[id].clone());
+                }
             }
             transfers.push(part);
+            bytes.push(snapshots);
             clocks.join += thread_cpu() - start;
+            clocks.join_wall += merge_wall.elapsed().as_secs_f64();
             clocks.read_versions += time.read_versions;
             clocks.build_file += time.build_file;
             for (name, part) in time.readers {
@@ -213,8 +242,12 @@ pub(crate) fn dispatch<L: FileSource>(
             clocks.productive += time.productive;
             clocks.refused += time.refused;
         }
+        clocks.shard_critical_wall += longest;
+        let merge_wall = std::time::Instant::now();
         let start = thread_cpu();
         world.receive(transfers, sources);
         clocks.join += thread_cpu() - start;
-    });
+        clocks.join_wall += merge_wall.elapsed().as_secs_f64();
+        bytes
+    }).into_iter().for_each(|snapshots| state.bytes.extend(snapshots));
 }

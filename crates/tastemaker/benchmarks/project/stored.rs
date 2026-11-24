@@ -3,14 +3,13 @@
 use super::{
     Answer, Authority, Batch, Path, PathBuf, Population, Rc, Work, finish, l, project, session,
 };
-use ryo_relations::domain::relations::types::{Integer, Offset, Span};
-use ryo_values::domain::row_texts::types::Cell;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fs,
     hash::{Hash, Hasher},
     io::{self, Write},
+    sync::Arc,
 };
 
 pub(super) type Key = [u8; 32];
@@ -31,27 +30,6 @@ pub(super) fn key(value: impl Hash) -> Key {
     *h.0.finalize().as_bytes()
 }
 
-#[derive(Serialize, Deserialize)]
-enum Value {
-    File(Box<str>),
-    Text(Box<str>),
-    Number(i64),
-    Span(u32, u32),
-}
-
-impl Value {
-    fn cell(&self) -> Cell<std::sync::Arc<str>> {
-        match self {
-            Self::File(s) => Cell::File(s.as_ref().into()),
-            Self::Text(s) => Cell::Text(s.as_ref().into()),
-            Self::Number(n) => Cell::Number(Integer(*n)),
-            Self::Span(a, b) => Cell::Span(Span {
-                start: Offset(*a),
-                end: Offset(*b),
-            }),
-        }
-    }
-}
 #[derive(Serialize, Deserialize)]
 struct Report {
     // None means only the closed operator consumed this contribution.
@@ -102,25 +80,25 @@ struct Local {
     frontier: Vec<(usize, usize)>,
     unavailable: Vec<(String, String)>,
 }
-// This length-prefixed postcard payload stays packed until a changed closed
-// answer actually requests a column from it.
+// A mapped segment backs retained columns. Only new columns own an allocation.
 #[derive(Default)]
-struct EncodedBlock(Vec<u8>);
-impl<'de> Deserialize<'de> for EncodedBlock {
-    fn deserialize<D: serde::Deserializer<'de>>(input: D) -> Result<Self, D::Error> {
-        Ok(Self(<&[u8]>::deserialize(input)?.to_vec()))
-    }
-}
+struct EncodedBlock(Option<finish::population::BlockBytes>);
 impl Serialize for EncodedBlock {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
-        out.serialize_bytes(&self.0)
+        out.serialize_bytes(self.0.as_ref().expect("complete block").as_ref().as_ref())
     }
 }
 impl EncodedBlock {
-    fn restore(&self, world: &mut session::World) -> Rc<finish::population::Block> {
-        let block: session::stored_block::StoredBlock =
-            postcard::from_bytes(&self.0).expect("block in checksum-verified table for this build");
-        block.restore(world)
+    fn mapped(record: shards::MappedRecord) -> Option<Self> {
+        Some(Self(Some(Arc::new(record.postcard_bytes()?))))
+    }
+
+    fn restore(&self, world: &mut session::World) -> Option<Rc<finish::population::Block>> {
+        session::stored_block::restore(self.0.clone()?, world)
+    }
+
+    fn save(data: Vec<u8>) -> Self {
+        Self(Some(Arc::new(data)))
     }
 }
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -154,7 +132,7 @@ mod request_answers;
 mod shards;
 pub(super) use request_answers::Packet;
 use request_answers::{Group, Observations, Probe, Proof, Record};
-use shards::{Index, Records, Segments, Shards};
+use shards::{Index, Packets, Records, Segments, Shards};
 
 #[derive(Default, Serialize, Deserialize)]
 struct Snapshot {
@@ -165,7 +143,9 @@ struct Snapshot {
     requests: Index,
     groups: Index,
     packets: Index,
+    packet_layers: Vec<Key>,
     blocks: Segments,
+    stamps: Index,
     empty_schemas: Vec<Key>,
 }
 pub(super) struct Store {
@@ -183,7 +163,7 @@ pub(super) struct Store {
     notes: Shards<Notes>,
     requests: Shards<Record>,
     groups: Shards<Group>,
-    packets: Shards<Packet>,
+    packets: Packets<Packet>,
     observed: Observations,
     versions: Vec<Option<Key>>,
     pairs: Vec<Option<(usize, usize)>>,
@@ -202,7 +182,10 @@ pub(super) struct Store {
     absent_local: usize,
     absent_frontier: usize,
     restored_blocks: usize,
+    frontier_cpu: f64,
     packets_packed: usize,
+    empty_packet: Option<Key>,
+    empty_packet_reuses: usize,
     packed_rows: usize,
     rendered_packets: usize,
     pack_cpu: f64,
@@ -262,7 +245,7 @@ impl Store {
             saved_names: names.len(),
             names,
             name_ids: HashMap::new(),
-            dir,
+            dir: dir.clone(),
             previous,
             build,
             files: Records::new("pairs", snapshot.files),
@@ -277,8 +260,8 @@ impl Store {
             notes: Shards::new("project", snapshot.notes),
             requests: Shards::new("requests", snapshot.requests),
             groups: Shards::new("inputs", snapshot.groups),
-            packets: Shards::new("answers", snapshot.packets),
-            observed: Default::default(),
+            packets: Packets::new(snapshot.packets, snapshot.packet_layers),
+            observed: Observations::new(dir, snapshot.stamps),
             versions: vec![],
             pairs: vec![],
             binding_keys: vec![],
@@ -296,7 +279,10 @@ impl Store {
             absent_local: 0,
             absent_frontier: 0,
             restored_blocks: 0,
+            frontier_cpu: 0.0,
             packets_packed: 0,
+            empty_packet: None,
+            empty_packet_reuses: 0,
             packed_rows: 0,
             rendered_packets: 0,
             pack_cpu: 0.0,
@@ -339,6 +325,9 @@ impl Store {
         let t4 = crate::thread_cpu();
         written += self.packets.flush(&self.dir, &mut old)?;
         let t5 = crate::thread_cpu();
+        written += self.observed.stamps.flush(&self.dir, &mut old)?;
+        let stamp_end = crate::thread_cpu();
+        eprintln!("stamps_publish_cpu={:.6}", stamp_end - t5);
         if self.names.len() != self.saved_names {
             let b = postcard::to_stdvec(&self.names).map_err(io::Error::other)?;
             let k = *blake3::hash(&b).as_bytes();
@@ -358,8 +347,10 @@ impl Store {
             notes: self.notes.index.clone(),
             requests: self.requests.index.clone(),
             groups: self.groups.index.clone(),
-            packets: self.packets.index.clone(),
+            packets: self.packets.index().clone(),
+            packet_layers: self.packets.layers.clone(),
             blocks: self.blocks.index.clone(),
+            stamps: self.observed.stamps.index.clone(),
             empty_schemas: self.empty_schemas.clone(),
         })
         .map_err(io::Error::other)?;
@@ -380,7 +371,7 @@ impl Store {
             t3 - t2,
             t4 - t3,
             t5 - t4,
-            crate::thread_cpu() - t5
+            crate::thread_cpu() - stamp_end
         );
         Ok(written)
     }
@@ -394,8 +385,8 @@ impl Store {
             self.packets.read_cpu
         );
         eprintln!(
-            "packets_packed={} packed_rows={} packet_build_cpu={:.6}",
-            self.packets_packed, self.packed_rows, self.pack_cpu
+            "packets_packed={} empty_packet_reuses={} packed_rows={} packet_build_cpu={:.6}",
+            self.packets_packed, self.empty_packet_reuses, self.packed_rows, self.pack_cpu
         );
         eprintln!("rendered_packets={}", self.rendered_packets);
         eprintln!(
@@ -408,6 +399,11 @@ impl Store {
         let o = &self.observed;
         eprintln!("observation_open_cpu={:.6}", o.open_cpu);
         eprintln!(
+            "stamps stats={} hits={} young={} changed={} read={} written={} read_cpu={:.6}",
+            o.stats, o.stamp_hits, o.young, o.stamp_changed,
+            o.stamps.read_bytes, o.stamps.write_bytes, o.stamps.read_cpu
+        );
+        eprintln!(
             "observations source_reads={} contract_reads={} source_bytes={} contract_bytes={} path_hits={} inode_hits={} groups={} group_hits={}",
             o.reads[0],
             o.reads[1],
@@ -419,8 +415,8 @@ impl Store {
             o.group_hits
         );
         eprintln!(
-            "contributions restored_blocks={} missing_file_slots={} missing_local_bindings={} missing_frontier_bindings={}",
-            self.restored_blocks, self.absent_file, self.absent_local, self.absent_frontier
+            "contributions restored_blocks={} frontier_cpu={:.6} missing_file_slots={} missing_local_bindings={} missing_frontier_bindings={}",
+            self.restored_blocks, self.frontier_cpu, self.absent_file, self.absent_local, self.absent_frontier
         );
         eprintln!(
             "request_store hash_cpu={:.6} hash_bytes={} pairs_read={} project_read={} requests_read={} inputs_read={} answers_read={} pairs_written={} project_written={} requests_written={} inputs_written={} answers_written={}",
@@ -487,12 +483,21 @@ impl Store {
     pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
         let (proof, unread) = self.plans.get_mut(idx)?.take()?;
         let start = crate::thread_cpu();
-        let k = self.put(id, Packet::save(r), proof, unread, || {
-            super::digest(&r.rows)
-        });
+        let empty = r.rows.is_empty() && r.unknowns.is_empty();
+        let k = if let Some(packet) = self.empty_packet.filter(|_| empty) {
+            self.record(id, packet, proof, unread);
+            self.empty_packet_reuses += 1;
+            packet
+        } else {
+            let k = self.put(id, Packet::save(r), proof, unread, || super::digest(&r.rows));
+            if empty {
+                self.empty_packet = Some(k);
+            }
+            self.packets_packed += 1;
+            self.packed_rows += r.rows.len();
+            k
+        };
         self.pack_cpu += crate::thread_cpu() - start;
-        self.packets_packed += 1;
-        self.packed_rows += r.rows.len();
         Some(k)
     }
     pub(super) fn decline(&mut self, id: Key, reason: &str) {
@@ -513,16 +518,19 @@ impl Store {
             self.rendered_packets += 1;
             self.packets.insert(k, packet);
         }
+        self.record(id, k, proof, unread);
+        k
+    }
+    fn record(&mut self, id: Key, packet: Key, proof: Vec<Proof>, unread: Vec<String>) {
         self.requests.open(&self.dir, &id);
         self.requests.insert(
             id,
             Record {
-                packet: k,
+                packet,
                 proof,
                 unread,
             },
         );
-        k
     }
     fn group(&mut self, mut paths: Vec<(PathBuf, Probe)>) -> Option<Proof> {
         if self.name_ids.is_empty() && !self.names.is_empty() {
@@ -581,8 +589,9 @@ impl Store {
         let bindings: Vec<_> = b
             .bindings
             .iter()
-            .zip(&b.program_of).enumerate()
-            .map(|(binding, (host, &r))| {
+            .enumerate()
+            .map(|(binding, host)| {
+                let r = b.program_of[binding];
                 // The engine shares this pre-join work for every binding with the
                 // same declared host shape. Which caller first supplied the rows
                 // can change when all but one request is restored.
@@ -696,6 +705,7 @@ impl Store {
                 }
             }
         }
+        let restore_start = crate::thread_cpu();
         let mut restored = HashMap::new();
         let mut damaged = Vec::new();
         // Later live requests can consume a file answer delivered in an earlier epoch.
@@ -732,8 +742,8 @@ impl Store {
                     let block = if let Some(block) = restored.get(&k) {
                         Rc::clone(block)
                     } else {
-                        self.blocks.open(&self.dir, &k);
-                        let block = self.blocks.get(&k)?.restore(world);
+                        self.blocks.open_mapped(&self.dir, &k, EncodedBlock::mapped);
+                        let block = self.blocks.get(&k)?.restore(world)?;
                         restored.insert(k, block.clone());
                         block
                     };
@@ -758,6 +768,7 @@ impl Store {
             self.files.change(&version).pairs.remove(&binding);
         }
         self.restored_blocks += restored.len();
+        self.frontier_cpu += crate::thread_cpu() - restore_start;
         for (i, src) in b.schedule.sources.iter_mut().enumerate() {
             if !projects.contains(&i) {
                 src.project = false;
@@ -867,31 +878,27 @@ impl Store {
                         let index = *encoded.entry(addr).or_insert_with(|| {
                             let (key, reference) = if block.n == 0 {
                                 *empty_blocks.entry(Rc::as_ptr(block)).or_insert_with(|| {
-                                    let bytes = postcard::to_stdvec(
-                                        &session::stored_block::StoredBlock::save(block, world),
-                                    )
-                                    .expect("empty schema");
+                                    let bytes = session::stored_block::encode(block, world);
                                     let k = *blake3::hash(&bytes).as_bytes();
                                     let i = *self.schema_ids.entry(k).or_insert_with(|| {
                                         self.empty_schemas.push(k);
                                         u32::try_from(self.empty_schemas.len() - 1)
                                             .expect("schema number")
                                     });
-                                    self.blocks.open(&self.dir, &k);
+                                    self.blocks.open_mapped(&self.dir, &k, EncodedBlock::mapped);
                                     if self.blocks.get(&k).is_none() {
-                                        *self.blocks.change(&k) = EncodedBlock(bytes);
+                                        *self.blocks.change(&k) = EncodedBlock::save(bytes);
                                     }
                                     (k, BlockId::Empty(i))
                                 })
                             } else {
-                                let stored = session::stored_block::StoredBlock::save(block, world);
-                                let bytes = postcard::to_stdvec(&stored).expect("typed block");
+                                let bytes = session::stored_block::encode(block, world);
                                 let mut k = *blake3::hash(&bytes).as_bytes();
                                 // Keep replacement columns for one file version in its own prefix.
                                 k[0] = version[0];
-                                self.blocks.open(&self.dir, &k);
+                                self.blocks.open_mapped(&self.dir, &k, EncodedBlock::mapped);
                                 if self.blocks.get(&k).is_none() {
-                                    *self.blocks.change(&k) = EncodedBlock(bytes);
+                                    *self.blocks.change(&k) = EncodedBlock::save(bytes);
                                 }
                                 (k, BlockId::Local(k))
                             };

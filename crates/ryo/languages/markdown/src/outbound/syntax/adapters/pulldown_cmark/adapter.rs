@@ -277,6 +277,10 @@ impl SyntaxPort for SyntaxPulldownCmarkAdapter {
             .collect();
         definitions.sort_by_key(|definition| definition.start);
         languages::enter_node(builder, kind_bits(Kind::Node(Node::Root)), Offset(0));
+        let _ = builder.decode_for(&[
+            languages::Relation::StringLiteral, languages::Relation::Defines,
+            languages::Relation::Reference, languages::Relation::Scope, languages::Relation::Prose,
+        ]);
         let mut writer = Writer {
             tree: languages::lossless(builder, Offset(0)),
             gap: Gap {

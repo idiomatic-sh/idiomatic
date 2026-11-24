@@ -12,7 +12,7 @@ pub(crate) type Value = Option<Cell<Arc<str>>>;
 
 /// Only strings named by a retained answer outlive the input file.
 #[derive(Default)]
-pub(super) struct Words {
+pub(crate) struct Words {
     symbols: FxHashMap<u32, Arc<str>>,
     paths: Vec<Arc<str>>,
     path_ids: FxHashMap<Arc<str>, u32>,
@@ -77,69 +77,57 @@ pub(crate) struct Row {
     words: Box<[u64]>,
 }
 
-impl Row {
-    /// Rebuild a row from the stable cell values at the retention boundary.
-    #[allow(dead_code, reason = "the check session restores packed answers from persistent storage")]
-    pub(crate) fn restored(
-        rule: Box<str>,
-        identity: Box<[usize]>,
-        columns: Vec<(String, Value)>,
-    ) -> Self {
-        let mut dictionary = Words::default();
-        let mut names = Vec::with_capacity(columns.len());
-        let mut types = Vec::with_capacity(columns.len());
-        let mut words = Vec::with_capacity(columns.len());
-        for (name, cell) in columns {
-            names.push(name);
-            let (ty, word) = match cell {
-                None => (Ty::Sym, NULL),
-                Some(Cell::Number(n)) => (Ty::Num, n.0 as u64),
-                Some(Cell::Span(s)) => {
-                    (Ty::Span, (u64::from(s.start.0) << 32) | u64::from(s.end.0))
-                }
-                Some(Cell::File(path)) => {
-                    let id = dictionary.paths.len() as u64;
-                    dictionary.paths.push(path);
-                    (Ty::File, id)
-                }
-                Some(Cell::Text(text)) => {
-                    let id = u32::try_from(dictionary.symbols.len()).expect("stored row width");
-                    dictionary.symbols.insert(id, text);
-                    (Ty::Sym, u64::from(id))
-                }
-            };
-            types.push(ty);
-            words.push(word);
-        }
+#[allow(dead_code, reason = "only the retained check session restores rows under a shared packet dictionary")]
+pub(crate) struct RestoredRows {
+    dictionary: Arc<RwLock<Words>>,
+    layouts: Vec<FxHashMap<Vec<Ty>, Arc<Layout>>>,
+}
+#[allow(dead_code, reason = "file readers share the answer module without loading stored packets")]
+impl RestoredRows {
+    pub(crate) fn new(words: Vec<Box<str>>, schemas: usize) -> Self {
+        let paths: Vec<Arc<str>> = words.into_iter().map(Arc::from).collect();
+        let symbols = paths.iter().enumerate().map(|(i, s)| {
+            (u32::try_from(i).expect("stored word dictionary"), s.clone())
+        }).collect();
         Self {
-            layout: Arc::new(Layout {
-                rule,
-                names: names.into(),
-                identity,
-                types: types.into(),
-                words: Arc::new(RwLock::new(dictionary)),
-            }),
-            words: words.into(),
+            dictionary: Arc::new(RwLock::new(Words { paths, symbols, ..Default::default() })),
+            layouts: (0..schemas).map(|_| FxHashMap::default()).collect(),
         }
     }
 
-    pub(crate) fn value(&self, index: usize) -> Value {
+    pub(crate) fn row(&mut self, schema: usize, rule: &str, names: &[Box<str>], identity: &[usize], cells: impl Iterator<Item = (Ty, u64)>) -> Row {
+        // Null in a numeric column must remain distinct from the number -1.
+        let (types, words): (Vec<_>, Vec<_>) = cells.unzip();
+        let layout = self.layouts[schema].entry(types).or_insert_with_key(|types| Arc::new(Layout {
+            rule: rule.into(),
+            names: names.iter().map(|n| n.to_string()).collect(),
+            identity: identity.into(),
+            types: types.as_slice().into(),
+            words: self.dictionary.clone(),
+        }));
+        Row { layout: layout.clone(), words: words.into() }
+    }
+}
+
+impl Row {
+    fn decode<T: From<String> + From<&'static str>, D: std::ops::Deref<Target = Words>>(
+        &self,
+        index: usize,
+        dictionary: impl FnOnce() -> D,
+        text: impl FnOnce(&Arc<str>) -> T,
+    ) -> Option<Cell<T>> {
         let word = self.words[index];
         if word == NULL && self.layout.types[index] != Ty::Num {
             return None;
         }
         Some(match self.layout.types[index] {
-            Ty::Sym => Cell::Text(
-                self.layout.words.read().expect("answer words").symbols[&(word as u32)].clone(),
-            ),
+            Ty::Sym => Cell::Text(text(&dictionary().symbols[&(word as u32)])),
             Ty::Node => {
-                let words = self.layout.words.read().expect("answer words");
+                let words = dictionary();
                 let path = &words.paths[(word >> 32) as usize];
                 Cell::Text(format!("{path}#{}", word as u32).into())
             }
-            Ty::File => Cell::File(
-                self.layout.words.read().expect("answer words").paths[word as usize].clone(),
-            ),
+            Ty::File => Cell::File(text(&dictionary().paths[word as usize])),
             Ty::Span => Cell::Span(Span {
                 start: Offset((word >> 32) as u32),
                 end: Offset(word as u32),
@@ -149,8 +137,48 @@ impl Row {
         })
     }
 
+    pub(crate) fn value(&self, index: usize) -> Value {
+        self.decode(index, || self.layout.words.read().expect("answer words"), Arc::clone)
+    }
+
+    pub(crate) fn cells_with<'a, T: From<String> + From<&'static str>>(
+        &'a self,
+        text: impl Fn(&Arc<str>) -> T + 'a,
+    ) -> impl Iterator<Item = Option<Cell<T>>> + 'a {
+        let dictionary = self.layout.words.read().expect("answer words");
+        (0..self.words.len()).map(move |i| self.decode(i, || &*dictionary, &text))
+    }
+
+    #[cfg(feature = "product-session")]
+    pub(crate) fn dictionary(&self) -> &RwLock<Words> {
+        &self.layout.words
+    }
+
+    #[cfg(feature = "product-session")]
+    pub(crate) fn value_from(&self, index: usize, words: &Words) -> Value {
+        let word = self.words[index];
+        let ty = self.layout.types[index];
+        if word == NULL && ty != Ty::Num {
+            return None;
+        }
+        match ty {
+            Ty::Sym => Some(Cell::Text(words.symbols[&(word as u32)].clone())),
+            Ty::Node => {
+                let path = &words.paths[(word >> 32) as usize];
+                Some(Cell::Text(format!("{path}#{}", word as u32).into()))
+            }
+            Ty::File => Some(Cell::File(words.paths[word as usize].clone())),
+            _ => self.value(index),
+        }
+    }
+
+    #[cfg(feature = "product-session")]
+    pub(crate) fn width(&self) -> usize {
+        self.words.len()
+    }
+
     pub(crate) fn cells(&self) -> impl Iterator<Item = Value> + '_ {
-        (0..self.words.len()).map(|i| self.value(i))
+        self.cells_with(Arc::clone)
     }
 }
 

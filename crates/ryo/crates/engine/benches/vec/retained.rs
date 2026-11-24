@@ -8,6 +8,7 @@ use std::path::{Component, Path, PathBuf};
 type Digest = [u8; 32];
 type Key = [u8; 16];
 type Records = BTreeMap<Key, Answer>;
+type Unknown = (String, Option<String>, String, UnknownOrigin);
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) struct Finding {
@@ -32,7 +33,7 @@ struct Answer {
     findings: Vec<Finding>,
     refusals: Vec<(String, String)>,
     // A partial provider partition is never promoted to a complete file.
-    unknowns: Vec<(String, Option<String>, String, UnknownOrigin)>,
+    unknowns: Vec<Unknown>,
 }
 
 #[derive(Default)]
@@ -66,9 +67,35 @@ impl Versions {
 }
 
 fn pack_answer(arena: &mut Vec<u8>, answer: &Answer) -> std::ops::Range<usize> {
+    // The admitted inventory already owns the origin. A finding on the same
+    // file needs only its rule and span until the public table is written.
+    let findings: Vec<_> = answer.findings.iter().map(|f| {
+        (&f.rule, (f.file != answer.origin).then_some(&f.file), f.start, f.end)
+    }).collect();
+    let body = (&answer.admission_refusal, findings, &answer.refusals, &answer.unknowns);
     let offset = arena.len();
-    *arena = postcard::to_extend(answer, std::mem::take(arena)).expect("file answer");
+    *arena = postcard::to_extend(&body, std::mem::take(arena)).expect("file answer");
     offset..arena.len()
+}
+
+fn unpack_answer(origin: &str, bytes: &[u8]) -> Answer {
+    #[derive(Deserialize)]
+    struct Body {
+        admission_refusal: Option<String>,
+        findings: Vec<(String, Option<String>, u64, u64)>,
+        refusals: Vec<(String, String)>,
+        unknowns: Vec<Unknown>,
+    }
+    let body: Body = postcard::from_bytes(bytes).expect("captured file");
+    Answer {
+        origin: origin.to_owned(),
+        admission_refusal: body.admission_refusal,
+        findings: body.findings.into_iter().map(|(rule, file, start, end)| Finding {
+            rule, file: file.unwrap_or_else(|| origin.to_owned()), start, end,
+        }).collect(),
+        refusals: body.refusals,
+        unknowns: body.unknowns,
+    }
 }
 
 impl Capture {
@@ -87,7 +114,7 @@ impl Capture {
         if !self.active.as_ref().is_some_and(|a| a.origin == origin) {
             self.finish_active();
             let range = self.versions.get_mut(origin)?.packed.take()?;
-            self.active = Some(postcard::from_bytes(&self.arena[range]).expect("completed file"));
+            self.active = Some(unpack_answer(origin, &self.arena[range]));
         }
         self.active.as_mut()
     }
@@ -359,7 +386,25 @@ struct Inputs {
     versions: Versions,
     observations: Vec<(PathBuf, Stamp)>,
     source_observations: Vec<Stamp>,
+    seed_proof: Option<Digest>,
     phase_ms: [f64; 3],
+}
+
+// A first publication rechecks every admitted input. Keep the ordered digest
+// across evaluation and release the path/stamp buffers while the visitor is live.
+fn seed_proof(scope: &Digest, observations: &[(PathBuf, Stamp)], sources: &[Stamp]) -> Digest {
+    let mut h = blake3::Hasher::new();
+    h.update(scope);
+    fn add(h: &mut blake3::Hasher, (dev, ino, sec, nsec, size): Stamp) {
+        for value in [dev, ino, sec as u64, nsec as u64, size] { h.update(&value.to_le_bytes()); }
+    }
+    h.update(&(observations.len() as u64).to_le_bytes());
+    for (path, st) in observations {
+        field(&mut h, path.as_os_str().as_encoded_bytes());
+        add(&mut h, *st);
+    }
+    for st in sources { add(&mut h, *st); }
+    *h.finalize().as_bytes()
 }
 
 fn inputs(
@@ -446,7 +491,14 @@ fn inputs(
         versions.files.push(CapturedFile { version, packed: None });
         source_observations.push(stamp(&metadata));
     }
+    let seed_proof = seeding.then(|| {
+        let proof = seed_proof(&scope, &observations, &source_observations);
+        observations = Vec::new();
+        source_observations = Vec::new();
+        proof
+    });
     Ok(Inputs {
+        seed_proof,
         request: req,
         keys,
         scope,
@@ -498,32 +550,33 @@ fn publish(
     path: &Path,
     build: Digest,
     previous: Option<Digest>,
-    records: &BTreeMap<Key, std::ops::Range<usize>>,
+    records: &BTreeMap<Key, (usize, std::ops::Range<usize>)>,
+    names: &[String],
     arena: &[u8],
 ) -> io::Result<usize> {
-    // A postcard map is its count followed by key/value pairs. Hash and write
-    // the same sorted slices, without constructing a second copy of the table.
     let header = postcard::to_stdvec(&(build, records.len())).map_err(io::Error::other)?;
+    let mut buffer = Vec::new();
+    let mut body = |write: &mut dyn FnMut(&[u8]) -> io::Result<()>| -> io::Result<()> {
+        write(&header)?;
+        for (key, (i, range)) in records {
+            let answer = unpack_answer(&names[*i], &arena[range.clone()]);
+            buffer.clear();
+            buffer = postcard::to_extend(&answer, std::mem::take(&mut buffer)).map_err(io::Error::other)?;
+            write(key)?;
+            write(&buffer)?;
+        }
+        Ok(())
+    };
     let mut hash = blake3::Hasher::new();
-    hash.update(&header);
-    let mut written = header.len() + 32;
-    for (key, range) in records {
-        let bytes = &arena[range.clone()];
-        hash.update(key);
-        hash.update(bytes);
-        written += key.len() + bytes.len();
-    }
+    let mut written = 32;
+    body(&mut |b| { hash.update(b); written += b.len(); Ok(()) })?;
     let digest = *hash.finalize().as_bytes();
     if Some(digest) == previous { return Ok(0); }
     let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
     {
         let mut out = io::BufWriter::new(&mut tmp);
         out.write_all(&digest)?;
-        out.write_all(&header)?;
-        for (key, range) in records {
-            out.write_all(key)?;
-            out.write_all(&arena[range.clone()])?;
-        }
+        body(&mut |b| out.write_all(b))?;
         out.flush()?;
     }
     tmp.as_file().sync_all()?;
@@ -665,7 +718,7 @@ pub(crate) fn check(
                     };
                     file_key(&first.scope, p, first.modes[i], &version)
                 };
-                next.insert(k, answer);
+                next.insert(k, (i, answer));
             }
         }
     }
@@ -680,11 +733,16 @@ pub(crate) fn check(
             .ok()
             .as_ref()
             .map(|m| (m.dev(), m.ino(), m.ctime(), m.ctime_nsec()));
-    eprintln!("retained capture sources={} visitor_bytes={} upfront_versions={}", next.len(), capture.visited_bytes, first.keys.len());
+    eprintln!("retained capture sources={} visitor_bytes={} upfront_versions={} arena_bytes={}", next.len(), capture.visited_bytes, first.keys.len(), capture.arena.len());
     let mut written = 0;
     let publishing = same_parent && !(next.is_empty() && had_empty);
-    if publishing && (!observed(&first.observations) || !changed_sources.iter().all(|(i, prior)|
-        fs::metadata(req.root.join(&req.files[*i])).is_ok_and(|m| stamp(&m) == *prior))) {
+    let inputs_current = || match first.seed_proof {
+        Some(proof) => inputs(pack, request, cache_name, project_entries)
+            .is_ok_and(|rechecked| rechecked.seed_proof == Some(proof)),
+        None => observed(&first.observations) && changed_sources.iter().all(|(i, prior)|
+            fs::metadata(req.root.join(&req.files[*i])).is_ok_and(|m| stamp(&m) == *prior)),
+    };
+    if publishing && !inputs_current() {
         drop(lock);
         eprintln!("inputs changed during evaluation; evaluating current contents");
         return Ok(evaluate(
@@ -694,7 +752,7 @@ pub(crate) fn check(
     }
     let checked = ms();
     if publishing {
-        written = publish(&dir, &path, build, previous, &next, &capture.arena)?;
+        written = publish(&dir, &path, build, previous, &next, &req.files, &capture.arena)?;
     }
     eprintln!(
         "retained_cpu_ms pack={pack_ms:.3} scope={scope_ms:.3} files={files_ms:.3} load={:.3} evaluate={:.3} revalidate={:.3} publish={:.3}",

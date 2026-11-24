@@ -24,6 +24,8 @@ use source::Source as FileSource;
 #[path = "check_session/frontier.rs"]
 mod frontier;
 pub(crate) use frontier::World;
+#[cfg(feature = "product-session")]
+pub(crate) use frontier::SharedFrontier;
 #[path = "check_session/shared.rs"]
 mod shared;
 
@@ -40,7 +42,7 @@ type Parameters =
 type Result<T> = std::result::Result<T, String>;
 pub(crate) type Answer = Result<Reported>;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct Reported {
     pub rows: Vec<finish::answer::Row>,
     pub unknowns: Vec<(String, String)>,
@@ -121,6 +123,13 @@ impl Program {
 pub(crate) struct Clock {
     pub(crate) readers: BTreeMap<String, ReaderParts>,
     pub inventory: f64,
+    pub inventory_wall: f64,
+    pub join_wall: f64,
+    pub shard_critical_wall: f64,
+    pub shard_busy_wall: f64,
+    pub largest_file_wall: f64,
+    pub largest_file: String,
+    pub measure_file_wall: bool,
     pub join: f64,
     pub prepare: f64,
     pub read_parse: f64,
@@ -134,6 +143,19 @@ pub(crate) struct Clock {
     pub evaluate: f64,
     pub project: f64,
     pub assemble: f64,
+    pub project_wall: f64,
+    pub project_workers_cpu: f64,
+    pub project_prepare_wall: f64,
+    pub project_provider_wall: f64,
+    pub project_number_wall: f64,
+    pub project_numbered: usize,
+    pub empty_project_epochs: usize,
+    pub project_shards: usize,
+    pub delivery_workers_cpu: f64,
+    pub file_workers_cpu: f64,
+    pub file_shards: usize,
+    pub empty_file_epochs: usize,
+    pub omitted_file_bindings: usize,
     pub files: usize,
     pub reads: usize,
     pub unique_pairs: usize,
@@ -242,19 +264,25 @@ impl Schedule {
     }
 
     /// Attach immutable caller bytes before admitting any consumer of this source root.
-    pub(crate) fn provide(&mut self, root: &Arc<str>, path: String, bytes: Arc<[u8]>) -> Result<()> {
-        let key = (Rc::from(path.as_str()), bytes.clone());
-        let id = match self.supplied_ids.get(&key) {
-            Some(&id) => id,
+    pub(crate) fn provide(
+        &mut self,
+        root: &Arc<str>,
+        path: &str,
+        bytes: &Arc<[u8]>,
+    ) -> Result<Arc<[u8]>> {
+        let key = (Rc::from(path), bytes.clone());
+        let (id, canonical) = match self.supplied_ids.get_key_value(&key) {
+            Some(((_, held), &id)) => (id, held.clone()),
             None => {
                 let ids = self.source_ids.entry(root.clone()).or_default();
-                let id = Self::source_in(&mut self.sources, ids, root, &path)?;
-                self.sources[id].provided = Some(bytes);
+                let id = Self::source_in(&mut self.sources, ids, root, path)?;
+                self.sources[id].provided = Some(bytes.clone());
                 self.supplied_ids.insert(key, id);
-                id
+                (id, bytes.clone())
             }
         };
-        self.alias_source(root, &path, id)
+        self.alias_source(root, path, id)?;
+        Ok(canonical)
     }
 
     pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str) -> Result<()> {
@@ -288,34 +316,48 @@ impl Schedule {
             })
             .collect()
     }
-    pub(crate) fn admit(
+    pub(crate) fn admit_paths(
         &mut self,
-        root: String,
+        root: &Arc<str>,
         files: &[String],
         binding: usize,
+        known_binding: bool,
+        mut resolved: impl FnMut(usize),
     ) -> Result<Vec<usize>> {
-        let root: Arc<str> = root.into();
         let ids = self.source_ids.entry(root.clone()).or_default();
-        let mut pairs = Vec::with_capacity(files.len());
-        for path in files {
-            let src = Self::source_in(&mut self.sources, ids, &root, path)?;
-            let source = &mut self.sources[src];
-            if let Some(&slot) = source.known.get(&binding) {
-                pairs.push(slot);
-                continue;
-            }
-            let first = source.bindings.is_empty();
-            let slot = *source.bindings.entry(binding).or_insert_with(|| {
-                let slot = self.pairs;
-                self.pairs += 1;
-                if first {
-                    self.pending.insert(src);
-                }
-                slot
-            });
-            pairs.push(slot);
+        files.iter().map(|path| {
+            let src = Self::source_in(&mut self.sources, ids, root, path)?;
+            resolved(src);
+            Ok(Self::slot(&mut self.sources[src], src, binding, known_binding, &mut self.pairs, &mut self.pending))
+        }).collect()
+    }
+
+    pub(crate) fn admit_ids(&mut self, sources: &[usize], binding: usize, known_binding: bool) -> Vec<usize> {
+        sources.iter().map(|&src| {
+            Self::slot(&mut self.sources[src], src, binding, known_binding, &mut self.pairs, &mut self.pending)
+        }).collect()
+    }
+
+    fn slot(
+        source: &mut Source,
+        src: usize,
+        binding: usize,
+        known_binding: bool,
+        pairs: &mut usize,
+        pending: &mut BTreeSet<usize>,
+    ) -> usize {
+        if known_binding && let Some(&slot) = source.known.get(&binding) {
+            return slot;
         }
-        Ok(pairs)
+        let first = source.bindings.is_empty();
+        *source.bindings.entry(binding).or_insert_with(|| {
+            let slot = *pairs;
+            *pairs += 1;
+            if first {
+                pending.insert(src);
+            }
+            slot
+        })
     }
 }
 
@@ -660,8 +702,8 @@ pub(crate) fn visit<L: FileSource>(
     contributions: &mut (impl Slots<Option<Rc<project::Contribution>>> + ?Sized),
     programs: &[Result<Program>],
     program_of: &[usize],
-    contracts: &HashMap<usize, &completeness::Contract>,
-    cut_of: &[Option<&finish::partition::Partition>],
+    contracts: &[Arc<completeness::Contract>],
+    cut_of: &[Option<Arc<finish::partition::Partition>>],
     world: &mut World,
     sources: &[Source],
     selected: &[usize],
@@ -755,6 +797,7 @@ pub(crate) fn visit<L: FileSource>(
         carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
     }
     for group in by_path.values() {
+        let file_start = clocks.measure_file_wall.then(std::time::Instant::now);
         let t = thread_cpu();
         let versions = versions(
             group,
@@ -965,7 +1008,7 @@ pub(crate) fn visit<L: FileSource>(
                 if excluded && b.facts.is_empty() {
                     let whole = recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
                     if whole || {
-                        let rels: Vec<_> = contracts[&binding].needs.reads.iter()
+                        let rels: Vec<_> = contracts[binding].needs.reads.iter()
                             .map(|r| r.relation()).collect();
                         partial_of(&[], recovery, &rels).is_empty()
                     } {
@@ -1096,7 +1139,7 @@ pub(crate) fn visit<L: FileSource>(
             let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
             for (binding, slot, excluded) in active {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
-                let contract = &contracts[&binding];
+                let contract = &contracts[binding];
                 let b = bound[&binding].as_mut().unwrap();
                 let mut local_coverage = BTreeMap::new();
                 let unknowns = if said.is_empty()
@@ -1195,6 +1238,13 @@ pub(crate) fn visit<L: FileSource>(
                 retention.put(index, previous.saturating_add(end.wrapping_sub(start)), file);
             }
             clocks.evaluate += thread_cpu() - t;
+        }
+        if let Some(start) = file_start {
+            let elapsed = start.elapsed().as_secs_f64();
+            if elapsed > clocks.largest_file_wall {
+                clocks.largest_file_wall = elapsed;
+                clocks.largest_file.clone_from(&sources[group[0]].path);
+            }
         }
         if let Some(boundaries) = &mut world.boundaries {
             boundaries.push((group[0], world.run.paths.len(), world.run.texts.len()));

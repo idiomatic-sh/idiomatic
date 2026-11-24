@@ -1,14 +1,17 @@
 //! A packet preserves caller order, repeated rows and typed nulls. The capture
 //! boundary also consumes the canonical findings digest; live calls use the rows.
 use super::super::Receipt;
-use super::{Key, Value, finish, key, kind, session};
+use super::{Key, Shards, finish, key, kind, session};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs,
+    hash::Hash,
     io::Read,
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
@@ -22,10 +25,39 @@ pub(super) enum Probe {
 pub(super) type Group = Vec<(u32, Probe)>;
 pub(super) type Proof = (Key, Key);
 
-type Stamp = (u64, u64, i64, i64);
-fn stamp(m: &fs::Metadata) -> Stamp {
-    (m.dev(), m.ino(), m.ctime(), m.ctime_nsec())
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+struct Stamp {
+    device: u64,
+    inode: u64,
+    length: u64,
+    mode: u32,
+    modified: (i64, i64),
+    changed: (i64, i64),
 }
+impl Stamp {
+    fn from_metadata(m: &fs::Metadata) -> Self {
+        Self {
+            device: m.dev(),
+            inode: m.ino(),
+            length: m.len(),
+            mode: m.mode(),
+            modified: (m.mtime(), m.mtime_nsec()),
+            changed: (m.ctime(), m.ctime_nsec()),
+        }
+    }
+
+    // A whole second is a conservative tick even when this filesystem's
+    // timestamps carry only second precision. Include future timestamps.
+    fn older_than(self, second: i64) -> bool {
+        self.modified.0 < second && self.changed.0 < second
+    }
+}
+#[derive(Serialize, Deserialize)]
+pub(super) struct SavedStamp {
+    stamp: Stamp,
+    bytes: Key,
+}
+
 struct FileObservation {
     bytes: Key,
     executable: u32,
@@ -44,8 +76,14 @@ impl FileObservation {
     }
 }
 
-#[derive(Default)]
 pub(super) struct Observations {
+    dir: PathBuf,
+    started: i64,
+    pub stamps: Shards<SavedStamp>,
+    pub stats: usize,
+    pub stamp_hits: usize,
+    pub young: usize,
+    pub stamp_changed: usize,
     pub hash_cpu: f64,
     pub hash_bytes: usize,
     pub open_cpu: f64,
@@ -58,15 +96,49 @@ pub(super) struct Observations {
     pub bytes: [usize; 3],
     pub group_hits: usize,
     inodes: HashMap<Stamp, Key>,
-    values: HashMap<(u32, Probe), Option<Key>>,
+    values: FxHashMap<(u32, Probe), Option<Key>>,
     pub root: Option<PathBuf>,
     pub inventory: Key,
     pub overlay: HashMap<PathBuf, Key>,
-    pub groups: HashMap<Key, Option<Key>>,
+    pub groups: FxHashMap<Key, Option<Key>>,
     effective_groups: HashSet<Key>,
     inventory_groups: HashSet<Key>,
 }
 impl Observations {
+    pub fn new(dir: PathBuf, index: super::Index) -> Self {
+        Self {
+            dir,
+            started: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .ok()
+                .and_then(|t| i64::try_from(t.as_secs()).ok())
+                .unwrap_or(i64::MIN),
+            stamps: Shards::new("stamps", index),
+            stats: 0,
+            stamp_hits: 0,
+            young: 0,
+            stamp_changed: 0,
+            hash_cpu: 0.0,
+            hash_bytes: 0,
+            open_cpu: 0.0,
+            files: HashMap::new(),
+            kinds: HashMap::new(),
+            buffer: Vec::new(),
+            path_hits: 0,
+            inode_hits: 0,
+            reads: [0; 3],
+            bytes: [0; 3],
+            group_hits: 0,
+            inodes: HashMap::new(),
+            values: FxHashMap::default(),
+            root: None,
+            inventory: [0; 32],
+            overlay: HashMap::new(),
+            groups: FxHashMap::default(),
+            effective_groups: HashSet::new(),
+            inventory_groups: HashSet::new(),
+        }
+    }
     pub fn overlay(
         &mut self,
         root: &Path,
@@ -125,21 +197,60 @@ impl Observations {
             self.path_hits += 1;
             return Some(file.digest(mode));
         }
+        let name = key(p);
+        self.stamps.open(&self.dir, &name);
+        let saved = self.stamps.get(&name);
         let start = crate::thread_cpu();
-        let mut input = fs::File::open(p).ok()?;
-        let metadata = input.metadata().ok()?;
+        // Following the pathname once suffices for a hit. A miss uses fresh
+        // descriptor metadata and verifies that the descriptor stayed stable.
+        let mut input = None;
+        let metadata = if saved.is_some() {
+            self.stats += 1;
+            fs::metadata(p).ok()?
+        } else {
+            let f = fs::File::open(p).ok()?;
+            let metadata = f.metadata().ok()?;
+            input = Some(f);
+            metadata
+        };
         self.open_cpu += crate::thread_cpu() - start;
-        let stamp = stamp(&metadata);
-        let bytes = if let Some(v) = self.inodes.get(&stamp) {
+        if !metadata.is_file() {
+            return None;
+        }
+        let mut stamp = Stamp::from_metadata(&metadata);
+        let trusted = stamp.older_than(self.started);
+        let matches = saved.is_some_and(|s| s.stamp == stamp);
+        self.young += usize::from(!trusted);
+        self.stamp_changed += usize::from(saved.is_some() && !matches);
+        let bytes = if let Some(saved) = saved.filter(|_| trusted && matches) {
+            self.stamp_hits += 1;
+            saved.bytes
+        } else if let Some(v) = self.inodes.get(&stamp).filter(|_| trusted) {
             self.inode_hits += 1;
             *v
         } else {
             let start = crate::thread_cpu();
-            self.buffer.clear();
-            self.buffer
-                .try_reserve(usize::try_from(metadata.len()).ok()?)
-                .ok()?;
-            input.read_to_end(&mut self.buffer).ok()?;
+            let mut input = match input {
+                Some(f) => f,
+                None => {
+                    let f = fs::File::open(p).ok()?;
+                    let m = f.metadata().ok()?;
+                    if !m.is_file() {
+                        return None;
+                    }
+                    stamp = Stamp::from_metadata(&m);
+                    f
+                }
+            };
+            let size = usize::try_from(stamp.length).ok()?;
+            self.buffer.try_reserve(size.saturating_sub(self.buffer.len())).ok()?;
+            self.buffer.resize(size, 0);
+            input.read_exact(&mut self.buffer).ok()?;
+            if input.read(&mut [0]).ok()? != 0
+                || Stamp::from_metadata(&input.metadata().ok()?) != stamp
+            {
+                return None;
+            }
             let digest = *blake3::hash(&self.buffer).as_bytes();
             self.hash_cpu += crate::thread_cpu() - start;
             self.hash_bytes += self.buffer.len();
@@ -148,9 +259,17 @@ impl Observations {
             self.inodes.insert(stamp, digest);
             digest
         };
+        // A young observation can support the current answer by its content
+        // hash, but it cannot vouch for a later process. Stale entries cannot
+        // match its new stamp and are replaced on the next eligible miss.
+        if stamp.older_than(self.started)
+            && !saved.is_some_and(|s| s.stamp == stamp && s.bytes == bytes)
+        {
+            self.stamps.insert(name, SavedStamp { stamp, bytes });
+        }
         let mut file = FileObservation {
             bytes,
-            executable: metadata.mode() & 0o111,
+            executable: stamp.mode & 0o111,
             source: None,
             stamp,
         };
@@ -161,7 +280,11 @@ impl Observations {
     pub fn still_current(&self) -> bool {
         self.files
             .iter()
-            .all(|(path, file)| fs::metadata(path).is_ok_and(|m| stamp(&m) == file.stamp))
+            .all(|(path, file)| {
+                fs::metadata(path).is_ok_and(|m| Stamp::from_metadata(&m) == file.stamp)
+                    && (file.stamp.older_than(self.started)
+                        || fs::read(path).is_ok_and(|bytes| blake3::hash(&bytes).as_bytes() == &file.bytes))
+            })
             && self
                 .kinds
                 .iter()
@@ -172,18 +295,22 @@ impl Observations {
             self.group_hits += 1;
             return *v;
         }
+        let mut hash = super::Digest::default();
+        paths.len().hash(&mut hash);
         let result = paths
             .iter()
-            .map(|&(i, m)| {
-                if let Some(d) = self.values.get(&(i, m)) {
-                    return *d;
-                }
-                let d = self.observe(names.get(i as usize)?, m);
-                self.values.insert((i, m), d);
-                d
+            .try_for_each(|&(i, m)| {
+                let d = if let Some(d) = self.values.get(&(i, m)) {
+                    *d
+                } else {
+                    let d = self.observe(names.get(i as usize)?, m);
+                    self.values.insert((i, m), d);
+                    d
+                }?;
+                d.hash(&mut hash);
+                Some(())
             })
-            .collect::<Option<Vec<_>>>()
-            .map(key);
+            .map(|()| *hash.0.finalize().as_bytes());
         if self.root.is_some() {
             for &(_, mode) in paths {
                 match mode {
@@ -228,8 +355,8 @@ enum PackedValue {
     Span(u32, u32),
 }
 #[derive(Serialize, Deserialize)]
-struct Rows {
-    words: Vec<Box<str>>,
+struct Rows<Word = Box<str>> {
+    words: Vec<Word>,
     schemas: Vec<Schema>,
     rows: Vec<PackedRow>,
 }
@@ -270,96 +397,116 @@ impl Packet {
     }
 }
 
-pub(super) fn pack_rows<'a>(rows: impl IntoIterator<Item = &'a finish::answer::Row>) -> Vec<u8> {
+pub(super) fn pack_rows<'a>(input: impl IntoIterator<Item = &'a finish::answer::Row>) -> Vec<u8> {
     use ryo_values::domain::row_texts::types::Cell;
-    let mut words = Vec::new();
-    let mut dictionary = HashMap::new();
-    fn intern(s: std::sync::Arc<str>, words: &mut Vec<Box<str>>, dictionary: &mut HashMap<std::sync::Arc<str>, u32>) -> u32 {
-        if let Some(&i) = dictionary.get(&s) {return i;}
-        let i=u32::try_from(words.len()).expect("packet dictionary");
-        words.push(s.as_ref().into());dictionary.insert(s,i);i
+    use std::sync::Arc;
+
+    struct SharedWord(Arc<str>);
+    impl Serialize for SharedWord {
+        fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            serializer.serialize_str(&self.0)
+        }
     }
+
+    fn intern(word: Arc<str>, words: &mut Vec<SharedWord>, dictionary: &mut rustc_hash::FxHashMap<Arc<str>, u32>) -> u32 {
+        *dictionary.entry(word).or_insert_with_key(|s| {
+            let i = u32::try_from(words.len()).expect("packet dictionary");
+            words.push(SharedWord(s.clone()));
+            i
+        })
+    }
+
+    let mut words = Vec::new();
+    let mut dictionary = rustc_hash::FxHashMap::default();
     let mut schemas = Vec::new();
     let mut ids = BTreeMap::new();
-    let mut previous: Option<(&finish::answer::Row, usize)> = None;
-    let rows = rows
-        .into_iter()
-        .map(|r| {
-            let schema = if let Some((prior, id)) = previous
-                && std::sync::Arc::ptr_eq(&prior.layout, &r.layout) {
-                id
-            } else {
-                let shape = (
-                    &r.layout.rule,
-                    &r.layout.names,
-                    &r.layout.identity,
-                );
-                *ids.entry(shape).or_insert_with(|| {
-                    let i = schemas.len();
-                    schemas.push(Schema {
-                        rule: r.layout.rule.clone(),
-                        columns: r.layout.names.iter().map(|n| n.as_str().into()).collect(),
-                        identity: r.layout.identity.to_vec(),
-                    });
-                    i
-                })
-            };
-            previous = Some((r, schema));
-            PackedRow {
-                schema,
-                values: r.cells()
-                    .map(|c| {
-                        c.map(|v| match v {
-                            Cell::File(s) => {
-                                PackedValue::File(intern(s, &mut words, &mut dictionary))
-                            }
-                            Cell::Text(s) => {
-                                PackedValue::Text(intern(s, &mut words, &mut dictionary))
-                            }
-                            Cell::Number(n) => PackedValue::Number(n.0),
-                            Cell::Span(s) => PackedValue::Span(s.start.0, s.end.0),
-                        })
-                    })
-                    .collect(),
-            }
-        })
-        .collect();
-    postcard::to_stdvec(&Rows {
-        words,
-        schemas,
-        rows,
-    })
-    .expect("typed rows")
+    let mut previous = None;
+    let rows = input.into_iter().map(|r| {
+        let schema = if let Some((prior, id)) = previous && Arc::ptr_eq(prior, &r.layout) {
+            id
+        } else {
+            let shape = (&r.layout.rule, &r.layout.names, &r.layout.identity);
+            *ids.entry(shape).or_insert_with(|| {
+                let i = schemas.len();
+                schemas.push(Schema {
+                    rule: r.layout.rule.clone(),
+                    columns: r.layout.names.iter().map(|n| n.as_str().into()).collect(),
+                    identity: r.layout.identity.to_vec(),
+                });
+                i
+            })
+        };
+        previous = Some((&r.layout, schema));
+        let values = r.cells().map(|cell| cell.map(|v| match v {
+            Cell::File(s) => PackedValue::File(intern(s, &mut words, &mut dictionary)),
+            Cell::Text(s) => PackedValue::Text(intern(s, &mut words, &mut dictionary)),
+            Cell::Number(n) => PackedValue::Number(n.0),
+            Cell::Span(s) => PackedValue::Span(s.start.0, s.end.0),
+        })).collect();
+        PackedRow { schema, values }
+    }).collect();
+    postcard::to_stdvec(&Rows { words, schemas, rows }).expect("typed request rows")
 }
 
 pub(super) fn unpack_rows(data: &[u8]) -> Vec<finish::answer::Row> {
-    let Rows {
-        words,
-        schemas,
-        rows,
-    } = postcard::from_bytes(data).expect("verified rows");
-    rows.into_iter()
-        .map(|r| {
-            let s = &schemas[r.schema];
-            finish::answer::Row::restored(s.rule.clone(),s.identity.clone().into(),s
-                    .columns
-                    .iter()
-                    .map(|n| n.to_string())
-                    .zip(r.values.into_iter().map(|c| {
-                        c.map(|v| match v {
-                            PackedValue::File(i) => {
-                                Value::File(words[i as usize].clone()).cell()
-                            }
-                            PackedValue::Text(i) => {
-                                Value::Text(words[i as usize].clone()).cell()
-                            }
-                            PackedValue::Number(n) => Value::Number(n).cell(),
-                            PackedValue::Span(a, b) => Value::Span(a, b).cell(),
-                        })
-                    }))
-                    .collect())
-        })
-        .collect()
+    use finish::Ty;
+    let Rows { words, schemas, rows } = postcard::from_bytes(data).expect("verified request packet");
+    let mut restored = finish::answer::RestoredRows::new(words, schemas.len());
+    rows.into_iter().map(|r| {
+        let schema = &schemas[r.schema];
+        let cells = r.values.into_iter().map(|v| match v {
+            None => (Ty::Sym, finish::NULL),
+            Some(PackedValue::File(i)) => (Ty::File, u64::from(i)),
+            Some(PackedValue::Text(i)) => (Ty::Sym, u64::from(i)),
+            Some(PackedValue::Number(n)) => (Ty::Num, n as u64),
+            Some(PackedValue::Span(a, b)) => (Ty::Span, (u64::from(a) << 32) | u64::from(b)),
+        });
+        restored.row(r.schema, &schema.rule, &schema.columns, &schema.identity, cells)
+    }).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn both_timestamps_must_precede_the_snapshot_tick() {
+        let mut stamp = Stamp {
+            device: 1,
+            inode: 2,
+            length: 3,
+            mode: 0o100644,
+            modified: (40, 999_999_999),
+            changed: (40, 999_999_999),
+        };
+        assert!(stamp.older_than(41));
+        stamp.changed = (41, 0);
+        assert!(!stamp.older_than(41));
+        stamp.changed = (40, 0);
+        stamp.modified = (42, 0);
+        assert!(!stamp.older_than(41));
+    }
+
+    #[test]
+    fn restored_rows_preserve_nulls_negative_one_and_multiplicity() {
+        let rows: Rows = Rows {
+            words: vec!["same bytes".into()],
+            schemas: vec![Schema {
+                rule: "query".into(),
+                columns: vec!["subject".into(), "value".into()],
+                identity: vec![0],
+            }],
+            rows: vec![
+                PackedRow { schema: 0, values: vec![Some(PackedValue::File(0)), Some(PackedValue::Number(-1))] },
+                PackedRow { schema: 0, values: vec![Some(PackedValue::Text(0)), None] },
+                PackedRow { schema: 0, values: vec![Some(PackedValue::File(0)), Some(PackedValue::Number(-1))] },
+            ],
+        };
+        let encoded = postcard::to_stdvec(&rows).unwrap();
+        let restored = unpack_rows(&encoded);
+        assert!(std::sync::Arc::ptr_eq(&restored[0].layout, &restored[2].layout));
+        assert_eq!(pack_rows(&restored), encoded);
+    }
 }
 
 mod payload {

@@ -4,7 +4,9 @@ use serde::{Serialize, de::DeserializeOwned};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs, io,
+    ops::Range,
     path::Path,
+    sync::Arc,
 };
 
 pub(super) type Index = BTreeMap<u8, Key>;
@@ -94,6 +96,102 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
     }
 }
 
+/// Answer packets have immutable keys. Append new packets as a postcard table
+/// and fold the append tables into their affected shards after a bounded number.
+pub(super) struct Packets<T> {
+    base: Shards<T>,
+    pub layers: Vec<Key>,
+    pending: BTreeMap<Key, T>,
+    seen: BTreeMap<Key, T>,
+    opened: bool,
+    pub read_bytes: usize,
+    pub read_cpu: f64,
+    pub write_bytes: usize,
+}
+impl<T: Serialize + DeserializeOwned> Packets<T> {
+    pub fn new(index: Index, layers: Vec<Key>) -> Self {
+        Self {
+            base: Shards::new("answers", index),
+            layers,
+            pending: BTreeMap::new(),
+            seen: BTreeMap::new(),
+            opened: false,
+            read_bytes: 0,
+            read_cpu: 0.0,
+            write_bytes: 0,
+        }
+    }
+
+    pub fn open(&mut self, dir: &Path, key: &Key) {
+        if !self.opened {
+            let start = crate::thread_cpu();
+            self.layers.retain(|&digest| {
+                let path = table(dir, "answers", digest);
+                let Some(mut values): Option<BTreeMap<Key, T>> = load(&path, digest) else {
+                    return false;
+                };
+                self.read_bytes += fs::metadata(path).map_or(0, |m| m.len() as usize);
+                self.seen.append(&mut values);
+                true
+            });
+            self.read_cpu += crate::thread_cpu() - start;
+            self.opened = true;
+        }
+        if self.pending.contains_key(key) || self.seen.contains_key(key) {
+            return;
+        }
+        let (bytes, cpu) = (self.base.read_bytes, self.base.read_cpu);
+        self.base.open(dir, key);
+        self.read_bytes += self.base.read_bytes - bytes;
+        self.read_cpu += self.base.read_cpu - cpu;
+    }
+
+    pub fn get(&self, key: &Key) -> Option<&T> {
+        self.pending.get(key).or_else(|| self.seen.get(key)).or_else(|| self.base.get(key))
+    }
+
+    pub fn insert(&mut self, key: Key, value: T) {
+        self.pending.insert(key, value);
+    }
+
+    pub fn dirty(&self) -> bool {
+        !self.pending.is_empty()
+    }
+
+    pub fn index(&self) -> &Index {
+        &self.base.index
+    }
+
+    pub fn flush(&mut self, dir: &Path, obsolete: &mut Vec<std::path::PathBuf>) -> Res<usize> {
+        if self.pending.is_empty() {
+            return Ok(0);
+        }
+        let written = if self.base.index.is_empty() || self.layers.len() >= 32 {
+            self.seen.append(&mut self.pending);
+            for (key, value) in std::mem::take(&mut self.seen) {
+                self.base.open(dir, &key);
+                self.base.insert(key, value);
+            }
+            let bytes = self.base.flush(dir, obsolete)?;
+            for digest in self.layers.drain(..) {
+                if !self.base.index.values().any(|key| *key == digest) {
+                    obsolete.push(table(dir, "answers", digest));
+                }
+            }
+            bytes
+        } else {
+            let bytes = postcard::to_stdvec(&self.pending).map_err(io::Error::other)?;
+            let digest = *blake3::hash(&bytes).as_bytes();
+            atomic(dir, &table(dir, "answers", digest), &bytes)?;
+            self.layers.push(digest);
+            self.seen.append(&mut self.pending);
+            bytes.len()
+        };
+        self.write_bytes += written;
+        Ok(written)
+    }
+}
+
 /// File contributions are much larger than request indexes. A shard has a sorted
 /// postcard directory followed by independent postcard records. A closure can
 /// read one record without deserializing any neighboring file's columns.
@@ -104,6 +202,7 @@ pub(super) struct Segment {
     name: Key,
     directory: Key,
     bytes: usize,
+    length: usize,
 }
 pub(super) type Segments = BTreeMap<u8, Segment>;
 pub(super) struct Records<T> {
@@ -111,18 +210,22 @@ pub(super) struct Records<T> {
     pub index: Segments,
     directories: BTreeMap<u8, (fs::File, Directory, u64)>,
     rows: BTreeMap<Key, T>,
+    mapped: BTreeMap<u8, Arc<memmap2::Mmap>>,
+    unavailable: BTreeSet<u8>,
     changed: BTreeSet<Key>,
     pub read_bytes: usize,
     pub read_cpu: f64,
     pub write_bytes: usize,
 }
-impl<T: Serialize + DeserializeOwned + Default> Records<T> {
+impl<T: Serialize + Default> Records<T> {
     pub fn new(name: &'static str, index: Segments) -> Self {
         Self {
             name,
             index,
             directories: BTreeMap::new(),
             rows: BTreeMap::new(),
+            mapped: BTreeMap::new(),
+            unavailable: BTreeSet::new(),
             changed: BTreeSet::new(),
             read_bytes: 0,
             read_cpu: 0.0,
@@ -131,27 +234,37 @@ impl<T: Serialize + DeserializeOwned + Default> Records<T> {
     }
     fn part(&mut self, dir: &Path, prefix: u8) -> Option<&(fs::File, Directory, u64)> {
         use std::os::unix::fs::FileExt;
+        if self.unavailable.contains(&prefix) {
+            return None;
+        }
         if !self.directories.contains_key(&prefix) {
-            let s = self.index.get(&prefix)?;
-            let file = fs::File::open(table(dir, self.name, s.name)).ok()?;
-            if s.bytes as u64 > file.metadata().ok()?.len() {
+            let read = || {
+                let s = self.index.get(&prefix)?;
+                let file = fs::File::open(table(dir, self.name, s.name)).ok()?;
+                if s.bytes > s.length || s.length as u64 != file.metadata().ok()?.len() {
+                    return None;
+                }
+                let mut raw = vec![0; s.bytes];
+                file.read_exact_at(&mut raw, 0).ok()?;
+                if blake3::hash(&raw).as_bytes() != &s.directory {
+                    return None;
+                }
+                let entries = postcard::from_bytes(&raw).ok()?;
+                Some((file, entries, s.bytes as u64))
+            };
+            if let Some(part) = read() {
+                self.read_bytes += part.2 as usize;
+                self.directories.insert(prefix, part);
+            } else {
+                self.unavailable.insert(prefix);
                 return None;
             }
-            let mut raw = vec![0; s.bytes];
-            file.read_exact_at(&mut raw, 0).ok()?;
-            if blake3::hash(&raw).as_bytes() != &s.directory {
-                return None;
-            }
-            let entries = postcard::from_bytes(&raw).ok()?;
-            self.read_bytes += raw.len();
-            self.directories
-                .insert(prefix, (file, entries, s.bytes as u64));
         }
         self.directories.get(&prefix)
     }
-    pub fn open(&mut self, dir: &Path, k: &Key) {
+    pub fn open(&mut self, dir: &Path, k: &Key) where T: DeserializeOwned {
         use std::os::unix::fs::FileExt;
-        if self.rows.contains_key(k) {
+        if !self.index.contains_key(&k[0]) || self.rows.contains_key(k) {
             return;
         }
         let start = crate::thread_cpu();
@@ -169,6 +282,44 @@ impl<T: Serialize + DeserializeOwned + Default> Records<T> {
         }
         self.read_cpu += crate::thread_cpu() - start;
     }
+    pub fn open_mapped(&mut self, dir: &Path, key: &Key, decode: impl FnOnce(MappedRecord) -> Option<T>) {
+        if !self.index.contains_key(&key[0]) || self.rows.contains_key(key) {
+            return;
+        }
+        let start = crate::thread_cpu();
+        if let Some((record, len)) = self.mapped_record(dir, key)
+            && let Some(value) = decode(record)
+        {
+            self.read_bytes += len;
+            self.rows.insert(*key, value);
+        }
+        self.read_cpu += crate::thread_cpu() - start;
+    }
+
+    fn mapped_record(&mut self, dir: &Path, key: &Key) -> Option<(MappedRecord, usize)> {
+        let prefix = key[0];
+        self.part(dir, prefix)?;
+        let (file, entries, base) = self.directories.get(&prefix)?;
+        let (offset, len, digest) = *entries.get(key)?;
+        let first = usize::try_from(base.checked_add(offset)?).ok()?;
+        let range = first..first.checked_add(len)?;
+        let map = match self.mapped.get(&prefix) {
+            Some(map) => map.clone(),
+            None => {
+                // Published segment inodes are immutable. The writer creates a
+                // new inode and can unlink the old name, which leaves this map live.
+                let map = Arc::new(unsafe { memmap2::MmapOptions::new().map(file).ok()? });
+                self.mapped.insert(prefix, map.clone());
+                map
+            }
+        };
+        let bytes = map.get(range.clone())?;
+        if blake3::hash(bytes).as_bytes() != &digest {
+            return None;
+        }
+        Some((MappedRecord { map, range }, len))
+    }
+
     pub fn get(&self, k: &Key) -> Option<&T> {
         self.rows.get(k)
     }
@@ -230,15 +381,36 @@ impl<T: Serialize + DeserializeOwned + Default> Records<T> {
                     name,
                     directory,
                     bytes: len,
+                    length: bytes.len(),
                 },
             ) && old.name != name
             {
                 obsolete.push(table(dir, self.name, old.name));
             }
             self.directories.remove(&prefix);
+            self.mapped.remove(&prefix);
+            self.unavailable.remove(&prefix);
         }
         self.changed.clear();
         self.write_bytes += written;
         Ok(written)
+    }
+}
+
+
+pub(super) struct MappedRecord {
+    map: Arc<memmap2::Mmap>,
+    range: Range<usize>,
+}
+impl MappedRecord {
+    pub fn postcard_bytes(mut self) -> Option<Self> {
+        let bytes = postcard::from_bytes::<&[u8]>(self.as_ref()).ok()?;
+        self.range.start = self.range.end.checked_sub(bytes.len())?;
+        Some(self)
+    }
+}
+impl AsRef<[u8]> for MappedRecord {
+    fn as_ref(&self) -> &[u8] {
+        &self.map[self.range.clone()]
     }
 }

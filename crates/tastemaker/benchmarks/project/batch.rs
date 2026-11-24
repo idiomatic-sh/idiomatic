@@ -20,11 +20,15 @@ use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use serde::Deserialize;
 use crate::{json_input, json_output};
 use sha2::{Digest, Sha256};
+#[path = "closed_workers.rs"]
+mod closed_workers;
+
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     io::{BufRead, Write},
     path::{Path, PathBuf},
     rc::Rc,
+    sync::Arc,
 };
 
 #[derive(Deserialize)]
@@ -94,22 +98,32 @@ impl Authorities {
 
 type HostSchema = Vec<(String, Vec<(String, String)>)>;
 
+#[derive(Clone, Copy)]
+struct LiveAdmission<'a> {
+    version: &'a Arc<str>,
+    selection: usize,
+    host_tables: &'a [usize],
+}
+
 struct Admission {
     id: usize,
-    contract: Rc<session::completeness::Contract>,
+    contract: Arc<session::completeness::Contract>,
     project_bases: Vec<l::Relation>,
     closed: bool,
     file_cells: bool,
     file_inventory: bool,
-    cut: Option<Rc<finish::partition::Partition>>,
+    cut: Option<Arc<finish::partition::Partition>>,
 }
 
 #[derive(Default)]
 struct Batch {
+    closed_reuse: [usize; 5],
     workers: Option<std::num::NonZeroUsize>,
     schedule: session::Schedule,
     program_of: Vec<usize>,
-    bindings: Vec<Rc<[Hosted]>>,
+    bindings: Vec<Arc<[Hosted]>>,
+    replay_file_sets: HashSet<Rc<Vec<String>>>,
+    shared_replay_files: [usize; 2],
     host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
     binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
     queries: HashMap<String, Rc<str>>,
@@ -120,11 +134,16 @@ struct Batch {
     roots: HashMap<String, PathBuf>,
     authorities: Authorities,
     projects: Vec<ProjectSpec>,
-    cut_of: Vec<Option<Rc<finish::partition::Partition>>>,
+    cut_of: Vec<Option<Arc<finish::partition::Partition>>>,
     local_bindings: HashMap<usize, usize>,
     project_keys: HashMap<(String, Authority, Rc<Vec<String>>), usize>,
     admissions: HashMap<(usize, HostSchema), Rc<Admission>>,
-    bound_contracts: HashMap<usize, Rc<session::completeness::Contract>>,
+    bound_contracts: Vec<Arc<session::completeness::Contract>>,
+    reused_binding_entries: usize,
+    host_binding_counts: [usize; 2],
+    last_sources: Option<(Arc<str>, usize, Vec<usize>)>,
+    source_lookups_removed: usize,
+    slot_lookups_removed: usize,
     clocks: Clock,
     populations_built: usize,
     relations_built: usize,
@@ -134,6 +153,7 @@ struct Batch {
 #[derive(Default)]
 struct Active<F: Default, D: Default> {
     keep: bool,
+    manifests: Option<BTreeSet<&'static str>>,
     retention: session::Retention<F,D>,
     readers: Vec<session::ReaderState>,
     world: session::World,
@@ -174,7 +194,7 @@ impl Admission {
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
-        let contract = Rc::new(session::completeness::describe(query, program, relations)?);
+        let contract = Arc::new(session::completeness::describe(query, program, relations)?);
         let held: Vec<_> = program
             .bases
             .iter()
@@ -213,7 +233,7 @@ impl Admission {
                         || hosted.iter().any(|t| t.name == n)
                 },
             )?;
-            Some(Rc::new(scoped))
+            Some(Arc::new(scoped))
         } else {
             None
         };
@@ -244,7 +264,7 @@ impl Batch {
             }
         };
         self.clocks.prepare += thread_cpu() - t;
-        self.register_query(query, req, closed)
+        self.register_query(query, req, closed, None)
     }
 
     fn prepared_rule(&mut self,query:Rc<str>,parameters:&Parameters)->usize{
@@ -265,11 +285,20 @@ impl Batch {
         query: Rc<str>,
         mut req: Input,
         closed: Option<&Path>,
+        sdk: Option<LiveAdmission<'_>>,
     ) -> Result<Work, String> {
         let rule=self.prepared_rule(query.clone(),&req.parameters);
         let program=match &self.schedule.programs[rule]{Ok(p)=>p,Err(reason)=>return Ok(Work::Invalid(reason.clone()))};
-        req.hosted
-            .retain(|h| program.bases.iter().any(|n| n == &h.name));
+        let mut host_ids = Vec::new();
+        let mut position = 0;
+        req.hosted.retain(|host| {
+            let referenced = program.bases.iter().any(|name| name == &host.name);
+            if let Some(live) = sdk && referenced {
+                host_ids.push(live.host_tables[position]);
+            }
+            position += 1;
+            referenced
+        });
         let shape: Vec<_> = req
             .hosted
             .iter()
@@ -358,18 +387,28 @@ impl Batch {
             {
                 return Ok(Work::Project(Rc::new(Ok(session::Reported::skipped(&inventory)))));
             }
-            let binding = self.binding(rule, class.id, req.hosted);
-            self.bound_contracts.insert(binding, Rc::clone(contract));
-            let pairs = if let Some(c) = &class.cut {
-                self.cut_of[binding] = Some(c.clone());
+            let existing = self.bindings.len();
+            let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()));
+            let pairs = if class.cut.is_some() {
                 // Caller rows are consumed only after closure. Sources with the same
                 // prepared program and caller schema produce identical local outputs.
                 let local = *self.local_bindings.entry(class.id).or_insert(binding);
-                self.schedule.admit(req.root, &req.files, local)?
+                self.admit(&req.root, &req.files, local, local < existing, sdk)?
             } else {
                 Vec::new()
             };
             self.clocks.project += thread_cpu() - t;
+            if sdk.is_none() {
+                // Closed requests retain their ordered file list beyond admission.
+                // Share equal capture lists and discard the lookup before executing.
+                if let Some(existing) = self.replay_file_sets.get(req.files.as_ref()) {
+                    self.shared_replay_files[0] += 1;
+                    self.shared_replay_files[1] += req.files.iter().map(String::len).sum::<usize>();
+                    req.files = existing.clone();
+                } else {
+                    self.replay_file_sets.insert(req.files.clone());
+                }
+            }
             return Ok(Work::Closed {
                 pairs,
                 project,
@@ -381,16 +420,53 @@ impl Batch {
         if req.files.is_empty() {
             return Err("no complete source contribution for query".into());
         }
-        let binding = self.binding(rule, class.id, req.hosted);
-        self.bound_contracts.insert(binding, contract.clone());
-        let pairs = self.schedule.admit(req.root, &req.files, binding)?;
+        let existing = self.bindings.len();
+        let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()));
+        let pairs = self.admit(&req.root, &req.files, binding, binding < existing, sdk)?;
         Ok(Work::Pairs(pairs))
     }
 
-    fn binding(&mut self, rule: usize, class: usize, mut hosted: Vec<Hosted>) -> usize {
+    fn admit(
+        &mut self,
+        root: &str,
+        files: &[String],
+        binding: usize,
+        known_binding: bool,
+        sdk: Option<LiveAdmission<'_>>,
+    ) -> Result<Vec<usize>, String> {
+        let Some(LiveAdmission { version, selection, .. }) = sdk else {
+            return self.schedule.admit_paths(&Arc::from(root), files, binding, true, |_| {});
+        };
+        // Slot histories precede this binding. A fresh ID cannot be in any of them.
+        if !known_binding {
+            self.slot_lookups_removed += files.len();
+        }
+        if let Some((prior, id, sources)) = &self.last_sources
+            && Arc::ptr_eq(prior, version) && *id == selection
+        {
+            self.source_lookups_removed += sources.len();
+            return Ok(self.schedule.admit_ids(sources, binding, known_binding));
+        }
+        let mut sources = Vec::with_capacity(files.len());
+        let pairs = self.schedule.admit_paths(version, files, binding, known_binding, |src| sources.push(src))?;
+        self.last_sources = Some((version.clone(), selection, sources));
+        Ok(pairs)
+    }
+
+    fn binding(
+        &mut self,
+        rule: usize,
+        class: &Admission,
+        mut hosted: Vec<Hosted>,
+        canonical: Option<&[usize]>,
+    ) -> usize {
         let mut payloads = Vec::with_capacity(hosted.len());
-        for table in &mut hosted {
-            let id = if let Some((rows, &id)) = self.host_rows.get_key_value(&table.rows) {
+        for (position, table) in hosted.iter_mut().enumerate() {
+            let id = if let Some(ids) = canonical {
+                self.host_binding_counts[0] += 1;
+                self.host_binding_counts[1] += table.rows.len();
+                ids[position]
+            } else if let Some((rows, &id)) = self.host_rows.get_key_value(&table.rows) {
                 table.rows = rows.clone();
                 id
             } else {
@@ -402,9 +478,10 @@ impl Batch {
         }
         // The class binds the program and ordered schemas. Each payload ID binds
         // all its cells by value, so the binding lookup need not hash them again.
-        *self.binding_ids.entry((class, payloads)).or_insert_with(|| {
+        *self.binding_ids.entry((class.id, payloads)).or_insert_with(|| {
             self.program_of.push(rule);
-            self.cut_of.push(None);
+            self.cut_of.push(class.cut.clone());
+            self.bound_contracts.push(class.contract.clone());
             self.bindings.push(hosted.into());
             self.bindings.len() - 1
         })
@@ -433,6 +510,8 @@ impl Batch {
 
     fn release_admission(&mut self) {
         self.host_rows.clear();
+        self.replay_file_sets = HashSet::new();
+        self.last_sources = None;
         self.schedule.close();
         self.inventories.clear();
         self.roots.clear();
@@ -451,6 +530,7 @@ impl Batch {
     ) {
         let Active {
             keep,
+            manifests,
             retention,
             readers: reader_states,
             world,
@@ -475,7 +555,6 @@ impl Batch {
         let pending: Vec<_> = std::mem::take(&mut self.schedule.pending)
             .into_iter()
             .collect();
-        let manifests: BTreeSet<_> = languages.iter().flat_map(|l| l.manifests()).collect();
         let unclaimed = languages.len();
         reader_states.resize_with(unclaimed + 1, Default::default);
         let mut groups = vec![Vec::new(); unclaimed + 1];
@@ -497,51 +576,59 @@ impl Batch {
             }
         }
         self.clocks.pairs = self.schedule.pairs;
-        let cuts: Vec<_> = self.cut_of.iter().map(|cut| cut.as_deref()).collect();
-        let contracts = self.bound_contracts.iter().map(|(&id, c)| (id, c.as_ref())).collect();
-        let hosted: Vec<_> = self.bindings.iter().map(|t| t.as_ref()).collect();
-        let paths = (!*keep).then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
-        let readers = languages.iter().map(Some).chain([None]);
-        for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
-            if files.is_empty() {
-                continue;
-            }
-            session::worker::dispatch(
-                self.workers,
-                languages,
-                paths.as_ref(),
-                &mut reader_states[reader_id],
-                retention,
-                *keep,
-                language,
-                (reader_id != unclaimed).then_some(reader_id),
-                &manifests,
-                contributions,
-                &self.schedule.programs,
-                &self.program_of,
-                &contracts,
-                &cuts,
-                world,
-                &self.schedule.sources,
-                &files,
-                aliases,
-                answers,
-                |binding, run| {
-                    Ok(bind_tables(hosted[binding], run, |_| None)?
-                        .into_iter()
-                        .map(|(n, t)| (n, Rc::new(t)))
-                        .collect())
-                },
-                &mut self.clocks,
-            );
-            if !*keep && store.is_none() {
-                // Other readers have disjoint files. Answers and project contributions
-                // already own everything the closed phase will read from this group.
-                self.schedule.delivered(&files, *keep);
-                for i in files {
-                    self.schedule.sources[i].provided = None;
+        if groups.iter().any(|files| !files.is_empty()) {
+            let manifests = manifests.get_or_insert_with(|| languages.iter().flat_map(|l| l.manifests()).collect());
+            self.reused_binding_entries += self.cut_of.len() + self.bound_contracts.len() + self.bindings.len();
+            self.clocks.omitted_file_bindings += self.bindings.len();
+            let hosted = &self.bindings;
+            let file_workers = if store.is_some() && *keep { Some(std::num::NonZeroUsize::MIN) } else { self.workers };
+            let paths = (!*keep || (pending.len() >= 128 && file_workers.is_some_and(|n| n.get() > 1)))
+                .then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
+            let readers = languages.iter().map(Some).chain([None]);
+            for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
+                if files.is_empty() {
+                    continue;
+                }
+                session::worker::dispatch(
+                    file_workers,
+                    languages,
+                    paths.as_ref(),
+                    &mut reader_states[reader_id],
+                    retention,
+                    *keep,
+                    language,
+                    (reader_id != unclaimed).then_some(reader_id),
+                    manifests,
+                    contributions,
+                    &self.schedule.programs,
+                    &self.program_of,
+                    &self.bound_contracts,
+                    &self.cut_of,
+                    world,
+                    &self.schedule.sources,
+                    &files,
+                    aliases,
+                    answers,
+                    |binding, run| {
+                        Ok(bind_tables(&hosted[binding], run, |_| None)?
+                            .into_iter()
+                            .map(|(n, t)| (n, Rc::new(t)))
+                            .collect())
+                    },
+                    &mut self.clocks,
+                );
+                if !*keep && store.is_none() {
+                    // Other readers have disjoint files. Answers and project contributions
+                    // already own everything the closed phase will read from this group.
+                    self.schedule.delivered(&files, *keep);
+                    for i in files {
+                        self.schedule.sources[i].provided = None;
+                    }
                 }
             }
+        } else {
+            self.clocks.empty_file_epochs += 1;
+            self.clocks.omitted_file_bindings += self.bindings.len();
         }
         if let Some(s)=store.as_deref_mut() {
             let started = thread_cpu();
@@ -577,6 +664,7 @@ impl Batch {
         keep: bool,
         mut store:Option<&mut stored::Store>,
     ) {
+        let wall = std::time::Instant::now();
         let t = thread_cpu();
         // Bound values select a different population. Only changed column declarations
         // require another prepared layout for the same lowered program.
@@ -615,6 +703,7 @@ impl Batch {
             if let Some((prior, _)) = populations.get(&id) {
                 self.relations_rebuilt += s.wanted.intersection(prior).count();
             }
+            let provider = std::time::Instant::now();
             let population = (|| {
                 let sources = s
                     .slots
@@ -634,6 +723,7 @@ impl Batch {
                     &s.wanted.iter().copied().collect::<Vec<_>>(),
                 )
             })();
+            self.clocks.project_provider_wall += provider.elapsed().as_secs_f64();
             populations.insert(id, (s.wanted.clone(), population));
         }
         if !keep {
@@ -645,10 +735,38 @@ impl Batch {
                 manifest_failures.extend(population.refused.iter().map(|r| r.path.clone()));
             }
         }
+        self.clocks.project_prepare_wall += wall.elapsed().as_secs_f64();
+        if groups.is_empty() {
+            self.clocks.empty_project_epochs += 1;
+            self.clocks.project += thread_cpu() - t;
+            self.clocks.project_wall += wall.elapsed().as_secs_f64();
+            return;
+        }
         let mut readers=readers::Closed::new(&self.work,&self.cut_of,keep);
+        #[cfg(feature = "product-session")]
+        let workers = self.workers.map_or(1, std::num::NonZeroUsize::get);
+        #[cfg(feature = "product-session")]
+        // Small SDK validation cohorts use the same closed reader without
+        // reconstructing a word table and posting caches on each worker.
+        if keep && store.is_none() && workers > 1 && self.work.len() >= 128 && groups.len() > 1 {
+            let groups: Vec<_> = groups.into_values().collect();
+            self.clocks.project_shards += workers.min(groups.len());
+            let worker_cpu = closed_workers::run(
+                workers, self, world, populations, answers, groups.into_iter(), &mut readers,
+            );
+            self.clocks.project_workers_cpu += worker_cpu;
+            self.clocks.project_number_wall += readers.number_wall;
+            self.clocks.project_numbered += readers.numbered;
+            self.clocks.project += thread_cpu() - t;
+            self.clocks.project_wall += wall.elapsed().as_secs_f64();
+            return;
+        }
+        let mut reused = [0; 3];
         for ((rule, _), requests) in groups {
             let plan = &self.schedule.programs[rule].as_ref().unwrap().plan;
             let mut exec = finish::Exec::new(plan);
+            let mut operators = finish::session::reuse::Reuse::new(requests.len());
+            let mut evaluated = readers::Evaluated::default();
             for i in requests {
                 let Work::Closed {
                     pairs,
@@ -661,12 +779,13 @@ impl Batch {
                     unreachable!()
                 };
                 let population = project.map(|p| populations[&p].1.as_ref()).transpose();
+                let scope = readers.scope(i);
                 let answer = if let Some(prior)=readers.duplicate[i] {
                     let Work::Project(value)=&self.work[prior] else {unreachable!("same binding evaluated in request order")};
                     value.clone()
                 } else {Rc::new(population.map_err(Clone::clone).and_then(|p| {
                     let mut carried = BTreeMap::new();
-                    let contract = &self.bound_contracts[binding];
+                    let contract = &self.bound_contracts[*binding];
                     let mut incomplete = BTreeMap::<String, Vec<Option<u32>>>::new();
                     let mut unknowns = Vec::new();
                     if let Some(p) = p {
@@ -733,8 +852,12 @@ impl Batch {
                             return Err("source frontier has not been closed".into());
                         }
                     }
+                    let reusable = unknowns.is_empty() && incomplete.is_empty() && readers.may_repeat(scope);
+                    if reusable && let Some(answer) = evaluated.find(scope, p, &carried) {
+                        return Ok(answer);
+                    }
                     let numbers = readers.numbers(i, inventory, world);
-                    execute_ids(
+                    let rows = execute_ids(
                         &mut exec,
                         &mut world.run,
                         numbers,
@@ -744,8 +867,11 @@ impl Batch {
                         &self.bindings[*binding],
                         p,
                         &incomplete,
-                    )
-                    .map(|rows| session::Reported { rows, unknowns })
+                        Some((&mut operators, scope)),
+                    )?;
+                    let reported = session::Reported { rows, unknowns };
+                    if reusable { evaluated.remember(scope, p, &carried, &reported); }
+                    Ok(reported)
                 }))};
                 exec.release_request();
                 if let Some(s)=store.as_deref_mut() {
@@ -757,8 +883,20 @@ impl Batch {
                 }
                 self.work[i] = Work::Project(answer);
             }
+            reused[0] += operators.empty_emits;
+            reused[1] += evaluated.hits;
+            reused[2] += operators.restored;
         }
+        let (posting, capture) = finish::session::reuse::take_counts();
+        for (count, additional) in self.closed_reuse.iter_mut().zip([
+            reused[0], reused[1], reused[2], posting, capture,
+        ]) {
+            *count += additional;
+        }
+        self.clocks.project_number_wall += readers.number_wall;
+        self.clocks.project_numbered += readers.numbered;
         self.clocks.project += thread_cpu() - t;
+        self.clocks.project_wall += wall.elapsed().as_secs_f64();
     }
 
     fn answer<'a>(work: &'a Work, answers: &'a [Answer]) -> Result<Receipt<'a>, &'a str> {
@@ -892,12 +1030,12 @@ fn batch_with_workers<L: session::source::Source>(
 ) {
     batch_mode_with_workers(readers, manifest, output, None, workers, || {})
 }
-fn write_receipt<U: std::borrow::Borrow<(String,String)> + serde::Serialize>(out: &mut impl Write, id: &str, expected: &str, digest: &str, unknowns: &[U]) {
+fn write_receipt<U: serde::Serialize>(out: &mut impl Write, id: &str, expected: &str, digest: &str, unknowns: &[U]) {
     let status = if expected == digest && unknowns.is_empty() { "exact" } else { "different" };
     write!(out, "{id}\t{status}\t{digest}").unwrap();
     if !unknowns.is_empty() {
         write!(out, "\t").unwrap();
-        json_output::write_unknowns(&mut *out, unknowns);
+        serde_json::to_writer(&mut *out, unknowns).expect("write unknown findings");
     }
     writeln!(out).unwrap();
 }
@@ -1042,6 +1180,10 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         "PROJECT_POPULATIONS inventories={} builds={} relations={} repeated_relations={}",
         session.projects.len(), session.populations_built, session.relations_built, session.relations_rebuilt,
     );
+    let [empty, eval, operators, posting, capture] = session.closed_reuse;
+    eprintln!("CLOSED_REUSE empty_emits={empty} evaluations={eval} operators={operators} posting_builds={posting} capture_splits={capture}");
+    let [lists, path_bytes] = session.shared_replay_files;
+    println!("ADMISSION_REPLAY aliased_file_sets={lists} duplicate_path_bytes_removed={path_bytes}");
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
     for (name, r) in &c.readers {
