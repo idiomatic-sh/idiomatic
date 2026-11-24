@@ -858,7 +858,9 @@ pub(crate) fn visit<L: FileSource>(
     let by_path_size = by_path.len();
     let mut bodies = Vec::<Versions<'_>>::new();
     let dialect = |index: usize| parser.and_then(|p| p.body_dialect(&sources[index].path));
-    let sharing = !clocks.measure_file_wall && world.boundaries.is_none() && by_path_size > 1 && selected.iter().any(|&i| dialect(i).is_some());
+    let sharing = world.boundaries.is_none()
+        && by_path_size > 1
+        && selected.iter().any(|&i| dialect(i).is_some());
     if sharing {
         let start = thread_cpu();
         let mut indexes = rustc_hash::FxHashMap::default();

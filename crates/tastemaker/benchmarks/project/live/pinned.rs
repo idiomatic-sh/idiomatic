@@ -211,19 +211,7 @@ impl Default for File {
 
 impl Source for Pinned {
     fn body_dialect(&self, path: &str) -> Option<&'static str> {
-        if let Some(reader) = &self.native {
-            return reader.body_dialect(path);
-        }
-        // The pinned SDK predates body identity. Its ordinary JS parser takes
-        // the parsing goal from the extension.
-        // Embedded scripts and the other legacy readers retain their own paths.
-        let suffix = std::path::Path::new(path).extension()?.to_str()?;
-        match (self.name(), suffix) {
-            ("javascript", "js") => Some(""),
-            ("javascript", "mjs") => Some("alternate"),
-            ("javascript", "cjs") => Some("script"),
-            _ => None,
-        }
+        self.native.as_ref()?.body_dialect(path)
     }
     fn name(&self) -> &str { &self.language.name().0 }
     type File = File;
