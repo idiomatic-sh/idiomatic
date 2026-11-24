@@ -143,7 +143,7 @@ impl<P: ParseUseCase> ParseEngine for P {
         symbols: &mut Symbols,
         wanted: &[Relation],
     ) -> Result<(), ParseError> {
-        super::service::build_wanted_in(self, request, table, symbols, wanted)
+        super::service::build_wanted_in(self, request, table, symbols, crate::domain::elements::types::NodeAccess::Inspect(wanted))
     }
 
     fn build_native_file(
@@ -155,14 +155,21 @@ impl<P: ParseUseCase> ParseEngine for P {
     ) -> Result<(), ParseError> {
         let wanted = match access { crate::domain::elements::types::NodeAccess::Inspect(rows) | crate::domain::elements::types::NodeAccess::Query(rows) => rows };
         let Some(native) = self.native_reader() else {
-            return super::service::build_wanted_in(self, request, table, symbols, wanted);
+            return super::service::build_wanted_in(self, request, table, symbols, access);
         };
         if self.recognizes(&request) == Recognition::Declines {
             return Err(ParseError::Unsupported);
         }
-        crate::domain::elements::service::read_native(table, symbols, request.bytes, native,
-            request.fields == super::types::FieldRequest::Wanted, access);
-        super::service::finish_file(self, request, table, symbols, super::service::demanded(self, wanted));
+        let columns = crate::domain::elements::types::NativeColumns {
+            fields: request.fields == super::types::FieldRequest::Wanted,
+            notes: request.notes == super::types::NoteRequest::Wanted,
+        };
+        crate::domain::elements::service::read_native(table, symbols, request.bytes, native, columns, access);
+        let requested = match access {
+            crate::domain::elements::types::NodeAccess::Inspect(_) => None,
+            crate::domain::elements::types::NodeAccess::Query(rows) => Some(rows),
+        };
+        super::service::finish_file(self, request, table, symbols, super::service::demanded(self, wanted), requested);
         Ok(())
     }
 

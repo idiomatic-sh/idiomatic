@@ -1258,7 +1258,6 @@ pub(super) struct Exec<'p> {
     sels: Vec<Option<Rc<SelPlan>>>,
     // Each reader group prepares its own column indices and interned names.
     select_preps: Vec<Option<Rc<select_kernel::Prep>>>,
-    capture_columns: FxHashMap<usize, Box<[Option<usize>]>>,
     union_preps: Vec<Option<Rc<union_kernel::Prep>>>,
     antijoin_preps: Vec<Option<Rc<antijoin_kernel::Prep>>>,
     subject_scope: subject_scope::Scope,
@@ -1319,7 +1318,6 @@ impl<'p> Exec<'p> {
             views: vec![None; k],
             sels: vec![None; k],
             select_preps: vec![None; k],
-            capture_columns: FxHashMap::default(),
             union_preps: vec![None; k],
             antijoin_preps: vec![None; k],
             subject_scope: Default::default(),
@@ -2321,24 +2319,16 @@ impl<'p> Exec<'p> {
             "capture" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let pc = from.col(s(&a["path"])?)?;
-                // The names and their ordering belong to this prepared step.
                 let pattern = s(&a["pattern"])?;
+                let Param::CaptureColumns(at) = &a["capture-columns"] else {
+                    return Err("unbound capture columns".into());
+                };
                 let separator = a.get("separator").and_then(Param::as_str);
                 let mut out = self.empty(run, node)?;
                 let equal = if f.after_last_file {
                     capture::required_equalities(self, run, node)
                 } else {
                     Vec::new()
-                };
-                let at = match self.capture_columns.entry(node) {
-                    std::collections::hash_map::Entry::Occupied(columns) => columns.into_mut(),
-                    std::collections::hash_map::Entry::Vacant(columns) => {
-                        let names = capture::names(pattern);
-                        let at = strs(&a["captures"])?
-                            .map(|name| names.iter().position(|&n| n == name))
-                            .collect();
-                        columns.insert(at)
-                    }
                 };
                 capture::write(run, &from, pc, pattern, separator, at, f.after_last_file, &equal, &mut out)?;
                 Ok(out)

@@ -1,29 +1,39 @@
 //! Bind typed pair witnesses to the source adapter's actual row populations.
+#[path = "proof_atoms.rs"]
+mod atoms;
+
 use super::{FileId, FileSource, Program, Result, Run, l, reader_run};
 use crate::{
-    pair_checks::SyntaxText,
+    pair_checks::{AtomAnswers, SharedAtoms, SyntaxText},
     pair_summary::{self, Source as FactSource},
 };
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
-use std::collections::{BTreeSet, HashMap};
+use std::{collections::{BTreeSet, HashMap}, sync::Arc};
 
 pub(super) struct Checks {
     program: pair_summary::Program,
     roots: Vec<Option<Vec<usize>>>,
     domains: Vec<Vec<(usize, usize)>>,
     live: Vec<bool>,
-    patterns: crate::pair_checks::SymbolMatches,
+    selected: Vec<u64>,
+    atoms: Vec<Option<usize>>,
     words: l::FileWords,
     row_guards: Vec<(usize, l::Relation)>,
     known: Vec<(usize, bool)>,
 }
+fn vocabulary<L: FileSource>(parser: Option<&L>) -> crate::first::Vocab {
+    let kinds = parser.map_or_else(Vec::new, FileSource::kinds);
+    let names: Vec<_> = kinds.into_iter().map(l::NameText).collect();
+    reader_run::pairs::vocabulary(&names, l::FieldNames(Vec::new()))
+}
+
 impl Checks {
     pub(super) fn new<L: FileSource>(
         parser: Option<&L>,
         programs: &[Result<Program>],
         program_of: &[usize],
         needed: &[bool],
-        cuts: &[Option<&crate::finish::partition::Partition>],
+        cuts: &[Option<Arc<crate::finish::partition::Partition>>],
     ) -> Self {
         let mut roots = vec![Vec::new(); program_of.len()];
         let mut domains = vec![Vec::new(); program_of.len()];
@@ -33,10 +43,10 @@ impl Checks {
             domains[binding] = domain_steps(cuts[binding].as_deref());
             *outputs = target_steps(program, cuts[binding].as_deref());
         }
-        Self::from_roots(parser, programs, program_of, roots, domains)
+        Self::from_roots(parser, &vocabulary(parser), programs, program_of, roots, domains)
     }
     fn from_roots<L: FileSource>(
-        parser: Option<&L>, programs: &[Result<Program>], program_of: &[usize],
+        parser: Option<&L>, vocab: &crate::first::Vocab, programs: &[Result<Program>], program_of: &[usize],
         mut roots: Vec<Vec<usize>>, mut domains: Vec<Vec<(usize, usize)>>,
     ) -> Self {
         let mut steps = vec![BTreeSet::new(); programs.len()];
@@ -86,16 +96,13 @@ impl Checks {
                 }
             }
         }
-        let kinds = parser.map_or_else(Vec::new, FileSource::kinds);
-        let names: Vec<_> = kinds.into_iter().map(l::NameText).collect();
-        let vocab = reader_run::pairs::vocabulary(&names, l::FieldNames(Vec::new()));
-        language.text_kinds = (0..names.len())
+        language.text_kinds = (0..vocab.kind_names.len())
             .map(|k| u16::try_from(k).expect("kind code"))
             .collect();
         let program = pair_summary::prepare_plans(
             &plans,
             Some(&targets),
-            &vocab,
+            vocab,
             &language,
             &supplied,
             Some(crate::finish::host::CURRENT_FILE),
@@ -132,8 +139,9 @@ impl Checks {
             domains,
             row_guards,
             known: Vec::new(),
+            selected: vec![0; live.len().div_ceil(64)],
+            atoms: Vec::new(),
             live,
-            patterns: Default::default(),
             words: l::facts::file_words(&l::facts::base_words(Default::default(), &[])),
         }
     }
@@ -146,6 +154,9 @@ impl Checks {
         tree: &l::NodeTable,
         text: Option<&[u32]>,
         distinct: &std::cell::RefCell<crate::pair_checks::FileSymbols>,
+        literal_positions: &std::cell::RefCell<crate::pair_checks::LiteralPositions>,
+        patterns: crate::pair_checks::Predicates<'_>,
+        answers: &mut AtomAnswers,
         bytes: &[u8],
         path: &str,
         id: FileId,
@@ -153,23 +164,25 @@ impl Checks {
         requested: &[l::Relation],
         packet: &reader_run::packet::Packet,
         unknown: &HashMap<u32, u32>,
-        cuts: &[Option<&crate::finish::partition::Partition>],
+        cuts: &[Option<Arc<crate::finish::partition::Partition>>],
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
     ) {
         self.live.fill(false);
+        self.selected.fill(0);
         let mut any = false;
         for &(binding, _, excluded) in active.iter() {
             if !excluded && let Some(roots) = &self.roots[root_for(binding)]
                 && bound[&binding].as_ref().expect("active binding").screenable != Some(false)
             {
-                for &(_, d) in &self.domains[root_for(binding)] { self.live[d] = true; }
-                for &root in roots {
-                    self.live[root] = true;
-                    any = true;
+                any |= !roots.is_empty();
+                for root in roots.iter().copied().chain(self.domains[root_for(binding)].iter().map(|&(_, d)| d)) {
+                    self.selected[root / 64] |= 1 << (root % 64);
                 }
             }
         }
-        if any {
+        if !any {
+            crate::pair_checks::each(&self.selected, |root| self.live[root as usize] = true);
+        } else {
             self.known.clear();
             for &(need, relation) in &self.row_guards {
                 if !partials.iter().any(|p| p.relation == relation)
@@ -178,27 +191,37 @@ impl Checks {
                     self.known.push((need, exists));
                 }
             }
-            let column = |source, index, pattern: &pair_summary::regexes::Matcher| {
+            let column = |source, index, predicate, pattern: &pair_summary::regexes::Matcher| {
                 let FactSource::Catalog(rel) = source else { return None };
                 if partials.iter().any(|p| p.relation == rel) { return None; }
-                packet.any_symbol(rel, index, |word| {
-                    if let Some(text) = l::text_of(symbols, l::ByteSlice(bytes), word) {
-                        return pattern.is_match(text.0.as_bytes());
-                    }
-                    let value = unknown.get(&word.0).copied().or(run.absent_word);
-                    value.is_none_or(|id| pattern.is_match(&run.texts[id as usize]))
+                patterns.with_predicate(predicate, pattern, &run.texts, |test| {
+                    packet.any_symbol(rel, index, |word| {
+                        if let Some(text) = l::text_of(symbols, l::ByteSlice(bytes), word) {
+                            let subject = text.0.as_bytes();
+                            return match run.ids.get(subject) {
+                                Some(&id) => test(id),
+                                None => pattern.is_match(subject),
+                            };
+                        }
+                        unknown.get(&word.0).copied().or(run.absent_word).is_none_or(|id| test(id))
+                    })
                 })
             };
-            self.program.file_columns(
+            let atoms = (text.is_some() && !self.atoms.is_empty()).then_some(SharedAtoms {
+                slots: &self.atoms,
+                answers,
+            });
+            self.program.selected_columns(
                 tree,
                 bytes,
-                Some(path.as_bytes()),
+                path.as_bytes(),
                 text.map(|ids| SyntaxText {
                     ids,
                     symbols: &run.texts,
                     dictionary: &run.ids,
+                    positions: literal_positions,
                     distinct: Some(distinct),
-                    patterns: Some(&self.patterns),
+                    patterns: Some(patterns),
                     column: Some(&column),
                 }),
                 &mut self.words,
@@ -211,8 +234,9 @@ impl Checks {
                         && packet.columns(rel, symbols, bytes, id, l::node_table::kind_codes(tree).len(), words, out)
                 },
                 &mut self.live,
-                None,
                 &self.known,
+                &self.selected,
+                atoms,
             );
         }
         for (binding, _, excluded) in active {
@@ -275,16 +299,18 @@ fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partit
 /// vocabulary and a prepared program's output steps survive those boundaries.
 #[derive(Default)]
 pub(super) struct Retained {
+    vocabulary: Option<crate::first::Vocab>,
     shapes: HashMap<(usize, Vec<usize>, Vec<(usize, usize)>), usize>,
     bindings: Vec<Option<usize>>,
     programs: Vec<Checks>,
+    atoms: atoms::Atoms,
 }
 impl Retained {
     pub(super) fn groups<L: FileSource>(
         &mut self, parser: Option<&L>, programs: &[Result<Program>], program_of: &[usize],
-        cuts: &[Option<&crate::finish::partition::Partition>],
+        cuts: &[Option<Arc<crate::finish::partition::Partition>>],
         active: &mut [(usize, usize, bool)],
-        mut visit: impl FnMut(&mut Checks, &mut [(usize, usize, bool)]),
+        mut visit: impl FnMut(usize, &mut Checks, &mut [(usize, usize, bool)]),
     ) -> f64 {
         let mut prepare = 0.;
         self.bindings.resize(program_of.len(), None);
@@ -296,8 +322,10 @@ impl Retained {
             let domains = domain_steps(cuts[binding].as_deref());
             let index = *self.shapes.entry((id, steps, domains)).or_insert_with_key(|(_, steps, domains)| {
                 let start = super::thread_cpu();
-                let screen = Checks::from_roots(parser, std::slice::from_ref(&programs[id]),
+                let vocab = self.vocabulary.get_or_insert_with(|| vocabulary(parser));
+                let mut screen = Checks::from_roots(parser, vocab, std::slice::from_ref(&programs[id]),
                     &[0], vec![steps.clone()], vec![domains.clone()]);
+                screen.atoms = self.atoms.bind(&screen.program);
                 let index = self.programs.len();
                 self.programs.push(screen);
                 prepare += super::thread_cpu() - start;
@@ -309,7 +337,7 @@ impl Retained {
         let sort = !active.is_sorted_by_key(group);
         if sort { active.sort_unstable_by_key(group); }
         for jobs in active.chunk_by_mut(|a, b| group(a) == group(b)) {
-            if let Some(index) = group(&jobs[0]) { visit(&mut self.programs[index], jobs); }
+            if let Some(index) = group(&jobs[0]) { visit(index, &mut self.programs[index], jobs); }
         }
         // FileInputs shares contributions in the schedule's original binding order.
         if sort { active.sort_unstable_by_key(|job| job.0); }

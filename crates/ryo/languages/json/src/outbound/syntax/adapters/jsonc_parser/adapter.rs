@@ -359,6 +359,10 @@ impl SyntaxPort for SyntaxJsoncParserAdapter {
             tokens: true,
         };
         let outcome = parse_to_ast(content, &collect, &grammar());
+        let _ = builder.decode_for(&[
+            languages::Relation::StringLiteral, languages::Relation::Mapping,
+            languages::Relation::Entry, languages::Relation::SequenceElement,
+        ]);
         let mut writer = Writing {
             tree: languages::lossless(builder, Offset(0)),
             text: JsoncText(content),

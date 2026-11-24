@@ -13,20 +13,35 @@ mod witness;
 type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
 type Nodes = Option<Bits>;
-type SymbolColumn<'a> = dyn Fn(Source, usize, &super::pair_summary::regexes::Matcher) -> Option<bool> + 'a;
+type SymbolColumn<'a> = dyn Fn(Source, usize, Id, &super::pair_summary::regexes::Matcher) -> Option<bool> + 'a;
 /// The exact syntax text column supplied by a host with per-position symbol IDs.
 #[derive(Clone, Copy)]
 pub(super) struct SyntaxText<'a> {
     pub ids: &'a [u32],
     pub symbols: &'a [std::rc::Rc<[u8]>],
-    pub patterns: Option<&'a SymbolMatches>,
+    pub patterns: Option<Predicates<'a>>,
     pub dictionary: &'a Map<Rc<[u8]>, u32>,
+    pub positions: &'a std::cell::RefCell<LiteralPositions>,
     pub distinct: Option<&'a std::cell::RefCell<FileSymbols>>,
     pub column: Option<&'a SymbolColumn<'a>>,
 }
 /// The reader owns symbol identities for the lifetime of this dictionary.
 #[derive(Default)]
-pub(super) struct SymbolMatches(std::cell::RefCell<Vec<(usize, u32, bool)>>);
+pub(super) struct SymbolMatches(std::cell::RefCell<Vec<PatternAnswer>>);
+
+#[derive(Clone, Copy)]
+struct PatternAnswer {
+    scope: u32,
+    predicate: u32,
+    subject: u32,
+    matches: bool,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct Predicates<'a> {
+    pub cache: &'a SymbolMatches,
+    pub scope: usize,
+}
 
 /// An existence test can stop early. Later predicates continue the same
 /// discovery of distinct subjects and see every subject already discovered.
@@ -69,20 +84,38 @@ impl FileSymbols {
     }
 }
 
-impl SymbolMatches {
-    fn with_predicate<R>(&self, index: usize, regex: &super::pair_summary::regexes::Matcher,
+impl Predicates<'_> {
+    pub(super) fn with_predicate<R>(&self, index: usize, regex: &super::pair_summary::regexes::Matcher,
         symbols: &[Rc<[u8]>], apply: impl FnOnce(&mut dyn FnMut(u32) -> bool) -> R) -> R {
-        let mut entries = self.0.borrow_mut();
+        let (Ok(scope), Ok(predicate)) = (u32::try_from(self.scope), u32::try_from(index)) else {
+            return apply(&mut |id| regex.is_match(&symbols[id as usize]));
+        };
+        if scope == u32::MAX {
+            return apply(&mut |id| regex.is_match(&symbols[id as usize]));
+        }
+        let mut entries = self.cache.0.borrow_mut();
         if entries.is_empty() {
-            entries.resize(4096, (usize::MAX, 0, false));
+            entries.resize(4096, PatternAnswer {
+                scope: u32::MAX,
+                predicate: 0,
+                subject: 0,
+                matches: false,
+            });
         }
         apply(&mut |id| {
-            let slot = (index.wrapping_mul(0x9e3779b9) ^ id as usize) & (entries.len() - 1);
+            let slot = (index.wrapping_mul(0x9e3779b9)
+                ^ self.scope.wrapping_mul(0x85ebca6b)
+                ^ id as usize) & (entries.len() - 1);
             let entry = &mut entries[slot];
-            if (entry.0, entry.1) != (index, id) {
-                *entry = (index, id, regex.is_match(&symbols[id as usize]));
+            if (entry.scope, entry.predicate, entry.subject) != (scope, predicate, id) {
+                *entry = PatternAnswer {
+                    scope,
+                    predicate,
+                    subject: id,
+                    matches: regex.is_match(&symbols[id as usize]),
+                };
             }
-            entry.2
+            entry.matches
         })
     }
 }
@@ -116,15 +149,122 @@ struct Table {
     cells: FilledColumns,
     index: Map<usize, Map<Id, Vec<u32>>>,
 }
+/// File-local positions for reader-interned symbols. A presence query stops on
+/// its first witness. A position query finishes the same scan.
+#[derive(Default)]
+pub(super) struct LiteralPositions {
+    heads: Map<u32, u32>,
+    previous: Vec<u32>,
+}
+
+impl LiteralPositions {
+    const END: u32 = u32::MAX;
+
+    #[allow(dead_code, reason = "only readers with an exact symbol column reset this index")]
+    pub(super) fn clear(&mut self) {
+        self.heads.clear();
+        self.previous.clear();
+    }
+
+    #[allow(dead_code, reason = "only the session reports scan counts")]
+    pub(super) fn scanned(&self) -> usize {
+        self.previous.len()
+    }
+
+    fn head(&self, symbol: u32) -> u32 {
+        self.heads.get(&symbol).copied().unwrap_or(Self::END)
+    }
+
+    fn scan(&mut self, column: &[u32], until: Option<u32>) -> bool {
+        for &symbol in &column[self.previous.len()..] {
+            let position = self.previous.len() as u32;
+            let previous = self.heads.insert(symbol, position).unwrap_or(Self::END);
+            self.previous.push(previous);
+            if until == Some(symbol) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn contains(&mut self, symbol: u32, column: &[u32]) -> bool {
+        self.head(symbol) != Self::END || self.scan(column, Some(symbol))
+    }
+
+    fn positions(&mut self, symbol: u32, column: &[u32]) -> Bits {
+        self.scan(column, None);
+        let mut pos = self.head(symbol);
+        let mut mask = Vec::new();
+        while pos != Self::END {
+            insert(&mut mask, pos);
+            pos = self.previous[pos as usize];
+        }
+        Rc::new(mask)
+    }
+}
+
+#[derive(Default)]
+struct Answers(Vec<(u64, u64)>);
+
+impl Answers {
+    fn reset(&mut self, count: usize) {
+        self.0.resize(count.div_ceil(64), (0, 0));
+        self.0.fill((0, 0));
+    }
+
+    fn get(&self, id: Id) -> Option<bool> {
+        let (known, yes) = self.0[id / 64];
+        let bit = 1 << (id % 64);
+        (known & bit != 0).then_some(yes & bit != 0)
+    }
+
+    fn set(&mut self, id: Id, value: bool) {
+        let (known, yes) = &mut self.0[id / 64];
+        let bit = 1 << (id % 64);
+        *known |= bit;
+        if value { *yes |= bit; } else { *yes &= !bit; }
+    }
+}
+
+/// Reader-wide proof answers retained with this version's projected syntax.
+#[derive(Default)]
+pub(super) struct AtomAnswers {
+    packed: Answers,
+}
+
+impl AtomAnswers {
+    #[allow(dead_code, reason = "Open sessions retain proof atoms across calls")]
+    pub(super) fn clear(&mut self) {
+        self.packed.0.clear();
+    }
+
+    pub(super) fn get(&self, id: Id) -> Option<bool> {
+        if id / 64 < self.packed.0.len() { self.packed.get(id) } else { None }
+    }
+
+    pub(super) fn set(&mut self, id: Id, value: bool) {
+        if id / 64 >= self.packed.0.len() {
+            self.packed.0.resize(id / 64 + 1, (0, 0));
+        }
+        self.packed.set(id, value);
+    }
+}
+
+pub(super) struct SharedAtoms<'a> {
+    pub slots: &'a [Option<Id>],
+    pub answers: &'a mut AtomAnswers,
+}
+
 /// Empty between files. Only materialized node masks need clearing.
 #[derive(Default)]
 pub(super) struct Scratch {
     sets: Vec<Option<Nodes>>,
-    needs: Vec<Option<bool>>,
+    needs: Answers,
+    literal_ids: Map<Id, Option<u32>>,
     touched: Vec<Id>,
 }
 
-struct File<'a, const PROFILE: bool> {
+struct File<'a, const PROFILE: bool, const BATCH: bool> {
     owner: usize,
     reader_class: &'a std::cell::Cell<usize>,
     file_owner: Vec<usize>,
@@ -142,7 +282,9 @@ struct File<'a, const PROFILE: bool> {
     words: &'a mut FileWords,
     facts: Vec<Table>,
     sets: &'a mut [Option<Nodes>],
-    needs: &'a mut [Option<bool>],
+    needs: &'a mut Answers,
+    atoms: Option<SharedAtoms<'a>>,
+    literal_ids: &'a mut Map<Id, Option<u32>>,
     touched: &'a mut Vec<Id>,
     texts: Option<Map<&'a [u8], Vec<u32>>>,
     steps: u64,
@@ -206,7 +348,7 @@ impl Table {
     }
 }
 
-impl<const PROFILE: bool> File<'_, PROFILE> {
+impl<const PROFILE: bool, const BATCH: bool> File<'_, PROFILE, BATCH> {
     fn complete(&mut self, slots: &[usize]) -> bool {
         let n = node_table::element_count(self.t).0 as u32;
         slots.iter().all(|&slot| {
@@ -224,14 +366,25 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         if PROFILE {
             self.stats[class].calls += 1;
         }
-        if let Some(result) = &self.needs[id] {
+        if let Some(result) = self.needs.get(id) {
             if PROFILE {
                 self.stats[class].hits += 1;
                 self.stats[class].cross += u64::from(self.file_owner[id] != self.owner);
             }
-            return *result;
+            return result;
         }
         if !PROFILE {
+            if BATCH && let Some(shared) = &self.atoms
+                && let Some(atom) = shared.slots[id]
+            {
+                if let Some(value) = shared.answers.get(atom) {
+                    self.needs.set(id, value);
+                    return value;
+                }
+                let value = self.pass_miss(id);
+                self.atoms.as_mut().unwrap().answers.set(atom, value);
+                return value;
+            }
             return self.pass_miss(id);
         }
         self.file_owner[id] = self.owner;
@@ -252,6 +405,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Need::Any => true,
             Need::Empty => false,
             Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
+            Need::CapturedPath(ref capture) => self.path.is_none_or(|path| capture.allows(path)),
             Need::PathGlob(slot) => self.path.is_none_or(|path| {
                 use ryo_matching::inbound::use_cases::matching::{
                     interface::MatchingUseCase, types::{GlobPattern, MatchOutcome, SearchText},
@@ -326,7 +480,8 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 }
                 Domain::Text(literal) if self.syntax_text.is_some() => {
                     let column = self.syntax_text.unwrap();
-                    column.dictionary.get(literal.as_bytes()).is_some_and(|id| column.ids.contains(id))
+                    self.literal_id(x, literal.as_bytes(), column)
+                        .is_some_and(|symbol| column.positions.borrow_mut().contains(symbol, column.ids))
                 }
                 Domain::SpanMatching(kind, pattern) if self.p.file_only[x] => {
                     node_table::ids_of_kind(self.t, languages::KindBits(*kind)).iter().any(|pos| {
@@ -348,7 +503,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 {
                     let view = self.syntax_text.unwrap();
                     let found = self.p.regexes[*pattern].compiled().and_then(|p|
-                        (view.column.unwrap())(self.p.facts[*slot].source, *column, p));
+                        (view.column.unwrap())(self.p.facts[*slot].source, *column, *pattern, p));
                     found.unwrap_or_else(|| self.nodes(x).is_none_or(|bits| !bits.is_empty()))
                 }
                 Domain::Fact(slot, None) => {
@@ -356,7 +511,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     if !table.read && self.p.facts[*slot].key.is_some() {
                         // A bare file-level existence guard alone cannot justify building
                         // a keyed table. A subsequent constrained check can still request it.
-                        self.needs[id] = Some(true);
+                        self.needs.set(id, true);
                         return true;
                     }
                     table.load(
@@ -370,9 +525,14 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 _ => self.nodes(x).is_none_or(|b| !b.is_empty()),
             },
         };
-        self.needs[id] = Some(yes);
+        self.needs.set(id, yes);
         yes
     }
+    /// Domain IDs belong to the prepared proof. Position lists belong to the file.
+    fn literal_id(&mut self, domain: Id, literal: &[u8], column: SyntaxText<'_>) -> Option<u32> {
+        *self.literal_ids.entry(domain).or_insert_with(|| column.dictionary.get(literal).copied())
+    }
+
     fn nodes(&mut self, id: Id) -> Nodes {
         let class = if PROFILE {
             cost::family(&self.p.domains[id], &self.p.facts) as usize
@@ -486,19 +646,16 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                         }),
                 ))
             }
+            Domain::Text(t) if self.syntax_text.is_some() => {
+                let column = self.syntax_text.unwrap();
+                Some(self.literal_id(id, t.as_bytes(), column).map_or_else(
+                    || Rc::new(Vec::new()),
+                    |symbol| column.positions.borrow_mut().positions(symbol, column.ids),
+                ))
+            }
             Domain::Text(t) => {
                 let by_text = self.texts.get_or_insert_with(|| {
                     let mut m = Map::<&[u8], Vec<u32>>::default();
-                    if let Some(column) = self.syntax_text {
-                        let wanted: Map<_, _> = self.p.texts.iter().filter_map(|s|
-                            column.dictionary.get(s.as_slice()).map(|&id| (id, s.as_slice()))).collect();
-                        for (i, id) in column.ids.iter().enumerate() {
-                            if let Some(&text) = wanted.get(id) {
-                                m.entry(text).or_default().push(i as u32);
-                            }
-                        }
-                        return m;
-                    }
                     for i in self.p.text_kinds.iter().flat_map(|k| {
                         node_table::ids_of_kind(self.t, languages::KindBits(*k))
                             .iter()
@@ -917,6 +1074,25 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
     }
 }
 
+impl SharedAtoms<'_> {
+    /// If every selected output is already known, no evaluator scratch is needed.
+    fn cached_roots(&self, roots: &[(String, Id)], selected: &[u64], alive: &mut [bool]) -> bool {
+        let mut complete = true;
+        each(selected, |rule| {
+            if !complete {
+                return;
+            }
+            let rule = rule as usize;
+            if let Some(result) = self.slots[roots[rule].1].and_then(|id| self.answers.get(id)) {
+                alive[rule] = result;
+            } else {
+                complete = false;
+            }
+        });
+        complete
+    }
+}
+
 impl Program {
     pub(super) fn file(
         &self,
@@ -944,11 +1120,32 @@ impl Program {
     ) -> u64 {
         #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact, known);
+            return self.evaluate::<true, false>(t, src, path, syntax_text, words, read, alive, exact, known, None, None);
         }
-        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact, known)
+        self.evaluate::<false, false>(t, src, path, syntax_text, words, read, alive, exact, known, None, None)
     }
-    fn evaluate<const PROFILE: bool>(
+
+    #[allow(dead_code, reason = "Session roots are selected by active bindings")]
+    pub(super) fn selected_columns(
+        &self,
+        t: &NodeTable,
+        src: &[u8],
+        path: &[u8],
+        syntax_text: Option<SyntaxText<'_>>,
+        words: &mut FileWords,
+        read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
+        alive: &mut [bool],
+        known: &[(Id, bool)],
+        selected: &[u64],
+        atoms: Option<SharedAtoms<'_>>,
+    ) -> u64 {
+        if atoms.as_ref().is_some_and(|a| a.cached_roots(&self.roots, selected, alive)) {
+            return 0;
+        }
+        self.evaluate::<false, true>(t, src, Some(path), syntax_text, words, read, alive, None, known, Some(selected), atoms)
+    }
+
+    fn evaluate<const PROFILE: bool, const BATCH: bool>(
         &self,
         t: &NodeTable,
         src: &[u8],
@@ -959,6 +1156,8 @@ impl Program {
         alive: &mut [bool],
         mut exact: Option<&mut Vec<(usize, Bits)>>,
         known: &[(Id, bool)],
+        selected: Option<&[u64]>,
+        atoms: Option<SharedAtoms<'_>>,
     ) -> u64 {
         languages::facts::clear_words(words);
         let reader_class = std::cell::Cell::new(cost::Family::Logic as usize);
@@ -984,9 +1183,9 @@ impl Program {
         };
         let mut buffers = self.scratch.take();
         buffers.sets.resize(self.domains.len(), None);
-        buffers.needs.resize(self.needs.len(), None);
-        buffers.needs.fill(None);
-        let mut f = File::<PROFILE> {
+        buffers.needs.reset(self.needs.len());
+        buffers.literal_ids.clear();
+        let mut f = File::<PROFILE, BATCH> {
             reader_class: &reader_class,
             owner: 0,
             file_owner: if PROFILE {
@@ -1013,17 +1212,27 @@ impl Program {
             facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
             sets: &mut buffers.sets,
             needs: &mut buffers.needs,
+            atoms,
+            literal_ids: &mut buffers.literal_ids,
             touched: &mut buffers.touched,
             texts: None,
             steps: 0,
         };
-        for &(need, value) in known { f.needs[need] = Some(value); }
-        for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
-            if PROFILE {
-                f.owner = rule;
-            }
-            if *a {
-                *a = f.pass(*root)
+        for &(need, value) in known { f.needs.set(need, value); }
+        if BATCH {
+            let selected = selected.expect("batch roots");
+            each(selected, |rule| {
+                let rule = rule as usize;
+                alive[rule] = f.pass(self.roots[rule].1);
+            });
+        } else {
+            for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
+                if PROFILE {
+                    f.owner = rule;
+                }
+                if *a {
+                    *a = f.pass(*root)
+                }
             }
         }
         if let Some(out) = exact.as_mut() {

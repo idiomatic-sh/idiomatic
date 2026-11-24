@@ -39,6 +39,10 @@ impl<F: Default, D: Default> Retention<F, D> {
         self.trim();
     }
 
+    pub(super) fn has_limit(&self) -> bool {
+        self.limit.is_some()
+    }
+
     pub(super) fn clock(&self) -> Option<u64> {
         if self.limit.is_none() {
             return Some(0);

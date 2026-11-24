@@ -12,6 +12,7 @@ pub(crate) enum Param {
     Number(PlanNumber),
     List(Vec<Param>),
     Named(BTreeMap<String, Param>),
+    CaptureColumns(Vec<Option<usize>>),
 }
 pub(crate) type Args = Param;
 impl Param {

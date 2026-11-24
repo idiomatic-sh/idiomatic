@@ -3,19 +3,6 @@
 //! holds no separator character, `{*name}` may; the text between slots is literal. (The harness took one regex match, the first, so a rule
 //! that needs each split saw one.)
 
-/// Calls `each` with the byte ranges of the slots, once per way `text` matches `pattern`. `separator` (redo-binding pass 6,
-/// merged by redo-int: the step's argument, it was `/`): the characters a `{name}` slot may not hold; none given: any.
-pub(super) fn matches(
-    pattern: &str,
-    separator: Option<&str>,
-    text: &str,
-    each: &mut dyn FnMut(&[std::ops::Range<usize>]),
-) {
-    let mut slots = Vec::new();
-    let sep = separator.unwrap_or("");
-    walk(pattern, sep, text, text, &mut slots, each);
-}
-
 fn walk(
     pattern: &str,
     sep: &str,
@@ -81,43 +68,53 @@ fn walk(
     }
 }
 
-/// The slot names of `pattern`, in order.
-pub(super) fn names(pattern: &str) -> smallvec::SmallVec<[&str; 8]> {
-    let mut out = smallvec::SmallVec::new();
+/// Locate the requested capture columns once while preparing the step.
+pub(super) fn columns<'a>(
+    pattern: &str,
+    requested: impl Iterator<Item = &'a str>,
+) -> Vec<Option<usize>> {
     let mut rest = pattern;
-    while let Some(o) = rest.find('{') {
-        let after = &rest[o + 1..];
-        let Some(c) = after.find('}') else { break };
-        out.push(after[..c].trim_start_matches('*'));
-        rest = &after[c + 1..];
-    }
-    out
+    let names: Vec<_> = std::iter::from_fn(|| {
+        let (_, slot) = rest.split_once('{')?;
+        let (name, tail) = slot.split_once('}')?;
+        rest = tail;
+        Some(name.trim_start_matches('*'))
+    }).collect();
+    requested.map(|name| names.iter().position(|&slot| slot == name)).collect()
 }
 
+#[derive(Default)]
 struct Ways {
     count: usize,
     cells: Vec<u64>,
+}
+
+fn append_cells(
+    run: &mut super::Run,
+    text: &str,
+    columns: &[Option<usize>],
+    spans: &[std::ops::Range<usize>],
+    cells: &mut Vec<u64>,
+) {
+    for column in columns {
+        let value = column.and_then(|index| spans.get(index))
+            .map_or("", |range| &text[range.clone()]);
+        cells.push(u64::from(run.sym(value.as_bytes())));
+    }
 }
 
 fn captured(
     run: &mut super::Run,
     text: &str,
     pattern: &str,
-    separator: Option<&str>,
+    separator: &str,
     columns: &[Option<usize>],
+    slots: &mut Vec<std::ops::Range<usize>>,
 ) -> Ways {
-    let mut result = Ways {
-        count: 0,
-        cells: Vec::new(),
-    };
-    matches(pattern, separator, text, &mut |spans| {
+    let mut result = Ways::default();
+    walk(pattern, separator, text, text, slots, &mut |spans| {
         result.count += 1;
-        for column in columns {
-            let text = column
-                .and_then(|i| spans.get(i))
-                .map_or("", |r| &text[r.clone()]);
-            result.cells.push(u64::from(run.sym(text.as_bytes())));
-        }
+        append_cells(run, text, columns, spans, &mut result.cells);
     });
     result
 }
@@ -167,7 +164,10 @@ pub(super) fn write(
     out: &mut super::Table,
 ) -> super::R<()> {
     let mut by_path = super::FxHashMap::default();
+    let mut recent: [Option<(u64, Ways)>; 2] = [None, None];
     let mut row = Vec::new();
+    let mut slots = Vec::new();
+    let separator = separator.unwrap_or("");
     let file = input.tys[path] == super::Ty::File;
     let paths = run.paths.clone();
     // Rows with the same subject have the same possible splits. Apply each
@@ -180,23 +180,52 @@ pub(super) fn write(
         if word == super::NULL {
             continue;
         }
-        let single;
-        let ways = if file {
-            let path = paths.get(word as usize).ok_or("unbound capture file")?;
-            if project {
-                by_path.entry(word).or_insert_with(|| captured(run, path, pattern, separator, columns))
-            } else {
-                single = captured(run, path, pattern, separator, columns);
-                &single
-            }
+        let symbol_text;
+        let text = if file {
+            paths.get(word as usize).ok_or("unbound capture file")?
         } else {
             let symbol = u32::try_from(word).map_err(|_| "unbound capture text")?;
             if run.absent_word == Some(symbol) {
                 continue;
             }
-            let Ok(text) = String::from_utf8(run.text(symbol).to_vec()) else { continue };
-            single = captured(run, &text, pattern, separator, columns);
-            &single
+            symbol_text = std::rc::Rc::clone(run.texts.get(symbol as usize).ok_or("unbound capture text")?);
+            let Ok(text) = std::str::from_utf8(&symbol_text) else { continue };
+            text
+        };
+        if subjects.len() == 1 && !project {
+            // Stream splits in their original order when no other row needs them.
+            let mut input_width = None;
+            walk(pattern, separator, text, text, &mut slots, &mut |spans| {
+                let width = *input_width.get_or_insert_with(|| {
+                    input.row(first_row, &mut row);
+                    row.len()
+                });
+                append_cells(run, text, columns, spans, &mut row);
+                if equal.iter().all(|&(a, b)| row[a] != super::NULL && row[a] == row[b]) {
+                    out.push_row(&row);
+                }
+                row.truncate(width);
+            });
+            continue;
+        }
+        let ways = if project {
+            use std::collections::hash_map::Entry;
+            match by_path.entry(word) {
+                Entry::Occupied(entry) => {
+                    if !file { super::session::reuse::capture(); }
+                    entry.into_mut()
+                }
+                Entry::Vacant(entry) => entry.insert(captured(run, text, pattern, separator, columns, &mut slots)),
+            }
+        } else {
+            if recent[1].as_ref().is_some_and(|(subject,_)| *subject == word) {
+                super::session::reuse::capture();
+                recent.swap(0, 1);
+            } else {
+                let ways = captured(run, text, pattern, separator, columns, &mut slots);
+                recent[1] = recent[0].replace((word, ways));
+            }
+            &recent[0].as_ref().expect("split stored").1
         };
         if ways.count == 0 {
             continue;

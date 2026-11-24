@@ -1,6 +1,7 @@
 //! A native equality probe reads the provider's ordered hits directly. The outer
 //! select retains its driver order, residual predicates, touched count and projection.
 use super::{File, Native, Run, Src, ViewSpec, fill_prof, view_cols};
+use super::select_kernel::Pushed;
 use ryo::languages::{Position, node_table};
 
 #[derive(Clone, Copy)]
@@ -115,6 +116,44 @@ pub(super) fn pairs(
     column: usize,
     emit: impl FnMut(&mut Run, u32, u32),
 ) -> Option<u64> {
+    pairs_where(f, run, srcs, driver, view, column, |_, _| true, emit)
+}
+
+/// Apply the same source-local test in either physical join direction.
+pub(super) fn filtered_pairs(
+    f: &File<'_>,
+    run: &mut Run,
+    srcs: &[Src],
+    driver: Driver<'_>,
+    view: &ViewSpec,
+    column: usize,
+    pushed: Option<&Pushed>,
+    mut emit: impl FnMut(&mut Run, u32, u32),
+) -> Option<u64> {
+    match pushed {
+        Some(test) if test.source == driver.source => pairs_where(
+            f, run, srcs, driver, view, column,
+            |run, row| test.keeps(run, f, srcs, row), emit,
+        ),
+        Some(test) => pairs(f, run, srcs, driver, view, column, |run, left, right| {
+            if test.keeps(run, f, srcs, right) {
+                emit(run, left, right);
+            }
+        }),
+        None => pairs(f, run, srcs, driver, view, column, emit),
+    }
+}
+
+fn pairs_where(
+    f: &File<'_>,
+    run: &mut Run,
+    srcs: &[Src],
+    driver: Driver<'_>,
+    view: &ViewSpec,
+    column: usize,
+    keep: impl FnMut(&mut Run, u32) -> bool,
+    emit: impl FnMut(&mut Run, u32, u32),
+) -> Option<u64> {
     let native = (view.base, column);
     let singleton = matches!(
         native,
@@ -128,6 +167,7 @@ pub(super) fn pairs(
         driver,
         view,
         filter,
+        keep,
         emit,
     };
     let n = f.n as u64;
@@ -171,7 +211,7 @@ pub(super) fn pairs(
     Some(count)
 }
 
-struct Batch<'a, 'file, F> {
+struct Batch<'a, 'file, F, K> {
     f: &'a File<'file>,
     run: &'a mut Run,
     srcs: &'a [Src],
@@ -179,15 +219,19 @@ struct Batch<'a, 'file, F> {
     view: &'a ViewSpec,
     filter: Filter<'a>,
     emit: F,
+    keep: K,
 }
 
-impl<F: FnMut(&mut Run, u32, u32)> Batch<'_, '_, F> {
+impl<F: FnMut(&mut Run, u32, u32), K: FnMut(&mut Run, u32) -> bool> Batch<'_, '_, F, K> {
     #[inline]
     fn drive<I: IntoIterator<Item = u32>>(&mut self, hits: impl Fn(u64) -> I) -> u64 {
         let mut touched = 0;
         let key_column =
             super::view_key::Key::bind(self.f, &self.srcs[self.driver.source], self.driver.column);
         self.driver.rows.visit(|left| {
+            if !(self.keep)(self.run, left) {
+                return;
+            }
             let key = key_column.read(self.f, self.run, left);
             fill_prof::read(4);
             if sw!("VEC_COLD_COUNT") {
