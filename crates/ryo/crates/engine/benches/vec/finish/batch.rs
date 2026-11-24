@@ -170,7 +170,8 @@ impl Exec<'_> {
         view: &Rc<ViewSpec>,
     ) -> R<usize> {
         let schema = self.schema(run, node)?;
-        let mut inputs = Vec::new();
+        let mut inputs = SmallVec::<[_; 4]>::new();
+        let mut count = 0;
         for (i, lane) in lanes.iter_mut().enumerate() {
             if mask & (1 << i) == 0
                 || lane.frame.vmat.contains_key(&node)
@@ -189,6 +190,7 @@ impl Exec<'_> {
             std::mem::swap(lane.fields, &mut run.field_sym);
             let rows = view_rows_for(lane.frame, run, view, node, true);
             std::mem::swap(lane.fields, &mut run.field_sym);
+            count += 1;
             if rows.is_empty() {
                 let empty = self.empty_rc(run, node)?;
                 if !lane.frame.cursor_views.remove(&node) {
@@ -214,7 +216,6 @@ impl Exec<'_> {
                 });
             }
         }
-        let count = inputs.len();
         for (id, rows, mut output) in inputs {
             let f = &mut lanes[id].frame;
             output.n = rows.len();
