@@ -428,15 +428,6 @@ fn parameters(step: &FinishStep) -> Args {
         }
         Rows(a) => {
             set(
-                "from",
-                Param::list(
-                    a.rows
-                        .iter()
-                        .map(|r| Param::strings(r.cells.iter().map(|v| v.0.as_ref())))
-                        .collect(),
-                ),
-            );
-            set(
                 "columns",
                 Param::strings(a.columns.iter().map(|v| v.0.as_ref())),
             );

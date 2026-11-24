@@ -2414,6 +2414,17 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "rows" => {
+                if let ryo_values::domain::finish_plans::types::FinishStep::Rows(literal) = pn.step() {
+                    let mut out = self.empty_rows(run, node, literal.rows.len())?;
+                    for row in &literal.rows {
+                        if row.cells.len() != out.cols.len() { return Err("literal row width".into()); }
+                        for (column, value) in out.cols.iter_mut().zip(&row.cells) {
+                            column.push(u64::from(run.sym(value.0.as_bytes())));
+                        }
+                        out.n += 1;
+                    }
+                    return Ok(out);
+                }
                 let mut out = self.empty(run, node)?;
                 for r in a["from"].as_array().ok_or("rows from")? {
                     let row: Vec<u64> = r.as_array().ok_or("row")?.iter().map(|x| u64::from(run.sym(x.as_str().unwrap_or("").as_bytes()))).collect();
