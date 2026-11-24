@@ -192,6 +192,7 @@ pub(super) fn declare(run: &mut Run) {
 pub(super) fn fill(
     run: &mut Run,
     file: &mut ColumnFile<'_, '_>,
+    words: &mut ryo::languages::FileWords,
     source: &[u8],
     number: u32,
     relation: &str,
@@ -243,7 +244,7 @@ pub(super) fn fill(
             write(&[root.0.into(), end.0.into(), depth as u64, file_id])
         });
     } else if relation == CONSTANT_PREDECESSOR {
-        file.visit_repeated_constant_keys(|dict, id, previous| {
+        file.visit_repeated_constant_keys(words, |dict, id, previous| {
             write(&[dict.0.into(), id.0.into(), previous.0.into(), file_id])
         });
     } else if relation == ANNOTATION_STRINGS {

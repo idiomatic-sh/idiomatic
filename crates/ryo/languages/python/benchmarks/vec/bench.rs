@@ -1328,7 +1328,7 @@ impl ColFacts<'_, '_, '_, '_> {
                 | expression_parts::ATTRIBUTE_PREFIX
                 | expression_parts::DISPLAY_ELEMENT
         ) {
-            expression_parts::fill(run, self.file, self.src, self.file_no, rel)?
+            expression_parts::fill(run, self.file, self.words, self.src, self.file_no, rel)?
         } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::HEADS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
             import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel, &mut self.import_comments)?
         } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
