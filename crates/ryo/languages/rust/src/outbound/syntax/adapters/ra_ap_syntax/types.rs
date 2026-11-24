@@ -159,4 +159,6 @@ pub(crate) struct Walker {
     pub found: Vec<Expansion>,
     /// The text an argument list is parsed from, kept between calls so it is made once.
     pub buffer: ArgumentList,
+    /// The top-level token tree for the 0.1.4 fragment grammar, reused between calls.
+    pub fragment_steps: Vec<Step>,
 }
