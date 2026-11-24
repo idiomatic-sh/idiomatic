@@ -101,6 +101,8 @@ impl Program {
 pub(crate) struct Clock {
     pub prepare: f64,
     pub read_parse: f64,
+    pub(crate) read_versions: f64,
+    pub(crate) build_file: f64,
     pub screen: f64,
     pub evaluate: f64,
     pub project: f64,
@@ -516,7 +518,9 @@ pub(crate) fn visit<L: FileSource>(
             &mut state.bytes,
             keep,
         );
-        clocks.read_parse += thread_cpu() - t;
+        let elapsed = thread_cpu() - t;
+        clocks.read_versions += elapsed;
+        clocks.read_parse += elapsed;
         for Version {
             origin: index,
             project_slots,
@@ -576,7 +580,8 @@ pub(crate) fn visit<L: FileSource>(
                     },
                 };
                 let requested: Vec<_> = wanted.into_iter().collect();
-                parser.build(
+                let build_start = thread_cpu();
+                let result = parser.build(
                     request,
                     &mut elements,
                     &mut symbols,
@@ -585,7 +590,9 @@ pub(crate) fn visit<L: FileSource>(
                     } else {
                         &requested
                     },
-                )
+                );
+                clocks.build_file += thread_cpu() - build_start;
+                result
             } else {
                 // Every registered reader declined this path. Its host populations
                 // still exist and no source reader contributes syntax or semantic rows.
