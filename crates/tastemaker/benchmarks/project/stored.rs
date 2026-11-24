@@ -190,6 +190,8 @@ pub(super) struct Store {
     restored_unread: BTreeSet<String>,
     pub file_hits: usize,
     pub closed_hits: usize,
+    pub evaluated_pairs: usize,
+    pub evaluated_closed: usize,
 }
 
 fn table(dir: &Path, name: &str, digest: Key) -> PathBuf {
@@ -258,6 +260,8 @@ impl Store {
             restored_unread: BTreeSet::new(),
             file_hits: 0,
             closed_hits: 0,
+            evaluated_pairs: 0,
+            evaluated_closed: 0,
         })
     }
     pub(super) fn publish(&mut self) -> Res<usize> {
@@ -428,6 +432,7 @@ impl Store {
                         *work = Work::Project(Rc::new(Ok(row.report.read())));
                         self.closed_hits += 1;
                     } else {
+                        self.evaluated_closed += 1;
                         needed.extend(pairs.iter().copied());
                         frontier.extend(pairs.iter().copied());
                         if let Some(p) = project {
@@ -492,6 +497,7 @@ impl Store {
         }
         b.schedule.pending.retain(|i| {
             let src = &b.schedule.sources[*i];
+            self.evaluated_pairs += src.bindings.len();
             src.project || !src.bindings.is_empty()
         });
     }

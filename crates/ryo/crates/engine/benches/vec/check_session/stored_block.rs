@@ -95,7 +95,7 @@ impl StoredBlock {
     }
     pub(crate) fn restore(&self, world: &mut World) -> Rc<finish::population::Block> {
         use finish::Ty;
-        let columns = self
+        let mut columns: Vec<Vec<u64>> = self
             .columns
             .iter()
             .zip(&self.types)
@@ -131,6 +131,9 @@ impl StoredBlock {
                 column
             })
             .collect();
+        if self.count == 0 {
+            columns.resize_with(self.types.len(), Vec::new);
+        }
         let home = if self.count == 0 {
             0
         } else {

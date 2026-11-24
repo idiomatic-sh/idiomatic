@@ -860,7 +860,7 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
         session.epoch_with_store(readers,&mut state,Some(&mut store));
         store.prune();
         let written=store.publish().expect("publish session snapshot");
-        eprintln!("retained pair_hits={} closed_hits={} written={written}",store.file_hits,store.closed_hits);
+        eprintln!("retained pair_hits={} closed_hits={} evaluated_pairs={} evaluated_closed={} written={written}",store.file_hits,store.closed_hits,store.evaluated_pairs,store.evaluated_closed);
         state.answers
     } else {session.run_sources(readers)};
     let t = thread_cpu();
