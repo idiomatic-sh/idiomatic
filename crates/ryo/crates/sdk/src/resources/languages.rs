@@ -395,7 +395,7 @@ pub use ryo_relations::domain::catalog::types::OptionalCapability;
 /// What a completion was given: a prepared model only when the request reads what completion adds.
 pub use ryo_language::application::completion::service::completion_requirement;
 /// Lend the file model prepared by the common completion boundary; it cannot initialize or mark readiness.
-pub use ryo_language::application::completion::service::with_file_model;
+pub use ryo_language::application::completion::service::{prepared_file_model, with_file_model};
 /// Append embedded syntax without resetting the native population.
 pub use ryo_language::domain::expansions::service::append_embedded;
 

@@ -151,6 +151,21 @@ pub fn completion_requirement(
     completion.as_mut().requirement
 }
 
+/// Borrow the prepared model of the current file generation and configuration.
+pub fn prepared_file_model<'a, M: Send + 'static>(
+    elements: &'a Elements,
+    configuration: ByteSlice<'_>,
+) -> Option<&'a M> {
+    let table = engine(elements);
+    if table.model_preparation.ready != ModelReadiness::Ready
+        || table.model_preparation.native_count != real_count(elements)
+        || table.model_preparation.configuration.0 != configuration.0
+    {
+        return None;
+    }
+    table.scratch.0.as_ref()?.downcast_ref::<M>()
+}
+
 /// Lend initialized model data without giving the provider readiness or initialization capabilities.
 /// No callback can retain a tree/model borrow across the append phase.
 pub fn with_file_model<M: Send + 'static, R>(

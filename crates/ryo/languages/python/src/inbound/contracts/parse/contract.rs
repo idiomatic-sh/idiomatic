@@ -288,6 +288,30 @@ impl languages::FileRelations for ParseContract {
         if schemas.iter().all(|schema| comment_positions::SCHEMAS.contains(schema)) {
             return comment_positions::Comments.read(schemas, request, elements, tree, symbols, project);
         }
+        use crate::fixtures::columns::ColumnFile;
+        let projected: Vec<_> = schemas.iter().copied().filter(|s| **s != ColumnFile::NAMESPACE_SITES_SCHEMA).collect();
+        let schedule = (projected.len() != schemas.len()).then(|| {
+            use crate::domain::binding_results::types::EventKind;
+            let tree = languages::Tree { elements, source: request.bytes, file: request.file };
+            let mut scratch;
+            let model = if let Some(model) = languages::prepared_file_model::<Declarations>(
+                elements, languages::ByteSlice(self.configuration_identity().0.as_bytes()),
+            ) { model } else {
+                scratch = Declarations::default();
+                self.file_model(&tree, &mut scratch);
+                &scratch
+            };
+            let index = crate::domain::binding_analysis::service::indexed(&tree, model, symbols)
+                .ok_or_else(|| languages::ParseError::Library { reason: languages::ToolMessage("incomplete namespace binding schedule".into()) })?;
+            Ok(ColumnFile::published_namespace_sites(request.file, index.events.iter().filter_map(|event| {
+                if matches!(event.kind, EventKind::Read | EventKind::Wildcard) || event.name == languages::NO_SYMBOL {
+                    return None;
+                }
+                let mutation = matches!(event.kind, EventKind::Bind | EventKind::Delete | EventKind::Cleanup)
+                    .then(|| languages::start_at(elements, event.occurrence).0);
+                Some((event.scope, event.name, event.ordinal.0 as u64, mutation))
+            })))
+        });
         let mut result = None;
         let read = ColumnWalk::retained(self.settings, request, elements, &mut |file, positions| {
             let lists = self.named.as_ref().map(|(_, lists)| lists);
@@ -310,9 +334,9 @@ impl languages::FileRelations for ParseContract {
                 }
             };
             let lookup = project.filter(|p| p.roots().is_some()).map(|_| &mut prefixes as &mut dyn FnMut(&str) -> (String, String, bool));
-            let mut answers = file.answer_named_facts(schemas, request.file, request.path.0, request.bytes, symbols,
+            let mut answers = file.answer_named_facts(&projected, request.file, request.path.0, request.bytes, symbols,
                 Some((&generic, &argument, modules)), observed_package, lookup);
-            for (schema, answer) in schemas.iter().zip(&mut answers) {
+            for (schema, answer) in projected.iter().zip(&mut answers) {
                 if let Ok(columns) = answer && let Err(error) = crate::fixtures::columns::positions::publish(columns, schema, request.file, positions) {
                     *answer = Err(error);
                 }
@@ -322,8 +346,14 @@ impl languages::FileRelations for ParseContract {
             }
             result = Some(answers);
         });
-        result.unwrap_or_else(|| schemas.iter().map(|_| Err(languages::ParseError::Library {
+        let answers = result.unwrap_or_else(|| projected.iter().map(|_| Err(languages::ParseError::Library {
             reason: languages::ToolMessage(format!("retained Python node identities unavailable: {read:?}").into())
-        })).collect())
+        })).collect());
+        let mut answers = answers.into_iter();
+        schemas.iter().map(|schema| if **schema == ColumnFile::NAMESPACE_SITES_SCHEMA {
+            schedule.as_ref().expect("requested schedule").clone()
+        } else {
+            answers.next().expect("requested projection")
+        }).collect()
     }
 }
