@@ -43,16 +43,9 @@ fn one(run: &Run, e: &E) -> Test {
             }
             _ => Test::Eval(e.clone()),
         },
-        E::Null(a, not) => match &**a {
-            E::Col(0, c, _) => Test::Null(*c, *not),
-            _ => Test::Eval(e.clone()),
-        },
         E::Not(a) => Test::Not(Box::new(one(run, a))),
         E::And(a, b) => Test::And(Box::new(one(run, a)), Box::new(one(run, b))),
         E::Or(a, b) => Test::Or(Box::new(one(run, a)), Box::new(one(run, b))),
-        E::Not(a) => Test::Not(Box::new(one(a))),
-        E::And(a, b) => Test::And(Box::new(one(a)), Box::new(one(b))),
-        E::Or(a, b) => Test::Or(Box::new(one(a)), Box::new(one(b))),
         _ => Test::Eval(e.clone()),
     }
 }

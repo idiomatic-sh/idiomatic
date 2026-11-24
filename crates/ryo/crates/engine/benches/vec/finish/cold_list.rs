@@ -182,6 +182,7 @@ fn normalized(e: &E) -> FilterKey {
             K::In(*neg, Box::new(normalized(a)), items)
         }
         E::Call(name, xs) => K::Call(name.clone(), xs.iter().map(normalized).collect()),
+        E::TextTest(a, super::TextTest::Any(tests)) => K::Or(tests.pattern.iter().map(|test| normalized(&E::TextTest(a.clone(), test.clone()))).collect()),
         E::TextTest(a, super::TextTest::Regex(re)) => K::Re(Box::new(normalized(a)), re.pattern.as_str().into()),
         E::TextTest(a, super::TextTest::Glob(glob)) => K::Glob(Box::new(normalized(a)), glob.pattern),
         E::TextTest(a, super::TextTest::LowerEqual(lit)) => K::LowerEqual(Box::new(normalized(a)), lit.pattern.clone()),

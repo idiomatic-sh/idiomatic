@@ -403,7 +403,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
             notes: l::NoteRequest::Unwanted,
         };
         parser
-            .build_native_file(parse, &mut elements, &mut symbols, l::NodeAccess::Query(&all))
+            .build_native_file(parse, &mut elements, &mut symbols, l::NodeAccess::Query(&relations))
             .expect("parse file");
         if let Some(c) = &mut fin.capture { c.visited(path,&bytes); }
         let mut provider = reader::ReaderFacts::new(id.0, &unknown_words);
