@@ -81,7 +81,7 @@ impl Exec<'_> {
                 // not empty by its inputs (a made table with rows was not empty by them either): no visit
                 let r = self.flat.recs[node];
                 if r.flags & (READY | PASS) == READY | PASS
-                    && self.needs[node].is_some_and(|n| n.inputs.iter().all(|i| matches!(&f.memo[*i], Some(Res::Tab(t)) if t.n > 0)))
+                    && self.needs[node].as_ref().is_some_and(|n| n.inputs.iter().all(|i| matches!(&f.memo[*i], Some(Res::Tab(t)) if t.n > 0)))
                 {
                     f.known[node] = NO;
                     self.stats.static_made_skips += 1;
@@ -263,10 +263,10 @@ impl Exec<'_> {
         if r.n_ins > 0 || r.n_kinds > 0 || need.file_test || r.flags & EP_LEAF != 0 {
             r.flags |= CAN;
         }
-        if r.flags & CAN != 0 && r.n_kinds == 0 && r.n_seeds == 0 && r.flags & (ALL | FILE_TEST | EP_LEAF) == 0 {
+        if r.flags & CAN != 0 && r.n_kinds == 0 && r.flags & (ALL | FILE_TEST | EP_LEAF) == 0 {
             r.flags |= PASS;
         }
-        if r.flags & CAN != 0 && r.n_kinds == 0 && r.n_seeds == 0 && r.flags & ALL != 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
+        if r.flags & CAN != 0 && r.n_kinds == 0 && r.flags & ALL != 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
             r.flags |= AND;
         }
         self.flat.recs[node] = r;
