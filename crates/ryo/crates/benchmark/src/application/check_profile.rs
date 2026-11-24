@@ -148,9 +148,9 @@ pub fn profile(
 }
 
 fn registered_command(workspace: &Path) -> Result<Vec<OsString>, Error> {
-    let registry = fs::read_to_string(workspace.join("asymptote.toml"))?
-        .parse::<toml::Value>()
-        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let registry =
+        toml::from_str::<toml::Value>(&fs::read_to_string(workspace.join("asymptote.toml"))?)
+            .map_err(|error| Error::Invalid(error.to_string()))?;
     let tool = registry
         .get("tools")
         .and_then(toml::Value::as_array)
@@ -180,9 +180,11 @@ fn registered_command(workspace: &Path) -> Result<Vec<OsString>, Error> {
 fn build(repo: &Path, bench: &Path, image: &Path, revision: &str) -> Result<(), Error> {
     fs::create_dir_all(image)?;
     let stage = tempfile::tempdir_in(image)?;
-    let pin = git_text(repo, &["show", &format!("{revision}:tastemaker.toml")])?
-        .parse::<toml::Value>()
-        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let pin = toml::from_str::<toml::Value>(&git_text(
+        repo,
+        &["show", &format!("{revision}:tastemaker.toml")],
+    )?)
+    .map_err(|error| Error::Invalid(error.to_string()))?;
     let version = pin
         .get("tastemaker")
         .and_then(toml::Value::as_str)
