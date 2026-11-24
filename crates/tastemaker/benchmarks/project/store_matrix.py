@@ -65,10 +65,11 @@ def typed_packets(cache):
         r=reader(path.read_bytes())
         for _ in range(r.uint()):
             key=bytes(r.take(32))
+            reason=r.string() if r.take(1)[0] else None
             digest=r.string()
             unknowns=[(r.string(),r.string()) for _ in range(r.uint())]
             payload=bytes(r.take(r.uint()))
-            packets[key]=(digest,unknowns,payload)
+            packets[key]=(reason,digest,unknowns,payload)
         assert r.at==len(r.data)
     active={}
     for path in cache.glob("requests-*.postcard"):
@@ -284,7 +285,7 @@ def run(fixture, exe, other_build, evidence):
                     changed=sum(a!=b for a,b in zip(cold[0].splitlines(),original[0].splitlines()))
                     ok &= 0 < changed < len(cold[0].splitlines()) and trial["request_hits"]>0
                 if case=="refusal":
-                    ok &= bool(cold[1])
+                    ok &= bool(cold[1]) and any(r[0][0] is not None for r in truth.values())
                 if case == "unchanged":
                     ok &= trial["written"] == trial["evaluated_pairs"] == trial["evaluated_closed"] == 0
                 if case in ("build","truncated"):

@@ -48,6 +48,7 @@ enum Work {
     },
     Pairs(Vec<usize>),
     Refused(String),
+    Invalid(String),
 }
 
 struct ProjectSpec {
@@ -131,25 +132,27 @@ impl Batch {
         self.register_query(query, req, closed)
     }
 
+    fn prepared_rule(&mut self,query:Rc<str>,parameters:&Parameters)->usize{
+        let t = thread_cpu();
+        let rule = self
+            .schedule
+            .prepare(query.clone(), parameters.clone(), || {
+                let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
+                ctx.parameters
+                    .insert("query".into(), parameters.clone());
+                Program::prepare("query", &query, ctx, &declaration(), Some("/"))
+            });
+        self.clocks.prepare += thread_cpu() - t;
+        rule
+    }
     fn register_query(
         &mut self,
         query: Rc<str>,
         mut req: Input,
         closed: Option<&Path>,
     ) -> Result<Work, String> {
-        let t = thread_cpu();
-        let rule = self
-            .schedule
-            .prepare(query.clone(), req.parameters.clone(), || {
-                let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
-                ctx.parameters
-                    .insert("query".into(), req.parameters.clone());
-                Program::prepare("query", &query, ctx, &declaration(), Some("/"))
-            });
-        self.clocks.prepare += thread_cpu() - t;
-        let program = self.schedule.programs[rule]
-            .as_ref()
-            .map_err(Clone::clone)?;
+        let rule=self.prepared_rule(query,&req.parameters);
+        let program=match &self.schedule.programs[rule]{Ok(p)=>p,Err(reason)=>return Ok(Work::Invalid(reason.clone()))};
         req.hosted
             .retain(|h| program.bases.iter().any(|n| n == &h.name));
         let shape: Vec<_> = req
@@ -704,7 +707,7 @@ impl Batch {
         match work {
             Work::Project(result) => receipt.append(result)?,
             Work::Closed { .. } => return Err("project inputs still open"),
-            Work::Refused(reason) => return Err(reason),
+            Work::Refused(reason) | Work::Invalid(reason) => return Err(reason),
             Work::Pairs(slots) => {
                 for &slot in slots {
                     receipt.append(&answers[slot])?;
@@ -892,16 +895,21 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
     }else{session.run_sources(readers)};
     let t=thread_cpu();
     let mut out=std::io::BufWriter::new(std::fs::File::create(output).unwrap());
-    let results:Vec<Result<(String,Vec<(String,String)>),&str>>=entries.into_iter().map(|entry|{
+    let results:Vec<Result<(String,Vec<(String,String)>),String>>=entries.into_iter().map(|entry|{
         let packet=match entry {
             Entry::Stored(k)=>k,
             Entry::Evaluate(i,id)=>{
-                let r=Batch::answer(&session.work[i],&answers)?;
+                if let Work::Invalid(reason)=&session.work[i] {
+                    if let (Some(s),Some(k))=(&mut store,id){s.decline(k,reason);}
+                    return Err(reason.clone())
+                }
+                let r=Batch::answer(&session.work[i],&answers).map_err(str::to_owned)?;
                 if let (Some(s),Some(k))=(&mut store,id) && let Some(k)=s.save(k,i,&r){k}
                 else{return Ok((digest(&r.rows),r.unknowns.into_iter().cloned().collect()))}
             }
         };
         let p=store.as_ref().unwrap().packet(&packet);
+        if let Some(reason)=&p.refusal{return Err(reason.clone())}
         Ok((p.digest.clone(),p.unknowns.clone()))
     }).collect();
     if let Some(s)=&mut store{
@@ -927,7 +935,7 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
                 writeln!(out).unwrap();
             }
             Err(reason) => {
-                *refusals.entry(*reason).or_insert(0usize) += 1;
+                *refusals.entry(reason.as_str()).or_insert(0usize) += 1;
                 writeln!(out, "{id}\trefused\t").unwrap();
             }
         }

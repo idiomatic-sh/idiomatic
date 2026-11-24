@@ -175,6 +175,7 @@ use shards::{Index, Records, Segments, Shards};
 
 #[derive(Default, Serialize, Deserialize)]
 struct Snapshot {
+    names: Option<Key>,
     build: Key,
     files: Segments,
     notes: Index,
@@ -184,6 +185,10 @@ struct Snapshot {
 }
 pub(super) struct Store {
     dir: PathBuf,
+    names: Vec<PathBuf>,
+    name_ids: HashMap<PathBuf, u32>,
+    names_digest: Option<Key>,
+    saved_names: usize,
     previous: Vec<u8>,
     build: Key,
     files: Records<FileAnswers>,
@@ -246,7 +251,18 @@ impl Store {
             .ok()
             .filter(|s| s.build == build)
             .unwrap_or_default();
+        let (snapshot, names) = match snapshot.names {
+            Some(k) => match load::<Vec<PathBuf>>(&table(&dir, "paths", k), k) {
+                Some(n) => (snapshot, n),
+                None => (Snapshot::default(), vec![]),
+            },
+            None => (snapshot, vec![]),
+        };
         Ok(Self {
+            names_digest: snapshot.names,
+            saved_names: names.len(),
+            names,
+            name_ids: HashMap::new(),
             dir,
             previous,
             build,
@@ -295,7 +311,20 @@ impl Store {
             + self.requests.flush(&self.dir, &mut old)?
             + self.groups.flush(&self.dir, &mut old)?
             + self.packets.flush(&self.dir, &mut old)?;
+        if self.names.len() != self.saved_names {
+            let b = postcard::to_stdvec(&self.names).map_err(io::Error::other)?;
+            let k = *blake3::hash(&b).as_bytes();
+            atomic(&self.dir, &table(&self.dir, "paths", k), &b)?;
+            written += b.len();
+            if let Some(old_key) = self.names_digest.replace(k)
+                && old_key != k
+            {
+                old.push(table(&self.dir, "paths", old_key));
+            }
+            self.saved_names = self.names.len();
+        }
         let bytes = postcard::to_stdvec(&Snapshot {
+            names: self.names_digest,
             build: self.build,
             files: self.files.index.clone(),
             notes: self.notes.index.clone(),
@@ -333,6 +362,14 @@ impl Store {
             self.packets.write_bytes
         );
     }
+    pub(super) fn overlay(
+        &mut self,
+        root: &Path,
+        inventory: &[String],
+        v: &BTreeMap<String, Rc<[u8]>>,
+    ) {
+        self.observed.overlay(root, inventory, v);
+    }
     pub(super) fn contract_file(&mut self, p: &Path) -> Option<Key> {
         self.observed.observe(p, Probe::Bytes)
     }
@@ -341,7 +378,7 @@ impl Store {
         let r = self.requests.get(&id)?;
         for &(g, expected) in &r.proof {
             self.groups.open(&self.dir, &g);
-            if self.observed.group(g, self.groups.get(&g)?) != Some(expected) {
+            if self.observed.group(g, self.groups.get(&g)?, &self.names) != Some(expected) {
                 return None;
             }
         }
@@ -355,8 +392,18 @@ impl Store {
     }
     pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
         let (proof, unread) = self.plans.get_mut(idx)?.take()?;
-        let packet = Packet::save(r);
-        let k = key((&packet.digest, &packet.unknowns, packet.typed_bytes()));
+        Some(self.put(id, Packet::save(r), proof, unread))
+    }
+    pub(super) fn decline(&mut self, id: Key, reason: &str) {
+        self.put(id, Packet::declined(reason), vec![], vec![]);
+    }
+    fn put(&mut self, id: Key, packet: Packet, proof: Vec<Proof>, unread: Vec<String>) -> Key {
+        let k = key((
+            &packet.refusal,
+            &packet.digest,
+            &packet.unknowns,
+            packet.typed_bytes(),
+        ));
         self.packets.open(&self.dir, &k);
         if self.packets.get(&k).is_none() {
             self.packets.insert(k, packet);
@@ -370,14 +417,34 @@ impl Store {
                 unread,
             },
         );
-        Some(k)
+        k
     }
-    fn group(&mut self, mut g: Group) -> Option<Proof> {
-        g.sort_unstable();
-        g.dedup();
+    fn group(&mut self, mut paths: Vec<(PathBuf, Probe)>) -> Option<Proof> {
+        if self.name_ids.is_empty() && !self.names.is_empty() {
+            self.name_ids.extend(
+                self.names
+                    .iter()
+                    .enumerate()
+                    .map(|(i, p)| (p.clone(), i as u32)),
+            );
+        }
+        paths.sort_unstable();
+        paths.dedup();
+        let g: Group = paths
+            .into_iter()
+            .map(|(p, mode)| {
+                let i = *self.name_ids.entry(p.clone()).or_insert_with(|| {
+                    let i = u32::try_from(self.names.len())
+                        .expect("source inventory fits in a process");
+                    self.names.push(p);
+                    i
+                });
+                (i, mode)
+            })
+            .collect();
         let id = key(&g);
         self.groups.open(&self.dir, &id);
-        let expected = self.observed.group(id, &g)?;
+        let expected = self.observed.group(id, &g, &self.names)?;
         if self.groups.get(&id).is_none() {
             self.groups.insert(id, g);
         }
@@ -408,7 +475,21 @@ impl Store {
         let bindings: Vec<_> = b
             .bindings
             .iter()
-            .map(|(r, host)| key((rules[*r], host)))
+            .enumerate()
+            .map(|(binding, (r, host))| {
+                // The engine shares this pre-join work for every binding with the
+                // same declared host shape. Which caller first supplied the rows
+                // can change when all but one request is restored.
+                if b.cut_of.contains_key(&binding) {
+                    let shape = host
+                        .iter()
+                        .map(|h| (&h.name, &h.columns))
+                        .collect::<Vec<_>>();
+                    key((0u8, rules[*r], shape))
+                } else {
+                    key((1u8, rules[*r], host))
+                }
+            })
             .collect();
         self.pairs.resize(b.schedule.pairs, None);
         self.sources.resize(b.schedule.pairs, None);
@@ -429,7 +510,7 @@ impl Store {
                 Work::Pairs(p) => (p.as_slice(), None, false),
                 Work::Closed { pairs, project, .. } => (pairs.as_slice(), *project, true),
                 Work::Project(_) => ([].as_slice(), None, false),
-                Work::Refused(_) => {
+                Work::Refused(_) | Work::Invalid(_) => {
                     self.plans.push(None);
                     continue;
                 }
@@ -463,7 +544,9 @@ impl Store {
                         for &i in ids {
                             self.versions[i]?;
                             let src = &b.schedule.sources[i];
-                            if src.provided.is_none() {
+                            if self.observed.root.is_some() {
+                                paths.push((src.path.as_str().into(), Probe::Effective));
+                            } else if src.provided.is_none() {
                                 paths.push((Path::new(&*src.root).join(&src.path), Probe::Source));
                             }
                         }
@@ -481,6 +564,15 @@ impl Store {
             }
             if let Some(i) = project {
                 projects.extend(b.projects[i].slots.iter().copied());
+            }
+            if self.observed.root.is_some()
+                && (closed || matches!(work, Work::Project(_)))
+                && let Some(ps) = &mut proof
+            {
+                ps.push(
+                    self.group(vec![(PathBuf::new(), Probe::Inventory)])
+                        .expect("declared inventory"),
+                );
             }
             self.plans.push(proof.map(|p| (p, Vec::new())));
         }

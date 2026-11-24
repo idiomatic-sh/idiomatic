@@ -271,7 +271,11 @@ impl Live {
             .map(table)
             .collect::<Result<Vec<_>, _>>()?;
         let mut ids = Vec::new();
-        let scope=self.store.as_ref().map(|_|super::stored::key((&physical,&key,&paths,&hosted)));
+        let scope=self.store.as_mut().map(|s|{
+            s.overlay(std::path::Path::new(&*physical),&paths,&key.1);
+            super::stored::key((&physical,&authority))
+        });
+        let host_keys=self.store.as_ref().map(|_|hosted.iter().map(super::stored::key).collect::<Vec<_>>());
         let mut restored_unread=std::collections::BTreeSet::new();
         self.batch.work.clear();
         for (id, rule) in req.rules {
@@ -297,9 +301,17 @@ impl Live {
                 .into_iter()
                 .map(|(k, v)| Ok((k.0, parameter(v)?)))
                 .collect::<Result<_, String>>()?;
-            let contract=scope.map(|scope|super::stored::key((scope,rule.query.as_ref(),&parameters,&files)));
+            let query:Rc<str>=Rc::from(rule.query.as_ref());
+            let contract=scope.map(|scope|{
+                let rule=self.batch.prepared_rule(query.clone(),&parameters);
+                let plan=self.batch.schedule.programs[rule].as_ref().ok();
+                let consumed:Vec<_>=hosted.iter().enumerate().filter(|(_,t)|plan.is_some_and(|p|p.bases.contains(&t.name)))
+                    .map(|(i,_)|host_keys.as_ref().unwrap()[i]).collect();
+                super::stored::key((scope,&query,&parameters,&files,consumed))
+            });
             if let (Some(store),Some(k))=(&mut self.store,contract)
                 && let Some((packet,unread))=store.lookup(k){
+                if let Some(reason)=&store.packet(&packet).refusal{return Err(format!("{id}: {reason}"))}
                 restored_unread.extend(unread);
                 ids.push((id,Ok(packet)));
                 continue
@@ -326,7 +338,7 @@ impl Live {
             let work = self
                 .batch
                 .register_query(
-                    Rc::from(rule.query.as_ref()),
+                    query,
                     Input {
                         root: root.to_string(),
                         files,
@@ -338,6 +350,10 @@ impl Live {
                     None,
                 )
                 .map_err(|e| format!("{id}: {e}"))?;
+            if let super::Work::Invalid(reason)=&work{
+                if let (Some(store),Some(k))=(&mut self.store,contract){store.decline(k,reason);}
+                return Err(format!("{id}: {reason}"))
+            }
             ids.push((id,Err((self.batch.work.len(),contract))));
             self.batch.work.push(work);
         }
