@@ -12,6 +12,8 @@ use std::{
 
 #[path = "check_session/completeness.rs"]
 pub(crate) mod completeness;
+#[path = "check_session/pairs.rs"]
+mod pairs;
 #[path = "check_session/project.rs"]
 pub(crate) mod project;
 
@@ -56,6 +58,7 @@ impl From<Vec<finish::answer::Row>> for Reported {
 pub(crate) type Tables = Vec<(String, Rc<Table>)>;
 
 pub(crate) struct Program {
+    typed: Rc<ryo_values::domain::finish_plans::types::FinishPlan>,
     pub plan: Plan,
     pub syntax: Box<ryo_values::domain::program::types::WrittenProgram>,
     pub bases: Vec<String>,
@@ -71,7 +74,8 @@ impl Program {
         capture_separator: Option<&str>,
     ) -> Result<Self> {
         let (plan, pack) = lower::query_parts(alias, text, context, true, capture_separator)?;
-        let requirements = reader_run::file_requirements(&pack, declaration)
+        let typed = pack.typed.take().expect("prepared query");
+        let requirements = reader_run::file_requirements(&typed, declaration)
             .pop()
             .ok_or("missing query emit")?
             .1;
@@ -94,6 +98,7 @@ impl Program {
         Ok(Self {
             plan,
             syntax,
+            typed,
             requirements,
             bases,
         })
@@ -117,6 +122,8 @@ pub(crate) struct Clock {
     pub pairs: usize,
     pub skipped: usize,
     pub evaluated: usize,
+    pub productive: usize,
+    pub refused: usize,
 }
 
 #[derive(Default)]
@@ -271,6 +278,8 @@ impl Schedule {
 }
 
 struct Bound<'p> {
+    screenable: Option<bool>,
+    empty_frontier: Option<Vec<(usize, Rc<Table>)>>,
     exec: Exec<'p>,
     facts: Vec<l::Relation>,
     filters: BTreeMap<usize,Vec<(usize,u64)>>,
@@ -347,6 +356,8 @@ fn bind<'p, L: FileSource>(
         (node,alts.iter().map(|(col,w)|(*col,u64::from(run.sym(w)))).collect())
     }).collect();
     Ok(Bound {
+        screenable: None,
+        empty_frontier: None,
         filters,
         exec,
         facts,
@@ -525,6 +536,9 @@ pub(crate) fn visit<L: FileSource>(
         let word = run.sym(src.path.as_bytes());
         run.path_sym.push(word);
     }
+    let t = thread_cpu();
+    let mut checks = pairs::Checks::new(parser, programs, program_of, sources, selected, cut_of);
+    clocks.prepare += thread_cpu() - t;
     let mut bound = HashMap::new();
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
@@ -533,6 +547,9 @@ pub(crate) fn visit<L: FileSource>(
         by_path.entry(&sources[index].path).or_default().push(index);
     }
     let mut carried_symbols = HashMap::new();
+    if let Some(dictionary) = reader_id.and_then(|id| world.project_words.get(id)) {
+        carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
+    }
     for group in by_path.values() {
         let t = thread_cpu();
         let versions = versions(
@@ -787,9 +804,18 @@ pub(crate) fn visit<L: FileSource>(
             } else {
                 packet.index(&facts);
             }
-            let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
             let version = std::cell::OnceCell::new();
             clocks.read_parse += thread_cpu() - t;
+            let t = thread_cpu();
+            if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
+            {
+                checks.exclude(
+                    &mut active, &mut bound, &mut run, tree, &provider.text,
+                    &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, cut_of, &said,
+                );
+            }
+            clocks.screen += thread_cpu() - t;
+            let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
             let t = thread_cpu();
             let lines = active
                 .iter()
@@ -849,6 +875,13 @@ pub(crate) fn visit<L: FileSource>(
                     contract.report(&partial, &source.path)
                 };
                 if excluded && unknowns.is_empty() {
+                    if let Some(cut) = &cut_of[binding] {
+                        let tables = b.empty_frontier.get_or_insert_with(|| {
+                            finish::session::certificate::empty_frontier(&mut b.exec, &mut run, &cut.inputs)
+                                .expect("certified file output schemas")
+                        });
+                        world.insert_empty(slot, &source.path, tables);
+                    }
                     answers[slot] = Ok(Reported::default());
                     clocks.skipped += 1;
                     continue;
@@ -867,6 +900,8 @@ pub(crate) fn visit<L: FileSource>(
                             unknowns,
                         }
                     });
+                    clocks.productive += usize::from(world.productive(slot));
+                    clocks.refused += usize::from(answers[slot].is_err());
                     continue;
                 }
                 answers[slot] = finish::session::pair(
@@ -878,6 +913,8 @@ pub(crate) fn visit<L: FileSource>(
                     &local_coverage,
                 )
                 .map(|rows| Reported { rows, unknowns });
+                clocks.productive += usize::from(answers[slot].as_ref().is_ok_and(|r| !r.rows.is_empty()));
+                clocks.refused += usize::from(answers[slot].is_err());
             }
             if keep {
                 held.read = true;

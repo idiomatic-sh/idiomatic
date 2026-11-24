@@ -10,7 +10,7 @@ use std::path::Path;
 pub(super) mod packet;
 
 #[path = "reader_pairs.rs"]
-mod pairs;
+pub(super) mod pairs;
 
 #[path = "reader_coverage.rs"]
 pub(super) mod coverage;
@@ -77,11 +77,10 @@ impl Memory {
 /// These readers resolve field names for each file. Compile name-based file
 /// requirements from the lowered steps already prepared by the executor.
 pub(super) fn file_requirements(
-    read: &lower::ReadPack,
+    plan: &ryo_values::domain::finish_plans::types::FinishPlan,
     language: &first::Language,
 ) -> Vec<(String, (bool, Vec<Vec<String>>, Vec<Vec<String>>))> {
     use ryo_values::domain::finish_plans::types::RuleEmit;
-    let plan = read.typed.take().expect("executor must hand over the typed plan");
     assert!(plan.unplanned.is_empty(), "unplanned file queries");
     let mut skips = Vec::with_capacity(plan.steps.len());
     for step in &plan.steps {
@@ -206,7 +205,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         .expect("executor must hand over the typed plan");
     assert!(typed.unplanned.is_empty());
     let mut program =
-        super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows);
+        super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows, true);
     let prepared: Vec<_> = program
         .roots
         .iter()
@@ -435,6 +434,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
                 super::pair_checks::SyntaxText {
                     ids: &provider.text,
                     symbols: &fin.run.texts,
+                    patterns: None,
                 },
                 &bytes,
                 path,

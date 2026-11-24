@@ -18,6 +18,31 @@ type Nodes = Option<Bits>;
 pub(super) struct SyntaxText<'a> {
     pub ids: &'a [u32],
     pub symbols: &'a [std::rc::Rc<[u8]>],
+    pub patterns: Option<&'a SymbolMatches>,
+}
+/// The reader owns symbol identities for the lifetime of this dictionary.
+#[derive(Default)]
+pub(super) struct SymbolMatches(std::cell::RefCell<Vec<(usize, u32, bool)>>);
+
+impl SyntaxText<'_> {
+    #[inline(never)]
+    fn matches(self, index: usize, regex: &super::pair_summary::regexes::Matcher, polarity: bool) -> bool {
+        let Some(patterns) = self.patterns else {
+            return self.ids.iter().any(|&id| regex.is_match(&self.symbols[id as usize]) == polarity);
+        };
+        let mut entries = patterns.0.borrow_mut();
+        if entries.is_empty() {
+            entries.resize(4096, (usize::MAX, 0, false));
+        }
+        self.ids.iter().any(|&id| {
+            let slot = (index.wrapping_mul(0x9e3779b9) ^ id as usize) & (entries.len() - 1);
+            let entry = &mut entries[slot];
+            if (entry.0, entry.1) != (index, id) {
+                *entry = (index, id, regex.is_match(&self.symbols[id as usize]));
+            }
+            entry.2 == polarity
+        })
+    }
 }
 impl<'a> SyntaxText<'a> {
     fn at(self, index: usize) -> &'a [u8] {
@@ -161,9 +186,12 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Need::Any => true,
             Need::Empty => false,
             Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
-            Need::PathMatches(re) => self
-                .path
-                .is_none_or(|path| self.p.regexes[re].is_match(path)),
+            Need::PathMatches(re,yes) => self.path.is_none_or(|p|
+                self.p.regexes[re].compiled().is_none_or(|r| r.is_match(p) == yes)),
+            Need::SyntaxMatches(re,yes) => self.syntax_text.is_none_or(|col|{
+                self.p.regexes[re].compiled().is_none_or(|r|
+                    col.matches(re, r, yes))
+            }),
             Need::Terms(all, ref terms) => {
                 if all {
                     terms.iter().all(|i| self.pass(*i))
@@ -785,7 +813,7 @@ impl Program {
         alive: &mut [bool],
         exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
-        self.file_columns(t, src, path, None, words, read, alive, exact)
+        self.file_columns(t, src, path, None, words, read, alive, exact, &[])
     }
     pub(super) fn file_columns(
         &self,
@@ -797,12 +825,13 @@ impl Program {
         read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
         exact: Option<&mut Vec<(usize, Bits)>>,
+        known: &[(Id, bool)],
     ) -> u64 {
         #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact);
+            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact, known);
         }
-        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact)
+        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact, known)
     }
     fn evaluate<const PROFILE: bool>(
         &self,
@@ -814,6 +843,7 @@ impl Program {
         mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
         mut exact: Option<&mut Vec<(usize, Bits)>>,
+        known: &[(Id, bool)],
     ) -> u64 {
         languages::facts::clear_words(words);
         let reader_class = std::cell::Cell::new(cost::Family::Logic as usize);
@@ -867,6 +897,7 @@ impl Program {
             texts: None,
             steps: 0,
         };
+        for &(need, value) in known { f.needs[need] = Some(value); }
         for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
             if PROFILE {
                 f.owner = rule;
