@@ -172,8 +172,8 @@ pub(crate) struct Source {
     pub root: Arc<str>,
     pub path: String,
     pub reader: Option<Arc<str>>,
-    pub bindings: BTreeMap<usize, usize>,
-    known: BTreeMap<usize, usize>,
+    pub bindings: Vec<(usize, usize)>,
+    known: Vec<(usize, usize)>,
     pub(crate) project: bool,
     pub(crate) provided: Option<Arc<[u8]>>,
 }
@@ -203,7 +203,9 @@ impl Schedule {
             if keep && source.known.is_empty() {
                 source.known = std::mem::take(&mut source.bindings);
             } else if keep {
-                source.known.extend(std::mem::take(&mut source.bindings));
+                let ordered = source.bindings.first().is_none_or(|first| source.known.last().unwrap().0 < first.0);
+                source.known.append(&mut source.bindings);
+                if !ordered { source.known.sort_unstable_by_key(|p| p.0); }
             } else {
                 source.bindings.clear();
             }
@@ -258,8 +260,8 @@ impl Schedule {
             environment: None,
             path: path.to_owned(),
             reader: None,
-            bindings: BTreeMap::new(),
-            known: BTreeMap::new(),
+            bindings: Vec::new(),
+            known: Vec::new(),
             project: false,
             provided: None,
             permission: Permission::Unknown,
@@ -362,11 +364,11 @@ impl Schedule {
         pairs: &mut usize,
         pending: &mut BTreeSet<usize>,
     ) -> usize {
-        if known_binding && let Some(&slot) = source.known.get(&binding) {
-            return slot;
+        if known_binding && let Ok(i) = source.known.binary_search_by_key(&binding, |p| p.0) {
+            return source.known[i].1;
         }
         let first = source.bindings.is_empty();
-        *source.bindings.entry(binding).or_insert_with(|| {
+        admitted_slot(&mut source.bindings, binding, || {
             let slot = *pairs;
             *pairs += 1;
             if first {
@@ -375,6 +377,22 @@ impl Schedule {
             slot
         })
     }
+}
+
+/// New bindings normally arrive in allocation order. Later rounds and overlaid
+/// files may supply older IDs; preserve exactly the same canonical slot then.
+fn admitted_slot(slots: &mut Vec<(usize, usize)>, binding: usize, new: impl FnOnce() -> usize) -> usize {
+    let pos = if slots.last().is_none_or(|p| p.0 < binding) {
+        slots.len()
+    } else {
+        match slots.binary_search_by_key(&binding, |p| p.0) {
+            Ok(i) => return slots[i].1,
+            Err(i) => i,
+        }
+    };
+    let slot = new();
+    slots.insert(pos, (binding, slot));
+    slot
 }
 
 /// Admission assigns dense binding IDs. Only bindings used by this reader own an executor.
@@ -527,7 +545,7 @@ struct Version<'s> {
     origin: usize,
     project_slots: Vec<usize>,
     data: Arc<[u8]>,
-    jobs: std::borrow::Cow<'s, BTreeMap<usize, usize>>,
+    jobs: std::borrow::Cow<'s, [(usize, usize)]>,
 }
 
 /// A relative path in two overlaid roots has the same local answers exactly when
@@ -569,7 +587,7 @@ fn versions<'s>(
                 jobs: std::borrow::Cow::Borrowed(&src.bindings),
             }],
             Err(error) => {
-                for &slot in src.bindings.values() {
+                for &(_, slot) in &src.bindings {
                     answers.set(slot, Err(format!("{}: {error}", src.path)));
                 }
                 Vec::new()
@@ -614,7 +632,7 @@ fn versions<'s>(
                     origin: idx,
                     project_slots: Vec::new(),
                     data,
-                    jobs: std::borrow::Cow::Owned(BTreeMap::new()),
+                    jobs: std::borrow::Cow::Owned(Vec::new()),
                 });
                 i
             });
@@ -628,15 +646,15 @@ fn versions<'s>(
                 if src.project {
                     files[i].project_slots.push(idx);
                 }
-                for (&binding, &slot) in &src.bindings {
-                    let origin = *files[i].jobs.to_mut().entry(binding).or_insert(slot);
+                for &(binding, slot) in &src.bindings {
+                    let origin = admitted_slot(files[i].jobs.to_mut(), binding, || slot);
                     if origin != slot {
                         aliases.set(slot, origin);
                     }
                 }
             }
             Err(e) => {
-                for &slot in src.bindings.values() {
+                for &(_, slot) in &src.bindings {
                     answers.set(slot, Err(format!("{}: {e}", src.path)));
                 }
             }
@@ -724,7 +742,7 @@ pub(crate) fn visit<L: FileSource>(
     let t = thread_cpu();
     let mut needed = vec![false; program_of.len()];
     for &index in selected {
-        for &binding in sources[index].bindings.keys() {
+        for &(binding, _) in &sources[index].bindings {
             needed[binding] = true;
         }
     }
@@ -827,7 +845,7 @@ pub(crate) fn visit<L: FileSource>(
             let mut needs_native = false;
             let mut projects_words = cached.is_some();
             let mut projects_fields = cached.is_some();
-            for (&binding, &slot) in jobs.iter() {
+            for &(binding, slot) in jobs.iter() {
                 match &bound[&binding] {
                     Ok(b) => {
                         have_plan = true;
@@ -960,7 +978,7 @@ pub(crate) fn visit<L: FileSource>(
             use ryo_execution_domain::domain::coverage::service::partial_of;
             let recovery = held.recovery.unwrap_or_else(|| L::recovery(&elements));
             let mut active = Vec::new();
-            for (&binding, &slot) in jobs.iter() {
+            for &(binding, slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
                 if programs[program_of[binding]].as_ref().is_ok_and(|p| p.accepted_only)
                     && l::node_table::acceptance_of(tree) == l::SyntaxAcceptance::Rejected

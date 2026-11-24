@@ -525,7 +525,7 @@ impl Batch {
                 (Some((index, _)), None) => groups[index].push(i),
                 (None, None) => groups[unclaimed].push(i),
                 _ => {
-                    for &slot in src.bindings.values() {
+                    for &(_, slot) in &src.bindings {
                         answers.set(slot, Err(format!("multiple source readers for {}", src.path)));
                     }
                 }

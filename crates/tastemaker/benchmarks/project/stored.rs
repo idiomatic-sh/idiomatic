@@ -618,7 +618,7 @@ impl Store {
             .collect();
         self.pairs.resize(b.schedule.pairs, None);
         for (i, src) in b.schedule.sources.iter().enumerate() {
-            for (&binding, &slot) in &src.bindings {
+            for &(binding, slot) in &src.bindings {
                 self.pairs[slot] = Some((i, bindings[binding]));
             }
         }
@@ -706,7 +706,7 @@ impl Store {
                 if projects.contains(&i) {
                     self.notes.open(&self.dir, &v);
                 }
-                if src.bindings.values().any(|&slot| self.keep_pairs[slot]) {
+                if src.bindings.iter().any(|&(_, slot)| self.keep_pairs[slot]) {
                     self.files.open(&self.dir, &v);
                 }
             }
@@ -791,11 +791,11 @@ impl Store {
                 }));
                 src.project = false;
             }
-            src.bindings.retain(|&binding, slot| {
-                if !needed[*slot] {
+            src.bindings.retain(|&(binding, slot)| {
+                if !needed[slot] {
                     return false;
                 }
-                let Some((_, bind)) = self.pairs[*slot] else {
+                let Some((_, bind)) = self.pairs[slot] else {
                     return true;
                 };
                 let Some(file) = held else {
@@ -810,10 +810,10 @@ impl Store {
                     }
                     return true;
                 };
-                let Some(report) = pair.report.read(self.local_rows[*slot]) else {
+                let Some(report) = pair.report.read(self.local_rows[slot]) else {
                     return true;
                 };
-                answers.set(*slot, Ok(report));
+                answers.set(slot, Ok(report));
                 self.file_hits += 1;
                 false
             });
@@ -855,12 +855,12 @@ impl Store {
                     },
                 );
             }
-            if !src.bindings.values().any(|&s| self.keep_pairs[s]) {
+            if !src.bindings.iter().any(|&(_, s)| self.keep_pairs[s]) {
                 continue;
             }
             self.files.open(&self.dir, &version);
             let file = self.files.change(&version);
-            for &slot in src.bindings.values() {
+            for &(_, slot) in &src.bindings {
                 if !self.keep_pairs[slot] {
                     continue;
                 }
