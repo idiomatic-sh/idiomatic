@@ -7,6 +7,7 @@ use ryo_language::domain::files::types::ProjectEntries;
 use std::{collections::HashMap, sync::Arc};
 
 pub(crate) trait Source: Clone {
+    fn name(&self) -> &str;
     type File: Default;
     type Dictionary: Default;
     fn lent(_: &Self::File) -> Option<Arc<l::NodeTable>> { None }
@@ -77,6 +78,7 @@ impl From<l::Language> for Linked {
     }
 }
 impl Source for Linked {
+    fn name(&self) -> &str { &self.language.name().0 }
     type File = l::Elements;
     type Dictionary = l::Symbols;
     fn lent(f: &Self::File) -> Option<Arc<l::NodeTable>> { l::native_table(f).cloned() }

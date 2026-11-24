@@ -208,6 +208,7 @@ impl Default for File {
 }
 
 impl Source for Pinned {
+    fn name(&self) -> &str { &self.language.name().0 }
     type File = File;
     fn lent(f: &File) -> Option<Arc<l::NodeTable>> {
         match f {

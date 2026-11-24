@@ -99,6 +99,7 @@ impl Program {
 
 #[derive(Default)]
 pub(crate) struct Clock {
+    pub(crate) readers: BTreeMap<String, ReaderParts>,
     pub prepare: f64,
     pub read_parse: f64,
     pub(crate) read_versions: f64,
@@ -113,6 +114,16 @@ pub(crate) struct Clock {
     pub pairs: usize,
     pub skipped: usize,
     pub evaluated: usize,
+}
+
+#[derive(Default)]
+pub(crate) struct ReaderParts {
+    pub total: f64,
+    pub read: f64,
+    pub build: f64,
+    pub tree: f64,
+    pub facts: f64,
+    pub parsed: usize,
 }
 
 /// The root and path identify the caller's immutable effective source. This
@@ -482,6 +493,9 @@ pub(crate) fn visit<L: FileSource>(
     mut host: impl FnMut(usize, &mut Run) -> Result<Tables>,
     clocks: &mut Clock,
 ) {
+    let before = (clocks.read_parse, clocks.read_versions, clocks.build_file, clocks.files);
+    let mut tree_cpu = 0.;
+    let mut fact_cpu = 0.;
     let mut run = std::mem::take(&mut state.run);
     let unknown = state.unknown.get_or_insert_with(|| {
         run.file_field_codes = true;
@@ -630,6 +644,7 @@ pub(crate) fn visit<L: FileSource>(
                 run.field_sym.clone_from(&held.fields);
                 provider.text = std::mem::take(&mut held.text);
             } else {
+                let tree_start = thread_cpu();
                 L::tree(
                     &elements,
                     &symbols,
@@ -638,6 +653,7 @@ pub(crate) fn visit<L: FileSource>(
                     &mut tree,
                     &mut provider,
                 );
+                tree_cpu += thread_cpu() - tree_start;
                 if keep {
                     held.fields.clone_from(&run.field_sym);
                 }
@@ -712,14 +728,17 @@ pub(crate) fn visit<L: FileSource>(
             if let Some(parser) = &parser
                 && !missing.is_empty()
             {
-                if let Err(reason) = parser.fill(
+                let fact_start = thread_cpu();
+                let filled = parser.fill(
                     &mut elements,
                     &mut symbols,
                     &bytes,
                     id,
                     &missing,
                     &mut packet.rows,
-                ) {
+                );
+                fact_cpu += thread_cpu() - fact_start;
+                if let Err(reason) = filled {
                     for &slot in jobs.values() {
                         answers[slot] = Err(reason.clone());
                     }
@@ -873,6 +892,13 @@ pub(crate) fn visit<L: FileSource>(
             clocks.evaluate += thread_cpu() - t;
         }
     }
+    let parts = clocks.readers.entry(parser.map_or("unclaimed", FileSource::name).to_owned()).or_default();
+    parts.total += clocks.read_parse - before.0;
+    parts.read += clocks.read_versions - before.1;
+    parts.build += clocks.build_file - before.2;
+    parts.parsed += clocks.files - before.3;
+    parts.tree += tree_cpu;
+    parts.facts += fact_cpu;
     state.run = run;
 }
 
