@@ -1216,18 +1216,18 @@ impl Store {
             if src.bindings.is_empty() && !src.project {
                 continue;
             }
-            if src.project
-                && let Some(notes) = &contributions[i]
-                && self.notes.get(&version).is_none()
-            {
-                self.notes.insert(
-                    version,
-                    Notes {
-                        reader: notes.reader,
-                        notes: notes.notes.0.clone(),
-                        manifest: notes.manifest.as_ref().map(|m| m.0.clone()),
-                    },
-                );
+            if src.project && let Some(notes) = &contributions[i] {
+                self.notes.open(&self.dir, &version);
+                if self.notes.get(&version).is_none() {
+                    self.notes.insert(
+                        version,
+                        Notes {
+                            reader: notes.reader,
+                            notes: notes.notes.0.clone(),
+                            manifest: notes.manifest.as_ref().map(|m| m.0.clone()),
+                        },
+                    );
+                }
             }
             if !src.bindings.values().any(|&s| self.keep_pairs[s]) {
                 continue;
