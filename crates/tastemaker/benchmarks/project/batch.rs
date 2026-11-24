@@ -151,7 +151,7 @@ impl Batch {
         mut req: Input,
         closed: Option<&Path>,
     ) -> Result<Work, String> {
-        let rule=self.prepared_rule(query,&req.parameters);
+        let rule=self.prepared_rule(query.clone(),&req.parameters);
         let program=match &self.schedule.programs[rule]{Ok(p)=>p,Err(reason)=>return Ok(Work::Invalid(reason.clone()))};
         req.hosted
             .retain(|h| program.bases.iter().any(|n| n == &h.name));
