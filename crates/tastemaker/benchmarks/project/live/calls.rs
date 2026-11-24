@@ -118,6 +118,10 @@ fn slot(v: &Option<Cell>) -> sdk::Slot {
 
 impl Live {
     pub fn use_cache(&mut self,directory:Option<&std::path::Path>)->Result<(),String>{
+        // A cache location is available on every real check. Retention is a caller mode.
+        let directory = directory.filter(|_| {
+            std::env::var_os("TM_CHECK_SESSION").as_deref() == Some(std::ffi::OsStr::new("retained"))
+        });
         if self.directory.as_deref()!=directory {
             if let Some(old)=&mut self.store {old.publish().map_err(|e|e.to_string())?;}
             self.store=directory.map(|p|super::stored::Store::directory(p.to_owned())).transpose().map_err(|e|e.to_string())?;
