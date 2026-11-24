@@ -1026,3 +1026,43 @@ impl Store {
         self.group(paths, None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use session::source::Linked;
+
+    #[test]
+    fn answers_replay_after_publish_with_each_requests_inputs() {
+        let root = tempfile::tempdir().unwrap();
+        let open = || Store::open(root.path(), &[] as &[Linked]).unwrap();
+        let inventory = key("one closed inventory");
+        let peers = key("same bound peers");
+        let supplied = |body: &str| BTreeMap::from([("input".to_owned(), key(body))]);
+        let scope = |store: &mut Store, body| {
+            store.request_inputs(root.path(), inventory, peers, supplied(body))
+        };
+        let mut store = open();
+        for (request, body) in [("first", "old bytes"), ("second", "new bytes")] {
+            let input = scope(&mut store, body);
+            let evidence = store.group(
+                vec![("input".into(), Probe::Effective), (PathBuf::new(), Probe::Inventory)],
+                Some(input),
+            ).unwrap();
+            store.put(key(request), Packet::declined(request), vec![evidence], vec![], String::new);
+        }
+        assert!(store.publish().unwrap() > 0);
+
+        let mut store = open();
+        let new = scope(&mut store, "new bytes");
+        let old = scope(&mut store, "old bytes");
+        for (input, request) in [(new, "second"), (old, "first"), (new, "second")] {
+            let (packet, _) = store.lookup_in(input, key(request)).unwrap();
+            assert_eq!(store.packet(&packet).refusal.as_deref(), Some(request));
+        }
+        assert!(store.lookup_in(new, key("first")).is_none());
+        assert!(store.lookup_in(old, key("second")).is_none());
+        assert!(store.lookup(key("first")).is_none());
+        assert_eq!(store.publish().unwrap(), 0);
+    }
+}
