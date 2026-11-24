@@ -150,6 +150,10 @@ impl Schedule {
     pub(crate) fn close(&mut self) {
         self.prepared = HashMap::new();
         self.source_ids = HashMap::new();
+        self.supplied_ids = HashMap::new();
+        for source in &mut self.sources {
+            source.known.clear();
+        }
     }
     pub(crate) fn prepare(
         &mut self,
@@ -855,5 +859,7 @@ pub(crate) fn visit<L: FileSource>(
             clocks.evaluate += thread_cpu() - t;
         }
     }
-    state.run = run;
+    if keep {
+        state.run = run;
+    }
 }

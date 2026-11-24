@@ -138,6 +138,9 @@ pub(super) mod session;
 pub(super) mod population;
 
 #[allow(dead_code, reason = "file-only benchmark binaries have no project frontier")]
+#[path = "finish/subject_scope.rs"]
+mod subject_scope;
+#[allow(dead_code)]
 #[path = "finish/partition.rs"]
 pub(super) mod partition;
 
@@ -1424,6 +1427,7 @@ pub(super) struct Exec<'p> {
     select_preps: Vec<Option<Rc<select_kernel::Prep>>>,
     union_preps: Vec<Option<Rc<union_kernel::Prep>>>,
     antijoin_preps: Vec<Option<Rc<antijoin_kernel::Prep>>>,
+    subject_scope: subject_scope::Scope,
     keyed_forms: Vec<Option<keyed::Form>>,
     band_shapes: FxHashMap<(usize, usize), Rc<band::Shape>>,
     leaves: emptyprop::Leaves,
@@ -1486,6 +1490,7 @@ impl<'p> Exec<'p> {
             select_preps: vec![None; k],
             union_preps: vec![None; k],
             antijoin_preps: vec![None; k],
+            subject_scope: Default::default(),
             keyed_forms: vec![None; k],
             band_shapes: FxHashMap::default(),
             leaves: emptyprop::Leaves::default(),
@@ -2523,30 +2528,7 @@ impl<'p> Exec<'p> {
                 let at: Vec<Option<usize>> = caps.map(|c| slot_names.iter().position(|n| n == c)).collect();
                 let separator = a.get("separator").and_then(Param::as_str);
                 let mut out = self.empty(run, node)?;
-                let mut row = Vec::new();
-                let mut found: Vec<Vec<std::ops::Range<usize>>> = Vec::new();
-                for i in 0..from.n {
-                    let v = from.cols[pc][i];
-                    let sym = if from.tys[pc] == Ty::File {
-                        if v == NULL { continue; }
-                        *run.path_sym.get(v as usize).ok_or("unbound capture file")?
-                    } else {
-                        if v == NULL || run.absent_word == Some(v as u32) { continue; }
-                        u32::try_from(v).map_err(|_| "unbound capture text")?
-                    };
-                    let text = run.text(sym).to_vec();
-                    let Ok(text) = String::from_utf8(text) else { continue };
-                    found.clear();
-                    capture::matches(pattern, separator, &text, &mut |sl| found.push(sl.to_vec()));
-                    for sl in &found {
-                        from.row(i, &mut row);
-                        for k in &at {
-                            let t = k.and_then(|k| sl.get(k)).map_or("", |r| &text[r.clone()]);
-                            row.push(u64::from(run.sym(t.as_bytes())));
-                        }
-                        out.push_row(&row);
-                    }
-                }
+                capture::write(run, &from, pc, pattern, separator, &at, f.after_last_file, &mut out)?;
                 Ok(out)
             }
             "group-ordinal" => {

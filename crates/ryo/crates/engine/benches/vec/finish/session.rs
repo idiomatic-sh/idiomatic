@@ -198,6 +198,7 @@ pub(in super::super) fn evaluate_covered(
             _ => {}
         }
     }
+    super::subject_scope::restrict(exec,run,carried,&admit_file_subject)?;
     let scratch = NodeTable::default();
     let mut frame = File::new(&scratch, &[], u32::MAX, plan.nodes.len());
     frame.after_last_file = true;
