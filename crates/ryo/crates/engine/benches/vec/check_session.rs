@@ -893,14 +893,17 @@ pub(crate) fn visit<L: FileSource>(
         clocks.read_versions += elapsed;
         clocks.read_parse += elapsed;
     }
-    let mut bodies = bodies.into_iter();
+    let mut bodies = Some(bodies.into_iter());
     let mut paths = by_path.into_values();
     loop {
         let file_start = clocks.measure_file_wall.then(std::time::Instant::now);
-        let (group_id, versions, share) = if let Some(versions) = bodies.next() {
+        let (group_id, versions, share) = if let Some(versions) =
+            bodies.as_mut().and_then(Iterator::next)
+        {
             let share = versions.len() > 1;
             (versions[0].origin, versions, share)
         } else if let Some(group) = paths.next() {
+            bodies = None;
             let t = thread_cpu();
             let versions = versions(&group, sources, answers, aliases, &mut clocks.reads, &mut state.bytes, keep, &mut path_joins_avoided);
             let elapsed = thread_cpu() - t;
