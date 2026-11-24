@@ -2,7 +2,7 @@
 //! known consumer. A live host can append new requests in another epoch.
 use super::{Work, finish, session};
 use finish::{partition::Partition, population::Inputs};
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, sync::Arc};
 
 pub(super) struct Closed {
     pub(super) duplicate: Vec<Option<usize>>,
@@ -14,7 +14,7 @@ pub(super) struct Closed {
     keep: bool,
 }
 impl Closed {
-    pub(super) fn new(work: &[Work], cut_of: &[Option<Rc<Partition>>], keep: bool) -> Self {
+    pub(super) fn new(work: &[Work], cut_of: &[Option<Arc<Partition>>], keep: bool) -> Self {
         // Slots name a canonical source version and binding. Order and repetitions
         // are part of the population identity. A live host can open another epoch.
         let mut owners = HashMap::new();
@@ -57,7 +57,7 @@ impl Closed {
             };
             let next = scopes.len();
             let id = *scopes
-                .entry((Rc::as_ptr(cut), pairs.as_slice()))
+                .entry((Arc::as_ptr(cut), pairs.as_slice()))
                 .or_insert(next);
             if id == remaining.len() {
                 remaining.push(0);

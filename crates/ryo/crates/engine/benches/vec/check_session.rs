@@ -643,8 +643,8 @@ pub(crate) fn visit<L: FileSource>(
     contributions: &mut (impl Slots<Option<Rc<project::Contribution>>> + ?Sized),
     programs: &[Result<Program>],
     program_of: &[usize],
-    contracts: &HashMap<usize, &completeness::Contract>,
-    cut_of: &[Option<&finish::partition::Partition>],
+    contracts: &[Arc<completeness::Contract>],
+    cut_of: &[Option<Arc<finish::partition::Partition>>],
     world: &mut World,
     sources: &[Source],
     selected: &[usize],
@@ -917,7 +917,7 @@ pub(crate) fn visit<L: FileSource>(
                 if excluded && b.facts.is_empty() {
                     let whole = recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
                     if whole || {
-                        let rels: Vec<_> = contracts[&binding].needs.reads.iter()
+                        let rels: Vec<_> = contracts[binding].needs.reads.iter()
                             .map(|r| r.relation()).collect();
                         partial_of(&[], recovery, &rels).is_empty()
                     } {
@@ -1038,7 +1038,7 @@ pub(crate) fn visit<L: FileSource>(
             let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
             for (binding, slot, excluded) in active {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
-                let contract = &contracts[&binding];
+                let contract = &contracts[binding];
                 let b = bound[&binding].as_mut().unwrap();
                 let mut local_coverage = BTreeMap::new();
                 let unknowns = if said.is_empty()

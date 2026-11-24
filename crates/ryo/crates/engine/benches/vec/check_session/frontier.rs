@@ -4,6 +4,7 @@ use finish::{Run, Table, partition::Partition, population::Block};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     rc::Rc,
+    sync::Arc,
 };
 
 pub(super) struct FileInputs<'a> {
@@ -17,7 +18,7 @@ impl<'a> FileInputs<'a> {
         bound: &super::Bindings<'_>,
         programs: &'a [Result<Program>],
         program_of: &[usize],
-        cut_of: &[Option<&Partition>],
+        cut_of: &[Option<Arc<Partition>>],
     ) -> Self {
         let mut shared_columns = BTreeMap::<&str, Vec<bool>>::new();
         for &(binding, _, _) in active {
