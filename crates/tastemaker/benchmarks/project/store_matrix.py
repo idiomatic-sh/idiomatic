@@ -158,8 +158,18 @@ def contribution_edits(executable, scratch, env):
         req.write_text(json.dumps(dict(root=str(root),files=files,parameters={},hosted=[])))
         inventory.write_text(json.dumps(files))
         cache=root/label
-        for step,source in enumerate(["pass\n","def child(): return 2\n"]):
-            (root/child).write_text(source)
+        versions = ["pass\n", "def child(): return 2\n"]
+        equivalent_edit = label in ("forward", "reverse")
+        if equivalent_edit:
+            versions.append(versions[-1] + "# same projected input\n")
+        for step, source in enumerate(versions):
+            path = root / child
+            path.write_text(source)
+            if equivalent_edit and step < 2:
+                # Seed a saved observation in an earlier timestamp tick so this
+                # fixture exercises the old-leaf Merkle proof on every machine.
+                tick = path.stat().st_ctime_ns // 1_000_000_000 + 1
+                time.sleep(max(0, tick - time.time()) + 0.01)
             if step and label in ("truncated-block", "truncated-pair"):
                 table = "blocks" if label == "truncated-block" else "pairs"
                 shards = list((cache / ".ryo_cache").glob(f"{table}-*.postcard"))
@@ -168,23 +178,33 @@ def contribution_edits(executable, scratch, env):
                     with shard.open("r+b") as f:
                         f.truncate(1)
             reports=[]
+            diagnostics = []
             for mode in (["--tm-batch-retained",cache],["--tm-batch"],["--tm-batch-retained",cache]):
                 out=root/"out"
                 p=subprocess.run([executable,*mode,manifest,out],env=env,capture_output=True,check=True)
                 assert b"refused" not in out.read_bytes(),p.stdout
                 reports.append(out.read_bytes().splitlines())
+                diagnostics.append(p.stderr)
             assert reports[0]==reports[1]==reports[2]
-            assert b"evaluated_pairs=0 evaluated_closed=0 written=0" in p.stderr
+            assert b"evaluated_pairs=0 evaluated_closed=0" in p.stderr
+            if step < 2:
+                assert b"written=0" in p.stderr
+            if step == 2:
+                assert b"closed_proof candidates=1 reused=1 " in diagnostics[0], diagnostics[0]
+                assert b"evaluated_closed=0 " in diagnostics[0], diagnostics[0]
             fresh=root/f"fresh-{label}-{step}"
             subprocess.run([executable,"--tm-batch-retained",fresh,manifest,root/"fresh-receipt"],
                            env=env,capture_output=True,check=True)
             warm_packets=typed_packets(cache/".ryo_cache")
             fresh_packets=typed_packets(fresh/".ryo_cache")
             assert len(warm_packets)==2 and warm_packets==fresh_packets
-            if step==0: baseline=reports[0]
+            if step == 0:
+                baseline = reports[0]
+            elif step == 1:
+                assert all(a != b for a, b in zip(baseline, reports[0])), (label, baseline, reports[0])
+                result[label] = reports[0]
             else:
-                assert all(a!=b for a,b in zip(baseline,reports[0])),(label,baseline,reports[0])
-                result[label]=reports[0]
+                assert reports[0] == result[label], (label, reports[0], result[label])
     assert result["forward"]==result["reverse"]==result["truncated-block"]==result["truncated-pair"]
     return result["forward"]
 
@@ -333,7 +353,7 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
         rows=contribution_edits(exe,Path(tmp),env)
         with (evidence/"contribution-matrix.tsv").open("w") as f:
             f.write("scenario\tstatus\tchanged_receipt\n")
-            for name,row in [("several-file",rows[0]),("closed-contribution",rows[1]),("same-edit-forward",rows[0]),("same-edit-reversed",rows[1]),("truncated-contribution",rows[1]),("truncated-pair",rows[1])]:
+            for name,row in [("several-file",rows[0]),("closed-contribution",rows[1]),("same-edit-forward",rows[0]),("same-edit-reversed",rows[1]),("truncated-contribution",rows[1]),("truncated-pair",rows[1]),("equal-projection-forward",rows[1]),("equal-projection-reversed",rows[1])]:
                 f.write(f"{name}\tPASS\t{row.decode()}\n")
         backup = Path(tmp) / "seed"
         original = invoke(exe, True)

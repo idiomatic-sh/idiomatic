@@ -90,6 +90,15 @@ pub struct Live {
 impl Drop for Live {
     fn drop(&mut self) {
         if let Some(store) = &mut self.store {
+            // The ordered packets own their cells. Once the last SDK call has
+            // returned, publication has no reader for the live executor heaps.
+            let cleanup = thread_cpu();
+            self.state = Active::default();
+            self.batch = Batch::default();
+            self.cache = CallCache::default();
+            self.completed_calls = Default::default();
+            self.versions = HashMap::new();
+            eprintln!("live_store_cleanup_cpu={:.6}", thread_cpu() - cleanup);
             let start = thread_cpu();
             match store.publish() {
                 Ok(written) => eprintln!("live_store_publish_cpu={:.6} written={written}", thread_cpu() - start),
@@ -585,6 +594,9 @@ impl Live {
                 if let (Some(store),Some(k))=(&mut self.store,contract){store.decline(k,reason);}
                 return Err(format!("{id}: {reason}"))
             }
+            if let (Some(store), Some(key)) = (&mut self.store, contract) {
+                store.offer(self.batch.work.len(), key);
+            }
             ids.push((id,Err((self.batch.work.len(),contract))));
             self.batch.work.push(work);
         }
@@ -593,7 +605,21 @@ impl Live {
         self.admission_wall += admission.elapsed().as_secs_f64();
         let epoch = Instant::now();
         if let Some(store)=&mut self.store {
-            if !self.batch.work.is_empty(){self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));}else{self.state.manifest_failures.clear();}
+            if !self.batch.work.is_empty() {
+                self.batch.epoch_with_store(&self.languages, &mut self.state, Some(store));
+                for unread in store.reused_unread() {
+                    let mut counts = BTreeMap::<&str, usize>::new();
+                    for path in unread {
+                        *counts.entry(path).or_default() += 1;
+                    }
+                    for (path, n) in counts {
+                        let total = restored_unread.entry(path.to_owned()).or_default();
+                        *total = (*total).max(n);
+                    }
+                }
+            } else {
+                self.state.manifest_failures.clear();
+            }
         } else {
             self.batch.epoch(&self.languages,&mut self.state);
         }

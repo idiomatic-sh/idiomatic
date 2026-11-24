@@ -528,37 +528,77 @@ impl Batch {
         state: &mut Active<L::File, L::Dictionary>,
         mut store:Option<&mut stored::Store>,
     ) {
-        let Active {
-            keep,
-            manifests,
-            retention,
-            readers: reader_states,
-            world,
-            answers,
-            aliases,
-            contributions,
-            manifest_failures,
-            populations,
-        } = state;
-        if world.run.texts.is_empty() {
-            world.declare_words(languages);
+        if state.world.run.texts.is_empty() {
+            state.world.declare_words(languages);
         }
-        aliases.extend(aliases.len()..self.schedule.pairs);
-        answers.resize_with(self.schedule.pairs, || Err(String::new()));
-        contributions.resize_with(self.schedule.sources.len(), || None);
-        if let Some(s)=store.as_deref_mut() {
+        state.aliases.extend(state.aliases.len()..self.schedule.pairs);
+        self.clocks.pairs = self.schedule.pairs;
+        state.answers.resize_with(self.schedule.pairs, || Err(String::new()));
+        state.contributions.resize_with(self.schedule.sources.len(), || None);
+        if let Some(s) = store.as_deref_mut() {
             let started = thread_cpu();
-            s.admit(self,world,answers,contributions);
-            eprintln!("store_admit_cpu={:.6}", thread_cpu()-started);
-            if !*keep {self.release_admission();}
+            s.prepare(self);
+            let (probe, candidates) = s.probe(self);
+            eprintln!("store_prepare_cpu={:.6}", thread_cpu() - started);
+            if !probe.is_empty() {
+                self.read_pending(languages, state, &probe, false);
+                let started = thread_cpu();
+                s.local(self, &state.world, &state.answers, &state.aliases, &state.contributions, &probe);
+                s.reuse_closed(self, candidates);
+                eprintln!("store_probe_result_cpu={:.6}", thread_cpu() - started);
+            }
+            let started = thread_cpu();
+            s.prepare_proofs(self);
+            s.admit(self, &mut state.world, &mut state.answers, &mut state.contributions, &probe);
+            eprintln!("store_admit_cpu={:.6}", thread_cpu() - started);
+            if !state.keep {
+                self.release_admission();
+            }
         }
-        let pending: Vec<_> = std::mem::take(&mut self.schedule.pending)
-            .into_iter()
-            .collect();
+        let pending: Vec<_> = std::mem::take(&mut self.schedule.pending).into_iter().collect();
+        self.read_pending(languages, state, &pending, store.is_none());
+        if let Some(s) = store.as_deref_mut() {
+            let started = thread_cpu();
+            s.local(self, &state.world, &state.answers, &state.aliases, &state.contributions, &pending);
+            eprintln!("store_local_cpu={:.6}", thread_cpu() - started);
+        }
+        if !state.keep {
+            state.readers.clear();
+        }
+        for work in &mut self.work {
+            if let Work::Pairs(pairs) | Work::Closed { pairs, .. } = work {
+                for slot in pairs {
+                    *slot = state.aliases[*slot];
+                }
+            }
+        }
+        if !state.keep {
+            state.aliases = Vec::new();
+        }
+        self.schedule.delivered(&pending, state.keep);
+        self.finish_projects(
+            languages, &mut state.contributions, &mut state.world, &state.answers, &mut state.populations,
+            &mut state.manifest_failures, state.keep, store,
+        );
+    }
+
+    fn read_pending<L: session::source::Source>(
+        &mut self,
+        languages: &[L],
+        state: &mut Active<L::File, L::Dictionary>,
+        pending: &[usize],
+        release_files: bool,
+    ) {
+        if pending.is_empty() {
+            self.clocks.empty_file_epochs += 1;
+            self.clocks.omitted_file_bindings += self.bindings.len();
+            return;
+        }
+        let Active { keep, manifests, retention, readers: reader_states, world, answers, aliases, contributions, .. } = state;
         let unclaimed = languages.len();
         reader_states.resize_with(unclaimed + 1, Default::default);
         let mut groups = vec![Vec::new(); unclaimed + 1];
-        for &i in &pending {
+        for &i in pending {
             let src = &self.schedule.sources[i];
             if src.bindings.is_empty() && contributions[i].is_some() {
                 continue;
@@ -575,13 +615,12 @@ impl Batch {
                 }
             }
         }
-        self.clocks.pairs = self.schedule.pairs;
         if groups.iter().any(|files| !files.is_empty()) {
             let manifests = manifests.get_or_insert_with(|| languages.iter().flat_map(|l| l.manifests()).collect());
             self.reused_binding_entries += self.cut_of.len() + self.bound_contracts.len() + self.bindings.len();
             self.clocks.omitted_file_bindings += self.bindings.len();
             let hosted = &self.bindings;
-            let file_workers = if store.is_some() && *keep { Some(std::num::NonZeroUsize::MIN) } else { self.workers };
+            let file_workers = if !release_files && *keep { Some(std::num::NonZeroUsize::MIN) } else { self.workers };
             let paths = (!*keep || (pending.len() >= 128 && file_workers.is_some_and(|n| n.get() > 1)))
                 .then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
             let readers = languages.iter().map(Some).chain([None]);
@@ -617,7 +656,7 @@ impl Batch {
                     },
                     &mut self.clocks,
                 );
-                if !*keep && store.is_none() {
+                if !*keep && release_files {
                     // Other readers have disjoint files. Answers and project contributions
                     // already own everything the closed phase will read from this group.
                     self.schedule.delivered(&files, *keep);
@@ -630,27 +669,6 @@ impl Batch {
             self.clocks.empty_file_epochs += 1;
             self.clocks.omitted_file_bindings += self.bindings.len();
         }
-        if let Some(s)=store.as_deref_mut() {
-            let started = thread_cpu();
-            s.local(self,world,answers,aliases,contributions);
-            eprintln!("store_local_cpu={:.6}", thread_cpu()-started);
-        }
-        if !*keep {
-            reader_states.clear();
-        }
-        for work in &mut self.work {
-            if let Work::Pairs(pairs) | Work::Closed { pairs, .. } = work {
-                for slot in pairs {
-                    *slot = aliases[*slot];
-                }
-            }
-        }
-        if !*keep {
-            *aliases=Vec::new();
-        }
-        self.schedule.delivered(&pending, *keep);
-        self.finish_projects(languages, contributions, world, answers, populations, manifest_failures, *keep,store.as_deref_mut());
-
     }
 
     fn finish_projects<L: session::source::Source>(
@@ -1104,6 +1122,9 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
                     }).unwrap_or_else(Work::Refused);
                 let idx = session.work.len();
                 session.work.push(result);
+                if let (Some(s), Some(k)) = (&mut store, contract) {
+                    s.offer(idx, k);
+                }
                 if store.is_none() {
                     return idx;
                 }

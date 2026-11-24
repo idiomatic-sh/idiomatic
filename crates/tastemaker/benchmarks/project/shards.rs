@@ -371,20 +371,22 @@ impl<T: Serialize + Default> Records<T> {
                 );
                 body.extend(bytes);
             }
-            let mut bytes = postcard::to_stdvec(&entries).map_err(io::Error::other)?;
-            let directory = *blake3::hash(&bytes).as_bytes();
-            let len = bytes.len();
-            bytes.extend(body);
-            let name = *blake3::hash(&bytes).as_bytes();
-            atomic(dir, &table(dir, self.name, name), &bytes)?;
-            written += bytes.len();
+            let header = postcard::to_stdvec(&entries).map_err(io::Error::other)?;
+            let directory = *blake3::hash(&header).as_bytes();
+            let len = header.len();
+            let length = len + body.len();
+            let mut hash = blake3::Hasher::new();
+            hash.update(&header).update(&body);
+            let name = *hash.finalize().as_bytes();
+            super::atomic_parts(dir, &table(dir, self.name, name), [header.as_slice(), body.as_slice()])?;
+            written += length;
             if let Some(old) = self.index.insert(
                 prefix,
                 Segment {
                     name,
                     directory,
                     bytes: len,
-                    length: bytes.len(),
+                    length,
                 },
             ) && old.name != name
             {

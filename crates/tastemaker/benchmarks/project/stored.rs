@@ -68,7 +68,7 @@ impl Report {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(PartialEq, Serialize, Deserialize)]
 struct Notes {
     reader: Option<usize>,
     notes: Vec<u8>,
@@ -142,13 +142,16 @@ impl FileAnswers {
         Some(Self { locations, mapped: Some(record), blocks, ..Self::default() })
     }
 
+    fn decode(&self, key: &Key) -> Option<Local> {
+        let range = self.locations.get(key)?;
+        postcard::from_bytes(&self.mapped.as_ref()?.as_ref()[range.clone()]).ok()
+    }
+
     fn load(&mut self, key: &Key) -> bool {
         if self.pairs.contains_key(key) {
             return false;
         }
-        if let Some(range) = self.locations.get(key)
-            && let Some(mapped) = &self.mapped
-            && let Ok(row) = postcard::from_bytes(&mapped.as_ref()[range.clone()])
+        if let Some(row) = self.decode(key)
         {
             self.pairs.insert(*key, row);
             return true;
@@ -236,6 +239,13 @@ struct Snapshot {
     stamps: Index,
     empty_schemas: Vec<Key>,
 }
+pub(super) struct PriorClosed {
+    work: usize,
+    source: usize,
+    version: Key,
+    record: Record,
+}
+
 pub(super) struct Store {
     dir: PathBuf,
     names: Vec<PathBuf>,
@@ -261,6 +271,11 @@ pub(super) struct Store {
     keep_pairs: Vec<bool>,
     local_rows: Vec<bool>,
     project_proofs: HashMap<usize, Option<Proof>>,
+    pending_requests: Vec<(usize, Key)>,
+    updated_proofs: HashMap<usize, Record>,
+    prior_groups: HashMap<Proof, Option<(PathBuf, Key)>>,
+    proof_candidates: usize,
+    proof_cpu: f64,
     pub file_hits: usize,
     pub closed_hits: usize,
     pub evaluated_pairs: usize,
@@ -297,8 +312,14 @@ fn load<T: DeserializeOwned>(p: &Path, digest: Key) -> Option<T> {
         .flatten()
 }
 fn atomic(dir: &Path, p: &Path, b: &[u8]) -> Res<()> {
+    atomic_parts(dir, p, [b])
+}
+
+fn atomic_parts<'a>(dir: &Path, p: &Path, parts: impl IntoIterator<Item = &'a [u8]>) -> Res<()> {
     let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
-    tmp.write_all(b)?;
+    for part in parts {
+        tmp.write_all(part)?;
+    }
     tmp.as_file().sync_all()?;
     tmp.persist(p)?;
     Ok(())
@@ -364,6 +385,11 @@ impl Store {
             keep_pairs: vec![],
             local_rows: vec![],
             project_proofs: HashMap::new(),
+            pending_requests: Vec::new(),
+            updated_proofs: HashMap::new(),
+            prior_groups: HashMap::new(),
+            proof_candidates: 0,
+            proof_cpu: 0.0,
             file_hits: 0,
             closed_hits: 0,
             evaluated_pairs: 0,
@@ -513,6 +539,7 @@ impl Store {
             o.stats, o.stamp_hits, o.young, o.stamp_changed,
             o.stamps.read_bytes, o.stamps.write_bytes, o.stamps.read_cpu
         );
+        eprintln!("closed_proof candidates={} reused={} cpu={:.6}", self.proof_candidates, self.closed_hits, self.proof_cpu);
         eprintln!(
             "observations source_reads={} contract_reads={} source_bytes={} contract_bytes={} path_hits={} inode_hits={} groups={} group_hits={}",
             o.reads[0],
@@ -557,6 +584,7 @@ impl Store {
         v: &BTreeMap<String, std::sync::Arc<[u8]>>,
     ) {
         self.observed.overlay(root, inventory, peers, v);
+        self.prior_groups.clear();
     }
     pub(super) fn inventory(&mut self, i: usize, path: PathBuf, expected: Option<Key>) {
         let evidence = self.group(vec![(path, Probe::Bytes)]);
@@ -576,20 +604,162 @@ impl Store {
         self.requests.open(&self.dir, &id);
         let r = self.requests.get(&id)?;
         for &(g, expected) in &r.proof {
-            let current = if let Some(current) = self.observed.groups.get(&g) {
-                self.observed.group_hits += 1;
-                *current
-            } else {
-                self.groups.open(&self.dir, &g);
-                self.observed.group(g, self.groups.get(&g)?, &self.names)
-            };
-            if current != Some(expected) {
+            if Self::validate_group(&self.dir, &mut self.groups, &mut self.observed, &self.names, g) != Some(expected) {
                 return None;
             }
         }
         Self::open_packet(&self.dir, &mut self.packets, &r.packet)?;
         self.request_hits += 1;
         Some((r.packet, &r.unread))
+    }
+    fn validate_group(
+        dir: &Path, groups: &mut Shards<Group>, observed: &mut Observations, names: &[PathBuf], id: Key,
+    ) -> Option<Key> {
+        if let Some(&current) = observed.groups.get(&id) {
+            observed.group_hits += 1;
+            current
+        } else {
+            groups.open(dir, &id);
+            observed.group(id, groups.get(&id)?, names)
+        }
+    }
+
+    pub(super) fn offer(&mut self, work: usize, key: Key) {
+        self.pending_requests.push((work, key));
+    }
+
+    fn changed_record(&mut self, id: Key) -> Option<((PathBuf, Key), Record)> {
+        let mut r = self.requests.get(&id)?.clone();
+        let mut changed = None;
+        for (group, expected) in &mut r.proof {
+            let current = Self::validate_group(&self.dir, &mut self.groups, &mut self.observed, &self.names, *group)?;
+            if current == *expected {
+                continue;
+            }
+            let old = self.prior_groups.entry((*group, *expected)).or_insert_with(|| {
+                self.observed.prior_leaf(self.groups.get(group)?, &self.names, *expected)
+            }).as_ref()?;
+            if changed.as_ref().is_some_and(|other| other != old) {
+                return None;
+            }
+            changed = Some(old.clone());
+            *expected = current;
+        }
+        Some((changed?, r))
+    }
+
+    fn old_closed(&mut self, b: &Batch, work: usize, id: Key, paths: &HashMap<PathBuf, Option<usize>>) -> Option<PriorClosed> {
+        let Work::Closed { pairs, project, .. } = &b.work[work] else { return None };
+        let ((path, digest), record) = self.changed_record(id)?;
+        let source = paths.get(&path).copied().flatten()?;
+        if !(pairs.iter().any(|&slot| self.pairs[slot].is_some_and(|(i, _)| i == source))
+            || project.is_some_and(|p| b.projects[p].slots.contains(&source)))
+        {
+            return None;
+        }
+        let version = key((&b.schedule.sources[source].path, digest));
+        Some(PriorClosed { work, source, version, record })
+    }
+
+    /// Check the changed contribution before opening the unchanged files. A
+    /// hit proves equality of every ordered input, provider note and unknown.
+    pub(super) fn probe(&mut self, b: &Batch) -> (Vec<usize>, Vec<PriorClosed>) {
+        let start = crate::thread_cpu();
+        self.updated_proofs.clear();
+        let pending = std::mem::take(&mut self.pending_requests);
+        let mut sources = HashMap::new();
+        if !pending.is_empty() && self.observed.has_prior_sources() {
+            for &i in &b.schedule.pending {
+                let source = &b.schedule.sources[i];
+                if source.provided.is_none() {
+                    sources.entry(Path::new(&*source.root).join(&source.path))
+                        .and_modify(|prior| *prior = None)
+                        .or_insert(Some(i));
+                }
+            }
+        }
+        let mut files = BTreeSet::new();
+        let mut candidates = Vec::new();
+        if !sources.is_empty() {
+            for (work, id) in pending {
+                if let Some(prior) = self.old_closed(b, work, id, &sources) {
+                    files.insert(prior.source);
+                    candidates.push(prior);
+                }
+            }
+        }
+        self.evaluated_pairs += files.iter().map(|&i| b.schedule.sources[i].bindings.len()).sum::<usize>();
+        self.proof_candidates += candidates.len();
+        self.proof_cpu += crate::thread_cpu() - start;
+        (files.into_iter().collect(), candidates)
+    }
+
+    pub(super) fn reuse_closed(&mut self, b: &mut Batch, candidates: Vec<PriorClosed>) {
+        let start = crate::thread_cpu();
+        for prior in candidates {
+            let Work::Closed { pairs, project, .. } = &b.work[prior.work] else { continue };
+            let Some(current) = self.versions[prior.source] else { continue };
+            if project.is_some_and(|p| b.projects[p].slots.contains(&prior.source)) {
+                self.notes.open(&self.dir, &prior.version);
+                if self.notes.get(&prior.version).is_none()
+                    || self.notes.get(&prior.version) != self.notes.get(&current)
+                {
+                    continue;
+                }
+            }
+            let pairs_match = pairs.iter().all(|&slot| {
+                let Some((source, binding)) = self.pairs[slot] else { return false };
+                if source != prior.source {
+                    return true;
+                }
+                self.same_frontier(prior.version, current, self.binding_keys[binding])
+            });
+            if !pairs_match
+                || Self::open_packet(&self.dir, &mut self.packets, &prior.record.packet).is_none()
+            {
+                continue;
+            }
+            let value = self.packet_report(&prior.record.packet);
+            b.work[prior.work] = Work::Project(Rc::new(Ok(value)));
+            self.updated_proofs.insert(prior.work, prior.record);
+            self.closed_hits += 1;
+        }
+        self.proof_cpu += crate::thread_cpu() - start;
+    }
+
+    fn same_frontier(&mut self, before: Key, after: Key, binding: Key) -> bool {
+        self.files.open_mapped(&self.dir, &before, FileAnswers::mapped);
+        let Some(old) = self.files.loaded_mut(&before) else { return false };
+        self.touched_local_records += usize::from(old.load(&binding));
+        let (Some(old), Some(new)) = (self.files.get(&before), self.files.get(&after)) else {
+            return false;
+        };
+        let (Some(left), Some(right)) = (old.pairs.get(&binding), new.pairs.get(&binding)) else {
+            return false;
+        };
+        if left.report.unknowns != right.report.unknowns || left.unavailable != right.unavailable
+            || left.frontier.len() != right.frontier.len()
+        {
+            return false;
+        }
+        let fingerprint = |file: &FileAnswers, index: usize| {
+            match *file.blocks.get(index)? {
+                BlockId::Empty(i) => Some((false, *self.empty_schemas.get(i as usize)?)),
+                BlockId::Local(mut key) => {
+                    // The first byte locates a shard. The remaining 248 bits
+                    // name the canonical typed bytes, independent of the version.
+                    key[0] = 0;
+                    Some((true, key))
+                }
+            }
+        };
+        left.frontier.iter().zip(&right.frontier).all(|(&(node, a), &(other, b))| {
+            node == other && fingerprint(old, a).is_some_and(|k| Some(k) == fingerprint(new, b))
+        })
+    }
+
+    pub(super) fn reused_unread(&self) -> impl Iterator<Item = &[String]> {
+        self.updated_proofs.values().map(|r| r.unread.as_slice())
     }
     fn open_packet(dir: &Path, packets: &mut Appends<Packet>, key: &Key) -> Option<()> {
         packets.open(dir, key);
@@ -609,6 +779,11 @@ impl Store {
     }
 
     pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
+        if let Some(record) = self.updated_proofs.remove(&idx) {
+            let packet = record.packet;
+            self.requests.insert(id, record);
+            return Some(packet);
+        }
         let (proof, unread) = self.plans.get_mut(idx)?.take()?;
         let start = crate::thread_cpu();
         let empty = r.rows.is_empty() && r.unknowns.is_empty();
@@ -699,13 +874,7 @@ impl Store {
         }
         Some((id, expected))
     }
-    pub(super) fn admit(
-        &mut self,
-        b: &mut Batch,
-        world: &mut session::World,
-        answers: &mut [Answer],
-        contributions: &mut [Option<Rc<project::Contribution>>],
-    ) {
+    pub(super) fn prepare(&mut self, b: &Batch) {
         self.project_proofs.clear();
         let prior = self.versions.len();
         self.versions
@@ -752,14 +921,33 @@ impl Store {
                 self.pairs[slot] = Some((i, bindings[binding]));
             }
         }
-        let mut needed = vec![false; self.pairs.len()];
-        let mut frontier = vec![false; self.pairs.len()];
-        self.keep_pairs = vec![false; self.pairs.len()];
-        self.local_rows = vec![false; self.pairs.len()];
-        let mut projects = BTreeSet::new();
+        self.keep_pairs.resize(self.pairs.len(), false);
+        self.local_rows.resize(self.pairs.len(), false);
+        self.keep_pairs.fill(false);
+        self.local_rows.fill(false);
+        for work in &b.work {
+            let (pairs, closed) = match work {
+                Work::Pairs(pairs) => (pairs, false),
+                Work::Closed { pairs, .. } => (pairs, true),
+                _ => continue,
+            };
+            for &slot in pairs {
+                // A closed binding contributes projected blocks and coverage.
+                // Only a local delivery consumes its rendered rows.
+                self.local_rows[slot] |= !closed;
+                self.keep_pairs[slot] |= closed || pairs.len() > 1;
+            }
+        }
+    }
+
+    pub(super) fn prepare_proofs(&mut self, b: &Batch) {
         let mut groups = HashMap::<Vec<usize>, Option<Proof>>::new();
         self.plans.clear();
-        for work in &b.work {
+        for (i, work) in b.work.iter().enumerate() {
+            if self.updated_proofs.contains_key(&i) {
+                self.plans.push(None);
+                continue;
+            }
             let (pairs, project, closed) = match work {
                 Work::Pairs(p) => (p.as_slice(), None, false),
                 Work::Closed { pairs, project, .. } => (pairs.as_slice(), *project, true),
@@ -769,17 +957,6 @@ impl Store {
                     continue;
                 }
             };
-            if closed {
-                self.evaluated_closed += 1;
-            }
-            for &slot in pairs {
-                needed[slot] = true;
-                // A closed binding contributes projected blocks and coverage.
-                // Only a local delivery consumes its rendered rows.
-                self.local_rows[slot] |= !closed;
-                frontier[slot] |= closed;
-                self.keep_pairs[slot] |= closed || pairs.len() > 1;
-            }
             let local = pairs
                 .iter()
                 .map(|&slot| self.pairs[slot].map(|(source, _)| source))
@@ -819,9 +996,6 @@ impl Store {
             } else {
                 proof = None
             }
-            if let Some(i) = project {
-                projects.extend(b.projects[i].slots.iter().copied());
-            }
             if self.observed.root.is_some()
                 && (closed || matches!(work, Work::Project(_)))
                 && let Some(ps) = &mut proof
@@ -833,12 +1007,44 @@ impl Store {
             }
             self.plans.push(proof.map(|p| (p, Vec::new())));
         }
+    }
+
+    pub(super) fn admit(
+        &mut self,
+        b: &mut Batch,
+        world: &mut session::World,
+        answers: &mut [Answer],
+        contributions: &mut [Option<Rc<project::Contribution>>],
+        probed: &[usize],
+    ) {
+        let mut needed = vec![false; self.pairs.len()];
+        let mut frontier = vec![false; self.pairs.len()];
+        let mut projects = BTreeSet::new();
+        for work in &b.work {
+            let pairs = match work {
+                Work::Pairs(pairs) => pairs,
+                Work::Closed { pairs, project, .. } => {
+                    self.evaluated_closed += 1;
+                    for &slot in pairs {
+                        frontier[slot] = true;
+                    }
+                    if let Some(i) = project {
+                        projects.extend(b.projects[*i].slots.iter().copied());
+                    }
+                    pairs
+                }
+                _ => continue,
+            };
+            for &slot in pairs {
+                needed[slot] = true;
+            }
+        }
         for (i, src) in b.schedule.sources.iter().enumerate() {
             if let Some(v) = self.versions[i] {
                 if projects.contains(&i) {
                     self.notes.open(&self.dir, &v);
                 }
-                if src.bindings.values().any(|&slot| self.keep_pairs[slot]) {
+                if src.bindings.values().any(|&slot| needed[slot] && self.keep_pairs[slot]) {
                     self.files.open_mapped(&self.dir, &v, FileAnswers::mapped);
                     self.touched_file_records += usize::from(self.files.get(&v).is_some());
                 }
@@ -848,6 +1054,7 @@ impl Store {
         let mut restored = HashMap::new();
         let mut schemas = session::stored_block::Schemas::default();
         let mut damaged = Vec::new();
+        let mut restored_reports = vec![false; needed.len()];
         // Later live requests can consume a file answer delivered in an earlier epoch.
         // Its source no longer has a pending binding, but its stable pair key remains.
         for (slot, requested) in frontier.into_iter().enumerate() {
@@ -865,12 +1072,18 @@ impl Store {
             };
             let binding = self.binding_keys[binding];
             self.files.open_mapped(&self.dir, &version, FileAnswers::mapped);
-            let Some(file) = self.files.loaded_mut(&version) else {
+            let Some(file) = self.files.get(&version) else {
                 continue;
             };
-            self.touched_local_records += usize::from(file.load(&binding));
-            let Some(pair) = file.pairs.get(&binding) else {
-                continue;
+            let decoded;
+            let pair = match file.pairs.get(&binding) {
+                Some(pair) => pair,
+                None => {
+                    decoded = file.decode(&binding);
+                    let Some(pair) = &decoded else { continue };
+                    self.touched_local_records += 1;
+                    pair
+                }
             };
             let parts = pair
                 .frontier
@@ -904,17 +1117,27 @@ impl Store {
                     .collect();
                 world.unavailable.insert(slot, missing);
             }
+            if let Some(report) = pair.report.read(self.local_rows[slot]) {
+                answers[slot] = Ok(report);
+                restored_reports[slot] = true;
+                self.file_hits += 1;
+            }
         }
+        self.restored_blocks += restored.len();
+        drop((restored, schemas));
         for (version, binding) in damaged {
             self.files.change(&version).remove(&binding);
         }
-        self.restored_blocks += restored.len();
         self.frontier_cpu += crate::thread_cpu() - restore_start;
         for (i, src) in b.schedule.sources.iter_mut().enumerate() {
             if !projects.contains(&i) {
                 src.project = false;
             }
-            let mut held = self.versions[i].and_then(|v| self.files.loaded_mut(&v));
+            let held = self.versions[i].and_then(|v| self.files.get(&v));
+            let evaluated = probed.binary_search(&i).is_ok();
+            if evaluated && contributions[i].is_some() {
+                src.project = false;
+            }
             if let Some(notes) = self.versions[i]
                 .and_then(|v| self.notes.get(&v))
                 .filter(|_| src.project)
@@ -930,21 +1153,33 @@ impl Store {
                 if !needed[*slot] {
                     return false;
                 }
+                if evaluated || restored_reports[*slot] {
+                    return false;
+                }
                 let Some((_, bind)) = self.pairs[*slot] else {
                     return true;
                 };
-                let Some(file) = held.as_deref_mut() else {
+                let Some(file) = held else {
                     self.absent_file += 1;
                     return true;
                 };
-                self.touched_local_records += usize::from(file.load(&self.binding_keys[bind]));
-                let Some(pair) = file.pairs.get(&self.binding_keys[bind]) else {
-                    if b.cut_of[binding].is_some() {
-                        self.absent_frontier += 1
-                    } else {
-                        self.absent_local += 1
+                let key = &self.binding_keys[bind];
+                let decoded;
+                let pair = match file.pairs.get(key) {
+                    Some(pair) => pair,
+                    None => {
+                        decoded = file.decode(key);
+                        let Some(pair) = &decoded else {
+                            if b.cut_of[binding].is_some() {
+                                self.absent_frontier += 1;
+                            } else {
+                                self.absent_local += 1;
+                            }
+                            return true;
+                        };
+                        self.touched_local_records += 1;
+                        pair
                     }
-                    return true;
                 };
                 let Some(report) = pair.report.read(self.local_rows[*slot]) else {
                     return true;
@@ -968,10 +1203,12 @@ impl Store {
         answers: &[Answer],
         aliases: &[usize],
         contributions: &[Option<Rc<project::Contribution>>],
+        pending: &[usize],
     ) {
         let mut encoded = HashMap::new();
         let mut empty_blocks = HashMap::new();
-        for (i, src) in b.schedule.sources.iter().enumerate() {
+        for &i in pending {
+            let src = &b.schedule.sources[i];
             let Some(version) = self.versions[i] else {
                 continue;
             };
