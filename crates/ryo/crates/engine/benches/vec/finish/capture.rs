@@ -170,7 +170,13 @@ pub(super) fn write(
     let mut row = Vec::new();
     let file = input.tys[path] == super::Ty::File;
     let paths = run.paths.clone();
-    for (r, &word) in input.cols[path].iter().enumerate() {
+    // Rows with the same subject have the same possible splits. Apply each
+    // split to its original row so multiplicity and row-specific tests survive.
+    let mut next_row = 0;
+    for subjects in input.cols[path].chunk_by(|a, b| a == b) {
+        let first_row = next_row;
+        next_row += subjects.len();
+        let word = subjects[0];
         if word == super::NULL {
             continue;
         }
@@ -192,19 +198,24 @@ pub(super) fn write(
             single = captured(run, &text, pattern, separator, columns);
             &single
         };
-        for way in 0..ways.count {
-            let start = way * columns.len();
-            let word_at = |i: usize| {
-                if i < input.cols.len() { input.cols[i][r] }
-                else { ways.cells[start + i - input.cols.len()] }
-            };
-            if equal.iter().any(|&(a, b)| {
-                let x = word_at(a);
-                x == super::NULL || x != word_at(b)
-            }) { continue; }
-            input.row(r, &mut row);
-            row.extend_from_slice(&ways.cells[start..start + columns.len()]);
-            out.push_row(&row);
+        if ways.count == 0 {
+            continue;
+        }
+        for r in first_row..next_row {
+            for way in 0..ways.count {
+                let start = way * columns.len();
+                let word_at = |i: usize| {
+                    if i < input.cols.len() { input.cols[i][r] }
+                    else { ways.cells[start + i - input.cols.len()] }
+                };
+                if equal.iter().any(|&(a, b)| {
+                    let x = word_at(a);
+                    x == super::NULL || x != word_at(b)
+                }) { continue; }
+                input.row(r, &mut row);
+                row.extend_from_slice(&ways.cells[start..start + columns.len()]);
+                out.push_row(&row);
+            }
         }
     }
     Ok(())
