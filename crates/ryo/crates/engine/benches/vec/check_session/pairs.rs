@@ -110,11 +110,15 @@ impl Checks {
             true,
         );
         // All requested outputs must be impossible to discharge the binding.
-        // One unconditional output makes testing its siblings unnecessary.
+        // One unconditional output makes testing its siblings unnecessary
+        // unless the binding can be answered exactly.
         let roots = roots.into_iter().enumerate().map(|(binding, outputs)| {
             let unconditional = outputs.iter().any(|&r|
                 matches!(program.needs[program.roots[r].1], pair_summary::Need::Any));
-            (!unconditional || outputs.len() > 1 || !domains[binding].is_empty()).then_some(outputs)
+            let exact = outputs.iter().all(|root|
+                program.exact.binary_search_by_key(root, |(index, _)| *index).is_ok());
+            (!unconditional || exact || outputs.len() > 1 || !domains[binding].is_empty())
+                .then_some(outputs)
         }).collect();
         let live = vec![false; program.roots.len()];
         let row_guards = program
