@@ -187,7 +187,6 @@ pub(super) struct Store {
     versions: Vec<Option<Key>>,
     pairs: Vec<Option<PairIndex>>,
     closed: Vec<Option<Key>>,
-    active: Vec<usize>,
     restored_unread: BTreeSet<String>,
     pub file_hits: usize,
     pub closed_hits: usize,
@@ -255,7 +254,6 @@ impl Store {
             versions: Vec::new(),
             pairs: Vec::new(),
             closed: Vec::new(),
-            active: Vec::new(),
             restored_unread: BTreeSet::new(),
             file_hits: 0,
             closed_hits: 0,
@@ -395,7 +393,6 @@ impl Store {
         let mut frontier = BTreeSet::new();
         let mut projects = BTreeSet::new();
         self.closed = vec![None; b.work.len()];
-        self.active.clear();
         self.restored_unread.clear();
         for (i, work) in b.work.iter_mut().enumerate() {
             match work {
@@ -430,7 +427,6 @@ impl Store {
                         *work = Work::Project(Rc::new(Ok(row.report.read())));
                         self.closed_hits += 1;
                     } else {
-                        self.active.push(i);
                         needed.extend(pairs.iter().copied());
                         frontier.extend(pairs.iter().copied());
                         if let Some(p) = project {
