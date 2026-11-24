@@ -177,7 +177,7 @@ impl Exec<'_> {
             }
         }
         if !words.is_empty() {
-            let matcher = aho_corasick::AhoCorasick::new(&words).expect("literal source spellings");
+            let matcher = aho_corasick::AhoCorasick::builder().kind(Some(aho_corasick::AhoCorasickKind::DFA)).build(&words).expect("literal source spellings");
             guards.spellings = Some(Spellings { matcher, groups, present: vec![false; words.len()] });
         }
     }

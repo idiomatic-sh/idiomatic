@@ -400,14 +400,20 @@ impl ColumnFile<'_, '_> {
         out.extend(self.file.syntax.tree.named.of_token.iter().map(|code| code.0));
     }
 
+    /// Both parser inputs needed to reuse complete catalog rows are available.
+    #[must_use]
+    pub fn complete(&self) -> bool {
+        let completeness = &self.file.syntax.completeness;
+        completeness.syntax == languages::SyntaxCompleteness::Complete
+            && completeness.lexical == languages::SyntaxCompleteness::Complete
+    }
+
     /// Literal identifier spellings in the declared columns occur in these source bytes.
     /// Decoded embedded trees and Unicode identifier normalization may spell a word differently.
     #[must_use]
     pub fn plain_spellings(&self) -> bool {
         let syntax = &self.file.syntax;
-        syntax.completeness.syntax == languages::SyntaxCompleteness::Complete
-            && syntax.completeness.lexical == languages::SyntaxCompleteness::Complete
-            && syntax.tree.segments.is_empty()
+        self.complete() && syntax.tree.segments.is_empty()
             && syntax.text.0.is_ascii()
     }
 
@@ -419,16 +425,6 @@ impl ColumnFile<'_, '_> {
 
     /// redo-fills pass 3: builds the model's part for the asked families once, before any family reads it: `flow` (the
     /// lexical part and the schedule interpreted), else `resolution` (the lexical part and the static definitions). A
-    /// part already built is not built again.
-    pub fn build_model(&mut self, flow: bool, resolution: bool) {
-        if flow {
-            let _read = self.file.semantics(ModelPart::Flow);
-        }
-        if resolution {
-            let _read = self.file.semantics(ModelPart::Resolution);
-        }
-    }
-
     /// The reader: today's rows of `relation` (the reference).
     pub fn fill(&mut self, relation: Relation, wanted: Wanted, words: &mut FileWords, out: &mut FilledColumns) -> FactAnswer {
         let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);

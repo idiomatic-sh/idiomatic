@@ -949,30 +949,9 @@ impl ColFacts<'_, '_, '_, '_> {
         if let Some(t) = self.kept.get(rel) {
             return Ok(t.clone());
         }
-        // redo-binding pass 5: the implicit-symbol catalog is the same for every file whose module node is the same (the
-        // rows name the module scope and the file only; the file column is set by `fill`), so it is filled once a run
-        let module = (rel == "implicit-symbol").then(|| self.module_position(run)).flatten();
-        if let Some(m) = module
-            && let Some(t) = self.implicit.as_ref().filter(|(at, _)| *at == m).map(|(_, t)| t.copy())
-        {
-            // the rows name the module scope and the file: the cached rows' file cells become this file's
-            let mut t = t;
-            let f = u64::from(self.file_no);
-            for c in 0..t.tys.len() {
-                if t.tys[c] == finish::Ty::File {
-                    t.cols[c].iter_mut().for_each(|v| *v = f);
-                }
-            }
-            let t = Rc::new(t);
-            self.kept.insert(rel, t.clone());
-            return Ok(t);
-        }
         let mask = self.input_columns.get(rel).unwrap_or(u64::MAX);
         let selected = if mask == u64::MAX { languages::ColumnProjection::All } else { languages::ColumnProjection::First(mask) };
         let t = self.whole_fill(run, rel, &selected)?;
-        if let Some(m) = module {
-            *self.implicit = Some((m, t.copy()));
-        }
         let t = Rc::new(t);
         self.kept.insert(rel, t.clone());
         Ok(t)
@@ -985,6 +964,22 @@ impl ColFacts<'_, '_, '_, '_> {
     }
 
     fn whole_fill(&mut self, run: &mut finish::Run, rel: &str, columns: &languages::ColumnProjection) -> Result<finish::Table, String> {
+        // Python's implicit names have the same scope, versions and spellings
+        // in every complete module at the same position. The file column belongs
+        // to this loan. Retain all columns once so later projections can widen.
+        if rel == "implicit-symbol" && self.file.complete() && let Some(module) = self.module_position(run) {
+            if self.implicit.as_ref().is_none_or(|(at, _)| *at != module) {
+                let rows = self.fresh_fill(run, rel, &languages::ColumnProjection::All)?;
+                *self.implicit = Some((module, rows));
+            }
+            let (_, rows) = self.implicit.as_ref().expect("complete implicit name catalog");
+            let cols = rows.cols.iter().enumerate().map(|(i, cells)| {
+                if !columns.contains(i) { Vec::new() }
+                else if rows.tys[i] == finish::Ty::File { vec![u64::from(self.file_no); rows.n] }
+                else { cells.clone() }
+            }).collect();
+            return Ok(finish::Table { names: rows.names.clone(), tys: rows.tys.clone(), n: rows.n, cols });
+        }
         if let Some((Some(relation), _, _)) = run.catalog(rel)
             && let Some(rows) = self.completed.take(relation)
         {
@@ -1302,21 +1297,6 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
     /// redo-fills pass 3: the file's one request answered in one call: each asked relation written once, in the request's
     /// order; the model parts are built at the first family that reads each (and never again in the file).
     fn answer(&mut self, run: &mut finish::Run, request: &finish::request::Request<'_>, out: &mut Vec<Result<finish::Table, String>>) -> Result<(), String> {
-        // the model's parts the asked families read, built once before the first of them (timed apart as `model:`)
-        let flow = request.relations.iter().any(|a| FLOW_READERS.contains(&a.rel));
-        let resolution = request.relations.iter().any(|a| RESOLUTION_READERS.contains(&a.rel));
-        if flow || resolution {
-            let timed = finish::fill_prof::timed();
-            let t0 = if timed { thread_cpu() } else { 0.0 };
-            self.file.build_model(flow, resolution);
-            if timed {
-                let dt = thread_cpu() - t0;
-                self.time += dt;
-                let e = self.by_rel.entry(format!("model:{}", if flow { "flow" } else { "resolution" })).or_default();
-                e.0 += dt;
-                e.2 += 1;
-            }
-        }
         // the families first, the facts composed of them after (each input is made once and kept; the clock then gives
         // each its own work), the answer in the request's order
         let stub = run.paths[self.file_no as usize].ends_with(".pyi");
@@ -1363,11 +1343,6 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
 
 /// redo-fills pass 3: the provider's facts composed of its other relations (made after them in an answer).
 const COMPOSED: [&str; 9] = [fact_catalog::PREDECESSOR_REL, fact_catalog::REGION_REL, fact_catalog::RESOLUTION_REL, fact_catalog::TYPE_REGION_REL, fact_catalog::FINAL_REL, fact_catalog::TYPE_EXPRESSION_REL, fact_catalog::ANNOTATION_EVALUATION_REL, fact_catalog::DEFERRED_VISIT_REL, fact_catalog::DEFERRED_RESOLUTION_REL];
-
-/// redo-fills pass 3: the provider's families that read the model's flow part (the binding facts, the evaluation regions,
-/// and the facts composed of them), and those that read its resolution part.
-const FLOW_READERS: [&str; 10] = ["binding-event", "binding-read", "binding-use", "binding-shadow", "lookup-scope", "binding-resolution", fact_catalog::REGION_REL, fact_catalog::TYPE_REGION_REL, fact_catalog::RESOLUTION_REL, fact_catalog::FINAL_REL];
-const RESOLUTION_READERS: [&str; 1] = ["qualified-name"];
 
 impl ColFacts<'_, '_, '_, '_> {
     fn make(&mut self, run: &mut finish::Run, rel: &str, selection: &languages::ColumnProjection) -> Result<Made, String> {

@@ -82,6 +82,7 @@ pub(super) fn run(
     let mut fields_kinds = 0.;
     let mut cols = Columns::default();
     let mut dump = String::new();
+    let mut wanted = Vec::new();
     let (mut elements, mut steps, mut candidates, mut survivors) = (0u64, 0, 0u64, 0u64);
     let (mut read, mut contents, mut skip_cpu, mut checks, mut visit, mut finish) =
         (0., 0., 0., 0., 0., 0.);
@@ -259,8 +260,7 @@ pub(super) fn run(
                     let begin = thread_cpu();
                     if let Some(f) = executor.borrow_mut().as_deref_mut() {
                         let id = i + slot;
-                        let mut wanted =
-                            f.wanted(&list[id], &|e| emit_rules[e].iter().any(|&r| alive[r]));
+                        f.wanted_into(&list[id], |e| emit_rules[e].iter().any(|&r| alive[r]), &mut wanted);
                         if !exact.is_empty() {
                             wanted.retain(|&e| {
                                 let [ri] = emit_rules[e].as_slice() else {
