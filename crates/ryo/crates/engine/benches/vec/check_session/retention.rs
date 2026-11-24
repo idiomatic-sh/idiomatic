@@ -9,12 +9,24 @@ pub(crate) struct Retention<F: Default, D: Default> {
     files: HashMap<usize, (u64, u64, HeldFile<F, D>)>,
     oldest: BTreeMap<u64, usize>,
     sequence: u64,
+    hits: u64,
+    evictions: u64,
+    high_water: u64,
     used: u64,
     limit: Option<u64>,
     allocated: Option<fn() -> Option<u64>>,
 }
 
 impl<F: Default, D: Default> Retention<F, D> {
+    pub(crate) fn counts(&self) -> [u64; 4] {
+        [
+            self.seen.len() as u64,
+            self.hits,
+            self.evictions,
+            self.high_water,
+        ]
+    }
+
     pub(crate) fn configure(&mut self, limit: Option<u64>, allocated: fn() -> Option<u64>) {
         // An entry admitted without a meter has no byte charge.
         if self.limit.is_none() && limit.is_some() {
@@ -39,6 +51,7 @@ impl<F: Default, D: Default> Retention<F, D> {
             return None;
         }
         if let Some((stamp, bytes, file)) = self.files.remove(&index) {
+            self.hits += 1;
             self.oldest.remove(&stamp);
             self.used -= bytes;
             return Some((bytes, file));
@@ -48,6 +61,7 @@ impl<F: Default, D: Default> Retention<F, D> {
 
     pub(super) fn put(&mut self, index: usize, bytes: u64, file: HeldFile<F, D>) {
         if self.limit.is_some_and(|max| bytes > max) {
+            self.evictions += 1;
             return;
         }
         self.sequence += 1;
@@ -55,6 +69,7 @@ impl<F: Default, D: Default> Retention<F, D> {
         self.used += bytes;
         self.files.insert(index, (self.sequence, bytes, file));
         self.trim();
+        self.high_water = self.high_water.max(self.used);
     }
 
     fn trim(&mut self) {
@@ -64,6 +79,7 @@ impl<F: Default, D: Default> Retention<F, D> {
                 .files
                 .remove(&index)
                 .expect("age identifies a cached version");
+            self.evictions += 1;
             self.used -= bytes;
         }
     }

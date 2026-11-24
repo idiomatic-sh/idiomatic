@@ -160,6 +160,7 @@ impl Live {
             c.project,
             c.assemble,
         ];
+        last.retained = self.state.retention.counts();
         last.project_counts = [
             self.batch.projects.len(),
             self.batch.populations_built,
@@ -341,6 +342,7 @@ struct Measurement {
     elapsed: f64,
     parts: [f64; 6],
     counts: [usize; 8],
+    retained: [u64; 4],
 }
 static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measurement {
     sessions: 0,
@@ -352,6 +354,7 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     elapsed: 0.0,
     parts: [0.0; 6],
     counts: [0; 8],
+    retained: [0; 4],
 });
 
 /// Print the one executor's cumulative counters to the benchmark log after the host renders.
@@ -362,6 +365,8 @@ pub fn print_measurement() {
     for (reason, count) in &m.reasons {
         eprintln!("UNANSWERED\t{count}\t{reason}");
     }
+    let [versions,hits,evictions,peak_charge]=m.retained;
+    eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;
     let [plans, bindings, sources, reads, parses, pairs, skips, eval] = m.counts;
     let [inventories, builds, relations, repeated] = m.project_counts;
