@@ -307,26 +307,45 @@ impl Population {
 /// A completed file block can leave its worker after all local references are released.
 /// Lookup postings are built only by the receiving project executor.
 pub(crate) struct CarriedBlock {
-    names: Vec<String>,
-    types: Vec<Ty>,
+    schema: usize,
     rows: usize,
     home: u32,
     columns: Vec<Words>,
 }
 
+/// File tables in one worker share column declarations. Retain one owned copy
+/// for the join even when many frontier blocks use the same declaration.
+#[derive(Default)]
+pub(crate) struct CarriedSchemas {
+    ids: FxHashMap<(usize,usize),usize>,
+    schemas: Vec<(Vec<String>, Vec<Ty>)>,
+}
+impl CarriedSchemas {
+    fn intern(&mut self, names:Names, types:Tys)->usize {
+        let key=(Rc::as_ptr(&names) as usize,Rc::as_ptr(&types) as usize);
+        *self.ids.entry(key).or_insert_with(||{
+            let id=self.schemas.len();
+            self.schemas.push((Rc::unwrap_or_clone(names),Rc::unwrap_or_clone(types)));
+            id
+        })
+    }
+    pub(crate) fn receive(self)->Vec<(Names,Tys)> {
+        self.schemas.into_iter().map(|(n,t)|(Rc::new(n),Rc::new(t))).collect()
+    }
+}
 impl Block {
-    pub(crate) fn carry(self) -> CarriedBlock {
+    pub(crate) fn carry(self, shapes:&mut CarriedSchemas) -> CarriedBlock {
         CarriedBlock {
-            names: Rc::unwrap_or_clone(self.names),
-            types: Rc::unwrap_or_clone(self.tys),
+            schema: shapes.intern(self.names,self.tys),
             rows: self.n, home: self.home, columns: self.columns,
         }
     }
 }
 
 impl CarriedBlock {
-    pub(crate) fn receive(mut self, files: &[u32], symbols: &[u32]) -> Block {
-        for (words, ty) in self.columns.iter_mut().zip(&self.types) {
+    pub(crate) fn receive(mut self, files: &[u32], symbols: &[u32], schemas:&[(Names,Tys)]) -> Block {
+        let (names,types)=&schemas[self.schema];
+        for (words, ty) in self.columns.iter_mut().zip(types.iter()) {
             if !matches!(ty, Ty::File | Ty::Node | Ty::Sym) { continue; }
             let remap = |v: u64| {
                 if v == u64::MAX { return v; }
@@ -344,7 +363,7 @@ impl CarriedBlock {
             }
         }
         Block {
-            names: self.names.into(), tys: self.types.into(), n: self.rows,
+            names: names.clone(), tys: types.clone(), n: self.rows,
             home: if self.rows == 0 { 0 } else { files[self.home as usize] },
             columns: self.columns, postings: Default::default(),
         }

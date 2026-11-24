@@ -302,6 +302,7 @@ impl World {
 pub(super) struct Transfer {
     slots: Vec<(usize,Vec<(usize,usize)>)>,
     blocks: Vec<finish::population::CarriedBlock>,
+    schemas: finish::population::CarriedSchemas,
     paths: Vec<String>,
     words: Vec<Vec<u8>>,
     prefix: usize,
@@ -326,9 +327,11 @@ impl World {
             }).collect();
             slots.push((slot,pieces));
         }
+        let mut schemas=finish::population::CarriedSchemas::default();
         Transfer {
             slots,
-            blocks: blocks.into_iter().map(|b| Rc::try_unwrap(b).ok().expect("worker owns all frontier blocks").carry()).collect(),
+            blocks: blocks.into_iter().map(|b| Rc::try_unwrap(b).ok().expect("worker owns all frontier blocks").carry(&mut schemas)).collect(),
+            schemas,
             paths: self.run.paths, prefix,
             boundaries: self.boundaries.unwrap_or_default(),
             words: self.run.texts.into_iter().skip(prefix).map(|s| s.to_vec()).collect(),
@@ -365,7 +368,8 @@ impl World {
     }
 
     fn receive_blocks(&mut self, part: Transfer, files:&[u32], symbols:&[u32]) {
-        let blocks: Vec<_> = part.blocks.into_iter().map(|b| Rc::new(b.receive(files,symbols))).collect();
+        let schemas=part.schemas.receive();
+        let blocks: Vec<_> = part.blocks.into_iter().map(|b| Rc::new(b.receive(files,symbols,&schemas))).collect();
         for (slot, ids) in part.slots {
             self.frontiers.insert(slot,ids.into_iter().map(|(n,i)| (n,blocks[i].clone())).collect());
         }
