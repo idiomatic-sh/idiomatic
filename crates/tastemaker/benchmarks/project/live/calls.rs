@@ -317,17 +317,13 @@ impl Live {
         for (id, work) in ids.into_iter().zip(&self.batch.work) {
             let receipt =
                 Batch::answer(work, &self.state.answers).map_err(|e| format!("{id}: {e}"))?;
-            for row in receipt.rows {
-                let subject = row.layout.identity.first()
-                    .map(|&i| row.value(i))
-                    .ok_or("missing row subject")?;
-                out.findings.push((
-                    id.as_ref().into(),
-                    slot(&subject),
-                    row.layout.names.iter().zip(row.cells())
-                        .map(|(n, v)| (n.as_str().into(), slot(&v)))
-                        .collect(),
-                ));
+            for row in receipt.rows() {
+                let subject = *row.layout.identity.first().ok_or("missing row subject")?;
+                let columns: Vec<(_, sdk::Slot)> = row.layout.names.iter()
+                    .zip(row.cells())
+                    .map(|(name, value)| (name.as_str().into(), slot(&value)))
+                    .collect();
+                out.findings.push((id.as_ref().into(), columns[subject].1.clone(), columns));
             }
             for (p, msg) in receipt.unknowns {
                 out.unknowns
@@ -396,7 +392,7 @@ pub fn print_measurement() {
         m.sessions,
     );
     eprintln!(
-        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6}",
+        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6} assembly_sdk={assembly:.6} assembly_evidence=0.000000",
         m.calls,
         m.requests,
         m.refused,

@@ -715,10 +715,16 @@ impl Batch {
 
 #[derive(Default)]
 struct Receipt<'a> {
-    rows: Vec<&'a finish::answer::Row>,
+    first: &'a [finish::answer::Row],
+    further: Vec<&'a [finish::answer::Row]>,
+    count: usize,
     unknowns: Vec<&'a (String, String)>,
 }
 impl<'a> Receipt<'a> {
+    fn rows(&self) -> impl Iterator<Item = &'a finish::answer::Row> + '_ {
+        self.first.iter().chain(self.further.iter().flat_map(|rows| rows.iter()))
+    }
+
     fn append(&mut self, answer: &'a Answer) -> Result<(), &'a str> {
         let held = answer.as_ref().map_err(|s| {
             if s.is_empty() {
@@ -727,16 +733,27 @@ impl<'a> Receipt<'a> {
                 s.as_str()
             }
         })?;
-        self.rows.extend(&held.rows);
+        if !held.rows.is_empty() {
+            self.count += held.rows.len();
+            if self.first.is_empty() {
+                self.first = &held.rows;
+            } else {
+                self.further.push(&held.rows);
+            }
+        }
         self.unknowns.extend(&held.unknowns);
         Ok(())
     }
 }
 
-pub(super) fn digest(rows: &[&finish::answer::Row]) -> String {
+pub(super) fn digest<'a>(rows: impl Iterator<Item = &'a finish::answer::Row>) -> String {
+    let mut rows = rows.peekable();
+    if rows.peek().is_none() {
+        static EMPTY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+        return EMPTY.get_or_init(|| format!("{:x}", Sha256::digest(b"\n"))).clone();
+    }
     let mut hash = Sha256::new();
-    if rows.is_empty() { hash.update(b"\n"); }
-    finish::json_output::ordered_rows(rows.iter().copied(), |line| {
+    finish::json_output::ordered_rows(rows, |line| {
         hash.update(line);
         hash.update(b"\n");
     });
@@ -798,7 +815,8 @@ pub(crate) fn packets(
     for (id, work) in ids.into_iter().zip(&session.work) {
         let result = match Batch::answer(work, &answers) {
             Ok(r) => {
-                json_output::packet_receipt(&id, Ok((r.rows.len(), digest(&r.rows), r.unknowns)))
+                let digest = digest(r.rows());
+                json_output::packet_receipt(&id, Ok((r.count, digest, r.unknowns)))
             }
             Err(reason) => json_output::packet_receipt(&id, Err(reason)),
         };
@@ -857,11 +875,16 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
     let answers = session.run_sources(readers);
     let t = thread_cpu();
     let mut out = std::io::BufWriter::new(std::fs::File::create(output).unwrap());
-    let results: Vec<_> = session
-        .work
-        .iter()
-        .map(|work| Batch::answer(work, &answers).map(|r| (digest(&r.rows), r.unknowns)))
-        .collect();
+    let mut assembly_sdk = 0.0;
+    let results: Vec<_> = session.work.iter().map(|work| {
+        let start = thread_cpu();
+        let answer = Batch::answer(work, &answers);
+        assembly_sdk += thread_cpu() - start;
+        answer.map(|receipt| {
+            let digest = digest(receipt.rows());
+            (digest, receipt.unknowns)
+        })
+    }).collect();
     let mut refusals = BTreeMap::new();
     for (i, id, expected) in invocations {
         match &results[i] {
@@ -894,8 +917,9 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
     );
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
+    let assembly_evidence = c.assemble - assembly_sdk;
     println!(
-        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6}",
+        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6} assembly_sdk={assembly_sdk:.6} assembly_evidence={assembly_evidence:.6}",
         session.schedule.programs.len(),
         session.bindings.len(),
         session.schedule.sources.len(),
@@ -944,8 +968,8 @@ fn one_source<L: session::source::Source>(
         return Err("partial answer requires typed unknown output".into());
     }
     let mut stream = Vec::new();
-    if rows.rows.is_empty() { stream.push(b'\n'); }
-    finish::json_output::ordered_rows(rows.rows, |line| {
+    if rows.count == 0 { stream.push(b'\n'); }
+    finish::json_output::ordered_rows(rows.rows(), |line| {
         stream.extend_from_slice(line);
         stream.push(b'\n');
     });

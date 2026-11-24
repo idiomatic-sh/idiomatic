@@ -252,7 +252,7 @@ pub(super) fn replay() {
             Err(reason) => Err(reason.clone()),
         };
         let receipt = json_output::project_receipt(&id, result.map(|rows| {
-            (rows.len(), batch::digest(&rows.iter().collect::<Vec<_>>()))
+            (rows.len(), batch::digest(rows.iter()))
         }));
         writeln!(out, "{receipt}").expect("write receipt");
     }

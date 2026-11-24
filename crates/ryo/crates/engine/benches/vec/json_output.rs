@@ -233,49 +233,52 @@ impl Serialize for Published {
     }
 }
 
-struct Columns<'a>(&'a Row);
-impl Serialize for Columns<'_> {
-    fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
-        out.collect_seq(
-            self.0
-                .layout
-                .names
-                .iter()
-                .zip(self.0.cells().map(Published)),
-        )
-    }
+/// Only the command writer needs escaped column labels and the canonical cell ranges.
+struct FindingWriter<'a> {
+    layout: &'a super::answer::Layout,
+    labels: Vec<Vec<u8>>,
+    rule: Vec<u8>,
+    values: Vec<std::ops::Range<usize>>,
 }
 
-struct Keys<'a>(&'a Row);
-impl Serialize for Keys<'_> {
-    fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
-        out.collect_seq(
-            self.0.layout.identity[1..]
-                .iter()
-                .map(|&i| Published(self.0.value(i))),
-        )
+impl<'a> FindingWriter<'a> {
+    fn new(layout: &'a super::answer::Layout) -> Self {
+        let labels = layout.names.iter().map(|name| {
+            let mut label = vec![b'['];
+            serde_json::to_writer(&mut label, name).expect("serialize column name");
+            label.push(b',');
+            label
+        }).collect();
+        Self {
+            layout,
+            labels,
+            rule: serde_json::to_vec(&layout.rule).expect("serialize rule"),
+            values: Vec::with_capacity(layout.names.len()),
+        }
     }
-}
 
-/// Canonical command output, with the release's column order and escaping.
-fn write_finding(dst: &mut Vec<u8>, row: &Row) {
-    #[derive(Serialize)]
-    struct Finding<'a> {
-        columns: Columns<'a>,
-        key: Keys<'a>,
-        rule: &'a str,
-        subject: Published,
+    fn write(&mut self, dst: &mut Vec<u8>, row: &Row) {
+        self.values.clear();
+        dst.extend_from_slice(br#"{"columns":["#);
+        for (at, (label, value)) in self.labels.iter().zip(row.cells()).enumerate() {
+            if at != 0 { dst.push(b','); }
+            dst.extend_from_slice(label);
+            let start = dst.len();
+            serde_json::to_writer(&mut *dst, &Published(value)).expect("serialize cell");
+            self.values.push(start..dst.len());
+            dst.push(b']');
+        }
+        dst.extend_from_slice(br#"],"key":["#);
+        for (at, &index) in self.layout.identity[1..].iter().enumerate() {
+            if at != 0 { dst.push(b','); }
+            dst.extend_from_within(self.values[index].clone());
+        }
+        dst.extend_from_slice(br#"],"rule":"#);
+        dst.extend_from_slice(&self.rule);
+        dst.extend_from_slice(br#","subject":"#);
+        dst.extend_from_within(self.values[self.layout.identity[0]].clone());
+        dst.push(b'}');
     }
-    serde_json::to_writer(
-        dst,
-        &Finding {
-            columns: Columns(row),
-            key: Keys(row),
-            rule: &row.layout.rule,
-            subject: Published(row.value(row.layout.identity[0])),
-        },
-    )
-    .expect("serialize finding");
 }
 
 /// Canonical ordering is lexical over the complete output bytes, including escapes.
@@ -285,9 +288,16 @@ pub(crate) fn ordered_rows<'a>(
 ) {
     let mut bytes = Vec::new();
     let mut ranges = Vec::new();
-    for row in rows {
+    let mut rows = rows.into_iter();
+    let Some(first) = rows.next() else { return };
+    let mut writer = FindingWriter::new(&first.layout);
+    for row in std::iter::once(first).chain(rows) {
+        let layout = row.layout.as_ref();
+        if !std::ptr::eq(writer.layout, layout) {
+            writer = FindingWriter::new(layout);
+        }
         let start = bytes.len();
-        write_finding(&mut bytes, row);
+        writer.write(&mut bytes, row);
         ranges.push(start..bytes.len());
     }
     ranges.sort_unstable_by(|a, b| bytes[a.clone()].cmp(&bytes[b.clone()]));
