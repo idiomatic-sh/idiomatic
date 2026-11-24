@@ -10,3 +10,6 @@ publish = false
 
 [lib]
 name = "profile_tools"
+
+[lints.rust]
+unsafe_code = "forbid"
