@@ -38,17 +38,37 @@ struct Answer {
 #[derive(Default)]
 pub(crate) struct Capture {
     active: Option<Answer>,
+    arena: Vec<u8>,
     prior_refusal: bool,
     reusable: BTreeMap<String, Answer>,
     hits: usize,
     visited_bytes: usize,
-    versions: BTreeMap<String, CapturedFile>,
+    versions: Versions,
 }
 
 #[derive(Default)]
 struct CapturedFile {
     version: Option<Digest>,
-    packed: Option<Vec<u8>>,
+    packed: Option<std::ops::Range<usize>>,
+}
+
+#[derive(Default)]
+struct Versions {
+    names: std::sync::Arc<Vec<String>>,
+    sorted: Vec<usize>,
+    files: Vec<CapturedFile>,
+}
+impl Versions {
+    fn get_mut(&mut self, name: &str) -> Option<&mut CapturedFile> {
+        let i = self.sorted.binary_search_by(|&i| self.names[i].as_str().cmp(name)).ok()?;
+        self.files.get_mut(self.sorted[i])
+    }
+}
+
+fn pack_answer(arena: &mut Vec<u8>, answer: &Answer) -> std::ops::Range<usize> {
+    let offset = arena.len();
+    *arena = postcard::to_extend(answer, std::mem::take(arena)).expect("file answer");
+    offset..arena.len()
 }
 
 impl Capture {
@@ -59,15 +79,15 @@ impl Capture {
             answer.refusals.sort_unstable();
             answer.unknowns.sort_unstable();
             self.versions.get_mut(&answer.origin).expect("admitted origin").packed =
-                Some(postcard::to_stdvec(&answer).expect("file answer"));
+                Some(pack_answer(&mut self.arena, &answer));
         }
     }
 
     fn answer(&mut self, origin: &str) -> Option<&mut Answer> {
         if !self.active.as_ref().is_some_and(|a| a.origin == origin) {
             self.finish_active();
-            let bytes = self.versions.get_mut(origin)?.packed.take()?;
-            self.active = Some(postcard::from_bytes(&bytes).expect("completed file"));
+            let range = self.versions.get_mut(origin)?.packed.take()?;
+            self.active = Some(postcard::from_bytes(&self.arena[range]).expect("completed file"));
         }
         self.active.as_mut()
     }
@@ -75,8 +95,9 @@ impl Capture {
     #[allow(dead_code, reason = "only hosts that refuse a whole admission use this outcome")]
     pub(crate) fn refused_admission(&mut self, message: &str) {
         self.active = None;
-        for (origin, file) in &mut self.versions {
-            file.packed = Some(postcard::to_stdvec(&Answer { origin: origin.clone(), admission_refusal: Some(message.into()), ..Default::default() }).expect("admission refusal"));
+        self.arena.clear();
+        for (origin, file) in self.versions.names.iter().zip(&mut self.versions.files) {
+            file.packed = Some(pack_answer(&mut self.arena, &Answer { origin: origin.clone(), admission_refusal: Some(message.into()), ..Default::default() }));
         }
     }
     pub(crate) fn visited(&mut self, origin: &str, bytes: &[u8]) {
@@ -160,7 +181,8 @@ impl Capture {
 #[derive(Deserialize)]
 pub(crate) struct Request {
     pub root: PathBuf,
-    pub files: Vec<String>,
+    #[serde(deserialize_with = "read_file_list")]
+    pub files: std::sync::Arc<Vec<String>>,
     #[serde(default)]
     #[allow(
         dead_code,
@@ -169,6 +191,10 @@ pub(crate) struct Request {
     pub selected_rules: Vec<String>,
     #[serde(default)]
     project_search_roots: Vec<PathBuf>,
+}
+
+fn read_file_list<'de, D: serde::Deserializer<'de>>(input: D) -> Result<std::sync::Arc<Vec<String>>, D::Error> {
+    Vec::<String>::deserialize(input).map(std::sync::Arc::new)
 }
 
 fn field(hash: &mut blake3::Hasher, b: &[u8]) {
@@ -330,9 +356,9 @@ struct Inputs {
     keys: Vec<Key>,
     scope: Digest,
     modes: Vec<u32>,
-    versions: BTreeMap<String, CapturedFile>,
+    versions: Versions,
     observations: Vec<(PathBuf, Stamp)>,
-    source_observations: Vec<(PathBuf, Stamp)>,
+    source_observations: Vec<Stamp>,
     phase_ms: [f64; 3],
 }
 
@@ -360,11 +386,12 @@ fn inputs(
             field(&mut h, value.get().as_bytes());
         }
     }
-    let mut inventory: Vec<_> = req.files.iter().collect();
-    inventory.sort_unstable();
-    for path in inventory {
-        field(&mut h, path.as_bytes());
+    let mut sorted: Vec<_> = (0..req.files.len()).collect();
+    sorted.sort_unstable_by(|&a, &b| req.files[a].cmp(&req.files[b]));
+    if sorted.windows(2).any(|w| req.files[w[0]] == req.files[w[1]]) {
+        return Err(invalid("repeated input"));
     }
+    for &i in &sorted { field(&mut h, req.files[i].as_bytes()); }
     field(
         &mut h,
         fs::canonicalize(pack)?.as_os_str().as_encoded_bytes(),
@@ -399,13 +426,10 @@ fn inputs(
     let scope = *h.finalize().as_bytes();
     let seeding = !cache.join("findings.postcard").try_exists()?;
     let mut modes = Vec::with_capacity(req.files.len());
-    let mut versions = BTreeMap::new();
+    let mut versions = Versions { names: req.files.clone(), sorted, files: Vec::with_capacity(req.files.len()) };
     let mut keys = Vec::with_capacity(req.files.len());
     let mut source_observations = Vec::with_capacity(req.files.len());
-    for name in &req.files {
-        if versions.contains_key(name) {
-            return Err(invalid("repeated input"));
-        }
+    for name in req.files.iter() {
         if !local(Path::new(name)) || Path::new(name).starts_with(cache_name) {
             return Err(invalid("file outside source scope"));
         }
@@ -419,8 +443,8 @@ fn inputs(
             keys.push(file_key(&scope, name, mode, &digest));
             Some(digest)
         };
-        versions.insert(name.to_owned(), CapturedFile { version, packed: None });
-        source_observations.push((p, stamp(&metadata)));
+        versions.files.push(CapturedFile { version, packed: None });
+        source_observations.push(stamp(&metadata));
     }
     Ok(Inputs {
         request: req,
@@ -474,27 +498,38 @@ fn publish(
     path: &Path,
     build: Digest,
     previous: Option<Digest>,
-    records: &BTreeMap<Key, Vec<u8>>,
+    records: &BTreeMap<Key, std::ops::Range<usize>>,
+    arena: &[u8],
 ) -> io::Result<usize> {
-    // A postcard map is its count followed by ordered key/value pairs. The file
-    // answers have already been encoded by the visitor and can be copied intact.
-    let mut data = postcard::to_stdvec(&(build, records.len())).map_err(io::Error::other)?;
-    data.reserve(records.values().map(|value| 16 + value.len()).sum());
-    for (key, answer) in records {
-        data.extend_from_slice(key);
-        data.extend_from_slice(answer);
+    // A postcard map is its count followed by key/value pairs. Hash and write
+    // the same sorted slices, without constructing a second copy of the table.
+    let header = postcard::to_stdvec(&(build, records.len())).map_err(io::Error::other)?;
+    let mut hash = blake3::Hasher::new();
+    hash.update(&header);
+    let mut written = header.len() + 32;
+    for (key, range) in records {
+        let bytes = &arena[range.clone()];
+        hash.update(key);
+        hash.update(bytes);
+        written += key.len() + bytes.len();
     }
-    let digest = *blake3::hash(&data).as_bytes();
-    if Some(digest) == previous {
-        return Ok(0);
-    }
+    let digest = *hash.finalize().as_bytes();
+    if Some(digest) == previous { return Ok(0); }
     let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
-    tmp.write_all(&digest)?;
-    tmp.write_all(&data)?;
+    {
+        let mut out = io::BufWriter::new(&mut tmp);
+        out.write_all(&digest)?;
+        out.write_all(&header)?;
+        for (key, range) in records {
+            out.write_all(key)?;
+            out.write_all(&arena[range.clone()])?;
+        }
+        out.flush()?;
+    }
     tmp.as_file().sync_all()?;
     tmp.persist(path)?;
     File::open(dir)?.sync_all()?;
-    Ok(data.len() + 32)
+    Ok(written)
 }
 
 fn report(rows: &Records, keys: &[Key], out: &Path, dedup: bool) -> io::Result<bool> {
@@ -572,7 +607,7 @@ pub(crate) fn check(
         && first
             .keys
             .iter()
-            .zip(&req.files)
+            .zip(req.files.iter())
             .all(|(k, name)| rows.get(k).is_some_and(|r| r.origin == *name))
     {
         let checked = ms();
@@ -597,6 +632,7 @@ pub(crate) fn check(
         versions: std::mem::take(&mut first.versions),
         ..Capture::default()
     };
+    let mut changed_sources = Vec::new();
     for (i, (path, obs)) in req.files.iter().zip(first.source_observations).enumerate() {
         if let Some(answer) = first.keys.get(i).and_then(|key| old.remove(key))
             && answer.origin == *path
@@ -605,7 +641,7 @@ pub(crate) fn check(
         } else {
             // A prior immutable row already proves its key. Only freshly evaluated
             // bytes and the shared scope need another observation before publication.
-            first.observations.push(obs);
+            changed_sources.push((i, obs));
         }
     }
     let ok = evaluate(&first.request, Some(&mut capture));
@@ -614,7 +650,7 @@ pub(crate) fn check(
     let mut next = BTreeMap::new();
     {
         for (i, p) in req.files.iter().enumerate() {
-            if let Some(CapturedFile { version, packed: Some(answer) }) = capture.versions.remove(p) {
+            if let CapturedFile { version, packed: Some(answer) } = std::mem::take(&mut capture.versions.files[i]) {
                 let k = if let Some(k) = first.keys.get(i) {
                     *k
                 } else {
@@ -647,7 +683,8 @@ pub(crate) fn check(
     eprintln!("retained capture sources={} visitor_bytes={} upfront_versions={}", next.len(), capture.visited_bytes, first.keys.len());
     let mut written = 0;
     let publishing = same_parent && !(next.is_empty() && had_empty);
-    if publishing && !observed(&first.observations) {
+    if publishing && (!observed(&first.observations) || !changed_sources.iter().all(|(i, prior)|
+        fs::metadata(req.root.join(&req.files[*i])).is_ok_and(|m| stamp(&m) == *prior))) {
         drop(lock);
         eprintln!("inputs changed during evaluation; evaluating current contents");
         return Ok(evaluate(
@@ -657,7 +694,7 @@ pub(crate) fn check(
     }
     let checked = ms();
     if publishing {
-        written = publish(&dir, &path, build, previous, &next)?;
+        written = publish(&dir, &path, build, previous, &next, &capture.arena)?;
     }
     eprintln!(
         "retained_cpu_ms pack={pack_ms:.3} scope={scope_ms:.3} files={files_ms:.3} load={:.3} evaluate={:.3} revalidate={:.3} publish={:.3}",

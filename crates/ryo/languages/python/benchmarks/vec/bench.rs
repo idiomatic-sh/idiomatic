@@ -454,19 +454,18 @@ fn main() {
         // Packaging tests file and directory membership under its search roots. Its
         // only parsed bytes are those of the admitted source currently being visited.
         finisher::retained::check(pack.as_ref(),request.as_ref(),output.as_ref(),".ryo_cache",true,true, |req,capture| {
-            let paths: Vec<_> = req.files.iter().map(|p|req.root.join(p).to_str().expect("source path").to_owned()).collect();
             let selected=req.selected_rules.join(",");
             let args=["vec","funnel","spec",request,pack,"unused","--facts","--remap","--direct",
                 "--hasher","fx","--regex-set","--words","table","--word-skip","--finish",pack,req.root.to_str().unwrap(),
                 "--findings-out",output,"--applicability",request,"--finish-rules",&selected,"--request",request];
-            run_check(&args,capture,Some(&paths))
+            run_check(&args,capture,Some(req))
         }).expect("retained findings");
     } else {
         run_check(&args,None,None);
     }
 }
 
-fn run_check(args:&[&str],mut capture:Option<&mut finisher::retained::Capture>, paths:Option<&[String]>)->bool {
+fn run_check(args:&[&str],mut capture:Option<&mut finisher::retained::Capture>, paths:Option<&finisher::retained::Request>)->bool {
     // ryo-fmx3.1 redo-lowering: the plan lowering in Rust, before any walk is made.
     match args.get(1).copied() {
         Some("lower") => { lower::run_lower(&args[2..]); return true; },
@@ -530,7 +529,7 @@ fn run_check(args:&[&str],mut capture:Option<&mut finisher::retained::Capture>, 
                 };
                 println!("start-up total {:.4} s", thread_cpu() - t0);
                 let lowered = thread_cpu();
-                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args, request_path.zip(document.as_ref()), paths);
+                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args, request_path.zip(document.as_ref()), paths.map(|r| &r.files));
                 drop(document);
                 fin.capture = capture.as_deref_mut().map(std::mem::take);
                 run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)), paths);
@@ -652,7 +651,12 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut in_batch = 0usize;
     let mut kernels = kernels::State::default();
     let started = thread_cpu();
-    for (file_no, path) in list.iter().enumerate() {
+    for (file_no, name) in list.iter().enumerate() {
+        let absolute;
+        let path = if let Some(request) = paths {
+            absolute = request.root.join(name);
+            absolute.to_str().expect("source path")
+        } else { name.as_str() };
         totals.files += 1;
         let c0 = thread_cpu();
         let bytes = std::fs::read(path).expect("read");
@@ -1638,7 +1642,12 @@ fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let mut scratch = Default::default();
     let mut walk_time = 0f64;
     let mut rss_peak = 0u64;
-    for (file_no, path) in list.iter().enumerate() {
+    for (file_no, name) in list.iter().enumerate() {
+        let absolute;
+        let path = if let Some(request) = paths {
+            absolute = request.root.join(name);
+            absolute.to_str().expect("source path")
+        } else { name.as_str() };
         let w0 = thread_cpu();
         let in_fin = fin.time;
         let bytes = std::fs::read(path).expect("read");
@@ -1692,7 +1701,7 @@ fn source_literals(patterns: &[String]) -> Vec<Vec<u8>> {
 /// `<anchors>` a directory: the pack; the first half's spec is prepared in this process from its parsed rules (`first.rs`), the
 /// parse shared with the second half's when `--finish` names the same pack (`pack`); `<anchors>` and `<plans>` files: the
 /// spec prepared beforehand (the oracle path).
-fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>, paths:Option<&[String]>) {
+fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>, paths:Option<&finisher::retained::Request>) {
     let way = args[0];
     let patterns: Vec<String> = if let Some((_, prepared)) = pack {
         use ryo_values::domain::finish_plans::types::FinishStep;
@@ -1707,7 +1716,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     } else {Vec::new()};
     let disk_paths;
     let list = match paths {
-        Some(list) => list,
+        Some(request) => request.files.as_slice(),
         None => { disk_paths = files(args[1]); &disk_paths }
     };
     let mut fact_catalog = facts::Catalog::default();
@@ -1906,7 +1915,12 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let mut exact_log = flag(args, "--exact-out").map(|p| std::io::BufWriter::new(std::fs::File::create(p).expect("exact pairs")));
     let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
     println!("start-up to first file {:.4} s", thread_cpu());
-    for (file_no, path) in list.iter().enumerate() {
+    for (file_no, name) in list.iter().enumerate() {
+        let absolute;
+        let path = if let Some(request) = paths {
+            absolute = request.root.join(name);
+            absolute.to_str().expect("source path")
+        } else { name.as_str() };
         let c0 = thread_cpu();
         if let Some(f)=fin.as_deref_mut() && f.capture.is_some() {
             let origin=f.run.paths[file_no].clone();
