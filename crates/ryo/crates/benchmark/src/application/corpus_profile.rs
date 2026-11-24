@@ -185,7 +185,10 @@ impl CorpusProfile {
         )?;
         writeln!(report, "\n## Ordinary worker phase clocks\n")?;
         phases::table(&mut report, clock, None)?;
-        super::profile_evidence::linter(io::BufReader::new(fs::File::open(trace)?), &mut report)?;
+        let operators = super::profile_evidence::linter(
+            io::BufReader::new(fs::File::open(trace)?),
+            &mut report,
+        )?;
         standard::report(&mut report, &profile, &first)?;
         self.record(name.to_owned(), &profile, &first)?;
         if let Some(images) = &self.other {
@@ -199,7 +202,7 @@ impl CorpusProfile {
             )?;
             writeln!(report, "\n## Ordinary worker phase clocks\n")?;
             phases::table(&mut report, second_clock, None)?;
-            super::profile_evidence::linter(
+            let other_operators = super::profile_evidence::linter(
                 io::BufReader::new(fs::File::open(trace)?),
                 &mut report,
             )?;
@@ -210,6 +213,7 @@ impl CorpusProfile {
             if second_clock.is_some() {
                 phases::table(&mut report, clock, second_clock)?;
             }
+            operators.compare(&other_operators, &mut report)?;
         }
         Ok(())
     }

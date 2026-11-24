@@ -85,7 +85,7 @@ pub fn profile(
         let first_phases = fs::read_to_string(&profile.native.stderr)?;
         writeln!(written, "\n# {name}\n")?;
         profile_evidence::phases(&first_phases, &mut written)?;
-        write_operators(&first, &mut written)?;
+        let operators = write_operators(&first, &mut written)?;
         standard::report(&mut written, &profile, &first)?;
         totals.insert(
             name.to_owned(),
@@ -97,10 +97,11 @@ pub fn profile(
             let second_phases = fs::read_to_string(&compared.native.stderr)?;
             writeln!(written, "\n# {name} — second build\n")?;
             profile_evidence::phases(&second_phases, &mut written)?;
-            write_operators(&second, &mut written)?;
+            let other_operators = write_operators(&second, &mut written)?;
             standard::report(&mut written, &compared, &second)?;
             standard::compare(&mut written, (&profile, &first), (&compared, &second))?;
             profile_evidence::phase_delta(&first_phases, &second_phases, &mut written)?;
+            operators.compare(&other_operators, &mut written)?;
             totals.insert(
                 format!("{name}/other"),
                 super::corpus_profile::metrics(&compared, &second)?,
@@ -118,7 +119,10 @@ pub fn profile(
     Ok(())
 }
 
-fn write_operators(directory: &Path, output: &mut impl Write) -> io::Result<()> {
+fn write_operators(
+    directory: &Path,
+    output: &mut impl Write,
+) -> io::Result<profile_evidence::OperatorProfile> {
     let file = directory.join("engine/ryo-operators.tsv");
     profile_evidence::operators(io::BufReader::new(fs::File::open(file)?), output)
 }

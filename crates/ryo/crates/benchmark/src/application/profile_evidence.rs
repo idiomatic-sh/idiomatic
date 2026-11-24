@@ -89,6 +89,11 @@ pub(crate) fn phase_delta(base: &str, candidate: &str, mut output: impl Write) -
 /// A row's logical operator runs, input and output row totals, and self CPU ns.
 type Counts = [u64; 4];
 
+pub(crate) struct OperatorProfile {
+    kinds: BTreeMap<String, Counts>,
+    queries: BTreeMap<String, Counts>,
+}
+
 #[derive(Default, Deserialize)]
 struct TraceFields {
     node: Option<u64>,
@@ -119,7 +124,7 @@ struct TraceEvent {
 ///
 /// # Errors
 /// Returns an error for missing, malformed or inconsistent engine records.
-pub(crate) fn linter(ledger: impl BufRead, mut output: impl Write) -> io::Result<()> {
+pub(crate) fn linter(ledger: impl BufRead, mut output: impl Write) -> io::Result<OperatorProfile> {
     let mut kinds = BTreeMap::<String, Counts>::new();
     let mut rules = BTreeMap::<String, Counts>::new();
     let mut parse_ns = 0u64;
@@ -176,21 +181,22 @@ pub(crate) fn linter(ledger: impl BufRead, mut output: impl Write) -> io::Result
         output,
         "\nShared nodes are counted once by kind and attributed to every owning rule.\n"
     )?;
-    write_operators(
-        &mut output,
-        "Operators by kind",
-        "Self CPU ns",
+    let operators = OperatorProfile {
         kinds,
-        usize::MAX,
-    )?;
-    write_operators(&mut output, "Top twenty rules", "Self CPU ns", rules, 20)
+        queries: rules,
+    };
+    operators.write(&mut output, "Top twenty rules")?;
+    Ok(operators)
 }
 
 /// Reduce the observer's typed TSV into counts by operator and by query text.
 ///
 /// # Errors
 /// The ledger is absent or inconsistent, or the report cannot be written.
-pub fn operators(ledger: impl BufRead, mut output: impl Write) -> io::Result<()> {
+pub(crate) fn operators(
+    ledger: impl BufRead,
+    mut output: impl Write,
+) -> io::Result<OperatorProfile> {
     let mut queries = BTreeMap::new();
     let mut kinds = BTreeMap::<String, Counts>::new();
     let mut per_query = BTreeMap::<u64, Counts>::new();
@@ -228,46 +234,111 @@ pub fn operators(ledger: impl BufRead, mut output: impl Write) -> io::Result<()>
             .ok_or_else(|| invalid("operator without query text"))?;
         add(texts.entry(query).or_default(), counts);
     }
-    write_operators(
-        &mut output,
-        "Operators by kind",
-        "Self CPU ns",
+    let operators = OperatorProfile {
         kinds,
-        usize::MAX,
-    )?;
-    write_operators(
-        &mut output,
-        "Top twenty query texts",
-        "Self CPU ns",
-        texts,
-        20,
-    )
+        queries: texts,
+    };
+    operators.write(&mut output, "Top twenty query texts")?;
+    Ok(operators)
+}
+
+impl OperatorProfile {
+    fn write(&self, output: &mut impl Write, query_title: &str) -> io::Result<()> {
+        write_operators(output, "Operators by kind", &self.kinds, usize::MAX)?;
+        write_operators(output, query_title, &self.queries, 20)
+    }
+
+    pub(crate) fn compare(&self, other: &Self, output: &mut impl Write) -> io::Result<()> {
+        compare_operators(
+            output,
+            "Operator changes by kind",
+            &self.kinds,
+            &other.kinds,
+            usize::MAX,
+        )?;
+        compare_operators(
+            output,
+            "Changes for the twenty costliest rules or queries",
+            &self.queries,
+            &other.queries,
+            20,
+        )
+    }
 }
 
 fn write_operators(
     output: &mut impl Write,
     title: &str,
-    clock: &str,
-    data: BTreeMap<String, Counts>,
+    data: &BTreeMap<String, Counts>,
     count: usize,
 ) -> io::Result<()> {
-    let mut rows: Vec<_> = data.into_iter().collect();
+    let mut rows: Vec<_> = data.iter().collect();
     rows.sort_by(|a, b| b.1[3].cmp(&a.1[3]).then_with(|| a.0.cmp(&b.0)));
     writeln!(output, "\n## {title}\n")?;
     writeln!(
         output,
-        "| Operator or query | Runs | Rows in | Rows out | {clock} |"
+        "| Operator or query | Runs | Rows in | Rows out | Self CPU ns |"
     )?;
     writeln!(output, "|---|---:|---:|---:|---:|")?;
     for (name, [runs, input, produced, ns]) in rows.into_iter().take(count) {
-        let name = name
-            .split_whitespace()
-            .collect::<Vec<_>>()
-            .join(" ")
-            .replace('|', "\\|");
-        writeln!(output, "| {name} | {runs} | {input} | {produced} | {ns} |")?;
+        writeln!(
+            output,
+            "| {} | {runs} | {input} | {produced} | {ns} |",
+            column(name)
+        )?;
     }
     Ok(())
+}
+
+fn compare_operators(
+    output: &mut impl Write,
+    title: &str,
+    first: &BTreeMap<String, Counts>,
+    other: &BTreeMap<String, Counts>,
+    limit: usize,
+) -> io::Result<()> {
+    let mut distinct = std::collections::BTreeSet::new();
+    distinct.extend(first.keys().chain(other.keys()));
+    let mut rows: Vec<_> = distinct
+        .into_iter()
+        .map(|label| {
+            let old = first.get(label).copied().unwrap_or_default();
+            let new = other.get(label).copied().unwrap_or_default();
+            (label, old, new)
+        })
+        .collect();
+    rows.sort_by(|a, b| {
+        b.1[3]
+            .max(b.2[3])
+            .cmp(&a.1[3].max(a.2[3]))
+            .then_with(|| a.0.cmp(b.0))
+    });
+    writeln!(output, "\n## {title}\n")?;
+    writeln!(
+        output,
+        "| Operator or query | Change in runs | Change in rows in | Change in rows out | First CPU ns | Second CPU ns | Change in CPU ns |"
+    )?;
+    writeln!(output, "|---|---:|---:|---:|---:|---:|---:|")?;
+    for (label, old, new) in rows.into_iter().take(limit) {
+        let [runs, rows_in, rows_out, cpu] =
+            std::array::from_fn(|index| i128::from(new[index]) - i128::from(old[index]));
+        writeln!(
+            output,
+            "| {} | {runs:+} | {rows_in:+} | {rows_out:+} | {} | {} | {cpu:+} |",
+            column(label),
+            old[3],
+            new[3]
+        )?;
+    }
+    Ok(())
+}
+
+fn column(label: &str) -> String {
+    label
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace('|', "\\|")
 }
 
 fn add(target: &mut Counts, values: Counts) {
