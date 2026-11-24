@@ -340,7 +340,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn restored_rows_preserve_nulls_negative_one_and_duplicate_packets() {
+    fn restored_rows_preserve_nulls_negative_one_and_multiplicity() {
         let rows = Rows {
             words: vec!["same bytes".into()],
             schemas: vec![Schema {
