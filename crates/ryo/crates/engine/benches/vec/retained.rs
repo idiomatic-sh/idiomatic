@@ -175,16 +175,20 @@ fn tree(
     contents: bool,
     obs: &mut Vec<(PathBuf, Stamp)>,
 ) -> io::Result<()> {
-    remember(dir, obs)?;
+    // Searching this directory must succeed for its directory entries to prove
+    // the same file/dir predicates that the provider observes through path lookup.
+    remember(&dir.join("."), obs)?;
     let mut paths = fs::read_dir(dir)?
-        .map(|e| e.map(|e| e.path()))
+        .map(|entry| {
+            let entry = entry?;
+            Ok((entry.path(), entry.file_type()?))
+        })
         .collect::<io::Result<Vec<_>>>()?;
-    paths.sort_unstable();
-    for path in paths {
+    paths.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+    for (path, kind) in paths {
         if path == cache {
             continue;
         }
-        let meta = fs::symlink_metadata(&path)?;
         field(
             hash,
             path.strip_prefix(root)
@@ -192,16 +196,17 @@ fn tree(
                 .as_os_str()
                 .as_encoded_bytes(),
         );
-        use std::os::unix::fs::PermissionsExt;
-        field(hash, &meta.permissions().mode().to_le_bytes());
-        if meta.is_file() {
+        if kind.is_file() {
+            field(hash, &[1]);
             if contents {
                 remember(&path, obs)?;
                 field(hash, blake3::hash(&fs::read(&path)?).as_bytes());
             }
-        } else if meta.is_dir() {
+        } else if kind.is_dir() {
+            field(hash, &[2]);
             tree(hash, root, &path, cache, contents, obs)?;
-        } else if meta.is_symlink() {
+        } else if kind.is_symlink() {
+            field(hash, &[3]);
             let target = fs::read_link(&path)?;
             field(hash, target.as_os_str().as_encoded_bytes());
             match fs::canonicalize(&path) {
