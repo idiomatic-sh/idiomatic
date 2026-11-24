@@ -9,6 +9,8 @@ pub(super) struct ReaderFacts<'a> {
     pub file: u32,
     pub(super) fills_made: u64,
     pub text: Vec<u32>,
+    pub projects_words: bool,
+    pub projects_fields: bool,
 }
 
 impl<'a> ReaderFacts<'a> {
@@ -18,6 +20,8 @@ impl<'a> ReaderFacts<'a> {
             unknown,
             fills_made: 0,
             text: Vec::new(),
+            projects_words: true,
+            projects_fields: true,
         }
     }
 }
@@ -59,15 +63,20 @@ pub(super) fn project_tree(
     facts: &mut ReaderFacts<'_>,
 ) {
     if let Some(native) = l::native_table(elements) {
+        if !facts.projects_fields && !facts.projects_words { return; }
         let mut field_names = Vec::new();
         let mut spelling = rustc_hash::FxHashMap::default();
         for (index, &field) in node_table::field_codes(native).iter().enumerate() {
             let at = l::Position(index.try_into().expect("native position"));
-            let slot = usize::from(field);
-            if field_names.len() <= slot { field_names.resize(slot + 1, None); }
-            let _ = field_names[slot].get_or_insert_with(|| symbol(run, facts.unknown, symbols, bytes, l::field_name_at(elements, at)));
-            let word = l::text_at(elements, at);
-            facts.text.push(*spelling.entry(word.0).or_insert_with(|| symbol(run, facts.unknown, symbols, bytes, word)));
+            if facts.projects_fields {
+                let slot = usize::from(field);
+                if field_names.len() <= slot { field_names.resize(slot + 1, None); }
+                let _ = field_names[slot].get_or_insert_with(|| symbol(run, facts.unknown, symbols, bytes, l::field_name_at(elements, at)));
+            }
+            if facts.projects_words {
+                let word = l::text_at(elements, at);
+                facts.text.push(*spelling.entry(word.0).or_insert_with(|| symbol(run, facts.unknown, symbols, bytes, word)));
+            }
         }
         for (slot, name) in field_names.into_iter().enumerate() {
             if let Some(name) = name {
@@ -85,13 +94,16 @@ pub(super) fn project_tree(
             node_table::leave_node(&mut builder, end);
         }
         let field = l::field_at(elements, at).0;
-        let name = symbol(run, facts.unknown, symbols, bytes, l::field_name_at(elements, at));
-        run.field_sym
-            .resize(run.field_sym.len().max(usize::from(field) + 1), run.empty);
-        run.field_sym[usize::from(field)] = name;
+        if facts.projects_fields {
+            let name = symbol(run, facts.unknown, symbols, bytes, l::field_name_at(elements, at));
+            run.field_sym
+                .resize(run.field_sym.len().max(usize::from(field) + 1), run.empty);
+            run.field_sym[usize::from(field)] = name;
+        }
         // The parser's published scalar may also belong to a structural or implied node.
-        let text = symbol(run, facts.unknown, symbols, bytes, l::text_at(elements, at));
-        facts.text.push(text);
+        if facts.projects_words {
+            facts.text.push(symbol(run, facts.unknown, symbols, bytes, l::text_at(elements, at)));
+        }
         let kind = l::kind_at(elements, at);
         if l::start_at(elements, at) == l::NO_SPAN.start && l::end_at(elements, at) == l::NO_SPAN.end {
             node_table::enter_unlocated_node(&mut builder, kind, FieldCode(field));
