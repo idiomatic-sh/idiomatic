@@ -14,8 +14,8 @@ pub(in super::super) struct Partition {
 }
 
 /// A multidirectional join stays local only if its equality edges connect every
-/// source with file-local keys. Pure project relations and caller snapshots are
-/// always complete at the later phase, even if they happen to hold one row.
+/// source with file-local keys. Closed sources without file-domain columns can
+/// be used as binding constants when a file-local input drives the step.
 pub(in super::super) fn file_steps(
     exec: &mut Exec<'_>,
     run: &mut Run,
@@ -47,7 +47,13 @@ pub(in super::super) fn file_steps(
             Ok(false)
         };
         let op = step.op.as_str();
-        let constant = op == "rows" || (!step.inputs.is_empty()
+        let constant_base = step.base().is_some_and(|name| {
+            matches!(run.supplier(name), super::Supplier::Host)
+                && run.catalog(name).is_some_and(|(_, _, types)| {
+                    types.iter().all(|&ty| !anchor(ty))
+                })
+        });
+        let constant = op == "rows" || constant_base || (!step.inputs.is_empty()
             && step.inputs.iter().all(|&source| literal[source])
             && matches!(op, "select" | "project" | "extend" | "union" | "difference" | "intersection"));
         literal.push(constant);
