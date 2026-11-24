@@ -211,11 +211,11 @@ use super::answer::{Row, Value};
 use ryo_values::domain::row_texts::types::Cell as AnswerCell;
 // These wrappers serialize directly into the final command output. Subject and
 // key columns are borrowed from their declared slots, including null values.
-struct Published<'a>(&'a Value);
-impl Serialize for Published<'_> {
+struct Published(Value);
+impl Serialize for Published {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeMap;
-        match self.0 {
+        match &self.0 {
             None => out.serialize_none(),
             Some(AnswerCell::Text(text)) => out.serialize_str(text),
             Some(AnswerCell::Number(n)) => out.serialize_i64(n.0),
@@ -241,7 +241,7 @@ impl Serialize for Columns<'_> {
                 .layout
                 .names
                 .iter()
-                .zip(self.0.values.iter().map(Published)),
+                .zip(self.0.cells().map(Published)),
         )
     }
 }
@@ -252,7 +252,7 @@ impl Serialize for Keys<'_> {
         out.collect_seq(
             self.0.layout.identity[1..]
                 .iter()
-                .map(|&i| Published(&self.0.values[i])),
+                .map(|&i| Published(self.0.value(i))),
         )
     }
 }
@@ -264,7 +264,7 @@ fn write_finding(dst: &mut Vec<u8>, row: &Row) {
         columns: Columns<'a>,
         key: Keys<'a>,
         rule: &'a str,
-        subject: Published<'a>,
+        subject: Published,
     }
     serde_json::to_writer(
         dst,
@@ -272,7 +272,7 @@ fn write_finding(dst: &mut Vec<u8>, row: &Row) {
             columns: Columns(row),
             key: Keys(row),
             rule: &row.layout.rule,
-            subject: Published(&row.values[row.layout.identity[0]]),
+            subject: Published(row.value(row.layout.identity[0])),
         },
     )
     .expect("serialize finding");

@@ -356,7 +356,7 @@ pub(super) struct Run {
     /// The provider updates its field-code dictionary when reading each file.
     pub(super) file_field_codes: bool,
     pub(super) paths: Vec<String>,
-    answer_symbols: FxHashMap<u32, Rc<str>>,
+    answer_words: Option<Rc<std::cell::RefCell<answer::Words>>>,
     pub(super) path_sym: Vec<u32>,
     pub(super) empty: u32,
     /// The SDK symbol without a published value, distinct from an empty string.

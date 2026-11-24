@@ -1,20 +1,31 @@
 //! A kept finding shares its prepared column layout. The external comparison
 //! writer borrows the same typed cells the product consumes.
-use super::{Exec, NULL, Names, Rc, Run, Table, Ty};
+use super::{Exec, FxHashMap, NULL, Names, Rc, Run, Table, Ty, Tys};
 use ryo_relations::domain::relations::types::{Integer, Offset, Span};
 use ryo_values::domain::row_texts::types::Cell;
+use std::{cell::RefCell, collections::hash_map::Entry};
 
 pub(crate) type Value = Option<Cell<Rc<str>>>;
 
-#[derive(Debug, Eq, PartialEq)]
+/// Only strings named by a retained answer outlive the input file.
+#[derive(Default)]
+pub(super) struct Words {
+    symbols: FxHashMap<u32, Rc<str>>,
+    files: FxHashMap<u32, Rc<str>>,
+    origins: FxHashMap<u32, Rc<str>>,
+}
+
 pub(crate) struct Layout {
     pub rule: Box<str>,
     pub names: Names,
     pub identity: Box<[usize]>,
+    types: Tys,
+    words: Rc<RefCell<Words>>,
 }
 
 impl Layout {
-    pub(super) fn new(
+    fn new(
+        run: &mut Run,
         rule: &str,
         table: &Table,
         subject: &str,
@@ -28,6 +39,11 @@ impl Layout {
             rule: rule.into(),
             names: table.names.clone(),
             identity,
+            types: table.tys.clone(),
+            words: run
+                .answer_words
+                .get_or_insert_with(Default::default)
+                .clone(),
         }))
     }
 }
@@ -35,88 +51,125 @@ impl Layout {
 impl Exec<'_> {
     pub(super) fn answer_layout(
         &mut self,
+        run: &mut Run,
         emit: usize,
         rule: &str,
         table: &Table,
         subject: &str,
         keys: &[String],
     ) -> Result<Rc<Layout>, String> {
-        use std::collections::hash_map::Entry;
         Ok(match self.answer_layouts.entry(emit) {
             Entry::Occupied(slot) => slot.get().clone(),
             Entry::Vacant(slot) => slot
-                .insert(Layout::new(rule, table, subject, keys)?)
+                .insert(Layout::new(run, rule, table, subject, keys)?)
                 .clone(),
         })
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+/// The schema gives each word its type. Node words retain their file and position.
+#[derive(Clone)]
 pub(crate) struct Row {
     pub layout: Rc<Layout>,
-    pub values: Box<[Value]>,
+    words: Box<[u64]>,
 }
 
-fn symbol(run: &mut Run, id: u32) -> Result<Rc<str>, String> {
-    if let Some(value) = run.answer_symbols.get(&id) {
-        return Ok(value.clone());
+impl Row {
+    pub(crate) fn value(&self, index: usize) -> Value {
+        let word = self.words[index];
+        if word == NULL {
+            return None;
+        }
+        Some(match self.layout.types[index] {
+            Ty::Sym => Cell::Text(self.layout.words.borrow().symbols[&(word as u32)].clone()),
+            Ty::Node => {
+                let words = self.layout.words.borrow();
+                let path = &words.origins[&((word >> 32) as u32)];
+                Cell::Text(format!("{path}#{}", word as u32).into())
+            }
+            Ty::File => Cell::File(self.layout.words.borrow().files[&(word as u32)].clone()),
+            Ty::Span => Cell::Span(Span {
+                start: Offset((word >> 32) as u32),
+                end: Offset(word as u32),
+            }),
+            Ty::Num => Cell::Number(Integer(word as i64)),
+            Ty::Flag => Cell::Text((if word == 0 { "false" } else { "true" }).into()),
+        })
     }
-    let text = std::str::from_utf8(run.text(id)).map_err(|e| e.to_string())?;
-    let value: Rc<str> = Rc::from(text);
-    run.answer_symbols.insert(id, value.clone());
-    Ok(value)
+
+    pub(crate) fn cells(&self) -> impl Iterator<Item = Value> + '_ {
+        (0..self.words.len()).map(|i| self.value(i))
+    }
+}
+
+impl Words {
+    fn symbol(&mut self, run: &Run, id: u32) -> Result<&Rc<str>, String> {
+        Ok(match self.symbols.entry(id) {
+            Entry::Occupied(slot) => slot.into_mut(),
+            Entry::Vacant(slot) => {
+                let text = std::str::from_utf8(run.text(id)).map_err(|e| e.to_string())?;
+                slot.insert(text.into())
+            }
+        })
+    }
+
+    fn keep_file(&mut self, run: &Run, id: u32) -> Result<(), String> {
+        if !self.files.contains_key(&id) {
+            let path = run
+                .paths
+                .get(id as usize)
+                .ok_or_else(|| format!("file outside the run: {id}"))?;
+            let text = match run.path_sym.get(id as usize) {
+                Some(&symbol) => self.symbol(run, symbol)?.clone(),
+                None => path.as_str().into(),
+            };
+            self.files.insert(id, text);
+        }
+        Ok(())
+    }
 }
 
 pub(crate) fn typed(
-    run: &mut Run,
+    run: &Run,
     table: &Table,
     row: usize,
     file: Option<usize>,
     layout: &Rc<Layout>,
 ) -> Result<Row, String> {
-    let mut values = Vec::with_capacity(table.names.len());
-    for (column, ty) in table.cols.iter().zip(table.tys.iter()) {
-        let word = column[row];
-        let cell = if word == NULL {
-            None
-        } else {
+    let mut dictionary = layout.words.borrow_mut();
+    let mut values = Vec::with_capacity(table.cols.len());
+    for (column, ty) in table.cols.iter().zip(layout.types.iter()) {
+        let mut word = column[row];
+        if word != NULL {
             match ty {
                 Ty::Node => {
-                    let (id, at) = match file {
-                        Some(id) => (id, word),
-                        None => ((word >> 32) as usize, word & u64::from(u32::MAX)),
+                    let file = match file {
+                        Some(id) => u32::try_from(id).map_err(|e| e.to_string())?,
+                        None => (word >> 32) as u32,
                     };
-                    let path = run.paths.get(id).ok_or("node has no source origin")?;
-                    Some(Cell::Text(format!("{path}#{at}").into()))
+                    if let Entry::Vacant(slot) = dictionary.origins.entry(file) {
+                        let path = run
+                            .paths
+                            .get(file as usize)
+                            .ok_or("node has no source origin")?;
+                        slot.insert(path.as_str().into());
+                    }
+                    word = (u64::from(file) << 32) | u64::from(word as u32);
                 }
                 Ty::File => {
-                    let at = usize::try_from(word).map_err(|e| e.to_string())?;
-                    let path = run
-                        .paths
-                        .get(at)
-                        .ok_or_else(|| format!("file outside the run: {word}"))?;
-                    let text = match run.path_sym.get(at) {
-                        Some(&id) => symbol(run, id)?,
-                        None => path.as_str().into(),
-                    };
-                    Some(Cell::File(text))
+                    dictionary.keep_file(run, u32::try_from(word).map_err(|e| e.to_string())?)?
                 }
-                Ty::Sym if run.absent_word == Some(word as u32) => None,
-                Ty::Sym => Some(Cell::Text(symbol(run, word as u32)?)),
-                Ty::Span => Some(Cell::Span(Span {
-                    start: Offset((word >> 32) as u32),
-                    end: Offset(word as u32),
-                })),
-                Ty::Num => Some(Cell::Number(Integer(word as i64))),
-                Ty::Flag => Some(Cell::Text(
-                    (if word == 0 { "false" } else { "true" }).into(),
-                )),
+                Ty::Sym if run.absent_word == Some(word as u32) => word = NULL,
+                Ty::Sym => {
+                    dictionary.symbol(run, word as u32)?;
+                }
+                Ty::Num | Ty::Span | Ty::Flag => {}
             }
-        };
-        values.push(cell);
+        }
+        values.push(word);
     }
     Ok(Row {
         layout: layout.clone(),
-        values: values.into_boxed_slice(),
+        words: values.into_boxed_slice(),
     })
 }

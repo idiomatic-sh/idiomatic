@@ -319,13 +319,13 @@ impl Live {
                 Batch::answer(work, &self.state.answers).map_err(|e| format!("{id}: {e}"))?;
             for row in receipt.rows {
                 let subject = row.layout.identity.first()
-                    .and_then(|i| row.values.get(*i))
+                    .map(|&i| row.value(i))
                     .ok_or("missing row subject")?;
                 out.findings.push((
                     id.as_ref().into(),
-                    slot(subject),
-                    row.layout.names.iter().zip(row.values.iter())
-                        .map(|(n, v)| (n.as_str().into(), slot(v)))
+                    slot(&subject),
+                    row.layout.names.iter().zip(row.cells())
+                        .map(|(n, v)| (n.as_str().into(), slot(&v)))
                         .collect(),
                 ));
             }

@@ -179,7 +179,7 @@ pub(in super::super) fn evaluate_covered(
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        let layout = exec.answer_layout(emit, rule, &t, subject, keys)?;
+        let layout = exec.answer_layout(run, emit, rule, &t, subject, keys)?;
         let mut seen = BTreeMap::new();
         for i in 0..t.n {
             let subject = layout.identity[0];
@@ -211,11 +211,11 @@ fn keep_finding(
     row: answer::Row,
 ) {
     use std::collections::btree_map::Entry;
-    let key = row.layout.identity.iter().map(|&i| row.values[i].clone()).collect();
+    let key = row.layout.identity.iter().map(|&i| row.value(i)).collect();
     match seen.entry(key) {
         Entry::Vacant(slot) => { slot.insert(row); }
         Entry::Occupied(mut slot) => {
-            if row.values < slot.get().values {
+            if row.cells().cmp(slot.get().cells()).is_lt() {
                 slot.insert(row);
             }
         }
@@ -346,7 +346,7 @@ pub(in super::super) fn pair<'tables>(
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        let layout = exec.answer_layout(emit, rule, &t, subject, keys)?;
+        let layout = exec.answer_layout(run, emit, rule, &t, subject, keys)?;
         let mut seen = BTreeMap::new();
         for r in 0..t.n {
             let row = answer::typed(run, &t, r, Some(path as usize), &layout)?;
