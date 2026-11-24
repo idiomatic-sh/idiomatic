@@ -67,14 +67,26 @@ impl Project {
 
     /// A project-scope answer: `rel`'s rows for the run's files `files`. `holds` is the file whose content this provider has
     /// read (`table`, `src`): a relation whose rows depend on a file's own content is answered for that file only.
-    pub(super) fn fill(&mut self, run: &mut finish::Run, rel: &str, files: &[u32], holds: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {
+    pub(super) fn fill(&mut self, run: &mut finish::Run, rel: &str, mask: u64, files: &[u32], holds: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {
+        let result = self.rows(run, rel, mask, files, holds, table, src)?;
+        if finish::fill_prof::dumping() && result.cols.iter().any(|c| c.len() < result.n) {
+            let reference = self.rows(run, rel, u64::MAX, files, holds, table, src)?;
+            assert_eq!(result.n, reference.n, "{rel} project rows");
+            for (i, column) in result.cols.iter().enumerate() {
+                if finish::request::wants(mask, i) { assert_eq!(column, &reference.cols[i], "{rel} project column {i}"); }
+            }
+        }
+        Ok(result)
+    }
+
+    fn rows(&mut self, run: &mut finish::Run, rel: &str, mask: u64, files: &[u32], holds: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {
         match rel {
-            MODULE_IDENTITY_REL => self.module_identity(run, files),
+            MODULE_IDENTITY_REL => self.module_identity(run, mask, files),
             MEMBERSHIP_REL => {
                 if files != [holds] {
                     return Err(format!("{rel}: answered from each file's imports as the provider reads the file; asked for {} files while holding file {holds}", files.len()));
                 }
-                self.namespace_membership(run, holds, table, src)
+                self.namespace_membership(run, mask, holds, table, src)
             }
             _ => Err(format!("{rel}: not a project relation of this provider")),
         }
@@ -83,7 +95,7 @@ impl Project {
     /// `project-namespace-membership` of `file`: each dotted prefix of each absolute import path it writes, classified by the
     /// entries under the project's search roots (module file, package directory with an initializer, namespace directory),
     /// a present child of a parent not present made unknown.
-    fn namespace_membership(&mut self, run: &mut finish::Run, file: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {
+    fn namespace_membership(&mut self, run: &mut finish::Run, mask: u64, file: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {
         let (_, names, tys) = run.catalog(MEMBERSHIP_REL).ok_or("no project-namespace-membership")?;
         let k = self.kinds;
         let kind = |x: u32| Some(node_table::kind_of(table, Position(x)).0);
@@ -109,11 +121,8 @@ impl Project {
             }
         };
         let mut paths: std::collections::BTreeSet<(String, String)> = std::collections::BTreeSet::new();
-        let n = node_table::element_count(table).0 as u32;
-        for a in 0..n {
-            if kind(a) != k.alias {
-                continue;
-            }
+        let aliases = k.alias.map_or(&[][..], |c| node_table::ids_of_kind(table, ryo::languages::KindBits(c)));
+        for &Position(a) in aliases {
             let imp = node_table::parent_of(table, Position(a)).0;
             let is_from = kind(imp) == k.from;
             let mut level = 0;
@@ -167,14 +176,9 @@ impl Project {
                     "absent" => "absent",
                     _ => "unknown",
                 };
-                let mut row = vec![0u64; names.len()];
-                row[fc] = u64::from(file);
-                row[rc] = u64::from(run.sym(root.as_bytes()));
-                row[pc] = u64::from(run.sym(path.as_bytes()));
-                row[mc] = u64::from(run.sym(state.as_bytes()));
-                row[kc] = u64::from(run.sym(kd.as_bytes()));
-                for (c, v) in row.into_iter().enumerate() {
-                    cols[c].push(v);
+                if finish::request::wants(mask, fc) { cols[fc].push(u64::from(file)); }
+                for (c, text) in [(rc, root.as_str()), (pc, path.as_str()), (mc, state), (kc, kd)] {
+                    if finish::request::wants(mask, c) { cols[c].push(u64::from(run.sym(text.as_bytes()))); }
                 }
                 count += 1;
             }
@@ -258,30 +262,51 @@ impl Project {
     /// `module-identity` of each of `files`: inside a package (its directory holds `__init__.py`), the dotted path from the
     /// topmost such directory's parent, the module and package directory names and the topmost package's name. A file's row
     /// depends on the project's layout only (the initializers of its directories), never on any file's content.
-    pub(super) fn module_identity(&mut self, run: &mut finish::Run, files: &[u32]) -> Result<finish::Table, String> {
+    fn identity_row(&mut self, path: &std::path::Path) -> Option<[String; 4]> {
+        let dir = path.parent()?;
+        let package = self.package(dir)?;
+        let module = module_stem(path)?;
+        Some([format!("{}.{module}", package.dotted), module.to_owned(),
+            dir.file_name().unwrap_or_default().to_string_lossy().into_owned(), package.root_name.clone()])
+    }
+
+    fn identity_cell(row: &[String; 4], file: u32, column: &str, mut word: impl FnMut(&str) -> u64) -> u64 {
+        match column {
+            "file" => u64::from(file),
+            "path" => word(&row[0]),
+            "module-name" => word(&row[1]),
+            "package-name" => word(&row[2]),
+            "package-root-name" => word(&row[3]),
+            _ => finish::NULL,
+        }
+    }
+
+    /// The prefix uses the same layout observation in its file-local dictionary.
+    pub(super) fn identity_columns(&mut self, path: &str, file: u32, words: &mut ryo::languages::FileWords, out: &mut ryo::languages::FilledColumns) -> bool {
+        use ryo::languages::{self, CellWord, Relation};
+        use ryo_relations::domain::{relations::service as catalog, terms::types::NameText};
+        let columns = catalog::columns(Relation::ModuleIdentity);
+        out.0.clear();
+        out.0.resize_with(columns.len(), Default::default);
+        if let Some(row) = self.identity_row(std::path::Path::new(path)) {
+            for (col, data) in columns.into_iter().zip(&mut out.0) {
+                let value = Self::identity_cell(&row, file, catalog::column_name(col).0, |text| languages::facts::intern(words, NameText(text)).0);
+                data.0.push(CellWord(value));
+            }
+        }
+        true
+    }
+
+    fn module_identity(&mut self, run: &mut finish::Run, mask: u64, files: &[u32]) -> Result<finish::Table, String> {
         let (_, names, tys) = run.catalog(MODULE_IDENTITY_REL).ok_or("no module-identity")?;
         let mut cols: Vec<Vec<u64>> = vec![Vec::new(); names.len()];
         let mut count = 0;
         for &f in files {
-            let file = std::path::Path::new(&run.paths[f as usize]);
-            let Some(dir) = file.parent() else { continue };
-            let Some(package) = self.package(dir) else { continue };
-            let Some(stem) = module_stem(file) else {
-                continue;
-            };
-            let dotted = format!("{}.{stem}", package.dotted);
-            let filename = stem.to_owned();
-            let pkg_dir = dir.file_name().unwrap_or_default().to_string_lossy().into_owned();
-            let root_name = run.sym(package.root_name.as_bytes());
-            for (c, n) in names.iter().enumerate() {
-                cols[c].push(match n.as_str() {
-                    "file" => u64::from(f),
-                    "path" => u64::from(run.sym(dotted.as_bytes())),
-                    "module-name" => u64::from(run.sym(filename.as_bytes())),
-                    "package-name" => u64::from(run.sym(pkg_dir.as_bytes())),
-                    "package-root-name" => u64::from(root_name),
-                    _ => finish::NULL,
-                });
+            let Some(row) = self.identity_row(std::path::Path::new(&run.paths[f as usize])) else { continue };
+            for (c, name) in names.iter().enumerate() {
+                if finish::request::wants(mask, c) {
+                    cols[c].push(Self::identity_cell(&row, f, name, |text| u64::from(run.sym(text.as_bytes()))));
+                }
             }
             count += 1;
         }

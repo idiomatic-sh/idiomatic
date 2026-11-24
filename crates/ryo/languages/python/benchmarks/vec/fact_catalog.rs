@@ -124,3 +124,42 @@ pub(super) fn declare(run: &mut finish::Run) {
         }
     }
 }
+
+/// Emptiness of composed catalog relations certified by their inputs on the
+/// initial syntax walk. The same roots and timing supply their rows.
+pub(super) fn composed_empty(run: &mut finish::Run, file: &ryo_python::fixtures::columns::ColumnFile<'_, '_>, path: &str, mut report: impl FnMut(&str, &finish::Run)) {
+    if !file.has_relative_imports() {
+        report(RELATIVE_IMPORT_REL, run);
+    }
+    if file.empty.contains(&"static-import") {
+        // These three writers emit one row per parsed import alias.
+        for name in [super::import_syntax::ALIASES, super::import_syntax::CONTEXTUAL_ALIASES, super::import_syntax::ENTRIES] {
+            report(name, run);
+        }
+    }
+    if file.empty.contains(&"comment") {
+        report(super::import_syntax::LINE_COMMENTS, run);
+    }
+    let annotations = super::annotation_evaluation::has_annotation(run, file.table);
+    if !annotations { report(ANNOTATION_EVALUATION_REL, run); }
+    if file.empty.contains(&"embedded-expression") && !path.ends_with(".pyi")
+        && (file.immediate_annotations || !annotations)
+        && !super::deferred_visit::has_type_parameters(run, file.table)
+    {
+        report(DEFERRED_VISIT_REL, run);
+        report(DEFERRED_RESOLUTION_REL, run);
+    }
+}
+
+/// A walk that may supply expression shapes publishes its classes during the parse.
+pub(super) fn walk_needs(plan: Option<&finish::Plan>, prefix: Option<&super::pair_summary::Program>) -> &'static [ryo::languages::Relation] {
+    use ryo::languages::Relation;
+    let name = ryo_relations::domain::relations::service::name(Relation::ExpressionShape).0;
+    if prefix.is_some_and(|p| p.facts.iter().any(|fact| matches!(fact.source, super::pair_summary::Source::Catalog(Relation::ExpressionShape))))
+        || plan.is_some_and(|p| p.nodes.iter().any(|step| step.op == "base" && step.base() == Some(name)))
+    {
+        &[Relation::ExpressionShape]
+    } else {
+        &[]
+    }
+}

@@ -19,6 +19,7 @@ pub(crate) type Tables = Vec<(String, Rc<Table>)>;
 pub(crate) struct Program {
     pub plan: Plan,
     pub bases: Vec<String>,
+    emit_roots: Vec<usize>,
     requirements: (bool, Vec<Vec<String>>, Vec<Vec<String>>),
 }
 
@@ -52,6 +53,7 @@ impl Program {
             .filter_map(|n| n.base().map(str::to_owned))
             .collect();
         Ok(Self {
+            emit_roots: plan.emits.iter().map(|e| e.1).collect(),
             plan,
             requirements,
             bases,
@@ -152,6 +154,7 @@ impl Schedule {
 }
 
 struct Bound<'p> {
+    provider_slots: finish::ProviderSlots,
     exec: Exec<'p>,
     facts: Vec<l::Relation>,
     hosted: Tables,
@@ -217,8 +220,15 @@ fn bind<'p>(
         .iter()
         .map(|clause| clause.iter().map(|w| run.sym(w.as_bytes())).collect())
         .collect();
-    let exec = Exec::new(&program.plan);
+    for (name, table) in &hosted {
+        let columns: Vec<_> = table.names.iter().zip(table.tys.iter()).map(|(n,t)| (n.as_str(), *t)).collect();
+        run.declare(name, &columns, finish::Supplier::Host);
+    }
+    let mut exec = Exec::new(&program.plan);
+    let emits: Vec<_> = (0..program.plan.emits.len()).collect();
+    exec.prepare_slots(run, &emits, &[]);
     Ok(Bound {
+        provider_slots: std::mem::take(&mut run.provider_slots),
         exec,
         facts,
         hosted,
@@ -558,8 +568,10 @@ pub(crate) fn visit(
                     continue;
                 }
                 clocks.evaluated += 1;
+                std::mem::swap(&mut run.provider_slots, &mut b.provider_slots);
                 answers[slot] = finish::session::pair(
                     &mut b.exec,
+                    &p.emit_roots,
                     &mut run,
                     id.0,
                     &tree,
@@ -567,6 +579,7 @@ pub(crate) fn visit(
                     &mut view,
                     b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
                 );
+                std::mem::swap(&mut run.provider_slots, &mut b.provider_slots);
             }
             clocks.evaluate += thread_cpu() - t;
         }

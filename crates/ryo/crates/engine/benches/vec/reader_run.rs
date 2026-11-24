@@ -252,62 +252,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         kinds.width(),
         fields.width(),
     );
-    // The parser needs the union of declared relations before its first file. A particular
-    // emit's transitive relation mask is needed only when a file first asks for that emit.
-    let mut base_facts = vec![None; plan.nodes.len()];
-    let mut distinct = BTreeSet::new();
-    for (slot, n) in plan.nodes.iter().enumerate() {
-        if let Some(name) = n.base() {
-            let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
-            if !matches!(run.supplier(name), finish::Supplier::Host) && (ryo_relations::domain::catalog::service::fact_form(rel)
-                != ryo_relations::domain::relations::types::FactForm::NodeTable
-                || run.reader_tables.contains(name))
-            {
-                // The parser writes a complete empty relation for a construct its
-                // language lacks. Only an unimplemented reader leaves the answer open.
-                if parser.absence_of(rel) == Some(l::AbsenceCause::NotYetRead) {
-                    eprintln!("provider does not yet read {name}");
-                    return false;
-                }
-                distinct.insert(rel);
-                base_facts[slot] = Some(rel);
-            }
-        }
-    }
-    let relations: Vec<_> = distinct.into_iter().collect();
-    let base_bits: Vec<_> = base_facts.into_iter().map(|rel| {
-        rel.map(|value| relations.binary_search(&value).expect("catalog relation"))
-    }).collect();
-    let width = relations.len().div_ceil(64);
-    let mut emitted_facts = vec![None; plan.emits.len()];
-    let mut visited = vec![usize::MAX; plan.nodes.len()];
-    let mut pending = Vec::new();
-    let mut requested = vec![0u64; width];
-    let mut facts = Vec::with_capacity(relations.len());
     let mut decisions = pairs::Decisions::new(program, &plan);
-    let mut relations_for = |wanted: &[usize], facts: &mut Vec<l::Relation>| {
-        requested.fill(0);
-        for &emit in wanted {
-            let mask = emitted_facts[emit].get_or_insert_with(|| {
-                let mut mask = vec![0u64; width];
-                pending.push(plan.emits[emit].1);
-                while let Some(slot) = pending.pop() {
-                    if visited[slot] == emit { continue; }
-                    visited[slot] = emit;
-                    if let Some(bit) = base_bits[slot] { mask[bit / 64] |= 1 << (bit % 64); }
-                    pending.extend_from_slice(&plan.nodes[slot].inputs);
-                }
-                mask
-            });
-            for (word, &extra) in requested.iter_mut().zip(mask.iter()) {
-                *word |= extra;
-            }
-        }
-        facts.clear();
-        for (i, &rel) in relations.iter().enumerate() {
-            if requested[i / 64] & (1 << (i % 64)) != 0 { facts.push(rel); }
-        }
-    };
     let selected = req.selected_rules.join(",");
     let mut args = vec!["--rules", &selected, "--applicability", request];
     if let Output::Path(path) = &output { args.extend(["--out", *path]); }
@@ -318,6 +263,42 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         req.rule_applicability.as_ref().map(|accepted| (request, accepted)),
     );
     fin.query_rows = QUERY_ROWS;
+    fin.prepare_requests(&[]);
+    let mut distinct = BTreeSet::new();
+    let mut slots = vec![None; catalog::ALL.len()];
+    for (slot, name) in fin.exec.requests.provider_slots() {
+        let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
+        if parser.absence_of(rel) == Some(l::AbsenceCause::NotYetRead) {
+            eprintln!("provider does not yet read {name}");
+            return false;
+        }
+        slots[catalog::number_of(rel).0] = Some(slot);
+        distinct.insert(rel);
+    }
+    let relations: Vec<_> = distinct.into_iter().collect();
+    let width = relations.len().div_ceil(64);
+    let mut emitted_facts = vec![None; plan.emits.len()];
+    let mut requested = vec![0u64; width];
+    let mut facts = Vec::with_capacity(relations.len());
+    let mut relations_for = |requests: &mut finish::request::Requests, wanted: &[usize], facts: &mut Vec<l::Relation>| {
+        requested.fill(0);
+        for &emit in wanted {
+            let mask = emitted_facts[emit].get_or_insert_with(|| {
+                let mut mask = vec![0u64; width];
+                requests.possible_provider_reads(plan.emits[emit].1, |name| {
+                    let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
+                    let bit = relations.binary_search(&rel).expect("declared reader relation");
+                    mask[bit / 64] |= 1 << (bit % 64);
+                });
+                mask
+            });
+            for (word, &extra) in requested.iter_mut().zip(mask.iter()) { *word |= extra; }
+        }
+        facts.clear();
+        for (i, &rel) in relations.iter().enumerate() {
+            if requested[i / 64] & (1 << (i % 64)) != 0 { facts.push(rel); }
+        }
+    };
     let startup = thread_cpu() - start;
     println!(
         "startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}",
@@ -405,7 +386,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
                 && (check_without_skip || (skip.alive(i) && skip.words_alive(i, &visible_words)))
         }, &mut wanted);
         packet.clear();
-        relations_for(&wanted, &mut facts);
+        relations_for(&mut fin.exec.requests, &wanted, &mut facts);
         if !wanted.is_empty() && !check_without_skip {
             decisions.filter(
                 &mut wanted,
@@ -426,7 +407,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
                 },
             );
             if !packet.ready {
-                relations_for(&wanted, &mut facts);
+                relations_for(&mut fin.exec.requests, &wanted, &mut facts);
             }
         }
         let t1 = thread_cpu();
@@ -450,6 +431,13 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             .rows
             .partials
             .retain(|(rel, _, missing)| coverage.needed(&plan, *rel, *missing));
+        // The same indexed packet supplied the prefix and certifies these empty populations.
+        for &rel in &facts {
+            if packet.complete_empty(rel) {
+                let slot = slots[catalog::number_of(rel).0].expect("declared reader relation");
+                fin.exec.walk_empty_slot(slot);
+            }
+        }
         for &i in &wanted {
             active[i] += 1;
         }

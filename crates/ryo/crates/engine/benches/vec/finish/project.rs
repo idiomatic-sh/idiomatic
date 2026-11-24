@@ -3,7 +3,7 @@
 //! `Scope::Files` and keeps the answer for the run, by the file each row names (the relation's first file column); a
 //! step of a file reads the rows that name that file. How wide each ask is, the provider declares (`ProjectAsk`).
 
-use super::{File, FxHashMap, Provider, R, Run, Scope, Table, Ty};
+use super::{File, FxHashMap, R, Run, Table, Ty};
 
 /// How the provider answers a project relation, as it declares it.
 #[derive(Clone, Copy, Debug)]
@@ -16,80 +16,81 @@ pub(in super::super) enum ProjectAsk {
     EachFile,
 }
 
-/// A project relation's answers so far: the rows, by the file they name, and the files answered (an `EachFile` relation
-/// keeps the current file's rows only).
+/// A project relation's answers so far: the rows, by the file they name, and the files answered.
 #[derive(Default)]
 pub(in super::super) struct Answered {
     table: Option<Table>,
     by_file: FxHashMap<u64, Vec<u32>>,
     asked: Vec<bool>,
+    resident: Vec<u32>,
     /// The provider's answers: asks, the files their scopes named, rows.
     asks: [u64; 3],
 }
 
 /// One line a project relation: the provider's asks, the files their scopes named, the rows answered.
 pub(in super::super) fn report(run: &Run) -> Vec<String> {
-    let mut v: Vec<String> = run.project.iter().map(|(rel, a)| format!("PROJECT {rel}: asks {} scope files {} rows {}", a.asks[0], a.asks[1], a.asks[2])).collect();
+    let mut v: Vec<String> = run.provider_slots.project.iter().enumerate().filter_map(|(slot, answer)| {
+        let a = answer.as_ref()?;
+        let rel = &run.provider_slots.fact_rels[slot].0;
+        Some(format!("PROJECT {rel}: asks {} scope files {} rows {}", a.asks[0], a.asks[1], a.asks[2]))
+    }).collect();
     v.sort();
     v
 }
 
-/// The rows of project relation `rel` that name file `f`, asked of the provider when `f` is not answered yet.
-pub(super) fn rows(f: &File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str, ask: ProjectAsk) -> R<Table> {
-    for_file(f.file, run, rel, ask, |run, files| p.fill(run, rel, Scope::Files(files)))
+/// Whether the cached project answer covers this file.
+pub(super) fn covers(run: &Run, slot: u16, file: u32) -> bool {
+    run.provider_slots.project[usize::from(slot)].as_ref().and_then(|a| a.asked.get(file as usize)).copied().unwrap_or(false)
 }
 
-/// The current file's slice of the shared project answer, for either phase.
-pub(in super::super) fn for_file(file: u32, run: &mut Run, rel: &str, ask: ProjectAsk, fill: impl FnOnce(&mut Run, &[u32]) -> R<Table>) -> R<Table> {
-    let files = run.paths.len();
-    let mut a = run.project.remove(rel).unwrap_or_default();
-    a.asked.resize(files, false);
-    if !a.asked[file as usize] {
-        let scope: Vec<u32> = match ask {
-            ProjectAsk::Run => (0..files as u32).collect(),
-            ProjectAsk::EachFile => vec![file],
-        };
-        let t = fill(run, &scope);
-        let t = match t {
-            Ok(t) => t,
-            Err(e) => {
-                run.project.insert(rel.to_owned(), a);
-                return Err(e);
-            }
-        };
-        let key = t.tys.iter().position(|ty| *ty == Ty::File).ok_or_else(|| format!("{rel}: a project relation names no file"))?;
-        // an answer for the file being run is read by that file's steps only: the last file's rows are not kept
-        if let ProjectAsk::EachFile = ask {
-            a.table = None;
-            a.by_file.clear();
-        }
-        let base = a.table.as_ref().map_or(0, |x| x.n) as u32;
-        for r in 0..t.n {
-            a.by_file.entry(t.cols[key][r]).or_default().push(base + r as u32);
-        }
-        a.asks[0] += 1;
-        a.asks[1] += scope.len() as u64;
-        a.asks[2] += t.n as u64;
-        for s in scope {
-            a.asked[s as usize] = true;
-        }
-        match &mut a.table {
-            Some(all) => {
-                for (c, col) in t.cols.iter().enumerate() {
-                    all.cols[c].extend_from_slice(col);
-                }
-                all.n += t.n;
-            }
-            None => a.table = Some(t),
-        }
+/// Index a project answer by its declared file column. The whole-run table
+/// stays here so subsequent files can read their share without another call.
+pub(super) fn remember(run: &mut Run, slot: u16, each: bool, files: &[u32], t: Table) -> R<()> {
+    let i = usize::from(slot);
+    let rel = &run.provider_slots.fact_rels[i].0;
+    let key = t.tys.iter().position(|ty| *ty == Ty::File).ok_or_else(|| format!("{rel}: a project relation names no file"))?;
+    let a = run.provider_slots.project[i].get_or_insert_with(Default::default);
+    if each {
+        // Only the latest file group is resident for a supplier that reads each file.
+        for &file in &a.resident { a.asked[file as usize] = false; }
+        a.resident.clear();
+        a.resident.extend_from_slice(files);
+        a.by_file.clear();
+        a.table = None;
     }
+    let base = a.table.as_ref().map_or(0, |x| x.n) as u32;
+    for (row, file) in t.cols[key].iter().enumerate() {
+        a.by_file.entry(*file).or_default().push(base + row as u32);
+    }
+    a.asks[0] += 1;
+    a.asks[1] += files.len() as u64;
+    a.asks[2] += t.n as u64;
+    a.asked.resize(run.paths.len(), false);
+    for &file in files {
+        a.asked[file as usize] = true;
+    }
+    match &mut a.table {
+        Some(all) => {
+            for (dest, src) in all.cols.iter_mut().zip(&t.cols) {
+                dest.extend_from_slice(src);
+            }
+            all.n += t.n;
+        }
+        None => a.table = Some(t),
+    }
+    Ok(())
+}
+
+pub(super) fn rows(f: &File<'_>, run: &Run, slot: u16) -> R<Table> {
+    let i = usize::from(slot);
+    let rel = &run.provider_slots.fact_rels[i].0;
+    let a = run.provider_slots.project[i].as_ref().ok_or_else(|| format!("{rel}: no project answer"))?;
     let all = a.table.as_ref().ok_or_else(|| format!("{rel}: no answer"))?;
-    let mine = a.by_file.get(&u64::from(file)).map_or(&[][..], Vec::as_slice);
-    let mut out = Table::with_rows(all.names.clone(), all.tys.clone(), mine.len());
+    let mine = a.by_file.get(&u64::from(f.file)).map_or(&[][..], Vec::as_slice);
+    let mut out = Table::projected_where(all.names.clone(), all.tys.clone(), mine.len(), |c| !all.cols[c].is_empty());
     for (c, col) in out.cols.iter_mut().enumerate() {
-        col.extend(mine.iter().map(|r| all.cols[c][*r as usize]));
+        if !all.cols[c].is_empty() { col.extend(mine.iter().map(|r| all.cols[c][*r as usize])); }
     }
     out.n = mine.len();
-    run.project.insert(rel.to_owned(), a);
     Ok(out)
 }

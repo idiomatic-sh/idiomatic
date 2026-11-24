@@ -19,7 +19,8 @@ pub(super) fn has_annotation(run: &mut finish::Run, table: &NodeTable) -> bool {
 }
 
 /// One row: element, root, evaluation, mode.
-pub(super) type Row = (u32, u32, &'static [u8], &'static [u8]);
+pub(super) type Row = (u32, u32, usize);
+pub(super) const NAMES: [(&[u8], &[u8]); 5] = [(b"eager", b"eager"), (b"postponed", b"lazy"), (b"deferred", b"lazy"), (b"unevaluated", b"lazy"), (b"unevaluated", b"eager")];
 
 /// The file's compiler features and target, as `compiler-feature` and `language-target` state them.
 pub(super) struct Target {
@@ -99,9 +100,13 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, target: &Target, em
     let start = |p: u32| node_table::span_of(table, Position(p)).start.0;
     let subtree = |x: u32| x..node_table::subtree_end_of(table, Position(x)).0.max(x + 1);
     // root classes: bit 0 eager, 1 postponed, 2 deferred, 3 unevaluated lazy, 4 unevaluated eager
-    let mut class: rustc_hash::FxHashMap<u32, u8> = rustc_hash::FxHashMap::default();
+    let mut class: Vec<Option<u8>> = vec![None; n as usize];
     let mut bodies: Vec<u32> = Vec::new();
-    for p in 0..n {
+    let mut annotations = Vec::new();
+    let relevant = [k_arg, k_function[0], k_function[1], k_ann_assign, k_lambda, k_generator];
+    let roots = run.kind_sym.iter().enumerate().filter(|(_, k)| relevant.contains(k))
+        .flat_map(|(code, _)| node_table::ids_of_kind(table, ryo::languages::KindBits(code as u16)));
+    for &Position(p) in roots {
         let k = kind(run, p);
         if k == k_arg || k_function.contains(&k) {
             for c in children(p) {
@@ -132,7 +137,8 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, target: &Target, em
                     if target.disabled && target.native {
                         bits |= 4;
                     }
-                    *class.entry(c).or_default() |= bits;
+                    if class[c as usize].is_none() { annotations.push(c); }
+                    *class[c as usize].get_or_insert(0) |= bits;
                 }
             }
         } else if k == k_ann_assign {
@@ -176,7 +182,8 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, target: &Target, em
                     }
                 }
                 // a root with no class still holds its members (they take no row)
-                *class.entry(c).or_default() |= bits;
+                if class[c as usize].is_none() { annotations.push(c); }
+                *class[c as usize].get_or_insert(0) |= bits;
             }
         } else if k == k_lambda {
             bodies.extend(children(p).filter(|c| field(run, *c) == f_body));
@@ -195,58 +202,48 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, target: &Target, em
     }
     let e_root = col(embedded, "root")?;
     bodies.extend((0..embedded.n).map(|r| embedded.cols[e_root][r] as u32));
-    if class.values().all(|b| *b == 0) {
-        return Ok(out);
-    }
-    let mut excluded = vec![false; n as usize];
-    for b in bodies {
-        for q in subtree(b) {
-            if q < n {
-                excluded[q as usize] = true;
-            }
+    if annotations.iter().all(|r| class[*r as usize] == Some(0)) { return Ok(out); }
+    // These intervals are the same body exclusions used by the lexical model.
+    // Tokens can be numbered after their parent subtree, so follow child edges
+    // for membership, including when traversing an excluded syntax node.
+    let mut excluded = Vec::new();
+    if !bodies.is_empty() {
+        excluded.resize(n as usize, false);
+        for b in bodies {
+            let range = subtree(b);
+            if b < n { excluded[b as usize..range.end.min(n) as usize].fill(true); }
         }
     }
-    const NAMES: [(&[u8], &[u8]); 5] = [(b"eager", b"eager"), (b"postponed", b"lazy"), (b"deferred", b"lazy"), (b"unevaluated", b"lazy"), (b"unevaluated", b"eager")];
-    let emit = |out: &mut Vec<Row>, x: u32, root: u32, bits: u8| {
-        for (i, (evaluation, mode)) in NAMES.iter().enumerate() {
-            if bits & (1 << i) != 0 {
-                out.push((x, root, evaluation, mode));
+    // The host is the embedded root's parent, but the host's child list
+    // contains only its source syntax. Include those additional parent edges.
+    let mut embedded_edges: Vec<_> = node_table::embedded_segments(table)
+        .map(|segment| (segment.host.0, segment.root.0)).collect();
+    embedded_edges.sort_unstable();
+    let mut stack = Vec::new();
+    for root in annotations {
+        let bits = class[root as usize].unwrap();
+        if bits == 0 { continue; }
+        stack.push(root);
+        while let Some(x) = stack.pop() {
+            if !excluded.get(x as usize).copied().unwrap_or(false) {
+                let mut pending = bits;
+                while pending != 0 {
+                    out.push((x, root, pending.trailing_zeros() as usize));
+                    pending &= pending - 1;
+                }
             }
-        }
-    };
-    // each element: its own root (when it is one) and its nearest root above it
-    let mut nearest: Vec<u32> = vec![u32::MAX; n as usize];
-    let mut done = vec![false; n as usize];
-    for x in 0..n {
-        // the nearest root strictly above x
-        let mut chain: Vec<u32> = Vec::new();
-        let mut at = parent(x);
-        let found = loop {
-            let Some(a) = at else { break u32::MAX };
-            if class.contains_key(&a) {
-                break a;
+            // The nested root itself belongs to both annotations. Its children
+            // belong to the nearer root alone, even if that root emits no class.
+            if x == root || class[x as usize].is_none() {
+                stack.extend(children(x));
+                let first = embedded_edges.partition_point(|&(host, _)| host < x);
+                for &(host, child) in &embedded_edges[first..] {
+                    if host != x { break; }
+                    stack.push(child);
+                }
             }
-            if done[a as usize] {
-                break nearest[a as usize];
-            }
-            chain.push(a);
-            at = parent(a);
-        };
-        for c in chain {
-            nearest[c as usize] = found;
-            done[c as usize] = true;
-        }
-        nearest[x as usize] = found;
-        done[x as usize] = true;
-        if excluded[x as usize] {
-            continue;
-        }
-        if found != u32::MAX {
-            emit(&mut out, x, found, class[&found]);
-        }
-        if let Some(bits) = class.get(&x) {
-            emit(&mut out, x, x, *bits);
         }
     }
+    out.sort_unstable();
     Ok(out)
 }

@@ -35,7 +35,6 @@ struct Count {
     /// level memo of the file: 0 unknown, else 1 + the class (5: never)
     lvl: Vec<u8>,
     words: Option<FxHashSet<u32>>,
-    fields: Option<FxHashSet<u32>>,
     time: f64,
     /// leaf decisions 'no rows', by relation (a node a file)
     no_rows: std::collections::BTreeMap<String, u64>,
@@ -83,7 +82,6 @@ pub(crate) fn file_end(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &m
         c.lvl.clear();
         c.lvl.resize(ex.plan.nodes.len(), 0);
         c.words = None;
-        c.fields = None;
     });
     for &(node, probe, own) in &runs {
         let k = ex.ep_level(f, run, p, node as usize).min(DATA);
@@ -182,8 +180,8 @@ impl Exec<'_> {
     /// A relation's leaf facts under a conjunction over its source `si` (`map`: the source's columns over the base's).
     fn ep_leaf(&mut self, f: &mut File<'_>, run: &mut Run, base: Native, conj: &[E], si: usize, map: &[usize]) -> usize {
         if let Native::Fact(i) = base {
-            let rel = &run.fact_rels[usize::from(i)].0;
-            let filled = f.facts.get(usize::from(i)).and_then(Option::as_ref).or_else(|| f.fills.get(rel));
+            let rel = &run.provider_slots.fact_rels[usize::from(i)].0;
+            let filled = f.facts.get(usize::from(i)).and_then(Option::as_ref);
             if filled.is_some_and(|t| t.n == 0) {
                 if sw!("VEC_EP_COUNT") {
                     C.with(|c| *c.borrow_mut().no_rows.entry(rel.clone()).or_default() += 1);
@@ -205,8 +203,13 @@ impl Exec<'_> {
                     _ => continue,
                 };
                 let Some(vals) = kinds_required(e, si, c) else { continue };
-                let present = if want == 2 { self.ep_words(f, run) } else { self.ep_fields(f, run) };
-                if vals.iter().all(|v| !present.contains(v)) {
+                let present = if want == 2 {
+                    let words = self.ep_words(f, run);
+                    vals.iter().any(|v| words.contains(v))
+                } else {
+                    self.ep_field_present(f, run, &vals)
+                };
+                if !present {
                     return if want == 2 { 4 } else { 3 };
                 }
             }
@@ -223,14 +226,6 @@ impl Exec<'_> {
         w
     }
 
-    fn ep_fields(&mut self, f: &File<'_>, run: &Run) -> FxHashSet<u32> {
-        if let Some(w) = C.with(|c| c.borrow().fields.clone()) {
-            return w;
-        }
-        let w: FxHashSet<u32> = (0..run.field_sym.len()).filter(|c| !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c as u16)).is_empty()).map(|c| run.field_sym[c]).collect();
-        C.with(|c| c.borrow_mut().fields = Some(w.clone()));
-        w
-    }
 }
 
 // ------------------------------------------------------------------------------------------------ cycle 2: the leaves
@@ -380,6 +375,40 @@ impl Exec<'_> {
         !self.ep_leaves(run, node).is_empty()
     }
 
+    /// The native field predicates that can be decided before a provider answer.
+    pub(super) fn ep_literals(&mut self, run: &mut Run, node: usize) -> Vec<(u16, usize, Vec<u32>)> {
+        let leaves = self.ep_leaves(run, node);
+        let mut out = Vec::new();
+        for leaf in leaves.iter().filter(|l| l.lit && l.fact != NO_FACT) {
+            let rel = run.provider_slots.fact_rels[usize::from(leaf.fact)].0.clone();
+            let Some((_, _, tys)) = run.catalog(&rel) else { continue };
+            let picked = if leaf.own {
+                self.view(run, node).ok().flatten().and_then(|v| super::lit_pick_for(&v.filter, 0, &[], |c| tys[c] == super::Ty::Sym))
+            } else {
+                let Some(sp) = self.sel(run, node).ok() else { continue };
+                let i = usize::from(leaf.src);
+                self.view(run, sp.srcs[i]).ok().flatten().and_then(|v| super::lit_pick_for(&sp.conj, i, &v.map, |c| tys[c] == super::Ty::Sym))
+            };
+            if let Some((col, mut values)) = picked {
+                values.sort_unstable();
+                values.dedup();
+                out.push((leaf.fact, col, values));
+            }
+        }
+        out
+    }
+
+    pub(super) fn ep_data_leaf(&mut self, run: &mut Run, node: usize) -> bool {
+        self.ep_leaves(run, node).iter().any(|leaf| leaf.fact != NO_FACT || leaf.rows)
+    }
+
+    /// The row reader resolves field codes at file preparation time. Keep
+    /// the plan's symbol names until the actual file vocabulary is available.
+    pub(super) fn ep_field_names(&mut self, run: &mut Run, node: usize) -> Vec<Vec<u32>> {
+        self.ep_leaves(run, node).iter().filter(|leaf| !leaf.fields.is_empty())
+            .map(|leaf| leaf.fields.to_vec()).collect()
+    }
+
     /// Whether one of the step's leaves holds in this file: a provider relation it reads has no rows, or a literal test
     /// on it no row of the file satisfies, or a child field it requires is absent. A fill a leaf reads is asked here
     /// (once a file, the fill the step would read).
@@ -391,7 +420,7 @@ impl Exec<'_> {
             }
             if lf.rows {
                 let t0 = step_clock();
-                let e = self.ep_view_rows_empty(f, run, p, node);
+                let e = self.ep_view_rows_empty(f, run, node);
                 self.leaves.laps[2] += step_clock() - t0;
                 if e {
                     return true;
@@ -402,7 +431,7 @@ impl Exec<'_> {
             }
             let base = Native::Fact(lf.fact);
             let t0 = step_clock();
-            let loaded = self.load_fact(f, run, p, base);
+            let loaded = self.load_fact(f, base);
             let t1 = step_clock();
             self.leaves.laps[0] += t1 - t0;
             if loaded.is_err() {
@@ -435,9 +464,9 @@ impl Exec<'_> {
     }
 
     /// cycle 4: whether a view has no row in this file (its entry, then its tests), read only where its entry is small.
-    fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+    fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, node: usize) -> bool {
         let Ok(Some(v)) = self.view(run, node) else { return false };
-        if self.load_fact(f, run, p, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
+        if self.load_fact(f, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
             return false;
         }
         let entry = match super::kind_set(run, &v.filter, 0, v.base, &[]) {
@@ -451,11 +480,11 @@ impl Exec<'_> {
     }
 
     /// Whether the file has a child under one of these field names.
-    fn ep_field_present(&mut self, f: &File<'_>, run: &Run, names: &[u32]) -> bool {
+    pub(super) fn ep_field_present(&self, f: &File<'_>, run: &Run, names: &[u32]) -> bool {
         let fields = f.present_fields.get_or_init(|| {
             run.field_sym.iter().enumerate().filter_map(|(code, &name)| {
-                let ids = super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(code as u16));
-                (!ids.is_empty()).then_some(name)
+                let count = super::node_table::field_count(f.table, ryo::languages::FieldCode(code as u16));
+                (count.0 != 0).then_some(name)
             }).collect()
         });
         names.iter().any(|name| fields.contains(name))

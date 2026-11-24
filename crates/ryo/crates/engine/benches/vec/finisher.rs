@@ -15,7 +15,7 @@ pub(super) struct Finisher<'p> {
     dump: Option<String>,
     dump_text: String,
     pub(super) run: finish::Run,
-    exec: finish::Exec<'p>,
+    pub(super) exec: finish::Exec<'p>,
     findings: finish::json_output::Findings,
     failed: HashMap<String, String>,
     /// redo-honest: per plan emit, whether its rule runs only on a file whose syntax the parser accepted (the request's
@@ -74,11 +74,23 @@ impl<'p> Finisher<'p> {
             check_out: flag(args, "--check-out"),
             alloc: [0; 2],
         };
-        me.exec.cold_test_load(&mut me.run);
-        me.exec.cold_load(&mut me.run);
-        me.exec.col_load(&mut me.run);
         me.time += thread_cpu() - t0;
         me
+    }
+
+    /// Prepare the shared file decision once the prefix declares which driving
+    /// steps have the same necessary predicate. No provider rows are needed.
+    pub(super) fn prepare_requests(&mut self, drivers: &[(usize, usize)]) {
+        let start = thread_cpu();
+        self.exec.prepare_slots(&mut self.run, &self.emits, drivers);
+        self.exec.cold_test_load(&mut self.run);
+        self.exec.cold_load(&mut self.run);
+        self.exec.col_load(&mut self.run);
+        self.time += thread_cpu() - start;
+    }
+
+    pub(super) fn visits(&self, wanted: &[usize]) -> bool {
+        !wanted.is_empty() || self.check
     }
 
     /// The emits retained by the first half for this file.
@@ -92,11 +104,6 @@ impl<'p> Finisher<'p> {
     /// redo-general: the plan the second half runs (for a driver that derives its own inputs from it).
     pub(super) fn plan(&self) -> &'p finish::Plan {
         self.plan
-    }
-
-    /// Whether a file with these emits to run is visited at all.
-    pub(super) fn visits(&self, wanted: &[usize]) -> bool {
-        !wanted.is_empty() || self.check
     }
 
     /// The plan's emits by name with their index into `plan.emits` (for a caller that maps its own rules to them).
@@ -134,20 +141,34 @@ impl<'p> Finisher<'p> {
     fn file_inner(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
         self.files_run += 1;
         let plan = self.plan;
-        let mut f = finish::File::new(ft, bytes, file_no as u32, plan.nodes.len());
+        let mut f = finish::File::new(ft, bytes, file_no as u32, plan.nodes.len(), self.run.provider_slots.fact_offsets.clone());
         if let Some(text) = pv.syntax_text() { f.set_text(text); }
         let run = &mut self.run;
-        if self.check {
-            for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
-                if run.reader_tables.contains(rel) { continue; }
-                let mine = finish::native_table(&mut f, run, rel);
-                match pv.fill(run, rel, finish::Scope::File(file_no as u32)) {
-                    Ok(theirs) => self.check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs))),
-                    Err(e) => self.check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
+        let checks: Vec<&str> = if self.check {
+            ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"].into_iter().filter(|rel| !run.reader_tables.contains(*rel)).collect()
+        } else { Vec::new() };
+        let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
+        // redo-fills pass 3: the file's one request, for what the alive rules' steps can read (request.rs)
+        let roots: Vec<usize> = wanted.iter().filter(|ei| !(self.failed_idx[**ei] || (rejected && self.accepted_only[**ei]))).map(|ei| plan.emits[*ei].1).collect();
+        match self.exec.open_file(&mut f, run, pv, &roots, &checks) {
+            Ok(checked) => {
+                for (&rel, theirs) in checks.iter().zip(checked) {
+                    let mine = finish::native_table(&mut f, run, rel);
+                    let comparison = match theirs {
+                        Ok(t) => finish::diff(run, &mine, &t),
+                        Err(e) => format!("provider: {e}"),
+                    };
+                    self.check_lines.push(format!("{}\t{rel}\t{comparison}", run.paths[file_no]));
+                }
+            }
+            Err(err) => {
+                for ei in wanted {
+                    let e = &plan.emits[*ei];
+                    self.failed.insert(e.0.clone(), format!("{}: the request: {err}", run.paths[file_no]));
+                    self.failed_idx[*ei] = true;
                 }
             }
         }
-        let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
         for ei in wanted {
             if self.failed_idx[*ei] || (rejected && self.accepted_only[*ei]) {
                 continue;
@@ -199,6 +220,7 @@ impl<'p> Finisher<'p> {
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
         self.exec.cold_end(&mut f, run);
+        self.exec.close_file(&mut f);
     }
 
     /// Write final findings, dumps and statistics after the last file.
@@ -252,8 +274,14 @@ impl<'p> Finisher<'p> {
         println!("thread CPU-s: total {total:.3}; walk+table 0.000; in the visit {file_time:.3}: steps {steps:.3}, provider fills {:.3} ({} rows)", self.provider_time, self.provider_rows);
         // the per-file emptiness decision's static part: steps visited and per-file tests decided (VEC_STEP_TIME: its seconds)
         println!("known-empty static part: {} steps visited ({} with no leaf of their own), {} per-file tests; {:.3} s, of which preparing the needs once a run {:.3} s", exec.stats.static_visits, exec.stats.static_pass, exec.stats.static_file_tests, exec.stats.static_time, exec.stats.rec_time);
+        if finish::fill_prof::counting() {
+            for (kind, counts) in ["dense", "sparse sorted", "sparse unsorted"].into_iter().zip(&finish::FACT_IX_SHAPES) {
+                println!("fact column index {kind}: {} builds, {} rows", counts[0].load(std::sync::atomic::Ordering::Relaxed), counts[1].load(std::sync::atomic::Ordering::Relaxed));
+            }
+        }
         println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
         println!("{}", finish::fill_prof::reads_line());
+        println!("{}", exec.request_line());
         finish::fill_prof::flush();
         for l in finish::fill_prof::unread_lines(&self.run) {
             println!("{l}");

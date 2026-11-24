@@ -140,6 +140,13 @@ impl Exec<'_> {
             return Ok(t.n);
         }
         if let Some(v) = self.view(run, node)? {
+            // The packet decision also supplies the size of a proven empty base.
+            // A keyed planner can use that zero before opening any input slot.
+            if let super::Native::Fact(slot) = v.base
+                && self.requests.proven_empty.get(usize::from(slot)).copied().unwrap_or(false)
+            {
+                return Ok(0);
+            }
             // a view over a fill not read yet in this file: not read for a size
             if let super::Native::Fact(x) = v.base
                 && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
@@ -147,9 +154,11 @@ impl Exec<'_> {
             {
                 return Ok(usize::MAX);
             }
-            if let Res::Tab(t) = self.res(f, run, p, node)? {
-                return Ok(t.n);
-            }
+            let v = match self.res(f, run, p, node)? {
+                Res::Tab(t) => return Ok(t.n),
+                Res::View(v) if v.base == super::Native::Empty => return Ok(0),
+                Res::View(v) => v,
+            };
             // its entry, never its rows read for a size: the kind bucket, the literal rows, its rows if read already,
             // else the relation's rows (an upper bound)
             if let Some(r) = f.vrows.slot(&node) {
@@ -162,6 +171,7 @@ impl Exec<'_> {
                     None => match v.base {
                         super::Native::Tree | super::Native::Location | super::Native::Child => f.n,
                         super::Native::Token => 3 * f.n,
+                        super::Native::Empty => 0,
                         super::Native::Fact(i) => f.facts[usize::from(i)].as_ref().map_or(0, |t| t.n),
                     },
                 },

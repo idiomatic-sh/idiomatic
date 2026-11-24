@@ -14,7 +14,7 @@ pub(super) fn run(
     skip: &mut Skip,
     words: &Words,
     fields: usize,
-    fwords: &mut FileWords,
+    mut file_words: [FileWords; 2],
     first: &mut ColumnWalk,
     second: &mut ColumnWalk,
     mut fin: Option<&mut Finisher<'_>>,
@@ -41,6 +41,16 @@ pub(super) fn run(
                 .collect()
         })
         .unwrap_or_default();
+    let mut request_uses = super::pair_checks::postings::RequestUses::default();
+    if let Some(f) = fin.as_deref() {
+        f.exec.symbol_guards(&f.run, |guard, name, col, values| {
+            let words = values.iter().map(|&sym| {
+                std::str::from_utf8(&f.run.texts[sym as usize]).map_or(u64::MAX, |s|
+                    languages::facts::intern(&mut file_words[0], languages::NameText(s)).0)
+            });
+            request_uses.bind(&order.postings, program, guard, name, col, words);
+        });
+    }
     for walk in [&mut *first, &mut *second] {
         walk.defer_lexical();
         walk.use_native_navigation();
@@ -66,13 +76,13 @@ pub(super) fn run(
     let mut input = SourceBatch::default();
     let mut table = NodeTable::default();
     let mut other_table = NodeTable::default();
-    let mut alive = std::array::from_fn(|_| (vec![false; program.roots.len()], Vec::new(), std::collections::HashMap::new()));
+    let mut alive = file_words.map(|words| (vec![false; program.roots.len()], Vec::new(), super::composition_inputs::Tables::default(), words, super::completed_facts::Completed::default()));
     let mut present = vec![0u64; words.names.len().div_ceil(64)];
     let mut kinds = Vec::new();
     let mut fields_kinds = 0.;
     let mut cols = Columns::default();
-    let mut wanted = Vec::new();
     let mut dump = String::new();
+    let mut wanted = Vec::new();
     let (mut elements, mut steps, mut candidates, mut survivors) = (0u64, 0, 0u64, 0u64);
     let (mut read, mut contents, mut skip_cpu, mut checks, mut visit, mut finish) =
         (0., 0., 0., 0., 0., 0.);
@@ -95,7 +105,7 @@ pub(super) fn run(
                 (&list[i], input.get(i)),
                 (count == 2).then(|| (list[i + 1].as_str(), input.get(i + 1))),
                 &mut alive,
-                &mut |slot, file, (alive, exact, kept)| {
+                &mut |slot, file, (alive, exact, kept, fwords, completed)| {
                     let begin = thread_cpu();
                     let id = i + slot;
                     let bytes = input.get(id);
@@ -125,6 +135,9 @@ pub(super) fn run(
                     });
                     exact.clear();
                     kept.clear();
+                    let file_id = languages::FileId(id as u32);
+                    file.set_file(file_id);
+                    completed.begin(file_id);
                     steps += program.eval(
                         scratch,
                         order,
@@ -223,8 +236,15 @@ pub(super) fn run(
                             result
                         },
                         alive,
+                        file_id,
                         certify.then_some(exact),
                     );
+                    if fin.is_some() {
+                        request_uses.absent(scratch, &mut completed.absent_symbols);
+                        let mut decisions = std::mem::take(&mut completed.decisions);
+                        scratch.handoff(program, &mut decisions, |relation, cells| completed.table(relation, cells));
+                        completed.decisions = decisions;
+                    }
                     checks += thread_cpu() - b;
                     survivors += alive.iter().filter(|a| **a).count() as u64;
                     if seed_out.is_some() {
@@ -236,7 +256,7 @@ pub(super) fn run(
                     }
                     visit += thread_cpu() - begin;
                 },
-                &mut |slot, file, (alive, exact, kept)| {
+                &mut |slot, file, (alive, exact, kept, fwords, completed)| {
                     let begin = thread_cpu();
                     if let Some(f) = executor.borrow_mut().as_deref_mut() {
                         let id = i + slot;
@@ -267,7 +287,9 @@ pub(super) fn run(
                             });
                         }
                         if f.visits(&wanted) {
-                            f.column_file(id, file, input.get(id), &wanted, std::mem::take(kept));
+                            f.swap_loan(fwords, completed);
+                            f.column_file(id, &list[id], file, input.get(id), &wanted, kept);
+                            f.swap_loan(fwords, completed);
                         }
                     }
                     finish += thread_cpu() - begin;

@@ -385,7 +385,7 @@ impl Exec<'_> {
             }
         }
         let preds = sp.conj.iter().map(compile).collect();
-        let file_const = sp.conj.iter().any(|c| super::filter_order::file_const(c) && !matches!(c, E::Lit(_)));
+        let file_const = sp.file_tests.is_some();
         let set = k == 1 && items.iter().all(|(s, _)| *s == 0);
         let ident = k == 1 && sp.conj.is_empty() && {
             let ssc = self.schema(run, sp.srcs[0])?;
@@ -437,7 +437,7 @@ impl Exec<'_> {
         };
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
-            if super::filter_order::file_fails(run, f, &sp.conj) {
+            if super::filter_order::file_fails(run, f, &sp.conj, &sp.file_tests) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
                 return self.empty(run, node);
             }
@@ -466,7 +466,6 @@ impl Exec<'_> {
             let Ok(Some(v)) = self.view(run, *s) else { continue };
             if let super::Native::Fact(x) = v.base
                 && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
-                && !(f.owed_fills.get(usize::from(x)).copied().unwrap_or(false) && self.load_fact(f, run, p, v.base).is_ok())
             {
                 continue;
             }
@@ -490,7 +489,7 @@ impl Exec<'_> {
         };
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
-            if super::filter_order::file_fails(run, f, &sp.conj) {
+            if super::filter_order::file_fails(run, f, &sp.conj, &sp.file_tests) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
                 super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
                 return self.empty_rc(run, node);
@@ -575,7 +574,7 @@ impl Exec<'_> {
         let (t0, i0) = (Clk::now(), self.inner);
         super::empty_sel::origin(self.inner);
         let sp = self.sel(run, node)?;
-        if kp.file_const && super::filter_order::file_fails(run, f, &sp.conj) {
+        if kp.file_const && super::filter_order::file_fails(run, f, &sp.conj, &sp.file_tests) {
             *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
             super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
             return self.empty_rc(run, node);
@@ -595,9 +594,7 @@ impl Exec<'_> {
             prof_add(7, t0.elapsed());
         }
         super::empty_sel::lap(0, self.inner);
-        // redo-fills pass 2: views the front reads no size of, filled only past the front's early ends (lazy_view.rs);
         // `srcs` is redo-alloc's kept list (the wrapper's)
-        let mut late: [Option<Native>; 4] = [None; 4];
         // redo-whole pass 2 (keyed.rs): the source read by key (this run is itself by key), and the source read by the
         // driver's keys (a step whose one consumer is this join, on an equality with the other source)
         let mut deferred = if keyed.is_none() || k == 2 { self.ksel_deferred(f, run, &sp, keyed.map(|x| x.0))? } else { None };
@@ -633,13 +630,7 @@ impl Exec<'_> {
                 srcs.push(Src::Base(Native::Tree));
                 continue;
             }
-            let src = match if i < 4 { self.lazy_view(f, run, *n, conj, i, kp.kinds[i].0.is_some() || kp.kinds[i].1.is_some())? } else { None } {
-                Some(v) => {
-                    late[i] = Some(v.base);
-                    Src::View(v, *n)
-                }
-                None => self.src_of(f, run, p, *n)?,
-            };
+            let src = self.src_of(f, run, p, *n)?;
             if let Src::Tab(t, _) = &src
                 && t.n == 0
             {
@@ -696,9 +687,6 @@ impl Exec<'_> {
             }
         }
         super::empty_sel::lap(3, self.inner);
-        for b in late.into_iter().flatten() {
-            self.load_fact(f, run, p, b)?;
-        }
         let driver = match driver {
             Some(d) => d,
             None => (0..k).find(|i| matches!(srcs[*i], Src::View(..))).ok_or("a select with no source to start from")?,

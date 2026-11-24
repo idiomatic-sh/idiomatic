@@ -13,8 +13,8 @@ struct Snapshot {
     tables: BTreeMap<String, Table>,
 }
 
-impl Provider for Snapshot {
-    fn fill(&mut self, run: &mut Run, name: &str, scope: Scope<'_>) -> Result<Table, String> {
+impl Snapshot {
+    fn population(&mut self, run: &mut Run, name: &str, scope: Scope<'_>) -> Result<Table, String> {
         let Scope::Files(files) = scope else {
             return Err(format!("local ask in closed session for {name}"));
         };
@@ -34,6 +34,14 @@ impl Provider for Snapshot {
         t.cols[0].extend(files.iter().copied().map(u64::from));
         t.n = files.len();
         Ok(t)
+    }
+
+}
+
+impl Provider for Snapshot {
+    fn answer(&mut self, run: &mut Run, request: &finish::request::Request<'_>, out: &mut Vec<Result<Table, String>>) -> Result<(), String> {
+        for asked in request.relations { out.push(self.population(run, asked.rel, asked.scope)); }
+        Ok(())
     }
 
     fn render(&mut self, _: u32, _: &str) -> Result<Option<Vec<u8>>, String> {

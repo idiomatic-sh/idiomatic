@@ -6,3 +6,6 @@ pub mod types;
 
 #[cfg(test)]
 mod service_test;
+
+/// Column selections for projected catalog answers.
+pub mod projection;

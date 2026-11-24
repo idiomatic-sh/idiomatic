@@ -7,7 +7,7 @@ use crate::domain::indentation::types::IndentationRegion;
 use crate::domain::model::lexical::constants::NO_NODE;
 use crate::domain::node::service::own_end;
 use crate::domain::node::types::SyntaxFile;
-use crate::domain::syntax::service::kind_of;
+use crate::domain::syntax::service::{kind_bits, kind_of};
 use crate::domain::syntax::types::Kind;
 use crate::domain::token_links::types::{LinkKind, Opener, Pairing, TokenLink};
 use crate::domain::tokens::types::Token;
@@ -28,6 +28,14 @@ pub(crate) fn tokens<'f>(file: &SyntaxFile<'f>) -> impl Iterator<Item = TokenAt>
             Kind::Node(_) | Kind::Extra(_) => None,
         },
     )
+}
+
+/// The own-tree tokens of one kind in source order. Embedded syntax follows the own tree.
+pub(crate) fn token_ids<'a>(file: &SyntaxFile<'a>, token: Token) -> &'a [Position] {
+    let ids = node_table::ids_of_kind(file.table, kind_bits(Kind::Token(token)));
+    let first = node_table::node_count(file.table).0;
+    let after = own_end(file);
+    &ids[ids.partition_point(|id| usize::from(*id) < first)..ids.partition_point(|id| *id < after)]
 }
 
 /// The closing bracket of an opening one.
@@ -212,7 +220,11 @@ pub(crate) fn indent_regions(
         indentation_end: Offset(0),
     });
     let mut open: Vec<IndentationRegion> = Vec::new();
-    for TokenAt { id, token } in tokens(file) {
+    let mut streams = [Token::Indent, Token::Dedent, Token::Errortoken].map(|token| (token, token_ids(file, token)));
+    while let Some((token, ids)) = streams.iter_mut().filter(|(_, ids)| !ids.is_empty()).min_by_key(|(_, ids)| ids[0]) {
+        let id = ids[0];
+        *ids = &ids[1..];
+        let token = *token;
         let span = node_table::span_of(file.table, id);
         if token == Token::Indent {
             if span.start > span.end || span.end.0 > length {
