@@ -121,8 +121,16 @@ pub(super) fn pairs(
         (Native::Tree | Native::Location, 0) | (Native::Child, 1)
     );
     let filter = Filter::bind(f, view, singleton)?;
+    let node_key = match native {
+        (Native::Tree | Native::Location, 0) | (Native::Child, 0 | 1) => true,
+        (Native::Fact(family), column) => f.facts[usize::from(family)]
+            .as_ref()
+            .is_some_and(|table| table.tys[column] == super::Ty::Node),
+        _ => false,
+    };
     let mut batch = Batch {
         f,
+        node_key,
         run,
         srcs,
         driver,
@@ -173,6 +181,7 @@ pub(super) fn pairs(
 
 struct Batch<'a, 'file, F> {
     f: &'a File<'file>,
+    node_key: bool,
     run: &'a mut Run,
     srcs: &'a [Src],
     driver: Driver<'a>,
@@ -184,11 +193,49 @@ struct Batch<'a, 'file, F> {
 impl<F: FnMut(&mut Run, u32, u32)> Batch<'_, '_, F> {
     #[inline]
     fn drive<I: IntoIterator<Item = u32>>(&mut self, hits: impl Fn(u64) -> I) -> u64 {
+        use super::view_key::Key;
+
+        let key = Key::bind(self.f, &self.srcs[self.driver.source], self.driver.column);
+        if self.node_key {
+            // Bind the node key representation before visiting the driver.
+            // Keep the generic cell reader for native columns without a slice.
+            match key {
+                Key::Table(keys) => {
+                    return self.drive_rows(hits, |_, _, row| keys[row as usize]);
+                }
+                Key::Position => {
+                    return self.drive_rows(hits, |_, _, row| {
+                        fill_prof::read(6);
+                        u64::from(row)
+                    });
+                }
+                Key::Parent(keys) => {
+                    return self.drive_rows(hits, |_, _, row| {
+                        fill_prof::read(6);
+                        u64::from(keys[row as usize])
+                    });
+                }
+                Key::Fact(keys) => {
+                    return self.drive_rows(hits, |_, _, row| {
+                        fill_prof::read(6);
+                        keys[row as usize]
+                    });
+                }
+                Key::Null | Key::Cell(..) => {}
+            }
+        }
+        self.drive_rows(hits, |f, run, row| key.read(f, run, row))
+    }
+
+    #[inline]
+    fn drive_rows<I: IntoIterator<Item = u32>>(
+        &mut self,
+        hits: impl Fn(u64) -> I,
+        key: impl Fn(&File<'_>, &mut Run, u32) -> u64,
+    ) -> u64 {
         let mut touched = 0;
-        let key_column =
-            super::view_key::Key::bind(self.f, &self.srcs[self.driver.source], self.driver.column);
         self.driver.rows.visit(|left| {
-            let key = key_column.read(self.f, self.run, left);
+            let key = key(self.f, self.run, left);
             fill_prof::read(4);
             if sw!("VEC_COLD_COUNT") {
                 self.run.cold.probe(self.f, None);
