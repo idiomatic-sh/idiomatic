@@ -3,7 +3,11 @@ use super::{World, finish};
 use finish::population::{Block, BlockBytes, FixedColumn, StoredValues, StoredWords};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::{rc::Rc, sync::Arc};
+use std::{
+    hash::{Hash, Hasher},
+    rc::Rc,
+    sync::Arc,
+};
 
 #[derive(Serialize, Deserialize)]
 enum Column {
@@ -27,7 +31,7 @@ enum WordId {
 }
 
 #[derive(Serialize, Deserialize)]
-struct Header<'a, Names = Vec<String>, Types = Vec<finish::Ty>> {
+struct Header<'a, Names, Types> {
     #[serde(borrow)]
     home: &'a str,
     names: Names,
@@ -136,9 +140,51 @@ fn pack_column(column: &[u64], bytes: &mut Vec<u8>) -> Column {
     }
 }
 
-pub(crate) fn restore(bytes: BlockBytes, world: &mut World) -> Option<Rc<Block>> {
+#[derive(Default)]
+pub(crate) struct Schemas(FxHashMap<u64, Vec<(finish::Names, finish::Tys)>>);
+
+impl Schemas {
+    fn intern(&mut self, names: &[&str], types: Vec<finish::Ty>) -> (finish::Names, finish::Tys) {
+        let mut hasher = rustc_hash::FxHasher::default();
+        (names, &types).hash(&mut hasher);
+        let entries = self.0.entry(hasher.finish()).or_default();
+        if let Some(found) = entries
+            .iter()
+            .find(|(n, t)| n.iter().map(String::as_str).eq(names.iter().copied()) && **t == types)
+        {
+            return found.clone();
+        }
+        let entry = (
+            Rc::new(names.iter().map(|&n| n.to_owned()).collect()),
+            Rc::new(types),
+        );
+        entries.push(entry.clone());
+        entry
+    }
+}
+
+// The borrowed names are used to look up a shared schema. The block retains
+// owned names only on the first occurrence of a given shape.
+#[derive(Deserialize)]
+struct MappedHeader<'a> {
+    #[serde(borrow)]
+    home: &'a str,
+    #[serde(borrow)]
+    names: Vec<&'a str>,
+    types: Vec<finish::Ty>,
+    count: usize,
+    #[serde(borrow)]
+    words: Vec<Word<'a>>,
+    columns: Vec<Column>,
+}
+
+pub(crate) fn restore(
+    bytes: BlockBytes,
+    world: &mut World,
+    schemas: &mut Schemas,
+) -> Option<Rc<Block>> {
     let data = bytes.as_ref().as_ref();
-    let (header, tail) = postcard::take_from_bytes::<Header<'_>>(data).ok()?;
+    let (header, tail) = postcard::take_from_bytes::<MappedHeader<'_>>(data).ok()?;
     let mut start = data.len() - tail.len();
     if header.names.len() != header.types.len()
         || (header.count != 0 && header.columns.len() != header.types.len())
@@ -196,10 +242,11 @@ pub(crate) fn restore(bytes: BlockBytes, world: &mut World) -> Option<Rc<Block>>
     if header.count == 0 {
         columns.resize_with(header.types.len(), || Err(u64::MAX));
     }
+    let (names, types) = schemas.intern(&header.names, header.types);
     Some(Rc::new(Block::stored(
         home,
-        Rc::new(header.names),
-        Rc::new(header.types),
+        names,
+        types,
         header.count,
         columns,
     )))

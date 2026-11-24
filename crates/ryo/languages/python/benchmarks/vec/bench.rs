@@ -517,10 +517,17 @@ fn run_check(args:&[&str],mut capture:Option<&mut finisher::retained::Capture>, 
                 let plan = lower::second_half_plan(&read, same_pack);
                 println!("start-up total {:.4} s", thread_cpu() - t0);
                 let lowered = thread_cpu();
-                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args, request_path.zip(document.as_ref()), paths.map(|r| &r.files));
+                let disk = paths.is_none().then(|| std::fs::read_to_string(args[3]).expect("file list"));
+                let sources = FunnelFiles::new(disk.as_deref(), paths);
+                let origins = paths.map(|r| r.files.clone()).unwrap_or_else(|| {
+                    let root = format!("{}/", finish_args[2].trim_end_matches('/'));
+                    sources.iter().map(|p| p.strip_prefix(&root).unwrap_or(p).to_owned())
+                        .collect::<Vec<_>>().into()
+                });
+                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args, request_path.zip(document.as_ref()), origins);
                 drop(document);
                 fin.capture = capture.as_deref_mut().map(std::mem::take);
-                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), Some((finish_args[0], &read)), paths);
+                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), Some((finish_args[0], read)), sources);
                 if let Some(c) = capture.take() { *c = fin.capture.take().unwrap(); }
                 let walked = thread_cpu();
                 let ok = fin.end(0.0);
@@ -531,7 +538,8 @@ fn run_check(args:&[&str],mut capture:Option<&mut finisher::retained::Capture>, 
                 std::mem::forget(plan);
                 return ok;
             } else {
-                run_funnel(&walk, settings, &vocab, &args[2..], None, None, paths);
+                let disk = paths.is_none().then(|| std::fs::read_to_string(args[3]).expect("file list"));
+                run_funnel(&walk, settings, &vocab, &args[2..], None, None, FunnelFiles::new(disk.as_deref(), paths));
             }
         }
         Some("kfloor") => kernel_floor(&walk, args[2]),
@@ -1534,14 +1542,33 @@ fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
     out
 }
 
+struct FunnelFiles<'a> {
+    disk: Vec<&'a str>,
+    retained: Option<&'a finisher::retained::Request>,
+}
+
+impl<'a> FunnelFiles<'a> {
+    fn new(disk: Option<&'a str>, retained: Option<&'a finisher::retained::Request>) -> Self {
+        Self { disk: disk.into_iter().flat_map(str::lines).collect(), retained }
+    }
+
+    fn iter(&self) -> impl Iterator<Item = &'a str> + '_ {
+        self.disk.iter().copied().chain(
+            self.retained.into_iter().flat_map(|r| r.files.iter().map(String::as_str)),
+        )
+    }
+
+    fn name(&self, index: usize) -> &str {
+        match self.retained {
+            Some(request) => &request.files[index],
+            None => self.disk[index],
+        }
+    }
+}
+
 /// Prepare the file funnel from a rule pack. A finish stage over the same pack reuses its parsed programs.
-fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>, paths: Option<&finisher::retained::Request>) {
+fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, lower::ReadPack)>, list: FunnelFiles<'_>) {
     let way = args[0];
-    let disk_paths;
-    let list = match paths {
-        Some(req) => req.files.as_slice(),
-        None => { disk_paths = files(args[1]); &disk_paths }
-    };
     let f0 = thread_cpu();
     let no_skip = std::env::var_os("VEC_NO_SKIP").is_some();
     let mut pairs = None;
@@ -1549,21 +1576,20 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let mut pair_cpu = 0.0;
     let mut exact_rows = Vec::new();
     let (rules, frules, words) = {
-        let owned;
         let read = match pack {
             Some((dir, read)) if std::fs::canonicalize(dir).ok() == std::fs::canonicalize(args[2]).ok() => read,
             _ => {
                 let request = flag(args, "--request");
-                owned = lower::read_pack(std::path::Path::new(args[2]), json_input::rule_context(request.as_deref()));
-                println!("start-up first half pack: read {:.4} parse {:.4} s", owned.read, owned.parse);
-                &owned
+                let read = lower::read_pack(std::path::Path::new(args[2]), json_input::rule_context(request.as_deref()));
+                println!("start-up first half pack: read {:.4} parse {:.4} s", read.read, read.parse);
+                read
             }
         };
         let f1 = thread_cpu();
         // A separately loaded finish plan may use the same rule names for
         // different emits. Only the shared typed plan certifies its output.
         let shared_plan = read.typed.borrow().is_some();
-        let mut prepared = first::prepare(read, python_language(vocab), vocab);
+        let mut prepared = first::prepare(&read, python_language(vocab), vocab);
         if !shared_plan {
             prepared.pairs.exact.clear();
         }
@@ -1663,10 +1689,10 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     println!("start-up to first file {:.4} s", thread_cpu());
     for (file_no, name) in list.iter().enumerate() {
         let absolute;
-        let path = if let Some(request) = paths {
+        let path = if let Some(request) = list.retained {
             absolute = request.root.join(name);
             absolute.to_str().expect("source path")
-        } else { name.as_str() };
+        } else { name };
         let c0 = thread_cpu();
         if let Some(f)=fin.as_deref_mut() && f.capture.is_some() {
             let origin=f.run.paths[file_no].clone();
@@ -1994,7 +2020,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         use std::fmt::Write as _;
         let mut rows = String::new();
         for (rule, file) in alive_pairs {
-            writeln!(rows, "{}\t{}", frules[rule].name, list[file]).unwrap();
+            writeln!(rows, "{}\t{}", frules[rule].name, list.name(file)).unwrap();
         }
         std::fs::write(path, rows).expect("alive out");
     }

@@ -61,9 +61,29 @@ def typed_packets(cache):
     """Read active request references; compare complete typed bytes, including order."""
     reader_path=Path(__file__).resolve().parents[3]/"ryo/benchmarks/retention/edit_matrix.py"
     reader=runpy.run_path(str(reader_path))["Postcard"]
+    manifest=reader((cache/"session.postcard").read_bytes())
+    if manifest.take(1)[0]:
+        manifest.take(32)
+    manifest.take(32)  # Build identity
+    for _ in range(manifest.uint()):  # File contribution segments
+        manifest.take(65)
+        manifest.uint()
+        manifest.uint()
+    manifest.take(33*manifest.uint())  # Project contributions
+    def appended():
+        names=[]
+        for _ in range(manifest.uint()):
+            manifest.take(1)
+            names.append(bytes(manifest.take(32)).hex())
+        names.extend(bytes(manifest.take(32)).hex() for _ in range(manifest.uint()))
+        return names
+    requests=appended()
+    manifest.take(33*manifest.uint())  # Dependency groups
+    answers=appended()
     packets={}
-    for path in cache.glob("answers-*.postcard"):
-        r=reader(path.read_bytes())
+    replacements={}
+    for name in answers:
+        r=reader((cache/f"answers-{name}.postcard").read_bytes())
         for _ in range(r.uint()):
             key=bytes(r.take(32))
             reason=r.string() if r.take(1)[0] else None
@@ -71,18 +91,38 @@ def typed_packets(cache):
             unknowns=[(r.string(),r.string()) for _ in range(r.uint())]
             payload=bytes(r.take(r.uint()))
             packets[key]=(reason,digest,unknowns,payload)
+            if r.take(1)[0]:
+                base=bytes(r.take(32))
+                replacements[key]=(base,[(r.uint(),r.uint(),r.uint()) for _ in range(r.uint())])
+            else:
+                replacements.pop(key,None)
         assert r.at==len(r.data)
-    active={}
-    for path in cache.glob("requests-*.postcard"):
+    references={}
+    for digest in requests:
+        path=cache/f"requests-{digest}.postcard"
         r=reader(path.read_bytes())
         for _ in range(r.uint()):
             key=bytes(r.take(32))
             r.take(64*r.uint())
-            result=packets[bytes(r.take(32))]
+            packet=bytes(r.take(32))
             unread=[r.string() for _ in range(r.uint())]
-            active[key]=(result,unread)
+            references[key]=(packet,unread)
         assert r.at==len(r.data)
-    return active
+    for key in {packet for packet,_ in references.values()} & replacements.keys():
+        base,copied=replacements[key]
+        assert base not in replacements
+        previous=packets[base][-1]
+        reason,digest,unknowns,literals=packets[key]
+        assembled=bytearray()
+        literal=0
+        for destination,source,length in copied:
+            count=destination-len(assembled)
+            assembled.extend(literals[literal:literal+count])
+            literal+=count
+            assembled.extend(previous[source:source+length])
+        assembled.extend(literals[literal:])
+        packets[key]=(reason,digest,unknowns,bytes(assembled))
+    return {key:(packets[packet],unread) for key,(packet,unread) in references.items()}
 
 
 def contribution_edits(executable, scratch, env):
@@ -114,14 +154,15 @@ def contribution_edits(executable, scratch, env):
     manifest.write_text("".join(f"{i}\t{directory}\t{req}\tunused\t{inventory}\n"
                                 for i,directory in [("local",pack.parents[1]),("closed",second.parents[1])]))
     result = {}
-    for label,files in [("forward",[parent,child]),("reverse",[child,parent]),("truncated-block",[parent,child])]:
+    for label,files in [("forward",[parent,child]),("reverse",[child,parent]),("truncated-block",[parent,child]),("truncated-pair",[parent,child])]:
         req.write_text(json.dumps(dict(root=str(root),files=files,parameters={},hosted=[])))
         inventory.write_text(json.dumps(files))
         cache=root/label
         for step,source in enumerate(["pass\n","def child(): return 2\n"]):
             (root/child).write_text(source)
-            if step and label == "truncated-block":
-                shards = list((cache / ".ryo_cache").glob("blocks-*.postcard"))
+            if step and label in ("truncated-block", "truncated-pair"):
+                table = "blocks" if label == "truncated-block" else "pairs"
+                shards = list((cache / ".ryo_cache").glob(f"{table}-*.postcard"))
                 assert shards
                 for shard in shards:
                     with shard.open("r+b") as f:
@@ -144,7 +185,7 @@ def contribution_edits(executable, scratch, env):
             else:
                 assert all(a!=b for a,b in zip(baseline,reports[0])),(label,baseline,reports[0])
                 result[label]=reports[0]
-    assert result["forward"]==result["reverse"]==result["truncated-block"]
+    assert result["forward"]==result["reverse"]==result["truncated-block"]==result["truncated-pair"]
     return result["forward"]
 
 
@@ -292,7 +333,7 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
         rows=contribution_edits(exe,Path(tmp),env)
         with (evidence/"contribution-matrix.tsv").open("w") as f:
             f.write("scenario\tstatus\tchanged_receipt\n")
-            for name,row in [("several-file",rows[0]),("closed-contribution",rows[1]),("same-edit-forward",rows[0]),("same-edit-reversed",rows[1]),("truncated-contribution",rows[1])]:
+            for name,row in [("several-file",rows[0]),("closed-contribution",rows[1]),("same-edit-forward",rows[0]),("same-edit-reversed",rows[1]),("truncated-contribution",rows[1]),("truncated-pair",rows[1])]:
                 f.write(f"{name}\tPASS\t{row.decode()}\n")
         backup = Path(tmp) / "seed"
         original = invoke(exe, True)

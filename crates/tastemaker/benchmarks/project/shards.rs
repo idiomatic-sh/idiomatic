@@ -96,9 +96,9 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
     }
 }
 
-/// Answer packets have immutable keys. Append new packets as a postcard table
-/// and fold the append tables into their affected shards after a bounded number.
-pub(super) struct Packets<T> {
+/// Append changed records as a postcard table. Newer layers supersede older keys,
+/// with bounded compaction into the affected base shards.
+pub(super) struct Appends<T> {
     base: Shards<T>,
     pub layers: Vec<Key>,
     pending: BTreeMap<Key, T>,
@@ -108,10 +108,10 @@ pub(super) struct Packets<T> {
     pub read_cpu: f64,
     pub write_bytes: usize,
 }
-impl<T: Serialize + DeserializeOwned> Packets<T> {
-    pub fn new(index: Index, layers: Vec<Key>) -> Self {
+impl<T: Serialize + DeserializeOwned> Appends<T> {
+    pub fn new(name: &'static str, index: Index, layers: Vec<Key>) -> Self {
         Self {
-            base: Shards::new("answers", index),
+            base: Shards::new(name, index),
             layers,
             pending: BTreeMap::new(),
             seen: BTreeMap::new(),
@@ -126,7 +126,7 @@ impl<T: Serialize + DeserializeOwned> Packets<T> {
         if !self.opened {
             let start = crate::thread_cpu();
             self.layers.retain(|&digest| {
-                let path = table(dir, "answers", digest);
+                let path = table(dir, self.base.name, digest);
                 let Some(mut values): Option<BTreeMap<Key, T>> = load(&path, digest) else {
                     return false;
                 };
@@ -175,14 +175,14 @@ impl<T: Serialize + DeserializeOwned> Packets<T> {
             let bytes = self.base.flush(dir, obsolete)?;
             for digest in self.layers.drain(..) {
                 if !self.base.index.values().any(|key| *key == digest) {
-                    obsolete.push(table(dir, "answers", digest));
+                    obsolete.push(table(dir, self.base.name, digest));
                 }
             }
             bytes
         } else {
             let bytes = postcard::to_stdvec(&self.pending).map_err(io::Error::other)?;
             let digest = *blake3::hash(&bytes).as_bytes();
-            atomic(dir, &table(dir, "answers", digest), &bytes)?;
+            atomic(dir, &table(dir, self.base.name, digest), &bytes)?;
             self.layers.push(digest);
             self.seen.append(&mut self.pending);
             bytes.len()
@@ -322,6 +322,9 @@ impl<T: Serialize + Default> Records<T> {
 
     pub fn get(&self, k: &Key) -> Option<&T> {
         self.rows.get(k)
+    }
+    pub fn loaded_mut(&mut self, key: &Key) -> Option<&mut T> {
+        self.rows.get_mut(key)
     }
     pub fn change(&mut self, k: &Key) -> &mut T {
         self.changed.insert(*k);

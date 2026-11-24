@@ -362,12 +362,26 @@ struct Rows<Word = Box<str>> {
 }
 
 #[derive(Serialize, Deserialize)]
+struct Replacement {
+    base: Key,
+    copied: Vec<CopiedRange>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CopiedRange {
+    destination: usize,
+    source: usize,
+    length: usize,
+}
+
+#[derive(Serialize, Deserialize)]
 pub(in super::super) struct Packet {
     pub refusal: Option<String>,
     pub digest: String,
     pub unknowns: Vec<(String, String)>,
     #[serde(with = "payload")]
     data: Vec<u8>,
+    replacement: Option<Replacement>,
 }
 impl Packet {
     pub(super) fn declined(reason: &str) -> Self {
@@ -376,6 +390,7 @@ impl Packet {
             digest: String::new(),
             unknowns: vec![],
             data: vec![],
+            replacement: None,
         }
     }
     pub(super) fn typed_bytes(&self) -> &[u8] {
@@ -387,14 +402,90 @@ impl Packet {
             digest: String::new(),
             unknowns: receipt.unknowns.iter().map(|v| (*v).clone()).collect(),
             data: pack_rows(receipt.rows.iter().copied()),
+            replacement: None,
         }
     }
-    pub(in super::super) fn report(&self) -> session::Reported {
-        session::Reported {
-            unknowns: self.unknowns.clone(),
-            rows: unpack_rows(&self.data),
-        }
+    pub(super) fn base(&self) -> Option<Key> {
+        self.replacement.as_ref().map(|part| part.base)
     }
+
+    // Compare against one complete packet. Small insertions can move a long
+    // unchanged range, so test for a new alignment before copying literals.
+    pub(super) fn replace_from(&mut self, base: Key, prior: &Self) -> usize {
+        const ANCHOR: usize = 64;
+        if prior.replacement.is_some() || self.data.len() < ANCHOR {
+            return 0;
+        }
+        let old = &prior.data;
+        let new = &self.data;
+        let (mut source, mut destination) = (0, 0);
+        let mut copied = Vec::new();
+        while source < old.len() && destination < new.len() && copied.len() < 64 {
+            let length = old[source..].iter().zip(&new[destination..])
+                .take_while(|(a,b)| a == b).count();
+            if length >= ANCHOR {
+                copied.push(CopiedRange { destination, source, length });
+                source += length;
+                destination += length;
+                continue;
+            }
+            let next = [64, 256, 1024, 4096, 16384, 65536].into_iter().find_map(|skip| {
+                let at = destination + skip;
+                let needle = new.get(at..at + ANCHOR)?;
+                let end = (source + skip + 8192).min(old.len());
+                let relative = memchr::memmem::find(&old[source..end], needle)?;
+                Some((source + relative, at))
+            });
+            if let Some((s, d)) = next {
+                source = s;
+                destination = d;
+            } else {
+                let length = old[source..].iter().rev().zip(new[destination..].iter().rev())
+                    .take_while(|(a,b)| a == b).count();
+                if length >= ANCHOR {
+                    copied.push(CopiedRange { destination: new.len() - length, source: old.len() - length, length });
+                }
+                break;
+            }
+        }
+        let reused = copied.iter().map(|r| r.length).sum::<usize>();
+        if reused <= 64 + 24 * copied.len() {
+            return 0;
+        }
+        let mut literals = Vec::with_capacity(new.len() - reused);
+        let mut now = 0;
+        for range in &copied {
+            literals.extend_from_slice(&new[now..range.destination]);
+            now = range.destination + range.length;
+        }
+        literals.extend_from_slice(&new[now..]);
+        self.data = literals;
+        self.replacement = Some(Replacement { base, copied });
+        reused
+    }
+
+    pub(super) fn report(&self, base: Option<&Self>) -> session::Reported {
+        let expanded;
+        let bytes = if let Some(part) = &self.replacement {
+            let old = &base.expect("checked base packet").data;
+            let size = self.data.len() + part.copied.iter().map(|r| r.length).sum::<usize>();
+            let mut output = Vec::with_capacity(size);
+            let mut literal = 0;
+            for range in &part.copied {
+                let count = range.destination - output.len();
+                output.extend_from_slice(&self.data[literal..literal + count]);
+                literal += count;
+                output.extend_from_slice(&old[range.source..range.source + range.length]);
+            }
+            output.extend_from_slice(&self.data[literal..]);
+            expanded = output;
+            expanded.as_slice()
+        } else {
+            &self.data
+        };
+        session::Reported { unknowns: self.unknowns.clone(), rows: unpack_rows(bytes) }
+    }
+
 }
 
 pub(super) fn pack_rows<'a>(input: impl IntoIterator<Item = &'a finish::answer::Row>) -> Vec<u8> {

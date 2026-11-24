@@ -780,6 +780,7 @@ impl Batch {
                 };
                 let population = project.map(|p| populations[&p].1.as_ref()).transpose();
                 let scope = readers.scope(i);
+                let started = (store.is_some() && readers.duplicate[i].is_none()).then(thread_cpu);
                 let answer = if let Some(prior)=readers.duplicate[i] {
                     let Work::Project(value)=&self.work[prior] else {unreachable!("same binding evaluated in request order")};
                     value.clone()
@@ -875,6 +876,9 @@ impl Batch {
                 }))};
                 exec.release_request();
                 if let Some(s)=store.as_deref_mut() {
+                    if let Some(started) = started {
+                        s.completed_join(pairs.len(), thread_cpu() - started);
+                    }
                     let pop=project.and_then(|id| populations[&id].1.as_ref().ok());
                     s.closed(i,&answer,pop,project.map(|id| (id, &self.projects[id].authority)));
                 }

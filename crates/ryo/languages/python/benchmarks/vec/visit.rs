@@ -1,5 +1,5 @@
 //! Python file visit and reusable provider state feeding the shared executor.
-use super::{ColFacts, HashMap, Vocab, files, finish, finisher, flag, thread_cpu};
+use super::{ColFacts, HashMap, Vocab, finish, finisher, flag, thread_cpu};
 use ryo::languages;
 
 pub(super) struct Finisher<'p> {
@@ -26,10 +26,9 @@ impl<'p> Finisher<'p> {
         vocab: &Vocab,
         args: &[&str],
         request: Option<(&str, &super::json_input::Metadata)>,
-        paths:Option<&std::sync::Arc<Vec<String>>>,
+        paths: std::sync::Arc<Vec<String>>,
     ) -> Self {
         let t0 = thread_cpu();
-        let root = format!("{}/", args[2].trim_end_matches('/'));
         let mut run = finish::Run::default();
         run.empty = run.sym(b"");
         // redo-fills pass 2: the suppliers declare their relations beyond the provider's relations catalog
@@ -48,9 +47,7 @@ impl<'p> Finisher<'p> {
             .iter()
             .map(|k| run.sym(k.as_bytes()))
             .collect();
-        run.paths = paths.cloned().unwrap_or_else(|| files(args[1]).iter()
-            .map(|p| p.strip_prefix(&root).unwrap_or(p).to_owned())
-            .collect::<Vec<_>>().into());
+        run.paths = paths;
         // redo-general: the provider's token order (its lexical model, `provider_tokens.rs`)
         run.set_tokens(
             std::rc::Rc::new(super::provider_tokens::Lexicon::new(&|n| {
