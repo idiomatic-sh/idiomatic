@@ -206,6 +206,7 @@ struct ColumnPool {
     by_capacity: [Vec<Vec<u64>>; CLASSES],
     by_width: [Vec<Vec<Vec<u64>>>; BUNDLE_WIDTH + 1],
     cells: usize,
+    limit: usize,
 }
 
 thread_local! {
@@ -213,11 +214,33 @@ thread_local! {
         by_capacity: [const { Vec::new() }; CLASSES],
         by_width: [const { Vec::new() }; BUNDLE_WIDTH + 1],
         cells: 0,
+        limit: POOL_CELLS,
     }) };
 }
 /// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it (redo-alloc c8
 /// tried 64 MB: no fewer misses, 37 MB more live).
 const POOL_CELLS: usize = 1 << 22;
+/// Retained columns are a request budget. Each participating thread keeps its
+/// share locally while visiting the shard; no other thread accesses this pool.
+pub(crate) struct PoolBudget(usize);
+
+impl PoolBudget {
+    pub(crate) fn for_workers(workers: usize) -> Self {
+        POOL.with_borrow_mut(|pool| Self(std::mem::replace(&mut pool.limit, POOL_CELLS / workers)))
+    }
+}
+
+impl Drop for PoolBudget {
+    fn drop(&mut self) {
+        POOL.with_borrow_mut(|pool| {
+            if sw!("VEC_STEP_TIME") {
+                println!("worker column pool retained {} bytes; budget {} bytes", pool.cells * 8, pool.limit * 8);
+            }
+            pool.limit = self.0;
+        });
+    }
+}
+
 /// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 16 = 2^18).
 const CLASSES: usize = 20;
 
@@ -304,7 +327,7 @@ impl Table {
             let k = self.cols.len();
             if k <= BUNDLE_WIDTH && p.by_width[k].len() < 128 && self.cols.iter().all(|c| c.capacity() <= BUNDLE_ROWS) {
                 let cells = self.cols.iter().map(Vec::capacity).sum::<usize>();
-                if p.cells + cells <= POOL_CELLS {
+                if p.cells + cells <= p.limit {
                     p.cells += cells;
                     p.by_width[k].push(std::mem::take(&mut self.cols));
                     return;
@@ -312,7 +335,7 @@ impl Table {
             }
             for mut c in self.cols.drain(..) {
                 let cap = c.capacity();
-                if cap == 0 || cap > POOL_CELLS / 16 || p.cells + cap > POOL_CELLS {
+                if cap == 0 || cap > POOL_CELLS / 16 || p.cells + cap > p.limit {
                     continue;
                 }
                 c.clear();
