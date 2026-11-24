@@ -1,0 +1,3 @@
+//! The greet use case.
+
+pub mod types;

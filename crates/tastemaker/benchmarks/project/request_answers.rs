@@ -40,7 +40,7 @@ impl Observations {
         root: &Path,
         inventory: &[String],
         peers: Key,
-        values: &BTreeMap<String, std::rc::Rc<[u8]>>,
+        values: &BTreeMap<String, std::sync::Arc<[u8]>>,
     ) {
         self.root = Some(root.to_owned());
         self.inventory = key((inventory, peers));

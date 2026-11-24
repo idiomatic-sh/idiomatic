@@ -1,0 +1,138 @@
+{
+  "stamp": 133,
+  "rule": "idiomatic.arch/port-takes-no-settings",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/outbound/scheduler/interface.rs"
+  ],
+  "given": {
+    "src/outbound/scheduler/interface.rs": "a7b1ebbc025a46e7710b22e448b398674d3c3484be1c24fdd7cfa20191063187",
+    "tastemaker.toml": "ab08a740d6bc5c9341c8c2c06e920f1cb247e1c76854df681ba19dcbfed8a745"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/port-takes-no-settings",
+      "include": [
+        "src/outbound/*/interface.rs",
+        "src/outbound/*/interface.rs/**"
+      ],
+      "parameters": {
+        "location-names": [
+          "directory",
+          "cache",
+          "store",
+          "temp",
+          "scratch"
+        ],
+        "locations": [
+          "MachinePath",
+          "PathBuf",
+          "Path",
+          "SystemPath"
+        ],
+        "settings": [
+          "BuildName",
+          "EngineBuild",
+          "ProgramBuild",
+          "Build",
+          "WorkerCount",
+          "Workers",
+          "MemoryBudget",
+          "SourceBytes",
+          "Expanding",
+          "Logging"
+        ]
+      },
+      "query": "idiomatic-arch-port-takes-no-settings-e543f041bd2d"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/outbound/scheduler/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/outbound/scheduler/interface.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                214,
+                225
+              ]
+            }
+          ],
+          [
+            "annotation",
+            "WorkerCount"
+          ],
+          [
+            "word",
+            "WorkerCount"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              214,
+              225
+            ]
+          },
+          "WorkerCount"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/scheduler/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

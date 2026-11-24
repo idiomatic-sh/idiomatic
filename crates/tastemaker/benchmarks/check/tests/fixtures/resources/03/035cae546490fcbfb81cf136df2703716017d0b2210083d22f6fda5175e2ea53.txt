@@ -1,0 +1,7 @@
+use ryo::languages::{self, Parse};
+
+pub struct ParseContract;
+
+impl Parse for ParseContract {}
+
+impl languages::Semantics<()> for ParseContract {}

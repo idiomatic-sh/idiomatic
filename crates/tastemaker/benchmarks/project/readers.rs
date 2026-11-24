@@ -14,7 +14,7 @@ pub(super) struct Closed {
     keep: bool,
 }
 impl Closed {
-    pub(super) fn new(work: &[Work], cut_of: &HashMap<usize, Rc<Partition>>, keep: bool) -> Self {
+    pub(super) fn new(work: &[Work], cut_of: &[Option<Rc<Partition>>], keep: bool) -> Self {
         // Slots name a canonical source version and binding. Order and repetitions
         // are part of the population identity. A live host can open another epoch.
         let mut owners = HashMap::new();
@@ -52,7 +52,7 @@ impl Closed {
             if let Some(p) = project {
                 *providers.entry(*p).or_default() += 1;
             }
-            let Some(cut) = cut_of.get(binding) else {
+            let Some(cut) = &cut_of[*binding] else {
                 continue;
             };
             let next = scopes.len();

@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/bdd-members", description = "The definition under test, placed alone.", include = ["*/tests/bdd.rs", "app/src/inbound/use_cases/*/acceptance.feature", "app/src/inbound/use_cases/*/acceptance.rs", "app/src/inbound/use_cases/*.rs", "app/src/inbound/contracts/*.rs"] }]

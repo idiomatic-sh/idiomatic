@@ -1,0 +1,14 @@
+//! What the names port asks of the outside, in the core's own vocabulary.
+
+use super::errors::NamesError;
+use super::types::{Asked, Greeting};
+
+/// What every names adapter implements.
+pub trait NamesPort {
+    /// The greeting stored for the name asked for.
+    ///
+    /// # Errors
+    ///
+    /// `NamesError::Missing` when no greeting is stored for the name.
+    fn stored(&self, asked: &Asked) -> Result<Greeting, NamesError>;
+}

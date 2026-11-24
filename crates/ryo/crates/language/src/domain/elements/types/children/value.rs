@@ -39,6 +39,10 @@ impl Iterator for Children<'_> {
             return None;
         }
         let child = self.next;
+        if let Some(native) = crate::domain::elements::service::native_table(self.elements) {
+            self.next = crate::domain::node_table::service::subtree_end_of(native, child);
+            return Some(child);
+        }
         let size = self
             .elements
             .size

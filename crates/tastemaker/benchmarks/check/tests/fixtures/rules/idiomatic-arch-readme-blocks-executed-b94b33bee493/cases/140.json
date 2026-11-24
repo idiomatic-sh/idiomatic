@@ -1,0 +1,112 @@
+{
+  "stamp": 140,
+  "rule": "idiomatic.arch/readme-blocks-executed",
+  "dependency": "Several readers",
+  "admitted": [
+    "README.md",
+    "cli/tests/readme.rs"
+  ],
+  "given": {
+    "README.md": "30400e5eebeecfb56a2cdc337ea0571208111d2cdfb0661e07584c9940ba2263",
+    "cli/tests/readme.rs": "1fbe251c8e8ff9f192c7ba15ab8c55755393cee0a24faf87509363d407b846cd",
+    "tastemaker.toml": "45730dab073750c44073fbad50d1a2d553d4380c6e7e625a494770b05bdade3f"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/readme-blocks-executed",
+      "include": [
+        "README.md",
+        "README.md/**",
+        "cli/tests/readme.rs",
+        "cli/tests/readme.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-readme-blocks-executed-b94b33bee493"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "README.md",
+        "cli/tests/readme.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "README.md"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                8,
+                50
+              ]
+            }
+          ],
+          [
+            "info",
+            "console"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              8,
+              50
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "README.md"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

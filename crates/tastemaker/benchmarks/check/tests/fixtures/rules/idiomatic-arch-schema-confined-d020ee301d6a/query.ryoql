@@ -1,0 +1,11 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let identifiers = select * from tree-tokens where kind = "ident";
+let names = select * from identifiers where glob_any(text, "{*Schema,*SchemaError}");
+let uses = select * from tree-nodes where kind = "use";
+let error-names = select * from identifiers where glob_any(text, "*SchemaError");
+let error-parents = select l."id" as "token", r."parent" as "id" from error-names as l join "syntax-child" as r on l."id" = r."child";
+let imported = axis(from=error-parents, relation="syntax-child", direction=ancestor, domain=uses);
+let imported-tokens = project(from=imported, columns=["token"]);
+let shapes = antijoin(left=names, right=imported-tokens, left-on=["id"], right-on=["token"]);
+emit shapes subject "file" key("span");

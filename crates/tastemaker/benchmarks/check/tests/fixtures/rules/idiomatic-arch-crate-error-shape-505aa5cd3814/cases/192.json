@@ -1,0 +1,120 @@
+{
+  "stamp": 192,
+  "rule": "idiomatic.arch/crate/error-shape",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/greeting.rs",
+    "src/greeting/errors.rs",
+    "src/greeting/types.rs",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "2be7368698156f3b198d216b671017568d26d441515bd157d3ec761d32af1310",
+    "src/greeting.rs": "04c50cd39090925998df95489d5b2fc5952508a78b2e6300b27bfb87acfee750",
+    "src/greeting/errors.rs": "8326d897df4982e6b9e729ab947f15a550c5c22e13449791f5d1d9584931feab",
+    "src/greeting/types.rs": "f40be84d9a60067056638ddc333a20b1e96674f5c639109c99581d786a1090e1",
+    "src/lib.rs": "7f655ea9b864338d8bfc0a5ede2572c3617f849332ee923ad58c62ffea1bd8fe",
+    "tastemaker.toml": "c15baa0031883ff2f494ce5237c7060af5108a2ffbc8f3050f987b237754592e"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/crate/error-shape",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-error-shape-505aa5cd3814"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/greeting.rs",
+        "src/greeting/errors.rs",
+        "src/greeting/types.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/greeting/errors.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                114,
+                281
+              ]
+            }
+          ],
+          [
+            "finding",
+            "hand-written `Display` for an error type; give each variant an `#[error('..')]` message"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              114,
+              281
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/errors.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

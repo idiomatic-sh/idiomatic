@@ -1,0 +1,1 @@
+fn internal() { let _ = serde_json::json!({}); }

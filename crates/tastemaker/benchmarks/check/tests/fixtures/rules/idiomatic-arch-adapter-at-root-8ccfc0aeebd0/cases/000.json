@@ -1,0 +1,142 @@
+{
+  "stamp": 0,
+  "rule": "idiomatic.arch/adapter-at-root",
+  "dependency": "One file",
+  "admitted": [
+    "src/lib.rs",
+    "src/port/interface.rs",
+    "src/port/mod.rs",
+    "src/port/types.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "src/lib.rs": "e4739d48a89ac508bfd24b8ce551e5aa2fff7d1c451c49efb6072c438c20847d",
+    "src/port/adapters/mod.rs": "cf38556459d8b8ede4f96d49148e2b8746eb9dda54394e45a3b12396f22a141e",
+    "src/port/adapters/native/adapter.rs": "4c5fe47c39769e32e40ca8a6ed297c449bbb5aef096bd48cebfaaf77fc7e6230",
+    "src/port/adapters/native/mod.rs": "d41b484977c59016ad0e4093c35c3baebdd95f98037cd01ad9d0b04d199e3127",
+    "src/port/interface.rs": "a8972ccbdbe408f75d7d5a1aaa330eca29794513b01570813885a5545ed26051",
+    "src/port/mod.rs": "be04fdc417d652d19ec0a887f9d9056bd298e28fa1ed30ed5a266e687e90ddd3",
+    "src/port/types.rs": "6268dc6e7e7d4ec95047596c7fe377b562e5621d21fa2622003b70b2360bd596",
+    "tastemaker.toml": "c27c1e1d0e85068de3ddea296e7d3f92bde4e23600a7dd21d2959f3ecb60f8e0"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "**/adapters/**",
+        "**/adapters/**/**",
+        "**/benches/**",
+        "**/benches/**/**",
+        "**/composition.rs",
+        "**/composition.rs/**",
+        "**/fixtures/**",
+        "**/fixtures/**/**",
+        "**/main.rs",
+        "**/main.rs/**",
+        "**/tests/**",
+        "**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/adapter-at-root",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-at-root-8ccfc0aeebd0"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/lib.rs",
+        "src/port/adapters/mod.rs",
+        "src/port/adapters/native/adapter.rs",
+        "src/port/adapters/native/mod.rs",
+        "src/port/interface.rs",
+        "src/port/mod.rs",
+        "src/port/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "occurrence",
+            "src/port/types.rs#4"
+          ],
+          [
+            "file",
+            {
+              "file": "src/port/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                4,
+                61
+              ]
+            }
+          ],
+          [
+            "target",
+            "crate::port::adapters::native::adapter::PortNativeAdapter"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              4,
+              61
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/port/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

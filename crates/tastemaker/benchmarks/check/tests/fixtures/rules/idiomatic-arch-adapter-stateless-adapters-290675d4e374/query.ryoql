@@ -1,0 +1,13 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let names = select * from tree-tokens where glob_any(text, "{thread_local,lazy_static}");
+let name-refs = select r."parent" as "node" from names as l join "syntax-child" as r on l."id" = r."child";
+let segments = select r."parent" as "node" from name-refs as l join "syntax-child" as r on l."node" = r."child";
+let paths = select r."parent" as "node" from segments as l join "syntax-child" as r on l."node" = r."child";
+let owners = select r."parent" as "node" from paths as l join "syntax-child" as r on l."node" = r."child";
+let macro-calls = select * from tree-nodes where kind = "macro-call";
+let thread-locals = select r."file" as "file", r."span" as "span" from owners as l join macro-calls as r on l."node" = r."id";
+let statics = select * from tree-nodes where kind = "static";
+let static-rows = project(from=statics, columns=["file", "span"]);
+let findings = union(left=thread-locals, right=static-rows);
+emit findings subject "file" key("span");

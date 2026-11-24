@@ -1,0 +1,107 @@
+{
+  "stamp": 292,
+  "rule": "idiomatic.ryo/provider-imports/private-engine",
+  "dependency": "One file",
+  "admitted": [
+    "domain/model.rs"
+  ],
+  "given": {
+    "domain/model.rs": "15514adc1a8748d34547dec7831b11087910f620b5edb9993abfb4621cc43efb",
+    "tastemaker.toml": "3306878dccd6c8a6ea2a2f3250cba5ace66cf5d3d49b33220a7b93a157073025"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/provider-imports/private-engine",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-provider-imports-private-engine-e60f29bf62f5"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "domain/model.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "domain/model.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                4,
+                48
+              ]
+            }
+          ],
+          [
+            "target",
+            "ryo_core::domain::operator::types::Operation"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              4,
+              48
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "domain/model.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

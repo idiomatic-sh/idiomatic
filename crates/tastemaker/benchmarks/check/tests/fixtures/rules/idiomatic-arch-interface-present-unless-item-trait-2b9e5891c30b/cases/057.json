@@ -1,0 +1,100 @@
+{
+  "stamp": 57,
+  "rule": "idiomatic.arch/interface-present-unless-item-trait",
+  "dependency": "One file",
+  "admitted": [
+    "src/collections/shapes/circle/item.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/collections/shapes/circle/item.rs": "17c12b7220db07f6ea66da90f857686400197b7366f18ec485b2b0f691b3481d",
+    "tastemaker.toml": "5cc77abb59f557fdc173c0db2ccdf9acd0ed3b91d54382505324732472c9f8f6"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/interface-present-unless-item-trait",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-interface-present-unless-item-trait-2b9e5891c30b"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/collections/shapes/circle/item.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/collections/shapes/circle/item.rs"
+            }
+          ],
+          [
+            "dir",
+            "src/collections/shapes"
+          ],
+          [
+            "problem",
+            "has an item that imports its interface, and no `interface.rs`: declare the trait the items implement (scaffold entry `collection-interface`), or implement the trait of another crate and name it in `item-trait`"
+          ]
+        ],
+        "key": [
+          "src/collections/shapes",
+          "has an item that imports its interface, and no `interface.rs`: declare the trait the items implement (scaffold entry `collection-interface`), or implement the trait of another crate and name it in `item-trait`"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/collections/shapes/circle/item.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

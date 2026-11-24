@@ -1,0 +1,1 @@
+specs = [{ spec = "idiomatic.arch/concept", include = ["src/domain/a"], params = { item-trait = [] } }]

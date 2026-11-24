@@ -1,0 +1,10 @@
+pub struct Stamp(pub String);
+
+pub fn stamp(path: &std::path::Path) -> std::io::Result<Stamp> {
+    let meta = std::fs::metadata(path)?;
+    let modified = meta
+        .modified()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos());
+    Ok(Stamp(format!("{}:{modified}", meta.len())))
+}

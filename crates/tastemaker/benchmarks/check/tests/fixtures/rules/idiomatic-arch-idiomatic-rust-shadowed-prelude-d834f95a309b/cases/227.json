@@ -1,0 +1,145 @@
+{
+  "stamp": 227,
+  "rule": "idiomatic.arch/idiomatic-rust/shadowed-prelude",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "src/code.rs",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/code.rs": "ed805f7b33fef8872089cf697b8733115281431c8ae45cd2a4af40314f56b7b0",
+    "src/lib.rs": "fbb44ebacca548c7f5690341c371c4dfdf0f93a5db5f7522e501ec3bdf86a0c0",
+    "tastemaker.toml": "dede95e759502198f5d4297406243eaca3ad9f82a30125d119e0500744e2a4e0"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/shadowed-prelude",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "names": [
+          "Option",
+          "Result",
+          "Some",
+          "None",
+          "Ok",
+          "Err",
+          "Vec",
+          "String",
+          "Box",
+          "Clone",
+          "Default",
+          "Iterator"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-shadowed-prelude-d834f95a309b"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/code.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/code.rs#1"
+          ],
+          [
+            "kind",
+            "struct"
+          ],
+          [
+            "refinement",
+            "struct"
+          ],
+          [
+            "name",
+            "Result"
+          ],
+          [
+            "owner",
+            "src/code.rs#0"
+          ],
+          [
+            "file",
+            {
+              "file": "src/code.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                11,
+                17
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              11,
+              17
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/code.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

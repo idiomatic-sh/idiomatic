@@ -1,0 +1,31 @@
+//! The shape of the data this edge does not control, and its checked conversion into the core's types and back.
+
+use crate::outbound::names::types::Asked;
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+
+/// A name as the memory store holds it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct StoredNameSchema {
+    pub(super) text: &'static str,
+}
+
+/// Why a stored name was refused.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum StoredNameSchemaError {
+    /// The stored name is empty.
+    Empty,
+}
+
+impl TryFrom<StoredNameSchema> for Asked {
+    type Error = StoredNameSchemaError;
+
+    fn try_from(stored: StoredNameSchema) -> Result<Self, Self::Error> {
+        if stored.text.is_empty() {
+            return Err(StoredNameSchemaError::Empty);
+        }
+        Ok(Asked(stored.text))
+    }
+}

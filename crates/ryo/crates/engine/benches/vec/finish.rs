@@ -152,7 +152,7 @@ mod subject_scope;
 #[path = "finish/partition.rs"]
 pub(super) mod partition;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Deserialize, serde::Serialize)]
 pub(super) enum Ty {
     Node,
     Sym,
@@ -199,7 +199,7 @@ pub(super) type Names = Rc<Vec<String>>;
 pub(super) type Tys = Rc<Vec<Ty>>;
 
 /// A column table.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub(super) struct Table {
     pub(super) names: Names,
     pub(super) tys: Tys,
@@ -336,15 +336,16 @@ pub(super) struct Run {
     pub(super) texts: Vec<Rc<[u8]>>,
     pub(super) ids: FxHashMap<Rc<[u8]>, u32>,
     regexes: FxHashMap<String, Rc<Bound<regex::bytes::Regex>>>,
+    glob_lists: FxHashMap<Vec<u32>, TextTest>,
     lower_symbols: FxHashMap<u32, u32>,
+    symbol_sets: RefCell<FxHashMap<Box<[u64]>, Rc<symbol_predicate::SymbolSet>>>,
     folded_literals: FxHashMap<u32, Rc<Bound<Rc<[u8]>>>>,
     prepared_globs: FxHashMap<u32, Rc<symbol_predicate::PreparedGlob>>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
     pub(super) file_field_codes: bool,
-    pub(super) paths: Vec<String>,
-    pub(super) path_sym: Vec<u32>,
+    pub(super) paths: std::sync::Arc<Vec<String>>,
     pub(super) empty: u32,
     /// The SDK symbol without a published value, distinct from an empty string.
     pub(super) absent_word: Option<u32>,
@@ -536,7 +537,7 @@ pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &
 pub(super) struct PNode {
     pub(super) op: String,
     source: plan_load::Source,
-    args: std::cell::OnceCell<Args>,
+    args: std::sync::OnceLock<Args>,
     pub(super) inputs: Vec<usize>,
     /// 7: the relation arguments (`args.<name>.rel`), by name.
     pub(super) rels: Vec<(String, usize)>,
@@ -1300,8 +1301,8 @@ pub(super) struct ViewSpec {
 }
 
 impl ViewSpec {
-    fn new(base: Native, map: Vec<usize>, filter: Vec<E>) -> Self {
-        let tests = view_cols::compile(&filter);
+    fn new(run: &Run, base: Native, map: Vec<usize>, filter: Vec<E>) -> Self {
+        let tests = view_cols::compile(run, &filter);
         let cold_file_test = filter.iter().any(|e| filter_order::file_const(e) && !matches!(e, E::Lit(_)));
         ViewSpec { base, map, filter, tests, cold_file_test, cold_test: std::cell::OnceCell::new(), cold_bucket: std::cell::OnceCell::new() }
     }
@@ -1804,10 +1805,10 @@ impl<'p> Exec<'p> {
             "base" => {
                 let rel = pn.base().unwrap_or("").to_owned();
                 match native_of(run, &rel) {
-                    Some(nat) => Some(Rc::new(ViewSpec::new(nat, (0..native_cols(nat).len()).collect(), Vec::new()))),
+                    Some(nat) => Some(Rc::new(ViewSpec::new(run, nat, (0..native_cols(nat).len()).collect(), Vec::new()))),
                     None => fact_of(run, &rel).map(|nat| {
                         let Native::Fact(i) = nat else { unreachable!() };
-                        Rc::new(ViewSpec::new(nat, (0..run.fact_rels[usize::from(i)].1).collect(), Vec::new()))
+                        Rc::new(ViewSpec::new(run, nat, (0..run.fact_rels[usize::from(i)].1).collect(), Vec::new()))
                     }),
                 }
             }
@@ -1822,7 +1823,7 @@ impl<'p> Exec<'p> {
                             let map = sp.items.iter().map(|(_, e)| if let E::Col(_, c, _) = e { iv.map[*c] } else { 0 }).collect();
                             let mut filter = iv.filter.clone();
                             filter.extend(sp.conj.iter().map(|e| remap(e, &iv.map)));
-                            Some(Rc::new(ViewSpec::new(iv.base, map, filter)))
+                            Some(Rc::new(ViewSpec::new(run, iv.base, map, filter)))
                         } else {
                             None
                         }
@@ -4240,7 +4241,7 @@ fn text_of(run: &Run, v: V) -> std::borrow::Cow<'_, [u8]> {
     use std::borrow::Cow;
     match v.ty() {
         Ty::Sym => Cow::Borrowed(run.text(v.1 as u32)),
-        Ty::File => Cow::Borrowed(run.text(run.path_sym[v.1 as usize])),
+        Ty::File => Cow::Borrowed(run.paths[v.1 as usize].as_bytes()),
         Ty::Num => Cow::Owned((v.1 as i64).to_string().into_bytes()),
         Ty::Flag => Cow::Borrowed(if v.1 == 1 { b"true".as_slice() } else { b"false".as_slice() }),
         _ => Cow::Borrowed(&[]),

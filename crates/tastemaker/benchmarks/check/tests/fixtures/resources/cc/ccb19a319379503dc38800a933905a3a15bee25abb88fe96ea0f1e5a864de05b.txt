@@ -1,0 +1,9 @@
+# demo-greeting
+
+What demo-greeting is for, in one line.
+
+## Domains
+
+### polite
+
+What polite does, in one line.

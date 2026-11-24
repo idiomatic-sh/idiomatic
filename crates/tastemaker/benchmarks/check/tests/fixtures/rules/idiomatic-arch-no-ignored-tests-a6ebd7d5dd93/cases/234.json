@@ -1,0 +1,2454 @@
+{
+  "stamp": 234,
+  "rule": "idiomatic.arch/no-ignored-tests",
+  "dependency": "One file",
+  "admitted": [
+    "demo/Cargo.toml",
+    "demo/src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "6273654275af265fbb4a13068002f6389c91d856ef7070440565464263cd286c",
+    "demo/Cargo.toml": "7b0bc2933d740ab63868e8ec82495aa2c0bcb664f944b4e467f0f97f2ada6ad5",
+    "demo/src/lib.rs": "c7f578687c1eeefe08c05471edbc675f61b13ddbeb7a7b5bd76d131760bfeae5",
+    "tastemaker.toml": "fa1f3b90356433bb141b588e4e523491726580e2da2e01ca545ee036e8b69191"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/composition.rs",
+        "demo/**/composition.rs/**",
+        "demo/**/connections.rs",
+        "demo/**/connections.rs/**",
+        "demo/**/factory.rs",
+        "demo/**/factory.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/main.rs",
+        "demo/**/main.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/adapter-at-root",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-at-root-8ccfc0aeebd0"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/allow-attributes-per-file",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "max-allows": 3
+      },
+      "query": "idiomatic-arch-allow-attributes-per-file-7755ae1aab61"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        "demo/nodirectory/**",
+        "demo/nodirectory/**/**"
+      ],
+      "id": "idiomatic.arch/cache-names-once",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "locations": [
+          ".*_cache",
+          ".*_cache/**"
+        ]
+      },
+      "query": "idiomatic-arch-cache-names-once-918d058a01f0"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/case-vocabulary",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-case-vocabulary-cde01a553815"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/corpus/**",
+        "demo/**/tests/fixtures/corpus/**/**"
+      ],
+      "id": "idiomatic.arch/cases-not-empty",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/benches/**/*.rs",
+        "demo/**/benches/**/*.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**/*.rs",
+        "demo/**/fixtures/**/*.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/tests/**/*.rs",
+        "demo/**/tests/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-cases-not-empty-dd2805b75f98"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/schemas_test.rs",
+        "demo/**/schemas_test.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        "demo/nodirectory/**",
+        "demo/nodirectory/**/**"
+      ],
+      "id": "idiomatic.arch/client-at-adapter",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-client-at-adapter-517b4c08559c"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/**/tests/ui/**",
+        "demo/**/tests/ui/**/**"
+      ],
+      "id": "idiomatic.arch/collection-directory",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "max-items": 3
+      },
+      "query": "idiomatic-arch-collection-directory-0c8561226ccc"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/composition-opens-nothing",
+      "include": [
+        "demo/**/composition.rs",
+        "demo/**/composition.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-composition-opens-nothing-6c56c89f7164"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        "demo/nodirectory/**",
+        "demo/nodirectory/**/**"
+      ],
+      "id": "idiomatic.arch/constants-once",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-constants-once-0a1464117276"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/deep-function-nesting",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "max-depth": 1
+      },
+      "query": "idiomatic-arch-deep-function-nesting-b7fff9763eb9"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/deep-nesting",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "max-depth": 4
+      },
+      "query": "idiomatic-arch-deep-nesting-9cfb56d2bda3"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/digest-not-stamp-alone",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-digest-not-stamp-alone-210be811b851"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/error-variants-reached",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/errors.rs",
+        "demo/**/errors.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-error-variants-reached-2a0d23f7d9de"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/exit-status-checked",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/benches/**/*.rs",
+        "demo/**/benches/**/*.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**/*.rs",
+        "demo/**/fixtures/**/*.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/tests/**/*.rs",
+        "demo/**/tests/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-exit-status-checked-3fff5a1192fc"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/fixture-fakes",
+      "include": [
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-fixture-fakes-9c50576250c0"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/fixtures-reach",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**",
+        "demo/**/Cargo.toml",
+        "demo/**/Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-fixtures-reach-d2dc5909cd87"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/factory.rs",
+        "demo/**/factory.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/format-names-in-adapters",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-format-names-in-adapters-95a7140e9a3c"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/hollow-artifacts",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-artifacts-759d6bcc4a88"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/application-service-boundaries",
+      "include": [
+        "demo/**/src/application/**/*.rs",
+        "demo/**/src/application/**/*.rs/**",
+        "demo/**/src/application/*.rs",
+        "demo/**/src/application/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-application-service-boundaries-488f26694dd1"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/bounded-engine-state",
+      "include": [
+        "demo/**/src/application/*/*.rs",
+        "demo/**/src/application/*/*.rs/**",
+        "demo/**/src/inbound/use_cases/*/*.rs",
+        "demo/**/src/inbound/use_cases/*/*.rs/**",
+        "demo/**/src/outbound/*/adapters/*/*.rs",
+        "demo/**/src/outbound/*/adapters/*/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-bounded-engine-state-2dad47575b71"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/field-written-never-read",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "trivial-derives": [
+          "Debug",
+          "Clone",
+          "Copy",
+          "Default",
+          "PartialEq",
+          "Eq",
+          "Hash",
+          "PartialOrd",
+          "Ord"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-field-written-never-read-73a82ea15135"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/hex-cohesion",
+      "include": [
+        "demo/**/src/inbound/use_cases.rs",
+        "demo/**/src/inbound/use_cases.rs/**",
+        "demo/**/src/inbound/use_cases/**",
+        "demo/**/src/inbound/use_cases/**/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-idiomatic-rust-hex-cohesion-75323f61c5fd"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/**/tests/ui/**",
+        "demo/**/tests/ui/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/module-cycles",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-module-cycles-b09a2afdeccd"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-bool",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-bool-bb55a7bdc33b"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-char",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-char-0ea97ff21769"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-floats",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-floats-d792eaa4923d"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-integers",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-integers-ad13a6339614"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-keys",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-keys-517f02c5e91e"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-text",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-text-467b98178fff"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-bare-tuples",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ],
+        "libraries": [
+          "rayon::*"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-bare-tuples-9accc8eb2040"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-callable-domain-fields",
+      "include": [
+        "demo/**/src/domain/**/*.rs",
+        "demo/**/src/domain/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-callable-domain-fields-49231b2e419e"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-domain-concept-cycles",
+      "include": [
+        "demo/**/src/domain/**",
+        "demo/**/src/domain/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-domain-concept-cycles-29d5c899982d"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/build.rs",
+        "demo/**/build.rs/**",
+        "demo/**/composition.rs",
+        "demo/**/composition.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-hardcoded-paths",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-hardcoded-paths-d5e498208092"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-panicking-closure",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-panicking-closure-4d7031473542"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-sentinel-values",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-sentinel-values-7d1bf6e0097e"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-string-literals",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed-paths": [
+          "**/tests/**"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-string-literals-9dca1ab55f34"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-sync-in-public-api",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-idiomatic-rust-no-sync-in-public-api-62776ab621a3"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/no-thread-local-outside-adapters",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-thread-local-outside-adapters-9f50b868f0d9"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/shadowed-prelude",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "names": [
+          "Option",
+          "Result",
+          "Vec",
+          "String",
+          "Box",
+          "Some",
+          "None",
+          "Ok",
+          "Err",
+          "Default",
+          "Clone",
+          "Copy",
+          "Send",
+          "Sync",
+          "Sized",
+          "Drop",
+          "Fn",
+          "FnMut",
+          "FnOnce",
+          "From",
+          "Into",
+          "Iterator",
+          "ToString",
+          "ToOwned",
+          "AsRef",
+          "AsMut",
+          "Extend",
+          "IntoIterator"
+        ]
+      },
+      "query": "idiomatic-arch-idiomatic-rust-shadowed-prelude-d834f95a309b"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/stdio-at-presentation",
+      "include": [
+        "demo/src/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-stdio-at-presentation-f222de9faccb"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/test-names-nothing-beside",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-test-names-nothing-beside-336dd854a628"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/unix-behind-cfg",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-unix-behind-cfg-70e6c0e8fdbf"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/variants-benched",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**",
+        "demo/**/Cargo.toml",
+        "demo/**/Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-variants-benched-f69ceac4f075"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/import-directions",
+      "include": [
+        "demo/src/**"
+      ],
+      "parameters": {
+        "forbidden": [
+          "*UseCase"
+        ]
+      },
+      "query": "idiomatic-arch-import-directions-7dfe82972132"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/io-at-boundary",
+      "include": [
+        "demo/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-io-at-boundary-182f2043a341"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/lossy-float-literals",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "limit": "1e15"
+      },
+      "query": "idiomatic-arch-lossy-float-literals-70271bf8c124"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/macro-paths-hygienic",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-macro-paths-hygienic-658db0fe53f0"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/mirrored-types",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-mirrored-types-743308f0dfa4"
+    },
+    {
+      "exclude": [
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/module-declares",
+      "include": [
+        "demo/**/Cargo.toml",
+        "demo/**/Cargo.toml/**",
+        "demo/**/src/**",
+        "demo/**/src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-module-declares-a3de709ad656"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/nested-function-count",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "max-nested": 2
+      },
+      "query": "idiomatic-arch-nested-function-count-df1e967862c6"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-any-in-ports",
+      "include": [
+        "demo/**/src/outbound/*/interface.rs",
+        "demo/**/src/outbound/*/interface.rs/**",
+        "demo/**/src/outbound/*/types.rs",
+        "demo/**/src/outbound/*/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-any-in-ports-474996fccaf8"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/no-constant-assertions",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-constant-assertions-993ced1cb7bf"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-deep-stored-types",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "derives": [
+          "*Serialize*",
+          "*Deserialize*"
+        ]
+      },
+      "query": "idiomatic-arch-no-deep-stored-types-714ca88ba318"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-drilled-settings",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "types": [
+          "*BuildName*",
+          "*EngineBuild*",
+          "*ProgramBuild*",
+          "*WorkerCount*",
+          "*Workers*",
+          "*MemoryBudget*",
+          "*Settings*",
+          "*Setting*"
+        ]
+      },
+      "query": "idiomatic-arch-no-drilled-settings-e607aff6245b"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/no-env-reads",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "exceptions": [
+          "PAGER"
+        ]
+      },
+      "query": "idiomatic-arch-no-env-reads-c8f504956cae"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/no-filter-map-parse",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-filter-map-parse-311a20a82ed9"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-format-versions",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-format-versions-b08980b6dc12"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-heap-accounting",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "owners": []
+      },
+      "query": "idiomatic-arch-no-heap-accounting-c63134c6c31a"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-ignored-tests",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-ignored-tests-a6ebd7d5dd93"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/connections.rs",
+        "demo/**/connections.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/fixtures/*.rs",
+        "demo/**/fixtures/*.rs/**",
+        "demo/**/main.rs",
+        "demo/**/main.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-json-in-process",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-json-in-process-c80151a053ac"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-ok-on-result",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-ok-on-result-4248b381d028"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-packed-strings",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-packed-strings-0a762d08597c"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-path-exists",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-path-exists-81fd1bc67f00"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-persist-toggles-in-ports",
+      "include": [
+        "demo/**/src/outbound/*/interface.rs",
+        "demo/**/src/outbound/*/interface.rs/**",
+        "demo/**/src/outbound/*/types.rs",
+        "demo/**/src/outbound/*/types.rs/**"
+      ],
+      "parameters": {
+        "toggles": [
+          "Keeping",
+          "ImageKeeping",
+          "Writing"
+        ]
+      },
+      "query": "idiomatic-arch-no-persist-toggles-in-ports-3d3b459ba24e"
+    },
+    {
+      "exclude": [
+        "demo/**/dtos.rs",
+        "demo/**/dtos.rs/**",
+        "demo/**/schemas.rs",
+        "demo/**/schemas.rs/**"
+      ],
+      "id": "idiomatic.arch/no-public-options",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-no-public-options-b64b6f8fd783"
+    },
+    {
+      "exclude": [
+        "demo/**/src/lib.rs",
+        "demo/**/src/lib.rs/**",
+        "demo/**/src/resources.rs",
+        "demo/**/src/resources.rs/**",
+        "demo/**/src/resources/*.rs",
+        "demo/**/src/resources/*.rs/**",
+        "demo/**/src/resources/*/contract.rs",
+        "demo/**/src/resources/*/contract.rs/**",
+        "demo/**/src/resources/*/macros/*.rs",
+        "demo/**/src/resources/*/macros/*.rs/**"
+      ],
+      "id": "idiomatic.arch/no-reexports",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "internal-crates": []
+      },
+      "query": "idiomatic-arch-no-reexports-b34fefd8939c"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/src/resources/*/contract.rs",
+        "demo/**/src/resources/*/contract.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-runtime-fixtures",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-runtime-fixtures-3026c70f4acb"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-serde-in-domain",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-serde-in-domain-3461e7963478"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/corpus/**",
+        "demo/**/tests/fixtures/corpus/**/**"
+      ],
+      "id": "idiomatic.arch/no-silent-skip",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/benches/**/*.rs",
+        "demo/**/benches/**/*.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**/*.rs",
+        "demo/**/fixtures/**/*.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/tests/**/*.rs",
+        "demo/**/tests/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-silent-skip-e2d29bbae45e"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/build.rs",
+        "demo/**/build.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**",
+        "demo/cli/src/**",
+        "demo/cli/src/**/**"
+      ],
+      "id": "idiomatic.arch/no-temp-in-use-cases",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "libraries": [
+          "tempfile",
+          "tempfile::*",
+          "*::temp_dir",
+          "temp_dir"
+        ],
+        "methods": [
+          "scratch",
+          "discard"
+        ]
+      },
+      "query": "idiomatic-arch-no-temp-in-use-cases-655728e96a47"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-unwrap-or-on-lookup",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-unwrap-or-on-lookup-92da167255cf"
+    },
+    {
+      "exclude": [
+        "demo/**/src/application/**",
+        "demo/**/src/application/**/**",
+        "demo/**/src/domain/**",
+        "demo/**/src/domain/**/**",
+        "demo/**/src/inbound/use_cases/**",
+        "demo/**/src/inbound/use_cases/**/**",
+        "demo/**/src/outbound/**",
+        "demo/**/src/outbound/**/**"
+      ],
+      "id": "idiomatic.arch/no-vacuous-tests",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/tests/**/*.rs",
+        "demo/**/tests/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-vacuous-tests-ce4ca1fdc7f5"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-whole-state-ports",
+      "include": [
+        "demo/**/outbound/*/interface.rs",
+        "demo/**/outbound/*/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-whole-state-ports-79454cc424bc"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/one-cache-one-engine",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "kept": [
+          "ryo_kept",
+          "*::ryo_kept",
+          "Cache::At",
+          "*::Cache::At",
+          "lint"
+        ]
+      },
+      "query": "idiomatic-arch-one-cache-one-engine-f7f8b736c4fe"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/cli/src/outcome.rs",
+        "demo/**/cli/src/outcome.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/one-type-per-name",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-one-type-per-name-5436b254d4c7"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/ordered-output",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-ordered-output-d6d0793a39c1"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/**/tests/ui/**",
+        "demo/**/tests/ui/**/**"
+      ],
+      "id": "idiomatic.arch/orphan-rust-files",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-orphan-rust-files-d1ff19eef5c2"
+    },
+    {
+      "exclude": [
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/src/commands/**",
+        "demo/**/src/commands/**/**",
+        "demo/**/src/resources/**",
+        "demo/**/src/resources/**/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/parallel-members",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "independent": [
+          "languages",
+          "relations",
+          "language"
+        ],
+        "roles": [
+          "adapters",
+          "methods",
+          "commands",
+          "macros",
+          "tests",
+          "benches",
+          "fixtures",
+          "src",
+          "domain",
+          "inbound",
+          "outbound",
+          "application",
+          "use_cases",
+          "contracts",
+          "collections"
+        ]
+      },
+      "query": "idiomatic-arch-parallel-members-47b0e6f7e53d"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/**/tests/ui/**",
+        "demo/**/tests/ui/**/**"
+      ],
+      "id": "idiomatic.arch/parse-errors",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-parse-errors-82c06898c430"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/port-takes-no-settings",
+      "include": [
+        "demo/**/src/outbound/*/interface.rs",
+        "demo/**/src/outbound/*/interface.rs/**"
+      ],
+      "parameters": {
+        "location-names": [
+          "directory",
+          "cache",
+          "store",
+          "temp",
+          "scratch"
+        ],
+        "locations": [
+          "MachinePath",
+          "PathBuf",
+          "Path",
+          "SystemPath"
+        ],
+        "settings": [
+          "BuildName",
+          "EngineBuild",
+          "ProgramBuild",
+          "Build",
+          "WorkerCount",
+          "Workers",
+          "MemoryBudget",
+          "SourceBytes",
+          "Expanding",
+          "Logging"
+        ]
+      },
+      "query": "idiomatic-arch-port-takes-no-settings-e543f041bd2d"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/corpus/**",
+        "demo/**/tests/fixtures/corpus/**/**"
+      ],
+      "id": "idiomatic.arch/portable-test-filenames",
+      "include": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/benches/**/*.rs",
+        "demo/**/benches/**/*.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**/*.rs",
+        "demo/**/fixtures/**/*.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/tests/**/*.rs",
+        "demo/**/tests/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-portable-test-filenames-9a6b95a4f99d"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/print-in-library",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-print-in-library-a9682733e37e"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/private-checked-fields",
+      "include": [
+        "demo/**/types.rs",
+        "demo/**/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-private-checked-fields-641ca103670e"
+    },
+    {
+      "exclude": [
+        "demo/**/cli/src/output/**",
+        "demo/**/cli/src/output/**/**",
+        "demo/**/cli/src/timings.rs",
+        "demo/**/cli/src/timings.rs/**",
+        "demo/**/src/lib.rs",
+        "demo/**/src/lib.rs/**",
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/pub-item-unreferenced-elsewhere",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-pub-item-unreferenced-elsewhere-7918e6318e78"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/repeated-bound-strings",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "min-files": 3
+      },
+      "query": "idiomatic-arch-repeated-bound-strings-f243bea52a84"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/languages/**",
+        "demo/languages/**/**"
+      ],
+      "id": "idiomatic.arch/repeated-string-literals",
+      "include": [
+        "demo/**/constants.rs",
+        "demo/**/constants.rs/**",
+        "demo/**/schemas.rs",
+        "demo/**/schemas.rs/**"
+      ],
+      "parameters": {
+        "allowed": [],
+        "min-files": 3
+      },
+      "query": "idiomatic-arch-repeated-string-literals-be6b07761280"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/requests-carry-no-settings",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {
+        "requests": [
+          "*Request",
+          "Session"
+        ],
+        "settings": [
+          "workers",
+          "memory",
+          "memory_budget",
+          "cache",
+          "build",
+          "logging"
+        ]
+      },
+      "query": "idiomatic-arch-requests-carry-no-settings-4b4fc96b4425"
+    },
+    {
+      "exclude": [
+        "demo/**/schemas.rs",
+        "demo/**/schemas.rs/**",
+        "demo/**/schemas_test.rs",
+        "demo/**/schemas_test.rs/**"
+      ],
+      "id": "idiomatic.arch/schema-confined",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-schema-confined-d020ee301d6a"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/serialize-dont-format",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-serialize-dont-format-6c5faf936f25"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/stable-ids",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-stable-ids-761a17188f33"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/outbound/*/adapters/*/*/schemas.rs",
+        "demo/**/outbound/*/adapters/*/*/schemas.rs/**",
+        "demo/**/outbound/*/adapters/*/schemas.rs",
+        "demo/**/outbound/*/adapters/*/schemas.rs/**",
+        "demo/**/outbound/*/adapters/*/schemas/**",
+        "demo/**/outbound/*/adapters/*/schemas/**/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/storage-shapes-in-schemas",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-storage-shapes-in-schemas-5207535ee25c"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/acceptance.rs",
+        "demo/**/acceptance.rs/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/stream-discipline",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-stream-discipline-9d3a6883e890"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/**/tests/ui/**",
+        "demo/**/tests/ui/**/**"
+      ],
+      "id": "idiomatic.arch/test-imports",
+      "include": [
+        "demo/**/Cargo.toml",
+        "demo/**/Cargo.toml/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/tests/**/*.rs",
+        "demo/**/tests/**/*.rs/**"
+      ],
+      "parameters": {
+        "allowed": [
+          "*::types",
+          "*::types::*",
+          "*::errors",
+          "*::errors::*",
+          "*::factory",
+          "*::factory::*",
+          "*::contract",
+          "*::contract::*",
+          "*::linked",
+          "*::linked::*",
+          "*::cases",
+          "*::cases::*",
+          "*::selects"
+        ],
+        "test-contracts": []
+      },
+      "query": "idiomatic-arch-test-imports-f4a5bcef43f2"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/*_test/**",
+        "demo/**/*_test/**/**",
+        "demo/**/adapters/**",
+        "demo/**/adapters/**/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/benchmarks/provider/**",
+        "demo/**/benchmarks/provider/**/**",
+        "demo/**/connections.rs",
+        "demo/**/connections.rs/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/fixtures/*.rs",
+        "demo/**/fixtures/*.rs/**",
+        "demo/**/main.rs",
+        "demo/**/main.rs/**",
+        "demo/**/src/inbound/contracts/*/acceptance.rs",
+        "demo/**/src/inbound/contracts/*/acceptance.rs/**",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs",
+        "demo/**/src/inbound/use_cases/*/acceptance.rs/**",
+        "demo/**/test.rs",
+        "demo/**/test.rs/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/threads-at-adapter",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-threads-at-adapter-45024d49131b"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/todo-comments",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-todo-comments-15b1937e5e3a"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/unfinished-macros",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unfinished-macros-a81ceca878c8"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/unsafe-without-safety",
+      "include": [
+        "demo/**/*.rs",
+        "demo/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unsafe-without-safety-b8e00bef65a7"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "demo/Cargo.toml",
+        "demo/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "demo/src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                73,
+                79
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              73,
+              79
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "demo/src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

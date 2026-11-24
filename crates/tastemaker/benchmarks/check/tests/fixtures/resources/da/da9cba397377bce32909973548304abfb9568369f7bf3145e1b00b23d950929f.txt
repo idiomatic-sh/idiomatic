@@ -1,0 +1,3 @@
+//! The comment relation.
+
+pub const NAME: &str = "comment";

@@ -1,0 +1,3 @@
+//! Words another module names.
+
+pub const SELECT: &str = "select";

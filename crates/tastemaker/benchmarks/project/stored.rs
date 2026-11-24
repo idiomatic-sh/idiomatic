@@ -379,7 +379,7 @@ impl Store {
         root: &Path,
         inventory: &[String],
         peers: Key,
-        v: &BTreeMap<String, Rc<[u8]>>,
+        v: &BTreeMap<String, std::sync::Arc<[u8]>>,
     ) {
         self.observed.overlay(root, inventory, peers, v);
     }
@@ -500,18 +500,19 @@ impl Store {
             .bindings
             .iter()
             .enumerate()
-            .map(|(binding, (r, host))| {
+            .map(|(binding, host)| {
+                let r = b.program_of[binding];
                 // The engine shares this pre-join work for every binding with the
                 // same declared host shape. Which caller first supplied the rows
                 // can change when all but one request is restored.
-                if b.cut_of.contains_key(&binding) {
+                if b.cut_of[binding].is_some() {
                     let shape = host
                         .iter()
                         .map(|h| (&h.name, &h.columns))
                         .collect::<Vec<_>>();
-                    key((0u8, rules[*r], shape))
+                    key((0u8, rules[r], shape))
                 } else {
-                    key((1u8, rules[*r], host))
+                    key((1u8, rules[r], host))
                 }
             })
             .collect();
@@ -617,7 +618,7 @@ impl Store {
             if !requested {
                 continue;
             }
-            if world.frontiers.contains_key(&slot) {
+            if world.frontier_parts(slot).is_some() {
                 continue;
             }
             let Some((version, binding)) = self.pairs[slot] else {
@@ -641,7 +642,7 @@ impl Store {
                     (n, block)
                 })
                 .collect();
-            world.frontiers.insert(slot, parts);
+            world.restore_frontier(slot, parts);
             if !pair.unavailable.is_empty() {
                 let missing = pair
                     .unavailable
@@ -680,7 +681,7 @@ impl Store {
                     return true;
                 };
                 let Some(pair) = file.pairs.get(&bind) else {
-                    if b.cut_of.contains_key(&binding) {
+                    if b.cut_of[binding].is_some() {
                         self.absent_frontier += 1
                     } else {
                         self.absent_local += 1
@@ -746,7 +747,7 @@ impl Store {
                     continue;
                 }
                 let mut frontier = Vec::new();
-                if let Some(parts) = world.frontiers.get(&a) {
+                if let Some(parts) = world.frontier_parts(a) {
                     for (node, block) in parts {
                         let addr = (version, Rc::as_ptr(block));
                         let index = *encoded.entry(addr).or_insert_with(|| {

@@ -1,0 +1,15 @@
+let listed-files = select l."path" as "file" from "filesystem.file" as l;
+let commands = capture(from=listed-files, path="file", pattern="ci/{job}/command.py", captures=["job"]);
+let scopes = project(from="scope", columns=["parent", "child"]);
+let modules = select * from scopes where parent = child;
+let outermost = select l."parent" as "parent", l."child" as "child" from scopes as l join modules as r on l."parent" = r."child";
+let enclosed = antijoin(left=scopes, right=outermost, left-on=["child"], right-on=["child"]);
+let module-functions = antijoin(left="function", right=enclosed, left-on=["id"], right-on=["child"]);
+let runs = select * from module-functions where name = "run";
+let mains = select * from module-functions where name = "main";
+let without-run = antijoin(left=commands, right=runs, left-on=["file"], right-on=["file"]);
+let without-main = antijoin(left=commands, right=mains, left-on=["file"], right-on=["file"]);
+let run-findings = extend(from=without-run, values={"entry": "run"});
+let main-findings = extend(from=without-main, values={"entry": "main"});
+let findings = union(left=run-findings, right=main-findings);
+emit findings subject "file" key("file", "entry");

@@ -1,0 +1,6 @@
+//! The demo.
+
+/// The cache.
+pub fn cache() -> &'static str {
+    "/tmp/cache"
+}

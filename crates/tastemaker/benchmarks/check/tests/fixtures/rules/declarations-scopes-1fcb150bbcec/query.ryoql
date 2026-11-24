@@ -1,0 +1,2 @@
+let rows = select * from "scope";
+emit rows subject "file" key("child");

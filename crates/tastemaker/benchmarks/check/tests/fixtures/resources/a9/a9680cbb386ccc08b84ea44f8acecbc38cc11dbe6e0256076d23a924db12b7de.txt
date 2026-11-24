@@ -1,0 +1,7 @@
+use tracing_subscriber::layer::SubscriberExt as _;
+
+pub fn install() -> Result<Box<dyn std::any::Any + Send>, tracing::subscriber::SetGlobalDefaultError> {
+    let (layer, guard) = tracing_chrome::ChromeLayerBuilder::new().build();
+    tracing::subscriber::set_global_default(tracing_subscriber::registry().with(layer))?;
+    Ok(Box::new(guard))
+}

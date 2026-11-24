@@ -1,0 +1,11 @@
+[package]
+name = "demo"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = []
+
+[workspace.dependencies]
+serde = { package = "rusqlite", version = "0.32" }
+thiserror = "2"

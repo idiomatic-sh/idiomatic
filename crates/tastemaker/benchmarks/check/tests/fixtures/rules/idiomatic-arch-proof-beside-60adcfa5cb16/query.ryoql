@@ -1,0 +1,15 @@
+let files = project(from="filesystem.file", columns=["path"]);
+let present = capture(from=files, path="path", pattern="{*dir}/{stem}.rs", captures=["dir", "stem"]);
+let dirs = project(from=present, columns=["dir"]);
+let schema-dirs = extend(from=dirs, values={"k": "part"});
+let schemas-code = select * from present where stem = "schemas";
+let schemas-tests = select * from present where stem = "schemas_test";
+let schemas-in = select l."path" as "path", l."dir" as "dir", r."k" as "k" from schemas-code as l join schema-dirs as r on l."dir" = r."dir";
+let schemas-behaving = project(from=schemas-in, columns=["path", "dir", "k"]);
+let schemas-untested = antijoin(left=schemas-behaving, right=schemas-tests, left-on=["dir"], right-on=["dir"]);
+let schemas-untested-findings = extend(from=schemas-untested, values={"stem": "schemas", "problem": "has", "tail": " and no `schemas_test.rs` beside it (scaffold entry `schemas-test`)"});
+let schemas-tests-in = select l."path" as "path", l."dir" as "dir", r."k" as "k" from schemas-tests as l join schema-dirs as r on l."dir" = r."dir";
+let schemas-unproven = antijoin(left=schemas-tests-in, right=schemas-behaving, left-on=["dir"], right-on=["dir"]);
+let schemas-unproven-findings = extend(from=schemas-unproven, values={"stem": "schemas_test", "problem": "holds", "tail": ", but there is no `schemas.rs` beside it for it to prove: delete the test"});
+let found = union(left=schemas-untested-findings, right=schemas-unproven-findings);
+emit found subject "path" key("dir", "stem", "problem");

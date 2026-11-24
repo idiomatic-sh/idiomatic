@@ -1,0 +1,28 @@
+//! The `circle` item's cases, and the collection's shared cases when it has any.
+
+use super::item::CircleItem;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = CircleItem;
+type Value = u32;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "keeps the radius it is given",
+        word: Word::Succeeds,
+        input: || CircleItem { radius: 2 },
+        expect: Expect::Value(2),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(circle: Input) -> Result<Value, Failure> {
+    Ok(circle.radius)
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

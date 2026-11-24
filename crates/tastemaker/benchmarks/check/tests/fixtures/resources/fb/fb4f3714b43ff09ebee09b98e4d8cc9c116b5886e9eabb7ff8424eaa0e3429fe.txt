@@ -1,0 +1,3 @@
+# cli
+
+Holds the demo's one app.

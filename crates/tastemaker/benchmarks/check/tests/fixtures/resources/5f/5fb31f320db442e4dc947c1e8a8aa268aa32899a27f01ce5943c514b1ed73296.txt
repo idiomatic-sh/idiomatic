@@ -1,0 +1,3 @@
+use crate::second::Second;
+
+pub struct First(pub Option<Box<Second>>);

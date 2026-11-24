@@ -1,0 +1,17 @@
+//! The source inventory's factory.
+
+/// An opened inventory.
+pub struct SourceConnection;
+
+impl SourceConnection {
+    /// Opens the inventory under a directory.
+    pub fn open(directory: &std::path::Path) -> std::io::Result<Self> {
+        std::fs::create_dir_all(directory).map(|()| Self)
+    }
+}
+
+/// The check service.
+pub struct CheckService {
+    /// The inventory it reads.
+    pub inventory: SourceConnection,
+}

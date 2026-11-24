@@ -1,0 +1,556 @@
+{
+  "stamp": 181,
+  "rule": "pair-missing",
+  "dependency": "Observations",
+  "admitted": [],
+  "given": {},
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    },
+    {
+      "columns": [
+        [
+          "entry",
+          "Number"
+        ],
+        [
+          "scope",
+          "Number"
+        ],
+        [
+          "identity",
+          "Text"
+        ],
+        [
+          "pair",
+          "Number"
+        ],
+        [
+          "found",
+          "Number"
+        ],
+        [
+          "condition",
+          "Text"
+        ],
+        [
+          "min",
+          "Number"
+        ],
+        [
+          "max",
+          "Number"
+        ],
+        [
+          "then-min",
+          "Number"
+        ],
+        [
+          "then-max",
+          "Number"
+        ],
+        [
+          "else-min",
+          "Number"
+        ],
+        [
+          "else-max",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.template-entry",
+      "rows": [
+        [
+          0,
+          0,
+          "idiomatic.arch/ci",
+          0,
+          1,
+          "",
+          1,
+          1,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          1,
+          1,
+          "idiomatic.arch/ci/job-command",
+          0,
+          0,
+          "",
+          1,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          2,
+          1,
+          "idiomatic.arch/ci/job-command-test",
+          0,
+          1,
+          "",
+          1,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          3,
+          1,
+          "idiomatic.arch/ci/job-composition",
+          0,
+          1,
+          "",
+          1,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          4,
+          1,
+          "idiomatic.arch/ci/job-use-case",
+          0,
+          1,
+          "",
+          1,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          5,
+          1,
+          "idiomatic.arch/ci/job-use-case-test",
+          0,
+          1,
+          "",
+          1,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          6,
+          1,
+          "idiomatic.arch/ci/script",
+          0,
+          0,
+          "",
+          0,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          7,
+          1,
+          "idiomatic.arch/ci/workflows-test",
+          0,
+          1,
+          "",
+          1,
+          1,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          8,
+          1,
+          "idiomatic.arch/ci/step-interface",
+          0,
+          1,
+          "",
+          1,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          9,
+          1,
+          "idiomatic.arch/ci/step-interface-test",
+          0,
+          1,
+          "",
+          1,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          10,
+          1,
+          "idiomatic.arch/ci/step-adapter",
+          0,
+          1,
+          "",
+          1,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          11,
+          1,
+          "idiomatic.arch/ci/step-adapter-test",
+          0,
+          1,
+          "",
+          1,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ],
+        [
+          12,
+          1,
+          "",
+          1,
+          0,
+          "",
+          1,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "scope",
+          "Number"
+        ],
+        [
+          "condition",
+          "Text"
+        ],
+        [
+          "holds",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.condition-answer",
+      "rows": []
+    },
+    {
+      "columns": [
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "prefix",
+          "Text"
+        ],
+        [
+          "last",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.closed-dir",
+      "rows": [
+        [
+          0,
+          "ci/",
+          1
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "stray",
+          "Number"
+        ],
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "path",
+          "Text"
+        ],
+        [
+          "home",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.closed-under",
+      "rows": [
+        [
+          0,
+          0,
+          "ci/demo/command_test.py",
+          "ci/demo/"
+        ],
+        [
+          1,
+          0,
+          "ci/demo/composition.py",
+          "ci/demo/"
+        ],
+        [
+          2,
+          0,
+          "ci/demo/run/adapters/local/adapter.py",
+          "ci/demo/run/adapters/local/"
+        ],
+        [
+          3,
+          0,
+          "ci/demo/run/adapters/local/adapter_test.py",
+          "ci/demo/run/adapters/local/"
+        ],
+        [
+          4,
+          0,
+          "ci/demo/run/interface.py",
+          "ci/demo/run/"
+        ],
+        [
+          5,
+          0,
+          "ci/demo/run/interface_test.py",
+          "ci/demo/run/"
+        ],
+        [
+          6,
+          0,
+          "ci/demo/use_case.py",
+          "ci/demo/"
+        ],
+        [
+          7,
+          0,
+          "ci/demo/use_case_test.py",
+          "ci/demo/"
+        ],
+        [
+          8,
+          0,
+          "ci/workflows_test.py",
+          "ci/"
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "path",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed-file",
+      "rows": [
+        [
+          "ci/demo/command_test.py"
+        ],
+        [
+          "ci/demo/composition.py"
+        ],
+        [
+          "ci/demo/run/adapters/local/adapter.py"
+        ],
+        [
+          "ci/demo/run/adapters/local/adapter_test.py"
+        ],
+        [
+          "ci/demo/run/interface.py"
+        ],
+        [
+          "ci/demo/run/interface_test.py"
+        ],
+        [
+          "ci/demo/use_case.py"
+        ],
+        [
+          "ci/demo/use_case_test.py"
+        ],
+        [
+          "ci/workflows_test.py"
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "path",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.own-file",
+      "rows": [
+        [
+          "tastemaker.toml"
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "prefix",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.nested-dir",
+      "rows": []
+    },
+    {
+      "columns": [
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "owner",
+          "Number"
+        ],
+        [
+          "prefix",
+          "Text"
+        ],
+        [
+          "depth",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.occupied",
+      "rows": [
+        [
+          0,
+          1,
+          "ci/",
+          1
+        ],
+        [
+          0,
+          1,
+          "ci/demo/",
+          2
+        ],
+        [
+          0,
+          1,
+          "ci/demo/run/",
+          3
+        ],
+        [
+          0,
+          1,
+          "ci/demo/run/adapters/local/",
+          5
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "closed-stray",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "closed-stray-4fd6e5bd9f42"
+    },
+    {
+      "exclude": [],
+      "id": "count-refused",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "count-refused-90441b4c6035"
+    },
+    {
+      "exclude": [],
+      "id": "pair-missing",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "pair-missing-145c9d0ab9ce"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "entry",
+            12
+          ]
+        ],
+        "key": [
+          12
+        ],
+        "rule": "query",
+        "subject": 12
+      }
+    ],
+    "unknowns": []
+  }
+}

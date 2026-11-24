@@ -1,0 +1,116 @@
+{
+  "stamp": 14,
+  "rule": "idiomatic.arch/case-vocabulary",
+  "dependency": "One file",
+  "admitted": [
+    "src/collections/shapes/interface_test.rs"
+  ],
+  "given": {
+    "src/collections/shapes/interface_test.rs": "b90bd035eb1b2cfb61ade3adb36bd37fcc714a100791abcb0eb6a96f996ee8dd",
+    "tastemaker.toml": "b86d70ef14f5f18bc800ebfd46d66bd81bae67b1bf396b887fe40fc2ae1184cb"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/case-vocabulary",
+      "include": [
+        "**/*_test.rs",
+        "**/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-case-vocabulary-cde01a553815"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/collections/shapes/interface_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/collections/shapes/interface_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                56,
+                301
+              ]
+            }
+          ],
+          [
+            "kind",
+            "fn"
+          ],
+          [
+            "text",
+            "refuses_a_negative_area"
+          ],
+          [
+            "what",
+            "implements a port in a `refuses` test: a weaker implementation the contract catches is a `rejects` case"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              56,
+              301
+            ]
+          },
+          "implements a port in a `refuses` test: a weaker implementation the contract catches is a `rejects` case"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/collections/shapes/interface_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -40,6 +40,8 @@ enum Scenario {
     Pinned,
     /// Source text whose literal nodes are looked at: the numeric kind, value and suffix each holds.
     Numbers(&'static str),
+    /// Compare native and released-layout readers down to each element and its provenance.
+    Native(&'static [u8]),
 }
 
 /// What a row of the cases is given.
@@ -50,6 +52,18 @@ type Failure = ();
 
 /// The rows of what is specific to this adapter.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("native_positions_preserve_nested_macro_origins_decoded_literals_and_project_notes"),
+        word: Word::Succeeds,
+        input: || Scenario::Native(br#"#[path = "a.rs"] mod a; fn f(){ println!("{}", vec![1u8, 2]); let s = "a\nb"; }"#),
+        expect: Expect::Value("equal"),
+    },
+    Case {
+        name: CaseName("native_positions_preserve_recovery_and_invalid_bytes"),
+        word: Word::Succeeds,
+        input: || Scenario::Native(b"fn g(x: &str) { /* \xff */ let y = ("),
+        expect: Expect::Value("equal"),
+    },
     Case {
         name: CaseName("the_table_holds_each_function_as_an_fn_element_with_its_extent"),
         word: Word::Succeeds,
@@ -326,10 +340,44 @@ fn numbers(source: &'static str) -> String {
         .join(", ")
 }
 
+fn native_difference(bytes: &[u8]) -> String {
+    use ryo::languages as l;
+    let parser = crate::linked().parse_engine();
+    let req = l::ParseRequest { path: l::SourcePath("src/a.rs"), file: l::FileId(13), bytes: l::ByteSlice(bytes),
+        fields: l::FieldRequest::Wanted, notes: l::NoteRequest::Wanted };
+    let (mut base, mut direct) = (l::Elements::default(), l::Elements::default());
+    let (mut left, mut right) = (l::Symbols::default(), l::Symbols::default());
+    parser.build_file(req, &mut base, &mut left, &[]).expect("Rust fixture");
+    parser.build_native_file(req, &mut direct, &mut right, l::NodeAccess::Inspect(&[])).expect("native Rust fixture");
+    let lent = l::native_table(&direct).expect("native Rust table");
+    if l::node_table::embedded_segments(lent).next().is_some()
+        || usize::from(l::node_table::own_end(lent)) != l::positions(&base).count() {
+        return "concrete table exposes a macro expansion".into();
+    }
+    if l::end_of(&base) != l::end_of(&direct)
+        || l::contract::notes_of(&base) != l::contract::notes_of(&direct)
+        || l::diagnostic_count(&base) != l::diagnostic_count(&direct)
+        || l::positions(&base).count() != l::positions(&direct).count() { return "file metadata".into(); }
+    for at in (0..l::end_of(&base).0).map(Position) {
+        let geometry = |f: &l::Elements| (l::kind_at(f, at), l::field_at(f, at), l::parent_at(f, at),
+            l::ordinal_at(f, at), l::last_at(f, at), l::start_at(f, at), l::end_at(f, at),
+            l::origin_at(f, at), l::flags_at(f, at));
+        if geometry(&base) != geometry(&direct) { return format!("geometry {at:?}: {:?} vs {:?}", geometry(&base), geometry(&direct)); }
+        if l::text_of(&left, req.bytes, l::text_at(&base, at)) != l::text_of(&right, req.bytes, l::text_at(&direct, at)) {
+            return format!("text {at:?}");
+        }
+        for property in [l::PropertyId(0), l::PropertyId(1), l::PropertyId(2), l::PropertyId(3)] {
+            if l::property_at(&base, at, property) != l::property_at(&direct, at, property) { return format!("property {at:?} {property:?}"); }
+        }
+    }
+    "equal".into()
+}
+
 fn subject(scenario: Input) -> Value {
     let shown = match scenario {
         Scenario::Functions(source) => functions(source),
         Scenario::Broken(source) => broken(source),
+        Scenario::Native(bytes) => native_difference(bytes),
         Scenario::Kinds => kinds(),
         Scenario::Unproduced => unproduced_kinds_a_source_gives().to_string(),
         Scenario::Trees => trees_agree(),

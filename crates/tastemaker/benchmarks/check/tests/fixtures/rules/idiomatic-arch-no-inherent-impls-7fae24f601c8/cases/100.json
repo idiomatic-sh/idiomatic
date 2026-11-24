@@ -1,0 +1,111 @@
+{
+  "stamp": 100,
+  "rule": "idiomatic.arch/no-inherent-impls",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/types.rs"
+  ],
+  "given": {
+    "src/greeting/types.rs": "5824eb943c893d14d829248e7a82f85be4b6ba1fbfd9d58a9cba8fdae3d8e677",
+    "tastemaker.toml": "1dfffadc42096cfcc9752fb018e2e0a77ed767959ac09178975bc1df7ebb1877"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-inherent-impls",
+      "include": [
+        "**/types.rs",
+        "**/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-inherent-impls-7fae24f601c8"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/greeting/types.rs#57"
+          ],
+          [
+            "kind",
+            "impl"
+          ],
+          [
+            "file",
+            {
+              "file": "src/greeting/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                138,
+                218
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              138,
+              218
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

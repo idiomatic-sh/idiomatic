@@ -1,0 +1,112 @@
+{
+  "stamp": 188,
+  "rule": "idiomatic.arch/concept/service-shape",
+  "dependency": "One file",
+  "admitted": [
+    "src/domain/locality/service.rs"
+  ],
+  "given": {
+    "src/domain/locality/service.rs": "45db7425eb315caa9e035a957aed41260654da4a2fff1b1d946401cad72db1d2",
+    "tastemaker.toml": "0c5e08fd11a1883256b6b623e05d6108eae8e9b769c2cecb78a42a8761682efb"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/concept/service-shape",
+      "include": [
+        "**/service.rs",
+        "**/service.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-concept-service-shape-f4bcd64c0a34"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/domain/locality/service.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/domain/locality/service.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                173,
+                207
+              ]
+            }
+          ],
+          [
+            "name",
+            "struct"
+          ],
+          [
+            "problem",
+            "is declared in a file that holds free functions only"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              173,
+              207
+            ]
+          },
+          "struct"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/domain/locality/service.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

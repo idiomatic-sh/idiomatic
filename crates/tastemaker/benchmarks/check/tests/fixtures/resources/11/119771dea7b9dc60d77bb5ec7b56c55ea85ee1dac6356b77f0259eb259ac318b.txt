@@ -1,0 +1,9 @@
+//! The types of the `analysis` port.
+
+/// What a lint call reads and where it keeps.
+pub struct AnalysisRequest {
+    /// The repository.
+    pub root: MachinePath,
+    /// Where it keeps what it leaves for the next.
+    pub keeping: Keeping,
+}

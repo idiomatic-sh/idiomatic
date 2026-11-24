@@ -1,0 +1,3 @@
+//! The fixture.
+
+pub mod relations;

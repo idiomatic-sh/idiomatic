@@ -1,0 +1,4 @@
+/// Any public struct, not only one in types.rs.
+pub struct Request {
+    pub timeout: Option<u64>,
+}

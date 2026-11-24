@@ -1,0 +1,121 @@
+{
+  "stamp": 186,
+  "rule": "idiomatic.arch/command/command-refuses",
+  "dependency": "Several files",
+  "admitted": [
+    "src/resources/greeting/show/command.rs",
+    "src/resources/greeting/show/command_test.rs"
+  ],
+  "given": {
+    "src/resources/greeting/show/command.rs": "d9b13ddd0b94e0ae1cbc57552a8b9b3841303533c8554b01e2b5ac670d12478d",
+    "src/resources/greeting/show/command_test.rs": "a69b22ebab2726be62f4ba0b18ea5473a2e2ad839166c2f0a95e8e31b101f110",
+    "tastemaker.toml": "c5f68c5a37ccc7308d0586a778afceb8d4ba06da2934ef595ab125a0593e3089"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/command/command-refuses",
+      "include": [
+        "**/command.rs",
+        "**/command.rs/**",
+        "**/command_test.rs",
+        "**/command_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-command-command-refuses-b341b490146a"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/resources/greeting/show/command.rs",
+        "src/resources/greeting/show/command_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/resources/greeting/show/command_test.rs#0"
+          ],
+          [
+            "kind",
+            "source-file"
+          ],
+          [
+            "file",
+            {
+              "file": "src/resources/greeting/show/command_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                762
+              ]
+            }
+          ],
+          [
+            "directory",
+            "src/resources/greeting/show"
+          ],
+          [
+            "what",
+            "a command's tests have no `refuses` row"
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/resources/greeting/show/command_test.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/resources/greeting/show/command_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

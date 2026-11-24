@@ -1,0 +1,105 @@
+{
+  "stamp": 283,
+  "rule": "idiomatic.ryo/language/adapter-test-holds-the-standard",
+  "dependency": "One file",
+  "admitted": [
+    "adapter_test.rs"
+  ],
+  "given": {
+    "adapter_test.rs": "64ab9ab110e603daa7edf85977a9b9b17ddcf5142bf7a5b3c677925398d95acc",
+    "tastemaker.toml": "0a9745ebf3d160a402c11189da3ea7cbf01520e1781e923cc8ea2274e5ccbdce"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/language/adapter-test-holds-the-standard",
+      "include": [
+        "adapter_test.rs",
+        "adapter_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-language-adapter-test-holds-the-standard-de1f64c01441"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "adapter_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "adapter_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                394
+              ]
+            }
+          ],
+          [
+            "part",
+            "a case named for `pinned` that compares the whole tree of every pinned file with the standard's dump"
+          ]
+        ],
+        "key": [
+          {
+            "file": "adapter_test.rs"
+          },
+          "a case named for `pinned` that compares the whole tree of every pinned file with the standard's dump"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "adapter_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

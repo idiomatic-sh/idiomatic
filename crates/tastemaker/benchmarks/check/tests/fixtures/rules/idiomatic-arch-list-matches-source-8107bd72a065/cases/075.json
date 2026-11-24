@@ -1,0 +1,128 @@
+{
+  "stamp": 75,
+  "rule": "idiomatic.arch/list-matches-source",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/resources.rs",
+    "src/resources/languages.rs",
+    "src/resources/languages/types.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "fe60a57c6c589264a19f25b99a688a948ae33fc9cea94b468b610baf80aa97a2",
+    "src/resources.rs": "2c202790616583e3f93e2e2786e790290219eae2ce307e33d20de90d0018e1b2",
+    "src/resources/languages.rs": "a7d1609aa23de32998e5d200c9c707c7bff715f1740931c5d94dfd833bc7ddd6",
+    "src/resources/languages/types.rs": "7417c7f1e5a56de593ede65429bc2d1e9815bf7e8f0ef11ccc42da097f318830",
+    "tastemaker.toml": "881248201b283fce6cabd2780a5c88023e67104a2b3b7870c1f64ff39b9a4709"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/list-matches-source",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "reexports": [
+          {
+            "as": "Thing",
+            "path": "dep::Thing",
+            "resource": "languages"
+          },
+          {
+            "as": "Local",
+            "path": "types::Local",
+            "resource": "languages"
+          }
+        ]
+      },
+      "query": "idiomatic-arch-list-matches-source-8107bd72a065"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/resources.rs",
+        "src/resources/languages.rs",
+        "src/resources/languages/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/resources/languages.rs"
+            }
+          ],
+          [
+            "path",
+            "dep::Other"
+          ],
+          [
+            "as",
+            "Other"
+          ],
+          [
+            "problem",
+            "is re-exported here and missing from the reexports list"
+          ]
+        ],
+        "key": [
+          "dep::Other",
+          "Other"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/resources/languages.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

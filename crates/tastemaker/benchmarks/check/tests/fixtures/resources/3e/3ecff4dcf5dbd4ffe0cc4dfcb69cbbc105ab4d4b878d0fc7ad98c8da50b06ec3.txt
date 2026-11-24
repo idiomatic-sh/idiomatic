@@ -1,0 +1,8 @@
+/// The build the cache was written by.
+pub struct Build(pub Box<str>);
+
+/// Everything the cache keeps.
+pub struct Image {
+    /// The report of the last run.
+    pub report: Vec<String>,
+}

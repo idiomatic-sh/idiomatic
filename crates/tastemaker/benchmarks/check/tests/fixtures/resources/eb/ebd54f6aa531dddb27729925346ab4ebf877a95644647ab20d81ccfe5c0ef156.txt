@@ -1,0 +1,3 @@
+struct ParseUseCaseImpl;
+
+impl ryo_language::ParseUseCase for ParseUseCaseImpl {}

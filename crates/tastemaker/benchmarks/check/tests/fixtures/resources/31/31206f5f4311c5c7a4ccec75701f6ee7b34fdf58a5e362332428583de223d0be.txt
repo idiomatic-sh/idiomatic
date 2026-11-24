@@ -1,0 +1,1 @@
+use super::super::interface::RepresentationsItem; pub struct StoredItem; impl RepresentationsItem for StoredItem {}

@@ -1,0 +1,124 @@
+{
+  "stamp": 8,
+  "rule": "tastemaker-comments",
+  "dependency": "One file",
+  "admitted": [
+    "app/src/inbound/use_cases/greet.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "app/src/inbound/use_cases/greet.rs": "678c36b2a172a8ada0e8bf5bdd864467cf570afad0346f23a6b5bbe4ce3e0bc2",
+    "tastemaker.toml": "24b22c3194718837f7136d83386a47ab79f48f9ed9987c139c3a673b218b0a6d"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/bdd-members",
+      "include": [
+        "*/tests/bdd.rs",
+        "*/tests/bdd.rs/**",
+        "app/src/inbound/use_cases/*.rs",
+        "app/src/inbound/use_cases/*.rs/**",
+        "app/src/inbound/use_cases/*/acceptance.feature",
+        "app/src/inbound/use_cases/*/acceptance.feature/**",
+        "app/src/inbound/use_cases/*/acceptance.rs",
+        "app/src/inbound/use_cases/*/acceptance.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-bdd-members-16101641f22e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "app/src/inbound/use_cases/greet.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "app/src/inbound/use_cases/greet.rs#1"
+          ],
+          [
+            "text",
+            " The `greet` use case."
+          ],
+          [
+            "file",
+            {
+              "file": "app/src/inbound/use_cases/greet.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                25
+              ]
+            }
+          ],
+          [
+            "doc",
+            "true"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              25
+            ]
+          },
+          "true",
+          " The `greet` use case."
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "app/src/inbound/use_cases/greet.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

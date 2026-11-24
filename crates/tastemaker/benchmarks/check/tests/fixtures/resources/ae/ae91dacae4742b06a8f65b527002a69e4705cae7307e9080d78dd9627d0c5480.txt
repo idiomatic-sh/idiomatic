@@ -1,0 +1,1 @@
+//! Proves which pager a long terminal answer goes through, and when it goes straight to stdout.

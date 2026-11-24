@@ -1,0 +1,112 @@
+{
+  "stamp": 52,
+  "rule": "idiomatic.arch/format-names-in-adapters",
+  "dependency": "One file",
+  "admitted": [
+    "src/resources/workspace/check/composition.rs"
+  ],
+  "given": {
+    "src/resources/workspace/check/composition.rs": "112c1a0b2925c2ae0af24b221ce82d9eaa7044e0740f26453f7cba36101e8ef5",
+    "tastemaker.toml": "c49f1342f9833511717350d169384f4f9bd487a0ab9dcd49e5aefd41d2e5c533"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/adapters/**",
+        "**/adapters/**/**",
+        "**/factory.rs",
+        "**/factory.rs/**"
+      ],
+      "id": "idiomatic.arch/format-names-in-adapters",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-format-names-in-adapters-95a7140e9a3c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/resources/workspace/check/composition.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/resources/workspace/check/composition.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                233,
+                254
+              ]
+            }
+          ],
+          [
+            "value",
+            "source-inventory-v1"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              233,
+              254
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/resources/workspace/check/composition.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

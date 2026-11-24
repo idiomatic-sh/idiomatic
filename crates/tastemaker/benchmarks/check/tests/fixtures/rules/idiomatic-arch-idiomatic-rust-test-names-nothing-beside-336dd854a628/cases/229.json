@@ -1,0 +1,101 @@
+{
+  "stamp": 229,
+  "rule": "idiomatic.arch/idiomatic-rust/test-names-nothing-beside",
+  "dependency": "Several readers",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/shapes.rs",
+    "src/shapes/tests.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "02f40f4892583ac37f5e0c1387e239e0e47995d6ba05be8d668e8878ad28820b",
+    "src/shapes.rs": "3ba0e14a8cc259c38f88b13f21b274d43538cae99ca3985d3eb2dcfcd7543c74",
+    "src/shapes/tests.rs": "36a096bef8d4fa4738f01dc362583bc27d5c774ee20b3ecd6664695ef7c7d940",
+    "tastemaker.toml": "f085e29095a7d4ac130e7415a68fcb1b16ba0c95a4997ef757f6cd5251c91369"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/test-names-nothing-beside",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-test-names-nothing-beside-336dd854a628"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/shapes.rs",
+        "src/shapes/tests.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "test",
+            {
+              "file": "src/shapes/tests.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/shapes/tests.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/shapes/tests.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,6 @@
+use super::super::adapter::SyntaxDemoParserAdapter;
+
+pub(crate) fn walked(text: &str) -> usize {
+    let _ = SyntaxDemoParserAdapter;
+    text.len()
+}

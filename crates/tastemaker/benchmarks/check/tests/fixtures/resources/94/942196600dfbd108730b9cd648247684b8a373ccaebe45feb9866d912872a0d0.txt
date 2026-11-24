@@ -1,0 +1,6 @@
+use rusqlite::Connection;
+
+/// The greet use case.
+pub struct GreetUseCaseImpl {
+    connection: Connection,
+}

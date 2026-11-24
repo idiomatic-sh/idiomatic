@@ -1,0 +1,11 @@
+//! The other crate.
+
+pub mod cases {
+    /// Runs.
+    pub fn run() {}
+}
+
+pub mod domain {
+    /// Compares.
+    pub fn compare() {}
+}

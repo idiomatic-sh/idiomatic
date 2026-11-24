@@ -1,0 +1,22 @@
+let strings = select * from "syntax-tree" where kind = "string" or kind = "byte-string";
+let lined = select * from strings where glob_any(text, "*
+*");
+let single = antijoin(left=strings, right=lined, left-on=["id"], right-on=["id"]);
+let ticked = select * from single where glob_any(text, "*`*");
+let quoted = antijoin(left=strings, right=ticked, left-on=["id"], right-on=["id"]);
+let headers = select * from quoted where glob_any(text, "*\\n\[*\]\\n*");
+let keys = select * from quoted where glob_any(text, "?[a-z]* = \{*") or glob_any(text, "?[a-z]* = \\?\{*") or glob_any(text, "*\\n[a-z]* = \{*") or glob_any(text, "*\\n[a-z]* = \\?\{*") or glob_any(text, "*, [a-z]* = \{*") or glob_any(text, "*, [a-z]* = \\?\{*") or glob_any(text, "*\{ [a-z]* = \{*") or glob_any(text, "*\\n[a-z]* = \[\{*") or glob_any(text, "?[a-z]* = \[\{*") or glob_any(text, "*\}[a-z]* = \{*");
+let tables = select * from quoted where glob_any(text, "*\{\{ [a-z]* = *") or glob_any(text, "*\{\{ \{*\} \}\}*");
+let lined-headers = select * from lined where glob_any(text, "*
+\[*\]
+*");
+let lined-keys = select * from lined where glob_any(text, "*
+[a-z]* = \{*") or glob_any(text, "*
+[a-z]* = \[\{*");
+let json = select * from quoted where glob_any(text, "*\{\\?[a-z]*\\?:*") or glob_any(text, "*,\\?[a-z]*\\?:*");
+let toml-headers-keys = union(left=headers, right=keys);
+let toml = union(left=toml-headers-keys, right=tables);
+let lined-toml = union(left=lined-headers, right=lined-keys);
+let written = union(left=toml, right=lined-toml);
+let found = union(left=written, right=json);
+emit found subject "file" key("span");

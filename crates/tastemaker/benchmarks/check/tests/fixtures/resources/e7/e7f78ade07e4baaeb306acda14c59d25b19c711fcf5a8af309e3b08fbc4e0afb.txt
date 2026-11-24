@@ -1,0 +1,6 @@
+//! The resources.
+
+pub mod greeting;
+
+/// The store.
+pub fn store() {}

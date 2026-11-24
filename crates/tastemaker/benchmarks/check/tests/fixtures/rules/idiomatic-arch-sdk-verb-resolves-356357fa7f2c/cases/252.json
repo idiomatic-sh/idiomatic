@@ -1,0 +1,94 @@
+{
+  "stamp": 252,
+  "rule": "idiomatic.arch/sdk/verb-resolves",
+  "dependency": "Several files",
+  "admitted": [
+    "demo/src/resources/query.rs",
+    "demo/src/resources/query/run/entry.rs"
+  ],
+  "given": {
+    "demo/src/resources/query.rs": "c9cadcf2466b966486e8a3951f85fb2b544ff1e68f4b710f09b820eebc2e8510",
+    "demo/src/resources/query/run/entry.rs": "14dc07384adaa5f31d02579081522db28ebdff5b084bd496f12b527055659dcb",
+    "tastemaker.toml": "d51129e40151af0162c7bf90a1412845a37e84968448ee0de6cfce92580a54e8"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/sdk/verb-resolves",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-sdk-verb-resolves-356357fa7f2c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "demo/src/resources/query.rs",
+        "demo/src/resources/query/run/entry.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "demo/src/resources/query/run/entry.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "demo/src/resources/query/run/entry.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "demo/src/resources/query/run/entry.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

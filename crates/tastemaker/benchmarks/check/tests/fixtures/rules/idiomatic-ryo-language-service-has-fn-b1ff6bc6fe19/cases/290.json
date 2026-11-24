@@ -1,0 +1,103 @@
+{
+  "stamp": 290,
+  "rule": "idiomatic.ryo/language/service-has-fn",
+  "dependency": "One file",
+  "admitted": [
+    "src/service.rs"
+  ],
+  "given": {
+    "src/service.rs": "292284b94a677cfe2c2348ddc7ac9596ef49003b05ae04907e5694eda0a2fb09",
+    "tastemaker.toml": "95f2abd734cfc0d5ebfd6d995d0c4610084193041a9c64f58ce9715814482d7e"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/language/service-has-fn",
+      "include": [
+        "**/service.rs",
+        "**/service.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-language-service-has-fn-b1ff6bc6fe19"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/service.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/service.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                40
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              40
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/service.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

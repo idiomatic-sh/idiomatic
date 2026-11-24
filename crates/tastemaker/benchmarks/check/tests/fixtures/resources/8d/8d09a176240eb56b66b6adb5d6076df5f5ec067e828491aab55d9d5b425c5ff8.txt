@@ -1,0 +1,3 @@
+//! An entry surface.
+
+pub mod interface;

@@ -1,0 +1,113 @@
+{
+  "stamp": 132,
+  "rule": "idiomatic.arch/port-spans",
+  "dependency": "One file",
+  "admitted": [
+    "src/collections/shapes/circle/item.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "src/collections/shapes/circle/item.rs": "4ee99cd6e094c34d47e55f945d87578e955fadf02fa247845165b6b32bd475c0",
+    "tastemaker.toml": "1f387c35451aefd1015157f682686ff67949cb7a20635c761881bf93dd3cbeed"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/port-spans",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-port-spans-809daeffbdbc"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/collections/shapes/circle/item.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "area"
+          ],
+          [
+            "file",
+            {
+              "file": "src/collections/shapes/circle/item.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                137,
+                185
+              ]
+            }
+          ],
+          [
+            "problem",
+            "is not a port method, so it opens no span: only an impl of a `<Name>UseCase`, `<Name>Port` or `<Name>Interface` is instrumented"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              137,
+              185
+            ]
+          },
+          "is not a port method, so it opens no span: only an impl of a `<Name>UseCase`, `<Name>Port` or `<Name>Interface` is instrumented"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/collections/shapes/circle/item.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

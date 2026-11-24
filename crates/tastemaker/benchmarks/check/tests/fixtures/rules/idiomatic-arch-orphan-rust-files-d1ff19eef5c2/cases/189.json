@@ -1,0 +1,336 @@
+{
+  "stamp": 189,
+  "rule": "idiomatic.arch/orphan-rust-files",
+  "dependency": "Project",
+  "admitted": [
+    "src/domain/greeting/types/token/helper.rs"
+  ],
+  "given": {
+    "Cargo.toml": "e99681e71617c41e3dfbb0516d07a2baa7f1400f84fbf7ad475dd92cb3808f01",
+    "src/cases.rs": "5bcc185ba13bf6e23ec7ad4396472b773c51253675efd9be9240ec0d4a37db29",
+    "src/domain.rs": "5b5d8f2225558848ca4b6238a6eb593fb03ad0478ec1a5427106b3e64f8670c4",
+    "src/domain/greeting/types/token/helper.rs": "911b5fe4c7dc480cd4498e32cd1dd61d0176c754835ba53233844e2085c2ab6d",
+    "src/domain/polite.rs": "3a4e1de918cc06c9bd22cad0173429a3029575135283723ef0726b4ed93756cc",
+    "src/lib.rs": "43f9302cb4a27ff9de2c193fff261ccacce65515de21727e9f266fc6d337b903",
+    "tastemaker.toml": "db7205ffc9900295fc77af3bc1bce6222bb09a44f51f0f4c31aa86e65fdd1c16"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/case-expectation",
+      "include": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-case-expectation-d0aa767a915e"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/concept/fns-only-in-service",
+      "include": [
+        "src/domain/greeting/errors.rs",
+        "src/domain/greeting/errors.rs/**",
+        "src/domain/greeting/types.rs",
+        "src/domain/greeting/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-concept-fns-only-in-service-4aa3960d3cfe"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/concept/service-has-fn",
+      "include": [
+        "src/domain/greeting/service.rs",
+        "src/domain/greeting/service.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-concept-service-has-fn-84bb81d64e1f"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/concept/service-shape",
+      "include": [
+        "src/domain/greeting/service.rs",
+        "src/domain/greeting/service.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-concept-service-shape-f4bcd64c0a34"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/error-name",
+      "include": [
+        "src/domain/greeting/errors.rs",
+        "src/domain/greeting/errors.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-error-name-ee126fc64f46"
+    },
+    {
+      "exclude": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**",
+        "src/domain/greeting/composition.rs",
+        "src/domain/greeting/composition.rs/**",
+        "src/domain/greeting/fixtures.rs",
+        "src/domain/greeting/fixtures.rs/**"
+      ],
+      "id": "idiomatic.arch/factory-calls",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-factory-calls-6bd421048346"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/hollow-artifacts",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-artifacts-759d6bcc4a88"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/hollow-types",
+      "include": [
+        "src/domain/greeting/types.rs",
+        "src/domain/greeting/types.rs/**",
+        "src/domain/greeting/types/*.rs",
+        "src/domain/greeting/types/*.rs/**",
+        "src/domain/greeting/types/*/value.rs",
+        "src/domain/greeting/types/*/value.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-types-ee060a3a9ae5"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-domain-aliases",
+      "include": [
+        "src/domain/greeting/errors.rs",
+        "src/domain/greeting/errors.rs/**",
+        "src/domain/greeting/types.rs",
+        "src/domain/greeting/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-domain-aliases-092adbcaed6b"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-inherent-impls",
+      "include": [
+        "src/domain/greeting/types.rs",
+        "src/domain/greeting/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-inherent-impls-7fae24f601c8"
+    },
+    {
+      "exclude": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**",
+        "src/domain/greeting/fixtures.rs",
+        "src/domain/greeting/fixtures.rs/**"
+      ],
+      "id": "idiomatic.arch/no-runtime-fixtures",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-runtime-fixtures-3026c70f4acb"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-vacuous-tests",
+      "include": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-vacuous-tests-ce4ca1fdc7f5"
+    },
+    {
+      "exclude": [
+        "src/domain/greeting/**/tests/fixtures/**",
+        "src/domain/greeting/**/tests/fixtures/**/**",
+        "src/domain/greeting/**/tests/ui/**",
+        "src/domain/greeting/**/tests/ui/**/**"
+      ],
+      "id": "idiomatic.arch/orphan-rust-files",
+      "include": [
+        "src/domain/greeting/**",
+        "src/domain/greeting/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-orphan-rust-files-d1ff19eef5c2"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/proof-beside",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-proof-beside-60adcfa5cb16"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/public-fields",
+      "include": [
+        "src/domain/greeting/types.rs",
+        "src/domain/greeting/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-public-fields-26f8cb4c2d3d"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/test-runners-match-rows",
+      "include": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-runners-match-rows-4e5621332882"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/test-shape",
+      "include": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-shape-45f9971bbe85"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/unit-cases",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**",
+        "src/domain/greeting/*_test/**/*.rs",
+        "src/domain/greeting/*_test/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unit-cases-a9a46cde7eef"
+    },
+    {
+      "exclude": [
+        "src/domain/greeting/*_test.rs",
+        "src/domain/greeting/*_test.rs/**",
+        "src/domain/greeting/schemas.rs",
+        "src/domain/greeting/schemas.rs/**"
+      ],
+      "id": "idiomatic.arch/validation-at-edges",
+      "include": [
+        "src/domain/greeting/*.rs",
+        "src/domain/greeting/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-validation-at-edges-282bc1c4e5c3"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/value-companions",
+      "include": [
+        "src/domain/greeting/types/**",
+        "src/domain/greeting/types/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-value-companions-e8c141716c3a"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/cases.rs",
+        "src/domain.rs",
+        "src/domain/greeting/types/token/helper.rs",
+        "src/domain/polite.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "src/domain/greeting/types/token/helper.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/domain/greeting/types/token/helper.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/domain/greeting/types/token/helper.rs"
+        }
+      }
+    ],
+    "unknowns": [
+      [
+        "src/domain/polite.rs",
+        "analyzed-source is read only in part in src/domain/polite.rs: src/domain/polite.rs declares module `domain::polite::collections` with no source files"
+      ],
+      [
+        "src/domain/polite.rs",
+        "analyzed-source is read only in part in src/domain/polite.rs: src/domain/polite.rs declares module `domain::polite::service_test` with no source files"
+      ],
+      [
+        "src/domain/polite.rs",
+        "analyzed-source is read only in part in src/domain/polite.rs: src/domain/polite.rs declares module `domain::polite::service` with no source files"
+      ]
+    ]
+  }
+}

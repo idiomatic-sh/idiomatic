@@ -1,0 +1,6 @@
+//! The greeting domain's rules: pure functions over its values, with no IO and no ports.
+
+/// The greetings shorter than `limit`, in their order.
+pub fn short(greetings: &[String], limit: usize) -> Vec<&String> {
+    greetings.iter().filter(|greeting| greeting.len() < limit).collect()
+}

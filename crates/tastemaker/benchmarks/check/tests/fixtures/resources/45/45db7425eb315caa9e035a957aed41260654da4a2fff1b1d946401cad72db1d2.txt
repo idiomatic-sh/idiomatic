@@ -1,0 +1,9 @@
+//! The `locality` service: pure functions over the domain's types, with no IO and no ports.
+
+/// The locality of a path.
+pub fn of(path: &str) -> usize {
+    path.len()
+}
+
+/// A holder.
+pub struct Locality;

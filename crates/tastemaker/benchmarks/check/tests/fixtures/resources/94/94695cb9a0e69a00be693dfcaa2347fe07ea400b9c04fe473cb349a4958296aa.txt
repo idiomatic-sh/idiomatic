@@ -1,0 +1,1 @@
+//! The Cargo benchmark executable owns its workload and artifact lifetimes.

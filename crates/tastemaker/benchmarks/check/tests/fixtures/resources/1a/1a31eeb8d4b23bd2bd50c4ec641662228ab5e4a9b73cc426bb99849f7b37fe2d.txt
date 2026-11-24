@@ -1,0 +1,11 @@
+//! The types of the concept next to it: plain data, public fields and derives, with no constructor and no inherent impl.
+
+/// How polite.
+#[derive(Debug)]
+pub struct Politeness(pub u8);
+
+impl Default for Politeness {
+    fn default() -> Self {
+        Self(1)
+    }
+}

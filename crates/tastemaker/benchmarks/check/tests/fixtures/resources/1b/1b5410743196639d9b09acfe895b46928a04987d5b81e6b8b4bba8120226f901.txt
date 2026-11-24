@@ -1,0 +1,17 @@
+pub fn executable(output: &str) -> Option<std::path::PathBuf> {
+    output
+        .lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter_map(|message| message["executable"].as_str().map(std::path::PathBuf::from))
+        .next_back()
+}
+pub fn values(output: &str) -> Vec<u8> {
+    output
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            u8::from_str(trimmed).ok()
+        })
+        .collect()
+}
+use std::str::FromStr;

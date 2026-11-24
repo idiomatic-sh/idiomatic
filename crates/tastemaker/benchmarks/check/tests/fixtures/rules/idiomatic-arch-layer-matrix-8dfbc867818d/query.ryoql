@@ -1,0 +1,17 @@
+let source-directories = capture(from="source-dependency", path="source", pattern="{*source-root}/{from-layer}/{*source-rest}", captures=["source-root", "from-layer", "source-rest"]);
+let source-modules = capture(from="source-dependency", path="source", pattern="{*source-root}/{from-layer}.rs", captures=["source-root", "from-layer"]);
+let directory-sources = select source, target, span, source-root, from-layer from source-directories;
+let module-sources = select source, target, span, source-root, from-layer from source-modules;
+let source-rows = union(left=directory-sources, right=module-sources);
+let source-layers = select * from source-rows where from-layer = "inbound" or from-layer = "application" or from-layer = "domain" or from-layer = "outbound";
+let sources = select * from source-layers where glob_any(source-root, "{src,**/src}");
+let target-directories = capture(from=sources, path="target", pattern="{*target-root}/{to-layer}/{*target-rest}", captures=["target-root", "to-layer", "target-rest"]);
+let target-modules = capture(from=sources, path="target", pattern="{*target-root}/{to-layer}.rs", captures=["target-root", "to-layer"]);
+let directory-targets = select source, span, source-root, from-layer, target-root, to-layer from target-directories;
+let module-targets = select source, span, source-root, from-layer, target-root, to-layer from target-modules;
+let target-rows = union(left=directory-targets, right=module-targets);
+let local-rows = select * from target-rows where source-root = target-root;
+let layers = select * from local-rows where to-layer = "inbound" or to-layer = "application" or to-layer = "domain" or to-layer = "outbound";
+let cross-layer = select * from layers where from-layer != to-layer;
+let refused = select source as file, span, from-layer, to-layer from cross-layer where from-layer = "domain" or from-layer = "outbound" or (from-layer = "application" and to-layer = "inbound");
+emit refused subject file key(span);

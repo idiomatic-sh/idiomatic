@@ -1,0 +1,12 @@
+param ports: set<string>;
+param traits: set<string>;
+param implementers: set<string>;
+let declared = select name from "defines" where kind = "trait" and glob_any(file, $ports) and glob_any(name, $traits);
+let impls = select target, file, span from "inherits" where not glob_any(file, $implementers) and not glob_any(file, $ports);
+let imports = select binding, target, file from "static-import";
+let aliased = select r.target as target, l.file as file, l.span as span from impls as l join imports as r on l.file = r.file where l.target = r.binding;
+let written = union(left=impls, right=aliased);
+let keyed-impls = extend(from=written, values={"pair": 1});
+let keyed-ports = extend(from=declared, values={"pair": 1});
+let foreign = select l.file as file, l.span as span, r.name as name from keyed-impls as l join keyed-ports as r on l.pair = r.pair where l.target = r.name or ends_with(l.target, concat("::", r.name));
+emit foreign subject "file" key("span");

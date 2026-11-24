@@ -1,0 +1,18 @@
+//! The fake of the `names` port, and a fake of another crate's port.
+
+use crate::outbound::names::interface::NamesPort;
+use other::OtherPort;
+
+/// A fake.
+pub struct NamesFake;
+
+impl NamesPort for NamesFake {
+    fn run(&self) {}
+}
+
+/// A fake of a port this core does not own.
+pub struct OtherFake;
+
+impl OtherPort for OtherFake {
+    fn run(&self) {}
+}

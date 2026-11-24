@@ -1,0 +1,145 @@
+{
+  "stamp": 220,
+  "rule": "idiomatic.arch/idiomatic-rust/no-domain-concept-cycles",
+  "dependency": "Project",
+  "admitted": [
+    "src/domain.rs",
+    "src/domain/alpha.rs",
+    "src/domain/alpha/types.rs",
+    "src/domain/beta.rs",
+    "src/domain/beta/types.rs",
+    "src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/domain.rs": "a2501e6afbd75d9ee352a7e33a379a1b5705caeabd6bee13656cb4d9f6d4cb8e",
+    "src/domain/alpha.rs": "ddb1dd5ab94c5bac485c4daa6320d39dd35a730a1a54fb754cf55429cc518f2d",
+    "src/domain/alpha/types.rs": "7be506e89972df01ff2ae7f8e32f4a3f1fa8cdc62214f6b5dbb7668325573517",
+    "src/domain/beta.rs": "ddb1dd5ab94c5bac485c4daa6320d39dd35a730a1a54fb754cf55429cc518f2d",
+    "src/domain/beta/types.rs": "2b5cb808eb227bab46901ff65946c1c711974cb591d22711190a5fe4b92ae945",
+    "src/lib.rs": "bdcf726f68ab96c23d55688ce366f03a3c049ac2af63cb7975c4a1a71299d36b",
+    "tastemaker.toml": "72e22d1a98e478b2263ec8bdcc92da032b16c99fcf2c07b6869e4c28710c73fd"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/no-domain-concept-cycles",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-no-domain-concept-cycles-29d5c899982d"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/domain.rs",
+        "src/domain/alpha.rs",
+        "src/domain/alpha/types.rs",
+        "src/domain/beta.rs",
+        "src/domain/beta/types.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/domain/alpha.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                11
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/domain/alpha.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/domain/alpha.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/domain/beta.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                11
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/domain/beta.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/domain/beta.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

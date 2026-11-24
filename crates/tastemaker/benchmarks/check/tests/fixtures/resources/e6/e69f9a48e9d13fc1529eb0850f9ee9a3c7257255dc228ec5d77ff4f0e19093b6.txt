@@ -1,0 +1,4 @@
+//! The composition root.
+
+/// Every service.
+pub fn services() {}

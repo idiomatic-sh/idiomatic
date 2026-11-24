@@ -1,0 +1,5 @@
+//! The derived views of the operation.
+
+pub mod service;
+#[cfg(test)]
+mod service_test;

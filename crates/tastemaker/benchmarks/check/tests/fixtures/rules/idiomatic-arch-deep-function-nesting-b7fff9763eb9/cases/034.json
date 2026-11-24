@@ -1,0 +1,121 @@
+{
+  "stamp": 34,
+  "rule": "idiomatic.arch/deep-function-nesting",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "a78832804d5caaf236abf5f34f4d8120737c1f23af5df6227fce5065cc727687",
+    "tastemaker.toml": "06bdddaae2cf8e2d7025504f34d6d28beecc533ee7e6028382e18305cc709b1e"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/deep-function-nesting",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "max-depth": 1
+      },
+      "query": "idiomatic-arch-deep-function-nesting-b7fff9763eb9"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/lib.rs#30"
+          ],
+          [
+            "name",
+            "inner"
+          ],
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                43,
+                56
+              ]
+            }
+          ],
+          [
+            "depth",
+            2
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              43,
+              56
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

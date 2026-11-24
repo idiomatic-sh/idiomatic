@@ -1,0 +1,7 @@
+//! What the `greet` use case promises.
+
+/// The promise.
+pub trait GreetUseCase {
+    /// Does it.
+    fn run(&self);
+}

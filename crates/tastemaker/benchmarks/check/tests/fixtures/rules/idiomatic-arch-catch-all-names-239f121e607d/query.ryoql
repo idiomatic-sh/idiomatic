@@ -1,0 +1,17 @@
+let files = project(from="filesystem.file", columns=["path"]);
+let inner-directories = capture(from=files, path="path", pattern="{*above}/{name}/{*below}", captures=["above", "name", "below"]);
+let first-directories = capture(from=files, path="path", pattern="{name}/{*below}", captures=["name", "below"]);
+let inner-directory-names = project(from=inner-directories, columns=["path", "name"]);
+let first-directory-names = project(from=first-directories, columns=["path", "name"]);
+let directory-names = union(left=inner-directory-names, right=first-directory-names);
+let catch-all-directories = select * from directory-names where glob_any(name, "{common,utils,shared,helpers}");
+let in-directories = extend(from=catch-all-directories, values={"place": "is in a directory named"});
+let inner-files = capture(from=files, path="path", pattern="{*parent}/{name}", captures=["parent", "name"]);
+let first-files = capture(from=files, path="path", pattern="{name}", captures=["name"]);
+let inner-file-names = project(from=inner-files, columns=["path", "name"]);
+let first-file-names = project(from=first-files, columns=["path", "name"]);
+let file-names = union(left=inner-file-names, right=first-file-names);
+let catch-all-files = select * from file-names where glob_any(name, "{common,common.*,utils,utils.*,shared,shared.*,helpers,helpers.*}");
+let named-files = extend(from=catch-all-files, values={"place": "is a file named"});
+let catch-alls = union(left=in-directories, right=named-files);
+emit catch-alls subject "path" key("path", "name");

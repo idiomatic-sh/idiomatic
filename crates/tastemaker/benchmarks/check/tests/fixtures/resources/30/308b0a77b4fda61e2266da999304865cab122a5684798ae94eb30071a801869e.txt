@@ -1,0 +1,12 @@
+Feature: greet
+
+  Rule: greet answers what its caller sees
+
+    @succeeds
+    Scenario Outline: greet succeeds
+      Given <input>
+      When greet runs
+      Then <expected> is answered
+
+      Examples:
+        | name | input | expected |

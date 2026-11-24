@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/tastemaker-held/7" }] }
+closed = false
+specs = [{ spec = "idiomatic.arch/adapter", description = "The definition under test, placed alone.", include = ["."] }]

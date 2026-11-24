@@ -1,0 +1,26 @@
+/// One operator.
+pub struct Operator {
+    /// Its name.
+    pub name: String,
+    /// What it does.
+    pub summary: String,
+}
+
+/// The listing as JSON writes it.
+pub struct ListingSchema {
+    /// The operators.
+    pub operators: Vec<String>,
+}
+
+impl ListingSchema {
+    /// The listing of these operators.
+    #[must_use]
+    pub fn of(operators: Vec<Operator>) -> Self {
+        Self {
+            operators: operators
+                .into_iter()
+                .map(|operator| format!("{}\t{}", operator.name, operator.summary))
+                .collect(),
+        }
+    }
+}

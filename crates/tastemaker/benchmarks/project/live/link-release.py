@@ -21,15 +21,20 @@ start = s.index('        let linter = self', s.index('    fn lint(&self,'))
 end = s.index('\n    }', start)
 s = s[:start] + '''        // Validation and the workspace check share the caller's existing worker.
         // Its thread-local state ends when this check's pool is dropped.
-        let pool = self.pool.0.as_ref().map_err(engine)?;
+        let pool = self.settings.pool.0.as_ref().map_err(engine)?;
         if pool.current_num_threads() != 1 {
             return Err(engine("this benchmark requires one worker"));
         }
         thread_local! { static SESSION: std::cell::RefCell<tm_project_session::Live> = Default::default(); }
+        let budget = match self.settings.memory {
+            Memory::Machine => ryo::linter::MemoryBudget::Machine,
+            Memory::Bytes(bytes) => std::num::NonZero::new(bytes.0).map_or(
+                ryo::linter::MemoryBudget::Machine, ryo::linter::MemoryBudget::Bytes),
+        };
         pool.install(|| SESSION.with(|s| {
             let mut session=s.borrow_mut();
             session.use_cache(self.cache.as_deref())?;
-            session.lint(sdk,&self.languages)
+            session.lint(sdk,&self.languages,budget)
         }))
             .map(schemas::session_report)
             .map_err(engine)''' + s[end:]
@@ -91,7 +96,12 @@ fn main() -> std::process::ExitCode {
     if mode.as_deref() == Some("--tm-batch") {
         let manifest = arguments.next().expect("manifest");
         let output = arguments.next().expect("output");
-        tm_project_session::capture(benchmark_languages::linked(), &manifest, &output);
+        let workers = arguments.next().map(|flag| {
+            assert_eq!(flag, "--workers");
+            arguments.next().expect("worker count").parse().expect("positive worker count")
+        });
+        assert!(arguments.next().is_none(), "unexpected batch argument");
+        tm_project_session::capture(benchmark_languages::linked(), &manifest, &output, workers);
         return std::process::ExitCode::SUCCESS;
     }'''))
 
@@ -107,14 +117,24 @@ entry.write_text(s.replace(original, '    let result = tastemaker_cli::resources
 adapter = release / 'crates/tastemaker/crates/core/src/outbound/analysis/adapters/ryo/adapter.rs'
 s = adapter.read_text()
 start = s.index('    /// The pool ryo reads')
-s = s[:start] + '    pool: crate::outbound::scheduler::types::WorkerPool,\n    cache: Option<std::path::PathBuf>,' + s[s.index('\n}', start):]
+s = s[:start] + '    settings: AnalysisSettings,\n    cache: Option<std::path::PathBuf>,' + s[s.index('\n}', start):]
 start=s.index('        settings: AnalysisSettings,')
 end=s.index('\n    }',start)
-s=s[:start]+'''        settings: AnalysisSettings,
+s=s[:start]+'''        mut settings: AnalysisSettings,
         cache: ryo::linter::Cache,
     ) -> Self {
-        Self { languages, pool: settings.pool, cache: match cache { ryo::linter::Cache::At(p) => Some(p), _ => None } }'''+s[end:]
-s=s.replace('self, error, operator_page, placed_columns, relation_page, report','self, operator_page, placed_columns, relation_page').replace('InvalidReason, Memory, QueryVerdict', 'InvalidReason, QueryVerdict')
+        // Benchmark the real SDK budget even when the pinned CLI requests Machine.
+        if let Some(value) = std::env::var_os("TM_BENCH_MEMORY_BYTES") {
+            let bytes = value.to_str().and_then(|s| s.parse::<std::num::NonZeroU64>().ok())
+                .expect("TM_BENCH_MEMORY_BYTES must be a positive byte count").get();
+            let limit = match settings.memory {
+                Memory::Machine => bytes,
+                Memory::Bytes(current) => bytes.min(current.0),
+            };
+            settings.memory = Memory::Bytes(crate::outbound::analysis::types::MemoryBytes(limit));
+        }
+        Self { languages, settings, cache: match cache { ryo::linter::Cache::At(p) => Some(p), _ => None } }'''+s[end:]
+s=s.replace('self, error, operator_page, placed_columns, relation_page, report','self, operator_page, placed_columns, relation_page')
 adapter.write_text(s)
 schema=adapter.with_name('schemas.rs')
 s=schema.read_text()

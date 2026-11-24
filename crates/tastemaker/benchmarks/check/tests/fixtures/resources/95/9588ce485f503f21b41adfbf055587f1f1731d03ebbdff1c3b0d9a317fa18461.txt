@@ -1,0 +1,20 @@
+//! What every `names` adapter must pass.
+
+use super::super::interface::NamesPort;
+use crate::cases::Case;
+
+/// What a row of the contract is given.
+type Input = ();
+/// What a row of the contract expects when it succeeds.
+type Value = ();
+/// What a row of the contract expects when it is refused.
+type Failure = ();
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs the contract's rows against one implementation: the fake, or an adapter of another crate.
+pub fn check(adapter: &impl NamesPort) {
+    let _ = adapter;
+    todo!("execute the contract rows through the supplied adapter and assert its observations");
+}

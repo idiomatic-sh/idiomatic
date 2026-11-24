@@ -1,6 +1,10 @@
 //! Evaluate a closed set of typed populations once, after the final file.
 #[path = "session_certificate.rs"]
 pub(in super::super) mod certificate;
+#[path = "session/demand.rs"]
+pub(in super::super) mod demand;
+#[path = "session/contribution.rs"]
+pub(in super::super) mod contribution;
 use super::population::Inputs;
 use super::{E, Exec, File, FileVersion, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};
 use std::{collections::BTreeMap, rc::Rc};
@@ -344,45 +348,35 @@ fn restrict_uncertain(
 
 /// Run one already prepared file program and deliver its complete typed rows. Caller
 /// tables have already been numbered in this request and belong to this binding.
-pub(in super::super) fn pair<'tables>(
+pub(in super::super) fn frame<'a>(
+    version: &'a FileVersion<'a>,
+    plan: &super::Plan,
+    supplied: &[(String, Rc<Table>)],
+    local: Option<&(String, Rc<Table>)>,
+) -> File<'a> {
+    let mut frame = File::new(version, plan.nodes.len());
+    frame.fills.extend(supplied.iter().chain(local).cloned());
+    frame
+}
+
+pub(in super::super) fn pair(
     exec: &mut Exec<'_>,
+    frame: &mut File<'_>,
     run: &mut Run,
-    version: &FileVersion<'_>,
     facts: &mut dyn Provider,
-    supplied: impl IntoIterator<Item = &'tables (String, Rc<Table>)>,
+    plan: &super::Plan,
+    slots: &[usize],
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
 ) -> R<Vec<answer::Row>> {
-    let plan = exec.plan;
-    let mut frame = File::new(version, plan.nodes.len());
-    for (name, table) in supplied {
-        if run
-            .catalog(name)
-            .is_none_or(|(_, names, tys)| names != table.names || tys != table.tys)
-        {
-            let fields: Vec<_> = table
-                .names
-                .iter()
-                .zip(table.tys.iter())
-                .map(|(n, t)| (n.as_str(), *t))
-                .collect();
-            run.declare(name, &fields, super::Supplier::Host);
-        }
-        frame.fills.insert(name.clone(), table.clone());
-    }
     if !incomplete.is_empty() {
-        restrict_uncertain(
-            exec,
-            run,
-            facts,
-            &mut frame,
-            &vec![true; plan.nodes.len()],
-            incomplete,
-        )?;
+        let mut demanded = vec![false; exec.plan.nodes.len()];
+        for &slot in slots { demanded[slot] = true; }
+        restrict_uncertain(exec, run, facts, frame, &demanded, incomplete)?;
     }
     let mut rows = Vec::new();
     for (rule, node, subject, keys) in &plan.emits {
         run.missing.clear();
-        let t = exec.eval(&mut frame, run, facts, *node)?;
+        let t = exec.eval(frame, run, facts, slots[*node])?;
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
@@ -394,7 +388,7 @@ pub(in super::super) fn pair<'tables>(
         for r in 0..t.n {
             keep_finding(
                 &mut seen,
-                answer::typed(run, &t, r, rule, Some(version.file as usize), &identity)?,
+                answer::typed(run, &t, r, rule, Some(frame.file as usize), &identity)?,
             );
         }
         rows.extend(seen.into_values());
@@ -407,30 +401,32 @@ pub(in super::super) fn pair<'tables>(
 pub(in super::super) fn gather(
     exec: &mut Exec<'_>,
     run: &mut Run,
-    version: &FileVersion<'_>,
+    frame: &mut File<'_>,
     facts: &mut dyn Provider,
-    local: &[(String, Rc<Table>)],
+    slots: &[usize],
     cut: &[usize],
+    projections: &BTreeMap<usize,contribution::Projection>,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
-) -> R<Vec<(usize, Rc<Table>)>> {
-    let mut frame = File::new(version, exec.plan.nodes.len());
-    for (name, table) in local {
-        frame.fills.insert(name.clone(), table.clone());
-    }
+) -> R<Vec<(usize, Rc<Table>, bool)>> {
     if !incomplete.is_empty() {
         let mut demanded = vec![false; exec.plan.nodes.len()];
-        let mut stack = cut.to_vec();
+        let mut stack: Vec<_> = cut.iter().map(|&i| slots[i]).collect();
         while let Some(i) = stack.pop() {
             if !std::mem::replace(&mut demanded[i], true) {
                 stack.extend(&exec.plan.nodes[i].inputs);
             }
         }
-        restrict_uncertain(exec, run, facts, &mut frame, &demanded, incomplete)?;
+        restrict_uncertain(exec, run, facts, frame, &demanded, incomplete)?;
     }
     let mut result = Vec::with_capacity(cut.len());
     run.missing.clear();
     for &i in cut {
-        result.push((i, exec.eval(&mut frame, run, facts, i)?));
+        if incomplete.is_empty()
+            && let Some(table) = contribution::gather(projections, i, slots, frame, run) {
+            result.push((i, table, true));
+        } else {
+            result.push((i, exec.eval(frame, run, facts, slots[i])?, false));
+        }
     }
     if !run.missing.is_empty() {
         return Err(format!("unimplemented functions {:?}", run.missing));

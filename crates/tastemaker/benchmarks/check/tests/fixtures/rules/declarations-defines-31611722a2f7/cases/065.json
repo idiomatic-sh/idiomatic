@@ -1,0 +1,222 @@
+{
+  "stamp": 65,
+  "rule": "declarations-defines",
+  "dependency": "One file",
+  "admitted": [
+    ".tastemaker-rendered/7aba3dfa320bf7a5.composition.rs",
+    "owned/composition.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "other/composition.rs": "6004795f1982783a12731ace641befc7b078938c05284fe651621727c71827d5",
+    "owned/composition.rs": "6004795f1982783a12731ace641befc7b078938c05284fe651621727c71827d5",
+    "src/lib.rs": "975b7da244e9a4851587b3f2f77eb9ed3c0ec6aa2f138965cb3df9f49b9b2a4d",
+    "tastemaker.toml": "fb3f66fe9850c14eecef46f213028332956af66a301facd7391457446333b44c"
+  },
+  "beside": {
+    ".tastemaker-rendered/7aba3dfa320bf7a5.composition.rs": "94695cb9a0e69a00be693dfcaa2347fe07ea400b9c04fe473cb349a4958296aa"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "owned/composition.rs"
+          },
+          "workflow",
+          "idiomatic.arch",
+          "workflow",
+          "0.1.0",
+          "benchmark-executable"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "owned/composition.rs",
+        ".tastemaker-rendered/7aba3dfa320bf7a5.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "owned/composition.rs",
+        ".tastemaker-rendered/7aba3dfa320bf7a5.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "owned/composition.rs",
+        ".tastemaker-rendered/7aba3dfa320bf7a5.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "owned/composition.rs",
+        ".tastemaker-rendered/7aba3dfa320bf7a5.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "owned/composition.rs",
+        ".tastemaker-rendered/7aba3dfa320bf7a5.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "owned/composition.rs",
+        ".tastemaker-rendered/7aba3dfa320bf7a5.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "owned/composition.rs",
+        ".tastemaker-rendered/7aba3dfa320bf7a5.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "owned/composition.rs",
+        ".tastemaker-rendered/7aba3dfa320bf7a5.composition.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/io-at-boundary",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-io-at-boundary-182f2043a341"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "other/composition.rs",
+        "owned/composition.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "owned/composition.rs#1"
+          ],
+          [
+            "kind",
+            "function"
+          ],
+          [
+            "refinement",
+            "function"
+          ],
+          [
+            "name",
+            "run"
+          ],
+          [
+            "owner",
+            "owned/composition.rs#0"
+          ],
+          [
+            "file",
+            {
+              "file": "owned/composition.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                3,
+                6
+              ]
+            }
+          ]
+        ],
+        "key": [
+          "owned/composition.rs#1"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "owned/composition.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

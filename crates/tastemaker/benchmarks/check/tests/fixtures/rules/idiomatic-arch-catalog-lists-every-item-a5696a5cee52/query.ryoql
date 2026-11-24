@@ -1,0 +1,7 @@
+param collection: set<string>;
+param catalog: set<string>;
+param except: set<string>;
+let items = select name, file, span from "defines" where kind = "namespace" and glob_any(file, $collection) and not glob_any(name, $except);
+let words = select text as name from "syntax-tree" where kind = "ident" and glob_any(file, $catalog);
+let unlisted = antijoin(left=items, right=words, left-on=["name"], right-on=["name"]);
+emit unlisted subject "file" key("span");

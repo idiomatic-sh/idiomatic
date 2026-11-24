@@ -1,0 +1,108 @@
+{
+  "stamp": 119,
+  "rule": "idiomatic.arch/no-serde-in-domain",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/inbound/use_cases/check/use_case.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "src/inbound/use_cases/check/use_case.rs": "914789f81ba00ef7c5f46443255ac033d4ac486a3176c0a99dc51d22633f59bb",
+    "tastemaker.toml": "867a25600f014131229ff404c9e24eab56d32fd716434034fc4748d9c7a89deb"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-serde-in-domain",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-serde-in-domain-3461e7963478"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/inbound/use_cases/check/use_case.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/check/use_case.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                84,
+                105
+              ]
+            }
+          ],
+          [
+            "what",
+            "serde_json::to_string"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              84,
+              105
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/check/use_case.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

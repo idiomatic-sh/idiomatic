@@ -1,0 +1,111 @@
+{
+  "stamp": 55,
+  "rule": "idiomatic.arch/hollow-services",
+  "dependency": "One file",
+  "admitted": [
+    "src/composition.rs"
+  ],
+  "given": {
+    "src/composition.rs": "5cb1047a354fbb2aa79ccc8e656af1c7aa0927343c3cc724164ee81f67f563ff",
+    "tastemaker.toml": "71e3de58206cea6e18f74a52983e60d0175e175d26a63d75db84d607ab014245"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/hollow-services",
+      "include": [
+        "**/composition.rs",
+        "**/composition.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-services-22fed80c6dbf"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/composition.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/composition.rs#3"
+          ],
+          [
+            "kind",
+            "struct"
+          ],
+          [
+            "file",
+            {
+              "file": "src/composition.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                62,
+                153
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              62,
+              153
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/composition.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

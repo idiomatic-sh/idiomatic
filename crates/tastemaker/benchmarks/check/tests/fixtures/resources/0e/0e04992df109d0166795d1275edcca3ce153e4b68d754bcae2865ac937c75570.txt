@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+specs = [{ spec = "idiomatic.arch/collection", description = "The definition under test, placed alone.", include = ["src/domain/{concept}/collections/{collection}"], params = { item-trait = ["shapes=ryo::languages::ReadItem"] } }]

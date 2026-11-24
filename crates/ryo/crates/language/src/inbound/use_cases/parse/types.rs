@@ -190,6 +190,19 @@ pub trait ParseEngine: Send + Sync {
         wanted: &[Relation],
     ) -> Result<(), ParseError>;
 
+    /// Build for a consumer which can borrow a native preorder graph.
+    fn build_native_file(
+        &self,
+        request: ParseRequest<'_>,
+        table: &mut Elements,
+        symbols: &mut Symbols,
+        access: crate::domain::elements::types::NodeAccess<'_>,
+    ) -> Result<(), ParseError> {
+        let wanted = match access { crate::domain::elements::types::NodeAccess::Inspect(rows) | crate::domain::elements::types::NodeAccess::Query(rows) => rows };
+        self.build_file(request, table, symbols, wanted)
+    }
+
+
     /// Builds the tree of a file explicitly assigned to this provider, completed for what the readers of `wanted` look at; no row
     /// is written.
     ///

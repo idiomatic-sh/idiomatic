@@ -1,0 +1,3 @@
+//! One collection: the interface every item implements (when it declares its own), its items in order, and the types, errors and contract it has.
+
+pub(crate) mod circle;

@@ -1,0 +1,249 @@
+{
+  "stamp": 82,
+  "rule": "declarations-scopes",
+  "dependency": "One file",
+  "admitted": [
+    ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs",
+    "src/application/x/extra.rs"
+  ],
+  "given": {
+    "Cargo.toml": "01682718dc81bf6ca83b17e5a4b7fd755dc44c08357e0c817c20d66e5f474a78",
+    "src/application/x/extra.rs": "5f3dab4721ab9fc15a4715bd5a176fe1f66533a65f0f88b79ea53594aec32ca6",
+    "tastemaker.toml": "f0a87cf4b120109e21073c4a464a9fcfd3f31a0e5699635a1677a498553064a2"
+  },
+  "beside": {
+    ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs": "bf6cf3924039ffb77f3271c98b83dfe1ef94ca9dfc7ba289194000d26a513694"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "src/application/x/extra.rs"
+          },
+          "service",
+          "idiomatic.arch",
+          "service",
+          "0.1.0",
+          ""
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "src/application/x/extra.rs",
+        ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "src/application/x/extra.rs",
+        ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "src/application/x/extra.rs",
+        ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "src/application/x/extra.rs",
+        ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "src/application/x/extra.rs",
+        ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "src/application/x/extra.rs",
+        ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "src/application/x/extra.rs",
+        ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "src/application/x/extra.rs",
+        ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/manifest-placements",
+      "include": [
+        "**/tastemaker.toml",
+        "**/tastemaker.toml/**"
+      ],
+      "parameters": {
+        "config-roles": [
+          "idiomatic.arch/cargo-workspace"
+        ],
+        "manifest-roles": [],
+        "open-manifest-roles": [],
+        "source-extensions": [
+          "rs"
+        ]
+      },
+      "query": "idiomatic-arch-manifest-placements-01683212cb16"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/application/x/extra.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "parent",
+            ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs#0"
+          ],
+          [
+            "child",
+            ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs#0"
+          ],
+          [
+            "file",
+            {
+              "file": ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                86
+              ]
+            }
+          ]
+        ],
+        "key": [
+          ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs#0"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": ".tastemaker-rendered/f2b50ebc53f1e4c2.extra.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "parent",
+            "src/application/x/extra.rs#0"
+          ],
+          [
+            "child",
+            "src/application/x/extra.rs#0"
+          ],
+          [
+            "file",
+            {
+              "file": "src/application/x/extra.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                19
+              ]
+            }
+          ]
+        ],
+        "key": [
+          "src/application/x/extra.rs#0"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/application/x/extra.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

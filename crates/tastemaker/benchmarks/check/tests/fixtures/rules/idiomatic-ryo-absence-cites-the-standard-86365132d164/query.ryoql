@@ -1,0 +1,14 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let functions = select * from tree-nodes where kind = "fn";
+let idents = select * from tree-tokens where kind = "ident";
+let absent = select * from idents where glob_any(text, "{NoSuchConstruct,NoManifests}");
+let comments = select * from tree-tokens where kind = "comment";
+let cites = select * from comments where glob_any(text, "*standard:*");
+let absent-holders = axis(from=absent, relation="syntax-child", direction=ancestor, domain=functions);
+let cite-holders = axis(from=cites, relation="syntax-child", direction=ancestor, domain=functions);
+let holders = project(from=absent-holders, columns=["related"]);
+let citing = project(from=cite-holders, columns=["related"]);
+let uncited = antijoin(left=holders, right=citing, left-on=["related"], right-on=["related"]);
+let located = select l."related" as "id", r."file" as "file", r."span" as "span" from uncited as l join functions as r on l."related" = r."id";
+emit located subject "file" key("span");

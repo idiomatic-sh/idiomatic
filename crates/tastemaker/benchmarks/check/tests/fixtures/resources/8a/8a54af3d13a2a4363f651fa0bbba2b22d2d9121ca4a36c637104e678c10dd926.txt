@@ -1,0 +1,11 @@
+#[allow(dead_code)]
+fn first() {}
+
+#[allow(dead_code)]
+fn second() {}
+
+#[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
+enum Shape {
+    Circle,
+}

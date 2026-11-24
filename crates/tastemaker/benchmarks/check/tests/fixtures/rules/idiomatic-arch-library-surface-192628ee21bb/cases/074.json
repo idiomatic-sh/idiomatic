@@ -1,0 +1,120 @@
+{
+  "stamp": 74,
+  "rule": "idiomatic.arch/library-surface",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "e3c8fdfe5e54f95329239f7dcde61c1708d5ac22cfe22d079f8132a148bdce7f",
+    "tastemaker.toml": "4eed6d61f40ca7a5a9e2bcd226b111030804f7b15c3e7a05dd8e1c8301c8b55e"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/library-surface",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {
+        "library": [
+          "ryo",
+          "ryo::*"
+        ],
+        "surface": [
+          "ryo::linter::lint",
+          "ryo::linter::lint::*",
+          "ryo::linter::LintRequest",
+          "ryo::linter::LintRequest::*"
+        ]
+      },
+      "query": "idiomatic-arch-library-surface-192628ee21bb"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                93,
+                116
+              ]
+            }
+          ],
+          [
+            "target",
+            "ryo::operator::Operator"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              93,
+              116
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

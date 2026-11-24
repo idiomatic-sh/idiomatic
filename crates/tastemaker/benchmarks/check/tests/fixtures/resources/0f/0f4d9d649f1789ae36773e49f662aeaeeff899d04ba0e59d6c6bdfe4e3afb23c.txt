@@ -1,0 +1,18 @@
+//! What `greeting list` promises its caller, one row of `CASES` for each case it has.
+
+use crate::cases::{Case, Word, run};
+
+/// What a row gives the command: the command line, one argument at a time.
+type Input = Vec<&'static str>;
+/// What the command prints when it succeeds.
+type Value = String;
+/// How the command ends when it does not succeed.
+type Failure = crate::outcome::Outcome;
+
+/// The rows of this command's cases: a name, one case word, the command line it is given, and the answer it prints or the outcome it ends with.
+const CASES: &[Case<Input, Value, Failure>] = &[];
+
+/// Runs `greeting list` on one command line; the author states it.
+fn subject(line: Input) -> Result<Value, Failure> {
+    todo!("parse `line` into the arguments of `greeting list`, run it, and return what it printed or the outcome it ended with")
+}

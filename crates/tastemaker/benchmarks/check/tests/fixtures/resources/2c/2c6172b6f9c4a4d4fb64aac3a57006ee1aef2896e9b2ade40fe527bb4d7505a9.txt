@@ -1,0 +1,3 @@
+fn vector_bytes<T>(values: &Vec<T>) -> usize {
+    values.capacity().saturating_mul(size_of::<T>())
+}

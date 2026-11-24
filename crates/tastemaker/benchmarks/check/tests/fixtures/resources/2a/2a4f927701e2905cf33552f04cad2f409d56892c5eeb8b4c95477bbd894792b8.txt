@@ -1,0 +1,24 @@
+//! `greeting list`'s workload.
+
+pub(crate) fn workload() -> crate::measure::Measured {
+    crate::measure::rounds(
+        "greeting/list",
+        || (),
+        |()| {
+            let line = <cli::resources::greeting::list::command::ListArguments as clap::Args>::augment_args(
+                clap::Command::new("list"),
+            );
+            let arguments = <cli::resources::greeting::list::command::ListArguments as clap::FromArgMatches>::from_arg_matches(
+                &line.get_matches_from(["list"]),
+            );
+            assert!(arguments.is_ok(), "`greeting list` parses with no arguments");
+            let Ok(arguments) = arguments else { return };
+            let outcome = cli::resources::greeting::list::command::run(arguments);
+            assert_eq!(
+                outcome,
+                cli::outcome::Outcome::Success,
+                "`greeting list` did not succeed"
+            );
+        },
+    )
+}

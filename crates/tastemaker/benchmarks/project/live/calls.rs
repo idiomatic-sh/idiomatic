@@ -4,6 +4,11 @@ use super::{Active, Authority, Batch, Hosted, Input};
 use crate::thread_cpu;
 #[path = "pinned.rs"]
 mod pinned;
+#[path = "call_cache.rs"]
+mod call_cache;
+#[path = "allocated.rs"]
+mod allocated;
+use call_cache::CallCache;
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use pinned::{Dictionary, Pinned};
 use release_sdk::linter as sdk;
@@ -15,6 +20,7 @@ use ryo_values::domain::row_texts::types::Cell;
 use std::{
     collections::{BTreeMap, HashMap},
     rc::Rc,
+    sync::Arc,
 };
 
 #[derive(Default)]
@@ -28,10 +34,11 @@ pub struct Live {
     batch: Batch,
     store:Option<super::stored::Store>,
     directory:Option<std::path::PathBuf>,
-    state: Active<release_sdk::languages::Elements, Dictionary>,
+    state: Active<pinned::File, Dictionary>,
     languages: Vec<Pinned>,
-    filters: HashMap<Vec<sdk::Glob>, Rc<GlobSet>>,
-    versions: HashMap<(Authority, BTreeMap<String, Rc<[u8]>>), Rc<str>>,
+    filters: HashMap<Vec<sdk::Glob>, (usize, Rc<GlobSet>)>,
+    cache: CallCache,
+    versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
 }
 
 impl Drop for Live {
@@ -54,6 +61,7 @@ impl Default for Live {
             },
             languages: Vec::new(),
             filters: HashMap::new(),
+            cache: CallCache::default(),
             versions: HashMap::new(),
         }
     }
@@ -92,48 +100,6 @@ fn parameter(v: sdk::ParameterValue) -> Result<PlanConstant, String> {
     })
 }
 
-fn table(t: sdk::HostRelation) -> Result<Hosted, String> {
-    let columns = t
-        .columns
-        .into_iter()
-        .map(|c| {
-            let kind = match c.kind {
-                sdk::HostKind::File => "File",
-                sdk::HostKind::Text => "Text",
-                sdk::HostKind::Number => "Number",
-                _ => return Err("unsupported SDK host column type".to_owned()),
-            };
-            Ok((c.name.0.into(), kind.to_owned()))
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    let rows = t
-        .rows
-        .into_iter()
-        .map(|r| {
-            if r.0.len() != columns.len() {
-                return Err("host row width disagrees with declaration".into());
-            }
-            r.0.into_iter()
-                .zip(&columns)
-                .map(|(v, (_, kind))| {
-                    Ok(match (kind.as_str(), v) {
-                        ("File", sdk::Cell::File(p)) => HostCell::File { file: p.0.into() },
-                        ("Text", sdk::Cell::Text(s)) => HostCell::Text(s.0.into()),
-                        ("Number", sdk::Cell::Number(n)) => HostCell::Number(n.0),
-                        _ => return Err("host cell disagrees with declaration".to_owned()),
-                    })
-                })
-                .collect()
-        })
-        .collect::<Result<Rc<[_]>, String>>()?;
-    Ok(Hosted {
-        name: t.name.0.into(),
-        columns,
-        rows,
-        partial: None,
-    })
-}
-
 fn slot(v: &Option<Cell>) -> sdk::Slot {
     let Some(c) = v else {
         return sdk::Slot::Nothing;
@@ -163,7 +129,7 @@ impl Live {
         }
         Ok(())
     }
-    fn globs(&mut self, names: &[sdk::Glob]) -> Result<Rc<GlobSet>, String> {
+    fn globs(&mut self, names: &[sdk::Glob]) -> Result<(usize, Rc<GlobSet>), String> {
         if let Some(found) = self.filters.get(names) {
             return Ok(found.clone());
         }
@@ -176,7 +142,7 @@ impl Live {
                     .map_err(|e| e.to_string())?,
             );
         }
-        let set = Rc::new(builder.build().map_err(|e| e.to_string())?);
+        let set = (self.filters.len(), Rc::new(builder.build().map_err(|e| e.to_string())?));
         self.filters.insert(names.to_vec(), set.clone());
         Ok(set)
     }
@@ -185,8 +151,15 @@ impl Live {
         &mut self,
         req: sdk::LintRequest,
         linked: &sdk::Languages,
+        memory: sdk::MemoryBudget,
     ) -> Result<LiveReport, String> {
         let t = thread_cpu();
+        let limit = match memory {
+            sdk::MemoryBudget::Machine => None,
+            sdk::MemoryBudget::Bytes(n) => Some(n.get()),
+            _ => return Err("unsupported memory budget".into()),
+        };
+        self.state.retention.configure(limit, allocated::bytes);
         let count = req.rules.len();
         let result = self.answer(req, linked);
         let mut last = MEASURED
@@ -208,6 +181,7 @@ impl Live {
             c.project,
             c.assemble,
         ];
+        last.retained = self.state.retention.counts();
         last.project_counts = [
             self.batch.projects.len(),
             self.batch.populations_built,
@@ -241,7 +215,7 @@ impl Live {
         {
             return Err("unsupported source or project authority".into());
         }
-        let physical: Rc<str> = Rc::from(req.root.to_str().ok_or("non-UTF8 root")?);
+        let physical: Arc<str> = Arc::from(req.root.to_str().ok_or("non-UTF8 root")?);
         let (authority, listed, given) = match req.corpus {
             sdk::Corpus::Given(files) => (Authority::Given, Vec::new(), files),
             sdk::Corpus::Listed(paths) => {
@@ -256,23 +230,18 @@ impl Live {
             }
             overlay.insert(
                 source.path.0.into_string(),
-                Rc::<[u8]>::from(source.text.0.as_bytes()),
+                Arc::<[u8]>::from(source.text.0.as_bytes()),
             );
         }
-        let mut paths: Vec<String> = listed
-            .iter()
-            .map(|p| p.0.to_string())
-            .chain(overlay.keys().cloned())
-            .collect();
-        paths.sort_unstable();
-        paths.dedup();
+        let (inventory, paths) = self.cache.inventory(listed.iter().map(|p| p.0.as_ref())
+            .chain(overlay.keys().map(String::as_str)).collect());
         let key = (authority.clone(), overlay);
         let mut prepared_root=None;
         let filter = self.globs(&req.files)?;
         let hosted = req
             .hosted
             .into_iter()
-            .map(table)
+            .map(|t| self.cache.table(t))
             .collect::<Result<Vec<_>, _>>()?;
         let mut ids = Vec::new();
         let scope=if let Some(s)=&mut self.store{
@@ -298,21 +267,17 @@ impl Live {
             }
             let inc = self.globs(&rule.include)?;
             let exc = self.globs(&rule.exclude)?;
-            let files = paths
-                .iter()
-                .filter(|p| {
-                    (req.files.is_empty() || filter.is_match(p))
-                        && (rule.include.is_empty() || inc.is_match(p))
-                        && !exc.is_match(p)
-                })
-                .cloned()
-                .collect();
+            let files = self.cache.files((inventory, filter.0, inc.0, exc.0), |p| {
+                    (req.files.is_empty() || filter.1.is_match(p))
+                        && (rule.include.is_empty() || inc.1.is_match(p))
+                        && !exc.1.is_match(p)
+            });
             let parameters = rule
                 .parameters
                 .into_iter()
                 .map(|(k, v)| Ok((k.0, parameter(v)?)))
                 .collect::<Result<_, String>>()?;
-            let query:Rc<str>=Rc::from(rule.query.as_ref());
+            let query = self.cache.query(rule.query.as_ref());
             let contract=scope.map(|scope|{
                 let rule=self.batch.prepared_rule(query.clone(),&parameters);
                 let plan=self.batch.schedule.programs[rule].as_ref().ok();
@@ -333,7 +298,7 @@ impl Live {
         let root = if let Some(id) = self.versions.get(&key) {
             id.clone()
         } else {
-            let id: Rc<str> = Rc::from(format!("check-input:{}", self.versions.len()));
+            let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
             for (p, v) in &key.1 {
                 self.batch.schedule.provide(&id, p.clone(), v.clone())?;
             }
@@ -410,7 +375,7 @@ impl Live {
                     .push((id.as_ref().into(), p.clone(), msg.clone()));
             }
         }
-        for path in paths {
+        for path in Rc::unwrap_or_clone(paths) {
             let p = sdk::RelativePath(path.into());
             if linked.reads(&p) != release_sdk::languages::Recognition::Reads
                 && !linked.0.iter().any(|reader| reader.primary_role(release_sdk::languages::SourcePath(&p.0)) == release_language::domain::files::types::PrimaryFileRole::Configuration)
@@ -429,9 +394,9 @@ impl Live {
 }
 
 /// Replay a closed capture with exactly the parsers linked into this release.
-pub fn capture(linked: sdk::Languages, manifest: &str, output: &str) {
+pub fn capture(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>) {
     let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
-    super::batch_with_sources(&readers, manifest, output);
+    super::batch_with_workers(&readers, manifest, output, workers);
 }
 
 pub fn capture_retained(linked:sdk::Languages,manifest:&str,output:&str,root:&str){
@@ -450,6 +415,7 @@ struct Measurement {
     elapsed: f64,
     parts: [f64; 6],
     counts: [usize; 8],
+    retained: [u64; 4],
 }
 static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measurement {
     sessions: 0,
@@ -461,6 +427,7 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     elapsed: 0.0,
     parts: [0.0; 6],
     counts: [0; 8],
+    retained: [0; 4],
 });
 
 /// Print the one executor's cumulative counters to the benchmark log after the host renders.
@@ -471,6 +438,8 @@ pub fn print_measurement() {
     for (reason, count) in &m.reasons {
         eprintln!("UNANSWERED\t{count}\t{reason}");
     }
+    let [versions,hits,evictions,peak_charge]=m.retained;
+    eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;
     let [plans, bindings, sources, reads, parses, pairs, skips, eval] = m.counts;
     let [inventories, builds, relations, repeated] = m.project_counts;

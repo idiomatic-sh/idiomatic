@@ -1,0 +1,8 @@
+//! Harnesses.
+
+use crate::Request;
+
+/// Opens a file the way the engine's tests do.
+pub fn opened(engine: &crate::Engine) -> usize {
+    engine.open_file("a.rs") + crate::PROBE_LIMIT
+}

@@ -1,0 +1,96 @@
+{
+  "stamp": 204,
+  "rule": "idiomatic.arch/distribution/pin-revision",
+  "dependency": "One file",
+  "admitted": [
+    "pin.toml"
+  ],
+  "given": {
+    "pin.toml": "106a35dc5c4788675de5eae8368e9ae76bbe4de75aba3e7b8fa24d05599f4fea",
+    "tastemaker.toml": "e127de69b95a9d8729f8ec0fb30d11350f56b0d425f49bfe373a09ea4158ff9d"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/distribution/pin-revision",
+      "include": [
+        "pin.toml",
+        "pin.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-distribution-pin-revision-4b6aaf53f3e3"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "pin.toml",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "pin.toml"
+            }
+          ],
+          [
+            "name",
+            "revision"
+          ]
+        ],
+        "key": [
+          {
+            "file": "pin.toml"
+          },
+          "revision"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "pin.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

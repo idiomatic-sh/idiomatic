@@ -1,0 +1,3 @@
+let tokens = select l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."kind" = "ident";
+let any = select * from tokens where text = "Any" or text = "into_any";
+emit any subject "file" key("span");

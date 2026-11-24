@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/port-takes-no-settings", description = "The definition under test, placed alone.", include = ["src/outbound/*/interface.rs"], params = { location-names = ["directory", "cache", "store", "temp", "scratch"], locations = ["MachinePath", "PathBuf", "Path", "SystemPath"], settings = ["BuildName", "EngineBuild", "ProgramBuild", "Build", "WorkerCount", "Workers", "MemoryBudget", "SourceBytes", "Expanding", "Logging"] } }]

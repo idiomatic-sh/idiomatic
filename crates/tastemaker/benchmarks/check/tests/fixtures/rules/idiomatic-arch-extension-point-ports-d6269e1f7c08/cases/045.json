@@ -1,0 +1,125 @@
+{
+  "stamp": 45,
+  "rule": "idiomatic.arch/extension-point-ports",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "core/Cargo.toml",
+    "core/src/lib.rs",
+    "core/src/outbound.rs",
+    "core/src/outbound/names.rs",
+    "core/src/outbound/names/interface.rs",
+    "sdk/Cargo.toml",
+    "sdk/src/lib.rs",
+    "sdk/src/resources/language.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "1c7c87fc4f336bbf5d9182ae9a0e8b6001aabfca70fc3ed77a0d3f49d869b3c0",
+    "core/Cargo.toml": "22f4c2f7876514e3fe6f0c89cf536cf8bfe2eed5249637b6cb96fcbb1933e16c",
+    "core/src/lib.rs": "975b7da244e9a4851587b3f2f77eb9ed3c0ec6aa2f138965cb3df9f49b9b2a4d",
+    "core/src/outbound.rs": "64d503ae7061062e0c11a54ec75519547787b83753235a63340d7acf56b31b26",
+    "core/src/outbound/names.rs": "2f2b833372b6d7355cd8edee14f05ba7be4ed6ffc7becbb2adef36833ed2afb4",
+    "core/src/outbound/names/interface.rs": "170aa4a90642e4a749eff8894e28fed3d86fa70f1cc00f485ee2e9ed4c5e723e",
+    "sdk/Cargo.toml": "e0d4f62beeac2568b8a4871fe57970e0ad20375adef42e6bbe37d4b4eba6a9f9",
+    "sdk/src/lib.rs": "fe60a57c6c589264a19f25b99a688a948ae33fc9cea94b468b610baf80aa97a2",
+    "sdk/src/resources/language.rs": "d4f2dbaa0a88ad4bb13b0b11b6e0daf38c5e4c9bc2b7ed92e69762f56d1768e4",
+    "tastemaker.toml": "c4e72f40a3341d273031c44a505eadb92a20b27d3b6fec450ea6e49cfe99e4ee"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/extension-point-ports",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "exposed": []
+      },
+      "query": "idiomatic-arch-extension-point-ports-d6269e1f7c08"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "core/Cargo.toml",
+        "core/src/lib.rs",
+        "core/src/outbound.rs",
+        "core/src/outbound/names.rs",
+        "core/src/outbound/names/interface.rs",
+        "sdk/Cargo.toml",
+        "sdk/src/lib.rs",
+        "sdk/src/resources/language.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "core/src/outbound/names/interface.rs"
+            }
+          ],
+          [
+            "port",
+            "names"
+          ],
+          [
+            "reason",
+            "is not exposed in an SDK resource module, so the core holds at least one adapter for it"
+          ]
+        ],
+        "key": [
+          "names",
+          "is not exposed in an SDK resource module, so the core holds at least one adapter for it"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "core/src/outbound/names/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

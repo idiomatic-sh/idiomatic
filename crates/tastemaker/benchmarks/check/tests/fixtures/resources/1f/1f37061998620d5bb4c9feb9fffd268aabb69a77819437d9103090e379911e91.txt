@@ -1,0 +1,1 @@
+pub fn raw_admit() {} use super::super::super::admission::service::Inputs; pub struct SourceInputs; impl Inputs for SourceInputs {}

@@ -1,0 +1,2 @@
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+rules = [{ rule = "idiomatic.arch/distribution-wiring", include = ["**"] }]

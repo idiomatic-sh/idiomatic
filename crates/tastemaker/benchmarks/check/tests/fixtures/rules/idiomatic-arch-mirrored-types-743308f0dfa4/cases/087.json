@@ -1,0 +1,161 @@
+{
+  "stamp": 87,
+  "rule": "idiomatic.arch/mirrored-types",
+  "dependency": "Project",
+  "admitted": [
+    "Cargo.toml",
+    "src/domain.rs",
+    "src/domain/applications.rs",
+    "src/domain/applications/types.rs",
+    "src/lib.rs",
+    "src/outbound.rs",
+    "src/outbound/analysis.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/domain.rs": "7cbc377fd56b7015605ae3e84883844bd1ef358301163b10d993409e5bffe95c",
+    "src/domain/applications.rs": "97d44f2fb0ef7fb79cc8f7c04438d34bc262a99774abb427cd310bceb56c7107",
+    "src/domain/applications/types.rs": "5f2ff7b3e44c059d230e1f87cf3a595b712af51bcaf52cefe3cba2595db22eb5",
+    "src/lib.rs": "4f4d68cb4afed7a17dfc434a555b412e7f476cfd335683eec8eab501cb9b6b28",
+    "src/outbound.rs": "6f7c1e44c4a73c649e60a3ec9a2df98f346e8b19ad52811f8c5d2ecde79d618c",
+    "src/outbound/analysis.rs": "97d44f2fb0ef7fb79cc8f7c04438d34bc262a99774abb427cd310bceb56c7107",
+    "tastemaker.toml": "1b89359ba0df79c94223beefeaaa3f77991d83d9a4389b827bd03f99eec40d89"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/mirrored-types",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-mirrored-types-743308f0dfa4"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/domain.rs",
+        "src/domain/applications.rs",
+        "src/domain/applications/types.rs",
+        "src/lib.rs",
+        "src/outbound.rs",
+        "src/outbound/analysis.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "Copy"
+          ],
+          [
+            "file",
+            {
+              "file": "src/domain/applications/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                536,
+                540
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              536,
+              540
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/domain/applications/types.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "name",
+            "Facts"
+          ],
+          [
+            "file",
+            {
+              "file": "src/domain/applications/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                40,
+                45
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              40,
+              45
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/domain/applications/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

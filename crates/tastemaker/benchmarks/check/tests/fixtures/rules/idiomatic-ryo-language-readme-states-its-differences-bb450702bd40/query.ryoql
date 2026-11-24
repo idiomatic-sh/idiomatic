@@ -1,0 +1,13 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let documents = select * from tree-nodes where kind = "root";
+let headings = select * from tree-nodes where kind = "heading";
+let markers = select * from tree-tokens where kind = "markup" and glob_any(text, "## *");
+let titles = select * from tree-tokens where kind = "text" and text = "Differences from the standard";
+let marker-edges = select l."parent" as "heading" from "syntax-child" as l join markers as r on l."child" = r."id";
+let title-edges = select l."parent" as "heading" from "syntax-child" as l join titles as r on l."child" = r."id";
+let both = select l."heading" as "id" from marker-edges as l join title-edges as r on l."heading" = r."heading";
+let stated = select r."file" as "file" from both as l join headings as r on l."id" = r."id";
+let required = project(from=documents, columns=["file", "span"]);
+let silent = antijoin(left=required, right=stated, left-on=["file"], right-on=["file"]);
+emit silent subject "file" key("file");

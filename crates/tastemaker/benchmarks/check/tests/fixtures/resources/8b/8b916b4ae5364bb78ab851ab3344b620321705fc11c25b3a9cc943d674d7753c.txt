@@ -1,0 +1,12 @@
+use demo_greeting::outbound::names::interface::NamesPort;
+use demo_greeting::outbound::names::types::Asked;
+use super::types::Name;
+use crate::clock::adapters::system::adapter::ClockSystemAdapter;
+
+pub(crate) struct NamesMemoryAdapter;
+
+impl NamesPort for NamesMemoryAdapter {
+    fn stored(&self) -> String {
+        String::new()
+    }
+}
