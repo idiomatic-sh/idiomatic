@@ -1,11 +1,61 @@
 //! Immutable inputs shared by SDK calls. File selection depends on paths and glob sets;
 //! authority and file contents still accompany each registration.
 use super::{HostCell, Hosted, sdk};
+use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use std::collections::{HashMap, HashSet};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::rc::Rc;
 
 type Selection = (usize, usize, usize, usize);
+
+pub(super) enum PathFilter {
+    Literals(Vec<Box<str>>),
+    Patterns(GlobSet),
+}
+
+impl PathFilter {
+    pub(super) fn compile(names: &[sdk::Glob]) -> Result<Self, String> {
+        // Globset compares literal paths byte-for-byte on Unix. On other platforms
+        // its candidate normalizes native separators before matching.
+        if cfg!(unix)
+            && names.iter().all(|g| {
+                let s: &str = g.as_ref();
+                !s.is_empty() && !s.contains(['*', '?', '[', ']', '{', '}', '\\'])
+            })
+        {
+            let mut paths: Vec<Box<str>> =
+                names.iter().map(|g| Box::<str>::from(g.as_ref())).collect();
+            paths.sort_unstable();
+            paths.dedup();
+            return Ok(Self::Literals(paths));
+        }
+        let mut builder = GlobSetBuilder::new();
+        for name in names {
+            builder.add(
+                GlobBuilder::new(name.as_ref())
+                    .literal_separator(true)
+                    .build()
+                    .map_err(|e| e.to_string())?,
+            );
+        }
+        Ok(Self::Patterns(builder.build().map_err(|e| e.to_string())?))
+    }
+
+    fn candidates(&self) -> Option<&[Box<str>]> {
+        match self {
+            Self::Literals(paths) if !paths.is_empty() => Some(paths),
+            _ => None,
+        }
+    }
+
+    fn matches(&self, path: &str, empty_matches: bool) -> bool {
+        match self {
+            Self::Literals(paths) if paths.is_empty() => empty_matches,
+            Self::Literals(paths) => paths.binary_search_by(|p| p.as_ref().cmp(path)).is_ok(),
+            Self::Patterns(set) => (empty_matches && set.is_empty()) || set.is_match(path),
+        }
+    }
+}
 
 #[derive(Default)]
 pub(super) struct CallCache {
@@ -50,17 +100,36 @@ impl CallCache {
     pub(super) fn files(
         &mut self,
         key: Selection,
-        admits: impl Fn(&str) -> bool,
+        request: &PathFilter,
+        include: &PathFilter,
+        exclude: &PathFilter,
     ) -> Rc<Vec<String>> {
         if let Some(&id) = self.selections.get(&key) {
             return self.paths[id].clone();
         }
         let inventory = self.paths[key.0].clone();
-        let selected: Vec<_> = inventory
-            .iter()
-            .map(String::as_str)
-            .filter(|p| admits(p))
-            .collect();
+        let literals = [request.candidates(), include.candidates()]
+            .into_iter()
+            .flatten()
+            .min_by_key(|paths| paths.len());
+        let admits = |path: &&str| {
+            request.matches(path, true)
+                && include.matches(path, true)
+                && !exclude.matches(path, false)
+        };
+        let selected: Vec<_> = match literals {
+            Some(paths) if paths.len() < inventory.len() => paths
+                .iter()
+                .map(AsRef::as_ref)
+                .filter(|p| inventory.binary_search_by(|v| v.as_str().cmp(p)).is_ok())
+                .filter(admits)
+                .collect(),
+            _ => inventory
+                .iter()
+                .map(String::as_str)
+                .filter(admits)
+                .collect(),
+        };
         let id = self.intern_paths(&selected);
         self.selections.insert(key, id);
         self.paths[id].clone()
