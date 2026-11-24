@@ -1669,9 +1669,6 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             let origin=f.run.paths[file_no].clone();
             f.capture.as_mut().unwrap().visited(&origin,&bytes);
         }
-        let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
-        store.reset(slots_n);
-        reader_dump.clear();
         let mut visit_time = 0f64;
         // the file's skip, made once (inside the walk when the provider's facts are decided there, else after it): the
         // columns read, the required words present, and which rules can match by kinds and fields and by words
