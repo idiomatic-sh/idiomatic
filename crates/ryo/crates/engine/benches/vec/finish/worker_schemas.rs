@@ -5,7 +5,14 @@ use std::sync::Arc;
 
 const UNBOUND: u32 = u32::MAX;
 
+pub(super) enum ViewBinding {
+    Unbound,
+    Other,
+    View(Arc<super::ViewShape>),
+}
+
 pub(crate) struct Shapes {
+    views: Vec<ViewBinding>,
     leaves: Vec<Option<Box<[super::emptyprop::Leaf]>>>,
     slots: Vec<u32>,
     selects: Vec<Option<Box<SelPlan>>>,
@@ -57,6 +64,7 @@ impl E {
 impl Shapes {
     pub(crate) fn attach<'w>(self: &'w Arc<Self>, exec: &mut Exec<'w>) {
         exec.worker_shapes = Some(Local::new(self.clone()));
+        exec.shared_views = &self.views;
         exec.shared_leaves = &self.leaves;
         exec.shared_sels = &self.selects;
         exec.shared_kernels = &self.kernels;
@@ -156,7 +164,13 @@ impl Exec<'_> {
             binding.as_ref()?;
             self.ksel_make(run, node).ok().map(Box::new)
         }).collect();
+        let views = self.views.iter().map(|slot| match slot {
+            Some(None) => ViewBinding::Other,
+            Some(Some(view)) if !view.filter.iter().any(E::has_matcher) => ViewBinding::View(view.shape.clone()),
+            _ => ViewBinding::Unbound,
+        }).collect();
         Arc::new(Shapes {
+            views,
             leaves: self.leaves.for_workers(),
             kernels,
             slots,
