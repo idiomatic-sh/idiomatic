@@ -8,6 +8,10 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+#[path = "answer/report.rs"]
+mod report;
+pub(crate) use report::Reported;
+
 pub(crate) type Value = Option<Cell<Arc<str>>>;
 
 /// Only strings named by a retained answer outlive the input file.
@@ -128,13 +132,32 @@ impl Row {
                 Cell::Text(format!("{path}#{}", word as u32).into())
             }
             Ty::File => Cell::File(text(&dictionary().paths[word as usize])),
-            Ty::Span => Cell::Span(Span {
-                start: Offset((word >> 32) as u32),
-                end: Offset(word as u32),
-            }),
+            Ty::Span => Cell::Span(unpack_span(word)),
             Ty::Num => Cell::Number(Integer(word as i64)),
             Ty::Flag => Cell::Text((if word == 0 { "false" } else { "true" }).into()),
         })
+    }
+
+    /// The original byte range of a declared location column. Absence is
+    /// distinct from an invalid schema. The typed cell remains in the row.
+    pub(crate) fn byte_span(&self, column: &str) -> Result<Option<Span>, String> {
+        let index = self.layout.names.iter().position(|name| name == column)
+            .ok_or_else(|| format!("missing location column {column}"))?;
+        if self.layout.types[index] != Ty::Span {
+            return Err(format!("location column {column} has no span type"));
+        }
+        let word = self.words[index];
+        if word == NULL {
+            return Ok(None);
+        }
+        let span = unpack_span(word);
+        if span == ryo_relations::domain::relations::constants::NO_SPAN {
+            return Ok(None);
+        }
+        if span.start.0 > span.end.0 {
+            return Err(format!("location column {column} has a reversed byte range"));
+        }
+        Ok(Some(span))
     }
 
     pub(crate) fn value(&self, index: usize) -> Value {
@@ -156,20 +179,7 @@ impl Row {
 
     #[cfg(feature = "product-session")]
     pub(crate) fn value_from(&self, index: usize, words: &Words) -> Value {
-        let word = self.words[index];
-        let ty = self.layout.types[index];
-        if word == NULL && ty != Ty::Num {
-            return None;
-        }
-        match ty {
-            Ty::Sym => Some(Cell::Text(words.symbols[&(word as u32)].clone())),
-            Ty::Node => {
-                let path = &words.paths[(word >> 32) as usize];
-                Some(Cell::Text(format!("{path}#{}", word as u32).into()))
-            }
-            Ty::File => Some(Cell::File(words.paths[word as usize].clone())),
-            _ => self.value(index),
-        }
+        self.decode(index, || words, Arc::clone)
     }
 
     #[cfg(feature = "product-session")]
@@ -179,6 +189,13 @@ impl Row {
 
     pub(crate) fn cells(&self) -> impl Iterator<Item = Value> + '_ {
         self.cells_with(Arc::clone)
+    }
+}
+
+fn unpack_span(word: u64) -> Span {
+    Span {
+        start: Offset((word >> 32) as u32),
+        end: Offset(word as u32),
     }
 }
 
