@@ -210,6 +210,10 @@ pub fn summarize(observer: Observer, directory: &Path) -> io::Result<()> {
                 "--show-nr-samples",
                 "--sort",
                 "symbol,dso",
+                "--fields",
+                "overhead,sample,symbol,dso",
+                "--field-separator",
+                "\t",
                 "--percent-limit",
                 "0",
                 "-i",
@@ -231,7 +235,12 @@ pub fn summarize(observer: Observer, directory: &Path) -> io::Result<()> {
         Observer::Instructions => {
             let mut cachegrind = Command::new("cg_annotate");
             cachegrind
-                .args(["--auto=no", "--show=Ir", "--threshold=0.01"])
+                .args([
+                    "--auto=no",
+                    "--show=Ir",
+                    "--no-show-percs",
+                    "--threshold=0.01",
+                ])
                 .arg(directory.join("cachegrind.out"));
             (cachegrind, "instructions.txt")
         }

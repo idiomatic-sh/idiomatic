@@ -66,12 +66,13 @@ pub fn report(output: &mut impl io::Write, profile: &Profile, directory: &Path) 
                 writeln!(output, "\nFull tool report: `{}`.", report.display())?;
                 continue;
             }
-            writeln!(output, "```text")?;
             let text = fs::read_to_string(&report)?;
-            for line in text.lines().take(36) {
-                writeln!(output, "{line}")?;
+            if path.starts_with("samples/") {
+                samples(output, &text)?;
+            } else {
+                functions(output, &text)?;
             }
-            writeln!(output, "```\n\nFull tool report: `{}`.", report.display())?;
+            writeln!(output, "\nFull tool report: `{}`.", report.display())?;
         }
     }
     writeln!(output, "\n## Peak memory\n")?;
@@ -81,6 +82,62 @@ pub fn report(output: &mut impl io::Write, profile: &Profile, directory: &Path) 
         ("Heap-compatible image with its observer", &profile.heap),
     ] {
         writeln!(output, "| {label} | {} |", resources(run)?.1)?;
+    }
+    Ok(())
+}
+
+fn samples(output: &mut impl io::Write, report: &str) -> io::Result<()> {
+    for line in report
+        .lines()
+        .filter(|line| line.starts_with("# Total Lost Samples:") || line.starts_with("# Samples:"))
+    {
+        writeln!(output, "{}  ", line.trim_start_matches("# "))?;
+    }
+    writeln!(
+        output,
+        "\n| Function | Image | Samples | Share |\n|---|---|---:|---:|"
+    )?;
+    for (share, count, symbol, image) in report
+        .lines()
+        .filter(|line| !line.starts_with('#'))
+        .filter_map(|line| {
+            let mut fields = line.split('\t').map(str::trim);
+            Some((
+                fields.next()?,
+                fields.next()?,
+                fields.next()?,
+                fields.next()?,
+            ))
+        })
+        .take(20)
+    {
+        let symbol = symbol.strip_prefix("[.] ").unwrap_or(symbol);
+        writeln!(
+            output,
+            "| {} | {} | {count} | {share} |",
+            symbol.replace('|', "\\|"),
+            image.replace('|', "\\|")
+        )?;
+    }
+    Ok(())
+}
+
+fn functions(output: &mut impl io::Write, report: &str) -> io::Result<()> {
+    let (_, functions) = report
+        .split_once("-- Function:file summary")
+        .ok_or_else(|| io::Error::other("missing Cachegrind function summary"))?;
+    writeln!(output, "| Function | Executed instructions |\n|---|---:|")?;
+    for line in functions
+        .lines()
+        .filter_map(|line| line.strip_prefix('>'))
+        .take(20)
+    {
+        let (count, symbol) = line
+            .trim_start()
+            .split_once(char::is_whitespace)
+            .ok_or_else(|| io::Error::other("invalid Cachegrind function row"))?;
+        let symbol = symbol.trim().trim_end_matches(':').replace('|', "\\|");
+        writeln!(output, "| {symbol} | {count} |")?;
     }
     Ok(())
 }
@@ -134,6 +191,13 @@ pub fn compare(
         output,
         "| Ordinary CPU-s | {old_cpu:.3} | {new_cpu:.3} | {:+.3} |",
         new_cpu - old_cpu
+    )?;
+    let old_wall = base.0.native.elapsed.as_secs_f64();
+    let new_wall = other.0.native.elapsed.as_secs_f64();
+    writeln!(
+        output,
+        "| Ordinary wall-s | {old_wall:.3} | {new_wall:.3} | {:+.3} |",
+        new_wall - old_wall
     )?;
     writeln!(
         output,
