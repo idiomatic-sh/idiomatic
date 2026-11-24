@@ -922,7 +922,7 @@ pub(crate) fn visit<L: FileSource>(
                 Ok(())
             };
             if let Err(reason) = result {
-                for &slot in jobs.values() {
+                for &(_, slot) in jobs.iter() {
                     answers.set(slot, Err(reason.clone()));
                 }
                 clocks.read_parse += thread_cpu() - t;
@@ -941,7 +941,7 @@ pub(crate) fn visit<L: FileSource>(
                 for slot in project_slots {
                     contributions.set(slot, Some(c.clone()));
                 }
-                if !session_open && jobs.keys().all(|b| bound[b].is_err()) {
+                if !session_open && jobs.iter().all(|(b, _)| bound[b].is_err()) {
                     clocks.read_parse += thread_cpu() - t;
                     continue;
                 }
@@ -1057,7 +1057,7 @@ pub(crate) fn visit<L: FileSource>(
                 );
                 fact_cpu += thread_cpu() - fact_start;
                 if let Err(reason) = filled {
-                    for &slot in jobs.values() {
+                    for &(_, slot) in jobs.iter() {
                         answers.set(slot, Err(reason.clone()));
                     }
                     if keep {
