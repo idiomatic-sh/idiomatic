@@ -1,0 +1,12 @@
+[package]
+name = "idiomatic-sh-profile-tools"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "MIT"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+description = "Run commands under standard Linux profiling tools"
+publish = false
+
+[lib]
+name = "profile_tools"

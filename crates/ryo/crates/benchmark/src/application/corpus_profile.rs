@@ -1,6 +1,7 @@
 //! Select the ordinary and allocation images for a certified corpus. The
 //! collector and its measurement worker share an explicit state directory.
-use crate::outbound::profile_tools::standard::{self, CommandLine, Observer};
+use super::measurement::phases;
+use profile_tools::{self as standard, CommandLine, Observer};
 use ryo_benchmark_contracts::domain::measurements::types::Invocation;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::{Deserialize, Serialize};
@@ -161,9 +162,16 @@ impl CorpusProfile {
                     diagnostic.stderr.display()
                 )));
             }
-            Ok((profile, trace))
+            let clock_path = phases::observation_file(&destination.join("native/state"))
+                .ok_or_else(|| Error::Invalid("missing native observation directory".into()))?;
+            Ok((profile, trace, phases::read(&clock_path)?))
         };
-        let (profile, trace) = collect(&self.first, &first)?;
+        let (profile, trace, clock) = collect(&self.first, &first)?;
+        if clock.is_none() {
+            return Err(Error::Invalid(format!(
+                "registered benchmark {name} did not produce ordinary worker phase clocks"
+            )));
+        }
         let mut report = fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -175,12 +183,22 @@ impl CorpusProfile {
             self.first.ordinary.display(),
             self.first.heap.display()
         )?;
+        writeln!(report, "\n## Ordinary worker phase clocks\n")?;
+        phases::table(&mut report, clock, None)?;
         super::profile_evidence::linter(io::BufReader::new(fs::File::open(trace)?), &mut report)?;
         standard::report(&mut report, &profile, &first)?;
         self.record(name.to_owned(), &profile, &first)?;
         if let Some(images) = &self.other {
-            let (compared, trace) = collect(images, &other)?;
+            let (compared, trace, second_clock) = collect(images, &other)?;
             writeln!(report, "\n# {name} — second build\n")?;
+            writeln!(
+                report,
+                "Ordinary image `{}`. Heap-compatible image `{}`.",
+                images.ordinary.display(),
+                images.heap.display()
+            )?;
+            writeln!(report, "\n## Ordinary worker phase clocks\n")?;
+            phases::table(&mut report, second_clock, None)?;
             super::profile_evidence::linter(
                 io::BufReader::new(fs::File::open(trace)?),
                 &mut report,
@@ -189,6 +207,9 @@ impl CorpusProfile {
             self.record(format!("{name}/other"), &compared, &other)?;
             writeln!(report, "\n## Build comparison\n")?;
             standard::compare(&mut report, (&profile, &first), (&compared, &other))?;
+            if second_clock.is_some() {
+                phases::table(&mut report, clock, second_clock)?;
+            }
         }
         Ok(())
     }

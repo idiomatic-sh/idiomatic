@@ -9,8 +9,23 @@ pub struct Measurement {
     pub wall: Duration,
     /// Child CPU and resident memory, when collected by the execution boundary.
     pub resources: ResourceObservation,
+    /// CPU clocks reported by the native worker at the shared request boundaries.
+    pub phases: Option<WorkerPhases>,
     /// Decoded findings and the exact submitted file list.
     pub report: RunReport,
+}
+
+/// CPU charged between the native worker's existing request boundaries.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WorkerPhases {
+    /// Prepare the decoded request and load the engine's rules.
+    pub preparation: Duration,
+    /// Configure the loaded request.
+    pub admission: Duration,
+    /// Execute the SDK request, including provider and cross-file work.
+    pub execution: Duration,
+    /// Collect the context receipt and write the answer.
+    pub delivery: Duration,
 }
 
 use std::ffi::OsString;

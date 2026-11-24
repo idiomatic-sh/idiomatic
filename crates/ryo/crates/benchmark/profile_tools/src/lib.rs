@@ -11,9 +11,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[path = "standard/heap.rs"]
 mod heap;
-#[path = "standard/report.rs"]
 mod report;
 pub use report::{compare, report};
 

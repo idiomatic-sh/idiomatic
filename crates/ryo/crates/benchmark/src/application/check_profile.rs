@@ -1,6 +1,6 @@
 //! The collector's adapter for the registered real check workloads.
 use crate::application::profile_evidence;
-use crate::outbound::profile_tools::standard::{self, CommandLine, Observer};
+use profile_tools::{self as standard, CommandLine, Observer};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{
     collections::BTreeMap,

@@ -58,6 +58,10 @@ pub fn report(output: &mut impl io::Write, profile: &Profile, directory: &Path) 
                     "| Ordinary | Collection unavailable | Collection unavailable |\n| Heap-compatible | {} | {} |\n",
                     heap.allocations, heap.bytes
                 )?;
+                writeln!(
+                    output,
+                    "Allocation-count parity is unverified. Heaptrack provides cumulative requested bytes for the whole image and live bytes by site at the peak.\n"
+                )?;
                 heap_sites(output, &fs::read_to_string(&report)?)?;
                 writeln!(output, "\nFull tool report: `{}`.", report.display())?;
                 continue;

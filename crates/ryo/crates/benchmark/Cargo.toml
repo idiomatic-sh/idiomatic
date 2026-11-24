@@ -13,6 +13,7 @@ autobenches = false
 name = "ryo_benchmark"
 
 [dependencies]
+profile_tools = { package = "idiomatic-sh-profile-tools", path = "profile_tools" }
 ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../benchmark_contracts", version = "0.2.0" }
 globset.workspace = true
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.2.0" }

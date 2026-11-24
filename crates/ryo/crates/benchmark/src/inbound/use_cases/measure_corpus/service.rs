@@ -243,6 +243,7 @@ fn measure_project(
     )?;
     if let Some((profile, index)) = profiling {
         profile.project(index, &project.name.0, |state, trace| {
+            use ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On;
             let mut candidate = request(
                 contestants.context,
                 &project_corpus,
@@ -251,9 +252,8 @@ fn measure_project(
                 &tracked_paths,
                 state.join("state"),
             )?;
+            candidate.performance.diagnostics.execution = On;
             if trace.is_some() {
-                use ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On;
-                candidate.performance.diagnostics.execution = On;
                 candidate.performance.diagnostics.steps = On;
             }
             let mut invocation = contestants.candidate.prepare(&candidate)?;

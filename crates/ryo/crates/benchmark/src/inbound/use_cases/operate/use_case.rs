@@ -130,6 +130,24 @@ impl OperateUseCaseImpl {
                 .keep();
         }
         let declared = self.suite.profile(ArtifactPath(&request.bench.0))?;
+        if profile_run {
+            let registered_corpus = request
+                .bench
+                .0
+                .parent()
+                .and_then(std::path::Path::parent)
+                .ok_or_else(|| Error::Invalid("benchmark has no registered corpus".into()))?;
+            if self
+                .suite
+                .projects(ArtifactPath(registered_corpus))?
+                .projects
+                .is_empty()
+            {
+                return Err(Error::Invalid(
+                    "benchmark has no registered workload to profile".into(),
+                ));
+            }
+        }
         let tool = self.executables.reference(&declared.tool)?;
         let reference = Sealed {
             sha256: Sha256Text(self.suite.digest(ArtifactPath(&tool))?.0),

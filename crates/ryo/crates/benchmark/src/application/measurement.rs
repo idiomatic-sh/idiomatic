@@ -2,6 +2,7 @@
 mod constants;
 #[cfg(test)]
 mod fixtures;
+pub(crate) mod phases;
 pub mod service;
 #[cfg(test)]
 mod service_test;
