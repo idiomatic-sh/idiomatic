@@ -11,64 +11,6 @@ use std::{
 use std::sync::Arc;
 
 #[cfg(feature = "product-session")]
-thread_local! {
-    static SHARE_LIVE_BLOCKS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
-
-#[cfg(feature = "product-session")]
-pub(crate) fn share_live_blocks(enabled: bool) {
-    SHARE_LIVE_BLOCKS.set(enabled);
-}
-
-#[cfg(not(feature = "product-session"))]
-type BlockWords = Vec<Words>;
-
-#[cfg(feature = "product-session")]
-enum BlockWords {
-    Local(Vec<Words>),
-    Shared(Arc<Vec<Words>>),
-}
-
-#[cfg(feature = "product-session")]
-impl From<Vec<Words>> for BlockWords {
-    fn from(words: Vec<Words>) -> Self {
-        if SHARE_LIVE_BLOCKS.get() {
-            Self::Shared(Arc::new(words))
-        } else {
-            Self::Local(words)
-        }
-    }
-}
-
-#[cfg(feature = "product-session")]
-impl std::ops::Deref for BlockWords {
-    type Target = [Words];
-    fn deref(&self) -> &[Words] {
-        match self {
-            Self::Local(words) => words,
-            Self::Shared(words) => words,
-        }
-    }
-}
-
-#[cfg(feature = "product-session")]
-impl BlockWords {
-    fn share(&self) -> Arc<Vec<Words>> {
-        match self {
-            Self::Local(words) => Arc::new(words.clone()),
-            Self::Shared(words) => words.clone(),
-        }
-    }
-
-    fn take(self) -> Vec<Words> {
-        match self {
-            Self::Local(words) => words,
-            Self::Shared(words) => Arc::unwrap_or_clone(words),
-        }
-    }
-}
-
-#[cfg(feature = "product-session")]
 pub(crate) struct SharedWords<'a>(Vec<(&'a [u8], bool)>);
 
 #[cfg(feature = "product-session")]
@@ -99,7 +41,7 @@ impl SharedWords<'_> {
 /// File-local row numbers and identifiers typically occupy only part of a word.
 /// All representations decode to the exact canonical u64, including public nulls.
 #[cfg_attr(feature = "product-session", derive(Clone))]
-enum Words {
+pub(crate) enum Words {
     Constant(u64),
     Sequence(u64),
     Byte(u64, Box<[u8]>),
@@ -161,19 +103,24 @@ enum Posting {
     Sorted(Box<[usize]>),
 }
 
-pub(crate) struct Block {
+pub(crate) struct ColumnBlock<C> {
     pub(crate) names: Names,
     pub(crate) tys: Tys,
     pub(crate) n: usize,
     pub(crate) home: u32,
-    columns: BlockWords,
+    columns: C,
     postings: RefCell<FxHashMap<usize, Posting>>,
 }
+
+pub(crate) type Block = ColumnBlock<Vec<Words>>;
+
+#[cfg(feature = "product-session")]
+pub(crate) type WorkerBlock = ColumnBlock<Arc<[Words]>>;
 
 /// The immutable cells and schema can outlive their original project executor.
 #[cfg(feature = "product-session")]
 pub(crate) struct SharedBlock<'a> {
-    block: Arc<Vec<Words>>,
+    block: Arc<[Words]>,
     schema: (usize, usize),
     names: &'a [String],
     types: &'a [Ty],
@@ -182,16 +129,16 @@ pub(crate) struct SharedBlock<'a> {
 }
 #[cfg(feature = "product-session")]
 impl SharedBlock<'_> {
-    pub(crate) fn local(&self, schemas: &mut LocalSchemas) -> Rc<Block> {
+    pub(crate) fn local(&self, schemas: &mut LocalSchemas) -> Rc<WorkerBlock> {
         let (names, tys) = schemas.0.entry(self.schema).or_insert_with(|| {
             (Rc::new(self.names.to_vec()), Rc::new(self.types.to_vec()))
         });
-        Rc::new(Block {
+        Rc::new(ColumnBlock {
             names: names.clone(),
             tys: tys.clone(),
             n: self.len,
             home: self.home,
-            columns: BlockWords::Shared(self.block.clone()),
+            columns: self.block.clone(),
             postings: Default::default(),
         })
     }
@@ -205,7 +152,7 @@ impl Block {
     #[cfg(feature = "product-session")]
     pub(crate) fn share(&self) -> SharedBlock<'_> {
         SharedBlock {
-            block: self.columns.share(),
+            block: Arc::from(self.columns.as_slice()),
             schema: (Rc::as_ptr(&self.names) as usize, Rc::as_ptr(&self.tys) as usize),
             names: &self.names,
             types: &self.tys,
@@ -225,13 +172,16 @@ impl Block {
             names,
             tys,
             n,
-            columns: columns.into_iter().map(Words::pack).collect::<Vec<_>>().into(),
+            columns: columns.into_iter().map(Words::pack).collect(),
             postings: Default::default(),
         }
     }
 
+}
+
+impl<C: AsRef<[Words]>> ColumnBlock<C> {
     fn find(&self, col: usize, key: u64, mut hit: impl FnMut(usize) -> bool) -> bool {
-        let words = &self.columns[col];
+        let words = &self.columns.as_ref()[col];
         match words {
             Words::Constant(k) => {
                 return key == *k && (0..self.n).any(hit);
@@ -283,10 +233,47 @@ impl Block {
     }
 }
 
+enum Piece {
+    File(Rc<Block>),
+    #[cfg(feature = "product-session")]
+    Worker(Rc<WorkerBlock>),
+}
+
+impl Piece {
+    fn columns(&self) -> &[Words] {
+        match self {
+            Self::File(block) => &block.columns,
+            #[cfg(feature = "product-session")]
+            Self::Worker(block) => &block.columns,
+        }
+    }
+    fn file(&self) -> u32 {
+        match self {
+            Self::File(block) => block.home,
+            #[cfg(feature = "product-session")]
+            Self::Worker(block) => block.home,
+        }
+    }
+    fn len(&self) -> usize {
+        match self {
+            Self::File(block) => block.n,
+            #[cfg(feature = "product-session")]
+            Self::Worker(block) => block.n,
+        }
+    }
+    fn find(&self, col: usize, key: u64, hit: impl FnMut(usize) -> bool) -> bool {
+        match self {
+            Self::File(block) => block.find(col, key, hit),
+            #[cfg(feature = "product-session")]
+            Self::Worker(block) => block.find(col, key, hit),
+        }
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct Population {
     schema: Option<(Names, Tys)>,
-    pieces: Vec<Rc<Block>>,
+    pieces: Vec<Piece>,
     by_file: OnceCell<FxHashMap<u32, Vec<usize>>>,
     pub(crate) n: usize,
     local_files: OnceCell<Vec<bool>>,
@@ -296,19 +283,25 @@ pub(crate) struct Population {
 pub(crate) type Inputs = std::collections::BTreeMap<usize, Rc<Population>>;
 
 impl Population {
-    pub(crate) fn add(&mut self, t: &Rc<Block>) -> R<()> {
-        let (names, tys) = self
-            .schema
-            .get_or_insert_with(|| (t.names.clone(), t.tys.clone()));
-        if *names != t.names || *tys != t.tys {
+    pub(crate) fn add(&mut self, block: &Rc<Block>) -> R<()> {
+        self.add_piece(block, || Piece::File(block.clone()))
+    }
+
+    #[cfg(feature = "product-session")]
+    pub(crate) fn add_worker(&mut self, block: &Rc<WorkerBlock>) -> R<()> {
+        self.add_piece(block, || Piece::Worker(block.clone()))
+    }
+
+    fn add_piece<C>(
+        &mut self, table: &ColumnBlock<C>, piece: impl FnOnce() -> Piece,
+    ) -> R<()> {
+        let (names, tys) = self.schema.get_or_insert_with(|| (table.names.clone(), table.tys.clone()));
+        if *names != table.names || *tys != table.tys {
             return Err("file frontier schema differs between providers".into());
         }
-        if t.n != 0 {
-            self.n = self
-                .n
-                .checked_add(t.n)
-                .ok_or("closed population exceeds address space")?;
-            self.pieces.push(t.clone());
+        if table.n != 0 {
+            self.n = self.n.checked_add(table.n).ok_or("closed population exceeds address space")?;
+            self.pieces.push(piece());
         }
         Ok(())
     }
@@ -324,8 +317,8 @@ impl Population {
             .get_or_init(|| {
                 let mut out = Table::retained(names.clone(), tys.clone(), self.n);
                 for block in &self.pieces {
-                    for (from, to) in block.columns.iter().zip(&mut out.cols) {
-                        from.append(block.n, to);
+                    for (from, to) in block.columns().iter().zip(&mut out.cols) {
+                        from.append(block.len(), to);
                     }
                 }
                 out.n = self.n;
@@ -355,7 +348,7 @@ impl Population {
                 .enumerate()
                 .map(|(c, ty)| {
                     *ty==Ty::File && self.pieces.iter().all(|t| {
-                matches!(t.columns[c],Words::Constant(x) if x==u64::from(t.home) || x==super::NULL)
+                matches!(t.columns()[c],Words::Constant(x) if x==u64::from(t.file()) || x==super::NULL)
             })
                 })
                 .collect()
@@ -366,7 +359,7 @@ impl Population {
         &self,
         col: usize,
         key: u64,
-        mut visit: impl FnMut(usize, &Block, usize) -> bool,
+        mut visit: impl FnMut(usize, &Piece, usize) -> bool,
     ) -> bool {
         let Some((_, tys)) = &self.schema else {
             return false;
@@ -375,7 +368,7 @@ impl Population {
             let homes = self.by_file.get_or_init(|| {
                 let mut homes = FxHashMap::<u32, Vec<usize>>::default();
                 for (i, t) in self.pieces.iter().enumerate() {
-                    homes.entry(t.home).or_default().push(i);
+                    homes.entry(t.file()).or_default().push(i);
                 }
                 homes
             });
@@ -401,7 +394,7 @@ impl Population {
         false
     }
 
-    fn each_match(&self, col: usize, key: u64, mut each: impl FnMut(usize, &Block, usize)) {
+    fn each_match(&self, col: usize, key: u64, mut each: impl FnMut(usize, &Piece, usize)) {
         self.find(col, key, |i, t, r| {
             each(i, t, r);
             false
@@ -419,12 +412,12 @@ impl Population {
         self.find(rk[key], left.cols[lk[key]][row], |_, t, r| {
             lk.iter()
                 .zip(rk)
-                .all(|(&lc, &rc)| t.columns[rc].at(r) == left.cols[lc][row])
+                .all(|(&lc, &rc)| t.columns()[rc].at(r) == left.cols[lc][row])
         })
     }
 
     pub(super) fn neighbors(&self, by: usize, to: usize, key: u64, out: &mut Vec<u64>) {
-        self.each_match(by, key, |_, block, row| out.push(block.columns[to].at(row)));
+        self.each_match(by, key, |_, block, row| out.push(block.columns()[to].at(row)));
     }
 
     /// Match the table index: probe keys in caller order, then source order within each key.
@@ -435,7 +428,7 @@ impl Population {
         }
         let mut out = Table::retained(names.clone(), tys.clone(), rows.len());
         for (c, to) in out.cols.iter_mut().enumerate() {
-            to.extend(rows.iter().map(|&(i, r)| self.pieces[i].columns[c].at(r)));
+            to.extend(rows.iter().map(|&(i, r)| self.pieces[i].columns()[c].at(r)));
         }
         out.n = rows.len();
         Rc::new(out)
@@ -481,9 +474,6 @@ impl Block {
             schema: shapes.intern(self.names, self.tys),
             rows: self.n,
             home: self.home,
-            #[cfg(feature = "product-session")]
-            columns: self.columns.take(),
-            #[cfg(not(feature = "product-session"))]
             columns: self.columns,
         }
     }
@@ -529,7 +519,7 @@ impl CarriedBlock {
             } else {
                 files[self.home as usize]
             },
-            columns: self.columns.into(),
+            columns: self.columns,
             postings: Default::default(),
         }
     }

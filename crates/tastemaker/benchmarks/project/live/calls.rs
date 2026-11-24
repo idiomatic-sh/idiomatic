@@ -63,7 +63,6 @@ impl Default for Live {
         let workers: Option<std::num::NonZeroUsize> = std::env::var_os("TM_BENCH_WORKERS").map(|n| {
             n.to_str().and_then(|n| n.parse().ok()).expect("positive worker count")
         });
-        crate::finish::population::share_live_blocks(workers.is_some_and(|n| n.get() > 1));
         Self {
             batch: Batch {
                 workers,

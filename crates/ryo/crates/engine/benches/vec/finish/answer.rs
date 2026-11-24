@@ -123,10 +123,29 @@ impl Row {
         }
     }
 
-    #[inline]
     pub(crate) fn value(&self, index: usize) -> Value {
-        self.decode(index, |ty, word| {
-            Self::text(ty, word, &self.layout.words.read().expect("answer words"))
+        let word = self.words[index];
+        if word == NULL && self.layout.types[index] != Ty::Num {
+            return None;
+        }
+        Some(match self.layout.types[index] {
+            Ty::Sym => Cell::Text(
+                self.layout.words.read().expect("answer words").symbols[&(word as u32)].clone(),
+            ),
+            Ty::Node => {
+                let words = self.layout.words.read().expect("answer words");
+                let path = &words.paths[(word >> 32) as usize];
+                Cell::Text(format!("{path}#{}", word as u32).into())
+            }
+            Ty::File => Cell::File(
+                self.layout.words.read().expect("answer words").paths[word as usize].clone(),
+            ),
+            Ty::Span => Cell::Span(Span {
+                start: Offset((word >> 32) as u32),
+                end: Offset(word as u32),
+            }),
+            Ty::Num => Cell::Number(Integer(word as i64)),
+            Ty::Flag => Cell::Text((if word == 0 { "false" } else { "true" }).into()),
         })
     }
 
@@ -137,43 +156,25 @@ impl Row {
 
     #[cfg(feature = "product-session")]
     pub(crate) fn value_from(&self, index: usize, words: &Words) -> Value {
-        self.decode(index, |ty, word| Self::text(ty, word, words))
-    }
-
-    #[cfg(feature = "product-session")]
-    pub(crate) fn width(&self) -> usize {
-        self.words.len()
-    }
-
-    #[inline]
-    fn text(ty: Ty, word: u64, words: &Words) -> Cell<Arc<str>> {
-        match ty {
-            Ty::Sym => Cell::Text(words.symbols[&(word as u32)].clone()),
-            Ty::Node => {
-                let path = &words.paths[(word >> 32) as usize];
-                Cell::Text(format!("{path}#{}", word as u32).into())
-            }
-            Ty::File => Cell::File(words.paths[word as usize].clone()),
-            _ => unreachable!("only file, node and spelling cells read the dictionary"),
-        }
-    }
-
-    #[inline]
-    fn decode(&self, index: usize, text: impl FnOnce(Ty, u64) -> Cell<Arc<str>>) -> Value {
         let word = self.words[index];
         let ty = self.layout.types[index];
         if word == NULL && ty != Ty::Num {
             return None;
         }
-        Some(match ty {
-            Ty::Sym | Ty::Node | Ty::File => text(ty, word),
-            Ty::Span => Cell::Span(Span {
-                start: Offset((word >> 32) as u32),
-                end: Offset(word as u32),
-            }),
-            Ty::Num => Cell::Number(Integer(word as i64)),
-            Ty::Flag => Cell::Text((if word == 0 { "false" } else { "true" }).into()),
-        })
+        match ty {
+            Ty::Sym => Some(Cell::Text(words.symbols[&(word as u32)].clone())),
+            Ty::Node => {
+                let path = &words.paths[(word >> 32) as usize];
+                Some(Cell::Text(format!("{path}#{}", word as u32).into()))
+            }
+            Ty::File => Some(Cell::File(words.paths[word as usize].clone())),
+            _ => self.value(index),
+        }
+    }
+
+    #[cfg(feature = "product-session")]
+    pub(crate) fn width(&self) -> usize {
+        self.words.len()
     }
 
     pub(crate) fn cells(&self) -> impl Iterator<Item = Value> + '_ {
