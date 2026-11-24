@@ -279,6 +279,19 @@ impl Environment {
         Self { id, authority, supplied, epoch, observations: Default::default() }
     }
 
+    /// Borrow the complete set of physical lookups made in this admission.
+    /// Supplied overlay entries have their own version proofs. Unknown states
+    /// are passed through so the store can decline to retain an answer.
+    pub(crate) fn observed(&self, mut read: impl FnMut(&str, l::ObservedEntryState)) {
+        let epoch = self.epoch.load(std::sync::atomic::Ordering::Relaxed);
+        let memo = self.observations.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if memo.0 == epoch {
+            for (path, state) in &memo.1 {
+                read(path, *state);
+            }
+        }
+    }
+
     // File and project suppliers read the same physical entry in this epoch.
     // Overlay entries are answered before this lookup and never enter the disk memo.
     fn physical(&self, path: &str) -> l::ObservedEntryState {
