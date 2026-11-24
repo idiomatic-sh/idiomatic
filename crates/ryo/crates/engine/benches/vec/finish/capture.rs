@@ -166,10 +166,24 @@ pub(super) fn write(
     equal: &[(usize, usize)],
     out: &mut super::Table,
 ) -> super::R<()> {
+    partitions(run, std::iter::once((input,out)), path, pattern, separator, columns, project, equal)
+}
+
+pub(super) fn partitions<'a>(
+    run: &mut super::Run,
+    inputs: impl IntoIterator<Item = (&'a super::Table, &'a mut super::Table)>,
+    path: usize,
+    pattern: &str,
+    separator: Option<&str>,
+    columns: &[Option<usize>],
+    project: bool,
+    equal: &[(usize, usize)],
+) -> super::R<()> {
     let mut by_path = super::FxHashMap::default();
     let mut row = Vec::new();
-    let file = input.tys[path] == super::Ty::File;
     let paths = run.paths.clone();
+    for (input,out) in inputs {
+    let file = input.tys[path] == super::Ty::File;
     // Rows with the same subject have the same possible splits. Apply each
     // split to its original row so multiplicity and row-specific tests survive.
     let mut next_row = 0;
@@ -217,6 +231,7 @@ pub(super) fn write(
                 out.push_row(&row);
             }
         }
+    }
     }
     Ok(())
 }

@@ -23,6 +23,8 @@ pub(crate) mod source;
 use source::Source as FileSource;
 #[path = "check_session/frontier.rs"]
 mod frontier;
+#[path = "check_session/file_batch.rs"]
+mod file_batch;
 pub(crate) use frontier::World;
 #[path = "check_session/shared.rs"]
 mod shared;
@@ -714,6 +716,15 @@ pub(crate) fn visit<L: FileSource>(
     if let Some(dictionary) = reader_id.and_then(|id| world.project_words.get(id)) {
         carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
     }
+    let mut pending = Vec::new();
+    let mut charge = 0usize;
+    let width = std::env::var("VEC_BATCH_FILES").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(4).clamp(1, 32);
+    macro_rules! flush {
+        () => {
+            file_batch::execute::<L>(&mut pending,&mut exec,&mut run,&supplied,&bound,programs,program_of,cut_of,
+                reader_id,world,&mut carried_symbols,sources,answers,clocks)
+        }
+    }
     for group in by_path.values() {
         let t = thread_cpu();
         let versions = versions(
@@ -994,7 +1005,7 @@ pub(crate) fn visit<L: FileSource>(
             } else {
                 packet.index(&facts);
             }
-            let version = std::cell::OnceCell::new();
+
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
             if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
@@ -1016,7 +1027,7 @@ pub(crate) fn visit<L: FileSource>(
                 }
             }
             clocks.screen += thread_cpu() - t;
-            let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
+
             let t = thread_cpu();
             let lines = active
                 .iter()
@@ -1034,9 +1045,8 @@ pub(crate) fn visit<L: FileSource>(
                     table.n = 1;
                     (name.to_owned(), Rc::new(table))
                 });
-            let mut frame = None;
-            let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
-            for (binding, slot, excluded) in active {
+            let mut work = Vec::new();
+            for &(binding, slot, excluded) in &active {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
                 let contract = &contracts[&binding];
                 let b = bound[&binding].as_mut().unwrap();
@@ -1085,50 +1095,42 @@ pub(crate) fn visit<L: FileSource>(
                     continue;
                 }
                 clocks.evaluated += 1;
-                let version = version.get_or_init(|| {
-                    finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text())
-                });
-                let make_frame = || finish::session::frame(version, &plan, &supplied, lines.as_ref());
-                let mut restricted;
-                let current = if local_coverage.is_empty() {
-                    frame.get_or_insert_with(make_frame)
-                } else {
-                    restricted = make_frame();
-                    &mut restricted
-                };
-                if let Some(cut) = &cut_of[binding] {
-                    let value = shared.contribute(b, &mut exec, current, &mut run, id.0, &mut facts_view, cut,
-                        &local_coverage, world, &mut carried_symbols, reader_id, unknown, slot);
-                    if value.is_err() { frame = None; exec.release_request(); }
-                    let answer = value.map(|()| {
-                        Reported {
-                            rows: Vec::new(),
-                            unknowns,
-                        }
-                    });
-                    clocks.productive += usize::from(world.productive(slot));
-                    clocks.refused += usize::from(answer.is_err());
-                    answers.set(slot, answer);
-                    continue;
-                }
-                let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, binding, &b.slots, &local_coverage);
-                if value.is_err() { frame = None; exec.release_request(); }
-                let answer = value
-                .map(|rows| Reported { rows, unknowns });
-                clocks.productive += usize::from(answer.as_ref().is_ok_and(|r| !r.rows.is_empty()));
-                clocks.refused += usize::from(answer.is_err());
-                    answers.set(slot, answer);
+                let absent = b.absent.as_ref().filter(|(home,_)| *home == id.0).map(|(_,v)| v.clone());
+                work.push(file_batch::Job { binding, slot, coverage:local_coverage, unknowns, absent });
             }
-            drop(frame);
-            drop(version);
-            if keep {
-                held.recovery = Some(recovery);
-                held.lent = native;
-                held.native = L::File::default();
-                held.text = provider.text;
-                packet.rows.partials = partials;
-                packet.rows.partials_at = partials_at;
-                std::mem::swap(&mut held.facts, &mut packet.rows);
+            // Charge the retained source, syntax columns, packet cells and per-plan memo.
+            // A version over budget runs alone; the reader's scratch never escapes the batch.
+            let cost = bytes.len().saturating_add(l::node_table::kind_codes(tree).len().saturating_mul(40))
+                .saturating_add(packet.rows.words.capacity().saturating_mul(8))
+                .saturating_add(plan.nodes.len().saturating_mul(32));
+            if !pending.is_empty() && charge.saturating_add(cost) > 4 * 1024 * 1024 {
+                flush!(); pending.clear(); charge = 0;
+            }
+            charge = charge.saturating_add(cost);
+            pending.push(file_batch::Packet {
+                index, bytes, tree:std::mem::take(&mut held.tree), native,
+                symbols:std::mem::take(&mut held.symbols), fields:run.field_sym.clone(),
+                facts:std::mem::replace(&mut packet,reader_run::packet::Packet::new()),
+                provider, lines, active, jobs:work,
+            });
+            clocks.evaluate += thread_cpu() - t;
+            if keep || pending.len() >= width || world.boundaries.is_some() || cost >= 4 * 1024 * 1024 {
+                flush!();
+                let last = pending.pop().expect("current file");
+                pending.clear();
+                charge = 0;
+                held.tree = last.tree;
+                held.symbols = last.symbols;
+                packet = last.facts;
+                if keep {
+                    held.recovery = Some(recovery);
+                    held.lent = last.native;
+                    held.native = L::File::default();
+                    held.text = last.provider.text;
+                    packet.rows.partials = partials;
+                    packet.rows.partials_at = partials_at;
+                    std::mem::swap(&mut held.facts, &mut packet.rows);
+                }
             }
             if let Some((previous, file)) = cached
                 && let (Some(start), Some(end)) = (start, retention.clock()) {
@@ -1136,12 +1138,12 @@ pub(crate) fn visit<L: FileSource>(
                 // the new storage, including provider-owned opaque parser allocations.
                 retention.put(index, previous.saturating_add(end.wrapping_sub(start)), file);
             }
-            clocks.evaluate += thread_cpu() - t;
         }
         if let Some(boundaries) = &mut world.boundaries {
             boundaries.push((group[0], world.run.paths.len(), world.run.texts.len()));
         }
     }
+    flush!();
     let parts = clocks.readers.entry(parser.map_or("unclaimed", FileSource::name).to_owned()).or_default();
     parts.total += clocks.read_parse - before.0;
     parts.read += clocks.read_versions - before.1;

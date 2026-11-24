@@ -65,6 +65,7 @@ impl<'a> FileInputs<'a> {
         reader: Option<usize>,
         words: &HashMap<u32, u32>,
         slot: usize,
+        absent: Option<&[bool]>,
     ) -> Result<()> {
         let plan = b.plan;
         let nodes = &plan.nodes;
@@ -76,11 +77,7 @@ impl<'a> FileInputs<'a> {
         };
         let outputs = &b.outputs;
         let share = |n: usize| outputs.get(&n).filter(|_| local_coverage.is_empty());
-        let absent = b
-            .absent
-            .as_ref()
-            .filter(|(home, _)| *home == id && local_coverage.is_empty())
-            .map(|(_, bits)| bits);
+        let absent = absent.filter(|_| local_coverage.is_empty());
         let omitted = |i: usize| absent.is_some_and(|a| a[i]);
         let missing: Vec<_> = cut
             .inputs

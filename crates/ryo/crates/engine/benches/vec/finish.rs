@@ -78,6 +78,8 @@ mod antijoin_kernel;
 mod tree_class;
 #[path = "finish/frame.rs"]
 mod frame;
+#[path = "finish/batch.rs"]
+pub(super) mod batch;
 #[path = "finish/known.rs"]
 mod known;
 #[path = "finish/set_ops.rs"]
@@ -2110,14 +2112,7 @@ impl<'p> Exec<'p> {
                 let mut seen: rustc_hash::FxHashSet<inline_key::Key> = rustc_hash::FxHashSet::default();
                 // redo-alloc: a row read into one buffer; a set entry made only for a row not seen
                 let mut row: Vec<u64> = Vec::with_capacity(cols.len());
-                for i in 0..from.n {
-                    row.clear();
-                    row.extend(cols.iter().map(|c| from.cols[*c][i]));
-                    if !seen.contains(&row[..]) {
-                        seen.insert(inline_key::Key::of(&row));
-                        out.push_row(&row);
-                    }
-                }
+                batch::projected(&from,&cols,&mut row,&mut seen,&mut out);
                 Ok(out)
             }
             "axis" => self.axis(f, run, p, node, a),
