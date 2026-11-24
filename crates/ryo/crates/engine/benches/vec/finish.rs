@@ -339,7 +339,6 @@ impl Table {
     }
 }
 
-/// The run: texts, regexes, kind and field names, file paths.
 /// Append-only spellings addressed by the executor's stable numeric word IDs.
 #[derive(Clone)]
 pub(crate) struct Texts {
@@ -373,6 +372,7 @@ impl std::ops::Index<usize> for Texts {
     }
 }
 
+/// The run owns text IDs, regexes, kind and field names, and file paths.
 #[derive(Default)]
 pub(super) struct Run {
     pub(super) fill_dump: Vec<(u32, String)>,
@@ -437,10 +437,10 @@ impl Run {
     }
 
     pub(super) fn sym(&mut self, text: &[u8]) -> u32 {
-        let hash = Self::word_hash(text);
-        if let Some(&id) = self.ids.find(hash, |&id| &self.texts[id as usize] == text) {
+        if let Some(id) = self.lookup_word(text) {
             return id;
         }
+        let hash = Self::word_hash(text);
         let id = u32::try_from(self.texts.len()).expect("word ID");
         self.texts.push(text);
         let _ = self.ids.insert_unique(hash, id, |&key| Self::word_hash(&self.texts[key as usize]));
