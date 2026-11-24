@@ -23,6 +23,12 @@ use source::Source as FileSource;
 #[path = "check_session/frontier.rs"]
 mod frontier;
 pub(crate) use frontier::World;
+#[path = "check_session/shared.rs"]
+mod shared;
+
+#[path = "check_session/retention.rs"]
+mod retention;
+pub(crate) use retention::Retention;
 
 type Parameters =
     BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
@@ -173,7 +179,7 @@ impl Schedule {
             self.programs.len() - 1
         })
     }
-    fn source(&mut self, root: &Rc<str>, path: String) -> Result<usize> {
+    fn source(&mut self, root: &Rc<str>, path: &str) -> Result<usize> {
         let rel = Path::new(&path);
         if rel
             .components()
@@ -183,11 +189,11 @@ impl Schedule {
         }
         Ok(*self
             .source_ids
-            .entry((root.clone(), Rc::from(path.as_str())))
+            .entry((root.clone(), Rc::from(path)))
             .or_insert_with(|| {
                 self.sources.push(Source {
                     root: root.clone(),
-                    path,
+                    path:path.to_owned(),
                     bindings: BTreeMap::new(),
                     known: BTreeMap::new(),
                     project: false,
@@ -203,7 +209,7 @@ impl Schedule {
         let id = match self.supplied_ids.get(&key) {
             Some(&id) => id,
             None => {
-                let id = self.source(root, path.clone())?;
+                let id = self.source(root, &path)?;
                 self.sources[id].provided = Some(bytes);
                 self.supplied_ids.insert(key, id);
                 id
@@ -213,7 +219,7 @@ impl Schedule {
     }
 
     pub(crate) fn listed(&mut self, root: &Rc<str>, directory: &Rc<str>, path: &str) -> Result<()> {
-        let id = self.source(directory, path.to_owned())?;
+        let id = self.source(directory, path)?;
         self.alias_source(root, path, id)
     }
 
@@ -233,7 +239,7 @@ impl Schedule {
         paths
             .iter()
             .map(|p| {
-                let index = self.source(&root, p.clone())?;
+                let index = self.source(&root, p)?;
                 self.sources[index].project = true;
                 self.pending.insert(index);
                 Ok(index)
@@ -243,7 +249,7 @@ impl Schedule {
     pub(crate) fn admit(
         &mut self,
         root: String,
-        files: Vec<String>,
+        files: &[String],
         binding: usize,
     ) -> Result<Vec<usize>> {
         let root: Rc<str> = root.into();
@@ -267,7 +273,9 @@ impl Schedule {
 struct Bound<'p> {
     screenable: Option<bool>,
     empty_frontier: Option<Vec<(usize, Rc<Table>)>>,
-    exec: Exec<'p>,
+    plan: &'p Plan,
+    slots: Vec<usize>,
+    test: usize,
     facts: Vec<l::Relation>,
     filters: BTreeMap<usize,Vec<(usize,u64)>>,
     hosted: Tables,
@@ -338,7 +346,6 @@ fn bind<'p, L: FileSource>(
         .iter()
         .map(|clause| clause.iter().map(|w| run.sym(w.as_bytes())).collect())
         .collect();
-    let exec = Exec::new(&program.plan);
     let filters=cut.into_iter().flat_map(|c|&c.filters).map(|(&node,alts)|{
         (node,alts.iter().map(|(col,w)|(*col,u64::from(run.sym(w)))).collect())
     }).collect();
@@ -346,7 +353,9 @@ fn bind<'p, L: FileSource>(
         screenable: None,
         empty_frontier: None,
         filters,
-        exec,
+        plan: &program.plan,
+        slots: Vec::with_capacity(program.plan.nodes.len()),
+        test: 0,
         facts,
         hosted,
         shape,
@@ -454,10 +463,9 @@ fn versions(
 /// The host may add requests after consuming the previous answers. Source and symbol
 /// identities then live across admissions. A closed batch can recycle one parser scratch.
 #[derive(Default)]
-pub(crate) struct ReaderState<F: Default, D: Default> {
+pub(crate) struct ReaderState {
     run: Run,
     unknown: Option<HashMap<u32, u32>>,
-    files: HashMap<usize, HeldFile<F, D>>,
     bytes: HashMap<usize, (Rc<[u8]>, u32)>,
 }
 
@@ -475,7 +483,7 @@ struct HeldFile<F: Default, D: Default> {
     tree: l::NodeTable,
     fields: Vec<u32>,
     text: Vec<u32>,
-    read: bool,
+    recovery: Option<ryo_execution_domain::domain::coverage::types::Recovery>,
     contents: Contents,
     known: BTreeSet<l::Relation>,
     facts: l::contract::Collect,
@@ -485,7 +493,8 @@ struct HeldFile<F: Default, D: Default> {
 /// schema. Symbols and file IDs live in the reader session. Source trees never
 /// escape the visit. Every request for the same pair refers to its answer slot.
 pub(crate) fn visit<L: FileSource>(
-    state: &mut ReaderState<L::File, L::Dictionary>,
+    state: &mut ReaderState,
+    retention: &mut Retention<L::File, L::Dictionary>,
     keep: bool,
     parser: Option<&L>,
     reader_id: Option<usize>,
@@ -521,15 +530,38 @@ pub(crate) fn visit<L: FileSource>(
         run.path_sym.push(word);
     }
     let t = thread_cpu();
-    let mut checks = pairs::Checks::new(parser, programs, program_of, sources, selected, cut_of);
+    let mut needed = vec![false; program_of.len()];
+    for &index in selected {
+        for &binding in sources[index].bindings.keys() {
+            needed[binding] = true;
+        }
+    }
+    let mut checks = pairs::Checks::new(parser, programs, program_of, &needed, cut_of);
     clocks.prepare += thread_cpu() - t;
-    let mut bound = HashMap::new();
+    let mut bound: HashMap<usize, Result<Bound<'_>>> = HashMap::new();
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
     for &index in selected {
         by_path.entry(&sources[index].path).or_default().push(index);
     }
+    let start = thread_cpu();
+    let mut merged = shared::ReaderPlan::default();
+    for (binding, needed) in needed.into_iter().enumerate() {
+        if !needed { continue; }
+        let entry = (|| {
+            let program = programs[program_of[binding]].as_ref().map_err(Clone::clone)?;
+            let tables = host(binding, &mut run)?;
+            let mut b = bind(program, parser, &mut run, tables, cut_of[binding].as_deref())?;
+            merged.add(&mut b, &mut run);
+            Ok(b)
+        })();
+        bound.insert(binding, entry);
+    }
+    let (plan, supplied, test_count) = merged.finish();
+    let mut exec = Exec::new(&plan);
+    let mut test_results = vec![None; test_count];
+    clocks.prepare += thread_cpu() - start;
     let mut carried_symbols = HashMap::new();
     if let Some(dictionary) = reader_id.and_then(|id| world.project_words.get(id)) {
         carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
@@ -558,13 +590,7 @@ pub(crate) fn visit<L: FileSource>(
             let id = FileId(index.try_into().expect("file ID"));
             let t = thread_cpu();
             for (&binding, &slot) in &jobs {
-                let program = &programs[program_of[binding]];
-                let entry = bound.entry(binding).or_insert_with(|| {
-                    let p = program.as_ref().map_err(Clone::clone)?;
-                    let tables = host(binding, &mut run)?;
-                    bind(p, parser, &mut run, tables, cut_of[binding].as_deref())
-                });
-                if let Err(reason) = entry {
+                if let Err(reason) = &bound[&binding] {
                     answers[slot] = Err(reason.clone());
                 }
             }
@@ -580,13 +606,21 @@ pub(crate) fn visit<L: FileSource>(
             let t = thread_cpu();
             run.root_dir.clear();
             run.root_dir.push_str(&source.root);
-            let held = if keep {
-                state.files.entry(index).or_default()
-            } else {
-                &mut scratch
-            };
+            let session_open = keep;
+            let start = keep.then(|| retention.clock()).flatten();
+            let mut cached = start.and_then(|_| retention.take(index));
+            // An opaque provider dictionary and its projected rows are one version.
+            // Rebuild them together if a later binding asks for additional facts.
+            if let Some((credit, file)) = cached.as_mut()
+                && !wanted.is_subset(&file.known)
+            {
+                *file = HeldFile::default();
+                *credit = 0;
+            }
+            let keep = cached.is_some();
+            let held = cached.as_mut().map_or(&mut scratch, |(_,file)| file);
             let mut symbols = &mut held.symbols;
-            let reused = keep && held.read;
+            let reused = keep && held.recovery.is_some();
             let mut elements = &mut held.native;
             let mut tree = &mut held.tree;
             let result = if reused {
@@ -598,7 +632,7 @@ pub(crate) fn visit<L: FileSource>(
                     path: SourcePath(&source.path),
                     bytes: ByteSlice(&bytes),
                     fields: l::FieldRequest::Wanted,
-                    notes: if project_slots.is_empty() && !keep {
+                    notes: if project_slots.is_empty() && !session_open {
                         l::NoteRequest::Unwanted
                     } else {
                         l::NoteRequest::Wanted
@@ -609,7 +643,7 @@ pub(crate) fn visit<L: FileSource>(
                     request,
                     &mut elements,
                     &mut symbols,
-                    if keep {
+                    if session_open {
                         relations::service::ALL
                     } else {
                         &requested
@@ -627,22 +661,20 @@ pub(crate) fn visit<L: FileSource>(
                 clocks.read_parse += thread_cpu() - t;
                 continue;
             }
-            if !project_slots.is_empty() || (keep && !reused) {
-                let manifest = manifests
-                    .contains(source.path.rsplit('/').next().unwrap())
-                    .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
-                let c = Rc::new(project::Contribution {
-                    reader: reader_id,
-                    notes: L::notes(&elements),
-                    manifest,
+            if !project_slots.is_empty() || (session_open && !reused) {
+                let c = contributions[index].clone().unwrap_or_else(|| {
+                    let manifest = manifests
+                        .contains(source.path.rsplit('/').next().unwrap())
+                        .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
+                    Rc::new(project::Contribution { reader: reader_id, notes: L::notes(&elements), manifest })
                 });
-                if keep {
+                if session_open {
                     contributions[index] = Some(c.clone());
                 }
                 for slot in project_slots {
                     contributions[slot] = Some(c.clone());
                 }
-                if !keep && jobs.keys().all(|b| bound[b].is_err()) {
+                if !session_open && jobs.keys().all(|b| bound[b].is_err()) {
                     clocks.read_parse += thread_cpu() - t;
                     continue;
                 }
@@ -682,7 +714,8 @@ pub(crate) fn visit<L: FileSource>(
             }
             let Contents { kinds, fields, words } = &*contents;
             use ryo_execution_domain::domain::coverage::service::partial_of;
-            let recovery = L::recovery(&elements);
+            let recovery = held.recovery.unwrap_or_else(|| L::recovery(&elements));
+            test_results.fill(None);
             let mut active = Vec::new();
             for (&binding, &slot) in &jobs {
                 let Ok(b) = &bound[&binding] else { continue };
@@ -692,7 +725,7 @@ pub(crate) fn visit<L: FileSource>(
                 let partials = partial_of(&[], recovery, &rels);
                 let unknowns = c.report(&partials, &source.path);
                 let excluded = cut_of[binding].is_none()
-                    && (b.never
+                    && *test_results[b.test].get_or_insert_with(|| b.never
                         || !b.shape.iter().all(|c| {
                             c.iter().any(|(k, v)| {
                                 if *k {
@@ -805,6 +838,7 @@ pub(crate) fn visit<L: FileSource>(
                     table.n = 1;
                     (name.to_owned(), Rc::new(table))
                 });
+            let mut frame = None;
             let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
             for (binding, slot, excluded) in active {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
@@ -849,7 +883,7 @@ pub(crate) fn visit<L: FileSource>(
                 if excluded && unknowns.is_empty() {
                     if let Some(cut) = &cut_of[binding] {
                         let tables = b.empty_frontier.get_or_insert_with(|| {
-                            finish::session::certificate::empty_frontier(&mut b.exec, &mut run, &cut.inputs)
+                            finish::session::certificate::empty_frontier(&mut Exec::new(b.plan), &mut run, &cut.inputs)
                                 .expect("certified file output schemas")
                         });
                         world.insert_empty(slot, &source.path, tables);
@@ -862,10 +896,18 @@ pub(crate) fn visit<L: FileSource>(
                 let version = version.get_or_init(|| {
                     finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text())
                 });
+                let make_frame = || finish::session::frame(version, &plan, &supplied, lines.as_ref());
+                let mut restricted;
+                let current = if local_coverage.is_empty() {
+                    frame.get_or_insert_with(make_frame)
+                } else {
+                    restricted = make_frame();
+                    &mut restricted
+                };
                 if let Some(cut) = &cut_of[binding] {
-                    let local: Vec<_> = lines.iter().filter(|_| b.lines).cloned().collect();
-                    let value=shared.contribute(b,&mut run,id.0,version,&mut facts_view,&local,cut,
-                        &local_coverage,world,&mut carried_symbols,reader_id,unknown,slot);
+                    let value = shared.contribute(b, &mut exec, current, &mut run, id.0, &mut facts_view, cut,
+                        &local_coverage, world, &mut carried_symbols, reader_id, unknown, slot);
+                    if value.is_err() { frame = None; exec.release_request(); }
                     answers[slot] = value.map(|()| {
                         Reported {
                             rows: Vec::new(),
@@ -876,28 +918,33 @@ pub(crate) fn visit<L: FileSource>(
                     clocks.refused += usize::from(answers[slot].is_err());
                     continue;
                 }
-                answers[slot] = finish::session::pair(
-                    &mut b.exec,
-                    &mut run,
-                    version,
-                    &mut facts_view,
-                    b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
-                    &local_coverage,
-                )
+                let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, &b.slots, &local_coverage);
+                if value.is_err() { frame = None; exec.release_request(); }
+                answers[slot] = value
                 .map(|rows| Reported { rows, unknowns });
                 clocks.productive += usize::from(answers[slot].as_ref().is_ok_and(|r| !r.rows.is_empty()));
                 clocks.refused += usize::from(answers[slot].is_err());
             }
+            drop(frame);
+            drop(version);
             if keep {
-                held.read = true;
+                held.recovery = Some(recovery);
+                held.native = L::File::default();
                 held.text = provider.text;
                 packet.rows.partials = partials;
                 packet.rows.partials_at = partials_at;
                 std::mem::swap(&mut held.facts, &mut packet.rows);
             }
+            if let Some((previous, file)) = cached
+                && let (Some(start), Some(end)) = (start, retention.clock()) {
+                // All allocations on this worker during the visit conservatively bound
+                // the new storage, including provider-owned opaque parser allocations.
+                retention.put(index, previous.saturating_add(end.wrapping_sub(start)), file);
+            }
             clocks.evaluate += thread_cpu() - t;
         }
     }
+    if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }
     if keep {
         state.run = run;
     }
