@@ -10,6 +10,7 @@ import csv
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -108,6 +109,8 @@ def run(fixture, exe, other_build, evidence):
                 os.utime(path, ns=(stat.st_atime_ns,stat.st_mtime_ns))
         originals.clear()
 
+    counters = {}
+
     def invoke(binary, retain):
         output.unlink(missing_ok=True)
         args = [binary, "--tm-batch-retained", store_root] if retain else [binary, "--tm-batch"]
@@ -115,12 +118,18 @@ def run(fixture, exe, other_build, evidence):
         diagnostics = sorted(x for x in p.stdout.splitlines() if x.startswith(b"REFUSAL"))
         if p.returncode:
             raise RuntimeError((p.returncode,p.stderr[-1200:]))
+        if retain:
+            counters.clear()
+            counters.update((k.decode(), int(v)) for k, v in
+                            re.findall(rb"(pair_hits|closed_hits|evaluated_pairs|evaluated_closed|written)=(\d+)", p.stderr))
+            assert "written" in counters, "retained run did not report its publication"
         return output.read_bytes(), diagnostics
 
     with tempfile.TemporaryDirectory(dir=fixture) as tmp:
         parent_lookup(exe,Path(tmp),env)
         backup = Path(tmp) / "seed"
         original = invoke(exe, True)
+        seeded = counters.copy()
         assert original == invoke(exe, False)
         shutil.copytree(cache, backup)
         passed = True
@@ -170,20 +179,26 @@ def run(fixture, exe, other_build, evidence):
                     with pair.open("r+b") as f:
                         f.truncate(pair.stat().st_size//2)
                 warm=invoke(bin_path,True)
+                trial=counters.copy()
                 cold=invoke(bin_path,False)
                 hit=invoke(bin_path,True)
                 ok=warm==cold==hit
-                if case in ("answer-change","same-stamp","delete"):
+                if case in ("answer-change","same-stamp","delete","host-table"):
                     ok &= cold[0]!=original[0]
                 if case=="refusal":
                     ok &= bool(cold[1])
+                if case == "unchanged":
+                    ok &= trial["written"] == trial["evaluated_pairs"] == trial["evaluated_closed"] == 0
+                if case in ("build","truncated"):
+                    ok &= trial["written"] > 0 and trial["evaluated_pairs"] == seeded["evaluated_pairs"]
                 passed &= ok
                 with (evidence/"session-matrix.tsv").open("a") as f:
                     w=csv.writer(f,delimiter="\t",lineterminator="\n")
                     if f.tell()==0:
-                        w.writerow(["scenario","pass","bytes","warm_sha256","cold_sha256","refusals"])
+                        w.writerow(["scenario","pass","bytes","warm_sha256","cold_sha256","refusals","pairs_scheduled","closed_scheduled","written_B"])
                     w.writerow([case,ok,len(cold[0]),hashlib.sha256(warm[0]).hexdigest(),
-                                hashlib.sha256(cold[0]).hexdigest(),len(cold[1])])
+                                hashlib.sha256(cold[0]).hexdigest(),len(cold[1]),
+                                trial["evaluated_pairs"],trial["evaluated_closed"],trial["written"]])
                 reset()
         finally:
             reset()
