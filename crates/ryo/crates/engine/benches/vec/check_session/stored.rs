@@ -32,12 +32,18 @@ pub(super) fn key(value: impl Hash) -> Key {
 
 #[derive(Serialize, Deserialize)]
 struct Report {
-    rejected_syntax: Vec<String>,
     // None means only the closed operator consumed this contribution.
     // Some(empty) proves a local request completed with no rows.
     rows: Option<Vec<u8>>,
+    issues: Option<Box<ReportIssues>>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ReportIssues {
+    rejected_syntax: Vec<String>,
     unknowns: Vec<(String, String)>,
 }
+
 impl Report {
     fn save(answer: &session::Reported, keep_rows: bool) -> Self {
         Self {
@@ -48,8 +54,11 @@ impl Report {
                     request_answers::pack_rows(&answer.rows)
                 }
             }),
-            rejected_syntax: answer.rejected_syntax.clone(),
-            unknowns: answer.unknowns.clone(),
+            issues: (!answer.rejected_syntax.is_empty() || !answer.unknowns.is_empty())
+                .then(|| Box::new(ReportIssues {
+                    rejected_syntax: answer.rejected_syntax.clone(),
+                    unknowns: answer.unknowns.clone(),
+                })),
         }
     }
     fn read(&self, need_rows: bool) -> Option<session::Reported> {
@@ -63,7 +72,10 @@ impl Report {
         } else {
             vec![]
         };
-        Some(session::Reported::new(rows, self.unknowns.clone(), self.rejected_syntax.clone()))
+        let (unknowns, rejected_syntax) = self.issues.as_ref()
+            .map(|issues| (issues.unknowns.clone(), issues.rejected_syntax.clone()))
+            .unwrap_or_default();
+        Some(session::Reported::new(rows, unknowns, rejected_syntax))
     }
 }
 
