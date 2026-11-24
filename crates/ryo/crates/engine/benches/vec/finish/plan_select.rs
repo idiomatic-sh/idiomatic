@@ -129,12 +129,16 @@ impl Exec<'_> {
                 use ryo_matching::inbound::use_cases::matching::{
                     interface::MatchingUseCase, types::GlobPattern, use_case::MatchingUseCaseImpl,
                 };
-                if !run.prepared_globs.contains_key(&pattern) {
+                let glob = if let Some(glob) = run.prepared_globs.get(&pattern) {
+                    Rc::clone(glob)
+                } else {
                     let text = String::from_utf8_lossy(run.text(pattern));
                     let matcher = MatchingUseCaseImpl::new().compile_text_globs(&[GlobPattern(&text)]);
-                    run.prepared_globs.insert(pattern, matcher);
-                }
-                Ok(E::Call("glob_any".into(), vec![subject.clone(), E::Text(pattern)]))
+                    let glob = Rc::new(symbol_predicate::PreparedGlob::new(pattern, matcher));
+                    run.prepared_globs.insert(pattern, Rc::clone(&glob));
+                    glob
+                };
+                Ok(E::TextTest(Box::new(subject.clone()), TextTest::Glob(glob)))
             }
         }
     }
