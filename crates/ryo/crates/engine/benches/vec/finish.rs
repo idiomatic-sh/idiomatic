@@ -338,7 +338,7 @@ pub(super) struct Run {
     regexes: FxHashMap<String, Rc<Bound<regex::bytes::Regex>>>,
     lower_symbols: FxHashMap<u32, u32>,
     folded_literals: FxHashMap<u32, Rc<Bound<Rc<[u8]>>>>,
-    prepared_globs: FxHashMap<u32, symbol_predicate::PreparedGlob>,
+    prepared_globs: FxHashMap<u32, Rc<symbol_predicate::PreparedGlob>>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.

@@ -196,7 +196,9 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
         E::TextTest(x, re) if is_col(x, c) => {
             let re = re.clone();
             if ty == Ty::Sym { Box::new(move |r, w| re.symbol(r, w as u32)) }
-            else { text_predicate(ty, move |bytes| re.bytes(bytes)) }
+            else if ty == Ty::File && matches!(re, super::TextTest::Glob(_)) {
+                Box::new(move |r, w| re.symbol(r, r.path_sym[w as usize]))
+            } else { text_predicate(ty, move |bytes| re.bytes(bytes)) }
         }
         E::Call(name, args) => match (name.as_str(), args.as_slice()) {
             ("starts_with" | "ends_with", [x, E::Text(s)]) if is_col(x, c) => {
