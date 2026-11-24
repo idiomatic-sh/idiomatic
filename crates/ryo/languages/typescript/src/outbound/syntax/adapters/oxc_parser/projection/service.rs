@@ -190,8 +190,14 @@ pub(in super::super) fn insert(node: &mut Piece, mut token: Piece) {
 pub(in super::super) fn write(
     node: &mut Piece,
     carriers: &mut [Carrier<'_>],
+    positions: &mut [Option<languages::Position>],
     builder: &mut languages::TableBuilder<'_>,
 ) {
+    if let Some(id) = node.node
+        && let Some(position) = positions.get_mut(id.index())
+    {
+        *position = Some(languages::builder_position(builder));
+    }
     node.children
         .sort_by_key(|child| (child.span.start, std::cmp::Reverse(child.span.end)));
     let (start, end) = (Offset(node.span.start), Offset(node.span.end));
@@ -211,7 +217,7 @@ pub(in super::super) fn write(
                 );
             }
             for child in &mut node.children {
-                write(child, carriers, builder);
+                write(child, carriers, positions, builder);
             }
             languages::leave_node(builder, end);
         }

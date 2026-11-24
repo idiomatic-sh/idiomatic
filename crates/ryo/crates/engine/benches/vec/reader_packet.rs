@@ -5,44 +5,60 @@ use rustc_hash::FxHashMap;
 use ryo::languages::{self as l, ByteSlice, CellKind, CellWord, FileWords, FilledColumns};
 use ryo_relations::domain::relations::service as catalog;
 
+const RELATIONS: usize = catalog::ALL.len();
+
+fn widths() -> &'static [usize; RELATIONS] {
+    static WIDTHS: std::sync::OnceLock<[usize; RELATIONS]> = std::sync::OnceLock::new();
+    WIDTHS.get_or_init(|| {
+        let mut widths = [0; RELATIONS];
+        for &rel in catalog::ALL {
+            widths[catalog::number_of(rel).0] = catalog::kinds(rel).len();
+        }
+        widths
+    })
+}
+
 pub(crate) struct Packet {
     pub(crate) rows: l::contract::Collect,
-    widths: Vec<usize>,
     offsets: Vec<Vec<usize>>,
     requested: Vec<bool>,
+    indexed: Vec<usize>,
     pub(crate) ready: bool,
 }
 impl Packet {
     pub(crate) fn new() -> Self {
-        let count = catalog::ALL.len();
-        let mut widths = vec![0; count];
-        for &rel in catalog::ALL {
-            widths[catalog::number_of(rel).0] = catalog::kinds(rel).len();
-        }
         Self {
             rows: Default::default(),
-            widths,
-            offsets: vec![Vec::new(); count],
-            requested: vec![false; count],
+            offsets: vec![Vec::new(); RELATIONS],
+            requested: vec![false; RELATIONS],
+            indexed: Vec::new(),
             ready: false,
         }
     }
     pub(crate) fn clear(&mut self) {
         self.rows.clear();
-        self.offsets.iter_mut().for_each(Vec::clear);
-        self.requested.fill(false);
+        for slot in self.indexed.drain(..) {
+            self.offsets[slot].clear();
+            self.requested[slot] = false;
+        }
         self.ready = false;
     }
     pub(crate) fn index(&mut self, wanted: &[l::Relation]) {
+        debug_assert!(!self.ready);
         for &rel in wanted {
-            self.requested[catalog::number_of(rel).0] = true;
+            let slot = catalog::number_of(rel).0;
+            if !self.requested[slot] {
+                self.requested[slot] = true;
+                self.indexed.push(slot);
+            }
         }
+        let widths = widths();
         let mut at = 0;
         for &rel in &self.rows.relations {
             let i = catalog::number_of(rel).0;
             debug_assert!(self.requested[i]);
             self.offsets[i].push(at);
-            at += self.widths[i];
+            at += widths[i];
         }
         debug_assert_eq!(at, self.rows.words.len());
         self.ready = true;
@@ -205,7 +221,7 @@ impl finish::Provider for View<'_, '_> {
             return Err(format!("no reader for {name}"));
         }
         let offsets = &self.packet.offsets[i];
-        let width = self.packet.widths[i];
+        let width = tys.len();
         let mut table = finish::Table::with_rows(names, tys, offsets.len());
         for &at in offsets {
             let row = &self.packet.rows.words[at..at + width];

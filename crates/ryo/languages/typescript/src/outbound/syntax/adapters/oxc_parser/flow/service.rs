@@ -2,7 +2,7 @@
 //! block each node is evaluated in, drafted by the parser's node ids before the semantic pass is dropped and kept in the table by
 //! element position once the projection has written every element.
 
-use super::super::types::{DraftStep, FlowDraft, NodePositions, Piece};
+use super::super::types::{DraftStep, FlowDraft, NodePositions};
 use oxc_ast::AstKind;
 use oxc_cfg::graph::Direction;
 use oxc_cfg::graph::visit::{Control, DfsEvent, EdgeRef as _, set_depth_first_search};
@@ -84,22 +84,6 @@ pub(in super::super) fn drafted_flow(semantic: &Semantic<'_>, draft: &mut FlowDr
     draft
         .members
         .extend(nodes.iter().map(|node| number(nodes.cfg_id(node.id()))));
-}
-
-/// Numbers the pieces of the written tree in the preorder `write` gave them their elements in, from `first`, one element for each
-/// piece, and keeps the position of each piece the parser gave a node id.
-pub(in super::super) fn placed_nodes(root: &Piece, first: Position, positions: &mut NodePositions) {
-    let mut next = first;
-    let mut pending = vec![root];
-    while let Some(piece) = pending.pop() {
-        if let Some(node) = piece.node
-            && let Some(slot) = positions.0.get_mut(node.index())
-        {
-            *slot = Some(next);
-        }
-        next = Position(next.0 + 1);
-        pending.extend(piece.children.iter().rev());
-    }
 }
 
 /// Keeps the drafted graphs in the table, each node id turned into the position the projection wrote its element at; a step or a
