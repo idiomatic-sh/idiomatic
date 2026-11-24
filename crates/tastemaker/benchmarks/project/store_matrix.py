@@ -61,19 +61,54 @@ def typed_packets(cache):
     """Read active request references; compare complete typed bytes, including order."""
     reader_path=Path(__file__).resolve().parents[3]/"ryo/benchmarks/retention/edit_matrix.py"
     reader=runpy.run_path(str(reader_path))["Postcard"]
+    manifest = reader((cache / "session.postcard").read_bytes())
+    def index():
+        result = []
+        for _ in range(manifest.uint()):
+            manifest.take(1)  # shard prefix
+            result.append(bytes(manifest.take(32)))
+        return result
+
+    def segments():
+        for _ in range(manifest.uint()):
+            manifest.take(65)  # shard prefix, segment and directory digests
+            manifest.uint()
+            manifest.uint()
+
+    def layers():
+        return [bytes(manifest.take(32)) for _ in range(manifest.uint())]
+
+    if manifest.take(1)[0]:
+        manifest.take(32)
+    manifest.take(32)  # executable and provider identity
+    segments()
+    index()  # notes
+    requests = index()
+    index()  # groups
+    answers = index() + layers()
+    segments()
+    index()  # stamps
+    layers()  # empty schemas
+    if manifest.at < len(manifest.data):
+        requests.extend(layers())
+    assert manifest.at == len(manifest.data)
+
     packets={}
-    for path in cache.glob("answers-*.postcard"):
+    for digest in answers:
+        path = cache / f"answers-{digest.hex()}.postcard"
         r=reader(path.read_bytes())
         for _ in range(r.uint()):
             key=bytes(r.take(32))
+            skipped=[r.string() for _ in range(r.uint())]
             reason=r.string() if r.take(1)[0] else None
             digest=r.string()
             unknowns=[(r.string(),r.string()) for _ in range(r.uint())]
             payload=bytes(r.take(r.uint()))
-            packets[key]=(reason,digest,unknowns,payload)
+            packets[key]=(reason,digest,unknowns,payload,skipped)
         assert r.at==len(r.data)
     active={}
-    for path in cache.glob("requests-*.postcard"):
+    for digest in requests:
+        path = cache / f"requests-{digest.hex()}.postcard"
         r=reader(path.read_bytes())
         for _ in range(r.uint()):
             key=bytes(r.take(32))
