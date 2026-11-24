@@ -251,7 +251,7 @@ pub(in super::super) fn meta_words(
     for (word, word_span) in words.into_iter().zip(spans) {
         projection.decoded.push(Decoded {
             span: word_span,
-            value: DecodedText(word.0.to_owned()),
+            value: word.0,
             token_kind: Token::IdentifierToken,
         });
     }

@@ -44,7 +44,7 @@ pub(super) struct VisitorStack<'a> {
     /// Completed root nodes.
     pub roots: Vec<Piece>,
     /// Parser-decoded values indexed by their source ranges.
-    pub decoded: Vec<Decoded>,
+    pub decoded: Vec<Decoded<'a>>,
     /// Native node whose typed callback finishes its projection after the upstream walk.
     pub deferred: Option<VisitDepth>,
     /// The symbols and references of the parser's semantic pass, which the references and bindings of the tree are resolved by.
@@ -69,11 +69,11 @@ pub(super) struct NodeProperty {
 }
 /// The decoded value at an exact parser source range.
 #[derive(Debug)]
-pub(super) struct Decoded {
+pub(super) struct Decoded<'a> {
     /// The source range the value was decoded from.
     pub span: Span,
-    /// The value the parser decoded.
-    pub value: DecodedText,
+    /// The value borrowed from the parser arena.
+    pub value: &'a str,
     /// The token the range is, in the standard's names.
     pub token_kind: Token,
 }
