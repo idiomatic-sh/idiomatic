@@ -287,7 +287,7 @@ impl Schedule {
         permission: Permission,
         reader: &Option<Arc<str>>,
         environment: &Option<Arc<project::Environment>>,
-    ) -> Result<Arc<[u8]>> {
+    ) -> Result<(usize, Arc<[u8]>)> {
         let key = (Rc::from(path), bytes.clone(), permission, reader.clone(), environment.as_ref().map(|e| e.id.clone()));
         let (id, canonical) = match self.supplied_ids.get_key_value(&key) {
             Some(((_, held, _, _, _), &id)) => (id, held.clone()),
@@ -303,7 +303,7 @@ impl Schedule {
             }
         };
         self.alias_source(root, path, id)?;
-        Ok(canonical)
+        Ok((id, canonical))
     }
 
     pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str, reader: &Option<Arc<str>>, environment: &Option<Arc<project::Environment>>) -> Result<()> {

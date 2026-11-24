@@ -391,12 +391,6 @@ impl Live {
         requests: Vec<sdk::LintRequest>,
         linked: &sdk::Languages,
         ) -> Vec<Reply> {
-        // A retained proof references the currently installed source overlay.
-        // Close that epoch before installing the next overlay. Both lifetimes
-        // execute the same admission, visit and delivery below.
-        if self.store.is_some() {
-            return requests.into_iter().flat_map(|request| self.epoch(vec![request], linked)).collect();
-        }
         self.epoch(requests, linked)
     }
 
@@ -412,6 +406,7 @@ impl Live {
             let result = self.admit(request, linked, options.reverse_files, true);
             if result.is_err() {
                 self.batch.work.truncate(start);
+                if let Some(store) = &mut self.store { store.truncate_work(start); }
             }
             result
         }).collect::<Vec<_>>();
@@ -609,6 +604,7 @@ impl Live {
         self.batch.last_sources = None;
         let mut ids = Vec::new();
         let mut retained_rules = Vec::new();
+        let mut supplied_versions = BTreeMap::new();
         let scope = if self.store.is_some() {
             // The host supplies the inventory and relations in memory. Reuse
             // the prepared program, selection and table identities across calls.
@@ -624,13 +620,18 @@ impl Live {
                 retained_rules.push((query, parameters, program, digest));
             }
             let shape = hosted.iter().map(|h| (&h.name, &h.columns)).collect::<Vec<_>>();
-            self.store.as_mut().unwrap().overlay(
+            let supplied = key.1.iter().map(|(path, (bytes, permission))| {
+                let digest = *blake3::hash(bytes).as_bytes();
+                supplied_versions.insert(path.clone(), super::stored::key((path, &reader, permission, digest)));
+                (path.clone(), super::stored::key((digest, permission)))
+            }).collect();
+            let proof = self.store.as_mut().unwrap().request_inputs(
                 std::path::Path::new(&*physical),
                 self.cache.path_digest(&paths),
                 super::stored::key((peers, shape, &reader)),
-                &key.1,
+                supplied,
             );
-            Some(super::stored::key((&physical, &authority, &reader)))
+            Some((proof, super::stored::key((&physical, &authority, &reader))))
         } else {
             None
         };
@@ -662,7 +663,7 @@ impl Live {
                 &inc.1,
                 &exc.1,
             );
-            let (query, parameters, contract) = if let Some(scope) = scope {
+            let (query, parameters, contract) = if let Some((_, scope)) = scope {
                 let (query, parameters, program, digest) =
                     retained_rules.next().expect("retained rule identity");
                 let plan = self.batch.schedule.programs[program].as_ref().ok();
@@ -678,8 +679,8 @@ impl Live {
                 let parameters = typed.unwrap_or_else(|| parameters(std::mem::take(&mut rule.parameters))).map_err(execution)?;
                 (sdk_request::query(&mut self.cache, &rule, inputs.get(&id)), parameters, None)
             };
-            if let (Some(store),Some(k))=(&mut self.store,contract)
-                && let Some((packet,unread))=store.lookup(k){
+            if let (Some(store),Some(k),Some((proof, _)))=(&mut self.store,contract,scope)
+                && let Some((packet,unread))=store.lookup_in(proof,k){
                 let mut counts=BTreeMap::<String,usize>::new();
                 for p in unread{*counts.entry(p.clone()).or_default()+=1;}
                 if let Some(reason)=&store.packet(&packet).refusal{return Err(rule_error(id, rule.query, linked, &hosted, reason.clone()))}
@@ -698,7 +699,10 @@ impl Live {
             }));
             if let Some(project) = &environment { self.environments.insert(id.clone(), project.clone()); }
             for (path, (bytes, permission)) in &mut key.1 {
-                let shared = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &environment).map_err(execution)?;
+                let (slot, shared) = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &environment).map_err(execution)?;
+                if let Some(store) = &mut self.store {
+                    store.bind_version(slot, supplied_versions[path]);
+                }
                 // The scheduler already owns the exact path and bytes. Retain
                 // its allocation in the version key and drop the duplicate.
                 if !Arc::ptr_eq(bytes, &shared) {
@@ -740,6 +744,9 @@ impl Live {
             }
             if let super::Work::Closed { project: Some(id), .. } = &work {
                 projects.insert(*id);
+            }
+            if let (Some(store), Some((proof, _))) = (&mut self.store, scope) {
+                store.bind_work(self.batch.work.len(), proof);
             }
             ids.push((id,Err((self.batch.work.len(),contract))));
             self.batch.work.push(work);
