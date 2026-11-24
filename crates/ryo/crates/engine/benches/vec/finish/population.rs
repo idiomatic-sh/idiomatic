@@ -75,12 +75,17 @@ pub(crate) struct Block {
     pub(crate) names: Names,
     pub(crate) tys: Tys,
     pub(crate) n: usize,
-    home: u32,
+    pub(crate) home: u32,
     columns: Vec<Words>,
     postings: RefCell<FxHashMap<usize, Posting>>,
 }
 
 impl Block {
+    pub(crate) fn words(&self,col:usize)->Vec<u64>{
+        let mut out=Vec::with_capacity(self.n);
+        self.columns[col].append(self.n,&mut out);
+        out
+    }
     pub(crate) fn new(home: u32, names: Names, tys: Tys, n: usize, columns: Vec<Vec<u64>>) -> Self {
         Self {
             home,

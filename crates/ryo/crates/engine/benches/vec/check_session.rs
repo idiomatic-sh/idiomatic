@@ -30,6 +30,9 @@ mod shared;
 mod retention;
 pub(crate) use retention::Retention;
 
+#[path="check_session/stored_block.rs"]
+pub(crate) mod stored_block;
+
 type Parameters =
     BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
 
@@ -149,8 +152,8 @@ pub(crate) struct Source {
     pub path: String,
     pub bindings: BTreeMap<usize, usize>,
     known: BTreeMap<usize, usize>,
-    project: bool,
-    provided: Option<Rc<[u8]>>,
+    pub(crate) project: bool,
+    pub(crate) provided: Option<Rc<[u8]>>,
 }
 
 /// Per-check program identities and the inverse admission index. The caller binds
@@ -162,7 +165,7 @@ pub(crate) struct Schedule {
     supplied_ids: HashMap<(Rc<str>, Rc<[u8]>), usize>,
     pub pending: BTreeSet<usize>,
     pub programs: Vec<Result<Program>>,
-    prepared: HashMap<(Rc<str>, Parameters), usize>,
+    pub(crate) prepared: HashMap<(Rc<str>, Parameters), usize>,
     pub pairs: usize,
 }
 
