@@ -467,7 +467,9 @@ impl Batch {
         answers.resize_with(self.schedule.pairs, || Err(String::new()));
         contributions.resize_with(self.schedule.sources.len(), || None);
         if let Some(s)=store.as_deref_mut() {
+            let started = thread_cpu();
             s.admit(self,world,answers,contributions);
+            eprintln!("store_admit_cpu={:.6}", thread_cpu()-started);
             if !*keep {self.release_admission();}
         }
         let pending: Vec<_> = std::mem::take(&mut self.schedule.pending)
@@ -541,7 +543,11 @@ impl Batch {
                 }
             }
         }
-        if let Some(s)=store.as_deref_mut() {s.local(self,world,answers,aliases,contributions);}
+        if let Some(s)=store.as_deref_mut() {
+            let started = thread_cpu();
+            s.local(self,world,answers,aliases,contributions);
+            eprintln!("store_local_cpu={:.6}", thread_cpu()-started);
+        }
         if !*keep {
             reader_states.clear();
         }
@@ -744,7 +750,7 @@ impl Batch {
                 exec.release_request();
                 if let Some(s)=store.as_deref_mut() {
                     let pop=project.and_then(|id| populations[&id].1.as_ref().ok());
-                    s.closed(i,&answer,pop,project.map(|id| &self.projects[id].authority));
+                    s.closed(i,&answer,pop,project.map(|id| (id, &self.projects[id].authority)));
                 }
                 if let Some(finished)=readers.release(i,pairs,*project,world) {
                     populations.remove(&finished);
@@ -985,8 +991,8 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     }
     let mut known = HashMap::new();
     let mut indices = Vec::with_capacity(session.work.len());
-    type Unknown<'a> = std::borrow::Cow<'a, (String, String)>;
-    let mut results: Vec<Result<(std::borrow::Cow<'_, str>, Vec<Unknown<'_>>), String>> = Vec::new();
+    enum Output<'a> { Packet(stored::Key), Computed(std::borrow::Cow<'a, str>, Vec<&'a (String, String)>) }
+    let mut results: Vec<Result<Output<'_>, String>> = Vec::new();
     let empty = digest(&[]);
     let mut gathered = 0.0;
     let mut nonempty_digests = 0;
@@ -1024,13 +1030,11 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
                             nonempty_digests += 1;
                             std::borrow::Cow::Owned(digest(&r.rows))
                         };
-                        return Ok((digest, r.unknowns.into_iter().map(std::borrow::Cow::Borrowed).collect()));
+                        return Ok(Output::Computed(digest, r.unknowns));
                     }
                 }
             };
-            let p=store.as_ref().unwrap().packet(&packet);
-            if let Some(reason)=&p.refusal{return Err(reason.clone())}
-            Ok((std::borrow::Cow::Owned(p.digest.clone()), p.unknowns.iter().cloned().map(std::borrow::Cow::Owned).collect()))
+            Ok(Output::Packet(packet))
         })();
         results.push(result);
     }
@@ -1044,17 +1048,29 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     }
     let mut refusals = BTreeMap::new();
     for (i, id, expected) in invocations {
-        match &results[indices[i]] {
-            Ok((d, unknowns)) => {
-                let status = if d.as_ref() == expected.as_ref() && unknowns.is_empty() {
+        let receipt = match &results[indices[i]] {
+            Ok(Output::Packet(k)) => {
+                let packet = store.as_ref().unwrap().packet(k);
+                match &packet.refusal {
+                    Some(reason) => Err(reason),
+                    None => Ok((packet.digest.as_str(), packet.unknowns.as_slice(), &[][..])),
+                }
+            }
+            Ok(Output::Computed(d, unknowns)) => Ok((d.as_ref(), &[][..], unknowns.as_slice())),
+            Err(reason) => Err(reason),
+        };
+        match receipt {
+            Ok((d, stored_unknowns, computed_unknowns)) => {
+                let empty = stored_unknowns.is_empty() && computed_unknowns.is_empty();
+                let status = if d == expected.as_ref() && empty {
                     "exact"
                 } else {
                     "different"
                 };
                 write!(out, "{id}\t{status}\t{d}").unwrap();
-                if !unknowns.is_empty() {
+                if !empty {
                     write!(out, "\t").unwrap();
-                    fragments.write(&mut out, unknowns.iter().map(|unknown| unknown.as_ref()));
+                    fragments.write(&mut out, stored_unknowns.iter().chain(computed_unknowns.iter().copied()));
                 }
                 writeln!(out).unwrap();
             }

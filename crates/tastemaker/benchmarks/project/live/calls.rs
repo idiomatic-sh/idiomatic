@@ -234,10 +234,11 @@ impl Live {
         let key = (authority.clone(), overlay);
         let mut prepared_root=None;
         let filter = self.globs(&req.files)?;
+        let mut host_keys = self.store.as_ref().map(|_| Vec::new());
         let hosted = req
             .hosted
             .into_iter()
-            .map(|t| self.cache.table(t))
+            .map(|t| self.cache.table(t, host_keys.as_mut()))
             .collect::<Result<Vec<_>, _>>()?;
         let mut ids = Vec::new();
         let scope=if let Some(s)=&mut self.store{
@@ -248,10 +249,9 @@ impl Live {
                 Ok(super::stored::key((id.as_ref(),rule.query.as_ref(),&rule.include,&rule.exclude,parameters)))
             }).collect::<Result<Vec<_>,String>>()?;
             let shape=hosted.iter().map(|h|(&h.name,&h.columns)).collect::<Vec<_>>();
-            s.overlay(std::path::Path::new(&*physical),&paths,super::stored::key((peers,shape)),&key.1);
+            s.overlay(std::path::Path::new(&*physical),self.cache.path_digest(&paths),super::stored::key((peers,shape)),&key.1);
             Some(super::stored::key((&physical,&authority)))
         }else{None};
-        let host_keys=self.store.as_ref().map(|_|hosted.iter().map(super::stored::key).collect::<Vec<_>>());
         let mut restored_unread=BTreeMap::<String,usize>::new();
         self.batch.work.clear();
         for (id, rule) in req.rules {
@@ -280,13 +280,13 @@ impl Live {
                 let plan=self.batch.schedule.programs[rule].as_ref().ok();
                 let consumed:Vec<_>=hosted.iter().enumerate().filter(|(_,t)|plan.is_some_and(|p|p.bases.contains(&t.name)))
                     .map(|(i,_)|host_keys.as_ref().unwrap()[i]).collect();
-                super::stored::key((scope,&query,&parameters,&files,consumed))
+                super::stored::key((scope,self.cache.program_digest(rule,&query,&parameters),self.cache.path_digest(&files),consumed))
             });
             if let (Some(store),Some(k))=(&mut self.store,contract)
                 && let Some((packet,unread))=store.lookup(k){
-                if let Some(reason)=&store.packet(&packet).refusal{return Err(format!("{id}: {reason}"))}
                 let mut counts=BTreeMap::<String,usize>::new();
-                for p in unread{*counts.entry(p).or_default()+=1;}
+                for p in unread{*counts.entry(p.clone()).or_default()+=1;}
+                if let Some(reason)=&store.packet(&packet).refusal{return Err(format!("{id}: {reason}"))}
                 for (p,n) in counts{let total=restored_unread.entry(p).or_default();*total=(*total).max(n);}
                 ids.push((id,Ok(packet)));
                 continue

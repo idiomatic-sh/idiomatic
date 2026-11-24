@@ -1538,7 +1538,12 @@ fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
 /// Prepare the file funnel from a rule pack. A finish stage over the same pack reuses its parsed programs.
 fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>, paths: Option<&[String]>) {
     let way = args[0];
-    let list = paths.map_or_else(|| files(args[1]), <[String]>::to_vec);
+    let disk_paths;
+    let list = match paths {
+        Some(list) => list,
+        None => { disk_paths = files(args[1]); &disk_paths }
+    };
+
     let f0 = thread_cpu();
     let no_skip = std::env::var_os("VEC_NO_SKIP").is_some();
     let mut pairs = None;
