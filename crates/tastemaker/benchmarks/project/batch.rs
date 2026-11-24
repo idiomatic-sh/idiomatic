@@ -650,7 +650,9 @@ impl Batch {
         #[cfg(feature = "product-session")]
         let workers = self.workers.map_or(1, std::num::NonZeroUsize::get);
         #[cfg(feature = "product-session")]
-        if keep && store.is_none() && workers > 1 && groups.len() >= 16 {
+        // Small SDK validation cohorts use the same closed reader without
+        // reconstructing a word table and posting caches on each worker.
+        if keep && store.is_none() && workers > 1 && self.work.len() >= 128 && groups.len() > 1 {
             let groups: Vec<_> = groups.into_values().collect();
             self.clocks.project_shards += workers.min(groups.len());
             let worker_cpu = closed_workers::run(
