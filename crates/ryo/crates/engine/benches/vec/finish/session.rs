@@ -71,6 +71,15 @@ pub(in super::super) fn evaluate_covered(
             return Err("frontier schema differs from its prepared step".into());
         }
     }
+    // A file can publish an incomplete relation unrelated to an ordered operator.
+    // Follow the actual operands, including the lineage of a carried frontier.
+    let mut uncertain = Vec::new();
+    if !incomplete.is_empty() {
+        for step in &plan.nodes {
+            uncertain.push(step.base().is_some_and(|rel| incomplete.contains_key(rel))
+                || step.inputs.iter().any(|&source| uncertain[source]));
+        }
+    }
     let mut bases = BTreeMap::<&str, Rc<Table>>::new();
     for (i, step) in plan.nodes.iter().enumerate() {
         if !demanded[i] || carried.contains_key(&i) {
@@ -119,7 +128,7 @@ pub(in super::super) fn evaluate_covered(
             }
             // Class numbers are interned across the complete input. A local class
             // from one file has no meaning in another file's class dictionary.
-            "subtree-class" | "as-of" | "order" if incomplete.is_empty() => {}
+            "subtree-class" | "as-of" | "order" if !uncertain.get(i).copied().unwrap_or(false) => {}
             "rows" | "select" | "project" | "union" | "antijoin" | "group-count" | "words" | "axis" | "closure" | "cycles" | "rank" | "intersection" | "difference" | "group-digest" | "replace" | "span-bounds" | "span-between" => {}
             "extend"
                 if step.args()["values"]
