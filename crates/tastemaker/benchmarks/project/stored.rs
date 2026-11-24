@@ -567,7 +567,7 @@ impl Store {
         &mut self,
         b: &mut Batch,
         world: &mut session::World,
-        answers: &mut [Answer],
+        answers: &mut super::Answers,
         contributions: &mut [Option<Rc<project::Contribution>>],
     ) {
         self.project_proofs.clear();
@@ -807,7 +807,7 @@ impl Store {
                 let Some(report) = pair.report.read(self.local_rows[*slot]) else {
                     return true;
                 };
-                answers[*slot] = Ok(report);
+                super::Slots::set(answers, *slot, Ok(report));
                 self.file_hits += 1;
                 false
             });
@@ -823,7 +823,7 @@ impl Store {
         &mut self,
         b: &Batch,
         world: &session::World,
-        answers: &[Answer],
+        answers: &super::Answers,
         aliases: &[usize],
         contributions: &[Option<Rc<project::Contribution>>],
     ) {

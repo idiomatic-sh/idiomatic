@@ -2,6 +2,7 @@
 //! authority and file contents still accompany each registration.
 use super::super::{Parameters, stored};
 use super::{HostCell, Hosted, sdk};
+use crate::check_session::InputLists;
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use std::collections::{HashMap, HashSet};
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -114,8 +115,7 @@ fn path_prefixes(names: &[sdk::Glob]) -> Option<Vec<Box<str>>> {
 
 #[derive(Default)]
 pub(super) struct CallCache {
-    paths: Vec<Rc<Vec<String>>>,
-    path_hashes: HashMap<u64, Vec<usize>>,
+    paths: InputLists,
     selections: HashMap<Selection, usize>,
     queries: HashSet<Rc<str>>,
     schemas: HashMap<(String, Vec<(String, String)>), usize>,
@@ -128,30 +128,10 @@ pub(super) struct CallCache {
 }
 
 impl CallCache {
-    // Both callers supply sorted, unique paths. Compare full content on hash collisions.
-    fn intern_paths(&mut self, paths: &[&str]) -> usize {
-        let mut hash = DefaultHasher::new();
-        paths.hash(&mut hash);
-        let bucket = self.path_hashes.entry(hash.finish()).or_default();
-        if let Some(id) = bucket.iter().find(|&&id| {
-            self.paths[id]
-                .iter()
-                .map(String::as_str)
-                .eq(paths.iter().copied())
-        }) {
-            return *id;
-        }
-        let id = self.paths.len();
-        self.paths
-            .push(Rc::new(paths.iter().map(|&path| path.to_owned()).collect()));
-        bucket.push(id);
-        id
-    }
-
     pub(super) fn inventory(&mut self, mut paths: Vec<&str>) -> (usize, Rc<Vec<String>>) {
         paths.sort_unstable();
         paths.dedup();
-        let id = self.intern_paths(&paths);
+        let id = self.paths.intern(&paths);
         (id, self.paths[id].clone())
     }
 
@@ -205,7 +185,7 @@ impl CallCache {
                 }
             }
         };
-        let id = self.intern_paths(&selected);
+        let id = self.paths.intern(&selected);
         self.selections.insert(key, id);
         (id, self.paths[id].clone())
     }

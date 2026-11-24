@@ -4,11 +4,12 @@
 mod readers;
 #[path="stored.rs"]
 mod stored;
+use crate::check_session::worker::Slots;
 
 use super::{Hosted, Parameters, bind_tables, execute_ids, finish, read_parameters};
 use crate::check_session::project::{self, Authority, Population};
 use crate::{
-    check_session::{self as session, Answer, Clock, Program},
+    check_session::{self as session, Answer, Answers, Clock, InputLists, Program},
     declaration, thread_cpu,
 };
 use ryo::languages as l;
@@ -24,7 +25,7 @@ use sha2::{Digest, Sha256};
 mod closed_workers;
 
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     io::{BufRead, Write},
     path::{Path, PathBuf},
     rc::Rc,
@@ -157,7 +158,7 @@ struct Active<F: Default, D: Default> {
     retention: session::Retention<F,D>,
     readers: Vec<session::ReaderState>,
     world: session::World,
-    answers: Vec<Answer>,
+    answers: Answers,
     aliases: Vec<usize>,
     contributions: Vec<Option<Rc<project::Contribution>>>,
     manifest_failures: Vec<l::FilePath>,
@@ -487,7 +488,7 @@ impl Batch {
         })
     }
 
-    fn run(&mut self, languages: Vec<Language>) -> Vec<Answer> {
+    fn run(&mut self, languages: Vec<Language>) -> Answers {
         let readers: Vec<_> = languages
             .into_iter()
             .map(session::source::Linked::from)
@@ -495,7 +496,7 @@ impl Batch {
         self.run_sources(&readers)
     }
 
-    fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> Vec<Answer> {
+    fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> Answers {
         // The closed, store-disabled capture cannot register another request.
         // Release the admission-only maps before the reader and join heaps grow.
         self.project_keys = Default::default();
@@ -550,7 +551,7 @@ impl Batch {
             world.declare_words(languages);
         }
         aliases.extend(aliases.len()..self.schedule.pairs);
-        answers.resize_with(self.schedule.pairs, || Err(String::new()));
+        answers.resize(self.schedule.pairs);
         contributions.resize_with(self.schedule.sources.len(), || None);
         if let Some(s)=store.as_deref_mut() {
             let started = thread_cpu();
@@ -576,7 +577,7 @@ impl Batch {
                 (None, None) => groups[unclaimed].push(i),
                 _ => {
                     for &slot in src.bindings.values() {
-                        answers[slot] = Err(format!("multiple source readers for {}", src.path));
+                        answers.set(slot, Err(format!("multiple source readers for {}", src.path)));
                     }
                 }
             }
@@ -654,7 +655,7 @@ impl Batch {
         if !*keep {
             *aliases=Vec::new();
         }
-        self.schedule.delivered(&pending, *keep);
+        self.schedule.end_input_epoch(pending, *keep);
         self.finish_projects(languages, contributions, world, answers, populations, manifest_failures, *keep,store.as_deref_mut());
 
     }
@@ -664,7 +665,7 @@ impl Batch {
         languages: &[L],
         contributions: &mut Vec<Option<Rc<project::Contribution>>>,
         world: &mut session::World,
-        answers: &[Answer],
+        answers: &Answers,
         populations: &mut HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
         manifest_failures: &mut Vec<l::FilePath>,
         keep: bool,
@@ -733,7 +734,10 @@ impl Batch {
             populations.insert(id, (s.wanted.clone(), population));
         }
         if !keep {
-            *contributions=Vec::new();
+            *contributions = Vec::new();
+            // Closed work holds its own source slots and typed data. Project
+            // population construction is the last reader of the source paths.
+            self.schedule.release_sources();
         }
         manifest_failures.clear();
         for id in active {
@@ -905,7 +909,7 @@ impl Batch {
         self.clocks.project_wall += wall.elapsed().as_secs_f64();
     }
 
-    fn answer<'a>(work: &'a Work, answers: &'a [Answer]) -> Result<Receipt<'a>, &'a str> {
+    fn answer<'a>(work: &'a Work, answers: &'a Answers) -> Result<Receipt<'a>, &'a str> {
         let mut receipt = Receipt::default();
         match work {
             Work::Project(result) => receipt.append(result)?,
@@ -1068,6 +1072,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     let mut invocations = Vec::new();
     let mut expected_text = std::collections::HashSet::<Rc<str>>::new();
     let mut inputs = HashMap::new();
+    let mut path_lists = InputLists::default();
     for l in std::io::BufReader::new(file).lines() {
         let line = l.expect("manifest line");
         let mut fields = line.split('\t');
@@ -1095,7 +1100,9 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
             }else {
                 let result=std::fs::read(req).map_err(|e|e.to_string())
                     .and_then(|bytes|json_input::decode::<Input>(&bytes).map_err(|e|e.to_string()))
-                    .and_then(|input|{
+                    .and_then(|mut input|{
+                        input.files = path_lists.intern_owned(input.files);
+                        input.inventory = input.inventory.map(|paths| path_lists.intern_owned(paths));
                         let inherited=if closed.is_none() && store.is_some(){session.roots.get(&input.root).cloned()}else{None};
                         let work=session.register(pack,input,closed)?;
                         if let (Some(p),Some(s))=(inherited,&mut store) && matches!(work,Work::Closed{..}|Work::Project(_)){
@@ -1124,9 +1131,11 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         invocations.push((idx, Box::<str>::from(id), expected));
     }
     drop(inputs);
+    drop(path_lists);
     drop(expected_text);
     let invocations = invocations.into_boxed_slice();
     let registration = thread_cpu() - start - session.clocks.prepare - session.clocks.project;
+    let source_count = session.schedule.sources.len();
     let answers=if let Some(s)=&mut store {
         let mut state=Active::default();
         if !session.work.is_empty(){session.epoch_with_store(readers,&mut state,Some(s));}
@@ -1200,7 +1209,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6} read_versions={:.6} reader_build={:.6} reader_projection_facts={:.6} inventory={:.6} join={:.6} bound_proofs={:.6} literal_positions={} requirement_programs={} requirement_bindings={}",
         session.schedule.programs.len(),
         session.bindings.len(),
-        session.schedule.sources.len(),
+        source_count,
         c.reads,
         c.files,
         c.pairs,

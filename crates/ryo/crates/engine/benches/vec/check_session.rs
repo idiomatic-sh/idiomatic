@@ -42,6 +42,15 @@ type Parameters =
 type Result<T> = std::result::Result<T, String>;
 pub(crate) type Answer = Result<Reported>;
 
+#[path = "check_session/answer_slots.rs"]
+mod answer_slots;
+pub(crate) use answer_slots::Answers;
+
+#[path = "check_session/input_lists.rs"]
+mod input_lists;
+pub(crate) use input_lists::InputLists;
+
+
 #[derive(Clone, Default)]
 pub(crate) struct Reported {
     pub rows: Vec<finish::answer::Row>,
@@ -203,6 +212,16 @@ pub(crate) struct Schedule {
 }
 
 impl Schedule {
+    pub(crate) fn end_input_epoch(&mut self, pending: Vec<usize>, keep: bool) {
+        if keep {
+            self.delivered(&pending, true);
+        }
+    }
+
+    pub(crate) fn release_sources(&mut self) {
+        self.sources = Vec::new();
+    }
+
     pub(crate) fn delivered(&mut self, ids: &[usize], keep: bool) {
         for &i in ids {
             let source = &mut self.sources[i];
