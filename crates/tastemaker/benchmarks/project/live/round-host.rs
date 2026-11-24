@@ -8,7 +8,6 @@ use std::{
     cell::RefCell,
     future::poll_fn,
     rc::Rc,
-    sync::OnceLock,
     task::{Context, Poll, Waker},
 };
 
@@ -24,16 +23,8 @@ thread_local! {
     static REQUESTS: RefCell<Option<Ready>> = const { RefCell::new(None) };
 }
 
-// Receipt mode can select a round of one for the gate. The normal linked check
-// batches automatically. Nothing in the engine reads this setting.
-pub(crate) fn receipt_mode() -> Option<&'static str> {
-    static MODE: OnceLock<Option<String>> = OnceLock::new();
-    MODE.get_or_init(|| std::env::var("TM_ROUND_RECEIPTS").ok())
-        .as_deref()
-}
-
 pub(super) fn enabled() -> bool {
-    receipt_mode() != Some("serial")
+    !tm_project_session::serial_host()
 }
 
 fn may_queue() -> bool {

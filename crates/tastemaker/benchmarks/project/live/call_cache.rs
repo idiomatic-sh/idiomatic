@@ -144,25 +144,25 @@ impl CallCache {
         owned
     }
 
-    pub(super) fn table(&mut self, t: sdk::HostRelation) -> Result<Hosted, String> {
+    pub(super) fn table(&mut self, t: sdk::HostRelation) -> Result<Hosted, sdk::LintError> {
         let columns = t
             .columns
-            .into_iter()
+            .iter()
             .map(|column| {
                 let kind = match column.kind {
                     sdk::HostKind::File => "File",
                     sdk::HostKind::Text => "Text",
                     sdk::HostKind::Number => "Number",
-                    _ => return Err("unsupported SDK host column type".to_owned()),
+                    _ => return Err(sdk::LintError::Execution { reason: "unsupported SDK host column type".into() }),
                 };
-                Ok((column.name.0.into(), kind.to_owned()))
+                Ok((column.name.0.to_string(), kind.to_owned()))
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let schema = (String::from(t.name.0), columns);
+        let schema = (t.name.0.to_string(), columns);
         let next = self.schemas.len();
         let id = *self.schemas.entry(schema.clone()).or_insert(next);
         let mut row_ids = Vec::with_capacity(t.rows.len());
-        for row in t.rows {
+        for (at, row) in t.rows.into_iter().enumerate() {
             let mut hash = DefaultHasher::new();
             row.0.hash(&mut hash);
             let bucket = self.by_hash.entry((id, hash.finish())).or_default();
@@ -183,18 +183,28 @@ impl CallCache {
                 continue;
             }
             if row.0.len() != schema.1.len() {
-                return Err("host row width disagrees with declaration".into());
+                return Err(sdk::LintError::HostRowWidth {
+                    relation: t.name,
+                    row: sdk::RowNumber(at + 1),
+                    expected: schema.1.len(),
+                    given: row.0.len(),
+                });
             }
             let cells = row
                 .0
                 .into_iter()
-                .zip(&schema.1)
-                .map(|(v, (_, kind))| {
-                    Ok(match (kind.as_str(), v) {
-                        ("File", sdk::Cell::File(p)) => HostCell::File { file: p.0.into() },
-                        ("Text", sdk::Cell::Text(s)) => HostCell::Text(s.0.into()),
-                        ("Number", sdk::Cell::Number(n)) => HostCell::Number(n.0),
-                        _ => return Err("host cell disagrees with declaration".to_owned()),
+                .zip(&t.columns)
+                .map(|(v, column)| {
+                    Ok(match (column.kind, v) {
+                        (sdk::HostKind::File, sdk::Cell::File(p)) => HostCell::File { file: p.0.into() },
+                        (sdk::HostKind::Text, sdk::Cell::Text(s)) => HostCell::Text(s.0.into()),
+                        (sdk::HostKind::Number, sdk::Cell::Number(n)) => HostCell::Number(n.0),
+                        _ => return Err(sdk::LintError::HostCellKind {
+                            relation: t.name.clone(),
+                            row: sdk::RowNumber(at + 1),
+                            column: column.name.clone(),
+                            expected: column.kind,
+                        }),
                     })
                 })
                 .collect::<Result<std::sync::Arc<[_]>, _>>()?;

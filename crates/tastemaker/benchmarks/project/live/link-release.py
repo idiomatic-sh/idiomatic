@@ -14,46 +14,75 @@ workspace = release / "crates/tastemaker/Cargo.toml"
 cfg = workspace.read_text()
 k = "[patch.crates-io]\n"
 assert cfg.count(k) == 1
-workspace.write_text(cfg.replace(k,k+'idiomatic-sh-ryo-relations = { path = "../ryo/crates/relations" }\n'))
+# Keep the released public types (including their non-exhaustive fields) and
+# replace the lint resource only in the benchmark's SDK copy.
+sdk_src = release / "crates/ryo/crates/sdk/src"
+(sdk_src / "linked_sdk.rs").write_bytes((library / "linked-sdk.rs").read_bytes())
+sdk_lib = sdk_src / "lib.rs"
+sdk_lib.write_text(
+    '#![allow(dead_code, reason = "the linked benchmark replaces the shipped lint implementation")]\n' +
+    sdk_lib.read_text() + "\n#[doc(hidden)]\npub mod linked_sdk;\n"
+)
+linter = sdk_src / "resources/linter.rs"
+s = linter.read_text().replace("pub mod lint;", "pub(crate) mod lint;")
+s = s.replace("pub use crate::domain::capacity::types::MemoryBudget;\n\n", "")
+s = s.replace("pub use lint::entry::lint;\n\n", "").replace("pub use lint::entry::lint_with;\n\n", "")
+s = s.replace("pub use lint::types::Linter;", "pub use crate::linked_sdk::Linter;")
+linter.write_text(s)
+# query::run still accepts this type. Keep it nameable in its owning resource.
+with (sdk_src / "resources/query.rs").open("a") as f:
+    f.write("\npub use crate::domain::capacity::types::MemoryBudget;\n")
+lint = sdk_src / "resources/linter/lint"
+entry = lint / "entry.rs"
+s = entry.read_text()
+workers = s[s.index("/// The threads every run of the caller"):]
+entry.write_text("""//! Construction of the SDK's worker pool.
+use super::{schemas, types::Workers};
+use crate::domain::capacity::types::WorkerPool;
+
+""" + workers)
+types = lint / "types.rs"
+s = types.read_text()
+start = s.index("/// The engine a program builds once")
+end = s.index("/// What every run over one linter shares", start)
+s = s[:start] + s[end:]
+start = s.index("impl Linter {")
+end = s.index("/// The rules to check in a repository.", start)
+types.write_text(s[:start] + s[end:])
+workspace.write_text(cfg.replace(k, k +
+    'idiomatic-sh-ryo-relations = { path = "../ryo/crates/relations" }\n'))
+
 adapter = core / 'src/outbound/analysis/adapters/ryo/adapter.rs'
 s = adapter.read_text()
+s = s.replace("`ryo::linter::lint_with`", "`ryo::linter::Linter::lint`")
+s = s.replace("InvalidReason, Memory, QueryVerdict", "InvalidReason, QueryVerdict")
 start = s.index("    fn lint(&self,")
 end = s.index("    fn relations(", start)
+constructor = s[s.index("        let linter = self", start):s.index("        ryo::linter::lint_with", start)]
+constructor = constructor.replace(".map_err(Clone::clone)?;", ".map_err(Clone::clone);")
+memory = constructor.index("                    match self.settings.memory")
+constructor = constructor[:memory] + constructor[constructor.index("                    self.cache.clone(),", memory):]
 s = s[:start] + """    fn lint(&self, request: AnalysisRequest) -> Result<AnalysisReport, AnalysisError> {
         self.lint_benchmark_round(vec![request]).pop().expect("one result")
     }
 
     fn benchmark_round_capacity(&self) -> usize {
-        // This is a bound on pending fixture continuations, separate from Ryo's
-        // measured byte budget for retained file storage. One oversized call
-        // always makes progress on its own.
-        const MAX_PENDING: u64 = 16;
-        const MIN_SLOT_BYTES: u64 = 1024 * 1024;
-        match self.settings.memory {
-            Memory::Machine => MAX_PENDING as usize,
-            Memory::Bytes(bytes) => (bytes.0 / MIN_SLOT_BYTES).clamp(1, MAX_PENDING) as usize,
-        }
+        // Bounds pending fixture continuations independently of the SDK.
+        16
     }
 
     fn lint_benchmark_round(
         &self, requests: Vec<AnalysisRequest>,
     ) -> Vec<Result<AnalysisReport, AnalysisError>> {
-        let pool = match self.settings.pool.0.as_ref() {
-            Ok(pool) if pool.current_num_threads() == 1 => pool,
-            Ok(_) => return requests.into_iter().map(|_| Err(engine("this benchmark requires one worker"))).collect(),
-            Err(reason) => return requests.into_iter().map(|_| Err(engine(reason))).collect(),
+""" + constructor + """
+        let linter = match linter {
+            Ok(linter) => linter,
+            Err(reason) => return requests.into_iter().map(|_| Err(reason.clone())).collect(),
         };
-        thread_local! { static SESSION: std::cell::RefCell<tm_project_session::Live> = Default::default(); }
-        let budget = match self.settings.memory {
-            Memory::Machine => ryo::linter::MemoryBudget::Machine,
-            Memory::Bytes(bytes) => std::num::NonZero::new(bytes.0).map_or(
-                ryo::linter::MemoryBudget::Machine, ryo::linter::MemoryBudget::Bytes),
-        };
-        let mut results = requests.into_iter().map(schemas::request).collect::<Vec<_>>();
         let mut positions = Vec::new();
         let mut valid = Vec::new();
-        let mut answers = Vec::with_capacity(results.len());
-        for (index, result) in results.drain(..).enumerate() {
+        let mut answers = Vec::with_capacity(requests.len());
+        for (index, result) in requests.into_iter().map(schemas::request).enumerate() {
             match result {
                 Ok(request) => {
                     positions.push(index);
@@ -63,41 +92,16 @@ s = s[:start] + """    fn lint(&self, request: AnalysisRequest) -> Result<Analys
                 Err(reason) => answers.push(Some(Err(reason))),
             }
         }
-        let results = pool.install(|| SESSION.with(|slot| {
-            let mut session = slot.borrow_mut();
-            if let Err(reason) = session.use_cache(self.cache.as_deref()) {
-                return valid.into_iter().map(|_| Err(reason.clone())).collect();
-            }
-            session.lint_round(valid, &self.languages, budget,
-                crate::inbound::use_cases::validate::rounds::receipt_mode().is_some())
-        }));
+        let results = tm_project_session::measure_dispatch(|| linter.lint(valid));
         assert_eq!(results.len(), positions.len());
         for (index, result) in positions.into_iter().zip(results) {
-            answers[index] = Some(result.map(schemas::session_report).map_err(engine));
+            answers[index] = Some(result.map(report).map_err(error));
         }
         answers.into_iter().map(Option::unwrap).collect()
     }
 
 """ + s[end:]
 adapter.write_text(s)
-schema = adapter.with_name('schemas.rs')
-with schema.open('a') as f:
-    f.write('''
-/// Render the candidate's typed findings through the same cells as a release SDK call.
-pub(super) fn session_report(report: tm_project_session::LiveReport) -> AnalysisReport {
-    AnalysisReport {
-        findings: report.findings.into_iter().map(|(id, subject, columns)| {
-            let path = subject_path(subject);
-            let cells = columns.into_iter().map(|(name,value)| cell(&path,ColumnName(name),value)).collect();
-            LintAnswer { rule: LintRuleId(id), path, cells }
-        }).collect(),
-        unknowns: report.unknowns.into_iter().map(|(id,path,msg)| LintUnknown {
-            rule:LintRuleId(id), path:RepoPath(path.into()), message:MessageText(msg.into())
-        }).collect(),
-        unread: report.unread.into_iter().map(RepoPath).collect(),
-    }
-}
-''')
 
 
 def link_capture(release, library):
@@ -155,37 +159,8 @@ entry = release / "crates/tastemaker/cli/src/main.rs"
 s = entry.read_text()
 original = '    tastemaker_cli::resources::run(&start, &build.0)'
 assert s.count(original) == 1
-entry.write_text(s.replace(original, '    let result = tastemaker_cli::resources::run(&start, &build.0);\n    tm_project_session::print_measurement();\n    result'))
+entry.write_text(s.replace(original, '    tm_project_session::link_executor();\n    let result = tastemaker_cli::resources::run(&start, &build.0);\n    tm_project_session::print_measurement();\n    result'))
 
-# The benchmark replaces the released SDK constructor and reuses the CLI's reader factory.
-adapter = release / 'crates/tastemaker/crates/core/src/outbound/analysis/adapters/ryo/adapter.rs'
-s = adapter.read_text()
-start = s.index('    /// The pool ryo reads')
-s = s[:start] + '    settings: AnalysisSettings,\n    cache: Option<std::path::PathBuf>,' + s[s.index('\n}', start):]
-start=s.index('        settings: AnalysisSettings,')
-end=s.index('\n    }',start)
-s=s[:start]+'''        mut settings: AnalysisSettings,
-        cache: ryo::linter::Cache,
-    ) -> Self {
-        // Benchmark the real SDK budget even when the pinned CLI requests Machine.
-        if let Some(value) = std::env::var_os("TM_BENCH_MEMORY_BYTES") {
-            let bytes = value.to_str().and_then(|s| s.parse::<std::num::NonZeroU64>().ok())
-                .expect("TM_BENCH_MEMORY_BYTES must be a positive byte count").get();
-            let limit = match settings.memory {
-                Memory::Machine => bytes,
-                Memory::Bytes(current) => bytes.min(current.0),
-            };
-            settings.memory = Memory::Bytes(crate::outbound::analysis::types::MemoryBytes(limit));
-        }
-        Self { languages, settings, cache: match cache { ryo::linter::Cache::At(p) => Some(p), _ => None } }'''+s[end:]
-s=s.replace('self, error, operator_page, placed_columns, relation_page, report','self, operator_page, placed_columns, relation_page')
-adapter.write_text(s)
-schema=adapter.with_name('schemas.rs')
-s=schema.read_text()
-for function in ('report','error'):
-    k=f'pub(super) fn {function}('
-    s=s.replace(k,'#[allow(dead_code, reason = "the original SDK report edge also serves pinned adapter tests")]\n'+k)
-schema.write_text(s)
 cli=release/'crates/tastemaker/cli/src'
 lib=cli/'lib.rs'
 with lib.open('a') as out:
@@ -193,6 +168,28 @@ with lib.open('a') as out:
 main=cli/'main.rs'
 s=main.read_text().replace('#[path = "languages.rs"]\nmod benchmark_languages;\n\n','').replace('benchmark_languages::linked()', 'tastemaker_cli::benchmark_languages()')
 main.write_text(s)
+
+# The release uses separate adapters for their cache policies. A cold check
+# shares one linter across all three roles. An opt-in retained run keeps the
+# repository's cache separate from the fixture and counting calls.
+composition = cli / "resources/workspace/check/composition.rs"
+s = composition.read_text()
+at = s.index("    let counting: Arc<dyn analysis::interface::AnalysisPort>")
+end = s.index("    let reporting", at)
+composition.write_text(s[:at] + """    let counting: Arc<dyn analysis::interface::AnalysisPort> =
+        if std::env::var_os("TM_CHECK_SESSION").as_deref() == Some(std::ffi::OsStr::new("retained")) {
+            Arc::new(analysis::factory::ryo(
+                crate::languages::linked(),
+                analysis::types::AnalysisSettings {
+                    pool,
+                    memory: analysis::types::Memory::Machine,
+                },
+            ))
+        } else {
+            Arc::clone(&analysis)
+        };
+    let scenarios = Arc::clone(&counting);
+""" + s[end:])
 
 # This module transforms the pinned benchmark host only.
 import runpy
