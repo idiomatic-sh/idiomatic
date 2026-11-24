@@ -3,15 +3,18 @@
 //! holds no separator character, `{*name}` may; the text between slots is literal. (The harness took one regex match, the first, so a rule
 //! that needs each split saw one.)
 
+use smallvec::SmallVec;
+use std::ops::Range;
+
 /// Calls `each` with the byte ranges of the slots, once per way `text` matches `pattern`. `separator` (redo-binding pass 6,
 /// merged by redo-int: the step's argument, it was `/`): the characters a `{name}` slot may not hold; none given: any.
 pub(super) fn matches(
     pattern: &str,
     separator: Option<&str>,
     text: &str,
-    each: &mut dyn FnMut(&[std::ops::Range<usize>]),
+    each: &mut dyn FnMut(&[Range<usize>]),
 ) {
-    let mut slots = Vec::new();
+    let mut slots = SmallVec::new();
     let sep = separator.unwrap_or("");
     walk(pattern, sep, text, text, &mut slots, each);
 }
@@ -21,8 +24,8 @@ fn walk(
     sep: &str,
     whole: &str,
     tail: &str,
-    slots: &mut Vec<std::ops::Range<usize>>,
-    each: &mut dyn FnMut(&[std::ops::Range<usize>]),
+    slots: &mut SmallVec<[Range<usize>; 4]>,
+    each: &mut dyn FnMut(&[Range<usize>]),
 ) {
     let blocked = |slot: &str| slot.chars().any(|c| sep.contains(c));
     let Some(open) = pattern.find('{') else {
@@ -82,8 +85,8 @@ fn walk(
 }
 
 /// The slot names of `pattern`, in order.
-pub(super) fn names(pattern: &str) -> smallvec::SmallVec<[&str; 8]> {
-    let mut out = smallvec::SmallVec::new();
+pub(super) fn names(pattern: &str) -> SmallVec<[&str; 8]> {
+    let mut out = SmallVec::new();
     let mut rest = pattern;
     while let Some(o) = rest.find('{') {
         let after = &rest[o + 1..];
@@ -96,7 +99,7 @@ pub(super) fn names(pattern: &str) -> smallvec::SmallVec<[&str; 8]> {
 
 struct Ways {
     count: usize,
-    cells: Vec<u64>,
+    cells: SmallVec<[u64; 8]>,
 }
 
 fn captured(
@@ -108,7 +111,7 @@ fn captured(
 ) -> Ways {
     let mut result = Ways {
         count: 0,
-        cells: Vec::new(),
+        cells: SmallVec::new(),
     };
     matches(pattern, separator, text, &mut |spans| {
         result.count += 1;
