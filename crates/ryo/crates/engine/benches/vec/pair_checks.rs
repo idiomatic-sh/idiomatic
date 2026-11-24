@@ -927,8 +927,9 @@ impl Program {
         read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
         exact: Option<&mut Vec<(usize, Bits)>>,
+        completed: Option<&mut Vec<(languages::Relation, FilledColumns)>>,
     ) -> u64 {
-        self.file_columns(t, src, path, None, words, read, alive, exact, &[])
+        self.file_columns(t, src, path, None, words, read, alive, exact, &[], completed)
     }
     pub(super) fn file_columns(
         &self,
@@ -941,12 +942,13 @@ impl Program {
         alive: &mut [bool],
         exact: Option<&mut Vec<(usize, Bits)>>,
         known: &[(Id, bool)],
+        completed: Option<&mut Vec<(languages::Relation, FilledColumns)>>,
     ) -> u64 {
         #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact, known);
+            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact, known, completed);
         }
-        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact, known)
+        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact, known, completed)
     }
     fn evaluate<const PROFILE: bool>(
         &self,
@@ -959,6 +961,7 @@ impl Program {
         alive: &mut [bool],
         mut exact: Option<&mut Vec<(usize, Bits)>>,
         known: &[(Id, bool)],
+        completed: Option<&mut Vec<(languages::Relation, FilledColumns)>>,
     ) -> u64 {
         languages::facts::clear_words(words);
         let reader_class = std::cell::Cell::new(cost::Family::Logic as usize);
@@ -1050,6 +1053,13 @@ impl Program {
             }
             for (n, t) in meter.loads.borrow_mut().iter_mut().zip(&f.facts) {
                 *n += u64::from(t.read);
+            }
+        }
+        if let Some(completed) = completed {
+            for (spec, table) in self.facts.iter().zip(&mut f.facts) {
+                if table.answered && let Source::Catalog(relation) = spec.source {
+                    completed.push((relation, std::mem::take(&mut table.cells)));
+                }
             }
         }
         let steps = f.steps;

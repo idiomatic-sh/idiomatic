@@ -400,6 +400,7 @@ impl Exec<'_> {
             if lf.fact == NO_FACT || (!lf.own && !lf.lit) {
                 continue;
             }
+            if f.version.proven.borrow().get(usize::from(lf.fact)) == Some(&true) { return true; }
             let base = Native::Fact(lf.fact);
             let t0 = step_clock();
             if f.admitting { continue; }

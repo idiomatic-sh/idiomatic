@@ -551,7 +551,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
         }
         let mut view = packet.view(&provider, &symbols, &bytes);
         let indexed = view.indexed();
-        fills_made += fin.file(index, &table, &bytes, &mut view, &wanted, Some(&indexed));
+        fills_made += fin.file(index, &table, &bytes, &mut view, &wanted, Some(&indexed), &[]);
         drop((provider, bytes));
         second_cpu += thread_cpu() - t1;
         memory.sample(2);

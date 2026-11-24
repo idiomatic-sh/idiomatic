@@ -1050,7 +1050,7 @@ pub(crate) fn visit<L: FileSource>(
                     roots
                 }).collect();
             let mut admission = finish::session::frame(&version, &plan);
-            if let Err(reason) = exec.open_file(&mut admission, &mut run, &mut facts_view, roots.iter().copied(), &[], false) {
+            if let Err(reason) = exec.open_file(&mut admission, &mut run, &mut facts_view, roots.iter().copied(), &[], None) {
                 for (_, slot, _) in active { answers.set(slot, Err(reason.clone())); }
                 continue;
             }

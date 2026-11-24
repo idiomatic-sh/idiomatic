@@ -54,7 +54,7 @@ fn written_property(build: &mut ShapeBuild<'_>, named: PropertyId, value: impl s
     clippy::wildcard_enum_match_arm,
     reason = "only the scalars and the interpolation hold a payload; every other node holds none"
 )]
-fn payload(build: &mut ShapeBuild<'_>, node: AnyNodeRef<'_>) {
+pub(super) fn payload(build: &mut ShapeBuild<'_>, node: AnyNodeRef<'_>) {
     match node {
         AnyNodeRef::ExprNumberLiteral(number) => match &number.value {
             Number::Int(integer) => {
@@ -158,7 +158,7 @@ fn segments(
     clippy::wildcard_enum_match_arm,
     reason = "only the names and the strings are read by their value; every other node is read by its children"
 )]
-fn valued(build: &mut ShapeBuild<'_>, node: AnyNodeRef<'_>) -> ShapeReading {
+pub(super) fn valued(build: &mut ShapeBuild<'_>, node: AnyNodeRef<'_>) -> ShapeReading {
     let mut pending = Pending::Nothing;
     build.text.0.clear();
     let name = match node {

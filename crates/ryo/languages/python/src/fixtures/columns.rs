@@ -13,6 +13,7 @@ use crate::domain::lexical_facts::service::qualify;
 use crate::domain::lexical_facts::types::{NameProvenance, QualifiedPath};
 use crate::domain::literal_facts::service::{number, properties, specifier as loaded, string_value};
 use crate::domain::literal_facts::types::StringValue;
+use crate::domain::literal_expression_parsing::types::LiteralParseOutcome;
 use crate::domain::model::flow::types::FlowState;
 use crate::domain::model::lexical::service::entry;
 use crate::domain::model::lexical::types::{NameUse, NodeClass, TypedTree};
@@ -26,8 +27,6 @@ use crate::domain::nodes::types::{Category, Node};
 use crate::domain::qualification::constants::{AMBIGUOUS, BUILTIN, LOCAL, NOT_APPLICABLE, UNRESOLVED};
 use crate::domain::relations::collections::relations::expression_type::constants as type_labels;
 use crate::domain::expression_types::types::Resolution;
-use crate::domain::shape_facts::service::shapes;
-use crate::domain::shape_facts::types::ShapeBuild;
 use crate::domain::string_annotations::service::{form_imports, type_strings};
 use crate::domain::string_annotations::types::FormSource;
 use crate::domain::syntax::service::{category_of, kind_of};
@@ -53,6 +52,7 @@ pub use ryo::languages::contract::columns::{Ask, FactColumns, FactTable, Layout,
 #[derive(Debug, Default)]
 struct TextMemo {
     fixed: HashMap<(usize, usize), u32, std::hash::BuildHasherDefault<crate::domain::model::names::types::KeyHasher>>,
+    literals: HashMap<Box<str>, LiteralParseOutcome>,
     names: Vec<u32>,
 }
 
@@ -68,6 +68,20 @@ impl ColumnMemo {
 }
 
 impl TextMemo {
+    /// The grammar result depends on the exact source spelling. Keep short
+    /// spellings for this run. Each occurrence still checks its source tokens.
+    fn literal_outcome(&mut self, spelling: &str, parse: impl FnOnce() -> LiteralParseOutcome) -> LiteralParseOutcome {
+        if spelling.len() > crate::domain::grammar_cache::constants::KEY_CAPACITY {
+            return parse();
+        }
+        if let Some(&outcome) = self.literals.get(spelling) {
+            return outcome;
+        }
+        let outcome = parse();
+        self.literals.insert(spelling.into(), outcome);
+        outcome
+    }
+
     fn fixed(&mut self, ids: &mut dyn TextIds, text: NameText<'static>) -> u32 {
         *self.fixed.entry((text.0.as_ptr() as usize, text.0.len())).or_insert_with(|| ids.id(text.0.as_bytes()))
     }
@@ -97,7 +111,6 @@ pub struct ColumnWalk {
     walk: PythonWalk<WalkPorts>,
     scratch: PythonWalkScratch,
     memo: TextMemo,
-    words: FileWords,
     /// When set, the table is written `structured` with these enclosing kind sets.
     structure: Option<Vec<languages::KindSet>>,
 }
@@ -156,11 +169,12 @@ impl ColumnWalk {
     /// Writes facts for the same Python target that governs the source's syntax and annotation evaluation.
     #[must_use]
     pub fn with_settings(words: FileWords, settings: PythonParserSettings) -> Self {
+        let mut scratch = PythonWalkScratch::default();
+        scratch.names.shapes = Some(Box::new(crate::domain::shape_facts::walk::WalkShapes::new(words)));
         Self {
             walk: PythonWalk { ports: WalkPorts { settings, syntax: Arc::new(ruff_python_parser(settings)) } },
-            scratch: PythonWalkScratch::default(),
+            scratch,
             memo: TextMemo::default(),
-            words,
             structure: None,
         }
     }
@@ -171,8 +185,7 @@ impl ColumnWalk {
         self.structure = Some(enclosing);
     }
 
-    /// Walks one file into `table` and lends it to `visit`.
-    ///
+    /// Walk one file into the table and lend it to the callback.
     /// # Errors
     ///
     /// When the file is not Python.
@@ -189,12 +202,11 @@ impl ColumnWalk {
         let target = self.walk.ports.settings.target_version().components();
         self.scratch.file.model.target = target;
         self.memo.names.clear();
-        languages::facts::clear_words(&mut self.words);
         let mut built_parts = Built::default();
         let scratch = &mut self.scratch;
         let memo = &mut self.memo;
-        let words = &mut self.words;
         let mut names = std::mem::take(&mut scratch.names);
+        if let Some(shapes) = &mut names.shapes { shapes.clear(); }
         crate::domain::model::names::service::cleared(&mut names);
         self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, names, &mut |walked| match walked {
             Walked::Strings(tree) => {
@@ -213,7 +225,7 @@ impl ColumnWalk {
                 hosts
             }
             Walked::Whole(written, tree) => {
-                lend(written, &tree, target, scratch, built_parts, memo, words, visit);
+                lend(written, &tree, target, scratch, built_parts, memo, visit);
                 // the walk's buffers go back to the worker for the next file
                 scratch.names = tree.names;
                 Vec::new()
@@ -231,7 +243,6 @@ fn lend(
     scratch: &mut PythonWalkScratch,
     built_parts: Built,
     memo: &mut TextMemo,
-    words: &mut FileWords,
     visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
 ) {
     let table = node_table::finished(builder);
@@ -251,7 +262,44 @@ fn lend(
         analysed: Analysed::default(),
         buffers: &mut scratch.file.buffers,
     };
-    visit(&mut ColumnFile { table, file: &mut file, relative_froms: &tree.relative_froms, import_presence: tree.import_presence, memo, words });
+    let shapes = tree.names.shapes.as_deref().expect("the column walk requests expression classes");
+    let mut empty = Vec::new();
+    if tree.completeness.syntax == languages::SyntaxCompleteness::Complete && tree.completeness.lexical == languages::SyntaxCompleteness::Complete {
+        let absent = |kind| node_table::ids_of_kind(table, crate::domain::syntax::service::kind_bits(kind)).is_empty();
+        if !shapes.carriers.string {
+            empty.extend(["literal-expression-parse", "raw-format-segment", "raw-format-field"]);
+        }
+        if !shapes.carriers.bytes { empty.push("bytes-literal"); }
+        if !shapes.carriers.number { empty.push("numeric-literal"); }
+        let text = shapes.carriers.string || !absent(Kind::Node(Node::JoinedStr)) || !absent(Kind::Node(Node::TemplateStr));
+        if !text {
+            empty.extend(["string-literal", "brace-format-parse", "brace-format-field", "format-specification"]);
+            if !shapes.carriers.bytes { empty.extend(["format-parse", "format-field"]); }
+        }
+        if absent(Kind::Node(Node::JoinedStr)) {
+            empty.push("interpolated-string-literal");
+            // A replacement field needs its dialect's opening delimiter in
+            // decoded text. A string with escapes can differ from its token.
+            if text && absent(Kind::Node(Node::TemplateStr)) {
+                if !shapes.carriers.percent && !shapes.carriers.bytes { empty.push("format-field"); }
+                if !shapes.carriers.brace { empty.extend(["brace-format-field", "format-specification"]); }
+            }
+        }
+        if absent(Kind::Node(Node::Arg)) { empty.push("parameter"); }
+        if absent(Kind::Node(Node::ClassDef)) { empty.push("inherits"); }
+        if absent(Kind::Node(Node::FunctionDef)) && absent(Kind::Node(Node::AsyncFunctionDef)) {
+            empty.extend(["function", "function-terminal"]);
+        }
+        if absent(Kind::Node(Node::Call)) { empty.push("call-argument"); }
+        if absent(Kind::Extra(TypedExtra::Decorator)) { empty.push("decorates"); }
+        if absent(Kind::Node(Node::Alias)) { empty.extend(["static-import", "standard-library-import"]); }
+        if absent(Kind::Token(crate::domain::tokens::types::Token::Comment)) { empty.push("comment"); }
+        if tree.segments.is_empty() { empty.push("embedded-expression"); }
+    }
+    if node_table::syntax_error_count(table).0 == 0 { empty.push("syntax-error"); }
+    let immediate_annotations = target < crate::domain::binding_schedule::constants::LAZY_ANNOTATIONS_FROM
+        && tree.annotations == crate::domain::model::types::BindingAnnotationTiming::Immediate;
+    visit(&mut ColumnFile { table, empty, immediate_annotations, shapes, import_presence: tree.import_presence, file: &mut file, relative_froms: &tree.relative_froms, memo });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
@@ -269,13 +317,17 @@ pub struct Region {
 
 /// One walked file, lent over the reader and over the direct columns.
 pub struct ColumnFile<'a, 'f> {
+    /// Catalog relations the completed parser walk certifies to have zero rows.
+    pub empty: Vec<&'static str>,
+    /// The walk's compiler features and target give annotations immediate evaluation.
+    pub immediate_annotations: bool,
+    shapes: &'a crate::domain::shape_facts::walk::WalkShapes,
     /// The node table.
     pub table: &'a NodeTable,
     file: &'a mut PythonFile<'f>,
     relative_froms: &'a [Position],
     import_presence: crate::domain::node::types::ImportPresence,
     memo: &'a mut TextMemo,
-    words: &'a mut FileWords,
 }
 
 /// The catalog place of a column of a relation.
@@ -326,10 +378,27 @@ impl ColumnFile<'_, '_> {
 
     /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
     /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in
-    /// every file of the run. Empty when the file's bytes were not text.
+    /// every file of the run. Empty when the file's bytes were not text or the caller deferred lexical collection.
     pub fn name_token_codes(&self, out: &mut Vec<u32>) {
         out.clear();
         out.extend(self.file.syntax.tree.named.of_token.iter().map(|code| code.0));
+    }
+
+    /// Both parser inputs needed to reuse complete catalog rows are available.
+    #[must_use]
+    pub fn complete(&self) -> bool {
+        let completeness = &self.file.syntax.completeness;
+        completeness.syntax == languages::SyntaxCompleteness::Complete
+            && completeness.lexical == languages::SyntaxCompleteness::Complete
+    }
+
+    /// Literal identifier spellings in the declared columns occur in these source bytes.
+    /// Decoded embedded trees and Unicode identifier normalization may spell a word differently.
+    #[must_use]
+    pub fn plain_spellings(&self) -> bool {
+        let syntax = &self.file.syntax;
+        self.complete() && syntax.tree.segments.is_empty()
+            && syntax.text.0.is_ascii()
     }
 
     /// redo-fills pass 2: the run's number of this file: the file every row of the file names (its file cells and the file
@@ -344,7 +413,7 @@ impl ColumnFile<'_, '_> {
         source.fill(relation, wanted, words, out)
     }
 
-    /// Write the requested catalog columns and retain the relation's row count.
+    /// Write only the requested columns, retaining cardinality for presence-only readers.
     pub fn fill_columns(&mut self, relation: Relation, mask: &languages::ColumnProjection, words: &mut FileWords, out: &mut FilledColumns) -> (FactAnswer, usize) {
         fillers::file_source::<PythonWalk<WalkPorts>>(self.file).fill_columns(relation, Wanted::Whole, mask, words, out)
     }
@@ -548,16 +617,38 @@ impl ColumnFile<'_, '_> {
     #[must_use]
     pub fn row_count(&self, relation: Relation) -> Option<usize> {
         match relation {
-            Relation::Comment => Some(
-                crate::domain::layout_facts::service::tokens(&self.file.syntax)
-                    .filter(|at| at.token == crate::domain::tokens::types::Token::Comment)
-                    .count(),
-            ),
+            Relation::Comment => Some(crate::domain::layout_facts::service::token_ids(&self.file.syntax, crate::domain::tokens::types::Token::Comment).len()),
             Relation::EmbeddedExpression => Some(self.file.syntax.tree.segments.len()),
             // a row an import alias: a file with no alias has none
             Relation::StaticImport | Relation::StandardLibraryImport => nodes_of_kind(&self.file.syntax, Kind::Node(Node::Alias)).next().is_none().then_some(0),
             _ => None,
         }
+    }
+
+    /// Existence of a complete relation without writing other cells of its rows.
+    pub fn summary_presence(&mut self,relation:Relation)->Option<bool> {
+        match relation {
+            Relation::BindingEvent|Relation::BindingRead=>{
+                let read=self.file.semantics(ModelPart::Flow);
+                Some(read.model.flow.state==FlowState::Incomplete || if relation==Relation::BindingEvent {
+                    !read.model.flow.events.is_empty()
+                }else{!read.model.flow.reads.is_empty()})
+            }
+            Relation::LiteralProperties=>Some(nodes_of_kind(&self.file.syntax,Kind::Node(Node::Constant)).any(|v|properties(v.node).is_some())),
+            _=>self.projected_keys(relation).map(|mut keys|keys.next().is_some())
+        }
+    }
+    /// Complete keys for the shape relation when every native node has a shape.
+    /// Escape commands and their ancestors can lack a class, so a file containing
+    /// one uses the ordinary shape reader. Embedded segments have separate ids.
+    #[must_use]
+    pub fn projected_keys(&self, relation: Relation) -> Option<impl Iterator<Item = Position> + '_> {
+        let syntax=&self.file.syntax;
+        let escape=crate::domain::syntax::service::kind_bits(Kind::Extra(TypedExtra::IpyEscapeCommand));
+        if relation!=Relation::ExpressionShape || syntax.completeness.syntax==languages::SyntaxCompleteness::Incomplete
+            || !syntax.tree.segments.is_empty() || !node_table::ids_of_kind(syntax.table,escape).is_empty() { return None; }
+        Some((0..syntax.nodes.len()).map(|i|Position(i as u32)).filter(|&p|
+            category_of(kind_of(node_table::kind_of(syntax.table,p)))==Category::Expression))
     }
 
     /// `column` with the caller's own text memo (`ColumnMemo`): the ids are `ids`', never the walk's memo's.
@@ -576,6 +667,7 @@ impl ColumnFile<'_, '_> {
             Relation::LiteralProperties => self.literal_properties(ask, ids, table, elements),
             Relation::NumericLiteral => self.numeric_literal(ask, ids, table, elements),
             Relation::StringLiteral => self.string_literal(ask, ids, table, elements),
+            Relation::LiteralExpressionParse => self.literal_parse(ask, ids, table, elements),
             Relation::ExpressionShape => self.expression_shape(ask, table, elements),
             Relation::ExpressionType => self.expression_type(ask, ids, table, elements),
             Relation::BindingEvent => self.binding_event(ask, ids, table, elements),
@@ -591,8 +683,9 @@ impl ColumnFile<'_, '_> {
         let width = <languages::QualifiedName as CatalogRelation>::columns().len();
         let (path_at, provenance_at, major_at, minor_at) =
             (place!(QualifiedName, QualifiedNameColumn::Path), place!(QualifiedName, QualifiedNameColumn::Provenance), place!(QualifiedName, QualifiedNameColumn::SinceMajor), place!(QualifiedName, QualifiedNameColumn::SinceMinor));
-                table.begin(Layout::PerNode, width, elements, &[path_at, provenance_at, major_at, minor_at], ask.exists, ask.columns);
-        let read = self.file.semantics(if ask.exists { ModelPart::Lexical } else { ModelPart::Resolution });
+        table.begin(Layout::PerNode, width, elements, &[path_at, provenance_at, major_at, minor_at], ask.exists, ask.columns);
+        let qualify_value = !ask.exists && [path_at, provenance_at, major_at, minor_at].iter().any(|c| table.wants(*c));
+        let read = self.file.semantics(if qualify_value { ModelPart::Resolution } else { ModelPart::Lexical });
         let memo = &mut *self.memo;
         let labels = [refinements::IMPORT, BUILTIN, LOCAL, UNRESOLVED, AMBIGUOUS].map(|text| memo.fixed(ids, NameText(text)));
         let empty = ids.id(b"");
@@ -609,6 +702,7 @@ impl ColumnFile<'_, '_> {
                 table.rows += 1;
                 continue;
             }
+            if !qualify_value { table.put(node, &[]); continue; }
             let provenance = qualify(read.model, at, &mut path);
             let (label, since) = match provenance {
                 NameProvenance::Import => (labels[0], NOT_APPLICABLE),
@@ -618,7 +712,7 @@ impl ColumnFile<'_, '_> {
                 NameProvenance::Ambiguous => (labels[4], NOT_APPLICABLE),
             };
             let has_path = matches!(provenance, NameProvenance::Import | NameProvenance::Builtin(_));
-            let text = if has_path { ids.id(path.0.as_bytes()) } else { empty };
+            let text = if has_path && table.wants(path_at) { ids.id(path.0.as_bytes()) } else { empty };
             table.put(node, &[(path_at, text), (provenance_at, label), (major_at, since.major.0 as u32), (minor_at, since.minor.0 as u32)]);
         }
     }
@@ -632,36 +726,65 @@ impl ColumnFile<'_, '_> {
             table.answered = false;
             return;
         }
-        fn name_of<'n>(node: AnyNodeRef<'n>) -> Option<&'n str> {
+        let wants_name = !ask.exists && table.wants(name_at);
+        let mut emit = |id: Position, node: AnyNodeRef<'_>| {
             let name = match node {
                 AnyNodeRef::ExprName(name) => name.id.as_str(),
                 AnyNodeRef::Identifier(identifier) => identifier.id.as_str(),
-                _ => return None,
+                _ => return,
             };
-            (!name.is_empty() && name != crate::domain::name_facts::constants::EVERYTHING).then_some(name)
-        }
+            if name.is_empty() || name == crate::domain::name_facts::constants::EVERYTHING { return; }
+            if ask.exists {
+                table.mark(id.0);
+                table.rows += 1;
+            } else {
+                let word = if wants_name { ids.id(name.as_bytes()) } else { 0 };
+                table.put(id.0, &[(name_at, word)]);
+            }
+        };
         for kind in [Kind::Node(Node::Name), Kind::Extra(TypedExtra::Identifier)] {
             for Numbered { id, node } in nodes_of_kind(syntax, kind) {
-                let Some(name) = name_of(node) else { continue };
-                if ask.exists {
-                    table.mark(id.0);
-                    table.rows += 1;
-                } else {
-                    table.put(id.0, &[(name_at, ids.id(name.as_bytes()))]);
-                }
+                emit(id, node);
             }
         }
         let tree = syntax.tree;
         let first = tree.segments.first().map_or(tree.nodes.len(), |segment| usize::from(segment.first));
         for (place, node) in tree.nodes.iter().enumerate().skip(first) {
-            let Some(name) = name_of(*node) else { continue };
-            let id = table_id(tree.segments, Position(u32::try_from(place).unwrap_or(u32::MAX))).0;
+            emit(table_id(tree.segments, Position(place as u32)), *node);
+        }
+    }
+
+    fn literal_parse(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
+        use crate::domain::literal_expression_parsing::service::outcome_name;
+        use crate::inbound::contracts::parse::readers::literal_expression::{composition::available, constants::PYTHON_STRING_ANNOTATION};
+        use ruff_text_size::Ranged as _;
+
+        let dialect = place!(LiteralExpressionParse, LiteralExpressionParseColumn::Dialect);
+        let outcome = place!(LiteralExpressionParse, LiteralExpressionParseColumn::Outcome);
+        let width = languages::LiteralExpressionParse::columns().len();
+        table.begin(Layout::PerNode, width, elements, &[dialect, outcome], ask.exists, ask.columns);
+        let syntax = &self.file.syntax;
+        if [syntax.completeness.syntax, syntax.completeness.lexical].contains(&languages::SyntaxCompleteness::Incomplete) {
+            table.answered = false;
+            return;
+        }
+        let dialect_id = if !ask.exists && table.wants(dialect) { self.memo.fixed(ids, NameText(PYTHON_STRING_ANNOTATION)) } else { 0 };
+        let mut tokens = Vec::new();
+        for Numbered { id, node } in nodes_of_kind(syntax, Kind::Node(Node::Constant)) {
+            let AnyNodeRef::ExprStringLiteral(literal) = node else { continue };
+            let spelling = syntax.text.0.get(literal.range().start().to_usize()..literal.range().end().to_usize());
+            let Some(spelling) = spelling else { table.answered = false; return; };
+            if !available(syntax, node, &mut tokens) { table.answered = false; return; }
             if ask.exists {
-                table.mark(id);
+                table.mark(id.0);
                 table.rows += 1;
-            } else {
-                table.put(id, &[(name_at, ids.id(name.as_bytes()))]);
+                continue;
             }
+            let outcome_id = if table.wants(outcome) {
+                let parsed = self.memo.literal_outcome(spelling, || crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::parsed_in_place(literal, syntax.text.0));
+                self.memo.fixed(ids, outcome_name(parsed))
+            } else { 0 };
+            table.put(id.0, &[(dialect, dialect_id), (outcome, outcome_id)]);
         }
     }
 
@@ -681,7 +804,7 @@ impl ColumnFile<'_, '_> {
                     table.rows += 1;
                     continue;
                 }
-                let kind = self.memo.fixed(ids, found.kind);
+                let kind = if table.wants(kind_at) { self.memo.fixed(ids, found.kind) } else { 0 };
                 table.put(id.0, &[(kind_at, kind), (zero_at, flag(found.zero)), (empty_at, flag(found.empty)), (boolean_at, flag(found.boolean))]);
             }
         }
@@ -700,7 +823,7 @@ impl ColumnFile<'_, '_> {
                     table.rows += 1;
                     continue;
                 }
-                let kind = self.memo.fixed(ids, found.kind);
+                let kind = if table.wants(kind_at) { self.memo.fixed(ids, found.kind) } else { 0 };
                 let text = if table.wants(value_at) { ids.id(value.0.as_bytes()) } else { 0 };
                 table.put(id.0, &[(kind_at, kind), (value_at, text), (exact_at, flag(found.exact))]);
             }
@@ -712,7 +835,7 @@ impl ColumnFile<'_, '_> {
         let (owner_at, value_at, import_at) =
             (place!(StringLiteral, StringLiteralColumn::Owner), place!(StringLiteral, StringLiteralColumn::Value), place!(StringLiteral, StringLiteralColumn::Import));
         table.begin(Layout::PerNode, width, elements, &[owner_at, value_at, import_at], ask.exists, ask.columns);
-        if !ask.exists {
+        if !ask.exists && table.wants(owner_at) {
             built(self.file.model, &mut self.file.built, ModelPart::Lexical, self.file.syntax.tree);
         }
         let empty = ids.id(b"");
@@ -720,16 +843,15 @@ impl ColumnFile<'_, '_> {
         let joined = &mut self.file.buffers.text;
         for kind in [Node::Constant, Node::JoinedStr, Node::TemplateStr] {
             for Numbered { id, node } in nodes_of_kind(&self.file.syntax, Kind::Node(kind)) {
-                let value = match string_value(node, joined) {
-                    Some(StringValue::Known(text)) => {
-                        if ask.exists || !table.wants(value_at) {
-                            0
-                        } else {
-                            ids.id(text.0.as_bytes())
-                        }
+                let value = if ask.exists || !table.wants(value_at) {
+                    if !matches!(node, AnyNodeRef::ExprStringLiteral(_) | AnyNodeRef::ExprFString(_) | AnyNodeRef::ExprTString(_)) { continue; }
+                    0
+                } else {
+                    match string_value(node, joined) {
+                        Some(StringValue::Known(text)) => ids.id(text.0.as_bytes()),
+                        Some(StringValue::Interpolated) => empty,
+                        None => continue,
                     }
-                    Some(StringValue::Interpolated) => empty,
-                    None => continue,
                 };
                 if ask.exists {
                     table.mark(id.0);
@@ -737,7 +859,8 @@ impl ColumnFile<'_, '_> {
                     continue;
                 }
                 let owner = owned.get(usize::from(id)).copied().unwrap_or(Position(0)).0;
-                table.put(id.0, &[(owner_at, owner), (value_at, value), (import_at, flag(loaded(&self.file.syntax, id)))]);
+                let import = if table.wants(import_at) { flag(loaded(&self.file.syntax, id)) } else { 0 };
+                table.put(id.0, &[(owner_at, owner), (value_at, value), (import_at, import)]);
             }
         }
     }
@@ -753,35 +876,11 @@ impl ColumnFile<'_, '_> {
             table.answered = false;
             return;
         }
-        let nodes = node_table::node_count(syntax.table).0;
-        let count = syntax.nodes.len();
-        let is_expression = |id: Position| category_of(kind_of(node_table::kind_of(syntax.table, id))) == Category::Expression;
-        if ask.exists {
-            // whole[id]: the node and every node below it have a shape (a node child is after its parent in id order)
-            let mut whole = vec![false; count];
-            let ipy = crate::domain::syntax::service::kind_bits(Kind::Extra(TypedExtra::IpyEscapeCommand));
-            for id in (0..count).rev() {
-                let at = Position(id as u32);
-                let ok = node_table::kind_of(syntax.table, at) != ipy
-                    && node_table::children_of(syntax.table, at).iter().all(|child| usize::from(*child) >= nodes || whole.get(usize::from(*child)).copied().unwrap_or(false));
-                whole[id] = ok;
-                if ok && is_expression(at) {
-                    table.mark(at.0);
-                    table.rows += 1;
-                }
-            }
-            return;
-        }
-        if self.file.analysed.shapes == PartState::Pending {
-            shapes(&self.file.syntax, &mut ShapeBuild { index: &mut self.file.buffers.shapes, words: self.words, text: &mut self.file.buffers.text });
-            self.file.analysed.shapes = PartState::Ready;
-        }
-        let syntax = &self.file.syntax;
-        for (id, class) in self.file.buffers.shapes.classes.iter().enumerate().take(count) {
-            let at = Position(id as u32);
-            if let Some(class) = class
-                && category_of(kind_of(node_table::kind_of(syntax.table, at))) == Category::Expression
-            {
+        for (at, class) in self.shapes.rows() {
+            if ask.exists {
+                table.mark(at.0);
+                table.rows += 1;
+            } else {
                 table.put(at.0, &[(shape_at, class.0)]);
             }
         }

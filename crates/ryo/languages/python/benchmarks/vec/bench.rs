@@ -518,7 +518,7 @@ fn run_check(args:&[&str],mut capture:Option<&mut finisher::retained::Capture>, 
                 let plan = lower::second_half_plan(&read, same_pack);
                 println!("start-up total {:.4} s", thread_cpu() - t0);
                 let lowered = thread_cpu();
-                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args, request_path.zip(document.as_ref()), paths);
+                let mut fin = visit::Finisher::new(&plan, &vocab, &finish_args, request_path.zip(document.as_ref()), paths);
                 drop(document);
                 fin.capture = capture.as_deref_mut().map(std::mem::take);
                 run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), Some((finish_args[0], &read)), paths);
@@ -885,6 +885,8 @@ thread_local! {
 struct ColFacts<'v, 'a, 'f, 'w> {
     file: &'v mut ryo_python::fixtures::columns::ColumnFile<'a, 'f>,
     words: &'w mut languages::FileWords,
+    completed: &'w mut Vec<(languages::Relation, languages::FilledColumns)>,
+    direct_memo: &'w mut ryo_python::fixtures::columns::ColumnMemo,
     filled: languages::FilledColumns,
     time: f64,
     rows: u64,
@@ -940,10 +942,21 @@ impl ColFacts<'_, '_, '_, '_> {
     }
 
     fn whole_fill(&mut self, run: &mut finish::Run, rel: &str, mask: &languages::ColumnProjection) -> Result<finish::Table, String> {
+        if let Some((Some(relation), _, _)) = run.catalog(rel)
+            && let Some(at) = self.completed.iter().position(|(seen, _)| *seen == relation)
+        {
+            let (_, columns) = self.completed.swap_remove(at);
+            let n = columns.0.first().map_or(0, |column| column.0.len());
+            let mut table = finish::filled_columns(run, rel, &columns, self.words, mask, n)?;
+            for (column, ty) in table.cols.iter_mut().zip(table.tys.iter()) {
+                if *ty == finish::Ty::File { column.fill(u64::from(self.file_no)); }
+            }
+            return Ok(table);
+        }
         let timed = finish::fill_prof::timed();
         // redo-fills pass 2: the provider's direct columns, no reader rows and no conversion (direct_fill.rs)
         if direct_fill::direct(rel)
-            && let Some((t, write, make)) = direct_fill::fill(self.file, run, rel, self.file_no, timed)
+            && let Some((t, write, make)) = direct_fill::fill(self.file, run, rel, self.file_no, timed, mask.word(0), self.direct_memo)
         {
             if timed {
                 let n = t.as_ref().map_or(0, |t| t.n as u64);
@@ -953,14 +966,6 @@ impl ColFacts<'_, '_, '_, '_> {
                     e.1 += n;
                     e.2 += 1;
                 }
-            }
-            if direct_fill::checking() {
-                let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
-                let relation = relation.ok_or_else(|| format!("{rel}: no reader relation"))?;
-                self.filled.0.clear();
-                let _ = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
-                let r = finish::filled_table(run, rel, &self.filled, self.words)?;
-                direct_fill::check(run, rel, self.file_no, &r, t.as_ref().map_err(String::clone)?);
             }
             return t;
         }
@@ -1576,6 +1581,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     };
     let use_facts = args.contains(&"--facts");
     let mut fwords = ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names");
+    let mut completed = Vec::new();
     let direct = args.contains(&"--direct");
     let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::with_settings(
         ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),
@@ -1674,7 +1680,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         let mut prepared = false;
         let mut codes_taken = false;
         macro_rules! prepare {
-            ($t:expr,$fill:expr) => {{
+            ($t:expr,$fill:expr,$completed:expr) => {{
                 let pt: &NodeTable = $t;
                 let c1 = thread_cpu();
                 fields_present(pt, &mut cols, fields_width.max(1));
@@ -1815,7 +1821,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                             return result;
                         }
                         ($fill)(rel, words, out)
-                    }, &mut alive, exact);
+                    }, &mut alive, exact, $completed);
                     pair_cpu += thread_cpu() - start;
                 }
                 rule_files += frules.len() as u64;
@@ -1868,7 +1874,10 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let ft = file.table;
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
-                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
+                    completed.clear();
+                    languages::facts::clear_words(&mut fwords);
+                    let keep = fin.is_some();
+                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out), keep.then_some(&mut completed));
                     prepared = true;
                     if dump_out.is_some() {
                         dump_table!(ft);
@@ -1903,7 +1912,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                         // wanted() already charges its own time to the second half.
                         phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0));
                         if fin.visits(&wanted) {
-                            fin.column_file(file_no, file, &bytes, &wanted);
+                            fin.column_file(file_no, file, &bytes, &wanted, &mut fwords, &mut completed);
                         }
                     } else {
                         phases.add("seed handoff", thread_cpu() - handoff);
@@ -1914,7 +1923,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         } else if use_facts {
             ryo_python::fixtures::walking::walked_structured(walk, path, &bytes, &[], &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
                 let p0 = thread_cpu();
-                prepare!(file.table, |rel, words, out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r, languages::Wanted::Whole, words, out), languages::FactAnswer::Answered(_))));
+                prepare!(file.table, |rel, words, out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r, languages::Wanted::Whole, words, out), languages::FactAnswer::Answered(_))), None);
                 prepared = true;
                 visit_time += thread_cpu() - p0;
             }).is_ok()
@@ -1939,7 +1948,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             continue;
         }
         if !prepared {
-            prepare!(t, |_,_,_| false);
+            prepare!(t, |_,_,_| false, None);
         }
         if dump_out.is_some() && !dumped_table {
             dump_table!(t);

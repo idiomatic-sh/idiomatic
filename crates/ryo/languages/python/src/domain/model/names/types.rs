@@ -54,8 +54,9 @@ pub(crate) struct NameTable {
 /// What the walk writes of the model as it writes the file: the names it interned, the lexical part (each node read as it
 /// opens, `lexical::opened`) and the code of each name token of the file's own tree, in id order (none when the file's bytes
 /// were not text). The model copies the table and the lexical part; the engine reads the token codes.
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub(crate) struct WalkNames {
+    pub shapes: Option<Box<crate::domain::shape_facts::walk::WalkShapes>>,
     /// The table the walk interned into.
     pub names: NameTable,
     /// The lexical part, by place: the name each node carries among it.

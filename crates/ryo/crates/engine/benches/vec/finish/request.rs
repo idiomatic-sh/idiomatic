@@ -153,15 +153,22 @@ impl Exec<'_> {
     /// The request owns scopes and projection masks only until the provider returns.
     /// Results belong to the shared file version, including refusals for that file.
     pub(crate) fn open_file(&mut self, file: &mut File<'_>, run: &mut Run, provider: &mut dyn Provider,
-        roots: impl IntoIterator<Item = usize> + Clone, checks: &[&str], prune: bool) -> R<Vec<Reply>> {
+        roots: impl IntoIterator<Item = usize> + Clone, checks: &[&str], empty: Option<&[&str]>) -> R<Vec<Reply>> {
         self.requests.steps.resize_with(self.plan.nodes.len(), || None);
         self.requests.seen.resize(self.plan.nodes.len(), false);
         self.requests.seen.fill(false);
         for node in roots.clone() { self.bind_request(run, node); }
         self.requests.masks.resize_with(run.fact_rels.len(), || None);
         self.requests.masks.fill(None);
+        if let Some(empty) = empty {
+            let mut proven = file.version.proven.borrow_mut();
+            proven.resize(run.fact_rels.len(), false);
+            for name in empty {
+                if let Some(&slot) = run.fact_slots.get(*name) { proven[usize::from(slot)] = true; }
+            }
+        }
         file.admitting = true;
-        let prune = prune && !sw!("VEC_NO_KNOWN") && !sw!("VEC_NO_SEMI");
+        let prune = empty.is_some() && !sw!("VEC_NO_KNOWN") && !sw!("VEC_NO_SEMI");
         for node in roots { self.collect_request(run, file, provider, node, &Columns::All, prune); }
         file.admitting = false;
         // A negative decision can change once the admitted fact columns are present.
@@ -173,12 +180,20 @@ impl Exec<'_> {
         self.requests.files += 1;
         let mut packet = version.facts.borrow_mut();
         packet.resize_with(run.fact_rels.len(), || None);
+        let proven = version.proven.borrow();
         let mut pending = Vec::new();
         let mut scopes = Vec::new();
         for (id, mask) in self.requests.masks.iter().enumerate() {
             let Some(mask) = mask else { continue };
             let relation = &run.fact_rels[id].0;
             if packet[id].is_some() || version.supplied.contains_key(relation) { continue; }
+            if proven.get(id).copied().unwrap_or(false) {
+                let relation = relation.clone();
+                let reply = run.catalog(&relation).map(|(_, names, types)|
+                    Answer::Columns(Rc::new(Table::with_rows(names, types, 0)))).ok_or_else(|| format!("undeclared {relation}"));
+                packet[id] = Some(Delivered::new(reply, false));
+                continue;
+            }
             match run.supplier(relation) {
                 Supplier::Host => {
                     let relation = relation.clone();

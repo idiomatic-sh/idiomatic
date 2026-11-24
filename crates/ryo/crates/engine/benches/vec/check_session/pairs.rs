@@ -213,6 +213,7 @@ impl Checks {
                 &mut self.live,
                 None,
                 &self.known,
+                None,
             );
         }
         for (binding, _, excluded) in active {

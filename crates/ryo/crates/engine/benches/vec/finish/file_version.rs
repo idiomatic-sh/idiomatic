@@ -20,6 +20,7 @@ pub(crate) struct FileVersion<'a> {
     pub(super) by_line: [RefCell<Option<Index>>; 2],
     pub(super) tokens: RefCell<Option<Rc<Tokens>>>,
     pub(super) indexed: Option<&'a dyn super::request::Indexed>,
+    pub(super) proven: RefCell<Vec<bool>>,
     pub(super) facts: RefCell<Vec<Option<super::request::Delivered>>>,
     pub(super) supplied: rustc_hash::FxHashMap<String, Rc<super::Table>>,
     roots: OnceCell<Vec<(u16, u32)>>,
@@ -42,7 +43,7 @@ impl<'a> FileVersion<'a> {
             text_memo: RefCell::new(text.unwrap_or_default().to_vec()),
             present_fields: Default::default(),
             by_start: Default::default(), by_end: Default::default(), by_line: Default::default(),
-            indexed: None, facts: Default::default(), supplied: Default::default(),
+            indexed: None, proven: Default::default(), facts: Default::default(), supplied: Default::default(),
             tokens: Default::default(), roots: Default::default(), lines: Default::default(),
             kinds: Default::default(),
         }

@@ -4,7 +4,7 @@ use ryo::languages;
 
 pub(super) struct Finisher<'p> {
     inner: finisher::Finisher<'p>,
-    fwords: languages::FileWords,
+    direct_memo: ryo_python::fixtures::columns::ColumnMemo,
     project: super::provider_packaging::Project,
 }
 
@@ -22,7 +22,6 @@ impl std::ops::DerefMut for Finisher<'_> {
 impl<'p> Finisher<'p> {
     pub(super) fn new(
         plan: &'p finish::Plan,
-        walk: &impl languages::Walk,
         vocab: &Vocab,
         args: &[&str],
         request: Option<(&str, &super::json_input::Metadata)>,
@@ -62,8 +61,7 @@ impl<'p> Finisher<'p> {
         );
         let mut me = Self {
             inner: finisher::Finisher::new(plan, run, args, request.and_then(|(path, doc)| doc.accepted.as_ref().map(|a| (path, a)))),
-            fwords: ryo_python::fixtures::walking::walk_words(walk)
-                .expect("the walk's fixed names"),
+            direct_memo: Default::default(),
             project: super::provider_packaging::Project::new(
                 args[2].trim_end_matches('/'),
                 match request {
@@ -129,18 +127,23 @@ impl<'p> Finisher<'p> {
         file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>,
         bytes: &[u8],
         wanted: &[usize],
+        fwords: &mut languages::FileWords,
+        completed: &mut Vec<(languages::Relation, languages::FilledColumns)>,
     ) {
         let t0 = thread_cpu();
         file.set_file(languages::FileId(file_no as u32));
         let ft = file.table;
-        let mut fwords = std::mem::take(&mut self.fwords);
-        languages::facts::clear_words(&mut fwords);
         finish::own_words_cleared(&mut self.run);
         let mut project = std::mem::take(&mut self.project);
+        let mut direct_memo = std::mem::take(&mut self.direct_memo);
+        direct_memo.new_file();
+        let empty = std::mem::take(&mut file.empty);
         let mut pv = ColFacts {
             import_comments: Default::default(),
             file,
-            words: &mut fwords,
+            words: fwords,
+            completed,
+            direct_memo: &mut direct_memo,
             filled: languages::FilledColumns::default(),
             time: 0.0,
             rows: 0,
@@ -150,7 +153,7 @@ impl<'p> Finisher<'p> {
             project: &mut project,
             src: bytes,
         };
-        self.file(file_no, ft, bytes, &mut pv, wanted, None);
+        self.file(file_no, ft, bytes, &mut pv, wanted, None, &empty);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
         for (k, v) in pv.by_rel {
@@ -159,7 +162,8 @@ impl<'p> Finisher<'p> {
             e.1 += v.1;
             e.2 += v.2;
         }
-        self.fwords = fwords;
+        pv.file.empty = empty;
+        self.direct_memo = direct_memo;
         self.project = project;
         self.time += thread_cpu() - t0;
     }

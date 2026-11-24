@@ -2,6 +2,7 @@
 //! the parser's own nodes.
 
 pub(crate) mod service;
+pub(crate) mod walk;
 pub(crate) mod types;
 
 #[cfg(test)]
