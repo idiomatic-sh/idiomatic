@@ -109,7 +109,7 @@ pub fn profile(
             &ordinary,
             other.as_ref(),
             &mut written,
-            |image, observer, path| {
+            |image, observer, path, _| {
                 fs::create_dir_all(path)?;
                 let copy = path.join("workspace");
                 run(Command::new("git")

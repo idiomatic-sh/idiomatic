@@ -196,6 +196,13 @@ pub fn profile(
 ) -> Result<(), Error> {
     let (first, first_image) = input(bench)?;
     let other = other.map(input).transpose()?;
+    if let Some((build, _)) = &other
+        && build.name != first.name
+    {
+        return Err(Error::Invalid(
+            "both builds must name the same workload".into(),
+        ));
+    }
     let run = tempfile::Builder::new()
         .prefix("image-profile-")
         .tempdir_in(std::env::current_dir()?)?
@@ -214,11 +221,16 @@ pub fn profile(
         &first_image,
         other.as_ref().map(|(_, image)| image),
         &mut report,
-        |image, observer, path| {
+        |image, observer, path, other_build| {
             fs::create_dir_all(path)?;
             let (directory, workspace_prefix) = isolated(&first, path)?;
+            let invocation = if other_build {
+                &other.as_ref().expect("comparison image").0
+            } else {
+                &first
+            };
             let answer_path = path.join("answer");
-            let answer = first
+            let answer = invocation
                 .arguments
                 .iter()
                 .any(|arg| arg == "{answer}")
@@ -226,17 +238,18 @@ pub fn profile(
             if observer.is_none() {
                 fs::File::create(path.join("ryo-operators.tsv"))?;
             }
-            let mut environment: BTreeMap<_, _> = first
+            let mut environment: BTreeMap<_, _> = invocation
                 .environment
                 .iter()
                 .map(|(k, v)| (k.into(), v.into()))
                 .collect();
             environment.insert("TMPDIR".into(), path.as_os_str().to_owned());
             environment.insert("RAYON_NUM_THREADS".into(), "1".into());
+            let has_answer = answer.is_some();
             Ok((
                 CommandLine {
                     executable: image.to_owned(),
-                    arguments: first
+                    arguments: invocation
                         .arguments
                         .iter()
                         .map(|arg| {
@@ -260,10 +273,10 @@ pub fn profile(
                     .map(Into::into)
                     .collect(),
                 },
-                (),
+                has_answer,
             ))
         },
-        |native, (), destination| {
+        |native, has_answer, destination| {
             if let Some(expected) = &expected
                 && fs::read(&native.stdout)?.as_slice() != expected
             {
@@ -276,9 +289,7 @@ pub fn profile(
                 return Ok(None);
             }
             let mut log = fs::read_to_string(&native.stderr)?;
-            if native.stdout != destination.join("native/stdout")
-                && first.arguments.iter().any(|arg| arg == "{answer}")
-            {
+            if has_answer {
                 log.push('\n');
                 log.push_str(&fs::read_to_string(destination.join("native/stdout"))?);
             }

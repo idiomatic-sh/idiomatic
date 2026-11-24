@@ -40,11 +40,12 @@ pub(crate) fn profile<T>(
     first: &Images,
     other: Option<&Images>,
     report: &mut impl Write,
-    mut command: impl FnMut(&Path, Option<Observer>, &Path) -> Result<(CommandLine, T), Error>,
+    mut command: impl FnMut(&Path, Option<Observer>, &Path, bool) -> Result<(CommandLine, T), Error>,
     mut engine: impl FnMut(&standard::Observation, T, &Path) -> Result<Option<EngineEvidence>, Error>,
 ) -> Result<Measurements, Error> {
     let mut totals = BTreeMap::new();
-    let mut run = |images: &Images, folder: &str| {
+    let mut run = |images: &Images, other_build: bool| {
+        let folder = if other_build { "other" } else { "first" };
         let destination = workload.root.join(folder);
         let mut ordinary = None;
         let detail_path = destination.join("engine");
@@ -56,6 +57,7 @@ pub(crate) fn profile<T>(
                     images.diagnostic.as_deref().unwrap_or(&images.ordinary),
                     None,
                     &detail_path,
+                    other_build,
                 )
             })
             .transpose()?;
@@ -69,7 +71,7 @@ pub(crate) fn profile<T>(
                 } else {
                     &images.ordinary
                 };
-                let (command, request) = command(executable, Some(observer), path)
+                let (command, request) = command(executable, Some(observer), path, other_build)
                     .map_err(|error| io::Error::other(error.to_string()))?;
                 if observer == Observer::Native {
                     ordinary = Some(request);
@@ -125,7 +127,7 @@ pub(crate) fn profile<T>(
             &destination,
             images.ordinary == images.heap,
         )?;
-        let key = if folder == "first" {
+        let key = if !other_build {
             workload.name.to_owned()
         } else {
             format!("{}/other", workload.name)
@@ -134,9 +136,9 @@ pub(crate) fn profile<T>(
         let _prior = totals.insert(key, values);
         Ok::<_, Error>((profile, evidence, destination))
     };
-    let (profile, evidence, path) = run(first, "first")?;
+    let (profile, evidence, path) = run(first, false)?;
     if let Some(other) = other {
-        let (compared, second_evidence, second_path) = run(other, "other")?;
+        let (compared, second_evidence, second_path) = run(other, true)?;
         writeln!(report, "\n## Build comparison\n")?;
         standard::compare(report, (&profile, &path), (&compared, &second_path))?;
         if let (Some(evidence), Some(second_evidence)) = (evidence, second_evidence) {

@@ -112,7 +112,7 @@ impl CorpusProfile {
             &self.first,
             self.other.as_ref(),
             &mut report,
-            |image, observer, path| {
+            |image, observer, path, _| {
                 let trace = path.join("events.jsonl");
                 let (invoked, request) = invocation(path, observer.is_none().then_some(&trace))?;
                 let Invocation {
