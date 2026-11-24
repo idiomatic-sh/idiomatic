@@ -217,14 +217,15 @@ impl Store {
     }
     pub(super) fn directory(dir: PathBuf) -> Res<Self> {
         use object::Object;
-        let image = fs::File::open("/proc/self/exe")?;
-        let file =
-            object::File::parse(object::read::ReadCache::new(image)).map_err(io::Error::other)?;
-        let id = file
-            .build_id()
-            .map_err(io::Error::other)?
-            .ok_or_else(|| io::Error::other("missing build identity"))?;
-        let build = *blake3::hash(id).as_bytes();
+        let executable = std::env::current_exe()?;
+        let image = object::read::ReadCache::new(fs::File::open(&executable)?);
+        let build = if let Ok(file) = object::File::parse(&image)
+            && let Ok(Some(id)) = file.build_id()
+        {
+            *blake3::hash(id).as_bytes()
+        } else {
+            *blake3::hash(&fs::read(executable)?).as_bytes()
+        };
 
         fs::create_dir_all(&dir)?;
         let guard = fs::File::open(&dir)?;
