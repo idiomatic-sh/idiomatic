@@ -1001,7 +1001,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         session.roots = json_input::decode(&bytes).expect("source roots and their inventories");
     }
     session.authorities = Authorities::from_input().expect("repository declarations");
-    let mut store=root.map(|p|stored::Store::open(p).expect("open request store"));
+    let mut store=root.map(|p|stored::Store::open(p, readers).expect("open request store"));
     let authority=store.as_mut().map(|s| {
         ["TM_CORPUS_INVENTORIES","TM_CORPUS_PROJECTS"].map(|name|std::env::var_os(name).map(|p|
             s.contract_file(Path::new(&p)).expect("read declared session inputs")))

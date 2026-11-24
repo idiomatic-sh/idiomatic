@@ -19,6 +19,7 @@ pub(crate) trait Source: Clone + Sync {
         l::SemanticSlot::Empty
     }
     fn name(&self) -> &str;
+    fn identity(&self) -> (&str, &str);
     type File: Default;
     type Dictionary: Default;
     fn lent(_: &Self::File) -> Option<Arc<l::NodeTable>> { None }
@@ -104,6 +105,7 @@ impl Source for Linked {
             None => relations.iter().map(|schema| Err(format!("no provider for {}", schema.name))).collect(),
         }
     }
+    fn identity(&self) -> (&str, &str) { (self.language.build().0.as_ref(), self.language.configuration_identity().0) }
     fn name(&self) -> &str { &self.language.name().0 }
     type File = l::Elements;
     type Dictionary = l::Symbols;

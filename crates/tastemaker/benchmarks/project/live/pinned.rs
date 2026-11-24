@@ -226,6 +226,9 @@ impl Source for Pinned {
             _ => relations.iter().map(|schema| Err(format!("no linked provider for {}", schema.name))).collect(),
         }
     }
+    fn identity(&self) -> (&str, &str) {
+        self.native.as_ref().map_or_else(|| (self.language.build().0.as_ref(), self.language.configuration_identity().0), Source::identity)
+    }
     fn name(&self) -> &str { &self.language.name().0 }
     type File = File;
     fn lent(f: &File) -> Option<Arc<l::NodeTable>> {

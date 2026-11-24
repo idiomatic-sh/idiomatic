@@ -209,10 +209,10 @@ fn atomic(dir: &Path, p: &Path, b: &[u8]) -> Res<()> {
     Ok(())
 }
 impl Store {
-    pub(super) fn open(root: &Path) -> Res<Self> {
-        Self::directory(root.join(".ryo_cache"))
+    pub(super) fn open(root: &Path, readers: &[impl session::source::Source]) -> Res<Self> {
+        Self::directory(root.join(".ryo_cache"), readers)
     }
-    pub(super) fn directory(dir: PathBuf) -> Res<Self> {
+    pub(super) fn directory(dir: PathBuf, readers: &[impl session::source::Source]) -> Res<Self> {
         use object::Object;
         let executable = std::env::current_exe()?;
         let image = object::read::ReadCache::new(fs::File::open(&executable)?);
@@ -223,6 +223,9 @@ impl Store {
         } else {
             *blake3::hash(&fs::read(executable)?).as_bytes()
         };
+
+        let providers: Vec<_> = readers.iter().map(|r| (r.name(), r.identity())).collect();
+        let build = key((build, providers));
 
         fs::create_dir_all(&dir)?;
         let guard = fs::File::open(&dir)?;

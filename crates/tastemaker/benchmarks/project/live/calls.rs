@@ -348,7 +348,7 @@ impl Live {
         });
         if self.directory.as_deref()!=directory {
             if let Some(old)=&mut self.store {old.publish().map_err(|e|e.to_string())?;}
-            self.store=directory.map(|p|super::stored::Store::directory(p.to_owned())).transpose().map_err(|e|e.to_string())?;
+            self.store=directory.map(|p|super::stored::Store::directory(p.to_owned(), &self.languages)).transpose().map_err(|e|e.to_string())?;
             self.directory=directory.map(std::path::Path::to_owned);
         }
         Ok(())
