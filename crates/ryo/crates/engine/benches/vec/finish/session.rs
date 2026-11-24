@@ -2,7 +2,7 @@
 #[path = "session_certificate.rs"]
 pub(in super::super) mod certificate;
 use super::population::Inputs;
-use super::{E, Exec, File, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};
+use super::{E, Exec, File, FileVersion, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};
 use std::{collections::BTreeMap, rc::Rc};
 
 // Check the scalar subset before visiting any rows. Unimplemented functions on
@@ -22,7 +22,7 @@ fn scalar(expr: &E) -> R<()> {
             scalar(a)?;
             scalar(b)
         }
-        E::Null(a, _) | E::Not(a) | E::Re(a, _) => scalar(a),
+        E::Null(a, _) | E::Not(a) | E::TextTest(a, _) => scalar(a),
         E::List(items) => items.iter().try_for_each(scalar),
         E::Col(..) | E::Lit(_) | E::Text(_) | E::Num(_) => Ok(()),
     }
@@ -202,7 +202,8 @@ pub(in super::super) fn evaluate_covered(
     }
     super::subject_scope::restrict(exec,run,carried,&admit_file_subject)?;
     let scratch = NodeTable::default();
-    let mut frame = File::new(&scratch, &[], u32::MAX, plan.nodes.len());
+    let version = FileVersion::new(&scratch, &[], u32::MAX, None);
+    let mut frame = File::new(&version, plan.nodes.len());
     frame.after_last_file = true;
     frame.project_inputs = Some(carried);
     // A supplied population is a materialized input, including for keyed and closure
@@ -346,18 +347,13 @@ fn restrict_uncertain(
 pub(in super::super) fn pair<'tables>(
     exec: &mut Exec<'_>,
     run: &mut Run,
-    path: u32,
-    tree: &NodeTable,
-    bytes: &[u8],
+    version: &FileVersion<'_>,
     facts: &mut dyn Provider,
     supplied: impl IntoIterator<Item = &'tables (String, Rc<Table>)>,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
 ) -> R<Vec<answer::Row>> {
     let plan = exec.plan;
-    let mut frame = File::new(tree, bytes, path, plan.nodes.len());
-    if let Some(text) = facts.syntax_text() {
-        frame.set_text(text);
-    }
+    let mut frame = File::new(version, plan.nodes.len());
     for (name, table) in supplied {
         if run
             .catalog(name)
@@ -398,7 +394,7 @@ pub(in super::super) fn pair<'tables>(
         for r in 0..t.n {
             keep_finding(
                 &mut seen,
-                answer::typed(run, &t, r, rule, Some(path as usize), &identity)?,
+                answer::typed(run, &t, r, rule, Some(version.file as usize), &identity)?,
             );
         }
         rows.extend(seen.into_values());
@@ -411,18 +407,13 @@ pub(in super::super) fn pair<'tables>(
 pub(in super::super) fn gather(
     exec: &mut Exec<'_>,
     run: &mut Run,
-    path: u32,
-    tree: &NodeTable,
-    bytes: &[u8],
+    version: &FileVersion<'_>,
     facts: &mut dyn Provider,
     local: &[(String, Rc<Table>)],
     cut: &[usize],
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
 ) -> R<Vec<(usize, Rc<Table>)>> {
-    let mut frame = File::new(tree, bytes, path, exec.plan.nodes.len());
-    if let Some(text) = facts.syntax_text() {
-        frame.set_text(text);
-    }
+    let mut frame = File::new(version, exec.plan.nodes.len());
     for (name, table) in local {
         frame.fills.insert(name.clone(), table.clone());
     }

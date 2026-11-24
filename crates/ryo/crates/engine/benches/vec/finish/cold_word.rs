@@ -52,7 +52,7 @@ pub(super) fn column(e: &E) -> Option<(usize, Ty)> {
         E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => {
             column(a).or_else(|| column(b))
         }
-        E::Re(a, _) | E::Not(a) | E::Null(a, _) => column(a),
+        E::TextTest(a, _) | E::Not(a) | E::Null(a, _) => column(a),
         E::Call(_, args) => args.iter().find_map(column),
         _ => None,
     }
@@ -193,9 +193,10 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
             words.sort_unstable();
             Box::new(move |_, w| words.binary_search(&w).is_err())
         }
-        E::Re(x, re) if is_col(x, c) => {
+        E::TextTest(x, re) if is_col(x, c) => {
             let re = re.clone();
-            text_predicate(ty, move |bytes| re.is_match(bytes))
+            if ty == Ty::Sym { Box::new(move |r, w| re.symbol(r, w as u32)) }
+            else { text_predicate(ty, move |bytes| re.bytes(bytes)) }
         }
         E::Call(name, args) => match (name.as_str(), args.as_slice()) {
             ("starts_with" | "ends_with", [x, E::Text(s)]) if is_col(x, c) => {

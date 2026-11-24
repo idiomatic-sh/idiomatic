@@ -12,7 +12,7 @@ pub(super) fn file_const(e: &E) -> bool {
         E::List(xs) | E::Call(_, xs) => xs.iter().all(file_const),
         E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) => file_const(a) && file_const(b),
         E::In(a, b, _) => file_const(a) && file_const(b),
-        E::Not(a) | E::Null(a, _) | E::Re(a, _) => file_const(a),
+        E::Not(a) | E::Null(a, _) | E::TextTest(a, _) => file_const(a),
         E::Seed(..) => false,
     }
 }
@@ -29,7 +29,7 @@ fn subst(e: &E, file: u64) -> E {
         E::Or(x, y) => E::Or(b(x), b(y)),
         E::Not(x) => E::Not(b(x)),
         E::Null(x, n) => E::Null(b(x), *n),
-        E::Re(x, r) => E::Re(b(x), r.clone()),
+        E::TextTest(x, r) => E::TextTest(b(x), r.clone()),
         other => other.clone(),
     }
 }
