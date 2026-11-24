@@ -78,6 +78,7 @@ impl Authorities {
 struct Batch {
     schedule: session::Schedule,
     bindings: Vec<(usize, Rc<[Hosted]>)>,
+    host_rows: std::collections::HashSet<Rc<[Vec<super::HostCell>]>>,
     binding_ids: HashMap<(usize, Rc<[Hosted]>), usize>,
     queries: HashMap<String, Rc<str>>,
     work: Vec<Work>,
@@ -225,7 +226,7 @@ impl Batch {
                     .hosted
                     .iter()
                     .map(|t| Hosted {
-                        rows: Vec::new(),
+                        rows: Rc::default(),
                         ..t.clone()
                     })
                     .collect::<Vec<_>>();
@@ -355,7 +356,16 @@ impl Batch {
         Ok(Work::Pairs(pairs))
     }
 
-    fn binding(&mut self, rule: usize, hosted: Vec<Hosted>) -> usize {
+    fn binding(&mut self, rule: usize, mut hosted: Vec<Hosted>) -> usize {
+        // Only the immutable payload is shared. Each declaration keeps its schema,
+        // completeness and file-valued cells in the requesting scope.
+        for table in &mut hosted {
+            if let Some(rows) = self.host_rows.get(&table.rows) {
+                table.rows = Rc::clone(rows);
+            } else {
+                self.host_rows.insert(Rc::clone(&table.rows));
+            }
+        }
         let hosted: Rc<[Hosted]> = hosted.into();
         let host_key = hosted.clone();
         *self.binding_ids.entry((rule, host_key)).or_insert_with(|| {
@@ -385,6 +395,7 @@ impl Batch {
         self.roots.clear();
         self.queries.clear();
         self.binding_ids.clear();
+        self.host_rows.clear();
     }
 
     fn epoch<L: session::source::Source>(&mut self,languages:&[L],state:&mut Active<L::File,L::Dictionary>) {
