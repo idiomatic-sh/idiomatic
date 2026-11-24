@@ -87,7 +87,7 @@ pub(super) fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Optio
 
 /// Interpreted globs often see a file's path on every row of its relations.
 pub(super) struct PreparedGlob {
-    pattern: u32,
+    pub(super) pattern: u32,
     matcher: Bound<ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs>,
 }
 

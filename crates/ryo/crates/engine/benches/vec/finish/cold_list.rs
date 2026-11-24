@@ -111,6 +111,7 @@ pub(super) enum FilterKey {
     InExpr(bool, Box<Self>, Box<Self>),
     Call(String, Vec<Self>),
     Re(Box<Self>, String),
+    Glob(Box<Self>, u32),
     LowerEqual(Box<Self>, Box<[u8]>),
     List(Vec<Self>),
 }
@@ -183,6 +184,7 @@ fn normalized(e: &E) -> FilterKey {
         E::Call(name, xs) => K::Call(name.clone(), xs.iter().map(normalized).collect()),
         E::TextTest(a, test) => match test {
             super::TextTest::Regex(re) => K::Re(Box::new(normalized(a)), re.pattern.as_str().into()),
+            super::TextTest::Glob(glob) => K::Glob(Box::new(normalized(a)), glob.pattern),
             super::TextTest::LowerEqual(lit) => K::LowerEqual(Box::new(normalized(a)), lit.pattern.as_ref().into()),
         },
         E::List(xs) => K::List(xs.iter().map(normalized).collect()),
