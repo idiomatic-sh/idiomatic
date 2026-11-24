@@ -81,6 +81,8 @@ pub(super) enum Need {
     Terms(bool, Box<[Id]>),
     Any,
     PathMatches(usize, bool),
+    PathGlob(usize),
+    CapturedPath(patterns::CapturePath),
     SyntaxMatches(usize, bool),
     InvalidPattern(usize), // proof prerequisite, resolved during plan compaction
     SourceContains(usize),
@@ -123,6 +125,7 @@ pub(super) struct Program {
     pub roots: Vec<(String, Id)>,
     pub skips: Vec<(bool, Vec<Vec<String>>, Vec<Vec<String>>)>,
     pub regexes: Vec<regexes::Pattern>,
+    pub path_globs: Vec<String>,
     pub text_kinds: Vec<u16>,
     pub symbols: Map<String, Id>,
     pub max_text: usize,
@@ -978,8 +981,15 @@ impl Builder<'_> {
         {
             let glob;
             let pattern = if &*f.function.0 == "glob_any" {
-                let Some(pattern) = super::glob_pattern(&pattern.0) else { return ANY };
-                glob = pattern;
+                let Some(compiled) = super::glob_pattern(&pattern.0) else {
+                    let slot = self.out.path_globs.iter().position(|p| p == &*pattern.0)
+                        .unwrap_or_else(|| {
+                            self.out.path_globs.push(pattern.0.to_string());
+                            self.out.path_globs.len() - 1
+                        });
+                    return self.need(Need::PathGlob(slot));
+                };
+                glob = compiled;
                 &glob
             } else {
                 &*pattern.0
@@ -1468,6 +1478,14 @@ impl Builder<'_> {
             }
             Capture(x) => {
                 out = rows[x.from.0].clone();
+                if self.syntax_symbols
+                    && let Some(col) = out.column(&x.path.0)
+                    && col.attr == Attribute::FilePath
+                    && let Some(pattern) = patterns::CapturePath::from_pattern(&x.pattern.0)
+                {
+                    let path = self.need(Need::CapturedPath(pattern));
+                    out.need = self.and(path, out.need);
+                }
                 out.retain_columns(|(n, _)| !x.captures.iter().any(|col| *n == &*col.0));
             }
             AsOf(x) => return self.ordered(&rows[x.left.0], &rows[x.right.0], &x.output),
@@ -1736,6 +1754,7 @@ pub(super) fn prepare_plans(
             paths: Vec::new(),
             file_only: Vec::new(),
             regexes: Vec::new(),
+            path_globs: Vec::new(),
             text_kinds: language.text_kinds.clone(),
             symbols: Map::default(),
             max_text: 0,

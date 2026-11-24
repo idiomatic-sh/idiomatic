@@ -13,8 +13,7 @@ use std::{
     io::{self, Write},
 };
 
-type Key = [u8; 32];
-type PairIndex = (Key, Key);
+pub(super) type Key = [u8; 32];
 type Res<T> = io::Result<T>;
 #[derive(Default)]
 struct Digest(blake3::Hasher);
@@ -26,7 +25,7 @@ impl Hasher for Digest {
         u64::from_le_bytes(self.0.finalize().as_bytes()[..8].try_into().unwrap())
     }
 }
-fn key(value: impl Hash) -> Key {
+pub(super) fn key(value: impl Hash) -> Key {
     let mut h = Digest::default();
     value.hash(&mut h);
     *h.0.finalize().as_bytes()
@@ -40,78 +39,54 @@ enum Value {
     Span(u32, u32),
 }
 
-#[derive(Serialize, Deserialize)]
-struct Row {
-    rule: Box<str>,
-    columns: Vec<(Box<str>, Option<Value>)>,
-    identity: Vec<usize>,
+impl Value {
+    fn cell(&self) -> Cell<std::sync::Arc<str>> {
+        match self {
+            Self::File(s) => Cell::File(s.as_ref().into()),
+            Self::Text(s) => Cell::Text(s.as_ref().into()),
+            Self::Number(n) => Cell::Number(Integer(*n)),
+            Self::Span(a, b) => Cell::Span(Span {
+                start: Offset(*a),
+                end: Offset(*b),
+            }),
+        }
+    }
 }
 #[derive(Serialize, Deserialize)]
 struct Report {
-    rows: Vec<Row>,
+    // None means only the closed operator consumed this contribution.
+    // Some(empty) proves a local request completed with no rows.
+    rows: Option<Vec<u8>>,
     unknowns: Vec<(String, String)>,
 }
 impl Report {
-    fn save(answer: &session::Reported) -> Self {
-        let rows = answer
-            .rows
-            .iter()
-            .map(|r| Row {
-                rule: r.rule.clone(),
-                identity: r.identity.clone(),
-                columns: r
-                    .columns
-                    .iter()
-                    .map(|(n, v)| {
-                        (
-                            n.clone(),
-                            v.as_ref().map(|c| match c {
-                                Cell::Text(s) => Value::Text(s.clone()),
-                                Cell::File(s) => Value::File(s.clone()),
-                                Cell::Number(i) => Value::Number(i.0),
-                                Cell::Span(s) => Value::Span(s.start.0, s.end.0),
-                            }),
-                        )
-                    })
-                    .collect(),
-            })
-            .collect();
+    fn save(answer: &session::Reported, keep_rows: bool) -> Self {
         Self {
-            rows,
+            rows: keep_rows.then(|| {
+                if answer.rows.is_empty() {
+                    Vec::new()
+                } else {
+                    request_answers::pack_rows(&answer.rows)
+                }
+            }),
             unknowns: answer.unknowns.clone(),
         }
     }
-    fn read(&self) -> session::Reported {
-        let rows = self
-            .rows
-            .iter()
-            .map(|r| finish::answer::Row {
-                rule: r.rule.clone(),
-                identity: r.identity.clone(),
-                columns: r
-                    .columns
-                    .iter()
-                    .map(|(n, v)| {
-                        (
-                            n.clone(),
-                            v.as_ref().map(|v| match v {
-                                Value::Text(s) => Cell::Text(s.clone()),
-                                Value::File(s) => Cell::File(s.clone()),
-                                Value::Number(n) => Cell::Number(Integer(*n)),
-                                Value::Span(s, e) => Cell::Span(Span {
-                                    start: Offset(*s),
-                                    end: Offset(*e),
-                                }),
-                            }),
-                        )
-                    })
-                    .collect(),
-            })
-            .collect();
-        session::Reported {
+    fn read(&self, need_rows: bool) -> Option<session::Reported> {
+        let rows = if need_rows {
+            let data = self.rows.as_ref()?;
+            if data.is_empty() {
+                vec![]
+            } else {
+                request_answers::unpack_rows(data)
+            }
+        } else {
+            vec![]
+        };
+        Some(session::Reported {
             rows,
             unknowns: self.unknowns.clone(),
-        }
+        })
     }
 }
 
@@ -149,24 +124,10 @@ impl EncodedBlock {
 }
 #[derive(Default, Serialize, Deserialize)]
 struct FileAnswers {
-    path: String,
     pairs: BTreeMap<Key, Local>,
-    notes: Option<Notes>,
     blocks: Vec<EncodedBlock>,
     #[serde(skip)]
     known_blocks: HashMap<Key, usize>,
-}
-#[derive(Serialize, Deserialize)]
-struct Closed {
-    report: Report,
-    // Additional observations made by a disk-authorized provider.
-    checks: Vec<(PathBuf, Evidence)>,
-    unread: Vec<String>,
-}
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
-enum Evidence {
-    Bytes(Key),
-    Kind(u8),
 }
 fn kind(p: &Path) -> Res<u8> {
     match fs::metadata(p) {
@@ -181,39 +142,59 @@ fn kind(p: &Path) -> Res<u8> {
         Err(e) => Err(e),
     }
 }
-fn valid(checks: &[(PathBuf, Evidence)]) -> bool {
-    checks.iter().all(|(p, x)| match x {
-        Evidence::Bytes(d) => fs::read(p).is_ok_and(|s| *blake3::hash(&s).as_bytes() == *d),
-        Evidence::Kind(k) => kind(p).is_ok_and(|i| i == *k),
-    })
-}
+#[path = "request_answers.rs"]
+mod request_answers;
+#[path = "shards.rs"]
+mod shards;
+pub(super) use request_answers::Packet;
+use request_answers::{Group, Observations, Probe, Proof, Record};
+use shards::{Index, Records, Segments, Shards};
 
-type Files = BTreeMap<Key, FileAnswers>;
-type Scopes = BTreeMap<Key, Closed>;
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 struct Snapshot {
+    names: Option<Key>,
     build: Key,
-    files: Key,
-    scopes: Key,
+    files: Segments,
+    notes: Index,
+    requests: Index,
+    groups: Index,
+    packets: Index,
 }
 pub(super) struct Store {
     dir: PathBuf,
+    names: Vec<PathBuf>,
+    name_ids: HashMap<PathBuf, u32>,
+    names_digest: Option<Key>,
+    saved_names: usize,
     previous: Vec<u8>,
     build: Key,
-    files: Files,
-    scopes: Scopes,
-    dirty: [bool; 2],
-    observed: HashMap<PathBuf, (u64, u64, i64, i64)>,
+    files: Records<FileAnswers>,
+    notes: Shards<Notes>,
+    requests: Shards<Record>,
+    groups: Shards<Group>,
+    packets: Shards<Packet>,
+    observed: Observations,
     versions: Vec<Option<Key>>,
-    pairs: Vec<Option<PairIndex>>,
-    closed: Vec<Option<Key>>,
-    restored_unread: BTreeSet<String>,
+    pairs: Vec<Option<(usize, usize)>>,
+    binding_keys: Vec<Key>,
+    binding_ids: HashMap<Key, usize>,
+    plans: Vec<Option<(Vec<Proof>, Vec<String>)>>,
+    keep_pairs: Vec<bool>,
+    local_rows: Vec<bool>,
+    project_proofs: HashMap<usize, Option<Proof>>,
     pub file_hits: usize,
     pub closed_hits: usize,
     pub evaluated_pairs: usize,
     pub evaluated_closed: usize,
+    pub request_hits: usize,
+    absent_file: usize,
+    absent_local: usize,
+    absent_frontier: usize,
+    restored_blocks: usize,
+    packets_packed: usize,
+    packed_rows: usize,
+    pack_cpu: f64,
 }
-
 fn table(dir: &Path, name: &str, digest: Key) -> PathBuf {
     dir.join(format!(
         "{name}-{}.postcard",
@@ -253,106 +234,274 @@ impl Store {
         let guard = fs::File::open(&dir)?;
         guard.lock_shared()?;
         let previous = fs::read(dir.join("session.postcard")).unwrap_or_default();
-        let loaded = postcard::from_bytes::<Snapshot>(&previous)
+        let snapshot = postcard::from_bytes::<Snapshot>(&previous)
             .ok()
-            .and_then(|s| {
-                if s.build != build {
-                    return None;
-                }
-                Some((
-                    load(&table(&dir, "pairs", s.files), s.files)?,
-                    load(&table(&dir, "closed", s.scopes), s.scopes)?,
-                ))
-            });
-        let dirty = [loaded.is_none(); 2];
-        let (files, scopes) = loaded.unwrap_or_default();
+            .filter(|s| s.build == build)
+            .unwrap_or_default();
+        let (snapshot, names) = match snapshot.names {
+            Some(k) => match load::<Vec<PathBuf>>(&table(&dir, "paths", k), k) {
+                Some(n) => (snapshot, n),
+                None => (Snapshot::default(), vec![]),
+            },
+            None => (snapshot, vec![]),
+        };
         Ok(Self {
+            names_digest: snapshot.names,
+            saved_names: names.len(),
+            names,
+            name_ids: HashMap::new(),
             dir,
             previous,
             build,
-            files,
-            scopes,
-            dirty,
-            observed: HashMap::new(),
-            versions: Vec::new(),
-            pairs: Vec::new(),
-            closed: Vec::new(),
-            restored_unread: BTreeSet::new(),
+            files: Records::new(snapshot.files),
+            notes: Shards::new("project", snapshot.notes),
+            requests: Shards::new("requests", snapshot.requests),
+            groups: Shards::new("inputs", snapshot.groups),
+            packets: Shards::new("answers", snapshot.packets),
+            observed: Default::default(),
+            versions: vec![],
+            pairs: vec![],
+            binding_keys: vec![],
+            binding_ids: HashMap::new(),
+            plans: vec![],
+            keep_pairs: vec![],
+            local_rows: vec![],
+            project_proofs: HashMap::new(),
             file_hits: 0,
             closed_hits: 0,
             evaluated_pairs: 0,
             evaluated_closed: 0,
+            request_hits: 0,
+            absent_file: 0,
+            absent_local: 0,
+            absent_frontier: 0,
+            restored_blocks: 0,
+            packets_packed: 0,
+            packed_rows: 0,
+            pack_cpu: 0.0,
         })
     }
     pub(super) fn publish(&mut self) -> Res<usize> {
-        if !self.dirty.contains(&true) {
+        if !(self.files.dirty()
+            || self.notes.dirty()
+            || self.requests.dirty()
+            || self.groups.dirty()
+            || self.packets.dirty())
+        {
             return Ok(0);
         }
         let guard = fs::File::open(&self.dir)?;
         guard.lock()?;
-        use std::os::unix::fs::MetadataExt;
-        for (p, stamp) in &self.observed {
-            if !fs::metadata(p)
-                .is_ok_and(|m| (m.dev(), m.ino(), m.ctime(), m.ctime_nsec()) == *stamp)
-            {
-                return Ok(0);
-            }
-        }
         let head = self.dir.join("session.postcard");
         if fs::read(&head).unwrap_or_default() != self.previous {
             return Ok(0);
         }
-        let prior = postcard::from_bytes::<Snapshot>(&self.previous).ok();
-        let mut digests = [
-            prior.as_ref().map_or([0; 32], |s| s.files),
-            prior.as_ref().map_or([0; 32], |s| s.scopes),
-        ];
-        let mut written = 0;
-        for (i, name) in ["pairs", "closed"].iter().enumerate() {
-            if !self.dirty[i] {
-                continue;
+        if !self.observed.still_current() {
+            return Ok(0);
+        }
+        let mut old = vec![];
+        let t0 = crate::thread_cpu();
+        let mut written = self.files.flush(&self.dir, &mut old)?;
+        let t1 = crate::thread_cpu();
+        written += self.notes.flush(&self.dir, &mut old)?;
+        let t2 = crate::thread_cpu();
+        written += self.requests.flush(&self.dir, &mut old)?;
+        let t3 = crate::thread_cpu();
+        written += self.groups.flush(&self.dir, &mut old)?;
+        let t4 = crate::thread_cpu();
+        written += self.packets.flush(&self.dir, &mut old)?;
+        let t5 = crate::thread_cpu();
+        if self.names.len() != self.saved_names {
+            let b = postcard::to_stdvec(&self.names).map_err(io::Error::other)?;
+            let k = *blake3::hash(&b).as_bytes();
+            atomic(&self.dir, &table(&self.dir, "paths", k), &b)?;
+            written += b.len();
+            if let Some(old_key) = self.names_digest.replace(k)
+                && old_key != k
+            {
+                old.push(table(&self.dir, "paths", old_key));
             }
-            let b = if i == 0 {
-                postcard::to_stdvec(&self.files)
-            } else {
-                postcard::to_stdvec(&self.scopes)
-            }
-            .map_err(io::Error::other)?;
-            let d = *blake3::hash(&b).as_bytes();
-            let path = table(&self.dir, name, d);
-            if !fs::read(&path).is_ok_and(|old| old == b) {
-                atomic(&self.dir, &path, &b)?;
-                written += b.len();
-            }
-            digests[i] = d;
+            self.saved_names = self.names.len();
         }
         let bytes = postcard::to_stdvec(&Snapshot {
+            names: self.names_digest,
             build: self.build,
-            files: digests[0],
-            scopes: digests[1],
+            files: self.files.index.clone(),
+            notes: self.notes.index.clone(),
+            requests: self.requests.index.clone(),
+            groups: self.groups.index.clone(),
+            packets: self.packets.index.clone(),
         })
         .map_err(io::Error::other)?;
-        if self.previous != bytes {
+        if bytes != self.previous {
             guard.sync_all()?;
             atomic(&self.dir, &head, &bytes)?;
             guard.sync_all()?;
             written += bytes.len();
+            self.previous = bytes;
         }
-        if let Some(old) = prior {
-            for (name, d, new) in [
-                ("pairs", old.files, digests[0]),
-                ("closed", old.scopes, digests[1]),
-            ] {
-                if d != new {
-                    let _ = fs::remove_file(table(&self.dir, name, d));
-                }
-            }
+        for p in old {
+            let _ = fs::remove_file(p);
         }
-        self.previous = bytes;
-        self.dirty = [false; 2];
+        eprintln!(
+            "publish_cpu pairs={:.6} project={:.6} requests={:.6} inputs={:.6} answers={:.6} paths_and_manifest={:.6}",
+            t1 - t0,
+            t2 - t1,
+            t3 - t2,
+            t4 - t3,
+            t5 - t4,
+            crate::thread_cpu() - t5
+        );
         Ok(written)
     }
-
+    pub(super) fn costs(&self) {
+        eprintln!("table_read_cpu pairs={:.6} project={:.6} requests={:.6} inputs={:.6} answers={:.6}",
+            self.files.read_cpu, self.notes.read_cpu, self.requests.read_cpu, self.groups.read_cpu, self.packets.read_cpu);
+        eprintln!("packets_packed={} packed_rows={} packet_build_cpu={:.6}", self.packets_packed, self.packed_rows, self.pack_cpu);
+        let o = &self.observed;
+        eprintln!("observation_open_cpu={:.6}", o.open_cpu);
+        eprintln!(
+            "observations source_reads={} contract_reads={} source_bytes={} contract_bytes={} path_hits={} inode_hits={} groups={} group_hits={}",
+            o.reads[0],
+            o.reads[1],
+            o.bytes[0],
+            o.bytes[1],
+            o.path_hits,
+            o.inode_hits,
+            o.groups.len(),
+            o.group_hits
+        );
+        eprintln!(
+            "contributions restored_blocks={} missing_file_slots={} missing_local_bindings={} missing_frontier_bindings={}",
+            self.restored_blocks, self.absent_file, self.absent_local, self.absent_frontier
+        );
+        eprintln!(
+            "request_store hash_cpu={:.6} hash_bytes={} pairs_read={} project_read={} requests_read={} inputs_read={} answers_read={} pairs_written={} project_written={} requests_written={} inputs_written={} answers_written={}",
+            self.observed.hash_cpu,
+            self.observed.hash_bytes,
+            self.files.read_bytes,
+            self.notes.read_bytes,
+            self.requests.read_bytes,
+            self.groups.read_bytes,
+            self.packets.read_bytes,
+            self.files.write_bytes,
+            self.notes.write_bytes,
+            self.requests.write_bytes,
+            self.groups.write_bytes,
+            self.packets.write_bytes
+        );
+    }
+    pub(super) fn overlay(
+        &mut self,
+        root: &Path,
+        inventory: Key,
+        peers: Key,
+        v: &BTreeMap<String, std::sync::Arc<[u8]>>,
+    ) {
+        self.observed.overlay(root, inventory, peers, v);
+    }
+    pub(super) fn inventory(&mut self, i: usize, path: PathBuf, expected: Option<Key>) {
+        let evidence = self.group(vec![(path, Probe::Bytes)]);
+        if expected.is_some()
+            && let Some(g) = evidence
+            && let Some((proof, _)) = &mut self.plans[i]
+        {
+            proof.push(g);
+        } else {
+            self.plans[i] = None;
+        }
+    }
+    pub(super) fn contract_file(&mut self, p: &Path) -> Option<Key> {
+        self.observed.observe(p, Probe::Bytes)
+    }
+    pub(super) fn lookup(&mut self, id: Key) -> Option<(Key, &[String])> {
+        self.requests.open(&self.dir, &id);
+        let r = self.requests.get(&id)?;
+        for &(g, expected) in &r.proof {
+            let current = if let Some(current) = self.observed.groups.get(&g) {
+                self.observed.group_hits += 1;
+                *current
+            } else {
+                self.groups.open(&self.dir, &g);
+                self.observed.group(g, self.groups.get(&g)?, &self.names)
+            };
+            if current != Some(expected) {
+                return None;
+            }
+        }
+        self.packets.open(&self.dir, &r.packet);
+        self.packets.get(&r.packet)?;
+        self.request_hits += 1;
+        Some((r.packet, &r.unread))
+    }
+    pub(super) fn packet(&self, id: &Key) -> &Packet {
+        self.packets.get(id).expect("verified packet")
+    }
+    pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
+        let (proof, unread) = self.plans.get_mut(idx)?.take()?;
+        let start = crate::thread_cpu();
+        let k = self.put(id, Packet::save(r), proof, unread);
+        self.pack_cpu += crate::thread_cpu() - start;
+        self.packets_packed += 1;
+        self.packed_rows += r.rows.len();
+        Some(k)
+    }
+    pub(super) fn decline(&mut self, id: Key, reason: &str) {
+        self.put(id, Packet::declined(reason), vec![], vec![]);
+    }
+    fn put(&mut self, id: Key, packet: Packet, proof: Vec<Proof>, unread: Vec<String>) -> Key {
+        let k = key((
+            &packet.refusal,
+            &packet.digest,
+            &packet.unknowns,
+            packet.typed_bytes(),
+        ));
+        self.packets.open(&self.dir, &k);
+        if self.packets.get(&k).is_none() {
+            self.packets.insert(k, packet);
+        }
+        self.requests.open(&self.dir, &id);
+        self.requests.insert(
+            id,
+            Record {
+                packet: k,
+                proof,
+                unread,
+            },
+        );
+        k
+    }
+    fn group(&mut self, mut paths: Vec<(PathBuf, Probe)>) -> Option<Proof> {
+        if self.name_ids.is_empty() && !self.names.is_empty() {
+            self.name_ids.extend(
+                self.names
+                    .iter()
+                    .enumerate()
+                    .map(|(i, p)| (p.clone(), i as u32)),
+            );
+        }
+        paths.sort_unstable();
+        paths.dedup();
+        let g: Group = paths
+            .into_iter()
+            .map(|(p, mode)| {
+                let i = *self.name_ids.entry(p.clone()).or_insert_with(|| {
+                    let i = u32::try_from(self.names.len())
+                        .expect("source inventory fits in a process");
+                    self.names.push(p);
+                    i
+                });
+                (i, mode)
+            })
+            .collect();
+        let id = key(&g);
+        self.groups.open(&self.dir, &id);
+        let expected = self.observed.group(id, &g, &self.names)?;
+        if self.groups.get(&id).is_none() {
+            self.groups.insert(id, g);
+        }
+        Some((id, expected))
+    }
     pub(super) fn admit(
         &mut self,
         b: &mut Batch,
@@ -360,28 +509,17 @@ impl Store {
         answers: &mut [Answer],
         contributions: &mut [Option<Rc<project::Contribution>>],
     ) {
-        use std::os::unix::fs::MetadataExt;
-        let mut inodes = HashMap::new();
+        self.project_proofs.clear();
         let prior = self.versions.len();
         self.versions
             .extend(b.schedule.sources.iter().skip(prior).map(|source| {
-                let digest = if let Some(data) = &source.provided {
-                    (*blake3::hash(data).as_bytes(), None)
+                let d = if let Some(v) = &source.provided {
+                    *blake3::hash(v).as_bytes()
                 } else {
-                    let p = Path::new(&*source.root).join(&source.path);
-                    let m = fs::metadata(&p).ok()?;
-                    let id = (m.dev(), m.ino(), m.ctime(), m.ctime_nsec());
-                    self.observed.entry(p.clone()).or_insert(id);
-                    let d = if let Some(d) = inodes.get(&id) {
-                        *d
-                    } else {
-                        let d = *blake3::hash(&fs::read(&p).ok()?).as_bytes();
-                        inodes.insert(id, d);
-                        d
-                    };
-                    (d, Some(m.mode() & 0o111))
+                    self.observed
+                        .observe(&Path::new(&*source.root).join(&source.path), Probe::Source)?
                 };
-                Some(key((&source.path, digest)))
+                Some(key((&source.path, d)))
             }));
         let mut rules = vec![[0; 32]; b.schedule.programs.len()];
         for ((text, params), &idx) in &b.schedule.prepared {
@@ -390,83 +528,125 @@ impl Store {
         let bindings: Vec<_> = b
             .bindings
             .iter()
-            .zip(&b.program_of).map(|(host, r)| key((rules[*r], host)))
+            .zip(&b.program_of).enumerate()
+            .map(|(binding, (host, &r))| {
+                // The engine shares this pre-join work for every binding with the
+                // same declared host shape. Which caller first supplied the rows
+                // can change when all but one request is restored.
+                let digest = if b.cut_of[binding].is_some() {
+                    let shape = host
+                        .iter()
+                        .map(|h| (&h.name, &h.columns))
+                        .collect::<Vec<_>>();
+                    key((0u8, rules[r], shape))
+                } else {
+                    key((1u8, rules[r], host))
+                };
+                *self.binding_ids.entry(digest).or_insert_with(|| {
+                    self.binding_keys.push(digest);
+                    self.binding_keys.len() - 1
+                })
+            })
             .collect();
         self.pairs.resize(b.schedule.pairs, None);
         for (i, src) in b.schedule.sources.iter().enumerate() {
             for (&binding, &slot) in &src.bindings {
-                self.pairs[slot] = self.versions[i].map(|d| (d, bindings[binding]));
+                self.pairs[slot] = Some((i, bindings[binding]));
             }
         }
-        let project_keys: Vec<_> = b
-            .projects
-            .iter()
-            .map(|p| {
-                let versions = p
-                    .slots
-                    .iter()
-                    .map(|&i| self.versions[i])
-                    .collect::<Option<Vec<_>>>()?;
-                Some(key((&p.authority, &p.paths, versions)))
-            })
-            .collect();
-        let mut inventories = HashMap::new();
         let mut needed = vec![false; self.pairs.len()];
         let mut frontier = vec![false; self.pairs.len()];
+        self.keep_pairs = vec![false; self.pairs.len()];
+        self.local_rows = vec![false; self.pairs.len()];
         let mut projects = BTreeSet::new();
-        self.closed = vec![None; b.work.len()];
-        self.restored_unread.clear();
-        for (i, work) in b.work.iter_mut().enumerate() {
-            match work {
-                Work::Pairs(slots) => {
-                    for &slot in slots.iter() {
-                        needed[slot] = true;
-                    }
+        let mut groups = HashMap::<Vec<usize>, Option<Proof>>::new();
+        self.plans.clear();
+        for work in &b.work {
+            let (pairs, project, closed) = match work {
+                Work::Pairs(p) => (p.as_slice(), None, false),
+                Work::Closed { pairs, project, .. } => (pairs.as_slice(), *project, true),
+                Work::Project(_) => ([].as_slice(), None, false),
+                Work::Refused(_) | Work::Invalid(_) => {
+                    self.plans.push(None);
+                    continue;
                 }
-                Work::Closed {
-                    project,
-                    pairs,
-                    binding,
-                    inventory,
-                    files,
-                } => {
-                    let inv = *inventories
-                        .entry(Rc::as_ptr(inventory))
-                        .or_insert_with(|| key(inventory));
-                    let prereqs = pairs
-                        .iter()
-                        .map(|&slot| self.pairs[slot])
-                        .collect::<Option<Vec<_>>>();
-                    let pk = match project {
-                        Some(id) => project_keys[*id],
-                        None => Some([0; 32]),
-                    };
-                    let bound = prereqs
-                        .zip(pk)
-                        .map(|(ps, p)| key((bindings[*binding], files.as_slice(), inv, p, ps)));
-                    self.closed[i] = bound;
-                    if let Some(row) = bound
-                        .and_then(|k| self.scopes.get(&k))
-                        .filter(|r| valid(&r.checks))
-                    {
-                        self.restored_unread.extend(row.unread.iter().cloned());
-                        *work = Work::Project(Rc::new(Ok(row.report.read())));
-                        self.closed_hits += 1;
+            };
+            if closed {
+                self.evaluated_closed += 1;
+            }
+            for &slot in pairs {
+                needed[slot] = true;
+                self.local_rows[slot] |= !closed || self.observed.root.is_some();
+                frontier[slot] |= closed;
+                self.keep_pairs[slot] |= closed || pairs.len() > 1;
+            }
+            let local = pairs
+                .iter()
+                .map(|&slot| self.pairs[slot].map(|(source, _)| source))
+                .collect::<Option<Vec<_>>>();
+            let mut proof = Some(Vec::new());
+            if let Some(local) = local {
+                for ids in [
+                    Some(local.as_slice()),
+                    project.map(|i| b.projects[i].slots.as_slice()),
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    if ids.is_empty() {
+                        continue;
+                    }
+                    let g = *groups.entry(ids.to_vec()).or_insert_with(|| {
+                        let mut paths = Vec::new();
+                        for &i in ids {
+                            self.versions[i]?;
+                            let src = &b.schedule.sources[i];
+                            if self.observed.root.is_some() {
+                                paths.push((src.path.as_str().into(), Probe::Effective));
+                            } else if src.provided.is_none() {
+                                paths.push((Path::new(&*src.root).join(&src.path), Probe::Source));
+                            }
+                        }
+                        self.group(paths)
+                    });
+                    if let (Some(ps), Some(g)) = (&mut proof, g) {
+                        ps.push(g)
                     } else {
-                        self.evaluated_closed += 1;
-                        for &slot in pairs.iter() {
-                            needed[slot] = true;
-                            frontier[slot] = true;
-                        }
-                        if let Some(p) = project {
-                            projects.extend(b.projects[*p].slots.iter().copied());
-                        }
+                        proof = None;
+                        break;
                     }
                 }
-                _ => {}
+            } else {
+                proof = None
+            }
+            if let Some(i) = project {
+                projects.extend(b.projects[i].slots.iter().copied());
+            }
+            if self.observed.root.is_some()
+                && (closed || matches!(work, Work::Project(_)))
+                && let Some(ps) = &mut proof
+            {
+                ps.push(
+                    self.group(vec![(PathBuf::new(), Probe::Inventory)])
+                        .expect("declared inventory"),
+                );
+            }
+            self.plans.push(proof.map(|p| (p, Vec::new())));
+        }
+        for (i, src) in b.schedule.sources.iter().enumerate() {
+            if let Some(v) = self.versions[i] {
+                if projects.contains(&i) {
+                    self.notes.open(&self.dir, &v);
+                }
+                if src.bindings.values().any(|&slot| self.keep_pairs[slot]) {
+                    self.files.open(&self.dir, &v);
+                }
             }
         }
         let mut restored = HashMap::new();
+        // A zero-row block has no run-local symbols. Its exact typed schema
+        // can be shared between files for the lifetime of this world.
+        let mut empty_blocks = HashMap::<Vec<u8>, Rc<finish::population::Block>>::new();
         // Later live requests can consume a file answer delivered in an earlier epoch.
         // Its source no longer has a pending binding, but its stable pair key remains.
         for (slot, requested) in frontier.into_iter().enumerate() {
@@ -476,9 +656,14 @@ impl Store {
             if world.frontier_parts(slot).is_some() {
                 continue;
             }
-            let Some((version, binding)) = self.pairs[slot] else {
+            let Some((source, binding)) = self.pairs[slot] else {
                 continue;
             };
+            let Some(version) = self.versions[source] else {
+                continue;
+            };
+            let binding = self.binding_keys[binding];
+            self.files.open(&self.dir, &version);
             let Some(file) = self.files.get(&version) else {
                 continue;
             };
@@ -491,7 +676,21 @@ impl Store {
                 .map(|&(n, id)| {
                     let block = restored
                         .entry((version, id))
-                        .or_insert_with(|| file.blocks[id].restore(world))
+                        .or_insert_with(|| {
+                            let encoded = &file.blocks[id];
+                            if encoded.0.first() == Some(&0) {
+                                if let Some(block) = empty_blocks.get(encoded.0.as_slice()) {
+                                    return block.clone();
+                                }
+                                let block = encoded.restore(world);
+                                if block.n == 0 {
+                                    empty_blocks.insert(encoded.0.clone(), block.clone());
+                                }
+                                block
+                            } else {
+                                encoded.restore(world)
+                            }
+                        })
                         .clone();
                     (n, block)
                 })
@@ -506,12 +705,16 @@ impl Store {
                 world.unavailable.insert(slot, missing);
             }
         }
+        self.restored_blocks += restored.len();
         for (i, src) in b.schedule.sources.iter_mut().enumerate() {
             if !projects.contains(&i) {
                 src.project = false;
             }
             let held = self.versions[i].and_then(|v| self.files.get(&v));
-            if let Some(notes) = held.and_then(|f| f.notes.as_ref()).filter(|_| src.project) {
+            if let Some(notes) = self.versions[i]
+                .and_then(|v| self.notes.get(&v))
+                .filter(|_| src.project)
+            {
                 contributions[i] = Some(Rc::new(project::Contribution {
                     reader: notes.reader,
                     notes: l::Bytes(notes.notes.clone()),
@@ -519,18 +722,29 @@ impl Store {
                 }));
                 src.project = false;
             }
-            src.bindings.retain(|_, slot| {
+            src.bindings.retain(|&binding, slot| {
                 if !needed[*slot] {
                     return false;
                 }
                 let Some((_, bind)) = self.pairs[*slot] else {
                     return true;
                 };
-                let Some(file) = held else { return true };
-                let Some(pair) = file.pairs.get(&bind) else {
+                let Some(file) = held else {
+                    self.absent_file += 1;
                     return true;
                 };
-                answers[*slot] = Ok(pair.report.read());
+                let Some(pair) = file.pairs.get(&self.binding_keys[bind]) else {
+                    if b.cut_of[binding].is_some() {
+                        self.absent_frontier += 1
+                    } else {
+                        self.absent_local += 1
+                    }
+                    return true;
+                };
+                let Some(report) = pair.report.read(self.local_rows[*slot]) else {
+                    return true;
+                };
+                answers[*slot] = Ok(report);
                 self.file_hits += 1;
                 false
             });
@@ -558,27 +772,39 @@ impl Store {
             if src.bindings.is_empty() && !src.project {
                 continue;
             }
-            let file = self.files.entry(version).or_insert_with(|| FileAnswers {
-                path: src.path.clone(),
-                ..Default::default()
-            });
-            if let Some(notes) = &contributions[i]
-                && file.notes.is_none()
+            if src.project
+                && let Some(notes) = &contributions[i]
+                && self.notes.get(&version).is_none()
             {
-                file.notes = Some(Notes {
-                    reader: notes.reader,
-                    notes: notes.notes.0.clone(),
-                    manifest: notes.manifest.as_ref().map(|m| m.0.clone()),
-                });
-                self.dirty[0] = true;
+                self.notes.insert(
+                    version,
+                    Notes {
+                        reader: notes.reader,
+                        notes: notes.notes.0.clone(),
+                        manifest: notes.manifest.as_ref().map(|m| m.0.clone()),
+                    },
+                );
             }
+            if !src.bindings.values().any(|&s| self.keep_pairs[s]) {
+                continue;
+            }
+            self.files.open(&self.dir, &version);
+            let file = self.files.change(&version);
             for &slot in src.bindings.values() {
+                if !self.keep_pairs[slot] {
+                    continue;
+                }
                 let Some((_, binding)) = self.pairs[slot] else {
                     continue;
                 };
+                let binding = self.binding_keys[binding];
                 let a = aliases[slot];
                 let Ok(report) = &answers[a] else { continue };
-                if file.pairs.contains_key(&binding) {
+                if file
+                    .pairs
+                    .get(&binding)
+                    .is_some_and(|p| !self.local_rows[slot] || p.report.rows.is_some())
+                {
                     continue;
                 }
                 let mut frontier = Vec::new();
@@ -607,12 +833,11 @@ impl Store {
                 file.pairs.insert(
                     binding,
                     Local {
-                        report: Report::save(report),
+                        report: Report::save(report, self.local_rows[slot]),
                         frontier,
                         unavailable,
                     },
                 );
-                self.dirty[0] = true;
             }
         }
     }
@@ -622,79 +847,65 @@ impl Store {
         idx: usize,
         value: &Answer,
         pop: Option<&Population>,
-        authority: Option<&Authority>,
+        project: Option<(usize, &Authority)>,
     ) {
-        let Some(key) = self.closed[idx] else { return };
-        let Ok(report) = value else { return };
-        let mut checks = Vec::new();
-        let mut unread = Vec::new();
-        if let Some(p) = pop {
-            unread.extend(p.refused.iter().map(|r| r.path.0.to_string()));
-            if let Some(Authority::Disk(root)) = authority {
-                // Record the state seen by the provider, including absent paths.
-                checks.push((PathBuf::from(root), Evidence::Kind(2)));
-                for entry in &p.observations {
-                    use l::ObservedEntryState::*;
-                    let k = match entry.state {
-                        Missing => 0,
-                        File => 1,
-                        Directory => 2,
-                        Other => 3,
-                        Unknown => return,
-                    };
-                    checks.push((Path::new(root).join(&*entry.path.0), Evidence::Kind(k)));
-                }
-                for name in &p.consulted {
-                    let path = Path::new(root).join(&*name.0);
-                    let evidence = match fs::read(&path) {
-                        Ok(bytes) => Evidence::Bytes(*blake3::hash(&bytes).as_bytes()),
-                        Err(e) if e.kind() == io::ErrorKind::NotFound => Evidence::Kind(0),
-                        _ => return,
-                    };
-                    checks.push((path, evidence));
-                }
+        if value.is_err() {
+            self.plans[idx] = None;
+            return;
+        }
+        let Some(p) = pop else { return };
+        let unread = p.refused.iter().map(|r| r.path.0.to_string()).collect();
+        let Some((project, Authority::Disk(root))) = project else {
+            if let Some((_, u)) = &mut self.plans[idx] {
+                *u = unread;
             }
+            return;
+        };
+        let evidence = if let Some(g) = self.project_proofs.get(&project) {
+            *g
+        } else {
+            let g = self.population_proof(p, root);
+            self.project_proofs.insert(project, g);
+            g
+        };
+        if let Some(g) = evidence
+            && let Some((proof, u)) = &mut self.plans[idx]
+        {
+            proof.push(g);
+            *u = unread
+        } else {
+            self.plans[idx] = None
         }
-        self.scopes.insert(
-            key,
-            Closed {
-                report: Report::save(report),
-                checks,
-                unread,
-            },
-        );
-        self.dirty[1] = true;
     }
-    pub(super) fn prune(&mut self) {
-        let mut needed = HashMap::<Key, BTreeSet<Key>>::new();
-        for &version in self.versions.iter().flatten() {
-            needed.entry(version).or_default();
-        }
-        for &(version, binding) in self.pairs.iter().flatten() {
-            needed.entry(version).or_default().insert(binding);
-        }
-        self.files.retain(|k, f| {
-            let Some(bindings) = needed.get(k) else {
-                self.dirty[0] = true;
-                return false;
+
+    fn population_proof(&mut self, p: &Population, root: &str) -> Option<Proof> {
+        let mut paths = vec![(PathBuf::from(root), Probe::Kind)];
+        for entry in &p.observations {
+            use l::ObservedEntryState::*;
+            let k = match entry.state {
+                Missing => 0,
+                File => 1,
+                Directory => 2,
+                Other => 3,
+                Unknown => {
+                    return None;
+                }
             };
-            f.pairs.retain(|b, _| {
-                let keep = bindings.contains(b);
-                self.dirty[0] |= !keep;
-                keep
-            });
-            true
-        });
-        let scopes: BTreeSet<_> = self.closed.iter().flatten().copied().collect();
-        self.scopes.retain(|k, _| {
-            let keep = scopes.contains(k);
-            self.dirty[1] |= !keep;
-            keep
-        });
-    }
-    pub(super) fn unread(&self) -> impl Iterator<Item = l::FilePath> + '_ {
-        self.restored_unread
-            .iter()
-            .map(|p| l::FilePath(p.clone().into()))
+            let path = Path::new(root).join(&*entry.path.0);
+            if self.observed.observe(&path, Probe::Kind) != Some(key(k as u8)) {
+                return None;
+            }
+            paths.push((path, Probe::Kind));
+        }
+        for name in &p.consulted {
+            let path = Path::new(root).join(&*name.0);
+            let probe = if kind(&path).ok() == Some(0) {
+                Probe::Kind
+            } else {
+                Probe::Bytes
+            };
+            paths.push((path, probe));
+        }
+        self.group(paths)
     }
 }

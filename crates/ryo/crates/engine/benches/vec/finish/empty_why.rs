@@ -2,7 +2,7 @@
 //! Each run is classed at its entry (what the file already knows) and, when it returned nothing, tallied by its operator
 //! and class; the tally is printed after the run.
 
-use super::{E, Exec, File, Res, Run};
+use super::{Exec, File, Res, Run};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 
@@ -36,9 +36,6 @@ fn class_(ex: &mut Exec<'_>, f: &File<'_>, run: &mut Run, node: usize) -> String
         }
         if let Some(i) = sp.srcs.iter().position(|s| made_empty(f, *s)) {
             return format!("source {} made empty ({})", i, ex.plan.nodes[sp.srcs[i]].op);
-        }
-        if sp.conj.iter().any(|e| matches!(e, E::Seed(_, k) if f.seeds.get(*k).is_none_or(Vec::is_empty))) {
-            return "seed set empty".into();
         }
         return "select: nothing known".into();
     }

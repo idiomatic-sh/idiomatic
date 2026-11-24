@@ -8,8 +8,7 @@ mod pinned;
 mod call_cache;
 #[path = "allocated.rs"]
 mod allocated;
-use call_cache::CallCache;
-use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
+use call_cache::{CallCache, PathFilter};
 use pinned::{Dictionary, Pinned};
 use release_sdk::linter as sdk;
 use ryo_values::domain::finish_plans::expressions::types::{
@@ -28,6 +27,7 @@ pub struct LiveReport {
     pub findings: Vec<(Box<str>, sdk::Slot, Vec<(Box<str>, sdk::Slot)>)>,
     pub unknowns: Vec<(Box<str>, String, String)>,
     pub unread: Vec<Box<str>>,
+    columns_delivered: usize,
 }
 
 pub struct Live {
@@ -36,7 +36,7 @@ pub struct Live {
     directory:Option<std::path::PathBuf>,
     state: Active<pinned::File, Dictionary>,
     languages: Vec<Pinned>,
-    filters: HashMap<Vec<sdk::Glob>, (usize, Rc<GlobSet>)>,
+    filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
     versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
 }
@@ -100,14 +100,14 @@ fn parameter(v: sdk::ParameterValue) -> Result<PlanConstant, String> {
     })
 }
 
-fn slot(v: &Option<Cell>) -> sdk::Slot {
+fn slot(v: Option<Cell>) -> sdk::Slot {
     let Some(c) = v else {
         return sdk::Slot::Nothing;
     };
     use release_sdk::languages::{Offset, Span};
     sdk::Slot::Is(match c {
-        Cell::File(p) => sdk::Cell::File(sdk::RelativePath(p.clone())),
-        Cell::Text(s) => sdk::Cell::Text(sdk::HostText(s.clone())),
+        Cell::File(p) => sdk::Cell::File(sdk::RelativePath(p)),
+        Cell::Text(s) => sdk::Cell::Text(sdk::HostText(s)),
         Cell::Number(n) => sdk::Cell::Number(sdk::HostNumber(n.0)),
         Cell::Span(s) => sdk::Cell::Span(Span {
             start: Offset(s.start.0),
@@ -118,6 +118,10 @@ fn slot(v: &Option<Cell>) -> sdk::Slot {
 
 impl Live {
     pub fn use_cache(&mut self,directory:Option<&std::path::Path>)->Result<(),String>{
+        // A cache location is available on every real check. Retention is a caller mode.
+        let directory = directory.filter(|_| {
+            std::env::var_os("TM_CHECK_SESSION").as_deref() == Some(std::ffi::OsStr::new("retained"))
+        });
         if self.directory.as_deref()!=directory {
             if let Some(old)=&mut self.store {old.publish().map_err(|e|e.to_string())?;}
             self.store=directory.map(|p|super::stored::Store::directory(p.to_owned())).transpose().map_err(|e|e.to_string())?;
@@ -125,20 +129,12 @@ impl Live {
         }
         Ok(())
     }
-    fn globs(&mut self, names: &[sdk::Glob]) -> Result<(usize, Rc<GlobSet>), String> {
+    fn globs(&mut self, names: &[sdk::Glob]) -> Result<(usize, Rc<PathFilter>), String> {
         if let Some(found) = self.filters.get(names) {
             return Ok(found.clone());
         }
-        let mut builder = GlobSetBuilder::new();
-        for name in names {
-            builder.add(
-                GlobBuilder::new(name.as_ref())
-                    .literal_separator(true)
-                    .build()
-                    .map_err(|e| e.to_string())?,
-            );
-        }
-        let set = (self.filters.len(), Rc::new(builder.build().map_err(|e| e.to_string())?));
+        let matcher = PathFilter::compile(names)?;
+        let set = (self.filters.len(), Rc::new(matcher));
         self.filters.insert(names.to_vec(), set.clone());
         Ok(set)
     }
@@ -162,6 +158,10 @@ impl Live {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let c = &self.batch.clocks;
+        if let Ok(report) = &result {
+            last.rows_delivered += report.findings.len();
+            last.columns_delivered += report.columns_delivered;
+        }
         last.calls += 1;
         last.requests += count;
         last.refused += usize::from(result.is_err());
@@ -194,6 +194,8 @@ impl Live {
             c.unique_pairs,
             c.skipped,
             c.evaluated,
+            c.productive,
+            c.refused,
         ];
         result
     }
@@ -233,28 +235,27 @@ impl Live {
         let (inventory, paths) = self.cache.inventory(listed.iter().map(|p| p.0.as_ref())
             .chain(overlay.keys().map(String::as_str)).collect());
         let key = (authority.clone(), overlay);
-        let root = if let Some(id) = self.versions.get(&key) {
-            id.clone()
-        } else {
-            let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
-            for (p, v) in &key.1 {
-                self.batch.schedule.provide(&id, p.clone(), v.clone())?;
-            }
-            self.versions.insert(key.clone(), id.clone());
-            id
-        };
-        for p in listed {
-            if !key.1.contains_key(p.0.as_ref()) {
-                self.batch.schedule.listed(&root, &physical, &p.0)?;
-            }
-        }
+        let mut prepared_root=None;
         let filter = self.globs(&req.files)?;
+        let mut host_keys = self.store.as_ref().map(|_| Vec::new());
         let hosted = req
             .hosted
             .into_iter()
-            .map(|t| self.cache.table(t))
+            .map(|t| self.cache.table(t, host_keys.as_mut()))
             .collect::<Result<Vec<_>, _>>()?;
         let mut ids = Vec::new();
+        let scope=if let Some(s)=&mut self.store{
+            // The unread list belongs to the union of requested project relations.
+            // File-only requests have no dependency on this peer inventory.
+            let peers=req.rules.iter().map(|(id,rule)|{
+                let parameters=rule.parameters.iter().map(|(k,v)|Ok((&k.0,parameter(v.clone())?))).collect::<Result<Vec<_>,String>>()?;
+                Ok(super::stored::key((id.as_ref(),rule.query.as_ref(),&rule.include,&rule.exclude,parameters)))
+            }).collect::<Result<Vec<_>,String>>()?;
+            let shape=hosted.iter().map(|h|(&h.name,&h.columns)).collect::<Vec<_>>();
+            s.overlay(std::path::Path::new(&*physical),self.cache.path_digest(&paths),super::stored::key((peers,shape)),&key.1);
+            Some(super::stored::key((&physical,&authority)))
+        }else{None};
+        let mut restored_unread=BTreeMap::<String,usize>::new();
         self.batch.work.clear();
         for (id, rule) in req.rules {
             if rule.applicability != sdk::RuleApplicability::Always || !rule.observations.is_empty()
@@ -265,20 +266,57 @@ impl Live {
             }
             let inc = self.globs(&rule.include)?;
             let exc = self.globs(&rule.exclude)?;
-            let files = self.cache.files((inventory, filter.0, inc.0, exc.0), |p| {
-                    (req.files.is_empty() || filter.1.is_match(p))
-                        && (rule.include.is_empty() || inc.1.is_match(p))
-                        && !exc.1.is_match(p)
-            });
+            let files = self.cache.files(
+                (inventory, filter.0, inc.0, exc.0),
+                &filter.1,
+                &inc.1,
+                &exc.1,
+            );
             let parameters = rule
                 .parameters
                 .into_iter()
                 .map(|(k, v)| Ok((k.0, parameter(v)?)))
                 .collect::<Result<_, String>>()?;
+            let query=self.cache.query(rule.query.as_ref());
+            let contract=scope.map(|scope|{
+                let rule=self.batch.prepared_rule(query.clone(),&parameters);
+                let plan=self.batch.schedule.programs[rule].as_ref().ok();
+                let consumed:Vec<_>=hosted.iter().enumerate().filter(|(_,t)|plan.is_some_and(|p|p.bases.contains(&t.name)))
+                    .map(|(i,_)|host_keys.as_ref().unwrap()[i]).collect();
+                super::stored::key((scope,self.cache.program_digest(rule,&query,&parameters),self.cache.path_digest(&files),consumed))
+            });
+            if let (Some(store),Some(k))=(&mut self.store,contract)
+                && let Some((packet,unread))=store.lookup(k){
+                let mut counts=BTreeMap::<String,usize>::new();
+                for p in unread{*counts.entry(p.clone()).or_default()+=1;}
+                if let Some(reason)=&store.packet(&packet).refusal{return Err(format!("{id}: {reason}"))}
+                for (p,n) in counts{let total=restored_unread.entry(p).or_default();*total=(*total).max(n);}
+                ids.push((id,Ok(packet)));
+                continue
+            }
+            if prepared_root.is_none(){
+        let root = if let Some(id) = self.versions.get(&key) {
+            id.clone()
+        } else {
+            let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
+            for (p, v) in &key.1 {
+                self.batch.schedule.provide(&id, p.clone(), v.clone())?;
+            }
+            self.versions.insert(key.clone(), id.clone());
+            id
+        };
+        for p in &listed {
+            if !key.1.contains_key(p.0.as_ref()) {
+                self.batch.schedule.listed(&root, &physical, &p.0)?;
+            }
+        }
+                prepared_root=Some(root);
+            }
+            let root=prepared_root.as_ref().unwrap();
             let work = self
                 .batch
                 .register_query(
-                    self.cache.query(rule.query.as_ref()),
+                    query,
                     Input {
                         root: root.to_string(),
                         files,
@@ -290,33 +328,41 @@ impl Live {
                     None,
                 )
                 .map_err(|e| format!("{id}: {e}"))?;
+            if let super::Work::Invalid(reason)=&work{
+                if let (Some(store),Some(k))=(&mut self.store,contract){store.decline(k,reason);}
+                return Err(format!("{id}: {reason}"))
+            }
+            ids.push((id,Err((self.batch.work.len(),contract))));
             self.batch.work.push(work);
-            ids.push(id);
         }
         if let Some(store)=&mut self.store {
-            self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));
+            if !self.batch.work.is_empty(){self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));}else{self.state.manifest_failures.clear();}
         } else {
             self.batch.epoch(&self.languages,&mut self.state);
         }
         let mut out = LiveReport::default();
         let start = thread_cpu();
-        for (id, work) in ids.into_iter().zip(&self.batch.work) {
-            let receipt =
-                Batch::answer(work, &self.state.answers).map_err(|e| format!("{id}: {e}"))?;
+        for (id,entry) in ids {
+            let held;
+            let receipt=match entry {
+                Ok(k)=>{
+                    held=self.store.as_ref().unwrap().packet(&k).report();
+                    super::Receipt {rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
+                }
+                Err((i,k))=>{
+                    let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e|format!("{id}: {e}"))?;
+                    if let (Some(store),Some(k))=(&mut self.store,k){store.save(k,i,&r);}
+                    r
+                }
+            };
             for row in receipt.rows {
-                let subject = row
-                    .identity
-                    .first()
-                    .and_then(|i| row.columns.get(*i))
-                    .ok_or("missing row subject")?;
-                out.findings.push((
-                    id.as_ref().into(),
-                    slot(&subject.1),
-                    row.columns
-                        .iter()
-                        .map(|(n, v)| (n.clone(), slot(v)))
-                        .collect(),
-                ));
+                let columns: Vec<_> = row.layout.names.iter().zip(row.cells_with(|s| Box::<str>::from(s.as_ref())))
+                    .map(|(name, value)| (name.as_str().into(), slot(value)))
+                    .collect();
+                let subject = row.layout.identity.first().and_then(|&i| columns.get(i))
+                    .ok_or("missing row subject")?.1.clone();
+                out.columns_delivered += columns.len();
+                out.findings.push((id.as_ref().into(), subject, columns));
             }
             for (p, msg) in receipt.unknowns {
                 out.unknowns
@@ -331,8 +377,10 @@ impl Live {
                 out.unread.push(p.0);
             }
         }
-        out.unread
-            .extend(self.state.manifest_failures.iter().map(|p| p.0.clone()));
+        let mut manifest=BTreeMap::<String,usize>::new();
+        for p in &self.state.manifest_failures{*manifest.entry(p.0.to_string()).or_default()+=1;}
+        for (p,n) in restored_unread{let total=manifest.entry(p).or_default();*total=(*total).max(n);}
+        for (p,n) in manifest{out.unread.extend(std::iter::repeat_n(Box::<str>::from(p),n));}
         out.unread.sort_unstable();
         self.batch.clocks.assemble += thread_cpu() - start;
         Ok(out)
@@ -356,6 +404,8 @@ pub fn capture_retained(linked:sdk::Languages,manifest:&str,output:&str,root:&st
 
 #[derive(Default)]
 struct Measurement {
+    rows_delivered: usize,
+    columns_delivered: usize,
     sessions: usize,
     project_counts: [usize; 4],
     calls: usize,
@@ -365,10 +415,12 @@ struct Measurement {
     elapsed: f64,
     parts: [f64; 6],
     bound_proofs: f64,
-    counts: [usize; 8],
+    counts: [usize; 10],
     retained: [u64; 4],
 }
 static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measurement {
+    rows_delivered: 0,
+    columns_delivered: 0,
     sessions: 0,
     project_counts: [0; 4],
     calls: 0,
@@ -378,7 +430,7 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     elapsed: 0.0,
     parts: [0.0; 6],
     bound_proofs: 0.,
-    counts: [0; 8],
+    counts: [0; 10],
     retained: [0; 4],
 });
 
@@ -393,14 +445,16 @@ pub fn print_measurement() {
     let [versions,hits,evictions,peak_charge]=m.retained;
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;
-    let [plans, bindings, sources, reads, parses, pairs, skips, eval] = m.counts;
+    let [plans, bindings, sources, reads, parses, pairs, skips, eval, productive, refused] = m.counts;
+    let empty = eval - productive - refused;
+    eprintln!("SDK_DELIVERY rows={} columns={} caller_cpu={assembly:.6} evidence_cpu=0", m.rows_delivered, m.columns_delivered);
     let [inventories, builds, relations, repeated] = m.project_counts;
     eprintln!(
         "PROJECT_POPULATIONS sessions={} inventories={inventories} builds={builds} relations={relations} repeated_relations={repeated}",
         m.sessions,
     );
     eprintln!(
-        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6} bound_proofs={:.6}",
+        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} productive={productive} empty={empty} refused={refused} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6} bound_proofs={:.6}",
         m.calls,
         m.requests,
         m.refused,
@@ -418,6 +472,6 @@ pub fn capture_one(
 ) -> Result<(), String> {
     let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
     let bytes = std::fs::read(input).map_err(|e| e.to_string())?;
-    let req = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    let req = crate::json_input::decode(&bytes).map_err(|e| e.to_string())?;
     super::one_source(&readers, pack, req, out)
 }

@@ -21,8 +21,10 @@ pub(super) struct Pinned {
 }
 impl From<old::Language> for Pinned {
     fn from(language: old::Language) -> Self {
-        let rust = ryo_rust::linked_0_1_4();
-        let native = (rust.name().0.as_ref() == language.name().0.as_ref()).then(|| Linked::from(rust));
+        let native = [ryo_rust::linked_0_1_4, ryo_toml::linked].into_iter()
+            .map(|linked| linked())
+            .find(|provider| provider.name().0.as_ref() == language.name().0.as_ref())
+            .map(Linked::from);
         Self {
             native,
             parser: language.parse_engine(),
@@ -334,23 +336,27 @@ impl Source for Pinned {
             }
             let k = l::KindBits(old::kind_at(f, at).0);
             let field = old::field_at(f, at).0;
-            let name = project_word(
-                old::field_name_at(f, at),
-                &dict.source,
-                bytes,
-                run,
-                p.unknown,
-            );
-            run.field_sym
-                .resize(run.field_sym.len().max(usize::from(field) + 1), run.empty);
-            run.field_sym[usize::from(field)] = name;
-            p.text.push(project_word(
-                old::text_at(f, at),
-                &dict.source,
-                bytes,
-                run,
-                p.unknown,
-            ));
+            if p.projects_fields {
+                let name = project_word(
+                    old::field_name_at(f, at),
+                    &dict.source,
+                    bytes,
+                    run,
+                    p.unknown,
+                );
+                run.field_sym
+                    .resize(run.field_sym.len().max(usize::from(field) + 1), run.empty);
+                run.field_sym[usize::from(field)] = name;
+            }
+            if p.projects_words {
+                p.text.push(project_word(
+                    old::text_at(f, at),
+                    &dict.source,
+                    bytes,
+                    run,
+                    p.unknown,
+                ));
+            }
             let start = old::start_at(f, at);
             let end = old::end_at(f, at);
             if start == old::NO_SPAN.start && end == old::NO_SPAN.end {
@@ -380,8 +386,8 @@ impl Source for Pinned {
         run: &mut Run,
         unknown: &HashMap<u32, u32>,
         start: usize,
-        kinds: &mut FxHashSet<u32>,
-        fields: &mut FxHashSet<u32>,
+        mut kinds: Option<&mut FxHashSet<u32>>,
+        mut fields: Option<&mut FxHashSet<u32>>,
         mut words: Option<&mut FxHashSet<u32>>,
     ) {
         let f = match f {
@@ -390,14 +396,18 @@ impl Source for Pinned {
         };
         for i in start as u32..old::end_of(f).0 {
             let at = old::Position(i);
-            kinds.insert(run.kind_sym[usize::from(old::kind_at(f, at).0)]);
-            fields.insert(project_word(
-                old::field_name_at(f, at),
-                &dict.source,
-                bytes,
-                run,
-                unknown,
-            ));
+            if let Some(kinds) = kinds.as_deref_mut() {
+                kinds.insert(run.kind_sym[usize::from(old::kind_at(f, at).0)]);
+            }
+            if let Some(fields) = fields.as_deref_mut() {
+                fields.insert(project_word(
+                    old::field_name_at(f, at),
+                    &dict.source,
+                    bytes,
+                    run,
+                    unknown,
+                ));
+            }
             if let Some(words) = words.as_deref_mut() {
                 words.insert(project_word(
                     old::text_at(f, at),

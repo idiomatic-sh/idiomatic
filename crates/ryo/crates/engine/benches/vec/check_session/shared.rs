@@ -56,7 +56,7 @@ impl ReaderPlan {
 
     fn append(&mut self, b: &mut Bound<'_>, given: &Aliases) {
         for node in &b.plan.nodes {
-            let mut step = node.step().expect("prepared typed program").clone();
+            let mut step = node.step().clone();
             if let FinishStep::Base(relation) = &mut step {
                 if let Some(alias) = given.get(relation.0.as_ref()) {
                     relation.0 = alias.as_str().into();

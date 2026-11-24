@@ -1,6 +1,6 @@
 //! Run-local operator parameters. Dependencies live in the numbered slot graph.
 //! Only operators with named parameters ask for this descriptor; select trees stay typed.
-use super::{J, R};
+use super::R;
 use ryo_values::domain::finish_plans::expressions::types::{PlanConstant, PlanNumber};
 use std::collections::BTreeMap;
 use std::ops::Index;
@@ -12,7 +12,6 @@ pub(crate) enum Param {
     Number(PlanNumber),
     List(Vec<Param>),
     Named(BTreeMap<String, Param>),
-    Invalid,
 }
 pub(crate) type Args = Param;
 impl Param {
@@ -70,32 +69,6 @@ impl Param {
                     .collect(),
             ),
             PlanConstant::Absent => Self::Missing,
-        }
-    }
-    pub(super) fn external(j: &J) -> Self {
-        use ryo_values::domain::plan_parts::types::WholeNumber;
-        match j {
-            J::String(s) => Self::text(s),
-            J::Array(xs) => Self::list(xs.iter().map(Self::external).collect()),
-            J::Object(xs) => Self::Named(
-                xs.iter()
-                    .map(|(k, v)| (k.clone(), Self::external(v)))
-                    .collect(),
-            ),
-            J::Number(n) => n.as_i64().map_or_else(
-                || {
-                    n.as_f64().map_or(Self::Invalid, |f| {
-                        Self::Number(PlanNumber::Fraction(
-                            ryo_values::domain::finish_plans::expressions::types::FractionNumber(
-                                f.to_bits(),
-                            ),
-                        ))
-                    })
-                },
-                |n| Self::Number(PlanNumber::Whole(WholeNumber(n))),
-            ),
-            J::Null => Self::Missing,
-            J::Bool(_) => Self::Invalid,
         }
     }
 }

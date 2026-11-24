@@ -1,55 +1,10 @@
 //! Replay complete SDK inputs, one JSON record per line, in one process.
 //! Only the caller owns admission, supplied tables, parameters and the comparison oracle.
-use super::{bindings, finish, lower};
+use super::{finish, json_input, json_output, lower};
+use json_input::{Project as Request, Hosted, HostCell, Parameters, read_parameters};
 use finish::{Plan, Provider, Run, Scope, Supplier, Table, Ty};
-use ryo_values::domain::finish_plans::expressions::types::PlanConstant;
-use serde::Deserialize;
-use serde_json::json;
-use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufRead as _, Write as _};
-
-#[derive(Deserialize)]
-struct Request {
-    id: String,
-    query: String,
-    files: Vec<String>,
-    inventory: Option<Vec<String>>,
-    hosted: Vec<Hosted>,
-    #[serde(deserialize_with = "read_parameters")]
-    parameters: Parameters,
-}
-type Parameters = BTreeMap<Box<str>, PlanConstant>;
-
-fn read_parameters<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Parameters, D::Error> {
-    let fields = BTreeMap::<Box<str>, serde_json::Value>::deserialize(input)?;
-    Ok(fields
-        .into_iter()
-        .map(|(k, v)| (k, bindings::constant(&v)))
-        .collect())
-}
-
-#[derive(Clone, Deserialize, PartialEq, Eq, Hash)]
-#[serde(untagged)]
-enum HostCell {
-    File { file: String },
-    Number(i64),
-    Text(String),
-}
-
-#[derive(Clone, Deserialize, PartialEq, Eq, Hash)]
-struct Hosted {
-    name: String,
-    columns: Vec<(String, String)>,
-    #[serde(deserialize_with = "read_host_rows")]
-    rows: std::sync::Arc<[std::sync::Arc<[HostCell]>]>,
-    #[serde(default)]
-    partial: Option<String>,
-}
-
-fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<std::sync::Arc<[std::sync::Arc<[HostCell]>]>, D::Error> {
-    Vec::<Vec<HostCell>>::deserialize(input).map(|rows| rows.into_iter().map(std::sync::Arc::from).collect())
-}
 
 struct Snapshot<'a> {
     project: Option<&'a crate::check_session::project::Population>,
@@ -281,7 +236,7 @@ pub(super) fn replay() {
     let mut out = io::BufWriter::new(io::stdout().lock());
     for line in io::stdin().lock().lines() {
         let req: Request =
-            serde_json::from_str(&line.expect("read request")).expect("project request");
+            json_input::project(&line.expect("read request"));
         let id = req.id.clone();
         let key = (req.query.clone(), req.parameters.clone());
         let plan = plans.entry(key).or_insert_with(|| {
@@ -295,14 +250,9 @@ pub(super) fn replay() {
             Ok(plan) => execute(req, plan),
             Err(reason) => Err(reason.clone()),
         };
-        let receipt = match result {
-            Ok(rows) => {
-                let rendered = batch::findings(rows.iter());
-                let digest = Sha256::digest(format!("{}\n", rendered.join("\n")));
-                json!({"id":id, "rows":rows.len(), "sha256":format!("{digest:x}")})
-            }
-            Err(reason) => json!({"id":id, "refused":reason}),
-        };
+        let receipt = json_output::project_receipt(&id, result.map(|rows| {
+            (rows.len(), batch::digest(&rows.iter().collect::<Vec<_>>()))
+        }));
         writeln!(out, "{receipt}").expect("write receipt");
     }
 }

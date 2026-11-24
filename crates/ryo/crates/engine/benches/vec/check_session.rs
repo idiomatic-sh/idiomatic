@@ -160,12 +160,14 @@ pub(crate) struct Source {
     pub(crate) provided: Option<Arc<[u8]>>,
 }
 
+type PathIds = HashMap<Rc<str>, usize>;
+
 /// Per-check program identities and the inverse admission index. The caller binds
 /// external relations and hands the index a stable identity for each binding.
 #[derive(Default)]
 pub(crate) struct Schedule {
     pub sources: Vec<Source>,
-    source_ids: HashMap<(Arc<str>, Rc<str>), usize>,
+    source_ids: HashMap<Arc<str>, PathIds>,
     supplied_ids: HashMap<(Rc<str>, Arc<[u8]>), usize>,
     pub pending: BTreeSet<usize>,
     pub programs: Vec<Result<Program>>,
@@ -174,10 +176,17 @@ pub(crate) struct Schedule {
 }
 
 impl Schedule {
-    pub(crate) fn delivered(&mut self, ids: &[usize]) {
+    pub(crate) fn delivered(&mut self, ids: &[usize], keep: bool) {
         for &i in ids {
-            self.sources[i].bindings.clear();
-            self.sources[i].project = false;
+            let source = &mut self.sources[i];
+            if keep && source.known.is_empty() {
+                source.known = std::mem::take(&mut source.bindings);
+            } else if keep {
+                source.known.extend(std::mem::take(&mut source.bindings));
+            } else {
+                source.bindings.clear();
+            }
+            source.project = false;
         }
     }
     pub(crate) fn close(&mut self) {
@@ -199,28 +208,32 @@ impl Schedule {
             self.programs.len() - 1
         })
     }
-    fn source(&mut self, root: &Arc<str>, path: &str) -> Result<usize> {
-        let rel = Path::new(&path);
-        if rel
+    fn source_in(
+        sources: &mut Vec<Source>,
+        ids: &mut PathIds,
+        root: &Arc<str>,
+        path: &str,
+    ) -> Result<usize> {
+        if let Some(&id) = ids.get(path) {
+            return Ok(id);
+        }
+        if Path::new(path)
             .components()
             .any(|c| !matches!(c, std::path::Component::Normal(_)))
         {
             return Err(format!("invalid relative source path {path}"));
         }
-        Ok(*self
-            .source_ids
-            .entry((root.clone(), Rc::from(path)))
-            .or_insert_with(|| {
-                self.sources.push(Source {
-                    root: root.clone(),
-                    path:path.to_owned(),
-                    bindings: BTreeMap::new(),
-                    known: BTreeMap::new(),
-                    project: false,
-                    provided: None,
-                });
-                self.sources.len() - 1
-            }))
+        let id = sources.len();
+        ids.insert(Rc::from(path), id);
+        sources.push(Source {
+            root: root.clone(),
+            path: path.to_owned(),
+            bindings: BTreeMap::new(),
+            known: BTreeMap::new(),
+            project: false,
+            provided: None,
+        });
+        Ok(id)
     }
 
     /// Attach immutable caller bytes before admitting any consumer of this source root.
@@ -229,7 +242,8 @@ impl Schedule {
         let id = match self.supplied_ids.get(&key) {
             Some(&id) => id,
             None => {
-                let id = self.source(root, &path)?;
+                let ids = self.source_ids.entry(root.clone()).or_default();
+                let id = Self::source_in(&mut self.sources, ids, root, &path)?;
                 self.sources[id].provided = Some(bytes);
                 self.supplied_ids.insert(key, id);
                 id
@@ -239,27 +253,30 @@ impl Schedule {
     }
 
     pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str) -> Result<()> {
-        let id = self.source(directory, path)?;
+        let ids = self.source_ids.entry(directory.clone()).or_default();
+        let id = Self::source_in(&mut self.sources, ids, directory, path)?;
         self.alias_source(root, path, id)
     }
 
     fn alias_source(&mut self, root: &Arc<str>, path: &str, id: usize) -> Result<()> {
-        if self
-            .source_ids
-            .insert((root.clone(), Rc::from(path)), id)
-            .is_some_and(|p| p != id)
-        {
-            return Err("immutable source version changed".into());
+        let ids = self.source_ids.entry(root.clone()).or_default();
+        if let Some(&prior) = ids.get(path) {
+            if prior != id {
+                return Err("immutable source version changed".into());
+            }
+        } else {
+            ids.insert(Rc::from(path), id);
         }
         Ok(())
     }
 
     pub(crate) fn project_inputs(&mut self, root: &str, paths: &[String]) -> Result<Vec<usize>> {
         let root: Arc<str> = Arc::from(root);
+        let ids = self.source_ids.entry(root.clone()).or_default();
         paths
             .iter()
             .map(|p| {
-                let index = self.source(&root, p)?;
+                let index = Self::source_in(&mut self.sources, ids, &root, p)?;
                 self.sources[index].project = true;
                 self.pending.insert(index);
                 Ok(index)
@@ -273,15 +290,22 @@ impl Schedule {
         binding: usize,
     ) -> Result<Vec<usize>> {
         let root: Arc<str> = root.into();
+        let ids = self.source_ids.entry(root.clone()).or_default();
         let mut pairs = Vec::with_capacity(files.len());
         for path in files {
-            let src = self.source(&root, path)?;
+            let src = Self::source_in(&mut self.sources, ids, &root, path)?;
             let source = &mut self.sources[src];
-            let slot = *source.known.entry(binding).or_insert_with(|| {
+            if let Some(&slot) = source.known.get(&binding) {
+                pairs.push(slot);
+                continue;
+            }
+            let first = source.bindings.is_empty();
+            let slot = *source.bindings.entry(binding).or_insert_with(|| {
                 let slot = self.pairs;
                 self.pairs += 1;
-                source.bindings.insert(binding, slot);
-                self.pending.insert(src);
+                if first {
+                    self.pending.insert(src);
+                }
                 slot
             });
             pairs.push(slot);
@@ -307,6 +331,13 @@ impl<'p> std::ops::IndexMut<&usize> for Bindings<'p> {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+struct SummaryColumns {
+    kinds: bool,
+    fields: bool,
+    words: bool,
+}
+
 type FactMask = [u64; relations::service::ALL.len().div_ceil(64)];
 
 fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
@@ -322,6 +353,8 @@ fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
 
 struct Bound<'p> {
     fact_mask: FactMask,
+    summary: SummaryColumns,
+    projects_words: bool,
     reads_fields: bool,
     screenable: Option<bool>,
     empty_frontier: Option<frontier::EmptyFrontier>,
@@ -350,6 +383,7 @@ fn bind<'p, L: FileSource>(
     cut: Option<&finish::partition::Partition>,
 ) -> Result<Bound<'p>> {
     let mut facts = Vec::new();
+    let mut projects_words = !program.requirements.2.is_empty();
     let mut reads_fields = program.requirements.1.iter().flatten().any(|term| term.starts_with("f:"));
     for (at, step) in program.plan.nodes.iter().enumerate() {
         if step.op != "base" || cut.is_some_and(|c| !c.file_steps[at]) {
@@ -361,6 +395,7 @@ fn bind<'p, L: FileSource>(
         }
         let rel = relations::service::relation_named(NameRef(name))
             .ok_or_else(|| format!("undeclared {name}"))?;
+        projects_words |= matches!(rel, l::Relation::SyntaxTree | l::Relation::SemanticSyntax | l::Relation::TokenLink);
         reads_fields |= matches!(rel, l::Relation::SemanticChild | l::Relation::SyntaxChild);
         if relations::service::class_of(rel) == relations::types::Class::Engine {
             let (_, names, tys) = run.catalog(name).ok_or("no engine schema")?;
@@ -388,6 +423,11 @@ fn bind<'p, L: FileSource>(
         }
     }
     let (never, shape, words) = &program.requirements;
+    let summary = SummaryColumns {
+        kinds: shape.iter().flatten().any(|v| v.starts_with("k:")),
+        fields: shape.iter().flatten().any(|v| v.starts_with("f:")),
+        words: !words.is_empty(),
+    };
     let shape = shape
         .iter()
         .map(|clause| {
@@ -421,7 +461,9 @@ fn bind<'p, L: FileSource>(
     }
     Ok(Bound {
         fact_mask,
+        summary,
         reads_fields,
+        projects_words,
         screenable: None,
         absent: None,
         empty_frontier: None,
@@ -444,30 +486,54 @@ fn bind<'p, L: FileSource>(
     })
 }
 
-struct Version {
+struct Version<'s> {
     origin: usize,
     project_slots: Vec<usize>,
     data: Arc<[u8]>,
-    jobs: BTreeMap<usize, usize>,
+    jobs: std::borrow::Cow<'s, BTreeMap<usize, usize>>,
 }
 
 /// A relative path in two overlaid roots has the same local answers exactly when
 /// the parser sees the same bytes and the host sees the same executable mode.
 /// Hard-linked listed files in the immutable snapshot need only one physical read.
-fn versions(
+fn versions<'s>(
     group: &[usize],
-    sources: &[Source],
+    sources: &'s [Source],
     answers: &mut (impl Slots<Answer> + ?Sized),
     aliases: &mut (impl Slots<usize> + ?Sized),
     reads: &mut usize,
     retained: &mut HashMap<usize, (Arc<[u8]>, u32)>,
     keep: bool,
-) -> Vec<Version> {
-    use std::hash::{Hash, Hasher};
+) -> Vec<Version<'s>> {
     use std::os::unix::fs::MetadataExt;
+    if let [idx] = *group && !keep {
+        let src = &sources[idx];
+        let data = if let Some(bytes) = &src.provided {
+            Ok(Arc::clone(bytes))
+        } else if let Some((bytes, _)) = retained.get(&idx) {
+            Ok(Arc::clone(bytes))
+        } else {
+            *reads += 1;
+            std::fs::read(Path::new(&*src.root).join(&src.path)).map(Arc::from)
+        };
+        return match data {
+            Ok(data) => vec![Version {
+                origin: idx,
+                project_slots: src.project.then_some(idx).into_iter().collect(),
+                data,
+                jobs: std::borrow::Cow::Borrowed(&src.bindings),
+            }],
+            Err(error) => {
+                for &slot in src.bindings.values() {
+                    answers.set(slot, Err(format!("{}: {error}", src.path)));
+                }
+                Vec::new()
+            }
+        };
+    }
     let mut files = Vec::<Version>::new();
     let mut inodes = HashMap::new();
-    let mut hashes = HashMap::<(u64, Option<u32>), Vec<usize>>::new();
+    let mut contents = BTreeMap::new();
     for &idx in group {
         let src = &sources[idx];
         let path = Path::new(&*src.root).join(&src.path);
@@ -494,23 +560,19 @@ fn versions(
                     .entry(idx)
                     .or_insert_with(|| (Arc::clone(&data), mode));
             }
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            data.hash(&mut hasher);
-            let equal = hashes.entry((hasher.finish(), perm)).or_default();
-            let i = match equal.iter().copied().find(|&i| files[i].data == data) {
-                Some(i) => i,
-                None => {
-                    let i = files.len();
-                    files.push(Version {
-                        origin: idx,
-                        project_slots: Vec::new(),
-                        data,
-                        jobs: BTreeMap::new(),
-                    });
-                    equal.push(i);
-                    i
-                }
-            };
+            // Length and executable mode usually decide before the byte comparison.
+            // The ordered key also handles different files of equal length exactly.
+            let key = (data.len(), perm, Arc::clone(&data));
+            let i = *contents.entry(key).or_insert_with(|| {
+                let i = files.len();
+                files.push(Version {
+                    origin: idx,
+                    project_slots: Vec::new(),
+                    data,
+                    jobs: std::borrow::Cow::Owned(BTreeMap::new()),
+                });
+                i
+            });
             if let Some(key) = inode {
                 inodes.insert(key, i);
             }
@@ -522,7 +584,7 @@ fn versions(
                     files[i].project_slots.push(idx);
                 }
                 for (&binding, &slot) in &src.bindings {
-                    let origin = *files[i].jobs.entry(binding).or_insert(slot);
+                    let origin = *files[i].jobs.to_mut().entry(binding).or_insert(slot);
                     if origin != slot {
                         aliases.set(slot, origin);
                     }
@@ -551,8 +613,7 @@ pub(crate) struct ReaderState {
 
 #[derive(Default)]
 struct Contents {
-    ready: bool,
-    words_ready: bool,
+    ready: SummaryColumns,
     kinds: rustc_hash::FxHashSet<u32>,
     fields: rustc_hash::FxHashSet<u32>,
     words: rustc_hash::FxHashSet<u32>,
@@ -685,29 +746,29 @@ pub(crate) fn visit<L: FileSource>(
             let source = &sources[index];
             let id = FileId(index.try_into().expect("file ID"));
             let t = thread_cpu();
-            for (&binding, &slot) in &jobs {
-                if let Err(reason) = &bound[&binding] {
-                    answers.set(slot, Err(reason.clone()));
+            let mut required = FactMask::default();
+            let mut have_plan = false;
+            let mut projects_words = keep;
+            let mut projects_fields = keep;
+            let mut summary = SummaryColumns::default();
+            for (&binding, &slot) in jobs.iter() {
+                match &bound[&binding] {
+                    Ok(b) => {
+                        have_plan = true;
+                        for (word, bits) in required.iter_mut().zip(b.fact_mask) { *word |= bits; }
+                        projects_words |= b.projects_words;
+                        projects_fields |= b.reads_fields;
+                        if cut_of[binding].is_none() && !b.never {
+                            summary.kinds |= b.summary.kinds;
+                            summary.fields |= b.summary.fields;
+                            summary.words |= b.summary.words;
+                        }
+                    }
+                    Err(reason) => answers.set(slot, Err(reason.clone())),
                 }
             }
             clocks.prepare += thread_cpu() - t;
-            let mut have_plan = false;
-            let mut want_contents = false;
-            let mut want_words = false;
-            let mut mask = FactMask::default();
-            for &binding in jobs.keys() {
-                if let Ok(b) = &bound[&binding] {
-                    have_plan = true;
-                    if cut_of[binding].is_none() && !b.never {
-                        want_words |= !b.words.is_empty();
-                        want_contents |= want_words || !b.shape.is_empty();
-                    }
-                    for (word, &required) in mask.iter_mut().zip(&b.fact_mask) {
-                        *word |= required;
-                    }
-                }
-            }
-            requested_facts(mask, &mut requested);
+            requested_facts(required, &mut requested);
             if project_slots.is_empty() && !have_plan {
                 continue;
             }
@@ -740,7 +801,7 @@ pub(crate) fn visit<L: FileSource>(
                     path: SourcePath(&source.path),
                     bytes: ByteSlice(&bytes),
                     // Later calls can widen the relations asked of a retained file.
-                    fields: if session_open || jobs.keys().any(|b| bound[b].as_ref().is_ok_and(|b| b.reads_fields)) {
+                    fields: if session_open || projects_fields {
                         l::FieldRequest::Wanted
                     } else {
                         l::FieldRequest::Unwanted
@@ -752,6 +813,7 @@ pub(crate) fn visit<L: FileSource>(
                     },
                 };
 
+                if !session_open && projects_words { requested.push(l::Relation::SyntaxTree); }
                 let build_start = thread_cpu();
                 let result = parser.build(
                     request,
@@ -796,6 +858,8 @@ pub(crate) fn visit<L: FileSource>(
                 }
             }
             let mut provider = reader::ReaderFacts::new(id.0, &unknown);
+            provider.projects_words = projects_words;
+            provider.projects_fields = projects_fields;
             if reused {
                 run.field_sym.clone_from(&held.fields);
                 provider.text = std::mem::take(&mut held.text);
@@ -820,41 +884,40 @@ pub(crate) fn visit<L: FileSource>(
             let tree = native.as_deref().unwrap_or(tree);
             let contents = &mut held.contents;
             if !reused {
-                contents.ready = false;
-                contents.words_ready = false;
+                contents.ready = SummaryColumns::default();
             }
-            if want_contents && (!contents.ready || (want_words && !contents.words_ready)) {
-                contents.ready = true;
-                contents.words_ready = want_words;
-                contents.kinds.clear();
-                contents.fields.clear();
-                contents.words.clear();
-                for (block, word) in l::node_table::kinds_present(tree).0.iter().enumerate() {
-                    let mut bits = word.0;
-                    while bits != 0 {
-                        let code = block * 64 + bits.trailing_zeros() as usize;
-                        contents.kinds.insert(run.kind_sym[code]);
-                        bits &= bits - 1;
-                    }
+            summary.kinds &= !contents.ready.kinds;
+            summary.fields &= !contents.ready.fields;
+            summary.words &= !contents.ready.words;
+            if summary.kinds || summary.fields || summary.words {
+                contents.ready.kinds |= summary.kinds;
+                contents.ready.fields |= summary.fields;
+                contents.ready.words |= summary.words;
+                if summary.kinds {
+                    contents.kinds.clear();
+                    contents.kinds.extend(l::node_table::kind_codes(tree).iter()
+                        .map(|&k| run.kind_sym[usize::from(k)]));
                 }
-                for (code, name) in run.field_sym.iter().enumerate() {
-                    if !l::node_table::ids_of_field(tree, l::FieldCode(code as u16)).is_empty() {
-                        contents.fields.insert(*name);
-                    }
+                if summary.fields {
+                    contents.fields.clear();
+                    contents.fields.extend(l::node_table::field_codes(tree).iter()
+                        .map(|&f| run.field_sym[usize::from(f)]));
                 }
-                if want_words {
+                if summary.words {
+                    contents.words.clear();
                     contents.words.extend(provider.text.iter().copied());
                     contents.words.insert(run.empty);
                 }
                 L::expanded_summary(elements, symbols, &bytes, &mut run, unknown,
-                    provider.text.len(), &mut contents.kinds, &mut contents.fields, want_words.then_some(&mut contents.words));
+                    l::node_table::kind_codes(tree).len(), summary.kinds.then_some(&mut contents.kinds),
+                    summary.fields.then_some(&mut contents.fields), summary.words.then_some(&mut contents.words));
             }
             let Contents { kinds, fields, words, .. } = &*contents;
             use ryo_execution_domain::domain::coverage::service::partial_of;
             let recovery = held.recovery.unwrap_or_else(|| L::recovery(&elements));
             test_results.fill(None);
             let mut active = Vec::new();
-            for (&binding, &slot) in &jobs {
+            for (&binding, &slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
                 let excluded = cut_of[binding].is_none()
                     && *test_results[b.test].get_or_insert_with(|| b.never
@@ -955,7 +1018,7 @@ pub(crate) fn visit<L: FileSource>(
             {
                 distinct.get_mut().clear();
                 let mut evaluate = |screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
-                    screen.exclude(root, jobs, &mut bound, &mut run, tree, &provider.text, &distinct,
+                    screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct,
                         &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, unknown, cut_of, &said);
                 };
                 if let Some(screen) = &mut checks {
@@ -1068,7 +1131,7 @@ pub(crate) fn visit<L: FileSource>(
                     answers.set(slot, answer);
                     continue;
                 }
-                let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, &b.slots, &local_coverage);
+                let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, binding, &b.slots, &local_coverage);
                 if value.is_err() { frame = None; exec.release_request(); }
                 let answer = value
                 .map(|rows| Reported { rows, unknowns });

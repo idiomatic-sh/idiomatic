@@ -3,6 +3,9 @@ mod adapter;
 mod composition;
 mod constants;
 mod frontend_projection;
+#[allow(dead_code, reason = "shared reader also serves the vector host")]
+#[path = "../../../../../crates/engine/benches/vec/json_input.rs"]
+mod json_input;
 mod schemas;
 mod settings;
 
