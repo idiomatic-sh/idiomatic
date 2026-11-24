@@ -95,6 +95,7 @@ pub(crate) fn collect<L: super::FileSource>(
     readers: &[L],
     authority: &Authority,
     inventory: &[String],
+    environment: Option<&Environment>,
     contributions: &[Rc<Contribution>],
     wanted: &[l::Relation],
 ) -> Result<Population> {
@@ -162,7 +163,12 @@ pub(crate) fn collect<L: super::FileSource>(
         entries
             .0
             .into_iter()
-            .map(|path| authority.observe(&request.files, path))
+            .map(|path| match environment {
+                Some(env) if authority.disk().is_some() && env.authority == *authority => {
+                    EntryObservation { state: env.physical(&path), path }
+                }
+                _ => authority.observe(&request.files, path),
+            })
             .collect(),
     );
     let mut tables = BTreeMap::new();
@@ -263,8 +269,31 @@ pub(crate) struct Environment {
     pub id: std::sync::Arc<str>,
     pub authority: Authority,
     pub supplied: BTreeSet<String>,
+    epoch: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    observations: std::sync::Mutex<(usize, BTreeMap<String, l::ObservedEntryState>)>,
 }
 
+impl Environment {
+    pub(crate) fn new(id: std::sync::Arc<str>, authority: Authority, supplied: BTreeSet<String>,
+        epoch: std::sync::Arc<std::sync::atomic::AtomicUsize>) -> Self {
+        Self { id, authority, supplied, epoch, observations: Default::default() }
+    }
+
+    // File and project suppliers read the same physical entry in this epoch.
+    // Overlay entries are answered before this lookup and never enter the disk memo.
+    fn physical(&self, path: &str) -> l::ObservedEntryState {
+        let epoch = self.epoch.load(std::sync::atomic::Ordering::Relaxed);
+        let mut memo = self.observations.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if memo.0 != epoch {
+            memo.1.clear();
+            memo.0 = epoch;
+        }
+        if let Some(&state) = memo.1.get(path) { return state; }
+        let state = self.authority.observe(&[], l::FilePath(path.into())).state;
+        memo.1.insert(path.into(), state);
+        state
+    }
+}
 impl l::FileProject for Environment {
     fn roots(&self) -> Option<&[String]> {
         match &self.authority {
@@ -281,6 +310,6 @@ impl l::FileProject for Environment {
         if self.supplied.range(prefix.clone()..).next().is_some_and(|p| p.starts_with(&prefix)) {
             return State::Directory;
         }
-        self.authority.observe(&[], l::FilePath(path.into())).state
+        self.physical(path)
     }
 }

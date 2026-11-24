@@ -52,6 +52,7 @@ struct Live {
     file_epoch_wall: f64,
     parallel_rows: usize,
     delivery_dictionaries: usize,
+    observation_epoch: Arc<std::sync::atomic::AtomicUsize>,
     environments: HashMap<Arc<str>, Arc<crate::check_session::project::Environment>>,
     versions: HashMap<(Authority, BTreeMap<String, (Arc<[u8]>, crate::check_session::Permission)>, Option<Arc<str>>), Arc<str>>,
 }
@@ -97,6 +98,7 @@ impl Default for Live {
             epochs: 0,
             shared_overlay_files: 0,
             shared_overlay_bytes: 0,
+            observation_epoch: Default::default(),
             environments: HashMap::new(),
             versions: HashMap::new(),
         }
@@ -257,6 +259,7 @@ impl Live {
     }
 
     fn epoch(&mut self, requests: Vec<sdk::LintRequest>, linked: &sdk::Languages) -> Vec<Reply> {
+        self.observation_epoch.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let previous_children = self.child_cpu();
         let previous = self.phase_totals();
         let options = check_options();
@@ -557,9 +560,9 @@ impl Live {
         } else {
             let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
             use crate::check_session::source::Source as _;
-            let environment = self.languages.iter().any(|p| p.uses_project() && reader.as_deref().is_none_or(|name| name == p.name())).then(|| Arc::new(crate::check_session::project::Environment {
-                id: id.clone(), authority: authority.clone(), supplied: key.1.keys().cloned().collect(),
-            }));
+            let environment = self.languages.iter().any(|p| p.uses_project() && reader.as_deref().is_none_or(|name| name == p.name())).then(|| Arc::new(crate::check_session::project::Environment::new(
+                id.clone(), authority.clone(), key.1.keys().cloned().collect(), self.observation_epoch.clone(),
+            )));
             if let Some(project) = &environment { self.environments.insert(id.clone(), project.clone()); }
             for (path, (bytes, permission)) in &mut key.1 {
                 let (slot, shared) = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &environment).map_err(execution)?;
