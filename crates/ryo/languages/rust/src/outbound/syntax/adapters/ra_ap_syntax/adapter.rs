@@ -146,7 +146,8 @@ pub(super) fn feed(
         {
             walker.open.truncate(walker.open.len().saturating_sub(1));
             if let Some(arguments) = called(&done, walker, text, cursor.position)
-                && !arguments.is_empty()
+                && (!arguments.is_empty()
+                    || walker.revision == crate::domain::model::types::ProviderRevision::Released014)
             {
                 walker.found.push(Expansion {
                     host: done.host,

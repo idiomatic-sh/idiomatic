@@ -88,7 +88,10 @@ impl Parse for ParseContract {
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity(NO_CONFIGURATION)
+        languages::ParseConfigurationIdentity(match self.revision {
+            crate::domain::model::types::ProviderRevision::Current => NO_CONFIGURATION,
+            crate::domain::model::types::ProviderRevision::Released014 => "rust-provider-0.1.4",
+        })
     }
 
     fn file_model(&self, _tree: &Tree<'_>, model: &mut ReadIndexes) {
