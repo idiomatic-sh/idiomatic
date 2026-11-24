@@ -138,12 +138,6 @@ mod benchmark_languages;
 fn main() -> std::process::ExitCode {
     let mut arguments = std::env::args().skip(1);
     let mode = arguments.next();
-    if mode.as_deref() == Some("check")
-        && std::env::args().any(|value| value == "--timings=chrome")
-    {
-        let path = std::env::temp_dir().join("ryo-operators.tsv");
-        tm_project_session::profile_operators(&path).expect("open operator ledger");
-    }
     if mode.as_deref() == Some("--mixed") {
         let pack=arguments.next().expect("pack");
         let input=arguments.next().expect("input");

@@ -34,6 +34,12 @@ thread_local! {
 }
 
 pub fn link_executor() {
+    let ledger = std::env::temp_dir().join("ryo-operators.tsv");
+    if ledger.is_file() {
+        if let Err(error) = crate::finish::operators::configure(&ledger) {
+            eprintln!("operator ledger: {error}");
+        }
+    }
     release_sdk::linked_sdk::link(execute, |id| {
         measure_worker(|| SESSIONS.with(|sessions| drop(sessions.borrow_mut().remove(&id))));
     });

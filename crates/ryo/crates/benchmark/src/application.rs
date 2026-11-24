@@ -11,6 +11,7 @@ pub mod discrepancy_attachment;
 pub mod discrepancy_validation;
 pub mod growth;
 pub mod input_metadata;
+pub mod image_profile;
 pub mod inventory_verification;
 pub mod measurement;
 pub mod process_discrepancy;

@@ -26,6 +26,12 @@ pub struct CommandLine {
     pub environment: BTreeMap<OsString, OsString>,
     /// Working directory of the command.
     pub directory: PathBuf,
+    /// When the workload writes its answer to a file, compare that payload.
+    pub answer: Option<PathBuf>,
+    /// Canonicalize workspace references when each pass needs an isolated checkout.
+    pub workspace_prefix: Option<PathBuf>,
+    /// Optional argv prefix for the caller's resource scheduler.
+    pub launcher: Vec<OsString>,
 }
 
 /// One observer. Run these separately to avoid counting one observer in another.
@@ -86,7 +92,13 @@ pub fn observe_before(
     let stdout = directory.join("stdout");
     let stderr = directory.join("stderr");
     let resources = directory.join("resources");
-    let mut timed = Command::new("time");
+    let mut timed = if let Some((program, arguments)) = command.launcher.split_first() {
+        let mut wrapper = Command::new(program);
+        wrapper.args(arguments).arg("time");
+        wrapper
+    } else {
+        Command::new("time")
+    };
     timed.args(["-f", "%e %U %S %M", "-o"]).arg(&resources);
     if let Some(deadline) = deadline {
         timed
@@ -141,11 +153,33 @@ pub fn observe_before(
         .stderr(File::create(&stderr)?)
         .status()?;
     let elapsed = start.elapsed();
+    let mut payload = command.answer.clone().unwrap_or(stdout);
+    if let Some(prefix) = &command.workspace_prefix
+        && payload.is_file()
+    {
+        let needle = prefix.as_os_str().as_encoded_bytes();
+        if !needle.is_empty() {
+            let bytes = fs::read(&payload)?;
+            payload = directory.join("canonical-answer");
+            let mut out = Vec::new();
+            let mut rest = bytes.as_slice();
+            while let Some(index) = rest
+                .windows(needle.len())
+                .position(|window| window == needle)
+            {
+                out.extend_from_slice(&rest[..index]);
+                out.extend_from_slice(b"@WORKSPACE@");
+                rest = &rest[index + needle.len()..];
+            }
+            out.extend_from_slice(rest);
+            fs::write(&payload, out)?;
+        }
+    }
     Ok(Observation {
         status,
         elapsed,
         load: [before, load()],
-        stdout,
+        stdout: payload,
         stderr,
         resources,
     })
@@ -297,9 +331,24 @@ pub fn collect(
 ) -> io::Result<Profile> {
     fs::create_dir_all(directory)?;
     let directory = directory.canonicalize()?;
-    let mut collect_one = |observer, name| {
+    let mut prepared = |observer, name, core: Option<usize>| {
         let path = directory.join(name);
-        let command = invoke(observer, &path)?;
+        let mut command = invoke(observer, &path)?;
+        if let Some(core) = core.filter(|_| command.launcher.is_empty()) {
+            command.launcher = vec!["taskset".into(), "-c".into(), core.to_string().into()];
+        }
+        Ok::<_, io::Error>((path, command))
+    };
+    let cores = available_cores();
+    let native = prepared(Observer::Native, "native", cores.first().copied())?;
+    let samples = prepared(Observer::Samples, "samples", cores.first().copied())?;
+    let heap = prepared(Observer::Heap, "heap", cores.get(1).copied())?;
+    let instructions = prepared(
+        Observer::Instructions,
+        "instructions",
+        cores.get(2).copied(),
+    )?;
+    let collect_one = |observer, (path, command): (PathBuf, CommandLine)| {
         let deadline = (observer == Observer::Instructions).then_some(instruction_budget);
         let run = observe_before(&command, observer, &path, deadline)?;
         if deadline.is_some() && run.status.code() == Some(124) {
@@ -332,10 +381,34 @@ pub fn collect(
         }
         Ok(run)
     };
-    let native = collect_one(Observer::Native, "native")?;
-    let samples = collect_one(Observer::Samples, "samples")?;
-    let heap = collect_one(Observer::Heap, "heap")?;
-    let instructions = collect_one(Observer::Instructions, "instructions")?;
+    let (native, samples, heap, instructions) = if cores.len() >= 3 {
+        std::thread::scope(|scope| {
+            let heap = scope.spawn(|| collect_one(Observer::Heap, heap));
+            let instructions = scope.spawn(|| collect_one(Observer::Instructions, instructions));
+            let clocks = || {
+                Ok::<_, io::Error>((
+                    collect_one(Observer::Native, native)?,
+                    collect_one(Observer::Samples, samples)?,
+                ))
+            };
+            let clocked = clocks();
+            let heap = heap
+                .join()
+                .map_err(|_| io::Error::other("Heaptrack worker panicked"))?;
+            let instructions = instructions
+                .join()
+                .map_err(|_| io::Error::other("Cachegrind worker panicked"))?;
+            let (native, samples) = clocked?;
+            Ok::<_, io::Error>((native, samples, heap?, instructions?))
+        })?
+    } else {
+        (
+            collect_one(Observer::Native, native)?,
+            collect_one(Observer::Samples, samples)?,
+            collect_one(Observer::Heap, heap)?,
+            collect_one(Observer::Instructions, instructions)?,
+        )
+    };
     for (observer, run) in [
         (Observer::Samples, &samples),
         (Observer::Heap, &heap),
@@ -357,6 +430,24 @@ pub fn collect(
         heap,
         instructions,
     })
+}
+
+fn available_cores() -> Vec<usize> {
+    let Ok(status) = fs::read_to_string("/proc/self/status") else {
+        return Vec::new();
+    };
+    status
+        .lines()
+        .find_map(|line| line.strip_prefix("Cpus_allowed_list:"))
+        .into_iter()
+        .flat_map(|list| list.trim().split(','))
+        .filter_map(|range| {
+            let (first, last) = range.split_once('-').unwrap_or((range, range));
+            Some(first.parse::<usize>().ok()?..=last.parse::<usize>().ok()?)
+        })
+        .flatten()
+        .take(3)
+        .collect()
 }
 
 /// Totals from Heaptrack's exact allocation-size histogram. The tool supplies

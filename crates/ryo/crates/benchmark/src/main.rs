@@ -99,6 +99,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             )?,
         ));
         let bench_path = std::path::Path::new(bench);
+        if profiling && ryo_benchmark::application::image_profile::registered(bench_path) {
+            ryo_benchmark::application::image_profile::profile(
+                bench_path,
+                other.as_deref(),
+                &mut std::io::stdout().lock(),
+                &mut std::io::stderr().lock(),
+            )?;
+            return Ok(());
+        }
         if profiling && ryo_benchmark::application::check_profile::registered(bench_path) {
             let target = ryo_benchmark::outbound::executables::interface::ExecutablesPort::target(
                 executables.as_ref(),

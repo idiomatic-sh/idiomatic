@@ -91,7 +91,9 @@ pub fn profile(
     for (name, workspace) in [("root", source.clone()), ("ryo", source.join("crates/ryo"))] {
         let arguments = registered_command(&workspace)?;
         let root = directory.join(name);
-        let cache = workspace.join(".tastemaker_cache");
+        let relative = workspace
+            .strip_prefix(&source)
+            .map_err(|_| Error::Invalid("workload is outside the checkout".into()))?;
         let budget = Duration::from_secs(if name == "root" { 900 } else { 480 });
         totals.extend(profile_workload::profile(
             Workload {
@@ -104,25 +106,37 @@ pub fn profile(
             other.as_ref(),
             &mut written,
             |image, observer, path| {
-                if cache.exists() {
-                    fs::remove_dir_all(&cache)?;
-                }
-                let mut command: Vec<_> = arguments
+                fs::create_dir_all(path)?;
+                let copy = path.join("workspace");
+                run(Command::new("git")
+                    .args(["clone", "--quiet", "--local", "--shared"])
+                    .arg(&source)
+                    .arg(&copy))?;
+                run(Command::new("git").current_dir(&copy).args([
+                    "checkout",
+                    "--quiet",
+                    "--detach",
+                    revision.trim(),
+                ]))?;
+                let command: Vec<_> = arguments
                     .iter()
                     .cloned()
                     .chain(["--workers".into(), "1".into()])
                     .collect();
                 let mut environment = BTreeMap::from([("RAYON_NUM_THREADS".into(), "1".into())]);
                 if observer.is_none() {
-                    command.push("--timings=chrome".into());
+                    fs::File::create(path.join("ryo-operators.tsv"))?;
                     let _prior = environment.insert("TMPDIR".into(), path.as_os_str().to_owned());
                 }
                 Ok((
                     CommandLine {
                         executable: image.to_owned(),
+                        answer: None,
+                        workspace_prefix: Some(copy.clone()),
+                        launcher: Vec::new(),
                         arguments: command,
                         environment,
-                        directory: workspace.clone(),
+                        directory: copy.join(relative),
                     },
                     (),
                 ))
@@ -132,7 +146,7 @@ pub fn profile(
                 let ledger = BufReader::new(fs::File::open(
                     destination.join("engine/ryo-operators.tsv"),
                 )?);
-                Ok(profile_evidence::live(&log, ledger)?)
+                Ok(profile_evidence::live(&log, Some(ledger))?)
             },
         )?);
     }

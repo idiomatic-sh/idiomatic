@@ -30,13 +30,13 @@ const COUNTS: [&str; 7] = [
 
 pub(crate) struct EngineEvidence {
     clocks: [Option<f64>; 7],
-    execution: f64,
+    execution: Option<f64>,
     parse_wall: Option<u64>,
     counts: [Option<u64>; 7],
-    operators: OperatorProfile,
+    operators: Option<OperatorProfile>,
 }
 
-pub(crate) fn live(log: &str, ledger: impl BufRead) -> io::Result<EngineEvidence> {
+pub(crate) fn live(log: &str, ledger: Option<impl BufRead>) -> io::Result<EngineEvidence> {
     let fields = phase_fields(log)?;
     let mut clocks = [None; 7];
     for (clock, (key, _)) in clocks.iter_mut().zip(PHASES) {
@@ -68,11 +68,11 @@ pub(crate) fn live(log: &str, ledger: impl BufRead) -> io::Result<EngineEvidence
         counts[6] = Some(0);
     }
     Ok(EngineEvidence {
-        execution: clocks[2..6].iter().flatten().sum(),
+        execution: Some(clocks[2..6].iter().flatten().sum()),
         clocks,
         parse_wall: None,
         counts,
-        operators: operators(ledger)?,
+        operators: ledger.map(operators).transpose()?,
     })
 }
 
@@ -104,7 +104,7 @@ pub(crate) fn worker(
             None,
             Some(clock.delivery.as_secs_f64()),
         ],
-        execution: clock.execution.as_secs_f64(),
+        execution: Some(clock.execution.as_secs_f64()),
         parse_wall: Some(parse_wall),
         counts: [
             Some(1),
@@ -115,7 +115,23 @@ pub(crate) fn worker(
             Some(skipped?),
             Some(unknown?),
         ],
-        operators,
+        operators: Some(operators),
+    })
+}
+
+pub(crate) fn archived(log: &str, ledger: Option<impl BufRead>) -> io::Result<EngineEvidence> {
+    if log
+        .lines()
+        .any(|line| line.starts_with("CHECK_SESSION live "))
+    {
+        return live(log, ledger);
+    }
+    Ok(EngineEvidence {
+        clocks: [None; 7],
+        execution: None,
+        parse_wall: None,
+        counts: [None; 7],
+        operators: None,
     })
 }
 
@@ -126,12 +142,20 @@ impl EngineEvidence {
         for ((_, title), clock) in PHASES.into_iter().zip(self.clocks) {
             writeln!(output, "| {title} | {} |", seconds(clock))?;
         }
-        writeln!(output, "| Combined SDK execution | {:.6} |", self.execution)?;
+        writeln!(
+            output,
+            "| Combined SDK execution | {} |",
+            seconds(self.execution)
+        )?;
         let total = self.clocks[0].unwrap_or_default()
             + self.clocks[1].unwrap_or_default()
-            + self.execution
+            + self.execution.unwrap_or_default()
             + self.clocks[6].unwrap_or_default();
-        writeln!(output, "| Total Ryo | {total:.6} |\n")?;
+        writeln!(
+            output,
+            "| Total Ryo | {} |\n",
+            seconds(self.execution.map(|_| total))
+        )?;
         let parse = self
             .parse_wall
             .map_or("Unavailable".into(), |ns| ns.to_string());
@@ -144,7 +168,19 @@ impl EngineEvidence {
             let count = count.map_or("Unavailable".into(), |count| count.to_string());
             writeln!(output, "| {label} | {count} |")?;
         }
-        self.operators.write(output)
+        match &self.operators {
+            Some(operators) => operators.write(output),
+            None => {
+                writeln!(
+                    output,
+                    "\n## Operators by kind\n\nUnavailable in this image."
+                )?;
+                writeln!(
+                    output,
+                    "\n## Top twenty queries\n\nUnavailable in this image."
+                )
+            }
+        }
     }
 
     pub(crate) fn compare(&self, other: &Self, output: &mut impl Write) -> io::Result<()> {
@@ -156,10 +192,16 @@ impl EngineEvidence {
         phase_delta(
             output,
             "Combined SDK execution",
-            Some(self.execution),
-            Some(other.execution),
+            self.execution,
+            other.execution,
         )?;
-        self.operators.compare(&other.operators, output)
+        match self.operators.as_ref().zip(other.operators.as_ref()) {
+            Some((first, second)) => first.compare(second, output),
+            None => writeln!(
+                output,
+                "\nOperator deltas unavailable for this pair of images."
+            ),
+        }
     }
 }
 

@@ -119,6 +119,9 @@ impl CorpusProfile {
                 Ok((
                     CommandLine {
                         executable: image.to_owned(),
+                        answer: None,
+                        workspace_prefix: None,
+                        launcher: Vec::new(),
                         arguments,
                         environment,
                         directory,
