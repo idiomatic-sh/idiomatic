@@ -203,7 +203,7 @@ pub(super) type Names = Rc<Vec<String>>;
 pub(super) type Tys = Rc<Vec<Ty>>;
 
 /// A column table.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub(super) struct Table {
     pub(super) names: Names,
     pub(super) tys: Tys,

@@ -28,12 +28,28 @@ use std::{
 #[derive(Deserialize)]
 pub(crate) struct Input {
     root: String,
-    files: Vec<String>,
-    inventory: Option<Vec<String>>,
+    #[serde(deserialize_with = "read_paths")]
+    files: Rc<Vec<String>>,
+    #[serde(default, deserialize_with = "read_inventory")]
+    inventory: Option<Rc<Vec<String>>>,
     repository: Option<Authority>,
     hosted: Vec<Hosted>,
     #[serde(deserialize_with = "read_parameters")]
     parameters: Parameters,
+}
+
+fn read_paths<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Rc<Vec<String>>, D::Error> {
+    Vec::<String>::deserialize(input).map(Rc::new)
+}
+
+fn read_inventory<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Option<Rc<Vec<String>>>, D::Error> {
+    Ok(Option::<Vec<String>>::deserialize(input)?.map(canonical_inventory))
+}
+
+fn canonical_inventory(mut paths: Vec<String>) -> Rc<Vec<String>> {
+    paths.sort_unstable();
+    paths.dedup();
+    Rc::new(paths)
 }
 
 enum Work {
@@ -43,7 +59,7 @@ enum Work {
         pairs: Vec<usize>,
         binding: usize,
         inventory: Rc<Vec<String>>,
-        files: Vec<String>,
+        files: Rc<Vec<String>>,
     },
     Pairs(Vec<usize>),
     Refused(String),
@@ -89,7 +105,7 @@ struct Admission {
 struct Batch {
     schedule: session::Schedule,
     bindings: Vec<(usize, Rc<[Hosted]>)>,
-    host_rows: HashMap<Rc<[Vec<super::HostCell>]>, usize>,
+    host_rows: HashMap<Rc<[Rc<[super::HostCell]>]>, usize>,
     binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
     queries: HashMap<String, Rc<str>>,
     work: Vec<Work>,
@@ -113,7 +129,8 @@ struct Batch {
 #[derive(Default)]
 struct Active<F: Default, D: Default> {
     keep: bool,
-    readers: Vec<session::ReaderState<F, D>>,
+    retention: session::Retention<F,D>,
+    readers: Vec<session::ReaderState>,
     world: session::World,
     answers: Vec<Answer>,
     aliases: Vec<usize>,
@@ -290,15 +307,10 @@ impl Batch {
             };
             let inventory = req
                 .inventory
-                .map(|mut paths| {
-                    paths.sort_unstable();
-                    paths.dedup();
-                    Rc::new(paths)
-                })
                 .or(snapshot)
                 .or_else(|| {
                     (!class.file_cells && (!req.files.is_empty() || !class.file_inventory)).then(|| {
-                        let mut paths = req.files.clone();
+                        let mut paths = req.files.as_ref().clone();
                         paths.sort_unstable();
                         Rc::new(paths)
                     })
@@ -416,6 +428,7 @@ impl Batch {
     ) {
         let Active {
             keep,
+            retention,
             readers: reader_states,
             world,
             answers,
@@ -466,6 +479,7 @@ impl Batch {
             }
             session::visit(
                 &mut reader_states[reader_id],
+                retention,
                 *keep,
                 language,
                 (reader_id != unclaimed).then_some(reader_id),
@@ -781,7 +795,7 @@ pub(crate) fn packets(
         }
         let bytes = std::fs::read(item.request).map_err(|e| e.to_string())?;
         let mut input: Input = json_input::decode(&bytes).map_err(|e| e.to_string())?;
-        input.inventory = Some(project.inventory);
+        input.inventory = Some(canonical_inventory(project.inventory));
         input.repository = project.repository;
         let work = session
             .register(&item.pack, input, None)

@@ -250,14 +250,14 @@ pub(super) struct Hosted {
     pub name: String,
     pub columns: Vec<(String, String)>,
     #[serde(deserialize_with = "read_host_rows")]
-    pub rows: std::rc::Rc<[Vec<HostCell>]>,
+    pub rows: std::rc::Rc<[std::rc::Rc<[HostCell]>]>,
     #[serde(default)]
     pub partial: Option<String>,
 }
 
-fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<std::rc::Rc<[Vec<HostCell>]>, D::Error> {
+fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<std::rc::Rc<[std::rc::Rc<[HostCell]>]>, D::Error> {
     use serde::Deserialize;
-    Vec::deserialize(input).map(std::rc::Rc::from)
+    Vec::<Vec<HostCell>>::deserialize(input).map(|rows| rows.into_iter().map(std::rc::Rc::from).collect())
 }
 
 #[derive(Clone, Eq, PartialEq, Hash)]

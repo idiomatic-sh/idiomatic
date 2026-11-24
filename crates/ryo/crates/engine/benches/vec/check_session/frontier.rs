@@ -50,12 +50,12 @@ impl<'a> FileInputs<'a> {
     }
     pub(super) fn contribute(
         &mut self,
-        b: &mut Bound<'_>,
+        b: &Bound<'_>,
+        exec: &mut finish::Exec<'_>,
+        frame: &mut finish::File<'_>,
         run: &mut Run,
         id: u32,
-        version: &finish::FileVersion,
         facts_view: &mut dyn finish::Provider,
-        local: &[(String, Rc<Table>)],
         cut: &Partition,
         local_coverage: &BTreeMap<String, Vec<Option<u32>>>,
         world: &mut World,
@@ -64,7 +64,7 @@ impl<'a> FileInputs<'a> {
         words: &HashMap<u32, u32>,
         slot: usize,
     ) -> Result<()> {
-        let plan = b.exec.plan;
+        let plan = b.plan;
         let nodes = &plan.nodes;
         let hosted = &b.hosted;
         let shared_base = |n: usize| {
@@ -82,11 +82,11 @@ impl<'a> FileInputs<'a> {
             let mut derived = BTreeMap::new();
             if !missing.is_empty() {
                 let tables = finish::session::gather(
-                    &mut b.exec,
+                    exec,
                     run,
-                    version,
+                    frame,
                     facts_view,
-                    local,
+                    &b.slots,
                     &missing,
                     local_coverage,
                 )?;
