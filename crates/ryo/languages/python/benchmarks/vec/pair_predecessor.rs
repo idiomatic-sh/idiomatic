@@ -31,46 +31,6 @@ pub(crate) const LOOKUP: [&str; 8] = [
 pub(crate) const READ: [&str; 3] = ["reference", "scope", "context"];
 pub(crate) const WORDS: [&str; 4] = ["deletion", "own", "routed", "none"];
 
-// The resolver orders the lookup rows nearest namespace first. Preserve that
-// order and the provider's explicit empty lookup. Both adapters use these rows.
-pub(crate) fn project(
-    lookups: impl Iterator<Item = [u64; 8]>,
-    reads: impl ExactSizeIterator<Item = [u64; 3]>,
-    [deletion, own, routed, none]: [u64; 4],
-    file: u64,
-    mut emit: impl FnMut([u64; 9]),
-) {
-    let mut seen = rustc_hash::FxHashSet::with_capacity_and_hasher(reads.len(), Default::default());
-    for [reference, event, kind, scope, lexical, depth, ordinal, ctx] in lookups {
-        if (ctx == deletion && depth != 0) || !seen.insert(reference) {
-            continue;
-        }
-        let namespace = if lexical == scope { own } else { routed };
-        emit([
-            reference, event, kind, namespace, scope, depth, ordinal, ctx, file,
-        ]);
-    }
-    let missing = super::super::finish::NULL;
-    for [reference, scope, ctx] in reads {
-        if seen.insert(reference) {
-            emit([
-                reference, missing, none, none, scope, missing, missing, ctx, file,
-            ]);
-        }
-    }
-}
-
-pub(crate) fn positions<const N: usize, E>(
-    names: [&str; N],
-    mut find: impl FnMut(&str) -> Result<usize, E>,
-) -> Result<[usize; N], E> {
-    let mut columns = [0; N];
-    for (column, name) in columns.iter_mut().zip(names) {
-        *column = find(name)?;
-    }
-    Ok(columns)
-}
-
 struct Input<const N: usize> {
     relation: Relation,
     columns: [usize; N],
@@ -134,7 +94,7 @@ pub(super) fn read(
         return false;
     }
     let symbols = WORDS.map(|s| facts::intern(words, NameText(s)).0);
-    project(
+    ColumnFile::visit_scheduled_predecessors(
         lookup.rows(&lookups),
         read.rows(&reads),
         symbols,
