@@ -302,7 +302,7 @@ impl Live {
                 };
                 let mut chunks = prepared.chunks_mut(chunk_size);
                 let first = chunks.next().expect("non-empty rules");
-                let children: Vec<_> = chunks.map(|chunk| scope.spawn(|| decode(chunk))).collect();
+                let children: Vec<_> = chunks.map(|chunk| scope.spawn(move || decode(chunk))).collect();
                 decode(first);
                 children.into_iter().map(|child| child.join().expect("admission worker panicked")).sum::<f64>()
             });
