@@ -287,7 +287,7 @@ impl Live {
             let receipt =
                 Batch::answer(work, &self.state.answers).map_err(|e| format!("{id}: {e}"))?;
             for row in receipt.rows {
-                let columns: Vec<_> = row.layout.names.iter().zip(row.owned_cells())
+                let columns: Vec<_> = row.layout.names.iter().zip(row.cells_with(|s| Box::<str>::from(s.as_ref())))
                     .map(|(name, value)| (name.as_str().into(), slot(value)))
                     .collect();
                 let subject = row.layout.identity.first().and_then(|&i| columns.get(i))
