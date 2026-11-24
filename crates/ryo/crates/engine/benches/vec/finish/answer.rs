@@ -78,11 +78,13 @@ pub(crate) struct Row {
 }
 
 /// Rebuild one ordered packet using a shared dictionary and column layouts.
+#[allow(dead_code, reason = "only the retained check session restores answer packets")]
 pub(crate) struct RestoredRows {
     dictionary: Arc<RwLock<Words>>,
     layouts: Vec<FxHashMap<Vec<Ty>, Arc<Layout>>>,
 }
 
+#[allow(dead_code, reason = "file readers share the answer module without loading stored packets")]
 impl RestoredRows {
     pub(crate) fn new(words: Vec<Box<str>>, schemas: usize) -> Self {
         let paths: Vec<Arc<str>> = words.into_iter().map(Arc::from).collect();
