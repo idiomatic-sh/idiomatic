@@ -338,7 +338,7 @@ pub(super) struct Run {
     regexes: FxHashMap<String, Rc<Bound<regex::bytes::Regex>>>,
     lower_symbols: FxHashMap<u32, u32>,
     folded_literals: FxHashMap<u32, Rc<Bound<Rc<[u8]>>>>,
-    prepared_globs: FxHashMap<u32, ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs>,
+    prepared_globs: FxHashMap<u32, Rc<symbol_predicate::PreparedGlob>>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
@@ -4398,20 +4398,16 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
             use ryo_matching::inbound::use_cases::matching::{
                 interface::MatchingUseCase, types::{GlobPattern, MatchOutcome, SearchText}, use_case::MatchingUseCaseImpl,
             };
-            let matching = MatchingUseCaseImpl::new();
+            if vs[1].ty() == Ty::Sym
+                && let Ok(id) = u32::try_from(vs[1].1)
+                && let Some(pattern) = run.prepared_globs.get(&id)
+            {
+                return flag(pattern.matches(run, vs[0]));
+            }
             let text = text_of(run, vs[0]);
             let subject = String::from_utf8_lossy(&text);
-            let prepared = if vs[1].ty() == Ty::Sym {
-                u32::try_from(vs[1].1).ok().and_then(|id| run.prepared_globs.get(&id))
-            } else {
-                None
-            };
-            let matched = if let Some(pattern) = prepared {
-                matching.matches_text_globs(pattern, SearchText(&subject))
-            } else {
-                let g = text_of(run, vs[1]);
-                matching.matches_text_glob(GlobPattern(&String::from_utf8_lossy(&g)), SearchText(&subject))
-            };
+            let g = text_of(run, vs[1]);
+            let matched = MatchingUseCaseImpl::new().matches_text_glob(GlobPattern(&String::from_utf8_lossy(&g)), SearchText(&subject));
             flag(matched == MatchOutcome::Matches)
         }
         "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&text_of(run, vs[0])), &String::from_utf8_lossy(&text_of(run, vs[1])))),
