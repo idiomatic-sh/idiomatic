@@ -144,6 +144,7 @@ pub(crate) struct NodeChildren {
 pub(crate) struct Walker {
     /// The built-in macros whose arguments are never read again.
     pub opaque: OpaqueMacros<'static>,
+    pub revision: crate::domain::model::types::ProviderRevision,
     /// Where the last name written starts.
     pub name_from: Offset,
     /// Where the last name written ends.

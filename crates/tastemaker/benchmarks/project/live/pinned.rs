@@ -21,7 +21,7 @@ pub(super) struct Pinned {
 }
 impl From<old::Language> for Pinned {
     fn from(language: old::Language) -> Self {
-        let rust = ryo_rust::linked();
+        let rust = ryo_rust::linked_0_1_4();
         let native = (rust.name().0.as_ref() == language.name().0.as_ref()).then(|| Linked::from(rust));
         Self {
             native,

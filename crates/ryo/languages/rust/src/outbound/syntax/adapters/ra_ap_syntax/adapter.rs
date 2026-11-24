@@ -24,12 +24,18 @@ use ryo::languages::{self, Count, Flag, Offset, Position};
 pub(crate) struct SyntaxRaApSyntaxAdapter {
     /// The built-in macros whose arguments are never read again.
     opaque: OpaqueMacros<'static>,
+    revision: crate::domain::model::types::ProviderRevision,
 }
 
 impl SyntaxRaApSyntaxAdapter {
     /// The adapter, reading again the arguments of every macro call but those of the macros `opaque` names.
     pub(crate) const fn new(opaque: OpaqueMacros<'static>) -> Self {
-        Self { opaque }
+        Self { opaque, revision: crate::domain::model::types::ProviderRevision::Current }
+    }
+
+    pub(crate) fn with_revision(mut self, revision: crate::domain::model::types::ProviderRevision) -> Self {
+        self.revision = revision;
+        self
     }
 }
 
@@ -61,6 +67,7 @@ impl SyntaxRaApSyntaxAdapter {
         };
         let mut walker = Walker {
             opaque: self.opaque,
+            revision: self.revision,
             name_from: Offset(0),
             name_to: Offset(0),
             armed: Flag::Lowered,
@@ -90,7 +97,10 @@ impl SyntaxRaApSyntaxAdapter {
                     if matches!(step, Step::Enter(_) | Step::Token(..)) {
                         builder.origin(cursor.next, expansion.host, made);
                     }
-                    feed(&mut walker, builder, whole, step, &mut cursor);
+                    match self.revision {
+                        crate::domain::model::types::ProviderRevision::Released014 => emit(builder, whole, &step, &mut cursor),
+                        crate::domain::model::types::ProviderRevision::Current => feed(&mut walker, builder, whole, step, &mut cursor),
+                    }
                 }
             }
             builder.release();
@@ -153,7 +163,13 @@ pub(super) fn feed(
                 .open
                 .last()
                 .is_some_and(|each| each.kind == SyntaxKind::MACRO_CALL);
-            walker.armed = if call { Flag::Raised } else { Flag::Lowered };
+            let expands = match walker.revision {
+                crate::domain::model::types::ProviderRevision::Current => call,
+                crate::domain::model::types::ProviderRevision::Released014 => text.0
+                    .get(index(walker.name_from).0..index(walker.name_to).0)
+                    .is_some_and(|name| crate::domain::syntax::constants::EXPANDED_MACROS.contains(&name)),
+            };
+            walker.armed = if expands { Flag::Raised } else { Flag::Lowered };
         }
         Step::Token(SyntaxKind::WHITESPACE | SyntaxKind::COMMENT, _) | Step::Exit => {}
         Step::Enter(SyntaxKind::TOKEN_TREE) if walker.armed == Flag::Raised => {
