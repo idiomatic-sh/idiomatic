@@ -58,6 +58,9 @@ pub(crate) fn prefixes(
     let mut package = String::new();
     let mut namespace = false;
     let mut path = PathBuf::new();
+    // Only a directory found under a given search root can contain the next
+    // component. Unknown observations still propagate through observe().
+    let mut directories: Vec<_> = roots.iter().collect();
     for end in target
         .match_indices('.')
         .map(|(i, _)| i)
@@ -77,7 +80,9 @@ pub(crate) fn prefixes(
         }
         path.push(component);
         namespace = false;
-        for root in roots {
+        let mut count = 0;
+        for index in 0..directories.len() {
+            let root = directories[index];
             let base = Path::new(root).join(&path);
             if observe(project, &base.with_extension("py"))? == State::File
                 || observe(project, &base.with_extension("pyi"))? == State::File
@@ -85,6 +90,8 @@ pub(crate) fn prefixes(
                 module = prefix.to_owned();
             }
             if observe(project, &base)? == State::Directory {
+                directories[count] = root;
+                count += 1;
                 if observe(project, &base.join("__init__.py"))? == State::File
                     || observe(project, &base.join("__init__.pyi"))? == State::File
                 {
@@ -94,6 +101,7 @@ pub(crate) fn prefixes(
                 }
             }
         }
+        directories.truncate(count);
     }
     Ok((module, package, namespace))
 }
