@@ -594,9 +594,13 @@ impl Live {
         } else {
             let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
             use crate::check_session::source::Source as _;
-            let environment = self.languages.iter().any(|p| p.uses_project() && reader.as_deref().is_none_or(|name| name == p.name())).then(|| Arc::new(crate::check_session::project::Environment::new(
-                id.clone(), authority.clone(), key.1.keys().cloned().collect(), self.observation_epoch.clone(),
-            )));
+            let environment = self.languages.iter().any(|p| p.uses_project() && reader.as_deref().is_none_or(|name| name == p.name())).then(|| {
+                let mut environment = crate::check_session::project::Environment::new(
+                    id.clone(), authority.clone(), key.1.keys().cloned().collect(), self.observation_epoch.clone(),
+                );
+                environment.version_scope = scope.map(|(_, request_scope)| request_scope);
+                Arc::new(environment)
+            });
             if let Some(project) = &environment { self.environments.insert(id.clone(), project.clone()); }
             for (path, (bytes, permission)) in &mut key.1 {
                 let (slot, shared) = self.batch.schedule.provide(&id, path, bytes, *permission, &reader, &environment).map_err(execution)?;

@@ -268,6 +268,9 @@ pub(crate) fn collect<L: super::FileSource>(
 pub(crate) struct Environment {
     pub id: std::sync::Arc<str>,
     pub authority: Authority,
+    /// Durable authority, selected reader and effective overlay. The store
+    /// separately verifies the disk entries the provider actually observed.
+    pub(super) version_scope: Option<super::stored::Key>,
     pub supplied: BTreeSet<String>,
     epoch: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     observations: std::sync::Mutex<(usize, BTreeMap<std::path::PathBuf, l::ObservedEntryState>)>,
@@ -276,7 +279,7 @@ pub(crate) struct Environment {
 impl Environment {
     pub(crate) fn new(id: std::sync::Arc<str>, authority: Authority, supplied: BTreeSet<String>,
         epoch: std::sync::Arc<std::sync::atomic::AtomicUsize>) -> Self {
-        Self { id, authority, supplied, epoch, observations: Default::default() }
+        Self { id, authority, supplied, version_scope: None, epoch, observations: Default::default() }
     }
 
     /// Borrow the complete set of physical lookups made in this admission.
