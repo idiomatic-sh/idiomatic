@@ -571,6 +571,7 @@ impl Batch {
         keep: bool,
         mut store:Option<&mut stored::Store>,
     ) {
+        let wall = std::time::Instant::now();
         let t = thread_cpu();
         // Bound values select a different population. Only changed column declarations
         // require another prepared layout for the same lowered program.
@@ -753,6 +754,7 @@ impl Batch {
             }
         }
         self.clocks.project += thread_cpu() - t;
+        self.clocks.project_wall += wall.elapsed().as_secs_f64();
     }
 
     fn answer<'a>(work: &'a Work, answers: &'a [Answer]) -> Result<Receipt<'a>, &'a str> {

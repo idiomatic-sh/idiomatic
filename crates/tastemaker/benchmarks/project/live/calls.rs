@@ -20,6 +20,7 @@ use std::{
     collections::{BTreeMap, HashMap},
     rc::Rc,
     sync::Arc,
+    time::Instant,
 };
 
 #[derive(Default)]
@@ -37,6 +38,10 @@ pub struct Live {
     languages: Vec<Pinned>,
     filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
+    reverse_files: bool,
+    admission_wall: f64,
+    delivery_wall: f64,
+    file_epoch_wall: f64,
     versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
 }
 
@@ -52,7 +57,16 @@ impl Default for Live {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .sessions += 1;
         Self {
-            batch: Batch::default(),
+            batch: Batch {
+                workers: std::env::var_os("TM_BENCH_WORKERS").map(|n| {
+                    n.to_str().and_then(|n| n.parse().ok()).expect("positive worker count")
+                }),
+                ..Default::default()
+            },
+            reverse_files: std::env::var_os("TM_BENCH_REVERSE_FILES").is_some(),
+            admission_wall: 0.0,
+            delivery_wall: 0.0,
+            file_epoch_wall: 0.0,
             store:None, directory:None,
             state: Active {
                 keep: true,
@@ -144,6 +158,7 @@ impl Live {
         linked: &sdk::Languages,
         memory: sdk::MemoryBudget,
     ) -> Result<LiveReport, String> {
+        let wall = Instant::now();
         let t = thread_cpu();
         let limit = match memory {
             sdk::MemoryBudget::Machine => None,
@@ -164,13 +179,21 @@ impl Live {
             *last.reasons.entry(reason.clone()).or_default() += 1;
         }
         last.elapsed += thread_cpu() - t;
+        last.delivery_workers_cpu = c.delivery_workers_cpu;
+        last.call_wall += wall.elapsed().as_secs_f64();
+        last.phase_wall = [
+            self.admission_wall,
+            self.file_epoch_wall - c.project_wall,
+            c.project_wall,
+            self.delivery_wall,
+        ];
         last.parts = [
             c.prepare,
             c.read_parse,
             c.screen,
             c.evaluate,
             c.project,
-            c.assemble,
+            c.assemble + c.delivery_workers_cpu,
         ];
         last.retained = self.state.retention.counts();
         last.project_counts = [
@@ -197,6 +220,7 @@ impl Live {
         req: sdk::LintRequest,
         linked: &sdk::Languages,
     ) -> Result<LiveReport, String> {
+        let admission = Instant::now();
         if self.languages.is_empty() {
             self.languages = linked.0.iter().cloned().map(Pinned::from).collect();
         }
@@ -207,13 +231,17 @@ impl Live {
             return Err("unsupported source or project authority".into());
         }
         let physical: Arc<str> = Arc::from(req.root.to_str().ok_or("non-UTF8 root")?);
-        let (authority, listed, given) = match req.corpus {
+        let (authority, mut listed, mut given) = match req.corpus {
             sdk::Corpus::Given(files) => (Authority::Given, Vec::new(), files),
             sdk::Corpus::Listed(paths) => {
                 (Authority::Disk(physical.to_string()), paths, Vec::new())
             }
             _ => return Err("a closed source inventory is required".into()),
         };
+        if self.reverse_files {
+            listed.reverse();
+            given.reverse();
+        }
         let mut overlay = BTreeMap::new();
         for source in given.into_iter().chain(req.beside) {
             if source.executable != sdk::ExecutablePermission::Unknown {
@@ -327,41 +355,63 @@ impl Live {
             ids.push((id,Err((self.batch.work.len(),contract))));
             self.batch.work.push(work);
         }
+        self.admission_wall += admission.elapsed().as_secs_f64();
+        let epoch = Instant::now();
         if let Some(store)=&mut self.store {
             if !self.batch.work.is_empty(){self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));}else{self.state.manifest_failures.clear();}
         } else {
             self.batch.epoch(&self.languages,&mut self.state);
         }
+        self.file_epoch_wall += epoch.elapsed().as_secs_f64();
+        let deliver = Instant::now();
+        let cpu = thread_cpu();
         let mut out = LiveReport::default();
-        let start = thread_cpu();
-        for (id,entry) in ids {
-            let held;
-            let receipt=match entry {
-                Ok(k)=>{
-                    held=self.store.as_ref().unwrap().packet(&k).report();
-                    super::Receipt {rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
+        let count = self.batch.workers.map_or(1, std::num::NonZeroUsize::get);
+        // Validation and fixture calls usually contain a single request.
+        // Keep the existing per-request writer and amortize launches over a batch.
+        if self.store.is_none() && count > 1 && ids.len() >= 128 {
+            let receipts = ids.iter().map(|(id, entry)| {
+                let (i, _) = entry.as_ref().err().expect("fresh receipt");
+                let receipt = Batch::answer(&self.batch.work[*i], &self.state.answers)
+                    .map_err(|e| format!("{id}: {e}"))?;
+                Ok::<_, String>((id.as_ref(), receipt))
+            }).collect::<Result<Vec<_>, _>>()?;
+            let chunk_size = receipts.len().div_ceil(count);
+            let other_cpu = std::thread::scope(|scope| {
+                let mut chunks = receipts.chunks_mut(chunk_size);
+                let first = chunks.next().expect("non-empty requests");
+                let children: Vec<_> = chunks.map(|chunk| scope.spawn(|| {
+                    let start = thread_cpu();
+                    let result = render_chunk(chunk);
+                    (result, thread_cpu() - start)
+                })).collect();
+                out = render_chunk(first)?;
+                let mut cpu = 0.;
+                for child in children {
+                    let (part, time) = child.join().expect("receipt worker panicked");
+                    let part = part?;
+                    out.findings.extend(part.findings);
+                    out.unknowns.extend(part.unknowns);
+                    cpu += time;
                 }
-                Err((i,k))=>{
-                    let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e|format!("{id}: {e}"))?;
-                    if let (Some(store),Some(k))=(&mut self.store,k){store.save(k,i,&r);}
-                    r
-                }
-            };
-            for row in receipt.rows {
-                let subject = row.layout.identity.first()
-                    .map(|&i| row.value(i))
-                    .ok_or("missing row subject")?;
-                out.findings.push((
-                    id.as_ref().into(),
-                    slot(&subject),
-                    row.layout.names.iter().zip(row.cells())
-                        .map(|(n, v)| (n.as_str().into(), slot(&v)))
-                        .collect(),
-                ));
-            }
-            for (p, msg) in receipt.unknowns {
-                out.unknowns
-                    .push((id.as_ref().into(), p.clone(), msg.clone()));
+                Ok::<_, String>(cpu)
+            })?;
+            self.batch.clocks.delivery_workers_cpu += other_cpu;
+        } else {
+            for (id,entry) in ids {
+                let held;
+                let receipt=match entry {
+                    Ok(k)=>{
+                        held=self.store.as_ref().unwrap().packet(&k).report();
+                        super::Receipt {rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
+                    }
+                    Err((i,k))=>{
+                        let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e|format!("{id}: {e}"))?;
+                        if let (Some(store),Some(k))=(&mut self.store,k){store.save(k,i,&r);}
+                        r
+                    }
+                };
+                render_receipt(id.as_ref(), receipt, &mut out)?;
             }
         }
         for path in Rc::unwrap_or_clone(paths) {
@@ -377,9 +427,38 @@ impl Live {
         for (p,n) in restored_unread{let total=manifest.entry(p).or_default();*total=(*total).max(n);}
         for (p,n) in manifest{out.unread.extend(std::iter::repeat_n(Box::<str>::from(p),n));}
         out.unread.sort_unstable();
-        self.batch.clocks.assemble += thread_cpu() - start;
+        self.batch.clocks.assemble += thread_cpu() - cpu;
+        self.delivery_wall += deliver.elapsed().as_secs_f64();
         Ok(out)
     }
+}
+
+fn render_chunk(entries: &mut [(&str, super::Receipt<'_>)]) -> Result<LiveReport, String> {
+    let mut result = LiveReport::default();
+    for (id, receipt) in entries {
+        render_receipt(id, std::mem::take(receipt), &mut result)?;
+    }
+    Ok(result)
+}
+
+fn render_receipt(id: &str, receipt: super::Receipt<'_>, out: &mut LiveReport) -> Result<(), String> {
+    for row in receipt.rows {
+        let subject = row.layout.identity.first()
+            .map(|&i| row.value(i))
+            .ok_or("missing row subject")?;
+        out.findings.push((
+            id.into(),
+            slot(&subject),
+            row.layout.names.iter().zip(row.cells())
+                .map(|(n, v)| (n.as_str().into(), slot(&v)))
+                .collect(),
+        ));
+    }
+    for (p, msg) in receipt.unknowns {
+        out.unknowns
+            .push((id.into(), p.clone(), msg.clone()));
+    }
+    Ok(())
 }
 
 /// Replay a closed capture with exactly the parsers linked into this release.
@@ -406,6 +485,9 @@ struct Measurement {
     refused: usize,
     reasons: BTreeMap<String, usize>,
     elapsed: f64,
+    delivery_workers_cpu: f64,
+    call_wall: f64,
+    phase_wall: [f64; 4],
     parts: [f64; 6],
     counts: [usize; 8],
     retained: [u64; 4],
@@ -418,6 +500,9 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     refused: 0,
     reasons: BTreeMap::new(),
     elapsed: 0.0,
+    delivery_workers_cpu: 0.0,
+    call_wall: 0.0,
+    phase_wall: [0.0; 4],
     parts: [0.0; 6],
     counts: [0; 8],
     retained: [0; 4],
@@ -434,6 +519,8 @@ pub fn print_measurement() {
     let [versions,hits,evictions,peak_charge]=m.retained;
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;
+    let [admission_wall, file_wall, project_wall, delivery_wall] = m.phase_wall;
+    eprintln!("LIVE_PHASE_WALL calls={:.6} admission={admission_wall:.6} files={file_wall:.6} project={project_wall:.6} delivery={delivery_wall:.6}",m.call_wall);
     let [plans, bindings, sources, reads, parses, pairs, skips, eval] = m.counts;
     let [inventories, builds, relations, repeated] = m.project_counts;
     eprintln!(
@@ -445,7 +532,7 @@ pub fn print_measurement() {
         m.calls,
         m.requests,
         m.refused,
-        m.elapsed - m.parts.iter().sum::<f64>()
+        m.elapsed - prepare - read - first - second - project - assembly + m.delivery_workers_cpu
     );
 }
 

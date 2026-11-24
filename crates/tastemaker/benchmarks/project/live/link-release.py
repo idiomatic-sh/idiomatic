@@ -15,6 +15,14 @@ cfg = workspace.read_text()
 k = "[patch.crates-io]\n"
 assert cfg.count(k) == 1
 workspace.write_text(cfg.replace(k,k+'idiomatic-sh-ryo-relations = { path = "../ryo/crates/relations" }\n'))
+# Keep SDK calls on a single scheduler thread. The in-process session owns its workers.
+for operation in ('check', 'validate'):
+    connections = release / f'crates/tastemaker/cli/src/resources/workspace/{operation}/connections.rs'
+    source = connections.read_text()
+    chooser = 'std::thread::available_parallelism().map_or(1, std::num::NonZero::get)'
+    assert source.count(chooser) == 1
+    connections.write_text(source.replace(chooser, '1'))
+
 adapter = core / 'src/outbound/analysis/adapters/ryo/adapter.rs'
 s = adapter.read_text()
 start = s.index('        let linter = self', s.index('    fn lint(&self,'))
