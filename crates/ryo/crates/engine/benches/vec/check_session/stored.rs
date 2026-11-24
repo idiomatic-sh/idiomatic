@@ -146,6 +146,7 @@ struct Snapshot {
     blocks: Segments,
     stamps: Index,
     empty_schemas: Vec<Key>,
+    request_layers: Vec<Key>,
 }
 pub(super) struct Store {
     dir: PathBuf,
@@ -160,7 +161,7 @@ pub(super) struct Store {
     empty_schemas: Vec<Key>,
     schema_ids: HashMap<Key, u32>,
     notes: Shards<Notes>,
-    requests: Shards<Record>,
+    requests: Packets<Record>,
     groups: Shards<Group>,
     packets: Packets<Packet>,
     observed: Observations,
@@ -262,7 +263,7 @@ impl Store {
                 .collect(),
             empty_schemas: snapshot.empty_schemas,
             notes: Shards::new("project", snapshot.notes),
-            requests: Shards::new("requests", snapshot.requests),
+            requests: Packets::new("requests", snapshot.requests, snapshot.request_layers),
             groups: Shards::new("inputs", snapshot.groups),
             packets: Packets::new("answers", snapshot.packets, snapshot.packet_layers),
             observed: Observations::new(dir, snapshot.stamps),
@@ -351,13 +352,14 @@ impl Store {
             build: self.build,
             files: self.files.index.clone(),
             notes: self.notes.index.clone(),
-            requests: self.requests.index.clone(),
+            requests: self.requests.index().clone(),
             groups: self.groups.index.clone(),
             packets: self.packets.index().clone(),
             packet_layers: self.packets.layers.clone(),
             blocks: self.blocks.index.clone(),
             stamps: self.observed.stamps.index.clone(),
             empty_schemas: self.empty_schemas.clone(),
+            request_layers: self.requests.layers.clone(),
         })
         .map_err(io::Error::other)?;
         if bytes != self.previous {
@@ -1067,5 +1069,30 @@ mod tests {
         assert!(store.lookup_in(old, key("second")).is_none());
         assert!(store.lookup(key("first")).is_none());
         assert_eq!(store.publish().unwrap(), 0);
+
+        let evidence = store.group(
+            vec![("input".into(), Probe::Effective)],
+            Some(old),
+        ).unwrap();
+        store.put(
+            key("first"),
+            Packet::declined("replacement"),
+            vec![evidence],
+            vec![],
+            String::new,
+        );
+        let shards = store.requests.index().clone();
+        assert!(store.publish().unwrap() > 0);
+        assert_eq!(store.requests.index(), &shards);
+        assert_eq!(store.requests.layers.len(), 1);
+
+        let mut store = open();
+        let old = scope(&mut store, "old bytes");
+        let new = scope(&mut store, "new bytes");
+        for (input, key_name, text) in [(old, "first", "replacement"), (new, "second", "second")] {
+            let (packet, _) = store.lookup_in(input, key(key_name)).unwrap();
+            assert_eq!(store.packet(&packet).refusal.as_deref(), Some(text));
+        }
+        assert!(store.lookup_in(new, key("first")).is_none());
     }
 }
