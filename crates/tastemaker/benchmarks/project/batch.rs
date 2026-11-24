@@ -871,16 +871,52 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
     let answers = session.run_sources(readers);
     let t = thread_cpu();
     let mut out = std::io::BufWriter::new(std::fs::File::create(output).unwrap());
-    let results: Vec<_> = session
-        .work
-        .iter()
-        .map(|work| Batch::answer(work, &answers).map(|r| (digest(&r.rows), r.unknowns)))
-        .collect();
+    // Project closure shares complete answers and file closure shares ordered slots.
+    // Reuse evidence only for those exact identities in this immutable replay.
+    #[derive(Hash, Eq, PartialEq)]
+    enum Source<'a> {
+        Project(*const Answer),
+        Files(&'a [usize]),
+    }
+    let mut known = HashMap::new();
+    let mut indices = Vec::with_capacity(session.work.len());
+    let mut results = Vec::new();
+    let empty = digest(&[]);
+    let mut gathered = 0.0;
+    let mut nonempty_digests = 0;
+    for work in &session.work {
+        let source = match work {
+            Work::Project(answer) if Rc::strong_count(answer) > 1 => {
+                Some(Source::Project(Rc::as_ptr(answer)))
+            }
+            Work::Pairs(slots) => Some(Source::Files(slots)),
+            _ => None,
+        };
+        let next = results.len();
+        let index = source.map_or(next, |source| *known.entry(source).or_insert(next));
+        if index == next {
+            let start = thread_cpu();
+            let receipt = Batch::answer(work, &answers);
+            gathered += thread_cpu() - start;
+            results.push(receipt.map(|receipt| {
+                let value = if receipt.rows.is_empty() {
+                    std::borrow::Cow::Borrowed(empty.as_str())
+                } else {
+                    nonempty_digests += 1;
+                    std::borrow::Cow::Owned(digest(&receipt.rows))
+                };
+                (value, receipt.unknowns)
+            }));
+        }
+        indices.push(index);
+    }
+    drop(known);
+    let mut fragments = json_output::UnknownWriter::default();
     let mut refusals = BTreeMap::new();
     for (i, id, expected) in invocations {
-        match &results[i] {
+        match &results[indices[i]] {
             Ok((d, unknowns)) => {
-                let status = if d == &expected && unknowns.is_empty() {
+                let status = if d.as_ref() == expected.as_str() && unknowns.is_empty() {
                     "exact"
                 } else {
                     "different"
@@ -888,7 +924,7 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
                 write!(out, "{id}\t{status}\t{d}").unwrap();
                 if !unknowns.is_empty() {
                     write!(out, "\t").unwrap();
-                    json_output::write_unknowns(&mut out, unknowns);
+                    fragments.write(&mut out, unknowns);
                 }
                 writeln!(out).unwrap();
             }
@@ -908,6 +944,8 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
     );
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
+    println!("RECEIPT_EVIDENCE registrations={} gathers={} nonempty_digests={} unknown_encodes={} assembly_sdk={gathered:.6} assembly_evidence={:.6}",
+        session.work.len(), results.len(), nonempty_digests, fragments.len(), c.assemble - gathered);
     println!(
         "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6}",
         session.schedule.programs.len(),
