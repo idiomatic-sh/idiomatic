@@ -55,6 +55,22 @@ fn opd(e: &E) -> Option<Opd> {
     })
 }
 
+/// A total text condition over one interned column in the union's output schema.
+fn symbol_test_column(e: &E) -> Option<usize> {
+    match e {
+        E::TextTest(value, _) => match **value {
+            E::Col(0, column, Ty::Sym) => Some(column),
+            _ => None,
+        },
+        E::Or(left, right) | E::And(left, right) => {
+            let column = symbol_test_column(left)?;
+            (symbol_test_column(right)? == column).then_some(column)
+        }
+        E::Not(value) => symbol_test_column(value),
+        _ => None,
+    }
+}
+
 fn compile(e: &E) -> P {
     match e {
         E::Lit(v) => P::Const(truthy(*v)),
@@ -386,7 +402,7 @@ impl Exec<'_> {
             && self.plan.nodes[*source].op == "union"
             && self.consumers[*source] == [node] && !self.emitted.contains(source)
             && let [condition] = sp.conj.as_slice()
-            && let Some((column, Ty::Sym)) = super::cold_word::column(condition)
+            && let Some(column) = symbol_test_column(condition)
             && !sw!("VEC_OLD_UNION") && !sw!("VEC_UNION_ALL")
         {
             let schema = self.schema(run, *source)?;
