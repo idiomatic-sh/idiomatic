@@ -1,6 +1,6 @@
 //! Capped file prerequisites of the same lowered step as its node witnesses.
 use super::{first::Language, pair_checks::AtomAnswers, pair_summary::inputs};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
 use std::{collections::BTreeSet, rc::Rc};
 
@@ -261,18 +261,61 @@ enum Shape {
     Field(u32),
 }
 
+#[derive(Eq, Hash, PartialEq)]
+struct Clause<T> {
+    id: usize,
+    terms: Rc<[T]>,
+}
+
+/// The legacy file skip interned its clauses for a whole pack. The reader
+/// can add more prepared programs while those same clause IDs remain live.
+#[derive(Default)]
+pub(super) struct PrerequisiteClauses {
+    shape: FxHashMap<Rc<[Shape]>, usize>,
+    words: FxHashMap<Rc<[u32]>, usize>,
+}
+
+impl PrerequisiteClauses {
+    fn intern<T: Eq + std::hash::Hash>(
+        seen: &mut FxHashMap<Rc<[T]>, usize>,
+        terms: Vec<T>,
+        next: usize,
+    ) -> Clause<T> {
+        if let Some((stored, &id)) = seen.get_key_value(terms.as_slice()) {
+            return Clause {
+                id,
+                terms: stored.clone(),
+            };
+        }
+        let terms: Rc<[T]> = terms.into();
+        seen.insert(terms.clone(), next);
+        Clause { id: next, terms }
+    }
+
+    fn shape(&mut self, terms: Vec<Shape>) -> Clause<Shape> {
+        let next = self.shape.len() + self.words.len();
+        Self::intern(&mut self.shape, terms, next)
+    }
+
+    fn words(&mut self, terms: Vec<u32>) -> Clause<u32> {
+        let next = self.shape.len() + self.words.len();
+        Self::intern(&mut self.words, terms, next)
+    }
+}
+
 /// Prepared once with the reader's symbol dictionary, shared by its bindings.
 #[derive(Eq, Hash, PartialEq)]
 pub(super) struct BoundSummary {
     never: bool,
-    shape: Vec<Vec<Shape>>,
-    words: Vec<Vec<u32>>,
+    shape: Vec<Clause<Shape>>,
+    words: Vec<Clause<u32>>,
     demand: Demand,
 }
 
 impl BoundSummary {
     pub(super) fn bind(
         (never, shape, words): &(bool, Vec<Vec<String>>, Vec<Vec<String>>),
+        clauses: &mut PrerequisiteClauses,
         mut intern: impl FnMut(&[u8]) -> u32,
     ) -> Self {
         let mut demand = Demand {
@@ -282,7 +325,7 @@ impl BoundSummary {
         let shape = shape
             .iter()
             .map(|clause| {
-                clause
+                let terms = clause
                     .iter()
                     .map(|term| {
                         let (kind, value) = term.split_once(':').expect("shape term");
@@ -299,12 +342,15 @@ impl BoundSummary {
                             _ => unreachable!("undeclared shape term"),
                         }
                     })
-                    .collect()
+                    .collect();
+                clauses.shape(terms)
             })
             .collect();
         let words = words
             .iter()
-            .map(|clause| clause.iter().map(|word| intern(word.as_bytes())).collect())
+            .map(|clause| {
+                clauses.words(clause.iter().map(|word| intern(word.as_bytes())).collect())
+            })
             .collect();
         Self {
             never: *never,
@@ -343,7 +389,14 @@ impl Projection<'_> {
     ) -> Demand {
         use ryo::languages::node_table;
         if let Some(set) = self.kinds.as_deref_mut().filter(|_| numbered.kinds) {
-            project_codes(node_table::kind_codes(tree), &run.kind_sym, set);
+            for (group, kinds) in node_table::kinds_present(tree).0.iter().enumerate() {
+                let mut word = kinds.0;
+                while word != 0 {
+                    let code = group * 64 + word.trailing_zeros() as usize;
+                    set.insert(run.kind_sym[code]);
+                    word &= word - 1;
+                }
+            }
         } else {
             self.kinds = None;
         }
@@ -379,6 +432,7 @@ pub(super) struct FileSummary {
     asked: Demand,
     complete: Demand,
     answers: AtomAnswers,
+    clauses: AtomAnswers,
     kinds: FxHashSet<u32>,
     fields: FxHashSet<u32>,
     words: FxHashSet<u32>,
@@ -389,6 +443,7 @@ impl FileSummary {
         self.asked = Demand::default();
         self.complete = Demand::default();
         self.answers.clear();
+        self.clauses.clear();
         self.kinds.clear();
         self.fields.clear();
         self.words.clear();
@@ -410,6 +465,41 @@ impl FileSummary {
         excluded
     }
 
+    /// Report the first failed prerequisite after `excludes` returned true.
+    #[allow(
+        dead_code,
+        reason = "used by diagnostic builds that trace pair decisions"
+    )]
+    pub(super) fn exclusion(&self, id: usize, bound: &BoundSummary) -> Option<&'static str> {
+        if self.answers.get(id) != Some(true) {
+            return None;
+        }
+        if bound.never {
+            return Some("contradiction");
+        }
+        let Some(clause) = bound
+            .shape
+            .iter()
+            .find(|clause| self.clauses.get(clause.id) == Some(true))
+        else {
+            return Some("word");
+        };
+        let kinds = clause
+            .terms
+            .iter()
+            .any(|term| matches!(term, Shape::Kind(_)));
+        let fields = clause
+            .terms
+            .iter()
+            .any(|term| matches!(term, Shape::Field(_)));
+        Some(match (kinds, fields) {
+            (true, false) => "kind",
+            (false, true) => "field",
+            (true, true) => "kind-or-field",
+            (false, false) => "contradiction",
+        })
+    }
+
     fn missing(
         &mut self,
         bound: &BoundSummary,
@@ -429,7 +519,7 @@ impl FileSummary {
             self.complete.fields |= fields && complete.fields;
         }
         if bound.shape.iter().any(|clause| {
-            clause.iter().all(|term| match *term {
+            clause_missing(&mut self.clauses, clause, |term| match *term {
                 Shape::Kind(id) => self.complete.kinds && !self.kinds.contains(&id),
                 Shape::Field(id) => self.complete.fields && !self.fields.contains(&id),
             })
@@ -446,11 +536,25 @@ impl FileSummary {
             self.asked.words = true;
         }
         self.complete.words
-            && bound
-                .words
-                .iter()
-                .any(|clause| clause.iter().all(|id| !self.words.contains(id)))
+            && bound.words.iter().any(|clause| {
+                clause_missing(&mut self.clauses, clause, |id| !self.words.contains(id))
+            })
     }
+}
+
+/// A file's clause is tested once. The memo holds both negative and positive
+/// decisions, like the native file skip's held mask and stamped word memo.
+fn clause_missing<T>(
+    answers: &mut AtomAnswers,
+    clause: &Clause<T>,
+    absent: impl FnMut(&T) -> bool,
+) -> bool {
+    if let Some(value) = answers.get(clause.id) {
+        return value;
+    }
+    let missing = clause.terms.iter().all(absent);
+    answers.set(clause.id, missing);
+    missing
 }
 
 /// Translate each distinct provider code only once. A numbered column may
@@ -488,6 +592,7 @@ mod tests {
                 vec![vec!["k:left".into()]],
                 vec![vec!["name".into()]],
             ),
+            &mut PrerequisiteClauses::default(),
             |_| 1,
         );
         let mut file = FileSummary::default();
@@ -499,12 +604,14 @@ mod tests {
             }
         }));
         assert!(file.excludes(0, &bound, |_| panic!("repeated verdict")));
+        assert_eq!(file.exclusion(0, &bound), Some("kind"));
     }
 
     #[test]
     fn incomplete_alternatives_cannot_prove_absence() {
         let bound = BoundSummary::bind(
             &(false, vec![vec!["k:left".into(), "f:right".into()]], vec![]),
+            &mut PrerequisiteClauses::default(),
             |_| 1,
         );
         let mut file = FileSummary::default();
@@ -521,6 +628,24 @@ mod tests {
             fields: true,
             words: false
         }));
+        assert_eq!(file.exclusion(0, &bound), Some("kind-or-field"));
+    }
+
+    #[test]
+    fn programs_share_a_clause_and_reset_its_answer_for_a_new_version() {
+        let mut clauses = PrerequisiteClauses::default();
+        let one = clauses.words(vec![1, 2]);
+        let two = clauses.words(vec![1, 2]);
+        let shape = clauses.shape(vec![Shape::Kind(1)]);
+        assert_eq!(one.id, two.id);
+        assert_ne!(one.id, shape.id);
+        let mut file = FileSummary::default();
+        assert!(clause_missing(&mut file.clauses, &one, |_| true));
+        assert!(clause_missing(&mut file.clauses, &two, |_| panic!(
+            "shared clause"
+        )));
+        file.reset();
+        assert!(!clause_missing(&mut file.clauses, &two, |_| false));
     }
 
     #[test]
