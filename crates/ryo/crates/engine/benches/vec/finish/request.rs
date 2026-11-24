@@ -193,6 +193,24 @@ impl Exec<'_> {
         self.admit_packet(file.version, run, provider, checks)
     }
 
+    /// The indexed reader has already bound these typed relation demands
+    /// for the active bindings. Reuse its admission rather than binding a
+    /// second execution plan merely to describe the existing packet.
+    pub(crate) fn open_indexed(&mut self, version: &super::FileVersion<'_>, run: &mut Run,
+        provider: &mut dyn Provider, relations: &[ryo::languages::Relation], checks: &[&str]) -> R<Vec<Reply>> {
+        use ryo_relations::domain::relations::service::name;
+        let host: Vec<_> = run.declared.iter().filter(|(_, declaration)| matches!(declaration.supplier, Supplier::Host))
+            .map(|(relation, _)| relation.clone()).collect();
+        let extras: Vec<_> = host.iter().map(|relation| slot(run, relation)).collect();
+        let slots: Vec<_> = relations.iter().map(|&relation| slot(run, name(relation).0)).collect();
+        self.requests.masks.resize_with(run.fact_rels.len(), || None);
+        self.requests.masks.fill(None);
+        for id in slots.into_iter().chain(extras) {
+            self.requests.masks[usize::from(id)] = Some(Columns::All);
+        }
+        self.admit_packet(version, run, provider, checks)
+    }
+
     fn admit_packet(&mut self, version: &super::FileVersion<'_>, run: &mut Run, provider: &mut dyn Provider, checks: &[&str]) -> R<Vec<Reply>> {
         self.requests.files += 1;
         let mut packet = version.facts.borrow_mut();

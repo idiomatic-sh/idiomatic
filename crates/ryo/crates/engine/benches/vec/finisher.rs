@@ -138,7 +138,7 @@ impl<'p> Finisher<'p> {
     }
 
     /// One file's emits run on its node table and source through the provider `pv`.
-    pub(super) fn file(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize], indexed: Option<&dyn finish::request::Indexed>, empty: &[&str]) -> u64 {
+    pub(super) fn file(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize], indexed: Option<(&dyn finish::request::Indexed, &[languages::Relation])>, empty: &[&str]) -> u64 {
         let a0 = super::alloc_count::counts();
         let widened = self.file_inner(file_no, ft, bytes, pv, wanted, indexed, empty);
         let a1 = super::alloc_count::counts();
@@ -148,11 +148,11 @@ impl<'p> Finisher<'p> {
         widened
     }
 
-    fn file_inner(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize], indexed: Option<&dyn finish::request::Indexed>, empty: &[&str]) -> u64 {
+    fn file_inner(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize], indexed: Option<(&dyn finish::request::Indexed, &[languages::Relation])>, empty: &[&str]) -> u64 {
         self.files_run += 1;
         let plan = self.plan;
         let mut version = finish::FileVersion::new(ft, bytes, file_no as u32, pv.syntax_text());
-        version.bind_packet(indexed);
+        version.bind_packet(indexed.map(|(packet, _)| packet));
         let mut f = finish::File::new(&version, plan.nodes.len());
         let run = &mut self.run;
         let checks: Vec<_> = if self.check {
@@ -164,7 +164,10 @@ impl<'p> Finisher<'p> {
         let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
         let roots = wanted.iter().copied().filter(|&i| !self.failed_idx[i] && !(rejected && self.accepted_only[i]))
             .map(|i| plan.emits[i].1);
-        let replies = self.exec.open_file(&mut f, run, pv, roots, &checks, Some(empty)).expect("file provider packet");
+        let replies = match indexed {
+            Some((_, facts)) => self.exec.open_indexed(&version, run, pv, facts, &checks),
+            None => self.exec.open_file(&mut f, run, pv, roots, &checks, Some(empty)),
+        }.expect("file provider packet");
         for (rel, reply) in checks.into_iter().zip(replies) {
             let mine = finish::native_table(&mut f, run, rel);
             match reply.and_then(finish::request::Answer::columns) {
