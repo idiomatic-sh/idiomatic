@@ -152,7 +152,7 @@ mod subject_scope;
 #[path = "finish/partition.rs"]
 pub(super) mod partition;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Deserialize, serde::Serialize)]
 pub(super) enum Ty {
     Node,
     Sym,

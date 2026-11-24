@@ -2,6 +2,8 @@
 //! Only the final comparison has access to a reference digest.
 #[path = "readers.rs"]
 mod readers;
+#[path="stored.rs"]
+mod stored;
 
 use super::{Hosted, Parameters, bind_tables, execute_ids, finish, read_parameters};
 use crate::check_session::project::{self, Authority, Population};
@@ -382,10 +384,14 @@ impl Batch {
         state.answers
     }
 
-    fn epoch<L: session::source::Source>(
+    fn epoch<L: session::source::Source>(&mut self,languages:&[L],state:&mut Active<L::File,L::Dictionary>) {
+        self.epoch_with_store(languages,state,None)
+    }
+    fn epoch_with_store<L: session::source::Source>(
         &mut self,
         languages: &[L],
         state: &mut Active<L::File, L::Dictionary>,
+        mut store:Option<&mut stored::Store>,
     ) {
         let Active {
             keep,
@@ -406,6 +412,9 @@ impl Batch {
         aliases.extend(aliases.len()..self.schedule.pairs);
         answers.resize_with(self.schedule.pairs, || Err(String::new()));
         contributions.resize_with(self.schedule.sources.len(), || None);
+        if let Some(s)=store.as_deref_mut() {
+            s.admit(self,world,answers,contributions);
+        }
         let pending: Vec<_> = std::mem::take(&mut self.schedule.pending)
             .into_iter()
             .collect();
@@ -462,6 +471,7 @@ impl Batch {
                 &mut self.clocks,
             );
         }
+        if let Some(s)=store.as_deref_mut() {s.local(self,world,answers,aliases,contributions);}
         if !*keep {
             reader_states.clear();
         }
@@ -476,7 +486,8 @@ impl Batch {
             *aliases=Vec::new();
         }
         self.schedule.delivered(&pending);
-        self.finish_projects(languages, contributions, world, answers, populations, manifest_failures, *keep);
+        self.finish_projects(languages, contributions, world, answers, populations, manifest_failures, *keep,store.as_deref_mut());
+        if let Some(s)=store {manifest_failures.extend(s.unread());}
     }
 
     fn finish_projects<L: session::source::Source>(
@@ -488,6 +499,7 @@ impl Batch {
         populations: &mut HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
         manifest_failures: &mut Vec<l::FilePath>,
         keep: bool,
+        mut store:Option<&mut stored::Store>,
     ) {
         let t = thread_cpu();
         // Bound values select a different population. Only changed column declarations
@@ -659,6 +671,10 @@ impl Batch {
                     .map(|rows| session::Reported { rows, unknowns })
                 }))};
                 exec.release_request();
+                if let Some(s)=store.as_deref_mut() {
+                    let pop=project.and_then(|id| populations[&id].1.as_ref().ok());
+                    s.closed(i,&answer,pop,project.map(|id| &self.projects[id].authority));
+                }
                 if let Some(finished)=readers.release(i,pairs,*project,world) {
                     populations.remove(&finished);
                 }
@@ -796,7 +812,10 @@ pub(crate) fn batch(languages: Vec<Language>, manifest: &str, output: &str) {
     batch_with_sources(&readers, manifest, output);
 }
 
-fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str, output: &str) {
+fn batch_with_sources<L: session::source::Source>(readers: &[L],manifest:&str,output:&str){
+    batch_mode(readers,manifest,output,None)
+}
+fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,root:Option<&Path>){
     let start = thread_cpu();
     let mut session = Batch::default();
     if let Some(index) = std::env::var_os("TM_CORPUS_INVENTORIES") {
@@ -835,7 +854,15 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
     }
     drop(inputs);
     let registration = thread_cpu() - start - session.clocks.prepare - session.clocks.project;
-    let answers = session.run_sources(readers);
+    let answers = if let Some(root)=root {
+        let mut store=stored::Store::open(root).expect("read session store");
+        let mut state=Active::default();
+        session.epoch_with_store(readers,&mut state,Some(&mut store));
+        store.prune();
+        let written=store.publish().expect("publish session snapshot");
+        eprintln!("retained pair_hits={} closed_hits={} written={written}",store.file_hits,store.closed_hits);
+        state.answers
+    } else {session.run_sources(readers)};
     let t = thread_cpu();
     let mut out = std::io::BufWriter::new(std::fs::File::create(output).unwrap());
     let results: Vec<_> = session

@@ -26,7 +26,11 @@ s = s[:start] + '''        // Validation and the workspace check share the calle
             return Err(engine("this benchmark requires one worker"));
         }
         thread_local! { static SESSION: std::cell::RefCell<tm_project_session::Live> = Default::default(); }
-        pool.install(|| SESSION.with(|s| s.borrow_mut().lint(sdk, &self.languages)))
+        pool.install(|| SESSION.with(|s| {
+            let mut session=s.borrow_mut();
+            session.use_cache(self.cache.as_deref())?;
+            session.lint(sdk,&self.languages)
+        }))
             .map(schemas::session_report)
             .map_err(engine)''' + s[end:]
 adapter.write_text(s)
@@ -77,6 +81,13 @@ fn main() -> std::process::ExitCode {
         }
         return std::process::ExitCode::SUCCESS;
     }
+    if mode.as_deref() == Some("--tm-batch-retained") {
+        let root=arguments.next().expect("store root");
+        let manifest=arguments.next().expect("manifest");
+        let output=arguments.next().expect("output");
+        tm_project_session::capture_retained(benchmark_languages::linked(),&manifest,&output,&root);
+        return std::process::ExitCode::SUCCESS;
+    }
     if mode.as_deref() == Some("--tm-batch") {
         let manifest = arguments.next().expect("manifest");
         let output = arguments.next().expect("output");
@@ -96,13 +107,13 @@ entry.write_text(s.replace(original, '    let result = tastemaker_cli::resources
 adapter = release / 'crates/tastemaker/crates/core/src/outbound/analysis/adapters/ryo/adapter.rs'
 s = adapter.read_text()
 start = s.index('    /// The pool ryo reads')
-s = s[:start] + '    pool: crate::outbound::scheduler::types::WorkerPool,' + s[s.index('\n}', start):]
+s = s[:start] + '    pool: crate::outbound::scheduler::types::WorkerPool,\n    cache: Option<std::path::PathBuf>,' + s[s.index('\n}', start):]
 start=s.index('        settings: AnalysisSettings,')
 end=s.index('\n    }',start)
 s=s[:start]+'''        settings: AnalysisSettings,
-        _cache: ryo::linter::Cache,
+        cache: ryo::linter::Cache,
     ) -> Self {
-        Self { languages, pool: settings.pool }'''+s[end:]
+        Self { languages, pool: settings.pool, cache: match cache { ryo::linter::Cache::At(p) => Some(p), _ => None } }'''+s[end:]
 s=s.replace('self, error, operator_page, placed_columns, relation_page, report','self, operator_page, placed_columns, relation_page').replace('InvalidReason, Memory, QueryVerdict', 'InvalidReason, QueryVerdict')
 adapter.write_text(s)
 schema=adapter.with_name('schemas.rs')
