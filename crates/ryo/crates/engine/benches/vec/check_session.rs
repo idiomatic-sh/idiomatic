@@ -478,7 +478,7 @@ struct HeldFile<F: Default, D: Default> {
     tree: l::NodeTable,
     fields: Vec<u32>,
     text: Vec<u32>,
-    read: bool,
+    recovery: Option<ryo_execution_domain::domain::coverage::types::Recovery>,
     contents: Contents,
     known: BTreeSet<l::Relation>,
     facts: l::contract::Collect,
@@ -587,10 +587,18 @@ pub(crate) fn visit<L: FileSource>(
             let session_open = keep;
             let start = keep.then(|| retention.clock()).flatten();
             let mut cached = start.and_then(|_| retention.take(index));
+            // An opaque provider dictionary and its projected rows are one version.
+            // Rebuild them together if a later binding asks for additional facts.
+            if let Some((credit, file)) = cached.as_mut()
+                && !wanted.is_subset(&file.known)
+            {
+                *file = HeldFile::default();
+                *credit = 0;
+            }
             let keep = cached.is_some();
             let held = cached.as_mut().map_or(&mut scratch, |(_,file)| file);
             let mut symbols = &mut held.symbols;
-            let reused = keep && held.read;
+            let reused = keep && held.recovery.is_some();
             let mut elements = &mut held.native;
             let mut tree = &mut held.tree;
             let result = if reused {
@@ -632,13 +640,11 @@ pub(crate) fn visit<L: FileSource>(
                 continue;
             }
             if !project_slots.is_empty() || (session_open && !reused) {
-                let manifest = manifests
-                    .contains(source.path.rsplit('/').next().unwrap())
-                    .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
-                let c = Rc::new(project::Contribution {
-                    reader: reader_id,
-                    notes: L::notes(&elements),
-                    manifest,
+                let c = contributions[index].clone().unwrap_or_else(|| {
+                    let manifest = manifests
+                        .contains(source.path.rsplit('/').next().unwrap())
+                        .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
+                    Rc::new(project::Contribution { reader: reader_id, notes: L::notes(&elements), manifest })
                 });
                 if session_open {
                     contributions[index] = Some(c.clone());
@@ -686,7 +692,7 @@ pub(crate) fn visit<L: FileSource>(
             }
             let Contents { kinds, fields, words } = &*contents;
             use ryo_execution_domain::domain::coverage::service::partial_of;
-            let recovery = L::recovery(&elements);
+            let recovery = held.recovery.unwrap_or_else(|| L::recovery(&elements));
             let mut active = Vec::new();
             for (&binding, &slot) in &jobs {
                 let Ok(b) = &bound[&binding] else { continue };
@@ -893,7 +899,8 @@ pub(crate) fn visit<L: FileSource>(
                 clocks.refused += usize::from(answers[slot].is_err());
             }
             if keep {
-                held.read = true;
+                held.recovery = Some(recovery);
+                held.native = L::File::default();
                 held.text = provider.text;
                 packet.rows.partials = partials;
                 packet.rows.partials_at = partials_at;
