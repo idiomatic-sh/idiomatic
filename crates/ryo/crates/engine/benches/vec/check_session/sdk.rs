@@ -290,6 +290,9 @@ impl Live {
             })
         }).collect::<Vec<_>>();
         self.batch.work.clear();
+        if let Err(error) = crate::finish::operators::flush() {
+            eprintln!("operator ledger: {error}");
+        }
         let mut last = MEASURED
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
