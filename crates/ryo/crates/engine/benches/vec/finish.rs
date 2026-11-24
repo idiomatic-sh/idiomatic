@@ -1340,21 +1340,37 @@ pub(super) struct Schema {
 /// A select over one tree relation (or another such view) with only column picks and tests: never made whole; its rows are
 /// read in place by position, entered by a kind bucket or a keyed probe, and tested as they are read.
 pub(super) struct ViewSpec {
+    shape: std::sync::Arc<ViewShape>,
+    cold_test: std::cell::OnceCell<Rc<cold_test::Kernel>>,
+    cold_bucket: std::cell::OnceCell<cold_list::Handoff>,
+}
+
+/// Bound column ordinals and tests are immutable for a provider vocabulary.
+pub(super) struct ViewShape {
     base: Native,
     map: Vec<usize>,
     filter: Vec<E>,
-    /// redo-fills c4: `filter` compiled once (when the view is made), read as columns (`view_cols`).
     tests: Vec<view_cols::Test>,
-    cold_test: std::cell::OnceCell<Rc<cold_test::Kernel>>,
-    cold_bucket: std::cell::OnceCell<cold_list::Handoff>,
     cold_file_test: bool,
+}
+
+impl std::ops::Deref for ViewSpec {
+    type Target = ViewShape;
+
+    fn deref(&self) -> &ViewShape {
+        &self.shape
+    }
 }
 
 impl ViewSpec {
     fn new(base: Native, map: Vec<usize>, filter: Vec<E>) -> Self {
         let tests = view_cols::compile(&filter);
         let cold_file_test = filter.iter().any(|e| filter_order::file_const(e) && !matches!(e, E::Lit(_)));
-        ViewSpec { base, map, filter, tests, cold_file_test, cold_test: std::cell::OnceCell::new(), cold_bucket: std::cell::OnceCell::new() }
+        Self::with_shape(std::sync::Arc::new(ViewShape { base, map, filter, tests, cold_file_test }))
+    }
+
+    fn with_shape(shape: std::sync::Arc<ViewShape>) -> Self {
+        Self { shape, cold_test: Default::default(), cold_bucket: Default::default() }
     }
 }
 
@@ -1406,6 +1422,7 @@ pub(super) struct Exec<'p> {
     schemas: Vec<Option<Rc<Schema>>>,
     pub(crate) worker_shapes: Option<worker_schemas::Local>,
     views: Vec<Option<Option<Rc<ViewSpec>>>>,
+    shared_views: &'p [worker_schemas::ViewBinding],
     sels: Vec<Option<Rc<SelPlan>>>,
     shared_sels: &'p [Option<Box<SelPlan>>],
     // Each reader group prepares its own column indices and interned names.
@@ -1498,6 +1515,7 @@ impl<'p> Exec<'p> {
             schemas: vec![None; k],
             worker_shapes: None,
             views: vec![None; k],
+            shared_views: &[],
             sels: vec![None; k],
             shared_sels: &[],
             shared_kernels: &[],
@@ -1819,6 +1837,20 @@ impl<'p> Exec<'p> {
 
     #[inline(never)]
     fn view_slow(&mut self, run: &mut Run, node: usize) -> R<Option<Rc<ViewSpec>>> {
+        use worker_schemas::ViewBinding;
+        let v = match self.shared_views.get(node) {
+            Some(ViewBinding::Other) => None,
+            Some(ViewBinding::View(shape)) => Some(Rc::new(ViewSpec::with_shape(shape.clone()))),
+            _ => self.bind_view(run, node)?,
+        };
+        if let Some(view) = &v {
+            self.cold_compiler.bind(run, node, view);
+        }
+        self.views[node] = Some(v.clone());
+        Ok(v)
+    }
+
+    fn bind_view(&mut self, run: &mut Run, node: usize) -> R<Option<Rc<ViewSpec>>> {
         let pn = &self.plan.nodes[node];
         let v = match pn.op.as_str() {
             "base" => {
@@ -1851,10 +1883,6 @@ impl<'p> Exec<'p> {
             }
             _ => None,
         };
-        if let Some(view) = &v {
-            self.cold_compiler.bind(run, node, view);
-        }
-        self.views[node] = Some(v.clone());
         Ok(v)
     }
 
