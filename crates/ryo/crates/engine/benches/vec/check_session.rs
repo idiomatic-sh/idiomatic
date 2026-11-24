@@ -140,6 +140,7 @@ pub(crate) struct Clock {
     pub pairs: usize,
     pub skipped: usize,
     pub evaluated: usize,
+    pub certified: usize,
     pub productive: usize,
     pub refused: usize,
 }
@@ -1060,6 +1061,7 @@ pub(crate) fn visit<L: FileSource>(
             } else {
                 packet.index(&facts);
             }
+            let mut certified = HashMap::new();
             let version = std::cell::OnceCell::new();
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
@@ -1075,6 +1077,21 @@ pub(crate) fn visit<L: FileSource>(
                     let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                     screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
                         &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, unknown, cut_of, &said);
+                    if said.is_empty() && provider.projects_words {
+                        for &(binding, slot, excluded) in jobs.iter() {
+                            if excluded || cut_of[binding].is_some() { continue; }
+                            let b = bound[&binding].as_ref().unwrap();
+                            if !b.named.is_empty() { continue; }
+                            if let Some(tables) = screen.exact_locations(root(binding), tree, id) {
+                                let mut rows = Vec::new();
+                                let result = b.plan.emits.iter().zip(tables).enumerate().try_for_each(
+                                    |(emit, ((rule, _, subject, keys), table))| finish::session::publish_table(
+                                        &mut exec, &mut run, (binding, emit), rule, subject, keys, &table, id.0 as usize, &mut rows));
+                                certified.insert(slot, result.map(|()| Reported::from(rows)));
+                            }
+                        }
+                    }
+
                 };
                 if let Some(screen) = &mut checks {
                     evaluate(0, screen, &mut active, |binding| binding);
@@ -1202,6 +1219,13 @@ pub(crate) fn visit<L: FileSource>(
                     }
                     answers.set(slot, Ok(Reported::default()));
                     clocks.skipped += 1;
+                    continue;
+                }
+                if let Some(result) = certified.remove(&slot) {
+                    clocks.certified += 1;
+                    clocks.productive += usize::from(result.as_ref().is_ok_and(|r| !r.rows.is_empty()));
+                    clocks.refused += usize::from(result.is_err());
+                    answers.set(slot, result);
                     continue;
                 }
                 clocks.evaluated += 1;

@@ -39,6 +39,25 @@ pub(crate) struct Certificate {
     pub nodes: Id,
     pub guard: Id,
     pub facts: Vec<usize>,
+    pub columns: Box<[LocationColumn]>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum LocationColumn {
+    File,
+    Span,
+    Node,
+}
+
+impl LocationColumn {
+    fn named(name: &str) -> Option<Self> {
+        Some(match name {
+            "file" => Self::File,
+            "span" => Self::Span,
+            "id" => Self::Node,
+            _ => return None,
+        })
+    }
 }
 
 fn base<'a>(b: &mut Builder<'_>, name: &str) -> Option<Row<'a>> {
@@ -694,6 +713,7 @@ pub(super) fn prepare<'a>(
     b: &mut Builder<'_>,
     plan: &'a FinishPlan,
     live: &[bool],
+    targets: Option<&[usize]>,
 ) -> Vec<(usize, Exclusion<'a>)> {
     // Only a retained proof needs its matcher validated. Carry this obligation
     // even when the row's node expression folds away the matching instruction.
@@ -707,6 +727,7 @@ pub(super) fn prepare<'a>(
     for rule in &plan.rules {
         if let RuleEmit::Written(e) = &rule.emit
             && &*e.subject.0 == "file"
+            && targets.is_none_or(|steps| steps.contains(&e.step.0))
         {
             live[e.step.0] = true;
         }
@@ -843,11 +864,9 @@ pub(super) fn prepare<'a>(
                     Project(p) => {
                         let mut row = rows[p.from.0].clone()?;
                         row.derived = false;
-                        for name in &p.columns {
-                            row.column(&name.0)?;
-                        }
-                        row.cols
-                            .retain(|(n, _)| p.columns.iter().any(|c| &*c.0 == *n));
+                        row.cols = p.columns.iter().map(|name| {
+                            Some((name.0.as_ref(), row.column(&name.0)?))
+                        }).collect::<Option<_>>()?;
                         Some(row)
                     }
                     Union(u) => {
@@ -900,13 +919,17 @@ pub(super) fn prepare<'a>(
         }
     }
     let base = b.out.roots.len();
-    let certificates = plan
+    let mut certificates = plan
         .rules
         .iter()
         .enumerate()
         .filter_map(|(ri, r)| {
             let RuleEmit::Written(e) = &r.emit else {
                 return None;
+            };
+            let root = match targets {
+                Some(steps) => steps.iter().position(|&step| step == e.step.0)?,
+                None => ri,
             };
             let row = rows[e.step.0].as_ref()?;
             if row.nodes == ANY
@@ -922,15 +945,12 @@ pub(super) fn prepare<'a>(
                         field: "file",
                     })
                 || row.derived
-                || !row.cols.iter().all(|(n, v)| {
-                    v.depth == 0 && *n == v.field && matches!(*n, "file" | "span" | "id")
-                })
                 || !e.key.iter().all(|c| row.column(&c.0).is_some())
             {
                 return None;
             }
             Some((
-                base + ri,
+                base + root,
                 Certificate {
                     nodes: row.nodes,
                     guard: row.guard,
@@ -939,10 +959,17 @@ pub(super) fn prepare<'a>(
                         required_facts(&b.out.domains, row.nodes, &mut slots);
                         slots
                     },
+                    columns: row.cols.iter().map(|(name, value)| {
+                        (value.depth == 0 && *name == value.field)
+                            .then(|| LocationColumn::named(name))
+                            .flatten()
+                    }).collect::<Option<_>>()?,
                 },
             ))
         })
         .collect::<Vec<_>>();
+    certificates.sort_unstable_by_key(|(root, _)| *root);
+    certificates.dedup_by_key(|(root, _)| *root);
     b.out.exact.extend(certificates);
 
     plan.steps

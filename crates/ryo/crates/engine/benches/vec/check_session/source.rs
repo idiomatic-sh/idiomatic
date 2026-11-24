@@ -26,6 +26,7 @@ pub(crate) trait Source: Clone + Sync {
     fn manifests(&self) -> Vec<&'static str>;
     fn words(&self) -> Vec<l::UnknownName>;
     fn kinds(&self) -> Vec<&'static str>;
+    fn fields(&self) -> l::FieldNames { l::FieldNames(Vec::new()) }
     fn expands(&self, rel: l::Relation) -> bool;
     fn available(&self, rel: l::Relation) -> bool;
     fn build(
@@ -127,6 +128,7 @@ impl Source for Linked {
     fn words(&self) -> Vec<l::UnknownName> {
         self.parser.unknown_reasons().to_vec()
     }
+    fn fields(&self) -> l::FieldNames { self.parser.stable_fields() }
     fn kinds(&self) -> Vec<&'static str> {
         self.parser
             .kind_names()

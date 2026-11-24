@@ -385,15 +385,25 @@ pub(in super::super) fn pair(
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        let layout = exec.answer_layout(run, (binding, emit), rule, &t, subject, keys)?;
-        let mut seen = BTreeMap::new();
-        for r in 0..t.n {
-            let row = answer::typed(run, &t, r, Some(frame.file as usize), &layout)?;
-            if t.n == 1 { rows.push(row); } else { keep_finding(&mut seen, row); }
-        }
-        rows.extend(seen.into_values());
+        publish_table(exec, run, (binding, emit), rule, subject, keys, &t, frame.file as usize, &mut rows)?;
     }
     Ok(rows)
+}
+
+/// Publish an emit identically whether its table came from evaluation or a complete
+/// location proof. Deduplication is confined to that emit in that file.
+pub(in super::super) fn publish_table(
+    exec: &mut Exec<'_>, run: &mut Run, slot: (usize, usize),
+    rule: &str, subject: &str, keys: &[String], table: &Table, file: usize, rows: &mut Vec<answer::Row>,
+) -> R<()> {
+    let layout = exec.answer_layout(run, slot, rule, table, subject, keys)?;
+    let mut seen = BTreeMap::new();
+    for r in 0..table.n {
+        let row = answer::typed(run, table, r, Some(file), &layout)?;
+        if table.n == 1 { rows.push(row); } else { keep_finding(&mut seen, row); }
+    }
+    rows.extend(seen.into_values());
+    Ok(())
 }
 
 /// Evaluate just the local outputs consumed by a wider step. Their types and

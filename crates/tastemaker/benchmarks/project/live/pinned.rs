@@ -252,6 +252,7 @@ impl Source for Pinned {
             .map(|n| n.0)
             .collect()
     }
+    fn fields(&self) -> l::FieldNames { self.native.as_ref().map_or_else(|| l::FieldNames(Vec::new()), Linked::fields) }
     fn kinds(&self) -> Vec<&'static str> {
         if let Some(parser) = &self.native { return parser.kinds(); }
         self.parser
