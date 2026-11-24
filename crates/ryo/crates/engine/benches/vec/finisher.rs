@@ -92,7 +92,7 @@ impl<'p> Finisher<'p> {
     pub(super) fn wanted_into(&mut self, mut seeded: impl FnMut(usize) -> bool, out: &mut Vec<usize>) {
         let t0 = thread_cpu();
         out.clear();
-        out.extend(self.emits.iter().copied().filter(|&emit| seeded(emit)));
+        out.extend(self.selected_emits().iter().copied().filter(|&emit| seeded(emit)));
         self.time += thread_cpu() - t0;
     }
 
