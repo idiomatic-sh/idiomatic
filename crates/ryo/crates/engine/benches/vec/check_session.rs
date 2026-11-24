@@ -407,30 +407,54 @@ fn bind<'p, L: FileSource>(
     })
 }
 
-struct Version {
+struct Version<'s> {
     origin: usize,
     project_slots: Vec<usize>,
     data: Rc<[u8]>,
-    jobs: BTreeMap<usize, usize>,
+    jobs: std::borrow::Cow<'s, BTreeMap<usize, usize>>,
 }
 
 /// A relative path in two overlaid roots has the same local answers exactly when
 /// the parser sees the same bytes and the host sees the same executable mode.
 /// Hard-linked listed files in the immutable snapshot need only one physical read.
-fn versions(
+fn versions<'s>(
     group: &[usize],
-    sources: &[Source],
+    sources: &'s [Source],
     answers: &mut [Answer],
     aliases: &mut [usize],
     reads: &mut usize,
     retained: &mut HashMap<usize, (Rc<[u8]>, u32)>,
     keep: bool,
-) -> Vec<Version> {
-    use std::hash::{Hash, Hasher};
+) -> Vec<Version<'s>> {
     use std::os::unix::fs::MetadataExt;
+    if let [idx] = *group && !keep {
+        let src = &sources[idx];
+        let data = if let Some(bytes) = &src.provided {
+            Ok(Rc::clone(bytes))
+        } else if let Some((bytes, _)) = retained.get(&idx) {
+            Ok(Rc::clone(bytes))
+        } else {
+            *reads += 1;
+            std::fs::read(Path::new(&*src.root).join(&src.path)).map(Rc::from)
+        };
+        return match data {
+            Ok(data) => vec![Version {
+                origin: idx,
+                project_slots: src.project.then_some(idx).into_iter().collect(),
+                data,
+                jobs: std::borrow::Cow::Borrowed(&src.bindings),
+            }],
+            Err(error) => {
+                for &slot in src.bindings.values() {
+                    answers[slot] = Err(format!("{}: {error}", src.path));
+                }
+                Vec::new()
+            }
+        };
+    }
     let mut files = Vec::<Version>::new();
     let mut inodes = HashMap::new();
-    let mut hashes = HashMap::<(u64, Option<u32>), Vec<usize>>::new();
+    let mut contents = BTreeMap::new();
     for &idx in group {
         let src = &sources[idx];
         let path = Path::new(&*src.root).join(&src.path);
@@ -457,23 +481,19 @@ fn versions(
                     .entry(idx)
                     .or_insert_with(|| (Rc::clone(&data), mode));
             }
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-            data.hash(&mut hasher);
-            let equal = hashes.entry((hasher.finish(), perm)).or_default();
-            let i = match equal.iter().copied().find(|&i| files[i].data == data) {
-                Some(i) => i,
-                None => {
-                    let i = files.len();
-                    files.push(Version {
-                        origin: idx,
-                        project_slots: Vec::new(),
-                        data,
-                        jobs: BTreeMap::new(),
-                    });
-                    equal.push(i);
-                    i
-                }
-            };
+            // Length and executable mode usually decide before the byte comparison.
+            // The ordered key also handles different files of equal length exactly.
+            let key = (data.len(), perm, Rc::clone(&data));
+            let i = *contents.entry(key).or_insert_with(|| {
+                let i = files.len();
+                files.push(Version {
+                    origin: idx,
+                    project_slots: Vec::new(),
+                    data,
+                    jobs: std::borrow::Cow::Owned(BTreeMap::new()),
+                });
+                i
+            });
             if let Some(key) = inode {
                 inodes.insert(key, i);
             }
@@ -485,7 +505,7 @@ fn versions(
                     files[i].project_slots.push(idx);
                 }
                 for (&binding, &slot) in &src.bindings {
-                    aliases[slot] = *files[i].jobs.entry(binding).or_insert(slot);
+                    aliases[slot] = *files[i].jobs.to_mut().entry(binding).or_insert(slot);
                 }
             }
             Err(e) => {
@@ -636,7 +656,7 @@ pub(crate) fn visit<L: FileSource>(
             let mut projects_words = keep;
             let mut projects_fields = keep;
             let mut summary = SummaryColumns { kinds: keep, fields: keep, words: keep };
-            for (&binding, &slot) in &jobs {
+            for (&binding, &slot) in jobs.iter() {
                 match &bound[&binding] {
                     Ok(b) => {
                         projects_words |= b.projects_words;
@@ -794,7 +814,7 @@ pub(crate) fn visit<L: FileSource>(
             let recovery = held.recovery.unwrap_or_else(|| L::recovery(&elements));
             test_results.fill(None);
             let mut active = Vec::new();
-            for (&binding, &slot) in &jobs {
+            for (&binding, &slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
                 let p = programs[program_of[binding]].as_ref().unwrap();
                 let c = &contracts[&binding];
