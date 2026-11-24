@@ -357,6 +357,11 @@ impl Texts {
         self.offsets.len() - 1
     }
 
+    pub(crate) fn get(&self, id: usize) -> Option<&[u8]> {
+        let [start, end] = self.offsets.get(id..)?.first_chunk::<2>()?;
+        Some(&self.bytes[*start..*end])
+    }
+
     pub(crate) fn push(&mut self, text: &[u8]) {
         self.bytes.extend_from_slice(text);
         self.offsets.push(self.bytes.len());
@@ -367,8 +372,7 @@ impl std::ops::Index<usize> for Texts {
     type Output = [u8];
 
     fn index(&self, id: usize) -> &[u8] {
-        let bounds = &self.offsets[id..=id + 1];
-        &self.bytes[bounds[0]..bounds[1]]
+        self.get(id).expect("valid executor word ID")
     }
 }
 
