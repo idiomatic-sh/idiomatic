@@ -30,17 +30,19 @@ impl FieldTree for Tree<'_> {
     }
 }
 
-impl FieldTree for languages::NodeTable {
-    fn parent(&self, at: Position) -> Position { languages::node_table::parent_of(self, at) }
-    fn kind(&self, at: Position) -> Kind { kind_of(languages::node_table::kind_of(self, at)) }
+pub(crate) struct NativeTree<'a> {
+    pub(crate) table: &'a languages::NodeTable,
+    pub(crate) flags: &'a [languages::Flags],
+}
+
+impl FieldTree for NativeTree<'_> {
+    fn parent(&self, at: Position) -> Position { languages::node_table::parent_of(self.table, at) }
+    fn kind(&self, at: Position) -> Kind { kind_of(languages::node_table::kind_of(self.table, at)) }
     fn leaf(&self, at: Position) -> Leaf {
-        match self.kind(at) {
-            Kind::Token(_) => Leaf::Token,
-            Kind::Node(_) | Kind::Extra(_) => Leaf::Node,
-        }
+        if self.flags[usize::from(at)].0 & languages::TOKEN.0 == 0 { Leaf::Node } else { Leaf::Token }
     }
     fn children(&self, at: Position) -> impl Iterator<Item = Position> + '_ {
-        languages::node_table::children_of(self, at).iter().copied()
+        languages::node_table::children_of(self.table, at).iter().copied()
     }
 }
 

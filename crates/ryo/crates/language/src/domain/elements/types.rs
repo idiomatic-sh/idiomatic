@@ -111,9 +111,7 @@ pub enum SyntaxAcceptance {
 #[derive(Clone, Copy)]
 pub struct NativeReader {
     /// Write each parser position once and record origins of expanded elements.
-    pub read: fn(&[u8], &mut crate::domain::node_table::types::NodeTable, &mut Vec<Expanded>, bool),
-    /// Whether an element of this kind carries the source spelling of a token.
-    pub token: fn(KindBits) -> bool,
+    pub read: fn(&[u8], &mut crate::domain::node_table::types::NodeTable, &mut Vec<Expanded>, &mut Vec<Flags>, bool),
 }
 
 /// The element table of one file: its syntax tree in pre-order, column by column, 28 bytes for

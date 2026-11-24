@@ -1,7 +1,7 @@
 //! A Rust file in concrete preorder. Lexical leaves keep the same positions as their
 //! parser events. Parsed macro arguments follow the concrete prefix.
 use super::{adapter::SyntaxRaApSyntaxAdapter, writer::Output};
-use crate::domain::fields::service::{field_bits, field_of};
+use crate::domain::fields::service::{NativeTree, field_bits, field_of};
 use crate::domain::syntax::{constants::OPAQUE_MACROS, service::kinds};
 use crate::outbound::syntax::types::{OpaqueMacros, SourceText};
 use ryo::languages::{self as l, node_table as t};
@@ -11,6 +11,7 @@ struct Writer<'a, 'b> {
     host: Option<l::Position>,
     depth: usize,
     origins: &'a mut Vec<l::ExpandedPosition>,
+    flags: &'a mut Vec<l::Flags>,
 }
 
 impl Writer<'_, '_> {
@@ -25,6 +26,7 @@ impl Writer<'_, '_> {
 
 impl Output for Writer<'_, '_> {
     fn enter(&mut self, kind: l::KindBits, start: l::Offset) {
+        self.flags.push(l::Flags(0));
         self.begin_root();
         t::enter_node(self.table, kind, l::FieldCode(0), start);
         self.depth += 1;
@@ -35,6 +37,7 @@ impl Output for Writer<'_, '_> {
     }
     fn token(&mut self, kind: l::KindBits, start: l::Offset, end: l::Offset, decoded: Option<l::NameText<'_>>) {
         self.enter(kind, start);
+        *self.flags.last_mut().expect("token position") = l::TOKEN;
         if let Some(text) = decoded {
             t::node_property(self.table, l::PropertyId(0), text);
         }
@@ -62,14 +65,15 @@ impl Output for Writer<'_, '_> {
 
 /// Reads directly into the table that the evaluator borrows. The first origin
 /// belongs to the element at `node_table::own_end`.
-pub fn read(bytes: &[u8], table: &mut l::NodeTable, origins: &mut Vec<l::ExpandedPosition>, fields: bool) {
+pub fn read(bytes: &[u8], table: &mut l::NodeTable, origins: &mut Vec<l::ExpandedPosition>, flags: &mut Vec<l::Flags>, fields: bool) {
     origins.clear();
+    flags.clear();
     let mut builder = t::builder(table, l::Count(kinds().count()));
     SyntaxRaApSyntaxAdapter::new(OpaqueMacros(&OPAQUE_MACROS)).walk(
-        SourceText(bytes), &mut Writer { table: &mut builder, host: None, depth: 0, origins },
+        SourceText(bytes), &mut Writer { table: &mut builder, host: None, depth: 0, origins, flags },
     );
     t::finished(&mut builder);
     if fields {
-        t::classify_fields(table, |tree, at| l::FieldCode(field_bits(field_of(tree, at)).0));
+        t::classify_fields(table, |tree, at| l::FieldCode(field_bits(field_of(&NativeTree { table: tree, flags }, at)).0));
     }
 }

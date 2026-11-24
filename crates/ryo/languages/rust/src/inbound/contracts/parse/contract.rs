@@ -55,7 +55,6 @@ impl Parse for ParseContract {
     fn native_reader(&self) -> Option<languages::NativeReader> {
         Some(languages::NativeReader {
             read: crate::outbound::syntax::adapters::ra_ap_syntax::native::read,
-            token: |kind| matches!(crate::domain::syntax::service::kind_of(kind), crate::domain::syntax::types::Kind::Token(_)),
         })
     }
 

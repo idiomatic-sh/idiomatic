@@ -101,7 +101,7 @@ pub fn read_native(
     let mut table = native.unwrap_or_default();
     let mut origins = std::mem::take(&mut engine_mut(elements).expanded);
     origins.clear();
-    (reader.read)(bytes.0, &mut table, &mut origins, fields);
+    (reader.read)(bytes.0, &mut table, &mut origins, &mut elements.flags.as_mut().values, fields);
     let own = t::own_end(&table);
     let mut previous_host = None;
     let mut ordinal = 0;
@@ -115,10 +115,10 @@ pub fn read_native(
         table.0.ordinal[usize::from(root)] = ChildOrdinal(ordinal.try_into().expect("child ordinal"));
         ordinal += 1;
     }
-    for (i, &kind) in table.0.kind.iter().enumerate() {
-        let token = (reader.token)(KindBits(kind));
-        elements.flags.as_mut().values.push(if token { TOKEN } else { Flags(0) });
-        let text = if token { intern(symbols, bytes, Offset(table.0.start[i]), Offset(table.0.end[i])) } else { NO_SYMBOL };
+    for (i, &flags) in elements.flags.as_ref().values.iter().enumerate() {
+        let text = if flags.0 & TOKEN.0 != 0 {
+            intern(symbols, bytes, Offset(table.0.start[i]), Offset(table.0.end[i]))
+        } else { NO_SYMBOL };
         elements.text.as_mut().values.push(text);
     }
     let hidden = table.0.kind.len() - usize::from(own);
