@@ -1036,7 +1036,7 @@ pub(crate) fn visit<L: FileSource>(
                             },
                         )
                     });
-                if excluded && b.facts.is_empty() && !unknown_permission {
+                if excluded && b.facts.is_empty() && b.named.is_empty() && !unknown_permission {
                     let whole = recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
                     if whole || {
                         let rels: Vec<_> = contracts[binding].needs.reads.iter()
