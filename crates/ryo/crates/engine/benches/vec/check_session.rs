@@ -763,12 +763,11 @@ pub(crate) fn visit<L: FileSource>(
             }
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
-            if said.is_empty()
-                && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
+            if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
             {
                 checks.exclude(
                     &mut active, &mut bound, &mut run, tree, &provider.text,
-                    &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, cut_of,
+                    &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, cut_of, &said,
                 );
             }
             clocks.screen += thread_cpu() - t;

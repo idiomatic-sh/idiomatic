@@ -29,7 +29,7 @@ mod precheck;
 #[path = "pair_project.rs"]
 mod project;
 #[path = "pair_regexes.rs"]
-mod regexes;
+pub(super) mod regexes;
 
 pub(super) fn inputs(s: &FinishStep) -> smallvec::SmallVec<[StepNumber; 4]> {
     let mut result = smallvec::SmallVec::new();
@@ -250,6 +250,7 @@ struct Builder<'a> {
     syntax_symbols: bool,
     positive: bool,
     regex_slots: Map<String, Id>,
+    glob_slots: Map<Vec<String>, Id>,
     symbol_origins: Vec<Vec<(usize, usize)>>,
     proof_validation: Option<Id>,
     early_omit: u16,
@@ -1723,6 +1724,7 @@ pub(super) fn prepare_plans(
         syntax_symbols,
         positive: false,
         regex_slots: Map::default(),
+        glob_slots: Map::default(),
         symbol_origins: Vec::new(),
         proof_validation: None,
         early_omit: 0,

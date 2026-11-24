@@ -108,12 +108,30 @@ impl Builder<'_> {
         if patterns.is_empty() {
             return None;
         }
-        let pattern = patterns
+        let translated = patterns
             .iter()
             .map(|s| crate::glob_pattern(s))
-            .collect::<Option<Vec<_>>>()?
-            .join("|");
-        let re = self.regex(&pattern)?;
+            .collect::<Option<Vec<_>>>();
+        let re = if let Some(regexes) = translated {
+            self.regex(&regexes.join("|"))?
+        } else {
+            // Interpreted classes can require a scan of the subject for each
+            // pattern. Use those only for a file path or the bounded kind vocabulary.
+            if !matches!(col.attr, Attribute::FilePath | Attribute::Kind)
+                && patterns
+                    .iter()
+                    .any(|s| !s.is_ascii() || s.contains(['?', '[', '\\']) || s.contains("**/"))
+            {
+                return None;
+            }
+            let key: Vec<_> = patterns.iter().map(|s| (*s).to_owned()).collect();
+            let slots = &mut self.out.regexes;
+            *self.glob_slots.entry(key).or_insert_with_key(|patterns| {
+                let id = slots.len();
+                slots.push(super::regexes::Pattern::globs(patterns));
+                id
+            })
+        };
         Some((col, re, positive))
     }
     pub(super) fn glob_domain(

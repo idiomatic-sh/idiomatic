@@ -118,6 +118,7 @@ impl Checks {
         requested: &[l::Relation],
         packet: &reader_run::packet::Packet,
         cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
+        partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
     ) {
         self.live.fill(false);
         let mut any = false;
@@ -145,6 +146,7 @@ impl Checks {
                         return false;
                     };
                     requested.contains(&rel)
+                        && !partials.iter().any(|p| p.relation == rel)
                         && packet.columns(rel, symbols, bytes, id, text.len(), words, out)
                 },
                 &mut self.live,
@@ -154,6 +156,9 @@ impl Checks {
         for (binding, _, excluded) in active {
             if !*excluded && self.roots[*binding].iter().all(|&r| !self.live[r]) {
                 let b = bound.get_mut(binding).unwrap().as_mut().unwrap();
+                if partials.iter().any(|p| b.facts.contains(&p.relation)) {
+                    continue;
+                }
                 *excluded = *b.screenable.get_or_insert_with(|| {
                     crate::finish::session::certificate::certified_empty(
                         &mut b.exec,

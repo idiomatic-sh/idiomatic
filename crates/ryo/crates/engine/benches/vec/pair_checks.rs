@@ -25,7 +25,8 @@ pub(super) struct SyntaxText<'a> {
 pub(super) struct SymbolMatches(std::cell::RefCell<Vec<(usize, u32, bool)>>);
 
 impl SyntaxText<'_> {
-    fn matches(self, index: usize, regex: &regex::bytes::Regex, polarity: bool) -> bool {
+    #[inline(never)]
+    fn matches(self, index: usize, regex: &super::pair_summary::regexes::Matcher, polarity: bool) -> bool {
         let Some(patterns) = self.patterns else {
             return self.ids.iter().any(|&id| regex.is_match(&self.symbols[id as usize]) == polarity);
         };
