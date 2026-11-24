@@ -80,7 +80,12 @@ fn main() -> std::process::ExitCode {
     if mode.as_deref() == Some("--tm-batch") {
         let manifest = arguments.next().expect("manifest");
         let output = arguments.next().expect("output");
-        tm_project_session::capture(benchmark_languages::linked(), &manifest, &output);
+        let workers = arguments.next().map(|flag| {
+            assert_eq!(flag, "--workers");
+            arguments.next().expect("worker count").parse().expect("positive worker count")
+        });
+        assert!(arguments.next().is_none(), "unexpected batch argument");
+        tm_project_session::capture(benchmark_languages::linked(), &manifest, &output, workers);
         return std::process::ExitCode::SUCCESS;
     }'''))
 

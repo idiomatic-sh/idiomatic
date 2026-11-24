@@ -303,3 +303,50 @@ impl Population {
         Rc::new(out)
     }
 }
+
+/// A completed file block can leave its worker after all local references are released.
+/// Lookup postings are built only by the receiving project executor.
+pub(crate) struct CarriedBlock {
+    names: Vec<String>,
+    types: Vec<Ty>,
+    rows: usize,
+    home: u32,
+    columns: Vec<Words>,
+}
+
+impl Block {
+    pub(crate) fn carry(self) -> CarriedBlock {
+        CarriedBlock {
+            names: Rc::unwrap_or_clone(self.names),
+            types: Rc::unwrap_or_clone(self.tys),
+            rows: self.n, home: self.home, columns: self.columns,
+        }
+    }
+}
+
+impl CarriedBlock {
+    pub(crate) fn receive(mut self, files: &[u32], symbols: &[u32]) -> Block {
+        for (words, ty) in self.columns.iter_mut().zip(&self.types) {
+            if !matches!(ty, Ty::File | Ty::Node | Ty::Sym) { continue; }
+            let remap = |v: u64| {
+                if v == u64::MAX { return v; }
+                match ty {
+                    Ty::File => u64::from(files[v as usize]),
+                    Ty::Node => (u64::from(files[(v >> 32) as usize]) << 32) | (v & u64::from(u32::MAX)),
+                    Ty::Sym => u64::from(symbols[v as usize]),
+                    _ => unreachable!(),
+                }
+            };
+            if let Words::Constant(value) = words {
+                *value = remap(*value);
+            } else {
+                *words = Words::pack((0..self.rows).map(|i| remap(words.at(i))).collect());
+            }
+        }
+        Block {
+            names: self.names.into(), tys: self.types.into(), n: self.rows,
+            home: if self.rows == 0 { 0 } else { files[self.home as usize] },
+            columns: self.columns, postings: Default::default(),
+        }
+    }
+}

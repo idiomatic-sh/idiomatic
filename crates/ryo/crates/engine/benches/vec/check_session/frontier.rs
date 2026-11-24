@@ -16,7 +16,7 @@ impl<'a> FileInputs<'a> {
         bound: &HashMap<usize, Result<Bound<'_>>>,
         programs: &'a [Result<Program>],
         program_of: &[usize],
-        cut_of: &[Option<Rc<Partition>>],
+        cut_of: &[Option<&Partition>],
     ) -> Self {
         let mut shared_columns = BTreeMap::<&str, Vec<bool>>::new();
         for &(binding, _, _) in active {
@@ -293,5 +293,55 @@ impl World {
     pub fn release(&mut self, slot: usize) {
         self.frontiers.remove(&slot);
         self.unavailable.remove(&slot);
+    }
+}
+
+/// Slot ordinals survive the join. A repeated block in different request frontiers
+/// is transferred once, including the reference to its file and symbol domains.
+pub(super) struct Transfer {
+    slots: Vec<(usize,Vec<(usize,usize)>)>,
+    blocks: Vec<finish::population::CarriedBlock>,
+    paths: Vec<String>,
+    words: Vec<Vec<u8>>,
+    prefix: usize,
+    unavailable: HashMap<usize,BTreeSet<(String,u32)>>,
+}
+
+impl World {
+    pub(super) fn transfer(mut self, prefix: usize) -> Transfer {
+        self.empty_blocks.clear();
+        let mut ids = HashMap::new();
+        let mut blocks = Vec::new();
+        let mut slots = Vec::new();
+        for (slot, frontier) in self.frontiers {
+            let pieces = frontier.into_iter().map(|(node,block)| {
+                let id = *ids.entry(Rc::as_ptr(&block)).or_insert_with(|| {
+                    let id = blocks.len();
+                    blocks.push(block);
+                    id
+                });
+                (node,id)
+            }).collect();
+            slots.push((slot,pieces));
+        }
+        Transfer {
+            slots,
+            blocks: blocks.into_iter().map(|b| Rc::try_unwrap(b).ok().expect("worker owns all frontier blocks").carry()).collect(),
+            paths: self.run.paths, prefix,
+            words: self.run.texts.into_iter().skip(prefix).map(|s| s.to_vec()).collect(),
+            unavailable: self.unavailable,
+        }
+    }
+
+    pub(super) fn receive(&mut self, part: Transfer) {
+        let files: Vec<_> = part.paths.iter().map(|p| self.file(p)).collect();
+        let symbols: Vec<_> = (0..part.prefix as u32).chain(part.words.iter().map(|w| self.run.sym(w))).collect();
+        let blocks: Vec<_> = part.blocks.into_iter().map(|b| Rc::new(b.receive(&files,&symbols))).collect();
+        for (slot, ids) in part.slots {
+            self.frontiers.insert(slot,ids.into_iter().map(|(n,i)| (n,blocks[i].clone())).collect());
+        }
+        for (slot, set) in part.unavailable {
+            self.unavailable.insert(slot,set.into_iter().map(|(name,file)| (name,files[file as usize])).collect());
+        }
     }
 }

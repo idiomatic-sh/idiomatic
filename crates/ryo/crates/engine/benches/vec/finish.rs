@@ -534,7 +534,7 @@ pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &
 pub(super) struct PNode {
     pub(super) op: String,
     source: plan_load::Source,
-    args: std::cell::OnceCell<Args>,
+    args: std::sync::OnceLock<Args>,
     pub(super) inputs: Vec<usize>,
     /// 7: the relation arguments (`args.<name>.rel`), by name.
     pub(super) rels: Vec<(String, usize)>,

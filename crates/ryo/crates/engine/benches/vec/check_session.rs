@@ -8,6 +8,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     path::Path,
     rc::Rc,
+    sync::Arc,
 };
 
 #[path = "check_session/completeness.rs"]
@@ -102,6 +103,8 @@ impl Program {
 
 #[derive(Default)]
 pub(crate) struct Clock {
+    pub inventory:f64,
+    pub join:f64,
     pub prepare: f64,
     pub read_parse: f64,
     pub screen: f64,
@@ -119,12 +122,12 @@ pub(crate) struct Clock {
 /// The root and path identify the caller's immutable effective source. This
 /// distinguishes in-memory replacements staged at different roots.
 pub(crate) struct Source {
-    pub root: Rc<str>,
+    pub root: Arc<str>,
     pub path: String,
     pub bindings: BTreeMap<usize, usize>,
     known: BTreeMap<usize, usize>,
     project: bool,
-    provided: Option<Rc<[u8]>>,
+    provided: Option<Arc<[u8]>>,
 }
 
 /// Per-check program identities and the inverse admission index. The caller binds
@@ -132,8 +135,8 @@ pub(crate) struct Source {
 #[derive(Default)]
 pub(crate) struct Schedule {
     pub sources: Vec<Source>,
-    source_ids: HashMap<(Rc<str>, Rc<str>), usize>,
-    supplied_ids: HashMap<(Rc<str>, Rc<[u8]>), usize>,
+    source_ids: HashMap<(Arc<str>, Rc<str>), usize>,
+    supplied_ids: HashMap<(Rc<str>, Arc<[u8]>), usize>,
     pub pending: BTreeSet<usize>,
     pub programs: Vec<Result<Program>>,
     prepared: HashMap<(Rc<str>, Parameters), usize>,
@@ -166,7 +169,7 @@ impl Schedule {
             self.programs.len() - 1
         })
     }
-    fn source(&mut self, root: &Rc<str>, path: String) -> Result<usize> {
+    fn source(&mut self, root: &Arc<str>, path: String) -> Result<usize> {
         let rel = Path::new(&path);
         if rel
             .components()
@@ -191,7 +194,7 @@ impl Schedule {
     }
 
     /// Attach immutable caller bytes before admitting any consumer of this source root.
-    pub(crate) fn provide(&mut self, root: &Rc<str>, path: String, bytes: Rc<[u8]>) -> Result<()> {
+    pub(crate) fn provide(&mut self, root: &Arc<str>, path: String, bytes: Arc<[u8]>) -> Result<()> {
         let key = (Rc::from(path.as_str()), bytes.clone());
         let id = match self.supplied_ids.get(&key) {
             Some(&id) => id,
@@ -205,12 +208,12 @@ impl Schedule {
         self.alias_source(root, &path, id)
     }
 
-    pub(crate) fn listed(&mut self, root: &Rc<str>, directory: &Rc<str>, path: &str) -> Result<()> {
+    pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str) -> Result<()> {
         let id = self.source(directory, path.to_owned())?;
         self.alias_source(root, path, id)
     }
 
-    fn alias_source(&mut self, root: &Rc<str>, path: &str, id: usize) -> Result<()> {
+    fn alias_source(&mut self, root: &Arc<str>, path: &str, id: usize) -> Result<()> {
         if self
             .source_ids
             .insert((root.clone(), Rc::from(path)), id)
@@ -222,7 +225,7 @@ impl Schedule {
     }
 
     pub(crate) fn project_inputs(&mut self, root: &str, paths: &[String]) -> Result<Vec<usize>> {
-        let root: Rc<str> = Rc::from(root);
+        let root: Arc<str> = Arc::from(root);
         paths
             .iter()
             .map(|p| {
@@ -239,7 +242,7 @@ impl Schedule {
         files: Vec<String>,
         binding: usize,
     ) -> Result<Vec<usize>> {
-        let root: Rc<str> = root.into();
+        let root: Arc<str> = root.into();
         let mut pairs = Vec::with_capacity(files.len());
         for path in files {
             let src = self.source(&root, path)?;
@@ -352,7 +355,7 @@ fn bind<'p, L: FileSource>(
 struct Version {
     origin: usize,
     project_slots: Vec<usize>,
-    data: Rc<[u8]>,
+    data: Arc<[u8]>,
     jobs: BTreeMap<usize, usize>,
 }
 
@@ -362,10 +365,10 @@ struct Version {
 fn versions(
     group: &[usize],
     sources: &[Source],
-    answers: &mut [Answer],
-    aliases: &mut [usize],
+    answers: &mut Slots<Answer>,
+    aliases: &mut Slots<usize>,
     reads: &mut usize,
-    retained: &mut HashMap<usize, (Rc<[u8]>, u32)>,
+    retained: &mut HashMap<usize, (Arc<[u8]>, u32)>,
     keep: bool,
 ) -> Vec<Version> {
     use std::hash::{Hash, Hasher};
@@ -378,9 +381,9 @@ fn versions(
         let path = Path::new(&*src.root).join(&src.path);
         let found = (|| -> std::io::Result<usize> {
             let (data, inode, perm) = if let Some(bytes) = src.provided.as_ref() {
-                (Rc::clone(bytes), None, None)
+                (Arc::clone(bytes), None, None)
             } else if let Some((bytes, mode)) = retained.get(&idx) {
-                (Rc::clone(bytes), None, Some(*mode))
+                (Arc::clone(bytes), None, Some(*mode))
             } else {
                 let meta = std::fs::metadata(&path)?;
                 let inode = (meta.dev(), meta.ino());
@@ -389,7 +392,7 @@ fn versions(
                 }
                 *reads += 1;
                 (
-                    Rc::from(std::fs::read(path)?),
+                    Arc::from(std::fs::read(path)?),
                     Some(inode),
                     Some(meta.mode() & 0o111),
                 )
@@ -397,7 +400,7 @@ fn versions(
             if let Some(mode) = perm.filter(|_| keep) {
                 retained
                     .entry(idx)
-                    .or_insert_with(|| (Rc::clone(&data), mode));
+                    .or_insert_with(|| (Arc::clone(&data), mode));
             }
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             data.hash(&mut hasher);
@@ -447,7 +450,7 @@ pub(crate) struct ReaderState<F: Default, D: Default> {
     run: Run,
     unknown: Option<HashMap<u32, u32>>,
     files: HashMap<usize, HeldFile<F, D>>,
-    bytes: HashMap<usize, (Rc<[u8]>, u32)>,
+    bytes: HashMap<usize, (Arc<[u8]>, u32)>,
 }
 
 #[derive(Default)]
@@ -473,22 +476,26 @@ struct HeldFile<F: Default, D: Default> {
 /// Each binding gets its own prepared column positions for this reader and host
 /// schema. Symbols and file IDs live in the reader session. Source trees never
 /// escape the visit. Every request for the same pair refers to its answer slot.
+#[path = "check_session/worker.rs"]
+pub(crate) mod worker;
+use worker::Slots;
+
 pub(crate) fn visit<L: FileSource>(
     state: &mut ReaderState<L::File, L::Dictionary>,
     keep: bool,
     parser: Option<&L>,
     reader_id: Option<usize>,
     manifests: &BTreeSet<&str>,
-    contributions: &mut [Option<Rc<project::Contribution>>],
+    contributions: &mut Slots<Option<Rc<project::Contribution>>>,
     programs: &[Result<Program>],
     program_of: &[usize],
-    contracts: &HashMap<usize, Rc<completeness::Contract>>,
-    cut_of: &[Option<Rc<finish::partition::Partition>>],
+    contracts: &HashMap<usize, &completeness::Contract>,
+    cut_of: &[Option<&finish::partition::Partition>],
     world: &mut World,
     sources: &[Source],
     selected: &[usize],
-    aliases: &mut [usize],
-    answers: &mut [Answer],
+    aliases: &mut Slots<usize>,
+    answers: &mut Slots<Answer>,
     mut host: impl FnMut(usize, &mut Run) -> Result<Tables>,
     clocks: &mut Clock,
 ) {

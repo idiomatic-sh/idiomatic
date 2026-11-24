@@ -15,6 +15,7 @@ use ryo_values::domain::row_texts::types::Cell;
 use std::{
     collections::{BTreeMap, HashMap},
     rc::Rc,
+    sync::Arc,
 };
 
 #[derive(Default)]
@@ -29,7 +30,7 @@ pub struct Live {
     state: Active<release_sdk::languages::Elements, Dictionary>,
     languages: Vec<Pinned>,
     filters: HashMap<Vec<sdk::Glob>, Rc<GlobSet>>,
-    versions: HashMap<(Authority, BTreeMap<String, Rc<[u8]>>), Rc<str>>,
+    versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
 }
 
 impl Default for Live {
@@ -221,7 +222,7 @@ impl Live {
         {
             return Err("unsupported source or project authority".into());
         }
-        let physical: Rc<str> = Rc::from(req.root.to_str().ok_or("non-UTF8 root")?);
+        let physical: Arc<str> = Arc::from(req.root.to_str().ok_or("non-UTF8 root")?);
         let (authority, listed, given) = match req.corpus {
             sdk::Corpus::Given(files) => (Authority::Given, Vec::new(), files),
             sdk::Corpus::Listed(paths) => {
@@ -236,7 +237,7 @@ impl Live {
             }
             overlay.insert(
                 source.path.0.into_string(),
-                Rc::<[u8]>::from(source.text.0.as_bytes()),
+                Arc::<[u8]>::from(source.text.0.as_bytes()),
             );
         }
         let mut paths: Vec<String> = listed
@@ -250,7 +251,7 @@ impl Live {
         let root = if let Some(id) = self.versions.get(&key) {
             id.clone()
         } else {
-            let id: Rc<str> = Rc::from(format!("check-input:{}", self.versions.len()));
+            let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
             for (p, v) in &key.1 {
                 self.batch.schedule.provide(&id, p.clone(), v.clone())?;
             }
@@ -354,9 +355,9 @@ impl Live {
 }
 
 /// Replay a closed capture with exactly the parsers linked into this release.
-pub fn capture(linked: sdk::Languages, manifest: &str, output: &str) {
+pub fn capture(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>) {
     let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
-    super::batch_with_sources(&readers, manifest, output);
+    super::batch_with_workers(&readers, manifest, output, workers);
 }
 
 #[derive(Default)]

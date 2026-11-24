@@ -1,0 +1,188 @@
+//! Dispatch all versions of a relative path together. Workers return answers and
+//! immutable project contributions by the original admission slot.
+use super::*;
+use std::num::NonZeroUsize;
+use std::ops::{Index, IndexMut};
+
+pub(crate) enum Slots<'a, T> {
+    Direct(&'a mut [T]),
+    Local(BTreeMap<usize, T>, fn() -> T),
+}
+impl<T> Index<usize> for Slots<'_, T> {
+    type Output = T;
+    fn index(&self, index: usize) -> &T {
+        match self {
+            Self::Direct(a) => &a[index],
+            Self::Local(a, _) => &a[&index],
+        }
+    }
+}
+impl<T> IndexMut<usize> for Slots<'_, T> {
+    fn index_mut(&mut self, index: usize) -> &mut T {
+        match self {
+            Self::Direct(a) => &mut a[index],
+            Self::Local(a, init) => a.entry(index).or_insert_with(*init),
+        }
+    }
+}
+impl<T> Slots<'_, T> {
+    fn take(self) -> BTreeMap<usize, T> {
+        match self {
+            Self::Local(a, _) => a,
+            Self::Direct(_) => unreachable!(),
+        }
+    }
+}
+
+pub(crate) fn dispatch<L: FileSource>(
+    request: Option<NonZeroUsize>,
+    languages: &[L],
+    state: &mut ReaderState<L::File, L::Dictionary>,
+    keep: bool,
+    parser: Option<&L>,
+    reader_id: Option<usize>,
+    manifests: &BTreeSet<&str>,
+    contributions: &mut [Option<Rc<project::Contribution>>],
+    programs: &[Result<Program>],
+    rules: &[usize],
+    contracts: &HashMap<usize, &completeness::Contract>,
+    cuts: &[Option<&finish::partition::Partition>],
+    world: &mut World,
+    sources: &[Source],
+    selected: &[usize],
+    aliases: &mut [usize],
+    answers: &mut [Answer],
+    host: impl Fn(usize, &mut Run) -> Result<Tables> + Sync,
+    clocks: &mut Clock,
+) {
+    let count = request
+        .or_else(|| std::thread::available_parallelism().ok())
+        .map_or(1, NonZeroUsize::get)
+        .min(selected.len());
+    // An open epoch retains reader-native symbols and files across successive calls.
+    if keep || count <= 1 {
+        visit(
+            state,
+            keep,
+            parser,
+            reader_id,
+            manifests,
+            &mut Slots::Direct(contributions),
+            programs,
+            rules,
+            contracts,
+            cuts,
+            world,
+            sources,
+            selected,
+            &mut Slots::Direct(aliases),
+            &mut Slots::Direct(answers),
+            host,
+            clocks,
+        );
+        return;
+    }
+    let inventory_start = thread_cpu();
+    let mut paths = BTreeMap::<&str, Vec<usize>>::new();
+    for &id in selected {
+        paths.entry(&sources[id].path).or_default().push(id);
+    }
+    let mut jobs: Vec<_> = paths
+        .into_values()
+        .map(|group| {
+            let src = &sources[group[0]];
+            let size = src.provided.as_ref().map_or_else(
+                || std::fs::metadata(Path::new(src.root.as_ref()).join(&src.path)).map_or(0, |m| m.len()),
+                |bytes| bytes.len() as u64,
+            );
+            let weight = size.max(1).saturating_mul(src.bindings.len().max(1) as u64);
+            (std::cmp::Reverse(weight), group)
+        })
+        .collect();
+    jobs.sort_unstable();
+    let mut shards = vec![Vec::new(); count.min(jobs.len())];
+    let mut loads = std::collections::BinaryHeap::from_iter(
+        (0..shards.len()).map(|id| std::cmp::Reverse((0u64, id))),
+    );
+    for (std::cmp::Reverse(weight), ids) in jobs {
+        let mut next = loads.peek_mut().unwrap();
+        let std::cmp::Reverse((total, id)) = &mut *next;
+        shards[*id].extend(ids);
+        *total = total.saturating_add(weight);
+    }
+    clocks.inventory += thread_cpu() - inventory_start;
+    let work = |files: &[usize]| {
+        let mut part = World::default();
+        part.declare_words(languages);
+        let prefix = part.run.texts.len();
+        let mut a = Slots::Local(Default::default(), || Err(String::new()));
+        let mut links = Slots::Local(Default::default(), || 0);
+        let mut notes = Slots::Local(Default::default(), || None);
+        let mut time = Clock::default();
+        visit(
+            &mut ReaderState::default(),
+            false,
+            parser,
+            reader_id,
+            manifests,
+            &mut notes,
+            programs,
+            rules,
+            contracts,
+            cuts,
+            &mut part,
+            sources,
+            files,
+            &mut links,
+            &mut a,
+            &host,
+            &mut time,
+        );
+        let contributions: Vec<_> = notes
+            .take()
+            .into_iter()
+            .filter_map(|(id, c)| Some((id, Rc::unwrap_or_clone(c?))))
+            .collect();
+        (
+            a.take(),
+            links.take(),
+            contributions,
+            part.transfer(prefix),
+            time,
+        )
+    };
+    std::thread::scope(|scope| {
+        let threads: Vec<_> = shards[1..]
+            .iter()
+            .map(|s| scope.spawn(|| work(s)))
+            .collect();
+        let first = work(&shards[0]);
+        for (a, links, notes, part, time) in std::iter::once(first).chain(
+            threads
+                .into_iter()
+                .map(|t| t.join().expect("file worker panicked")),
+        ) {
+            let start = thread_cpu();
+            for (id, answer) in a {
+                answers[id] = answer;
+            }
+            for (id, target) in links {
+                aliases[id] = target;
+            }
+            for (id, c) in notes {
+                contributions[id] = Some(Rc::new(c));
+            }
+            world.receive(part);
+            clocks.join += thread_cpu() - start;
+            clocks.prepare += time.prepare;
+            clocks.read_parse += time.read_parse;
+            clocks.screen += time.screen;
+            clocks.evaluate += time.evaluate;
+            clocks.files += time.files;
+            clocks.reads += time.reads;
+            clocks.unique_pairs += time.unique_pairs;
+            clocks.skipped += time.skipped;
+            clocks.evaluated += time.evaluated;
+        }
+    });
+}
