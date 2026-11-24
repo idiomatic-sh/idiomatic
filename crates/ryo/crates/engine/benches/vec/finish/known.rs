@@ -25,6 +25,47 @@ pub(super) struct Need {
     pub(super) never: bool,
 }
 
+/// Proof states belong to a file visit. Reusing a buffer advances its stamp,
+/// so untouched proof slots need no pass over the plan when a visit ends.
+#[derive(Default)]
+pub(super) struct States {
+    words: Vec<u16>,
+    stamp: u16,
+}
+impl States {
+    const STATE_MASK: u16 = 7;
+
+    pub(super) const fn empty() -> Self {
+        Self { words: Vec::new(), stamp: 0 }
+    }
+
+    pub(super) fn renew(&mut self, nodes: usize) {
+        // A shorter plan can reuse the same words. The stamp makes every old
+        // state invisible even when the next plan grows again.
+        if self.words.len() < nodes {
+            self.words.resize(nodes, 0);
+        }
+        self.stamp = self.stamp.wrapping_add(Self::STATE_MASK + 1);
+        if self.stamp == 0 {
+            self.words.fill(0);
+            self.stamp = Self::STATE_MASK + 1;
+        }
+    }
+    #[inline]
+    pub(super) fn get(&self, node: usize) -> u8 {
+        let word = self.words[node];
+        if word & !Self::STATE_MASK == self.stamp {
+            (word & Self::STATE_MASK) as u8
+        } else {
+            0
+        }
+    }
+    #[inline]
+    fn set(&mut self, node: usize, state: u8) {
+        self.words[node] = self.stamp | u16::from(state);
+    }
+}
+
 const NO: u8 = 1;
 const YES: u8 = 2;
 const BUSY: u8 = 3;
@@ -69,7 +110,7 @@ impl Exec<'_> {
     #[inline(always)]
     pub(super) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         if f.after_last_file { return false; }
-        match f.known[node] {
+        match f.known.get(node) {
             YES | YES_EP => return true,
             NO | BUSY => {}
             _ => {
@@ -101,7 +142,7 @@ impl Exec<'_> {
     #[inline]
     pub(super) fn static_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         if f.after_last_file { return false; }
-        match f.known[node] {
+        match f.known.get(node) {
             NO | BUSY => false,
             YES | YES_EP => true,
             _ => self.static_empty_(f, run, p, node),
@@ -120,10 +161,10 @@ impl Exec<'_> {
         }
         let r = self.rec(run, node);
         if r.flags & CAN == 0 {
-            f.known[node] = NO;
+            f.known.set(node, NO);
             return false;
         }
-        f.known[node] = BUSY;
+        f.known.set(node, BUSY);
         self.stats.static_visits += 1;
         if r.n_kinds == 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
             self.stats.static_pass += 1;
@@ -148,14 +189,14 @@ impl Exec<'_> {
                 e = (a..b).all(|i| {
                     let x = self.flat.ins[i] as usize;
                     let y = self.static_empty(f, run, p, x);
-                    ep |= y && f.known[x] == YES_EP;
+                    ep |= y && f.known.get(x) == YES_EP;
                     y
                 });
             } else {
                 e = (a..b).any(|i| {
                     let x = self.flat.ins[i] as usize;
                     let y = self.static_empty(f, run, p, x);
-                    ep = y && f.known[x] == YES_EP;
+                    ep = y && f.known.get(x) == YES_EP;
                     y
                 });
             }
@@ -166,7 +207,7 @@ impl Exec<'_> {
             e = self.ep_leaf_empty(f, run, p, node);
             ep = e;
         }
-        f.known[node] = if e && ep { YES_EP } else if e { YES } else { NO };
+        f.known.set(node, if e && ep { YES_EP } else if e { YES } else { NO });
         e
     }
 
