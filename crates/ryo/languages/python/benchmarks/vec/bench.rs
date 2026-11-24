@@ -1705,7 +1705,11 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         input["nodes"].as_array().into_iter().flatten().filter(|n| n["op"] == "source-matches")
             .filter_map(|n|n["args"]["pattern"].as_str().map(str::to_owned)).collect()
     } else {Vec::new()};
-    let list = paths.map_or_else(||files(args[1]),|p|p.to_vec());
+    let disk_paths;
+    let list = match paths {
+        Some(list) => list,
+        None => { disk_paths = files(args[1]); &disk_paths }
+    };
     let mut fact_catalog = facts::Catalog::default();
     let mut interner = facts::Interner { ids: facts::Table::named(&flag(args, "--hasher").unwrap_or_else(|| "std".to_owned())), ..Default::default() };
     let f0 = thread_cpu();

@@ -37,37 +37,63 @@ struct Answer {
 
 #[derive(Default)]
 pub(crate) struct Capture {
-    files: BTreeMap<String, Answer>,
+    active: Option<Answer>,
     prior_refusal: bool,
     reusable: BTreeMap<String, Answer>,
     hits: usize,
-    versions: BTreeMap<String, Digest>,
+    visited_bytes: usize,
+    versions: BTreeMap<String, CapturedFile>,
+}
+
+#[derive(Default)]
+struct CapturedFile {
+    version: Option<Digest>,
+    packed: Option<Vec<u8>>,
 }
 
 impl Capture {
+    fn finish_active(&mut self) {
+        if let Some(mut answer) = self.active.take() {
+            // Canonicalize these multisets once the file stops producing events.
+            answer.findings.sort_unstable();
+            answer.refusals.sort_unstable();
+            answer.unknowns.sort_unstable();
+            self.versions.get_mut(&answer.origin).expect("admitted origin").packed =
+                Some(postcard::to_stdvec(&answer).expect("file answer"));
+        }
+    }
+
+    fn answer(&mut self, origin: &str) -> Option<&mut Answer> {
+        if !self.active.as_ref().is_some_and(|a| a.origin == origin) {
+            self.finish_active();
+            let bytes = self.versions.get_mut(origin)?.packed.take()?;
+            self.active = Some(postcard::from_bytes(&bytes).expect("completed file"));
+        }
+        self.active.as_mut()
+    }
+
     #[allow(dead_code, reason = "only hosts that refuse a whole admission use this outcome")]
     pub(crate) fn refused_admission(&mut self, message: &str) {
-        self.files = self.versions.keys().map(|origin| {
-            let answer = Answer { origin: origin.clone(), admission_refusal: Some(message.into()), ..Default::default() };
-            (origin.clone(), answer)
-        }).collect();
+        self.active = None;
+        for (origin, file) in &mut self.versions {
+            file.packed = Some(postcard::to_stdvec(&Answer { origin: origin.clone(), admission_refusal: Some(message.into()), ..Default::default() }).expect("admission refusal"));
+        }
     }
     pub(crate) fn visited(&mut self, origin: &str, bytes: &[u8]) {
-        if !self
-            .versions
-            .get(origin)
-            .is_some_and(|d| d == blake3::hash(bytes).as_bytes())
-        {
+        let Some(file) = self.versions.get_mut(origin) else {return};
+        self.visited_bytes += bytes.len();
+        let digest = *blake3::hash(bytes).as_bytes();
+        if file.version.is_some_and(|expected| expected != digest) {
             self.partial(origin);
             return;
         }
-        self.files.entry(origin.into()).or_insert_with(|| Answer {
-            origin: origin.into(),
-            ..Answer::default()
-        });
+        file.version = Some(digest);
+        if self.answer(origin).is_none() {
+            self.active = Some(Answer { origin: origin.into(), ..Answer::default() });
+        }
     }
     pub(crate) fn finding(&mut self, origin: &str, finding: Finding) {
-        if let Some(answer) = self.files.get_mut(origin) {
+        if let Some(answer) = self.answer(origin) {
             answer.findings.push(finding);
         }
     }
@@ -80,7 +106,7 @@ impl Capture {
         cause: &str,
         at: UnknownOrigin,
     ) {
-        if let Some(answer) = self.files.get_mut(origin) {
+        if let Some(answer) = self.answer(origin) {
             answer.unknowns.push((
                 relation.to_owned(),
                 kind.map(str::to_owned),
@@ -90,10 +116,11 @@ impl Capture {
         }
     }
     pub(crate) fn partial(&mut self, origin: &str) {
-        self.files.remove(origin);
+        if self.active.as_ref().is_some_and(|a| a.origin == origin) { self.active = None; }
+        if let Some(file) = self.versions.get_mut(origin) { file.packed = None; }
     }
     pub(crate) fn refusal(&mut self, origin: &str, emit: &str, reason: &str) {
-        if let Some(answer) = self.files.get_mut(origin) {
+        if let Some(answer) = self.answer(origin) {
             answer.refusals.push((emit.into(), reason.into()));
         }
     }
@@ -123,7 +150,8 @@ impl Capture {
         for (emit, reason) in &answer.refusals {
             failures.entry(emit.clone()).or_insert_with(|| format!("{origin}: {reason}"));
         }
-        self.files.insert(origin.to_owned(), answer);
+        self.finish_active();
+        self.active = Some(answer);
         self.hits += 1;
         true
     }
@@ -300,7 +328,9 @@ fn pack_inputs(
 struct Inputs {
     request: Request,
     keys: Vec<Key>,
-    versions: BTreeMap<String, Digest>,
+    scope: Digest,
+    modes: Vec<u32>,
+    versions: BTreeMap<String, CapturedFile>,
     observations: Vec<(PathBuf, Stamp)>,
     source_observations: Vec<(PathBuf, Stamp)>,
     phase_ms: [f64; 3],
@@ -366,6 +396,9 @@ fn inputs(
         )?;
     }
     let scope_ms = ms() - pack_ms;
+    let scope = *h.finalize().as_bytes();
+    let seeding = !cache.join("findings.postcard").try_exists()?;
+    let mut modes = Vec::with_capacity(req.files.len());
     let mut versions = BTreeMap::new();
     let mut keys = Vec::with_capacity(req.files.len());
     let mut source_observations = Vec::with_capacity(req.files.len());
@@ -377,25 +410,37 @@ fn inputs(
             return Err(invalid("file outside source scope"));
         }
         let p = req.root.join(name);
-        let mut file = h.clone();
-        field(&mut file, name.as_bytes());
         use std::os::unix::fs::PermissionsExt;
         let metadata = fs::metadata(&p)?;
-        field(&mut file, &metadata.permissions().mode().to_le_bytes());
-        source_observations.push((p.clone(), stamp(&metadata)));
-        let version = *blake3::hash(&fs::read(p)?).as_bytes();
-        field(&mut file, &version);
-        versions.insert(name.to_owned(), version);
-        keys.push(file.finalize().as_bytes()[..16].try_into().unwrap());
+        let mode = metadata.permissions().mode();
+        modes.push(mode);
+        let version = if seeding { None } else {
+            let digest = *blake3::hash(&fs::read(&p)?).as_bytes();
+            keys.push(file_key(&scope, name, mode, &digest));
+            Some(digest)
+        };
+        versions.insert(name.to_owned(), CapturedFile { version, packed: None });
+        source_observations.push((p, stamp(&metadata)));
     }
     Ok(Inputs {
         request: req,
         keys,
+        scope,
+        modes,
         versions,
         observations,
         source_observations,
         phase_ms: [pack_ms, scope_ms, ms() - pack_ms - scope_ms],
     })
+}
+
+fn file_key(scope: &Digest, name: &str, mode: u32, version: &Digest) -> Key {
+    let mut h = blake3::Hasher::new();
+    h.update(scope);
+    field(&mut h, name.as_bytes());
+    h.update(&mode.to_le_bytes());
+    h.update(version);
+    h.finalize().as_bytes()[..16].try_into().unwrap()
 }
 
 fn build_identity() -> io::Result<Digest> {
@@ -429,9 +474,16 @@ fn publish(
     path: &Path,
     build: Digest,
     previous: Option<Digest>,
-    records: &Records,
+    records: &BTreeMap<Key, Vec<u8>>,
 ) -> io::Result<usize> {
-    let data = postcard::to_stdvec(&(build, records)).map_err(io::Error::other)?;
+    // A postcard map is its count followed by ordered key/value pairs. The file
+    // answers have already been encoded by the visitor and can be copied intact.
+    let mut data = postcard::to_stdvec(&(build, records.len())).map_err(io::Error::other)?;
+    data.reserve(records.values().map(|value| 16 + value.len()).sum());
+    for (key, answer) in records {
+        data.extend_from_slice(key);
+        data.extend_from_slice(answer);
+    }
     let digest = *blake3::hash(&data).as_bytes();
     if Some(digest) == previous {
         return Ok(0);
@@ -545,8 +597,8 @@ pub(crate) fn check(
         versions: std::mem::take(&mut first.versions),
         ..Capture::default()
     };
-    for ((key, path), obs) in first.keys.iter().zip(&req.files).zip(first.source_observations) {
-        if let Some(answer) = old.remove(key)
+    for (i, (path, obs)) in req.files.iter().zip(first.source_observations).enumerate() {
+        if let Some(answer) = first.keys.get(i).and_then(|key| old.remove(key))
             && answer.origin == *path
         {
             capture.reusable.insert(path.clone(), answer);
@@ -558,16 +610,26 @@ pub(crate) fn check(
     }
     let ok = evaluate(&first.request, Some(&mut capture));
     let evaluated = ms();
-    let mut next = Records::new();
+    capture.finish_active();
+    let mut next = BTreeMap::new();
     {
-        for (p, k) in req.files.iter().zip(&first.keys) {
-            if let Some(mut a) = capture.files.remove(p) {
-                // A relation's evaluation order may follow run-local symbol numbers.
-                // These vectors are multisets. Persist a stable order with duplicates intact.
-                a.findings.sort_unstable();
-                a.refusals.sort_unstable();
-                a.unknowns.sort_unstable();
-                next.insert(*k, a);
+        for (i, p) in req.files.iter().enumerate() {
+            if let Some(CapturedFile { version, packed: Some(answer) }) = capture.versions.remove(p) {
+                let k = if let Some(k) = first.keys.get(i) {
+                    *k
+                } else {
+                    // A provider may refuse the whole admission before visiting a
+                    // source. That answer still binds the contents of the file.
+                    let version = match version {
+                        Some(v) => v,
+                        None => {
+                            let Ok(bytes) = fs::read(req.root.join(p)) else {continue};
+                            *blake3::hash(&bytes).as_bytes()
+                        }
+                    };
+                    file_key(&first.scope, p, first.modes[i], &version)
+                };
+                next.insert(k, answer);
             }
         }
     }
@@ -582,6 +644,7 @@ pub(crate) fn check(
             .ok()
             .as_ref()
             .map(|m| (m.dev(), m.ino(), m.ctime(), m.ctime_nsec()));
+    eprintln!("retained capture sources={} visitor_bytes={} upfront_versions={}", next.len(), capture.visited_bytes, first.keys.len());
     let mut written = 0;
     let publishing = same_parent && !(next.is_empty() && had_empty);
     if publishing && !observed(&first.observations) {

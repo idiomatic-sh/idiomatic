@@ -1,5 +1,6 @@
 //! Immutable inputs shared by SDK calls. File selection depends on paths and glob sets;
 //! authority and file contents still accompany each registration.
+use super::super::{Parameters, stored};
 use super::{HostCell, Hosted, sdk};
 use std::collections::{HashMap, HashSet};
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -16,7 +17,9 @@ pub(super) struct CallCache {
     schemas: HashMap<(String, Vec<(String, String)>), usize>,
     rows: Vec<std::sync::Arc<[HostCell]>>,
     by_hash: HashMap<(usize, u64), Vec<usize>>,
-    tables: HashMap<(usize, Vec<usize>), Hosted>,
+    tables: HashMap<(usize, Vec<usize>), (Hosted, std::cell::OnceCell<stored::Key>)>,
+    path_digests: HashMap<*const Vec<String>, stored::Key>,
+    program_digests: HashMap<usize, stored::Key>,
 }
 
 impl CallCache {
@@ -75,7 +78,31 @@ impl CallCache {
         owned
     }
 
-    pub(super) fn table(&mut self, t: sdk::HostRelation) -> Result<Hosted, String> {
+    pub(super) fn path_digest(&mut self, paths: &Rc<Vec<String>>) -> stored::Key {
+        // Each list remains interned in self.paths for this cache's lifetime.
+        *self
+            .path_digests
+            .entry(Rc::as_ptr(paths))
+            .or_insert_with(|| stored::key(paths))
+    }
+
+    pub(super) fn program_digest(
+        &mut self,
+        id: usize,
+        query: &str,
+        parameters: &Parameters,
+    ) -> stored::Key {
+        *self
+            .program_digests
+            .entry(id)
+            .or_insert_with(|| stored::key((query, parameters)))
+    }
+
+    pub(super) fn table(
+        &mut self,
+        t: sdk::HostRelation,
+        digests: Option<&mut Vec<stored::Key>>,
+    ) -> Result<Hosted, String> {
         let columns = t
             .columns
             .into_iter()
@@ -135,17 +162,21 @@ impl CallCache {
             row_ids.push(i);
         }
         let key = (id, row_ids);
-        if let Some(table) = self.tables.get(&key) {
-            return Ok(table.clone());
+        let (table, digest) = self.tables.entry(key).or_insert_with_key(|key| {
+            let rows = key.1.iter().map(|&i| self.rows[i].clone()).collect();
+            (
+                Hosted {
+                    name: schema.0,
+                    columns: schema.1,
+                    rows,
+                    partial: None,
+                },
+                Default::default(),
+            )
+        });
+        if let Some(digests) = digests {
+            digests.push(*digest.get_or_init(|| stored::key(&*table)));
         }
-        let rows = key.1.iter().map(|&i| self.rows[i].clone()).collect();
-        let table = Hosted {
-            name: schema.0,
-            columns: schema.1,
-            rows,
-            partial: None,
-        };
-        self.tables.insert(key, table.clone());
-        Ok(table)
+        Ok(table.clone())
     }
 }

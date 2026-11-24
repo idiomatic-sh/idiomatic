@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
     fs,
+    io::Read,
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
 };
@@ -21,13 +22,42 @@ pub(super) enum Probe {
 pub(super) type Group = Vec<(u32, Probe)>;
 pub(super) type Proof = (Key, Key);
 
+type Stamp = (u64, u64, i64, i64);
+fn stamp(m: &fs::Metadata) -> Stamp {
+    (m.dev(), m.ino(), m.ctime(), m.ctime_nsec())
+}
+struct FileObservation {
+    bytes: Key,
+    executable: u32,
+    source: Option<Key>,
+    stamp: Stamp,
+}
+impl FileObservation {
+    fn digest(&mut self, mode: Probe) -> Key {
+        if mode == Probe::Source {
+            *self
+                .source
+                .get_or_insert_with(|| key((self.bytes, self.executable)))
+        } else {
+            self.bytes
+        }
+    }
+}
+
 #[derive(Default)]
 pub(super) struct Observations {
     pub hash_cpu: f64,
     pub hash_bytes: usize,
-    paths: HashMap<(PathBuf, Probe), Option<Key>>,
-    inodes: HashMap<(u64, u64, i64, i64), Key>,
-    pub stamps: HashMap<PathBuf, (u64, u64, i64, i64)>,
+    pub open_cpu: f64,
+    files: HashMap<PathBuf, FileObservation>,
+    kinds: HashMap<PathBuf, Option<Key>>,
+    buffer: Vec<u8>,
+    pub path_hits: usize,
+    pub inode_hits: usize,
+    pub reads: [usize; 3],
+    pub bytes: [usize; 3],
+    pub group_hits: usize,
+    inodes: HashMap<Stamp, Key>,
     values: HashMap<(u32, Probe), Option<Key>>,
     pub root: Option<PathBuf>,
     pub inventory: Key,
@@ -38,7 +68,7 @@ impl Observations {
     pub fn overlay(
         &mut self,
         root: &Path,
-        inventory: &[String],
+        inventory: Key,
         peers: Key,
         values: &BTreeMap<String, std::sync::Arc<[u8]>>,
     ) {
@@ -63,38 +93,64 @@ impl Observations {
             let file = self.root.as_ref()?.join(p);
             return self.observe(&file, Probe::Source);
         }
-        if let Some(v) = self.paths.get(&(p.to_owned(), mode)) {
-            return *v;
-        }
-        let v = (|| {
-            if matches!(mode, Probe::Kind) {
-                return kind(p).ok().map(key);
+        if mode == Probe::Kind {
+            if let Some(v) = self.kinds.get(p) {
+                self.path_hits += 1;
+                return *v;
             }
-            let m = fs::metadata(p).ok()?;
-            let stamp = (m.dev(), m.ino(), m.ctime(), m.ctime_nsec());
-            let digest = if let Some(v) = self.inodes.get(&stamp) {
-                *v
-            } else {
-                let start = crate::thread_cpu();
-                let bytes = fs::read(p).ok()?;
-                let v = *blake3::hash(&bytes).as_bytes();
-                self.hash_cpu += crate::thread_cpu() - start;
-                self.hash_bytes += bytes.len();
-                self.inodes.insert(stamp, v);
-                v
-            };
-            self.stamps.insert(p.to_owned(), stamp);
-            Some(if matches!(mode, Probe::Source) {
-                key((digest, m.mode() & 0o111))
-            } else {
-                digest
-            })
-        })();
-        self.paths.insert((p.to_owned(), mode), v);
-        v
+            let v = kind(p).ok().map(key);
+            self.kinds.insert(p.to_owned(), v);
+            return v;
+        }
+        if let Some(file) = self.files.get_mut(p) {
+            self.path_hits += 1;
+            return Some(file.digest(mode));
+        }
+        let start = crate::thread_cpu();
+        let mut input = fs::File::open(p).ok()?;
+        let metadata = input.metadata().ok()?;
+        self.open_cpu += crate::thread_cpu() - start;
+        let stamp = stamp(&metadata);
+        let bytes = if let Some(v) = self.inodes.get(&stamp) {
+            self.inode_hits += 1;
+            *v
+        } else {
+            let start = crate::thread_cpu();
+            self.buffer.clear();
+            self.buffer
+                .try_reserve(usize::try_from(metadata.len()).ok()?)
+                .ok()?;
+            input.read_to_end(&mut self.buffer).ok()?;
+            let digest = *blake3::hash(&self.buffer).as_bytes();
+            self.hash_cpu += crate::thread_cpu() - start;
+            self.hash_bytes += self.buffer.len();
+            self.reads[mode as usize] += 1;
+            self.bytes[mode as usize] += self.buffer.len();
+            self.inodes.insert(stamp, digest);
+            digest
+        };
+        let mut file = FileObservation {
+            bytes,
+            executable: metadata.mode() & 0o111,
+            source: None,
+            stamp,
+        };
+        let digest = file.digest(mode);
+        self.files.insert(p.to_owned(), file);
+        Some(digest)
+    }
+    pub fn still_current(&self) -> bool {
+        self.files
+            .iter()
+            .all(|(path, file)| fs::metadata(path).is_ok_and(|m| stamp(&m) == file.stamp))
+            && self
+                .kinds
+                .iter()
+                .all(|(path, prior)| kind(path).ok().map(key) == *prior)
     }
     pub fn group(&mut self, id: Key, paths: &Group, names: &[PathBuf]) -> Option<Key> {
         if let Some(v) = self.groups.get(&id) {
+            self.group_hits += 1;
             return *v;
         }
         let result = paths
@@ -167,110 +223,112 @@ impl Packet {
         &self.data
     }
     pub(super) fn save(receipt: &Receipt<'_>) -> Self {
-        use ryo_values::domain::row_texts::types::Cell;
-        let mut words = Vec::new();
-        let mut dictionary = HashMap::new();
-        fn intern<'a>(
-            s: &'a str,
-            words: &mut Vec<Box<str>>,
-            dictionary: &mut HashMap<&'a str, u32>,
-        ) -> u32 {
-            *dictionary.entry(s).or_insert_with(|| {
-                let id = u32::try_from(words.len()).expect("packet dictionary");
-                words.push(s.into());
-                id
-            })
-        }
-        let mut schemas = Vec::new();
-        let mut ids = BTreeMap::new();
-        let rows = receipt
-            .rows
-            .iter()
-            .map(|r| {
-                let shape = (
-                    &r.rule,
-                    r.columns.iter().map(|(n, _)| n).collect::<Vec<_>>(),
-                    &r.identity,
-                );
-                let schema = *ids.entry(shape).or_insert_with(|| {
-                    let i = schemas.len();
-                    schemas.push(Schema {
-                        rule: r.rule.clone(),
-                        columns: r.columns.iter().map(|(n, _)| n.clone()).collect(),
-                        identity: r.identity.clone(),
-                    });
-                    i
-                });
-                PackedRow {
-                    schema,
-                    values: r
-                        .columns
-                        .iter()
-                        .map(|(_, c)| {
-                            c.as_ref().map(|v| match v {
-                                Cell::File(s) => {
-                                    PackedValue::File(intern(s, &mut words, &mut dictionary))
-                                }
-                                Cell::Text(s) => {
-                                    PackedValue::Text(intern(s, &mut words, &mut dictionary))
-                                }
-                                Cell::Number(n) => PackedValue::Number(n.0),
-                                Cell::Span(s) => PackedValue::Span(s.start.0, s.end.0),
-                            })
-                        })
-                        .collect(),
-                }
-            })
-            .collect();
         Self {
             refusal: None,
             digest: super::super::digest(&receipt.rows),
             unknowns: receipt.unknowns.iter().map(|v| (*v).clone()).collect(),
-            data: postcard::to_stdvec(&Rows {
-                words,
-                schemas,
-                rows,
-            })
-            .expect("typed request rows"),
+            data: pack_rows(receipt.rows.iter().copied()),
         }
     }
     pub(in super::super) fn report(&self) -> session::Reported {
-        let Rows {
-            words,
-            schemas,
-            rows,
-        } = postcard::from_bytes(&self.data).expect("verified request packet");
         session::Reported {
             unknowns: self.unknowns.clone(),
-            rows: rows
-                .into_iter()
-                .map(|r| {
-                    let s = &schemas[r.schema];
-                    finish::answer::Row {
-                        rule: s.rule.clone(),
-                        identity: s.identity.clone(),
-                        columns: s
-                            .columns
-                            .iter()
-                            .cloned()
-                            .zip(r.values.into_iter().map(|c| {
-                                c.map(|v| match v {
-                                    PackedValue::File(i) => {
-                                        Value::File(words[i as usize].clone()).cell()
-                                    }
-                                    PackedValue::Text(i) => {
-                                        Value::Text(words[i as usize].clone()).cell()
-                                    }
-                                    PackedValue::Number(n) => Value::Number(n).cell(),
-                                    PackedValue::Span(a, b) => Value::Span(a, b).cell(),
-                                })
-                            }))
-                            .collect(),
-                    }
-                })
-                .collect(),
+            rows: unpack_rows(&self.data),
         }
     }
+}
+
+pub(super) fn pack_rows<'a>(rows: impl IntoIterator<Item = &'a finish::answer::Row>) -> Vec<u8> {
+    use ryo_values::domain::row_texts::types::Cell;
+    let mut words = Vec::new();
+    let mut dictionary = HashMap::new();
+    fn intern<'a>(
+        s: &'a str,
+        words: &mut Vec<Box<str>>,
+        dictionary: &mut HashMap<&'a str, u32>,
+    ) -> u32 {
+        *dictionary.entry(s).or_insert_with(|| {
+            let id = u32::try_from(words.len()).expect("packet dictionary");
+            words.push(s.into());
+            id
+        })
+    }
+    let mut schemas = Vec::new();
+    let mut ids = BTreeMap::new();
+    let rows = rows
+        .into_iter()
+        .map(|r| {
+            let shape = (
+                &r.rule,
+                r.columns.iter().map(|(n, _)| n).collect::<Vec<_>>(),
+                &r.identity,
+            );
+            let schema = *ids.entry(shape).or_insert_with(|| {
+                let i = schemas.len();
+                schemas.push(Schema {
+                    rule: r.rule.clone(),
+                    columns: r.columns.iter().map(|(n, _)| n.clone()).collect(),
+                    identity: r.identity.clone(),
+                });
+                i
+            });
+            PackedRow {
+                schema,
+                values: r
+                    .columns
+                    .iter()
+                    .map(|(_, c)| {
+                        c.as_ref().map(|v| match v {
+                            Cell::File(s) => {
+                                PackedValue::File(intern(s, &mut words, &mut dictionary))
+                            }
+                            Cell::Text(s) => {
+                                PackedValue::Text(intern(s, &mut words, &mut dictionary))
+                            }
+                            Cell::Number(n) => PackedValue::Number(n.0),
+                            Cell::Span(s) => PackedValue::Span(s.start.0, s.end.0),
+                        })
+                    })
+                    .collect(),
+            }
+        })
+        .collect();
+    postcard::to_stdvec(&Rows {
+        words,
+        schemas,
+        rows,
+    })
+    .expect("typed rows")
+}
+
+pub(super) fn unpack_rows(data: &[u8]) -> Vec<finish::answer::Row> {
+    let Rows {
+        words,
+        schemas,
+        rows,
+    } = postcard::from_bytes(data).expect("verified rows");
+    rows.into_iter()
+        .map(|r| {
+            let s = &schemas[r.schema];
+            finish::answer::Row {
+                rule: s.rule.clone(),
+                identity: s.identity.clone(),
+                columns: s
+                    .columns
+                    .iter()
+                    .cloned()
+                    .zip(r.values.into_iter().map(|c| {
+                        c.map(|v| match v {
+                            PackedValue::File(i) => Value::File(words[i as usize].clone()).cell(),
+                            PackedValue::Text(i) => Value::Text(words[i as usize].clone()).cell(),
+                            PackedValue::Number(n) => Value::Number(n).cell(),
+                            PackedValue::Span(a, b) => Value::Span(a, b).cell(),
+                        })
+                    }))
+                    .collect(),
+            }
+        })
+        .collect()
 }
 
 mod payload {

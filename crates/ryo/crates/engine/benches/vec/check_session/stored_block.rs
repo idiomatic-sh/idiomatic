@@ -9,12 +9,17 @@ enum Words {
     Constant(u64),
     Sequence(u64),
     Values(Vec<u64>),
+    Null,
 }
 impl Words {
     fn pack(v: Vec<u64>) -> Self {
         let first = v.first().copied().unwrap_or(0);
         if v.iter().all(|x| *x == first) {
-            Self::Constant(first)
+            if first == u64::MAX {
+                Self::Null
+            } else {
+                Self::Constant(first)
+            }
         } else if v
             .iter()
             .enumerate()
@@ -25,11 +30,13 @@ impl Words {
             Self::Values(v)
         }
     }
-    fn unpack(&self, n: usize) -> Vec<u64> {
+    fn unpack(self, n: usize) -> Vec<u64> {
         match self {
-            Self::Constant(v) => vec![*v; n],
+            // Block::new packs a singleton into a constant with the block's full height.
+            Self::Constant(v) => vec![v],
+            Self::Null => Vec::new(),
             Self::Sequence(v) => (0..n).map(|i| v + i as u64).collect(),
-            Self::Values(v) => v.clone(),
+            Self::Values(v) => v,
         }
     }
 }
@@ -69,7 +76,9 @@ impl StoredBlock {
             .enumerate()
             .filter(|_| block.n != 0)
             .map(|(i, ty)| {
-                let mut column = block.words(i);
+                let mut column = block
+                    .constant(i)
+                    .map_or_else(|| block.words(i), |value| vec![value]);
                 for v in &mut column {
                     if *v == u64::MAX {
                         continue;
@@ -100,39 +109,41 @@ impl StoredBlock {
             columns,
         }
     }
-    pub(crate) fn restore(&self, world: &mut World) -> Rc<finish::population::Block> {
+    pub(crate) fn restore(self, world: &mut World) -> Rc<finish::population::Block> {
         use finish::Ty;
+        // The writer interns paths and symbols under distinct dictionary entries.
+        // Rebind each entry on first use, preserving insertion order in the run.
+        let mut translated = vec![None; self.words.len()];
         let mut columns: Vec<Vec<u64>> = self
             .columns
-            .iter()
+            .into_iter()
             .zip(&self.types)
             .map(|(packed, ty)| {
                 let mut column = packed.unpack(self.count);
-                for v in &mut column {
-                    if *v == u64::MAX {
-                        continue;
-                    }
-                    *v = match ty {
-                        Ty::File => u64::from(
-                            world.file(
-                                std::str::from_utf8(&self.words[*v as usize])
-                                    .expect("stored file name"),
-                            ),
-                        ),
-                        Ty::Node => {
-                            (u64::from(
+                if matches!(ty, Ty::Node | Ty::File | Ty::Sym) {
+                    for v in &mut column {
+                        if *v == u64::MAX {
+                            continue;
+                        }
+                        if *ty == Ty::Sym && *v == u64::MAX - 1 {
+                            *v = u64::from(world.run.absent_word.expect("declared absent word"));
+                            continue;
+                        }
+                        let index = if *ty == Ty::Node { *v >> 32 } else { *v } as usize;
+                        let id = *translated[index].get_or_insert_with(|| {
+                            if *ty == Ty::Sym {
+                                world.run.sym(&self.words[index])
+                            } else {
                                 world.file(
-                                    std::str::from_utf8(&self.words[(*v >> 32) as usize])
-                                        .expect("stored origin"),
-                                ),
-                            ) << 32)
-                                | (*v & 0xffff_ffff)
-                        }
-                        Ty::Sym if *v == u64::MAX - 1 => {
-                            u64::from(world.run.absent_word.expect("declared absent word"))
-                        }
-                        Ty::Sym => u64::from(world.run.sym(&self.words[*v as usize])),
-                        _ => *v,
+                                    std::str::from_utf8(&self.words[index]).expect("stored origin"),
+                                )
+                            }
+                        });
+                        *v = if *ty == Ty::Node {
+                            (u64::from(id) << 32) | (*v & 0xffff_ffff)
+                        } else {
+                            u64::from(id)
+                        };
                     }
                 }
                 column
@@ -148,8 +159,8 @@ impl StoredBlock {
         };
         Rc::new(finish::population::Block::new(
             home,
-            Rc::new(self.names.clone()),
-            Rc::new(self.types.clone()),
+            Rc::new(self.names),
+            Rc::new(self.types),
             self.count,
             columns,
         ))
