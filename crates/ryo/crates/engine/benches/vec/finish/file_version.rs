@@ -107,7 +107,11 @@ impl<'a> FileVersion<'a> {
 impl Drop for FileVersion<'_> {
     fn drop(&mut self) {
         for answer in self.facts.get_mut().drain(..).flatten() {
-            if let Ok(super::request::Answer::Columns(table)) = answer.reply {
+            if let Ok(super::request::Answer::Columns(mut table)) = answer.reply {
+                // Reserve the execution column pool for tables actually read.
+                if !answer.columns_read && let Some(table) = Rc::get_mut(&mut table) {
+                    table.cols.clear();
+                }
                 super::recycle::recycle(table);
             }
         }

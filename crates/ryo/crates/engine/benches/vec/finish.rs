@@ -498,7 +498,7 @@ impl Run {
 /// redo-fills pass 2: who supplies a relation's rows, as the run's catalog declares it.
 #[derive(Clone, Copy)]
 pub(super) enum Supplier {
-    /// The language provider (`Provider::fill`), for a scope.
+    /// The language provider (`Provider::answer`), for a scope.
     Provider,
     /// The host, for a file (the file system's facts: `host::host_fill`).
     Host,
@@ -2442,6 +2442,7 @@ impl<'p> Exec<'p> {
             && let Some(answer) = f.version.facts.borrow_mut().get_mut(usize::from(id)).and_then(Option::as_mut)
         {
             answer.read = true;
+            answer.columns_read = true;
             if let Ok(request::Answer::Indexed { relation, columns, .. }) = &answer.reply {
                 let indexed = f.version.indexed.as_ref().ok_or("missing indexed file packet")?;
                 answer.reply = indexed.widen(run, *relation, columns).map(recycle::rc).map(request::Answer::Columns);
@@ -2460,6 +2461,17 @@ impl<'p> Exec<'p> {
             }
         }
         Err(format!("{relation}: missing from admitted file"))
+    }
+
+    /// Presence checks consult the packet's cardinality without decoding its columns.
+    fn admitted_rows(&self, f: &File<'_>, run: &Run, id: u16) -> Option<usize> {
+        let i = usize::from(id);
+        let relation = run.fact_rels[i].0.as_ref();
+        if let Some(table) = f.version.supplied.get(relation) { return Some(table.n); }
+        let mut facts = f.version.facts.borrow_mut();
+        let answer = facts.get_mut(i)?.as_mut()?;
+        answer.read = true;
+        answer.reply.as_ref().ok().map(request::Answer::count)
     }
 
     fn base(&mut self, f: &mut File<'_>, run: &mut Run, rel: &str) -> R<Table> {

@@ -21,7 +21,7 @@ pub(crate) enum Answer {
 }
 
 impl Answer {
-    fn count(&self) -> usize {
+    pub(super) fn count(&self) -> usize {
         match self {
             Self::Columns(table) => table.n,
             Self::Indexed { rows, .. } => *rows,
@@ -369,9 +369,10 @@ impl Exec<'_> {
 pub(super) struct Delivered {
     pub(super) reply: Reply,
     pub(super) read: bool,
+    pub(super) columns_read: bool,
     count: bool,
     pub(super) widened: bool,
 }
 impl Delivered {
-    fn new(reply: Reply, count: bool) -> Self { Self { reply, read: false, count, widened: false } }
+    fn new(reply: Reply, count: bool) -> Self { Self { reply, read: false, columns_read: false, count, widened: false } }
 }

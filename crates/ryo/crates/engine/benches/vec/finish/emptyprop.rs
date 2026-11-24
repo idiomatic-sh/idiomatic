@@ -404,6 +404,8 @@ impl Exec<'_> {
             let base = Native::Fact(lf.fact);
             let t0 = step_clock();
             if f.admitting { continue; }
+            if lf.own && self.admitted_rows(f, run, lf.fact) == Some(0) { return true; }
+            if !lf.lit { continue; }
             let loaded = self.load_fact(f, run, base);
             let t1 = step_clock();
             self.leaves.laps[0] += t1 - t0;
@@ -439,6 +441,7 @@ impl Exec<'_> {
     /// cycle 4: whether a view has no row in this file (its entry, then its tests), read only where its entry is small.
     fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         let Ok(Some(v)) = self.view(run, node) else { return false };
+        if let Native::Fact(id) = v.base && self.admitted_rows(f, run, id) == Some(0) { return true; }
         if (f.admitting && matches!(v.base, Native::Fact(_))) || self.load_fact(f, run, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
             return false;
         }
