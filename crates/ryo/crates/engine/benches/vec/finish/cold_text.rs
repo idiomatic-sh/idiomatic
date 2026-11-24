@@ -9,7 +9,7 @@ use std::rc::Rc;
 pub(super) struct Plan {
     by_symbol: Vec<u32>,
     slots: usize,
-    by_bytes: FxHashMap<Box<[u8]>, u32>,
+    by_bytes: FxHashMap<Rc<[u8]>, u32>,
     one_byte: Vec<u32>,
     longest: usize,
     tests: FxHashMap<Vec<String>, Rc<Predicate>>,

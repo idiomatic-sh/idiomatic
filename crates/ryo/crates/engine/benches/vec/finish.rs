@@ -310,11 +310,11 @@ pub(super) struct Run {
     cold: cold_list::Plan,
     cold_entries: cold_entries::Audit,
     cold_text: cold_text::Plan,
-    pub(super) texts: Vec<Box<[u8]>>,
-    pub(super) ids: FxHashMap<Box<[u8]>, u32>,
+    pub(super) texts: Vec<Rc<[u8]>>,
+    pub(super) ids: FxHashMap<Rc<[u8]>, u32>,
     regexes: FxHashMap<String, Rc<Bound<regex::bytes::Regex>>>,
     lower_symbols: FxHashMap<u32, u32>,
-    folded_literals: FxHashMap<u32, Rc<Bound<Box<[u8]>>>>,
+    folded_literals: FxHashMap<u32, Rc<Bound<Rc<[u8]>>>>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
@@ -360,8 +360,9 @@ impl Run {
             return *i;
         }
         let i = self.texts.len() as u32;
-        self.texts.push(t.into());
-        self.ids.insert(t.into(), i);
+        let text = Rc::<[u8]>::from(t);
+        self.texts.push(Rc::clone(&text));
+        self.ids.insert(text, i);
         i
     }
     fn lower_symbol(&mut self, symbol: u32) -> u32 {
