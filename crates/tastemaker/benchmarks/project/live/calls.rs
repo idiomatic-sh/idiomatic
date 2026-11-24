@@ -48,6 +48,7 @@ fn execute(
     mut requests: Vec<sdk::LintRequest>,
     languages: &sdk::Languages,
     cache: &sdk::Cache,
+    workers: std::num::NonZeroUsize,
 ) -> Vec<Reply> {
     let keys = crate::proof_enabled().then(|| {
         requests.iter_mut().map(|request| {
@@ -71,6 +72,7 @@ fn execute(
         if let Err(reason) = session.link_readers(languages).and_then(|()| session.use_cache(directory)) {
             return requests.into_iter().map(|_| Err(execution(reason.clone()))).collect();
         }
+        session.batch.workers = Some(workers);
         session.lint(requests, languages)
     }));
     if let Some(keys) = keys {
@@ -122,6 +124,10 @@ static CHECK_OPTIONS: std::sync::OnceLock<LiveOptions> = std::sync::OnceLock::ne
 
 pub fn configure_bench_check(workers: Option<std::num::NonZeroUsize>, reverse_files: bool) {
     let _ = CHECK_OPTIONS.set(LiveOptions { workers, reverse_files });
+}
+
+pub fn configured_workers() -> usize {
+    check_options().workers.map_or(1, std::num::NonZeroUsize::get)
 }
 
 pub fn check_options() -> LiveOptions {
@@ -402,7 +408,6 @@ impl Live {
         let previous_children = self.child_cpu();
         let previous = self.phase_totals();
         let options = check_options();
-        self.batch.workers = options.workers;
         let wall = Instant::now();
         let admission = Instant::now();
         let count = requests.iter().map(|request| request.rules.len()).sum::<usize>();
@@ -640,20 +645,13 @@ impl Live {
             prepared.extend(rules.by_ref().map(|(id, rule)| (id, rule, None)));
             let chunk_size = prepared.len().div_ceil(workers);
             self.admission_shards += prepared.len().div_ceil(chunk_size);
-            self.admission_workers_cpu += std::thread::scope(|scope| {
-                let decode = |chunk: &mut [(_, sdk::Rule, Option<_>)]| {
-                    let start = thread_cpu();
-                    for (_, rule, typed) in chunk {
-                        *typed = Some(parameters(std::mem::take(&mut rule.parameters)));
-                    }
-                    thread_cpu() - start
-                };
-                let mut chunks = prepared.chunks_mut(chunk_size);
-                let first = chunks.next().expect("non-empty rules");
-                let children: Vec<_> = chunks.map(|chunk| scope.spawn(move || decode(chunk))).collect();
-                decode(first);
-                children.into_iter().map(|child| child.join().expect("admission worker panicked")).sum::<f64>()
+            let chunks: Vec<_> = prepared.chunks_mut(chunk_size).collect();
+            let (_, cpu) = crate::check_session::jobs::run(chunks, |chunk| {
+                for (_, rule, typed) in chunk {
+                    *typed = Some(parameters(std::mem::take(&mut rule.parameters)));
+                }
             });
+            self.admission_workers_cpu += cpu;
         }
         let serial = rules.map(|(id, rule)| (id, rule, None));
         for (id, mut rule, typed) in serial.chain(prepared) {
@@ -771,36 +769,24 @@ impl Live {
                 Ok::<_, sdk::LintError>((id, receipt))
             }).collect::<Result<Vec<_>, _>>()?;
             let chunk_size = receipts.len().div_ceil(count);
-            let other_cpu = std::thread::scope(|scope| {
-                let mut chunks = receipts.chunks_mut(chunk_size);
-                let first = chunks.next().expect("non-empty requests");
-                let children: Vec<_> = chunks.map(|chunk| scope.spawn(move || {
-                    let start = thread_cpu();
-                    let result = render_chunk(chunk);
-                    (result, thread_cpu() - start)
-                })).collect();
-                let (report, mut dictionaries) = render_chunk(first)?;
-                out = report;
-                let mut cpu = 0.;
-                for child in children {
-                    let (part, time) = child.join().expect("receipt worker panicked");
-                    let (part, count) = part?;
-                    dictionaries += count;
-                    out.skipped.extend(part.skipped);
-                    out.findings.extend(part.findings);
-                    out.unknowns.extend(part.unknowns);
-                    cpu += time;
-                }
-                Ok::<_, sdk::LintError>((cpu, dictionaries))
-            })?;
+            let chunks: Vec<_> = receipts.chunks_mut(chunk_size).collect();
+            let (parts, child_cpu) = crate::check_session::jobs::run(chunks, render_chunk);
+            let mut dictionaries = 0;
+            for part in parts {
+                let (part, count) = part?;
+                dictionaries += count;
+                out.skipped.extend(part.skipped);
+                out.findings.extend(part.findings);
+                out.unknowns.extend(part.unknowns);
+            }
             drop(receipts);
             for (_, entry) in ids {
                 let (i, _) = entry.expect_err("fresh receipt");
                 self.batch.work[i] = super::Work::Invalid(String::new());
             }
             self.parallel_rows += out.findings.len();
-            self.delivery_dictionaries += other_cpu.1;
-            self.batch.clocks.delivery_workers_cpu += other_cpu.0;
+            self.delivery_dictionaries += dictionaries;
+            self.batch.clocks.delivery_workers_cpu += child_cpu;
         } else {
             for (id,entry) in ids {
                 let consumed = entry.as_ref().err().map(|(i, _)| *i);

@@ -213,7 +213,6 @@ pub(super) fn run(
 
     let file_catalog = &batch.file_catalog;
     let run_shard = |shard: usize| {
-        let start = thread_cpu();
         let mut run = finish::Run::default();
         file_catalog.declare(&mut run);
         run.paths = Arc::clone(paths);
@@ -252,22 +251,11 @@ pub(super) fn run(
                 output.push((job.slot, answer));
             }
         }
-        (output, thread_cpu() - start)
+        output
     };
 
-    let (results, cpu) = std::thread::scope(|scope| {
-        let workers: Vec<_> = (1..count.min(programs.len()))
-            .map(|shard| scope.spawn(move || run_shard(shard)))
-            .collect();
-        let (mut output, _) = run_shard(0);
-        let mut cpu = 0.;
-        for worker in workers {
-            let (part, used) = worker.join().expect("closed program worker panicked");
-            output.extend(part);
-            cpu += used;
-        }
-        (output, cpu)
-    });
+    let (parts, cpu) = session::jobs::run(0..count.min(programs.len()), run_shard);
+    let results = parts.into_iter().flatten();
     drop(programs);
     for (slot, answer) in results {
         batch.work[slot] = Work::Project(Rc::new(answer));

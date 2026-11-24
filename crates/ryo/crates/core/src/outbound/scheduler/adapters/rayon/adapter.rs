@@ -47,6 +47,24 @@ impl SchedulerRayonAdapter {
 }
 
 impl SchedulerPort for SchedulerRayonAdapter {
+    fn on_owner(&self, job: &mut (dyn FnMut() + Send)) -> Result<(), SchedulerError> {
+        let pool = self.pool.as_ref().map_err(Clone::clone)?;
+        let pool = AsRef::<rayon::ThreadPool>::as_ref(&*pool.0);
+        if pool.current_thread_index() == Some(0) {
+            job();
+        } else if pool.current_num_threads() == 1 {
+            pool.install(job);
+        } else {
+            let job = std::sync::Mutex::new(job);
+            pool.broadcast(|worker| {
+                if worker.index() == 0 {
+                    job.lock().expect("session owner")();
+                }
+            });
+        }
+        Ok(())
+    }
+
     fn run(
         &self,
         workers: &mut [Box<dyn FnMut(JobNumber) + Send + '_>],

@@ -6,6 +6,12 @@ use super::types::{JobCount, JobNumber};
 
 /// What every `scheduler` adapter implements.
 pub trait SchedulerPort: Send + Sync + std::fmt::Debug {
+    /// Runs a session operation on the same worker for every invocation on this pool.
+    /// Multi-worker adapters must keep this affinity even when other jobs are pending.
+    fn on_owner(&self, job: &mut (dyn FnMut() + Send)) -> Result<(), SchedulerError> {
+        self.run(&mut [Box::new(|_| job())], JobCount(1))
+    }
+
     /// Runs one job for each index below `count`, each on one of `workers`, and returns when every
     /// job is done. A worker is called by one thread at a time and keeps what it owns between jobs.
     ///

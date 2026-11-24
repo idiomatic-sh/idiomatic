@@ -4,7 +4,7 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
-use ryo_core::outbound::scheduler::types::JobCount;
+use std::num::NonZeroUsize;
 
 use crate::linter::{
     Cache, Finding, FindingColumn, FindingKey, Languages, LintError, LintReport, LintRequest,
@@ -12,7 +12,7 @@ use crate::linter::{
 };
 
 type Reply = Result<LintReport, LintError>;
-type Execute = fn(usize, Vec<LintRequest>, &Languages, &Cache) -> Vec<Reply>;
+type Execute = fn(usize, Vec<LintRequest>, &Languages, &Cache, NonZeroUsize) -> Vec<Reply>;
 
 static ENGINE: OnceLock<(Execute, fn(usize))> = OnceLock::new();
 static NEXT_SESSION: AtomicUsize = AtomicUsize::new(0);
@@ -59,28 +59,21 @@ impl Linter {
                 })
                 .collect()
         };
-        if self.pool.workers().0 != 1 {
-            return fail("this benchmark requires one worker".into());
-        }
         let Some(&(execute, _)) = ENGINE.get() else {
             return fail("benchmark executor was not linked".into());
         };
         let mut requests = Some(requests);
         let mut answers = Vec::new();
-        let mut job: Box<dyn FnMut(_) + Send> = Box::new(|_| {
+        let mut job = || {
             answers = execute(
                 self.session,
                 requests.take().expect("one scheduled job"),
                 &self.languages,
                 &self.cache,
+                NonZeroUsize::new(self.pool.workers().0 as usize).expect("worker pool is nonempty"),
             );
-        });
-        let scheduled = self
-            .pool
-            .clone()
-            .of()
-            .run(std::slice::from_mut(&mut job), JobCount(1));
-        drop(job);
+        };
+        let scheduled = self.pool.clone().of().on_owner(&mut job);
         match scheduled {
             Ok(()) => answers,
             Err(reason) => fail(reason.to_string()),
@@ -97,12 +90,7 @@ impl std::fmt::Debug for Linter {
 impl Drop for Linter {
     fn drop(&mut self) {
         if let Some(&(_, close)) = ENGINE.get() {
-            let mut job: Box<dyn FnMut(_) + Send> = Box::new(|_| close(self.session));
-            let _ = self
-                .pool
-                .clone()
-                .of()
-                .run(std::slice::from_mut(&mut job), JobCount(1));
+            let _ = self.pool.clone().of().on_owner(&mut || close(self.session));
         }
     }
 }

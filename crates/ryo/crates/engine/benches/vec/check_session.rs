@@ -16,6 +16,8 @@ use std::{
 pub(crate) mod completeness;
 #[path = "check_session/pairs.rs"]
 mod pairs;
+#[path = "check_session/jobs.rs"]
+pub(crate) mod jobs;
 #[path = "check_session/project.rs"]
 pub(crate) mod project;
 

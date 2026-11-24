@@ -144,7 +144,6 @@ pub(crate) fn dispatch<L: FileSource>(
     let snapshots = &state.bytes;
     let work = |files: &[usize]| {
         let wall = std::time::Instant::now();
-        let start = thread_cpu();
         let mut part = World::default();
         part.boundaries = Some(Vec::new());
         part.declare_words(languages);
@@ -202,25 +201,15 @@ pub(crate) fn dispatch<L: FileSource>(
                     .expect("closed worker owns each contribution")
             })
             .collect();
-        (a, links, slots, owned, part.transfer(prefix), time, local.bytes, thread_cpu() - start, wall.elapsed().as_secs_f64())
+        (a, links, slots, owned, part.transfer(prefix), time, local.bytes, wall.elapsed().as_secs_f64())
     };
-    std::thread::scope(|scope| {
-        let threads: Vec<_> = shards[1..]
-            .iter()
-            .map(|s| scope.spawn(|| work(s)))
-            .collect();
-        let first = work(&shards[0]);
+    {
+        let (results, children) = jobs::run(&shards, |shard| work(shard));
+        clocks.file_workers_cpu += children;
         let mut transfers = Vec::with_capacity(shards.len());
         let mut bytes = Vec::new();
         let mut longest = 0.0_f64;
-        for (index, (a, links, slots, notes, part, time, snapshots, worker_cpu, worker_wall)) in std::iter::once(first).chain(
-            threads
-                .into_iter()
-                .map(|t| t.join().expect("file worker panicked")),
-        ).enumerate() {
-            if index > 0 {
-                clocks.file_workers_cpu += worker_cpu;
-            }
+        for (a, links, slots, notes, part, time, snapshots, worker_wall) in results {
             longest = longest.max(worker_wall);
             clocks.shard_busy_wall += worker_wall;
             if time.largest_file_wall > clocks.largest_file_wall {
@@ -281,5 +270,5 @@ pub(crate) fn dispatch<L: FileSource>(
         clocks.join += thread_cpu() - start;
         clocks.join_wall += merge_wall.elapsed().as_secs_f64();
         bytes
-    }).into_iter().for_each(|snapshots| state.bytes.extend(snapshots));
+    }.into_iter().for_each(|snapshots| state.bytes.extend(snapshots));
 }

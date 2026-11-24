@@ -15,6 +15,7 @@ vec-glibc = []
 product-session = []
 
 [dependencies]
+rayon = "1"
 release_sdk = { package = "idiomatic-sh-ryo-sdk", version = "=0.1.4", features = ["fixtures"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = {version="1", features=["raw_value"]}
