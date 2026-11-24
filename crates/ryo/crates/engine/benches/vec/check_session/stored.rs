@@ -148,6 +148,12 @@ struct Snapshot {
     empty_schemas: Vec<Key>,
     request_layers: Vec<Key>,
 }
+struct RequestPlan {
+    proof: Vec<Proof>,
+    unread: Vec<(String, String)>,
+    environments: BTreeSet<Arc<str>>,
+}
+
 pub(super) struct Store {
     dir: PathBuf,
     names: Vec<PathBuf>,
@@ -171,7 +177,9 @@ pub(super) struct Store {
     pairs: Vec<Option<(usize, usize)>>,
     program_keys: Vec<Key>,
     binding_keys: Vec<Key>,
-    plans: Vec<Option<(Vec<Proof>, Vec<(String, String)>)>>,
+    plans: Vec<Option<RequestPlan>>,
+    observed_entries: HashMap<Arc<str>, BTreeMap<PathBuf, Option<u8>>>,
+    environment_proofs: HashMap<Arc<str>, Option<Proof>>,
     keep_pairs: Vec<bool>,
     local_rows: Vec<bool>,
     project_proofs: HashMap<usize, Option<Proof>>,
@@ -274,6 +282,8 @@ impl Store {
             program_keys: vec![],
             binding_keys: vec![],
             plans: vec![],
+            observed_entries: HashMap::new(),
+            environment_proofs: HashMap::new(),
             keep_pairs: vec![],
             local_rows: vec![],
             project_proofs: HashMap::new(),
@@ -468,9 +478,9 @@ impl Store {
         let evidence = self.group(vec![(path, Probe::Bytes)], None);
         if expected.is_some()
             && let Some(g) = evidence
-            && let Some((proof, _)) = &mut self.plans[i]
+            && let Some(plan) = &mut self.plans[i]
         {
-            proof.push(g);
+            plan.proof.push(g);
         } else {
             self.plans[i] = None;
         }
@@ -504,7 +514,10 @@ impl Store {
         self.packets.get(id).expect("verified packet")
     }
     pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
-        let (proof, unread) = self.plans.get_mut(idx)?.take()?;
+        let RequestPlan { mut proof, unread, environments } = self.plans.get_mut(idx)?.take()?;
+        for environment in environments {
+            proof.push(self.environment_proof(environment)?);
+        }
         let start = crate::thread_cpu();
         let empty = r.rows.is_empty() && r.unknowns.is_empty() && r.rejected_syntax.is_empty();
         let k = if let Some(packet) = self.empty_packet.filter(|_| empty) {
@@ -594,6 +607,7 @@ impl Store {
         contributions: &mut [Option<Rc<project::Contribution>>],
     ) {
         self.project_proofs.clear();
+        self.environment_proofs.clear();
         let prior = self.versions.len();
         self.versions
             .extend(b.schedule.sources.iter().enumerate().skip(prior).map(|(index, source)| {
@@ -654,7 +668,7 @@ impl Store {
         self.keep_pairs = vec![false; self.pairs.len()];
         self.local_rows = vec![false; self.pairs.len()];
         let mut projects = BTreeSet::new();
-        let mut groups = HashMap::<(Option<InputScope>, Vec<usize>), Option<Proof>>::new();
+        let mut groups = HashMap::<(Option<InputScope>, Vec<usize>), Option<(Proof, BTreeSet<Arc<str>>)>>::new();
         let work_inputs = std::mem::take(&mut self.work_inputs);
         self.plans.clear();
         for (index, work) in b.work.iter().enumerate() {
@@ -682,6 +696,7 @@ impl Store {
                 .map(|&slot| self.pairs[slot].map(|(source, _)| source))
                 .collect::<Option<Vec<_>>>();
             let mut proof = Some(Vec::new());
+            let mut environments = BTreeSet::new();
             if let Some(local) = local {
                 for ids in [
                     Some(local.as_slice()),
@@ -693,21 +708,28 @@ impl Store {
                     if ids.is_empty() {
                         continue;
                     }
-                    let g = *groups.entry((scope, ids.to_vec())).or_insert_with(|| {
+                    let g = groups.entry((scope, ids.to_vec())).or_insert_with(|| {
                         let mut paths = Vec::new();
+                        let mut environment_ids = BTreeSet::new();
                         for &i in ids {
-                            self.versions[i]?;
                             let src = &b.schedule.sources[i];
+                            if let Some(environment) = &src.environment {
+                                scope?;
+                                environment_ids.insert(environment.id.clone());
+                            } else {
+                                self.versions[i]?;
+                            }
                             if scope.is_some() {
                                 paths.push((src.path.as_str().into(), Probe::Effective));
                             } else if src.provided.is_none() {
                                 paths.push((Path::new(&*src.root).join(&src.path), Probe::Source));
                             }
                         }
-                        self.group(paths, scope)
+                        Some((self.group(paths, scope)?, environment_ids))
                     });
-                    if let (Some(ps), Some(g)) = (&mut proof, g) {
-                        ps.push(g)
+                    if let (Some(ps), Some((group, ids))) = (&mut proof, g) {
+                        ps.push(*group);
+                        environments.extend(ids.iter().cloned());
                     } else {
                         proof = None;
                         break;
@@ -720,7 +742,7 @@ impl Store {
                 projects.extend(b.projects[i].slots.iter().copied());
             }
             if scope.is_some()
-                && (closed || matches!(work, Work::Project(_)))
+                && (closed || !environments.is_empty() || matches!(work, Work::Project(_)))
                 && let Some(ps) = &mut proof
             {
                 ps.push(
@@ -728,7 +750,7 @@ impl Store {
                         .expect("declared inventory"),
                 );
             }
-            self.plans.push(proof.map(|p| (p, Vec::new())));
+            self.plans.push(proof.map(|proof| RequestPlan { proof, unread: Vec::new(), environments }));
         }
         for (i, src) in b.schedule.sources.iter().enumerate() {
             if let Some(v) = self.versions[i] {
@@ -864,7 +886,13 @@ impl Store {
     ) {
         let mut encoded = HashMap::new();
         let mut empty_blocks = HashMap::new();
+        let mut observed_environments = BTreeSet::new();
         for (i, src) in b.schedule.sources.iter().enumerate() {
+            if let Some(environment) = &src.environment
+                && observed_environments.insert(&environment.id)
+            {
+                self.remember_entries(environment);
+            }
             let Some(version) = self.versions[i] else {
                 continue;
             };
@@ -980,8 +1008,8 @@ impl Store {
             .map(|r| (r.path.0.to_string(), r.reason.0.to_string()))
             .collect();
         let Some((project, root)) = project.and_then(|(id, authority)| authority.disk().map(|root| (id, root))) else {
-            if let Some((_, u)) = &mut self.plans[idx] {
-                *u = unread;
+            if let Some(plan) = &mut self.plans[idx] {
+                plan.unread = unread;
             }
             return;
         };
@@ -993,30 +1021,57 @@ impl Store {
             g
         };
         if let Some(g) = evidence
-            && let Some((proof, u)) = &mut self.plans[idx]
+            && let Some(plan) = &mut self.plans[idx]
         {
-            proof.push(g);
-            *u = unread
+            plan.proof.push(g);
+            plan.unread = unread;
         } else {
             self.plans[idx] = None
         }
     }
 
+    fn remember_entries(&mut self, environment: &project::Environment) {
+        let entries = self.observed_entries.entry(environment.id.clone()).or_default();
+        environment.observed(|relative, observed| {
+            let state = environment.authority.disk().and_then(|_| entry_kind(observed));
+            let path = environment.authority.disk().map_or_else(
+                || PathBuf::from(relative),
+                |root| Path::new(root).join(relative),
+            );
+            // Later work can borrow rows from an earlier round in this overlay.
+            // Include its observations and decline if a probe gave conflicting evidence.
+            let prior = entries.entry(path).or_insert(state);
+            if *prior != state {
+                *prior = None;
+            }
+        });
+    }
+
+    fn environment_proof(&mut self, environment: Arc<str>) -> Option<Proof> {
+        if let Some(&proof) = self.environment_proofs.get(&environment) {
+            return proof;
+        }
+        let mut paths = Vec::new();
+        let proof = self.observed_entries.get(&environment).and_then(|entries| {
+            for (path, &state) in entries {
+                let expected = key(state?);
+                if self.observed.observe(path, Probe::Kind) != Some(expected) {
+                    return None;
+                }
+                paths.push((path.clone(), Probe::Kind));
+            }
+            Some(())
+        }).and_then(|()| self.group(paths, None));
+        self.environment_proofs.insert(environment, proof);
+        proof
+    }
+
     fn population_proof(&mut self, p: &Population, root: &str) -> Option<Proof> {
         let mut paths = vec![(PathBuf::from(root), Probe::Kind)];
         for entry in &p.observations {
-            use l::ObservedEntryState::*;
-            let k = match entry.state {
-                Missing => 0,
-                File => 1,
-                Directory => 2,
-                Other => 3,
-                Unknown => {
-                    return None;
-                }
-            };
+            let k = entry_kind(entry.state)?;
             let path = Path::new(root).join(&*entry.path.0);
-            if self.observed.observe(&path, Probe::Kind) != Some(key(k as u8)) {
+            if self.observed.observe(&path, Probe::Kind) != Some(key(k)) {
                 return None;
             }
             paths.push((path, Probe::Kind));
@@ -1034,10 +1089,51 @@ impl Store {
     }
 }
 
+fn entry_kind(state: l::ObservedEntryState) -> Option<u8> {
+    use l::ObservedEntryState::*;
+    Some(match state {
+        Missing => 0,
+        File => 1,
+        Directory => 2,
+        Other => 3,
+        Unknown => return None,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use session::source::Linked;
+
+    #[test]
+    fn contextual_proofs_recheck_absence_and_reject_unknown_entries() {
+        let root = tempfile::tempdir().unwrap();
+        let open = || Store::open(root.path(), &[] as &[Linked]).unwrap();
+        let epoch = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let environment = project::Environment::new(
+            "observed".into(),
+            Authority::Disk(root.path().to_str().unwrap().to_owned()),
+            BTreeSet::new(),
+            epoch.clone(),
+        );
+        let marker = Path::new("marker");
+        assert!(matches!(l::FileProject::entry(&environment, marker), l::ObservedEntryState::Missing));
+        let mut store = open();
+        store.remember_entries(&environment);
+        let proof = store.environment_proof(environment.id.clone()).unwrap();
+        let request = key("observed request");
+        store.put(request, Packet::declined("from proved absence"), vec![proof], vec![], String::new);
+        assert!(store.publish().unwrap() > 0);
+        assert!(open().lookup(request).is_some());
+        fs::write(root.path().join(marker), b"now present").unwrap();
+        assert!(open().lookup(request).is_none());
+
+        let unknown = project::Environment::new("unknown".into(), Authority::Given, BTreeSet::new(), epoch);
+        assert!(matches!(l::FileProject::entry(&unknown, marker), l::ObservedEntryState::Unknown));
+        let mut store = open();
+        store.remember_entries(&unknown);
+        assert!(store.environment_proof(unknown.id.clone()).is_none());
+    }
 
     #[test]
     fn answers_replay_after_publish_with_each_requests_inputs() {
