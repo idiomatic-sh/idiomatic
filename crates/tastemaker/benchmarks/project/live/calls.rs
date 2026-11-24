@@ -27,7 +27,6 @@ pub struct LiveReport {
     pub findings: Vec<(Box<str>, sdk::Slot, Vec<(Box<str>, sdk::Slot)>)>,
     pub unknowns: Vec<(Box<str>, String, String)>,
     pub unread: Vec<Box<str>>,
-    columns_delivered: usize,
 }
 
 pub struct Live {
@@ -100,14 +99,14 @@ fn parameter(v: sdk::ParameterValue) -> Result<PlanConstant, String> {
     })
 }
 
-fn slot(v: Option<Cell>) -> sdk::Slot {
+fn slot(v: &Option<Cell<std::sync::Arc<str>>>) -> sdk::Slot {
     let Some(c) = v else {
         return sdk::Slot::Nothing;
     };
     use release_sdk::languages::{Offset, Span};
     sdk::Slot::Is(match c {
-        Cell::File(p) => sdk::Cell::File(sdk::RelativePath(p)),
-        Cell::Text(s) => sdk::Cell::Text(sdk::HostText(s)),
+        Cell::File(p) => sdk::Cell::File(sdk::RelativePath(p.as_ref().into())),
+        Cell::Text(s) => sdk::Cell::Text(sdk::HostText(s.as_ref().into())),
         Cell::Number(n) => sdk::Cell::Number(sdk::HostNumber(n.0)),
         Cell::Span(s) => sdk::Cell::Span(Span {
             start: Offset(s.start.0),
@@ -158,10 +157,6 @@ impl Live {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let c = &self.batch.clocks;
-        if let Ok(report) = &result {
-            last.rows_delivered += report.findings.len();
-            last.columns_delivered += report.columns_delivered;
-        }
         last.calls += 1;
         last.requests += count;
         last.refused += usize::from(result.is_err());
@@ -356,13 +351,16 @@ impl Live {
                 }
             };
             for row in receipt.rows {
-                let columns: Vec<_> = row.layout.names.iter().zip(row.cells_with(|s| Box::<str>::from(s.as_ref())))
-                    .map(|(name, value)| (name.as_str().into(), slot(value)))
-                    .collect();
-                let subject = row.layout.identity.first().and_then(|&i| columns.get(i))
-                    .ok_or("missing row subject")?.1.clone();
-                out.columns_delivered += columns.len();
-                out.findings.push((id.as_ref().into(), subject, columns));
+                let subject = row.layout.identity.first()
+                    .map(|&i| row.value(i))
+                    .ok_or("missing row subject")?;
+                out.findings.push((
+                    id.as_ref().into(),
+                    slot(&subject),
+                    row.layout.names.iter().zip(row.cells())
+                        .map(|(n, v)| (n.as_str().into(), slot(&v)))
+                        .collect(),
+                ));
             }
             for (p, msg) in receipt.unknowns {
                 out.unknowns
@@ -404,8 +402,6 @@ pub fn capture_retained(linked:sdk::Languages,manifest:&str,output:&str,root:&st
 
 #[derive(Default)]
 struct Measurement {
-    rows_delivered: usize,
-    columns_delivered: usize,
     sessions: usize,
     project_counts: [usize; 4],
     calls: usize,
@@ -419,8 +415,6 @@ struct Measurement {
     retained: [u64; 4],
 }
 static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measurement {
-    rows_delivered: 0,
-    columns_delivered: 0,
     sessions: 0,
     project_counts: [0; 4],
     calls: 0,
@@ -447,7 +441,6 @@ pub fn print_measurement() {
     let [prepare, read, first, second, project, assembly] = m.parts;
     let [plans, bindings, sources, reads, parses, pairs, skips, eval, productive, refused] = m.counts;
     let empty = eval - productive - refused;
-    eprintln!("SDK_DELIVERY rows={} columns={} caller_cpu={assembly:.6} evidence_cpu=0", m.rows_delivered, m.columns_delivered);
     let [inventories, builds, relations, repeated] = m.project_counts;
     eprintln!(
         "PROJECT_POPULATIONS sessions={} inventories={inventories} builds={builds} relations={relations} repeated_relations={repeated}",

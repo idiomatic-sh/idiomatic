@@ -50,33 +50,8 @@ pub(super) fn packet_receipt(
     }
     .to_string()
 }
-#[derive(Default)]
-pub(super) struct UnknownWriter<'a> {
-    encoded: std::collections::HashMap<&'a (String, String), Vec<u8>>,
-}
-
-impl<'a> UnknownWriter<'a> {
-    pub(super) fn len(&self) -> usize {
-        self.encoded.len()
-    }
-
-    pub(super) fn write(
-        &mut self,
-        mut out: impl std::io::Write,
-        unknowns: impl IntoIterator<Item = &'a (String, String)>,
-    ) {
-        out.write_all(b"[").expect("write unknown findings");
-        for (i, unknown) in unknowns.into_iter().enumerate() {
-            if i > 0 {
-                out.write_all(b",").expect("write unknown findings");
-            }
-            let bytes = self.encoded.entry(unknown).or_insert_with(|| {
-                serde_json::to_vec(unknown).expect("encode unknown finding")
-            });
-            out.write_all(bytes).expect("write unknown findings");
-        }
-        out.write_all(b"]").expect("write unknown findings");
-    }
+pub(super) fn write_unknowns<T: std::borrow::Borrow<(String, String)> + serde::Serialize>(out: impl std::io::Write, unknowns: &[T]) {
+    serde_json::to_writer(out, unknowns).expect("write unknown findings");
 }
 pub(super) fn write_findings(findings: &[Finding], path: &std::path::Path) {
     let mut rows: Vec<_> = findings.iter().map(finding).collect();

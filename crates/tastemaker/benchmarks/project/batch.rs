@@ -982,64 +982,24 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     }else{session.run_sources(readers)};
     let t=thread_cpu();
     let mut out=std::io::BufWriter::new(std::fs::File::create(output).unwrap());
-    // Project closure shares complete answers and file closure shares ordered slots.
-    // Reuse evidence only for those exact identities in this immutable replay.
-    #[derive(Hash, Eq, PartialEq)]
-    enum Source<'a> {
-        Project(*const Answer),
-        Files(&'a [usize]),
-    }
-    let mut known = HashMap::new();
-    let mut indices = Vec::with_capacity(session.work.len());
-    enum Output<'a> { Packet(stored::Key), Computed(std::borrow::Cow<'a, str>, Vec<&'a (String, String)>) }
-    let mut results: Vec<Result<Output<'_>, String>> = Vec::new();
-    let empty = digest(&[]);
-    let mut gathered = 0.0;
-    let mut nonempty_digests = 0;
-    for entry in entries.into_iter().chain(
-        (0..if store.is_none() { session.work.len() } else { 0 }).map(|i| Entry::Evaluate(i, None))
-    ) {
-        let source = match (&entry, &store) {
-            (Entry::Evaluate(i, _), None) => match &session.work[*i] {
-                Work::Project(answer) if Rc::strong_count(answer) > 1 => Some(Source::Project(Rc::as_ptr(answer))),
-                Work::Pairs(slots) => Some(Source::Files(slots)),
-                _ => None,
-            },
-            _ => None,
-        };
-        let next = results.len();
-        let index = source.map_or(next, |source| *known.entry(source).or_insert(next));
-        indices.push(index);
-        if index != next { continue; }
-        let result = (|| {
-            let packet=match entry {
-                Entry::Stored(k)=>k,
-                Entry::Evaluate(i,id)=>{
-                    if let Work::Invalid(reason)=&session.work[i] {
-                        if let (Some(s),Some(k))=(&mut store,id){s.decline(k,reason);}
-                        return Err(reason.clone())
-                    }
-                    let start = thread_cpu();
-                    let r=Batch::answer(&session.work[i],&answers).map_err(str::to_owned)?;
-                    gathered += thread_cpu() - start;
-                    if let (Some(s),Some(k))=(&mut store,id) && let Some(k)=s.save(k,i,&r){k}
-                    else {
-                        let digest = if r.rows.is_empty() {
-                            std::borrow::Cow::Borrowed(empty.as_str())
-                        } else {
-                            nonempty_digests += 1;
-                            std::borrow::Cow::Owned(digest(&r.rows))
-                        };
-                        return Ok(Output::Computed(digest, r.unknowns));
-                    }
+    enum Output { Packet(stored::Key), Computed(String, Vec<(String,String)>) }
+    let results:Vec<Result<Output,String>>=entries.into_iter().chain(
+        (0..if store.is_none() { session.work.len() } else { 0 }).map(|i| Entry::Evaluate(i,None))
+    ).map(|entry|{
+        let packet=match entry {
+            Entry::Stored(k)=>k,
+            Entry::Evaluate(i,id)=>{
+                if let Work::Invalid(reason)=&session.work[i] {
+                    if let (Some(s),Some(k))=(&mut store,id){s.decline(k,reason);}
+                    return Err(reason.clone())
                 }
-            };
-            Ok(Output::Packet(packet))
-        })();
-        results.push(result);
-    }
-    drop(known);
-    let mut fragments = json_output::UnknownWriter::default();
+                let r=Batch::answer(&session.work[i],&answers).map_err(str::to_owned)?;
+                if let (Some(s),Some(k))=(&mut store,id) && let Some(k)=s.save(k,i,&r){k}
+                else{return Ok(Output::Computed(digest(&r.rows),r.unknowns.into_iter().cloned().collect()))}
+            }
+        };
+        Ok(Output::Packet(packet))
+    }).collect();
     if let Some(s)=&mut store{
         let pub_start=thread_cpu();
         let written=s.publish().expect("publish session snapshot");
@@ -1048,29 +1008,28 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     }
     let mut refusals = BTreeMap::new();
     for (i, id, expected) in invocations {
-        let receipt = match &results[indices[i]] {
+        let receipt = match &results[i] {
             Ok(Output::Packet(k)) => {
                 let packet = store.as_ref().unwrap().packet(k);
                 match &packet.refusal {
                     Some(reason) => Err(reason),
-                    None => Ok((packet.digest.as_str(), packet.unknowns.as_slice(), &[][..])),
+                    None => Ok((&packet.digest, &packet.unknowns)),
                 }
             }
-            Ok(Output::Computed(d, unknowns)) => Ok((d.as_ref(), &[][..], unknowns.as_slice())),
+            Ok(Output::Computed(d, u)) => Ok((d, u)),
             Err(reason) => Err(reason),
         };
         match receipt {
-            Ok((d, stored_unknowns, computed_unknowns)) => {
-                let empty = stored_unknowns.is_empty() && computed_unknowns.is_empty();
-                let status = if d == expected.as_ref() && empty {
+            Ok((d, unknowns)) => {
+                let status = if d.as_str() == expected.as_ref() && unknowns.is_empty() {
                     "exact"
                 } else {
                     "different"
                 };
                 write!(out, "{id}\t{status}\t{d}").unwrap();
-                if !empty {
+                if !unknowns.is_empty() {
                     write!(out, "\t").unwrap();
-                    fragments.write(&mut out, stored_unknowns.iter().chain(computed_unknowns.iter().copied()));
+                    json_output::write_unknowns(&mut out, unknowns);
                 }
                 writeln!(out).unwrap();
             }
@@ -1090,8 +1049,6 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     );
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
-    println!("RECEIPT_EVIDENCE registrations={} gathers={} nonempty_digests={} unknown_encodes={} assembly_sdk={gathered:.6} assembly_evidence={:.6}",
-        session.work.len(), results.len(), nonempty_digests, fragments.len(), c.assemble - gathered);
     for (name, r) in &c.readers {
         println!("CHECK_READER {name} parsed={} total={:.6} read={:.6} build={:.6} tree={:.6} facts={:.6} other={:.6}",
             r.parsed, r.total, r.read, r.build, r.tree, r.facts, r.total - r.read - r.build - r.tree - r.facts);
