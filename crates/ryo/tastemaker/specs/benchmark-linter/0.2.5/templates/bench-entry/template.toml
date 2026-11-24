@@ -1,8 +1,8 @@
-description = "A linter bench's process entry: the harness's profile run first, then the linter's composition, on the harness's allocator."
-why = "Every linter bench gets the heap and CPU profiles with no line of its own: the scaffold writes this entry, and a bench whose main does not hand its arguments to the profile run is refused."
+description = "The shared command-line protocol at the linter bench's process entry."
+why = "Every linter bench gets the shared worker protocol and can be profiled by the collector. The scaffold writes this entry."
 match = "text"
 content = '''
-//! One executable composes the shared benchmark and its linter: the harness records any profile, then the composition runs the command.
+//! The linter bench composes the shared benchmark and its candidate and reference.
 mod adapter;
 mod composition;
 mod constants;
@@ -15,8 +15,8 @@ mod settings;
 fn main() -> std::process::ExitCode {
     let mut output = std::io::stdout().lock();
     let mut observations = std::io::stderr().lock();
-    let outcome = composition::profile::command()
-        .and_then(|command| composition::run(command, &mut output, &mut observations));
+    let command = ryo_benchmark::domain::command_line::arguments(std::env::args().skip(1));
+    let outcome = composition::run(command, &mut output, &mut observations);
     match outcome {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {
@@ -37,7 +37,7 @@ file = 'bench.rs'
 id = 'rendered-template-passes'
 scenario = 'The rendered template passes.'
 given.files.'bench.rs' = '''
-//! One executable composes the shared benchmark and its linter: the harness records any profile, then the composition runs the command.
+//! The linter bench composes the shared benchmark and its candidate and reference.
 mod adapter;
 mod composition;
 mod constants;
@@ -47,8 +47,8 @@ mod settings;
 fn main() -> std::process::ExitCode {
     let mut output = std::io::stdout().lock();
     let mut observations = std::io::stderr().lock();
-    let outcome = composition::profile::command()
-        .and_then(|command| composition::run(command, &mut output, &mut observations));
+    let command = ryo_benchmark::domain::command_line::arguments(std::env::args().skip(1));
+    let outcome = composition::run(command, &mut output, &mut observations);
     match outcome {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {
@@ -64,9 +64,9 @@ fn main() -> std::process::ExitCode {
 
 [[scenarios]]
 id = 'own-main'
-scenario = 'A bench whose main runs without the profile run.'
+scenario = 'A bench whose main ignores the shared command-line protocol.'
 given.files.'bench.rs' = '''
-//! One executable composes the shared benchmark and its linter: the harness records any profile, then the composition runs the command.
+//! The linter bench composes the shared benchmark and its candidate and reference.
 mod adapter;
 mod composition;
 mod constants;

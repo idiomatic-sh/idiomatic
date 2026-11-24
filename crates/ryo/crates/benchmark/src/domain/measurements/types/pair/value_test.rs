@@ -17,6 +17,7 @@ fn succeeds() {
         let observation = |milliseconds| Measurement {
             wall: std::time::Duration::from_millis(milliseconds),
             resources: ResourceObservation::WallOnly,
+            phases: None,
             report: ryo_benchmark_contracts::domain::reports::types::RunReport {
                 execution_metadata:
                     ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,

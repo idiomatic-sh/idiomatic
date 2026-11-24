@@ -37,7 +37,7 @@ pub(crate) const AUDIT: &str = "audit";
 /// Required argument or refusal for expected executable.
 pub(crate) const EXPECTED_EXECUTABLE: &str = "expected executable path";
 /// CLI usage shown when command dispatch fails.
-pub(crate) const USAGE: &str = "usage: oxlint benchmark: audit | verify-tool <executable> | verify-cases <oxlint> [profile] | verify-reference-cases <oxlint> [profile] | measure <oxlint> <fresh-cache> <collector> | run-ryo (<json>|--request-file <path>) | profile-ryo (<json>|--request-file <path>) <dir> | diagnostic-ryo (<json>|--request-file <path>) <events.jsonl>";
+pub(crate) const USAGE: &str = "usage: oxlint benchmark: audit | verify-tool <executable> | verify-cases <oxlint> [profile] | verify-reference-cases <oxlint> [profile] | measure <oxlint> <fresh-cache> <collector> | run-ryo (<json>|--request-file <path>) | diagnostic-ryo (<json>|--request-file <path>) <events.jsonl>";
 /// This benchmark package's root, where its rules and fragments are.
 pub(crate) const MANIFEST_DIRECTORY: &str = env!("CARGO_MANIFEST_DIR");
 /// Text `unsupported worker command`.

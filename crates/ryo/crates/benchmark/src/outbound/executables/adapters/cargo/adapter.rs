@@ -99,23 +99,22 @@ impl ExecutablesCargoAdapter {
     pub(crate) fn new(settings: ExecutablesCargoSettings) -> Self {
         Self { settings }
     }
-}
 
-impl ExecutablesPort for ExecutablesCargoAdapter {
-    fn target(&self) -> Result<PathBuf, Error> {
-        super::schemas::target_directory(&self.settings.cargo)
-    }
-
-    fn reference(&self, tool: &ToolName) -> Result<PathBuf, Error> {
-        find(&self.settings.search_path, tool)
-    }
-
-    fn seal_worker(&self, bench: &BenchPackage, sealed: &Path) -> Result<Sealed, Error> {
+    fn build_worker(
+        &self,
+        bench: &BenchPackage,
+        sealed: &Path,
+        heap: bool,
+    ) -> Result<Sealed, Error> {
         refusal(PLATFORM)?;
         let package = bench.0.canonicalize()?;
         fresh(sealed)?;
-        let build = Command::new(&self.settings.cargo)
-            .args([BENCH, NO_RUN, LOCKED, MESSAGE_FORMAT])
+        let mut command = Command::new(&self.settings.cargo);
+        command.args([BENCH, NO_RUN, LOCKED, MESSAGE_FORMAT]);
+        if heap {
+            command.args(["--features", "ryo_benchmark/heap-profile"]);
+        }
+        let build = command
             .current_dir(&package)
             .stdin(Stdio::null())
             .stderr(Stdio::inherit())
@@ -127,6 +126,28 @@ impl ExecutablesPort for ExecutablesCargoAdapter {
             &super::schemas::bench_executable(&build.stdout, &package)?,
             sealed,
         )
+    }
+}
+
+impl ExecutablesPort for ExecutablesCargoAdapter {
+    fn target(&self) -> Result<PathBuf, Error> {
+        super::schemas::target_directory(&self.settings.cargo, None)
+    }
+
+    fn target_for(&self, directory: &Path) -> Result<PathBuf, Error> {
+        super::schemas::target_directory(&self.settings.cargo, Some(directory))
+    }
+
+    fn reference(&self, tool: &ToolName) -> Result<PathBuf, Error> {
+        find(&self.settings.search_path, tool)
+    }
+
+    fn seal_worker(&self, bench: &BenchPackage, sealed: &Path) -> Result<Sealed, Error> {
+        self.build_worker(bench, sealed, false)
+    }
+
+    fn seal_heap_worker(&self, bench: &BenchPackage, sealed: &Path) -> Result<Sealed, Error> {
+        self.build_worker(bench, sealed, true)
     }
 
     fn seal_current(&self, sealed: &Path) -> Result<Sealed, Error> {

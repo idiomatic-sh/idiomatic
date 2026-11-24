@@ -3,6 +3,8 @@
 pub(crate) const BENCH: &str = "bench";
 /// The collector verb of a language bench's timing: the same run, its timing measures alone.
 pub(crate) const BENCH_TIMING: &str = "bench-timing";
+/// Run the standard profilers on the registered corpus.
+pub(crate) const PROFILE: &str = "profile";
 /// The directory under the cargo target that holds every operation's output.
 pub(crate) const BENCHMARK: &str = "benchmark";
 /// The first component of a bench directory.

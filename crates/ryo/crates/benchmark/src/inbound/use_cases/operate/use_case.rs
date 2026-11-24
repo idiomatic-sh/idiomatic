@@ -6,6 +6,7 @@ use crate::application::inventory_verification::service as inventory_verificatio
 use crate::application::registration::service::register;
 use crate::domain::operations::constants::{COLLECTOR, INVENTORY, WORKER};
 use crate::domain::operations::service::{document, layout, worker_arguments};
+use crate::domain::operations::types::BenchOperation;
 use crate::domain::suite::types::inventory::value::InventoryVerdict;
 use crate::outbound::evidence::types::{MeasureClass, PublishedDocument};
 use crate::outbound::{
@@ -80,20 +81,73 @@ impl OperateUseCase for OperateUseCaseImpl {
         output: &mut dyn std::io::Write,
         observations: &mut dyn std::io::Write,
     ) -> Result<OperationReport, Error> {
+        self.operate_with(request, None, output, observations)
+    }
+}
+
+impl OperateUseCaseImpl {
+    /// Profile the registered projects with the same admission as a measurement.
+    ///
+    /// # Errors
+    /// Returns a registration, tool, or correctness failure.
+    pub fn profile(
+        &self,
+        request: &OperationRequest,
+        other: Option<std::path::PathBuf>,
+        output: &mut dyn std::io::Write,
+        observations: &mut dyn std::io::Write,
+    ) -> Result<OperationReport, Error> {
+        self.operate_with(request, other, output, observations)
+    }
+
+    fn operate_with(
+        &self,
+        request: &OperationRequest,
+        other: Option<std::path::PathBuf>,
+        output: &mut dyn std::io::Write,
+        observations: &mut dyn std::io::Write,
+    ) -> Result<OperationReport, Error> {
+        let profile_run = request.operation == BenchOperation::Profile;
         // Every timed measure is taken on four processors; a run the bench tool's `taskset` did not pin is refused first.
         let processors = self.host.processors().0.get();
-        if processors != MEASURED_WORKERS {
+        if !profile_run && processors != MEASURED_WORKERS {
             return Err(Error::Invalid(format!(
                 "a bench runs on {MEASURED_WORKERS} processors; this process may run on {processors}"
             )));
         }
-        let layout = layout(
-            &self.executables.target()?,
-            &request.bench,
-            request.operation,
-        )?;
-        let profile = self.suite.profile(ArtifactPath(&request.bench.0))?;
-        let tool = self.executables.reference(&profile.tool)?;
+        let target = if profile_run {
+            self.executables.target_for(&request.bench.0)?
+        } else {
+            self.executables.target()?
+        };
+        let mut layout = layout(&target, &request.bench, request.operation)?;
+        if profile_run {
+            let directory = &layout.root;
+            std::fs::create_dir_all(directory)?;
+            layout.root = tempfile::Builder::new()
+                .prefix("run-")
+                .tempdir_in(directory)?
+                .keep();
+        }
+        let declared = self.suite.profile(ArtifactPath(&request.bench.0))?;
+        if profile_run {
+            let registered_corpus = request.bench.0.canonicalize()?;
+            let registered_corpus = registered_corpus
+                .parent()
+                .and_then(std::path::Path::parent)
+                .ok_or_else(|| Error::Invalid("benchmark has no registered corpus".into()))?;
+            if self
+                .suite
+                .projects(ArtifactPath(registered_corpus))?
+                .projects
+                .is_empty()
+            {
+                return Err(Error::Invalid(
+                    "benchmark has no registered workload to profile".into(),
+                ));
+            }
+        }
+        let tool = self.executables.reference(&declared.tool)?;
         let reference = Sealed {
             sha256: Sha256Text(self.suite.digest(ArtifactPath(&tool))?.0),
             path: tool,
@@ -120,7 +174,7 @@ impl OperateUseCase for OperateUseCaseImpl {
         let _audit = crate::application::suite_auditing::service::audit(
             self.suite.as_ref(),
             &request.bench.0,
-            &profile,
+            &declared,
         )?;
         let registration = register(
             self.suite.as_ref(),
@@ -147,7 +201,21 @@ impl OperateUseCase for OperateUseCaseImpl {
                 verdict: OperationVerdict::Failed,
             });
         }
-        // The worker writes every measure; the operation publishes those of its class alone.
+        let document = if profile_run {
+            let heap = self.executables.seal_heap_worker(
+                &BenchPackage(request.bench.0.clone()),
+                &layout.root.join("heap").join(WORKER),
+            )?;
+            crate::application::corpus_profile::prepare(
+                &layout.root,
+                worker.path.clone(),
+                heap.path,
+                other,
+            )?
+        } else {
+            document(&layout)
+        };
+        // Both operations own their finalized documents. A profile also saves the tool tables.
         let mut written = Vec::new();
         let ran = self.executables.run_sealed(
             &worker.path,
@@ -156,16 +224,26 @@ impl OperateUseCase for OperateUseCaseImpl {
                 &layout,
                 &reference.path,
             )),
-            &document(&layout),
+            &document,
             &mut written,
             observations,
         )?;
         if ran == RunVerdict::Passed {
-            let published = self.evidence.select(
-                &PublishedDocument(written),
-                MeasureClass::from(request.operation),
-            )?;
-            output.write_all(&published.0)?;
+            if profile_run {
+                writeln!(
+                    observations,
+                    "Profile tables: {}",
+                    layout.root.join("profile.md").display()
+                )?;
+                writeln!(observations, "Profile images: {}", layout.root.display())?;
+                output.write_all(&written)?;
+            } else {
+                let published = self.evidence.select(
+                    &PublishedDocument(written),
+                    MeasureClass::from(request.operation),
+                )?;
+                output.write_all(&published.0)?;
+            }
             output.flush()?;
         }
         Ok(OperationReport {

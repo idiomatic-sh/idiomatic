@@ -48,8 +48,8 @@ pub(super) fn worker(
         (WorkerTracing::Disabled, Some(_)) => {
             return Err(Error::Invalid(UNEXPECTED_TRAILING_WORKER_ARGUMENT.into()));
         }
-        (WorkerTracing::Chrome | WorkerTracing::JsonLines, Some(path)) => Some(path),
-        (WorkerTracing::Chrome | WorkerTracing::JsonLines, None) => {
+        (WorkerTracing::JsonLines, Some(path)) => Some(path),
+        (WorkerTracing::JsonLines, None) => {
             return Err(Error::Invalid(constants::MISSING_TRACE.into()));
         }
     };

@@ -5,6 +5,7 @@ pub mod application;
 pub mod domain;
 pub mod inbound;
 pub mod outbound;
+pub mod profile;
 pub mod spike;
 
 #[cfg(any(test, feature = "fixtures"))]

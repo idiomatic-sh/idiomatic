@@ -65,6 +65,7 @@ fn decoded(
     Ok(Measurement {
         wall,
         resources,
+        phases: None,
         report,
     })
 }
@@ -142,6 +143,7 @@ pub(crate) fn run(
             result: validate_report(context, &case.request, &report).map(|()| Measurement {
                 wall,
                 resources,
+                phases: None,
                 report,
             }),
             capture: CaptureRecord::Absent,

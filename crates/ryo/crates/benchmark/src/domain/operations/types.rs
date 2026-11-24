@@ -11,6 +11,8 @@ pub enum BenchOperation {
     /// The same run as `Bench`; the document publishes its timing measures alone (`bench-timing`), which a shared runner
     /// moves from run to run, so no pull request is judged by them.
     Timing,
+    /// Profile the registered cold workloads.
+    Profile,
 }
 
 /// The collector verb that names an operation.

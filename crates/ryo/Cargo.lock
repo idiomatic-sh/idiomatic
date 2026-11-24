@@ -1470,6 +1470,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 
 [[package]]
+name = "idiomatic-sh-profile-tools"
+version = "0.1.0"
+
+[[package]]
 name = "idiomatic-sh-ryo"
 version = "0.2.0"
 dependencies = [
@@ -1535,6 +1539,7 @@ dependencies = [
  "cucumber",
  "divan",
  "globset",
+ "idiomatic-sh-profile-tools",
  "idiomatic-sh-ryo-benchmark",
  "idiomatic-sh-ryo-benchmark-contracts",
  "idiomatic-sh-ryo-sdk",
@@ -1802,6 +1807,7 @@ version = "0.2.0"
 dependencies = [
  "cargo_metadata",
  "cucumber",
+ "cpu-time",
  "dhat",
  "divan",
  "hashbrown 0.17.1",

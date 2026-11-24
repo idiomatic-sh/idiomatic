@@ -16,8 +16,6 @@ pub struct InlineRequest(pub String);
 pub enum WorkerTracing {
     /// Ordinary correctness or timing invocation.
     Disabled,
-    /// Chrome trace for an explicit profiling invocation.
-    Chrome,
     /// Flushed JSONL events for a bounded diagnostic invocation.
     JsonLines,
 }

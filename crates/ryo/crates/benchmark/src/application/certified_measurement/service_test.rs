@@ -35,6 +35,7 @@ fn measurement(report: ryo_benchmark_contracts::domain::reports::types::RunRepor
     Measurement {
         wall: std::time::Duration::ZERO,
         resources: ResourceObservation::WallOnly,
+        phases: None,
         report,
     }
 }

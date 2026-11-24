@@ -84,3 +84,4 @@ fn proof_enabled() -> bool {
 pub fn serial_host() -> bool {
     proof_alias().is_some_and(|name| name == "tm-sdk-serial" || name == "tm-sdk-serial-proof")
 }
+

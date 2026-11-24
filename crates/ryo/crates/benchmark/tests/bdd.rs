@@ -20,9 +20,6 @@ mod measure_corpus;
 #[path = "../src/inbound/use_cases/operate/acceptance.rs"]
 mod operate;
 
-#[path = "../src/inbound/use_cases/profile/acceptance.rs"]
-mod profile;
-
 #[path = "../src/inbound/use_cases/run_ryo/acceptance.rs"]
 mod run_ryo;
 

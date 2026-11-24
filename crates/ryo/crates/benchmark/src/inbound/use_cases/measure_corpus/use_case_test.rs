@@ -201,7 +201,22 @@ fn subject((projects, cohort, host): Input) -> Result<Value, Failure> {
             .measure_corpus(corpus, &mut observations)
         }),
     };
-    let observations = without_digest(&String::from_utf8_lossy(&observations)).leak();
+    // Host load is an observation of the test runner, so normalize it alongside
+    // the path-dependent source digest. The stable evidence still compares exactly.
+    let raw = String::from_utf8_lossy(&observations);
+    let mut stable = String::new();
+    for line in raw.split_inclusive('\n') {
+        if let Some((sample, _)) = line
+            .strip_suffix('\n')
+            .and_then(|line| line.rsplit_once(" load_1m="))
+        {
+            stable.push_str(sample);
+            stable.push('\n');
+        } else {
+            stable.push_str(line);
+        }
+    }
+    let observations = without_digest(&stable).leak();
     match result {
         Ok(()) => Ok(observations),
         Err(error) => Err((
