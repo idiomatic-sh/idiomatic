@@ -10,7 +10,7 @@ pub(in super::super) fn total(expr: &E) -> bool {
         E::Call(name, args) => {
             let arity = match name.as_str() {
                 "lower" => args.len() == 1,
-                "starts_with" | "ends_with" => args.len() == 2,
+                "starts_with" | "ends_with" | "float_text_gte" => args.len() == 2,
                 "concat" => true,
                 _ => false,
             };
@@ -119,6 +119,14 @@ fn verify(
                         arg_column(exec, run, "from", name)?;
                     }
                     arg_column(exec, run, "from", finish::s(&step.args()["order"])?)?;
+                }
+                "replace" => {
+                    let source = exec.arg_rel(i, "from")?;
+                    let input = exec.schema(run, source)?;
+                    let text = finish::pos(&input.names, finish::s(&step.args()["text"])?)?;
+                    if input.tys[text] != Ty::Sym { return Err("replace input is not text".into()); }
+                    let _ = finish::s(&step.args()["replacement"])?;
+                    let _ = run.re(finish::s(&step.args()["pattern"])?)?;
                 }
                 "span-between" => {
                     for argument in ["start", "end"] {
