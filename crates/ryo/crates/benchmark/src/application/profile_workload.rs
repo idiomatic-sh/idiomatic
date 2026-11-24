@@ -46,7 +46,14 @@ pub(crate) fn profile<T>(
     let mut run = |images: &Images, folder: &str| {
         let destination = workload.root.join(folder);
         let mut ordinary = None;
-        let profile = standard::collect(
+        let detail_path = destination.join("engine");
+        fs::create_dir_all(&detail_path)?;
+        let (detail, _) = command(
+            images.diagnostic.as_deref().unwrap_or(&images.ordinary),
+            None,
+            &detail_path,
+        )?;
+        let (profile, diagnostic) = standard::collect(
             &destination,
             workload.exits,
             workload.instruction_budget,
@@ -63,16 +70,9 @@ pub(crate) fn profile<T>(
                 }
                 Ok(command)
             },
+            || standard::observe(&detail, Observer::Native, &detail_path),
         )?;
         let ordinary = ordinary.ok_or_else(|| Error::Invalid("missing ordinary request".into()))?;
-        let detail_path = destination.join("engine");
-        fs::create_dir_all(&detail_path)?;
-        let (diagnostic, _) = command(
-            images.diagnostic.as_deref().unwrap_or(&images.ordinary),
-            None,
-            &detail_path,
-        )?;
-        let diagnostic = standard::observe(&diagnostic, Observer::Native, &detail_path)?;
         if !diagnostic
             .status
             .code()

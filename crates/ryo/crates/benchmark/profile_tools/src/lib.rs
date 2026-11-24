@@ -319,16 +319,18 @@ pub struct Profile {
 }
 
 /// Collect one profile. The caller prepares the command and disposable input
-/// state for each pass. The accepted exit code is supplied by the workload.
+/// state for each pass. Optional clocked detail belongs in the final callback.
+/// The accepted exit code is supplied by the workload.
 ///
 /// # Errors
 /// A tool cannot be launched, the payloads differ, or a non-deadline run fails.
-pub fn collect(
+pub fn collect<T>(
     directory: &Path,
     expected_exits: &[i32],
     instruction_budget: Duration,
     mut invoke: impl FnMut(Observer, &Path) -> io::Result<CommandLine>,
-) -> io::Result<Profile> {
+    after_clocked: impl FnOnce() -> io::Result<T>,
+) -> io::Result<(Profile, T)> {
     fs::create_dir_all(directory)?;
     let directory = directory.canonicalize()?;
     let mut prepared = |observer, name, core: Option<usize>| {
@@ -381,16 +383,17 @@ pub fn collect(
         }
         Ok(run)
     };
-    let (native, samples, heap, instructions) = if cores.len() >= 3 {
+    let clocks = || {
+        Ok::<_, io::Error>((
+            collect_one(Observer::Native, native)?,
+            collect_one(Observer::Samples, samples)?,
+            after_clocked()?,
+        ))
+    };
+    let ((native, samples, detail), heap, instructions) = if cores.len() >= 3 {
         std::thread::scope(|scope| {
             let heap = scope.spawn(|| collect_one(Observer::Heap, heap));
             let instructions = scope.spawn(|| collect_one(Observer::Instructions, instructions));
-            let clocks = || {
-                Ok::<_, io::Error>((
-                    collect_one(Observer::Native, native)?,
-                    collect_one(Observer::Samples, samples)?,
-                ))
-            };
             let clocked = clocks();
             let heap = heap
                 .join()
@@ -398,13 +401,11 @@ pub fn collect(
             let instructions = instructions
                 .join()
                 .map_err(|_| io::Error::other("Cachegrind worker panicked"))?;
-            let (native, samples) = clocked?;
-            Ok::<_, io::Error>((native, samples, heap?, instructions?))
+            Ok::<_, io::Error>((clocked?, heap?, instructions?))
         })?
     } else {
         (
-            collect_one(Observer::Native, native)?,
-            collect_one(Observer::Samples, samples)?,
+            clocks()?,
             collect_one(Observer::Heap, heap)?,
             collect_one(Observer::Instructions, instructions)?,
         )
@@ -424,12 +425,15 @@ pub fn collect(
             )));
         }
     }
-    Ok(Profile {
-        native,
-        samples,
-        heap,
-        instructions,
-    })
+    Ok((
+        Profile {
+            native,
+            samples,
+            heap,
+            instructions,
+        },
+        detail,
+    ))
 }
 
 fn available_cores() -> Vec<usize> {

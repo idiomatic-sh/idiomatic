@@ -170,7 +170,7 @@ pub fn profile(
                     workspace_prefix,
                     launcher: match observer {
                         Some(Observer::Instructions) => first.instruction_launcher.as_slice(),
-                        Some(Observer::Heap) | None => &[],
+                        Some(Observer::Heap) => &[],
                         _ => first.clock_launcher.as_slice(),
                     }
                     .iter()
