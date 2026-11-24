@@ -270,111 +270,86 @@ impl Packet {
     }
 }
 
-pub(super) fn pack_rows<'a>(rows: impl IntoIterator<Item = &'a finish::answer::Row>) -> Vec<u8> {
-    use ryo_values::domain::row_texts::types::Cell;
-    let mut words = Vec::new();
-    let mut dictionary = HashMap::new();
-    fn intern<'a>(
-        s: &'a str,
-        words: &mut Vec<Box<str>>,
-        dictionary: &mut HashMap<&'a str, u32>,
-    ) -> u32 {
-        *dictionary.entry(s).or_insert_with(|| {
-            let id = u32::try_from(words.len()).expect("packet dictionary");
-            words.push(s.into());
-            id
-        })
-    }
-    let mut schemas = Vec::new();
-    let mut ids = BTreeMap::new();
-    let mut previous: Option<(&finish::answer::Row, usize)> = None;
-    let rows = rows
-        .into_iter()
-        .map(|r| {
-            let schema = if let Some((prior, id)) = previous
-                && prior.rule == r.rule
-                && prior.identity == r.identity
-                && prior
-                    .columns
-                    .iter()
-                    .map(|c| &c.0)
-                    .eq(r.columns.iter().map(|c| &c.0))
-            {
-                id
-            } else {
+pub(super) fn pack_rows<'a>(input: impl IntoIterator<Item = &'a finish::answer::Row>) -> Vec<u8> {
+        use ryo_values::domain::row_texts::types::Cell;
+        let mut words = Vec::new();
+        let mut dictionary = HashMap::new();
+        fn intern(s: std::sync::Arc<str>, words: &mut Vec<Box<str>>, dictionary: &mut HashMap<std::sync::Arc<str>, u32>) -> u32 {
+            if let Some(&i) = dictionary.get(&s) {return i;}
+            let i=u32::try_from(words.len()).expect("packet dictionary");
+            words.push(s.as_ref().into());dictionary.insert(s,i);i
+        }
+        let mut schemas = Vec::new();
+        let mut ids = BTreeMap::new();
+        let mut previous = None;
+        let rows = input.into_iter()
+            .map(|r| {
                 let shape = (
-                    &r.rule,
-                    r.columns.iter().map(|(n, _)| n).collect::<Vec<_>>(),
-                    &r.identity,
+                    &r.layout.rule,
+                    &r.layout.names,
+                    &r.layout.identity,
                 );
-                *ids.entry(shape).or_insert_with(|| {
+                let schema = if let Some((prior, id)) = previous && std::sync::Arc::ptr_eq(prior, &r.layout) { id } else { *ids.entry(shape).or_insert_with(|| {
                     let i = schemas.len();
                     schemas.push(Schema {
-                        rule: r.rule.clone(),
-                        columns: r.columns.iter().map(|(n, _)| n.clone()).collect(),
-                        identity: r.identity.clone(),
+                        rule: r.layout.rule.clone(),
+                        columns: r.layout.names.iter().map(|n| n.as_str().into()).collect(),
+                        identity: r.layout.identity.to_vec(),
                     });
                     i
-                })
-            };
-            previous = Some((r, schema));
-            PackedRow {
-                schema,
-                values: r
-                    .columns
-                    .iter()
-                    .map(|(_, c)| {
-                        c.as_ref().map(|v| match v {
-                            Cell::File(s) => {
-                                PackedValue::File(intern(s, &mut words, &mut dictionary))
-                            }
-                            Cell::Text(s) => {
-                                PackedValue::Text(intern(s, &mut words, &mut dictionary))
-                            }
-                            Cell::Number(n) => PackedValue::Number(n.0),
-                            Cell::Span(s) => PackedValue::Span(s.start.0, s.end.0),
+                }) };
+                previous = Some((&r.layout, schema));
+                PackedRow {
+                    schema,
+                    values: r.cells()
+                        .map(|c| {
+                            c.map(|v| match v {
+                                Cell::File(s) => {
+                                    PackedValue::File(intern(s, &mut words, &mut dictionary))
+                                }
+                                Cell::Text(s) => {
+                                    PackedValue::Text(intern(s, &mut words, &mut dictionary))
+                                }
+                                Cell::Number(n) => PackedValue::Number(n.0),
+                                Cell::Span(s) => PackedValue::Span(s.start.0, s.end.0),
+                            })
                         })
-                    })
-                    .collect(),
-            }
-        })
-        .collect();
-    postcard::to_stdvec(&Rows {
-        words,
-        schemas,
-        rows,
-    })
-    .expect("typed rows")
+                        .collect(),
+                }
+            })
+            .collect();
+    postcard::to_stdvec(&Rows { words, schemas, rows }).expect("typed request rows")
 }
 
 pub(super) fn unpack_rows(data: &[u8]) -> Vec<finish::answer::Row> {
-    let Rows {
-        words,
-        schemas,
-        rows,
-    } = postcard::from_bytes(data).expect("verified rows");
-    rows.into_iter()
-        .map(|r| {
-            let s = &schemas[r.schema];
-            finish::answer::Row {
-                rule: s.rule.clone(),
-                identity: s.identity.clone(),
-                columns: s
-                    .columns
-                    .iter()
-                    .cloned()
-                    .zip(r.values.into_iter().map(|c| {
-                        c.map(|v| match v {
-                            PackedValue::File(i) => Value::File(words[i as usize].clone()).cell(),
-                            PackedValue::Text(i) => Value::Text(words[i as usize].clone()).cell(),
-                            PackedValue::Number(n) => Value::Number(n).cell(),
-                            PackedValue::Span(a, b) => Value::Span(a, b).cell(),
-                        })
-                    }))
-                    .collect(),
-            }
-        })
-        .collect()
+        let Rows {
+            words,
+            schemas,
+            rows,
+        } = postcard::from_bytes(data).expect("verified request packet");
+        rows
+                .into_iter()
+                .map(|r| {
+                    let s = &schemas[r.schema];
+                    finish::answer::Row::restored(s.rule.clone(),s.identity.clone().into(),s
+                            .columns
+                            .iter()
+                            .map(|n| n.to_string())
+                            .zip(r.values.into_iter().map(|c| {
+                                c.map(|v| match v {
+                                    PackedValue::File(i) => {
+                                        Value::File(words[i as usize].clone()).cell()
+                                    }
+                                    PackedValue::Text(i) => {
+                                        Value::Text(words[i as usize].clone()).cell()
+                                    }
+                                    PackedValue::Number(n) => Value::Number(n).cell(),
+                                    PackedValue::Span(a, b) => Value::Span(a, b).cell(),
+                                })
+                            }))
+                            .collect())
+                })
+                .collect()
 }
 
 mod payload {

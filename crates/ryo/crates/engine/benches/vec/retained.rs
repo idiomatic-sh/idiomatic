@@ -156,7 +156,7 @@ impl Capture {
     pub(crate) fn contains(&self, origin: &str) -> bool {
         !self.prior_refusal && self.reusable.contains_key(origin)
     }
-    pub(crate) fn replay(&mut self, origin: &str, output: &mut Vec<String>, failures: &mut std::collections::HashMap<String, String>) -> bool {
+    pub(crate) fn replay(&mut self, origin: &str, output: &mut Vec<Finding>, failures: &mut std::collections::HashMap<String, String>) -> bool {
         if self.prior_refusal {
             return false;
         }
@@ -165,7 +165,7 @@ impl Capture {
         };
         for finding in &answer.findings {
             if !failures.contains_key(&finding.rule) {
-                output.push(serde_json::to_string(finding).expect("finding output"));
+                output.push(finding.clone());
             }
         }
         for (emit, reason) in &answer.refusals {
@@ -359,7 +359,25 @@ struct Inputs {
     versions: Versions,
     observations: Vec<(PathBuf, Stamp)>,
     source_observations: Vec<Stamp>,
+    seed_proof: Option<Digest>,
     phase_ms: [f64; 3],
+}
+
+// A first publication rechecks every admitted input. Keep the ordered digest
+// across evaluation and release the path/stamp buffers while the visitor is live.
+fn seed_proof(scope: &Digest, observations: &[(PathBuf, Stamp)], sources: &[Stamp]) -> Digest {
+    let mut h = blake3::Hasher::new();
+    h.update(scope);
+    fn add(h: &mut blake3::Hasher, (dev, ino, sec, nsec, size): Stamp) {
+        for value in [dev, ino, sec as u64, nsec as u64, size] { h.update(&value.to_le_bytes()); }
+    }
+    h.update(&(observations.len() as u64).to_le_bytes());
+    for (path, st) in observations {
+        field(&mut h, path.as_os_str().as_encoded_bytes());
+        add(&mut h, *st);
+    }
+    for st in sources { add(&mut h, *st); }
+    *h.finalize().as_bytes()
 }
 
 fn inputs(
@@ -446,7 +464,14 @@ fn inputs(
         versions.files.push(CapturedFile { version, packed: None });
         source_observations.push(stamp(&metadata));
     }
+    let seed_proof = seeding.then(|| {
+        let proof = seed_proof(&scope, &observations, &source_observations);
+        observations = Vec::new();
+        source_observations = Vec::new();
+        proof
+    });
     Ok(Inputs {
+        seed_proof,
         request: req,
         keys,
         scope,
@@ -683,8 +708,13 @@ pub(crate) fn check(
     eprintln!("retained capture sources={} visitor_bytes={} upfront_versions={}", next.len(), capture.visited_bytes, first.keys.len());
     let mut written = 0;
     let publishing = same_parent && !(next.is_empty() && had_empty);
-    if publishing && (!observed(&first.observations) || !changed_sources.iter().all(|(i, prior)|
-        fs::metadata(req.root.join(&req.files[*i])).is_ok_and(|m| stamp(&m) == *prior))) {
+    let inputs_current = || match first.seed_proof {
+        Some(proof) => inputs(pack, request, cache_name, project_entries)
+            .is_ok_and(|rechecked| rechecked.seed_proof == Some(proof)),
+        None => observed(&first.observations) && changed_sources.iter().all(|(i, prior)|
+            fs::metadata(req.root.join(&req.files[*i])).is_ok_and(|m| stamp(&m) == *prior)),
+    };
+    if publishing && !inputs_current() {
         drop(lock);
         eprintln!("inputs changed during evaluation; evaluating current contents");
         return Ok(evaluate(

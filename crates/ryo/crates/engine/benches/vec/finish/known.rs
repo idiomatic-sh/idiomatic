@@ -1,14 +1,13 @@
 //! THROWAWAY (ryo-fmx3.1, redo-union pass 2): a step run known to return nothing before it is entered. What the file
 //! already knows decides it, with no table, no stack push and no clock:
 //! - its kind buckets: a view, or a select's tree source, whose test names kinds none of which the file has;
-//! - its survivor sets: a select with a seed test on a set that is empty in the file;
 //! - a per-file test that fails (the path tests `filter_order` decides);
 //! - an input the step needs: any source of a select, the first input of every other step (the left of an antijoin,
 //!   the from of a pass-through step, a closure's edges), every input of a union: known empty by the above, or made
 //!   empty already in this file.
 //!
 //! Exactly the cases where the step's body returns nothing before reading anything else (`Exec::body`, `select`). The
-//! static part (kinds, seeds, file tests, through the inputs) is kept a file; the made part is read live (a probe's
+//! static part (kinds and file tests, through the inputs) is kept a file; the made part is read live (a probe's
 //! substitution changes what is made, never what the file holds).
 
 use super::{E, Exec, File, Native, Provider, Res, Run, filter_order};
@@ -20,8 +19,6 @@ pub(super) struct Need {
     pub(super) all: bool,
     /// Kind sets the rows must have one of (kind codes): empty when the file has none of a set.
     pub(super) kinds: Box<[Box<[u16]>]>,
-    /// Survivor sets a seed test reads.
-    pub(super) seeds: Box<[usize]>,
     /// A per-file test to decide.
     pub(super) file_test: bool,
     /// Never known empty (a constant step: made once a run, as before).
@@ -43,8 +40,6 @@ pub(super) struct Rec {
     n_ins: u16,
     n_kinds: u16,
     kinds: u32,
-    seeds: u32,
-    n_seeds: u16,
     flags: u8,
 }
 const READY: u8 = 1;
@@ -61,7 +56,6 @@ pub(super) struct Flat {
     ins: Vec<u32>,
     /// Kind sets: a length, then that many kind codes.
     kinds: Vec<u16>,
-    seeds: Vec<u16>,
 }
 
 impl Flat {
@@ -131,7 +125,7 @@ impl Exec<'_> {
         }
         f.known[node] = BUSY;
         self.stats.static_visits += 1;
-        if r.n_kinds == 0 && r.n_seeds == 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
+        if r.n_kinds == 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
             self.stats.static_pass += 1;
         }
         let mut e = false;
@@ -142,9 +136,6 @@ impl Exec<'_> {
             let bits = f.kind_bits(run);
             e = self.flat.kinds[at + 1..at + 1 + n].iter().all(|c| bits[usize::from(*c) / 64] & (1 << (c % 64)) == 0);
             at += 1 + n;
-        }
-        if !e && r.n_seeds > 0 {
-            e = self.flat.seeds[r.seeds as usize..r.seeds as usize + usize::from(r.n_seeds)].iter().any(|k| f.seeds.get(usize::from(*k)).is_none_or(Vec::is_empty));
         }
         if !e && r.flags & FILE_TEST != 0 {
             self.stats.static_file_tests += 1;
@@ -223,9 +214,6 @@ impl Exec<'_> {
             self.flat.kinds.extend(ks.iter().copied());
         }
         r.n_kinds = (self.flat.kinds.len() - r.kinds as usize) as u16;
-        r.seeds = self.flat.seeds.len() as u32;
-        self.flat.seeds.extend(need.seeds.iter().map(|k| *k as u16));
-        r.n_seeds = need.seeds.len() as u16;
         if need.all {
             r.flags |= ALL;
         }
@@ -235,7 +223,7 @@ impl Exec<'_> {
         if !sw!("VEC_NO_EMPTYPROP") && self.ep_has_leaf(run, node) {
             r.flags |= EP_LEAF;
         }
-        if r.n_ins > 0 || r.n_kinds > 0 || r.n_seeds > 0 || need.file_test || r.flags & EP_LEAF != 0 {
+        if r.n_ins > 0 || r.n_kinds > 0 || need.file_test || r.flags & EP_LEAF != 0 {
             r.flags |= CAN;
         }
         self.flat.recs[node] = r;
@@ -264,7 +252,7 @@ impl Exec<'_> {
     }
 
     fn need_of(&mut self, run: &mut Run, node: usize) -> Need {
-        let mut n = Need { inputs: Box::new([]), all: false, kinds: Box::new([]), seeds: Box::new([]), file_test: false, never: false };
+        let mut n = Need { inputs: Box::new([]), all: false, kinds: Box::new([]), file_test: false, never: false };
         if self.is_constant(run, node) {
             n.never = true;
             return n;
@@ -276,7 +264,6 @@ impl Exec<'_> {
                 n.kinds = v.filter.iter().filter_map(|c| super::kind_set(run, std::slice::from_ref(c), 0, v.base, &[])).map(|ks| codes(run, &ks)).collect();
             }
             n.file_test = file_test(&v.filter);
-            n.seeds = v.filter.iter().filter_map(|e| if let E::Seed(_, k) = e { Some(*k) } else { None }).collect();
             return n;
         }
         let plan = self.plan;
@@ -296,7 +283,6 @@ impl Exec<'_> {
                     }
                 }
                 n.kinds = kinds.into();
-                n.seeds = sp.conj.iter().filter_map(|e| if let E::Seed(_, k) = e { Some(*k) } else { None }).collect();
                 n.file_test = file_test(&sp.conj);
                 n.inputs = sp.srcs.clone().into();
                 return n;

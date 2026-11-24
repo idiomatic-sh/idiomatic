@@ -205,11 +205,25 @@ pub(super) struct Program {
 }
 impl Program {
     pub(super) fn compile(run: &mut Run, v: &ViewSpec) -> Option<Self> {
-        let actions = v
+        let mut actions: Vec<_> = v
             .filter
             .iter()
             .map(|e| action(run, v.base, e))
             .collect::<Option<_>>()?;
+        // A probe has one node position. Bind all kind-only conjuncts to a
+        // single lookup in the same vocabulary as the selection-vector loop.
+        if let Some((Action::Kind(first), rest)) = actions.split_first_mut()
+            && !rest.is_empty()
+            && rest.iter().all(|action| matches!(action, Action::Kind(_)))
+        {
+            for action in rest {
+                let Action::Kind(mask) = action else { unreachable!() };
+                for (keep, &bit) in first.iter_mut().zip(mask.iter()) {
+                    *keep &= bit;
+                }
+            }
+            actions.truncate(1);
+        }
         let entry = match v.base {
             Native::Tree => v
                 .filter
@@ -264,6 +278,13 @@ impl Program {
             actions,
             entry,
         })
+    }
+
+    pub(super) fn kind_mask(&self) -> Option<&[bool]> {
+        match self.actions.as_slice() {
+            [Action::Kind(bits)] => Some(bits),
+            _ => None,
+        }
     }
 
     pub(super) fn rows(

@@ -18,6 +18,7 @@ use ryo::{
 };
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use serde::Deserialize;
+use crate::{json_input, json_output};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
@@ -27,7 +28,7 @@ use std::{
 };
 
 #[derive(Deserialize)]
-struct Input {
+pub(crate) struct Input {
     root: String,
     #[serde(deserialize_with = "read_paths")]
     files: Rc<Vec<String>>,
@@ -84,11 +85,23 @@ struct Authorities {
 impl Authorities {
     fn from_input() -> Result<Self, String> {
         match std::env::var_os("TM_CORPUS_PROJECTS") {
-            Some(path) => serde_json::from_slice(&std::fs::read(path).map_err(|e| e.to_string())?)
+            Some(path) => json_input::decode(&std::fs::read(path).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string()),
             None => Ok(Self::default()),
         }
     }
+}
+
+type HostSchema = Vec<(String, Vec<(String, String)>)>;
+
+struct Admission {
+    id: usize,
+    contract: Rc<session::completeness::Contract>,
+    project_bases: Vec<l::Relation>,
+    closed: bool,
+    file_cells: bool,
+    file_inventory: bool,
+    cut: Option<Rc<finish::partition::Partition>>,
 }
 
 #[derive(Default)]
@@ -97,8 +110,8 @@ struct Batch {
     schedule: session::Schedule,
     program_of: Vec<usize>,
     bindings: Vec<Rc<[Hosted]>>,
-    host_rows: std::collections::HashSet<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>>,
-    binding_ids: HashMap<(usize, Rc<[Hosted]>), usize>,
+    host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
+    binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
     queries: HashMap<String, Rc<str>>,
     work: Vec<Work>,
     inventories: HashMap<PathBuf, Rc<Vec<String>>>,
@@ -107,12 +120,10 @@ struct Batch {
     roots: HashMap<String, PathBuf>,
     authorities: Authorities,
     projects: Vec<ProjectSpec>,
-    cuts: HashMap<(usize, Vec<(String, Vec<(String, String)>)>), Rc<finish::partition::Partition>>,
     cut_of: Vec<Option<Rc<finish::partition::Partition>>>,
-    local_bindings: HashMap<(usize, Vec<(String, Vec<(String, String)>)>), usize>,
+    local_bindings: HashMap<usize, usize>,
     project_keys: HashMap<(String, Authority, Rc<Vec<String>>), usize>,
-    contracts:
-        HashMap<(usize, Vec<(String, Vec<(String, String)>)>), Rc<session::completeness::Contract>>,
+    admissions: HashMap<(usize, HostSchema), Rc<Admission>>,
     bound_contracts: HashMap<usize, Rc<session::completeness::Contract>>,
     clocks: Clock,
     populations_built: usize,
@@ -131,6 +142,91 @@ struct Active<F: Default, D: Default> {
     contributions: Vec<Option<Rc<project::Contribution>>>,
     manifest_failures: Vec<l::FilePath>,
     populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
+}
+
+impl Admission {
+    fn prepare(id: usize, query: &str, program: &Program, hosted: &[Hosted]) -> Result<Self, String> {
+        use ryo_values::domain::hosted::types::{
+            ColumnLabel, HostedColumn, HostedName, HostedRelation,
+        };
+        let relations = hosted
+            .iter()
+            .map(|t| {
+                let columns = t
+                    .columns
+                    .iter()
+                    .map(|(n, ty)| {
+                        let kind = match ty.as_str() {
+                            "File" => l::CellKind::File,
+                            "Text" => l::CellKind::Symbol,
+                            "Number" => l::CellKind::Number,
+                            _ => return Err(format!("unsupported host type {ty}")),
+                        };
+                        Ok(HostedColumn {
+                            name: ColumnLabel(n.as_str().into()),
+                            kind,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+                Ok(HostedRelation {
+                    name: HostedName(t.name.as_str().into()),
+                    columns,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        let contract = Rc::new(session::completeness::describe(query, program, relations)?);
+        let held: Vec<_> = program
+            .bases
+            .iter()
+            .filter_map(|n| relations::service::relation_named(NameRef(n)))
+            .filter(|r| catalog::service::scope_of(*r) == catalog::types::RowScope::Project)
+            .collect();
+        let scope_only = program.bases.iter().all(|name| {
+            name == "filesystem.file"
+                || held.iter().any(|r| relations::service::name(*r).0 == name)
+                || hosted.iter().any(|h| &h.name == name)
+        });
+        // File-valued caller cells use the admitted request's file dictionary.
+        // The same partition can consume its source subtree locally and bind those
+        // cells at the join once the inventory is numbered.
+        let numbered_host = hosted
+            .iter()
+            .any(|table| table.columns.iter().any(|(_, kind)| kind == "File"));
+        let wide = contract.cross || numbered_host;
+        let cut = if !scope_only && wide {
+            let mut run = finish::Run::default();
+            let declarations = hosted
+                .iter()
+                .map(|t| Hosted {
+                    rows: Default::default(),
+                    name: t.name.clone(),
+                    columns: t.columns.clone(),
+                    partial: t.partial.clone(),
+                })
+                .collect::<Vec<_>>();
+            let _ = bind_tables(&declarations, &mut run, |_| None)?;
+            let scoped = finish::partition::partition(
+                &mut finish::Exec::new(&program.plan),
+                &mut run,
+                |n| {
+                    held.iter().any(|r| relations::service::name(*r).0 == n)
+                        || hosted.iter().any(|t| t.name == n)
+                },
+            )?;
+            Some(Rc::new(scoped))
+        } else {
+            None
+        };
+        Ok(Self {
+            id,
+            contract,
+            project_bases: held,
+            closed: scope_only || wide,
+            file_cells: numbered_host,
+            file_inventory: program.bases.iter().any(|name| name == "filesystem.file"),
+            cut,
+        })
+    }
 }
 
 impl Batch {
@@ -180,97 +276,20 @@ impl Batch {
             .map(|t| (t.name.clone(), t.columns.clone()))
             .collect();
         let schema_key = (rule, shape);
-        let contract = if let Some(c) = self.contracts.get(&schema_key) {
-            Rc::clone(c)
-        } else {
-            use ryo_values::domain::hosted::types::{
-                ColumnLabel, HostedColumn, HostedName, HostedRelation,
-            };
-            let hosted = req
-                .hosted
-                .iter()
-                .map(|t| {
-                    let columns = t
-                        .columns
-                        .iter()
-                        .map(|(n, ty)| {
-                            let kind = match ty.as_str() {
-                                "File" => l::CellKind::File,
-                                "Text" => l::CellKind::Symbol,
-                                "Number" => l::CellKind::Number,
-                                _ => return Err(format!("unsupported host type {ty}")),
-                            };
-                            Ok(HostedColumn {
-                                name: ColumnLabel(n.as_str().into()),
-                                kind,
-                            })
-                        })
-                        .collect::<Result<Vec<_>, String>>()?;
-                    Ok(HostedRelation {
-                        name: HostedName(t.name.as_str().into()),
-                        columns,
-                    })
-                })
-                .collect::<Result<Vec<_>, String>>()?;
-            let c = Rc::new(session::completeness::describe(&query, program, hosted)?);
-            self.contracts.insert(schema_key.clone(), Rc::clone(&c));
-            c
-        };
-        let held: Vec<_> = program
-            .bases
-            .iter()
-            .filter_map(|n| relations::service::relation_named(NameRef(n)))
-            .filter(|r| catalog::service::scope_of(*r) == catalog::types::RowScope::Project)
-            .collect();
-        let scope_only = program.bases.iter().all(|name| {
-            name == "filesystem.file"
-                || held.iter().any(|r| relations::service::name(*r).0 == name)
-                || req.hosted.iter().any(|h| &h.name == name)
-        });
-        // File-valued caller cells use the admitted request's file dictionary.
-        // The same partition can consume its source subtree locally and bind those
-        // cells at the join once the inventory is numbered.
-        let numbered_host = req
-            .hosted
-            .iter()
-            .any(|table| table.columns.iter().any(|(_, kind)| kind == "File"));
-        let wide = contract.cross || numbered_host;
-        let cut = if !scope_only && wide {
-            let schema = req
-                .hosted
-                .iter()
-                .map(|t| (t.name.clone(), t.columns.clone()))
-                .collect();
-            let key = (rule, schema);
-            if !self.cuts.contains_key(&key) {
-                let mut run = finish::Run::default();
-                let declarations = req
-                    .hosted
-                    .iter()
-                    .map(|t| Hosted {
-                        rows: std::sync::Arc::default(),
-                        ..t.clone()
-                    })
-                    .collect::<Vec<_>>();
-                let _ = bind_tables(&declarations, &mut run, |_| None)?;
-                let scoped = finish::partition::partition(
-                    &mut finish::Exec::new(&program.plan),
-                    &mut run,
-                    |n| {
-                        held.iter().any(|r| relations::service::name(*r).0 == n)
-                            || req.hosted.iter().any(|t| t.name == n)
-                    },
-                )?;
-                self.cuts.insert(key.clone(), Rc::new(scoped));
+        let class = match self.admissions.get(&schema_key) {
+            Some(class) => class.clone(),
+            None => {
+                let class = Rc::new(Admission::prepare(self.admissions.len(), &query, program, &req.hosted)?);
+                self.admissions.insert(schema_key, class.clone());
+                class
             }
-            Some(self.cuts[&key].clone())
-        } else {
-            None
         };
+        let held = &class.project_bases;
+        let contract = &class.contract;
         if req.files.is_empty() && !contract.cross {
             return Ok(Work::Pairs(Vec::new()));
         }
-        if scope_only || wide {
+        if class.closed {
             let t = thread_cpu();
             // Closed fixture inventories accompany the production input stream. If
             // only typed scalar host cells are read, no file identity needs binding.
@@ -282,7 +301,7 @@ impl Batch {
                         path.to_owned(),
                         Rc::new({
                             let mut paths: Vec<String> =
-                                serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+                                json_input::decode(&bytes).map_err(|e| e.to_string())?;
                             paths.sort_unstable();
                             paths.dedup();
                             paths
@@ -297,12 +316,7 @@ impl Batch {
                 .inventory
                 .or(snapshot)
                 .or_else(|| {
-                    let has_file = req
-                        .hosted
-                        .iter()
-                        .any(|h| h.columns.iter().any(|(_, k)| k == "File"));
-                    let needs_inventory = program.bases.iter().any(|n| n == "filesystem.file");
-                    (!has_file && (!req.files.is_empty() || !needs_inventory)).then(|| {
+                    (!class.file_cells && (!req.files.is_empty() || !class.file_inventory)).then(|| {
                         let mut paths = req.files.as_ref().clone();
                         paths.sort_unstable();
                         Rc::new(paths)
@@ -344,13 +358,13 @@ impl Batch {
             {
                 return Ok(Work::Project(Rc::new(Ok(session::Reported::skipped(&inventory)))));
             }
-            let binding = self.binding(rule, req.hosted);
-            self.bound_contracts.insert(binding, Rc::clone(&contract));
-            let pairs = if let Some(c) = cut {
-                self.cut_of[binding] = Some(c);
+            let binding = self.binding(rule, class.id, req.hosted);
+            self.bound_contracts.insert(binding, Rc::clone(contract));
+            let pairs = if let Some(c) = &class.cut {
+                self.cut_of[binding] = Some(c.clone());
                 // Caller rows are consumed only after closure. Sources with the same
                 // prepared program and caller schema produce identical local outputs.
-                let local = *self.local_bindings.entry(schema_key).or_insert(binding);
+                let local = *self.local_bindings.entry(class.id).or_insert(binding);
                 self.schedule.admit(req.root, &req.files, local)?
             } else {
                 Vec::new()
@@ -367,28 +381,31 @@ impl Batch {
         if req.files.is_empty() {
             return Err("no complete source contribution for query".into());
         }
-        let binding = self.binding(rule, req.hosted);
-        self.bound_contracts.insert(binding, contract);
+        let binding = self.binding(rule, class.id, req.hosted);
+        self.bound_contracts.insert(binding, contract.clone());
         let pairs = self.schedule.admit(req.root, &req.files, binding)?;
         Ok(Work::Pairs(pairs))
     }
 
-    fn binding(&mut self, rule: usize, mut hosted: Vec<Hosted>) -> usize {
-        // Only the immutable payload is shared. Each declaration keeps its schema,
-        // completeness and file-valued cells in the requesting scope.
+    fn binding(&mut self, rule: usize, class: usize, mut hosted: Vec<Hosted>) -> usize {
+        let mut payloads = Vec::with_capacity(hosted.len());
         for table in &mut hosted {
-            if let Some(rows) = self.host_rows.get(&table.rows) {
-                table.rows = std::sync::Arc::clone(rows);
+            let id = if let Some((rows, &id)) = self.host_rows.get_key_value(&table.rows) {
+                table.rows = rows.clone();
+                id
             } else {
-                self.host_rows.insert(std::sync::Arc::clone(&table.rows));
-            }
+                let id = self.host_rows.len();
+                self.host_rows.insert(table.rows.clone(), id);
+                id
+            };
+            payloads.push((id, table.partial.clone()));
         }
-        let hosted: Rc<[Hosted]> = hosted.into();
-        let host_key = hosted.clone();
-        *self.binding_ids.entry((rule, host_key)).or_insert_with(|| {
+        // The class binds the program and ordered schemas. Each payload ID binds
+        // all its cells by value, so the binding lookup need not hash them again.
+        *self.binding_ids.entry((class, payloads)).or_insert_with(|| {
             self.program_of.push(rule);
             self.cut_of.push(None);
-            self.bindings.push(hosted);
+            self.bindings.push(hosted.into());
             self.bindings.len() - 1
         })
     }
@@ -406,8 +423,7 @@ impl Batch {
         // Release the admission-only maps before the reader and join heaps grow.
         self.project_keys = Default::default();
         self.authorities = Default::default();
-        self.contracts = Default::default();
-        self.cuts = Default::default();
+        self.admissions = Default::default();
         self.local_bindings = Default::default();
         self.release_admission();
         let mut state = Active::default();
@@ -421,7 +437,6 @@ impl Batch {
         self.roots.clear();
         self.queries.clear();
         self.binding_ids.clear();
-        self.host_rows.clear();
     }
 
     fn epoch<L: session::source::Source>(&mut self,languages:&[L],state:&mut Active<L::File,L::Dictionary>) {
@@ -521,7 +536,7 @@ impl Batch {
             if !*keep && store.is_none() {
                 // Other readers have disjoint files. Answers and project contributions
                 // already own everything the closed phase will read from this group.
-                self.schedule.delivered(&files);
+                self.schedule.delivered(&files, *keep);
                 for i in files {
                     self.schedule.sources[i].provided = None;
                 }
@@ -545,7 +560,7 @@ impl Batch {
         if !*keep {
             *aliases=Vec::new();
         }
-        self.schedule.delivered(&pending);
+        self.schedule.delivered(&pending, *keep);
         self.finish_projects(languages, contributions, world, answers, populations, manifest_failures, *keep,store.as_deref_mut());
 
     }
@@ -783,21 +798,13 @@ impl<'a> Receipt<'a> {
     }
 }
 
-pub(super) fn findings<'a>(rows: impl IntoIterator<Item = &'a finish::answer::Row>) -> Vec<String> {
-    let mut result: Vec<_> = rows.into_iter().map(finish::answer::finding).collect();
-    result.sort_unstable();
-    result
-}
-
-fn digest(rows: &[&finish::answer::Row]) -> String {
+pub(super) fn digest(rows: &[&finish::answer::Row]) -> String {
     let mut hash = Sha256::new();
-    if rows.is_empty() {
+    if rows.is_empty() { hash.update(b"\n"); }
+    finish::json_output::ordered_rows(rows.iter().copied(), |line| {
+        hash.update(line);
         hash.update(b"\n");
-    }
-    for row in findings(rows.iter().copied()) {
-        hash.update(row.as_bytes());
-        hash.update(b"\n");
-    }
+    });
     format!("{:x}", hash.finalize())
 }
 
@@ -828,17 +835,17 @@ pub(crate) fn packets(
     let mut projects = stdin.lock().lines();
     for line in std::io::BufReader::new(source).lines() {
         let item: Entry =
-            serde_json::from_str(&line.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+            json_input::decode_line(&line.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
         let mapped = projects
             .next()
             .ok_or("missing closed inventory")?
             .map_err(|e| e.to_string())?;
-        let project: Inventory = serde_json::from_str(&mapped).map_err(|e| e.to_string())?;
+        let project: Inventory = json_input::decode_line(&mapped).map_err(|e| e.to_string())?;
         if project.id != item.id {
             return Err("inventory and admitted request differ".into());
         }
         let bytes = std::fs::read(item.request).map_err(|e| e.to_string())?;
-        let mut input: Input = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+        let mut input: Input = json_input::decode(&bytes).map_err(|e| e.to_string())?;
         input.inventory = Some(canonical_inventory(project.inventory));
         input.repository = project.repository;
         let work = session
@@ -856,9 +863,9 @@ pub(crate) fn packets(
     for (id, work) in ids.into_iter().zip(&session.work) {
         let result = match Batch::answer(work, &answers) {
             Ok(r) => {
-                serde_json::json!({"id":id,"rows":r.rows.len(),"sha256":digest(&r.rows),"unknowns":r.unknowns})
+                json_output::packet_receipt(&id, Ok((r.rows.len(), digest(&r.rows), r.unknowns)))
             }
-            Err(reason) => serde_json::json!({"id":id,"refused":reason}),
+            Err(reason) => json_output::packet_receipt(&id, Err(reason)),
         };
         writeln!(out, "{result}").map_err(|e| e.to_string())?;
     }
@@ -882,7 +889,7 @@ fn batch_with_workers<L: session::source::Source>(
     output: &str,
     workers: Option<std::num::NonZeroUsize>,
 ) {
-    batch_mode_with_workers(readers, manifest, output, None, workers)
+    batch_mode_with_workers(readers, manifest, output, None, workers, || {})
 }
 fn write_receipt<U: serde::Serialize>(out: &mut impl Write, id: &str, expected: &str, digest: &str, unknowns: &[U]) {
     let status = if expected == digest && unknowns.is_empty() { "exact" } else { "different" };
@@ -894,14 +901,14 @@ fn write_receipt<U: serde::Serialize>(out: &mut impl Write, id: &str, expected: 
     writeln!(out).unwrap();
 }
 fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,root:Option<&Path>){
-    batch_mode_with_workers(readers, manifest, output, root, None)
+    batch_mode_with_workers(readers, manifest, output, root, None, || {})
 }
-fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&str, output:&str, root:Option<&Path>, workers:Option<std::num::NonZeroUsize>){
+fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&str, output:&str, root:Option<&Path>, workers:Option<std::num::NonZeroUsize>, completed: impl FnOnce()){
     let start = thread_cpu();
     let mut session = Batch { workers, ..Default::default() };
     if let Some(index) = std::env::var_os("TM_CORPUS_INVENTORIES") {
         let bytes = std::fs::read(index).expect("closed input inventories");
-        session.roots = serde_json::from_slice(&bytes).expect("source roots and their inventories");
+        session.roots = json_input::decode(&bytes).expect("source roots and their inventories");
     }
     session.authorities = Authorities::from_input().expect("repository declarations");
     let mut store=root.map(|p|stored::Store::open(p).expect("open request store"));
@@ -914,7 +921,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     let mut inherited_inventories=Vec::new();
     let file = std::fs::File::open(manifest).expect("input manifest");
     let mut invocations = Vec::new();
-    let mut expected_receipts = std::collections::HashSet::<Rc<str>>::new();
+    let mut expected_text = std::collections::HashSet::<Rc<str>>::new();
     let mut inputs = HashMap::new();
     for l in std::io::BufReader::new(file).lines() {
         let line = l.expect("manifest line");
@@ -942,7 +949,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
                 entries.push(Entry::Stored(answer));
             }else {
                 let result=std::fs::read(req).map_err(|e|e.to_string())
-                    .and_then(|bytes|serde_json::from_slice::<Input>(&bytes).map_err(|e|e.to_string()))
+                    .and_then(|bytes|json_input::decode::<Input>(&bytes).map_err(|e|e.to_string()))
                     .and_then(|input|{
                         let inherited=if closed.is_none() && store.is_some(){session.roots.get(&input.root).cloned()}else{None};
                         let work=session.register(pack,input,closed)?;
@@ -961,17 +968,19 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
             }
             entries.len()-1
         });
-        let expected = if let Some(prior) = expected_receipts.get(oracle) {
-            prior.clone()
+        // Expected receipt text is opaque until the completed results are compared.
+        let expected = if let Some(existing) = expected_text.get(oracle) {
+            existing.clone()
         } else {
-            let value = Rc::<str>::from(oracle);
-            expected_receipts.insert(value.clone());
-            value
+            let text = Rc::<str>::from(oracle);
+            expected_text.insert(text.clone());
+            text
         };
         invocations.push((idx, Box::<str>::from(id), expected));
     }
     drop(inputs);
-    drop(expected_receipts);
+    drop(expected_text);
+    let invocations = invocations.into_boxed_slice();
     let registration = thread_cpu() - start - session.clocks.prepare - session.clocks.project;
     let answers=if let Some(s)=&mut store {
         let mut state=Active::default();
@@ -1062,21 +1071,21 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         c.inventory,
         c.join,
     );
+    completed();
 }
 
 /// Standalone scenario entry, using the same scheduler and full typed output.
 pub(crate) fn one(
     languages: Vec<Language>,
     pack: &str,
-    input: &[u8],
+    input: Input,
     output: &str,
 ) -> Result<(), String> {
     let readers: Vec<_> = languages
         .into_iter()
         .map(session::source::Linked::from)
         .collect();
-    let req = serde_json::from_slice(input).map_err(|e| e.to_string())?;
-    one_source(&readers, pack, req, output)
+    one_source(&readers, pack, input, output)
 }
 
 fn one_source<L: session::source::Source>(
@@ -1093,7 +1102,13 @@ fn one_source<L: session::source::Source>(
     if !rows.unknowns.is_empty() {
         return Err("partial answer requires typed unknown output".into());
     }
-    std::fs::write(output, findings(rows.rows).join("\n") + "\n").map_err(|e| e.to_string())
+    let mut stream = Vec::new();
+    if rows.rows.is_empty() { stream.push(b'\n'); }
+    finish::json_output::ordered_rows(rows.rows, |line| {
+        stream.extend_from_slice(line);
+        stream.push(b'\n');
+    });
+    std::fs::write(output, stream).map_err(|e| e.to_string())
 }
 
 #[cfg(feature = "product-session")]

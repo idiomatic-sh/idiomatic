@@ -40,10 +40,10 @@ enum Value {
 }
 
 impl Value {
-    fn cell(&self) -> Cell {
+    fn cell(&self) -> Cell<std::sync::Arc<str>> {
         match self {
-            Self::File(s) => Cell::File(s.clone()),
-            Self::Text(s) => Cell::Text(s.clone()),
+            Self::File(s) => Cell::File(s.as_ref().into()),
+            Self::Text(s) => Cell::Text(s.as_ref().into()),
             Self::Number(n) => Cell::Number(Integer(*n)),
             Self::Span(a, b) => Cell::Span(Span {
                 start: Offset(*a),

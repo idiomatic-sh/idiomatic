@@ -1,6 +1,6 @@
 //! Check that skipping an empty local emit also preserves evaluation errors.
 use super::super as finish;
-use finish::{E, Exec, Op, R, Run, Table, Ty};
+use finish::{E, Exec, R, Run, Table, Ty};
 use std::rc::Rc;
 
 // Dynamic pattern compilation can refuse a non-empty intermediate even
@@ -16,9 +16,8 @@ pub(in super::super) fn total(expr: &E) -> bool {
             };
             arity && args.iter().all(total)
         }
-        E::Seed(..) | E::Cmp(Op::Other, ..) => false,
         E::In(a, b, _) | E::And(a, b) | E::Or(a, b) | E::Cmp(_, a, b) => total(a) && total(b),
-        E::Null(a, _) | E::Not(a) | E::TextTest(a, _) => total(a),
+        E::Not(a) | E::TextTest(a, _) => total(a),
         E::List(items) => items.iter().all(total),
         E::Col(..) | E::Lit(_) | E::Text(_) | E::Num(_) => true,
     }

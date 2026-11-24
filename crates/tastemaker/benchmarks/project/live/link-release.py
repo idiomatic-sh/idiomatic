@@ -101,7 +101,10 @@ fn main() -> std::process::ExitCode {
             arguments.next().expect("worker count").parse().expect("positive worker count")
         });
         assert!(arguments.next().is_none(), "unexpected batch argument");
-        tm_project_session::capture(benchmark_languages::linked(), &manifest, &output, workers);
+        tm_project_session::capture_then(benchmark_languages::linked(), &manifest, &output, workers, || {
+            std::io::Write::flush(&mut std::io::stdout()).expect("flush capture log");
+            std::process::exit(0);
+        });
         return std::process::ExitCode::SUCCESS;
     }'''))
 

@@ -26,7 +26,7 @@ struct FindingSchema {
     /// Notebook cell index, refused without an explicit source mapping.
     cell: Option<usize>,
     /// Fixes require real source coordinates and cannot target an unavailable input.
-    fix: Option<serde_json::Value>,
+    fix: Option<serde::de::IgnoredAny>,
 }
 #[derive(Debug, Deserialize)]
 /// One-based physical line and Unicode scalar column from Ruff JSON.
@@ -102,7 +102,7 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
         {
             return Err(Error::Invalid("requested source set is incomplete".into()));
         }
-        let raw: Vec<FindingSchema> = serde_json::from_slice(&output.stdout.0)
+        let raw: Vec<FindingSchema> = crate::json_input::decode(&output.stdout.0)
             .map_err(|error| Error::Json(Box::new(error)))?;
         if (output.status.0 == 0_i32) != raw.is_empty() {
             return Err(Error::Invalid(
@@ -297,7 +297,7 @@ struct PinnedRuleSchema {
 
 /// Decode the pinned phase policy of every rule the registry pins.
 pub(super) fn pinned_rule_phases() -> Result<BTreeMap<RuleLabel, ApplicabilityPolicy>, Error> {
-    let registry: PinnedPhasesSchema = serde_json::from_str(crate::constants::PINNED_RULE_PHASES)
+    let registry: PinnedPhasesSchema = crate::json_input::decode(crate::constants::PINNED_RULE_PHASES.as_bytes())
         .map_err(|error| Error::Invalid(error.to_string()))?;
     Ok(registry
         .rules

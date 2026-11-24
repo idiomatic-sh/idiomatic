@@ -8,8 +8,7 @@ mod pinned;
 mod call_cache;
 #[path = "allocated.rs"]
 mod allocated;
-use call_cache::CallCache;
-use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
+use call_cache::{CallCache, PathFilter};
 use pinned::{Dictionary, Pinned};
 use release_sdk::linter as sdk;
 use ryo_values::domain::finish_plans::expressions::types::{
@@ -36,7 +35,7 @@ pub struct Live {
     directory:Option<std::path::PathBuf>,
     state: Active<pinned::File, Dictionary>,
     languages: Vec<Pinned>,
-    filters: HashMap<Vec<sdk::Glob>, (usize, Rc<GlobSet>)>,
+    filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
     versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
 }
@@ -100,14 +99,14 @@ fn parameter(v: sdk::ParameterValue) -> Result<PlanConstant, String> {
     })
 }
 
-fn slot(v: &Option<Cell>) -> sdk::Slot {
+fn slot(v: &Option<Cell<std::sync::Arc<str>>>) -> sdk::Slot {
     let Some(c) = v else {
         return sdk::Slot::Nothing;
     };
     use release_sdk::languages::{Offset, Span};
     sdk::Slot::Is(match c {
-        Cell::File(p) => sdk::Cell::File(sdk::RelativePath(p.clone())),
-        Cell::Text(s) => sdk::Cell::Text(sdk::HostText(s.clone())),
+        Cell::File(p) => sdk::Cell::File(sdk::RelativePath(p.as_ref().into())),
+        Cell::Text(s) => sdk::Cell::Text(sdk::HostText(s.as_ref().into())),
         Cell::Number(n) => sdk::Cell::Number(sdk::HostNumber(n.0)),
         Cell::Span(s) => sdk::Cell::Span(Span {
             start: Offset(s.start.0),
@@ -129,20 +128,12 @@ impl Live {
         }
         Ok(())
     }
-    fn globs(&mut self, names: &[sdk::Glob]) -> Result<(usize, Rc<GlobSet>), String> {
+    fn globs(&mut self, names: &[sdk::Glob]) -> Result<(usize, Rc<PathFilter>), String> {
         if let Some(found) = self.filters.get(names) {
             return Ok(found.clone());
         }
-        let mut builder = GlobSetBuilder::new();
-        for name in names {
-            builder.add(
-                GlobBuilder::new(name.as_ref())
-                    .literal_separator(true)
-                    .build()
-                    .map_err(|e| e.to_string())?,
-            );
-        }
-        let set = (self.filters.len(), Rc::new(builder.build().map_err(|e| e.to_string())?));
+        let matcher = PathFilter::compile(names)?;
+        let set = (self.filters.len(), Rc::new(matcher));
         self.filters.insert(names.to_vec(), set.clone());
         Ok(set)
     }
@@ -267,11 +258,12 @@ impl Live {
             }
             let inc = self.globs(&rule.include)?;
             let exc = self.globs(&rule.exclude)?;
-            let files = self.cache.files((inventory, filter.0, inc.0, exc.0), |p| {
-                    (req.files.is_empty() || filter.1.is_match(p))
-                        && (rule.include.is_empty() || inc.1.is_match(p))
-                        && !exc.1.is_match(p)
-            });
+            let files = self.cache.files(
+                (inventory, filter.0, inc.0, exc.0),
+                &filter.1,
+                &inc.1,
+                &exc.1,
+            );
             let parameters = rule
                 .parameters
                 .into_iter()
@@ -356,17 +348,14 @@ impl Live {
                 }
             };
             for row in receipt.rows {
-                let subject = row
-                    .identity
-                    .first()
-                    .and_then(|i| row.columns.get(*i))
+                let subject = row.layout.identity.first()
+                    .map(|&i| row.value(i))
                     .ok_or("missing row subject")?;
                 out.findings.push((
                     id.as_ref().into(),
-                    slot(&subject.1),
-                    row.columns
-                        .iter()
-                        .map(|(n, v)| (n.clone(), slot(v)))
+                    slot(&subject),
+                    row.layout.names.iter().zip(row.cells())
+                        .map(|(n, v)| (n.as_str().into(), slot(&v)))
                         .collect(),
                 ));
             }
@@ -395,8 +384,12 @@ impl Live {
 
 /// Replay a closed capture with exactly the parsers linked into this release.
 pub fn capture(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>) {
+    capture_then(linked, manifest, output, workers, || {});
+}
+
+pub fn capture_then(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>, completed: impl FnOnce()) {
     let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
-    super::batch_with_workers(&readers, manifest, output, workers);
+    super::batch_mode_with_workers(&readers, manifest, output, None, workers, completed);
 }
 
 pub fn capture_retained(linked:sdk::Languages,manifest:&str,output:&str,root:&str){
@@ -465,6 +458,6 @@ pub fn capture_one(
 ) -> Result<(), String> {
     let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
     let bytes = std::fs::read(input).map_err(|e| e.to_string())?;
-    let req = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+    let req = crate::json_input::decode(&bytes).map_err(|e| e.to_string())?;
     super::one_source(&readers, pack, req, out)
 }

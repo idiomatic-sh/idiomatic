@@ -25,7 +25,7 @@ impl<'p> Finisher<'p> {
         walk: &impl languages::Walk,
         vocab: &Vocab,
         args: &[&str],
-        request: Option<(&str, &serde_json::Value)>,
+        request: Option<(&str, &super::json_input::Metadata)>,
         paths:Option<&std::sync::Arc<Vec<String>>>,
     ) -> Self {
         let t0 = thread_cpu();
@@ -59,14 +59,14 @@ impl<'p> Finisher<'p> {
             vocab.kind_names.len(),
         );
         let mut me = Self {
-            inner: finisher::Finisher::new(plan, run, args, request),
+            inner: finisher::Finisher::new(plan, run, args, request.and_then(|(path, doc)| doc.accepted.as_ref().map(|a| (path, a)))),
             fwords: ryo_python::fixtures::walking::walk_words(walk)
                 .expect("the walk's fixed names"),
             project: super::provider_packaging::Project::new(
                 args[2].trim_end_matches('/'),
                 match request {
-                    Some((_, doc)) => super::provider_packaging::Project::search_roots(doc),
-                    None => super::provider_packaging::Project::search_roots_of(flag(args, "--request").as_deref()),
+                    Some((_, doc)) => doc.search_roots.clone(),
+                    None => flag(args, "--request").and_then(|path| super::json_input::metadata(&path).search_roots),
                 },
                 &|n| vocab.kinds.get(n).copied(),
             ),
@@ -117,14 +117,13 @@ impl<'p> Finisher<'p> {
         }
         true
     }
-    pub(super) fn end(self, walk_time:f64)->bool {
-        self.inner.end(walk_time, |locations| locations.dedup())
+    pub(super) fn end(self, _walk_time:f64)->bool {
+        self.inner.end(finish::json_output::Projection::DistinctLocations)
     }
     /// The second half on one walked file of the direct-columns walk (its own model by parts, built on demand).
     pub(super) fn column_file(
         &mut self,
         file_no: usize,
-        path: &str,
         file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>,
         bytes: &[u8],
         wanted: &[usize],
@@ -149,47 +148,7 @@ impl<'p> Finisher<'p> {
             project: &mut project,
             src: bytes,
         };
-        self.file(file_no, path, ft, bytes, &mut pv, wanted);
-        self.provider_time += pv.time;
-        self.provider_rows += pv.rows;
-        for (k, v) in pv.by_rel {
-            let e = self.by_rel.entry(k).or_default();
-            e.0 += v.0;
-            e.1 += v.1;
-            e.2 += v.2;
-        }
-        self.fwords = fwords;
-        self.project = project;
-        self.time += thread_cpu() - t0;
-    }
-
-    /// The second half on one file through the reader's facts (`vec finish` without `VEC_COLWALK`).
-    pub(super) fn reader_file(
-        &mut self,
-        file_no: usize,
-        path: &str,
-        file: &mut languages::FileFacts<'_>,
-        bytes: &[u8],
-        wanted: &[usize],
-    ) {
-        let t0 = thread_cpu();
-        let ft = file.table;
-        let mut fwords = std::mem::take(&mut self.fwords);
-        languages::facts::clear_words(&mut fwords);
-        finish::own_words_cleared(&mut self.run);
-        let mut project = std::mem::take(&mut self.project);
-        let mut pv = super::Facts {
-            facts: file,
-            words: &mut fwords,
-            filled: languages::FilledColumns::default(),
-            time: 0.0,
-            rows: 0,
-            by_rel: HashMap::new(),
-            file: file_no as u32,
-            project: &mut project,
-            src: bytes,
-        };
-        self.file(file_no, path, ft, bytes, &mut pv, wanted);
+        self.file(file_no, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
         for (k, v) in pv.by_rel {

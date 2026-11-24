@@ -20,30 +20,85 @@ pub(super) struct SyntaxText<'a> {
     pub ids: &'a [u32],
     pub symbols: &'a [std::rc::Rc<[u8]>],
     pub patterns: Option<&'a SymbolMatches>,
+    pub dictionary: &'a Map<Rc<[u8]>, u32>,
+    pub distinct: Option<&'a std::cell::RefCell<FileSymbols>>,
     pub column: Option<&'a SymbolColumn<'a>>,
 }
 /// The reader owns symbol identities for the lifetime of this dictionary.
 #[derive(Default)]
 pub(super) struct SymbolMatches(std::cell::RefCell<Vec<(usize, u32, bool)>>);
 
-impl SyntaxText<'_> {
-    #[inline(never)]
-    fn matches(self, index: usize, regex: &super::pair_summary::regexes::Matcher, polarity: bool) -> bool {
-        let Some(patterns) = self.patterns else {
-            return self.ids.iter().any(|&id| regex.is_match(&self.symbols[id as usize]) == polarity);
-        };
-        let mut entries = patterns.0.borrow_mut();
+/// An existence test can stop early. Later predicates continue the same
+/// discovery of distinct subjects and see every subject already discovered.
+#[derive(Default)]
+pub(super) struct FileSymbols {
+    seen: Vec<u64>,
+    words: Vec<u32>,
+    next: usize,
+}
+impl FileSymbols {
+    #[allow(dead_code, reason = "session readers reuse this index across source versions")]
+    pub(super) fn clear(&mut self) {
+        for word in self.words.drain(..) {
+            self.seen[word as usize / 64] = 0;
+        }
+        self.next = 0;
+    }
+
+    fn any(&mut self, column: &[u32], mut accepts: impl FnMut(u32) -> bool) -> bool {
+        if self.words.iter().copied().any(&mut accepts) {
+            return true;
+        }
+        while self.next < column.len() {
+            let id = column[self.next];
+            self.next += 1;
+            let block = id as usize / 64;
+            if self.seen.len() <= block {
+                self.seen.resize(block + 1, 0);
+            }
+            let bit = 1u64 << (id % 64);
+            if self.seen[block] & bit == 0 {
+                self.seen[block] |= bit;
+                self.words.push(id);
+                if accepts(id) {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+}
+
+impl SymbolMatches {
+    fn with_predicate<R>(&self, index: usize, regex: &super::pair_summary::regexes::Matcher,
+        symbols: &[Rc<[u8]>], apply: impl FnOnce(&mut dyn FnMut(u32) -> bool) -> R) -> R {
+        let mut entries = self.0.borrow_mut();
         if entries.is_empty() {
             entries.resize(4096, (usize::MAX, 0, false));
         }
-        self.ids.iter().any(|&id| {
+        apply(&mut |id| {
             let slot = (index.wrapping_mul(0x9e3779b9) ^ id as usize) & (entries.len() - 1);
             let entry = &mut entries[slot];
             if (entry.0, entry.1) != (index, id) {
-                *entry = (index, id, regex.is_match(&self.symbols[id as usize]));
+                *entry = (index, id, regex.is_match(&symbols[id as usize]));
             }
-            entry.2 == polarity
+            entry.2
         })
+    }
+}
+impl SyntaxText<'_> {
+    #[inline(never)]
+    fn matches(self, index: usize, regex: &super::pair_summary::regexes::Matcher, polarity: bool) -> bool {
+        if let Some(patterns) = self.patterns {
+            patterns.with_predicate(index, regex, self.symbols, |test|
+                if let Some(distinct) = self.distinct {
+                    distinct.borrow_mut().any(self.ids, |id| test(id) == polarity)
+                } else {
+                    self.ids.iter().any(|&id| test(id) == polarity)
+                })
+        } else {
+            self.ids.iter().any(|&id| regex.is_match(&self.symbols[id as usize]) == polarity)
+        }
     }
 }
 impl<'a> SyntaxText<'a> {
@@ -61,6 +116,14 @@ struct Table {
     cells: FilledColumns,
     index: Map<usize, Map<Id, Vec<u32>>>,
 }
+/// Empty between files. Only materialized node masks need clearing.
+#[derive(Default)]
+pub(super) struct Scratch {
+    sets: Vec<Option<Nodes>>,
+    needs: Vec<Option<bool>>,
+    touched: Vec<Id>,
+}
+
 struct File<'a, const PROFILE: bool> {
     owner: usize,
     reader_class: &'a std::cell::Cell<usize>,
@@ -78,8 +141,9 @@ struct File<'a, const PROFILE: bool> {
     read: &'a mut Reader<'a>,
     words: &'a mut FileWords,
     facts: Vec<Table>,
-    sets: Vec<Option<Nodes>>,
-    needs: Vec<Option<bool>>,
+    sets: &'a mut [Option<Nodes>],
+    needs: &'a mut [Option<bool>],
+    touched: &'a mut Vec<Id>,
     texts: Option<Map<&'a [u8], Vec<u32>>>,
     steps: u64,
 }
@@ -188,6 +252,15 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Need::Any => true,
             Need::Empty => false,
             Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
+            Need::PathGlob(slot) => self.path.is_none_or(|path| {
+                use ryo_matching::inbound::use_cases::matching::{
+                    interface::MatchingUseCase, types::{GlobPattern, MatchOutcome, SearchText},
+                    use_case::MatchingUseCaseImpl,
+                };
+                MatchingUseCaseImpl::new().matches_text_glob(
+                    GlobPattern(&self.p.path_globs[slot]), SearchText(&String::from_utf8_lossy(path)),
+                ) == MatchOutcome::Matches
+            }),
             Need::PathMatches(re,yes) => self.path.is_none_or(|p|
                 self.p.regexes[re].compiled().is_none_or(|r| r.is_match(p) == yes)),
             Need::SyntaxMatches(re,yes) => self.syntax_text.is_none_or(|col|{
@@ -251,6 +324,24 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 Domain::Field(k) => {
                     !node_table::ids_of_field(self.t, languages::FieldCode(*k)).is_empty()
                 }
+                Domain::Text(literal) if self.syntax_text.is_some() => {
+                    let column = self.syntax_text.unwrap();
+                    column.dictionary.get(literal.as_bytes()).is_some_and(|id| column.ids.contains(id))
+                }
+                Domain::SpanMatching(kind, pattern) if self.p.file_only[x] => {
+                    node_table::ids_of_kind(self.t, languages::KindBits(*kind)).iter().any(|pos| {
+                        self.p.regexes[*pattern].is_match(&self.src[super::span_bytes(self.t, pos.0 as usize)])
+                    })
+                }
+                Domain::TextMatching(kind, pattern) if self.p.file_only[x] && self.syntax_text.is_some() => {
+                    let col = self.syntax_text.unwrap();
+                    let ids = node_table::ids_of_kind(self.t, languages::KindBits(*kind));
+                    match (self.p.regexes[*pattern].compiled(), col.patterns) {
+                        (Some(regex), Some(cache)) => cache.with_predicate(*pattern, regex, col.symbols, |test|
+                            ids.iter().any(|p| test(col.ids[p.0 as usize]))),
+                        _ => ids.iter().any(|p| self.p.regexes[*pattern].is_match(col.at(p.0 as usize))),
+                    }
+                }
                 Domain::Matching(slot, column, pattern)
                     if self.syntax_text.is_some_and(|view| view.column.is_some())
                         && self.p.facts[*slot].kinds[*column] == languages::CellKind::Symbol =>
@@ -298,6 +389,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             }
             return result.clone();
         }
+        self.touched.push(id);
         if !PROFILE {
             return self.nodes_miss(id);
         }
@@ -368,6 +460,17 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             )),
             Domain::TextMatching(k, re) => {
                 let regex = &self.p.regexes[*re];
+                if let Some(column) = self.syntax_text
+                    && let Some(cache) = column.patterns
+                    && let Some(matcher) = regex.compiled()
+                {
+                    let nodes = cache.with_predicate(*re, matcher, column.symbols, |test| {
+                        bits(node_table::ids_of_kind(self.t, languages::KindBits(*k)).iter()
+                            .filter(|p| test(column.ids[p.0 as usize])).map(|p| p.0))
+                    });
+                    self.sets[id] = Some(Some(Rc::clone(&nodes)));
+                    return Some(nodes);
+                }
                 Some(bits(
                     node_table::ids_of_kind(self.t, languages::KindBits(*k))
                         .iter()
@@ -387,10 +490,11 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 let by_text = self.texts.get_or_insert_with(|| {
                     let mut m = Map::<&[u8], Vec<u32>>::default();
                     if let Some(column) = self.syntax_text {
-                        for (i, &id) in column.ids.iter().enumerate() {
-                            let value = &*column.symbols[id as usize];
-                            if !value.is_empty() && value.len() <= self.p.max_text && self.p.texts.contains(value) {
-                                m.entry(value).or_default().push(i as u32);
+                        let wanted: Map<_, _> = self.p.texts.iter().filter_map(|s|
+                            column.dictionary.get(s.as_slice()).map(|&id| (id, s.as_slice()))).collect();
+                        for (i, id) in column.ids.iter().enumerate() {
+                            if let Some(&text) = wanted.get(id) {
+                                m.entry(text).or_default().push(i as u32);
                             }
                         }
                         return m;
@@ -878,6 +982,10 @@ impl Program {
             entry.2 += elapsed - meter.overhead;
             ok
         };
+        let mut buffers = self.scratch.take();
+        buffers.sets.resize(self.domains.len(), None);
+        buffers.needs.resize(self.needs.len(), None);
+        buffers.needs.fill(None);
         let mut f = File::<PROFILE> {
             reader_class: &reader_class,
             owner: 0,
@@ -903,8 +1011,9 @@ impl Program {
             read: &mut observe,
             words,
             facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
-            sets: vec![None; self.domains.len()],
-            needs: vec![None; self.needs.len()],
+            sets: &mut buffers.sets,
+            needs: &mut buffers.needs,
+            touched: &mut buffers.touched,
             texts: None,
             steps: 0,
         };
@@ -943,6 +1052,12 @@ impl Program {
                 *n += u64::from(t.read);
             }
         }
-        f.steps
+        let steps = f.steps;
+        drop(f);
+        for id in buffers.touched.drain(..) {
+            buffers.sets[id] = None;
+        }
+        self.scratch.replace(buffers);
+        steps
     }
 }

@@ -3,6 +3,9 @@ mod adapter;
 #[path = "adapter_test.rs"]
 mod adapter_test;
 mod constants;
+#[allow(dead_code, reason = "shared reader also serves the vector host")]
+#[path = "../../../../../crates/engine/benches/vec/json_input.rs"]
+mod json_input;
 mod schemas;
 #[path = "schemas_test.rs"]
 mod schemas_test;

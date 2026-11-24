@@ -40,8 +40,9 @@ mod spec;
 #[path = "../../../crates/engine/benches/vec/reader_cli.rs"]
 mod reader_cli;
 use reader_cli::{alloc_counts, flag, thread_cpu};
-mod bindings;
-use bindings::{context_from, rule_context};
+mod json_input;
+mod json_output;
+use json_input::rule_context;
 
 /// These readers declare no necessary identifier spelling and no extra walk columns.
 /// Their kind names, field names and filled relations come from the linked parser.
@@ -108,19 +109,10 @@ fn main() {
         if mode == "--mixed" {
             // Scenario inputs carry their numbered inventory and one standalone query.
             // A pack request keeps its original multi-rule and fragment semantics.
-            #[derive(serde::Deserialize)]
-            struct Shape {
-                inventory: Option<Vec<serde::de::IgnoredAny>>,
-                selected_rules: Option<Vec<String>>,
-            }
-            let bytes = std::fs::read(request).expect("request");
             if !std::path::Path::new(pack).join("fragments").exists()
-                && serde_json::from_slice::<Shape>(&bytes).is_ok_and(|shape| {
-                    shape.inventory.is_some()
-                        && shape.selected_rules.is_some_and(|rules| rules == ["query"])
-                })
+                && let Some(input) = json_input::scenario(request)
             {
-                if let Err(reason) = project_bench::one(langs, pack, &bytes, output) {
+                if let Err(reason) = project_bench::one(langs, pack, input, output) {
                     eprintln!("{reason}");
                     std::process::exit(1);
                 }
@@ -145,7 +137,7 @@ fn main() {
         .map(|link| link())
         .find(|r| &*r.name().0 == name)
         .expect("requested reader must be linked");
-    if !reader_run::run_files::<true>(start, reader, declaration(), pack, request, output, None) {
+    if !reader_run::run_files::<true>(start, reader, declaration(), pack, request, reader_run::Output::Path(output), None) {
         std::process::exit(1);
     }
 }

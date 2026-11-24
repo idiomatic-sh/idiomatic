@@ -70,8 +70,6 @@ pub(super) fn prepare(read: &ReadPack, lang: Language, vocab: &Vocab) -> Prepare
         skips.push((name.clone(), never, shape));
         rules.push(SpecRule {
             name: name.clone(),
-            node: false,
-            plans: Vec::new(),
             word_cnfs: vec![words],
         });
     }
