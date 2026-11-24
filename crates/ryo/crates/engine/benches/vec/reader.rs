@@ -65,7 +65,7 @@ pub(super) fn project_tree(
             let at = l::Position(index.try_into().expect("native position"));
             let slot = usize::from(field);
             if field_names.len() <= slot { field_names.resize(slot + 1, None); }
-            field_names[slot].get_or_insert_with(|| symbol(run, facts.unknown, symbols, bytes, l::field_name_at(elements, at)));
+            let _ = field_names[slot].get_or_insert_with(|| symbol(run, facts.unknown, symbols, bytes, l::field_name_at(elements, at)));
             let word = l::text_at(elements, at);
             facts.text.push(*spelling.entry(word.0).or_insert_with(|| symbol(run, facts.unknown, symbols, bytes, word)));
         }

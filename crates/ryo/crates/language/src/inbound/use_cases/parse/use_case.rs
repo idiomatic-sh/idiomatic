@@ -156,7 +156,7 @@ impl<P: ParseUseCase> ParseEngine for P {
         let Some(native) = self.native_reader() else {
             return super::service::build_wanted_in(self, request, table, symbols, wanted);
         };
-        if self.recognizes(&request) == super::types::Recognition::Declines {
+        if self.recognizes(&request) == Recognition::Declines {
             return Err(ParseError::Unsupported);
         }
         crate::domain::elements::service::read_native(table, symbols, request.bytes, native,

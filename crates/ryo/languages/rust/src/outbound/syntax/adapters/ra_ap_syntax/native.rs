@@ -19,7 +19,7 @@ impl Writer<'_, '_> {
         if self.depth == 0
             && let Some(host) = self.host
         {
-            t::embed(
+            let _ = t::embed(
                 self.table,
                 host,
                 l::EmbeddedText {
@@ -86,7 +86,7 @@ impl Output for Writer<'_, '_> {
 
 /// Reads directly into the table that the evaluator borrows. The first origin
 /// belongs to the element at `node_table::own_end`.
-pub fn read(
+pub(crate) fn read(
     bytes: &[u8],
     table: &mut l::NodeTable,
     origins: &mut Vec<l::ExpandedPosition>,
@@ -106,7 +106,7 @@ pub fn read(
             flags,
         },
     );
-    t::finished(&mut builder);
+    let _ = t::finished(&mut builder);
     if fields {
         t::classify_fields(table, |tree, at| {
             l::FieldCode(field_bits(field_of(&NativeTree { table: tree, flags }, at)).0)

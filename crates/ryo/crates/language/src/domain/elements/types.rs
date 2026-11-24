@@ -107,8 +107,8 @@ pub enum SyntaxAcceptance {
     Undetermined,
 }
 
-/// A provider's direct preorder writer and its lexical classification.
-#[derive(Clone, Copy)]
+/// A provider’s direct writer for preorder positions, token flags and expansion origins.
+#[derive(Clone, Copy, Debug)]
 pub struct NativeReader {
     /// Write each parser position once and record origins of expanded elements.
     pub read: fn(&[u8], &mut crate::domain::node_table::types::NodeTable, &mut Vec<Expanded>, &mut Vec<Flags>, bool),
