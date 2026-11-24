@@ -60,6 +60,7 @@ fn canonical_inventory(mut paths: Vec<String>) -> Rc<Vec<String>> {
 
 enum Work {
     Project(Rc<Answer>),
+    Retained,
     Closed {
         project: Option<usize>,
         pairs: Vec<usize>,
@@ -926,6 +927,7 @@ impl Batch {
         match work {
             Work::Project(result) => receipt.append(result)?,
             Work::Closed { .. } => return Err("project inputs still open"),
+            Work::Retained => unreachable!("deliver retained packets directly"),
             Work::Refused(reason) | Work::Invalid(reason) => return Err(reason),
             Work::Pairs(slots) => {
                 for &slot in slots {
@@ -1161,6 +1163,11 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         let packet=match entry {
             Entry::Stored(k)=>k,
             Entry::Evaluate(i,id)=>{
+                if let (Some(s), Some(k)) = (&mut store, id)
+                    && let Some(packet) = s.deliver_reused(k, i)
+                {
+                    return Ok(Output::Packet(packet));
+                }
                 if let Work::Invalid(reason)=&session.work[i] {
                     if let (Some(s),Some(k))=(&mut store,id){s.decline(k,reason);}
                     return Err(reason.clone())

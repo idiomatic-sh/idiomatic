@@ -719,8 +719,7 @@ impl Store {
             {
                 continue;
             }
-            let value = self.packet_report(&prior.record.packet);
-            b.work[prior.work] = Work::Project(Rc::new(Ok(value)));
+            b.work[prior.work] = Work::Retained;
             self.updated_proofs.insert(prior.work, prior.record);
             self.closed_hits += 1;
         }
@@ -778,12 +777,14 @@ impl Store {
         packet.report(packet.base().map(|base| self.packet(&base)))
     }
 
+    pub(super) fn deliver_reused(&mut self, id: Key, idx: usize) -> Option<Key> {
+        let record = self.updated_proofs.remove(&idx)?;
+        let packet = record.packet;
+        self.requests.insert(id, record);
+        Some(packet)
+    }
+
     pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
-        if let Some(record) = self.updated_proofs.remove(&idx) {
-            let packet = record.packet;
-            self.requests.insert(id, record);
-            return Some(packet);
-        }
         let (proof, unread) = self.plans.get_mut(idx)?.take()?;
         let start = crate::thread_cpu();
         let empty = r.rows.is_empty() && r.unknowns.is_empty();
@@ -952,7 +953,7 @@ impl Store {
                 Work::Pairs(p) => (p.as_slice(), None, false),
                 Work::Closed { pairs, project, .. } => (pairs.as_slice(), *project, true),
                 Work::Project(_) => ([].as_slice(), None, false),
-                Work::Refused(_) | Work::Invalid(_) => {
+                Work::Refused(_) | Work::Invalid(_) | Work::Retained => {
                     self.plans.push(None);
                     continue;
                 }

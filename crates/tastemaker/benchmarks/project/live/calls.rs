@@ -664,6 +664,12 @@ impl Live {
             self.batch.clocks.delivery_workers_cpu += other_cpu.0;
         } else {
             for (id,entry) in ids {
+                let entry = match entry {
+                    Err((i, Some(key))) => self.store.as_mut()
+                        .and_then(|store| store.deliver_reused(key, i))
+                        .ok_or((i, Some(key))),
+                    other => other,
+                };
                 let held;
                 let receipt=match entry {
                     Ok(k)=>{
