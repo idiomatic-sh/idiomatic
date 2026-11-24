@@ -10,6 +10,8 @@ struct Writer<'a, 'b> {
     table: &'a mut l::NodeTableBuilder<'b>,
     host: Option<l::Position>,
     depth: usize,
+    numeric: bool,
+    record_origins: bool,
     origins: &'a mut Vec<l::ExpandedPosition>,
     flags: &'a mut Vec<l::Flags>,
 }
@@ -32,6 +34,9 @@ impl Writer<'_, '_> {
 }
 
 impl Output for Writer<'_, '_> {
+    fn numeric_values(&self) -> bool {
+        self.numeric
+    }
     fn enter(&mut self, kind: l::KindBits, start: l::Offset) {
         self.flags.push(l::Flags(0));
         self.begin_root();
@@ -73,6 +78,9 @@ impl Output for Writer<'_, '_> {
         self.host = Some(host);
     }
     fn origin(&mut self, element: l::Position, host: l::Position, expansion: l::ExpansionId) {
+        if !self.record_origins {
+            return;
+        }
         self.origins.push(l::ExpandedPosition {
             element,
             call_site: host,
@@ -92,8 +100,9 @@ pub(crate) fn read(
     origins: &mut Vec<l::ExpandedPosition>,
     flags: &mut Vec<l::Flags>,
     fields: bool,
+    access: l::NodeAccess<'_>,
 ) {
-    read_with(bytes, table, origins, flags, fields, crate::domain::model::types::ProviderRevision::Current);
+    read_with(bytes, table, origins, flags, fields, access, crate::domain::model::types::ProviderRevision::Current);
 }
 
 pub(crate) fn read_released(
@@ -102,8 +111,9 @@ pub(crate) fn read_released(
     origins: &mut Vec<l::ExpandedPosition>,
     flags: &mut Vec<l::Flags>,
     fields: bool,
+    access: l::NodeAccess<'_>,
 ) {
-    read_with(bytes, table, origins, flags, fields, crate::domain::model::types::ProviderRevision::Released014);
+    read_with(bytes, table, origins, flags, fields, access, crate::domain::model::types::ProviderRevision::Released014);
 }
 
 fn read_with(
@@ -112,6 +122,7 @@ fn read_with(
     origins: &mut Vec<l::ExpandedPosition>,
     flags: &mut Vec<l::Flags>,
     fields: bool,
+    access: l::NodeAccess<'_>,
     revision: crate::domain::model::types::ProviderRevision,
 ) {
     origins.clear();
@@ -123,6 +134,13 @@ fn read_with(
             table: &mut builder,
             host: None,
             depth: 0,
+            record_origins: matches!(access, l::NodeAccess::Inspect(_)),
+            numeric: match access {
+                l::NodeAccess::Inspect(_) => true,
+                l::NodeAccess::Query(rows) => rows.iter().any(|relation| {
+                    matches!(relation, l::Relation::NumericLiteral | l::Relation::ExpressionShape)
+                }),
+            },
             origins,
             flags,
         },

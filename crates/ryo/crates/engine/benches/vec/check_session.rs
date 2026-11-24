@@ -287,6 +287,7 @@ impl Schedule {
 }
 
 struct Bound<'p> {
+    reads_fields: bool,
     screenable: Option<bool>,
     empty_frontier: Option<frontier::EmptyFrontier>,
     plan: &'p Plan,
@@ -310,6 +311,7 @@ fn bind<'p, L: FileSource>(
     cut: Option<&finish::partition::Partition>,
 ) -> Result<Bound<'p>> {
     let mut facts = Vec::new();
+    let mut reads_fields = program.requirements.1.iter().flatten().any(|term| term.starts_with("f:"));
     for (at, step) in program.plan.nodes.iter().enumerate() {
         if step.op != "base" || cut.is_some_and(|c| !c.file_steps[at]) {
             continue;
@@ -320,6 +322,7 @@ fn bind<'p, L: FileSource>(
         }
         let rel = relations::service::relation_named(NameRef(name))
             .ok_or_else(|| format!("undeclared {name}"))?;
+        reads_fields |= matches!(rel, l::Relation::SemanticChild | l::Relation::SyntaxChild);
         if relations::service::class_of(rel) == relations::types::Class::Engine {
             let (_, names, tys) = run.catalog(name).ok_or("no engine schema")?;
             let cols: Vec<_> = names
@@ -366,6 +369,7 @@ fn bind<'p, L: FileSource>(
         (node,alts.iter().map(|(col,w)|(*col,u64::from(run.sym(w)))).collect())
     }).collect();
     Ok(Bound {
+        reads_fields,
         screenable: None,
         empty_frontier: None,
         filters,
@@ -654,7 +658,12 @@ pub(crate) fn visit<L: FileSource>(
                     file: id,
                     path: SourcePath(&source.path),
                     bytes: ByteSlice(&bytes),
-                    fields: l::FieldRequest::Wanted,
+                    // Later calls can widen the relations asked of a retained file.
+                    fields: if session_open || jobs.keys().any(|b| bound[b].as_ref().is_ok_and(|b| b.reads_fields)) {
+                        l::FieldRequest::Wanted
+                    } else {
+                        l::FieldRequest::Unwanted
+                    },
                     notes: if project_slots.is_empty() && !session_open {
                         l::NoteRequest::Unwanted
                     } else {
