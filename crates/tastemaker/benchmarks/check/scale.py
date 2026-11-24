@@ -128,7 +128,10 @@ def run(args):
     if args.heap:
         symbols = subprocess.check_output(["nm", "--defined-only", exe], text=True)
         ctl = next(line.split()[0] for line in symbols.splitlines() if line.endswith(" _rjem_mallctl"))
-        env.update(MAP_CTL=ctl, LD_PRELOAD=str(args.heap.resolve()), MAP_HEAP=str(prefix.with_suffix(".heap")))
+        # The interposer uses addresses from this executable. Do not load it
+        # into the taskset or time wrappers that measure the worker.
+        command = ["/usr/bin/env", f"MAP_CTL={ctl}", f"LD_PRELOAD={args.heap.resolve()}",
+                   f"MAP_HEAP={prefix.with_suffix('.heap')}", *command]
     try:
         with log.open("w+b") as stderr, stdout_path.open("wb") as stdout:
             measured = process(command, cwd=roots[0], stdout=stdout, stderr=stderr, env=env,
