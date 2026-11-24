@@ -1,3 +1,37 @@
+thread_local! {
+    static SESSIONS: std::cell::RefCell<HashMap<usize, Live>> = Default::default();
+}
+
+fn release_session(id: usize) {
+    SESSIONS.with(|sessions| drop(sessions.borrow_mut().remove(&id)));
+}
+
+fn execution(reason: String) -> sdk::LintError {
+    sdk::LintError::Execution { reason }
+}
+
+fn execute_round(
+    id: usize,
+    requests: Vec<sdk::LintRequest>,
+    languages: &sdk::Languages,
+    cache: &sdk::Cache,
+    workers: std::num::NonZeroUsize,
+) -> Vec<Reply> {
+    SESSIONS.with(|sessions| {
+        let mut sessions = sessions.borrow_mut();
+        let session = sessions.entry(id).or_default();
+        let directory = match cache {
+            sdk::Cache::At(path) => Some(path.as_path()),
+            _ => None,
+        };
+        if let Err(reason) = session.link_readers(languages).and_then(|()| session.use_cache(directory)) {
+            return requests.into_iter().map(|_| Err(execution(reason.clone()))).collect();
+        }
+        session.batch.workers = Some(workers);
+        session.lint(requests, languages)
+    })
+}
+
 // This cache accepts only immutable, parameterless requests with a pure report.
 // The version already identifies the normalized input bytes for Given authority.
 #[derive(PartialEq)]

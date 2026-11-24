@@ -29,18 +29,10 @@ use release_sdk::linked_sdk::{finding, report, unknown, unread};
 
 type Reply = Result<sdk::LintReport, sdk::LintError>;
 
-thread_local! {
-    static SESSIONS: std::cell::RefCell<HashMap<usize, Live>> = Default::default();
-}
-
 pub fn link_executor() {
     release_sdk::linked_sdk::link(execute, |id| {
-        measure_worker(|| SESSIONS.with(|sessions| drop(sessions.borrow_mut().remove(&id))));
+        measure_worker(|| release_session(id));
     });
-}
-
-fn execution(reason: String) -> sdk::LintError {
-    sdk::LintError::Execution { reason }
 }
 
 fn execute(
@@ -62,19 +54,7 @@ fn execute(
             key
         }).collect::<Vec<_>>()
     });
-    let answers = measure_worker(|| SESSIONS.with(|sessions| {
-        let mut sessions = sessions.borrow_mut();
-        let session = sessions.entry(id).or_default();
-        let directory = match cache {
-            sdk::Cache::At(path) => Some(path.as_path()),
-            _ => None,
-        };
-        if let Err(reason) = session.link_readers(languages).and_then(|()| session.use_cache(directory)) {
-            return requests.into_iter().map(|_| Err(execution(reason.clone()))).collect();
-        }
-        session.batch.workers = Some(workers);
-        session.lint(requests, languages)
-    }));
+    let answers = measure_worker(|| execute_round(id, requests, languages, cache, workers));
     if let Some(keys) = keys {
         for (key, answer) in keys.into_iter().zip(&answers) {
             eprintln!("TM_ROUND_DIGEST\t{key:x}\t{:x}", digest(answer));
