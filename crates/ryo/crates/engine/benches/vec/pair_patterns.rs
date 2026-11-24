@@ -201,3 +201,40 @@ impl Builder<'_> {
         Some((col.var, ids))
     }
 }
+
+/// Literal runs in a capture, ordered from the start to the end of the file path.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(in super::super) struct CapturePath(Box<[Box<[u8]>]>);
+
+impl CapturePath {
+    pub(super) fn from_pattern(mut rest: &str) -> Option<Self> {
+        let mut runs: Vec<Box<[u8]>> = Vec::new();
+        while let Some((prefix, slot)) = rest.split_once('{') {
+            runs.push(Box::from(prefix.as_bytes()));
+            rest = slot.split_once('}')?.1;
+        }
+        runs.push(Box::from(rest.as_bytes()));
+        runs.iter().any(|run| !run.is_empty()).then(|| Self(runs.into()))
+    }
+
+    pub(in super::super) fn allows(&self, path: &[u8]) -> bool {
+        let (prefix, rest) = self.0.split_first().expect("capture has a literal run");
+        let Some((suffix, interior)) = rest.split_last() else {
+            return path == prefix.as_ref();
+        };
+        let Some(mut body) = path.strip_prefix(prefix.as_ref())
+            .and_then(|tail| tail.strip_suffix(suffix.as_ref())) else { return false };
+        // Earliest occurrences leave the largest possible tail for later slots.
+        // Each slot needs one byte. The executor checks characters and separators.
+        for literal in interior {
+            let Some(after_slot) = body.get(1..) else { return false };
+            body = after_slot;
+            if !literal.is_empty() {
+                let Some(at) = body.windows(literal.len()).position(|w| w == literal.as_ref())
+                    else { return false };
+                body = &body[at + literal.len()..];
+            }
+        }
+        !body.is_empty()
+    }
+}

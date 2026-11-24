@@ -33,6 +33,17 @@ impl Exec<'_> {
         }
         Err("not a select".into())
     }
+    pub(super) fn pushed_condition(&mut self, run: &mut Run, node: usize) -> Option<E> {
+        let plan = self.plan;
+        let n = &plan.nodes[node];
+        let FinishStep::Select(s) = n.step() else { return None };
+        let ProbeMark::Filtered(condition) = &s.probe else { return None };
+        let sources = n.inputs.iter().enumerate().map(|(i, &source)| {
+            Ok((n.alias(i).map(str::to_owned), self.schema(run, source)?))
+        }).collect::<R<Vec<_>>>().ok()?;
+        self.typed_expr(run, condition, &sources).ok()
+    }
+
     pub(super) fn select_items(
         &self,
         run: &mut Run,

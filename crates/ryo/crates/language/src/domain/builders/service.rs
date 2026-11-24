@@ -120,6 +120,8 @@ pub fn discarding_builder<'a>(
     source: ByteSlice<'a>,
 ) -> TableBuilder<'a> {
     TableBuilder::from(BuilderEngine {
+        requested: None,
+        keep_decoded: true,
         elements,
         symbols,
         source,
@@ -192,6 +194,9 @@ pub fn decoded_token(
     }
     let text = token_name(builder, start, end);
     let element = pushed(builder.elements, kind, TOKEN, start, end, text);
+    if !builder.keep_decoded {
+        return;
+    }
     let table = engine_mut(builder.elements);
     let texts = &mut table.decoded_text;
     let from = Offset(u32::try_from(texts.0.len()).unwrap_or(u32::MAX));
@@ -282,6 +287,8 @@ pub fn table_builder<'a>(
     elements.flags.as_mut().values.reserve(expected);
     elements.text.as_mut().values.reserve(expected);
     TableBuilder::from(BuilderEngine {
+        requested: None,
+        keep_decoded: true,
         elements,
         symbols,
         source,

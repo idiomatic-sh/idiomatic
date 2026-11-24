@@ -15,6 +15,14 @@ cfg = workspace.read_text()
 k = "[patch.crates-io]\n"
 assert cfg.count(k) == 1
 workspace.write_text(cfg.replace(k,k+'idiomatic-sh-ryo-relations = { path = "../ryo/crates/relations" }\n'))
+# Keep SDK calls on a single scheduler thread. The in-process session owns its workers.
+for operation in ('check', 'validate'):
+    connections = release / f'crates/tastemaker/cli/src/resources/workspace/{operation}/connections.rs'
+    source = connections.read_text()
+    chooser = 'std::thread::available_parallelism().map_or(1, std::num::NonZero::get)'
+    assert source.count(chooser) == 1
+    connections.write_text(source.replace(chooser, '1'))
+
 adapter = core / 'src/outbound/analysis/adapters/ryo/adapter.rs'
 s = adapter.read_text()
 start = s.index('        let linter = self', s.index('    fn lint(&self,'))
@@ -34,9 +42,14 @@ s = s[:start] + '''        // Validation and the workspace check share the calle
         pool.install(|| SESSION.with(|s| {
             let mut session=s.borrow_mut();
             session.use_cache(self.cache.as_deref())?;
-            session.lint(sdk,&self.languages,budget)
+            session.lint(sdk,&self.languages,budget,tm_project_session::check_options())
         }))
-            .map(schemas::session_report)
+            .map(|report| {
+                let start = std::time::Instant::now();
+                let output = schemas::session_report(report);
+                tm_project_session::host_wall(tm_project_session::HostPhase::Conversion, start.elapsed().as_secs_f64());
+                output
+            })
             .map_err(engine)''' + s[end:]
 adapter.write_text(s)
 schema = adapter.with_name('schemas.rs')
@@ -65,7 +78,7 @@ def link_capture(release, library):
     s = manifest.read_text()
     deps = '[dependencies]\n'
     assert s.count(deps) == 1
-    manifest.write_text(s.replace(deps, deps + f'tm-project-session = {{ path = "{library}" }}\n'))
+    manifest.write_text(s.replace(deps, deps + f'rayon.workspace = true\ntm-project-session = {{ path = "{library}" }}\n'))
     main = cli / 'src/main.rs'
     s = main.read_text()
     declaration = 'fn main() -> std::process::ExitCode {'
@@ -101,6 +114,13 @@ fn main() -> std::process::ExitCode {
             arguments.next().expect("worker count").parse().expect("positive worker count")
         });
         assert!(arguments.next().is_none(), "unexpected batch argument");
+        // The one-worker replay enters from main. Let linked project jobs execute
+        // there so its phase clock accounts for the entire check.
+        if workers.or_else(|| std::thread::available_parallelism().ok())
+            .is_none_or(|n| n.get() == 1) {
+            rayon::ThreadPoolBuilder::new().num_threads(1).use_current_thread()
+                .build_global().expect("initialize one-worker replay");
+        }
         tm_project_session::capture_then(benchmark_languages::linked(), &manifest, &output, workers, || {
             std::io::Write::flush(&mut std::io::stdout()).expect("flush capture log");
             std::process::exit(0);
@@ -152,3 +172,46 @@ with lib.open('a') as out:
 main=cli/'main.rs'
 s=main.read_text().replace('#[path = "languages.rs"]\nmod benchmark_languages;\n\n','').replace('benchmark_languages::linked()', 'tastemaker_cli::benchmark_languages()')
 main.write_text(s)
+
+
+# The pinned command supplies typed options and accounts separately for host work.
+command = cli / 'resources/workspace/check/command.rs'
+s = command.read_text()
+field = '    pub(super) fix: bool,'
+assert s.count(field) == 1
+s = s.replace(field, field + """
+    /// Engine workers for this SDK check.
+    #[arg(long)]
+    pub(super) workers: Option<std::num::NonZeroUsize>,
+    /// Reverse the source list entering the SDK, for order checks.
+    #[arg(long, hide = true)]
+    pub(super) reverse_files: bool,
+""")
+edge = '    let request = super::schemas::request(arguments.paths,'
+assert s.count(edge) == 1
+s = s.replace(edge, """    tm_project_session::configure_bench_check(
+        arguments.workers, arguments.reverse_files,
+    );
+""" + edge)
+s = s.replace('    proved(&validate, edge)?;', """    let before = tm_project_session::host_snapshot();
+    let start = std::time::Instant::now();
+    let result = proved(&validate, edge);
+    let after = tm_project_session::host_snapshot();
+    tm_project_session::host_wall(
+        tm_project_session::HostPhase::Validation,
+        (start.elapsed().as_secs_f64() - (after.0 - before.0) - (after.1 - before.1)).max(0.),
+    );
+    result?;""")
+s = s.replace('.map(|report| super::schemas::answer(&report, format))', """.map(|report| {
+            let start = std::time::Instant::now();
+            let answer = super::schemas::answer(&report, format);
+            tm_project_session::host_wall(tm_project_session::HostPhase::Conversion, start.elapsed().as_secs_f64());
+            answer
+        })""")
+s = s.replace('Ok(answer) => crate::output::present(format, &answer, answer.ending()),', """Ok(answer) => {
+            let start = std::time::Instant::now();
+            let outcome = crate::output::present(format, &answer, answer.ending());
+            tm_project_session::host_wall(tm_project_session::HostPhase::Emission, start.elapsed().as_secs_f64());
+            outcome
+        },""")
+command.write_text(s)

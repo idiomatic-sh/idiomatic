@@ -5,6 +5,8 @@ pub(in super::super) mod certificate;
 pub(in super::super) mod demand;
 #[path = "session/contribution.rs"]
 pub(in super::super) mod contribution;
+#[path = "session/reuse.rs"]
+pub(in super::super) mod reuse;
 use super::population::Inputs;
 use super::{E, Exec, File, FileVersion, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};
 use std::{collections::BTreeMap, rc::Rc};
@@ -40,6 +42,7 @@ pub(in super::super) fn evaluate_covered(
     admit_file_subject: impl Fn(u32) -> bool,
     carried: &Inputs,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
+    mut memo: Option<(&mut reuse::Reuse, [usize; 3])>,
 ) -> R<Vec<answer::Row>> {
     let plan = exec.plan;
     // A supplied step has a consumer outside this operator chain. Optimizations
@@ -129,8 +132,15 @@ pub(in super::super) fn evaluate_covered(
         }
     }
 
+    let complete = incomplete.is_empty();
+    let mut zero = vec![false; plan.nodes.len()];
+    let mut deps = if complete && memo.as_ref().is_some_and(|(state, _)| state.enabled) { vec![reuse::VARIABLE; plan.nodes.len()] } else { Vec::new() };
     for (i, step) in plan.nodes.iter().enumerate() {
-        if !demanded[i] || carried.contains_key(&i) {
+        if let Some(input) = carried.get(&i) {
+            zero[i] = input.n == 0;
+            continue;
+        }
+        if !demanded[i] {
             continue;
         }
         let _schema = exec.schema(run, i)?;
@@ -160,6 +170,29 @@ pub(in super::super) fn evaluate_covered(
             }
             _ => {}
         }
+        if complete {
+            zero[i] = exec.run_memo[i].as_ref().map_or_else(
+                || reuse::empty(step, &zero),
+                |table| table.n == 0,
+            );
+            if !deps.is_empty() {
+                let mask = match step.base() {
+                    Some("filesystem.file") => reuse::INVENTORY,
+                    Some(name) if matches!(run.supplier(name), super::Supplier::Host) => reuse::HOST | reuse::INVENTORY,
+                    Some(_) => reuse::VARIABLE,
+                    None => step.inputs.iter().fold(0, |mask, &j| mask | (deps[j] & !reuse::RESTORED)),
+                };
+                deps[i] = mask;
+                if step.op != "base" && !zero[i]
+                    && let Some((memo, scope)) = memo.as_mut()
+                    && let Some(table) = memo.get(i, mask, *scope)
+                {
+                    zero[i] = table.n == 0;
+                    exec.run_memo[i] = Some(table);
+                    deps[i] |= reuse::RESTORED;
+                }
+            }
+        }
     }
     super::subject_scope::restrict(exec,run,carried,&admit_file_subject)?;
     let scratch = NodeTable::default();
@@ -170,7 +203,9 @@ pub(in super::super) fn evaluate_covered(
     // A supplied population is a materialized input, including for keyed and closure
     // kernels, which consult the frame before deciding to visit an input's children.
     for (node, table) in exec.run_memo.iter().enumerate() {
-        if let Some(table) = table {
+        if let Some(table) = table
+            && deps.get(node).is_none_or(|d| d & reuse::RESTORED == 0)
+        {
             frame.remember(node, super::Res::Tab(Rc::clone(table)));
         }
     }
@@ -179,7 +214,12 @@ pub(in super::super) fn evaluate_covered(
     }
     let mut rows = Vec::new();
     for (emit, (rule, node, subject, keys)) in plan.emits.iter().enumerate() {
-        let t = exec.eval(&mut frame, run, provider, *node)?;
+        let t = if complete && zero[*node] && frame.memo[*node].is_none() {
+            if let Some((memo, _)) = memo.as_mut() { memo.empty_emits += 1; }
+            exec.empty_rc(run, *node)?
+        } else {
+            exec.eval(&mut frame, run, provider, *node)?
+        };
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
@@ -204,6 +244,9 @@ pub(in super::super) fn evaluate_covered(
             if t.n == 1 { rows.push(row); } else { keep_finding(&mut seen, row); }
         }
         rows.extend(seen.into_values());
+    }
+    if let Some((memo, scope)) = memo {
+        memo.remember(&deps, scope, &frame.memo);
     }
     Ok(rows)
 }

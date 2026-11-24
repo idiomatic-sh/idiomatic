@@ -2319,11 +2319,10 @@ impl<'p> Exec<'p> {
             "capture" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let pc = from.col(s(&a["path"])?)?;
-                let caps = strs(&a["captures"])?;
-                // redo-honest: every split of the text into the slots (capture.rs), not the first regex match
                 let pattern = s(&a["pattern"])?;
-                let slot_names = capture::names(pattern);
-                let at: Vec<Option<usize>> = caps.map(|c| slot_names.iter().position(|n| n == c)).collect();
+                let Param::CaptureColumns(at) = &a["capture-columns"] else {
+                    return Err("unbound capture columns".into());
+                };
                 let separator = a.get("separator").and_then(Param::as_str);
                 let mut out = self.empty(run, node)?;
                 let equal = if f.after_last_file {
@@ -2331,7 +2330,7 @@ impl<'p> Exec<'p> {
                 } else {
                     Vec::new()
                 };
-                capture::write(run, &from, pc, pattern, separator, &at, f.after_last_file, &equal, &mut out)?;
+                capture::write(run, &from, pc, pattern, separator, at, f.after_last_file, &equal, &mut out)?;
                 Ok(out)
             }
             "group-ordinal" => {

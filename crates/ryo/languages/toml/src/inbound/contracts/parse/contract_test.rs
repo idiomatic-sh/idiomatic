@@ -13,6 +13,7 @@ use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 #[derive(Clone, Copy)]
 enum Given {
     Read(&'static str, &'static [u8], &'static [languages::Relation]),
+    Properties(languages::NodeAccess<'static>),
     Contract,
 }
 /// How many elements the file's table has, and how many entry rows were written; for the language contract, how many samples it
@@ -23,6 +24,24 @@ type Failure = languages::ParseError;
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("public_inspection_preserves_decoded_values"),
+        word: Word::Succeeds,
+        input: || Given::Properties(languages::NodeAccess::Inspect(&[])),
+        expect: Expect::Value((1, 1)),
+    },
+    Case {
+        name: CaseName("a_comment_query_keeps_raw_spelling"),
+        word: Word::Succeeds,
+        input: || Given::Properties(languages::NodeAccess::Query(&[languages::Relation::Comment])),
+        expect: Expect::Value((1, 0)),
+    },
+    Case {
+        name: CaseName("a_string_query_keeps_its_decoded_value"),
+        word: Word::Succeeds,
+        input: || Given::Properties(languages::NodeAccess::Query(&[languages::Relation::StringLiteral])),
+        expect: Expect::Value((1, 1)),
+    },
     Case {
         name: CaseName("parses_a_sample_file_into_the_wanted_relations"),
         word: Word::Succeeds,
@@ -49,9 +68,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
+/// The same source spelling is present for every scope. Only a value reader needs the decoded tab.
+fn properties(access: languages::NodeAccess<'_>) -> Result<Value, Failure> {
+    let bytes = languages::ByteSlice(b"answer = \"a\\tb\"\n");
+    let mut table = languages::Elements::default();
+    let mut words = languages::Symbols::default();
+    crate::linked().parse_engine().build_native_file(
+        languages::ParseRequest {
+            path: languages::SourcePath("example.toml"),
+            bytes,
+            file: languages::FileId(0),
+            fields: languages::FieldRequest::Unwanted,
+            notes: languages::NoteRequest::Unwanted,
+        },
+        &mut table,
+        &mut words,
+        access,
+    )?;
+    let raw = languages::positions(&table).filter(|&at| {
+        languages::text_of(&words, bytes, languages::text_at(&table, at))
+            .is_some_and(|value| value.0 == "\"a\\tb\"")
+    }).count();
+    let decoded = languages::positions(&table).filter(|&at| {
+        languages::decoded_at(&table, at).is_some_and(|value| value.0 == "a\tb")
+    }).count();
+    Ok((raw, decoded))
+}
+
 fn subject(given: Input) -> Result<Value, Failure> {
     let (path, bytes, wanted) = match given {
         Given::Read(path, bytes, wanted) => (path, bytes, wanted),
+        Given::Properties(access) => return properties(access),
         Given::Contract => {
             let language =
                 ParseContract::new(Arc::new(crate::outbound::syntax::factory::toml_parser()));

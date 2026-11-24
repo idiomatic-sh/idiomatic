@@ -15,6 +15,7 @@ import runpy
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -113,12 +114,18 @@ def contribution_edits(executable, scratch, env):
     manifest.write_text("".join(f"{i}\t{directory}\t{req}\tunused\t{inventory}\n"
                                 for i,directory in [("local",pack.parents[1]),("closed",second.parents[1])]))
     result = {}
-    for label,files in [("forward",[parent,child]),("reverse",[child,parent])]:
+    for label,files in [("forward",[parent,child]),("reverse",[child,parent]),("truncated-block",[parent,child])]:
         req.write_text(json.dumps(dict(root=str(root),files=files,parameters={},hosted=[])))
         inventory.write_text(json.dumps(files))
         cache=root/label
         for step,source in enumerate(["pass\n","def child(): return 2\n"]):
             (root/child).write_text(source)
+            if step and label == "truncated-block":
+                shards = list((cache / ".ryo_cache").glob("blocks-*.postcard"))
+                assert shards
+                for shard in shards:
+                    with shard.open("r+b") as f:
+                        f.truncate(1)
             reports=[]
             for mode in (["--tm-batch-retained",cache],["--tm-batch"],["--tm-batch-retained",cache]):
                 out=root/"out"
@@ -137,7 +144,7 @@ def contribution_edits(executable, scratch, env):
             else:
                 assert all(a!=b for a,b in zip(baseline,reports[0])),(label,baseline,reports[0])
                 result[label]=reports[0]
-    assert result["forward"]==result["reverse"]
+    assert result["forward"]==result["reverse"]==result["truncated-block"]
     return result["forward"]
 
 
@@ -194,7 +201,7 @@ def inherited_inventory(executable,scratch,env):
         if prior is not None:assert prior!=results[0]
         prior=results[0]
 
-FULL_CAPTURE_EDITS = ("unchanged", "comment", "answer-change", "same-stamp", "add", "delete",
+FULL_CAPTURE_EDITS = ("unchanged", "comment", "answer-change", "same-stamp", "young-stamp", "add", "delete",
                       "manifest", "host-table", "rule", "build", "refusal", "truncated")
 
 
@@ -264,7 +271,13 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
         if retain:
             counters.clear()
             counters.update((k.decode(), int(v)) for k, v in
-                            re.findall(rb"(request_hits|pair_hits|closed_hits|evaluated_pairs|evaluated_closed|pairs_read|project_read|missing_local_bindings|missing_frontier_bindings|written)=(\d+)", p.stderr))
+                            re.findall(rb"(request_hits|pair_hits|closed_hits|evaluated_pairs|evaluated_closed|pairs_read|project_read|blocks_read|missing_local_bindings|missing_frontier_bindings|written)=(\d+)", p.stderr))
+            stamps = re.search(rb"\bstamps stats=(\d+) hits=(\d+) young=(\d+) changed=(\d+)", p.stderr)
+            counters.update(zip(("stamp_stats", "stamp_hits", "stamp_young", "stamp_changed"), map(int, stamps.groups())))
+            observed_read = re.search(rb"observations source_reads=(\d+)", p.stderr)
+            counters["observed_source_reads"] = int(observed_read[1])
+            blocks = re.search(rb"block_table read=(\d+)", p.stderr)
+            counters["blocks_read"] = int(blocks[1]) if blocks else 0
             reads=re.search(rb"\breads=(\d+) parses=(\d+)",p.stdout)
             counters["reads"],counters["parses"]=map(int,reads.groups())
             assert "written" in counters, "retained run did not report its publication"
@@ -279,7 +292,7 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
         rows=contribution_edits(exe,Path(tmp),env)
         with (evidence/"contribution-matrix.tsv").open("w") as f:
             f.write("scenario\tstatus\tchanged_receipt\n")
-            for name,row in [("several-file",rows[0]),("closed-contribution",rows[1]),("same-edit-forward",rows[0]),("same-edit-reversed",rows[1])]:
+            for name,row in [("several-file",rows[0]),("closed-contribution",rows[1]),("same-edit-forward",rows[0]),("same-edit-reversed",rows[1]),("truncated-contribution",rows[1])]:
                 f.write(f"{name}\tPASS\t{row.decode()}\n")
         backup = Path(tmp) / "seed"
         original = invoke(exe, True)
@@ -302,6 +315,14 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
                         prior=path.stat()
                         write(path,bytes(b if b in (10,13) else 32 for b in path.read_bytes()))
                         os.utime(path,ns=(prior.st_atime_ns,prior.st_mtime_ns))
+                        assert path.stat().st_ctime_ns != prior.st_ctime_ns
+                elif case == "young-stamp":
+                    # A future mtime is ineligible regardless of which second
+                    # the process starts in. Bytes and the cold answer stay equal.
+                    for path in sources:
+                        prior = path.stat()
+                        write(path, path.read_bytes())
+                        os.utime(path, ns=(prior.st_atime_ns, time.time_ns() + 60_000_000_000))
                 elif case == "add":
                     for directory in (root,disk):
                         added=directory/extra
@@ -343,6 +364,10 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
                 ok=warm==cold==hit==reference and typed_equal and bool(truth)
                 if case in ("answer-change","same-stamp","delete","host-table"):
                     ok &= cold[0]!=original[0]
+                if case=="same-stamp":
+                    ok &= trial["stamp_changed"] > 0
+                if case=="young-stamp":
+                    ok &= trial["stamp_young"] > 0 and trial["observed_source_reads"] > 0 and cold == original
                 if case=="host-table":
                     changed=sum(a!=b for a,b in zip(cold[0].splitlines(),original[0].splitlines()))
                     ok &= 0 < changed < len(cold[0].splitlines()) and trial["request_hits"]>0
@@ -350,7 +375,7 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
                     ok &= bool(cold[1]) and any(r[0][0] is not None for r in truth.values())
                 if case == "unchanged":
                     ok &= trial["written"] == trial["evaluated_pairs"] == trial["evaluated_closed"] == 0
-                    ok &= trial["pairs_read"] == trial["project_read"] == 0 and trial["request_hits"]==len(truth)
+                    ok &= trial["pairs_read"] == trial["project_read"] == trial["blocks_read"] == 0 and trial["request_hits"]==len(truth)
                 if case=="comment":
                     ok &= trial["reads"]==trial["parses"]==1
                     ok &= trial["missing_local_bindings"]==trial["missing_frontier_bindings"]==0
@@ -360,10 +385,11 @@ def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
                 with (evidence/"session-matrix.tsv").open("a") as f:
                     w=csv.writer(f,delimiter="\t",lineterminator="\n")
                     if f.tell()==0:
-                        w.writerow(["scenario","pass","bytes","warm_sha256","cold_sha256","refusals","pairs_scheduled","closed_scheduled","written_B","typed_requests_checked","typed_equal","source_reads","source_parses","lower_table_read_B"])
+                        w.writerow(["scenario","pass","bytes","warm_sha256","cold_sha256","refusals","pairs_scheduled","closed_scheduled","written_B","typed_requests_checked","typed_equal","source_reads","source_parses","lower_table_read_B","stamp_stats","stamp_hits","stamp_young","stamp_changed"])
                     w.writerow([case,ok,len(cold[0]),hashlib.sha256(warm[0]).hexdigest(),
                                 hashlib.sha256(cold[0]).hexdigest(),len(cold[1]),
-                                trial["evaluated_pairs"],trial["evaluated_closed"],trial["written"],len(truth),typed_equal,trial["reads"],trial["parses"],trial["pairs_read"]+trial["project_read"]])
+                                trial["evaluated_pairs"],trial["evaluated_closed"],trial["written"],len(truth),typed_equal,trial["reads"],trial["parses"],trial["pairs_read"]+trial["project_read"]+trial["blocks_read"],
+                                trial["stamp_stats"],trial["stamp_hits"],trial["stamp_young"],trial["stamp_changed"]])
                 reset()
         finally:
             reset()

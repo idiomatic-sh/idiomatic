@@ -384,13 +384,17 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
         println!("VEC_NO_SKIP: checking every selected file/emit pair");
     }
     let mut wanted = Vec::new();
+    let mut literal_positions = std::cell::RefCell::new(super::pair_checks::LiteralPositions::default());
     let mut active = vec![0u64; plan.emits.len()];
     let mut elements = l::Elements::default();
     let mut table = l::NodeTable::default();
     let mut packet = packet::Packet::new();
     let mut coverage = coverage::Coverage::default();
     let mut symbols = l::Symbols::default();
+    let reader_relations: Vec<_> = relations.iter().copied()
+        .chain(std::iter::once(l::Relation::SyntaxTree)).collect();
     for (index, path) in req.files.iter().enumerate() {
+        literal_positions.get_mut().clear();
         if fin.retained_file(path) { continue; }
         let t0 = thread_cpu();
         let bytes = std::fs::read(Path::new(&req.root).join(path)).expect("read source");
@@ -403,7 +407,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
             notes: l::NoteRequest::Unwanted,
         };
         parser
-            .build_native_file(parse, &mut elements, &mut symbols, l::NodeAccess::Query(&relations))
+            .build_native_file(parse, &mut elements, &mut symbols, l::NodeAccess::Query(&reader_relations))
             .expect("parse file");
         if let Some(c) = &mut fin.capture { c.visited(path,&bytes); }
         let mut provider = reader::ReaderFacts::new(id.0, &unknown_words);
@@ -466,6 +470,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
                     ids: &provider.text,
                     symbols: &fin.run.texts,
                     dictionary: &fin.run.ids,
+                    positions: &literal_positions,
                     distinct: None,
                     patterns: None,
                     column: None,
