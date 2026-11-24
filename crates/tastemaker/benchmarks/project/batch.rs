@@ -428,6 +428,12 @@ impl Batch {
         self.local_bindings = Default::default();
         self.release_admission();
         let mut state = Active::default();
+        #[cfg(feature = "product-session")]
+        if let Some(bytes) = std::env::var_os("TM_BENCH_MEMORY_BYTES") {
+            let bytes: std::num::NonZeroU64 = bytes.to_str().expect("benchmark budget is text")
+                .parse().expect("benchmark budget is a positive byte count");
+            state.retention.configure(Some(bytes.get()), calls::allocated::bytes);
+        }
         self.epoch(readers, &mut state);
         state.answers
     }

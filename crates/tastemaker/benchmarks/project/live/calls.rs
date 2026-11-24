@@ -7,7 +7,7 @@ mod pinned;
 #[path = "call_cache.rs"]
 mod call_cache;
 #[path = "allocated.rs"]
-mod allocated;
+pub(super) mod allocated;
 use call_cache::{CallCache, PathFilter};
 use pinned::{Dictionary, Pinned};
 use release_sdk::linter as sdk;

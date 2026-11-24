@@ -27,3 +27,12 @@ The candidate runs in one process on one CPU. It runs the checkout’s registere
 Three cold paired runs per workspace are the default. A changing answer is unstable. An SDK unknown is partial. Use `--workspace` to select a workload and `--repeats` to change the number of pairs. To reuse separately built executables, replace the workers directory on the measure command with `--reader PATH --observer PATH`. The JSON report includes the measured commit, binary SHA-256s, every load reading and each run. A missing or extra receipt or a mismatching release report fails the measurement.
 
 Each workspace reports output bytes (candidate receipts and released SARIF) and retained store bytes/files. Each candidate starts in an empty directory. The release starts without a product store. Both inventories are taken after the process exits, before cleanup. Byte counts use logical file sizes. The temporary SDK trace and timing logs belong to the benchmark driver. Every repeat retains its counts in the JSON.
+
+
+## Workspace memory scale
+
+`scale.py` prepares 1×, 2× and 4× workloads from the same captured check. Each copy has a distinct repository and absolute input roots. Relative paths and cross-file project boundaries are preserved. The replay submits every request to one session. The live benchmark runs the normal check for each root with one shared analysis worker and retains the session across roots, as a long-lived caller would. One-process peak RSS is the gate.
+
+Build the linked worker with `../project/live/link-release.py`. Prepare the fixture in a fresh directory using `scale.py prepare --help` and the pinned live worktree, replay manifest and authority mapping. For each size run `scale.py run --help` once per mode under the same positive byte budget. Use a single CPU and reserve a large-memory slot for 2× and 4× while required. Measure baseline growth without applying the gate. For a candidate use the baseline's `--live-oracle` and original `--receipts`. The scale runner verifies all receipts per copy and the full live SARIF after normalizing only repository paths.
+
+`scale.py gate --output SERIES` passes when each mode answers the expected number of requests and its 4× RSS falls within 1 MiB or 0.5%, whichever is larger, of its 1× RSS. Each run records process CPU, the Ryo phase clocks, load and peak. Heap profiles are separate runs with `--heap`.

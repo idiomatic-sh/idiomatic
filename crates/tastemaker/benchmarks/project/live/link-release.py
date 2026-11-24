@@ -114,7 +114,35 @@ entry = release / "crates/tastemaker/cli/src/main.rs"
 s = entry.read_text()
 original = '    tastemaker_cli::resources::run(&start, &build.0)'
 assert s.count(original) == 1
-entry.write_text(s.replace(original, '    let result = tastemaker_cli::resources::run(&start, &build.0);\n    tm_project_session::print_measurement();\n    result'))
+entry.write_text(s.replace(original, """    let result = if mode.as_deref() == Some("--tm-check-roots") {
+        tastemaker_cli::resources::check_roots(arguments.collect(), &start, &build.0)
+    } else {
+        tastemaker_cli::resources::run(&start, &build.0)
+    };
+    tm_project_session::print_measurement();
+    result"""))
+resources = entry.with_name("resources.rs")
+with resources.open("a") as out:
+    out.write("""
+/// Run each independent root through the complete check in one process.
+pub fn check_roots(roots: Vec<String>, start: &str, build: &str) -> std::process::ExitCode {
+    report_panics();
+    if roots.is_empty() {
+        return std::process::ExitCode::from(2);
+    }
+    let mut status = 0;
+    for root in roots {
+        let args = ["tm", "check", "--format", "sarif", "--root", &root]
+            .into_iter().map(std::ffi::OsString::from).collect();
+        let outcome = std::panic::catch_unwind(|| run_from(args, start, build))
+            .unwrap_or(crate::outcome::Outcome::Error);
+        crate::output::progress::settle();
+        status = status.max(outcome.code());
+        if status == 2 { break; }
+    }
+    std::process::ExitCode::from(status)
+}
+""")
 
 # The benchmark replaces the released SDK constructor and reuses the CLI's reader factory.
 adapter = release / 'crates/tastemaker/crates/core/src/outbound/analysis/adapters/ryo/adapter.rs'
@@ -135,6 +163,12 @@ s=s[:start]+'''        mut settings: AnalysisSettings,
                 Memory::Bytes(current) => bytes.min(current.0),
             };
             settings.memory = Memory::Bytes(crate::outbound::analysis::types::MemoryBytes(limit));
+        }
+        // A scale series shares one worker and its Live session across roots.
+        if std::env::var_os("TM_BENCH_MULTIPLE_ROOTS").is_some() {
+            static POOL: std::sync::OnceLock<crate::outbound::scheduler::types::WorkerPool> =
+                std::sync::OnceLock::new();
+            settings.pool = POOL.get_or_init(|| settings.pool.clone()).clone();
         }
         Self { languages, settings, cache: match cache { ryo::linter::Cache::At(p) => Some(p), _ => None } }'''+s[end:]
 s=s.replace('self, error, operator_page, placed_columns, relation_page, report','self, operator_page, placed_columns, relation_page')

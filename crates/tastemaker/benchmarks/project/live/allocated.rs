@@ -9,7 +9,7 @@
         target_arch = "riscv64"
     )
 ))]
-pub(super) fn bytes() -> Option<u64> {
+pub(in super::super) fn bytes() -> Option<u64> {
     use std::cell::OnceCell;
     use std::ptr;
     std::thread_local! { static COUNTER: OnceCell<Option<*const u64>> = const { OnceCell::new() }; }
@@ -44,6 +44,6 @@ pub(super) fn bytes() -> Option<u64> {
         target_arch = "riscv64"
     )
 )))]
-pub(super) fn bytes() -> Option<u64> {
+pub(in super::super) fn bytes() -> Option<u64> {
     None
 }
