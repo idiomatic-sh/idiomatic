@@ -134,9 +134,13 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         req.check_file_context();
         Default::default()
     };
-    let read = lower::read_pack(Path::new(pack), context);
     let parser = language.parse_engine();
-    let plan = lower::second_half_plan(&read, true);
+    let (plan, typed, pack_read, pack_parse) = {
+        let read = lower::read_pack(Path::new(pack), context);
+        let plan = lower::second_half_plan(&read, true);
+        let typed = read.typed.take().expect("executor must hand over the typed plan");
+        (plan, typed, read.read, read.parse)
+    };
     let emits: BTreeSet<_> = plan.emits.iter().map(|emit| emit.0.as_str()).collect();
     for selected in &req.selected_rules {
         assert!(
@@ -200,19 +204,10 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     declaration.text_kinds = (0..kind_names.0.len())
         .map(|k| u16::try_from(k).expect("kind code"))
         .collect();
-    let typed = read
-        .typed
-        .take()
-        .expect("executor must hand over the typed plan");
     assert!(typed.unplanned.is_empty());
     let mut program =
         super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows, true);
-    let prepared: Vec<_> = program
-        .roots
-        .iter()
-        .map(|r| r.0.clone())
-        .zip(std::mem::take(&mut program.skips))
-        .collect();
+    let clauses_by_root = std::mem::take(&mut program.skips);
     drop(typed);
     let summaries_cpu = thread_cpu() - summaries_start;
     run.empty = run.sym(b"");
@@ -233,7 +228,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     let mut kinds = Names::default();
     let mut fields = Names::default();
     let mut words = Names::default();
-    for (_, (_, clauses, _)) in &prepared {
+    for (_, clauses, _) in &clauses_by_root {
         for name in clauses.iter().flatten() {
             let (tag, term) = name.split_once(':').expect("tagged vocabulary name");
             let id = run.sym(term.as_bytes());
@@ -244,11 +239,12 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             }
         }
     }
-    let source: HashMap<_, _> = prepared.iter().map(|(r, skip)| (r, skip)).collect();
+    let source: HashMap<_, _> = program.roots.iter().map(|(rule, _)| rule.as_str())
+        .zip(&clauses_by_root).collect();
     let mut syntax = Vec::new();
     let mut spellings: Vec<Vec<Vec<Vec<u16>>>> = Vec::new();
     for emit in &plan.emits {
-        let (never, clauses, word_clauses) = source[&emit.0];
+        let (never, clauses, word_clauses) = source[emit.0.as_str()];
         let mut masks = Vec::new();
         for clause in clauses {
             let mask = |prefix: &str, names: &Names| {
@@ -281,6 +277,8 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         kinds.width(),
         fields.width(),
     );
+    drop(source);
+    drop((clauses_by_root, syntax, spellings));
     // The parser needs the union of declared relations before its first file. A particular
     // emit's transitive relation mask is needed only when a file first asks for that emit.
     let mut base_facts = vec![None; plan.nodes.len()];
@@ -350,7 +348,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     let startup = thread_cpu() - start;
     println!(
         "startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}",
-        read.read, read.parse, summaries_cpu
+        pack_read, pack_parse, summaries_cpu
     );
     let mut memory = Memory {
         enabled: std::env::var_os("VEC_PHASE_RSS").is_some(),
