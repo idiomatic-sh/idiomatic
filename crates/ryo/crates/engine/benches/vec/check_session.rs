@@ -68,6 +68,8 @@ impl Program {
 pub(crate) struct Clock {
     pub prepare: f64,
     pub read_parse: f64,
+    pub(crate) read_versions: f64,
+    pub(crate) build_file: f64,
     pub screen: f64,
     pub evaluate: f64,
     pub project: f64,
@@ -347,7 +349,7 @@ pub(crate) fn visit(
     let mut elements = l::Elements::default();
     let mut symbols = l::Symbols::default();
     let mut tree = l::NodeTable::default();
-    let mut rows = l::contract::Collect::default();
+    let mut packet = reader_run::packet::Packet::new();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
     for &index in selected {
         by_path.entry(&sources[index].path).or_default().push(index);
@@ -355,7 +357,9 @@ pub(crate) fn visit(
     for group in by_path.values() {
         let t = thread_cpu();
         let versions = versions(group, sources, answers, aliases, &mut clocks.reads);
-        clocks.read_parse += thread_cpu() - t;
+        let elapsed = thread_cpu() - t;
+        clocks.read_versions += elapsed;
+        clocks.read_parse += elapsed;
         for Version {
             origin: index,
             data: bytes,
@@ -411,6 +415,7 @@ pub(crate) fn visit(
                 // still exist and no source reader contributes syntax or semantic rows.
                 Ok(())
             };
+            clocks.build_file += thread_cpu() - t;
             if let Err(reason) = result {
                 for &slot in jobs.values() {
                     answers[slot] = Err(reason.clone());
@@ -518,7 +523,7 @@ pub(crate) fn visit(
                 .flat_map(|(b, _)| bound[b].as_ref().unwrap().facts.iter().copied())
                 .collect();
             let facts: Vec<_> = wanted.into_iter().collect();
-            rows.clear();
+            packet.clear();
             if let Some(parser) = &parser
                 && !facts.is_empty()
             {
@@ -528,11 +533,12 @@ pub(crate) fn visit(
                     ByteSlice(&bytes),
                     id,
                     &facts,
-                    &mut rows,
+                    &mut packet.rows,
                 );
             }
-            let partials = std::mem::take(&mut rows.partials);
-            provider.receive(&mut run, &facts, &rows, &symbols, &bytes);
+            let partials = std::mem::take(&mut packet.rows.partials);
+            packet.index(&facts);
+            let mut view = packet.view(&mut provider, &symbols, &bytes);
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
             let lines = active
@@ -568,7 +574,7 @@ pub(crate) fn visit(
                     id.0,
                     &tree,
                     &bytes,
-                    &mut provider,
+                    &mut view,
                     b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
                 );
             }
