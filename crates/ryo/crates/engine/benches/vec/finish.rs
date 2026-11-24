@@ -732,14 +732,7 @@ impl Drop for File<'_> {
         // a substitution's restore never leaves an entry `res` did not set (checked where it is cheap)
         debug_assert!(memo.iter().all(Option::is_none));
         known.fill(0);
-        SPARE.with_borrow_mut(|slot| {
-            let previous=std::mem::replace(slot,(memo,known,touched));
-            if !previous.0.is_empty() && previous.0.len()==slot.0.len() {
-                PARTITION_MEMOS.with_borrow_mut(|spares| {
-                    if spares.len()<8 {spares.push(previous);}
-                });
-            }
-        });
+        SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
         // redo-alloc: the file's buffers and maps emptied and kept for the next file
         let mut b = FileBufs {
             vrows: std::mem::take(&mut self.vrows),
@@ -802,6 +795,18 @@ pub(super) trait Provider {
 impl<'a> std::ops::Deref for File<'a> {
     type Target = FileVersion<'a>;
     fn deref(&self) -> &Self::Target { self.version }
+}
+
+/// The next frame in a multi-file batch can reuse its sibling's previous
+/// slot storage. Singleton visitors retain only their ordinary one-file spare.
+pub(super) fn return_sibling_memo() {
+    PARTITION_MEMOS.with_borrow_mut(|siblings| {
+        if siblings.len() < 3 {
+            SPARE.with_borrow_mut(|previous| {
+                if !previous.0.is_empty() { siblings.push(std::mem::take(previous)); }
+            });
+        }
+    });
 }
 
 pub(super) fn release_batch_memos() { PARTITION_MEMOS.with_borrow_mut(Vec::clear); }

@@ -511,10 +511,7 @@ impl Exec<'_> {
     /// redo-select2: the kernels' entry for a whole run (from `empty_sel::select_entry`): the step's shared table out.
     pub(super) fn select_kr(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
         let prep = self.ksel_prep(run, node)?;
-        let mut scratch=take_bufs();
-        let result=self.select_partition(f,run,p,node,&prep,&mut scratch);
-        give_bufs(scratch);
-        result
+        self.select_partition(f, run, p, node, &prep, None)
     }
 
     /// Select once for an ordered set of file partitions. A partition supplies
@@ -550,7 +547,7 @@ impl Exec<'_> {
         } else { None };
         let result=single.unwrap_or_else(||ready.iter().map(|(id,_)|lanes[*id].enter(run,|f,r,p|{
             if let Some(index)=projection { return self.col_select(f,r,p,node,index); }
-            self.select_partition(f,r,p,node,&prep,&mut scratch)
+            self.select_partition(f,r,p,node,&prep,Some(&mut scratch))
         })).collect());
         give_bufs(scratch);
         result
@@ -599,15 +596,11 @@ impl Exec<'_> {
         Ok(Some(JoinSegment{source,driver,key:cols[driver],index,out:self.empty(run,node)?}))
     }
 
-    fn select_partition(&mut self, f:&mut File<'_>,run:&mut Run,p:&mut dyn Provider,node:usize,prep:&Prep,b:&mut Bufs) -> R<Rc<Table>> {
+    fn select_partition(&mut self, f:&mut File<'_>,run:&mut Run,p:&mut dyn Provider,node:usize,prep:&Prep,scratch:Option<&mut Bufs>) -> R<Rc<Table>> {
         let Prep::K(kp) = prep else {
             let t = self.select(f, run, p, node)?;
             return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
         };
-        if let Some(mut segment)=self.made_join(run,f,node,kp)? {
-            join_segments(std::slice::from_mut(&mut segment),&kp.items);
-            return Ok(super::recycle::rc(segment.out));
-        }
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
             if super::filter_order::file_fails(run, f, &sp.conj) {
@@ -620,7 +613,15 @@ impl Exec<'_> {
                 return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
             }
         }
-        self.ksel_run(f, run, p, node, kp, b, None)
+        if let Some(b) = scratch {
+            return self.ksel_run(f, run, p, node, kp, b, None);
+        }
+        // A singleton can recurse into another select while evaluating its
+        // band. Take a row buffer only once this operator needs its own.
+        let mut b = take_bufs();
+        let result = self.ksel_run(f, run, p, node, kp, &mut b, None);
+        give_bufs(b);
+        result
     }
 
     /// redo-whole pass 2 (keyed.rs): the source of a two-source select read by the other's keys in place of made whole:

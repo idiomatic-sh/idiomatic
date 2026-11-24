@@ -719,8 +719,16 @@ pub(crate) fn visit<L: FileSource>(
     let mut pending = Vec::new();
     let mut packets = Vec::new();
     let mut charge = 0usize;
+    const INPUT_BUDGET: usize = 4 * 1024 * 1024;
     let mut batch_demand = finish::batch::Demand::default();
     let width = std::env::var("VEC_BATCH_FILES").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(4).clamp(1, 32);
+    // Empty sibling packets also own allocation capacity. Keep one fair share
+    // per idle packet, reserving half the input budget for active versions.
+    let spare_words = INPUT_BUDGET / (2 * width * size_of::<u64>());
+    macro_rules! return_packets {
+        () => { packets.extend(pending.drain(..).map(|f| f.facts)
+            .filter(|p| p.rows.words.capacity() <= spare_words)); }
+    }
     macro_rules! flush {
         () => {
             file_batch::execute::<L>(&mut pending,&mut batch_demand,&mut exec,&mut run,&supplied,&mut bound,programs,program_of,cut_of,
@@ -1100,8 +1108,8 @@ pub(crate) fn visit<L: FileSource>(
                 .saturating_add(packet.rows.words.capacity().saturating_mul(8))
                 .saturating_add(plan.nodes.len().saturating_mul(32));
             clocks.evaluate += thread_cpu() - t;
-            if !pending.is_empty() && charge.saturating_add(cost) > 4 * 1024 * 1024 {
-                flush!(); packets.extend(pending.drain(..).map(|f| f.facts)); charge = 0;
+            if !pending.is_empty() && charge.saturating_add(cost) > INPUT_BUDGET {
+                flush!(); return_packets!(); charge = 0;
             }
             let t = thread_cpu();
             charge = charge.saturating_add(cost);
@@ -1112,10 +1120,10 @@ pub(crate) fn visit<L: FileSource>(
                 provider, lines, active, jobs:work,
             });
             clocks.evaluate += thread_cpu() - t;
-            if keep || pending.len() >= width || world.boundaries.is_some() || cost >= 4 * 1024 * 1024 {
+            if keep || pending.len() >= width || world.boundaries.is_some() || cost >= INPUT_BUDGET {
                 flush!();
                 let last = pending.pop().expect("current file");
-                packets.extend(pending.drain(..).map(|f| f.facts));
+                return_packets!();
                 charge = 0;
                 held.tree = last.tree;
                 held.symbols = last.symbols;

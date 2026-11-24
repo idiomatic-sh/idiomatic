@@ -143,6 +143,7 @@ pub(super) fn execute<L: FileSource>(
             }
         }
     }
+    let siblings = frames.len();
     for ((index, words, mut provider, fields, lines, active, jobs), (v, mut frame)) in
         work.into_iter().zip(versions.iter().zip(frames))
     {
@@ -221,6 +222,7 @@ pub(super) fn execute<L: FileSource>(
             );
         }
         std::mem::swap(fields, &mut run.field_sym);
+        demand.finish_partition(siblings);
     }
     clocks.evaluate += thread_cpu() - start;
 }

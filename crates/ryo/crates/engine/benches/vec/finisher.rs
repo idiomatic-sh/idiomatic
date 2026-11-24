@@ -168,8 +168,9 @@ impl<'p> Finisher<'p> {
         // and native visitors enter the same partition scheduler.
         let mut fields = std::mem::take(&mut run.field_sym);
         let root = std::mem::take(&mut run.root_dir);
+        let mut demand = finish::batch::Demand::default();
         let mut lane = finish::batch::Lane { frame: &mut f, facts: pv, fields: &mut fields, root: &root };
-        self.exec.prime_batch(run, std::slice::from_mut(&mut lane), &mut finish::batch::Demand::default(), |d| {
+        self.exec.prime_batch(run, std::slice::from_mut(&mut lane), &mut demand, |d| {
             for &i in wanted {
                 if !self.failed_idx[i] && !(rejected && self.accepted_only[i]) {
                     d.include(plan.emits[i].1, 1);
@@ -243,6 +244,7 @@ impl<'p> Finisher<'p> {
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
         self.exec.cold_end(&mut f, run);
+        demand.finish_partition(1);
     }
 
     /// Write final findings, dumps and statistics after the last file.

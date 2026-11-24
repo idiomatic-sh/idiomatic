@@ -18,6 +18,9 @@ impl Demand {
     pub(in super::super) fn include(&mut self, node: usize, files: u32) {
         self.select(node, files, true);
     }
+    pub(in super::super) fn finish_partition(&self, siblings: usize) {
+        if siblings > 1 { super::return_sibling_memo(); }
+    }
     fn pop(&mut self) -> Option<usize> {
         loop {
             let word = self.pending.get_mut(self.highest)?;
