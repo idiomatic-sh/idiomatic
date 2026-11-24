@@ -149,6 +149,7 @@ impl<'p> Settings<'p> {
 }
 
 pub(crate) struct Report {
+    project: Vec<(String, [u64; 3])>,
     findings: finish::json_output::Findings,
     failures: HashMap<String, (usize, String)>,
     rule_stats: Vec<[u64; 3]>,
@@ -175,6 +176,7 @@ impl Finisher<'_> {
 
     fn into_report(self) -> Report {
         Report {
+            project: self.run.project.into_iter().map(|(name, answer)| (name, answer.asks)).collect(),
             findings: self.findings,
             failures: self.failed,
             rule_stats: self.rule_stats,
@@ -192,6 +194,9 @@ impl Finisher<'_> {
         }
     }
     pub(crate) fn merge(&mut self, r: Report) {
+        for (name, asks) in r.project {
+            sum(&mut self.run.project.entry(name).or_default().asks, &asks);
+        }
         self.findings.merge(r.findings);
         for (rule, failure) in r.failures {
             let slot = self.failed.entry(rule).or_insert_with(|| failure.clone());

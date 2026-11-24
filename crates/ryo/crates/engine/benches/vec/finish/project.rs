@@ -24,7 +24,7 @@ pub(in super::super) struct Answered {
     by_file: FxHashMap<u64, Vec<u32>>,
     asked: Vec<bool>,
     /// The provider's answers: asks, the files their scopes named, rows.
-    asks: [u64; 3],
+    pub(in super::super) asks: [u64; 3],
 }
 
 /// A complete project answer has stable file ordinals. Only symbol cells
@@ -87,7 +87,9 @@ pub(in super::super) fn for_file(file: u32, run: &mut Run, rel: &str, ask: Proje
         let answer = slot.get_or_init(|| {
             let scope: Vec<_> = (0..files as u32).collect();
             let table = fill(run, &scope)?;
-            Closed::capture(&table,run,rel,shared.prefix)
+            let answer = Closed::capture(&table,run,rel,shared.prefix)?;
+            run.project.entry(rel.to_owned()).or_default().asks = [1, files as u64, table.n as u64];
+            Ok(answer)
         }).as_ref().map_err(Clone::clone)?;
         let (_,names,types) = run.catalog(rel).ok_or_else(|| format!("no schema for {rel}"))?;
         return Ok(answer.table.slice(run,&answer.by_file[file as usize],names,types));
