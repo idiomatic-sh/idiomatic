@@ -10,7 +10,7 @@ type Selection = (usize, usize, usize, usize);
 
 pub(super) enum PathFilter {
     Literals(Vec<Box<str>>),
-    Patterns(GlobSet),
+    Patterns { set: GlobSet, prefixes: Vec<Box<str>> },
 }
 
 impl PathFilter {
@@ -38,7 +38,9 @@ impl PathFilter {
                     .map_err(|e| e.to_string())?,
             );
         }
-        Ok(Self::Patterns(builder.build().map_err(|e| e.to_string())?))
+        let set = builder.build().map_err(|e| e.to_string())?;
+        let prefixes = path_prefixes(names).unwrap_or_default();
+        Ok(Self::Patterns { set, prefixes })
     }
 
     fn candidates(&self) -> Option<&[Box<str>]> {
@@ -48,13 +50,60 @@ impl PathFilter {
         }
     }
 
+    fn prefix_ranges(&self, inventory: &[String]) -> Option<Vec<std::ops::Range<usize>>> {
+        let Self::Patterns { prefixes, .. } = self else {
+            return None;
+        };
+        // On a small inventory the binary searches can exceed the cost of a scan.
+        if prefixes.is_empty()
+            || prefixes.len() * (inventory.len().max(1).ilog2() as usize + 1) >= inventory.len()
+        {
+            return None;
+        }
+        Some(prefixes.iter().map(|prefix| {
+            let start = inventory.partition_point(|path| path.as_str() < prefix.as_ref());
+            let end = start + inventory[start..].partition_point(|path| path.starts_with(prefix.as_ref()));
+            start..end
+        }).collect())
+    }
+
     fn matches(&self, path: &str, empty_matches: bool) -> bool {
         match self {
             Self::Literals(paths) if paths.is_empty() => empty_matches,
             Self::Literals(paths) => paths.binary_search_by(|p| p.as_ref().cmp(path)).is_ok(),
-            Self::Patterns(set) => (empty_matches && set.is_empty()) || set.is_match(path),
+            Self::Patterns { set, .. } => (empty_matches && set.is_empty()) || set.is_match(path),
         }
     }
+}
+
+/// A prefix bounds the candidate range. The original matcher still decides every
+/// candidate, including directory recursion and negated character classes.
+fn path_prefixes(names: &[sdk::Glob]) -> Option<Vec<Box<str>>> {
+    if !cfg!(unix) {
+        return None;
+    }
+    let mut prefixes = Vec::<Box<str>>::with_capacity(names.len());
+    for name in names {
+        let pattern = name.as_ref();
+        if pattern.contains(['{', '}', '\\']) {
+            return None;
+        }
+        let prefix = pattern.split(['*', '?', '[']).next().unwrap();
+        // A recursive suffix can also recognize the directory without its slash.
+        let prefix = prefix.trim_end_matches('/');
+        if prefix.is_empty() {
+            return None;
+        }
+        prefixes.push(prefix.into());
+    }
+    prefixes.sort_unstable();
+    let mut distinct: Vec<Box<str>> = Vec::new();
+    for prefix in prefixes {
+        if !distinct.last().is_some_and(|prior| prefix.starts_with(prior.as_ref())) {
+            distinct.push(prefix);
+        }
+    }
+    Some(distinct)
 }
 
 #[derive(Default)]
@@ -67,6 +116,7 @@ pub(super) struct CallCache {
     rows: Vec<std::sync::Arc<[HostCell]>>,
     by_hash: HashMap<(usize, u64), Vec<usize>>,
     tables: HashMap<(usize, Vec<usize>), Hosted>,
+    pub(super) pattern_visits: [usize; 4],
 }
 
 impl CallCache {
@@ -124,11 +174,24 @@ impl CallCache {
                 .filter(|p| inventory.binary_search_by(|v| v.as_str().cmp(p)).is_ok())
                 .filter(admits)
                 .collect(),
-            _ => inventory
-                .iter()
-                .map(String::as_str)
-                .filter(admits)
-                .collect(),
+            _ => {
+                let candidates = [request.prefix_ranges(&inventory), include.prefix_ranges(&inventory)];
+                self.pattern_visits[3] += 2 * candidates.iter().flatten().map(Vec::len).sum::<usize>();
+                let ranges = candidates.into_iter()
+                    .flatten()
+                    .min_by_key(|ranges| ranges.iter().map(|range| range.len()).sum::<usize>());
+                self.pattern_visits[0] += inventory.len();
+                if let Some(ranges) = ranges {
+                    let count = ranges.iter().map(|range| range.len()).sum::<usize>();
+                    self.pattern_visits[1] += count;
+                    self.pattern_visits[2] += 1;
+                    ranges.into_iter().flat_map(|range| &inventory[range])
+                        .map(String::as_str).filter(admits).collect()
+                } else {
+                    self.pattern_visits[1] += inventory.len();
+                    inventory.iter().map(String::as_str).filter(admits).collect()
+                }
+            }
         };
         let id = self.intern_paths(&selected);
         self.selections.insert(key, id);
