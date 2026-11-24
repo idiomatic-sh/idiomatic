@@ -325,3 +325,14 @@ for binary, name in (("vec", "python"), ("vec_ts", "typescript"), ("vec_rust", "
             p.native_provider = Some(native_python::linked_with_fact_inputs(native_python::settings::PythonParserSettings::new(native_python::settings::PythonTargetVersion::Py310), native_python::fixtures::named_inputs::Lists::load(_pack)?)); p })''')
         source = source.replace('p.native_provider = Some(native_python::linked());', 'p.native_provider = Some(native_python::linked_with_fact_inputs(native_python::settings::PythonParserSettings::default(), native_python::fixtures::named_inputs::Lists::load(_pack)?));')
     file.write_text(source)
+
+# Each executable owns the allocator selected by the release. Keep its platform
+# configuration in one shared source, including the release's Windows allocator.
+main_source = main.read_text()
+start = main_source.index("/// The allocator on Windows:")
+end = main_source.index("fn main()", start)
+(cli / "allocator.rs").write_text(main_source[start:end])
+main.write_text(main_source[:start] + "mod allocator;\n\n" + main_source[end:])
+for binary in ("vec", "vec_ts", "vec_rust"):
+    entry = cli / "bin" / (binary + ".rs")
+    entry.write_text('#[path = "../allocator.rs"]\nmod allocator;\n' + entry.read_text())
