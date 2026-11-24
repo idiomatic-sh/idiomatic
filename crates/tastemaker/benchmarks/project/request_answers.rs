@@ -4,7 +4,7 @@ use super::super::Receipt;
 use super::{Key, Value, finish, key, kind, session};
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     fs,
     io::Read,
     os::unix::fs::MetadataExt,
@@ -63,6 +63,8 @@ pub(super) struct Observations {
     pub inventory: Key,
     pub overlay: HashMap<PathBuf, Key>,
     pub groups: HashMap<Key, Option<Key>>,
+    effective_groups: HashSet<Key>,
+    inventory_groups: HashSet<Key>,
 }
 impl Observations {
     pub fn overlay(
@@ -72,15 +74,32 @@ impl Observations {
         peers: Key,
         values: &BTreeMap<String, std::sync::Arc<[u8]>>,
     ) {
-        self.root = Some(root.to_owned());
-        self.inventory = key((inventory, peers));
-        self.overlay = values
+        let overlay = values
             .iter()
             .map(|(p, data)| (p.into(), *blake3::hash(data).as_bytes()))
             .collect();
-        self.groups.clear();
-        self.values
-            .retain(|(_, mode), _| !matches!(mode, Probe::Effective | Probe::Inventory));
+        let effective_changed = self.root.as_deref() != Some(root) || self.overlay != overlay;
+        let inventory = key((inventory, peers));
+        let inventory_changed = self.inventory != inventory;
+        if effective_changed {
+            self.overlay = overlay;
+            self.root = Some(root.to_owned());
+            for id in self.effective_groups.drain() {
+                self.groups.remove(&id);
+            }
+        }
+        if inventory_changed {
+            self.inventory = inventory;
+            for id in self.inventory_groups.drain() {
+                self.groups.remove(&id);
+            }
+        }
+        if effective_changed || inventory_changed {
+            self.values.retain(|(_, mode), _| {
+                !(effective_changed && *mode == Probe::Effective
+                    || inventory_changed && *mode == Probe::Inventory)
+            });
+        }
     }
     pub fn observe(&mut self, p: &Path, mode: Probe) -> Option<Key> {
         if matches!(mode, Probe::Inventory) {
@@ -165,6 +184,19 @@ impl Observations {
             })
             .collect::<Option<Vec<_>>>()
             .map(key);
+        if self.root.is_some() {
+            for &(_, mode) in paths {
+                match mode {
+                    Probe::Inventory => {
+                        self.inventory_groups.insert(id);
+                    }
+                    Probe::Effective => {
+                        self.effective_groups.insert(id);
+                    }
+                    _ => {}
+                }
+            }
+        }
         self.groups.insert(id, result);
         result
     }
