@@ -63,7 +63,8 @@ impl Packet {
         words: &mut FileWords,
         out: &mut FilledColumns,
     ) -> bool {
-        if self.rows.partials.iter().any(|(r, _, _)| *r == relation)
+        if self.has_rows(relation).is_none()
+            || self.rows.partials.iter().any(|(r, _, _)| *r == relation)
             || self.rows.partials_at.iter().any(|(r, _, _)| *r == relation)
         {
             return false;

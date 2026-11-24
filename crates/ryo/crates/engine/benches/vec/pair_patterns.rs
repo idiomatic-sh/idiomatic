@@ -115,6 +115,16 @@ impl Builder<'_> {
         let re = if let Some(regexes) = translated {
             self.regex(&regexes.join("|"))?
         } else {
+            if !matches!(col.attr, Attribute::FilePath | Attribute::Kind)
+                && patterns
+                    .iter()
+                    .any(|s| !s.is_ascii() || s.contains(['?', '[', '\\']) || s.contains("**/"))
+                && !patterns
+                    .iter()
+                    .all(|s| super::regexes::required_literal(s).is_some())
+            {
+                return None;
+            }
             let key: Vec<_> = patterns.iter().map(|s| (*s).to_owned()).collect();
             let slots = &mut self.out.regexes;
             *self.glob_slots.entry(key).or_insert_with_key(|patterns| {

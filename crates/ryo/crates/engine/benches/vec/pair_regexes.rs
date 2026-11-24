@@ -25,7 +25,7 @@ impl Matcher {
 }
 /// A brace-free glob must contain each literal run outside a character class.
 /// Decline unfamiliar syntax. The matching service decides all surviving values.
-fn required_literal(glob: &str) -> Option<&str> {
+pub(super) fn required_literal(glob: &str) -> Option<&str> {
     if !glob.is_ascii() || glob.contains(['{', '}', '\\']) || glob.contains("**/") {
         return None;
     }
