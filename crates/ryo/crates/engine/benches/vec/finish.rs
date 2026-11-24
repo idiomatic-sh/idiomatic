@@ -1181,6 +1181,10 @@ pub(super) struct Stats {
     pub(super) static_visits: u64,
     /// redo-whole pass 2: visits of steps with no leaf of their own (decided by their inputs alone).
     pub(super) static_pass: u64,
+    /// ... of which unions (empty when every input is), and the decisions asked from outside (a step's own ask).
+    pub(super) static_all: u64,
+    pub(super) static_asks: u64,
+    pub(super) static_made_skips: u64,
     pub(super) static_file_tests: u64,
     pub(super) rec_time: f64,
     pub(super) rec_busy: bool,
@@ -1390,7 +1394,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
+            stats: Stats { total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_all: 0, static_asks: 0, static_made_skips: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
