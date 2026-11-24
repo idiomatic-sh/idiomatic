@@ -55,6 +55,8 @@ def build(manifest, target, dest, arguments, products):
             name = artifact.get("target", {}).get("name")
             exe = artifact.get("executable")
             if exe and name in products:
+                if artifact["fresh"]:
+                    raise RuntimeError(f"Cargo reused {name} across staged benchmark builds")
                 shutil.copy2(exe, dest / products[name])
                 found.add(name)
         if found != set(products):
@@ -88,6 +90,7 @@ def reference(stage, target, dest, tag):
     codec = imports.replace("path::{Path, PathBuf}", "path::PathBuf") + "#[derive(serde::Deserialize)]\nstruct Hosted {" + hosted
     allocator = (cli / "src/main.rs").read_text().split("fn main()")[0]
     (cli / "src/case_reference.rs").write_text(allocator + codec.replace("//!", "//") + (HERE / "worker/reference.rs.in").read_text())
+    (cli / "src/main.rs").touch()
     build(tm / "Cargo.toml", target, dest,
           ["build", "--profile", "bench", "-p", "idiomatic-sh-tastemaker", "--bin", "tm", "--bin", "tm-case-reference"],
           {"tm": "tm-observer", "tm-case-reference": "tm-case-reference"})
@@ -95,6 +98,9 @@ def reference(stage, target, dest, tag):
 
 def candidate(stage, target, dest):
     archive("HEAD", stage, ["crates/ryo", "crates/tastemaker/benchmarks/project"])
+    # Git archives carry commit timestamps. Cargo can reuse a newer executable
+    # from a different staged checkout when both use the same target directory.
+    (stage / "crates/ryo/cli/benches/readers/bench.rs").touch()
     build(stage / "crates/ryo/Cargo.toml", target, dest,
           ["bench", "--no-run", "--locked", "-p", "idiomatic-sh-ryo", "-p", "idiomatic-sh-ryo-python",
            "--features", "idiomatic-sh-ryo-python/fixtures", "--bench", "vec-readers"],
