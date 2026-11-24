@@ -311,9 +311,11 @@ impl Checks {
                 witnesses[2] += 1;
                 continue;
             }
-            if left_absent && crate::finish::session::certificate::certified_empty_left(
-                &mut crate::finish::Exec::new(b.plan), run, &b.hosted,
-            ).is_ok() {
+            if left_absent && *b.screenable_left.get_or_insert_with(|| {
+                crate::finish::session::certificate::certified_empty_left(
+                    &mut crate::finish::Exec::new(b.plan), run, &b.hosted,
+                ).is_ok()
+            }) {
                 *excluded = true;
                 continue;
             }
