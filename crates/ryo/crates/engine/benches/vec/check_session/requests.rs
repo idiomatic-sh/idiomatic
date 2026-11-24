@@ -1,5 +1,5 @@
 //! Close each ordered file population once and release its blocks after the last
-//! known consumer. A live host can append new requests in another epoch.
+//! reader in the admitted epoch.
 use super::{Work, finish, session};
 use finish::{partition::Partition, population::Inputs};
 use std::{collections::HashMap, rc::Rc, sync::Arc};
@@ -34,10 +34,9 @@ pub(super) struct Closed {
     remaining: Vec<usize>,
     providers: HashMap<usize, usize>,
     shared: HashMap<usize, Inputs>,
-    keep: bool,
 }
 impl Closed {
-    pub(super) fn new(work: &[Work], cut_of: &[Option<Arc<Partition>>], keep: bool) -> Self {
+    pub(super) fn new(work: &[Work], cut_of: &[Option<Arc<Partition>>]) -> Self {
         // Slots name a canonical source version and binding. Order and repetitions
         // are part of the population identity. A live host can open another epoch.
         let mut lists = PathLists::default();
@@ -92,10 +91,8 @@ impl Closed {
             }
             remaining[id] += 1;
             reads[i] = Some(id);
-            if !keep {
-                for &slot in pairs {
-                    *last.entry(slot).or_default() += 1;
-                }
+            for &slot in pairs {
+                *last.entry(slot).or_default() += 1;
             }
         }
         drop(scopes);
@@ -113,7 +110,6 @@ impl Closed {
             remaining,
             providers,
             shared: HashMap::new(),
-            keep,
         }
     }
     pub(super) fn scope(&self, request: usize) -> [usize; 3] { self.scopes[&request] }
@@ -171,29 +167,77 @@ impl Closed {
             if self.remaining[id] == 0 {
                 self.shared.remove(&id);
             }
-            if !self.keep {
-                for slot in pairs {
-                    let n = self.last.get_mut(slot).expect("registered file input");
-                    *n -= 1;
-                    if *n == 0 {
-                        world.release(*slot);
-                    }
+            for slot in pairs {
+                let n = self.last.get_mut(slot).expect("registered file input");
+                *n -= 1;
+                if *n == 0 {
+                    self.last.remove(slot);
+                    world.release(*slot);
                 }
             }
         }
-        if !self.keep
-            && let Some(p) = &project
-        {
+        if let Some(p) = project {
             let n = self
                 .providers
-                .get_mut(p)
+                .get_mut(&p)
                 .expect("registered provider input");
             *n -= 1;
             if *n == 0 {
-                return Some(*p);
+                self.providers.remove(&p);
+                return Some(p);
             }
         }
         None
+    }
+
+    /// The worker scope has joined and no borrowed frontier remains.
+    pub(super) fn release_finished(
+        &mut self,
+        world: &mut session::World,
+        mut release_population: impl FnMut(usize),
+    ) {
+        self.shared.clear();
+        for (slot, _) in self.last.drain() {
+            world.release(slot);
+        }
+        for (project, _) in self.providers.drain() {
+            release_population(project);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_shared_frontier_lives_until_its_last_closed_reader() {
+        let paths = Rc::new(Vec::new());
+        let request = |pairs| Work::Closed {
+            pairs,
+            binding: 0,
+            project: Some(7),
+            inventory: paths.clone(),
+            files: paths.clone(),
+        };
+        let requests = [request(vec![0, 1, 1]), request(vec![0, 2])];
+        let cut = Some(Arc::new(Partition::default()));
+        let mut readers = Closed::new(&requests, &[cut]);
+        let mut world = session::World::default();
+        for slot in 0..3 {
+            world.restore_frontier(slot, Vec::new());
+        }
+
+        assert_eq!(readers.release(0, &[0, 1, 1], Some(7), &mut world), None);
+        assert!(world.frontier_parts(0).is_some());
+        assert!(world.frontier_parts(1).is_none());
+        assert!(world.frontier_parts(2).is_some());
+
+        let mut populations = Vec::new();
+        readers.release_finished(&mut world, |id| populations.push(id));
+        assert_eq!(populations, vec![7]);
+        assert!(world.frontier_parts(0).is_none());
+        assert!(world.frontier_parts(2).is_none());
     }
 }
 
