@@ -240,7 +240,8 @@ impl Exec<'_> {
 /// own filter); `fact`: the provider relation read (`NO_FACT`: none); `own`: the view's own relation (its fill with no
 /// rows empties it); `lit`: a test fixes one of its columns to literals (`lit_rows` decides it); `fields`: the child
 /// field names a test requires (none present in the file: empty).
-struct Leaf {
+#[derive(Clone)]
+pub(super) struct Leaf {
     src: u8,
     fact: u16,
     own: bool,
@@ -259,7 +260,16 @@ const NO_FACT: u16 = u16::MAX;
 #[derive(Default)]
 pub(super) struct Leaves {
     by: Vec<Option<std::rc::Rc<[Leaf]>>>,
+}
 
+impl Leaves {
+    // Only positive leaf lists are read by the per-file empty propagation.
+    pub(super) fn for_workers(&self) -> Vec<Option<Box<[Leaf]>>> {
+        self.by.iter().map(|slot| {
+            let leaves = slot.as_deref()?;
+            (!leaves.is_empty()).then(|| leaves.into())
+        }).collect()
+    }
 }
 
 /// The columns of source `si` an expression names.
@@ -295,7 +305,7 @@ fn tests(conj: &[E], si: usize, base: Native, map: &[usize]) -> (bool, Vec<u32>)
     (lit, fields)
 }
 
-impl Exec<'_> {
+impl<'p> Exec<'p> {
     /// An emit asked in a file: answered before running anything (its step decided empty by the file's leaves: the old
     /// ones, or the propagation's), or run.
     pub(crate) fn emit_done(&mut self, f: &File<'_>, node: usize) {
@@ -337,9 +347,13 @@ impl Exec<'_> {
         }
     }
 
-    fn ep_leaves(&mut self, run: &mut Run, node: usize) -> std::rc::Rc<[Leaf]> {
+    fn ep_leaves(&mut self, run: &mut Run, node: usize) -> super::worker_schemas::Binding<'p, [Leaf]> {
+        use super::worker_schemas::Binding;
+        if let Some(Some(leaves)) = self.shared_leaves.get(node) {
+            return Binding::Prepared(leaves);
+        }
         if let Some(Some(leaves)) = self.leaves.by.get(node) {
-            return leaves.clone();
+            return Binding::Local(leaves.clone());
         }
         let mut out = Vec::new();
         if let Ok(Some(v)) = self.view(run, node) {
@@ -367,7 +381,7 @@ impl Exec<'_> {
             self.leaves.by.resize(self.plan.nodes.len(), None);
         }
         self.leaves.by[node] = Some(rc.clone());
-        rc
+        Binding::Local(rc)
     }
 
     /// Whether the step has a leaf of the propagation (prepared once a run).

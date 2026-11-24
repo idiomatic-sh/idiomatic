@@ -1407,6 +1407,7 @@ pub(super) struct Exec<'p> {
     antijoin_preps: Vec<Option<Rc<antijoin_kernel::Prep>>>,
     keyed_forms: Vec<Option<keyed::Form>>,
     band_shapes: FxHashMap<(usize, usize), Rc<band::Shape>>,
+    shared_leaves: &'p [Option<Box<[emptyprop::Leaf]>>],
     leaves: emptyprop::Leaves,
     inner: f64,
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
@@ -1488,6 +1489,7 @@ impl<'p> Exec<'p> {
             antijoin_preps: vec![None; k],
             keyed_forms: vec![None; k],
             band_shapes: FxHashMap::default(),
+            shared_leaves: &[],
             leaves: emptyprop::Leaves::default(),
             inner: 0.0,
             constant: vec![None; k],
