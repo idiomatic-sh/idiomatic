@@ -18,7 +18,7 @@ pub(super) enum Edges<'a> {
     Cursor(Cursor<'a>),
 }
 
-type Adjacency = FxHashMap<super::inline_key::Key, Vec<u64>>;
+type Adjacency = FxHashMap<Vec<u64>, Vec<u64>>;
 
 impl Exec<'_> {
     fn cursor<'a>(
@@ -146,15 +146,14 @@ fn maps<T: Copy>(
 ) -> (Adjacency, Adjacency) {
     let mut adj = Adjacency::default();
     let mut reverse = Adjacency::default();
-    let mut key = Vec::with_capacity(keys.len() + 1);
     for row in rows {
-        key.clear();
-        key.extend(keys.iter().map(|c| cell(row, *c)));
+        let mut forward: Vec<u64> = keys.iter().map(|c| cell(row, *c)).collect();
+        let mut back = forward.clone();
         let (s, d) = (cell(row, src), cell(row, dst));
-        key.push(s);
-        adj.entry(super::inline_key::Key::of(&key)).or_default().push(d);
-        key[keys.len()] = d;
-        reverse.entry(super::inline_key::Key::of(&key)).or_default().push(s);
+        forward.push(s);
+        adj.entry(forward).or_default().push(d);
+        back.push(d);
+        reverse.entry(back).or_default().push(s);
     }
     (adj, reverse)
 }
