@@ -31,7 +31,11 @@ s = s[:start] + '''        // Validation and the workspace check share the calle
             Memory::Bytes(bytes) => std::num::NonZero::new(bytes.0).map_or(
                 ryo::linter::MemoryBudget::Machine, ryo::linter::MemoryBudget::Bytes),
         };
-        pool.install(|| SESSION.with(|s| s.borrow_mut().lint(sdk, &self.languages, budget)))
+        pool.install(|| SESSION.with(|s| {
+            let mut session=s.borrow_mut();
+            session.use_cache(self.cache.as_deref())?;
+            session.lint(sdk,&self.languages,budget)
+        }))
             .map(schemas::session_report)
             .map_err(engine)''' + s[end:]
 adapter.write_text(s)
@@ -82,6 +86,13 @@ fn main() -> std::process::ExitCode {
         }
         return std::process::ExitCode::SUCCESS;
     }
+    if mode.as_deref() == Some("--tm-batch-retained") {
+        let root=arguments.next().expect("store root");
+        let manifest=arguments.next().expect("manifest");
+        let output=arguments.next().expect("output");
+        tm_project_session::capture_retained(benchmark_languages::linked(),&manifest,&output,&root);
+        return std::process::ExitCode::SUCCESS;
+    }
     if mode.as_deref() == Some("--tm-batch") {
         let manifest = arguments.next().expect("manifest");
         let output = arguments.next().expect("output");
@@ -101,11 +112,11 @@ entry.write_text(s.replace(original, '    let result = tastemaker_cli::resources
 adapter = release / 'crates/tastemaker/crates/core/src/outbound/analysis/adapters/ryo/adapter.rs'
 s = adapter.read_text()
 start = s.index('    /// The pool ryo reads')
-s = s[:start] + '    settings: AnalysisSettings,' + s[s.index('\n}', start):]
+s = s[:start] + '    settings: AnalysisSettings,\n    cache: Option<std::path::PathBuf>,' + s[s.index('\n}', start):]
 start=s.index('        settings: AnalysisSettings,')
 end=s.index('\n    }',start)
 s=s[:start]+'''        mut settings: AnalysisSettings,
-        _cache: ryo::linter::Cache,
+        cache: ryo::linter::Cache,
     ) -> Self {
         // Benchmark the real SDK budget even when the pinned CLI requests Machine.
         if let Some(value) = std::env::var_os("TM_BENCH_MEMORY_BYTES") {
@@ -117,7 +128,7 @@ s=s[:start]+'''        mut settings: AnalysisSettings,
             };
             settings.memory = Memory::Bytes(crate::outbound::analysis::types::MemoryBytes(limit));
         }
-        Self { languages, settings }'''+s[end:]
+        Self { languages, settings, cache: match cache { ryo::linter::Cache::At(p) => Some(p), _ => None } }'''+s[end:]
 s=s.replace('self, error, operator_page, placed_columns, relation_page, report','self, operator_page, placed_columns, relation_page')
 adapter.write_text(s)
 schema=adapter.with_name('schemas.rs')

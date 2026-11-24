@@ -148,7 +148,7 @@ pub(crate) struct World {
     pub run: Run,
     pub(super) project_words: Vec<HashMap<u32, u32>>,
     pub files: HashMap<String, u32>,
-    frontiers: HashMap<usize, Vec<(usize, Rc<finish::population::Block>)>>,
+    pub(crate) frontiers: HashMap<usize, Vec<(usize, Rc<finish::population::Block>)>>,
     empty_blocks: HashMap<(usize, usize), Rc<finish::population::Block>>,
     pub unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
 }

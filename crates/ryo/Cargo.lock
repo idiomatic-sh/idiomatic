@@ -1474,6 +1474,7 @@ name = "idiomatic-sh-ryo"
 version = "0.2.0"
 dependencies = [
  "anstream 1.0.0",
+ "blake3",
  "bumpalo",
  "clap",
  "cpu-time",
@@ -1502,6 +1503,8 @@ dependencies = [
  "ignore",
  "indicatif",
  "mimalloc",
+ "object 0.37.3",
+ "postcard",
  "regex",
  "rustc-hash 2.1.3",
  "serde",
@@ -1824,6 +1827,7 @@ dependencies = [
  "arrow-array",
  "arrow-buffer",
  "arrow-select",
+ "blake3",
  "bumpalo",
  "cpu-time",
  "dhat",
@@ -1840,6 +1844,7 @@ dependencies = [
  "indexmap",
  "memchr",
  "mimalloc",
+ "object 0.37.3",
  "pep508_rs",
  "postcard",
  "pyproject-toml",
@@ -1853,6 +1858,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "strum",
+ "tempfile",
  "thiserror 2.0.20",
  "tikv-jemallocator",
  "toml 1.1.4+spec-1.1.0",
@@ -1905,6 +1911,7 @@ dependencies = [
 name = "idiomatic-sh-ryo-rust"
 version = "0.2.0"
 dependencies = [
+ "blake3",
  "bumpalo",
  "cargo-platform",
  "cpu-time",
@@ -1919,6 +1926,7 @@ dependencies = [
  "idiomatic-sh-ryo-rust",
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-values",
+ "object 0.37.3",
  "postcard",
  "ra_ap_parser",
  "ra_ap_syntax",
@@ -1992,6 +2000,7 @@ dependencies = [
 name = "idiomatic-sh-ryo-typescript"
 version = "0.2.0"
 dependencies = [
+ "blake3",
  "bumpalo",
  "cpu-time",
  "dhat",
@@ -2006,6 +2015,7 @@ dependencies = [
  "idiomatic-sh-ryo-typescript",
  "idiomatic-sh-ryo-values",
  "jsonc-parser",
+ "object 0.37.3",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
@@ -2022,6 +2032,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "strum",
+ "tempfile",
  "thiserror 2.0.20",
  "tikv-jemallocator",
  "unicode-width",

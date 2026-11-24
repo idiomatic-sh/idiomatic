@@ -17,7 +17,7 @@ product-session = []
 [dependencies]
 release_sdk = { package = "idiomatic-sh-ryo-sdk", version = "=0.1.4", features = ["fixtures"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = {version="1", features=["raw_value"]}
 sha2 = "0.10"
 globset = "0.4"
 cpu-time = "1"
@@ -40,7 +40,12 @@ release_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", vers
 release_language = { package = "idiomatic-sh-ryo-language", version = "=0.1.4" }
 release_relations = { package = "idiomatic-sh-ryo-relations", version = "=0.1.4" }
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../../../ryo/crates/matching" }
+
 ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../../../../ryo/languages/rust" }
+blake3="1"
+postcard={version="1",default-features=false,features=["use-std"]}
+tempfile="3"
+object={version="=0.37.3",default-features=false,features=["read","std"]}
 
 [target.'cfg(all(target_os = "linux", any(target_arch = "aarch64", target_arch = "x86_64", target_arch = "powerpc64", target_arch = "riscv64")))'.dependencies]
 tikv-jemalloc-sys = "0.6.1"
