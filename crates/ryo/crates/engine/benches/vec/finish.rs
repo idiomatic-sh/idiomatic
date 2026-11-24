@@ -40,6 +40,10 @@ pub(super) fn step_clock() -> f64 {
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
+#[path = "finish/file_version.rs"]
+mod file_version;
+pub(super) use file_version::FileVersion;
+
 #[path = "finish/answer.rs"]
 pub(super) mod answer;
 #[path = "finish/recycle.rs"]
@@ -688,27 +692,9 @@ pub(super) struct File<'a> {
     cold: cold_list::PerFile,
     keyed_sizes: FxHashMap<usize, usize>,
     owed_fills: Vec<bool>,
-    present_fields: std::cell::OnceCell<rustc_hash::FxHashSet<u32>>,
-    cold_roots: Vec<(u16, u32)>,
+    version: &'a FileVersion<'a>,
     cold_text: cold_text::Dictionary,
-    pub(super) table: &'a NodeTable,
-    pub(super) src: &'a [u8],
-    pub(super) file: u32,
     after_last_file: bool,
-    pub(super) n: usize,
-    pub(super) kind: Vec<u16>,
-    pub(super) start: Vec<u32>,
-    pub(super) end: Vec<u32>,
-    pub(super) parent: Vec<u32>,
-    /// redo-fills c4: each element's field code (`node_table::field_of`), read as a column.
-    field: Vec<u16>,
-    pub(super) line_starts: Vec<u32>,
-    text_memo: RefCell<Vec<u32>>,
-    by_start: RefCell<Option<Index>>,
-    by_end: RefCell<Option<Index>>,
-    /// 6e: elements by start line and by end line (a keyed list made on first ask).
-    by_line: [RefCell<Option<Index>>; 2],
-    tokens: RefCell<Option<Rc<Tokens>>>,
     memo: Vec<Option<Res>>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
@@ -723,8 +709,6 @@ pub(super) struct File<'a> {
     fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
     /// redo-union pass 2: whether a step is known empty in this file from its kinds, seeds and per-file tests (`known`).
     known: Vec<u8>,
-    /// The kinds the file has, one bit a kind code (made at the first ask).
-    kind_bits: Vec<u64>,
     /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
     /// next file (no 30 k-entry table made and dropped a file).
     touched: Vec<u32>,
@@ -742,12 +726,6 @@ thread_local! {
 /// and free of each; their answers given back to the pools, recycle.rs).
 #[derive(Default)]
 struct FileBufs {
-    kind: Vec<u16>,
-    start: Vec<u32>,
-    end: Vec<u32>,
-    parent: Vec<u32>,
-    line_starts: Vec<u32>,
-    text_memo: Vec<u32>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
@@ -755,7 +733,6 @@ struct FileBufs {
     lazies: FxHashMap<usize, Rc<Lazy>>,
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
-    kind_bits: Vec<u64>,
 }
 
 /// A map's tables given back (recycle.rs) and the map emptied, its room kept.
@@ -789,12 +766,6 @@ impl Drop for File<'_> {
         SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
         // redo-alloc: the file's buffers and maps emptied and kept for the next file
         let mut b = FileBufs {
-            kind: std::mem::take(&mut self.kind),
-            start: std::mem::take(&mut self.start),
-            end: std::mem::take(&mut self.end),
-            parent: std::mem::take(&mut self.parent),
-            line_starts: std::mem::take(&mut self.line_starts),
-            text_memo: std::mem::take(self.text_memo.get_mut()),
             vrows: std::mem::take(&mut self.vrows),
             vmat: std::mem::take(&mut self.vmat),
             index: std::mem::take(&mut self.index),
@@ -802,14 +773,7 @@ impl Drop for File<'_> {
             lazies: std::mem::take(&mut self.lazies),
             facts: std::mem::take(&mut self.facts),
             fact_ix: std::mem::take(self.fact_ix.get_mut()),
-            kind_bits: std::mem::take(&mut self.kind_bits),
         };
-        b.kind.clear();
-        b.start.clear();
-        b.end.clear();
-        b.parent.clear();
-        b.line_starts.clear();
-        b.text_memo.clear();
         for (_, r) in b.vrows.drain() {
             r.recycle();
         }
@@ -824,7 +788,6 @@ impl Drop for File<'_> {
             recycle::recycle(t);
         }
         b.fact_ix.clear();
-        b.kind_bits.clear();
         // a map grown far past a usual file is not kept (its room would stay with the worker)
         if b.vrows.capacity() > 1 << 12 || b.index.capacity() > 1 << 12 || b.fact_ix.capacity() > 1 << 12 {
             return;
@@ -857,6 +820,11 @@ pub(super) trait Provider {
     fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String>;
 }
 
+impl<'a> std::ops::Deref for File<'a> {
+    type Target = FileVersion<'a>;
+    fn deref(&self) -> &Self::Target { self.version }
+}
+
 impl File<'_> {
     /// The reusable slots belong to this frame until its destructor returns them empty.
     fn remember(&mut self, node: usize, answer: Res) {
@@ -865,40 +833,16 @@ impl File<'_> {
         }
     }
 
-    pub(super) fn new<'a>(table: &'a NodeTable, src: &'a [u8], file: u32, nodes: usize) -> File<'a> {
-        let n = node_table::element_count(table).0;
-        // redo-alloc: the last file's emptied buffers and maps (none at the first file)
-        let mut b = SPARE_BUFS.with(|s| s.borrow_mut().take()).unwrap_or_default();
-        b.kind.reserve(n);
-        b.start.reserve(n);
-        b.end.reserve(n);
-        b.parent.reserve(n);
-        b.line_starts.push(0);
-        b.text_memo.resize(n, u32::MAX);
+    pub(super) fn new<'a>(version: &'a FileVersion<'a>, nodes: usize) -> File<'a> {
+        let b = SPARE_BUFS.with(|s| s.borrow_mut().take()).unwrap_or_default();
         let mut f = File {
-            table,
-            src,
-            file,
+            version,
             after_last_file: false,
-            n,
-            kind: b.kind,
-            start: b.start,
-            end: b.end,
-            parent: b.parent,
-            field: Vec::with_capacity(n),
-            line_starts: b.line_starts,
-            text_memo: RefCell::new(b.text_memo),
-            by_start: RefCell::new(None),
-            by_end: RefCell::new(None),
-            by_line: [RefCell::new(None), RefCell::new(None)],
-            tokens: RefCell::new(None),
             memo: Vec::new(),
             vrows: b.vrows,
             cold: cold_list::PerFile::default(),
             keyed_sizes: FxHashMap::default(),
             owed_fills: Vec::new(),
-            present_fields: Default::default(),
-            cold_roots: Vec::new(),
             cold_text: cold_text::Dictionary::default(),
             vmat: b.vmat,
             cursor_views: Default::default(),
@@ -909,7 +853,6 @@ impl File<'_> {
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
             known: Vec::new(),
-            kind_bits: b.kind_bits,
             touched: Vec::new(),
             fact_read: Vec::new(),
         };
@@ -917,47 +860,13 @@ impl File<'_> {
             let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
             (f.memo, f.known, f.touched) = if memo.len() == nodes && known.len() == nodes { (memo, known, touched) } else { (vec![None; nodes], vec![0; nodes], Vec::new()) };
         });
-        for i in 0..n as u32 {
-            let p = Position(i);
-            f.kind.push(node_table::kind_of(table, p).0);
-            let s = node_table::span_of(table, p);
-            f.start.push(s.start.0);
-            f.end.push(s.end.0);
-            f.parent.push(node_table::parent_of(table, p).0);
-            let field = node_table::field_of(table, p).0;
-            f.field.push(field);
-            if i != 0 && f.parent[i as usize] == i {
-                f.cold_roots.push((field, i));
-            }
-        }
-        if sw!("VEC_COLD_COUNT") { cold_bucket::roots(f.cold_roots.len(), f.cold_roots.capacity()); }
-        let mut i = 0;
-        while i < src.len() {
-            match src[i] {
-                b'\n' => f.line_starts.push(i as u32 + 1),
-                b'\r' => {
-                    if i + 1 < src.len() && src[i + 1] == b'\n' {
-                        i += 1;
-                    }
-                    f.line_starts.push(i as u32 + 1);
-                }
-                _ => {}
-            }
-            i += 1;
+        if sw!("VEC_COLD_COUNT") {
+            let roots = version.extra_roots();
+            cold_bucket::roots(roots.len(), roots.capacity());
         }
         f
     }
-    pub(super) fn set_text(&mut self, symbols: &[u32]) {
-        self.text_memo.get_mut().copy_from_slice(symbols);
-    }
 
-    fn line(&self, off: u32) -> i64 {
-        self.line_starts.partition_point(|s| *s <= off) as i64
-    }
-    fn column(&self, off: u32) -> i64 {
-        let l = self.line_starts.partition_point(|s| *s <= off) - 1;
-        i64::from(off - self.line_starts[l])
-    }
     fn has_text(run: &Run, k: u16) -> bool {
         run.text_kind.get(usize::from(k)).copied().unwrap_or(false)
     }
@@ -969,9 +878,11 @@ impl File<'_> {
         }
     }
     fn elem_text(&self, run: &mut Run, p: u32) -> u32 {
-        let m = self.text_memo.borrow()[p as usize];
-        if m != u32::MAX {
-            return m;
+        let mut memo = self.text_memo.borrow_mut();
+        if let Some(&m) = memo.get(p as usize) {
+            if m != u32::MAX { return m; }
+        } else {
+            memo.resize(self.n, u32::MAX);
         }
         let k = self.kind[p as usize];
         let s = if Self::has_text(run, k) {
@@ -979,7 +890,7 @@ impl File<'_> {
         } else {
             run.empty
         };
-        self.text_memo.borrow_mut()[p as usize] = s;
+        memo[p as usize] = s;
         s
     }
     fn has_parent(&self, p: u32) -> bool {
