@@ -205,22 +205,26 @@ impl Checks {
         let mut any = false;
         let mut local = false;
         for &(binding, _, excluded) in active.iter() {
-            if !excluded && let Some(roots) = &self.roots[root_for(binding)] {
-                any |= !roots.is_empty();
-                let locatable = cuts[binding].is_none()
-                    && !roots.is_empty()
-                    && bound[&binding].as_ref().expect("active binding").screenable != Some(false);
-                if locatable {
-                    local = true;
+            let index = root_for(binding);
+            if !excluded && let Some(roots) = &self.roots[index] {
+                let b = bound[&binding].as_ref().expect("active binding");
+                let unpartitioned = cuts[binding].is_none();
+                if b.screenable != Some(false) {
+                    any |= !roots.is_empty();
+                    local |= unpartitioned && !roots.is_empty();
                     for &root in roots {
-                        self.locatable[root / 64] |= 1 << (root % 64);
+                        if unpartitioned {
+                            self.locatable[root / 64] |= 1 << (root % 64);
+                        }
+                        self.selected[root / 64] |= 1 << (root % 64);
+                    }
+                    for &(_, root) in &self.domains[index] {
+                        self.selected[root / 64] |= 1 << (root % 64);
                     }
                 }
-                for root in roots.iter().copied().chain(self.domains[root_for(binding)].iter().map(|&(_, d)| d)) {
-                    self.selected[root / 64] |= 1 << (root % 64);
-                }
-                if cuts[binding].is_none() {
-                    for &root in &self.lefts[root_for(binding)] {
+                if unpartitioned && b.screenable_left != Some(false) {
+                    any |= !self.lefts[index].is_empty();
+                    for &root in &self.lefts[index] {
                         self.selected[root / 64] |= 1 << (root % 64);
                     }
                 }
@@ -300,10 +304,17 @@ impl Checks {
             let Some(roots) = &self.roots[index] else { continue };
             let cut = cuts[*binding].as_deref();
             let b = bound[binding].as_mut().unwrap();
-            let any_absent = roots.iter().any(|&r| !self.live[r]);
+            let full_available = b.screenable != Some(false);
+            let full_absent = full_available && (roots.iter().any(|&r| !self.live[r])
+                || self.domains[index].iter().any(|&(_, d)| !self.live[d]));
             let left = &self.lefts[index];
-            let left_absent = cut.is_none() && !left.is_empty() && left.iter().all(|&r| !self.live[r]);
-            if !left_absent && !any_absent && !self.domains[index].iter().any(|&(_, d)| !self.live[d]) {
+            let left_available = cut.is_none() && !left.is_empty() && b.screenable_left != Some(false);
+            if !full_available && !left_available {
+                witnesses[0] += 1;
+                continue;
+            }
+            let left_absent = left_available && left.iter().all(|&r| !self.live[r]);
+            if !left_absent && !full_absent {
                 continue;
             }
             witnesses[1] += 1;
@@ -319,7 +330,7 @@ impl Checks {
                 *excluded = true;
                 continue;
             }
-            if !*b.screenable.get_or_insert_with(|| {
+            if !full_absent || !*b.screenable.get_or_insert_with(|| {
                 crate::finish::session::certificate::certified_empty(
                     &mut crate::finish::Exec::new(b.plan),
                     run,
