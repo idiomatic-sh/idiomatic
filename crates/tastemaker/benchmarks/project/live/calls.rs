@@ -6,6 +6,8 @@ use crate::thread_cpu;
 mod pinned;
 #[path = "call_cache.rs"]
 mod call_cache;
+#[path = "allocated.rs"]
+mod allocated;
 use call_cache::CallCache;
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
 use pinned::{Dictionary, Pinned};
@@ -128,8 +130,15 @@ impl Live {
         &mut self,
         req: sdk::LintRequest,
         linked: &sdk::Languages,
+        memory: sdk::MemoryBudget,
     ) -> Result<LiveReport, String> {
         let t = thread_cpu();
+        let limit = match memory {
+            sdk::MemoryBudget::Machine => None,
+            sdk::MemoryBudget::Bytes(n) => Some(n.get()),
+            _ => return Err("unsupported memory budget".into()),
+        };
+        self.state.retention.configure(limit, allocated::bytes);
         let count = req.rules.len();
         let result = self.answer(req, linked);
         let mut last = MEASURED

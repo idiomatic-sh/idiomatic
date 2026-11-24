@@ -112,7 +112,8 @@ struct Batch {
 #[derive(Default)]
 struct Active<F: Default, D: Default> {
     keep: bool,
-    readers: Vec<session::ReaderState<F, D>>,
+    retention: session::Retention<F,D>,
+    readers: Vec<session::ReaderState>,
     world: session::World,
     answers: Vec<Answer>,
     aliases: Vec<usize>,
@@ -394,6 +395,7 @@ impl Batch {
     ) {
         let Active {
             keep,
+            retention,
             readers: reader_states,
             world,
             answers,
@@ -444,6 +446,7 @@ impl Batch {
             }
             session::visit(
                 &mut reader_states[reader_id],
+                retention,
                 *keep,
                 language,
                 (reader_id != unclaimed).then_some(reader_id),

@@ -24,6 +24,10 @@ use source::Source as FileSource;
 mod frontier;
 pub(crate) use frontier::World;
 
+#[path = "check_session/retention.rs"]
+mod retention;
+pub(crate) use retention::Retention;
+
 type Parameters =
     BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
 
@@ -454,10 +458,9 @@ fn versions(
 /// The host may add requests after consuming the previous answers. Source and symbol
 /// identities then live across admissions. A closed batch can recycle one parser scratch.
 #[derive(Default)]
-pub(crate) struct ReaderState<F: Default, D: Default> {
+pub(crate) struct ReaderState {
     run: Run,
     unknown: Option<HashMap<u32, u32>>,
-    files: HashMap<usize, HeldFile<F, D>>,
     bytes: HashMap<usize, (Rc<[u8]>, u32)>,
 }
 
@@ -485,7 +488,8 @@ struct HeldFile<F: Default, D: Default> {
 /// schema. Symbols and file IDs live in the reader session. Source trees never
 /// escape the visit. Every request for the same pair refers to its answer slot.
 pub(crate) fn visit<L: FileSource>(
-    state: &mut ReaderState<L::File, L::Dictionary>,
+    state: &mut ReaderState,
+    retention: &mut Retention<L::File, L::Dictionary>,
     keep: bool,
     parser: Option<&L>,
     reader_id: Option<usize>,
@@ -580,11 +584,11 @@ pub(crate) fn visit<L: FileSource>(
             let t = thread_cpu();
             run.root_dir.clear();
             run.root_dir.push_str(&source.root);
-            let held = if keep {
-                state.files.entry(index).or_default()
-            } else {
-                &mut scratch
-            };
+            let session_open = keep;
+            let start = keep.then(|| retention.clock()).flatten();
+            let mut cached = start.and_then(|_| retention.take(index));
+            let keep = cached.is_some();
+            let held = cached.as_mut().map_or(&mut scratch, |(_,file)| file);
             let mut symbols = &mut held.symbols;
             let reused = keep && held.read;
             let mut elements = &mut held.native;
@@ -598,7 +602,7 @@ pub(crate) fn visit<L: FileSource>(
                     path: SourcePath(&source.path),
                     bytes: ByteSlice(&bytes),
                     fields: l::FieldRequest::Wanted,
-                    notes: if project_slots.is_empty() && !keep {
+                    notes: if project_slots.is_empty() && !session_open {
                         l::NoteRequest::Unwanted
                     } else {
                         l::NoteRequest::Wanted
@@ -609,7 +613,7 @@ pub(crate) fn visit<L: FileSource>(
                     request,
                     &mut elements,
                     &mut symbols,
-                    if keep {
+                    if session_open {
                         relations::service::ALL
                     } else {
                         &requested
@@ -627,7 +631,7 @@ pub(crate) fn visit<L: FileSource>(
                 clocks.read_parse += thread_cpu() - t;
                 continue;
             }
-            if !project_slots.is_empty() || (keep && !reused) {
+            if !project_slots.is_empty() || (session_open && !reused) {
                 let manifest = manifests
                     .contains(source.path.rsplit('/').next().unwrap())
                     .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
@@ -636,13 +640,13 @@ pub(crate) fn visit<L: FileSource>(
                     notes: L::notes(&elements),
                     manifest,
                 });
-                if keep {
+                if session_open {
                     contributions[index] = Some(c.clone());
                 }
                 for slot in project_slots {
                     contributions[slot] = Some(c.clone());
                 }
-                if !keep && jobs.keys().all(|b| bound[b].is_err()) {
+                if !session_open && jobs.keys().all(|b| bound[b].is_err()) {
                     clocks.read_parse += thread_cpu() - t;
                     continue;
                 }
@@ -894,6 +898,12 @@ pub(crate) fn visit<L: FileSource>(
                 packet.rows.partials = partials;
                 packet.rows.partials_at = partials_at;
                 std::mem::swap(&mut held.facts, &mut packet.rows);
+            }
+            if let Some((previous, file)) = cached
+                && let (Some(start), Some(end)) = (start, retention.clock()) {
+                // All allocations on this worker during the visit conservatively bound
+                // the new storage, including provider-owned opaque parser allocations.
+                retention.put(index, previous.saturating_add(end.wrapping_sub(start)), file);
             }
             clocks.evaluate += thread_cpu() - t;
         }
