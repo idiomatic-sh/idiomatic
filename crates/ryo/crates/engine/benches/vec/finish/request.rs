@@ -27,12 +27,7 @@ impl Answer {
         }
     }
 
-    pub(crate) struct Edge {
-    input: usize,
-    projected: Option<(u16, Columns)>,
-}
-
-fn columns(self) -> R<Rc<Table>> {
+    pub(crate) fn columns(self) -> R<Rc<Table>> {
         match self {
             Self::Columns(table) => Ok(table),
             Self::Indexed { .. } => Err("closed scope requires owned column tables".into()),
@@ -71,6 +66,11 @@ enum Demand {
     Native,
     Base(u16),
     Inputs(Box<[Edge]>),
+}
+
+struct Edge {
+    input: usize,
+    projected: Option<(u16, Columns)>,
 }
 
 fn columns(expr: &E, source: usize, out: &mut Columns) {
