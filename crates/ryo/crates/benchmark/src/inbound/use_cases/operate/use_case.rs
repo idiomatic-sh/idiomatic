@@ -131,9 +131,8 @@ impl OperateUseCaseImpl {
         }
         let declared = self.suite.profile(ArtifactPath(&request.bench.0))?;
         if profile_run {
-            let registered_corpus = request
-                .bench
-                .0
+            let registered_corpus = request.bench.0.canonicalize()?;
+            let registered_corpus = registered_corpus
                 .parent()
                 .and_then(std::path::Path::parent)
                 .ok_or_else(|| Error::Invalid("benchmark has no registered corpus".into()))?;
