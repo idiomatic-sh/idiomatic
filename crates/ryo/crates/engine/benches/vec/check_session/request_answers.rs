@@ -300,7 +300,7 @@ impl Observations {
     }
 
     pub fn group(&mut self, id: Key, paths: &Group, names: &[PathBuf], scope: Option<InputScope>) -> Option<Key> {
-        let &(effective, closed) = self.group_inputs.entry(id).or_insert_with(|| {
+        let (effective, closed) = *self.group_inputs.entry(id).or_insert_with(|| {
             (paths.iter().any(|&(_, mode)| mode == Probe::Effective),
              paths.iter().any(|&(_, mode)| mode == Probe::Inventory))
         });

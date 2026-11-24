@@ -138,6 +138,7 @@ fn retention_limit() -> u64 {
     })
 }
 
+/// Replay a closed capture with exactly the parsers linked into this release.
 pub fn capture(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>) {
     capture_then(linked, manifest, output, workers, || {});
 }

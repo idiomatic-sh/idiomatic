@@ -20,7 +20,7 @@ assert cfg.count(k) == 1
 sdk_src = release / "crates/ryo/crates/sdk/src"
 image_sources = library.parents[3] / "ryo/crates/engine/benches/lint_image"
 (sdk_src / "linked_sdk.rs").write_text(
-    f'include!({json.dumps(str(library / "linked-sdk.rs"))});\n'
+    f'include!({json.dumps(str(image_sources / "sdk_entry.rs"))});\n'
     f'include!({json.dumps(str(image_sources / "sdk_bundle.rs"))});\n'
 )
 sdk_lib = sdk_src / "lib.rs"

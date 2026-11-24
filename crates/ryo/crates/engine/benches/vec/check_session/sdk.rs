@@ -774,5 +774,3 @@ fn render_receipt<'a, const SHARED: bool>(
     }
     Ok(())
 }
-
-/// Replay a closed capture with exactly the parsers linked into this release.

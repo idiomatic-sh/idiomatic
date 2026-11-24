@@ -43,8 +43,8 @@ fn engine_source(path: &Path) -> bool {
             && !path.contains("/benches/lint_image/request.rs");
     }
     if let Some((_, relative)) = path.rsplit_once("/crates/tastemaker/benchmarks/project/") {
-        // These two files compose and instrument the measured binary.
-        return !matches!(relative, "live/allocated.rs" | "live/round-host.rs");
+        // The release host supplies its own request ordering.
+        return relative != "live/round-host.rs";
     }
     false
 }
