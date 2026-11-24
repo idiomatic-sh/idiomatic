@@ -382,7 +382,7 @@ impl Source for Pinned {
         start: usize,
         kinds: &mut FxHashSet<u32>,
         fields: &mut FxHashSet<u32>,
-        words: &mut FxHashSet<u32>,
+        mut words: Option<&mut FxHashSet<u32>>,
     ) {
         let f = match f {
             File::Released(f) => f,
@@ -398,13 +398,15 @@ impl Source for Pinned {
                 run,
                 unknown,
             ));
-            words.insert(project_word(
-                old::text_at(f, at),
-                &dict.source,
-                bytes,
-                run,
-                unknown,
-            ));
+            if let Some(words) = words.as_deref_mut() {
+                words.insert(project_word(
+                    old::text_at(f, at),
+                    &dict.source,
+                    bytes,
+                    run,
+                    unknown,
+                ));
+            }
         }
     }
     fn fill(

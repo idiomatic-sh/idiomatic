@@ -312,4 +312,4 @@ mod batch;
 pub(super) use batch::{batch, one, packets};
 
 #[cfg(feature = "product-session")]
-pub use batch::calls::{Live, LiveReport, capture, capture_retained, capture_one, print_measurement};
+pub use batch::calls::{Live, LiveReport, capture, capture_then, capture_retained, capture_one, print_measurement};

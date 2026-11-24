@@ -858,12 +858,12 @@ fn batch_with_workers<L: session::source::Source>(
     output: &str,
     workers: Option<std::num::NonZeroUsize>,
 ) {
-    batch_mode_with_workers(readers, manifest, output, None, workers)
+    batch_mode_with_workers(readers, manifest, output, None, workers, || {})
 }
 fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,root:Option<&Path>){
-    batch_mode_with_workers(readers, manifest, output, root, None)
+    batch_mode_with_workers(readers, manifest, output, root, None, || {})
 }
-fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&str, output:&str, root:Option<&Path>, workers:Option<std::num::NonZeroUsize>){
+fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&str, output:&str, root:Option<&Path>, workers:Option<std::num::NonZeroUsize>, completed: impl FnOnce()){
     let start = thread_cpu();
     let mut session = Batch { workers, ..Default::default() };
     if let Some(index) = std::env::var_os("TM_CORPUS_INVENTORIES") {
@@ -978,6 +978,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         c.inventory,
         c.join,
     );
+    completed();
 }
 
 /// Standalone scenario entry, using the same scheduler and full typed output.

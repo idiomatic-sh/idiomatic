@@ -340,8 +340,12 @@ impl Live {
 
 /// Replay a closed capture with exactly the parsers linked into this release.
 pub fn capture(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>) {
+    capture_then(linked, manifest, output, workers, || {});
+}
+
+pub fn capture_then(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>, completed: impl FnOnce()) {
     let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
-    super::batch_with_workers(&readers, manifest, output, workers);
+    super::batch_mode_with_workers(&readers, manifest, output, None, workers, completed);
 }
 
 pub fn capture_retained(linked:sdk::Languages,manifest:&str,output:&str,root:&str){
