@@ -914,6 +914,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     let mut inherited_inventories=Vec::new();
     let file = std::fs::File::open(manifest).expect("input manifest");
     let mut invocations = Vec::new();
+    let mut expected_receipts = std::collections::HashSet::<Rc<str>>::new();
     let mut inputs = HashMap::new();
     for l in std::io::BufReader::new(file).lines() {
         let line = l.expect("manifest line");
@@ -960,9 +961,17 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
             }
             entries.len()-1
         });
-        invocations.push((idx, id.to_owned(), oracle.to_owned()));
+        let expected = if let Some(prior) = expected_receipts.get(oracle) {
+            prior.clone()
+        } else {
+            let value = Rc::<str>::from(oracle);
+            expected_receipts.insert(value.clone());
+            value
+        };
+        invocations.push((idx, Box::<str>::from(id), expected));
     }
     drop(inputs);
+    drop(expected_receipts);
     let registration = thread_cpu() - start - session.clocks.prepare - session.clocks.project;
     let answers=if let Some(s)=&mut store {
         let mut state=Active::default();
