@@ -456,6 +456,7 @@ fn versions(
 #[derive(Default)]
 pub(crate) struct ReaderState<F: Default, D: Default> {
     run: Run,
+    screens: pairs::Retained,
     unknown: Option<HashMap<u32, u32>>,
     files: HashMap<usize, HeldFile<F, D>>,
     bytes: HashMap<usize, (Rc<[u8]>, u32)>,
@@ -521,7 +522,7 @@ pub(crate) fn visit<L: FileSource>(
         run.path_sym.push(word);
     }
     let t = thread_cpu();
-    let mut checks = pairs::Checks::new(parser, programs, program_of, sources, selected, cut_of);
+    let mut checks = (!keep).then(|| pairs::Checks::new(parser, programs, program_of, sources, selected, cut_of));
     clocks.prepare += thread_cpu() - t;
     let mut bound = HashMap::new();
     let mut scratch = HeldFile::default();
@@ -781,10 +782,18 @@ pub(crate) fn visit<L: FileSource>(
             let t = thread_cpu();
             if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
             {
-                checks.exclude(
-                    &mut active, &mut bound, &mut run, tree, &provider.text,
-                    &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, cut_of, &said,
-                );
+                let mut evaluate = |screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
+                    screen.exclude(root, jobs, &mut bound, &mut run, tree, &provider.text,
+                        &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, cut_of, &said);
+                };
+                if let Some(screen) = &mut checks {
+                    evaluate(screen, &mut active, |binding| binding);
+                } else {
+                    let prepare = state.screens.groups(parser, programs, program_of, cut_of, &mut active,
+                        |screen, jobs| evaluate(screen, jobs, |_| 0));
+                    clocks.prepare += prepare;
+                    clocks.screen -= prepare;
+                }
             }
             clocks.screen += thread_cpu() - t;
             let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
