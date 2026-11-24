@@ -806,6 +806,7 @@ pub(crate) fn visit<L: FileSource>(
                     },
                 };
 
+                if !session_open && projects_words { requested.push(l::Relation::SyntaxTree); }
                 let build_start = thread_cpu();
                 let result = parser.build(
                     request,
