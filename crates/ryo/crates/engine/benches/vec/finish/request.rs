@@ -15,6 +15,7 @@ pub(crate) type Reply = R<Answer>;
 /// selected words are widened into executor columns when the frame reads it.
 pub(crate) enum Answer {
     Columns(Rc<Table>),
+    #[allow(dead_code, reason = "only the indexed SDK hosts construct this reply")]
     Indexed { relation: ryo::languages::Relation, columns: Columns, rows: usize },
 }
 
