@@ -49,51 +49,7 @@ type Parameters =
 type Result<T> = std::result::Result<T, String>;
 pub(crate) type Answer = Result<Reported>;
 
-#[derive(Clone, Default)]
-pub(crate) struct Reported {
-    pub rows: Box<[finish::answer::Row]>,
-    issues: Option<Box<ReportIssues>>,
-}
-
-#[derive(Clone, Default)]
-pub(crate) struct ReportIssues {
-    pub rejected_syntax: Vec<String>,
-    pub unknowns: Vec<(String, String)>,
-}
-
-impl std::ops::Deref for Reported {
-    type Target = ReportIssues;
-
-    fn deref(&self) -> &ReportIssues {
-        static EMPTY: ReportIssues = ReportIssues { rejected_syntax: Vec::new(), unknowns: Vec::new() };
-        self.issues.as_deref().unwrap_or(&EMPTY)
-    }
-}
-
-impl Reported {
-    pub(crate) fn new(rows: Vec<finish::answer::Row>, unknowns: Vec<(String, String)>, rejected_syntax: Vec<String>) -> Self {
-        let issues = (!unknowns.is_empty() || !rejected_syntax.is_empty())
-            .then(|| Box::new(ReportIssues { unknowns, rejected_syntax }));
-        Self { rows: rows.into_boxed_slice(), issues }
-    }
-
-    pub(crate) fn skipped(paths: &[String]) -> Self {
-        let error = ryo_execution_domain::domain::operating::errors::OperatingError::ObservationIncomplete {
-            reason: "every source partition was explicitly skipped".into(),
-        };
-        let reason = format!("project phase diagnostic emit: {error}");
-        Self::new(Vec::new(), paths.iter().map(|p| (p.clone(), reason.clone())).collect(), Vec::new())
-    }
-
-    pub(crate) fn extend_unknowns(&mut self, unknowns: Vec<(String, String)>) {
-        if !unknowns.is_empty() {
-            self.issues.get_or_insert_with(Default::default).unknowns.extend(unknowns);
-        }
-    }
-}
-impl From<Vec<finish::answer::Row>> for Reported {
-    fn from(rows: Vec<finish::answer::Row>) -> Self { Self { rows: rows.into_boxed_slice(), issues: None } }
-}
+pub(crate) use finish::answer::Reported;
 pub(crate) type Tables = Vec<(String, Rc<Table>)>;
 
 pub(crate) struct Program {
