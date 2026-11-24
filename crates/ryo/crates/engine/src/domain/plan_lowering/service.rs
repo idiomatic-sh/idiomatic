@@ -71,6 +71,9 @@ fn mark(plan: &mut FinishPlan, stage: PlanningStage, uses: &Uses) -> usize {
         PlanningStage::Expanded => 0,
         PlanningStage::Semijoins => semijoined(plan, uses),
         PlanningStage::Counts => counted(plan, uses),
-        PlanningStage::Axes => existence_marked(plan, uses),
+        PlanningStage::Axes => {
+            super::pushdown::mark(plan, uses);
+            existence_marked(plan, uses)
+        }
     }
 }

@@ -3,18 +3,16 @@
 use super::{
     Answer, Authority, Batch, Path, PathBuf, Population, Rc, Work, finish, l, project, session,
 };
-use ryo_relations::domain::relations::types::{Integer, Offset, Span};
-use ryo_values::domain::row_texts::types::Cell;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fs,
     hash::{Hash, Hasher},
     io::{self, Write},
+    sync::Arc,
 };
 
 pub(super) type Key = [u8; 32];
-type PairIndex = (Key, Key);
 type Res<T> = io::Result<T>;
 #[derive(Default)]
 struct Digest(blake3::Hasher);
@@ -33,83 +31,40 @@ pub(super) fn key(value: impl Hash) -> Key {
 }
 
 #[derive(Serialize, Deserialize)]
-enum Value {
-    File(Box<str>),
-    Text(Box<str>),
-    Number(i64),
-    Span(u32, u32),
-}
-
-impl Value {
-    fn cell(&self) -> Cell<std::sync::Arc<str>> {
-        match self {
-            Self::File(s) => Cell::File(s.as_ref().into()),
-            Self::Text(s) => Cell::Text(s.as_ref().into()),
-            Self::Number(n) => Cell::Number(Integer(*n)),
-            Self::Span(a, b) => Cell::Span(Span {
-                start: Offset(*a),
-                end: Offset(*b),
-            }),
-        }
-    }
-}
-#[derive(Serialize, Deserialize)]
-struct Row {
-    rule: Box<str>,
-    columns: Vec<(Box<str>, Option<Value>)>,
-    identity: Vec<usize>,
-}
-#[derive(Serialize, Deserialize)]
 struct Report {
-    rows: Vec<Row>,
+    // None means only the closed operator consumed this contribution.
+    // Some(empty) proves a local request completed with no rows.
+    rows: Option<Vec<u8>>,
     unknowns: Vec<(String, String)>,
 }
 impl Report {
-    fn save(answer: &session::Reported) -> Self {
-        let rows = answer
-            .rows
-            .iter()
-            .map(|r| Row {
-                rule: r.layout.rule.clone(),
-                identity: r.layout.identity.to_vec(),
-                columns: r.layout.names.iter().zip(r.cells()).map(|(name, cell)| {
-                    let value = cell.map(|cell| match cell {
-                        Cell::Text(text) => Value::Text(text.as_ref().into()),
-                        Cell::File(path) => Value::File(path.as_ref().into()),
-                        Cell::Number(n) => Value::Number(n.0),
-                        Cell::Span(s) => Value::Span(s.start.0, s.end.0),
-                    });
-                    (name.as_str().into(), value)
-                })
-                    .collect(),
-            })
-            .collect();
+    fn save(answer: &session::Reported, keep_rows: bool) -> Self {
         Self {
-            rows,
+            rows: keep_rows.then(|| {
+                if answer.rows.is_empty() {
+                    Vec::new()
+                } else {
+                    request_answers::pack_rows(&answer.rows)
+                }
+            }),
             unknowns: answer.unknowns.clone(),
         }
     }
-    fn read(&self) -> session::Reported {
-        let rows = self
-            .rows
-            .iter()
-            .map(|r| {
-                let columns = r.columns.iter().map(|(name, cell)| {
-                    let value = cell.as_ref().map(|cell| match cell {
-                        Value::Text(text) => Cell::Text(text.as_ref().into()),
-                        Value::File(path) => Cell::File(path.as_ref().into()),
-                        Value::Number(n) => Cell::Number(Integer(*n)),
-                        Value::Span(start, end) => Cell::Span(Span { start: Offset(*start), end: Offset(*end) }),
-                    });
-                    (name.to_string(), value)
-                }).collect();
-                finish::answer::Row::restored(r.rule.clone(), r.identity.clone().into(), columns)
-            })
-            .collect();
-        session::Reported {
+    fn read(&self, need_rows: bool) -> Option<session::Reported> {
+        let rows = if need_rows {
+            let data = self.rows.as_ref()?;
+            if data.is_empty() {
+                vec![]
+            } else {
+                request_answers::unpack_rows(data)
+            }
+        } else {
+            vec![]
+        };
+        Some(session::Reported {
             rows,
             unknowns: self.unknowns.clone(),
-        }
+        })
     }
 }
 
@@ -125,30 +80,36 @@ struct Local {
     frontier: Vec<(usize, usize)>,
     unavailable: Vec<(String, String)>,
 }
-// This length-prefixed postcard payload stays packed until a changed closed
-// answer actually requests a column from it.
-struct EncodedBlock(Vec<u8>);
-impl<'de> Deserialize<'de> for EncodedBlock {
-    fn deserialize<D: serde::Deserializer<'de>>(input: D) -> Result<Self, D::Error> {
-        Ok(Self(<&[u8]>::deserialize(input)?.to_vec()))
-    }
-}
+// A mapped segment backs retained columns. Only new columns own an allocation.
+#[derive(Default)]
+struct EncodedBlock(Option<finish::population::BlockBytes>);
 impl Serialize for EncodedBlock {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
-        out.serialize_bytes(&self.0)
+        out.serialize_bytes(self.0.as_ref().expect("complete block").as_ref().as_ref())
     }
 }
 impl EncodedBlock {
-    fn restore(&self, world: &mut session::World) -> Rc<finish::population::Block> {
-        let block: session::stored_block::StoredBlock =
-            postcard::from_bytes(&self.0).expect("block in checksum-verified table for this build");
-        block.restore(world)
+    fn mapped(record: shards::MappedRecord) -> Option<Self> {
+        Some(Self(Some(Arc::new(record.postcard_bytes()?))))
     }
+
+    fn restore(&self, world: &mut session::World) -> Option<Rc<finish::population::Block>> {
+        session::stored_block::restore(self.0.clone()?, world)
+    }
+
+    fn save(data: Vec<u8>) -> Self {
+        Self(Some(Arc::new(data)))
+    }
+}
+#[derive(Clone, Copy, Serialize, Deserialize)]
+enum BlockId {
+    Empty(u32),
+    Local(Key),
 }
 #[derive(Default, Serialize, Deserialize)]
 struct FileAnswers {
     pairs: BTreeMap<Key, Local>,
-    blocks: Vec<EncodedBlock>,
+    blocks: Vec<BlockId>,
     #[serde(skip)]
     known_blocks: HashMap<Key, usize>,
 }
@@ -171,7 +132,7 @@ mod request_answers;
 mod shards;
 pub(super) use request_answers::Packet;
 use request_answers::{Group, Observations, Probe, Proof, Record};
-use shards::{Index, Records, Segments, Shards};
+use shards::{Index, Packets, Records, Segments, Shards};
 
 #[derive(Default, Serialize, Deserialize)]
 struct Snapshot {
@@ -182,6 +143,10 @@ struct Snapshot {
     requests: Index,
     groups: Index,
     packets: Index,
+    packet_layers: Vec<Key>,
+    blocks: Segments,
+    stamps: Index,
+    empty_schemas: Vec<Key>,
 }
 pub(super) struct Store {
     dir: PathBuf,
@@ -192,16 +157,22 @@ pub(super) struct Store {
     previous: Vec<u8>,
     build: Key,
     files: Records<FileAnswers>,
+    blocks: Records<EncodedBlock>,
+    empty_schemas: Vec<Key>,
+    schema_ids: HashMap<Key, u32>,
     notes: Shards<Notes>,
     requests: Shards<Record>,
     groups: Shards<Group>,
-    packets: Shards<Packet>,
+    packets: Packets<Packet>,
     observed: Observations,
     versions: Vec<Option<Key>>,
-    pairs: Vec<Option<PairIndex>>,
-    sources: Vec<Option<usize>>,
+    pairs: Vec<Option<(usize, usize)>>,
+    binding_keys: Vec<Key>,
+    binding_ids: HashMap<Key, usize>,
     plans: Vec<Option<(Vec<Proof>, Vec<String>)>>,
     keep_pairs: Vec<bool>,
+    local_rows: Vec<bool>,
+    project_proofs: HashMap<usize, Option<Proof>>,
     pub file_hits: usize,
     pub closed_hits: usize,
     pub evaluated_pairs: usize,
@@ -211,6 +182,13 @@ pub(super) struct Store {
     absent_local: usize,
     absent_frontier: usize,
     restored_blocks: usize,
+    frontier_cpu: f64,
+    packets_packed: usize,
+    empty_packet: Option<Key>,
+    empty_packet_reuses: usize,
+    packed_rows: usize,
+    rendered_packets: usize,
+    pack_cpu: f64,
 }
 fn table(dir: &Path, name: &str, digest: Key) -> PathBuf {
     dir.join(format!(
@@ -267,20 +245,31 @@ impl Store {
             saved_names: names.len(),
             names,
             name_ids: HashMap::new(),
-            dir,
+            dir: dir.clone(),
             previous,
             build,
-            files: Records::new(snapshot.files),
+            files: Records::new("pairs", snapshot.files),
+            blocks: Records::new("blocks", snapshot.blocks),
+            schema_ids: snapshot
+                .empty_schemas
+                .iter()
+                .enumerate()
+                .map(|(i, &k)| (k, i as u32))
+                .collect(),
+            empty_schemas: snapshot.empty_schemas,
             notes: Shards::new("project", snapshot.notes),
             requests: Shards::new("requests", snapshot.requests),
             groups: Shards::new("inputs", snapshot.groups),
-            packets: Shards::new("answers", snapshot.packets),
-            observed: Default::default(),
+            packets: Packets::new(snapshot.packets, snapshot.packet_layers),
+            observed: Observations::new(dir, snapshot.stamps),
             versions: vec![],
             pairs: vec![],
-            sources: vec![],
+            binding_keys: vec![],
+            binding_ids: HashMap::new(),
             plans: vec![],
             keep_pairs: vec![],
+            local_rows: vec![],
+            project_proofs: HashMap::new(),
             file_hits: 0,
             closed_hits: 0,
             evaluated_pairs: 0,
@@ -290,10 +279,18 @@ impl Store {
             absent_local: 0,
             absent_frontier: 0,
             restored_blocks: 0,
+            frontier_cpu: 0.0,
+            packets_packed: 0,
+            empty_packet: None,
+            empty_packet_reuses: 0,
+            packed_rows: 0,
+            rendered_packets: 0,
+            pack_cpu: 0.0,
         })
     }
     pub(super) fn publish(&mut self) -> Res<usize> {
         if !(self.files.dirty()
+            || self.blocks.dirty()
             || self.notes.dirty()
             || self.requests.dirty()
             || self.groups.dirty()
@@ -301,24 +298,36 @@ impl Store {
         {
             return Ok(0);
         }
-        use std::os::unix::fs::MetadataExt;
         let guard = fs::File::open(&self.dir)?;
         guard.lock()?;
         let head = self.dir.join("session.postcard");
         if fs::read(&head).unwrap_or_default() != self.previous {
             return Ok(0);
         }
-        if self.observed.stamps.iter().any(|(p, id)| {
-            !fs::metadata(p).is_ok_and(|m| (m.dev(), m.ino(), m.ctime(), m.ctime_nsec()) == *id)
-        }) {
+        if !self.observed.still_current() {
             return Ok(0);
         }
         let mut old = vec![];
-        let mut written = self.files.flush(&self.dir, &mut old)?
-            + self.notes.flush(&self.dir, &mut old)?
-            + self.requests.flush(&self.dir, &mut old)?
-            + self.groups.flush(&self.dir, &mut old)?
-            + self.packets.flush(&self.dir, &mut old)?;
+        let t0 = crate::thread_cpu();
+        let mut written = self.files.flush(&self.dir, &mut old)?;
+        let block_start = crate::thread_cpu();
+        written += self.blocks.flush(&self.dir, &mut old)?;
+        eprintln!(
+            "blocks_publish_cpu={:.6}",
+            crate::thread_cpu() - block_start
+        );
+        let t1 = crate::thread_cpu();
+        written += self.notes.flush(&self.dir, &mut old)?;
+        let t2 = crate::thread_cpu();
+        written += self.requests.flush(&self.dir, &mut old)?;
+        let t3 = crate::thread_cpu();
+        written += self.groups.flush(&self.dir, &mut old)?;
+        let t4 = crate::thread_cpu();
+        written += self.packets.flush(&self.dir, &mut old)?;
+        let t5 = crate::thread_cpu();
+        written += self.observed.stamps.flush(&self.dir, &mut old)?;
+        let stamp_end = crate::thread_cpu();
+        eprintln!("stamps_publish_cpu={:.6}", stamp_end - t5);
         if self.names.len() != self.saved_names {
             let b = postcard::to_stdvec(&self.names).map_err(io::Error::other)?;
             let k = *blake3::hash(&b).as_bytes();
@@ -338,7 +347,11 @@ impl Store {
             notes: self.notes.index.clone(),
             requests: self.requests.index.clone(),
             groups: self.groups.index.clone(),
-            packets: self.packets.index.clone(),
+            packets: self.packets.index().clone(),
+            packet_layers: self.packets.layers.clone(),
+            blocks: self.blocks.index.clone(),
+            stamps: self.observed.stamps.index.clone(),
+            empty_schemas: self.empty_schemas.clone(),
         })
         .map_err(io::Error::other)?;
         if bytes != self.previous {
@@ -351,12 +364,59 @@ impl Store {
         for p in old {
             let _ = fs::remove_file(p);
         }
+        eprintln!(
+            "publish_cpu pairs={:.6} project={:.6} requests={:.6} inputs={:.6} answers={:.6} paths_and_manifest={:.6}",
+            t1 - t0,
+            t2 - t1,
+            t3 - t2,
+            t4 - t3,
+            t5 - t4,
+            crate::thread_cpu() - stamp_end
+        );
         Ok(written)
     }
     pub(super) fn costs(&self) {
         eprintln!(
-            "contributions restored_blocks={} missing_file_slots={} missing_local_bindings={} missing_frontier_bindings={}",
-            self.restored_blocks, self.absent_file, self.absent_local, self.absent_frontier
+            "table_read_cpu pairs={:.6} project={:.6} requests={:.6} inputs={:.6} answers={:.6}",
+            self.files.read_cpu,
+            self.notes.read_cpu,
+            self.requests.read_cpu,
+            self.groups.read_cpu,
+            self.packets.read_cpu
+        );
+        eprintln!(
+            "packets_packed={} empty_packet_reuses={} packed_rows={} packet_build_cpu={:.6}",
+            self.packets_packed, self.empty_packet_reuses, self.packed_rows, self.pack_cpu
+        );
+        eprintln!("rendered_packets={}", self.rendered_packets);
+        eprintln!(
+            "block_table read={} written={} read_cpu={:.6} empty_schemas={}",
+            self.blocks.read_bytes,
+            self.blocks.write_bytes,
+            self.blocks.read_cpu,
+            self.empty_schemas.len()
+        );
+        let o = &self.observed;
+        eprintln!("observation_open_cpu={:.6}", o.open_cpu);
+        eprintln!(
+            "stamps stats={} hits={} young={} changed={} read={} written={} read_cpu={:.6}",
+            o.stats, o.stamp_hits, o.young, o.stamp_changed,
+            o.stamps.read_bytes, o.stamps.write_bytes, o.stamps.read_cpu
+        );
+        eprintln!(
+            "observations source_reads={} contract_reads={} source_bytes={} contract_bytes={} path_hits={} inode_hits={} groups={} group_hits={}",
+            o.reads[0],
+            o.reads[1],
+            o.bytes[0],
+            o.bytes[1],
+            o.path_hits,
+            o.inode_hits,
+            o.groups.len(),
+            o.group_hits
+        );
+        eprintln!(
+            "contributions restored_blocks={} frontier_cpu={:.6} missing_file_slots={} missing_local_bindings={} missing_frontier_bindings={}",
+            self.restored_blocks, self.frontier_cpu, self.absent_file, self.absent_local, self.absent_frontier
         );
         eprintln!(
             "request_store hash_cpu={:.6} hash_bytes={} pairs_read={} project_read={} requests_read={} inputs_read={} answers_read={} pairs_written={} project_written={} requests_written={} inputs_written={} answers_written={}",
@@ -377,7 +437,7 @@ impl Store {
     pub(super) fn overlay(
         &mut self,
         root: &Path,
-        inventory: &[String],
+        inventory: Key,
         peers: Key,
         v: &BTreeMap<String, std::sync::Arc<[u8]>>,
     ) {
@@ -397,51 +457,80 @@ impl Store {
     pub(super) fn contract_file(&mut self, p: &Path) -> Option<Key> {
         self.observed.observe(p, Probe::Bytes)
     }
-    pub(super) fn lookup(&mut self, id: Key) -> Option<(Key, Vec<String>)> {
+    pub(super) fn lookup(&mut self, id: Key) -> Option<(Key, &[String])> {
         self.requests.open(&self.dir, &id);
         let r = self.requests.get(&id)?;
         for &(g, expected) in &r.proof {
-            self.groups.open(&self.dir, &g);
-            if self.observed.group(g, self.groups.get(&g)?, &self.names) != Some(expected) {
+            let current = if let Some(current) = self.observed.groups.get(&g) {
+                self.observed.group_hits += 1;
+                *current
+            } else {
+                self.groups.open(&self.dir, &g);
+                self.observed.group(g, self.groups.get(&g)?, &self.names)
+            };
+            if current != Some(expected) {
                 return None;
             }
         }
         self.packets.open(&self.dir, &r.packet);
         self.packets.get(&r.packet)?;
         self.request_hits += 1;
-        Some((r.packet, r.unread.clone()))
+        Some((r.packet, &r.unread))
     }
     pub(super) fn packet(&self, id: &Key) -> &Packet {
         self.packets.get(id).expect("verified packet")
     }
     pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
         let (proof, unread) = self.plans.get_mut(idx)?.take()?;
-        Some(self.put(id, Packet::save(r), proof, unread))
+        let start = crate::thread_cpu();
+        let empty = r.rows.is_empty() && r.unknowns.is_empty();
+        let k = if let Some(packet) = self.empty_packet.filter(|_| empty) {
+            self.record(id, packet, proof, unread);
+            self.empty_packet_reuses += 1;
+            packet
+        } else {
+            let k = self.put(id, Packet::save(r), proof, unread, || super::digest(&r.rows));
+            if empty {
+                self.empty_packet = Some(k);
+            }
+            self.packets_packed += 1;
+            self.packed_rows += r.rows.len();
+            k
+        };
+        self.pack_cpu += crate::thread_cpu() - start;
+        Some(k)
     }
     pub(super) fn decline(&mut self, id: Key, reason: &str) {
-        self.put(id, Packet::declined(reason), vec![], vec![]);
+        self.put(id, Packet::declined(reason), vec![], vec![], String::new);
     }
-    fn put(&mut self, id: Key, packet: Packet, proof: Vec<Proof>, unread: Vec<String>) -> Key {
-        let k = key((
-            &packet.refusal,
-            &packet.digest,
-            &packet.unknowns,
-            packet.typed_bytes(),
-        ));
+    fn put(
+        &mut self,
+        id: Key,
+        mut packet: Packet,
+        proof: Vec<Proof>,
+        unread: Vec<String>,
+        render: impl FnOnce() -> String,
+    ) -> Key {
+        let k = key((&packet.refusal, &packet.unknowns, packet.typed_bytes()));
         self.packets.open(&self.dir, &k);
         if self.packets.get(&k).is_none() {
+            packet.digest = render();
+            self.rendered_packets += 1;
             self.packets.insert(k, packet);
         }
+        self.record(id, k, proof, unread);
+        k
+    }
+    fn record(&mut self, id: Key, packet: Key, proof: Vec<Proof>, unread: Vec<String>) {
         self.requests.open(&self.dir, &id);
         self.requests.insert(
             id,
             Record {
-                packet: k,
+                packet,
                 proof,
                 unread,
             },
         );
-        k
     }
     fn group(&mut self, mut paths: Vec<(PathBuf, Probe)>) -> Option<Proof> {
         if self.name_ids.is_empty() && !self.names.is_empty() {
@@ -481,6 +570,7 @@ impl Store {
         answers: &mut [Answer],
         contributions: &mut [Option<Rc<project::Contribution>>],
     ) {
+        self.project_proofs.clear();
         let prior = self.versions.len();
         self.versions
             .extend(b.schedule.sources.iter().skip(prior).map(|source| {
@@ -499,33 +589,37 @@ impl Store {
         let bindings: Vec<_> = b
             .bindings
             .iter()
-            .zip(&b.program_of).enumerate()
-            .map(|(binding, (host, r))| {
+            .enumerate()
+            .map(|(binding, host)| {
+                let r = b.program_of[binding];
                 // The engine shares this pre-join work for every binding with the
                 // same declared host shape. Which caller first supplied the rows
                 // can change when all but one request is restored.
-                if b.cut_of[binding].is_some() {
+                let digest = if b.cut_of[binding].is_some() {
                     let shape = host
                         .iter()
                         .map(|h| (&h.name, &h.columns))
                         .collect::<Vec<_>>();
-                    key((0u8, rules[*r], shape))
+                    key((0u8, rules[r], shape))
                 } else {
-                    key((1u8, rules[*r], host))
-                }
+                    key((1u8, rules[r], host))
+                };
+                *self.binding_ids.entry(digest).or_insert_with(|| {
+                    self.binding_keys.push(digest);
+                    self.binding_keys.len() - 1
+                })
             })
             .collect();
         self.pairs.resize(b.schedule.pairs, None);
-        self.sources.resize(b.schedule.pairs, None);
         for (i, src) in b.schedule.sources.iter().enumerate() {
             for (&binding, &slot) in &src.bindings {
-                self.sources[slot] = Some(i);
-                self.pairs[slot] = self.versions[i].map(|d| (d, bindings[binding]));
+                self.pairs[slot] = Some((i, bindings[binding]));
             }
         }
         let mut needed = vec![false; self.pairs.len()];
         let mut frontier = vec![false; self.pairs.len()];
         self.keep_pairs = vec![false; self.pairs.len()];
+        self.local_rows = vec![false; self.pairs.len()];
         let mut projects = BTreeSet::new();
         let mut groups = HashMap::<Vec<usize>, Option<Proof>>::new();
         self.plans.clear();
@@ -544,12 +638,13 @@ impl Store {
             }
             for &slot in pairs {
                 needed[slot] = true;
+                self.local_rows[slot] |= !closed || self.observed.root.is_some();
                 frontier[slot] |= closed;
                 self.keep_pairs[slot] |= closed || pairs.len() > 1;
             }
             let local = pairs
                 .iter()
-                .map(|&slot| self.sources[slot])
+                .map(|&slot| self.pairs[slot].map(|(source, _)| source))
                 .collect::<Option<Vec<_>>>();
             let mut proof = Some(Vec::new());
             if let Some(local) = local {
@@ -610,7 +705,9 @@ impl Store {
                 }
             }
         }
+        let restore_start = crate::thread_cpu();
         let mut restored = HashMap::new();
+        let mut damaged = Vec::new();
         // Later live requests can consume a file answer delivered in an earlier epoch.
         // Its source no longer has a pending binding, but its stable pair key remains.
         for (slot, requested) in frontier.into_iter().enumerate() {
@@ -620,9 +717,13 @@ impl Store {
             if world.frontier_parts(slot).is_some() {
                 continue;
             }
-            let Some((version, binding)) = self.pairs[slot] else {
+            let Some((source, binding)) = self.pairs[slot] else {
                 continue;
             };
+            let Some(version) = self.versions[source] else {
+                continue;
+            };
+            let binding = self.binding_keys[binding];
             self.files.open(&self.dir, &version);
             let Some(file) = self.files.get(&version) else {
                 continue;
@@ -633,14 +734,26 @@ impl Store {
             let parts = pair
                 .frontier
                 .iter()
-                .map(|&(n, id)| {
-                    let block = restored
-                        .entry((version, id))
-                        .or_insert_with(|| file.blocks[id].restore(world))
-                        .clone();
-                    (n, block)
+                .map(|&(node, id)| {
+                    let k = match *file.blocks.get(id)? {
+                        BlockId::Empty(i) => *self.empty_schemas.get(i as usize)?,
+                        BlockId::Local(k) => k,
+                    };
+                    let block = if let Some(block) = restored.get(&k) {
+                        Rc::clone(block)
+                    } else {
+                        self.blocks.open_mapped(&self.dir, &k, EncodedBlock::mapped);
+                        let block = self.blocks.get(&k)?.restore(world)?;
+                        restored.insert(k, block.clone());
+                        block
+                    };
+                    Some((node, block))
                 })
-                .collect();
+                .collect::<Option<Vec<_>>>();
+            let Some(parts) = parts else {
+                damaged.push((version, binding));
+                continue;
+            };
             world.restore_frontier(slot, parts);
             if !pair.unavailable.is_empty() {
                 let missing = pair
@@ -651,7 +764,11 @@ impl Store {
                 world.unavailable.insert(slot, missing);
             }
         }
+        for (version, binding) in damaged {
+            self.files.change(&version).pairs.remove(&binding);
+        }
         self.restored_blocks += restored.len();
+        self.frontier_cpu += crate::thread_cpu() - restore_start;
         for (i, src) in b.schedule.sources.iter_mut().enumerate() {
             if !projects.contains(&i) {
                 src.project = false;
@@ -679,7 +796,7 @@ impl Store {
                     self.absent_file += 1;
                     return true;
                 };
-                let Some(pair) = file.pairs.get(&bind) else {
+                let Some(pair) = file.pairs.get(&self.binding_keys[bind]) else {
                     if b.cut_of[binding].is_some() {
                         self.absent_frontier += 1
                     } else {
@@ -687,7 +804,10 @@ impl Store {
                     }
                     return true;
                 };
-                answers[*slot] = Ok(pair.report.read());
+                let Some(report) = pair.report.read(self.local_rows[*slot]) else {
+                    return true;
+                };
+                answers[*slot] = Ok(report);
                 self.file_hits += 1;
                 false
             });
@@ -708,6 +828,7 @@ impl Store {
         contributions: &[Option<Rc<project::Contribution>>],
     ) {
         let mut encoded = HashMap::new();
+        let mut empty_blocks = HashMap::new();
         for (i, src) in b.schedule.sources.iter().enumerate() {
             let Some(version) = self.versions[i] else {
                 continue;
@@ -740,9 +861,14 @@ impl Store {
                 let Some((_, binding)) = self.pairs[slot] else {
                     continue;
                 };
+                let binding = self.binding_keys[binding];
                 let a = aliases[slot];
                 let Ok(report) = &answers[a] else { continue };
-                if file.pairs.contains_key(&binding) {
+                if file
+                    .pairs
+                    .get(&binding)
+                    .is_some_and(|p| !self.local_rows[slot] || p.report.rows.is_some())
+                {
                     continue;
                 }
                 let mut frontier = Vec::new();
@@ -750,11 +876,34 @@ impl Store {
                     for (node, block) in parts {
                         let addr = (version, Rc::as_ptr(block));
                         let index = *encoded.entry(addr).or_insert_with(|| {
-                            let stored = session::stored_block::StoredBlock::save(block, world);
-                            let bytes = postcard::to_stdvec(&stored).expect("typed block");
-                            let hash = *blake3::hash(&bytes).as_bytes();
-                            *file.known_blocks.entry(hash).or_insert_with(|| {
-                                file.blocks.push(EncodedBlock(bytes));
+                            let (key, reference) = if block.n == 0 {
+                                *empty_blocks.entry(Rc::as_ptr(block)).or_insert_with(|| {
+                                    let bytes = session::stored_block::encode(block, world);
+                                    let k = *blake3::hash(&bytes).as_bytes();
+                                    let i = *self.schema_ids.entry(k).or_insert_with(|| {
+                                        self.empty_schemas.push(k);
+                                        u32::try_from(self.empty_schemas.len() - 1)
+                                            .expect("schema number")
+                                    });
+                                    self.blocks.open_mapped(&self.dir, &k, EncodedBlock::mapped);
+                                    if self.blocks.get(&k).is_none() {
+                                        *self.blocks.change(&k) = EncodedBlock::save(bytes);
+                                    }
+                                    (k, BlockId::Empty(i))
+                                })
+                            } else {
+                                let bytes = session::stored_block::encode(block, world);
+                                let mut k = *blake3::hash(&bytes).as_bytes();
+                                // Keep replacement columns for one file version in its own prefix.
+                                k[0] = version[0];
+                                self.blocks.open_mapped(&self.dir, &k, EncodedBlock::mapped);
+                                if self.blocks.get(&k).is_none() {
+                                    *self.blocks.change(&k) = EncodedBlock::save(bytes);
+                                }
+                                (k, BlockId::Local(k))
+                            };
+                            *file.known_blocks.entry(key).or_insert_with(|| {
+                                file.blocks.push(reference);
                                 file.blocks.len() - 1
                             })
                         });
@@ -771,7 +920,7 @@ impl Store {
                 file.pairs.insert(
                     binding,
                     Local {
-                        report: Report::save(report),
+                        report: Report::save(report, self.local_rows[slot]),
                         frontier,
                         unavailable,
                     },
@@ -785,7 +934,7 @@ impl Store {
         idx: usize,
         value: &Answer,
         pop: Option<&Population>,
-        authority: Option<&Authority>,
+        project: Option<(usize, &Authority)>,
     ) {
         if value.is_err() {
             self.plans[idx] = None;
@@ -793,12 +942,30 @@ impl Store {
         }
         let Some(p) = pop else { return };
         let unread = p.refused.iter().map(|r| r.path.0.to_string()).collect();
-        let Some(Authority::Disk(root)) = authority else {
+        let Some((project, Authority::Disk(root))) = project else {
             if let Some((_, u)) = &mut self.plans[idx] {
                 *u = unread;
             }
             return;
         };
+        let evidence = if let Some(g) = self.project_proofs.get(&project) {
+            *g
+        } else {
+            let g = self.population_proof(p, root);
+            self.project_proofs.insert(project, g);
+            g
+        };
+        if let Some(g) = evidence
+            && let Some((proof, u)) = &mut self.plans[idx]
+        {
+            proof.push(g);
+            *u = unread
+        } else {
+            self.plans[idx] = None
+        }
+    }
+
+    fn population_proof(&mut self, p: &Population, root: &str) -> Option<Proof> {
         let mut paths = vec![(PathBuf::from(root), Probe::Kind)];
         for entry in &p.observations {
             use l::ObservedEntryState::*;
@@ -808,14 +975,12 @@ impl Store {
                 Directory => 2,
                 Other => 3,
                 Unknown => {
-                    self.plans[idx] = None;
-                    return;
+                    return None;
                 }
             };
             let path = Path::new(root).join(&*entry.path.0);
             if self.observed.observe(&path, Probe::Kind) != Some(key(k as u8)) {
-                self.plans[idx] = None;
-                return;
+                return None;
             }
             paths.push((path, Probe::Kind));
         }
@@ -828,13 +993,6 @@ impl Store {
             };
             paths.push((path, probe));
         }
-        if let Some(g) = self.group(paths)
-            && let Some((proof, u)) = &mut self.plans[idx]
-        {
-            proof.push(g);
-            *u = unread
-        } else {
-            self.plans[idx] = None
-        }
+        self.group(paths)
     }
 }

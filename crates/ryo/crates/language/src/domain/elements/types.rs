@@ -116,11 +116,20 @@ pub enum NodeAccess<'a> {
     Query(&'a [ryo_relations::domain::relations::types::Relation]),
 }
 
+/// The optional components requested in addition to the relations of a native file.
+#[derive(Clone, Copy, Debug)]
+pub struct NativeColumns {
+    /// The child-edge roles of the tree.
+    pub fields: bool,
+    /// Project notes, which can consume parser values without a file relation.
+    pub notes: bool,
+}
+
 /// A provider’s direct writer for preorder positions, token flags and expansion origins.
 #[derive(Clone, Copy, Debug)]
 pub struct NativeReader {
     /// Write each parser position once and record origins of expanded elements.
-    pub read: fn(&[u8], &mut crate::domain::node_table::types::NodeTable, &mut Vec<Expanded>, &mut Vec<Flags>, bool, NodeAccess<'_>),
+    pub read: fn(&[u8], &mut crate::domain::node_table::types::NodeTable, &mut Vec<Expanded>, &mut Vec<Flags>, NativeColumns, NodeAccess<'_>),
 }
 
 /// The element table of one file: its syntax tree in pre-order, column by column, 28 bytes for
@@ -267,9 +276,30 @@ pub(crate) enum ModelReadiness {
 #[derive(Debug)]
 pub struct TableBuilder<'a>(BuilderEngine<'a>);
 
+impl TableBuilder<'_> {
+    /// Keep decoded token values for the listed consumers and report whether they are needed.
+    /// A caller inspecting the public tree receives every property.
+    #[must_use]
+    pub fn decode_for(&mut self, relations: &[ryo_relations::domain::relations::types::Relation]) -> bool {
+        self.0.keep_decoded = self.reads_any(relations);
+        self.0.keep_decoded
+    }
+
+    /// Whether one of the given provider relations can be read from this file.
+    /// An inspectable public tree supplies every relation.
+    #[must_use]
+    pub fn reads_any(&self, relations: &[ryo_relations::domain::relations::types::Relation]) -> bool {
+        self.0.requested.is_none_or(|rows| relations.iter().any(|r| rows.contains(r)))
+    }
+}
+
 /// What a [`TableBuilder`] writes through, the engine's: the table, the names and the file's bytes.
 #[derive(Debug)]
 pub(crate) struct BuilderEngine<'a> {
+    /// Whether to retain the parser's decoded token values alongside their raw spelling.
+    pub keep_decoded: bool,
+    /// The provider relations admitted on this file in a closed query.
+    pub requested: Option<&'a [ryo_relations::domain::relations::types::Relation]>,
     /// The worker's table.
     pub elements: &'a mut Elements,
     /// The names of the tokens, interned as the table is built.
@@ -307,6 +337,15 @@ impl<'a> AsMut<BuilderEngine<'a>> for TableBuilder<'a> {
 #[derive(Debug)]
 pub struct Completion<'a>(CompletionEngine<'a>);
 
+impl Completion<'_> {
+    /// Whether this file can supply the relation in its current scope. Public tree inspection
+    /// and open-ended file reads preserve every column.
+    #[must_use]
+    pub fn supplies(&self, relation: ryo_relations::domain::relations::types::Relation) -> bool {
+        self.0.requested.is_none_or(|rows| rows.contains(&relation))
+    }
+}
+
 /// What a [`Completion`] completes, the engine's: the table, the names, the file's bytes and its number.
 #[derive(Debug)]
 pub(crate) struct CompletionEngine<'a> {
@@ -320,6 +359,8 @@ pub(crate) struct CompletionEngine<'a> {
     pub file: FileId,
     /// What this completion was given: a prepared model only when the request's demand reads what completion adds.
     pub requirement: CompletionRequirement,
+    /// The admitted file relations when the caller scoped the file to its query batch.
+    pub requested: Option<&'a [ryo_relations::domain::relations::types::Relation]>,
 }
 
 impl<'a> From<CompletionEngine<'a>> for Completion<'a> {

@@ -401,5 +401,5 @@ pub use ryo_language::domain::elements::types::CompletionRequirement;
 
 pub use ryo_language::domain::files::service::primary_role_from_manifests;
 
-pub use ryo_language::domain::elements::{service::native_table, types::{NativeReader, NodeAccess}};
+pub use ryo_language::domain::elements::{service::native_table, types::{NativeColumns, NativeReader, NodeAccess}};
 pub use ryo_relations::domain::elements::types::Expanded as ExpandedPosition;

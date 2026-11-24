@@ -25,10 +25,9 @@ impl<'p> Finisher<'p> {
         vocab: &Vocab,
         args: &[&str],
         request: Option<(&str, &super::json_input::Metadata)>,
-        paths:Option<&[String]>,
+        paths:Option<&std::sync::Arc<Vec<String>>>,
     ) -> Self {
         let t0 = thread_cpu();
-        let list = paths.map_or_else(||files(args[1]),|p|p.to_vec());
         let root = format!("{}/", args[2].trim_end_matches('/'));
         let mut run = finish::Run::default();
         run.empty = run.sym(b"");
@@ -48,10 +47,9 @@ impl<'p> Finisher<'p> {
             .iter()
             .map(|k| run.sym(k.as_bytes()))
             .collect();
-        run.paths = list
-            .iter()
+        run.paths = paths.cloned().unwrap_or_else(|| files(args[1]).iter()
             .map(|p| p.strip_prefix(&root).unwrap_or(p).to_owned())
-            .collect::<Vec<_>>().into();
+            .collect::<Vec<_>>().into());
         // redo-general: the provider's token order (its lexical model, `provider_tokens.rs`)
         run.set_tokens(
             std::rc::Rc::new(super::provider_tokens::Lexicon::new(&|n| {

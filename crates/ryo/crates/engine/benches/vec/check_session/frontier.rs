@@ -4,6 +4,7 @@ use finish::{Run, Table, partition::Partition, population::Block};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     rc::Rc,
+    sync::Arc,
 };
 
 pub(super) struct FileInputs<'a> {
@@ -17,7 +18,7 @@ impl<'a> FileInputs<'a> {
         bound: &super::Bindings<'_>,
         programs: &'a [Result<Program>],
         program_of: &[usize],
-        cut_of: &[Option<&Partition>],
+        cut_of: &[Option<Arc<Partition>>],
     ) -> Self {
         let mut shared_columns = BTreeMap::<&str, Vec<bool>>::new();
         for &(binding, _, _) in active {
@@ -186,6 +187,60 @@ pub(crate) struct World {
     frontiers: HashMap<usize, FileFrontier>,
     empty_blocks: HashMap<(usize, usize), Rc<finish::population::Block>>,
     pub unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
+}
+
+#[cfg(feature = "product-session")]
+pub(crate) struct SharedFrontier<'a> {
+    slots: HashMap<usize, Vec<(usize, usize)>>,
+    blocks: Vec<finish::population::SharedBlock<'a>>,
+}
+#[cfg(feature = "product-session")]
+impl<'a> SharedFrontier<'a> {
+    pub(crate) fn new(world: &'a World, pairs: impl Iterator<Item = usize>) -> Self {
+        let mut slots = HashMap::new();
+        let mut blocks = Vec::new();
+        let mut ids = HashMap::new();
+        for slot in pairs {
+            if let Some(frontier) = world.frontiers.get(&slot) {
+                slots.entry(slot).or_insert_with(|| {
+                    frontier.parts().iter().map(|(node, block)| {
+                        let id = *ids.entry(Rc::as_ptr(block)).or_insert_with(|| {
+                            let id = blocks.len();
+                            blocks.push(block.share());
+                            id
+                        });
+                        (*node, id)
+                    }).collect()
+                });
+            }
+        }
+        Self { slots, blocks }
+    }
+
+    pub(crate) fn joined(
+        &self,
+        slots: &[usize],
+        cut: &[usize],
+        local: &mut HashMap<usize, Rc<finish::population::WorkerBlock>>,
+        schemas: &mut finish::population::LocalSchemas,
+    ) -> Result<finish::population::Inputs> {
+        use finish::population::Population;
+        let mut tables: Vec<_> = cut.iter().map(|_| Population::default()).collect();
+        for slot in slots {
+            let parts = self.slots.get(slot).ok_or("missing file frontier")?;
+            if parts.len() != cut.len() {
+                return Err("incomplete file frontier".into());
+            }
+            for ((out, expected), (node, id)) in tables.iter_mut().zip(cut).zip(parts) {
+                if node != expected {
+                    return Err("unbound column frontier".into());
+                }
+                let piece = local.entry(*id).or_insert_with(|| self.blocks[*id].local(schemas));
+                out.add_worker(piece)?;
+            }
+        }
+        Ok(cut.iter().copied().zip(tables.into_iter().map(Rc::new)).collect())
+    }
 }
 
 impl World {

@@ -187,6 +187,30 @@ fn filter(run: &mut Run, f: &File<'_>, srcs: &[Src], si: usize, p: &P, sel: &mut
     });
 }
 
+/// A predicate bound to exactly one source of the original join.
+pub(super) struct Pushed {
+    pub(super) source: usize,
+    predicate: PushedPredicate,
+}
+
+enum PushedPredicate {
+    Kinds(Box<[u16]>),
+    Row(P),
+}
+
+impl Pushed {
+    pub(super) fn keeps(&self, run: &mut Run, f: &File<'_>, sources: &[Src], row: u32) -> bool {
+        match &self.predicate {
+            PushedPredicate::Kinds(codes) => codes.contains(&f.kind[row as usize]),
+            PushedPredicate::Row(test) => {
+                let mut current = [0; 2];
+                current[self.source] = row;
+                holds(run, f, sources, &current, test)
+            }
+        }
+    }
+}
+
 /// A select node, prepared once a run.
 pub(super) struct K {
     preds: Vec<P>,
@@ -201,10 +225,31 @@ pub(super) struct K {
     kinds: Vec<(Option<Vec<u32>>, Option<Vec<u32>>)>,
     entries: Vec<super::view_entry::Entry>,
     view_key: Option<[usize; 2]>,
-    /// A semi step's probed side: the band is tried first.
-    semi: Option<usize>,
+    join_filter: JoinFilter,
     /// redo-select2: a run is decided by a view source whose entry is empty before anything is read (`ksel_zero`).
     zero: bool,
+}
+
+enum JoinFilter {
+    Plain,
+    Semi(usize),
+    Pushed(Box<Pushed>),
+}
+
+impl K {
+    fn semi(&self) -> Option<usize> {
+        match self.join_filter {
+            JoinFilter::Semi(source) => Some(source),
+            _ => None,
+        }
+    }
+
+    fn pushed(&self) -> Option<&Pushed> {
+        match &self.join_filter {
+            JoinFilter::Pushed(filter) => Some(filter),
+            _ => None,
+        }
+    }
 }
 
 /// Keys of the per-file row lists a kernel keeps in the file's `vrows` (above any node number).
@@ -338,7 +383,7 @@ impl Exec<'_> {
         if let Some(path) = std::env::var_os("VEC_KSEL_LOG") {
             use std::io::Write;
             let why = match &*prep {
-                Prep::K(k) if k.semi.is_some() => "semi (band, else kernel)",
+                Prep::K(k) if k.semi().is_some() => "semi (band, else kernel)",
                 Prep::K(_) => "kernel",
                 Prep::Old(w) => w,
             };
@@ -421,7 +466,28 @@ impl Exec<'_> {
         } else {
             None
         };
-        Ok(Prep::K(K { preds, file_const, items, set, ident, kinds, entries, view_key, semi, zero }))
+        let pushed = view_key.and_then(|_| self.pushed_condition(run, node)).and_then(|condition| {
+            let refs = refs_of(&condition);
+            if !matches!(refs, 1 | 2) {
+                return None;
+            }
+            let source = refs.trailing_zeros() as usize;
+            let view = self.view(run, sp.srcs[source]).ok()??;
+            let kinds = kind_set(run, std::slice::from_ref(&condition), source, view.base, &view.map);
+            let predicate = match kinds {
+                Some(kinds) => PushedPredicate::Kinds(kinds.iter()
+                    .filter_map(|kind| super::kind_codes(run).get(kind))
+                    .flat_map(|codes| codes.iter().copied()).collect()),
+                None => PushedPredicate::Row(compile(run, &condition)),
+            };
+            Some(Box::new(Pushed { source, predicate }))
+        });
+        let join_filter = match (semi, pushed) {
+            (Some(source), _) => JoinFilter::Semi(source),
+            (None, Some(filter)) => JoinFilter::Pushed(filter),
+            (None, None) => JoinFilter::Plain,
+        };
+        Ok(Prep::K(K { preds, file_const, items, set, ident, kinds, entries, view_key, zero, join_filter }))
     }
 
     /// The dispatch: the kernels, or the interpreter's `select` (`VEC_OLD_SELECT`, or a node they do not cover).
@@ -439,7 +505,7 @@ impl Exec<'_> {
             }
             return out;
         };
-        if let Some(pb) = kp.semi {
+        if let Some(pb) = kp.semi() {
             let sp = self.sel(run, node)?;
             if super::filter_order::file_fails(run, f, &sp.conj) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
@@ -492,7 +558,7 @@ impl Exec<'_> {
             let t = self.select(f, run, p, node)?;
             return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
         };
-        if let Some(pb) = kp.semi {
+        if let Some(pb) = kp.semi() {
             let sp = self.sel(run, node)?;
             if super::filter_order::file_fails(run, f, &sp.conj) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
@@ -703,7 +769,7 @@ impl Exec<'_> {
             && deferred.is_none()
             && !super::empty_sel::on() && !sw!("VEC_KSEL_PROF")
             && let Some(result) = super::view_pair::run(self, f, run, node, srcs, driver, columns,
-                super::view_pair::Projection { items: &kp.items, left: &mut b.left, right: &mut b.right })?
+                super::view_pair::Projection { items: &kp.items, left: &mut b.left, right: &mut b.right, pushed: kp.pushed() })?
         {
             return Ok(result);
         }
@@ -918,7 +984,18 @@ impl Exec<'_> {
                         // a table made for this execution (probed, or put in place) is indexed by sorting its (key, row)
                         // pairs in the worker's buffer and searched by halving; a step's own table by its index, once a file
                         let fresh = *tn > usize::MAX - 64;
-                        let ix = if fresh && !sw!("VEC_KSEL_INDEX") {
+                        let posting = if f.after_last_file && !fresh && tab_cols.len() == 1
+                            && sel.len() < t.n && t.n <= u32::MAX as usize
+                            && !f.index.contains_key(tn)
+                        {
+                            f.population(sp.srcs[si])
+                                .filter(|p| p.is_materialized(t) && p.can_probe(col))
+                                .cloned()
+                        } else { None };
+                        let ix = if posting.is_some() {
+                            super::session::reuse::posting();
+                            None
+                        } else if fresh && !sw!("VEC_KSEL_INDEX") {
                             let pairs = &mut b.pairs;
                             pairs.clear();
                             if tab_cols.len() == 1 {
@@ -955,6 +1032,10 @@ impl Exec<'_> {
                                 }
                             };
                             let rows: &[u32] = match &ix {
+                                None if let Some(posting) = &posting => {
+                                    posting.matching_rows(col, key, hits);
+                                    hits
+                                }
                                 Some(ix) => match ix.get(&key) {
                                     Some(rows) => rows,
                                     None => continue,

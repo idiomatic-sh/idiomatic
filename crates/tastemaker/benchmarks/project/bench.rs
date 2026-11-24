@@ -196,6 +196,7 @@ fn execute_populations(
         hosted,
         project,
         &BTreeMap::new(),
+        None,
     )
 }
 
@@ -209,6 +210,7 @@ fn execute_ids(
     hosted: &[Hosted],
     project: Option<&crate::check_session::project::Population>,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
+    memo: Option<(&mut finish::session::reuse::Reuse, [usize; 3])>,
 ) -> Result<Vec<finish::answer::Row>, String> {
     let number = |p: &str| {
         inventory
@@ -238,6 +240,7 @@ fn execute_ids(
         |file| subject_files.contains(&file),
         carried,
         incomplete,
+        memo,
     )
 }
 
@@ -272,4 +275,4 @@ mod batch;
 pub(super) use batch::{batch, one, packets};
 
 #[cfg(feature = "product-session")]
-pub use batch::calls::{Live, LiveReport, capture, capture_then, capture_retained, capture_one, print_measurement};
+pub use batch::calls::{check_options, configure_bench_check, HostPhase, Live, LiveOptions, LiveReport, host_snapshot, host_wall, capture, capture_then, capture_retained, capture_one, print_measurement};
