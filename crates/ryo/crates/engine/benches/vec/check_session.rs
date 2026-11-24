@@ -531,15 +531,23 @@ fn versions<'s>(
     keep: bool,
 ) -> Vec<Version<'s>> {
     use std::os::unix::fs::MetadataExt;
-    if let [idx] = *group && !keep {
+    if let [idx] = *group {
         let src = &sources[idx];
         let data = if let Some(bytes) = &src.provided {
             Ok(Arc::clone(bytes))
         } else if let Some((bytes, _)) = retained.get(&idx) {
             Ok(Arc::clone(bytes))
         } else {
-            *reads += 1;
-            std::fs::read(Path::new(&*src.root).join(&src.path)).map(Arc::from)
+            let path = Path::new(&*src.root).join(&src.path);
+            (|| -> std::io::Result<Arc<[u8]>> {
+                let mode = if keep { Some(std::fs::metadata(&path)?.mode() & 0o111) } else { None };
+                *reads += 1;
+                let bytes: Arc<[u8]> = std::fs::read(path)?.into();
+                if let Some(mode) = mode {
+                    retained.insert(idx, (bytes.clone(), mode));
+                }
+                Ok(bytes)
+            })()
         };
         return match data {
             Ok(data) => vec![Version {
