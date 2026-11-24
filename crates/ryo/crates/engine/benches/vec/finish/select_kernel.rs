@@ -322,7 +322,8 @@ impl Exec<'_> {
             return Ok(prep.clone());
         }
         let prep = Rc::new(self.ksel_make(run, node)?);
-        if let Some(path) = std::env::var_os("VEC_KSEL_LOG") {
+        static LOG: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
+        if let Some(path) = LOG.get_or_init(|| std::env::var_os("VEC_KSEL_LOG").map(Into::into)) {
             use std::io::Write;
             let why = match &*prep {
                 Prep::K(k) if k.semi.is_some() => "semi (band, else kernel)",
@@ -330,7 +331,9 @@ impl Exec<'_> {
                 Prep::Old(w) => w,
             };
             if let Ok(mut o) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-                let _ = writeln!(o, "{node}\t{why}");
+                // Append the complete record in one write, including its newline.
+                let line = format!("{node}\t{why}\n");
+                let _ = o.write_all(line.as_bytes());
             }
         }
         self.select_preps[node] = Some(prep.clone());
