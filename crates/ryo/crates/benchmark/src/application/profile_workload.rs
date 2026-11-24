@@ -15,6 +15,8 @@ use std::{
 pub(crate) struct Images {
     pub ordinary: PathBuf,
     pub heap: PathBuf,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostic: Option<PathBuf>,
 }
 
 pub(crate) struct Workload<'a> {
@@ -65,7 +67,11 @@ pub(crate) fn profile<T>(
         let ordinary = ordinary.ok_or_else(|| Error::Invalid("missing ordinary request".into()))?;
         let detail_path = destination.join("engine");
         fs::create_dir_all(&detail_path)?;
-        let (diagnostic, _) = command(&images.ordinary, None, &detail_path)?;
+        let (diagnostic, _) = command(
+            images.diagnostic.as_deref().unwrap_or(&images.ordinary),
+            None,
+            &detail_path,
+        )?;
         let diagnostic = standard::observe(&diagnostic, Observer::Native, &detail_path)?;
         if !diagnostic
             .status

@@ -54,13 +54,18 @@ pub(crate) fn prepare(
                     "other build must be a previous profile directory with both images".into(),
                 ));
             }
-            Ok(Images { ordinary, heap })
+            Ok(Images {
+                ordinary,
+                heap,
+                diagnostic: None,
+            })
         })
         .transpose()?;
     let plan = CorpusProfile {
         first: Images {
             ordinary: first,
             heap,
+            diagnostic: None,
         },
         other,
         root: root.to_owned(),

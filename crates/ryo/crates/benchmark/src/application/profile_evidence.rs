@@ -126,9 +126,30 @@ pub(crate) fn archived(log: &str, ledger: Option<impl BufRead>) -> io::Result<En
     {
         return live(log, ledger);
     }
+    let mut clocks = [None; 7];
+    let mut execution = None;
+    if let Some(line) = log
+        .lines()
+        .find_map(|line| line.strip_prefix("CPU startup "))
+    {
+        let parts: Vec<_> = line.split_ascii_whitespace().collect();
+        if let [startup, "first", first, "second", second] = parts.as_slice() {
+            let seconds = |value: &str| {
+                value
+                    .parse::<f64>()
+                    .ok()
+                    .filter(|seconds| seconds.is_finite() && *seconds >= 0.0)
+            };
+            clocks[0] = seconds(startup);
+            clocks[4] = seconds(second);
+            execution = seconds(first)
+                .zip(seconds(second))
+                .map(|(first, second)| first + second);
+        }
+    }
     Ok(EngineEvidence {
-        clocks: [None; 7],
-        execution: None,
+        clocks,
+        execution,
         parse_wall: None,
         counts: [None; 7],
         operators: None,

@@ -82,10 +82,12 @@ pub fn profile(
     let ordinary = Images {
         ordinary: image.join("ordinary"),
         heap: image.join("heap"),
+        diagnostic: None,
     };
     let other = other.map(|directory| Images {
         ordinary: directory.join("ordinary"),
         heap: directory.join("heap"),
+        diagnostic: None,
     });
     let mut totals = BTreeMap::new();
     for (name, workspace) in [("root", source.clone()), ("ryo", source.join("crates/ryo"))] {

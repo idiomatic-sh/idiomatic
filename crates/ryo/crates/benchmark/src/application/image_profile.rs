@@ -10,7 +10,8 @@ use std::{
     collections::BTreeMap,
     fs,
     io::{self, BufReader, Write},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
+    process::{Command, Stdio},
     time::Duration,
 };
 
@@ -27,6 +28,7 @@ struct Input {
     instruction_launcher: Vec<String>,
     oracle: Option<PathBuf>,
     directory: Option<PathBuf>,
+    snapshot: Option<PathBuf>,
     #[serde(default)]
     environment: BTreeMap<String, String>,
 }
@@ -50,8 +52,48 @@ fn input(path: &Path) -> Result<Input, Error> {
     input.image.ordinary = parent.join(input.image.ordinary).canonicalize()?;
     input.image.heap = parent.join(input.image.heap).canonicalize()?;
     input.oracle = input.oracle.map(|path| parent.join(path));
-    input.directory = input.directory.map(|path| parent.join(path));
+    input.image.diagnostic = input
+        .image
+        .diagnostic
+        .map(|path| parent.join(path).canonicalize())
+        .transpose()?;
+    if let Some(snapshot) = &mut input.snapshot {
+        *snapshot = parent.join(&*snapshot).canonicalize()?;
+        if input.directory.as_ref().is_some_and(|path| {
+            path.components()
+                .any(|part| !matches!(part, Component::Normal(_) | Component::CurDir))
+        }) {
+            return Err(Error::Invalid(
+                "snapshot workload directory must be relative".into(),
+            ));
+        }
+    } else {
+        input.directory = input.directory.map(|path| parent.join(path));
+    }
     Ok(input)
+}
+
+fn isolated(input: &Input, path: &Path) -> io::Result<(PathBuf, Option<PathBuf>)> {
+    let Some(source) = &input.snapshot else {
+        return Ok((input.directory.as_deref().unwrap_or(path).to_owned(), None));
+    };
+    let checkout = path.join("checkout");
+    let status = Command::new("git")
+        .args(["clone", "--quiet", "--local", "--shared"])
+        .arg(source)
+        .arg(&checkout)
+        .stdout(Stdio::null())
+        .status()?;
+    if !status.success() {
+        return Err(io::Error::other(
+            "could not create a cold workload checkout",
+        ));
+    }
+    let directory = input
+        .directory
+        .as_ref()
+        .map_or_else(|| checkout.clone(), |directory| checkout.join(directory));
+    Ok((directory, Some(checkout)))
 }
 
 /// Whether this argument identifies a frozen workload manifest.
@@ -91,6 +133,7 @@ pub fn profile(
         &mut report,
         |image, observer, path| {
             fs::create_dir_all(path)?;
+            let (directory, workspace_prefix) = isolated(&first, path)?;
             let answer_path = path.join("answer");
             let answer = first
                 .arguments
@@ -122,9 +165,9 @@ pub fn profile(
                         })
                         .collect(),
                     environment,
-                    directory: first.directory.as_deref().unwrap_or(path).to_owned(),
+                    directory,
                     answer,
-                    workspace_prefix: None,
+                    workspace_prefix,
                     launcher: match observer {
                         Some(Observer::Instructions) => first.instruction_launcher.as_slice(),
                         Some(Observer::Heap) | None => &[],
@@ -146,7 +189,13 @@ pub fn profile(
                     native.stdout.display()
                 )));
             }
-            let log = fs::read_to_string(&native.stderr)?;
+            let mut log = fs::read_to_string(&native.stderr)?;
+            if native.stdout != destination.join("native/stdout")
+                && first.arguments.iter().any(|arg| arg == "{answer}")
+            {
+                log.push('\n');
+                log.push_str(&fs::read_to_string(destination.join("native/stdout"))?);
+            }
             let ledger = match fs::File::open(destination.join("engine/ryo-operators.tsv")) {
                 Ok(file) if file.metadata()?.len() != 0 => Some(BufReader::new(file)),
                 Ok(_) => None,
