@@ -122,13 +122,23 @@ impl Exec<'_> {
         );
         // These literal IDs precede the dictionary snapshot used by every child.
         // A select containing a regex binds locally to keep its search cache private.
-        let selects = self.sels.iter().map(|slot| {
-            let plan = slot.as_deref()?;
-            if plan.conj.iter().any(E::has_matcher) || plan.items.iter().any(|(_, e)| e.has_matcher()) {
-                return None;
-            }
-            Some(Box::new(plan.clone()))
-        }).collect();
-        Arc::new(Shapes { slots, unique, selects })
+        let selects = self
+            .sels
+            .iter()
+            .map(|slot| {
+                let plan = slot.as_deref()?;
+                if plan.conj.iter().any(E::has_matcher)
+                    || plan.items.iter().any(|(_, e)| e.has_matcher())
+                {
+                    return None;
+                }
+                Some(Box::new(plan.clone()))
+            })
+            .collect();
+        Arc::new(Shapes {
+            slots,
+            unique,
+            selects,
+        })
     }
 }

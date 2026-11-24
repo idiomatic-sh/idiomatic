@@ -16,7 +16,9 @@ impl Patterns {
     pub(crate) fn for_workers(plan: &Plan, run: &mut Run) -> Arc<Self> {
         let mut patterns = Self::default();
         for (name, compiled) in &run.regexes {
-            let _ = patterns.0.insert(name.clone(), Ok(compiled.as_ref().clone()));
+            let _ = patterns
+                .0
+                .insert(name.clone(), Ok(compiled.as_ref().clone()));
         }
         for node in &plan.nodes {
             match node.step() {

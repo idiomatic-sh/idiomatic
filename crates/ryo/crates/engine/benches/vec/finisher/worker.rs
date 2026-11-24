@@ -170,13 +170,21 @@ impl Finisher<'_> {
     pub(crate) fn report(self) -> Report {
         let start = super::thread_cpu();
         let report = self.into_report();
-        println!("worker executor release CPU {:.6} s", super::thread_cpu() - start);
+        println!(
+            "worker executor release CPU {:.6} s",
+            super::thread_cpu() - start
+        );
         report
     }
 
     fn into_report(self) -> Report {
         Report {
-            project: self.run.project.into_iter().map(|(name, answer)| (name, answer.asks)).collect(),
+            project: self
+                .run
+                .project
+                .into_iter()
+                .map(|(name, answer)| (name, answer.asks))
+                .collect(),
             findings: self.findings,
             failures: self.failed,
             rule_stats: self.rule_stats,
