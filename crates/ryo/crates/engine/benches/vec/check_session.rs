@@ -72,6 +72,7 @@ pub(crate) struct Program {
     pub plan: Plan,
     pub syntax: Box<ryo_values::domain::program::types::WrittenProgram>,
     pub bases: Vec<String>,
+    base_steps: Vec<(usize, Option<l::Relation>)>,
     requirements: (bool, Vec<Vec<String>>, Vec<Vec<String>>),
 }
 
@@ -89,11 +90,11 @@ impl Program {
             .pop()
             .ok_or("missing query emit")?
             .1;
-        let bases = plan
-            .nodes
-            .iter()
-            .filter_map(|n| n.base().map(str::to_owned))
-            .collect();
+        let (bases, base_steps) = plan.nodes.iter().enumerate().filter_map(|(offset, step)| {
+            step.base().map(|name| {
+                (name.to_owned(), (offset, relations::service::relation_named(NameRef(name))))
+            })
+        }).unzip();
         let syntax = match pack
             .programs
             .rules
@@ -111,6 +112,7 @@ impl Program {
             typed,
             requirements,
             bases,
+            base_steps,
         })
     }
 }
@@ -126,6 +128,9 @@ pub(crate) struct Clock {
     pub(crate) build_file: f64,
     pub screen: f64,
     pub bound_proofs: f64,
+    pub literal_positions: usize,
+    pub requirement_programs: usize,
+    pub requirement_bindings: usize,
     pub evaluate: f64,
     pub project: f64,
     pub assemble: f64,
@@ -331,7 +336,7 @@ impl<'p> std::ops::IndexMut<&usize> for Bindings<'p> {
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 struct SummaryColumns {
     kinds: bool,
     fields: bool,
@@ -353,7 +358,7 @@ fn requested_facts(mask: FactMask, out: &mut Vec<l::Relation>) {
 
 struct Bound<'p> {
     fact_mask: FactMask,
-    summary: SummaryColumns,
+    requirements: Rc<BoundRequirements>,
     projects_words: bool,
     reads_fields: bool,
     screenable: Option<bool>,
@@ -367,11 +372,38 @@ struct Bound<'p> {
     facts: Vec<l::Relation>,
     filters: BTreeMap<usize,Vec<(usize,u64)>>,
     hosted: Tables,
-    shape: Vec<Vec<(bool, u32)>>,
-    words: Vec<Vec<u32>>,
-    never: bool,
+
     lines: bool,
     coverage: reader_run::coverage::Coverage,
+}
+
+#[derive(Eq, Hash, PartialEq)]
+struct BoundRequirements {
+    never: bool,
+    shape: Vec<Vec<(bool, u32)>>,
+    words: Vec<Vec<u32>>,
+    summary: SummaryColumns,
+}
+
+impl BoundRequirements {
+    fn new(program: &Program, run: &mut Run) -> Self {
+        let (never, shape, words) = &program.requirements;
+        let summary = SummaryColumns {
+            kinds: shape.iter().flatten().any(|v| v.starts_with("k:")),
+            fields: shape.iter().flatten().any(|v| v.starts_with("f:")),
+            words: !words.is_empty(),
+        };
+        let shape = shape.iter().map(|clause| {
+            clause.iter().map(|value| {
+                let (kind, term) = value.split_once(':').expect("shape term");
+                (kind == "k", run.sym(term.as_bytes()))
+            }).collect()
+        }).collect();
+        let words = words.iter().map(|clause| {
+            clause.iter().map(|word| run.sym(word.as_bytes())).collect()
+        }).collect();
+        Self { never: *never, shape, words, summary }
+    }
 }
 
 fn bind<'p, L: FileSource>(
@@ -381,20 +413,17 @@ fn bind<'p, L: FileSource>(
     run: &mut Run,
     hosted: Tables,
     cut: Option<&finish::partition::Partition>,
+    requirements: Rc<BoundRequirements>,
 ) -> Result<Bound<'p>> {
     let mut facts = Vec::new();
-    let mut projects_words = !program.requirements.2.is_empty();
-    let mut reads_fields = program.requirements.1.iter().flatten().any(|term| term.starts_with("f:"));
-    for (at, step) in program.plan.nodes.iter().enumerate() {
-        if step.op != "base" || cut.is_some_and(|c| !c.file_steps[at]) {
+    let mut projects_words = requirements.summary.words;
+    let mut reads_fields = requirements.summary.fields;
+    for (name, (at, relation)) in program.bases.iter().zip(&program.base_steps) {
+        if cut.is_some_and(|c| !c.file_steps[*at]) || hosted.iter().any(|(n, _)| n == name) {
             continue;
         }
-        let name = step.base().ok_or("base relation")?;
-        if hosted.iter().any(|(n, _)| n == name) {
-            continue;
-        }
-        let rel = relations::service::relation_named(NameRef(name))
-            .ok_or_else(|| format!("undeclared {name}"))?;
+        let rel = relation.ok_or_else(|| format!("undeclared {name}"))?;
+        let name = name.as_str();
         projects_words |= matches!(rel, l::Relation::SyntaxTree | l::Relation::SemanticSyntax | l::Relation::TokenLink);
         reads_fields |= matches!(rel, l::Relation::SemanticChild | l::Relation::SyntaxChild);
         if relations::service::class_of(rel) == relations::types::Class::Engine {
@@ -422,28 +451,6 @@ fn bind<'p, L: FileSource>(
             facts.push(rel);
         }
     }
-    let (never, shape, words) = &program.requirements;
-    let summary = SummaryColumns {
-        kinds: shape.iter().flatten().any(|v| v.starts_with("k:")),
-        fields: shape.iter().flatten().any(|v| v.starts_with("f:")),
-        words: !words.is_empty(),
-    };
-    let shape = shape
-        .iter()
-        .map(|clause| {
-            clause
-                .iter()
-                .map(|v| {
-                    let (kind, term) = v.split_once(':').unwrap();
-                    (kind == "k", run.sym(term.as_bytes()))
-                })
-                .collect()
-        })
-        .collect();
-    let words = words
-        .iter()
-        .map(|clause| clause.iter().map(|w| run.sym(w.as_bytes())).collect())
-        .collect();
     let filters: BTreeMap<usize, Vec<(usize, u64)>>=cut.into_iter().flat_map(|c|&c.filters).map(|(&node,alts)|{
         (node,alts.iter().map(|(col,w)|(*col,u64::from(run.sym(w)))).collect())
     }).collect();
@@ -461,7 +468,7 @@ fn bind<'p, L: FileSource>(
     }
     Ok(Bound {
         fact_mask,
-        summary,
+        requirements,
         reads_fields,
         projects_words,
         screenable: None,
@@ -475,9 +482,6 @@ fn bind<'p, L: FileSource>(
         test: 0,
         facts,
         hosted,
-        shape,
-        words,
-        never: *never,
         lines: program
             .bases
             .iter()
@@ -606,6 +610,8 @@ fn versions<'s>(
 pub(crate) struct ReaderState {
     run: Run,
     screens: pairs::Retained,
+    patterns: crate::pair_checks::SymbolMatches,
+    requirements: HashMap<usize, Rc<BoundRequirements>>,
     previous_plan: Option<shared::PreviousPlan>,
     unknown: Option<HashMap<u32, u32>>,
     bytes: HashMap<usize, (Arc<[u8]>, u32)>,
@@ -629,6 +635,7 @@ struct HeldFile<F: Default, D: Default> {
     text: Vec<u32>,
     recovery: Option<ryo_execution_domain::domain::coverage::types::Recovery>,
     contents: Contents,
+    literals: std::cell::RefCell<crate::pair_checks::LiteralPositions>,
     known: BTreeSet<l::Relation>,
     facts: l::contract::Collect,
 }
@@ -687,6 +694,10 @@ pub(crate) fn visit<L: FileSource>(
         }
     }
     let mut checks = (!keep).then(|| pairs::Checks::new(parser, programs, program_of, &needed, cut_of));
+    let mut local_requirements = HashMap::new();
+    let reader_requirements = if keep { &mut state.requirements } else { &mut local_requirements };
+    let local_patterns = crate::pair_checks::SymbolMatches::default();
+    let pattern_cache = if keep { &state.patterns } else { &local_patterns };
     clocks.prepare += thread_cpu() - t;
     let mut bound = Bindings { index: vec![usize::MAX; program_of.len()], entries: Vec::new() };
     let mut registry = finish::session::contribution::Registry::default();
@@ -704,10 +715,19 @@ pub(crate) fn visit<L: FileSource>(
     for (binding, needed) in needed.into_iter().enumerate() {
         if !needed { continue; }
         let entry = (|| {
-            let program = programs[program_of[binding]].as_ref().map_err(Clone::clone)?;
+            let program_id = program_of[binding];
+            let program = programs[program_id].as_ref().map_err(Clone::clone)?;
             let tables = host(binding, &mut run)?;
-            let mut b = bind(&mut registry, program, parser, &mut run, tables, cut_of[binding].as_deref())?;
-            merged.add(&mut b, &mut run, program_of[binding], keep);
+            clocks.requirement_bindings += 1;
+            let requirements = reader_requirements.entry(program_id)
+                .or_insert_with(|| {
+                    clocks.requirement_programs += 1;
+                    Rc::new(BoundRequirements::new(program, &mut run))
+                })
+                .clone();
+            let mut b = bind(&mut registry, program, parser, &mut run, tables,
+                cut_of[binding].as_deref(), requirements)?;
+            merged.add(&mut b, &mut run, program_id, keep);
             Ok(b)
         })();
         bound.index[binding] = bound.entries.len();
@@ -758,10 +778,10 @@ pub(crate) fn visit<L: FileSource>(
                         for (word, bits) in required.iter_mut().zip(b.fact_mask) { *word |= bits; }
                         projects_words |= b.projects_words;
                         projects_fields |= b.reads_fields;
-                        if cut_of[binding].is_none() && !b.never {
-                            summary.kinds |= b.summary.kinds;
-                            summary.fields |= b.summary.fields;
-                            summary.words |= b.summary.words;
+                        if cut_of[binding].is_none() && !b.requirements.never {
+                            summary.kinds |= b.requirements.summary.kinds;
+                            summary.fields |= b.requirements.summary.fields;
+                            summary.words |= b.requirements.summary.words;
                         }
                     }
                     Err(reason) => answers.set(slot, Err(reason.clone())),
@@ -920,8 +940,8 @@ pub(crate) fn visit<L: FileSource>(
             for (&binding, &slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
                 let excluded = cut_of[binding].is_none()
-                    && *test_results[b.test].get_or_insert_with(|| b.never
-                        || !b.shape.iter().all(|c| {
+                    && *test_results[b.test].get_or_insert_with(|| b.requirements.never
+                        || !b.requirements.shape.iter().all(|c| {
                             c.iter().any(|(k, v)| {
                                 if *k {
                                     kinds.contains(v)
@@ -930,7 +950,7 @@ pub(crate) fn visit<L: FileSource>(
                                 }
                             })
                         })
-                        || !b.words.iter().all(|c| c.iter().any(|v| words.contains(v))));
+                        || !b.requirements.words.iter().all(|c| c.iter().any(|v| words.contains(v))));
                 if excluded && b.facts.is_empty() {
                     let whole = recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
                     if whole || {
@@ -1017,21 +1037,27 @@ pub(crate) fn visit<L: FileSource>(
             if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
             {
                 distinct.get_mut().clear();
-                let mut evaluate = |screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
-                    screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct,
+                if !reused {
+                    held.literals.get_mut().clear();
+                }
+                let scanned = held.literals.get_mut().scanned();
+                let mut evaluate = |scope, screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
+                    let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
+                    screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns,
                         &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, unknown, cut_of, &said);
                 };
                 if let Some(screen) = &mut checks {
-                    evaluate(screen, &mut active, |binding| binding);
+                    evaluate(0, screen, &mut active, |binding| binding);
                 } else if selected.len() > 1 {
                     // A one-source open admission cannot amortize preparing a reader screen.
                     // Its coarse requirements and ordinary executor still apply.
                     let prepare = state.screens.groups(parser, programs, program_of, cut_of, &mut active,
-                        |screen, jobs| evaluate(screen, jobs, |_| 0));
+                        |index, screen, jobs| evaluate(index, screen, jobs, |_| 0));
                     clocks.prepare += prepare;
                     clocks.bound_proofs -= prepare;
                     clocks.screen -= prepare;
                 }
+                clocks.literal_positions += held.literals.get_mut().scanned() - scanned;
             }
             let proof_time = thread_cpu() - t;
             clocks.screen += proof_time;

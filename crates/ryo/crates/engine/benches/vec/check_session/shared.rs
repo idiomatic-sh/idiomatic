@@ -1,5 +1,5 @@
 //! Rebind a program's supplied relations and step numbers into the reader's plan.
-use super::{Bindings, Bound, Plan, Run, Table, Tables, finish};
+use super::{Bindings, Bound, BoundRequirements, Plan, Run, Table, Tables, finish};
 use ryo_engine::domain::plan_lowering::shared::SharedSteps;
 use ryo_values::domain::finish_plans::types::{FinishPlan, FinishStep};
 use std::{collections::HashMap, rc::Rc};
@@ -20,7 +20,7 @@ pub(super) struct ReaderPlan {
     inputs: Vec<(usize, Aliases)>,
     hosts: HashMap<Rc<Table>, String>,
     outputs: Vec<(String, usize, String, Vec<String>)>,
-    tests: HashMap<(bool, Vec<Vec<(bool, u32)>>, Vec<Vec<u32>>), usize>,
+    tests: HashMap<Rc<BoundRequirements>, usize>,
 }
 
 impl ReaderPlan {
@@ -28,7 +28,7 @@ impl ReaderPlan {
         let next = self.tests.len();
         b.test = *self
             .tests
-            .entry((b.never, b.shape.clone(), b.words.clone()))
+            .entry(b.requirements.clone())
             .or_insert(next);
         let mut given = Aliases::with_capacity(b.hosted.len());
         for (name, table) in &b.hosted {
@@ -98,6 +98,8 @@ impl ReaderPlan {
                 }
                 hit.plan.clone()
             } else {
+                // Release the old graph before allocating its replacement.
+                *last = None;
                 let inputs = std::mem::take(&mut self.inputs);
                 let slots = bindings.zip(&inputs).map(|(binding, (_, aliases))| {
                     self.append(binding, aliases);

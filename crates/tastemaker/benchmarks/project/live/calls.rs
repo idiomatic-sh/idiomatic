@@ -165,6 +165,9 @@ impl Live {
         }
         last.elapsed += thread_cpu() - t;
         last.bound_proofs = c.bound_proofs;
+        last.literal_positions = c.literal_positions;
+        last.requirement_programs = c.requirement_programs;
+        last.requirement_bindings = c.requirement_bindings;
         last.parts = [
             c.prepare,
             c.read_parse,
@@ -411,6 +414,9 @@ struct Measurement {
     elapsed: f64,
     parts: [f64; 6],
     bound_proofs: f64,
+    literal_positions: usize,
+    requirement_programs: usize,
+    requirement_bindings: usize,
     counts: [usize; 10],
     retained: [u64; 4],
 }
@@ -424,6 +430,9 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     elapsed: 0.0,
     parts: [0.0; 6],
     bound_proofs: 0.,
+    literal_positions: 0,
+    requirement_programs: 0,
+    requirement_bindings: 0,
     counts: [0; 10],
     retained: [0; 4],
 });
@@ -447,12 +456,15 @@ pub fn print_measurement() {
         m.sessions,
     );
     eprintln!(
-        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} productive={productive} empty={empty} refused={refused} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6} bound_proofs={:.6}",
+        "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} productive={productive} empty={empty} refused={refused} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6} bound_proofs={:.6} literal_positions={} requirement_programs={} requirement_bindings={}",
         m.calls,
         m.requests,
         m.refused,
         m.elapsed - m.parts.iter().sum::<f64>(),
-        m.bound_proofs
+        m.bound_proofs,
+        m.literal_positions,
+        m.requirement_programs,
+        m.requirement_bindings
     );
 }
 

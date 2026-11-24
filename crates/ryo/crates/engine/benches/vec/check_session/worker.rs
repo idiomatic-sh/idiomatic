@@ -201,6 +201,9 @@ pub(crate) fn dispatch<L: FileSource>(
             clocks.read_parse += time.read_parse;
             clocks.screen += time.screen;
             clocks.bound_proofs += time.bound_proofs;
+            clocks.literal_positions += time.literal_positions;
+            clocks.requirement_programs += time.requirement_programs;
+            clocks.requirement_bindings += time.requirement_bindings;
             clocks.evaluate += time.evaluate;
             clocks.files += time.files;
             clocks.reads += time.reads;

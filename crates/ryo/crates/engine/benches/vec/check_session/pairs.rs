@@ -12,7 +12,6 @@ pub(super) struct Checks {
     roots: Vec<Option<Vec<usize>>>,
     domains: Vec<Vec<(usize, usize)>>,
     live: Vec<bool>,
-    patterns: crate::pair_checks::SymbolMatches,
     words: l::FileWords,
     row_guards: Vec<(usize, l::Relation)>,
     known: Vec<(usize, bool)>,
@@ -136,7 +135,6 @@ impl Checks {
             row_guards,
             known: Vec::new(),
             live,
-            patterns: Default::default(),
             words: l::facts::file_words(&l::facts::base_words(Default::default(), &[])),
         }
     }
@@ -149,6 +147,8 @@ impl Checks {
         tree: &l::NodeTable,
         text: Option<&[u32]>,
         distinct: &std::cell::RefCell<crate::pair_checks::FileSymbols>,
+        literal_positions: &std::cell::RefCell<crate::pair_checks::LiteralPositions>,
+        patterns: crate::pair_checks::Predicates<'_>,
         bytes: &[u8],
         path: &str,
         id: FileId,
@@ -184,7 +184,7 @@ impl Checks {
             let column = |source, index, predicate, pattern: &pair_summary::regexes::Matcher| {
                 let FactSource::Catalog(rel) = source else { return None };
                 if partials.iter().any(|p| p.relation == rel) { return None; }
-                self.patterns.with_predicate(predicate, pattern, &run.texts, |test| {
+                patterns.with_predicate(predicate, pattern, &run.texts, |test| {
                     packet.any_symbol(rel, index, |word| {
                         if let Some(text) = l::text_of(symbols, l::ByteSlice(bytes), word) {
                             let subject = text.0.as_bytes();
@@ -205,8 +205,9 @@ impl Checks {
                     ids,
                     symbols: &run.texts,
                     dictionary: &run.ids,
+                    positions: literal_positions,
                     distinct: Some(distinct),
-                    patterns: Some(&self.patterns),
+                    patterns: Some(patterns),
                     column: Some(&column),
                 }),
                 &mut self.words,
@@ -293,7 +294,7 @@ impl Retained {
         &mut self, parser: Option<&L>, programs: &[Result<Program>], program_of: &[usize],
         cuts: &[Option<&crate::finish::partition::Partition>],
         active: &mut [(usize, usize, bool)],
-        mut visit: impl FnMut(&mut Checks, &mut [(usize, usize, bool)]),
+        mut visit: impl FnMut(usize, &mut Checks, &mut [(usize, usize, bool)]),
     ) -> f64 {
         let mut prepare = 0.;
         self.bindings.resize(program_of.len(), None);
@@ -319,7 +320,7 @@ impl Retained {
         let sort = !active.is_sorted_by_key(group);
         if sort { active.sort_unstable_by_key(group); }
         for jobs in active.chunk_by_mut(|a, b| group(a) == group(b)) {
-            if let Some(index) = group(&jobs[0]) { visit(&mut self.programs[index], jobs); }
+            if let Some(index) = group(&jobs[0]) { visit(index, &mut self.programs[index], jobs); }
         }
         // FileInputs shares contributions in the schedule's original binding order.
         if sort { active.sort_unstable_by_key(|job| job.0); }

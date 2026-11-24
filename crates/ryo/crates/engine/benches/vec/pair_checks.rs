@@ -19,14 +19,29 @@ type SymbolColumn<'a> = dyn Fn(Source, usize, Id, &super::pair_summary::regexes:
 pub(super) struct SyntaxText<'a> {
     pub ids: &'a [u32],
     pub symbols: &'a [std::rc::Rc<[u8]>],
-    pub patterns: Option<&'a SymbolMatches>,
+    pub patterns: Option<Predicates<'a>>,
     pub dictionary: &'a Map<Rc<[u8]>, u32>,
+    pub positions: &'a std::cell::RefCell<LiteralPositions>,
     pub distinct: Option<&'a std::cell::RefCell<FileSymbols>>,
     pub column: Option<&'a SymbolColumn<'a>>,
 }
 /// The reader owns symbol identities for the lifetime of this dictionary.
 #[derive(Default)]
-pub(super) struct SymbolMatches(std::cell::RefCell<Vec<(usize, u32, bool)>>);
+pub(super) struct SymbolMatches(std::cell::RefCell<Vec<PatternAnswer>>);
+
+#[derive(Clone, Copy)]
+struct PatternAnswer {
+    scope: u32,
+    predicate: u32,
+    subject: u32,
+    matches: bool,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct Predicates<'a> {
+    pub cache: &'a SymbolMatches,
+    pub scope: usize,
+}
 
 /// An existence test can stop early. Later predicates continue the same
 /// discovery of distinct subjects and see every subject already discovered.
@@ -69,20 +84,38 @@ impl FileSymbols {
     }
 }
 
-impl SymbolMatches {
+impl Predicates<'_> {
     pub(super) fn with_predicate<R>(&self, index: usize, regex: &super::pair_summary::regexes::Matcher,
         symbols: &[Rc<[u8]>], apply: impl FnOnce(&mut dyn FnMut(u32) -> bool) -> R) -> R {
-        let mut entries = self.0.borrow_mut();
+        let (Ok(scope), Ok(predicate)) = (u32::try_from(self.scope), u32::try_from(index)) else {
+            return apply(&mut |id| regex.is_match(&symbols[id as usize]));
+        };
+        if scope == u32::MAX {
+            return apply(&mut |id| regex.is_match(&symbols[id as usize]));
+        }
+        let mut entries = self.cache.0.borrow_mut();
         if entries.is_empty() {
-            entries.resize(4096, (usize::MAX, 0, false));
+            entries.resize(4096, PatternAnswer {
+                scope: u32::MAX,
+                predicate: 0,
+                subject: 0,
+                matches: false,
+            });
         }
         apply(&mut |id| {
-            let slot = (index.wrapping_mul(0x9e3779b9) ^ id as usize) & (entries.len() - 1);
+            let slot = (index.wrapping_mul(0x9e3779b9)
+                ^ self.scope.wrapping_mul(0x85ebca6b)
+                ^ id as usize) & (entries.len() - 1);
             let entry = &mut entries[slot];
-            if (entry.0, entry.1) != (index, id) {
-                *entry = (index, id, regex.is_match(&symbols[id as usize]));
+            if (entry.scope, entry.predicate, entry.subject) != (scope, predicate, id) {
+                *entry = PatternAnswer {
+                    scope,
+                    predicate,
+                    subject: id,
+                    matches: regex.is_match(&symbols[id as usize]),
+                };
             }
-            entry.2
+            entry.matches
         })
     }
 }
@@ -119,45 +152,43 @@ struct Table {
 /// File-local positions for reader-interned symbols. A presence query stops on
 /// its first witness. A position query finishes the same scan.
 #[derive(Default)]
-struct Literals {
+pub(super) struct LiteralPositions {
     heads: Map<u32, u32>,
     previous: Vec<u32>,
-    symbols: Map<Id, Option<u32>>,
 }
 
-impl Literals {
+impl LiteralPositions {
     const END: u32 = u32::MAX;
 
-    fn clear(&mut self) {
+    #[allow(dead_code, reason = "only readers with an exact symbol column reset this index")]
+    pub(super) fn clear(&mut self) {
         self.heads.clear();
         self.previous.clear();
-        self.symbols.clear();
     }
 
-    fn symbol(&mut self, domain: Id, literal: &[u8], column: SyntaxText<'_>) -> Option<u32> {
-        *self.symbols.entry(domain).or_insert_with(|| column.dictionary.get(literal).copied())
+    #[allow(dead_code, reason = "only the session reports scan counts")]
+    pub(super) fn scanned(&self) -> usize {
+        self.previous.len()
     }
 
     fn head(&self, symbol: u32) -> u32 {
         self.heads.get(&symbol).copied().unwrap_or(Self::END)
     }
 
-    fn scan(&mut self, column: &[u32], until: Option<u32>) {
+    fn scan(&mut self, column: &[u32], until: Option<u32>) -> bool {
         for &symbol in &column[self.previous.len()..] {
             let position = self.previous.len() as u32;
             let previous = self.heads.insert(symbol, position).unwrap_or(Self::END);
             self.previous.push(previous);
             if until == Some(symbol) {
-                break;
+                return true;
             }
         }
+        false
     }
 
     fn contains(&mut self, symbol: u32, column: &[u32]) -> bool {
-        if self.head(symbol) == Self::END {
-            self.scan(column, Some(symbol));
-        }
-        self.head(symbol) != Self::END
+        self.head(symbol) != Self::END || self.scan(column, Some(symbol))
     }
 
     fn positions(&mut self, symbol: u32, column: &[u32]) -> Bits {
@@ -200,7 +231,7 @@ impl Answers {
 pub(super) struct Scratch {
     sets: Vec<Option<Nodes>>,
     needs: Answers,
-    literals: Literals,
+    literal_ids: Map<Id, Option<u32>>,
     touched: Vec<Id>,
 }
 
@@ -223,7 +254,7 @@ struct File<'a, const PROFILE: bool> {
     facts: Vec<Table>,
     sets: &'a mut [Option<Nodes>],
     needs: &'a mut Answers,
-    literals: &'a mut Literals,
+    literal_ids: &'a mut Map<Id, Option<u32>>,
     touched: &'a mut Vec<Id>,
     texts: Option<Map<&'a [u8], Vec<u32>>>,
     steps: u64,
@@ -408,8 +439,8 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 }
                 Domain::Text(literal) if self.syntax_text.is_some() => {
                     let column = self.syntax_text.unwrap();
-                    self.literals.symbol(x, literal.as_bytes(), column)
-                        .is_some_and(|symbol| self.literals.contains(symbol, column.ids))
+                    self.literal_id(x, literal.as_bytes(), column)
+                        .is_some_and(|symbol| column.positions.borrow_mut().contains(symbol, column.ids))
                 }
                 Domain::SpanMatching(kind, pattern) if self.p.file_only[x] => {
                     node_table::ids_of_kind(self.t, languages::KindBits(*kind)).iter().any(|pos| {
@@ -456,6 +487,11 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         self.needs.set(id, yes);
         yes
     }
+    /// Domain IDs belong to the prepared proof. Position lists belong to the file.
+    fn literal_id(&mut self, domain: Id, literal: &[u8], column: SyntaxText<'_>) -> Option<u32> {
+        *self.literal_ids.entry(domain).or_insert_with(|| column.dictionary.get(literal).copied())
+    }
+
     fn nodes(&mut self, id: Id) -> Nodes {
         let class = if PROFILE {
             cost::family(&self.p.domains[id], &self.p.facts) as usize
@@ -571,9 +607,9 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             }
             Domain::Text(t) if self.syntax_text.is_some() => {
                 let column = self.syntax_text.unwrap();
-                Some(self.literals.symbol(id, t.as_bytes(), column).map_or_else(
+                Some(self.literal_id(id, t.as_bytes(), column).map_or_else(
                     || Rc::new(Vec::new()),
-                    |symbol| self.literals.positions(symbol, column.ids),
+                    |symbol| column.positions.borrow_mut().positions(symbol, column.ids),
                 ))
             }
             Domain::Text(t) => {
@@ -1065,7 +1101,7 @@ impl Program {
         let mut buffers = self.scratch.take();
         buffers.sets.resize(self.domains.len(), None);
         buffers.needs.reset(self.needs.len());
-        buffers.literals.clear();
+        buffers.literal_ids.clear();
         let mut f = File::<PROFILE> {
             reader_class: &reader_class,
             owner: 0,
@@ -1093,7 +1129,7 @@ impl Program {
             facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
             sets: &mut buffers.sets,
             needs: &mut buffers.needs,
-            literals: &mut buffers.literals,
+            literal_ids: &mut buffers.literal_ids,
             touched: &mut buffers.touched,
             texts: None,
             steps: 0,
