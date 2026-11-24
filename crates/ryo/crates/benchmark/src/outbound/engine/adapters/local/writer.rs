@@ -80,12 +80,12 @@ pub(super) fn chrome(
 /// Build the filtered JSONL subscriber used by an explicit diagnostic worker.
 pub(super) fn subscriber(
     path: &Path,
-    options: ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions,
+    options: benchmark_contracts::domain::requests::types::DiagnosticOptions,
 ) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
-    let on = |switch: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch| {
+    let on = |switch: benchmark_contracts::domain::requests::types::DiagnosticSwitch| {
         matches!(
             switch,
-            ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
+            benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
         )
     };
     let aggregate_level = if on(options.execution) {

@@ -1,5 +1,5 @@
 //! Summarize Ryo's engine-owned counters beside the standard tool output.
-use ryo_benchmark_contracts::domain::{
+use benchmark_contracts::domain::{
     measurements::types::WorkerPhases, reports::types::CoverageAccounting,
 };
 use serde::Deserialize;

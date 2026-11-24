@@ -14,8 +14,8 @@ autotests = false
 
 [dev-dependencies]
 ryo_python = { package = "idiomatic-sh-ryo-python", path = "../../..", features = ["fixtures"] }
-ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../../../../../crates/benchmark_contracts" }
-ryo_benchmark = { package = "idiomatic-sh-ryo-benchmark", path = "../../../../../crates/benchmark", features = ["fixtures"] }
+benchmark-contracts = { package = "idiomatic-sh-benchmark-contracts", path = "../../../../../crates/benchmark_contracts" }
+benchmark = { package = "idiomatic-sh-benchmark", path = "../../../../../crates/benchmark", features = ["fixtures"] }
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../../../../crates/sdk", features = ["fixtures"] }
 serde.workspace = true
 serde_json.workspace = true

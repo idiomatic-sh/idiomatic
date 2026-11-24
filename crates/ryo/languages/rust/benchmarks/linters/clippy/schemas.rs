@@ -1,11 +1,11 @@
 //! The clippy process protocol: the package manager's JSON message stream, and the dependency files that name what rustc read.
 use super::constants;
+use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{BenchmarkFinding, RunReport};
+use benchmark_contracts::domain::requests::types::RunRequest;
 use ryo::linter::{RelativePath, RuleId};
-use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, RunReport};
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::path::{Component, Path, PathBuf};
@@ -266,23 +266,22 @@ impl TryFrom<ClippyReportSchema<'_>> for RunReport {
             .map(|(rule, file, start, end)| BenchmarkFinding {
                 rule,
                 file,
-                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(start),
-                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(end),
+                start: benchmark_contracts::domain::reports::types::SourceByteOffset(start),
+                end: benchmark_contracts::domain::reports::types::SourceByteOffset(end),
             })
             .collect();
         Ok(RunReport {
             execution_metadata:
-                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unavailable {
-                    reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason(
+                benchmark_contracts::domain::reports::types::ExecutionMetadata::Unavailable {
+                    reason: benchmark_contracts::domain::reports::types::UnavailableReason(
                         constants::NO_ACCOUNTING.into(),
                     ),
                 },
             project_context:
-                ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             diagnostics,
             skipped: Vec::new(),
-            coverage:
-                ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted,
+            coverage: benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted,
             files: request.files.clone(),
         })
     }

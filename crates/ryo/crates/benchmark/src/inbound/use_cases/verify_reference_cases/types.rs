@@ -1,6 +1,6 @@
 //! What a reference-only verification answers.
 use crate::outbound::evidence::types::RuleTiming;
-use ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount;
+use benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount;
 use std::collections::BTreeMap;
 
 /// The cases a reference-only verification matched and how long each rule's cases took.

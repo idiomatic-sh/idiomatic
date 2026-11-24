@@ -1,7 +1,7 @@
 //! Render a canonical document and take its digest, with the sorted-object encoding of the reference harness.
 use super::constants;
 use super::types::{Document, Fragment, Label, Quantity};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use sha2::Digest as _;
 
 fn quote(label: &Label) -> Document {

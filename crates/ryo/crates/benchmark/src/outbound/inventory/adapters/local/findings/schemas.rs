@@ -1,7 +1,7 @@
 //! The expected findings of a case, as the authoring normalizes and orders them.
 use super::super::canonical::schemas::{Canonical, invalid, table, text};
 use super::super::constants;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 /// One expected finding as the authoring normalizes it, with its rule defaulting to the case's owner.
 pub(in super::super) fn finding(row: &Canonical, owner: &str) -> Result<Canonical, Error> {

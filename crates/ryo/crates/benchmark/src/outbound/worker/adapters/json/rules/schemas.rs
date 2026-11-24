@@ -1,14 +1,14 @@
 //! Rule configuration and named observation declarations, checked into the core's types.
 use crate::outbound::worker::adapters::json::types::DocumentWire;
+use benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
+use benchmark_contracts::domain::context::types::{
+    ExternalPrefix, PreparedRuleContext, RuleConfiguration, RuleContextTables, TableName,
+};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo::linter::{
     ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
     ObservationKind, ObservationName, ObservationProducer, RelativePath, RuleId,
 };
-use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
-use ryo_benchmark_contracts::domain::context::types::{
-    ExternalPrefix, PreparedRuleContext, RuleConfiguration, RuleContextTables, TableName,
-};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 

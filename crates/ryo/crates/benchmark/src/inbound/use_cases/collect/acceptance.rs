@@ -3,15 +3,15 @@
     clippy::expect_used,
     reason = "acceptance assertions must fail the scenario on unexpected success or refusal"
 )]
+use benchmark::inbound::use_cases::collect::interface::CollectUseCase as _;
+use benchmark::inbound::use_cases::collect::use_case::CollectUseCaseImpl;
+use benchmark::outbound::collection::fixtures::fake::CollectionFake;
+use benchmark::outbound::collection::interface::CollectionPort as _;
+use benchmark::outbound::collection::types::CollectorMessage;
+use benchmark::outbound::execution::fixtures::fake::ExecutionFake;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use cucumber::then;
-use ryo_benchmark::inbound::use_cases::collect::interface::CollectUseCase as _;
-use ryo_benchmark::inbound::use_cases::collect::use_case::CollectUseCaseImpl;
-use ryo_benchmark::outbound::collection::fixtures::fake::CollectionFake;
-use ryo_benchmark::outbound::collection::interface::CollectionPort as _;
-use ryo_benchmark::outbound::collection::types::CollectorMessage;
-use ryo_benchmark::outbound::execution::fixtures::fake::ExecutionFake;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
 use std::sync::Arc;
 /// Assert that the collector preserves a missing executable error.
 #[then("the collector preserves a missing executable error")]

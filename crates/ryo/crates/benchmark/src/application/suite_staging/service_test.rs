@@ -3,8 +3,8 @@ use super::service;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::constants::RULES;
 use crate::outbound::suite::{factory::local, fixtures::fake::SuiteFake};
-use ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
-use ryo_benchmark_contracts::domain::workloads::types::StagePurpose;
+use benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
+use benchmark_contracts::domain::workloads::types::StagePurpose;
 
 /// Which source the staging is given.
 #[derive(Clone, Copy)]
@@ -57,7 +57,7 @@ fn missing_profile() -> Result<Value, Failure> {
     );
     assert!(matches!(
         result,
-        Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(ref error))
+        Err(benchmark_contracts::domain::reports::errors::ReportsError::Io(ref error))
             if error.kind() == std::io::ErrorKind::NotFound
     ));
     Err(())

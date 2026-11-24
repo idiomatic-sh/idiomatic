@@ -5,24 +5,24 @@ use crate::domain::suite::service::{
     require_complete, validate_case_sources, validate_cases, validate_selected_rules,
 };
 use crate::domain::suite::types::audit::value::Audit;
+use benchmark_contracts::domain::context::types::CaseContext;
+use benchmark_contracts::domain::reports::types::SourceByteOffset;
+use benchmark_contracts::domain::requests::types::{
+    CohortSelection, FileMetadataDeclaration, InputDeclaration, SearchRoots,
+};
+use benchmark_contracts::domain::workloads::types::Case as SuiteCase;
+use benchmark_contracts::domain::workloads::types::CaseComparison;
+use benchmark_contracts::domain::workloads::types::Cases;
+use benchmark_contracts::domain::workloads::types::ConfigurationOverride;
+use benchmark_contracts::domain::workloads::types::Expected;
+use benchmark_contracts::domain::workloads::types::ExpectedRule;
+use benchmark_contracts::domain::workloads::types::benchmark_case_name::value::BenchmarkCaseName;
+use benchmark_contracts::domain::workloads::types::{
+    ContextDeclaration, InventoryDeclaration, ReferenceBehavior, RequestedFiles,
+};
 use ryo::linter::{
     GivenProjectInventory, ProjectEntryObservation, ProjectEntryState, RelativePath, RuleId,
     SourceText,
-};
-use ryo_benchmark_contracts::domain::context::types::CaseContext;
-use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
-use ryo_benchmark_contracts::domain::requests::types::{
-    CohortSelection, FileMetadataDeclaration, InputDeclaration, SearchRoots,
-};
-use ryo_benchmark_contracts::domain::workloads::types::Case as SuiteCase;
-use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
-use ryo_benchmark_contracts::domain::workloads::types::Cases;
-use ryo_benchmark_contracts::domain::workloads::types::ConfigurationOverride;
-use ryo_benchmark_contracts::domain::workloads::types::Expected;
-use ryo_benchmark_contracts::domain::workloads::types::ExpectedRule;
-use ryo_benchmark_contracts::domain::workloads::types::benchmark_case_name::value::BenchmarkCaseName;
-use ryo_benchmark_contracts::domain::workloads::types::{
-    ContextDeclaration, InventoryDeclaration, ReferenceBehavior, RequestedFiles,
 };
 use std::borrow::Cow;
 
@@ -148,7 +148,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(explicit_missing(), |case| {
-                let ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(
+                let benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(
                     context,
                 ) = &mut case.context
                 else {

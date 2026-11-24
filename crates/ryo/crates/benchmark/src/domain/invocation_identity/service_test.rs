@@ -5,7 +5,7 @@ use super::service::{boundaries, normalize, normalize_text};
 use super::types::InvocationText;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::fixtures::case;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::Invocation;
 use std::borrow::Cow;
 use std::ffi::OsString;
 

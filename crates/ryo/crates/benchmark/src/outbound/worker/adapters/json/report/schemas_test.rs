@@ -1,10 +1,10 @@
 //! Exact wire spellings and refusal of undeclared producer metadata.
 use super::{ExecutionMetadataSchema, ReceiptSchema};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::types::{ExecutionMetadata, UnavailableReason};
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::reports::types::{ExecutionMetadata, UnavailableReason};
 use std::collections::BTreeMap;
 fn execution_metadata_roundtrips_exact_wire_without_a_serde_contract_on_neutral_data() {
     for (data, wire) in [

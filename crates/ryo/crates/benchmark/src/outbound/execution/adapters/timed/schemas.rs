@@ -1,13 +1,13 @@
 //! Private wire forms preserve native OS strings and exact resource units.
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes as CollectorMessage;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
-use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
-use ryo_benchmark_contracts::domain::measurements::types::Resources;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::CapturedBytes as CollectorMessage;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::measurements::types::ResidentBytes;
+use benchmark_contracts::domain::measurements::types::ResourceObservation;
+use benchmark_contracts::domain::measurements::types::Resources;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::{Deserialize, Serialize};
 use std::{ffi::OsString, time::Duration};
 #[derive(Serialize, Deserialize)]
@@ -87,10 +87,10 @@ impl From<ObservationSchema> for ProcessOutput {
     fn from(output: ObservationSchema) -> Self {
         Self {
             signal: output.signal.map_or(
-                ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+                benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
                 |number| {
-                    ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Signalled(
-                        ryo_benchmark_contracts::domain::measurements::types::SignalNumber(number),
+                    benchmark_contracts::domain::measurements::types::TerminationSignal::Signalled(
+                        benchmark_contracts::domain::measurements::types::SignalNumber(number),
                     )
                 },
             ),

@@ -1,6 +1,6 @@
 //! Shared language corpus manifest.
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types;
 use serde::Deserialize;
 
 #[cfg(test)]

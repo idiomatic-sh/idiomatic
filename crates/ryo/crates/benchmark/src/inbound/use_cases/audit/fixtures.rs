@@ -1,6 +1,6 @@
 //! Independent artifact construction shared by acceptance proofs.
 use crate::inbound::use_cases::audit::interface::AuditUseCase as _;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::workloads::types::Tool;
 /// Produce the acceptance fixture through the real artifact boundary.
 ///
 /// # Panics
@@ -49,13 +49,13 @@ expected = []
     }
     let tool = Tool {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+            benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: Default::default(),
-        rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
-        file_observation: ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
+        rule_context: benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+        file_observation: benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
         project_context_mode:
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+            benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: "1".into(),
         sha256: vec![String::new().into()],
@@ -63,9 +63,9 @@ expected = []
         pending: std::collections::BTreeMap::default(),
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         defaults: vec![rule.try_into().expect("rule identifier")],
     };
     crate::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(std::sync::Arc::new(
@@ -91,7 +91,7 @@ pub fn deferring(rule: &str, capability: &str) -> Tool {
         defaults: vec![rule.clone()],
         deferred: std::collections::BTreeMap::from([(
             rule,
-            ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(
+            benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(
                 capability.into(),
             ),
         )]),

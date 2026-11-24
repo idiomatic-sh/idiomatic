@@ -8,9 +8,9 @@ use super::constants::{
 use super::prepared_engine_test::{
     PreparedEngine as _, default_frontend_projection, fixture_cohort,
 };
-use ryo_benchmark::outbound::engine::factory;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use benchmark::outbound::engine::factory;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
 
 pub(super) fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> Result<(), Error> {
@@ -42,22 +42,22 @@ pub(super) fn lazy_future_stays_visible_without_a_dedicated_selected_rule() -> R
             )
             .run_prepared(WorkerRequest {
                 performance: Default::default(),
-                selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&[selected])),
-                rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-                rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-                project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+                selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&[selected])),
+                rule_observations: benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+                rule_context: benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+                project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
                 given_project_inventory: Default::default(),
                 project_context_mode:
-                    ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-                context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+                    benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+                context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
                 root: root.path().to_owned(),
                 rules,
                 query_modules: BTreeMap::default(),
                 rule_applicability: BTreeMap::default(),
-                parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(PYTHON_TARGET_3_15.to_owned())),
-                source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+                parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Named(benchmark_contracts::domain::requests::types::ParserConfigurationName(PYTHON_TARGET_3_15.to_owned())),
+                source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
                 files: vec![ryo::linter::RelativePath(INPUT_PY.into())],
-                state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+                state: benchmark_contracts::domain::requests::types::WorkerState::Fresh,
             })?;
             assert_eq!(report.files, [ryo::linter::RelativePath(INPUT_PY.into())]);
             assert_eq!(report.diagnostics.len(), 1 + usize::from(generic));

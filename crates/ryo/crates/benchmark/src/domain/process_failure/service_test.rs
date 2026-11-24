@@ -4,10 +4,10 @@ use super::fixtures::{archived, of, process};
 use super::service::{check_archives, group_digest, output_digest};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::fixtures::profile;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::process::types::ProcessFailure;
+use benchmark_contracts::domain::workloads::types::Tool;
 
 /// What a row asks of the process failure.
 #[derive(Clone, Copy, Debug)]

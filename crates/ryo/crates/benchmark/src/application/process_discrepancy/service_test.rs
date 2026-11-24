@@ -7,15 +7,15 @@ use crate::domain::discrepancy::types::{OptionalDigest, ReferenceKind};
 use crate::domain::process_receipts::fixtures::root;
 use crate::domain::registered_inputs::types::RefusalText;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::documents::types::invocation_document::value::{
     FailedInvocation, InvocationDocument,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::{
     ExitStatus, PathText, ReasonText, Sha256Text, YesNo,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use std::path::Path;
 
 /// What an accepted capture answers.
@@ -56,7 +56,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(|actual| {
-                actual.case.reference_discrepancy = ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees
+                actual.case.reference_discrepancy =
+                    benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees
             })
         },
         expect: Expect::Error(ProcessDiscrepancyError::NoProcessExpectation),
@@ -116,7 +117,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             edited(|actual| {
-                actual.output.signal = ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Signalled(ryo_benchmark_contracts::domain::measurements::types::SignalNumber(15))
+                actual.output.signal =
+                    benchmark_contracts::domain::measurements::types::TerminationSignal::Signalled(
+                        benchmark_contracts::domain::measurements::types::SignalNumber(15),
+                    )
             })
         },
         expect: Expect::Error(ProcessDiscrepancyError::TerminationDiffers),

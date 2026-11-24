@@ -1,14 +1,14 @@
 //! Invocation, operational failures and exact-source decoding through the actual adapter.
 use super::engine_test::boundary_failure_test::{BoundaryFailure, failure};
 use super::{adapter::LinterRuffAdapter, constants, settings::LinterRuffSettings};
+use benchmark::cases::{Case, CaseName, Expect, Word, run};
+use benchmark::outbound::linter::fixtures::contract::check;
+use benchmark::outbound::linter::interface::LinterPort as _;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use benchmark_contracts::domain::requests::types::RunRequest;
 use ryo::linter::RuleId;
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark::outbound::linter::fixtures::contract::check;
-use ryo_benchmark::outbound::linter::interface::LinterPort as _;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 
 #[path = "engine_test/adapter_scenario_test.rs"]
 mod adapter_scenario_test;
@@ -167,25 +167,24 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     }
     let mut request = RunRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
         file_metadata:
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         files: vec![ryo::linter::RelativePath("case.py".into())],
         state: root.path().join("cache"),
     };
     if matches!(scenario, AdapterScenario::MissingExecutable) {
-        return ryo_benchmark::outbound::discovery::interface::DiscoveryPort::files(
-            &ryo_benchmark::outbound::discovery::factory::listing(
+        return benchmark::outbound::discovery::interface::DiscoveryPort::files(
+            &benchmark::outbound::discovery::factory::listing(
                 executable.clone(),
                 constants::DISCOVERY_ARGUMENTS
                     .into_iter()
@@ -258,15 +257,15 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     let report = ruff.decode(
         &request,
         ProcessOutput {
-            signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
-            status: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(status),
-            stdout: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(stdout),
-            stderr: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(
+            signal: benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+            status: benchmark_contracts::domain::measurements::types::ProcessExitCode(status),
+            stdout: benchmark_contracts::domain::measurements::types::CapturedBytes(stdout),
+            stderr: benchmark_contracts::domain::measurements::types::CapturedBytes(
                 b"warning: file-level noqa must be on its own line\n".to_vec(),
             ),
             wall: std::time::Duration::default(),
             resources:
-                ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly,
+                benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly,
         },
     )?;
     let expected = if matches!(scenario, AdapterScenario::CleanWarning) {
@@ -276,32 +275,32 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
             BenchmarkFinding {
                 rule: RuleId::try_from("E722").expect("fixture rule"),
                 file: ryo::linter::RelativePath("case.py".into()),
-                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(14),
-                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(20),
+                start: benchmark_contracts::domain::reports::types::SourceByteOffset(14),
+                end: benchmark_contracts::domain::reports::types::SourceByteOffset(20),
             },
             BenchmarkFinding {
                 rule: RuleId::try_from("invalid-syntax").expect("frontend rule"),
                 file: ryo::linter::RelativePath("case.py".into()),
-                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(20),
-                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(21),
+                start: benchmark_contracts::domain::reports::types::SourceByteOffset(20),
+                end: benchmark_contracts::domain::reports::types::SourceByteOffset(21),
             },
         ]
     } else {
         vec![BenchmarkFinding {
             rule: RuleId::try_from("E722").expect("fixture rule"),
             file: ryo::linter::RelativePath("case.py".into()),
-            start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(14),
-            end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(20),
+            start: benchmark_contracts::domain::reports::types::SourceByteOffset(14),
+            end: benchmark_contracts::domain::reports::types::SourceByteOffset(20),
         }]
     };
     Ok(report.files == request.files
         && report.diagnostics == expected
         && matches!(
             report.execution_metadata,
-            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unavailable { .. }
+            benchmark_contracts::domain::reports::types::ExecutionMetadata::Unavailable { .. }
         )
         && report.coverage
-            == ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted)
+            == benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted)
 }
 fn subject(input: Input) -> Result<Value, Failure> {
     exercise(input).map_err(failure)

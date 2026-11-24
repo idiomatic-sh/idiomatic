@@ -1,9 +1,9 @@
 //! The shared producer fixture crosses the real injected filesystem receipt boundary.
 use super::interface::ValidateCaseReceiptsUseCase;
-use ryo_benchmark_contracts::domain::receipts::types::CaseKey;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::receipts::types::CaseKey;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::types::RuleLabel;
+use benchmark_contracts::domain::workloads::types::{
     benchmark_case_name::value::BenchmarkCaseName, case_count::value::CaseCount,
 };
 #[derive(Clone, Copy)]

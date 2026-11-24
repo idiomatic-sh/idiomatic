@@ -3,8 +3,8 @@
 use super::super::service::corpus_digest;
 use super::{files, manifest, sealed};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::context::types::LinkTarget;
-use ryo_benchmark_contracts::domain::requests::types::ContextSeal;
+use benchmark_contracts::domain::context::types::LinkTarget;
+use benchmark_contracts::domain::requests::types::ContextSeal;
 
 /// The corpus of the fixture file list: unsealed, sealed under a boundary, or sealed with these links (path, target).
 enum Check {

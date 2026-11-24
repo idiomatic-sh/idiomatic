@@ -7,7 +7,7 @@ use super::{
     interface::MeasureCorpusUseCase as _,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::requests::types::CohortSelection;
+use benchmark_contracts::domain::requests::types::CohortSelection;
 
 /// The rules a certificate covers and the cohort measured under it.
 #[derive(Clone, Copy)]
@@ -246,7 +246,7 @@ fn certified(
     covered: &[&str],
     cohort: &CohortSelection,
     observations: &mut Vec<u8>,
-) -> Result<(), ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+) -> Result<(), benchmark_contracts::domain::reports::errors::ReportsError> {
     let files = ["a.fixture"];
     let root = project_of(&files);
     let cache = project_of(&[]);
@@ -255,7 +255,7 @@ fn certified(
         (bench.path(), cache.path()),
         (
             &[super::types::SourceSuffix(".fixture")],
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
+            benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
         ),
         |corpus| {
             assert_eq!(

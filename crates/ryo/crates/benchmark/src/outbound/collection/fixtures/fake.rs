@@ -1,8 +1,8 @@
 //! Typed in-memory protocol double, independent of JSON serialization.
 use super::super::{interface::CollectionPort, types::CollectorMessage};
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::sync::Mutex;
 #[derive(Clone, Debug)]
 /// Cloneable failure representation retained by the in-memory protocol.

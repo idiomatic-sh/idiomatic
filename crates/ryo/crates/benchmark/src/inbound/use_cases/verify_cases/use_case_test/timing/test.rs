@@ -7,11 +7,11 @@ use crate::outbound::{
     execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
     receipts::fixtures::fake::ReceiptsFake,
 };
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::measurements::types::{
     ExecutionProfile, Invocation, ProcessOutput,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::types::CaseSelection;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Duration;

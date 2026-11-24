@@ -2,8 +2,8 @@
 use super::projected;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::inventory::types::{ApplicabilityText, ProfileProjection};
-use ryo_benchmark_contracts::domain::documents::types::text::value::RuleName;
-use ryo_benchmark_contracts::domain::requests::types::{ParserConfigurationName, ParserSelection};
+use benchmark_contracts::domain::documents::types::text::value::RuleName;
+use benchmark_contracts::domain::requests::types::{ParserConfigurationName, ParserSelection};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 

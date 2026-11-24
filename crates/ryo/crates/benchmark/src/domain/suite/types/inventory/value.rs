@@ -1,11 +1,11 @@
 //! Complete rule inventories never turn missing or unrun work into success.
 use crate::domain::suite::constants;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
-use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RuleLabel;
+use benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::collections::BTreeSet;
 
 /// Why one rule failed, including missing registration and not run.

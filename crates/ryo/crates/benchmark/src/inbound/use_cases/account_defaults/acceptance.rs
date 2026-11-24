@@ -1,12 +1,12 @@
 //! The public accounting over the real audit operation.
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::account_defaults::{
+use benchmark::inbound::use_cases::account_defaults::{
     interface::AccountDefaultsUseCase as _, use_case::AccountDefaultsUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::{
+use benchmark::inbound::use_cases::{
     admit_measurement::fixtures::tool,
     audit::fixtures::{audit_of, audited, deferring},
 };
+use cucumber::then;
 
 #[then("account_defaults accepts an audit that authored the default")]
 fn accepts(world: &mut crate::Behavior) {

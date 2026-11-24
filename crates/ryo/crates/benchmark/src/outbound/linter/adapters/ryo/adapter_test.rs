@@ -3,23 +3,23 @@ use super::adapter::LinterRyoAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::linter::fixtures::contract::check;
 use crate::outbound::linter::interface::LinterPort as _;
+use benchmark_contracts::domain::requests::types::RunRequest;
 use ryo::linter::RelativePath;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use std::collections::BTreeMap;
 fn concrete_implementation_answers_the_shared_contract() -> Result<(), Box<dyn std::error::Error>> {
     check(&LinterRyoAdapter {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+            benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         rule_observations: Default::default(),
         defaults: vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
         project_context_mode:
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+            benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         executable: "fixture".into(),
         rules: "rules".into(),
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
     });
     Ok(())
 }
@@ -29,18 +29,17 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
     let state = root.path().join("state");
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
         file_metadata:
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         files: (0_usize..8_000_usize)
             .map(|index| RelativePath(format!("sources/module_{index:05}.py").into_boxed_str()))
@@ -49,19 +48,19 @@ fn oversized_request_is_staged_as_json_file_instead_of_argv()
     };
     let adapter = LinterRyoAdapter {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+            benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         rule_observations: Default::default(),
         defaults: vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
         project_context_mode:
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+            benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         executable: "candidate".into(),
         rules: "rules".into(),
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
+        parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Named(benchmark_contracts::domain::requests::types::ParserConfigurationName(
             "python-target=3.10".into(),
         )),
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(ryo_benchmark_contracts::domain::requests::types::SourceLanguageName(
+        source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Selected(benchmark_contracts::domain::requests::types::SourceLanguageName(
             "explicit-fixture-provider".into(),
         )),
     };
@@ -136,7 +135,7 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
     let original = declarations("matched λ\t\\source");
     let mut adapter = LinterRyoAdapter {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+            benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         rule_observations: original.clone().into(),
         defaults: vec![consumer.clone(), producer.clone()],
         project_context_mode: Default::default(),
@@ -145,12 +144,12 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
         parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
     };
-    use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared;
-    use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Selected;
+    use benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared;
+    use benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Selected;
     for (index, (policy, explicit)) in [
         (Declared, None),
         (Declared, Some(declarations("different"))),
@@ -169,20 +168,30 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
         }
         let request = RunRequest {
             performance: Default::default(),
-            project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            project_search_roots:
+                benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
-            staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+            staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
             selected_rules: if policy == Selected {
-                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![consumer.clone()])
+                benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![
+                    consumer.clone(),
+                ])
             } else {
-                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen
+                benchmark_contracts::domain::requests::types::CohortSelection::Frozen
             },
-            rule_observations: explicit.map_or(ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared, |declarations| {
-                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(declarations.into())
-            }),
-            rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-            file_metadata: ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-            context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            rule_observations: explicit.map_or(
+                benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+                |declarations| {
+                    benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
+                        declarations.into(),
+                    )
+                },
+            ),
+            rule_context:
+                benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+            file_metadata:
+                benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+            context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
             root: root.path().to_owned(),
             files: vec![RelativePath("input.py".into())],
             state: root.path().join(index.to_string()),
@@ -197,7 +206,7 @@ fn authored_observations_survive_actual_parent_to_worker_transport_and_explicit_
         let received = worker.receive().unwrap();
         assert!(matches!(
             &received.rule_observations,
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(declared) if std::ops::Deref::deref(declared) == &expected
+            benchmark_contracts::domain::requests::types::InputDeclaration::Declared(declared) if std::ops::Deref::deref(declared) == &expected
         ));
         assert_eq!(
             *adapter.rule_observations, original,

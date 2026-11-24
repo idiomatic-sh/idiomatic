@@ -7,9 +7,9 @@ use crate::outbound::{
     context::interface::ContextPort, evidence::interface::EvidencePort,
     execution::interface::ExecutionPort, linter::interface::LinterPort,
 };
-use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::measurements::types::RunOrder;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RunRequest;
 
 /// Execute both contestants, requiring all diagnostic findings and valid candidate execution; report incomparable reference metadata.
 pub(super) fn measure(
@@ -39,7 +39,7 @@ pub(super) fn measure(
 /// Measure only the exact case-certified subset and immutable source bytes.
 pub(super) fn measure_certified(
     certificate: &crate::domain::suite::types::certificate::value::Certificate,
-    mode: &ryo_benchmark_contracts::domain::measurements::types::MeasurementMode,
+    mode: &benchmark_contracts::domain::measurements::types::MeasurementMode,
     suite: &dyn crate::outbound::suite::interface::SuitePort,
     context: &dyn ContextPort,
     evidence: &dyn EvidencePort,

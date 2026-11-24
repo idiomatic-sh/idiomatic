@@ -1,10 +1,10 @@
 //! Where this language-owned linter profile lives and where its runs make scratch directories.
 use super::constants;
-use ryo_benchmark::outbound::suite::{
+use benchmark::outbound::suite::{
     interface::{ScopedDirectory, SuitePort},
     types::{ArtifactPath, ArtifactText},
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::{Path, PathBuf};
 
 /// Locate this language-owned linter profile from its package manifest.

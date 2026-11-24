@@ -4,10 +4,10 @@ use crate::outbound::suite::types::{
     ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, MaterializedCase,
     MaterializedContext, RetainedDirectory, RuleQuery, SourceDigest,
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Suite;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::Suite;
+use benchmark_contracts::domain::workloads::types::Tool;
 
 /// The local adapter the fake leaves physical operations to.
 fn local() -> impl SuitePort {
@@ -34,7 +34,7 @@ pub struct SuiteFake {
     /// The projects available from this deterministic artifact source.
     pub(crate) projects: Option<Suite>,
     /// Independent cases already materialized by the fixture.
-    pub prepared: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
+    pub prepared: Vec<benchmark_contracts::domain::workloads::types::PreparedCase>,
     /// Explicit digest observations supplied by evidence-admission orchestration tests.
     pub(crate) artifact_digests: std::collections::BTreeMap<std::path::PathBuf, ArtifactDigest>,
     /// Whether this fixture has independently validated its declared source and evidence inputs.
@@ -45,7 +45,7 @@ pub struct SuiteFake {
 impl SuitePort for SuiteFake {
     fn validate_file_metadata(
         &self,
-        request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
+        request: &benchmark_contracts::domain::requests::types::RunRequest,
     ) -> Result<(), Error> {
         local().validate_file_metadata(request)
     }
@@ -123,13 +123,13 @@ impl SuitePort for SuiteFake {
     fn accepted_differences(
         &self,
         file: ArtifactPath<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error> {
+    ) -> Result<benchmark_contracts::domain::reports::types::AcceptedDifferences, Error> {
         local().accepted_differences(file)
     }
     fn growth_table(
         &self,
         file: ArtifactPath<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::growth::types::GrowthTable, Error> {
+    ) -> Result<benchmark_contracts::domain::growth::types::GrowthTable, Error> {
         local().growth_table(file)
     }
     fn source_text(&self, file: ArtifactPath<'_>) -> Result<ryo::linter::SourceText, Error> {
@@ -144,7 +144,7 @@ impl SuitePort for SuiteFake {
     fn directory_size(
         &self,
         directory: ArtifactPath<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::costs::types::StoreSize, Error> {
+    ) -> Result<benchmark_contracts::domain::costs::types::StoreSize, Error> {
         local().directory_size(directory)
     }
     fn digest(&self, ArtifactPath(path): ArtifactPath<'_>) -> Result<ArtifactDigest, Error> {
@@ -162,7 +162,7 @@ impl SuitePort for SuiteFake {
         _: ArtifactPath<'_>,
         _: &[ryo::linter::RuleId],
         _: &std::collections::BTreeSet<ryo::linter::RuleId>,
-        _: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
+        _: benchmark_contracts::domain::workloads::types::StagePurpose,
     ) -> Result<(), Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
@@ -190,7 +190,7 @@ impl SuitePort for SuiteFake {
         &self,
         _: ArtifactPath<'_>,
         _: &ryo::linter::RuleId,
-    ) -> Result<ryo_benchmark_contracts::domain::workloads::types::Cases, Error> {
+    ) -> Result<benchmark_contracts::domain::workloads::types::Cases, Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
     }
     fn verify_query_modules(&self, _: ArtifactPath<'_>, _: &Tool) -> Result<(), Error> {
@@ -199,7 +199,7 @@ impl SuitePort for SuiteFake {
     fn materialize_case(
         &self,
         _: ArtifactPath<'_>,
-        _: &ryo_benchmark_contracts::domain::workloads::types::Case,
+        _: &benchmark_contracts::domain::workloads::types::Case,
         _: &MaterializedContext,
     ) -> Result<MaterializedCase, Error> {
         Err(std::io::Error::from(std::io::ErrorKind::NotFound).into())
@@ -225,7 +225,7 @@ impl SuitePort for SuiteFake {
         &self,
         _: ArtifactPath<'_>,
         tool: &Tool,
-        _: &ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine,
+        _: &benchmark_contracts::domain::workloads::types::version_line::value::VersionLine,
     ) -> Result<(), Error> {
         if self.profile.is_none() {
             return Err(std::io::Error::from(std::io::ErrorKind::NotFound).into());

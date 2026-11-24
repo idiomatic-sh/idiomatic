@@ -5,9 +5,9 @@ use crate::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactPath, ArtifactText},
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::ShardPartition;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::ShardPartition;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::path::Path;
 /// verify_rule_profiles with required borrowed boundaries.
 pub struct VerifyRuleProfilesUseCaseImpl<'a> {

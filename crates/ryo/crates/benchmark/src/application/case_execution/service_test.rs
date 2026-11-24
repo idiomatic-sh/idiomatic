@@ -5,17 +5,17 @@ use crate::outbound::context::fixtures::data::sealed_manifest;
 use crate::outbound::context::fixtures::fake::{Refused, RefusingContext};
 use crate::outbound::linter::fixtures::fake::ObservingLinter;
 use crate::outbound::{execution::fixtures::fake::ExecutionFake, linter::interface::LinterPort};
-use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
-use ryo_benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::artifacts::types::FileExecutable;
+use benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{
     CoverageAccounting, ExecutionMetadata, ProjectContext, RunReport,
 };
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
     RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::workloads::types::{
     CaseComparison, PreparedCase, PreparedReferenceBehavior,
 };
 use std::{cell::Cell, collections::BTreeMap};
@@ -100,8 +100,8 @@ struct ObservedPrepare(Cell<usize>);
 impl LinterPort for ObservedPrepare {
     fn rule_configuration(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
-        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
+    ) -> benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, _: &RunRequest) -> Result<Invocation, Error> {
         self.0.set(self.0.get() + 1);
@@ -113,8 +113,8 @@ impl LinterPort for ObservedPrepare {
     fn settings_text(
         &self,
         normalized: &Invocation,
-        _case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
-        _profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+        _case: &benchmark_contracts::domain::workloads::types::PreparedCase,
+        _profile: &benchmark_contracts::domain::workloads::types::Tool,
     ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
         Ok(crate::outbound::linter::types::CanonicalText(format!(
             "{normalized:?}"
@@ -122,17 +122,15 @@ impl LinterPort for ObservedPrepare {
     }
     fn rule_context_text(
         &self,
-        prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext,
+        prepared: &benchmark_contracts::domain::context::types::PreparedRuleContext,
     ) -> crate::outbound::linter::types::CanonicalText {
         crate::outbound::linter::types::CanonicalText(format!("{prepared:?}"))
     }
     fn version_line(
         &self,
-        tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
-        ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine::from(
-            tool,
-        )
+        tool: &benchmark_contracts::domain::workloads::types::Tool,
+    ) -> benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
+        benchmark_contracts::domain::workloads::types::version_line::value::VersionLine::from(tool)
     }
 }
 #[cfg(unix)]
@@ -251,7 +249,7 @@ fn metadata_drift_blocks_each_attempt() -> String {
 fn declared_missing_primary_is_reverified() -> String {
     let mut seen: Vec<String> = Vec::new();
     use crate::outbound::context::interface::ContextPort as _;
-    use ryo_benchmark_contracts::domain::context::types::CaseContext;
+    use benchmark_contracts::domain::context::types::CaseContext;
     let scratch = tempfile::tempdir().unwrap();
     let boundary = scratch.path().join("snapshot");
     let sources = [(

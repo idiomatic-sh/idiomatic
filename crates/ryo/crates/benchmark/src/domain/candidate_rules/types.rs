@@ -1,5 +1,5 @@
 //! The pure result of projecting candidate rule configuration.
-use ryo_benchmark_contracts::domain::reports::types::PairCount;
+use benchmark_contracts::domain::reports::types::PairCount;
 
 /// Existing SDK hosted inputs and exact configured rule/file count.
 pub(crate) struct CandidateConfiguration {

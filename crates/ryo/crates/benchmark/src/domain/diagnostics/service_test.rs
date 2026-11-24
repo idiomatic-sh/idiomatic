@@ -1,13 +1,13 @@
 //! Exact diagnostic multisets and submitted-file sets determine agreement.
 use super::service::{compare_conditions, compare_dimensions, compare_with_contract};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo::linter::{RelativePath, RuleId, SkipReason, Skipped};
-use ryo_benchmark_contracts::domain::reports::service::require_complete_execution;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::reports::service::require_complete_execution;
+use benchmark_contracts::domain::reports::types::{
     BenchmarkFinding, Comparison, ComparisonContract, CoverageAccounting, ExecutionMetadata,
     PairCount, ProjectContext, ReportComparison, RuleCoverage, RunReport, SourceByteOffset,
     UnavailableReason,
 };
+use ryo::linter::{RelativePath, RuleId, SkipReason, Skipped};
 use std::borrow::Cow;
 
 /// What a case hands the part: two reports under a contract, one tool's reports under two cache conditions, or one report's
@@ -74,7 +74,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             unobservable(
                 ExecutionMetadata::Unavailable {
-                    reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason(
+                    reason: benchmark_contracts::domain::reports::types::UnavailableReason(
                         "findings-only format".into(),
                     ),
                 },
@@ -169,7 +169,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             unobservable(
                 ExecutionMetadata::Unavailable {
-                    reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason(
+                    reason: benchmark_contracts::domain::reports::types::UnavailableReason(
                         "findings-only format".into(),
                     ),
                 },

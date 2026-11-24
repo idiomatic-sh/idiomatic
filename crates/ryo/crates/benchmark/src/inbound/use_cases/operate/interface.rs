@@ -1,6 +1,6 @@
 //! What the `operate` use case promises its callers.
 use super::types::{OperationReport, OperationRequest};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 
 /// Run one gated operation of a linter bench.
 pub trait OperateUseCase {

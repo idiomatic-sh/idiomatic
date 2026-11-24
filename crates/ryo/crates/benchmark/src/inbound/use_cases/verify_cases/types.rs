@@ -1,6 +1,6 @@
 //! What a verification answers.
 use crate::outbound::evidence::types::RuleTiming;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::collections::BTreeMap;
 
 /// The cases a verification checked and how long each rule's cases took.

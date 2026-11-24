@@ -6,12 +6,12 @@ use crate::outbound::engine::types::{
     EngineConfiguration, EngineRun, loaded_engine_session::value::LoadedEngineSession,
 };
 use crate::outbound::engine::types::{FrontendDiagnosticProjection, Retention};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount, RunReport};
+use benchmark_contracts::domain::requests::types::WorkerRequest;
 use ryo::linter::{
     self, Cache, Cell, Corpus, Languages, LintRequest, MemoryBudget, Rule, RuleId, Slot, WorkerPool,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, PairCount, RunReport};
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
 
 /// Runs authored queries through the SDK with the injected language registry.
@@ -230,16 +230,16 @@ impl EngineExecution for LocalEngineSession<'_> {
         // The files run on rayon's own pool size: `RAYON_NUM_THREADS` when the caller sets it (the harness sets one), else one
         // thread per core.
         let cache = match &request.state {
-            ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh => Cache::None,
-            ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(path) => {
+            benchmark_contracts::domain::requests::types::WorkerState::Fresh => Cache::None,
+            benchmark_contracts::domain::requests::types::WorkerState::Retained(path) => {
                 Cache::At(path.clone())
             }
         };
         let (corpus, beside) = match request.project_context_mode {
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated => {
+            benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated => {
                 (Corpus::Given(sources), vec![])
             }
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk => {
+            benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk => {
                 (Corpus::Listed(request.files.clone()), sources)
             }
         };
@@ -250,15 +250,15 @@ impl EngineExecution for LocalEngineSession<'_> {
             engine,
             LintRequest {
                 source_language: match &request.source_language {
-                    ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => ryo::linter::SourceLanguage::Recognized,
-                    ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => ryo::linter::SourceLanguage::Named(
+                    benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => ryo::linter::SourceLanguage::Recognized,
+                    benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => ryo::linter::SourceLanguage::Named(
                         ryo::languages::LanguageName(name.0.clone().into()),
                     ),
                 },
                 root: request.root.clone(),
                 project_search_scope: match &request.project_search_roots {
-                    ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared => ryo::linter::ProjectSearchScope::Undeclared,
-                    ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(roots) => {
+                    benchmark_contracts::domain::requests::types::SearchRoots::Undeclared => ryo::linter::ProjectSearchScope::Undeclared,
+                    benchmark_contracts::domain::requests::types::SearchRoots::Declared(roots) => {
                         ryo::linter::ProjectSearchScope::Declared(roots.clone())
                     }
                 },
@@ -298,14 +298,14 @@ impl EngineExecution for LocalEngineSession<'_> {
             dependencies,
             report: RunReport {
                 execution_metadata:
-                    ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
+                    benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
                 project_context:
-                    ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                    benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
                 diagnostics,
                 skipped,
                 coverage:
-                    ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                        ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
+                    benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                        benchmark_contracts::domain::reports::types::RuleCoverage {
                             selected: PairCount(selected_pairs),
                             evaluated: PairCount(
                                 selected_pairs.checked_sub(skips_count).ok_or_else(|| {
@@ -349,10 +349,10 @@ fn diagnostic_findings(findings: Vec<linter::Finding>) -> Result<Vec<BenchmarkFi
         diagnostics.push(BenchmarkFinding {
             rule: finding.rule,
             file,
-            start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
+            start: benchmark_contracts::domain::reports::types::SourceByteOffset(
                 usize::try_from(span.start.0).map_err(|error| Error::Invalid(error.to_string()))?,
             ),
-            end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
+            end: benchmark_contracts::domain::reports::types::SourceByteOffset(
                 usize::try_from(span.end.0).map_err(|error| Error::Invalid(error.to_string()))?,
             ),
         });
@@ -366,10 +366,10 @@ fn configuration_files(
     languages: &Languages,
 ) -> Result<Vec<linter::RelativePath>, Error> {
     let selected_language = match &request.source_language {
-        ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => {
+        benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => {
             Some(name.0.as_str())
         }
-        ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => None,
+        benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => None,
     };
     let matching: Vec<_> = match selected_language {
         Some(selected) => languages

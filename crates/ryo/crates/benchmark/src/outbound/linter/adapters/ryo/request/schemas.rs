@@ -3,11 +3,11 @@ use crate::outbound::linter::adapters::ryo::identity::schemas::{
     observation_declarations_value, prepared_value,
 };
 use crate::outbound::linter::adapters::ryo::types::RequestJson;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::ContextManifest;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::ContextManifest;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, DiagnosticSwitch, InputDeclaration, ParserSelection,
     PerformanceOptions, ProviderSelection, RuleContextPreparation, SearchRoots, WorkerRequest,
     WorkerState,

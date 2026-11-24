@@ -2,13 +2,13 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::linter::interface::LinterPort as _;
 use crate::outbound::worker::adapters::json::types::WorkerPayload;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::context::types::{
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::context::types::{
     ContextManifest, ExternalPrefix, LinkTarget, ObservationSelectionPolicy, TableName,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::constants::REQUEST_FILE;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::constants::REQUEST_FILE;
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration, ParserSelection,
     ProviderSelection, QueryModuleName, RuleContextPreparation, RunRequest, SearchRoots,
     StagedSources, WorkerRequest, WorkerState,

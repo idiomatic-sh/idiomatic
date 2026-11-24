@@ -6,12 +6,12 @@ use crate::inbound::use_cases::verify_cases::fixtures::shard::{
 };
 use crate::outbound::linter::{fixtures::fake::LinterFake, interface::LinterPort};
 use crate::outbound::receipts::fixtures::fake::ReceiptsFake;
-use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
-use ryo_benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::{FileMetadataDeclaration, RunRequest};
-use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
+use benchmark_contracts::domain::artifacts::types::FileExecutable;
+use benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::requests::types::{FileMetadataDeclaration, RunRequest};
+use benchmark_contracts::domain::workloads::types::FileObservation;
 use std::path::Path;
 
 /// The executable bit the case declares.
@@ -101,8 +101,8 @@ struct DriftingReference {
 impl LinterPort for DriftingReference {
     fn rule_configuration(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
-        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
+    ) -> benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         let calls = self.calls.get() + 1;
@@ -125,21 +125,21 @@ impl LinterPort for DriftingReference {
     fn settings_text(
         &self,
         normalized: &Invocation,
-        case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
-        profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+        case: &benchmark_contracts::domain::workloads::types::PreparedCase,
+        profile: &benchmark_contracts::domain::workloads::types::Tool,
     ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
         LinterFake::default().settings_text(normalized, case, profile)
     }
     fn rule_context_text(
         &self,
-        prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext,
+        prepared: &benchmark_contracts::domain::context::types::PreparedRuleContext,
     ) -> crate::outbound::linter::types::CanonicalText {
         LinterFake::default().rule_context_text(prepared)
     }
     fn version_line(
         &self,
-        tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
+        tool: &benchmark_contracts::domain::workloads::types::Tool,
+    ) -> benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
         LinterFake::default().version_line(tool)
     }
 }

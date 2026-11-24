@@ -4,9 +4,9 @@ use super::{
     use_case::AdmitMeasurementUseCaseImpl,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
+use benchmark_contracts::domain::measurements::types::MeasurementMode;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
@@ -75,7 +75,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         tool.defaults.push(later.clone());
         let _previous = tool.deferred.insert(
             later.clone(),
-            ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(
+            benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(
                 "a capability".into(),
             ),
         );

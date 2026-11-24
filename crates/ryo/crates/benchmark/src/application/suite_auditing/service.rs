@@ -1,8 +1,8 @@
 //! Audit decoded authored facts through the existing domain inventory policies.
 use crate::domain::suite::service as policy;
 use crate::outbound::suite::{interface::SuitePort, types::ArtifactPath};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::{reports::types::AuthoredInventory, workloads::types::Tool};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::{reports::types::AuthoredInventory, workloads::types::Tool};
 use std::collections::BTreeSet;
 use std::path::Path;
 /// Observe authored definitions in filesystem order and validate their semantic inventory.

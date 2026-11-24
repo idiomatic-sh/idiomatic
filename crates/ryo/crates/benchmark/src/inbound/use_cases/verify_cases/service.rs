@@ -18,12 +18,10 @@ use crate::outbound::{
     inventory::interface::InventoryPort, linter::interface::LinterPort,
     suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
-use ryo_benchmark_contracts::domain::workloads::types::{
-    PreparedCase, case_count::value::CaseCount,
-};
+use benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::CaseSelection;
+use benchmark_contracts::domain::workloads::types::{PreparedCase, case_count::value::CaseCount};
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Instant;

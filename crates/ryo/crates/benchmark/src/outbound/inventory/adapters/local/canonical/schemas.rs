@@ -1,7 +1,7 @@
 //! The values an authored document holds, as the authoring's canonical JSON writes them, and the refusal of a value the
 //! authoring does not write.
 use super::super::constants;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Deserialize;
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;

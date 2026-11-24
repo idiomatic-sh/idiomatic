@@ -15,7 +15,7 @@ mod settings;
 fn main() -> std::process::ExitCode {
     let mut output = std::io::stdout().lock();
     let mut observations = std::io::stderr().lock();
-    let command = ryo_benchmark::domain::command_line::arguments(std::env::args().skip(1));
+    let command = benchmark::domain::command_line::arguments(std::env::args().skip(1));
     let outcome = composition::run(command, &mut output, &mut observations);
     match outcome {
         Ok(()) => std::process::ExitCode::SUCCESS,
@@ -47,7 +47,7 @@ mod settings;
 fn main() -> std::process::ExitCode {
     let mut output = std::io::stdout().lock();
     let mut observations = std::io::stderr().lock();
-    let command = ryo_benchmark::domain::command_line::arguments(std::env::args().skip(1));
+    let command = benchmark::domain::command_line::arguments(std::env::args().skip(1));
     let outcome = composition::run(command, &mut output, &mut observations);
     match outcome {
         Ok(()) => std::process::ExitCode::SUCCESS,

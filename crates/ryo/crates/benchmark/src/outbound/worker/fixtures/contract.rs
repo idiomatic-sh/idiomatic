@@ -53,7 +53,7 @@ use super::data::{report, request};
 /// Panics if a contract observation does not match its expected value.
 pub fn check(adapter: &impl WorkerPort, stored: &std::path::Path) {
     let expected = request();
-    let same = |actual: ryo_benchmark_contracts::domain::requests::types::WorkerRequest| {
+    let same = |actual: benchmark_contracts::domain::requests::types::WorkerRequest| {
         actual.root == expected.root
             && actual.rules == expected.rules
             && actual.files == expected.files

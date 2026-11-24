@@ -1,5 +1,5 @@
 //! Public suite operation over exact typed artifact requests.
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// verify_cases through the injected suite boundaries.
 pub trait VerifyCasesUseCase {
@@ -9,10 +9,10 @@ pub trait VerifyCasesUseCase {
         &self,
         rules: &Path,
         scratch: &Path,
-        selection: ryo_benchmark_contracts::domain::requests::types::CaseSelection,
-        coverage: ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage,
+        selection: benchmark_contracts::domain::requests::types::CaseSelection,
+        coverage: benchmark_contracts::domain::requests::types::BenchmarkCoverage,
     ) -> Result<
-        ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount,
+        benchmark_contracts::domain::workloads::types::case_count::value::CaseCount,
         ReportsError,
     >;
 }

@@ -26,7 +26,7 @@ pub(crate) enum DiscrepancyError {
     AuthorityAndEvidenceDiffer,
 }
 
-impl From<DiscrepancyError> for ryo_benchmark_contracts::domain::reports::errors::ReportsError {
+impl From<DiscrepancyError> for benchmark_contracts::domain::reports::errors::ReportsError {
     fn from(error: DiscrepancyError) -> Self {
         Self::Invalid(error.to_string())
     }

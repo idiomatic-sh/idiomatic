@@ -1,17 +1,15 @@
 //! Decode native execution evidence into the existing typed comparison contract.
 use super::errors::InventoryComparisonError as Failure;
 use crate::domain::registered_inputs::types::RefusalText;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ObservationDocument, RecordedMetadata, ReferenceProcess, ReportedSkips,
 };
 
 use crate::domain::diagnostics::service::compare_with_contract;
-use ryo_benchmark_contracts::domain::reports::types::Comparison;
-use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
-use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
-use ryo_benchmark_contracts::domain::reports::types::{
-    CoverageAccounting, ProjectContext, RunReport,
-};
+use benchmark_contracts::domain::reports::types::Comparison;
+use benchmark_contracts::domain::reports::types::ComparisonContract;
+use benchmark_contracts::domain::reports::types::ExecutionMetadata;
+use benchmark_contracts::domain::reports::types::{CoverageAccounting, ProjectContext, RunReport};
 
 /// The run report an observation row records, when its execution accounting is explicit.
 fn report(row: &ObservationDocument) -> Result<RunReport, Failure> {
@@ -77,8 +75,10 @@ pub(crate) fn compare(
             return Err(Failure::ProcessFailureHasNoCompleteReport);
         }
         let candidate = report(candidate)?;
-        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&candidate)
-            .map_err(|error| Failure::CandidateExecutionIncomplete(RefusalText(error.to_string())))?;
+        benchmark_contracts::domain::reports::service::require_complete_execution(&candidate)
+            .map_err(|error| {
+                Failure::CandidateExecutionIncomplete(RefusalText(error.to_string()))
+            })?;
         return Ok(Comparison::Incomparable);
     }
     let reference = report(reference)?;

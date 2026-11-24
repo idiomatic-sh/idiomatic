@@ -6,8 +6,8 @@ use crate::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactPath, MaterializedContext},
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::{
     context::types::project_context_mode::value::ProjectContextMode, requests::types::RunRequest,
     workloads::types::PreparedCase,
 };
@@ -33,7 +33,7 @@ pub(crate) fn cases(
             tool.project_context_mode
         });
     let undeclared_context =
-        ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared;
+        benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared;
     let mut prepared = Vec::new();
     for rule in suite.rule_ids(ArtifactPath(rules))? {
         if profile.as_ref().is_some_and(|tool| {
@@ -43,14 +43,17 @@ pub(crate) fn cases(
         }
         let cases = suite.rule_cases(ArtifactPath(rules), &rule)?;
         policy::validate_case_sources(&cases)?;
-        if profile
-            .as_ref()
-            .is_some_and(|tool| tool.file_observation != ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared)
-            && cases.cases.iter().any(|case| match &case.file_metadata {
-                ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) => values.len() != case.files.len(),
-                ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => true,
-            })
-        {
+        if profile.as_ref().is_some_and(|tool| {
+            tool.file_observation
+                != benchmark_contracts::domain::workloads::types::FileObservation::Undeclared
+        }) && cases.cases.iter().any(|case| match &case.file_metadata {
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
+                values,
+            ) => values.len() != case.files.len(),
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => {
+                true
+            }
+        }) {
             return Err(Error::Invalid(super::constants::REQUIRED_METADATA.into()));
         }
         match suite.rule_query(ArtifactPath(rules), &rule)? {
@@ -62,11 +65,11 @@ pub(crate) fn cases(
         for (index, mut case) in cases.cases.into_iter().enumerate() {
             let project_search_roots = match std::mem::replace(
                 &mut case.project_search_roots,
-                ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+                benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             ) {
-                ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared => {
+                benchmark_contracts::domain::requests::types::SearchRoots::Undeclared => {
                     profile.as_ref().map_or(
-                        ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+                        benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
                         |tool| tool.project_search_roots.clone(),
                     )
                 }
@@ -74,15 +77,19 @@ pub(crate) fn cases(
             };
             let given_project_inventory = match std::mem::replace(
                 &mut case.given_project_inventory,
-                ryo_benchmark_contracts::domain::workloads::types::InventoryDeclaration::Undeclared,
+                benchmark_contracts::domain::workloads::types::InventoryDeclaration::Undeclared,
             ) {
-                ryo_benchmark_contracts::domain::workloads::types::InventoryDeclaration::Declared(inventory) => inventory,
-                ryo_benchmark_contracts::domain::workloads::types::InventoryDeclaration::Undeclared => Default::default(),
+                benchmark_contracts::domain::workloads::types::InventoryDeclaration::Declared(
+                    inventory,
+                ) => inventory,
+                benchmark_contracts::domain::workloads::types::InventoryDeclaration::Undeclared => {
+                    Default::default()
+                }
             };
             if given_project_inventory.completeness
                 == ryo::linter::ProjectInventoryCompleteness::CompleteWithinDeclaredScope
                 && project_search_roots
-                    == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
+                    == benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
             {
                 return Err(Error::Invalid(
                     super::constants::COMPLETE_GIVEN_ROOTS.into(),
@@ -99,21 +106,26 @@ pub(crate) fn cases(
             }
             if !matches!(
                 (context_mode, &case.context),
-                (ProjectContextMode::Isolated, ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Undeclared)
-                    | (ProjectContextMode::ListedDisk, ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(_))
+                (
+                    ProjectContextMode::Isolated,
+                    benchmark_contracts::domain::workloads::types::ContextDeclaration::Undeclared
+                ) | (
+                    ProjectContextMode::ListedDisk,
+                    benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(_)
+                )
             ) {
                 return Err(Error::Invalid(super::constants::CONTEXT_MODE.into()));
             }
             let boundary = scratch.join(rule.to_string()).join(index.to_string());
             let sealed = match &case.context {
-                ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(
+                benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(
                     declared,
                 ) => MaterializedContext::Sealed(context.materialize(
                     &boundary,
                     declared,
                     &case.files,
                 )?),
-                ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Undeclared => {
+                benchmark_contracts::domain::workloads::types::ContextDeclaration::Undeclared => {
                     MaterializedContext::Isolated
                 }
             };
@@ -125,11 +137,11 @@ pub(crate) fn cases(
                 &case.rule_context,
             )?;
             let selected_rules = match case.selected_rules {
-                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen => match (&rule_context, &profile) {
-                    (ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Prepared(_), Some(tool)) => {
-                        ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(tool.defaults.clone())
+                benchmark_contracts::domain::requests::types::CohortSelection::Frozen => match (&rule_context, &profile) {
+                    (benchmark_contracts::domain::requests::types::RuleContextPreparation::Prepared(_), Some(tool)) => {
+                        benchmark_contracts::domain::requests::types::CohortSelection::Explicit(tool.defaults.clone())
                     }
-                    _ => ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+                    _ => benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
                 },
                 explicit => explicit,
             };
@@ -141,27 +153,24 @@ pub(crate) fn cases(
                 rule_observations: case.rule_observations,
                 project_search_roots,
                 given_project_inventory,
-                staged_sources:
-                    ryo_benchmark_contracts::domain::requests::types::StagedSources::Listed(
-                        case.files.keys().cloned().collect(),
-                    ),
+                staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Listed(
+                    case.files.keys().cloned().collect(),
+                ),
                 file_metadata: case.file_metadata,
                 context_manifest: match sealed {
                     MaterializedContext::Isolated => {
-                        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed
+                        benchmark_contracts::domain::requests::types::ContextSeal::Unsealed
                     }
                     MaterializedContext::Sealed(manifest) => {
-                        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
-                            manifest,
-                        )
+                        benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest)
                     }
                 },
                 root: physical.root,
                 files: match case.requested_files {
-                    ryo_benchmark_contracts::domain::workloads::types::RequestedFiles::Explicit(
+                    benchmark_contracts::domain::workloads::types::RequestedFiles::Explicit(
                         files,
                     ) => files,
-                    ryo_benchmark_contracts::domain::workloads::types::RequestedFiles::Legacy => {
+                    benchmark_contracts::domain::workloads::types::RequestedFiles::Legacy => {
                         case.files.keys().cloned().collect()
                     }
                 },
@@ -172,7 +181,7 @@ pub(crate) fn cases(
             };
             let expected = policy::expected_report(&rule, request.files.clone(), case.expected);
             prepared.push(PreparedCase {
-                reference_discrepancy: ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees,
+                reference_discrepancy: benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees,
                 comparison: case.comparison,
                 rule: rule.clone(),
                 name: case.name,

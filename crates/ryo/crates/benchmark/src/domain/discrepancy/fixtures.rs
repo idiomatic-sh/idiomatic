@@ -1,18 +1,18 @@
 //! A prepared case with a distinct pinned reference, and the profile that pins its tool.
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::process::types::ReferenceExpectation;
+use benchmark_contracts::domain::reports::types::{
     BenchmarkFinding, CoverageAccounting, ExecutionMetadata, PairCount, ProjectContext,
     RuleCoverage, RunReport, SourceByteOffset,
 };
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
     ParserConfigurationName, ParserSelection, ProviderSelection, RuleContextPreparation,
     RunRequest, SearchRoots, StagedSources,
 };
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::workloads::types::{
     CaseComparison, DiscrepancyBasis, DiscrepancyReason, FileObservation,
     MetadataDigestDeclaration, PreparedCase, PreparedReferenceBehavior,
     PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity, RuleContextProfile, Tool,
@@ -111,7 +111,7 @@ pub(crate) fn profile() -> Tool {
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
         parser_configuration: ParserSelection::Named(
-            ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
+            benchmark_contracts::domain::requests::types::ParserConfigurationName(
                 "python3.10".into(),
             ),
         ),

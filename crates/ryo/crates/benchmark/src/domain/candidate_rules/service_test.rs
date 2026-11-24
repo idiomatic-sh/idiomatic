@@ -1,8 +1,7 @@
 //! Rule policy operates on loaded values without an engine or filesystem.
 use super::service;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo::linter::{Cell, HostRow, HostText, RelativePath, Rule, RuleId};
-use ryo_benchmark_contracts::domain::{
+use benchmark_contracts::domain::{
     context::types::{
         ExternalPrefix, PreparedRuleContext, RuleConfiguration, RuleContextTables, TableName,
     },
@@ -12,6 +11,7 @@ use ryo_benchmark_contracts::domain::{
         RuleContextPreparation, SearchRoots, WorkerRequest, WorkerState,
     },
 };
+use ryo::linter::{Cell, HostRow, HostText, RelativePath, Rule, RuleId};
 use std::collections::{BTreeMap, BTreeSet};
 
 type Input = fn() -> Result<usize, Failure>;

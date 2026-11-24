@@ -7,12 +7,12 @@ use super::constants::{
 use super::prepared_engine_test::{
     PreparedEngine as _, default_frontend_projection, fixture_cohort, python_310,
 };
-use ryo_benchmark::outbound::engine::factory;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark::outbound::engine::factory;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{
     CoverageAccounting, ExecutionMetadata, PairCount, RuleCoverage,
 };
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, CohortSelection, ContextSeal, InputDeclaration, ParserConfigurationName,
     ParserSelection, ProviderSelection, RuleContextPreparation, RuleLabel, SearchRoots,
     WorkerRequest, WorkerState,
@@ -103,7 +103,7 @@ fn equivalent(query: &str, corpora: &[Corpus]) -> Result<usize, Error> {
             rule_context: RuleContextPreparation::Unconfigured,
             project_search_roots: SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
-            project_context_mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+            project_context_mode: benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
             context_manifest: ContextSeal::Unsealed,
             root: root.path().to_owned(),
             rules,

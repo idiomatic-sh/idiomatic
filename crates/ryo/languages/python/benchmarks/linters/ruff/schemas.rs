@@ -1,13 +1,11 @@
 //! Private Ruff wire data, decoded without IO into canonical benchmark reports.
+use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::requests::types::{ApplicabilityPolicy, RuleLabel, RunRequest};
 use ryo::linter::{RelativePath, RuleId, SourceText};
-use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::{
-    ApplicabilityPolicy, RuleLabel, RunRequest,
-};
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -91,8 +89,8 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
         } = schema;
         check_status(output)?;
         let declared_missing = |file: &RelativePath| {
-            matches!(&request.context_manifest, ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) if
-                ryo_benchmark::domain::suite::service::declares_missing(manifest, file) == ryo_benchmark::domain::suite::types::ContextAbsence::Sealed)
+            matches!(&request.context_manifest, benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) if
+                benchmark::domain::suite::service::declares_missing(manifest, file) == benchmark::domain::suite::types::ContextAbsence::Sealed)
         };
         if sources.keys().any(|file| !request.files.contains(file))
             || request
@@ -163,23 +161,22 @@ impl TryFrom<RuffReportSchema<'_>> for RunReport {
             diagnostics.push(BenchmarkFinding {
                 rule,
                 file: RelativePath(file.0.into()),
-                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(start),
-                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(end),
+                start: benchmark_contracts::domain::reports::types::SourceByteOffset(start),
+                end: benchmark_contracts::domain::reports::types::SourceByteOffset(end),
             });
         }
         Ok(RunReport {
             execution_metadata:
-                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unavailable {
-                    reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason(
+                benchmark_contracts::domain::reports::types::ExecutionMetadata::Unavailable {
+                    reason: benchmark_contracts::domain::reports::types::UnavailableReason(
                         "Ruff JSON findings format has no rule/file execution accounting".into(),
                     ),
                 },
             project_context:
-                ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             diagnostics,
             skipped: Vec::new(),
-            coverage:
-                ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted,
+            coverage: benchmark_contracts::domain::reports::types::CoverageAccounting::Unaccounted,
             files: request.files.clone(),
         })
     }
@@ -236,7 +233,7 @@ pub(super) fn offset(source: &str, row: usize, column: usize) -> Result<usize, E
 /// Serialize declared configuration into Ruff's documented inline TOML overrides.
 /// Exact absolute patterns preserve the shared exact-file contract instead of Ruff's basename shortcut.
 pub(super) fn configuration_arguments(
-    configuration: &ryo_benchmark_contracts::domain::context::types::RuleConfiguration,
+    configuration: &benchmark_contracts::domain::context::types::RuleConfiguration,
     root: &Path,
 ) -> Result<Vec<std::ffi::OsString>, Error> {
     let strings = |values: Vec<String>| {
@@ -270,7 +267,7 @@ pub(super) fn configuration_arguments(
             let text = absolute
                 .to_str()
                 .ok_or_else(|| Error::Invalid("non-UTF8 configuration path".into()))?;
-            let literal = ryo_benchmark::domain::rule_context::service::literal_glob(
+            let literal = benchmark::domain::rule_context::service::literal_glob(
                 &ryo::linter::RelativePath(text.into()),
             );
             let rules: Vec<_> = rules.iter().map(ToString::to_string).collect();
@@ -297,8 +294,9 @@ struct PinnedRuleSchema {
 
 /// Decode the pinned phase policy of every rule the registry pins.
 pub(super) fn pinned_rule_phases() -> Result<BTreeMap<RuleLabel, ApplicabilityPolicy>, Error> {
-    let registry: PinnedPhasesSchema = crate::json_input::decode(crate::constants::PINNED_RULE_PHASES.as_bytes())
-        .map_err(|error| Error::Invalid(error.to_string()))?;
+    let registry: PinnedPhasesSchema =
+        crate::json_input::decode(crate::constants::PINNED_RULE_PHASES.as_bytes())
+            .map_err(|error| Error::Invalid(error.to_string()))?;
     Ok(registry
         .rules
         .into_iter()

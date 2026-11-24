@@ -1,9 +1,9 @@
 //! The shape of an accepted-differences file: the corpus digest it was written for and, per rule, a reason
 //! and the unmatched findings it accepts, each by side, file, line and column.
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::AcceptanceReason;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::AcceptanceReason;
+use benchmark_contracts::domain::reports::types::{
     AcceptedDifferences, AcceptedRule, DifferenceSide, FindingPosition, LocatedDifference,
     SourceColumn, SourceLine,
 };

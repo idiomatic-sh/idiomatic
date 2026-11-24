@@ -5,8 +5,8 @@ use super::constants::{
     PYTHON_TARGET_3_13, PYTHON_TARGET_3_14, PYTHON_TARGET_3_15, PYTHON_TARGET_3_16,
     PYTHON_TARGET_LATEST,
 };
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark::cases::{Case, CaseName, Expect, Word, run};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 #[path = "../composition/request_input.rs"]
 mod request_input;
 #[path = "../composition/targets.rs"]

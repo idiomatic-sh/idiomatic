@@ -1,14 +1,12 @@
 //! A tally counts the tool's defaults, deferrals and pending rules beside the authored total.
 use super::value::RuleTally;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
+use benchmark_contracts::domain::requests::types::{
     ParserSelection, ProviderSelection, SearchRoots,
 };
-use ryo_benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount;
-use ryo_benchmark_contracts::domain::workloads::types::{
-    FileObservation, RuleContextProfile, Tool,
-};
+use benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount;
+use benchmark_contracts::domain::workloads::types::{FileObservation, RuleContextProfile, Tool};
 
 /// The tally, rendered as text.
 type Value = &'static str;

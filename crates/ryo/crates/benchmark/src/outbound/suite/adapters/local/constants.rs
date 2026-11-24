@@ -1,11 +1,11 @@
 //! Artifact filenames, executable protocol and refusal vocabulary.
 /// Shared filename for tool profiles and language workload manifests.
 pub(super) const MANIFEST: &str =
-    ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
+    benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
 /// Directory containing authored rule definitions.
 pub(super) const RULES: &str = "rules";
 /// Executable RyoQL source filename within one rule directory.
-pub(super) const QUERY: &str = ryo_benchmark_contracts::domain::requests::constants::QUERY_FILE;
+pub(super) const QUERY: &str = benchmark_contracts::domain::requests::constants::QUERY_FILE;
 /// Independent fixture filename within one rule directory.
 pub(super) const CASES: &str = "cases.toml";
 /// Reference tool argument used to verify its reported version.
@@ -33,7 +33,7 @@ pub(super) const PATCH_ESCAPE: &str = "patch escapes the shared suite directory"
 pub(super) const MISSING_CASE_PARENT: &str = "missing case parent";
 /// Text of the module source in this part.
 pub(super) const MODULE_SOURCE: &str =
-    ryo_benchmark_contracts::domain::requests::constants::MODULE_NAME_PROBE;
+    benchmark_contracts::domain::requests::constants::MODULE_NAME_PROBE;
 /// Text of the profile must be a table in this part.
 pub(super) const PROFILE_MUST_BE_A_TABLE: &str = "profile must be a table";
 /// Text of the defaults in this part.
@@ -89,7 +89,7 @@ pub(super) const SOURCE_TEXT: &str = "source_text";
 pub(super) const CONTRACT_ASSERTION: &str = "contract_assertion";
 /// Text of the source sha256 in this part.
 pub(super) const SOURCE_SHA256: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::SOURCE_SHA256;
+    benchmark_contracts::domain::receipts::constants::SOURCE_SHA256;
 /// Text of the prior worker control v1 in this part.
 pub(super) const PRIOR_WORKER_CONTROL_V1: &str = "prior-worker-control/v1";
 /// Text of the control source sha256 in this part.
@@ -122,13 +122,13 @@ pub(super) const STATUS: &str = "status";
 pub(super) const COMMAND: &str = "command";
 /// Text of the verify cases in this part.
 pub(super) const VERIFY_CASES: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::VERIFY_CASES;
+    benchmark_contracts::domain::receipts::constants::VERIFY_CASES;
 /// Text of the stage root in this part.
 pub(super) const STAGE_ROOT: &str = "stage_root";
 /// Text of the candidate in this part.
-pub(super) const CANDIDATE: &str = ryo_benchmark_contracts::domain::receipts::constants::CANDIDATE;
+pub(super) const CANDIDATE: &str = benchmark_contracts::domain::receipts::constants::CANDIDATE;
 /// Text of the complete in this part.
-pub(super) const COMPLETE: &str = ryo_benchmark_contracts::domain::receipts::constants::COMPLETE;
+pub(super) const COMPLETE: &str = benchmark_contracts::domain::receipts::constants::COMPLETE;
 /// Text of the error 2 in this part.
 pub(super) const ERROR_2: &str = "error";
 /// Text of the case passed in this part.
@@ -136,8 +136,7 @@ pub(super) const CASE_PASSED: &str = "case_passed";
 /// Text of the skipped in this part.
 pub(super) const SKIPPED: &str = "skipped";
 /// Text of the diagnostics in this part.
-pub(super) const DIAGNOSTICS: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::DIAGNOSTICS;
+pub(super) const DIAGNOSTICS: &str = benchmark_contracts::domain::receipts::constants::DIAGNOSTICS;
 /// Text of the expected in this part.
 pub(super) const EXPECTED: &str = "expected";
 /// Text of the coverage in this part.
@@ -202,10 +201,10 @@ pub(super) const DISCREPANCY_REQUIRES_LOWERCASE_SHA256_IDENTITIES: &str =
 pub(super) const PROCESS_FAILURE_REQUIRES_A_POSITIVE_NUMERIC_EXIT: &str =
     "process failure requires a positive numeric exit";
 /// The applicability policy under which a rule runs on every file.
-pub(super) const ALWAYS: &str = ryo_benchmark_contracts::domain::requests::constants::ALWAYS;
+pub(super) const ALWAYS: &str = benchmark_contracts::domain::requests::constants::ALWAYS;
 /// The applicability policy under which a rule is skipped on a file the parser rejects.
 pub(super) const ACCEPTED_SYNTAX: &str =
-    ryo_benchmark_contracts::domain::requests::constants::ACCEPTED_SYNTAX;
+    benchmark_contracts::domain::requests::constants::ACCEPTED_SYNTAX;
 /// The directory below a bench holding the dedicated settings profile of a rule.
 pub(super) const SETTINGS_PROFILES: &str = "profiles";
 /// The refusal of a growth table with no rule, no size or no operation: a run that grew nothing would hold every bound.

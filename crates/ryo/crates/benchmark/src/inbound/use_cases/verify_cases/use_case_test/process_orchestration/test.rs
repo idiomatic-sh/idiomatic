@@ -8,12 +8,12 @@ use crate::inbound::use_cases::verify_cases::fixtures::{
 use crate::outbound::execution::fixtures::fake::ExecutionFake;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::linter::fixtures::fake::LinterFake;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::measurements::types::{
     ExecutionProfile, Invocation, ProcessOutput,
 };
-use ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior;
-use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
+use benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior;
+use benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
     DiscrepancyEvidence, DiscrepancyEvidenceKind, LanguageVersion, ParserTarget, Rationale,
 };
 
@@ -69,7 +69,7 @@ impl ExecutionPort for PairExecution {
     fn run(
         &self,
         invocation: Invocation,
-    ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+    ) -> Result<ProcessOutput, benchmark_contracts::domain::reports::errors::ReportsError> {
         let status = if invocation.arguments.iter().any(|arg| arg == CANDIDATE) {
             0
         } else {

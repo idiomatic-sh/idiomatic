@@ -2,7 +2,7 @@
 use super::value::{ProcessExit, decode};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::execution::errors::ExecutionError;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::measurements::types::{
     ProcessExitCode, SignalNumber, TerminationSignal,
 };
 

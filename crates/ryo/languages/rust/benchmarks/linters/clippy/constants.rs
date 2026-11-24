@@ -63,7 +63,7 @@ pub(crate) const TARGET_VARIABLE: &str = "CARGO_TARGET_DIR";
 pub(crate) const CONF_VARIABLE: &str = "CLIPPY_CONF_DIR";
 /// The variable pinning the package manager's parallel jobs.
 pub(crate) const JOBS_VARIABLE: &str =
-    ryo_benchmark_contracts::domain::measurements::constants::JOBS_PIN;
+    benchmark_contracts::domain::measurements::constants::JOBS_PIN;
 /// Every package of the root's workspace.
 const WORKSPACE: &str = "--workspace";
 /// The library target. With binaries, tests and examples, every target a stable toolchain checks: a bench target is left out, as

@@ -7,7 +7,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::{
     execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 type Input = Scenario;
 type Value = usize;

@@ -2,7 +2,7 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::inventory::adapters::local::types::RegistrationBytes;
 use crate::outbound::inventory::types::Registration;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
 
 /// Why a document was refused.
 #[derive(Debug, PartialEq, Eq)]

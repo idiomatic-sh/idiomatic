@@ -22,8 +22,7 @@ pub(crate) const FORMAT: &str = "--format";
 /// Machine-readable oxlint diagnostic format.
 pub(crate) const JSON: &str = "json";
 /// Set the number of linting threads.
-pub(crate) const THREADS: &str =
-    ryo_benchmark_contracts::domain::measurements::constants::THREADS_FLAG;
+pub(crate) const THREADS: &str = benchmark_contracts::domain::measurements::constants::THREADS_FLAG;
 /// Read no configuration file nested below the working directory.
 pub(crate) const NO_NESTED_CONFIG: &str = "--disable-nested-config";
 /// Separate explicit input paths from options.

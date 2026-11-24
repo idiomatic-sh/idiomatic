@@ -1,8 +1,8 @@
 //! Timed benchmarks require exactly their immutable declared rule identities.
 use crate::domain::measurements::constants;
+use benchmark_contracts::domain::measurements::types::MeasurementMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo::linter::RuleId;
-use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Refuse narrowed, duplicate, missing or extra benchmark rules; diagnostics are explicit.
 /// # Errors
 /// Returns a refusal before either contestant runs when any inventory differs.

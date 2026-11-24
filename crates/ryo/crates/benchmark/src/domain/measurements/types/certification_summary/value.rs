@@ -2,7 +2,7 @@
 use super::super::super::constants::{ACCOUNTED, INTERIM};
 use super::super::rule_tally::value::RuleTally;
 use crate::domain::suite::types::{audit::value::Audit, certificate::value::Certificate};
-use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
+use benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 use std::path::Path;
 
 /// The certification line: its scope, the verified subset against the tool's tally, and the certificate and artifacts it issued.

@@ -1,6 +1,6 @@
 //! The first argument of a worker invocation and the tracing it asks for.
 use super::super::WorkerTracing;
-use ryo_benchmark_contracts::domain::requests::constants::{DIAGNOSTIC_RYO, RUN_RYO};
+use benchmark_contracts::domain::requests::constants::{DIAGNOSTIC_RYO, RUN_RYO};
 
 /// The first argument of a worker invocation.
 #[derive(Clone, Copy, Debug)]
@@ -11,7 +11,7 @@ impl WorkerCommand<'_> {
     ///
     /// # Examples
     /// ```
-    /// use ryo_benchmark::domain::command_line::types::{worker_command::value::WorkerCommand, WorkerTracing};
+    /// use benchmark::domain::command_line::types::{worker_command::value::WorkerCommand, WorkerTracing};
     /// assert_eq!(WorkerCommand("run-ryo").tracing(), Some(WorkerTracing::Disabled));
     /// ```
     #[must_use]

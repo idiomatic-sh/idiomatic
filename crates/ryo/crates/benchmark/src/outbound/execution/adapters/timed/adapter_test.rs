@@ -1,16 +1,16 @@
 //! Built collector regression: resources belong to the actual child, not its large parent.
-use ryo_benchmark::cases::Case;
-use ryo_benchmark::cases::CaseName;
-use ryo_benchmark::cases::Expect;
-use ryo_benchmark::cases::Word;
-use ryo_benchmark::cases::run;
-use ryo_benchmark::outbound::execution;
-use ryo_benchmark::outbound::execution::fixtures::contract::check as check_contract;
-use ryo_benchmark::outbound::execution::interface::ExecutionPort as _;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark::cases::Case;
+use benchmark::cases::CaseName;
+use benchmark::cases::Expect;
+use benchmark::cases::Word;
+use benchmark::cases::run;
+use benchmark::outbound::execution;
+use benchmark::outbound::execution::fixtures::contract::check as check_contract;
+use benchmark::outbound::execution::interface::ExecutionPort as _;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ResourceObservation;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use sha2::{Digest as _, Sha256};
 use std::{path::PathBuf, time::Duration};
 #[derive(Clone, Copy, Debug)]
@@ -57,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 fn settings() -> Result<(PathBuf, ArtifactDigest), std::io::Error> {
-    let executable = PathBuf::from(env!("CARGO_BIN_EXE_ryo-benchmark-collector"));
+    let executable = PathBuf::from(env!("CARGO_BIN_EXE_benchmark-collector"));
     let digest = ArtifactDigest(format!("{:x}", Sha256::digest(std::fs::read(&executable)?)));
     Ok((executable, digest))
 }
@@ -76,7 +76,7 @@ fn check(probe: Probe) -> Result<(), Box<dyn std::error::Error>> {
         // with that error's text. The child is the collector itself, an executable this platform has, so a missing
         // executable (a launch failure with its errno) cannot stand in for that refusal.
         let refused = execution.run(Invocation {
-            executable: PathBuf::from(env!("CARGO_BIN_EXE_ryo-benchmark-collector")),
+            executable: PathBuf::from(env!("CARGO_BIN_EXE_benchmark-collector")),
             arguments: Vec::new(),
             environment: std::collections::BTreeMap::default(),
             directory: std::env::temp_dir(),

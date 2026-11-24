@@ -3,8 +3,8 @@ use super::constants::{
     ACCEPTED_SYNTAX, ALWAYS, WORKER_PARSER_CONFIGURATION_DIFFER, WORKER_REQUIRES_EXPLICIT_SELECTED,
     WORKER_RULE_APPLICABILITY_DIFFERS,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, ParserConfigurationName, ParserSelection, RuleLabel, WorkerRequest,
 };
 use std::collections::BTreeMap;

@@ -3,12 +3,12 @@
 use super::constants::{COMPLETED, FAILED, NOT_A_WORKER_REQUEST};
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::execution::types::{InProcessWorker, StoredRequest};
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::measurements::types::{
     CapturedBytes, ExecutionProfile, Invocation, ProcessExitCode, ProcessOutput,
     ResourceObservation, TerminationSignal,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::constants::RUN_RYO;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::constants::RUN_RYO;
 
 /// Runs each worker request through the language's worker, in this process.
 #[derive(Debug)]

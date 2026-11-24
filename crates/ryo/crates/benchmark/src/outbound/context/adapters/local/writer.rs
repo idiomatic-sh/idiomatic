@@ -1,7 +1,7 @@
 //! The adapter's traversal of the snapshot it seals: lexical path resolution and symlink walks.
 use super::constants;
-use ryo_benchmark_contracts::domain::context::types::{ContextManifest, LinkTarget};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::context::types::{ContextManifest, LinkTarget};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::{Component, Path, PathBuf};
 
 /// Whether a validated path names the logical root or a member beneath it.

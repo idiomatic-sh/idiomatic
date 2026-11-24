@@ -7,9 +7,9 @@ use super::settings::ExecutablesCargoSettings;
 use super::types::BuildPlatform;
 use crate::outbound::executables::interface::ExecutablesPort;
 use crate::outbound::executables::types::{BenchPackage, RunArguments, RunVerdict, Sealed};
-use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
+use benchmark_contracts::domain::documents::types::text::value::Sha256Text;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
 use sha2::{Digest as _, Sha256};
 use std::ffi::OsStr;
 use std::io::Read as _;
@@ -112,7 +112,7 @@ impl ExecutablesCargoAdapter {
         let mut command = Command::new(&self.settings.cargo);
         command.args([BENCH, NO_RUN, LOCKED, MESSAGE_FORMAT]);
         if heap {
-            command.args(["--features", "ryo_benchmark/heap-profile"]);
+            command.args(["--features", "benchmark/heap-profile"]);
         }
         let build = command
             .current_dir(&package)

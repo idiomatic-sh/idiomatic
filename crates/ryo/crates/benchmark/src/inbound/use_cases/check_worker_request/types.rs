@@ -1,5 +1,5 @@
 //! What the executable that composes a worker tells the identity check to expect.
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, ParserConfigurationName, RuleLabel,
 };
 use std::collections::BTreeMap;

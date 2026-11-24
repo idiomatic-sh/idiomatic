@@ -2,8 +2,8 @@
 use super::value::Certificate;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::types::audit::value::Audit;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
     RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
@@ -39,20 +39,19 @@ fn subject(_: ()) -> Result<(bool, usize), ()> {
         directory: ".".into(),
     };
     let certificate = Certificate {
-        case_source: ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile,
+        case_source: benchmark_contracts::domain::requests::types::CertificationCases::Profile,
         coverage: Audit {
             implemented: vec![ryo::linter::RuleId::try_from("A").unwrap()],
             missing: vec![],
         },
         paths: vec![],
-        fingerprint:
-            ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
-                "sealed".into(),
-            ),
+        fingerprint: benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
+            "sealed".into(),
+        ),
         probe: request,
         profiles: [profile.clone(), profile],
-        execution: ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall,
-        cases: ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
+        execution: benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall,
+        cases: benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
     };
     Ok((
         certificate.fingerprint().0 == "sealed",

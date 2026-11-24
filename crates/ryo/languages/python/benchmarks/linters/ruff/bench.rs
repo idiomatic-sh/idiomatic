@@ -13,7 +13,7 @@ fn main() -> std::process::ExitCode {
     let mut output = std::io::stdout().lock();
     // Not locked for the run: the new engine's scan workers write their notices to stderr themselves (ryo-fmx3.1).
     let mut observations = std::io::stderr();
-    let command = ryo_benchmark::domain::command_line::arguments(std::env::args().skip(1));
+    let command = benchmark::domain::command_line::arguments(std::env::args().skip(1));
     let outcome = composition::run(command, &mut output, &mut observations);
     match outcome {
         Ok(()) => std::process::ExitCode::SUCCESS,

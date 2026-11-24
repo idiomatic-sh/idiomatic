@@ -7,13 +7,13 @@
     reason = "missing benchmark prerequisites must fail visibly"
 )]
 #[cfg(target_os = "linux")]
-use ryo_benchmark::outbound::execution::factory::{direct, timed};
-use ryo_benchmark::outbound::execution::{
+use benchmark::outbound::execution::factory::{direct, timed};
+use benchmark::outbound::execution::{
     factory::{bounded, in_process, process},
     interface::ExecutionPort as _,
     types::{InProcessWorker, RuleCompileTimes, StoredRequest, WorkerResponse},
 };
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::Invocation;
 /// Construct the same explicit child workload for each execution adapter.
 fn invocation() -> Invocation {
     Invocation {
@@ -45,9 +45,9 @@ fn timed_child(bencher: divan::Bencher<'_, '_>) {
     use sha2::{Digest as _, Sha256};
     // Cargo builds the package's binaries for its benches and names each one's path: never a guess from where this
     // bench's own executable lies, which differs between Cargo's build layouts.
-    let executable = std::path::PathBuf::from(env!("CARGO_BIN_EXE_ryo-benchmark-collector"));
+    let executable = std::path::PathBuf::from(env!("CARGO_BIN_EXE_benchmark-collector"));
     let digest =
-        ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(format!(
+        benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(format!(
             "{:x}",
             Sha256::digest(std::fs::read(&executable).expect("collector bytes"))
         ));
@@ -65,7 +65,7 @@ fn timed_child(bencher: divan::Bencher<'_, '_>) {
         assert!(
             matches!(
                 output.resources,
-                ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(_)
+                benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(_)
             ),
             "instrumented workload must supply actual child resources"
         );
@@ -112,17 +112,14 @@ impl InProcessWorker for Answering {
     fn run(
         &self,
         _request: &StoredRequest,
-    ) -> Result<WorkerResponse, ryo_benchmark_contracts::domain::reports::errors::ReportsError>
-    {
+    ) -> Result<WorkerResponse, benchmark_contracts::domain::reports::errors::ReportsError> {
         Ok(WorkerResponse(b"result".to_vec()))
     }
     fn compile(
         &self,
         _request: &StoredRequest,
-    ) -> Result<
-        Option<RuleCompileTimes>,
-        ryo_benchmark_contracts::domain::reports::errors::ReportsError,
-    > {
+    ) -> Result<Option<RuleCompileTimes>, benchmark_contracts::domain::reports::errors::ReportsError>
+    {
         Ok(Some(RuleCompileTimes::default()))
     }
 }
@@ -133,8 +130,8 @@ fn in_process_worker(bencher: divan::Bencher<'_, '_>) {
     let input = Invocation {
         executable: "/bin/sh".into(),
         arguments: vec![
-            ryo_benchmark_contracts::domain::requests::constants::RUN_RYO.into(),
-            ryo_benchmark_contracts::domain::requests::constants::REQUEST_FILE.into(),
+            benchmark_contracts::domain::requests::constants::RUN_RYO.into(),
+            benchmark_contracts::domain::requests::constants::REQUEST_FILE.into(),
             "request.json".into(),
         ],
         environment: std::collections::BTreeMap::new(),

@@ -1,6 +1,6 @@
 //! Data of the reference discrepancy rules.
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 
 /// A lowercase SHA256 identity as a certificate spells it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -76,8 +76,8 @@ pub(crate) struct ReferenceProof {
 impl std::fmt::Display for Contestant {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(match self {
-            Self::Reference => ryo_benchmark_contracts::domain::receipts::constants::REFERENCE,
-            Self::Candidate => ryo_benchmark_contracts::domain::receipts::constants::CANDIDATE,
+            Self::Reference => benchmark_contracts::domain::receipts::constants::REFERENCE,
+            Self::Candidate => benchmark_contracts::domain::receipts::constants::CANDIDATE,
         })
     }
 }
@@ -85,5 +85,5 @@ impl std::fmt::Display for Contestant {
 /// What comparing one contestant's report with its expectation showed.
 pub(crate) struct Judgement {
     /// Nothing, or both raw finding multisets and skip arrays of the difference.
-    pub comparison: Result<(), ryo_benchmark_contracts::domain::reports::types::Difference>,
+    pub comparison: Result<(), benchmark_contracts::domain::reports::types::Difference>,
 }

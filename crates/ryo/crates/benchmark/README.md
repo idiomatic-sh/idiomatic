@@ -1,4 +1,4 @@
-# idiomatic-sh-ryo-benchmark
+# idiomatic-sh-benchmark
 
 Shared development harness for comparing Ryo with pinned linter defaults.
 
@@ -62,7 +62,7 @@ Executable observation dependencies are resolved from the authored declarations 
 
 ### operations
 
-The one gated operation of a linter bench, run as `ryo-benchmark-collector bench languages/<lang>/benchmarks/linters/<linter>` (asymptote's `bench/<lang>/<linter>`): the collector builds and seals the bench's worker under `<target>/benchmark/<lang>/<linter>/bench/`, verifies every default against its cases in its inventory, and, when every default passes, runs the worker's `measure-valid`, which runs ryo and the pinned reference over each project of the language and writes ryo's costs, verification times and growth as the one BMF document the collector prints. A new bench gets it with no lines of its own.
+The one gated operation of a linter bench, run as `benchmark-collector bench languages/<lang>/benchmarks/linters/<linter>` (asymptote's `bench/<lang>/<linter>`): the collector builds and seals the bench's worker under `<target>/benchmark/<lang>/<linter>/bench/`, verifies every default against its cases in its inventory, and, when every default passes, runs the worker's `measure-valid`, which runs ryo and the pinned reference over each project of the language and writes ryo's costs, verification times and growth as the one BMF document the collector prints. A new bench gets it with no lines of its own.
 
 ### process_failure
 

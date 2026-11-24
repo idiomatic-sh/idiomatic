@@ -2,11 +2,9 @@
 use super::constants;
 use super::errors::InvocationIdentityError;
 use super::types::{Boundaries, InvocationText, Variable};
-use ryo_benchmark_contracts::domain::measurements::constants::{
-    JOBS_PIN, THREAD_PIN, THREADS_FLAG,
-};
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use benchmark_contracts::domain::measurements::constants::{JOBS_PIN, THREAD_PIN, THREADS_FLAG};
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 

@@ -2,11 +2,9 @@
 use super::instance;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::inventory::types::RuleInstanceRecord;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
-    PathText, RuleName, Sha256Text,
-};
-use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark_contracts::domain::documents::types::text::value::{PathText, RuleName, Sha256Text};
+use benchmark_contracts::domain::requests::types::ParserSelection;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 

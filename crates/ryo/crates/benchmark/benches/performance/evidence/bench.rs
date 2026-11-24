@@ -4,7 +4,7 @@
     clippy::expect_used,
     reason = "missing benchmark prerequisites must fail visibly"
 )]
-use ryo_benchmark::outbound::evidence::{
+use benchmark::outbound::evidence::{
     factory::{bmf, bmf_appending, bmf_document},
     interface::EvidencePort,
     types::{RuleTiming, RuleTimings},

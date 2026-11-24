@@ -2,7 +2,7 @@
 //! kept beside it. Where the receipts go is the adapter's setting, never asked here.
 use super::errors::ReceiptsError;
 use super::types::{CapturedProcess, CaseReceipts, ReceiptPath};
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 
 /// What every `receipts` adapter implements.
 pub trait ReceiptsPort: Send + Sync {

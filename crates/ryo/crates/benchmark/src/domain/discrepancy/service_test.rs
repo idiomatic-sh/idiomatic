@@ -7,13 +7,13 @@ use super::service::{
 };
 use super::types::{Contestant, IntentAgreement};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::process::types::{ProcessFailure, ReferenceExpectation};
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::process::types::{ProcessFailure, ReferenceExpectation};
+use benchmark_contracts::domain::reports::types::{
     CoverageAccounting, ExecutionMetadata, PairCount, UnavailableReason,
 };
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::workloads::types::{
     CaseComparison, DiscrepancyBasis, PreparedReferenceBehavior,
     discrepancy_evidence::value::{DiscrepancyEvidence, ParserTarget},
 };
@@ -38,7 +38,7 @@ enum Operation {
 }
 
 struct Request {
-    case: ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
+    case: benchmark_contracts::domain::workloads::types::PreparedCase,
     operation: Operation,
 }
 
@@ -62,7 +62,7 @@ fn asking(operation: Operation) -> Request {
 
 fn edited(
     operation: Operation,
-    edit: impl FnOnce(&mut ryo_benchmark_contracts::domain::workloads::types::PreparedCase),
+    edit: impl FnOnce(&mut benchmark_contracts::domain::workloads::types::PreparedCase),
 ) -> Request {
     let mut request = asking(operation);
     edit(&mut request.case);
@@ -360,11 +360,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
                 ryo::linter::RelativePath("雪/é.py".into()),
                 ryo::linter::RelativePath("z.py".into()),
             ];
-            let finding = ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding {
+            let finding = benchmark_contracts::domain::reports::types::BenchmarkFinding {
                 rule: ryo::linter::RuleId::try_from("F821").unwrap(),
                 file: report.files[0].clone(),
-                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(2),
-                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(7),
+                start: benchmark_contracts::domain::reports::types::SourceByteOffset(2),
+                end: benchmark_contracts::domain::reports::types::SourceByteOffset(7),
             };
             report.diagnostics = vec![finding.clone(), finding];
             Ok(equal(

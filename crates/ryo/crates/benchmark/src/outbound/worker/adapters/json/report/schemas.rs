@@ -1,9 +1,9 @@
 //! The worker report document: findings and complete input coverage, as the parent process reads it.
 use crate::outbound::worker::adapters::json::types::WorkerResponseBytes;
-use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{
     CoverageAccounting, ExecutionMetadata, ProjectContext, RunReport, UnavailableReason,
 };
 use serde::{Deserialize, Serialize};

@@ -5,8 +5,8 @@ use super::{
 };
 use crate::outbound::workspace::interface::{Workspace, WorkspacePort};
 use crate::outbound::workspace::types::{AppliedPatch, CommitRevision, TrackedFiles};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Project;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::Project;
 use std::{
     fs,
     io::Write as _,

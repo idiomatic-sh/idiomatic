@@ -1,5 +1,5 @@
 //! What a certified measurement remembers from before its paired run.
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 use std::path::PathBuf;
 
 /// The sources a run reads and their content identity before the contestants touch them.
@@ -54,5 +54,5 @@ pub(crate) struct Certification<'a> {
     /// The certificate both contestants hold for this corpus.
     pub certificate: &'a crate::domain::suite::types::certificate::value::Certificate,
     /// Whether the run is accounted or diagnostic.
-    pub mode: &'a ryo_benchmark_contracts::domain::measurements::types::MeasurementMode,
+    pub mode: &'a benchmark_contracts::domain::measurements::types::MeasurementMode,
 }

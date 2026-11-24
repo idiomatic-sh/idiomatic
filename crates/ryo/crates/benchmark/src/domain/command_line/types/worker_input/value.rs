@@ -1,8 +1,8 @@
 //! Where one worker request is read from, read without putting large JSON in argv.
 use super::super::super::constants::MISSING_WORKER_REQUEST;
 use super::super::{BenchmarkArgument, InlineRequest};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::constants::REQUEST_FILE;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::constants::REQUEST_FILE;
 use std::path::PathBuf;
 
 /// Where one worker request is read from.
@@ -22,10 +22,10 @@ impl WorkerInput {
     ///
     /// # Examples
     /// ```
-    /// use ryo_benchmark::domain::command_line::types::{worker_input::value::WorkerInput, BenchmarkArgument};
+    /// use benchmark::domain::command_line::types::{worker_input::value::WorkerInput, BenchmarkArgument};
     /// let mut arguments = ["--request-file", "request.json"].map(|a| BenchmarkArgument(a.into())).into_iter();
     /// assert_eq!(WorkerInput::read(&mut arguments)?, WorkerInput::File("request.json".into()));
-    /// # Ok::<(), ryo_benchmark_contracts::domain::reports::errors::ReportsError>(())
+    /// # Ok::<(), benchmark_contracts::domain::reports::errors::ReportsError>(())
     /// ```
     pub fn read(args: &mut dyn Iterator<Item = BenchmarkArgument>) -> Result<Self, Error> {
         let input_argument = args

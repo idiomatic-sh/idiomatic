@@ -3,15 +3,15 @@
     clippy::expect_used,
     reason = "acceptance assertions must fail the scenario on unexpected success or refusal"
 )]
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::run_ryo::{
+use benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
-use ryo_benchmark::outbound::{
+use benchmark::outbound::{
     context::fixtures::fake::ContextFake,
     engine::fixtures::fake::EngineFake,
     worker::fixtures::{data::request, fake::WorkerFake},
 };
+use cucumber::then;
 use std::sync::Arc;
 /// Assert that the worker preserves the checked file list.
 #[then("the worker preserves the checked file list")]

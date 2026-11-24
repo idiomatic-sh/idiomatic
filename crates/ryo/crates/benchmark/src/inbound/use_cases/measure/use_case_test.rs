@@ -6,10 +6,10 @@ use crate::outbound::{
     evidence::fixtures::fake::EvidenceFake, execution::fixtures::fake::ExecutionFake,
     linter::fixtures::fake::LinterFake,
 };
-use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::measurements::types::RunOrder;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use benchmark_contracts::domain::requests::types::RunRequest;
 type Input = (bool, bool, RunOrder);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Contestant {
@@ -60,18 +60,17 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
     };
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
         file_metadata:
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: ".".into(),
         state: "cache".into(),
         files: vec![ryo::linter::RelativePath("input.txt".into())],
@@ -86,8 +85,8 @@ fn subject((complete, differs, order): Input) -> Result<Value, Failure> {
             vec![BenchmarkFinding {
                 rule: ryo::linter::RuleId::try_from("fixture").unwrap(),
                 file: ryo::linter::RelativePath("input.txt".into()),
-                start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0),
-                end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(1),
+                start: benchmark_contracts::domain::reports::types::SourceByteOffset(0),
+                end: benchmark_contracts::domain::reports::types::SourceByteOffset(1),
             }]
         } else {
             Vec::new()

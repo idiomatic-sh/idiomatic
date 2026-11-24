@@ -1,4 +1,4 @@
-# idiomatic-sh-ryo-benchmark-contracts
+# idiomatic-sh-benchmark-contracts
 
 Shared typed benchmark boundary data without audit, certification, execution or publication authority.
 

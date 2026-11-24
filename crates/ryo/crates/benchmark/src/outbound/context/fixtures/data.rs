@@ -1,7 +1,7 @@
 //! The inputs the contract's rows start from.
-use ryo_benchmark_contracts::domain::context::types::CaseContext;
-use ryo_benchmark_contracts::domain::context::types::ContextBytes;
-use ryo_benchmark_contracts::domain::context::types::ContextManifest;
+use benchmark_contracts::domain::context::types::CaseContext;
+use benchmark_contracts::domain::context::types::ContextBytes;
+use benchmark_contracts::domain::context::types::ContextManifest;
 use std::collections::BTreeMap;
 
 /// The context every row starts from: one auxiliary file and one declared absence.
@@ -58,7 +58,7 @@ pub fn linked(manifest: &ContextManifest, links: &[(&str, &str)]) -> ContextMani
     linked.links.extend(links.iter().map(|(path, target)| {
         (
             (*path).into(),
-            ryo_benchmark_contracts::domain::context::types::LinkTarget((*target).into()),
+            benchmark_contracts::domain::context::types::LinkTarget((*target).into()),
         )
     }));
     linked

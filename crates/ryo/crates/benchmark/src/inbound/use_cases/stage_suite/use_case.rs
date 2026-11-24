@@ -1,6 +1,6 @@
 //! Readable suite orchestration, borrowing the actual injected port owners.
 use super::interface::StageSuiteUseCase;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// stage_suite with required borrowed boundaries.
 pub struct StageSuiteUseCaseImpl<'a> {
@@ -19,8 +19,8 @@ impl StageSuiteUseCase for StageSuiteUseCaseImpl<'_> {
         directory: &Path,
         destination: &Path,
         authored: &[ryo::linter::RuleId],
-        purpose: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
-    ) -> Result<ryo_benchmark_contracts::domain::workloads::types::Tool, ReportsError> {
+        purpose: benchmark_contracts::domain::workloads::types::StagePurpose,
+    ) -> Result<benchmark_contracts::domain::workloads::types::Tool, ReportsError> {
         crate::application::suite_staging::service::stage(
             self.suite,
             directory,

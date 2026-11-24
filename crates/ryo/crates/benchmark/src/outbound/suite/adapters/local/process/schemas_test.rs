@@ -2,9 +2,9 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::adapters::local::rule_cases::schemas::case_claims;
 use crate::outbound::suite::types::{ClaimedEvidence, ClaimedProcess};
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::process::types::{OutputPart, PathEncoding};
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::process::types::{OutputPart, PathEncoding};
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 
 /// Whether the authored TOML is refused by the case boundary.
 fn refused(text: &str) -> bool {

@@ -2,10 +2,10 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::execution::types::ExitObservationMode;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::measurements::types::{
     Invocation, SignalNumber, TerminationSignal,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::PathBuf;
 /// Execution requests and independently materialized launch failures.
 #[derive(Debug)]
@@ -323,13 +323,13 @@ fn native_path(adapter: &impl ExecutionPort) -> std::ffi::OsString {
 /// Check profile stability, resource mode, and independently specified output streams.
 fn observe(
     adapter: &impl ExecutionPort,
-    profile: &ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile,
+    profile: &benchmark_contracts::domain::measurements::types::ExecutionProfile,
     mode: &ExitObservationMode,
-    output: &ryo_benchmark_contracts::domain::measurements::types::ProcessOutput,
+    output: &benchmark_contracts::domain::measurements::types::ProcessOutput,
     large: bool,
 ) -> Value {
-    use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
-    use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+    use benchmark_contracts::domain::measurements::types::ExecutionProfile;
+    use benchmark_contracts::domain::measurements::types::ResourceObservation;
     assert_eq!(
         adapter.profile(),
         *profile,
@@ -356,9 +356,7 @@ fn observe(
         output.signal,
         if output.status.0 < 0_i32 {
             TerminationSignal::Signalled(
-                ryo_benchmark_contracts::domain::measurements::types::SignalNumber(
-                    -output.status.0,
-                ),
+                benchmark_contracts::domain::measurements::types::SignalNumber(-output.status.0),
             )
         } else {
             TerminationSignal::Exited

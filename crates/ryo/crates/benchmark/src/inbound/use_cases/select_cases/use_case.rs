@@ -3,7 +3,7 @@ use super::{
     interface::SelectCasesUseCase,
     types::{CaseArgument, CaseRun},
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Selects the cases of one verification run from its command line.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SelectCasesUseCaseImpl;

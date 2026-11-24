@@ -4,8 +4,8 @@ use super::super::super::service::verify;
 use super::super::{ToyExecution, provider, summary_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::types::inventory::value::InventoryVerdict;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     RegisteredCoverage, case_shard::value::ShardCount,
 };
 use serde_json::json;

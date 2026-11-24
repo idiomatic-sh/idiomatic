@@ -2,23 +2,23 @@
 //! Unknown fields are refused; the documents are a contract.
 use super::super::process_row::schemas::{KindSchema, ProcessRowSchema};
 use crate::outbound::receipts::errors::ReceiptsError;
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+use benchmark_contracts::domain::documents::types::finding::value::{
     ExpectedFindings, FindingOffset, RecordedFinding, SkippedPair,
 };
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument, ProcessArtifacts,
     ProcessRecord, ProjectContextRecord, RuleCohort, RuleContextRecord, RuleObservationsRecord,
     SourceIdentity, ToolContractRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::DiscrepancyValidation;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::DiscrepancyValidation;
+use benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, CaseName, ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest,
     ReasonText, RuleName, SchemaName, Sha256Text, YesNo,
 };
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::reports::types::{
     ComparisonContract, CoverageAccounting, ExecutionMetadata,
 };
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use serde::Serialize;
 
 fn is(value: YesNo) -> bool {
@@ -28,21 +28,21 @@ fn text(value: &Sha256Text) -> String {
     value.0.clone()
 }
 fn pin_text(
-    value: &ryo_benchmark_contracts::domain::documents::types::text::value::Pin,
+    value: &benchmark_contracts::domain::documents::types::text::value::Pin,
 ) -> Option<String> {
     match value {
-        ryo_benchmark_contracts::domain::documents::types::text::value::Pin::Sha256(digest) => {
+        benchmark_contracts::domain::documents::types::text::value::Pin::Sha256(digest) => {
             Some(text(digest))
         }
-        ryo_benchmark_contracts::domain::documents::types::text::value::Pin::Absent => None,
+        benchmark_contracts::domain::documents::types::text::value::Pin::Absent => None,
     }
 }
 fn reason_text(
-    value: &ryo_benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason,
+    value: &benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason,
 ) -> Option<String> {
     match value {
-        ryo_benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason::Stated(reason) => Some(reason.0.clone()),
-        ryo_benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason::Absent => None,
+        benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason::Stated(reason) => Some(reason.0.clone()),
+        benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason::Absent => None,
     }
 }
 fn sealed(value: &SourceIdentity) -> Option<String> {
@@ -234,11 +234,11 @@ impl From<&ObservationDocument> for ObservationSchema {
                 ExpectedFindings::Underivable => None,
             },
             diagnostics: match &value.diagnostics {
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReportedFindings::Reported(rows) => Some(wire_findings(rows)),
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReportedFindings::Unreported => None,
+                benchmark_contracts::domain::documents::types::observation_document::value::ReportedFindings::Reported(rows) => Some(wire_findings(rows)),
+                benchmark_contracts::domain::documents::types::observation_document::value::ReportedFindings::Unreported => None,
             },
             skipped: match &value.skipped {
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReportedSkips::Reported(rows) => Some(
+                benchmark_contracts::domain::documents::types::observation_document::value::ReportedSkips::Reported(rows) => Some(
                     rows.iter()
                         .map(|skip| SkippedSchema {
                             rule: skip.rule.0.clone(),
@@ -247,19 +247,19 @@ impl From<&ObservationDocument> for ObservationSchema {
                         })
                         .collect(),
                 ),
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReportedSkips::Unreported => None,
+                benchmark_contracts::domain::documents::types::observation_document::value::ReportedSkips::Unreported => None,
             },
             observation_schema: value.observation_schema.0.clone(),
             expectation_contract: wire_contract(value.expectation_contract),
             execution_metadata: match &value.execution_metadata {
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::RecordedMetadata::Recorded(metadata) => Some(match metadata {
+                benchmark_contracts::domain::documents::types::observation_document::value::RecordedMetadata::Recorded(metadata) => Some(match metadata {
                     ExecutionMetadata::Unknown => ExecutionSchema::Unknown {},
                     ExecutionMetadata::Unavailable { reason } => ExecutionSchema::Unavailable {
                         reason: reason.0.clone(),
                     },
                     ExecutionMetadata::Complete => ExecutionSchema::Complete {},
                 }),
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::RecordedMetadata::Unrecorded => None,
+                benchmark_contracts::domain::documents::types::observation_document::value::RecordedMetadata::Unrecorded => None,
             },
             coverage: match value.coverage {
                 CoverageAccounting::Accounted(coverage) => Some(CoverageSchema {
@@ -301,8 +301,8 @@ impl From<&ObservationDocument> for ObservationSchema {
                 RuleCohort::Undeclared => None,
             },
             actual_request_root: match &value.actual_request_root {
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::RequestRoot::Written(root) => Some(root.0.clone()),
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::RequestRoot::Unwritten => None,
+                benchmark_contracts::domain::documents::types::observation_document::value::RequestRoot::Written(root) => Some(root.0.clone()),
+                benchmark_contracts::domain::documents::types::observation_document::value::RequestRoot::Unwritten => None,
             },
             documented_reference_discrepancy: is(value.documented_reference_discrepancy),
             documented_tool_contract_difference: match value.documented_tool_contract_difference {
@@ -310,7 +310,7 @@ impl From<&ObservationDocument> for ObservationSchema {
                 ToolContractRecord::Unrecorded => None,
             },
             discrepancy_validation: match &value.discrepancy_validation {
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ValidationRecord::Attested(proof) => Some({
+                benchmark_contracts::domain::documents::types::observation_document::value::ValidationRecord::Attested(proof) => Some({
                 ValidationSchema {
                     discrepancy_basis: wire_basis(proof.discrepancy_basis),
                     process_observation_group_sha256: pin_text(
@@ -326,7 +326,7 @@ impl From<&ObservationDocument> for ObservationSchema {
                     file_metadata_sha256: metadata_digest(&proof.file_metadata_sha256),
                 }
                 }),
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ValidationRecord::Unattested => None,
+                benchmark_contracts::domain::documents::types::observation_document::value::ValidationRecord::Unattested => None,
             },
             raw_parity_matches_intended: match value.raw_parity_matches_intended {
                 IntentMatch::Matched(answer) => Some(is(answer)),
@@ -337,8 +337,8 @@ impl From<&ObservationDocument> for ObservationSchema {
                 IntentMatch::Unreported => None,
             },
             process_observation: match &value.process_observation {
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) => Some(process.into()),
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::NotObserved => None,
+                benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) => Some(process.into()),
+                benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::NotObserved => None,
             },
         }
     }

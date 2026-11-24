@@ -1,8 +1,8 @@
 //! The shape of the receipt an observation document carries: each wire shape is a `<Name>Schema` built from the core's type with an `impl From`; neutral data owns no serde implementation.
-use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::Path;

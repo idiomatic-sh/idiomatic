@@ -1,8 +1,8 @@
 //! Exact diagnostic multisets and submitted-file sets determine agreement.
 use super::{interface::CompareUseCase as _, use_case::CompareUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::reports::types::Difference;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::reports::types::Difference;
+use benchmark_contracts::domain::reports::types::RunReport;
 type Input = (RunReport, RunReport);
 type Value = ();
 type Failure = Difference;
@@ -28,17 +28,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn matching() -> Input {
     let report = RunReport {
         execution_metadata:
-            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-        project_context:
-            ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+            benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
+        project_context: benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
         files: vec![ryo::linter::RelativePath("input.txt".into())],
         skipped: Vec::new(),
-        coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-            ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+        coverage: benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+            benchmark_contracts::domain::reports::types::RuleCoverage {
+                selected: benchmark_contracts::domain::reports::types::PairCount(1),
+                evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
+                skipped: benchmark_contracts::domain::reports::types::PairCount(0),
+                unknown_or_unread: benchmark_contracts::domain::reports::types::PairCount(0),
             },
         ),
         diagnostics: Vec::new(),

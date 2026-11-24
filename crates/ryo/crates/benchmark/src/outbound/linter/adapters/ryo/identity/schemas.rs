@@ -1,18 +1,18 @@
 //! The canonical identity texts a reference process is bound to, spelled exactly as receipts compare them.
 use crate::outbound::linter::types::CanonicalText;
-use ryo::linter::{ObservationKind, ObservationProducer};
-use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
-use ryo_benchmark_contracts::domain::context::types::{
+use benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
+use benchmark_contracts::domain::context::types::{
     PreparedRuleContext, RuleConfiguration, RuleContextDeclaration,
 };
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, DiagnosticSwitch, InputDeclaration, ParserSelection, PerformanceOptions,
     ProviderSelection, RuleContextPreparation, SearchRoots,
 };
-use ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile;
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
+use benchmark_contracts::domain::workloads::types::RuleContextProfile;
+use benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
+use ryo::linter::{ObservationKind, ObservationProducer};
 use serde::Serialize;
 
 /// Explicit performance controls on the worker wire.
@@ -125,7 +125,7 @@ impl From<ryo::linter::GivenProjectInventory> for ProjectInventorySchema {
 
 /// JSON records the authored data, with no inferred producers or exported diagnostics.
 pub(in crate::outbound::linter::adapters::ryo) fn observation_declarations_value(
-    declarations: &ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
+    declarations: &benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
 ) -> serde_json::Value {
     let entries = declarations
         .iter()

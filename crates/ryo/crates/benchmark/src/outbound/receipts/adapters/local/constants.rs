@@ -10,18 +10,16 @@ pub(super) const INVALID_FRAMED_PROCESS_CASE_KEY: &str = "invalid framed process
 /// Text of the stdout in this part.
 pub(super) const STDOUT: &str = "stdout";
 /// Text of the stdout bin in this part.
-pub(super) const STDOUT_BIN: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::STDOUT_BIN;
+pub(super) const STDOUT_BIN: &str = benchmark_contracts::domain::receipts::constants::STDOUT_BIN;
 /// Text of the stderr in this part.
 pub(super) const STDERR: &str = "stderr";
 /// Text of the stderr bin in this part.
-pub(super) const STDERR_BIN: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::STDERR_BIN;
+pub(super) const STDERR_BIN: &str = benchmark_contracts::domain::receipts::constants::STDERR_BIN;
 /// Text of the invocation in this part.
 pub(super) const INVOCATION: &str = "invocation";
 /// Text of the invocation json in this part.
 pub(super) const INVOCATION_JSON: &str =
-    ryo_benchmark_contracts::domain::receipts::constants::INVOCATION_JSON;
+    benchmark_contracts::domain::receipts::constants::INVOCATION_JSON;
 /// Refuse a process observation that has no raw artifacts to point at.
 pub(super) const PROCESS_OBSERVATION_NEEDS_RAW_ARTIFACTS: &str =
     "a process observation needs its three raw artifacts";

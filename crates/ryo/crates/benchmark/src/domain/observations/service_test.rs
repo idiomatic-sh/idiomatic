@@ -1,12 +1,12 @@
 //! Observation closure follows only executable producers, and profile defaults project only what is selected.
 use super::service::{closure, project_profile};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
+use benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use ryo::linter::{
     ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
     ObservationKind, ObservationName, ObservationProducer, RuleId,
 };
-use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
-use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 use std::collections::BTreeMap;
 
 /// What each scenario resolves.

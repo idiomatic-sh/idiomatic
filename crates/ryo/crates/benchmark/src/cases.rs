@@ -1,6 +1,6 @@
 //! The crate's test support: the rows every `*_test.rs` states its cases in, and the one `run` that checks them.
 
-use ryo_benchmark_contracts::domain::documents::types::text::value::PathText;
+use benchmark_contracts::domain::documents::types::text::value::PathText;
 use std::fmt::Debug;
 
 /// The case word of a row: the four a part's cases are named with.
@@ -115,7 +115,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ryo_benchmark::cases::slashed;
+/// use benchmark::cases::slashed;
 /// use std::path::Path;
 ///
 /// let path = Path::new("target").join("benchmark").join("state");

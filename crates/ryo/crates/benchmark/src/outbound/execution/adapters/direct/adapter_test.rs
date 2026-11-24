@@ -10,8 +10,8 @@ fn resource_mode_honors_its_declared_platform_contract() {
     #[cfg(not(target_os = "linux"))]
     {
         use crate::outbound::execution::interface::ExecutionPort as _;
-        use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-        use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+        use benchmark_contracts::domain::measurements::types::Invocation;
+        use benchmark_contracts::domain::reports::errors::ReportsError;
         let outcome = crate::outbound::execution::factory::direct().run(Invocation {
             executable: "sh".into(),
             arguments: Vec::new(),
@@ -27,8 +27,8 @@ fn resource_mode_honors_its_declared_platform_contract() {
 #[cfg(target_os = "linux")]
 fn signaled_child_retains_native_resources() {
     use crate::outbound::execution::interface::ExecutionPort as _;
-    use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-    use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+    use benchmark_contracts::domain::measurements::types::Invocation;
+    use benchmark_contracts::domain::measurements::types::ResourceObservation;
     let output = crate::outbound::execution::factory::direct()
         .run(Invocation {
             executable: "/bin/sh".into(),
@@ -39,8 +39,8 @@ fn signaled_child_retains_native_resources() {
         .expect("signaled child observation");
     assert_eq!(
         output.signal,
-        ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Signalled(
-            ryo_benchmark_contracts::domain::measurements::types::SignalNumber(15)
+        benchmark_contracts::domain::measurements::types::TerminationSignal::Signalled(
+            benchmark_contracts::domain::measurements::types::SignalNumber(15)
         )
     );
     assert_eq!(output.status.0, -15_i32);

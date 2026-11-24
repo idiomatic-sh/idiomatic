@@ -6,13 +6,13 @@ use super::{
     profile_workload::{self, Images, Metric, Workload},
 };
 use crate::outbound::linter::interface::LinterPort;
-use profile_tools::CommandLine;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::measurements::types::{
     CapturedBytes, Invocation, ProcessExitCode, ProcessOutput, ResourceObservation,
     TerminationSignal,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RunRequest;
+use profile_tools::CommandLine;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,

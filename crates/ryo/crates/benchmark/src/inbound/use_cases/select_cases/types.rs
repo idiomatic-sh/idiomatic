@@ -1,6 +1,6 @@
 //! The choices one verification run is given.
 use crate::outbound::receipts::types::CaseReceipts;
-use ryo_benchmark_contracts::domain::requests::types::ShardPartition;
+use benchmark_contracts::domain::requests::types::ShardPartition;
 
 /// The partition and receipt destination a verification run covers and records.
 #[derive(Clone, Debug, PartialEq, Eq)]

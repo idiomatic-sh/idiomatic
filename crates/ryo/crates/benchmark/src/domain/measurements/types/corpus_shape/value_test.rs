@@ -2,8 +2,8 @@
 use super::super::LanguageTitle;
 use super::value::CorpusShape;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::{Project, Suite};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::{Project, Suite};
 
 /// The corpus's language, its project count and the name of its second project, `project-1` unless a row names another.
 type Input = (&'static str, usize, &'static str);

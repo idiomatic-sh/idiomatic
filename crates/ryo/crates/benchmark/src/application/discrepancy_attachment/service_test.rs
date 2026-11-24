@@ -11,15 +11,15 @@ use crate::domain::discrepancy::fixtures::case;
 use crate::domain::registered_inputs::types::RefusalText;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
 use crate::outbound::suite::types::{ClaimedEvidence, ClaimedProcess};
-use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::Sha256Text;
+use benchmark_contracts::domain::documents::types::text::value::{
     CaseName as DocumentCaseName, PathText,
 };
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
-use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
-use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::process::types::ProcessFailure;
+use benchmark_contracts::domain::reports::types::SourceByteOffset;
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
     Rationale, SourceRevision, WitnessCase,
 };
 use std::path::Path;
@@ -313,7 +313,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
     attach(&suite, Path::new(input.rules), &mut cases).map_err(words_dropped)?;
     assert!(matches!(
         cases[0].reference_discrepancy,
-        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(_)
+        benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(_)
     ));
     Ok(Outcome::Attached)
 }

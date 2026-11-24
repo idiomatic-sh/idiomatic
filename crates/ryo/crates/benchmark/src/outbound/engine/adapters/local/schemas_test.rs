@@ -2,10 +2,10 @@
 use super::{load_rules, refuse_incomplete, source_inputs, validate_skips};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::engine::adapters::local::constants;
-use ryo::linter::{self, RuleApplicability, RuleId};
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, QueryModuleName, RuleLabel,
 };
+use ryo::linter::{self, RuleApplicability, RuleId};
 use std::{collections::BTreeMap, path::PathBuf};
 
 /// Create a symbolic link to a file where the platform supports it.
@@ -208,7 +208,7 @@ fn named_input_declarations_attach_to_registered_definitions_and_reject_unknown_
             output: ObservationName("matched".into()),
         }],
     };
-    let mut declarations = ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations::from(BTreeMap::from([(consumer.clone(), vec![binding.clone()])]));
+    let mut declarations = benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations::from(BTreeMap::from([(consumer.clone(), vec![binding.clone()])]));
     let queries = load_rules(
         &rules,
         &BTreeMap::new(),
@@ -240,7 +240,7 @@ fn unknowns_without_unread_refuse_the_candidate() {
         1,
     );
     assert!(
-        matches!(&refused, Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message))
+        matches!(&refused, Err(benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message))
             if message.starts_with("incomplete candidate:") && message.contains("unknown_count=1") && message.contains("unread_count=0")),
         "an unknown with nothing unread is refused: {refused:?}"
     );
@@ -255,32 +255,31 @@ fn unknowns_without_unread_refuse_the_candidate() {
 /// A requested source that is not on disk, and that context validation did not declare absent, fails the read with `NotFound`.
 fn an_undeclared_missing_source_fails_its_read() {
     let root = tempfile::tempdir().expect("a root");
-    let request = ryo_benchmark_contracts::domain::requests::types::WorkerRequest {
+    let request = benchmark_contracts::domain::requests::types::WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: Default::default(),
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().into(),
         rules: root.path().into(),
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
         parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![linter::RelativePath("missing.py".into())],
-        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+        state: benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     };
     let read = source_inputs(&request, &std::collections::BTreeSet::new());
     assert!(
-        matches!(&read, Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound),
+        matches!(&read, Err(benchmark_contracts::domain::reports::errors::ReportsError::Io(error)) if error.kind() == std::io::ErrorKind::NotFound),
         "an undeclared missing source is a NotFound read: {:?}",
         read.map(|_| ())
     );

@@ -4,9 +4,9 @@ use crate::outbound::suite::types::ArtifactMetadata;
 use crate::outbound::suite::types::ArtifactPath;
 use crate::outbound::suite::types::ArtifactSet;
 use crate::outbound::suite::types::CaseArtifacts;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::requests::types::StagedSources;
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::requests::types::StagedSources;
+use benchmark_contracts::domain::workloads::types::PreparedCase;
 
 /// What a validator answers over a replayed receipt: it admits the receipt or refuses it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

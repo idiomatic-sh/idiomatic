@@ -1,13 +1,13 @@
 //! The candidate rule directory and the project sources are documents this adapter reads: their checked loading into the SDK's inputs.
 use super::constants;
 use crate::outbound::engine::types::FrontendDiagnosticProjection;
-use ryo::linter::{self, CaseSource, Rule, RuleApplicability, RuleId, SourceText};
-use ryo::query::RyoQlQuery;
-use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, QueryModuleName, RuleLabel, WorkerRequest,
 };
+use ryo::linter::{self, CaseSource, Rule, RuleApplicability, RuleId, SourceText};
+use ryo::query::RyoQlQuery;
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -34,7 +34,7 @@ pub(super) fn load_rules(
     applicability_by_rule: &BTreeMap<RuleLabel, ApplicabilityPolicy>,
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
     declarations: Option<
-        &ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
+        &benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
     >,
 ) -> Result<BTreeMap<RuleId, Rule>, Error> {
     let modules = query_modules(directory, registry)?;
@@ -132,7 +132,7 @@ pub(super) fn load_rules(
 pub(super) fn with_observations(
     mut rules: BTreeMap<RuleId, Rule>,
     declarations: Option<
-        &ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
+        &benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
     >,
 ) -> Result<BTreeMap<RuleId, Rule>, Error> {
     if let Some(declarations) = declarations {
@@ -313,13 +313,13 @@ mod tests;
 pub(super) fn request_rules(
     kept: Option<&std::sync::OnceLock<BTreeMap<RuleId, Rule>>>,
     frontend_diagnostic: Option<FrontendDiagnosticProjection>,
-    request: &ryo_benchmark_contracts::domain::requests::types::WorkerRequest,
+    request: &benchmark_contracts::domain::requests::types::WorkerRequest,
 ) -> Result<BTreeMap<RuleId, Rule>, Error> {
     let declarations = match &request.rule_observations {
-        ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(declared) => {
+        benchmark_contracts::domain::requests::types::InputDeclaration::Declared(declared) => {
             Some(declared)
         }
-        ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => None,
+        benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => None,
     };
     // The profile's rules are loaded once and kept with no bindings; each request binds its own.
     let load = || {

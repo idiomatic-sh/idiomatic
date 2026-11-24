@@ -31,11 +31,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// Decodes one record and answers whether it carries no raw artifacts, and whether writing it gives the text it was read from.
 fn subject(text: Input) -> Result<Value, Failure> {
     let schema: ProcessRowSchema = serde_json::from_str(text).map_err(|_refused| ())?;
-    let record = ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessRecord::from(schema);
+    let record = benchmark_contracts::domain::documents::types::observation_document::value::ProcessRecord::from(schema);
     let written = serde_json::to_string(&ProcessRowSchema::from(&record)).map_err(|_refused| ())?;
     Ok((
         record.artifacts
-            == ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Unattached,
+            == benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Unattached,
         written == text,
     ))
 }

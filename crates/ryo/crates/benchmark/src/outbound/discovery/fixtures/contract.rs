@@ -1,7 +1,7 @@
 //! What every `discovery` implementation must pass.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::discovery::interface::DiscoveryPort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 /// Which implementation a row asks: one that finds files, or one that finds none.

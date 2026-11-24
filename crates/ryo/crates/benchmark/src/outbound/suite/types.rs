@@ -1,17 +1,17 @@
 //! Per-operation artifact identities, independent of adapter configuration.
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::documents::types::text::value::{
     CaseName, PathText, RuleName, Sha256Text,
 };
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
-use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
-use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::process::types::ProcessFailure;
+use benchmark_contracts::domain::reports::types::SourceByteOffset;
+use benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
     ContractSourcePath, LanguageVersion, ParserTarget, Rationale, SourceRevision, WitnessCase,
 };
-use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
-use ryo_benchmark_contracts::domain::workloads::types::tool_version::value::ToolVersion;
-use ryo_benchmark_contracts::domain::workloads::types::{DiscrepancyBasis, DiscrepancyReason};
+use benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
+use benchmark_contracts::domain::workloads::types::tool_version::value::ToolVersion;
+use benchmark_contracts::domain::workloads::types::{DiscrepancyBasis, DiscrepancyReason};
 use std::path::PathBuf;
 /// A source, destination or executable artifact selected for this operation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -45,7 +45,7 @@ pub enum MaterializedContext {
     /// The case runs on its own files.
     Isolated,
     /// The exact sealed disk dependency context that was materialized.
-    Sealed(ryo_benchmark_contracts::domain::context::types::ContextManifest),
+    Sealed(benchmark_contracts::domain::context::types::ContextManifest),
 }
 
 /// Observed physical addresses; this carries no audit or rule-selection authority.

@@ -3,8 +3,8 @@ use super::verify_requirement;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::errors::SuiteError;
 use crate::outbound::suite::types::EvidenceRequirement;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
     ContractSourcePath, SourceRevision, WitnessCase,
 };
 use sha2::{Digest as _, Sha256};

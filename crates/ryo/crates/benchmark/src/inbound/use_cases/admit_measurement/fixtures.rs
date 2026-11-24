@@ -1,5 +1,5 @@
 //! The audit and tool one admission is exercised against, through the real audit operation.
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::workloads::types::Tool;
 
 /// A tool declaring the one default rule the audit fixture authors.
 ///
@@ -14,13 +14,13 @@ use ryo_benchmark_contracts::domain::workloads::types::Tool;
 pub fn tool() -> Tool {
     Tool {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+            benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: Default::default(),
-        rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
-        file_observation: ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
+        rule_context: benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+        file_observation: benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
         project_context_mode:
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+            benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: "1".into(),
         sha256: vec![String::new().into()],
@@ -28,9 +28,9 @@ pub fn tool() -> Tool {
         pending: std::collections::BTreeMap::default(),
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         defaults: vec!["fixture".try_into().expect("rule identifier")],
     }
 }

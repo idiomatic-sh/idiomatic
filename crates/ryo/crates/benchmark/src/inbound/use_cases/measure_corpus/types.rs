@@ -1,10 +1,10 @@
 //! What a corpus is measured with, and what its language tells the measurement.
 use crate::domain::measurements::types::LanguageTitle;
 use crate::domain::suite::types::certificate::value::Certificate;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
-use ryo_benchmark_contracts::domain::requests::types::{CohortSelection, SearchRoots};
-use ryo_benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::measurements::types::MeasurementMode;
+use benchmark_contracts::domain::requests::types::{CohortSelection, SearchRoots};
+use benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
 use std::path::Path;
 
 /// The pinned reference tool as observations name it.
@@ -23,8 +23,7 @@ pub struct ProfileLabel<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug)]
 pub struct CorpusLanguage<'a> {
     /// The language as benchmark.toml and the bench's measures name it.
-    pub id:
-        &'a ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+    pub id: &'a benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
     /// The language as observations name it.
     pub display: LanguageTitle<'a>,
     /// The pinned reference tool as observations name it.

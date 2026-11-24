@@ -3,8 +3,8 @@ use super::service::pair;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::evidence::fixtures::fake::EvidenceFake;
 use crate::outbound::worker::fixtures::data::report;
-use ryo_benchmark_contracts::domain::measurements::types::{Measurement, ResourceObservation};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::{Measurement, ResourceObservation};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 /// Whether the candidate lost one finding the reference reported.
 type Input = bool;
@@ -31,7 +31,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn measurement(report: ryo_benchmark_contracts::domain::reports::types::RunReport) -> Measurement {
+fn measurement(report: benchmark_contracts::domain::reports::types::RunReport) -> Measurement {
     Measurement {
         wall: std::time::Duration::ZERO,
         resources: ResourceObservation::WallOnly,

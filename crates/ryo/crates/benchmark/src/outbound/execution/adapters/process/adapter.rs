@@ -3,11 +3,11 @@ use crate::outbound::execution::adapters::process::constants;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::execution::types::ExitObservationMode;
 use crate::outbound::execution::types::process_exit::value::decode;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::measurements::types::ResourceObservation;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{
     io::{Read as _, Seek as _},
     process::{Command, Stdio},
@@ -29,8 +29,8 @@ impl ExecutionPort for ExecutionProcessAdapter {
         }
     }
 
-    fn profile(&self) -> ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile {
-        ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall
+    fn profile(&self) -> benchmark_contracts::domain::measurements::types::ExecutionProfile {
+        benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall
     }
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {
         let start = Instant::now();
@@ -103,8 +103,8 @@ impl ExecutionPort for ExecutionProcessAdapter {
                     .as_bytes(),
                 );
                 (
-                    ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(124),
-                    ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+                    benchmark_contracts::domain::measurements::types::ProcessExitCode(124),
+                    benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
                     out,
                     err,
                 )

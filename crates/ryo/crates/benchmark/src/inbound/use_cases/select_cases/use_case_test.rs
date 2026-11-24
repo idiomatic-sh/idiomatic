@@ -6,8 +6,8 @@ use super::{
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::receipts::types::CaseReceipts;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::types::ShardPartition;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::types::ShardPartition;
 
 type Input = &'static [&'static str];
 /// What the flags chose: whether receipts are recorded and the shard's coordinates.

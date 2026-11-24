@@ -7,7 +7,7 @@ use crate::outbound::suite::{
     interface::SuitePort as _,
     types::{ArtifactMetadata, ArtifactPath, ArtifactSet, CaseArtifacts},
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 
 /// Whether the artifacts were refused as not matching their declared identity.
 #[cfg(unix)]
@@ -26,7 +26,7 @@ fn exact_executable_digest_bytes() {
         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
     );
     assert!(
-        matches!(local().digest(ArtifactPath(directory.path())), Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)) if message == "executable digest requires a regular file")
+        matches!(local().digest(ArtifactPath(directory.path())), Err(benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)) if message == "executable digest requires a regular file")
     );
 }
 fn optional_source_language_profile_preserves_default_and_validates_exact_names() {
@@ -43,8 +43,10 @@ fn optional_source_language_profile_preserves_default_and_validates_exact_names(
             .expect("profile");
         assert_eq!(
             match &profile.source_language {
-                ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) => Some(name.0.as_str()),
-                ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified => None,
+                benchmark_contracts::domain::requests::types::ProviderSelection::Selected(name) =>
+                    Some(name.0.as_str()),
+                benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified =>
+                    None,
             },
             expected
         );

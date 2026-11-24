@@ -2,13 +2,13 @@
 use super::types::{CaseOwnership, ContextAbsence};
 use crate::domain::suite::constants;
 use crate::domain::suite::types::audit::value::Audit;
-use ryo_benchmark_contracts::domain::documents::types::text::value::RuleName;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{CoverageAccounting, ProjectContext};
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::documents::types::text::value::RuleName;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{CoverageAccounting, ProjectContext};
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, FileMetadataDeclaration, RegisteredCoverage, StagedSources,
 };
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::workloads::types::{
     Cases, ContextDeclaration, InventoryDeclaration, ReferenceBehavior, RequestedFiles,
 };
 use std::path::{Component, Path};
@@ -16,7 +16,7 @@ use std::path::{Component, Path};
 /// Materialized source identity includes context files, independently of requested diagnostics.
 #[must_use]
 pub fn materialized_sources(
-    request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
+    request: &benchmark_contracts::domain::requests::types::RunRequest,
 ) -> Vec<std::path::PathBuf> {
     let listed = match &request.staged_sources {
         StagedSources::Listed(files) => Some(files),
@@ -41,7 +41,7 @@ pub fn materialized_sources(
 /// Only explicit default definitions own case evidence; supporting definitions supply executable queries.
 #[must_use]
 pub fn owns_cases(
-    tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    tool: &benchmark_contracts::domain::workloads::types::Tool,
     rule: &ryo::linter::RuleId,
 ) -> CaseOwnership {
     if tool.defaults.contains(rule) {
@@ -81,7 +81,7 @@ pub fn require_complete(audit: &Audit) -> Result<(), Error> {
 /// Refuses an empty implementation subset, invalid deferrals or unaccounted defaults.
 pub fn require_accounted(
     audit: &Audit,
-    tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+    tool: &benchmark_contracts::domain::workloads::types::Tool,
 ) -> Result<(), Error> {
     if audit.implemented.is_empty() {
         return Err(Error::Invalid(super::constants::EMPTY_SUBSET.into()));
@@ -112,11 +112,11 @@ pub fn require_accounted(
 /// Full-report cases are positive only when they contain the enclosing rule's finding; unrelated diagnostics do not change polarity.
 /// Refuses missing positive or negative expectations and invalid case sources.
 pub fn validate_cases(rule: &ryo::linter::RuleId, cases: &Cases) -> Result<(), Error> {
-    let has_rule_finding = |case: &ryo_benchmark_contracts::domain::workloads::types::Case| {
+    let has_rule_finding = |case: &benchmark_contracts::domain::workloads::types::Case| {
         match case.comparison {
-        ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Rule => !case.expected.is_empty(),
-        ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full => case.expected.iter().any(|finding| {
-            matches!(&finding.identity, ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(found) if found == rule)
+        benchmark_contracts::domain::workloads::types::CaseComparison::Rule => !case.expected.is_empty(),
+        benchmark_contracts::domain::workloads::types::CaseComparison::Full => case.expected.iter().any(|finding| {
+            matches!(&finding.identity, benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(found) if found == rule)
         }),
     }
     };
@@ -150,7 +150,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
             ));
         }
         for name in case.files.keys() {
-            ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(name.0.as_ref()))?;
+            benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(name.0.as_ref()))?;
         }
         if let RequestedFiles::Explicit(requested) = &case.requested_files {
             let selected: std::collections::BTreeSet<_> = requested.iter().collect();
@@ -166,7 +166,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
                     ));
                 }
                 for path in requested {
-                    ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(path.0.as_ref()))?;
+                    benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(path.0.as_ref()))?;
                     if !case.files.contains_key(path)
                         && context_missing(&context.logical_root, &context.missing, path)
                             == ContextAbsence::Unnamed
@@ -201,7 +201,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
         }
         if let FileMetadataDeclaration::Declared(values) = &case.file_metadata {
             for name in values.keys() {
-                ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(name.0.as_ref()))?;
+                benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(Path::new(name.0.as_ref()))?;
                 if !case.files.contains_key(name) {
                     return Err(Error::Invalid(
                         constants::FILE_METADATA_NAMES_AN_UNDECLARED_SOURCE.into(),
@@ -211,7 +211,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
         }
         if matches!(case.reference_discrepancy, ReferenceBehavior::Differs(_))
             && case.comparison
-                != ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
+                != benchmark_contracts::domain::workloads::types::CaseComparison::Full
         {
             return Err(Error::Invalid(
                 constants::REFERENCE_DISCREPANCIES_REQUIRE_FULL_COMPARI.into(),
@@ -223,10 +223,10 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
         };
         for expected in case.expected.iter().chain(reference_expected) {
             if case.comparison
-                == ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
+                == benchmark_contracts::domain::workloads::types::CaseComparison::Full
                 && matches!(
                     expected.identity,
-                    ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Parent
+                    benchmark_contracts::domain::workloads::types::ExpectedRule::Parent
                 )
             {
                 return Err(Error::Invalid(
@@ -260,7 +260,7 @@ pub fn validate_case_sources(cases: &Cases) -> Result<(), Error> {
 /// application preparation must independently validate the physical context before execution.
 #[must_use]
 pub fn declares_missing(
-    manifest: &ryo_benchmark_contracts::domain::context::types::ContextManifest,
+    manifest: &benchmark_contracts::domain::context::types::ContextManifest,
     file: &ryo::linter::RelativePath,
 ) -> ContextAbsence {
     context_missing(&manifest.logical_root, &manifest.missing, file)
@@ -315,8 +315,8 @@ pub fn validate_selected_rules(rules: &CohortSelection) -> Result<(), Error> {
 /// # Errors
 /// Refuses duplicate, overlapping, missing or undeclared identities.
 pub(crate) fn audited(
-    tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
-    observed: ryo_benchmark_contracts::domain::reports::types::AuthoredInventory,
+    tool: &benchmark_contracts::domain::workloads::types::Tool,
+    observed: benchmark_contracts::domain::reports::types::AuthoredInventory,
 ) -> Result<crate::domain::suite::types::audit::value::Audit, Error> {
     let defaults = tool
         .defaults
@@ -355,11 +355,10 @@ pub(crate) fn audited(
 pub(crate) fn expected_report(
     rule: &ryo::linter::RuleId,
     files: Vec<ryo::linter::RelativePath>,
-    expected: Vec<ryo_benchmark_contracts::domain::workloads::types::Expected>,
-) -> ryo_benchmark_contracts::domain::reports::types::RunReport {
-    let mut report = ryo_benchmark_contracts::domain::reports::types::RunReport {
-        execution_metadata:
-            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Unknown,
+    expected: Vec<benchmark_contracts::domain::workloads::types::Expected>,
+) -> benchmark_contracts::domain::reports::types::RunReport {
+    let mut report = benchmark_contracts::domain::reports::types::RunReport {
+        execution_metadata: benchmark_contracts::domain::reports::types::ExecutionMetadata::Unknown,
         project_context: ProjectContext::NotRequested,
         files,
         skipped: Vec::new(),
@@ -367,10 +366,14 @@ pub(crate) fn expected_report(
         diagnostics: expected
             .into_iter()
             .map(
-                |finding| ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding {
+                |finding| benchmark_contracts::domain::reports::types::BenchmarkFinding {
                     rule: match finding.identity {
-                        ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Parent => rule.clone(),
-                        ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(value) => value,
+                        benchmark_contracts::domain::workloads::types::ExpectedRule::Parent => {
+                            rule.clone()
+                        }
+                        benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(
+                            value,
+                        ) => value,
                     },
                     file: finding.file,
                     start: finding.start,

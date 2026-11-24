@@ -11,8 +11,8 @@ use crate::outbound::{
     },
     suite::{interface::SuitePort, types::ArtifactPath},
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::RuleName;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::documents::types::text::value::RuleName;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::BTreeSet;
 
 /// A failure reason from a refusal's text.
@@ -56,7 +56,7 @@ pub fn require_authority(
     };
     let tool = suite.profile(ArtifactPath(profile))?;
     let observed_profile = suite.digest(ArtifactPath(
-        &profile.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
+        &profile.join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
     ))?;
     let observed_reference = suite.digest(ArtifactPath(&reference.path))?;
     let observed_worker = suite.digest(ArtifactPath(&worker.path))?;

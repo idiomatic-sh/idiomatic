@@ -19,11 +19,11 @@ use crate::outbound::{
     receipts::interface::ReceiptsPort,
     suite::{interface::SuitePort, types::ArtifactPath},
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
-use ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::constants::VERIFY_TOOL;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::documents::types::text::value::Sha256Text;
+use benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::constants::VERIFY_TOOL;
+use benchmark_contracts::domain::requests::types::{
     RegisteredCoverage, case_shard::value::ShardCount,
 };
 use std::sync::Arc;

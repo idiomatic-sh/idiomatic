@@ -3,16 +3,16 @@ use self::commands::{audit, reference, verify_cases, verify_reference_cases, wor
 use self::constants::{AUDIT, EXPECTED_EXECUTABLE, UNSUPPORTED_WORKER_COMMAND, USAGE};
 use self::locations::directory;
 use self::measure::measure;
-use ryo_benchmark::domain::command_line::types::{
+use benchmark::domain::command_line::types::{
     BenchmarkArgument, measure_command::value::MeasureCommand, worker_command::value::WorkerCommand,
 };
-use ryo_benchmark::outbound::linter::interface::LinterPort as _;
-use ryo_benchmark::outbound::suite::types::ArtifactPath;
-use ryo_benchmark_contracts::domain::receipts::constants::VERIFY_CASES;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::constants::{
-    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID,
-    RUN_RYO, VERIFY_REFERENCE_CASES, VERIFY_TOOL,
+use benchmark::outbound::linter::interface::LinterPort as _;
+use benchmark::outbound::suite::types::ArtifactPath;
+use benchmark_contracts::domain::receipts::constants::VERIFY_CASES;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::constants::{
+    DIAGNOSTIC_RYO, MEASURE, MEASURE_ACCOUNTED_VALID, MEASURE_SCOPED, MEASURE_VALID, RUN_RYO,
+    VERIFY_REFERENCE_CASES, VERIFY_TOOL,
 };
 use std::{path::PathBuf, sync::Arc};
 mod certification;
@@ -27,8 +27,8 @@ pub(crate) fn run(
     observations: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
     let mut args = arguments.into_iter().map(|argument| argument.0);
-    let suite_source: Arc<dyn ryo_benchmark::outbound::suite::interface::SuitePort> =
-        Arc::new(ryo_benchmark::outbound::suite::factory::local());
+    let suite_source: Arc<dyn benchmark::outbound::suite::interface::SuitePort> =
+        Arc::new(benchmark::outbound::suite::factory::local());
     let command = args.next();
     match command.as_deref() {
         Some(RUN_RYO | DIAGNOSTIC_RYO) => worker(

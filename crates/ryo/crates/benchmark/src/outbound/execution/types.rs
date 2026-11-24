@@ -36,7 +36,7 @@ pub trait InProcessWorker: Send + Sync + std::fmt::Debug {
     fn run(
         &self,
         request: &StoredRequest,
-    ) -> Result<WorkerResponse, ryo_benchmark_contracts::domain::reports::errors::ReportsError>;
+    ) -> Result<WorkerResponse, benchmark_contracts::domain::reports::errors::ReportsError>;
     /// Compile the rules of the request stored at `request` ahead of its first run, answering each rule's time; none when its
     /// engine compiles inside the run.
     ///
@@ -46,8 +46,5 @@ pub trait InProcessWorker: Send + Sync + std::fmt::Debug {
     fn compile(
         &self,
         request: &StoredRequest,
-    ) -> Result<
-        Option<RuleCompileTimes>,
-        ryo_benchmark_contracts::domain::reports::errors::ReportsError,
-    >;
+    ) -> Result<Option<RuleCompileTimes>, benchmark_contracts::domain::reports::errors::ReportsError>;
 }

@@ -1,8 +1,8 @@
 //! The accounting holds no boundary: its facts are the audit and the tool it is given.
 use super::interface::AccountDefaultsUseCase;
 use crate::domain::suite::types::audit::value::Audit;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::Tool;
 /// Accounts for the defaults of one tool.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AccountDefaultsUseCaseImpl;

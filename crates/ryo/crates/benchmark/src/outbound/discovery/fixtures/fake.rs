@@ -1,7 +1,7 @@
 //! A fixed selection standing in for a tool's own discovery.
 use crate::outbound::discovery::interface::DiscoveryPort;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo::linter::RelativePath;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 /// Deterministic discovery substitute for orchestration and contract tests.

@@ -1,6 +1,6 @@
 //! The files a tool would check by default, asked before either timer starts.
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo::linter::RelativePath;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 /// A tool's own selection of the source files of a worktree.

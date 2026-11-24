@@ -6,16 +6,16 @@ pub fn ryo(
     executable: std::path::PathBuf,
     rules: std::path::PathBuf,
     query_modules: std::collections::BTreeMap<
-        ryo_benchmark_contracts::domain::requests::types::QueryModuleName,
+        benchmark_contracts::domain::requests::types::QueryModuleName,
         std::path::PathBuf,
     >,
     rule_applicability: std::collections::BTreeMap<
-        ryo_benchmark_contracts::domain::requests::types::RuleLabel,
-        ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy,
+        benchmark_contracts::domain::requests::types::RuleLabel,
+        benchmark_contracts::domain::requests::types::ApplicabilityPolicy,
     >,
-    parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection,
+    parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection,
     defaults: Vec<ryo::linter::RuleId>,
-    rule_observations: ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
+    rule_observations: benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
 ) -> impl super::interface::LinterPort {
     ryo_context(
         executable,
@@ -23,10 +23,10 @@ pub fn ryo(
         query_modules,
         rule_applicability,
         parser_configuration,
-        ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
-        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
+        benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated,
         defaults,
-        ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+        benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         rule_observations,
     )
 }
@@ -37,19 +37,19 @@ pub fn ryo_context(
     executable: std::path::PathBuf,
     rules: std::path::PathBuf,
     query_modules: std::collections::BTreeMap<
-        ryo_benchmark_contracts::domain::requests::types::QueryModuleName,
+        benchmark_contracts::domain::requests::types::QueryModuleName,
         std::path::PathBuf,
     >,
     rule_applicability: std::collections::BTreeMap<
-        ryo_benchmark_contracts::domain::requests::types::RuleLabel,
-        ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy,
+        benchmark_contracts::domain::requests::types::RuleLabel,
+        benchmark_contracts::domain::requests::types::ApplicabilityPolicy,
     >,
-    parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection,
-    source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection,
-    project_context_mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,
+    parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection,
+    source_language: benchmark_contracts::domain::requests::types::ProviderSelection,
+    project_context_mode: benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,
     defaults: Vec<ryo::linter::RuleId>,
-    rule_observation_selection: ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy,
-    rule_observations: ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
+    rule_observation_selection: benchmark_contracts::domain::context::types::ObservationSelectionPolicy,
+    rule_observations: benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
 ) -> impl super::interface::LinterPort {
     LinterRyoAdapter {
         rule_observation_selection,

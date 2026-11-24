@@ -4,9 +4,9 @@ use super::{
     types::{WorkerPayload, WorkerResponseBytes},
 };
 use crate::outbound::worker::{interface::WorkerPort, types::WorkerSource};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::{ffi::OsString, io::Write};
 
 #[derive(Debug)]

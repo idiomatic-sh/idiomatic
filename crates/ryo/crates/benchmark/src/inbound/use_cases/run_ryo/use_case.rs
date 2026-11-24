@@ -7,9 +7,9 @@ use crate::outbound::execution::types::{
 use crate::outbound::{
     context::interface::ContextPort, engine::interface::EnginePort, worker::interface::WorkerPort,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{ProjectContext, RunReport};
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{ProjectContext, RunReport};
+use benchmark_contracts::domain::requests::types::{
     ContextSeal, DiagnosticSwitch, WorkerRequest, WorkerState,
 };
 use std::sync::Arc;

@@ -2,8 +2,8 @@
 use super::constants;
 use crate::outbound::process_meter::interface::ProcessMeterPort;
 use crate::outbound::process_meter::types::CpuTime;
-use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::ResidentBytes;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 /// The meter of this process on Linux.
 #[derive(Clone, Copy, Debug, Default)]

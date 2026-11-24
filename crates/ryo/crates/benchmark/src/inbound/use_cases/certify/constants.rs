@@ -47,7 +47,7 @@ pub(crate) const FIXTURE_TOOL_SCRIPT: &str = "@echo fixture 1\r\n";
 #[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture profile file.
 pub(crate) const FIXTURE_PROFILE_FILE: &str =
-    ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
+    benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
 #[cfg(any(test, feature = "fixtures"))]
 /// Independent certification fixture query file.
 pub(crate) const FIXTURE_QUERY_FILE: &str = "A/query.ryoql";

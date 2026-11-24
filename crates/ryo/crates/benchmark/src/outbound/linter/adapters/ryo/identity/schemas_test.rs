@@ -1,7 +1,7 @@
 //! The identity texts are deterministic and spell the declared tables, prefixes and disabled rules.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::linter::types::CanonicalText;
-use ryo_benchmark_contracts::domain::context::types::{
+use benchmark_contracts::domain::context::types::{
     ExternalPrefix, PreparedRuleContext, RuleConfiguration, RuleContextTables, TableName,
 };
 

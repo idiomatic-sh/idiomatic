@@ -1,7 +1,7 @@
 //! The same profile pipeline for every registered image and workload.
 use super::profile_evidence::EngineEvidence;
 use profile_tools::{self as standard, CommandLine, Observer};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,

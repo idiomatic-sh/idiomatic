@@ -1,8 +1,8 @@
 //! Wire reports preserve the canonical fields and reject unknown or malformed input.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::linter::adapters::ryo::types::ReportBytes;
-use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use benchmark_contracts::domain::reports::types::RunReport;
 use std::borrow::Cow;
 type Input = Cow<'static, [u8]>;
 fn report(bytes: &'static [u8]) -> Input {
@@ -114,35 +114,36 @@ fn subject(wire: Input) -> Result<Value, Failure> {
                     && report.skipped[0].path.0.as_ref() == "bad.py"
                     && report.skipped[0].reason == ryo::linter::SkipReason::SyntaxRejected;
             }
-            report == RunReport {
-                execution_metadata:
-                    ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-                project_context:
-                    ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
-                diagnostics: vec![BenchmarkFinding {
-                    rule: ryo::linter::RuleId::try_from("R1").expect("fixture rule"),
-                    file: ryo::linter::RelativePath("input".into()),
-                    start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(2),
-                    end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(7),
-                }],
-                files: vec![
-                    ryo::linter::RelativePath("input".into()),
-                    ryo::linter::RelativePath("clean".into()),
-                ],
-                skipped: Vec::new(),
-                coverage:
-                    ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                        ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(2),
-                            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
-                                2,
-                            ),
-                            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                            unknown_or_unread:
-                                ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                        },
-                    ),
-            }
+            report
+                == RunReport {
+                    execution_metadata:
+                        benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
+                    project_context:
+                        benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                    diagnostics: vec![BenchmarkFinding {
+                        rule: ryo::linter::RuleId::try_from("R1").expect("fixture rule"),
+                        file: ryo::linter::RelativePath("input".into()),
+                        start: benchmark_contracts::domain::reports::types::SourceByteOffset(2),
+                        end: benchmark_contracts::domain::reports::types::SourceByteOffset(7),
+                    }],
+                    files: vec![
+                        ryo::linter::RelativePath("input".into()),
+                        ryo::linter::RelativePath("clean".into()),
+                    ],
+                    skipped: Vec::new(),
+                    coverage:
+                        benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                            benchmark_contracts::domain::reports::types::RuleCoverage {
+                                selected: benchmark_contracts::domain::reports::types::PairCount(2),
+                                evaluated: benchmark_contracts::domain::reports::types::PairCount(
+                                    2,
+                                ),
+                                skipped: benchmark_contracts::domain::reports::types::PairCount(0),
+                                unknown_or_unread:
+                                    benchmark_contracts::domain::reports::types::PairCount(0),
+                            },
+                        ),
+                }
         })
         .map_err(|_rejected_report| ())
 }

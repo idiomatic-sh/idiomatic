@@ -2,8 +2,8 @@
 //! beside a sealed executable.
 use super::constants::{LOCKED, ONE_BENCH_EXECUTABLE};
 use crate::outbound::executables::types::Sealed;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use cargo_metadata::{Message, MetadataCommand, TargetKind};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Serialize;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};

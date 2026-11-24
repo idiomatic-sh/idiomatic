@@ -5,12 +5,12 @@ use crate::outbound::inventory::types::{
     RegisteredRule, Registration, RegistrationAuthority, RuleCommand, RuleDefinition, RuleInstance,
     RuleReason,
 };
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
+use benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, ReasonText, RuleName, Sha256Text,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
 use serde::Deserialize;
 use std::{collections::BTreeMap, path::PathBuf};
 

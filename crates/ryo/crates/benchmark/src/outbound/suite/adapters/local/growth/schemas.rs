@@ -1,10 +1,10 @@
 //! The shape of a language's growth table: the program's file, the rules and their profiles, the whole sizes, the frames
 //! and the operations grown in them.
-use ryo_benchmark_contracts::domain::growth::types::{
+use benchmark_contracts::domain::growth::types::{
     GrowthFrame, GrowthOperation, GrowthRule, GrowthSegment, GrowthSize, GrowthTable, Repetitions,
     SourceFileName, TemplateName, TemplateText,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 

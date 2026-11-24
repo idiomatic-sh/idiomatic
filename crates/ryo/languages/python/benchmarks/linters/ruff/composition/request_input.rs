@@ -1,9 +1,9 @@
 //! The identity the worker's parser and pinned phases require of every request it reads.
 use super::targets::TargetConfiguration;
 use crate::constants::WORKER_REQUIRES_A_SUPPORTED_PARSER;
-use ryo_benchmark::inbound::use_cases::check_worker_request::types::WorkerExpectation;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName;
+use benchmark::inbound::use_cases::check_worker_request::types::WorkerExpectation;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::ParserConfigurationName;
 
 /// The identity the executable's parser and pinned phases require of every request it runs.
 ///

@@ -2,7 +2,7 @@
 use super::{interface::VerifyRuleProfilesUseCase as _, use_case::VerifyRuleProfilesUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::types::ArtifactText;
-use ryo_benchmark_contracts::domain::requests::types::ShardPartition;
+use benchmark_contracts::domain::requests::types::ShardPartition;
 use std::borrow::Cow;
 use std::path::Path;
 
@@ -91,8 +91,8 @@ fn bench(root: &Path, own: bool) -> std::path::PathBuf {
 fn prepared(
     rules: &Path,
 ) -> Result<
-    ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount,
-    ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    benchmark_contracts::domain::workloads::types::case_count::value::CaseCount,
+    benchmark_contracts::domain::reports::errors::ReportsError,
 > {
     let scratch = tempfile::tempdir().expect("scratch");
     crate::application::case_preparation::service::cases(
@@ -102,7 +102,7 @@ fn prepared(
         scratch.path(),
     )
     .map(|cases| {
-        ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(cases.len())
+        benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(cases.len())
     })
 }
 
@@ -113,9 +113,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let inventory = crate::outbound::inventory::factory::local();
     let shard = match scenario {
         Scenario::Sharded => ShardPartition::Shard(
-            ryo_benchmark_contracts::domain::requests::types::case_shard::value::CaseShard::new(
-                ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardIndex(0),
-                ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount(1),
+            benchmark_contracts::domain::requests::types::case_shard::value::CaseShard::new(
+                benchmark_contracts::domain::requests::types::case_shard::value::ShardIndex(0),
+                benchmark_contracts::domain::requests::types::case_shard::value::ShardCount(1),
             )
             .expect("one shard of one"),
         ),

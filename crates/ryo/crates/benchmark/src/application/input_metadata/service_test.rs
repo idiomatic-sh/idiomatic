@@ -6,12 +6,10 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::fixtures::{case, profile};
 use crate::outbound::host::fixtures::fake::HostFake;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
-use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
-use ryo_benchmark_contracts::domain::hosts::types::{
-    HostFacts, HostFamily, HostIsolation, HostKernel,
-};
-use ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration;
-use ryo_benchmark_contracts::domain::workloads::types::{FileObservation, PreparedCase};
+use benchmark_contracts::domain::artifacts::types::FileExecutable;
+use benchmark_contracts::domain::hosts::types::{HostFacts, HostFamily, HostIsolation, HostKernel};
+use benchmark_contracts::domain::requests::types::FileMetadataDeclaration;
+use benchmark_contracts::domain::workloads::types::{FileObservation, PreparedCase};
 use std::path::Path;
 
 /// What the profile requires and what the case declares.
@@ -136,8 +134,8 @@ fn host(kernel: HostKernel, isolation: HostIsolation) -> HostFake {
 }
 
 /// A bench whose root profile requires executable bits and whose rule `B` has a dedicated profile that requires none.
-fn bench()
--> Result<tempfile::TempDir, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+fn bench() -> Result<tempfile::TempDir, benchmark_contracts::domain::reports::errors::ReportsError>
+{
     let root = tempfile::tempdir()?;
     let profile = "tool = 'fixture'\nversion = '1'\nsha256 = ['00']\ndefaults = ['A', 'B']\n";
     std::fs::write(

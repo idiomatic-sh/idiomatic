@@ -1,7 +1,7 @@
 //! The identity check receives through the worker transport and delegates the comparison.
 use super::{interface::CheckWorkerRequestUseCase, types::WorkerExpectation};
 use crate::outbound::worker::interface::WorkerPort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::sync::Arc;
 /// Checks one child-process request through the injected transport.
 pub struct CheckWorkerRequestUseCaseImpl {

@@ -19,9 +19,7 @@ pub(crate) enum CorpusDiscrepancyError {
     AcceptanceIncomplete(String),
 }
 
-impl From<CorpusDiscrepancyError>
-    for ryo_benchmark_contracts::domain::reports::errors::ReportsError
-{
+impl From<CorpusDiscrepancyError> for benchmark_contracts::domain::reports::errors::ReportsError {
     fn from(error: CorpusDiscrepancyError) -> Self {
         Self::Invalid(error.to_string())
     }

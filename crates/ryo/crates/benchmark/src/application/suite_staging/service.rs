@@ -1,8 +1,8 @@
 //! Resolve executable dependencies before copying a selected suite snapshot.
 use crate::domain::observations::service as observations;
 use crate::outbound::suite::{interface::SuitePort, types::ArtifactPath};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::StagePurpose;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::StagePurpose;
 use std::collections::BTreeSet;
 use std::path::Path;
 /// Resolve executable observation dependencies before the outbound snapshot copies bytes.
@@ -12,7 +12,7 @@ pub(crate) fn stage(
     destination: &Path,
     authored: &[ryo::linter::RuleId],
     purpose: StagePurpose,
-) -> Result<ryo_benchmark_contracts::domain::workloads::types::Tool, Error> {
+) -> Result<benchmark_contracts::domain::workloads::types::Tool, Error> {
     let tool = suite.profile(ArtifactPath(directory))?;
     suite.verify_query_modules(ArtifactPath(directory), &tool)?;
     let mut definitions: BTreeSet<_> = authored
@@ -35,12 +35,10 @@ pub(crate) fn stage(
         )?;
         for case in cases.cases {
             let selected = match &case.selected_rules {
-                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
-                    rules,
-                ) => rules.as_slice(),
-                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen => {
-                    authored
+                benchmark_contracts::domain::requests::types::CohortSelection::Explicit(rules) => {
+                    rules.as_slice()
                 }
+                benchmark_contracts::domain::requests::types::CohortSelection::Frozen => authored,
             };
             let profile_declarations = observations::project_profile(
                 &tool.rule_observations,
@@ -48,10 +46,10 @@ pub(crate) fn stage(
                 tool.rule_observation_selection,
             );
             let declarations = match &case.rule_observations {
-                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
+                benchmark_contracts::domain::requests::types::InputDeclaration::Declared(
                     declared,
                 ) => declared,
-                ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => {
+                benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared => {
                     &profile_declarations
                 }
             };

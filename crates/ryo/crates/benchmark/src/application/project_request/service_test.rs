@@ -3,9 +3,9 @@ use super::service::request;
 use super::types::ProjectCorpus;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::context::fixtures::fake::ContextFake;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::requests::types::{CohortSelection, ContextSeal, SearchRoots};
-use ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::requests::types::{CohortSelection, ContextSeal, SearchRoots};
+use benchmark_contracts::domain::workloads::types::RuleContextProfile;
 use std::borrow::Cow;
 use std::path::PathBuf;
 

@@ -4,9 +4,9 @@
 use super::super::super::service::{configure, prepare};
 use super::fixtures::write_rule;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
-use ryo_benchmark_contracts::domain::requests::types::WorkerState;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
+use benchmark_contracts::domain::requests::types::WorkerState;
 use std::collections::BTreeMap;
 
 /// Which scenario a row runs.
@@ -67,7 +67,7 @@ fn succeeds() {
 fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread() -> String {
     let mut observed: Vec<String> = Vec::new();
     use crate::outbound::engine::interface::EnginePort as _;
-    use ryo_benchmark_contracts::domain::context::types::CaseContext;
+    use benchmark_contracts::domain::context::types::CaseContext;
     let scratch = tempfile::tempdir().unwrap();
     let rules = scratch.path().join("rules");
     write_rule(
@@ -89,18 +89,17 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
     .unwrap();
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
             vec![ryo::linter::RuleId::try_from("R1").unwrap()],
         ),
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: ProjectContextMode::ListedDisk,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
             manifest,
         ),
         root: boundary.join("project"),
@@ -108,9 +107,9 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
         query_modules: Default::default(),
         rule_applicability: Default::default(),
         parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath("missing.py".into())],
         state: WorkerState::Fresh,
     };
@@ -136,19 +135,18 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
         ryo::linter::SourceText("value = 1\n".into()),
     )]
     .into();
-    readable.context_manifest =
-        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
-            crate::outbound::context::interface::ContextPort::materialize(
-                &crate::outbound::context::factory::local(),
-                &boundary,
-                &CaseContext {
-                    logical_root: "project".into(),
-                    ..Default::default()
-                },
-                &source,
-            )
-            .unwrap(),
-        );
+    readable.context_manifest = benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
+        crate::outbound::context::interface::ContextPort::materialize(
+            &crate::outbound::context::factory::local(),
+            &boundary,
+            &CaseContext {
+                logical_root: "project".into(),
+                ..Default::default()
+            },
+            &source,
+        )
+        .unwrap(),
+    );
     readable.files = vec![ryo::linter::RelativePath("input.txt".into())];
     let prepared = prepare(readable).unwrap();
     observed.push(format!("{}", prepared.missing.selected_missing.is_empty()));
@@ -168,12 +166,12 @@ fn actual_sdk_executes_missing_input_facts_but_refuses_unmodeled_provider_unread
 fn prepared_context_counts_disabled_pairs_and_keeps_the_sibling_rule() -> String {
     let mut observed: Vec<String> = Vec::new();
     use crate::outbound::engine::interface::EnginePort as _;
-    use ryo_benchmark_contracts::domain::context::types::{
+    use benchmark_contracts::domain::context::types::{
         CaseContext, ExternalPrefix, PreparedRuleContext, RuleConfiguration, RuleContextTables,
         TableName,
     };
-    use ryo_benchmark_contracts::domain::reports::types::CoverageAccounting;
-    use ryo_benchmark_contracts::domain::requests::types::{
+    use benchmark_contracts::domain::reports::types::CoverageAccounting;
+    use benchmark_contracts::domain::requests::types::{
         CohortSelection, ContextSeal, InputDeclaration, ParserSelection, ProviderSelection,
         RuleContextPreparation, SearchRoots,
     };

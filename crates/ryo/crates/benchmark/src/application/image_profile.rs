@@ -4,7 +4,7 @@ use super::{
     profile_workload::{self, Images, Workload},
 };
 use profile_tools::{CommandLine, Observer};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Deserialize;
 use std::{
     collections::BTreeMap,

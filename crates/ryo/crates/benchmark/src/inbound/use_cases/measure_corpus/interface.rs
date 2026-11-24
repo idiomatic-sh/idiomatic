@@ -1,6 +1,6 @@
 //! A corpus is measured only after both contestants are certified on it.
 use super::types::CorpusMeasurement;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 /// Measure the corpus of a certified pair and publish or report its samples.
 pub trait MeasureCorpusUseCase {
     /// Measure every project, then publish the samples of an accounted run, or say that a

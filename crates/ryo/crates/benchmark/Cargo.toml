@@ -1,5 +1,5 @@
 [package]
-name = "idiomatic-sh-ryo-benchmark"
+name = "idiomatic-sh-benchmark"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,11 +10,11 @@ description = "Shared correctness and performance harness for Ryo language bench
 autobenches = false
 
 [lib]
-name = "ryo_benchmark"
+name = "benchmark"
 
 [dependencies]
 profile_tools = { package = "idiomatic-sh-profile-tools", path = "profile_tools" }
-ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../benchmark_contracts", version = "0.2.0" }
+benchmark-contracts = { package = "idiomatic-sh-benchmark-contracts", path = "../benchmark_contracts", version = "0.2.0" }
 globset.workspace = true
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.2.0" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
@@ -48,7 +48,7 @@ tempfile.workspace = true
 cucumber.workspace = true
 cargo_metadata.workspace = true
 tokio.workspace = true
-idiomatic-sh-ryo-benchmark = { path = ".", features = ["fixtures"] }
+idiomatic-sh-benchmark = { path = ".", features = ["fixtures"] }
 
 [[test]]
 name = "bdd"
@@ -70,7 +70,7 @@ heap-profile = []
 workspace = true
 
 [[bin]]
-name = "ryo-benchmark-collector"
+name = "benchmark-collector"
 path = "src/main.rs"
 
 [[test]]

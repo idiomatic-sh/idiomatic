@@ -1,14 +1,14 @@
 //! Declared linter configuration data; matching remains with the tool/query and ordinary SDK scope rules.
 use super::constants;
 use super::types::LiteralGlob;
-use ryo::linter::{RelativePath, RuleId};
-use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::PairCount;
-use ryo_benchmark_contracts::domain::requests::types::{CohortSelection, RuleContextPreparation};
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::context::types::PreparedRuleContext;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::PairCount;
+use benchmark_contracts::domain::requests::types::{CohortSelection, RuleContextPreparation};
+use benchmark_contracts::domain::workloads::types::{
     ConfigurationOverride, RuleConfigurationSupport, RuleContextProfile,
 };
+use ryo::linter::{RelativePath, RuleId};
 
 /// Resolve an explicit override against the profile declaration without guessing table names or defaults.
 ///
@@ -76,7 +76,7 @@ pub fn check(prepared: &PreparedRuleContext, files: &[RelativePath]) -> Result<(
         ));
     }
     for (file, rules) in &prepared.configuration.disabled_rules {
-        ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(std::path::Path::new(file.0.as_ref())))?;
+        benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(std::path::Path::new(file.0.as_ref())))?;
         if !files.contains(file) {
             return Err(Error::Invalid(format!(
                 "rule configuration names an unrequested file: {}",
@@ -166,7 +166,7 @@ pub fn selected_pairs(
 /// # Errors
 /// Refuses an invalid declaration, or a contestant that does not implement the declared configuration contract.
 pub fn admit_configuration(
-    request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
+    request: &benchmark_contracts::domain::requests::types::RunRequest,
     support: RuleConfigurationSupport,
 ) -> Result<(), Error> {
     let RuleContextPreparation::Prepared(context) = &request.rule_context else {

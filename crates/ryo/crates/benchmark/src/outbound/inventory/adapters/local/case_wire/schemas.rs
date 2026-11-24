@@ -1,22 +1,22 @@
 //! A registered case in the wire form the registration writes it back in: optional inputs are written only when declared.
 use super::super::canonical::schemas::{Canonical, text};
-use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::{
+use benchmark_contracts::domain::artifacts::types::FileExecutable;
+use benchmark_contracts::domain::documents::types::case_document::value::{
     CaseContextIdentity, CaseDocument, CaseReference, DeclaredScope, EntryState,
     ExpectationContract, FileMetadata, InventoryCompleteness, ProjectInventory,
     ProjectInventoryDocument,
 };
-use ryo_benchmark_contracts::domain::documents::types::finding::value::RecordedFinding;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::finding::value::RecordedFinding;
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ContextMode, RuleCohort, RuleContextRecord, RuleObservationsRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
+use benchmark_contracts::domain::documents::types::text::value::{
     FileMetadataDigest, ProjectInputsDigest,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
-use ryo_benchmark_contracts::domain::workloads::types::{CaseComparison, FileObservation};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::ComparisonContract;
+use benchmark_contracts::domain::workloads::types::{CaseComparison, FileObservation};
 
 /// A registered case as the authoring writes it: optional inputs are written only when declared.
 #[derive(Debug, serde::Serialize)]

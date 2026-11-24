@@ -5,14 +5,14 @@ use crate::outbound::context::{
 use crate::outbound::engine::interface::EnginePort;
 use crate::outbound::engine::types::loaded_engine_session::value::EngineExecution;
 use crate::outbound::worker::fixtures::data::request;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::{
     CaseContext, ContextManifest, ProjectContextReceipt,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 /// The context fake, counting how often the worker validates and receipts through the port.
@@ -87,8 +87,8 @@ pub fn sealed_request() -> WorkerRequest {
     let boundary = std::path::absolute("workspace").expect("an absolute fixture boundary");
     WorkerRequest {
         project_context_mode:
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
+            benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
             ContextManifest {
                 boundary: boundary.clone(),
                 logical_root: ".".into(),
@@ -125,17 +125,16 @@ pub enum Failing {
 pub fn report(files: Vec<ryo::linter::RelativePath>) -> RunReport {
     RunReport {
         execution_metadata:
-            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-        project_context:
-            ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+            benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
+        project_context: benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
         files,
         skipped: Vec::new(),
-        coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-            ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+        coverage: benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+            benchmark_contracts::domain::reports::types::RuleCoverage {
+                selected: benchmark_contracts::domain::reports::types::PairCount(1),
+                evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
+                skipped: benchmark_contracts::domain::reports::types::PairCount(0),
+                unknown_or_unread: benchmark_contracts::domain::reports::types::PairCount(0),
             },
         ),
         diagnostics: Vec::new(),

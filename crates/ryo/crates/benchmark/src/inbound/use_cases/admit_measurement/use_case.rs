@@ -1,7 +1,7 @@
 //! The admission holds no boundary: its facts are the audit and the tool it is given.
 use super::{interface::AdmitMeasurementUseCase, service::admit, types::MeasurementAdmission};
-use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::MeasurementMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Admits one measurement against its audit.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AdmitMeasurementUseCaseImpl;

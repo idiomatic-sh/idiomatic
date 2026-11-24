@@ -54,7 +54,7 @@ pub(in super::super) fn verify_requirement(
             witness_case,
         } => {
             if field(constants::SCHEMA)? != constants::PRIOR_WORKER_CONTROL_V1
-                || field(ryo_benchmark_contracts::domain::requests::constants::WORKER_SHA256)?
+                || field(benchmark_contracts::domain::requests::constants::WORKER_SHA256)?
                     != worker_sha256.0
                 || field(constants::CONTROL_SOURCE_SHA256)? != control_source_sha256.0
                 || field(constants::CONTROL_QUERY_SHA256)? != control_query_sha256.0
@@ -102,7 +102,7 @@ pub(in super::super) fn verify_requirement(
             }
             let run: Value = serde_json::from_str(execution).map_err(|_| fail())?;
             if run[constants::SCHEMA] != constants::PRIOR_WORKER_EXECUTION_V1
-                || run[ryo_benchmark_contracts::domain::requests::constants::WORKER_SHA256]
+                || run[benchmark_contracts::domain::requests::constants::WORKER_SHA256]
                     != worker_sha256.0
                 || run[constants::CONTROL_SOURCE_SHA256] != control_source_sha256.0
                 || run[constants::CONTROL_QUERY_SHA256] != control_query_sha256.0

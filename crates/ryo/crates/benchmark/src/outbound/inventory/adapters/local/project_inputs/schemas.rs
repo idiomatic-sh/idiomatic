@@ -2,7 +2,7 @@
 use super::super::canonical::schemas::{Canonical, invalid, table, text};
 use super::super::case_wire::schemas::InputsWire;
 use super::super::constants;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::BTreeMap;
 use std::path::{Component, Path};
 

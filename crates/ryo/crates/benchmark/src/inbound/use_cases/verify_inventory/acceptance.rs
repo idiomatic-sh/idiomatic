@@ -3,14 +3,14 @@
     clippy::expect_used,
     reason = "acceptance fixtures fail on unexpected outcomes"
 )]
-use cucumber::then;
-use ryo_benchmark::{
+use benchmark::{
     domain::suite::types::inventory::value::InventoryVerdict,
     inbound::use_cases::verify_inventory::{
         interface::VerifyInventoryUseCase as _, use_case::VerifyInventoryUseCaseImpl,
     },
     outbound::{execution::fixtures::fake::ExecutionFake, inventory::factory::local},
 };
+use cucumber::then;
 use std::sync::Arc;
 
 fn run(defaults: &[&str]) -> (Result<bool, String>, serde_json::Value, usize) {
@@ -24,13 +24,13 @@ fn run(defaults: &[&str]) -> (Result<bool, String>, serde_json::Value, usize) {
     .expect("registration fixture");
     let execution = Arc::new(ExecutionFake::default());
     let operation = VerifyInventoryUseCaseImpl::new(
-        Arc::new(ryo_benchmark::outbound::suite::factory::local()),
-        Arc::new(ryo_benchmark::outbound::receipts::factory::local(
-            ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
+        Arc::new(benchmark::outbound::suite::factory::local()),
+        Arc::new(benchmark::outbound::receipts::factory::local(
+            benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
         )),
         execution.clone(),
         Arc::new(local()),
-        Arc::new(ryo_benchmark::outbound::scheduler::factory::threads()),
+        Arc::new(benchmark::outbound::scheduler::factory::threads()),
     );
     let result = operation
         .verify_inventory(&registration, &output)

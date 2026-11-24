@@ -8,8 +8,8 @@ use crate::outbound::inventory::types::{
 };
 use crate::outbound::linter::fixtures::data::tool;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::documents::types::text::value::{
     ReasonText, RuleName, Sha256Text,
 };
 use std::path::PathBuf;
@@ -178,7 +178,7 @@ fn deferred_registration(authority: RegistrationAuthority) -> Registration {
             RegisteredRule {
                 rule_id: RuleName("B002".into()),
                 command: RuleCommand::Deferred(
-                    ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(
+                    benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(
                         "types".into(),
                     ),
                 ),
@@ -193,7 +193,7 @@ fn deferred_registration(authority: RegistrationAuthority) -> Registration {
 /// registered profile still holds the bytes registered unless `changed`.
 fn deferred_profile(changed: bool) -> Result<Value, Failure> {
     let (registered, measured) = (PathBuf::from("registered"), PathBuf::from("measured"));
-    let manifest = ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
+    let manifest = benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST;
     let pin = |path: &str| crate::outbound::inventory::types::ExecutablePin {
         path: path.into(),
         sha256: Sha256Text(path.into()),
@@ -234,7 +234,7 @@ fn deferred_profile(changed: bool) -> Result<Value, Failure> {
         &measured.join(RULES),
         std::path::Path::new("reference"),
         std::path::Path::new("candidate"),
-        &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+        &benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
     )
     .map(|_paths| Admitted::TheAuthority)
     .map_err(|error| {
@@ -252,7 +252,7 @@ fn defaults(deferred: bool) -> Result<Value, Failure> {
         rule_id: RuleName("B002".into()),
         command: if deferred {
             RuleCommand::Deferred(
-                ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(
+                benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(
                     "types".into(),
                 ),
             )
@@ -274,7 +274,7 @@ fn defaults(deferred: bool) -> Result<Value, Failure> {
     require_defaults(
         &registration,
         &measured,
-        &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+        &benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
     )
     .map(|()| Admitted::TheMeasuredDefaults)
     .map_err(|_differs| Refusal::InventoryDiffers)
@@ -287,7 +287,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::CertifiedRules => {
             let registration = deferred_registration(RegistrationAuthority::ReceiptOnly);
             let names = certified_rules(
-                &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+                &benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
                 &registration.rules,
             )
             .map(|rule| rule.rule_id.0.as_str())

@@ -1,7 +1,7 @@
 //! The local inventory adapter runs the core's contract rows, then the cases specific to it.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::inventory::interface::InventoryPort;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
 
 /// What a row gives the adapter: the bytes of an invocation record.
 type Input = &'static str;

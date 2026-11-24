@@ -5,14 +5,14 @@ use crate::outbound::{
     collection::{self, interface::CollectionPort as _, types::CollectorMessage},
     execution::interface::ExecutionPort,
 };
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
-use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
-use ryo_benchmark_contracts::domain::measurements::types::Resources;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::measurements::types::ResidentBytes;
+use benchmark_contracts::domain::measurements::types::ResourceObservation;
+use benchmark_contracts::domain::measurements::types::Resources;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{
     sync::{
         Arc,
@@ -54,8 +54,8 @@ struct Execution {
     operation: Operation,
 }
 impl ExecutionPort for Execution {
-    fn profile(&self) -> ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile {
-        ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall
+    fn profile(&self) -> benchmark_contracts::domain::measurements::types::ExecutionProfile {
+        benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall
     }
     fn run(&self, _: Invocation) -> Result<ProcessOutput, Error> {
         let _before = self.calls.fetch_add(1, Ordering::SeqCst);
@@ -63,7 +63,7 @@ impl ExecutionPort for Execution {
             return Err(std::io::Error::from_raw_os_error(2).into());
         }
         Ok(ProcessOutput {
-            signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+            signal: benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
             status: ProcessExitCode(126),
             stdout: CapturedBytes(vec![255]),
             stderr: CapturedBytes(Vec::new()),

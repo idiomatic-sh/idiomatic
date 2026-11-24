@@ -2,8 +2,8 @@
 //! configuration, its modules and their applicability; every other key is kept and `deferred` and `pending` dropped.
 use super::super::constants;
 use crate::outbound::inventory::types::ProfileProjection;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::ParserSelection;
 
 /// A list of texts.
 fn texts<'a>(items: impl Iterator<Item = &'a String>) -> toml::Value {

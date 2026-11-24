@@ -1,7 +1,7 @@
 //! Why a reference expectation cannot be attached to its case.
 use crate::domain::discrepancy::errors::DiscrepancyError;
 use crate::domain::registered_inputs::types::RefusalText;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 
 /// A refused reference expectation.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
@@ -58,10 +58,10 @@ impl From<ReportsError> for DiscrepancyAttachmentError {
     }
 }
 
-impl From<ryo_benchmark_contracts::domain::artifacts::errors::ArtifactsError>
+impl From<benchmark_contracts::domain::artifacts::errors::ArtifactsError>
     for DiscrepancyAttachmentError
 {
-    fn from(error: ryo_benchmark_contracts::domain::artifacts::errors::ArtifactsError) -> Self {
+    fn from(error: benchmark_contracts::domain::artifacts::errors::ArtifactsError) -> Self {
         Self::Refused(RefusalText(error.to_string()))
     }
 }

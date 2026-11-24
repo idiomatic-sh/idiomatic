@@ -3,15 +3,15 @@ use super::prepared_engine_test::PreparedEngine as _;
 use super::prepared_engine_test::fixture_cohort;
 use super::prepared_engine_test::suppress_modules;
 use super::rule_fixtures_test::write_suppress_module;
-use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
-use ryo_benchmark::outbound::engine::factory;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
+use benchmark::outbound::engine::factory;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
 
 pub(super) fn case_identities(
-    cases: Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>,
-) -> BTreeMap<(String, String), ryo_benchmark_contracts::domain::workloads::types::PreparedCase> {
+    cases: Vec<benchmark_contracts::domain::workloads::types::PreparedCase>,
+) -> BTreeMap<(String, String), benchmark_contracts::domain::workloads::types::PreparedCase> {
     cases
         .into_iter()
         .map(|case| ((case.rule.as_ref().to_owned(), case.name.0.clone()), case))
@@ -61,17 +61,17 @@ pub(super) fn shared_suppression_fragment_matches_the_historical_inline_queries(
     }
     write_suppress_module(&imported_profile)?;
 
-    let suite = ryo_benchmark::outbound::suite::factory::local();
+    let suite = benchmark::outbound::suite::factory::local();
     let inline_cases =
-        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+        benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &suite,
-            &ryo_benchmark::outbound::context::factory::local(),
+            &benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(&inline_rules, &temporary.path().join("inline-cases"))?;
     let imported_cases =
-        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+        benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &suite,
-            &ryo_benchmark::outbound::context::factory::local(),
+            &benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(&imported_rules, &temporary.path().join("imported-cases"))?;
     let imported_by_name = case_identities(imported_cases);
@@ -89,44 +89,44 @@ pub(super) fn shared_suppression_fragment_matches_the_historical_inline_queries(
             .get(&key)
             .ok_or_else(|| Error::Invalid(format!("missing imported counterpart for {key:?}")))?;
         write_suppress_module(&imported.request.root)?;
-        let state = ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh;
+        let state = benchmark_contracts::domain::requests::types::WorkerState::Fresh;
         let inline = inline_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["E722", "F632"])),
-            rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-            rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-            project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["E722", "F632"])),
+            rule_observations: benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            rule_context: benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+            project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
             project_context_mode:
-                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-            context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+                benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+            context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
             root: case.request.root,
             rules: inline_rules.clone(),
             query_modules: BTreeMap::default(),
             rule_applicability: BTreeMap::default(),
-            parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-            source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
             files: case.request.files,
             state,
         })?;
         let fragmented = imported_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["E722", "F632"])),
-            rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-            rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-            project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["E722", "F632"])),
+            rule_observations: benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            rule_context: benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+            project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
             project_context_mode:
-                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-            context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+                benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+            context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
             root: imported.request.root.clone(),
             rules: imported_rules.clone(),
             query_modules: super::prepared_engine_test::module_names(registry.clone()),
             rule_applicability: BTreeMap::default(),
-            parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-            source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
             files: imported.request.files.clone(),
-            state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+            state: benchmark_contracts::domain::requests::types::WorkerState::Fresh,
         })?;
         assert_eq!(
             inline, fragmented,
@@ -154,7 +154,7 @@ pub(super) fn assert_single_rule_fragment_equivalence(
         std::fs::write(directory.join("query.ryoql"), query)?;
         std::fs::write(directory.join("cases.toml"), cases)?;
     }
-    let suite = ryo_benchmark::outbound::suite::factory::local();
+    let suite = benchmark::outbound::suite::factory::local();
     let inline_parent = inline_rules
         .parent()
         .ok_or_else(|| Error::Invalid("inline rule directory has no parent".to_owned()))?;
@@ -162,18 +162,18 @@ pub(super) fn assert_single_rule_fragment_equivalence(
         .parent()
         .ok_or_else(|| Error::Invalid("imported rule directory has no parent".to_owned()))?;
     let inline_cases =
-        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+        benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &suite,
-            &ryo_benchmark::outbound::context::factory::local(),
+            &benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(
             inline_parent,
             &root.join(format!("single-inline-cases-{rule}")),
         )?;
     let imported_cases =
-        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+        benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &suite,
-            &ryo_benchmark::outbound::context::factory::local(),
+            &benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(
             imported_parent,
@@ -201,41 +201,41 @@ pub(super) fn assert_single_rule_fragment_equivalence(
             .ok_or_else(|| Error::Invalid(format!("missing imported case for {key:?}")))?;
         let inline = inline_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&[rule])),
-            rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-            rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-            project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&[rule])),
+            rule_observations: benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            rule_context: benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+            project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
             project_context_mode:
-                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-            context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+                benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+            context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
             root: case.request.root,
             rules: inline_parent.to_path_buf(),
             query_modules: BTreeMap::default(),
             rule_applicability: BTreeMap::default(),
-            parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-            source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
             files: case.request.files,
-            state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+            state: benchmark_contracts::domain::requests::types::WorkerState::Fresh,
         })?;
         let fragmented = imported_engine.run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&[rule])),
-            rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-            rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-            project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&[rule])),
+            rule_observations: benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            rule_context: benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+            project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
             project_context_mode:
-                ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-            context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+                benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+            context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
             root: imported_case.request.root.clone(),
             rules: imported_parent.to_path_buf(),
             query_modules: super::prepared_engine_test::module_names(suppress_modules()),
             rule_applicability: BTreeMap::default(),
-            parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-            source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
             files: imported_case.request.files.clone(),
-            state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+            state: benchmark_contracts::domain::requests::types::WorkerState::Fresh,
         })?;
         assert_eq!(inline, fragmented, "single-rule mismatch for {key:?}");
     }

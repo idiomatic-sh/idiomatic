@@ -3,7 +3,7 @@ use super::fixtures::{Change, exercise};
 use super::use_case::CertifyUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 type Input = Change;
-type Value = ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+type Value = benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -17,7 +17,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Change::InventoryFull,
         expect: Expect::Value(
-            ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
+            benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
         ),
     },
     Case {
@@ -43,7 +43,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Change::None,
         expect: Expect::Value(
-            ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
+            benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
         ),
     },
     Case {

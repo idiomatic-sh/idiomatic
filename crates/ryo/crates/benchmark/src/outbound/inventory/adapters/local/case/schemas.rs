@@ -1,27 +1,27 @@
 //! One case a provider's authoring registers.
 use crate::outbound::inventory::adapters::local::types::{CaseText, DiscrepancyText};
-use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::{
+use benchmark_contracts::domain::artifacts::types::FileExecutable;
+use benchmark_contracts::domain::documents::types::case_document::value::{
     CaseContextIdentity, CaseDocument, CaseReference, ContextIdentity, DeclaredScope, EntryState,
     ExpectationContract, FileMetadata, InventoryCompleteness, ProjectEntry, ProjectInventory,
     ProjectInventoryDocument,
 };
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+use benchmark_contracts::domain::documents::types::finding::value::{
     FindingOffset, RecordedFinding,
 };
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ContextMode, RuleCohort, RuleContextRecord, RuleObservationsRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::DiscrepancyRecord;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::DiscrepancyRecord;
+use benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, CaseName, PathText, RuleName, Sha256Text,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::{
     FileMetadataDigest, ProjectInputsDigest,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
-use ryo_benchmark_contracts::domain::workloads::types::{CaseComparison, FileObservation};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::ComparisonContract;
+use benchmark_contracts::domain::workloads::types::{CaseComparison, FileObservation};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
@@ -283,7 +283,7 @@ impl From<FindingSchema> for RecordedFinding {
         Self {
             rule: RuleName(wire.rule),
             file: PathText(wire.file),
-            span: ryo_benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
+            span: benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
                 start: FindingOffset(wire.start),
                 end: FindingOffset(wire.end),
             },

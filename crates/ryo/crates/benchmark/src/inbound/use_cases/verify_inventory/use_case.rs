@@ -6,7 +6,7 @@ use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::inventory::interface::InventoryPort;
 use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::suite::interface::SuitePort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::{path::Path, sync::Arc};
 /// The composition chooses the existing process adapter and its deadline.
 pub struct VerifyInventoryUseCaseImpl {
@@ -55,9 +55,9 @@ impl VerifyInventoryUseCase for VerifyInventoryUseCaseImpl {
             self.receipts.as_ref(),
             self.execution.as_ref(),
             self.store.as_ref(),
-            &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+            &benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
             self.scheduler.as_ref(),
-            ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount(1),
+            benchmark_contracts::domain::requests::types::case_shard::value::ShardCount(1),
         )
     }
 }

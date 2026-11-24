@@ -5,18 +5,18 @@ use crate::outbound::execution::interface::ExecutionPort;
 #[cfg(target_os = "linux")]
 use crate::outbound::execution::types::process_exit::value::decode;
 #[cfg(target_os = "linux")]
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::measurements::types::ResourceObservation;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 #[derive(Debug)]
 /// Collects resources for one directly owned child on Linux.
 pub(crate) struct ExecutionDirectAdapter;
 impl ExecutionPort for ExecutionDirectAdapter {
-    fn profile(&self) -> ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile {
-        ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Direct
+    fn profile(&self) -> benchmark_contracts::domain::measurements::types::ExecutionProfile {
+        benchmark_contracts::domain::measurements::types::ExecutionProfile::Direct
     }
     #[cfg(target_os = "linux")]
     fn run(&self, invocation: Invocation) -> Result<ProcessOutput, Error> {

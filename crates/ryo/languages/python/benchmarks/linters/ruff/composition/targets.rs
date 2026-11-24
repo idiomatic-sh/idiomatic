@@ -5,7 +5,7 @@ use crate::constants::{
     PYTHON_TARGET_3_12, PYTHON_TARGET_3_13, PYTHON_TARGET_3_14, PYTHON_TARGET_3_15,
     UNSUPPORTED_OR_MISSING_RUFF_PARSER,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo_python::settings::PythonTargetVersion;
 
 /// The explicit target version text of a request or command line.

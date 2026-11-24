@@ -1,11 +1,11 @@
 //! Selected missing inputs are prepared once before the SDK adapter receives the request.
 use super::service::prepare;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::ContextManifest;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
-use ryo_benchmark_contracts::domain::requests::types::WorkerState;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::ContextManifest;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
+use benchmark_contracts::domain::requests::types::WorkerState;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -73,22 +73,21 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     };
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
             vec![ryo::linter::RuleId::try_from("R1").unwrap()],
         ),
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: if matches!(scenario, Scenario::WrongMode) {
             ProjectContextMode::Isolated
         } else {
             ProjectContextMode::ListedDisk
         },
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
             ContextManifest {
                 boundary: PathBuf::from("/snapshot"),
                 logical_root: PathBuf::from("project"),
@@ -106,9 +105,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
         parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![
             ryo::linter::RelativePath("readable.py".into()),
             ryo::linter::RelativePath("missing.py".into()),
@@ -121,20 +120,20 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             &*Box::leak(selected.into_boxed_str())
         })
         .map_err(|error| match error {
-            ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)
+            benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)
                 if message == "context source seal differs from requested inventory" =>
             {
                 "context source seal differs from requested inventory"
             }
-            ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)
+            benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)
                 if message == "worker context mode requires a matching explicit manifest" =>
             {
                 "worker context mode requires a matching explicit manifest"
             }
-            ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(_)
-            | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(_)
-            | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Json(_)
-            | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Toml(_) => {
+            benchmark_contracts::domain::reports::errors::ReportsError::Invalid(_)
+            | benchmark_contracts::domain::reports::errors::ReportsError::Io(_)
+            | benchmark_contracts::domain::reports::errors::ReportsError::Json(_)
+            | benchmark_contracts::domain::reports::errors::ReportsError::Toml(_) => {
                 "unexpected failure"
             }
         })

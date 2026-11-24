@@ -16,9 +16,9 @@ use crate::outbound::{
     linter::interface::LinterPort,
     suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::{
     PreparedCase, reference_case_count::value::ReferenceCaseCount,
 };
 use std::collections::BTreeMap;

@@ -1,7 +1,7 @@
 //! The registered input identities a case declares: file metadata and the project namespace scope.
 use super::errors::RegisteredInputsError;
 use super::types::{ObservationDeclaration, RefusalText, RegisteredInputs};
-use ryo_benchmark_contracts::domain::artifacts::types::{
+use benchmark_contracts::domain::artifacts::types::{
     FileMetadataEntry, digest::value::ArtifactDigest,
     relative_artifact_path::value::RelativeArtifactPath,
 };

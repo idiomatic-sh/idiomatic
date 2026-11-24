@@ -1,10 +1,10 @@
 //! Pure identity of declared file observations, separate from unchanged source-byte framing.
 use super::errors::InputMetadataError;
+use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::FileMetadataDeclaration;
+use benchmark_contracts::domain::workloads::types::FileObservation;
 use ryo::linter::RelativePath;
-use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration;
-use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
 
 /// A required observation must be explicit for every declared source, even for negative cases.
 ///
@@ -48,15 +48,15 @@ pub fn require(
 pub fn digest(
     metadata: &FileMetadataDeclaration,
 ) -> Result<
-    Option<ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest>,
-    ryo_benchmark_contracts::domain::artifacts::errors::ArtifactsError,
+    Option<benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest>,
+    benchmark_contracts::domain::artifacts::errors::ArtifactsError,
 > {
-    ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest::file_metadata(
+    benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest::file_metadata(
         match metadata {
             FileMetadataDeclaration::Undeclared => None,
             FileMetadataDeclaration::Declared(values) => {
                 Some(values.iter().map(|(path, executable)| {
-                    ryo_benchmark_contracts::domain::artifacts::types::FileMetadataEntry {
+                    benchmark_contracts::domain::artifacts::types::FileMetadataEntry {
                         path,
                         executable: *executable,
                     }

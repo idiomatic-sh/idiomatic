@@ -6,10 +6,10 @@ use crate::domain::canonical_text::{
     service::render,
     types::{Fragment, Label},
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::process::types::OutputPart;
-use ryo_benchmark_contracts::domain::process::types::PathEncoding;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::process::types::OutputPart;
+use benchmark_contracts::domain::process::types::PathEncoding;
 use sha2::Digest as _;
 use std::path::{Component, Path, PathBuf};
 

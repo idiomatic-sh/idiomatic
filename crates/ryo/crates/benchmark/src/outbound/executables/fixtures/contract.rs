@@ -3,7 +3,7 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::executables::interface::ExecutablesPort;
 use crate::outbound::executables::types::{BenchPackage, RunArguments};
-use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
+use benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
 use sha2::{Digest as _, Sha256};
 
 /// What a contract row asks of the adapter.

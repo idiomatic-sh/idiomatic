@@ -1,13 +1,13 @@
 //! The public admission over the real audit operation.
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::admit_measurement::{
+use benchmark::inbound::use_cases::admit_measurement::{
     fixtures::tool, interface::AdmitMeasurementUseCase as _, types::MeasurementAdmission,
     use_case::AdmitMeasurementUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::audit::fixtures::audited;
-use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
+use benchmark::inbound::use_cases::audit::fixtures::audited;
+use benchmark_contracts::domain::measurements::types::MeasurementMode;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::types::BenchmarkCoverage;
+use cucumber::then;
 
 #[then("admit_measurement admits a diagnostic subset")]
 fn diagnostic(world: &mut crate::Behavior) {

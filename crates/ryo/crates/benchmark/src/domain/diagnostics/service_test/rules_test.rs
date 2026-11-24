@@ -1,11 +1,11 @@
 //! Per-rule comparison pairs findings by file and start, and positions count lines and characters.
 use super::super::service::{compare_rules, position};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo::linter::{RelativePath, RuleId, SourceText};
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::reports::types::{
     BenchmarkFinding, CoverageAccounting, ExecutionMetadata, ProjectContext, RunReport,
     SourceByteOffset,
 };
+use ryo::linter::{RelativePath, RuleId, SourceText};
 
 /// A per-rule comparison of two reports, or the position of one offset in one source.
 enum Check {

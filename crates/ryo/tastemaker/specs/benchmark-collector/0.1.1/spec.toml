@@ -17,7 +17,7 @@ given.files.'collector/src/main.rs' = 'fn main() {}'
 given.files.'collector/src/outbound/execution/adapters/timed/adapter_test.rs' = ''
 given.files.'collector/Cargo.toml' = '''
 [[bin]]
-name="ryo-benchmark-collector"
+name="benchmark-collector"
 path="src/main.rs"
 [[test]]
 name="collector"

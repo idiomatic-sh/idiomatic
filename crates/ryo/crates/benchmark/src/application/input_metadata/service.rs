@@ -2,10 +2,10 @@
 use super::constants;
 use crate::outbound::host::interface::HostPort;
 use crate::outbound::suite::{interface::SuitePort, types::ArtifactPath};
-use ryo_benchmark_contracts::domain::hosts::types::FilePermissions;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use benchmark_contracts::domain::hosts::types::FilePermissions;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::FileObservation;
+use benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::path::Path;
 
 /// Admit the declared file observations of every case against the profile that pins them.

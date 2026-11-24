@@ -16,12 +16,12 @@ use crate::outbound::{
     receipts::{interface::ReceiptsPort, types::ReceiptPath},
     suite::{interface::SuitePort, types::ArtifactPath},
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::receipts::constants::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::receipts::constants::{
     CASE_RECEIPTS_ARGUMENT, CASES_JSONL, VERIFY_CASES, VERIFY_TIMES_ARGUMENT,
 };
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::collections::BTreeMap;
 
 /// Verify one rule of the registration, keeping its observations in `directory` and its verification times in `times`; a refusal is the rule's failure, never

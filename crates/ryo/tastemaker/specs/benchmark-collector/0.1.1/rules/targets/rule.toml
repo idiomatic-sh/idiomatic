@@ -33,7 +33,7 @@ given.files.'crate/src/main.rs' = 'fn main() {}'
 given.files.'crate/src/outbound/execution/adapters/timed/adapter_test.rs' = ''
 given.files.'crate/Cargo.toml' = '''
 [[bin]]
-name="ryo-benchmark-collector"
+name="benchmark-collector"
 path="src/main.rs"
 [[test]]
 name="collector"

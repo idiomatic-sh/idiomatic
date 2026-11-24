@@ -72,54 +72,55 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
 
 /// Make each call of `steps` on `adapter`, answering the rules whose times were read.
 fn subject(adapter: &impl EvidencePort, steps: Input) -> Result<Value, Failure> {
-    let language: ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage =
+    let language: benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage =
         "python".into();
     let mut read = 0;
     for step in steps {
-        let outcome = match step {
-            Step::Comparison => {
-                let report = super::sample::report();
-                adapter.comparison(
+        let outcome =
+            match step {
+                Step::Comparison => {
+                    let report = super::sample::report();
+                    adapter.comparison(
                     &report,
                     &report,
-                    ryo_benchmark_contracts::domain::reports::types::ReportComparison {
-                        diagnostics: ryo_benchmark_contracts::domain::reports::types::Comparison::Exact,
+                    benchmark_contracts::domain::reports::types::ReportComparison {
+                        diagnostics: benchmark_contracts::domain::reports::types::Comparison::Exact,
                         execution_metadata:
-                            ryo_benchmark_contracts::domain::reports::types::Comparison::Exact,
+                            benchmark_contracts::domain::reports::types::Comparison::Exact,
                     },
-                    ryo_benchmark_contracts::domain::reports::types::ComparisonContract::Diagnostics,
+                    benchmark_contracts::domain::reports::types::ComparisonContract::Diagnostics,
                 )
-            }
-            Step::EmptyCosts => adapter.costs(
-                &language,
-                &ryo_benchmark_contracts::domain::costs::types::ProjectCosts(Vec::new()),
-            ),
-            Step::Costs => adapter.costs(&language, &super::sample::costs()),
-            Step::Verification => adapter.verification(&language, &super::sample::timings()),
-            Step::Growth => adapter.growth(&language, &super::sample::growth()),
-            Step::ReadNoVerification => adapter
-                .read_verification(
-                    &crate::outbound::evidence::types::VerificationTimesFiles::default(),
-                )
-                .map(|timings| read += timings.0.len()),
-            Step::SelectWhole => {
-                let whole = crate::outbound::evidence::types::PublishedDocument(
-                    b"{\"python/django\":{\"store-bytes\":{\"value\":10.0}}}\n".to_vec(),
-                );
-                adapter
+                }
+                Step::EmptyCosts => adapter.costs(
+                    &language,
+                    &benchmark_contracts::domain::costs::types::ProjectCosts(Vec::new()),
+                ),
+                Step::Costs => adapter.costs(&language, &super::sample::costs()),
+                Step::Verification => adapter.verification(&language, &super::sample::timings()),
+                Step::Growth => adapter.growth(&language, &super::sample::growth()),
+                Step::ReadNoVerification => adapter
+                    .read_verification(
+                        &crate::outbound::evidence::types::VerificationTimesFiles::default(),
+                    )
+                    .map(|timings| read += timings.0.len()),
+                Step::SelectWhole => {
+                    let whole = crate::outbound::evidence::types::PublishedDocument(
+                        b"{\"python/django\":{\"store-bytes\":{\"value\":10.0}}}\n".to_vec(),
+                    );
+                    adapter
                     .select(&whole, crate::outbound::evidence::types::MeasureClass::Deterministic)
                     .and_then(|kept| {
                         if kept == whole {
                             Ok(())
                         } else {
-                            Err(ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(
+                            Err(benchmark_contracts::domain::reports::errors::ReportsError::Invalid(
                                 "a whole selection changed the document".into(),
                             ))
                         }
                     })
-            }
-            Step::Finish => adapter.finish(),
-        };
+                }
+                Step::Finish => adapter.finish(),
+            };
         outcome.map_err(|_refused| ())?;
     }
     Ok(read)

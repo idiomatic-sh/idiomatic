@@ -5,7 +5,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run, slashed};
 use crate::outbound::executables::types::Sealed;
 use crate::outbound::inventory::interface::InventoryPort as _;
 use crate::outbound::inventory::types::{RuleCommand, RuleReason};
-use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
+use benchmark_contracts::domain::documents::types::text::value::Sha256Text;
 use std::borrow::Cow;
 use std::path::Path;
 

@@ -1,7 +1,7 @@
 //! The types of the `receipts` port: plain data, public fields and derives, with no constructor and no inherent impl.
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
 
 /// The receipt file one operation appends to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

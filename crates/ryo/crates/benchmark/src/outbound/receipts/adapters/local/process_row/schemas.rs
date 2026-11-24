@@ -1,11 +1,11 @@
 //! The shape of the process record a receipt row carries, and its conversions from and into the core's record.
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ProcessArtifacts, ProcessArtifactsRecord, ProcessRecord, RecordedReason,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
     ArtifactPointer, ExpectationKind,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::{
     ExitStatus, PathText, Pin, ReasonText, Sha256Text, Signal, YesNo,
 };
 use serde::{Deserialize, Serialize};

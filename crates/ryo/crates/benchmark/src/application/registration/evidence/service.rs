@@ -4,8 +4,8 @@ use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{
     ArtifactPath, ClaimedEvidence, ClaimedProcess, EvidenceArtifact, EvidenceRequirement,
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 

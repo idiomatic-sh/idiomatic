@@ -5,7 +5,7 @@ use super::{
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::worker::fixtures::{data::request, fake::WorkerFake};
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, ParserConfigurationName, ParserSelection, RuleLabel,
 };
 use std::{collections::BTreeMap, sync::Arc};

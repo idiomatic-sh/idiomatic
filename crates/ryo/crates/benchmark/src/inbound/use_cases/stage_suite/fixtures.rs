@@ -6,7 +6,7 @@ use crate::outbound::suite::{
     interface::SuitePort as _,
     types::{ArtifactPath, ArtifactSet},
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 
 mod discrepancy;
@@ -18,8 +18,8 @@ pub type Operate =
 fn seal(
     path: &std::path::Path,
 ) -> Result<
-    ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
-    ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
+    benchmark_contracts::domain::reports::errors::ReportsError,
 > {
     local().fingerprint(ArtifactSet(std::slice::from_ref(&path.to_path_buf())))
 }
@@ -51,7 +51,7 @@ fn selected_snapshot(
                 directory,
                 &snapshot,
                 &selected,
-                ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+                benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
             )?;
     let children = std::fs::read_dir(snapshot.join("rules"))?
         .map(|entry| entry.map(|entry| entry.file_name()))
@@ -124,7 +124,7 @@ expected = []
                 root,
                 &snapshot,
                 &audited.implemented,
-                ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+                benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
             )?;
     assert_eq!(
         std::fs::read_to_string(snapshot.join("rules/B002/query.ryoql"))?,
@@ -179,9 +179,9 @@ fn staged_profile(
     authored: &[&str],
 ) -> Result<
     (
-        ryo_benchmark_contracts::domain::workloads::types::Tool,
+        benchmark_contracts::domain::workloads::types::Tool,
         Vec<ryo::linter::RuleId>,
-        ryo_benchmark_contracts::domain::workloads::types::Tool,
+        benchmark_contracts::domain::workloads::types::Tool,
     ),
     Box<dyn std::error::Error>,
 > {
@@ -209,7 +209,7 @@ fn staged_profile(
                 directory,
                 &snapshot,
                 &authored,
-                ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+                benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
             )?;
     let rules = local().rule_ids(ArtifactPath(&snapshot.join("rules")))?;
     Ok((local().profile(ArtifactPath(directory))?, rules, staged))

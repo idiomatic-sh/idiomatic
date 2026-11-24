@@ -1,5 +1,5 @@
 //! A small CPU record from the measured child, outside the retained cache.
-use ryo_benchmark_contracts::domain::measurements::types::WorkerPhases;
+use benchmark_contracts::domain::measurements::types::WorkerPhases;
 use std::{
     fs, io,
     path::{Path, PathBuf},

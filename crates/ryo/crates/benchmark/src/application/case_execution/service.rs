@@ -11,20 +11,20 @@ use crate::outbound::{
     linter::interface::LinterPort,
     suite::{interface::SuitePort, types::ArtifactPath},
 };
-use ryo_benchmark_contracts::domain::artifacts::types::FileMetadataEntry;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+use benchmark_contracts::domain::artifacts::types::FileMetadataEntry;
+use benchmark_contracts::domain::documents::types::invocation_document::value::{
     ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, FailedInvocation,
     InvocationDocument, NormalizedSettings,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, ExitStatus, PathText, Pin, ReasonText, Sha256Text, Signal, YesNo,
 };
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::measurements::types::{
     Invocation, Measurement, ProcessOutput, TerminationSignal,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{ContextSeal, RunRequest};
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{ContextSeal, RunRequest};
+use benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -56,7 +56,7 @@ fn decoded(
     let report = linter.decode(request, output)?;
     if let (
         ContextSeal::Sealed(manifest),
-        ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt),
+        benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt),
     ) = (&request.context_manifest, &report.project_context)
     {
         context.verify_receipt(manifest, &request.root, receipt)?;
@@ -160,58 +160,58 @@ pub(crate) fn run(
                     .map(|file| PathText(file.0.as_ref().to_owned()))
                     .collect::<Vec<_>>()
             };
-            let metadata = || {
-                let request_root =
-                    case.request.root.to_str().ok_or_else(|| {
+            let metadata =
+                || {
+                    let request_root = case.request.root.to_str().ok_or_else(|| {
                         Error::Invalid(constants::PROCESS_ROOT_IS_NOT_UTF8.into())
                     })?;
-                let state =
-                    case.request.state.to_str().ok_or_else(|| {
+                    let state = case.request.state.to_str().ok_or_else(|| {
                         Error::Invalid(constants::PROCESS_STATE_IS_NOT_UTF8.into())
                     })?;
-                let profile_root = rules
-                    .parent()
-                    .ok_or_else(|| Error::Invalid(constants::MISSING_PROFILE_BOUNDARY.into()))?;
-                let profile = suite.profile(ArtifactPath(profile_root))?;
-                let executable = suite.digest(ArtifactPath(&invocation.executable))?;
-                let normalized =
-                    crate::domain::invocation_identity::service::normalize(&invocation, case)
-                        .map_err(|error| Error::Invalid(error.to_string()))?;
-                let settings_text = linter.settings_text(&normalized, case, &profile)?.0;
-                let settings = crate::domain::canonical_text::service::text_digest(
-                    &crate::domain::canonical_text::types::Document(settings_text.clone()),
-                );
-                let profile_pin = suite.digest(ArtifactPath(&profile_root.join(
-                    ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
-                )))?;
-                let metadata_pin =
-                    crate::domain::input_metadata::service::digest(&case.request.file_metadata)?;
-                Ok::<_, Error>(InvocationDocument::Complete(CompleteInvocation {
-                    actual_request_root: PathText(request_root.to_owned()),
-                    files: files(),
-                    executable_sha256: Sha256Text(executable.0),
-                    settings_sha256: Sha256Text(settings.0),
-                    normalized_settings: NormalizedSettings {
-                        arguments: texts(&normalized.arguments),
-                        environment: environment(&normalized),
-                        directory: PathText(spelled(normalized.directory.as_os_str())),
-                        canonical: CanonicalJson(settings_text),
-                    },
-                    profile_sha256: Sha256Text(profile_pin.0),
-                    tool: ReasonText(profile.tool.0),
-                    version: ReasonText(profile.version.0),
-                    state: PathText(state.to_owned()),
-                    arguments: texts(&invocation.arguments),
-                    environment: environment(&invocation),
-                    directory: PathText(spelled(invocation.directory.as_os_str())),
-                    exit: ExitStatus(i64::from(raw.status.0)),
-                    signal: signal(&raw),
-                    observer_no_deadline: observer,
-                    source_sha256: Pin::Absent,
-                    file_metadata_sha256: metadata_pin
-                        .map_or(Pin::Absent, |digest| Pin::Sha256(Sha256Text(digest.0))),
-                }))
-            };
+                    let profile_root = rules.parent().ok_or_else(|| {
+                        Error::Invalid(constants::MISSING_PROFILE_BOUNDARY.into())
+                    })?;
+                    let profile = suite.profile(ArtifactPath(profile_root))?;
+                    let executable = suite.digest(ArtifactPath(&invocation.executable))?;
+                    let normalized =
+                        crate::domain::invocation_identity::service::normalize(&invocation, case)
+                            .map_err(|error| Error::Invalid(error.to_string()))?;
+                    let settings_text = linter.settings_text(&normalized, case, &profile)?.0;
+                    let settings = crate::domain::canonical_text::service::text_digest(
+                        &crate::domain::canonical_text::types::Document(settings_text.clone()),
+                    );
+                    let profile_pin = suite.digest(ArtifactPath(&profile_root.join(
+                        benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
+                    )))?;
+                    let metadata_pin = crate::domain::input_metadata::service::digest(
+                        &case.request.file_metadata,
+                    )?;
+                    Ok::<_, Error>(InvocationDocument::Complete(CompleteInvocation {
+                        actual_request_root: PathText(request_root.to_owned()),
+                        files: files(),
+                        executable_sha256: Sha256Text(executable.0),
+                        settings_sha256: Sha256Text(settings.0),
+                        normalized_settings: NormalizedSettings {
+                            arguments: texts(&normalized.arguments),
+                            environment: environment(&normalized),
+                            directory: PathText(spelled(normalized.directory.as_os_str())),
+                            canonical: CanonicalJson(settings_text),
+                        },
+                        profile_sha256: Sha256Text(profile_pin.0),
+                        tool: ReasonText(profile.tool.0),
+                        version: ReasonText(profile.version.0),
+                        state: PathText(state.to_owned()),
+                        arguments: texts(&invocation.arguments),
+                        environment: environment(&invocation),
+                        directory: PathText(spelled(invocation.directory.as_os_str())),
+                        exit: ExitStatus(i64::from(raw.status.0)),
+                        signal: signal(&raw),
+                        observer_no_deadline: observer,
+                        source_sha256: Pin::Absent,
+                        file_metadata_sha256: metadata_pin
+                            .map_or(Pin::Absent, |digest| Pin::Sha256(Sha256Text(digest.0))),
+                    }))
+                };
             match metadata() {
                 Ok(invocation) => AttemptOutcome {
                     result: Err(error),
@@ -255,11 +255,11 @@ pub(crate) fn run(
 fn validate_report(
     context: &dyn ContextPort,
     request: &RunRequest,
-    report: &ryo_benchmark_contracts::domain::reports::types::RunReport,
+    report: &benchmark_contracts::domain::reports::types::RunReport,
 ) -> Result<(), Error> {
     if let (
         ContextSeal::Sealed(manifest),
-        ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt),
+        benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt),
     ) = (&request.context_manifest, &report.project_context)
     {
         context.verify_receipt(manifest, &request.root, receipt)?;

@@ -1,8 +1,8 @@
 //! Atomic document encoding precedes writing to the injected destination.
 use super::{connection::EvidenceBmfConnection, constants, schemas};
 use crate::outbound::evidence::interface::EvidencePort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{
     ComparisonContract, ReportComparison, RunReport,
 };
 use std::io::Write as _;
@@ -58,22 +58,22 @@ impl EvidencePort for EvidenceBmfAdapter {
     }
     fn costs(
         &self,
-        language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &ryo_benchmark_contracts::domain::costs::types::ProjectCosts,
+        language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        costs: &benchmark_contracts::domain::costs::types::ProjectCosts,
     ) -> Result<(), Error> {
         self.add(|held| schemas::costs(held, language, costs))
     }
     fn verification(
         &self,
-        language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
         timings: &crate::outbound::evidence::types::RuleTimings,
     ) -> Result<(), Error> {
         self.add(|held| schemas::verification(held, language, timings))
     }
     fn growth(
         &self,
-        language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        growth: &ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
+        language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        growth: &benchmark_contracts::domain::measurements::types::ShapeGrowths,
     ) -> Result<(), Error> {
         self.add(|held| schemas::growth(held, language, growth))
     }

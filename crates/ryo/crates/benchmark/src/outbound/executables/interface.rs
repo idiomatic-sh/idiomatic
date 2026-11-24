@@ -1,8 +1,8 @@
 //! What the `executables` port asks of the outside, in the core's own vocabulary: plain data in and out.
 //! It never takes an adapter's configuration (the build tool, the search path): the port's factory takes that.
 use super::types::{BenchPackage, RunArguments, RunVerdict, Sealed};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
 use std::path::{Path, PathBuf};
 
 /// What every `executables` adapter implements: where builds go, the reference tool, sealed copies and their runs.

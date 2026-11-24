@@ -7,36 +7,36 @@ use super::constants::{
 use super::locations::{default_scratch, directory};
 use super::request_input::worker_expectation;
 use super::targets::{ReferenceSpelling, TargetConfiguration};
-use ryo_benchmark::domain::command_line::types::{
+use benchmark::domain::command_line::types::{
     BenchmarkArgument, WorkerTracing, worker_input::value::WorkerInput,
 };
-use ryo_benchmark::inbound::use_cases::account_defaults::{
+use benchmark::inbound::use_cases::account_defaults::{
     interface::AccountDefaultsUseCase as _, use_case::AccountDefaultsUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
-use ryo_benchmark::inbound::use_cases::check_worker_request::{
+use benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
+use benchmark::inbound::use_cases::check_worker_request::{
     interface::CheckWorkerRequestUseCase as _, use_case::CheckWorkerRequestUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::run_ryo::{
+use benchmark::inbound::use_cases::run_ryo::{
     interface::RunRyoUseCase as _, use_case::RunRyoUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::select_cases::types::{CaseRun, VerifyTimes};
-use ryo_benchmark::inbound::use_cases::verify_rule_profiles::{
+use benchmark::inbound::use_cases::select_cases::types::{CaseRun, VerifyTimes};
+use benchmark::inbound::use_cases::verify_rule_profiles::{
     interface::VerifyRuleProfilesUseCase as _, use_case::VerifyRuleProfilesUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::{
+use benchmark::inbound::use_cases::{
     select_cases::{interface::SelectCasesUseCase as _, types::CaseArgument},
     stage_suite::interface::StageSuiteUseCase as _,
     verify_cases::interface::VerifyCasesUseCase as _,
 };
-use ryo_benchmark::outbound::suite::{
+use benchmark::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactPath, ArtifactText},
 };
-use ryo_benchmark::outbound::worker::{interface::WorkerPort, types::WorkerSource};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark::outbound::worker::{interface::WorkerPort, types::WorkerSource};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -78,7 +78,7 @@ pub(super) fn worker(
         WorkerInput::Inline(payload) => WorkerSource::Argument(payload.0.into()),
     };
     let transport: Arc<dyn WorkerPort + Send + Sync> = Arc::new(
-        ryo_benchmark::outbound::worker::factory::json(source, Box::new(std::io::stdout())),
+        benchmark::outbound::worker::factory::json(source, Box::new(std::io::stdout())),
     );
     CheckWorkerRequestUseCaseImpl::new(Arc::<dyn WorkerPort + Send + Sync>::clone(&transport))
         .check_worker_request(&expectation)?;
@@ -87,17 +87,17 @@ pub(super) fn worker(
         ryo_python::settings::PythonParserSettings::new(target_version),
     )]);
     let frontend_diagnostic = frontend_diagnostic()?;
-    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
+    let engine: Arc<dyn benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
         match (tracing, trace_path) {
             (WorkerTracing::JsonLines, Some(path)) => Arc::new(
-                ryo_benchmark::outbound::engine::factory::local_with_diagnostic_events(
+                benchmark::outbound::engine::factory::local_with_diagnostic_events(
                     languages,
                     path.into(),
                     frontend_diagnostic,
                 ),
             ),
             (WorkerTracing::Disabled, None) => Arc::new(
-                ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
+                benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
                     languages,
                     None,
                     frontend_diagnostic,
@@ -108,7 +108,7 @@ pub(super) fn worker(
     RunRyoUseCaseImpl::new(
         engine,
         transport,
-        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+        Arc::new(benchmark::outbound::context::factory::local()),
     )
     .run_ryo()
 }
@@ -129,35 +129,30 @@ pub(super) fn verify_cases(
     let flags = args
         .map(|argument| CaseArgument(argument.0))
         .collect::<Vec<_>>();
-    let run =
-        ryo_benchmark::inbound::use_cases::select_cases::use_case::SelectCasesUseCaseImpl::new()
-            .select_cases(&flags)?;
+    let run = benchmark::inbound::use_cases::select_cases::use_case::SelectCasesUseCaseImpl::new()
+        .select_cases(&flags)?;
     // Each rule is verified under its own settings profile, reached through the harness's one registrar.
-    let suite = ryo_benchmark::outbound::suite::factory::local();
-    VerifyRuleProfilesUseCaseImpl::new(
-        &suite,
-        &ryo_benchmark::outbound::inventory::factory::local(),
-    )
-    .verify_rule_profiles(
-        &source,
-        run.shard,
-        ArtifactText(constants::VERIFY_CASES_SCRATCH),
-        &mut |profile| verify_profile(&executable, profile, &run),
-    )
+    let suite = benchmark::outbound::suite::factory::local();
+    VerifyRuleProfilesUseCaseImpl::new(&suite, &benchmark::outbound::inventory::factory::local())
+        .verify_rule_profiles(
+            &source,
+            run.shard,
+            ArtifactText(constants::VERIFY_CASES_SCRATCH),
+            &mut |profile| verify_profile(&executable, profile, &run),
+        )
 }
 
 /// Verify the profile at `source` against both contestants, its rules under its one settings profile.
 fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<CaseCount, Error> {
     let executable = executable.to_owned();
     let source = source.to_owned();
-    let suite_source: Arc<dyn SuitePort> =
-        Arc::new(ryo_benchmark::outbound::suite::factory::local());
+    let suite_source: Arc<dyn SuitePort> = Arc::new(benchmark::outbound::suite::factory::local());
     let tool = suite_source.profile(ArtifactPath(&source))?;
     // The bench verified the reference tool's pinned bytes and version line once, before any rule (`verify-tool`); the
     // registration pins its digest, which the inventory checks before and after every rule.
-    let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
-        Arc::clone(&suite_source),
-    )
+    let audit = benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(Arc::clone(
+        &suite_source,
+    ))
     .audit(&source, &tool)?;
     AccountDefaultsUseCaseImpl::new().account_defaults(&audit, &tool)?;
     let scratch = default_scratch(
@@ -166,17 +161,16 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
     )?;
     let root = suite_source.ensure_directory(ArtifactPath(scratch.path()))?;
     let profile = root.join(constants::PROFILE_DIRECTORY);
-    let staged =
-        ryo_benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
-            suite_source.as_ref(),
-        )
-        .stage_suite(
-            &source,
-            &profile,
-            audit.authored(),
-            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
-        )?;
-    let candidate = Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
+    let staged = benchmark::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl::new(
+        suite_source.as_ref(),
+    )
+    .stage_suite(
+        &source,
+        &profile,
+        audit.authored(),
+        benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+    )?;
+    let candidate = Arc::new(benchmark::outbound::linter::factory::ryo_context(
         std::env::current_exe()?,
         profile.join(constants::RULES_DIRECTORY),
         staged.query_modules.clone(),
@@ -194,56 +188,55 @@ fn verify_profile(executable: &Path, source: &Path, run: &CaseRun) -> Result<Cas
     )]);
     let frontend_diagnostic = frontend_diagnostic()?;
     // The candidate runs in this process over one engine, which compiles each rule once and keeps its plans for every case.
-    let engine: Arc<dyn ryo_benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
+    let engine: Arc<dyn benchmark::outbound::engine::interface::EnginePort + Send + Sync> =
         Arc::new(
-            ryo_benchmark::outbound::engine::factory::retaining_with_frontend_diagnostic(
+            benchmark::outbound::engine::factory::retaining_with_frontend_diagnostic(
                 languages,
                 frontend_diagnostic,
             ),
         );
-    let context: Arc<dyn ryo_benchmark::outbound::context::interface::ContextPort + Send + Sync> =
-        Arc::new(ryo_benchmark::outbound::context::factory::local());
+    let context: Arc<dyn benchmark::outbound::context::interface::ContextPort + Send + Sync> =
+        Arc::new(benchmark::outbound::context::factory::local());
     // The worker in this process reads each stored request it is handed and answers its bytes through the JSON transport, which
     // receives and publishes nothing of its own.
-    let transport = Arc::new(ryo_benchmark::outbound::worker::factory::json(
-        ryo_benchmark::outbound::worker::types::WorkerSource::Argument(std::ffi::OsString::new()),
+    let transport = Arc::new(benchmark::outbound::worker::factory::json(
+        benchmark::outbound::worker::types::WorkerSource::Argument(std::ffi::OsString::new()),
         Box::new(std::io::sink()),
     ));
     let worker = RunRyoUseCaseImpl::new(engine, transport, context);
-    let execution = ryo_benchmark::outbound::execution::factory::in_process(&worker);
+    let execution = benchmark::outbound::execution::factory::in_process(&worker);
     // The times of a verification go to its times file when the run names one, and nowhere when it does not.
-    let evidence: Box<dyn ryo_benchmark::outbound::evidence::interface::EvidencePort> =
+    let evidence: Box<dyn benchmark::outbound::evidence::interface::EvidencePort> =
         match &run.timings {
             VerifyTimes::Recorded(path) => Box::new(
-                ryo_benchmark::outbound::evidence::factory::bmf_appending(path.clone()),
+                benchmark::outbound::evidence::factory::bmf_appending(path.clone()),
             ),
-            VerifyTimes::Unrecorded => Box::new(ryo_benchmark::outbound::evidence::factory::bmf(
+            VerifyTimes::Unrecorded => Box::new(benchmark::outbound::evidence::factory::bmf(
                 Box::new(std::io::sink()),
                 Box::new(std::io::sink()),
             )),
         };
     let reference = Arc::new(reference(executable, staged)?);
-    let count =
-        ryo_benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
-            suite_source.as_ref(),
-            &ryo_benchmark::outbound::host::factory::local(),
-            &ryo_benchmark::outbound::receipts::factory::local(run.receipts.clone()),
-            &ryo_benchmark::outbound::context::factory::local(),
-            reference.as_ref(),
-            candidate.as_ref(),
-            ryo_benchmark::inbound::use_cases::verify_cases::types::Executions {
-                reference: &ryo_benchmark::outbound::execution::factory::process(),
-                candidate: &execution,
-            },
-            &ryo_benchmark::outbound::inventory::factory::local(),
-            evidence.as_ref(),
-        )
-        .verify_cases(
-            &profile.join(constants::RULES_DIRECTORY),
-            &root.join(constants::CASES_DIRECTORY),
-            ryo_benchmark_contracts::domain::requests::types::CaseSelection { shard: run.shard },
-            ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted,
-        );
+    let count = benchmark::inbound::use_cases::verify_cases::use_case::VerifyCasesUseCaseImpl::new(
+        suite_source.as_ref(),
+        &benchmark::outbound::host::factory::local(),
+        &benchmark::outbound::receipts::factory::local(run.receipts.clone()),
+        &benchmark::outbound::context::factory::local(),
+        reference.as_ref(),
+        candidate.as_ref(),
+        benchmark::inbound::use_cases::verify_cases::types::Executions {
+            reference: &benchmark::outbound::execution::factory::process(),
+            candidate: &execution,
+        },
+        &benchmark::outbound::inventory::factory::local(),
+        evidence.as_ref(),
+    )
+    .verify_cases(
+        &profile.join(constants::RULES_DIRECTORY),
+        &root.join(constants::CASES_DIRECTORY),
+        benchmark_contracts::domain::requests::types::CaseSelection { shard: run.shard },
+        benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted,
+    );
     drop(scratch);
     count
 }
@@ -271,9 +264,9 @@ fn ruff_target(configuration: Option<TargetConfiguration<'_>>) -> Result<Referen
 ///
 /// A rule id or a query the SDK refuses.
 pub(super) fn frontend_diagnostic()
--> Result<ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection, Error> {
+-> Result<benchmark::outbound::engine::types::FrontendDiagnosticProjection, Error> {
     Ok(
-        ryo_benchmark::outbound::engine::types::FrontendDiagnosticProjection {
+        benchmark::outbound::engine::types::FrontendDiagnosticProjection {
             rule: ryo::linter::RuleId::try_from(constants::INVALID_SYNTAX)
                 .map_err(|error| Error::Invalid(error.to_string()))?,
             query: ryo::query::RyoQlQuery::try_from(
@@ -286,13 +279,13 @@ pub(super) fn frontend_diagnostic()
 
 /// The target configuration a parser selection names, none when it names none.
 pub(super) fn configured(
-    selection: &ryo_benchmark_contracts::domain::requests::types::ParserSelection,
+    selection: &benchmark_contracts::domain::requests::types::ParserSelection,
 ) -> Option<TargetConfiguration<'_>> {
     match selection {
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => {
+        benchmark_contracts::domain::requests::types::ParserSelection::Named(name) => {
             Some(TargetConfiguration(name.0.as_str()))
         }
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
+        benchmark_contracts::domain::requests::types::ParserSelection::Unspecified => None,
     }
 }
 
@@ -315,7 +308,7 @@ pub(super) fn collector(
     let digest = suite.digest(ArtifactPath(&executable))?;
     suite.write_text(
         ArtifactPath(&workload.join(constants::COLLECTOR_IDENTITY)),
-        ryo_benchmark::outbound::suite::types::ArtifactText(&digest.0),
+        benchmark::outbound::suite::types::ArtifactText(&digest.0),
     )?;
     Ok(CollectorIdentity { executable, digest })
 }
@@ -325,7 +318,7 @@ pub(super) struct CollectorIdentity {
     /// Frozen native collector path.
     pub executable: PathBuf,
     /// Digest computed from the copied bytes.
-    pub digest: ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
+    pub digest: benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
 }
 
 // Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
@@ -333,16 +326,17 @@ pub(super) struct CollectorIdentity {
 pub(super) fn timed(
     identity: CollectorIdentity,
     observations: &mut dyn std::io::Write,
-) -> Result<Arc<dyn ryo_benchmark::outbound::execution::interface::ExecutionPort>, Error> {
+) -> Result<Arc<dyn benchmark::outbound::execution::interface::ExecutionPort>, Error> {
     writeln!(
         observations,
         "collector: executable={} sha256={}",
         identity.executable.display(),
         identity.digest
     )?;
-    Ok(Arc::new(
-        ryo_benchmark::outbound::execution::factory::timed(identity.executable, identity.digest),
-    ))
+    Ok(Arc::new(benchmark::outbound::execution::factory::timed(
+        identity.executable,
+        identity.digest,
+    )))
 }
 
 // Composition is not DRY: this port wiring repeats in each linter's composition by the owner's rule; only pure values are shared.
@@ -352,9 +346,9 @@ pub(super) fn audit(
     output: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
     let tool = suite_source.profile(ArtifactPath(&directory()))?;
-    let result = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
-        Arc::clone(suite_source),
-    )
+    let result = benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(Arc::clone(
+        suite_source,
+    ))
     .audit(&directory(), &tool)?;
     writeln!(
         output,

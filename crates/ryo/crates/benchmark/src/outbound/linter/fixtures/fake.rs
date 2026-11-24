@@ -1,15 +1,15 @@
 //! Deterministic linter output for orchestration tests.
 use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::linter::types::CanonicalText;
-use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
-use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
+use benchmark_contracts::domain::context::types::PreparedRuleContext;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
+use benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use std::path::PathBuf;
 #[derive(Debug, Default)]
 /// Deterministic linter substitute for orchestration and contract tests.
@@ -34,8 +34,8 @@ pub enum KeptState {
 impl LinterPort for LinterFake {
     fn rule_configuration(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
-        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
+    ) -> benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         Ok(Invocation {
@@ -47,7 +47,7 @@ impl LinterPort for LinterFake {
     }
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
         if output.signal
-            != ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited
+            != benchmark_contracts::domain::measurements::types::TerminationSignal::Exited
             || !(0_i32..=1_i32).contains(&output.status.0)
         {
             return Err(Error::Invalid("operational failure".into()));
@@ -58,25 +58,23 @@ impl LinterPort for LinterFake {
         }
         Ok(RunReport {
             execution_metadata:
-                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
+                benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
             project_context:
-                ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             files: request.files.clone(),
             skipped: Vec::new(),
-            coverage:
-                ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                    ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                        selected: ryo_benchmark_contracts::domain::reports::types::PairCount(
-                            request.files.len(),
-                        ),
-                        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
-                            request.files.len(),
-                        ),
-                        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                        unknown_or_unread:
-                            ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                    },
-                ),
+            coverage: benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                benchmark_contracts::domain::reports::types::RuleCoverage {
+                    selected: benchmark_contracts::domain::reports::types::PairCount(
+                        request.files.len(),
+                    ),
+                    evaluated: benchmark_contracts::domain::reports::types::PairCount(
+                        request.files.len(),
+                    ),
+                    skipped: benchmark_contracts::domain::reports::types::PairCount(0),
+                    unknown_or_unread: benchmark_contracts::domain::reports::types::PairCount(0),
+                },
+            ),
             diagnostics: self.diagnostics.clone(),
         })
     }
@@ -113,7 +111,7 @@ pub struct ObservingLinter(pub LinterFake);
 impl LinterPort for ObservingLinter {
     fn rule_configuration(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+    ) -> benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
         self.0.rule_configuration()
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
@@ -122,13 +120,13 @@ impl LinterPort for ObservingLinter {
     fn decode(&self, request: &RunRequest, output: ProcessOutput) -> Result<RunReport, Error> {
         let mut report = self.0.decode(request, output)?;
         report.project_context =
-            ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(
-                ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt {
-                    mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk,
+            benchmark_contracts::domain::reports::types::ProjectContext::Observed(
+                benchmark_contracts::domain::context::types::ProjectContextReceipt {
+                    mode: benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk,
                     logical_root: ".".into(),
                     actual_root: request.root.clone(),
                     manifest_hash:
-                        ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
+                        benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
                             "fixture".into(),
                         ),
                     dependencies: std::collections::BTreeMap::new(),

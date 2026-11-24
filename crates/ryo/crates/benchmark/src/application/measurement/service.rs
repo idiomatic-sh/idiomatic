@@ -6,14 +6,14 @@ use crate::domain::rule_context::service::admit_configuration;
 use crate::outbound::context::interface::ContextPort;
 use crate::outbound::execution::interface::ExecutionPort;
 use crate::outbound::linter::interface::LinterPort;
-use ryo_benchmark_contracts::domain::costs::types::RunCost;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::costs::types::RunCost;
+use benchmark_contracts::domain::measurements::types::{
     Measurement, ResourceObservation, RunOrder,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::constants::RUN_RYO;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::requests::constants::RUN_RYO;
+use benchmark_contracts::domain::requests::types::{
     ContextSeal, DiagnosticSwitch, FileMetadataDeclaration, RunRequest,
 };
 
@@ -57,7 +57,7 @@ pub fn run(
     let report = linter.decode(request, output)?;
     if let (
         ContextSeal::Sealed(manifest),
-        ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt),
+        benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt),
     ) = (&request.context_manifest, &report.project_context)
     {
         context.verify_receipt(manifest, &request.root, receipt)?;
@@ -118,7 +118,7 @@ pub(crate) fn finding_counts(report: &RunReport) -> FindingCounts<'_> {
 /// A write the observations stream refuses.
 pub(crate) fn observe(
     output: &mut dyn std::io::Write,
-    name: &ryo_benchmark_contracts::domain::measurements::types::SampleName,
+    name: &benchmark_contracts::domain::measurements::types::SampleName,
     measurement: &Measurement,
     order: RunOrder,
 ) -> Result<(), Error> {
@@ -144,9 +144,8 @@ pub(crate) fn observe(
             measurement.wall.as_secs_f64()
         )?,
     }
-    if let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-        coverage,
-    ) = measurement.report.coverage
+    if let benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) =
+        measurement.report.coverage
     {
         writeln!(
             output,

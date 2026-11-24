@@ -2,7 +2,7 @@
 use crate::outbound::{
     execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 
 /// The public operation under test, given the ports, the rules and the scratch directory.
@@ -72,20 +72,20 @@ pub fn exercise(scenario: Scenario, operate: Operate) -> Result<usize, Refusal> 
                 ),
             }
             result.map_err(|error| match error {
-                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(error)
+                benchmark_contracts::domain::reports::errors::ReportsError::Io(error)
                     if error.kind() == std::io::ErrorKind::NotFound =>
                 {
                     Refusal::MissingSource
                 }
-                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(
-                    message,
-                ) if message.contains("defaults lack implementation or explicit deferral") => {
+                benchmark_contracts::domain::reports::errors::ReportsError::Invalid(message)
+                    if message.contains("defaults lack implementation or explicit deferral") =>
+                {
                     Refusal::Unaccounted
                 }
-                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(_)
-                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(_)
-                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Json(_)
-                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Toml(_) => {
+                benchmark_contracts::domain::reports::errors::ReportsError::Invalid(_)
+                | benchmark_contracts::domain::reports::errors::ReportsError::Io(_)
+                | benchmark_contracts::domain::reports::errors::ReportsError::Json(_)
+                | benchmark_contracts::domain::reports::errors::ReportsError::Toml(_) => {
                     Refusal::Unexpected
                 }
             })

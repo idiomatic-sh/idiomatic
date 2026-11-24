@@ -4,14 +4,12 @@ use crate::outbound::suite::types::{
     ClaimedDiscrepancy, ClaimedEvidence, ClaimedFinding, ClaimedIdentity, ClaimedMetadata,
     ClaimedProcess,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
-    PathText, RuleName, Sha256Text,
-};
-use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset;
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyReason;
-use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
+use benchmark_contracts::domain::documents::types::text::value::{PathText, RuleName, Sha256Text};
+use benchmark_contracts::domain::process::types::ProcessFailure;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::SourceByteOffset;
+use benchmark_contracts::domain::workloads::types::DiscrepancyReason;
+use benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
     ContractSourcePath, LanguageVersion, ParserTarget, Rationale, SourceRevision, WitnessCase,
 };
 use serde::Deserialize;

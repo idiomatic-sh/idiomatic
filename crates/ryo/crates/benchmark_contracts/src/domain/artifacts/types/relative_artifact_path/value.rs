@@ -6,7 +6,7 @@ use std::path::{Component, Path};
 ///
 /// A caller cannot construct an unchecked artifact address.
 /// ```compile_fail,E0423
-/// use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+/// use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
 /// let _ = RelativeArtifactPath(std::path::Path::new("../escape"));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -52,13 +52,13 @@ impl RelativeArtifactPath<'_> {
     /// # Examples
     ///
     /// ```
-    /// use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+    /// use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
     /// use std::path::Path;
     ///
     /// let path = Path::new("pkg").join("module.py");
     /// let address = RelativeArtifactPath::try_from(path.as_path())?;
     /// assert_eq!(address.slashed()?.0, "pkg/module.py");
-    /// # Ok::<(), ryo_benchmark_contracts::domain::artifacts::errors::ArtifactsError>(())
+    /// # Ok::<(), benchmark_contracts::domain::artifacts::errors::ArtifactsError>(())
     /// ```
     pub fn slashed(&self) -> Result<SlashedPath, ArtifactsError> {
         let mut names = Vec::new();

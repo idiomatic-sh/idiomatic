@@ -7,9 +7,9 @@ use crate::outbound::suite::adapters::local::declarations::schemas::{
 use crate::outbound::suite::adapters::local::reference::schemas::ReferenceDiscrepancySchema;
 use crate::outbound::suite::errors::SuiteError;
 use crate::outbound::suite::types::ClaimedDiscrepancy;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types;
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types;
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
@@ -98,7 +98,7 @@ fn given_project_inventory(
 ) -> Result<ryo::linter::GivenProjectInventory, Error> {
     let inventory: ryo::linter::GivenProjectInventory = inventory.into();
     for entry in &inventory.entries {
-        ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(entry.path.0.as_ref()))?;
+        benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(entry.path.0.as_ref()))?;
     }
     Ok(inventory)
 }
@@ -128,7 +128,7 @@ impl TryFrom<CasesSchema> for types::Cases {
                             .selected_rules
                             .map(|rules| rules.into_iter().map(|id| rule(&id)).collect())
                             .transpose()?
-                            .map_or(ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen, ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit),
+                            .map_or(benchmark_contracts::domain::requests::types::CohortSelection::Frozen, benchmark_contracts::domain::requests::types::CohortSelection::Explicit),
                         rule_context: case
                             .rule_context
                             .map(TryInto::try_into)
@@ -143,9 +143,9 @@ impl TryFrom<CasesSchema> for types::Cases {
                             .map(observation_declarations)
                             .transpose()
                             .map_err(Error::Invalid)?
-                            .map_or(ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared, ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Declared),
+                            .map_or(benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared, benchmark_contracts::domain::requests::types::InputDeclaration::Declared),
                         project_search_roots: project_search_roots(case.project_search_roots)?
-                            .map_or(ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared, ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared),
+                            .map_or(benchmark_contracts::domain::requests::types::SearchRoots::Undeclared, benchmark_contracts::domain::requests::types::SearchRoots::Declared),
                         given_project_inventory: case
                             .given_project_inventory
                             .map(given_project_inventory)
@@ -166,18 +166,18 @@ impl TryFrom<CasesSchema> for types::Cases {
                             },
                         ),
                         file_metadata: case.file_metadata.map_or(
-                            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+                            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
                             |values| {
-                                ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
+                                benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
                                     values
                                         .into_iter()
                                         .map(|(path, executable)| {
                                             (
                                                 ryo::linter::RelativePath(path.into_boxed_str()),
                                                 if executable {
-                                                    ryo_benchmark_contracts::domain::artifacts::types::FileExecutable::Set
+                                                    benchmark_contracts::domain::artifacts::types::FileExecutable::Set
                                                 } else {
-                                                    ryo_benchmark_contracts::domain::artifacts::types::FileExecutable::Unset
+                                                    benchmark_contracts::domain::artifacts::types::FileExecutable::Unset
                                                 },
                                             )
                                         })
@@ -185,7 +185,7 @@ impl TryFrom<CasesSchema> for types::Cases {
                                 )
                             },
                         ),
-                        reference_discrepancy: ryo_benchmark_contracts::domain::workloads::types::ReferenceBehavior::Agrees,
+                        reference_discrepancy: benchmark_contracts::domain::workloads::types::ReferenceBehavior::Agrees,
                         context: case.context.map_or(types::ContextDeclaration::Undeclared, |context| {
                             types::ContextDeclaration::Declared(context.into())
                         }),
@@ -214,10 +214,10 @@ impl TryFrom<CasesSchema> for types::Cases {
                                         None => types::ExpectedRule::Parent,
                                     },
                                     file: ryo::linter::RelativePath(expected.file.into_boxed_str()),
-                                    start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
+                                    start: benchmark_contracts::domain::reports::types::SourceByteOffset(
                                         expected.start,
                                     ),
-                                    end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(
+                                    end: benchmark_contracts::domain::reports::types::SourceByteOffset(
                                         expected.end,
                                     ),
                                 })

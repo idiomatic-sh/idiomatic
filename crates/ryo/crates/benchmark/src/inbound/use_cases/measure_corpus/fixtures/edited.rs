@@ -13,18 +13,16 @@ use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::linter::types::CanonicalText;
 use crate::outbound::workspace::interface::{Workspace, WorkspacePort};
 use crate::outbound::workspace::types::{CommitRevision, TrackedFiles};
-use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::context::types::PreparedRuleContext;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::measurements::types::{
     Invocation, ProcessOutput, ResidentBytes, ResourceObservation, Resources,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
-    BenchmarkFinding, RunReport, SourceByteOffset,
-};
-use ryo_benchmark_contracts::domain::requests::types::{ContextSeal, RunRequest};
-use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Project, Tool};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{BenchmarkFinding, RunReport, SourceByteOffset};
+use benchmark_contracts::domain::requests::types::{ContextSeal, RunRequest};
+use benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
+use benchmark_contracts::domain::workloads::types::{PreparedCase, Project, Tool};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -73,7 +71,7 @@ struct MarkingCandidate {
 impl LinterPort for MarkingCandidate {
     fn rule_configuration(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+    ) -> benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
         self.inner.rule_configuration()
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {

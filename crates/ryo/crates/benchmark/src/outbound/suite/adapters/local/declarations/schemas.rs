@@ -1,7 +1,7 @@
 //! The declarations a profile and a cases document share: rule observations, rule context and project scope.
-use ryo_benchmark_contracts::domain::context::types::ContextBytes;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::context::types::ContextBytes;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     DiagnosticOptions, DiagnosticSwitch, PerformanceOptions,
 };
 
@@ -40,7 +40,7 @@ enum ObservationProducerSchema {
 pub(in crate::outbound::suite::adapters::local) fn observation_declarations(
     declarations: std::collections::BTreeMap<String, Vec<ObservationBindingSchema>>,
 ) -> Result<
-    ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
+    benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
     String,
 >{
     use ryo::linter::{
@@ -118,18 +118,18 @@ pub(in crate::outbound::suite::adapters::local) struct RuleConfigurationSchema {
     disabled_rules: std::collections::BTreeMap<String, Vec<String>>,
 }
 impl From<RuleContextTablesSchema>
-    for ryo_benchmark_contracts::domain::context::types::RuleContextTables
+    for benchmark_contracts::domain::context::types::RuleContextTables
 {
     fn from(value: RuleContextTablesSchema) -> Self {
         Self {
-            selected: ryo_benchmark_contracts::domain::context::types::TableName(value.selected),
-            disabled: ryo_benchmark_contracts::domain::context::types::TableName(value.disabled),
-            external: ryo_benchmark_contracts::domain::context::types::TableName(value.external),
+            selected: benchmark_contracts::domain::context::types::TableName(value.selected),
+            disabled: benchmark_contracts::domain::context::types::TableName(value.disabled),
+            external: benchmark_contracts::domain::context::types::TableName(value.external),
         }
     }
 }
 impl TryFrom<RuleConfigurationSchema>
-    for ryo_benchmark_contracts::domain::context::types::RuleConfiguration
+    for benchmark_contracts::domain::context::types::RuleConfiguration
 {
     type Error = String;
     fn try_from(value: RuleConfigurationSchema) -> Result<Self, Self::Error> {
@@ -137,7 +137,7 @@ impl TryFrom<RuleConfigurationSchema>
             external_prefixes: value
                 .external_prefixes
                 .into_iter()
-                .map(ryo_benchmark_contracts::domain::context::types::ExternalPrefix)
+                .map(benchmark_contracts::domain::context::types::ExternalPrefix)
                 .collect(),
             disabled_rules: value
                 .disabled_rules
@@ -166,7 +166,7 @@ pub(in crate::outbound::suite::adapters::local) struct RuleContextDeclarationSch
     defaults: RuleConfigurationSchema,
 }
 impl TryFrom<RuleContextDeclarationSchema>
-    for ryo_benchmark_contracts::domain::context::types::RuleContextDeclaration
+    for benchmark_contracts::domain::context::types::RuleContextDeclaration
 {
     type Error = String;
     fn try_from(value: RuleContextDeclarationSchema) -> Result<Self, Self::Error> {
@@ -185,7 +185,7 @@ pub(in crate::outbound::suite::adapters::local) fn project_search_roots(
                 .into_iter()
                 .map(|root| {
                     if !root.is_empty() {
-                        ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(&root))?;
+                        benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(&root))?;
                     }
                     Ok(ryo::linter::RelativePath(root.into_boxed_str()))
                 })
@@ -221,7 +221,7 @@ enum ContextBytesSchema {
     /// Exact bytes, including malformed UTF-8 controls.
     Bytes(Vec<u8>),
 }
-impl From<CaseContextSchema> for ryo_benchmark_contracts::domain::context::types::CaseContext {
+impl From<CaseContextSchema> for benchmark_contracts::domain::context::types::CaseContext {
     fn from(value: CaseContextSchema) -> Self {
         Self {
             logical_root: value.logical_root,

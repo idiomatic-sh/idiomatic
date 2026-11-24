@@ -3,40 +3,39 @@
     clippy::expect_used,
     reason = "acceptance assertions must fail the scenario on unexpected success or refusal"
 )]
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::compare::{
+use benchmark::inbound::use_cases::compare::{
     interface::CompareUseCase as _, use_case::CompareUseCaseImpl,
 };
-use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use benchmark_contracts::domain::reports::types::RunReport;
+use cucumber::then;
 /// Build the same two findings in opposite traversal orders.
 fn reports() -> (RunReport, RunReport) {
-    let fixture = ryo_benchmark::outbound::worker::fixtures::data::report();
+    let fixture = benchmark::outbound::worker::fixtures::data::report();
     let mut first = fixture
         .diagnostics
         .first()
         .expect("fixture finding")
         .clone();
-    first.start = ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0);
-    first.end = ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(1);
+    first.start = benchmark_contracts::domain::reports::types::SourceByteOffset(0);
+    first.end = benchmark_contracts::domain::reports::types::SourceByteOffset(1);
     let second = BenchmarkFinding {
-        start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(2),
-        end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(3),
+        start: benchmark_contracts::domain::reports::types::SourceByteOffset(2),
+        end: benchmark_contracts::domain::reports::types::SourceByteOffset(3),
         ..first.clone()
     };
     let reference = RunReport {
         execution_metadata:
-            ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
-        project_context:
-            ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+            benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
+        project_context: benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
         files: fixture.files,
         skipped: Vec::new(),
-        coverage: ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-            ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+        coverage: benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+            benchmark_contracts::domain::reports::types::RuleCoverage {
+                selected: benchmark_contracts::domain::reports::types::PairCount(1),
+                evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
+                skipped: benchmark_contracts::domain::reports::types::PairCount(0),
+                unknown_or_unread: benchmark_contracts::domain::reports::types::PairCount(0),
             },
         ),
         diagnostics: vec![first, second],

@@ -3,11 +3,11 @@ use super::types::{
     ArtifactBytes, ArtifactPath, ArtifactSet, ArtifactSize, ArtifactText, RetainedDirectory,
     RuleQuery, SourceDigest,
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Suite;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
-use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::Suite;
+use benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
 /// A directory the adapter made and removes, with everything beneath it, when this handle drops.
 pub trait ScopedDirectory: Send + Sync {
     /// Where the directory lives while the handle is held.
@@ -21,7 +21,7 @@ pub trait SuitePort: Send + Sync {
     /// Refuses drifted or unverifiable declared file metadata.
     fn validate_file_metadata(
         &self,
-        request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
+        request: &benchmark_contracts::domain::requests::types::RunRequest,
     ) -> Result<(), Error>;
 
     /// Read the exact declared source bytes using canonical filename framing.
@@ -161,7 +161,7 @@ pub trait SuitePort: Send + Sync {
     fn accepted_differences(
         &self,
         file: ArtifactPath<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error>;
+    ) -> Result<benchmark_contracts::domain::reports::types::AcceptedDifferences, Error>;
     /// A language's growth table, as its `growth.toml` writes it.
     ///
     /// # Errors
@@ -169,7 +169,7 @@ pub trait SuitePort: Send + Sync {
     fn growth_table(
         &self,
         file: ArtifactPath<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::growth::types::GrowthTable, Error>;
+    ) -> Result<benchmark_contracts::domain::growth::types::GrowthTable, Error>;
     /// The UTF-8 text of one source file.
     ///
     /// # Errors
@@ -192,7 +192,7 @@ pub trait SuitePort: Send + Sync {
     fn directory_size(
         &self,
         directory: ArtifactPath<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::costs::types::StoreSize, Error>;
+    ) -> Result<benchmark_contracts::domain::costs::types::StoreSize, Error>;
     /// Materialize only the explicitly authored subset in an owned empty directory.
     ///
     /// # Errors
@@ -204,7 +204,7 @@ pub trait SuitePort: Send + Sync {
         destination: ArtifactPath<'_>,
         authored: &[ryo::linter::RuleId],
         definitions: &std::collections::BTreeSet<ryo::linter::RuleId>,
-        purpose: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
+        purpose: benchmark_contracts::domain::workloads::types::StagePurpose,
     ) -> Result<(), Error>;
     /// Read rule directory identities without deciding which rules own evidence.
     /// # Errors
@@ -227,7 +227,7 @@ pub trait SuitePort: Send + Sync {
         &self,
         rules: ArtifactPath<'_>,
         rule: &ryo::linter::RuleId,
-    ) -> Result<ryo_benchmark_contracts::domain::workloads::types::Cases, Error>;
+    ) -> Result<benchmark_contracts::domain::workloads::types::Cases, Error>;
 
     /// Verify physical module paths, symlink boundaries and readable source bytes.
     /// # Errors
@@ -240,7 +240,7 @@ pub trait SuitePort: Send + Sync {
     fn materialize_case(
         &self,
         destination: ArtifactPath<'_>,
-        case: &ryo_benchmark_contracts::domain::workloads::types::Case,
+        case: &benchmark_contracts::domain::workloads::types::Case,
         context: &super::types::MaterializedContext,
     ) -> Result<super::types::MaterializedCase, Error>;
 

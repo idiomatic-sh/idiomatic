@@ -24,7 +24,7 @@ From `crates/ryo`, the shared collector registers every default from `benchmark.
 of `../../benchmark.toml`, writing under `target/benchmark/python/ruff/bench/` and printing the bench's one BMF document:
 
 ```sh
-taskset -c 0-3 env RAYON_NUM_THREADS=4 cargo run --locked --release -p idiomatic-sh-ryo-benchmark --bin ryo-benchmark-collector -- bench languages/python/benchmarks/linters/ruff
+taskset -c 0-3 env RAYON_NUM_THREADS=4 cargo run --locked --release -p idiomatic-sh-benchmark --bin benchmark-collector -- bench languages/python/benchmarks/linters/ruff
 ```
 
 That is the asymptote tool `bench/python/ruff`. The rules' growth is `../../growth.toml`. The shared collector owns registration,

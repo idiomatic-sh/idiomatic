@@ -1,8 +1,8 @@
 //! A meter that answers from a script: the CPU time each read advances by and the peak each read answers.
 use crate::outbound::process_meter::interface::ProcessMeterPort;
 use crate::outbound::process_meter::types::CpuTime;
-use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::ResidentBytes;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::sync::Mutex;
 
 /// The bytes of the block the contract's reset row touches and frees before the reset.

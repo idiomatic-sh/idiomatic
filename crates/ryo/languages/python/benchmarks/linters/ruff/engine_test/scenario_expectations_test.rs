@@ -1,7 +1,7 @@
 //! The input file, source and expected findings of each engine scenario.
 use super::scenario_test::EngineScenario;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::BenchmarkFinding;
 
 pub(super) fn input_file(scenario: EngineScenario) -> &'static str {
     match scenario {
@@ -65,7 +65,7 @@ pub(super) fn source_for(scenario: EngineScenario) -> &'static str {
 pub(super) fn expected_diagnostics(
     scenario: EngineScenario,
 ) -> Result<Vec<BenchmarkFinding>, Error> {
-    use ryo_benchmark_contracts::domain::reports::types::SourceByteOffset as At;
+    use benchmark_contracts::domain::reports::types::SourceByteOffset as At;
     if matches!(
         scenario,
         EngineScenario::PreservedSemanticSyntaxError

@@ -1,23 +1,23 @@
 //! A candidate whose coverage accounting is complete whatever it finds.
 use super::fake::LinterFake;
 use crate::outbound::linter::{interface::LinterPort, types::CanonicalText};
-use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
-use ryo_benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::context::types::PreparedRuleContext;
+use benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{
     CoverageAccounting, PairCount, RuleCoverage, RunReport,
 };
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
-use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
+use benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
+use benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 
 /// Candidate fixture exposes complete execution accounting independently of its findings.
 pub struct CoveredCandidate(pub LinterFake);
 impl LinterPort for CoveredCandidate {
     fn rule_configuration(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
-        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
+    ) -> benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         LinterPort::prepare(&self.0, request)

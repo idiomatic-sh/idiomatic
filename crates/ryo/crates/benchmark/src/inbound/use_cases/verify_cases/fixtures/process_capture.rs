@@ -19,20 +19,20 @@ use crate::outbound::suite::fixtures::authored;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
 use crate::outbound::suite::interface::SuitePort as _;
 use crate::outbound::suite::types::ArtifactPath;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
-use ryo_benchmark_contracts::domain::documents::types::text::value::Pin;
-use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
-use ryo_benchmark_contracts::domain::documents::types::text::value::YesNo;
-use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
-use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
-use ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName;
-use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
-use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
-use ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceDiscrepancy;
-use ryo_benchmark_contracts::domain::workloads::types::ReferenceDiscrepancyIdentity;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
+use benchmark_contracts::domain::documents::types::text::value::Pin;
+use benchmark_contracts::domain::documents::types::text::value::Sha256Text;
+use benchmark_contracts::domain::documents::types::text::value::YesNo;
+use benchmark_contracts::domain::process::types::ProcessFailure;
+use benchmark_contracts::domain::process::types::ReferenceExpectation;
+use benchmark_contracts::domain::requests::types::ParserConfigurationName;
+use benchmark_contracts::domain::requests::types::ParserSelection;
+use benchmark_contracts::domain::workloads::types::CaseComparison;
+use benchmark_contracts::domain::workloads::types::PreparedCase;
+use benchmark_contracts::domain::workloads::types::PreparedReferenceDiscrepancy;
+use benchmark_contracts::domain::workloads::types::ReferenceDiscrepancyIdentity;
 use serde_json::Value;
 use serde_json::json;
 use sha2::Digest as _;
@@ -102,7 +102,7 @@ impl Fixture {
             .artifact_digests
             .insert(PathBuf::from("fixture"), ArtifactDigest("a".repeat(64)));
         suite.artifact_digests.insert(
-            source.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
+            source.join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
             ArtifactDigest("c".repeat(64)),
         );
         let linter = crate::outbound::linter::fixtures::fake::LinterFake::default();
@@ -172,7 +172,8 @@ impl Fixture {
         let wire = json!({"kind":"process-failure","exit":2,"stdout":stdout_parts,"stderr":stderr_parts,"observations":observations});
         let process = process_failure(&wire);
         let identity = ReferenceDiscrepancyIdentity {
-            file_metadata_sha256: ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared,
+            file_metadata_sha256:
+                benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared,
             tool: profile.tool.clone(),
             version: profile.version.clone(),
             observed_executable_sha256: ArtifactDigest("a".repeat(64)),
@@ -186,13 +187,13 @@ impl Fixture {
                 &prepared.expected,
             ),
         };
-        prepared.reference_discrepancy = ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(PreparedReferenceDiscrepancy {
+        prepared.reference_discrepancy = benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(PreparedReferenceDiscrepancy {
             basis:
-                ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
+                benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
             expected: ReferenceExpectation::ProcessFailure(process),
             identity: identity.clone(),
             evidence: vec![],
-            reason: ryo_benchmark_contracts::domain::workloads::types::DiscrepancyReason("independent toy language expectation".into()),
+            reason: benchmark_contracts::domain::workloads::types::DiscrepancyReason("independent toy language expectation".into()),
         });
         crate::application::discrepancy_validation::service::validate_archives(
             &suite,
@@ -209,8 +210,7 @@ impl Fixture {
         )
         .unwrap();
         let typed_proof = ReferenceProof {
-            basis:
-                ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
+            basis: benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
             process_group: OptionalDigest::Pinned(
                 crate::domain::process_failure::service::group_digest(
                     match &differing(&prepared).expected {
@@ -310,10 +310,10 @@ impl Fixture {
 /// The prepared discrepancy of a case the fixture made differ.
 fn differing(prepared: &PreparedCase) -> &PreparedReferenceDiscrepancy {
     match &prepared.reference_discrepancy {
-        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
+        benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
             discrepancy,
         ) => discrepancy,
-        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => {
+        benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => {
             panic!("fixture discrepancy")
         }
     }

@@ -1,12 +1,12 @@
 //! Registered documents, raw invocation records and process-failure certificates, written the way the adapter reads them.
 use crate::outbound::inventory::{interface::InventoryPort as _, types::Registration};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
+use benchmark_contracts::domain::documents::types::invocation_document::value::{
     ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, InvocationDocument,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal, YesNo};
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::documents::types::text::value::{Pin, Signal, YesNo};
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
@@ -107,8 +107,8 @@ pub fn document_of(case: &Value) -> CaseDocument {
 /// When the certificate is not the JSON shape a process failure is authored in.
 pub fn process_failure(
     value: &Value,
-) -> ryo_benchmark_contracts::domain::process::types::ProcessFailure {
-    use ryo_benchmark_contracts::domain::process::types::{
+) -> benchmark_contracts::domain::process::types::ProcessFailure {
+    use benchmark_contracts::domain::process::types::{
         OutputPart, OutputText, PathEncoding, ProcessArtifact, ProcessFailure, ProcessObservation,
     };
     let text = |value: &Value| value.as_str().expect("certificate text").to_owned();

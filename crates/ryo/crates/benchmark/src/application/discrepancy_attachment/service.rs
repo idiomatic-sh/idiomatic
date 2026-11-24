@@ -9,10 +9,10 @@ use crate::outbound::suite::{
         ClaimedProcess,
     },
 };
-use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
-use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
-use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use benchmark_contracts::domain::process::types::ReferenceExpectation;
+use benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use benchmark_contracts::domain::workloads::types::{
     DiscrepancyBasis, MetadataDigestDeclaration, PreparedCase, PreparedReferenceBehavior,
     PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity,
     discrepancy_evidence::value::{DiscrepancyEvidence, DiscrepancyEvidenceKind},

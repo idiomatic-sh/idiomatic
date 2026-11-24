@@ -20,14 +20,12 @@ use crate::domain::discrepancy::types::Contestant;
 use crate::domain::measurements::types::MeasurementEligibility;
 use crate::domain::source_validity::constants::PREFLIGHT_DIRECTORY;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet, ArtifactText};
-use ryo_benchmark_contracts::domain::costs::types::{ProjectCost, ProjectCosts, StoreSize};
-use ryo_benchmark_contracts::domain::measurements::types::{Measurement, RunOrder};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::{
-    CohortSelection, RunRequest, WorkerRequest,
-};
-use ryo_benchmark_contracts::domain::workloads::types::Project;
+use benchmark_contracts::domain::costs::types::{ProjectCost, ProjectCosts, StoreSize};
+use benchmark_contracts::domain::measurements::types::{Measurement, RunOrder};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::requests::types::{CohortSelection, RunRequest, WorkerRequest};
+use benchmark_contracts::domain::workloads::types::Project;
 use std::path::PathBuf;
 /// Refuse a cohort outside the certificate, measure every project of the corpus, then publish the samples of an accounted run or say that a diagnostic one is not a metric.
 pub(super) fn measure_corpus(
@@ -124,7 +122,7 @@ fn lint(
     let configured =
         crate::application::worker_request::service::configure(&prepared.request, session)?;
     if configured.execute()?.report.execution_metadata
-        == ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete
+        == benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete
     {
         Ok(())
     } else {
@@ -247,7 +245,7 @@ fn measure_project(
             &project.name.0,
             contestants.candidate,
             |state, trace| {
-                use ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On;
+                use benchmark_contracts::domain::requests::types::DiagnosticSwitch::On;
                 let mut candidate = request(
                     contestants.context,
                     &project_corpus,
@@ -262,7 +260,7 @@ fn measure_project(
                 }
                 let mut invocation = contestants.candidate.prepare(&candidate)?;
                 if let Some(trace) = trace {
-                    use ryo_benchmark_contracts::domain::requests::constants::DIAGNOSTIC_RYO;
+                    use benchmark_contracts::domain::requests::constants::DIAGNOSTIC_RYO;
                     let command = invocation.arguments.first_mut().ok_or_else(|| {
                         Error::Invalid("candidate has no diagnostic command".into())
                     })?;
@@ -397,7 +395,7 @@ fn measure_project(
             for (contestant, measurement) in [
                 (language.reference_display.0, measured_pair.reference()),
                 (
-                    ryo_benchmark_contracts::domain::reports::constants::CANDIDATE_NAME,
+                    benchmark_contracts::domain::reports::constants::CANDIDATE_NAME,
                     measured_pair.candidate(),
                 ),
             ] {
@@ -409,7 +407,7 @@ fn measure_project(
                 )?;
                 observe(
                     observations,
-                    &ryo_benchmark_contracts::domain::measurements::types::SampleName(format!(
+                    &benchmark_contracts::domain::measurements::types::SampleName(format!(
                         "{}/{contestant}/{condition}",
                         project.name
                     )),

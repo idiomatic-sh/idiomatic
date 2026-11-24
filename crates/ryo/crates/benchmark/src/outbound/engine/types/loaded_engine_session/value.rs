@@ -1,32 +1,30 @@
 //! Opaque loaded SDK state; callers can forward it but cannot replace its association.
 use crate::outbound::engine::types::{EngineConfiguration, EngineRun};
+use benchmark_contracts::domain::{reports::errors::ReportsError, requests::types::WorkerRequest};
 use ryo::linter::{RelativePath, Rule, RuleId};
-use ryo_benchmark_contracts::domain::{
-    reports::errors::ReportsError, requests::types::WorkerRequest,
-};
 use std::collections::BTreeMap;
 /// One loaded request, its exact rules, and its request-scoped effects.
 ///
 /// ```compile_fail,E0451
-/// use ryo_benchmark::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession;
-/// fn retarget<'a>(session: LoadedEngineSession<'a>, request: &'a ryo_benchmark_contracts::domain::requests::types::WorkerRequest) -> LoadedEngineSession<'a> {
+/// use benchmark::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession;
+/// fn retarget<'a>(session: LoadedEngineSession<'a>, request: &'a benchmark_contracts::domain::requests::types::WorkerRequest) -> LoadedEngineSession<'a> {
 ///     LoadedEngineSession { request, ..session }
 /// }
 /// ```
 /// ```compile_fail,E0624
-/// use ryo_benchmark::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession;
+/// use benchmark::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession;
 /// fn mutate(mut session: LoadedEngineSession<'_>) { session.rules_mut().clear(); }
 /// ```
 /// ```compile_fail,E0624
-/// use ryo_benchmark::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession;
+/// use benchmark::outbound::engine::types::loaded_engine_session::value::LoadedEngineSession;
 /// fn forge() { let _constructor = LoadedEngineSession::new; }
 /// ```
 /// ```compile_fail,E0382
-/// use ryo_benchmark::{application::worker_request::service::configure, outbound::engine::types::loaded_engine_session::value::LoadedEngineSession};
-/// fn reuse(expected: &ryo_benchmark_contracts::domain::requests::types::WorkerRequest, loaded: LoadedEngineSession<'_>) { let _first = configure(expected, loaded); let _second = configure(expected, loaded); }
+/// use benchmark::{application::worker_request::service::configure, outbound::engine::types::loaded_engine_session::value::LoadedEngineSession};
+/// fn reuse(expected: &benchmark_contracts::domain::requests::types::WorkerRequest, loaded: LoadedEngineSession<'_>) { let _first = configure(expected, loaded); let _second = configure(expected, loaded); }
 /// ```
 /// ```compile_fail,E0624
-/// use ryo_benchmark::outbound::engine::types::{loaded_engine_session::value::LoadedEngineSession, EngineConfiguration};
+/// use benchmark::outbound::engine::types::{loaded_engine_session::value::LoadedEngineSession, EngineConfiguration};
 /// fn bypass(loaded: LoadedEngineSession<'_>, configuration: EngineConfiguration) { let _report = loaded.execute(configuration); }
 /// ```
 pub struct LoadedEngineSession<'a> {

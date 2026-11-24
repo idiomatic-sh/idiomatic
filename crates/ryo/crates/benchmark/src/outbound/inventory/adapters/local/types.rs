@@ -1,5 +1,5 @@
 //! Plain data the documents of the local inventory adapter exchange with its adapter.
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
 
 /// The bytes of a registration document, as read from its file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

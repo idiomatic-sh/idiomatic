@@ -1,7 +1,7 @@
 //! Scalar columns, byte offsets and line-ending boundaries.
 #![cfg(test)]
 use super::schemas::offset;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 #[derive(Debug, PartialEq, Eq)]
 enum BoundaryFailure {
@@ -14,7 +14,7 @@ fn failure(error: &Error) -> BoundaryFailure {
         Error::Io(_) | Error::Json(_) | Error::Toml(_) => BoundaryFailure::Unexpected,
     }
 }
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
+use benchmark::cases::{Case, CaseName, Expect, Word, run};
 
 #[derive(Clone, Copy)]
 enum SchemaInput {
@@ -149,29 +149,28 @@ fn refuses() {
 }
 
 fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize {
+    use benchmark_contracts::domain::context::types::ContextManifest;
+    use benchmark_contracts::domain::measurements::types::CapturedBytes;
+    use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+    use benchmark_contracts::domain::measurements::types::ProcessOutput;
+    use benchmark_contracts::domain::measurements::types::ResourceObservation;
+    use benchmark_contracts::domain::requests::types::RunRequest;
     use ryo::linter::{RelativePath, RuleId};
-    use ryo_benchmark_contracts::domain::context::types::ContextManifest;
-    use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-    use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-    use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-    use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
-    use ryo_benchmark_contracts::domain::requests::types::RunRequest;
     let root = std::path::PathBuf::from("/snapshot/project");
     let file = RelativePath("missing.py".into());
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
         file_metadata:
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
             ContextManifest {
                 boundary: "/snapshot".into(),
                 logical_root: "project".into(),
@@ -196,8 +195,7 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
         super::schemas::decode(
             request,
             &ProcessOutput {
-                signal:
-                    ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+                signal: benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
                 status: ProcessExitCode(1),
                 stdout: CapturedBytes(stdout),
                 stderr: CapturedBytes(Vec::new()),
@@ -214,7 +212,7 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
     let diagnostics = report.diagnostics.len();
     let mut undeclared = request.clone();
     undeclared.context_manifest =
-        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed;
+        benchmark_contracts::domain::requests::types::ContextSeal::Unsealed;
     assert!(matches!(
         decode(&undeclared, wire(1, "null")),
         Err(Error::Invalid(_))
@@ -223,16 +221,19 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
         decode(&request, wire(2, "null")),
         Err(Error::Invalid(_))
     ));
-    assert!(matches!(decode(&request, wire(1, r#"{"edits":[]}"#)), Err(Error::Invalid(_))));
+    assert!(matches!(
+        decode(&request, wire(1, r#"{"edits":[]}"#)),
+        Err(Error::Invalid(_))
+    ));
     diagnostics
 }
 
 fn rule_configuration_arguments_round_trip_as_toml_including_control_characters() -> usize {
-    use ryo_benchmark_contracts::domain::context::types::RuleConfiguration;
+    use benchmark_contracts::domain::context::types::RuleConfiguration;
     let configuration = RuleConfiguration {
         external_prefixes: vec![
-            ryo_benchmark_contracts::domain::context::types::ExternalPrefix("V\u{7f}\n\"".into()),
-            ryo_benchmark_contracts::domain::context::types::ExternalPrefix("é\\".into()),
+            benchmark_contracts::domain::context::types::ExternalPrefix("V\u{7f}\n\"".into()),
+            benchmark_contracts::domain::context::types::ExternalPrefix("é\\".into()),
         ],
         disabled_rules: std::collections::BTreeMap::from([(
             ryo::linter::RelativePath("pkg/[é]\u{7f}.py".into()),
@@ -260,7 +261,7 @@ fn rule_configuration_arguments_round_trip_as_toml_including_control_characters(
     let disabled: toml::Value = toml::from_str(args[3].to_str().unwrap()).unwrap();
     // The pattern names the file under the root as the platform joins them: `/root` is no drive on Windows.
     let joined = std::path::Path::new("/root").join("pkg/[é]\u{7f}.py");
-    let expected = ryo_benchmark::domain::rule_context::service::literal_glob(
+    let expected = benchmark::domain::rule_context::service::literal_glob(
         &ryo::linter::RelativePath(joined.to_str().unwrap().into()),
     );
     assert_eq!(
@@ -271,7 +272,7 @@ fn rule_configuration_arguments_round_trip_as_toml_including_control_characters(
 }
 
 fn the_pinned_registry_decodes_the_phase_of_every_rule() -> usize {
-    use ryo_benchmark_contracts::domain::requests::types::{ApplicabilityPolicy, RuleLabel};
+    use benchmark_contracts::domain::requests::types::{ApplicabilityPolicy, RuleLabel};
     let phases = super::schemas::pinned_rule_phases().unwrap();
     [("UP045", "accepted-syntax"), ("EXE004", "always")]
         .into_iter()
@@ -352,10 +353,19 @@ fn suppression_codes_match_the_pinned_catalog() -> usize {
     let bench = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let read = |relative: &str| std::fs::read_to_string(bench.join(relative)).unwrap();
     #[derive(serde::Deserialize)]
-    struct Policy { redirects: std::collections::BTreeMap<String, String>, registered_codes: Vec<String> }
-    let policy: Policy = crate::json_input::decode(read("profiles/pinned-noqa-code-policy.json").as_bytes()).unwrap();
+    struct Policy {
+        redirects: std::collections::BTreeMap<String, String>,
+        registered_codes: Vec<String>,
+    }
+    let policy: Policy =
+        crate::json_input::decode(read("profiles/pinned-noqa-code-policy.json").as_bytes())
+            .unwrap();
     let redirects = &policy.redirects;
-    let registered = policy.registered_codes.iter().map(String::as_str).collect::<Vec<_>>();
+    let registered = policy
+        .registered_codes
+        .iter()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
     let mut differing = Vec::new();
     let ruf100 = read("rules/RUF100/query.ryoql");
     let start = ruf100.find("let catalog_plain =").unwrap();
@@ -373,8 +383,12 @@ fn suppression_codes_match_the_pinned_catalog() -> usize {
         differing.push("RUF101".to_owned());
     }
     #[derive(serde::Deserialize)]
-    struct Suppression { rules: std::collections::BTreeMap<String, serde::de::IgnoredAny> }
-    let suppression: Suppression = crate::json_input::decode(read("profiles/pinned-suppression-policy.json").as_bytes()).unwrap();
+    struct Suppression {
+        rules: std::collections::BTreeMap<String, serde::de::IgnoredAny>,
+    }
+    let suppression: Suppression =
+        crate::json_input::decode(read("profiles/pinned-suppression-policy.json").as_bytes())
+            .unwrap();
     for rule in suppression.rules.keys() {
         let spellings = redirects
             .iter()

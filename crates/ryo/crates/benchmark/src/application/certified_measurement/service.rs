@@ -15,16 +15,14 @@ use crate::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactPath, ArtifactSet},
 };
-use ryo_benchmark_contracts::domain::measurements::types::{
-    Measurement, MeasurementMode, RunOrder,
-};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::measurements::types::{Measurement, MeasurementMode, RunOrder};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{
     BenchmarkFinding, ComparisonContract, EndPair, FindingPosition, LocatedFinding, RuleComparison,
     SourceByteOffset,
 };
-use ryo_benchmark_contracts::domain::requests::types::{CohortSelection, RunRequest};
-use ryo_benchmark_contracts::domain::workloads::types::Project;
+use benchmark_contracts::domain::requests::types::{CohortSelection, RunRequest};
+use benchmark_contracts::domain::workloads::types::Project;
 use std::path::{Path, PathBuf};
 
 /// Require the certified inventory, instrumentation, artifacts, commands and executables before a run.

@@ -4,8 +4,8 @@ use super::constants::{
     LANGUAGES, LINTERS, NOT_A_BENCH_DIRECTORY, PROFILE, REGISTRATION, STATE,
 };
 use super::types::{BenchDirectory, BenchOperation, OperationLayout, OperationVerb};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::constants::{
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::constants::{
     CASE_INVENTORY_ARGUMENT, DOCUMENT_ARGUMENT, MEASURE_ACCOUNTED_VALID, VERIFICATION_ARGUMENT,
 };
 use std::ffi::OsString;

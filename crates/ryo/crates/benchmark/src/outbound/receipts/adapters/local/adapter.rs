@@ -3,7 +3,7 @@ use super::writer;
 use crate::outbound::receipts::errors::ReceiptsError;
 use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::receipts::types::{CapturedProcess, CaseReceipts, ReceiptPath};
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 
 /// Appends receipts to the destination the edge chose.
 #[derive(Debug)]

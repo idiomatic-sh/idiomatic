@@ -3,10 +3,10 @@ use super::errors::RegisteredInputsError;
 use super::service::{metadata_digest, project_inputs_digest};
 use super::types::{ObservationDeclaration, RefusalText, RegisteredInputs};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo::linter::{GivenProjectInventory, RelativePath};
-use ryo_benchmark_contracts::domain::artifacts::types::{
+use benchmark_contracts::domain::artifacts::types::{
     FileExecutable, digest::value::ArtifactDigest,
 };
+use ryo::linter::{GivenProjectInventory, RelativePath};
 use std::collections::BTreeMap;
 
 /// Which identity of the registered case is recomputed.

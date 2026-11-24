@@ -1,8 +1,8 @@
 //! The registered input, cohort and declaration identities bind both native sides.
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ContextMode, ContextRun, ListedContext,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::{
     FileMetadataDigest, PathText, Sha256Text,
 };
 
@@ -16,7 +16,7 @@ use crate::{
     cases::{Case, CaseName, Expect, Word, run},
     domain::registered_inputs::errors::RegisteredInputsError,
 };
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::{
+use benchmark_contracts::domain::documents::types::case_document::value::{
     CaseContextIdentity, EntryState, FileMetadata,
 };
 

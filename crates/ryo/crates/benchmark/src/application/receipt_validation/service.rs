@@ -2,16 +2,16 @@
 use super::constants;
 use crate::domain::suite::types::inventory::value::Inventory;
 use crate::outbound::inventory::types::{RawArtifacts, Registration};
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
-use ryo_benchmark_contracts::domain::documents::types::text::value::ContestantSide;
-use ryo_benchmark_contracts::domain::receipts::types::{
+use benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
+use benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use benchmark_contracts::domain::documents::types::text::value::ContestantSide;
+use benchmark_contracts::domain::receipts::types::{
     AuditFailure, CaseKey, MetadataVerifiedCase, ReceiptAudit,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RuleLabel;
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::workloads::types::{
     benchmark_case_name::value::BenchmarkCaseName, case_count::value::CaseCount,
 };
 use std::collections::{BTreeMap, BTreeSet};
@@ -106,7 +106,7 @@ pub fn validate(
                 if counts.documented.0 > 0
                     && matches!(
                         &case.reference_discrepancy,
-                        ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseReference::Differs(certificate)
+                        benchmark_contracts::domain::documents::types::case_document::value::CaseReference::Differs(certificate)
                             if certificate.basis == DiscrepancyBasis::ToolContract
                     )
                 {

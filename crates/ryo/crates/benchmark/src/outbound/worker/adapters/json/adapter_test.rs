@@ -7,9 +7,9 @@ use crate::outbound::{
         interface::WorkerPort as _,
     },
 };
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RunRequest;
 use std::{
     io::{self, Write},
     sync::{Arc, Mutex},
@@ -126,14 +126,14 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         if matches!(operation, Operation::RoundTrip) {
             std::collections::BTreeMap::from([
                 (
-                    ryo_benchmark_contracts::domain::requests::types::RuleLabel("fixture".into()),
-                    ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy(
+                    benchmark_contracts::domain::requests::types::RuleLabel("fixture".into()),
+                    benchmark_contracts::domain::requests::types::ApplicabilityPolicy(
                         "always".into(),
                     ),
                 ),
                 (
-                    ryo_benchmark_contracts::domain::requests::types::RuleLabel("other".into()),
-                    ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy(
+                    benchmark_contracts::domain::requests::types::RuleLabel("other".into()),
+                    benchmark_contracts::domain::requests::types::ApplicabilityPolicy(
                         "accepted-syntax".into(),
                     ),
                 ),
@@ -141,25 +141,24 @@ fn subject(operation: Input) -> Result<Value, Failure> {
         } else {
             std::collections::BTreeMap::default()
         },
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         vec![ryo::linter::RuleId::try_from("fixture").unwrap()],
         std::collections::BTreeMap::new().into(),
     );
     let temporary = tempfile::tempdir().map_err(|_invalid_parser| Refusal::Unexpected)?;
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
         file_metadata:
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: "workspace".into(),
         files: vec![ryo::linter::RelativePath("source.txt".into())],
         state: temporary.path().join("cache"),
@@ -189,14 +188,13 @@ fn subject(operation: Input) -> Result<Value, Failure> {
             path: ryo::linter::RelativePath("source.txt".into()),
             reason: ryo::linter::SkipReason::SyntaxRejected,
         });
-        let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-            coverage,
-        ) = &mut expected_report.coverage
+        let benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) =
+            &mut expected_report.coverage
         else {
             panic!("complete fixture coverage");
         };
-        coverage.selected = ryo_benchmark_contracts::domain::reports::types::PairCount(2);
-        coverage.skipped = ryo_benchmark_contracts::domain::reports::types::PairCount(1);
+        coverage.selected = benchmark_contracts::domain::reports::types::PairCount(2);
+        coverage.skipped = benchmark_contracts::domain::reports::types::PairCount(1);
     }
     match operation {
         Operation::Malformed => child.receive().map(|_| false).map_err(classify),
@@ -227,17 +225,15 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 assert_eq!(
                     received
                         .rule_applicability
-                        .get(
-                            &ryo_benchmark_contracts::domain::requests::types::RuleLabel(
-                                "other".into()
-                            )
-                        )
+                        .get(&benchmark_contracts::domain::requests::types::RuleLabel(
+                            "other".into()
+                        ))
                         .map(|policy| policy.0.as_str()),
                     Some("accepted-syntax")
                 );
                 assert_eq!(
                     received.state,
-                    ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
+                    benchmark_contracts::domain::requests::types::WorkerState::Retained(
                         request.state.join("ryo")
                     )
                 );
@@ -257,15 +253,15 @@ fn subject(operation: Input) -> Result<Value, Failure> {
                 .decode(
                     &request,
                     ProcessOutput {
-                        signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
-                        status: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(0),
-                        stdout: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(
+                        signal: benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+                        status: benchmark_contracts::domain::measurements::types::ProcessExitCode(0),
+                        stdout: benchmark_contracts::domain::measurements::types::CapturedBytes(
                             capture.bytes.clone(),
                         ),
-                        stderr: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(Vec::new()),
+                        stderr: benchmark_contracts::domain::measurements::types::CapturedBytes(Vec::new()),
                         wall: Duration::ZERO,
                         resources:
-                            ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly,
+                            benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly,
                     },
                 )
                 .map_err(classify)?;

@@ -4,16 +4,16 @@ use super::service::compare;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::inventory_receipts::fixtures::observed_row;
 use crate::domain::registered_inputs::types::RefusalText;
-use ryo_benchmark_contracts::domain::documents::types::finding::value::SkippedPair;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::finding::value::SkippedPair;
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ObservationDocument, ProcessArtifactsRecord, ProcessRecord, RecordedMetadata, RecordedReason,
     ReferenceProcess, ReportedSkips,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ExpectationKind;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::ExpectationKind;
+use benchmark_contracts::domain::documents::types::text::value::{
     ContestantSide, ExitStatus, PathText, Pin, RuleName, Signal, YesNo,
 };
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::reports::types::{
     Comparison, ComparisonContract, CoverageAccounting, ExecutionMetadata, RuleCoverage,
 };
 
@@ -30,10 +30,10 @@ fn skipped() -> Vec<SkippedPair> {
 
 fn coverage() -> RuleCoverage {
     RuleCoverage {
-        selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-        unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+        selected: benchmark_contracts::domain::reports::types::PairCount(1),
+        evaluated: benchmark_contracts::domain::reports::types::PairCount(0),
+        skipped: benchmark_contracts::domain::reports::types::PairCount(1),
+        unknown_or_unread: benchmark_contracts::domain::reports::types::PairCount(0),
     }
 }
 
@@ -52,7 +52,7 @@ fn unavailable_reference() -> ObservationDocument {
         skipped: ReportedSkips::Reported(Vec::new()),
         coverage: CoverageAccounting::Unaccounted,
         execution_metadata: RecordedMetadata::Recorded(ExecutionMetadata::Unavailable {
-            reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason(
+            reason: benchmark_contracts::domain::reports::types::UnavailableReason(
                 "findings-only CLI".into(),
             ),
         }),
@@ -220,8 +220,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             (
                 ObservationDocument {
                     coverage: CoverageAccounting::Accounted(RuleCoverage {
-                        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                        evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
+                        skipped: benchmark_contracts::domain::reports::types::PairCount(0),
                         ..coverage()
                     }),
                     ..available_reference()
@@ -262,7 +262,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 with_metadata(RecordedMetadata::Recorded(ExecutionMetadata::Unavailable {
-                    reason: ryo_benchmark_contracts::domain::reports::types::UnavailableReason(
+                    reason: benchmark_contracts::domain::reports::types::UnavailableReason(
                         String::new(),
                     ),
                 })),
@@ -295,8 +295,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 unavailable_reference(),
                 ObservationDocument {
                     coverage: CoverageAccounting::Accounted(RuleCoverage {
-                        unknown_or_unread:
-                            ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+                        unknown_or_unread: benchmark_contracts::domain::reports::types::PairCount(
+                            1,
+                        ),
                         ..coverage()
                     }),
                     ..candidate()
