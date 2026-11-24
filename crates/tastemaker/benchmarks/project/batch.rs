@@ -502,7 +502,7 @@ impl Batch {
         }
         self.schedule.delivered(&pending);
         self.finish_projects(languages, contributions, world, answers, populations, manifest_failures, *keep,store.as_deref_mut());
-        if let Some(s)=store {manifest_failures.extend(s.unread());}
+
     }
 
     fn finish_projects<L: session::source::Source>(
@@ -838,6 +838,13 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
         session.roots = serde_json::from_slice(&bytes).expect("source roots and their inventories");
     }
     session.authorities = Authorities::from_input().expect("repository declarations");
+    let mut store=root.map(|p|stored::Store::open(p).expect("open request store"));
+    let authority=store.as_mut().map(|s| {
+        ["TM_CORPUS_INVENTORIES","TM_CORPUS_PROJECTS"].map(|name|std::env::var_os(name).map(|p|
+            s.contract_file(Path::new(&p)).expect("read declared session inputs")))
+    });
+    enum Entry { Stored(stored::Key), Evaluate(usize,Option<stored::Key>) }
+    let mut entries=Vec::new();
     let file = std::fs::File::open(manifest).expect("input manifest");
     let mut invocations = Vec::new();
     let mut inputs = HashMap::new();
@@ -857,34 +864,52 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
             closed.map(Path::to_owned),
         );
         let idx = *inputs.entry(key).or_insert_with(|| {
-            let result = std::fs::read(req)
-                .map_err(|e| e.to_string())
-                .and_then(|bytes| serde_json::from_slice(&bytes).map_err(|e| e.to_string()))
-                .and_then(|input| session.register(pack, input, closed))
-                .unwrap_or_else(Work::Refused);
-            session.work.push(result);
-            session.work.len() - 1
+            let contract=store.as_mut().and_then(|s| {
+                let input=s.contract_file(Path::new(req))?;
+                let query=s.contract_file(&Path::new(pack).join("rules/query/query.ryoql"))?;
+                let inventory=match closed{Some(p)=>Some(s.contract_file(p)?),None=>None};
+                Some(stored::key((input,query,inventory,authority)))
+            });
+            if let (Some(s),Some(k))=(&mut store,contract) && let Some((answer,_))=s.lookup(k) {
+                entries.push(Entry::Stored(answer));
+            }else {
+                let result=std::fs::read(req).map_err(|e|e.to_string())
+                    .and_then(|bytes|serde_json::from_slice(&bytes).map_err(|e|e.to_string()))
+                    .and_then(|input|session.register(pack,input,closed)).unwrap_or_else(Work::Refused);
+                entries.push(Entry::Evaluate(session.work.len(),contract));
+                session.work.push(result);
+            }
+            entries.len()-1
         });
         invocations.push((idx, id.to_owned(), oracle.to_owned()));
     }
     drop(inputs);
     let registration = thread_cpu() - start - session.clocks.prepare - session.clocks.project;
-    let answers = if let Some(root)=root {
-        let mut store=stored::Store::open(root).expect("read session store");
+    let answers=if let Some(s)=&mut store {
         let mut state=Active::default();
-        session.epoch_with_store(readers,&mut state,Some(&mut store));
-        store.prune();
-        let written=store.publish().expect("publish session snapshot");
-        eprintln!("retained pair_hits={} closed_hits={} evaluated_pairs={} evaluated_closed={} written={written}",store.file_hits,store.closed_hits,store.evaluated_pairs,store.evaluated_closed);
+        if !session.work.is_empty(){session.epoch_with_store(readers,&mut state,Some(s));}
         state.answers
-    } else {session.run_sources(readers)};
-    let t = thread_cpu();
-    let mut out = std::io::BufWriter::new(std::fs::File::create(output).unwrap());
-    let results: Vec<_> = session
-        .work
-        .iter()
-        .map(|work| Batch::answer(work, &answers).map(|r| (digest(&r.rows), r.unknowns)))
-        .collect();
+    }else{session.run_sources(readers)};
+    let t=thread_cpu();
+    let mut out=std::io::BufWriter::new(std::fs::File::create(output).unwrap());
+    let results:Vec<Result<(String,Vec<(String,String)>),&str>>=entries.into_iter().map(|entry|{
+        let packet=match entry {
+            Entry::Stored(k)=>k,
+            Entry::Evaluate(i,id)=>{
+                let r=Batch::answer(&session.work[i],&answers)?;
+                if let (Some(s),Some(k))=(&mut store,id) && let Some(k)=s.save(k,i,&r){k}
+                else{return Ok((digest(&r.rows),r.unknowns.into_iter().cloned().collect()))}
+            }
+        };
+        let p=store.as_ref().unwrap().packet(&packet);
+        Ok((p.digest.clone(),p.unknowns.clone()))
+    }).collect();
+    if let Some(s)=&mut store{
+        let pub_start=thread_cpu();
+        let written=s.publish().expect("publish session snapshot");
+        eprintln!("publication_cpu={:.6}",thread_cpu()-pub_start);s.costs();
+        eprintln!("retained request_hits={} pair_hits={} closed_hits={} evaluated_pairs={} evaluated_closed={} written={written}",s.request_hits,s.file_hits,s.closed_hits,s.evaluated_pairs,s.evaluated_closed);
+    }
     let mut refusals = BTreeMap::new();
     for (i, id, expected) in invocations {
         match &results[i] {

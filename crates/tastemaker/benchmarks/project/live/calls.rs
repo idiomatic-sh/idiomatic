@@ -263,21 +263,7 @@ impl Live {
         paths.sort_unstable();
         paths.dedup();
         let key = (authority.clone(), overlay);
-        let root = if let Some(id) = self.versions.get(&key) {
-            id.clone()
-        } else {
-            let id: Rc<str> = Rc::from(format!("check-input:{}", self.versions.len()));
-            for (p, v) in &key.1 {
-                self.batch.schedule.provide(&id, p.clone(), v.clone())?;
-            }
-            self.versions.insert(key.clone(), id.clone());
-            id
-        };
-        for p in listed {
-            if !key.1.contains_key(p.0.as_ref()) {
-                self.batch.schedule.listed(&root, &physical, &p.0)?;
-            }
-        }
+        let mut prepared_root=None;
         let filter = self.globs(&req.files)?;
         let hosted = req
             .hosted
@@ -285,6 +271,8 @@ impl Live {
             .map(table)
             .collect::<Result<Vec<_>, _>>()?;
         let mut ids = Vec::new();
+        let scope=self.store.as_ref().map(|_|super::stored::key((&physical,&key,&paths,&hosted)));
+        let mut restored_unread=std::collections::BTreeSet::new();
         self.batch.work.clear();
         for (id, rule) in req.rules {
             if rule.applicability != sdk::RuleApplicability::Always || !rule.observations.is_empty()
@@ -309,6 +297,32 @@ impl Live {
                 .into_iter()
                 .map(|(k, v)| Ok((k.0, parameter(v)?)))
                 .collect::<Result<_, String>>()?;
+            let contract=scope.map(|scope|super::stored::key((scope,rule.query.as_ref(),&parameters,&files)));
+            if let (Some(store),Some(k))=(&mut self.store,contract)
+                && let Some((packet,unread))=store.lookup(k){
+                restored_unread.extend(unread);
+                ids.push((id,Ok(packet)));
+                continue
+            }
+            if prepared_root.is_none(){
+        let root = if let Some(id) = self.versions.get(&key) {
+            id.clone()
+        } else {
+            let id: Rc<str> = Rc::from(format!("check-input:{}", self.versions.len()));
+            for (p, v) in &key.1 {
+                self.batch.schedule.provide(&id, p.clone(), v.clone())?;
+            }
+            self.versions.insert(key.clone(), id.clone());
+            id
+        };
+        for p in &listed {
+            if !key.1.contains_key(p.0.as_ref()) {
+                self.batch.schedule.listed(&root, &physical, &p.0)?;
+            }
+        }
+                prepared_root=Some(root);
+            }
+            let root=prepared_root.as_ref().unwrap();
             let work = self
                 .batch
                 .register_query(
@@ -324,19 +338,29 @@ impl Live {
                     None,
                 )
                 .map_err(|e| format!("{id}: {e}"))?;
+            ids.push((id,Err((self.batch.work.len(),contract))));
             self.batch.work.push(work);
-            ids.push(id);
         }
         if let Some(store)=&mut self.store {
-            self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));
+            if !self.batch.work.is_empty(){self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));}else{self.state.manifest_failures.clear();}
         } else {
             self.batch.epoch(&self.languages,&mut self.state);
         }
         let mut out = LiveReport::default();
         let start = thread_cpu();
-        for (id, work) in ids.into_iter().zip(&self.batch.work) {
-            let receipt =
-                Batch::answer(work, &self.state.answers).map_err(|e| format!("{id}: {e}"))?;
+        for (id,entry) in ids {
+            let held;
+            let receipt=match entry {
+                Ok(k)=>{
+                    held=self.store.as_ref().unwrap().packet(&k).report();
+                    super::Receipt {rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
+                }
+                Err((i,k))=>{
+                    let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e|format!("{id}: {e}"))?;
+                    if let (Some(store),Some(k))=(&mut self.store,k){store.save(k,i,&r);}
+                    r
+                }
+            };
             for row in receipt.rows {
                 let subject = row
                     .identity
@@ -367,6 +391,7 @@ impl Live {
         }
         out.unread
             .extend(self.state.manifest_failures.iter().map(|p| p.0.clone()));
+        for p in restored_unread {if !out.unread.iter().any(|v|&**v==p){out.unread.push(p.into());}}
         out.unread.sort_unstable();
         self.batch.clocks.assemble += thread_cpu() - start;
         Ok(out)
