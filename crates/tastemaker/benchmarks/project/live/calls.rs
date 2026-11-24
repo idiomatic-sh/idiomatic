@@ -193,6 +193,8 @@ impl Live {
         last.elapsed += thread_cpu() - t;
         last.worker_cpu = c.delivery_workers_cpu + c.file_workers_cpu + c.project_workers_cpu + self.admission_workers_cpu;
         last.file_shards = c.file_shards;
+        last.empty_file_epochs = c.empty_file_epochs;
+        last.omitted_file_bindings = c.omitted_file_bindings;
         last.project_shards = c.project_shards;
         last.admission_shards = self.admission_shards;
         last.project_prepare_wall = c.project_prepare_wall;
@@ -522,6 +524,8 @@ struct Measurement {
     elapsed: f64,
     worker_cpu: f64,
     file_shards: usize,
+    empty_file_epochs: usize,
+    omitted_file_bindings: usize,
     admission_shards: usize,
     project_shards: usize,
     project_prepare_wall: f64,
@@ -541,6 +545,8 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     elapsed: 0.0,
     worker_cpu: 0.0,
     file_shards: 0,
+    empty_file_epochs: 0,
+    omitted_file_bindings: 0,
     admission_shards: 0,
     project_shards: 0,
     project_prepare_wall: 0.,
@@ -564,8 +570,8 @@ pub fn print_measurement() {
     let [prepare, read, first, second, project, assembly] = m.parts;
     let [admission_wall, file_wall, project_wall, delivery_wall] = m.phase_wall;
     eprintln!(
-        "LIVE_WORKERS file_shards={} admission_shards={} project_shards={} child_cpu={:.6} project_prepare_wall={:.6} project_execute_wall={:.6}",
-        m.file_shards, m.admission_shards, m.project_shards, m.worker_cpu,
+        "LIVE_WORKERS empty_file_epochs={} omitted_file_bindings={} file_shards={} admission_shards={} project_shards={} child_cpu={:.6} project_prepare_wall={:.6} project_execute_wall={:.6}",
+        m.empty_file_epochs, m.omitted_file_bindings, m.file_shards, m.admission_shards, m.project_shards, m.worker_cpu,
         m.project_prepare_wall, project_wall - m.project_prepare_wall,
     );
     eprintln!("LIVE_PHASE_WALL calls={:.6} admission={admission_wall:.6} files={file_wall:.6} project={project_wall:.6} delivery={delivery_wall:.6}",m.call_wall);

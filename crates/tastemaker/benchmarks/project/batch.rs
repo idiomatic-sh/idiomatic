@@ -547,6 +547,9 @@ impl Batch {
                     }
                 }
             }
+        } else {
+            self.clocks.empty_file_epochs += 1;
+            self.clocks.omitted_file_bindings += self.bindings.len();
         }
         if let Some(s)=store.as_deref_mut() {s.local(self,world,answers,aliases,contributions);}
         if !*keep {
