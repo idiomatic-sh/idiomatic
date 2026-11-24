@@ -25,7 +25,7 @@ pub(super) struct Need {
     pub(super) never: bool,
 }
 
-const NO: u8 = 1;
+pub(super) const NO: u8 = 1;
 const YES: u8 = 2;
 const BUSY: u8 = 3;
 /// redo-empty: known empty by the propagation's own leaves (directly or through an input): counted apart.

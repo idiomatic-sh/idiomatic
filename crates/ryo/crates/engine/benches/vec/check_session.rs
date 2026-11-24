@@ -994,7 +994,6 @@ pub(crate) fn visit<L: FileSource>(
             } else {
                 packet.index(&facts);
             }
-            let version = std::cell::OnceCell::new();
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
             if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
@@ -1036,6 +1035,24 @@ pub(crate) fn visit<L: FileSource>(
                 });
             let mut frame = None;
             let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
+            let mut version = finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text());
+            version.supply(supplied.iter().chain(lines.as_ref()).cloned());
+            let roots: Vec<_> = active.iter().filter(|(_, _, excluded)| !excluded || !said.is_empty())
+                .flat_map(|(binding, _, _)| {
+                    let b = bound[binding].as_ref().expect("active binding");
+                    let roots: Vec<_> = if let Some(cut) = cut_of[*binding] {
+                        cut.inputs.iter().map(|&n| b.slots[n]).collect()
+                    } else {
+                        b.plan.emits.iter().map(|emit| b.slots[emit.1]).collect()
+                    };
+                    roots
+                }).collect();
+            let mut admission = finish::session::frame(&version, &plan);
+            if let Err(reason) = exec.open_file(&mut admission, &mut run, &mut facts_view, roots.iter().copied(), &[], false) {
+                for (_, slot, _) in active { answers.set(slot, Err(reason.clone())); }
+                continue;
+            }
+            drop(admission);
             for (binding, slot, excluded) in active {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
                 let contract = &contracts[&binding];
@@ -1085,10 +1102,7 @@ pub(crate) fn visit<L: FileSource>(
                     continue;
                 }
                 clocks.evaluated += 1;
-                let version = version.get_or_init(|| {
-                    finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text())
-                });
-                let make_frame = || finish::session::frame(version, &plan, &supplied, lines.as_ref());
+                let make_frame = || finish::session::frame(&version, &plan);
                 let mut restricted;
                 let current = if local_coverage.is_empty() {
                     frame.get_or_insert_with(make_frame)
@@ -1120,6 +1134,7 @@ pub(crate) fn visit<L: FileSource>(
                     answers.set(slot, answer);
             }
             drop(frame);
+            exec.close_file(&version);
             drop(version);
             if keep {
                 held.recovery = Some(recovery);

@@ -1,0 +1,217 @@
+//! Bind provider reads to the typed plan and admit one ordered packet per file.
+use super::{E, Exec, File, Native, Provider, R, Run, Scope, Supplier, Table, native_of, project};
+use ryo::languages::ColumnProjection as Columns;
+use std::rc::Rc;
+
+pub(crate) struct Asked<'a> {
+    pub(crate) relation: &'a str,
+    pub(crate) columns: &'a Columns,
+    pub(crate) scope: Scope<'a>,
+}
+
+pub(crate) type Reply = R<Rc<Table>>;
+
+pub(crate) fn read(run: &mut Run, provider: &mut dyn Provider, asks: &[Asked<'_>], replies: &mut Vec<Reply>) -> R<()> {
+    replies.clear();
+    provider.answer(run, asks, replies);
+    if replies.len() == asks.len() { Ok(()) }
+    else { Err(format!("provider returned {} answers for {} requests", replies.len(), asks.len())) }
+}
+
+#[derive(Default)]
+pub(super) struct Requests {
+    steps: Vec<Option<Demand>>,
+    seen: Vec<bool>,
+    masks: Vec<Option<Columns>>,
+    replies: Vec<Reply>,
+    pub(super) files: u64,
+    pub(super) calls: u64,
+    pub(super) answered: u64,
+    pub(super) refused: u64,
+    pub(super) rows: u64,
+    pub(super) unread: u64,
+    pub(super) missing: u64,
+}
+
+enum Demand {
+    Native,
+    Base(u16),
+    Inputs(Rc<[(usize, Columns)]>),
+}
+
+fn columns(expr: &E, source: usize, out: &mut Columns) {
+    match expr {
+        E::Col(s, c, _) if *s == source => out.insert(*c),
+        E::List(args) | E::Call(_, args) => {
+            for arg in args { columns(arg, source, out); }
+        }
+        E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => {
+            columns(a, source, out);
+            columns(b, source, out);
+        }
+        E::Not(a) | E::TextTest(a, _) => columns(a, source, out),
+        _ => {}
+    }
+}
+
+pub(super) fn slot(run: &mut Run, relation: &str) -> u16 {
+    if let Some(&id) = run.fact_slots.get(relation) { return id; }
+    let id = u16::try_from(run.fact_rels.len()).expect("provider relation slots");
+    let width = run.catalog(relation).map_or(0, |(_, names, _)| names.len());
+    run.fact_rels.push((relation.to_owned(), width));
+    run.fact_slots.insert(relation.to_owned(), id);
+    id
+}
+
+impl Exec<'_> {
+    fn bind_request(&mut self, run: &mut Run, node: usize) {
+        if self.requests.steps[node].is_some() { return; }
+        let plan = &self.plan.nodes[node];
+        let demand = if let Some(rel) = plan.base() {
+            if native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles) {
+                Demand::Native
+            } else {
+                Demand::Base(slot(run, rel))
+            }
+        } else {
+            let mut inputs = Vec::new();
+            if plan.op == "select" && let Ok(select) = self.sel(run, node) {
+                for (i, &input) in select.srcs.iter().enumerate() {
+                    let mut mask = Columns::All;
+                    if select.srcs.len() == 1 && matches!(self.keyed_form(run, node), Ok(super::keyed::Form::Not)) {
+                        mask = Columns::default();
+                        for expr in select.conj.iter().chain(select.items.iter().map(|(_, e)| e)) {
+                            columns(expr, i, &mut mask);
+                        }
+                    }
+                    inputs.push((input, mask));
+                }
+            } else {
+                inputs.extend(plan.inputs.iter().map(|&input| (input, Columns::All)));
+            }
+            Demand::Inputs(inputs.into())
+        };
+        self.requests.steps[node] = Some(demand);
+        for &input in &plan.inputs { self.bind_request(run, input); }
+    }
+
+    fn collect_request(&mut self, run: &mut Run, file: &mut File<'_>, provider: &mut dyn Provider, node: usize, mask: &Columns, prune: bool) {
+        if matches!(mask, Columns::All) && std::mem::replace(&mut self.requests.seen[node], true) { return; }
+        if prune && self.static_empty(file, run, provider, node) { return; }
+        if !matches!(mask, Columns::All) && let Ok(Some(view)) = self.view(run, node) {
+            if let Native::Fact(id) = view.base {
+                let projected = self.requests.masks[usize::from(id)].get_or_insert_with(Columns::default);
+                for expr in &view.filter { columns(expr, 0, projected); }
+                for (column, &base) in view.map.iter().enumerate() {
+                    if mask.contains(column) { projected.insert(base); }
+                }
+            }
+            return;
+        }
+        match self.requests.steps[node].as_ref().expect("bound request") {
+            Demand::Native => {}
+            Demand::Base(id) => { self.requests.masks[usize::from(*id)] = Some(Columns::All); }
+            Demand::Inputs(inputs) => {
+                // Keep the prepared inputs in this slot without cloning them per file.
+                let inputs = inputs.clone();
+                for (input, mask) in &*inputs {
+                    self.collect_request(run, file, provider, *input, mask, prune);
+                }
+            }
+        }
+    }
+
+    /// The request owns scopes and projection masks only until the provider returns.
+    /// Results belong to the shared file version, including refusals for that file.
+    pub(crate) fn open_file(&mut self, file: &mut File<'_>, run: &mut Run, provider: &mut dyn Provider,
+        roots: impl IntoIterator<Item = usize> + Clone, checks: &[&str], prune: bool) -> R<Vec<Reply>> {
+        self.requests.steps.resize_with(self.plan.nodes.len(), || None);
+        self.requests.seen.resize(self.plan.nodes.len(), false);
+        self.requests.seen.fill(false);
+        for node in roots.clone() { self.bind_request(run, node); }
+        self.requests.masks.resize_with(run.fact_rels.len(), || None);
+        self.requests.masks.fill(None);
+        file.admitting = true;
+        let prune = prune && !sw!("VEC_NO_KNOWN") && !sw!("VEC_NO_SEMI");
+        for node in roots { self.collect_request(run, file, provider, node, &Columns::All, prune); }
+        file.admitting = false;
+        // A negative decision can change once the admitted fact columns are present.
+        file.known.iter_mut().filter(|value| **value == super::known::NO).for_each(|value| *value = 0);
+        self.admit(file.version, run, provider, checks)
+    }
+
+    fn admit(&mut self, version: &super::FileVersion<'_>, run: &mut Run, provider: &mut dyn Provider, checks: &[&str]) -> R<Vec<Reply>> {
+        self.requests.files += 1;
+        let mut packet = version.facts.borrow_mut();
+        packet.resize_with(run.fact_rels.len(), || None);
+        let mut pending = Vec::new();
+        let mut scopes = Vec::new();
+        for (id, mask) in self.requests.masks.iter().enumerate() {
+            let Some(mask) = mask else { continue };
+            let relation = &run.fact_rels[id].0;
+            if packet[id].is_some() || version.supplied.contains_key(relation) { continue; }
+            match run.supplier(relation) {
+                Supplier::Host => {
+                    let relation = relation.clone();
+                    let result = super::host::host_fill(run, &relation, version.file)
+                        .unwrap_or_else(|| Err(format!("the host supplies no {relation}")));
+                    packet[id] = Some(Delivered::new(result.map(super::recycle::rc), false));
+                }
+                Supplier::Project(ask) => {
+                    if project::covered(run, relation, version.file) {
+                        let relation = relation.clone();
+                        let table = project::existing(run, &relation, version.file, ask);
+                        packet[id] = Some(Delivered::new(table.map(super::recycle::rc), false));
+                    } else {
+                        pending.push((id, &Columns::All, Some(ask)));
+                        scopes.push(Some(match ask {
+                            project::ProjectAsk::Run => (0..run.paths.len() as u32).collect(),
+                            project::ProjectAsk::EachFile => vec![version.file],
+                        }));
+                    }
+                }
+                _ => { pending.push((id, mask, None)); scopes.push(None); }
+            }
+        }
+        let names: Vec<_> = pending.iter().map(|&(id, _, _)| run.fact_rels[id].0.clone()).collect();
+        let list: Vec<_> = pending.iter().zip(&scopes).zip(&names).map(|(((_, columns, _), files), relation)| Asked {
+            relation, columns, scope: files.as_deref().map_or(Scope::File(version.file), Scope::Files),
+        }).chain(checks.iter().map(|relation| Asked {
+            relation, columns: &Columns::All, scope: Scope::File(version.file),
+        })).collect();
+        self.requests.calls += 1;
+        read(run, provider, &list, &mut self.requests.replies)?;
+        for (((id, _, project), relation), reply) in pending.into_iter().zip(names).zip(self.requests.replies.drain(..list.len() - checks.len())) {
+            self.requests.answered += u64::from(reply.is_ok());
+            self.requests.refused += u64::from(reply.is_err());
+            self.requests.rows += reply.as_ref().map_or(0, |t| t.n as u64);
+            let reply = if let Some(ask) = project {
+                project::for_file(version.file, run, &relation, ask, |_, _| reply.map(|t|
+                    Rc::try_unwrap(t).unwrap_or_else(|t| t.copy()))).map(super::recycle::rc)
+            } else {
+                reply
+            };
+            packet[id] = Some(Delivered::new(reply, true));
+        }
+        Ok(self.requests.replies.drain(..).collect())
+    }
+
+    pub(crate) fn request_line(&self) -> String {
+        let a = &self.requests;
+        format!("REQUEST files {} provider-calls {} answered {} refused {} rows {} unread {} missing {}",
+            a.files, a.calls, a.answered, a.refused, a.rows, a.unread, a.missing)
+    }
+
+    pub(crate) fn close_file(&mut self, version: &super::FileVersion<'_>) {
+        self.requests.unread += version.facts.borrow().iter().flatten().filter(|a| a.count && !a.read && a.reply.is_ok()).count() as u64;
+    }
+}
+
+pub(super) struct Delivered {
+    pub(super) reply: Reply,
+    pub(super) read: bool,
+    count: bool,
+}
+impl Delivered {
+    fn new(reply: Reply, count: bool) -> Self { Self { reply, read: false, count } }
+}

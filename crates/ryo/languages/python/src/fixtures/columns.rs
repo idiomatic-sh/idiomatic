@@ -344,6 +344,11 @@ impl ColumnFile<'_, '_> {
         source.fill(relation, wanted, words, out)
     }
 
+    /// Write the requested catalog columns and retain the relation's row count.
+    pub fn fill_columns(&mut self, relation: Relation, mask: &languages::ColumnProjection, words: &mut FileWords, out: &mut FilledColumns) -> (FactAnswer, usize) {
+        fillers::file_source::<PythonWalk<WalkPorts>>(self.file).fill_columns(relation, Wanted::Whole, mask, words, out)
+    }
+
     /// Spike (ryo-fmx3.1, 6f probe): the provider's render, as the reader's file source answers it.
     pub fn render(&mut self, request: languages::RenderRequest) -> languages::RenderOutcome {
         let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);

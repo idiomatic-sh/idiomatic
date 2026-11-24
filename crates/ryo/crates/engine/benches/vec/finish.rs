@@ -57,7 +57,7 @@ pub(super) use file_version::FileVersion;
 #[path = "finish/answer.rs"]
 pub(super) mod answer;
 #[path = "finish/recycle.rs"]
-mod recycle;
+pub(super) mod recycle;
 #[path = "finish/inline_key.rs"]
 mod inline_key;
 #[path = "finish/col/mod.rs"]
@@ -92,10 +92,8 @@ mod prefixes;
 mod ordered_dfs;
 #[path = "finish/worklist.rs"]
 mod worklist;
-#[path = "finish/lazy_view.rs"]
-mod lazy_view;
-#[path = "finish/fill_len.rs"]
-pub(super) mod fill_len;
+#[path = "finish/request.rs"]
+pub(crate) mod request;
 #[path = "finish/host.rs"]
 pub(super) mod host;
 #[path = "finish/project.rs"]
@@ -374,6 +372,7 @@ pub(super) struct Run {
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
     pub(super) fact_rels: Vec<(String, usize)>,
+    fact_slots: FxHashMap<String, u16>,
     /// pass 2: the kind codes of each kind name's symbol (made at the first ask, after `kind_sym` is set).
     pub(super) kind_codes: std::cell::OnceCell<FxHashMap<u32, Box<[u16]>>>,
     /// redo-fills c2: the run-wide symbol of each provider word: the run's base words (the same in every file) and this
@@ -626,15 +625,8 @@ fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
     if sw!("VEC_NO_FACTVIEW") || native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles | Supplier::Project(_)) {
         return None;
     }
-    let (_, names, _) = run.catalog(rel)?;
-    let at = match run.fact_rels.iter().position(|(r, _)| r == rel) {
-        Some(i) => i,
-        None => {
-            run.fact_rels.push((rel.to_owned(), names.len()));
-            run.fact_rels.len() - 1
-        }
-    };
-    Some(Native::Fact(at as u16))
+    run.catalog(rel)?;
+    Some(Native::Fact(request::slot(run, rel)))
 }
 
 const NONE: u32 = u32::MAX;
@@ -655,7 +647,7 @@ pub(super) struct Tokens {
 pub(super) struct File<'a> {
     cold: cold_list::PerFile,
     keyed_sizes: FxHashMap<usize, usize>,
-    owed_fills: Vec<bool>,
+    admitting: bool,
     version: &'a FileVersion<'a>,
     cold_text: cold_text::Dictionary,
     after_last_file: bool,
@@ -665,7 +657,6 @@ pub(super) struct File<'a> {
     vmat: FxHashMap<usize, Rc<Table>>,
     cursor_views: rustc_hash::FxHashSet<usize>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
-    fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     /// 6h: the fills read in place, by `Native::Fact` place, and their keyed lists by (place, column).
     facts: Vec<Option<Rc<Table>>>,
@@ -692,7 +683,6 @@ struct FileBufs {
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
-    fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
@@ -732,7 +722,6 @@ impl Drop for File<'_> {
             vrows: std::mem::take(&mut self.vrows),
             vmat: std::mem::take(&mut self.vmat),
             index: std::mem::take(&mut self.index),
-            fills: std::mem::take(&mut self.fills),
             lazies: std::mem::take(&mut self.lazies),
             facts: std::mem::take(&mut self.facts),
             fact_ix: std::mem::take(self.fact_ix.get_mut()),
@@ -745,7 +734,6 @@ impl Drop for File<'_> {
         for (_, mut v) in b.index.drain() {
             v.drain_each(|(_, ix)| recycle_index(ix));
         }
-        give_tables(&mut b.fills);
         b.lazies.clear();
         for t in b.facts.drain(..).flatten() {
             recycle::recycle(t);
@@ -773,15 +761,8 @@ pub(super) trait Provider {
     /// Parser-supplied text symbols in node-position order, when the parse carries them directly.
     fn syntax_text(&self) -> Option<&[u32]> { None }
 
-    /// Every row of `rel` in `scope`, each cell as the run names it (a file cell is the run's number of the file it names).
-    fn fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Table, String>;
-    fn shared_fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Rc<Table>, String> {
-        self.fill(run,rel,scope).map(Rc::new)
-    }
-    /// redo-fills pass 2: how many rows `fill(rel, scope)` answers, where known without making them; None: not known.
-    fn fill_len(&mut self, _run: &mut Run, _rel: &str, _scope: Scope<'_>) -> Option<usize> {
-        None
-    }
+    /// Return one typed reply per requested relation, in request order.
+    fn answer(&mut self, run: &mut Run, asks: &[request::Asked<'_>], replies: &mut Vec<request::Reply>);
     /// A node's text in a syntax role: `Ok(None)` where the role cannot hold it.
     fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String>;
 }
@@ -819,12 +800,11 @@ impl File<'_> {
             vrows: b.vrows,
             cold: cold_list::PerFile::default(),
             keyed_sizes: FxHashMap::default(),
-            owed_fills: Vec::new(),
+            admitting: false,
             cold_text: cold_text::Dictionary::default(),
             vmat: b.vmat,
             cursor_views: Default::default(),
             index: b.index,
-            fills: b.fills,
             lazies: b.lazies,
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
@@ -1250,6 +1230,7 @@ fn truthy(v: V) -> bool {
 // ------------------------------------------------------------------------------------------------ the executor
 
 pub(super) struct Exec<'p> {
+    requests: request::Requests,
     answer_layouts: FxHashMap<(usize, usize), std::sync::Arc<answer::Layout>>,
     pub(super) plan: &'p Plan,
     pub(super) stats: Stats,
@@ -1312,6 +1293,7 @@ impl<'p> Exec<'p> {
     pub(super) fn new(plan: &'p Plan) -> Self {
         let k = plan.nodes.len();
         Exec {
+            requests: Default::default(),
             plan,
             stats: Stats { total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
             schemas: vec![None; k],
@@ -1713,19 +1695,7 @@ impl<'p> Exec<'p> {
     pub(super) fn res(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         match &f.memo[node] {
             Some(Res::Tab(t)) => Ok(Res::Tab(t.clone())),
-            Some(Res::View(v)) => {
-                // redo-fills pass 2: a view a lazy select source left unfilled is filled at its first read (lazy_view.rs)
-                if let Native::Fact(x) = v.base
-                    && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
-                {
-                    let v = v.clone();
-                    let was = fill_prof::site("view");
-                    self.load_fact(f, run, p, v.base)?;
-                    fill_prof::site(was);
-                    return Ok(Res::View(v));
-                }
-                Ok(Res::View(v.clone()))
-            }
+            Some(Res::View(v)) => Ok(Res::View(v.clone())),
             None => self.make(f, run, p, node),
         }
     }
@@ -1744,12 +1714,6 @@ impl<'p> Exec<'p> {
             let sc = self.schema(run,node)?;
             return Ok(Res::Tab(input.full(&sc.names,&sc.tys)));
         }
-        if let Some(v) = self.view(run, node)? {
-            let was = fill_prof::site("view");
-            self.load_fact(f, run, p, v.base)?;
-            fill_prof::site(was);
-            return Ok(Res::View(v));
-        }
         if let Some(t) = &self.run_memo[node] {
             return Ok(Res::Tab(t.clone()));
         }
@@ -1758,7 +1722,11 @@ impl<'p> Exec<'p> {
             self.skipped(f, node);
             return Ok(Res::Tab(self.empty_rc(run, node)?));
         }
-        // 8: a step over an empty input answers its shared empty table before any set-up
+        if let Some(v) = self.view(run, node)? {
+            self.load_fact(f, run, v.base)?;
+            return Ok(Res::View(v));
+        }
+        // An empty driving step answers without visiting its remaining inputs.
         let gate = self.frames[node].gate;
         if gate < frame::MISSING && match f.population(gate as usize) {
             Some(input) => input.n == 0,
@@ -2059,7 +2027,7 @@ impl<'p> Exec<'p> {
         let op = pn.op.as_str();
         let a = pn.args();
         match op {
-            "base" => self.base(f, run, p, pn.base().ok_or("base relation")?),
+            "base" => self.base(f, run, pn.base().ok_or("base relation")?),
             "select" => self.select_k(f, run, p, node),
             "union" => {
                 let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
@@ -2439,62 +2407,45 @@ impl<'p> Exec<'p> {
         }
     }
 
-    /// 6h: a fact view's fill, asked once a file (the same fill a whole `base` step reads).
-    fn load_fact(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, nat: Native) -> R<()> {
-        let Native::Fact(i) = nat else { return Ok(()) };
-        let i = usize::from(i);
-        if f.facts.get(i).is_some_and(Option::is_some) {
-            return Ok(());
-        }
-        let rel = run.fact_rels[i].0.clone();
-        if fill_prof::counting() {
-            // redo-int round 37: redo-whole deleted the run stack this diagnostic read; the asker is not known now
-            let by = u32::MAX;
-            fill_prof::asked(i, by);
-            if sw!("VEC_ASKER_PLAN") && by != u32::MAX && fill_prof::first_asker(by) {
-                eprintln!("ASKER-SITE {by} {} {}", fill_prof::SITE.with(std::cell::Cell::get), std::backtrace::Backtrace::force_capture().to_string().lines().filter(|l| l.contains("Exec") || l.contains("kernel") || l.contains("finish")).take(12).map(str::trim).collect::<Vec<_>>().join(" < "));
-                let pn = &self.plan.nodes[by as usize];
-                let ins: Vec<String> = pn.inputs.iter().map(|x| format!("{x}:{}:{}", self.plan.nodes[*x].op, self.plan.nodes[*x].summary_text().chars().take(160).collect::<String>())).collect();
-                eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.summary_text().chars().take(900).collect::<String>(), ins.join(" | "));
-            }
-        }
-        if !f.fills.contains_key(&rel) {
-            let t = fill_len::fill_or_empty(run, p, &rel, f.file)?;
-            f.fills.insert(rel.clone(), recycle::rc(t));
-        }
-        if f.facts.len() <= i {
-            f.facts.resize(i + 1, None);
-        }
-        if f.fact_read.len() <= i {
-            f.fact_read.resize_with(i + 1, Default::default);
-        }
-        f.facts[i] = f.fills.get(&rel).cloned();
+    /// The first view access lends an admitted slot to the current frame.
+    fn load_fact(&mut self, f: &mut File<'_>, run: &Run, native: Native) -> R<()> {
+        let Native::Fact(id) = native else { return Ok(()) };
+        let i = usize::from(id);
+        if f.facts.get(i).is_some_and(Option::is_some) { return Ok(()); }
+        let table = self.admitted(f, run, id)?;
+        if f.facts.len() <= i { f.facts.resize(i + 1, None); }
+        if f.fact_read.len() <= i { f.fact_read.resize_with(i + 1, Default::default); }
+        f.facts[i] = Some(table);
         Ok(())
     }
 
-    fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
-        // redo-fills pass 2: by who supplies the relation, as the run's catalog declares it
-        match run.supplier(rel) {
-            Supplier::RunFiles => {
-                let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
-                let mut out = Table::with(names, tys);
-                for i in 0..run.paths.len() {
-                    out.push_row(&[i as u64]);
-                }
-                return Ok(out);
+    fn admitted(&mut self, f: &File<'_>, run: &Run, id: u16) -> R<Rc<Table>> {
+        let relation = &run.fact_rels[usize::from(id)].0;
+        if let Some(table) = f.version.supplied.get(relation) { return Ok(table.clone()); }
+        if !f.admitting
+            && let Some(answer) = f.version.facts.borrow_mut().get_mut(usize::from(id)).and_then(Option::as_mut)
+        {
+            answer.read = true;
+            return answer.reply.clone();
+        }
+        if !f.admitting {
+            self.requests.missing += 1;
+            if fill_prof::counting() && self.requests.missing <= 10 {
+                eprintln!("missing request slot for {relation} in {}", f.file);
             }
-            Supplier::Project(ask) => return project::rows(f, run, p, rel, ask),
-            Supplier::Provider | Supplier::Host => {}
         }
-        if let Some(t) = f.fills.get(rel) {
-            return Ok(t.copy());
+        Err(format!("{relation}: missing from admitted file"))
+    }
+
+    fn base(&mut self, f: &mut File<'_>, run: &mut Run, rel: &str) -> R<Table> {
+        if let Supplier::RunFiles = run.supplier(rel) {
+            let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+            let mut out = Table::with(names, tys);
+            for i in 0..run.paths.len() { out.push_row(&[i as u64]); }
+            return Ok(out);
         }
-        let was = fill_prof::site("base");
-        let t = fill_len::fill_or_empty(run, p, rel, f.file);
-        fill_prof::site(was);
-        let t = t?;
-        f.fills.insert(rel.to_owned(), recycle::rc(t.clone()));
-        Ok(t)
+        let id = run.fact_slots.get(rel).copied().ok_or_else(|| format!("unbound relation {rel}"))?;
+        self.admitted(f, run, id).map(|table| table.copy())
     }
 
     fn antijoin(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args) -> R<Table> {
@@ -4385,10 +4336,17 @@ fn token_links(f: &File<'_>, run: &mut Run) -> Table {
 
 /// The provider's rows of a relation as a table: texts interned run-wide, nodes as positions.
 pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords) -> R<Table> {
-    let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
     let n = filled.0.first().map_or(0, |c| c.0.len());
-    let mut out = Table::with_rows(names, tys.clone(), n);
+    filled_columns(run, rel, filled, words, &languages::ColumnProjection::All, n)
+}
+
+pub(super) fn filled_columns(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords,
+    mask: &languages::ColumnProjection, n: usize) -> R<Table> {
+    let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+    let mut out = Table::with_rows(names, tys.clone(), 0);
     for (c, ty) in tys.iter().enumerate() {
+        if !mask.contains(c) { continue; }
+        out.cols[c].reserve(n);
         let Some(column) = filled.0.get(c) else {
             out.cols[c] = vec![NULL; n];
             continue;

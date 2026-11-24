@@ -3,7 +3,7 @@
 //! `Scope::Files` and keeps the answer for the run, by the file each row names (the relation's first file column); a
 //! step of a file reads the rows that name that file. How wide each ask is, the provider declares (`ProjectAsk`).
 
-use super::{File, FxHashMap, Provider, R, Run, Scope, Table, Ty};
+use super::{FxHashMap, R, Run, Table, Ty};
 
 /// How the provider answers a project relation, as it declares it.
 #[derive(Clone, Copy, Debug)]
@@ -34,9 +34,12 @@ pub(in super::super) fn report(run: &Run) -> Vec<String> {
     v
 }
 
-/// The rows of project relation `rel` that name file `f`, asked of the provider when `f` is not answered yet.
-pub(super) fn rows(f: &File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str, ask: ProjectAsk) -> R<Table> {
-    for_file(f.file, run, rel, ask, |run, files| p.fill(run, rel, Scope::Files(files)))
+pub(super) fn covered(run: &Run, relation: &str, file: u32) -> bool {
+    run.project.get(relation).and_then(|a| a.asked.get(file as usize)).copied().unwrap_or(false)
+}
+
+pub(super) fn existing(run: &mut Run, relation: &str, file: u32, ask: ProjectAsk) -> R<Table> {
+    for_file(file, run, relation, ask, |_, _| Err("project population was not admitted".into()))
 }
 
 /// The current file's slice of the shared project answer, for either phase.

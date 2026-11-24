@@ -923,7 +923,7 @@ impl ColFacts<'_, '_, '_, '_> {
             let _ = self.kept.insert(rel.to_owned(), t.clone());
             return Ok(t);
         }
-        let t = self.whole_fill(run, rel)?;
+        let t = self.whole_fill(run, rel, &languages::ColumnProjection::All)?;
         if let Some(m) = module {
             IMPLICIT_CATALOG.with(|c| *c.borrow_mut() = Some((m, t.clone())));
         }
@@ -939,7 +939,7 @@ impl ColFacts<'_, '_, '_, '_> {
         (0..n).find(|p| &*run.texts[run.kind_sym[usize::from(node_table::kind_of(self.file.table, Position(*p)).0)] as usize] == b"module")
     }
 
-    fn whole_fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+    fn whole_fill(&mut self, run: &mut finish::Run, rel: &str, mask: &languages::ColumnProjection) -> Result<finish::Table, String> {
         let timed = finish::fill_prof::timed();
         // redo-fills pass 2: the provider's direct columns, no reader rows and no conversion (direct_fill.rs)
         if direct_fill::direct(rel)
@@ -968,10 +968,10 @@ impl ColFacts<'_, '_, '_, '_> {
         let relation = relation.ok_or_else(|| format!("{rel}: no reader relation"))?;
         self.filled.0.clear();
         let t0 = if timed { thread_cpu() } else { 0.0 };
-        let answer = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
+        let (answer, n) = self.file.fill_columns(relation, mask, self.words, &mut self.filled);
         let t1 = if timed { thread_cpu() } else { 0.0 };
         let t = match answer {
-            languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
+            languages::FactAnswer::Answered(_) => finish::filled_columns(run, rel, &self.filled, self.words, mask, n),
             languages::FactAnswer::Refused(_) => {
                 let reason = format!("{rel} not answered");
                 run.provider_refusal = Some(reason.clone());
@@ -1226,32 +1226,27 @@ impl ColFacts<'_, '_, '_, '_> {
 }
 
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
-    fn fill_len(&mut self, run: &mut finish::Run, rel: &str, scope: finish::Scope<'_>) -> Option<usize> {
-        if !matches!(scope, finish::Scope::File(f) if f == self.file_no) || self.kept.contains_key(rel) {
-            return None;
-        }
-        if matches!(rel, import_syntax::HEADS | import_syntax::LINE_COMMENTS) {
-            let timed = finish::fill_prof::timed();
-            let start = if timed { thread_cpu() } else { 0.0 };
-            let count = if rel == import_syntax::HEADS {
-                Some(self.file.import_statement_count())
-            } else {
-                self.import_comments.known_count().or_else(|| (!self.file.can_have_import_line_comments()).then_some(0))
-            };
-            if timed {
-                let elapsed = thread_cpu() - start;
-                let kind = if count == Some(0) { "empty" } else { "other" };
-                let e = self.by_rel.entry(format!("length-{kind}:{rel}")).or_default();
-                e.0 += elapsed;
-                e.2 += 1;
-            }
-            return count;
-        }
-        let (relation, _, _) = run.catalog(rel)?;
-        self.file.row_count(relation?)
+    fn answer(&mut self, run: &mut finish::Run, asks: &[finish::request::Asked<'_>], replies: &mut Vec<finish::request::Reply>) {
+        replies.extend(asks.iter().map(|ask| self.table(run, ask.relation, ask.scope, ask.columns).map(finish::recycle::rc)));
     }
 
-    fn fill(&mut self, run: &mut finish::Run, rel: &str, scope: finish::Scope<'_>) -> Result<finish::Table, String> {
+    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
+        let context = match context {
+            "assignment-target" => languages::RenderContext::AssignmentTarget,
+            "attribute-receiver" => languages::RenderContext::AttributeReceiver,
+            "positional-argument" => languages::RenderContext::PositionalArgument,
+            other => return Err(format!("render context {other}")),
+        };
+        match self.file.render(languages::RenderRequest { node: languages::NodeId(u64::from(node)), context }) {
+            languages::RenderOutcome::Known(t) => Ok(Some(t.0.as_bytes().to_vec())),
+            languages::RenderOutcome::NotApplicable => Ok(None),
+            languages::RenderOutcome::Unsupported(_) => Err("render unsupported".to_owned()),
+        }
+    }
+}
+
+impl ColFacts<'_, '_, '_, '_> {
+    fn table(&mut self, run: &mut finish::Run, rel: &str, scope: finish::Scope<'_>, projection: &languages::ColumnProjection) -> Result<finish::Table, String> {
         // redo-general: a project's relations from the provider's project (its packaging knowledge)
         let file = match scope {
             finish::Scope::File(file) => file,
@@ -1269,6 +1264,11 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         };
         if file != self.file_no {
             return Err(format!("{rel}: asked for file {file}, this provider holds file {}", self.file_no));
+        }
+        if let Some((Some(relation), names, types)) = run.catalog(rel)
+            && self.file.row_count(relation) == Some(0)
+        {
+            return Ok(finish::Table::with_rows(names, types, 0));
         }
         // The syntax walk indexed every relative form. Report the fixed cost of a proven empty answer separately.
         if rel == fact_catalog::RELATIVE_IMPORT_REL && !self.file.has_relative_imports() {
@@ -1380,7 +1380,15 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         {
             self.fact(run, rel)?
         } else {
-            self.whole(run, rel)?
+            // Composed relations can reuse a complete intermediate without
+            // widening or replacing a published projected column.
+            if !matches!(projection, languages::ColumnProjection::All)
+                && !matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target" | "lookup-scope" | "implicit-symbol")
+            {
+                self.whole_fill(run, rel, projection)?
+            } else {
+                self.whole(run, rel)?
+            }
         };
         let dt = if timed { thread_cpu() - t0 } else { 0.0 };
         self.time += dt;
@@ -1397,22 +1405,13 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             self.by_rel.entry(format!("site:{site}:{rel}")).or_default().2 += 1;
         }
         finish::fill_prof::dump(run, self.file_no, rel, &t);
+        for (i, column) in t.cols.iter_mut().enumerate() {
+            if !projection.contains(i) { column.clear(); }
+        }
         Ok(t)
     }
 
-    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
-        let context = match context {
-            "assignment-target" => languages::RenderContext::AssignmentTarget,
-            "attribute-receiver" => languages::RenderContext::AttributeReceiver,
-            "positional-argument" => languages::RenderContext::PositionalArgument,
-            other => return Err(format!("render context {other}")),
-        };
-        match self.file.render(languages::RenderRequest { node: languages::NodeId(u64::from(node)), context }) {
-            languages::RenderOutcome::Known(t) => Ok(Some(t.0.as_bytes().to_vec())),
-            languages::RenderOutcome::NotApplicable => Ok(None),
-            languages::RenderOutcome::Unsupported(_) => Err("render unsupported".to_owned()),
-        }
-    }
+
 }
 
 /// `vec kfloor <files>`: the floor of the finish's batch steps per row on Django's real node tables (each file's own

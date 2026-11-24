@@ -13,13 +13,25 @@ struct Snapshot<'a> {
 }
 
 impl Provider for Snapshot<'_> {
-    fn shared_fill(&mut self, run:&mut Run, name:&str, scope:Scope<'_>) -> Result<std::rc::Rc<Table>,String> {
-        if matches!(scope,Scope::Files(_)) && !self.tables.contains_key(name) && let Some(t)=self.project.and_then(|p|p.tables.get(name)) {
-            return Ok(t.clone());
-        }
-        self.fill(run,name,scope).map(std::rc::Rc::new)
+    fn answer(&mut self, run: &mut Run, asks: &[finish::request::Asked<'_>], replies: &mut Vec<finish::request::Reply>) {
+        replies.extend(asks.iter().map(|ask| {
+            let name = ask.relation;
+            if matches!(ask.scope, Scope::Files(_)) && !self.tables.contains_key(name)
+                && let Some(table) = self.project.and_then(|p| p.tables.get(name))
+            {
+                return Ok(table.clone());
+            }
+            self.table(run, name, ask.scope).map(std::rc::Rc::new)
+        }));
     }
-    fn fill(&mut self, run: &mut Run, name: &str, scope: Scope<'_>) -> Result<Table, String> {
+
+    fn render(&mut self, _: u32, _: &str) -> Result<Option<Vec<u8>>, String> {
+        Err("project rendering requires source origins".into())
+    }
+}
+
+impl Snapshot<'_> {
+    fn table(&mut self, run: &mut Run, name: &str, scope: Scope<'_>) -> Result<Table, String> {
         let Scope::Files(files) = scope else {
             return Err(format!("local ask in closed session for {name}"));
         };
@@ -44,9 +56,7 @@ impl Provider for Snapshot<'_> {
         Ok(t)
     }
 
-    fn render(&mut self, _: u32, _: &str) -> Result<Option<Vec<u8>>, String> {
-        Err("project rendering requires source origins".into())
-    }
+
 }
 
 fn path_id(run: &Run, path: &str) -> Result<u32, String> {

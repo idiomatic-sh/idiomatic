@@ -183,7 +183,7 @@ impl Exec<'_> {
     fn ep_leaf(&mut self, f: &mut File<'_>, run: &mut Run, base: Native, conj: &[E], si: usize, map: &[usize]) -> usize {
         if let Native::Fact(i) = base {
             let rel = &run.fact_rels[usize::from(i)].0;
-            let filled = f.facts.get(usize::from(i)).and_then(Option::as_ref).or_else(|| f.fills.get(rel));
+            let filled = f.facts.get(usize::from(i)).and_then(Option::as_ref);
             if filled.is_some_and(|t| t.n == 0) {
                 if sw!("VEC_EP_COUNT") {
                     C.with(|c| *c.borrow_mut().no_rows.entry(rel.clone()).or_default() += 1);
@@ -402,7 +402,8 @@ impl Exec<'_> {
             }
             let base = Native::Fact(lf.fact);
             let t0 = step_clock();
-            let loaded = self.load_fact(f, run, p, base);
+            if f.admitting { continue; }
+            let loaded = self.load_fact(f, run, base);
             let t1 = step_clock();
             self.leaves.laps[0] += t1 - t0;
             if loaded.is_err() {
@@ -437,7 +438,7 @@ impl Exec<'_> {
     /// cycle 4: whether a view has no row in this file (its entry, then its tests), read only where its entry is small.
     fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         let Ok(Some(v)) = self.view(run, node) else { return false };
-        if self.load_fact(f, run, p, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
+        if (f.admitting && matches!(v.base, Native::Fact(_))) || self.load_fact(f, run, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
             return false;
         }
         let entry = match super::kind_set(run, &v.filter, 0, v.base, &[]) {

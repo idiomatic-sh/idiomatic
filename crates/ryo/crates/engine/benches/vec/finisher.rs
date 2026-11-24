@@ -153,17 +153,23 @@ impl<'p> Finisher<'p> {
         let version = finish::FileVersion::new(ft, bytes, file_no as u32, pv.syntax_text());
         let mut f = finish::File::new(&version, plan.nodes.len());
         let run = &mut self.run;
-        if self.check {
-            for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
-                if run.reader_tables.contains(rel) { continue; }
-                let mine = finish::native_table(&mut f, run, rel);
-                match pv.fill(run, rel, finish::Scope::File(file_no as u32)) {
-                    Ok(theirs) => self.check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs))),
-                    Err(e) => self.check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
-                }
+        let checks: Vec<_> = if self.check {
+            ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"]
+                .into_iter().filter(|rel| !run.reader_tables.contains(*rel)).collect()
+        } else {
+            Vec::new()
+        };
+        let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
+        let roots = wanted.iter().copied().filter(|&i| !self.failed_idx[i] && !(rejected && self.accepted_only[i]))
+            .map(|i| plan.emits[i].1);
+        let replies = self.exec.open_file(&mut f, run, pv, roots, &checks, true).expect("file provider packet");
+        for (rel, reply) in checks.into_iter().zip(replies) {
+            let mine = finish::native_table(&mut f, run, rel);
+            match reply {
+                Ok(theirs) => self.check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs))),
+                Err(e) => self.check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
             }
         }
-        let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
         for ei in wanted {
             if self.failed_idx[*ei] {
                 if let Some(capture) = &mut self.capture { capture.partial(&run.paths[file_no]); }
@@ -229,6 +235,7 @@ impl<'p> Finisher<'p> {
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
         self.exec.cold_end(&mut f, run);
+        self.exec.close_file(&version);
     }
 
     /// Write final findings, dumps and statistics after the last file.
@@ -284,6 +291,7 @@ impl<'p> Finisher<'p> {
         println!("known-empty static part: {} steps visited ({} with no leaf of their own), {} per-file tests; {:.3} s, of which preparing the needs once a run {:.3} s", exec.stats.static_visits, exec.stats.static_pass, exec.stats.static_file_tests, exec.stats.static_time, exec.stats.rec_time);
         println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
         println!("{}", finish::fill_prof::reads_line());
+        if finish::fill_prof::counting() { println!("{}", self.exec.request_line()); }
         finish::fill_prof::flush();
         for l in finish::fill_prof::unread_lines(&self.run) {
             println!("{l}");

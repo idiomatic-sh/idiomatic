@@ -68,7 +68,17 @@ pub(in super::super) fn evaluate_covered(
             return Err("frontier schema differs from its prepared step".into());
         }
     }
-    let mut bases = BTreeMap::<&str, Rc<Table>>::new();
+    let mut names: Vec<_> = plan.nodes.iter().enumerate().filter_map(|(i, step)| {
+        (demanded[i] && !carried.contains_key(&i)).then(|| step.base()).flatten()
+    }).collect();
+    names.sort_unstable();
+    names.dedup();
+    let asks: Vec<_> = names.iter().map(|relation| super::request::Asked {
+        relation, columns: &ryo::languages::ColumnProjection::All, scope: Scope::Files(admitted),
+    }).collect();
+    let mut answers = Vec::new();
+    super::request::read(run, provider, &asks, &mut answers)?;
+    let bases: BTreeMap<_, _> = names.into_iter().zip(answers).collect();
     for (i, step) in plan.nodes.iter().enumerate() {
         if !demanded[i] || carried.contains_key(&i) {
             continue;
@@ -76,13 +86,8 @@ pub(in super::super) fn evaluate_covered(
         match step.op.as_str() {
             "base" => {
                 let rel = step.base().ok_or("missing base relation")?;
-                let table = match bases.get(rel) {
-                    Some(t) => Rc::clone(t),
-                    None => {
-                        let (_, names, tys) = run
-                            .catalog(rel)
-                            .ok_or_else(|| format!("undeclared relation {rel}"))?;
-                        let t = provider.shared_fill(run, rel, Scope::Files(admitted))?;
+                let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("undeclared relation {rel}"))?;
+                let t = bases.get(rel).expect("demanded project base").clone()?;
                         if t.names != names
                             || t.tys != tys
                             || t.cols.len() != names.len()
@@ -108,11 +113,7 @@ pub(in super::super) fn evaluate_covered(
                                 return Err(format!("unbound or absent {ty:?} cell in {rel}"));
                             }
                         }
-                        let _previous = bases.insert(rel, Rc::clone(&t));
-                        t
-                    }
-                };
-                exec.run_memo[i] = Some(table);
+                exec.run_memo[i] = Some(t);
             }
             "rows" | "select" | "project" | "union" | "antijoin" | "group-count" | "words" | "axis" | "closure" | "cycles" | "rank" | "intersection" | "difference" | "group-digest" | "replace" | "span-bounds" => {}
             "extend"
@@ -303,15 +304,8 @@ fn restrict_uncertain(
 
 /// Run one already prepared file program and deliver its complete typed rows. Caller
 /// tables have already been numbered in this request and belong to this binding.
-pub(in super::super) fn frame<'a>(
-    version: &'a FileVersion<'a>,
-    plan: &super::Plan,
-    supplied: &[(String, Rc<Table>)],
-    local: Option<&(String, Rc<Table>)>,
-) -> File<'a> {
-    let mut frame = File::new(version, plan.nodes.len());
-    frame.fills.extend(supplied.iter().chain(local).cloned());
-    frame
+pub(in super::super) fn frame<'a>(version: &'a FileVersion<'a>, plan: &super::Plan) -> File<'a> {
+    File::new(version, plan.nodes.len())
 }
 
 pub(in super::super) fn pair(

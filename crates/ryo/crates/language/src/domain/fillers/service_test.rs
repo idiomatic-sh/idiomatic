@@ -398,3 +398,28 @@ fn succeeds() {
 fn rejects() {
     run(CASES, Word::Rejects, subject);
 }
+
+#[test]
+fn generated_writer_projects_without_losing_cardinality() {
+    use crate::domain::facts::projection::ColumnProjection;
+
+    lent("one!", &mut |file| {
+        let names = Walking::vocabulary().fixed;
+        let mut words = file_words(&base_words(checked(&names.0).unwrap(), &[]));
+        let mut full = FilledColumns::default();
+        let answer = file.facts.fill(Relation::SyntaxError, Wanted::Whole, &mut words, &mut full);
+        let n = full.0[0].0.len();
+        assert!(n > 0);
+        let mut out = FilledColumns::default();
+        for selection in [ColumnProjection::First(2), ColumnProjection::default()] {
+            let (seen, rows) = file.facts.fill_columns(Relation::SyntaxError, Wanted::Whole, &selection, &mut words, &mut out);
+            assert_eq!(seen, answer);
+            assert_eq!(rows, n);
+            assert_eq!(out.0.len(), full.0.len());
+            for (i, column) in out.0.iter().enumerate() {
+                if selection.contains(i) { assert_eq!(column.0, full.0[i].0); }
+                else { assert!(column.0.is_empty()); }
+            }
+        }
+    });
+}

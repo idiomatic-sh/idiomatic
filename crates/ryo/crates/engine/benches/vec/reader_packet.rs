@@ -154,25 +154,18 @@ impl finish::Provider for View<'_, '_> {
             "reader does not supply syntax rendering in {context}"
         ))
     }
-    fn fill_len(
-        &mut self,
-        run: &mut finish::Run,
-        name: &str,
-        scope: finish::Scope<'_>,
-    ) -> Option<usize> {
-        if !matches!(scope, finish::Scope::File(f) if f == self.parsed.file) {
-            return None;
-        }
-        let rel = run.catalog(name)?.0?;
-        let i = catalog::number_of(rel).0;
-        (self.packet.requested[i] && self.packet.partial(rel).is_none())
-            .then(|| self.packet.offsets[i].len())
+    fn answer(&mut self, run: &mut finish::Run, asks: &[finish::request::Asked<'_>], replies: &mut Vec<finish::request::Reply>) {
+        replies.extend(asks.iter().map(|ask| self.table(run, ask.relation, ask.scope, ask.columns).map(finish::recycle::rc)));
     }
-    fn fill(
+}
+
+impl View<'_, '_> {
+    fn table(
         &mut self,
         run: &mut finish::Run,
         name: &str,
         scope: finish::Scope<'_>,
+        projection: &l::ColumnProjection,
     ) -> Result<finish::Table, String> {
         if !matches!(scope, finish::Scope::File(f) if f == self.parsed.file) {
             return Err(format!(
@@ -193,11 +186,12 @@ impl finish::Provider for View<'_, '_> {
             return Err(format!("no reader for {name}"));
         }
         let offsets = &self.packet.offsets[i];
-        let width = self.packet.widths[i];
-        let mut table = finish::Table::with_rows(names, tys, offsets.len());
-        for &at in offsets {
-            let row = &self.packet.rows.words[at..at + width];
-            for ((column, &raw), ty) in table.cols.iter_mut().zip(row).zip(table.tys.iter()) {
+        let mut table = finish::Table::with_rows(names, tys, 0);
+        for (i, (column, ty)) in table.cols.iter_mut().zip(table.tys.iter()).enumerate() {
+            if !projection.contains(i) { continue; }
+            column.reserve(offsets.len());
+            for &at in offsets {
+                let raw = self.packet.rows.words[at + i];
                 let value = match ty {
                     finish::Ty::Sym => {
                         let id = raw as u32;
@@ -206,11 +200,7 @@ impl finish::Provider for View<'_, '_> {
                         }))
                     }
                     finish::Ty::Node => {
-                        assert_eq!(
-                            raw >> 32,
-                            u64::from(self.parsed.file),
-                            "foreign node in file-scoped answer"
-                        );
+                        assert_eq!(raw >> 32, u64::from(self.parsed.file), "foreign node in file-scoped answer");
                         u64::from(raw as u32)
                     }
                     _ => raw,

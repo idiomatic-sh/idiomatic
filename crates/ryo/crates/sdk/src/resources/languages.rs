@@ -27,7 +27,7 @@ pub use ryo_language::inbound::use_cases::walk::types::{FileVisit, RelationNeeds
 /// Open on purpose: a language implements it, through `ryo::fills!` items, and nothing else does.
 pub use ryo_language::domain::fillers::types::Fillers;
 pub use ryo_language::domain::fillers::types::{FieldNames, Fill, FillItem, KeyedFillItem, WalkKinds, WalkVocabulary};
-pub use ryo_language::domain::facts::types::{CellWord, FactAnswer, FactSource, FileFacts, FileWords, FillExtent, FilledColumn, FilledColumns, FillerSentence, PartialRows, Wanted};
+pub use ryo_language::domain::facts::types::{CellWord, ColumnProjection, FactAnswer, FactSource, FileFacts, FileWords, FillExtent, FilledColumn, FilledColumns, FillerSentence, PartialRows, Wanted};
 pub use ryo_language::domain::fixed_names::{errors::FixedNamesError, types::{CheckedNames, FixedNames, FixedWord}};
 pub use ryo_language::domain::node_table::types::{
     ByteSpan, ElementSets, EmbeddedRoot, EmbeddedSpan, EmbeddedText, FieldCode, KindSet, KindsPresent, NodeTable, NodeTableBuilder,
