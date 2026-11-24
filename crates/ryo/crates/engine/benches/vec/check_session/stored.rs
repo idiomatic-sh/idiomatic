@@ -628,7 +628,7 @@ impl Store {
                 // Recompute it until those probes are part of the stored proof.
                 if source.environment.is_some() { return None; }
                 if let Some(&version) = self.supplied_versions.get(&index) {
-                    return Some(version);
+                    return source.version_key(version);
                 }
                 let d = if let Some(v) = &source.provided {
                     *blake3::hash(v).as_bytes()
@@ -636,7 +636,7 @@ impl Store {
                     self.observed
                         .observe(&Path::new(&*source.root).join(&source.path), Probe::Source)?
                 };
-                Some(key((&source.path, &source.reader, source.permission, d)))
+                source.version_key(key((&source.path, &source.reader, source.permission, d)))
             }));
         // Programs and bindings are appended to the schedule. Their effective
         // inputs stay the same when earlier answers are delivered.
