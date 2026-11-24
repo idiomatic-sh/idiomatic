@@ -4,9 +4,9 @@ use super::{Active, Authority, Batch, Hosted, Input, LiveAdmission};
 use crate::thread_cpu;
 #[path = "pinned.rs"]
 mod pinned;
-#[path = "call_cache.rs"]
+#[path = "../../../../ryo/crates/engine/benches/vec/check_session/call_cache.rs"]
 mod call_cache;
-#[path = "allocated.rs"]
+#[path = "../../../../ryo/crates/engine/benches/vec/check_session/allocated.rs"]
 mod allocated;
 #[path = "../../../../ryo/crates/engine/benches/lint_image/sdk_request.rs"]
 mod sdk_request;

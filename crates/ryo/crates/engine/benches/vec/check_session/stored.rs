@@ -127,7 +127,7 @@ fn kind(p: &Path) -> Res<u8> {
 }
 #[path = "request_answers.rs"]
 mod request_answers;
-#[path = "../../../../../../tastemaker/benchmarks/project/shards.rs"]
+#[path = "shards.rs"]
 mod shards;
 pub(super) use request_answers::{InputScope, Packet};
 use request_answers::{Group, Observations, Probe, Proof, Record};

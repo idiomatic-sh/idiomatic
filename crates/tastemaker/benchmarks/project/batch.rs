@@ -1,8 +1,8 @@
 //! The corpus runner's TSV is a list of invocations, not an execution schedule.
 //! Only the final comparison has access to a reference digest.
-#[path = "readers.rs"]
+#[path = "../../../ryo/crates/engine/benches/vec/check_session/requests.rs"]
 mod readers;
-#[path="stored.rs"]
+#[path = "../../../ryo/crates/engine/benches/vec/check_session/stored.rs"]
 mod stored;
 
 use super::{Hosted, Parameters, bind_tables, execute_ids, finish, read_parameters};
@@ -21,7 +21,7 @@ use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use serde::Deserialize;
 use crate::{json_input, json_output};
 use sha2::{Digest, Sha256};
-#[path = "closed_workers.rs"]
+#[path = "../../../ryo/crates/engine/benches/vec/check_session/closed_workers.rs"]
 mod closed_workers;
 
 use std::{
