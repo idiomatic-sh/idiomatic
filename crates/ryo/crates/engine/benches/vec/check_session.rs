@@ -71,7 +71,8 @@ impl Program {
         capture_separator: Option<&str>,
     ) -> Result<Self> {
         let (plan, pack) = lower::query_parts(alias, text, context, true, capture_separator)?;
-        let requirements = reader_run::file_requirements(&pack, declaration)
+        let typed = pack.typed.take().expect("prepared query");
+        let requirements = reader_run::file_requirements(&typed, declaration)
             .pop()
             .ok_or("missing query emit")?
             .1;
@@ -94,7 +95,7 @@ impl Program {
         Ok(Self {
             plan,
             syntax,
-            typed: pack.typed.take().expect("prepared query"),
+            typed,
             requirements,
             bases,
         })
@@ -505,9 +506,9 @@ pub(crate) fn visit<L: FileSource>(
         let word = run.sym(src.path.as_bytes());
         run.path_sym.push(word);
     }
-    let t=thread_cpu();
-    let mut checks=pairs::Checks::new(parser,programs,program_of,sources,selected,cut_of);
-    clocks.prepare+=thread_cpu()-t;
+    let t = thread_cpu();
+    let mut checks = pairs::Checks::new(parser, programs, program_of, sources, selected, cut_of);
+    clocks.prepare += thread_cpu() - t;
     let mut bound = HashMap::new();
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
@@ -759,12 +760,16 @@ pub(crate) fn visit<L: FileSource>(
                 packet.index(&facts);
             }
             clocks.read_parse += thread_cpu() - t;
-            let t=thread_cpu();
-            if said.is_empty() && recovery==ryo_execution_domain::domain::coverage::types::Recovery::Whole {
-                checks.exclude(&mut active,program_of,&mut bound,&mut run,tree,&provider.text,&bytes,&source.path,
-                    id,L::symbols(&symbols),&facts,&packet,cut_of);
+            let t = thread_cpu();
+            if said.is_empty()
+                && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
+            {
+                checks.exclude(
+                    &mut active, program_of, &mut bound, &mut run, tree, &provider.text,
+                    &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, cut_of,
+                );
             }
-            clocks.screen+=thread_cpu()-t;
+            clocks.screen += thread_cpu() - t;
             let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
             let t = thread_cpu();
             let lines = active
@@ -857,8 +862,9 @@ pub(crate) fn visit<L: FileSource>(
                             unknowns,
                         }
                     });
-                    clocks.productive+=usize::from(world.frontiers.get(&slot).is_some_and(|tables|tables.iter().any(|(_,t)|t.n!=0)));
-                    clocks.refused+=usize::from(answers[slot].is_err());
+                    clocks.productive += usize::from(world.frontiers.get(&slot)
+                        .is_some_and(|tables| tables.iter().any(|(_, t)| t.n != 0)));
+                    clocks.refused += usize::from(answers[slot].is_err());
                     continue;
                 }
                 answers[slot] = finish::session::pair(
@@ -872,8 +878,8 @@ pub(crate) fn visit<L: FileSource>(
                     &local_coverage,
                 )
                 .map(|rows| Reported { rows, unknowns });
-                clocks.productive+=usize::from(answers[slot].as_ref().is_ok_and(|r|!r.rows.is_empty()));
-                clocks.refused+=usize::from(answers[slot].is_err());
+                clocks.productive += usize::from(answers[slot].as_ref().is_ok_and(|r| !r.rows.is_empty()));
+                clocks.refused += usize::from(answers[slot].is_err());
             }
             if keep {
                 held.read = true;
