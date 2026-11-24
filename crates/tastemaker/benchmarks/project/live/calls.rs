@@ -2,7 +2,7 @@
 use super::super::{HostCell, Parameters};
 use super::{Active, Authority, Batch, Hosted, Input, LiveAdmission};
 use crate::thread_cpu;
-#[path = "pinned.rs"]
+#[path = "../../../../ryo/crates/engine/benches/lint_image/release_reader.rs"]
 mod pinned;
 #[path = "../../../../ryo/crates/engine/benches/vec/check_session/call_cache.rs"]
 mod call_cache;

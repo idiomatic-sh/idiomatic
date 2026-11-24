@@ -46,20 +46,7 @@ mod json_input;
 mod json_output;
 use json_input::rule_context;
 
-/// These readers declare no necessary identifier spelling and no extra walk columns.
-/// Their kind names, field names and filled relations come from the linked parser.
-fn declaration() -> first::Language {
-    first::Language {
-        fact_family: |_| pair_summary::cost::Family::Fact,
-        walk_facts: &[],
-        host_len: finish::host::host_len,
-        facts: Vec::new(),
-        spelled: Vec::new(),
-        text_kinds: Vec::new(),
-        file_sets: Vec::new(),
-        is_identifier: |_| false,
-    }
-}
+
 
 #[path = "../bench.rs"]
 mod project_bench;

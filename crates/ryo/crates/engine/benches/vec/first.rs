@@ -35,6 +35,21 @@ pub(super) struct Language {
     pub(super) is_identifier: fn(&str) -> bool,
 }
 
+/// These readers declare no necessary identifier spelling and no extra walk columns.
+/// Their kind names, field names and filled relations come from the linked parser.
+pub(super) fn declaration() -> Language {
+    Language {
+        fact_family: |_| super::pair_summary::cost::Family::Fact,
+        walk_facts: &[],
+        host_len: super::finish::host::host_len,
+        facts: Vec::new(),
+        spelled: Vec::new(),
+        text_kinds: Vec::new(),
+        file_sets: Vec::new(),
+        is_identifier: |_| false,
+    }
+}
+
 pub(super) struct Prepared {
     pub(super) pairs: Program,
     pub(super) skips: Vec<(String, bool, Vec<Vec<String>>)>,

@@ -67,7 +67,7 @@ pub(crate) struct Program {
 }
 
 fn reader_declaration<L: FileSource>(parser: Option<&L>) -> first::Language {
-    let mut language = crate::declaration();
+    let mut language = first::declaration();
     if let Some(words) = parser.and_then(FileSource::source_words) {
         language.is_identifier = words.identifier;
         language.spelled.extend(words.columns.iter().map(|&(relation, column, spelling)| {
