@@ -16,6 +16,7 @@ pub(super) struct Checks {
     domains: Vec<Vec<(usize, usize)>>,
     live: Vec<bool>,
     selected: Vec<u64>,
+    locatable: Vec<u64>,
     atoms: Vec<Option<usize>>,
     words: l::FileWords,
     row_guards: Vec<(usize, l::Relation)>,
@@ -146,6 +147,7 @@ impl Checks {
             known: Vec::new(),
             exact: Vec::new(),
             selected: vec![0; live.len().div_ceil(64)],
+            locatable: vec![0; live.len().div_ceil(64)],
             atoms: Vec::new(),
             live,
             words: l::facts::file_words(&l::facts::base_words(Default::default(), &[])),
@@ -176,15 +178,22 @@ impl Checks {
     ) {
         self.live.fill(false);
         self.selected.fill(0);
+        self.locatable.fill(0);
         self.exact.clear();
         let mut any = false;
         let mut local = false;
         for &(binding, _, excluded) in active.iter() {
-            if !excluded && let Some(roots) = &self.roots[root_for(binding)]
-                && bound[&binding].as_ref().expect("active binding").screenable != Some(false)
-            {
+            if !excluded && let Some(roots) = &self.roots[root_for(binding)] {
                 any |= !roots.is_empty();
-                local |= cuts[binding].is_none() && !roots.is_empty();
+                let locatable = cuts[binding].is_none()
+                    && !roots.is_empty()
+                    && bound[&binding].as_ref().expect("active binding").screenable != Some(false);
+                if locatable {
+                    local = true;
+                    for &root in roots {
+                        self.locatable[root / 64] |= 1 << (root % 64);
+                    }
+                }
                 for root in roots.iter().copied().chain(self.domains[root_for(binding)].iter().map(|&(_, d)| d)) {
                     self.selected[root / 64] |= 1 << (root % 64);
                 }
@@ -249,6 +258,7 @@ impl Checks {
                 atoms,
                 (local && text.is_some() && partials.is_empty()).then_some(&mut self.exact),
             );
+            self.exact.retain(|(root, _)| self.locatable[root / 64] & (1 << (root % 64)) != 0);
             for (root, nodes) in &self.exact {
                 if nodes.iter().all(|&word| word == 0) {
                     self.live[*root] = false;
@@ -262,11 +272,6 @@ impl Checks {
             let Some(roots) = &self.roots[root_for(*binding)] else { continue };
             let cut = cuts[*binding].as_deref();
             let b = bound[binding].as_mut().unwrap();
-            if b.screenable == Some(false) {
-                // This binding was deliberately left out of the selected witness set.
-                witnesses[0] += 1;
-                continue;
-            }
             let any_absent = roots.iter().any(|&r| !self.live[r]);
             if !any_absent && !self.domains[root_for(*binding)].iter().any(|&(_, d)| !self.live[d]) {
                 continue;
