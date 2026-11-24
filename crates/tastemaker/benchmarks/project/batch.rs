@@ -38,11 +38,13 @@ struct Input {
 }
 
 fn read_inventory<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Option<Rc<Vec<String>>>, D::Error> {
-    Ok(Option::<Vec<String>>::deserialize(input)?.map(|mut paths| {
-        paths.sort_unstable();
-        paths.dedup();
-        Rc::new(paths)
-    }))
+    Ok(Option::<Vec<String>>::deserialize(input)?.map(canonical_inventory))
+}
+
+fn canonical_inventory(mut paths: Vec<String>) -> Rc<Vec<String>> {
+    paths.sort_unstable();
+    paths.dedup();
+    Rc::new(paths)
 }
 
 enum Work {
@@ -766,7 +768,7 @@ pub(crate) fn packets(
         }
         let bytes = std::fs::read(item.request).map_err(|e| e.to_string())?;
         let mut input: Input = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
-        input.inventory = Some(project.inventory);
+        input.inventory = Some(canonical_inventory(project.inventory));
         input.repository = project.repository;
         let work = session
             .register(&item.pack, input, None)
