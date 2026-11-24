@@ -52,7 +52,10 @@ impl Default for Live {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .sessions += 1;
         Self {
-            batch: Batch::default(),
+            batch: Batch {
+                canonical_host_rows: Some(super::CanonicalHostRows::default()),
+                ..Default::default()
+            },
             store:None, directory:None,
             state: Active {
                 keep: true,
@@ -174,6 +177,9 @@ impl Live {
         ];
         last.retained = self.state.retention.counts();
         last.reused_binding_entries = self.batch.reused_binding_entries;
+        if let Some(canonical) = &self.batch.canonical_host_rows {
+            last.host_tables = [canonical.uses, canonical.ids.len(), canonical.row_hashes_removed];
+        }
         last.project_counts = [
             self.batch.projects.len(),
             self.batch.populations_built,
@@ -411,6 +417,7 @@ struct Measurement {
     counts: [usize; 8],
     retained: [u64; 4],
     reused_binding_entries: usize,
+    host_tables: [usize; 3],
 }
 static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measurement {
     sessions: 0,
@@ -424,6 +431,7 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     counts: [0; 8],
     retained: [0; 4],
     reused_binding_entries: 0,
+    host_tables: [0; 3],
 });
 
 /// Print the one executor's cumulative counters to the benchmark log after the host renders.
@@ -435,6 +443,8 @@ pub fn print_measurement() {
         eprintln!("UNANSWERED\t{count}\t{reason}");
     }
     eprintln!("ADMISSION_EPOCH reused_binding_entries={}", m.reused_binding_entries);
+    let [uses, distinct, rows] = m.host_tables;
+    eprintln!("ADMISSION_HOST table_uses={uses} distinct_tables={distinct} row_hashes_removed={rows}");
     let [versions,hits,evictions,peak_charge]=m.retained;
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;

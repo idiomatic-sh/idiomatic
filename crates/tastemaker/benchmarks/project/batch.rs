@@ -94,6 +94,23 @@ impl Authorities {
 }
 
 type HostSchema = Vec<(String, Vec<(String, String)>)>;
+type HostRows = [Arc<[super::HostCell]>];
+
+#[derive(Default)]
+struct CanonicalHostRows {
+    ids: HashMap<*const HostRows, usize>,
+    uses: usize,
+    row_hashes_removed: usize,
+}
+
+impl CanonicalHostRows {
+    fn id(&mut self, rows: &Arc<HostRows>) -> usize {
+        self.uses += 1;
+        self.row_hashes_removed += rows.len();
+        let next = self.ids.len();
+        *self.ids.entry(Arc::as_ptr(rows)).or_insert(next)
+    }
+}
 
 struct Admission {
     id: usize,
@@ -111,7 +128,8 @@ struct Batch {
     schedule: session::Schedule,
     program_of: Vec<usize>,
     bindings: Vec<Arc<[Hosted]>>,
-    host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
+    host_rows: HashMap<Arc<HostRows>, usize>,
+    canonical_host_rows: Option<CanonicalHostRows>,
     binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
     queries: HashMap<String, Rc<str>>,
     work: Vec<Work>,
@@ -389,7 +407,11 @@ impl Batch {
     fn binding(&mut self, rule: usize, class: &Admission, mut hosted: Vec<Hosted>) -> usize {
         let mut payloads = Vec::with_capacity(hosted.len());
         for table in &mut hosted {
-            let id = if let Some((rows, &id)) = self.host_rows.get_key_value(&table.rows) {
+            let id = if let Some(canonical) = &mut self.canonical_host_rows {
+                // The live CallCache interns the complete ordered table for its
+                // schema and holds its Arc for the lifetime of this Batch.
+                canonical.id(&table.rows)
+            } else if let Some((rows, &id)) = self.host_rows.get_key_value(&table.rows) {
                 table.rows = rows.clone();
                 id
             } else {
@@ -433,6 +455,9 @@ impl Batch {
 
     fn release_admission(&mut self) {
         self.host_rows.clear();
+        if let Some(canonical) = &mut self.canonical_host_rows {
+            canonical.ids.clear();
+        }
         self.schedule.close();
         self.inventories.clear();
         self.roots.clear();
