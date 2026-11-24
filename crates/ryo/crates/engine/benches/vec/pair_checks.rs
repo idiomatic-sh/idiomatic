@@ -21,7 +21,7 @@ pub(super) struct SyntaxText<'a> {
     pub symbols: &'a [std::rc::Rc<[u8]>],
     pub patterns: Option<Predicates<'a>>,
     pub dictionary: &'a Map<Rc<[u8]>, u32>,
-    pub positions: &'a std::cell::RefCell<LiteralPositions>,
+    pub positions: Option<&'a std::cell::RefCell<LiteralPositions>>,
     pub distinct: Option<&'a std::cell::RefCell<FileSymbols>>,
     pub column: Option<&'a SymbolColumn<'a>>,
 }
@@ -481,7 +481,10 @@ impl<const PROFILE: bool, const BATCH: bool> File<'_, PROFILE, BATCH> {
                 Domain::Text(literal) if self.syntax_text.is_some() => {
                     let column = self.syntax_text.unwrap();
                     self.literal_id(x, literal.as_bytes(), column)
-                        .is_some_and(|symbol| column.positions.borrow_mut().contains(symbol, column.ids))
+                        .is_some_and(|symbol| match column.positions {
+                            Some(index) => index.borrow_mut().contains(symbol, column.ids),
+                            None => column.ids.contains(&symbol),
+                        })
                 }
                 Domain::SpanMatching(kind, pattern) if self.p.file_only[x] => {
                     node_table::ids_of_kind(self.t, languages::KindBits(*kind)).iter().any(|pos| {
@@ -530,6 +533,9 @@ impl<const PROFILE: bool, const BATCH: bool> File<'_, PROFILE, BATCH> {
     }
     /// Domain IDs belong to the prepared proof. Position lists belong to the file.
     fn literal_id(&mut self, domain: Id, literal: &[u8], column: SyntaxText<'_>) -> Option<u32> {
+        if column.positions.is_none() {
+            return column.dictionary.get(literal).copied();
+        }
         *self.literal_ids.entry(domain).or_insert_with(|| column.dictionary.get(literal).copied())
     }
 
@@ -650,7 +656,12 @@ impl<const PROFILE: bool, const BATCH: bool> File<'_, PROFILE, BATCH> {
                 let column = self.syntax_text.unwrap();
                 Some(self.literal_id(id, t.as_bytes(), column).map_or_else(
                     || Rc::new(Vec::new()),
-                    |symbol| column.positions.borrow_mut().positions(symbol, column.ids),
+                    |symbol| match column.positions {
+                        Some(index) => index.borrow_mut().positions(symbol, column.ids),
+                        None => bits(column.ids.iter().enumerate().filter_map(|(pos, &id)| {
+                            (id == symbol).then_some(pos as u32)
+                        })),
+                    },
                 ))
             }
             Domain::Text(t) => {

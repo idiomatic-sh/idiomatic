@@ -219,7 +219,7 @@ impl Checks {
                     ids,
                     symbols: &run.texts,
                     dictionary: &run.ids,
-                    positions: literal_positions,
+                    positions: Some(literal_positions),
                     distinct: Some(distinct),
                     patterns: Some(patterns),
                     column: Some(&column),
