@@ -44,6 +44,7 @@ ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../../../ryo/
 ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../../../../ryo/languages/rust" }
 blake3="1"
 memmap2="0.9"
+memchr="2"
 postcard={version="1",default-features=false,features=["use-std"]}
 tempfile="3"
 object={version="=0.37.3",default-features=false,features=["read","std"]}

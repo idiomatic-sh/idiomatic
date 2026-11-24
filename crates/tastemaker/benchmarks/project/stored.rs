@@ -93,8 +93,8 @@ impl EncodedBlock {
         Some(Self(Some(Arc::new(record.postcard_bytes()?))))
     }
 
-    fn restore(&self, world: &mut session::World) -> Option<Rc<finish::population::Block>> {
-        session::stored_block::restore(self.0.clone()?, world)
+    fn restore(&self, world: &mut session::World, schemas: &mut session::stored_block::Schemas) -> Option<Rc<finish::population::Block>> {
+        session::stored_block::restore(self.0.clone()?, world, schemas)
     }
 
     fn save(data: Vec<u8>) -> Self {
@@ -106,12 +106,99 @@ enum BlockId {
     Empty(u32),
     Local(Key),
 }
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
+struct FileWire<T> {
+    pairs: BTreeMap<Key, T>,
+    blocks: Vec<BlockId>,
+}
+
+struct RowBytes<T>(T);
+impl<T: AsRef<[u8]>> Serialize for RowBytes<T> {
+    fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
+        out.serialize_bytes(self.0.as_ref())
+    }
+}
+
+#[derive(Default)]
 struct FileAnswers {
     pairs: BTreeMap<Key, Local>,
+    locations: BTreeMap<Key, std::ops::Range<usize>>,
+    mapped: Option<shards::MappedRecord>,
     blocks: Vec<BlockId>,
-    #[serde(skip)]
     known_blocks: HashMap<Key, usize>,
+}
+
+impl FileAnswers {
+    fn mapped(record: shards::MappedRecord) -> Option<Self> {
+        let (locations, blocks) = {
+            let bytes = record.as_ref();
+            let FileWire { pairs, blocks }: FileWire<&[u8]> = postcard::from_bytes(bytes).ok()?;
+            let locations = pairs.into_iter().map(|(key, body)| {
+                let start = body.as_ptr() as usize - bytes.as_ptr() as usize;
+                (key, start..start + body.len())
+            }).collect();
+            (locations, blocks)
+        };
+        Some(Self { locations, mapped: Some(record), blocks, ..Self::default() })
+    }
+
+    fn load(&mut self, key: &Key) -> bool {
+        if self.pairs.contains_key(key) {
+            return false;
+        }
+        if let Some(range) = self.locations.get(key)
+            && let Some(mapped) = &self.mapped
+            && let Ok(row) = postcard::from_bytes(&mapped.as_ref()[range.clone()])
+        {
+            self.pairs.insert(*key, row);
+            return true;
+        }
+        false
+    }
+
+    fn remove(&mut self, key: &Key) {
+        self.locations.remove(key);
+        self.pairs.remove(key);
+    }
+
+    fn insert(&mut self, key: Key, local: Local) {
+        self.locations.remove(&key);
+        self.pairs.insert(key, local);
+    }
+}
+
+struct LocalWire<'a>(&'a FileAnswers);
+
+impl Serialize for LocalWire<'_> {
+    fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::{Error as _, SerializeMap as _};
+        let file = self.0;
+        let added = file.pairs.keys().filter(|key| !file.locations.contains_key(*key));
+        let mut map = out.serialize_map(Some(file.locations.len() + added.clone().count()))?;
+        if let Some(payload) = &file.mapped {
+            for (key, range) in &file.locations {
+                map.serialize_entry(key, &RowBytes(&payload.as_ref()[range.clone()]))?;
+            }
+        }
+        let mut buffer = Vec::new();
+        for key in added {
+            buffer.clear();
+            buffer = postcard::to_extend(&file.pairs[key], buffer).map_err(S::Error::custom)?;
+            map.serialize_entry(key, &RowBytes(&buffer))?;
+        }
+        map.end()
+    }
+}
+
+impl Serialize for FileAnswers {
+    fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        struct Wire<'a> {
+            pairs: LocalWire<'a>,
+            blocks: &'a [BlockId],
+        }
+        Wire { pairs: LocalWire(self), blocks: &self.blocks }.serialize(out)
+    }
 }
 fn kind(p: &Path) -> Res<u8> {
     match fs::metadata(p) {
@@ -132,7 +219,7 @@ mod request_answers;
 mod shards;
 pub(super) use request_answers::Packet;
 use request_answers::{Group, Observations, Probe, Proof, Record};
-use shards::{Index, Packets, Records, Segments, Shards};
+use shards::{Appends, Index, Records, Segments, Shards};
 
 #[derive(Default, Serialize, Deserialize)]
 struct Snapshot {
@@ -141,6 +228,7 @@ struct Snapshot {
     files: Segments,
     notes: Index,
     requests: Index,
+    request_layers: Vec<Key>,
     groups: Index,
     packets: Index,
     packet_layers: Vec<Key>,
@@ -161,9 +249,9 @@ pub(super) struct Store {
     empty_schemas: Vec<Key>,
     schema_ids: HashMap<Key, u32>,
     notes: Shards<Notes>,
-    requests: Shards<Record>,
+    requests: Appends<Record>,
     groups: Shards<Group>,
-    packets: Packets<Packet>,
+    packets: Appends<Packet>,
     observed: Observations,
     versions: Vec<Option<Key>>,
     pairs: Vec<Option<(usize, usize)>>,
@@ -182,12 +270,18 @@ pub(super) struct Store {
     absent_local: usize,
     absent_frontier: usize,
     restored_blocks: usize,
+    touched_file_records: usize,
+    touched_local_records: usize,
+    closed_inputs: usize,
+    closed_exec: Vec<f64>,
     frontier_cpu: f64,
     packets_packed: usize,
     empty_packet: Option<Key>,
     empty_packet_reuses: usize,
     packed_rows: usize,
     rendered_packets: usize,
+    shortened_packets: usize,
+    packet_bytes_reused: usize,
     pack_cpu: f64,
 }
 fn table(dir: &Path, name: &str, digest: Key) -> PathBuf {
@@ -258,9 +352,9 @@ impl Store {
                 .collect(),
             empty_schemas: snapshot.empty_schemas,
             notes: Shards::new("project", snapshot.notes),
-            requests: Shards::new("requests", snapshot.requests),
+            requests: Appends::new("requests", snapshot.requests, snapshot.request_layers),
             groups: Shards::new("inputs", snapshot.groups),
-            packets: Packets::new(snapshot.packets, snapshot.packet_layers),
+            packets: Appends::new("answers", snapshot.packets, snapshot.packet_layers),
             observed: Observations::new(dir, snapshot.stamps),
             versions: vec![],
             pairs: vec![],
@@ -279,12 +373,18 @@ impl Store {
             absent_local: 0,
             absent_frontier: 0,
             restored_blocks: 0,
+            touched_file_records: 0,
+            touched_local_records: 0,
+            closed_inputs: 0,
+            closed_exec: Vec::new(),
             frontier_cpu: 0.0,
             packets_packed: 0,
             empty_packet: None,
             empty_packet_reuses: 0,
             packed_rows: 0,
             rendered_packets: 0,
+            shortened_packets: 0,
+            packet_bytes_reused: 0,
             pack_cpu: 0.0,
         })
     }
@@ -345,7 +445,8 @@ impl Store {
             build: self.build,
             files: self.files.index.clone(),
             notes: self.notes.index.clone(),
-            requests: self.requests.index.clone(),
+            requests: self.requests.index().clone(),
+            request_layers: self.requests.layers.clone(),
             groups: self.groups.index.clone(),
             packets: self.packets.index().clone(),
             packet_layers: self.packets.layers.clone(),
@@ -388,7 +489,7 @@ impl Store {
             "packets_packed={} empty_packet_reuses={} packed_rows={} packet_build_cpu={:.6}",
             self.packets_packed, self.empty_packet_reuses, self.packed_rows, self.pack_cpu
         );
-        eprintln!("rendered_packets={}", self.rendered_packets);
+        eprintln!("rendered_packets={} shortened_packets={} packet_bytes_reused={}", self.rendered_packets, self.shortened_packets, self.packet_bytes_reused);
         eprintln!(
             "block_table read={} written={} read_cpu={:.6} empty_schemas={}",
             self.blocks.read_bytes,
@@ -396,6 +497,15 @@ impl Store {
             self.blocks.read_cpu,
             self.empty_schemas.len()
         );
+        if !self.closed_exec.is_empty() {
+            let mut clocks = self.closed_exec.clone();
+            clocks.sort_unstable_by(f64::total_cmp);
+            eprintln!(
+                "closed_work joins={} input_slots={} min_cpu={:.6} median_cpu={:.6} max_cpu={:.6} total_cpu={:.6}",
+                clocks.len(), self.closed_inputs, clocks[0], clocks[clocks.len() / 2],
+                clocks[clocks.len() - 1], clocks.iter().sum::<f64>()
+            );
+        }
         let o = &self.observed;
         eprintln!("observation_open_cpu={:.6}", o.open_cpu);
         eprintln!(
@@ -415,8 +525,8 @@ impl Store {
             o.group_hits
         );
         eprintln!(
-            "contributions restored_blocks={} frontier_cpu={:.6} missing_file_slots={} missing_local_bindings={} missing_frontier_bindings={}",
-            self.restored_blocks, self.frontier_cpu, self.absent_file, self.absent_local, self.absent_frontier
+            "contributions restored_blocks={} file_records={} local_records={} frontier_cpu={:.6} missing_file_slots={} missing_local_bindings={} missing_frontier_bindings={}",
+            self.restored_blocks, self.touched_file_records, self.touched_local_records, self.frontier_cpu, self.absent_file, self.absent_local, self.absent_frontier
         );
         eprintln!(
             "request_store hash_cpu={:.6} hash_bytes={} pairs_read={} project_read={} requests_read={} inputs_read={} answers_read={} pairs_written={} project_written={} requests_written={} inputs_written={} answers_written={}",
@@ -434,6 +544,11 @@ impl Store {
             self.packets.write_bytes
         );
     }
+    pub(super) fn completed_join(&mut self, inputs: usize, elapsed: f64) {
+        self.closed_inputs += inputs;
+        self.closed_exec.push(elapsed);
+    }
+
     pub(super) fn overlay(
         &mut self,
         root: &Path,
@@ -472,14 +587,27 @@ impl Store {
                 return None;
             }
         }
-        self.packets.open(&self.dir, &r.packet);
-        self.packets.get(&r.packet)?;
+        Self::open_packet(&self.dir, &mut self.packets, &r.packet)?;
         self.request_hits += 1;
         Some((r.packet, &r.unread))
     }
+    fn open_packet(dir: &Path, packets: &mut Appends<Packet>, key: &Key) -> Option<()> {
+        packets.open(dir, key);
+        if let Some(base) = packets.get(key)?.base() {
+            packets.open(dir, &base);
+            packets.get(&base).filter(|packet| packet.base().is_none())?;
+        }
+        Some(())
+    }
+
     pub(super) fn packet(&self, id: &Key) -> &Packet {
         self.packets.get(id).expect("verified packet")
     }
+    pub(super) fn packet_report(&self, id: &Key) -> session::Reported {
+        let packet = self.packet(id);
+        packet.report(packet.base().map(|base| self.packet(&base)))
+    }
+
     pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
         let (proof, unread) = self.plans.get_mut(idx)?.take()?;
         let start = crate::thread_cpu();
@@ -512,8 +640,17 @@ impl Store {
         render: impl FnOnce() -> String,
     ) -> Key {
         let k = key((&packet.refusal, &packet.unknowns, packet.typed_bytes()));
-        self.packets.open(&self.dir, &k);
-        if self.packets.get(&k).is_none() {
+        if Self::open_packet(&self.dir, &mut self.packets, &k).is_none() {
+            if let Some(prior) = self.requests.get(&id).map(|r| r.packet) {
+                self.packets.open(&self.dir, &prior);
+                let base = self.packets.get(&prior).and_then(Packet::base).unwrap_or(prior);
+                self.packets.open(&self.dir, &base);
+                if base != k && let Some(old) = self.packets.get(&base) {
+                    let reused = packet.replace_from(base, old);
+                    self.shortened_packets += usize::from(reused != 0);
+                    self.packet_bytes_reused += reused;
+                }
+            }
             packet.digest = render();
             self.rendered_packets += 1;
             self.packets.insert(k, packet);
@@ -522,7 +659,6 @@ impl Store {
         k
     }
     fn record(&mut self, id: Key, packet: Key, proof: Vec<Proof>, unread: Vec<String>) {
-        self.requests.open(&self.dir, &id);
         self.requests.insert(
             id,
             Record {
@@ -638,7 +774,9 @@ impl Store {
             }
             for &slot in pairs {
                 needed[slot] = true;
-                self.local_rows[slot] |= !closed || self.observed.root.is_some();
+                // A closed binding contributes projected blocks and coverage.
+                // Only a local delivery consumes its rendered rows.
+                self.local_rows[slot] |= !closed;
                 frontier[slot] |= closed;
                 self.keep_pairs[slot] |= closed || pairs.len() > 1;
             }
@@ -701,12 +839,14 @@ impl Store {
                     self.notes.open(&self.dir, &v);
                 }
                 if src.bindings.values().any(|&slot| self.keep_pairs[slot]) {
-                    self.files.open(&self.dir, &v);
+                    self.files.open_mapped(&self.dir, &v, FileAnswers::mapped);
+                    self.touched_file_records += usize::from(self.files.get(&v).is_some());
                 }
             }
         }
         let restore_start = crate::thread_cpu();
         let mut restored = HashMap::new();
+        let mut schemas = session::stored_block::Schemas::default();
         let mut damaged = Vec::new();
         // Later live requests can consume a file answer delivered in an earlier epoch.
         // Its source no longer has a pending binding, but its stable pair key remains.
@@ -724,10 +864,11 @@ impl Store {
                 continue;
             };
             let binding = self.binding_keys[binding];
-            self.files.open(&self.dir, &version);
-            let Some(file) = self.files.get(&version) else {
+            self.files.open_mapped(&self.dir, &version, FileAnswers::mapped);
+            let Some(file) = self.files.loaded_mut(&version) else {
                 continue;
             };
+            self.touched_local_records += usize::from(file.load(&binding));
             let Some(pair) = file.pairs.get(&binding) else {
                 continue;
             };
@@ -743,7 +884,7 @@ impl Store {
                         Rc::clone(block)
                     } else {
                         self.blocks.open_mapped(&self.dir, &k, EncodedBlock::mapped);
-                        let block = self.blocks.get(&k)?.restore(world)?;
+                        let block = self.blocks.get(&k)?.restore(world, &mut schemas)?;
                         restored.insert(k, block.clone());
                         block
                     };
@@ -765,7 +906,7 @@ impl Store {
             }
         }
         for (version, binding) in damaged {
-            self.files.change(&version).pairs.remove(&binding);
+            self.files.change(&version).remove(&binding);
         }
         self.restored_blocks += restored.len();
         self.frontier_cpu += crate::thread_cpu() - restore_start;
@@ -773,7 +914,7 @@ impl Store {
             if !projects.contains(&i) {
                 src.project = false;
             }
-            let held = self.versions[i].and_then(|v| self.files.get(&v));
+            let mut held = self.versions[i].and_then(|v| self.files.loaded_mut(&v));
             if let Some(notes) = self.versions[i]
                 .and_then(|v| self.notes.get(&v))
                 .filter(|_| src.project)
@@ -792,10 +933,11 @@ impl Store {
                 let Some((_, bind)) = self.pairs[*slot] else {
                     return true;
                 };
-                let Some(file) = held else {
+                let Some(file) = held.as_deref_mut() else {
                     self.absent_file += 1;
                     return true;
                 };
+                self.touched_local_records += usize::from(file.load(&self.binding_keys[bind]));
                 let Some(pair) = file.pairs.get(&self.binding_keys[bind]) else {
                     if b.cut_of[binding].is_some() {
                         self.absent_frontier += 1
@@ -852,7 +994,7 @@ impl Store {
             if !src.bindings.values().any(|&s| self.keep_pairs[s]) {
                 continue;
             }
-            self.files.open(&self.dir, &version);
+            self.files.open_mapped(&self.dir, &version, FileAnswers::mapped);
             let file = self.files.change(&version);
             for &slot in src.bindings.values() {
                 if !self.keep_pairs[slot] {
@@ -864,6 +1006,7 @@ impl Store {
                 let binding = self.binding_keys[binding];
                 let a = aliases[slot];
                 let Ok(report) = &answers[a] else { continue };
+                self.touched_local_records += usize::from(file.load(&binding));
                 if file
                     .pairs
                     .get(&binding)
@@ -917,7 +1060,7 @@ impl Store {
                     .flatten()
                     .map(|(n, f)| (n.clone(), world.run.paths[*f as usize].clone()))
                     .collect();
-                file.pairs.insert(
+                file.insert(
                     binding,
                     Local {
                         report: Report::save(report, self.local_rows[slot]),

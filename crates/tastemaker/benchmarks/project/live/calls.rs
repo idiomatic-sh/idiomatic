@@ -41,8 +41,15 @@ pub struct Live {
 }
 
 impl Drop for Live {
-    fn drop(&mut self){
-        if let Some(store)=&mut self.store && let Err(e)=store.publish(){eprintln!("publish completed session: {e}");}
+    fn drop(&mut self) {
+        if let Some(store) = &mut self.store {
+            let start = thread_cpu();
+            match store.publish() {
+                Ok(written) => eprintln!("live_store_publish_cpu={:.6} written={written}", thread_cpu() - start),
+                Err(e) => eprintln!("publish completed session: {e}"),
+            }
+            store.costs();
+        }
     }
 }
 impl Default for Live {
@@ -121,10 +128,22 @@ impl Live {
         let directory = directory.filter(|_| {
             std::env::var_os("TM_CHECK_SESSION").as_deref() == Some(std::ffi::OsStr::new("retained"))
         });
-        if self.directory.as_deref()!=directory {
-            if let Some(old)=&mut self.store {old.publish().map_err(|e|e.to_string())?;}
-            self.store=directory.map(|p|super::stored::Store::directory(p.to_owned())).transpose().map_err(|e|e.to_string())?;
-            self.directory=directory.map(std::path::Path::to_owned);
+        if self.directory.as_deref() != directory {
+            if let Some(old) = &mut self.store {
+                let start = thread_cpu();
+                let written = old.publish().map_err(|e| e.to_string())?;
+                eprintln!("live_store_publish_cpu={:.6} written={written}", thread_cpu() - start);
+                old.costs();
+            }
+            self.store = if let Some(path) = directory {
+                let start = thread_cpu();
+                let store = super::stored::Store::directory(path.to_owned()).map_err(|e| e.to_string())?;
+                eprintln!("live_store_open_cpu={:.6}", thread_cpu() - start);
+                Some(store)
+            } else {
+                None
+            };
+            self.directory = directory.map(std::path::Path::to_owned);
         }
         Ok(())
     }
@@ -359,7 +378,7 @@ impl Live {
             let held;
             let receipt=match entry {
                 Ok(k)=>{
-                    held=self.store.as_ref().unwrap().packet(&k).report();
+                    held=self.store.as_ref().unwrap().packet_report(&k);
                     super::Receipt {rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
                 }
                 Err((i,k))=>{
