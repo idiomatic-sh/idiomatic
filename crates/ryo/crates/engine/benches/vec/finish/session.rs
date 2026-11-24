@@ -1,4 +1,5 @@
 //! Evaluate a closed set of typed populations once, after the final file.
+use super::population::Inputs;
 use super::{E, Exec, File, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};
 use std::{collections::BTreeMap, rc::Rc};
 
@@ -50,7 +51,7 @@ pub(in super::super) fn evaluate_frontier(
     provider: &mut dyn Provider,
     admitted: &[u32],
     admit_file_subject: impl Fn(u32) -> bool,
-    carried: &BTreeMap<usize, Rc<Table>>,
+    carried: &Inputs,
 ) -> R<Vec<answer::Row>> {
     evaluate_covered(
         exec,
@@ -71,7 +72,7 @@ pub(in super::super) fn evaluate_covered(
     provider: &mut dyn Provider,
     admitted: &[u32],
     admit_file_subject: impl Fn(u32) -> bool,
-    carried: &BTreeMap<usize, Rc<Table>>,
+    carried: &Inputs,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
 ) -> R<Vec<answer::Row>> {
     let plan = exec.plan;
@@ -89,8 +90,7 @@ pub(in super::super) fn evaluate_covered(
     run.missing.clear();
     // Each input spans the session. File-local views and implicit file equality
     // are inapplicable even when this particular request admits just one file.
-    exec.views.fill(Some(None));
-    exec.constant.fill(Some(true));
+    exec.closed_inputs();
     let mut demanded = vec![false; plan.nodes.len()];
     let mut stack: Vec<_> = plan.emits.iter().map(|e| e.1).collect();
     while let Some(i) = stack.pop() {
@@ -99,15 +99,11 @@ pub(in super::super) fn evaluate_covered(
         }
         stack.extend(&plan.nodes[i].inputs);
     }
-    for (&i, table) in carried {
-        let schema = exec.schema(run, i)?;
-        if table.names != schema.names
-            || table.tys != schema.tys
-            || table.cols.iter().any(|c| c.len() != table.n)
-        {
+    for (&i, input) in carried {
+        let sc=exec.schema(run,i)?;
+        if !input.agrees(&sc.names,&sc.tys) {
             return Err("frontier schema differs from its prepared step".into());
         }
-        exec.run_memo[i] = Some(Rc::clone(table));
     }
     let mut bases = BTreeMap::<&str, Rc<Table>>::new();
     for (i, step) in plan.nodes.iter().enumerate() {
@@ -123,7 +119,7 @@ pub(in super::super) fn evaluate_covered(
                         let (_, names, tys) = run
                             .catalog(rel)
                             .ok_or_else(|| format!("undeclared relation {rel}"))?;
-                        let t = provider.fill(run, rel, Scope::Files(admitted))?;
+                        let t = provider.shared_fill(run, rel, Scope::Files(admitted))?;
                         if t.names != names
                             || t.tys != tys
                             || t.cols.len() != names.len()
@@ -149,7 +145,6 @@ pub(in super::super) fn evaluate_covered(
                                 return Err(format!("unbound or absent {ty:?} cell in {rel}"));
                             }
                         }
-                        let t = Rc::new(t);
                         let _previous = bases.insert(rel, Rc::clone(&t));
                         t
                     }
@@ -206,6 +201,7 @@ pub(in super::super) fn evaluate_covered(
     let scratch = NodeTable::default();
     let mut frame = File::new(&scratch, &[], u32::MAX, plan.nodes.len());
     frame.after_last_file = true;
+    frame.project_inputs = Some(carried);
     // A supplied population is a materialized input, including for keyed and closure
     // kernels, which consult the frame before deciding to visit an input's children.
     for (node, table) in exec.run_memo.iter().enumerate() {

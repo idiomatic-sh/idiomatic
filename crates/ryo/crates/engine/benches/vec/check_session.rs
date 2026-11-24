@@ -18,6 +18,9 @@ pub(crate) mod project;
 #[path = "check_session/source.rs"]
 pub(crate) mod source;
 use source::Source as FileSource;
+#[path = "check_session/frontier.rs"]
+mod frontier;
+pub(crate) use frontier::World;
 
 type Parameters =
     BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
@@ -253,6 +256,7 @@ impl Schedule {
 struct Bound<'p> {
     exec: Exec<'p>,
     facts: Vec<l::Relation>,
+    filters: BTreeMap<usize,Vec<(usize,u64)>>,
     hosted: Tables,
     shape: Vec<Vec<(bool, u32)>>,
     words: Vec<Vec<u32>>,
@@ -322,7 +326,11 @@ fn bind<'p, L: FileSource>(
         .map(|clause| clause.iter().map(|w| run.sym(w.as_bytes())).collect())
         .collect();
     let exec = Exec::new(&program.plan);
+    let filters=cut.into_iter().flat_map(|c|&c.filters).map(|(&node,alts)|{
+        (node,alts.iter().map(|(col,w)|(*col,u64::from(run.sym(w)))).collect())
+    }).collect();
     Ok(Bound {
+        filters,
         exec,
         facts,
         hosted,
@@ -766,6 +774,7 @@ pub(crate) fn visit<L: FileSource>(
                     table.n = 1;
                     (name.to_owned(), Rc::new(table))
                 });
+            let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
             for (binding, slot, excluded) in active {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
                 let contract = &contracts[&binding];
@@ -814,27 +823,9 @@ pub(crate) fn visit<L: FileSource>(
                 clocks.evaluated += 1;
                 if let Some(cut) = &cut_of[binding] {
                     let local: Vec<_> = lines.iter().filter(|_| b.lines).cloned().collect();
-                    let contribution = finish::session::gather(
-                        &mut b.exec,
-                        &mut run,
-                        id.0,
-                        &tree,
-                        &bytes,
-                        &mut facts_view,
-                        &local,
-                        &cut.inputs,
-                        &local_coverage,
-                    )
-                    .and_then(|tables| {
-                        tables
-                            .into_iter()
-                            .map(|(n, t)| {
-                                Ok((n, world.carry(&run, id.0, &t, &mut carried_symbols)?))
-                            })
-                            .collect()
-                    });
-                    answers[slot] = contribution.map(|tables| {
-                        world.frontiers.insert(slot, tables);
+                    let value=shared.contribute(b,&mut run,id.0,tree,&bytes,&mut facts_view,&local,cut,
+                        &local_coverage,world,&mut carried_symbols,slot);
+                    answers[slot] = value.map(|()| {
                         Reported {
                             rows: Vec::new(),
                             unknowns,
@@ -865,121 +856,4 @@ pub(crate) fn visit<L: FileSource>(
         }
     }
     state.run = run;
-}
-
-/// A frontier's words cross the reader's symbol pool and its local node number
-/// space once. The destination run owns stable file and symbol identities for
-/// every request. Positions inside a file remain byte-range pairs.
-#[derive(Default)]
-pub(crate) struct World {
-    pub run: Run,
-    pub files: HashMap<String, u32>,
-    pub frontiers: HashMap<usize, Vec<(usize, Rc<Table>)>>,
-    pub unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
-}
-
-impl World {
-    pub fn file(&mut self, path: &str) -> u32 {
-        if let Some(&i) = self.files.get(path) {
-            return i;
-        }
-        let i = u32::try_from(self.run.paths.len()).expect("file number");
-        self.run.paths.push(path.to_owned());
-        let sym = self.run.sym(path.as_bytes());
-        self.run.path_sym.push(sym);
-        self.files.insert(path.to_owned(), i);
-        i
-    }
-
-    fn carry(
-        &mut self,
-        source: &Run,
-        home: u32,
-        t: &Table,
-        syms: &mut HashMap<u32, u32>,
-    ) -> Result<Rc<Table>> {
-        let mut out = Table::with_rows(t.names.clone(), t.tys.clone(), t.n);
-        let origin = self.file(&source.paths[home as usize]);
-        for ((dst, src), ty) in out.cols.iter_mut().zip(&t.cols).zip(t.tys.iter()) {
-            match ty {
-                finish::Ty::File => {
-                    for &v in src {
-                        if v == u64::MAX {
-                            dst.push(v);
-                            continue;
-                        }
-                        let path = source
-                            .paths
-                            .get(v as usize)
-                            .ok_or("unbound file on handoff")?;
-                        dst.push(u64::from(self.file(path)));
-                    }
-                }
-                finish::Ty::Node => {
-                    for &v in src {
-                        if v == u64::MAX {
-                            dst.push(v);
-                            continue;
-                        }
-                        let at =
-                            u32::try_from(v).map_err(|_| "unbound node origin on file handoff")?;
-                        dst.push((u64::from(origin) << 32) | u64::from(at));
-                    }
-                }
-                finish::Ty::Sym => {
-                    for &v in src {
-                        if v == u64::MAX {
-                            dst.push(v);
-                            continue;
-                        }
-                        let v = u32::try_from(v).map_err(|_| "unbound symbol on handoff")?;
-                        let sym = if source.absent_word == Some(v) {
-                            self.run.absent_word.ok_or("missing public null symbol")?
-                        } else if let Some(&s) = syms.get(&v) {
-                            s
-                        } else {
-                            let s = self.run.sym(
-                                source
-                                    .texts
-                                    .get(v as usize)
-                                    .ok_or("unbound symbol on handoff")?,
-                            );
-                            syms.insert(v, s);
-                            s
-                        };
-                        dst.push(u64::from(sym));
-                    }
-                }
-                _ => dst.extend_from_slice(src),
-            }
-        }
-        out.n = t.n;
-        Ok(Rc::new(out))
-    }
-
-    pub fn joined(&self, slots: &[usize], cut: &[usize]) -> Result<BTreeMap<usize, Rc<Table>>> {
-        let mut combined: BTreeMap<usize, Table> = BTreeMap::new();
-        for slot in slots {
-            let contribution = self.frontiers.get(slot).ok_or("missing file frontier")?;
-            if contribution.len() != cut.len() {
-                return Err("incomplete file frontier".into());
-            }
-            for (&id, (n, table)) in cut.iter().zip(contribution) {
-                if id != *n {
-                    return Err("unbound column frontier".into());
-                }
-                let out = combined.entry(id).or_insert_with(|| {
-                    Table::with_rows(table.names.clone(), table.tys.clone(), table.n)
-                });
-                if out.names != table.names || out.tys != table.tys {
-                    return Err("file frontier schema differs between providers".into());
-                }
-                for (col, add) in out.cols.iter_mut().zip(&table.cols) {
-                    col.extend_from_slice(add);
-                }
-                out.n += table.n;
-            }
-        }
-        Ok(combined.into_iter().map(|(n, t)| (n, Rc::new(t))).collect())
-    }
 }
