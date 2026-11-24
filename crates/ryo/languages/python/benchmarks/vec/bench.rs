@@ -450,15 +450,32 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     // `cargo bench` passes `--bench`; drop it.
     let args: Vec<&str> = args.iter().map(String::as_str).filter(|a| *a != "--bench").collect();
+    if let [_, "--retain-findings", pack, request, output] = args.as_slice() {
+        // Packaging tests file and directory membership under its search roots. Its
+        // only parsed bytes are those of the admitted source currently being visited.
+        finisher::retained::check(pack.as_ref(),request.as_ref(),output.as_ref(),".ryo_cache",true,true, |req,capture| {
+            let paths: Vec<_> = req.files.iter().map(|p|req.root.join(p).to_str().expect("source path").to_owned()).collect();
+            let selected=req.selected_rules.join(",");
+            let args=["vec","funnel","spec",request,pack,"unused","--facts","--remap","--direct",
+                "--hasher","fx","--regex-set","--words","table","--word-skip","--finish",pack,req.root.to_str().unwrap(),
+                "--findings-out",output,"--applicability",request,"--finish-rules",&selected,"--request",request];
+            run_check(&args,capture,Some(&paths))
+        }).expect("retained findings");
+    } else {
+        run_check(&args,None,None);
+    }
+}
+
+fn run_check(args:&[&str],mut capture:Option<&mut finisher::retained::Capture>, paths:Option<&[String]>)->bool {
     // ryo-fmx3.1 redo-lowering: the plan lowering in Rust, before any walk is made.
     match args.get(1).copied() {
-        Some("lower") => return lower::run_lower(&args[2..]),
-        Some("stage") => return lower::run_stage(&args[2..]),
+        Some("lower") => { lower::run_lower(&args[2..]); return true; },
+        Some("stage") => { lower::run_stage(&args[2..]); return true; },
         _ => {}
     }
     // 6f: `VEC_PY310` walks at the pack's configured target (benchmark.toml `python-target=3.10`); without it the walk is at
     // the parser's default (Latest), as every run before 6f was.
-    let settings = target_settings();
+    let settings = target_settings_from(args);
     let walk = ryo_python::walk_with_settings(settings);
     let vocab = vocabulary(&walk);
     match args.get(1).copied() {
@@ -505,28 +522,37 @@ fn main() {
                     let context = document.as_ref().map(request::context_from).unwrap_or_default();
                     let read = lower::read_pack(std::path::Path::new(finish_args[0]), context);
                     println!("start-up pack: read {:.4} parse {:.4} s", read.read, read.parse);
-                    let same_pack = std::fs::canonicalize(args[4]).ok() == std::fs::canonicalize(finish_args[0]).ok();
-                    let plan = lower::second_half_plan(&read, same_pack);
+                    let plan = lower::second_half_plan(&read, true);
                     pack = Some((finish_args[0], read));
                     plan
                 } else {
                     finish::load(finish_args[0])
                 };
                 println!("start-up total {:.4} s", thread_cpu() - t0);
-                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args, request_path.zip(document.as_ref()));
+                let lowered = thread_cpu();
+                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args, request_path.zip(document.as_ref()), paths);
                 drop(document);
-                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)));
-                fin.end(0.0);
+                fin.capture = capture.as_deref_mut().map(std::mem::take);
+                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)), paths);
+                if let Some(c) = capture.take() { *c = fin.capture.take().unwrap(); }
+                let walked = thread_cpu();
+                let ok = fin.end(0.0);
+                if paths.is_some() {
+                    eprintln!("retained_evaluation_ms lowering={:.3} setup_walk_and_replay={:.3} finish_report={:.3}",
+                        (lowered-t0)*1000.,(walked-lowered)*1000.,(thread_cpu()-walked)*1000.);
+                }
                 // redo-union pass 2 c18: the plan (30 k nodes of JSON) is not dropped one by one at exit
                 std::mem::forget(plan);
+                return ok;
             } else {
-                run_funnel(&walk, settings, &vocab, &args[2..], None, None);
+                run_funnel(&walk, settings, &vocab, &args[2..], None, None, paths);
             }
         }
         Some("finish") => run_finish(&walk, settings, &vocab, &args[2..]),
         Some("kfloor") => kernel_floor(&walk, args[2]),
         _ => eprintln!("usage: vec census <files> <literals> <out> | vec run <mode> <files> <anchors> [--batch N] [--repeat K] [--rules-out F]"),
     }
+    true
 }
 
 /// The first half's language knowledge, as the provider declares it (the column walk's per-node facts and the token order
@@ -549,8 +575,7 @@ fn python_language(vocab: &Vocab) -> first::Language {
 
 /// The parser's settings from the run's request (`--request` or `--applicability`: its `parser_configuration`, the
 /// provider's identity); with no request, `VEC_PY310` as before.
-fn target_settings() -> ryo_python::settings::PythonParserSettings {
-    let args: Vec<String> = std::env::args().collect();
+fn target_settings_from(args:&[&str])->ryo_python::settings::PythonParserSettings {
     for option in ["--request", "--applicability"] {
         if let Some(path) = args.windows(2).find(|pair| pair[0] == option).map(|pair| &pair[1])
             && let Ok(text) = std::fs::read_to_string(path)
@@ -985,7 +1010,12 @@ impl ColFacts<'_, '_, '_, '_> {
         let t1 = if timed { thread_cpu() } else { 0.0 };
         let t = match answer {
             languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
-            _ => Err(format!("{rel} not answered")),
+            languages::FactAnswer::Refused(_) => {
+                let reason = format!("{rel} not answered");
+                run.provider_refusal = Some(reason.clone());
+                Err(reason)
+            }
+            languages::FactAnswer::Partial(_) => Err(format!("{rel} not answered")),
         };
         if timed {
             let t2 = thread_cpu();
@@ -1446,7 +1476,12 @@ impl finish::Provider for Facts<'_, '_, '_> {
         let answer = self.facts.facts.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
         let mut t = match answer {
             languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
-            _ => Err(format!("{rel} not answered")),
+            languages::FactAnswer::Refused(_) => {
+                let reason = format!("{rel} not answered");
+                run.provider_refusal = Some(reason.clone());
+                Err(reason)
+            }
+            languages::FactAnswer::Partial(_) => Err(format!("{rel} not answered")),
         }?;
         // the walk names its file FileId(0): that cell is this provider's file (a cell naming another file is kept)
         for c in 0..t.tys.len() {
@@ -1585,7 +1620,7 @@ fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let plan = finish::load(args[0]);
     type_expression::load_lists(args[0]);
     let list = files(args[1]);
-    let mut fin = visit::Finisher::new(&plan, walk, vocab, args, None);
+    let mut fin = visit::Finisher::new(&plan, walk, vocab, args, None,None);
     let seed: Option<std::collections::HashSet<(String, String)>> =
         flag(args, "--seed").map(|p| std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect());
     let mut seed_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
@@ -1634,10 +1669,9 @@ fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
 /// redo-general: the byte strings one of which a file's source must hold for a `source-matches` pattern of the plan to
 /// match in it: each pattern's literal set (regex-syntax's extractor) where it is finite and holds no empty string;
 /// distinct, in plan order. (A `matches` call tests a cell's text, which need not be the source's: not read here.)
-fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
+fn source_literals(patterns: &[String]) -> Vec<Vec<u8>> {
     let mut out: Vec<Vec<u8>> = Vec::new();
-    for n in plan.nodes.iter().filter(|n| n.op == "source-matches") {
-        let Some(p) = n.args()["pattern"].as_str() else { continue };
+    for p in patterns {
         let Ok(hir) = regex_syntax::ParserBuilder::new().utf8(false).build().parse(p) else { continue };
         let seq = regex_syntax::hir::literal::Extractor::new().extract(&hir);
         let Some(lits) = seq.literals() else { continue };
@@ -1658,9 +1692,20 @@ fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
 /// `<anchors>` a directory: the pack; the first half's spec is prepared in this process from its parsed rules (`first.rs`), the
 /// parse shared with the second half's when `--finish` names the same pack (`pack`); `<anchors>` and `<plans>` files: the
 /// spec prepared beforehand (the oracle path).
-fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
+fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>, paths:Option<&[String]>) {
     let way = args[0];
-    let list = files(args[1]);
+    let patterns: Vec<String> = if let Some((_, prepared)) = pack {
+        use ryo_values::domain::finish_plans::types::FinishStep;
+        prepared.typed.borrow().as_ref().into_iter().flat_map(|p| p.steps.iter()).filter_map(|s| {
+            if let FinishStep::SourceMatches(a) = s { Some(a.pattern.0.to_string()) } else { None }
+        }).collect()
+    } else if let Some(path) = flag(args,"--finish") {
+        // Legacy plan file is an external input.
+        let input: serde_json::Value = serde_json::from_slice(&std::fs::read(path).expect("finish plan")).expect("finish plan");
+        input["nodes"].as_array().into_iter().flatten().filter(|n| n["op"] == "source-matches")
+            .filter_map(|n|n["args"]["pattern"].as_str().map(str::to_owned)).collect()
+    } else {Vec::new()};
+    let list = paths.map_or_else(||files(args[1]),|p|p.to_vec());
     let mut fact_catalog = facts::Catalog::default();
     let mut interner = facts::Interner { ids: facts::Table::named(&flag(args, "--hasher").unwrap_or_else(|| "std".to_owned())), ..Default::default() };
     let f0 = thread_cpu();
@@ -1767,11 +1812,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         .expect("aho-corasick");
     // redo-general: the byte patterns of the `bytes6` probe from the plan's own text patterns (`source_literals`), not a list
     // of particular rules' bytes; at most 64 (one bit each)
-    let byte_patterns: Vec<Vec<u8>> = if word_src == "bytes6" {
-        fin.as_deref().map(|f| source_literals(f.plan())).unwrap_or_default().into_iter().take(64).collect()
-    } else {
-        Vec::new()
-    };
+    let byte_patterns:Vec<Vec<u8>>=if word_src=="bytes6" {source_literals(&patterns).into_iter().take(64).collect()}else{Vec::new()};
     let bytes_ac = aho_corasick::AhoCorasick::new(&byte_patterns).expect("byte patterns");
     if flag(args, "--words").as_deref() == Some("bytes6") {
         println!("byte patterns from the plan: {} {:?}", byte_patterns.len(), byte_patterns.iter().map(|p| String::from_utf8_lossy(p).into_owned()).collect::<Vec<_>>());
@@ -1863,7 +1904,14 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     println!("start-up to first file {:.4} s", thread_cpu());
     for (file_no, path) in list.iter().enumerate() {
         let c0 = thread_cpu();
+        if let Some(f)=fin.as_deref_mut() && f.capture.is_some() {
+            let origin=f.run.paths[file_no].clone();
+            if f.retained_file(&origin){continue}
+        }
         let bytes = std::fs::read(path).expect("read");
+        if let Some(f)=fin.as_deref_mut() && let Some(c)=&mut f.capture {
+            c.visited(&f.run.paths[file_no],&bytes);
+        }
         let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
         store.reset(slots_n);
         reader_dump.clear();

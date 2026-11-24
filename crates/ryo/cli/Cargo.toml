@@ -53,9 +53,9 @@ tikv-jemallocator.workspace = true
 mimalloc.workspace = true
 
 [dev-dependencies]
+object.workspace = true
 blake3.workspace = true
 postcard.workspace = true
-object={version="=0.37.3",default-features=false,features=["read","std"]}
 ryo_python = { package = "idiomatic-sh-ryo-python", path = "../languages/python", features = ["fixtures"] }
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../crates/matching" }
 ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../crates/execution_domain" }

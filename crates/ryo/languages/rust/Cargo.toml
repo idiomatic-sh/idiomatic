@@ -37,6 +37,8 @@ ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "
 
 [dev-dependencies]
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../crates/matching" }
+object.workspace = true
+blake3.workspace = true
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../crates/operators" }
 bumpalo = "3"
 serde_json.workspace = true

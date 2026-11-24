@@ -125,12 +125,19 @@ pub(super) fn run(
 pub(super) fn run_files<const QUERY_ROWS: bool>(
     start: f64,
     language: l::Language,
-    mut declaration: first::Language,
+    declaration: first::Language,
     pack: &str,
     request: &str,
     output: &str,
     paths: Option<Vec<String>>,
 ) -> bool {
+    evaluate_files::<QUERY_ROWS>(start,language,declaration,pack,request,output,paths,None)
+}
+
+pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
+    start:f64, language:l::Language, mut declaration:first::Language, pack:&str, request:&str, output:&str,
+    paths:Option<Vec<String>>,mut capture:Option<&mut finisher::retained::Capture>,
+)->bool {
     let document: serde_json::Value = serde_json::from_slice(&std::fs::read(request).expect("read request")).expect("request");
     let mut req = <Request as serde::Deserialize>::deserialize(&document).expect("request fields");
     if let Some(paths) = paths { req.files = paths; }
@@ -200,10 +207,6 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     declaration.text_kinds = (0..kind_names.0.len())
         .map(|k| u16::try_from(k).expect("kind code"))
         .collect();
-    let typed = read
-        .typed
-        .take()
-        .expect("executor must hand over the typed plan");
     assert!(typed.unplanned.is_empty());
     let mut program =
         super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows);
@@ -282,7 +285,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         fields.width(),
     );
     let mut dependencies: Vec<BTreeSet<l::Relation>> = Vec::new();
-    for n in &plan.nodes {
+    for (slot, n) in plan.nodes.iter().enumerate() {
         let mut reads = BTreeSet::new();
         for &i in &n.inputs {
             reads.extend(&dependencies[i]);
@@ -322,6 +325,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     );
     fin.query_rows = QUERY_ROWS;
     drop(document);
+    fin.capture = capture.as_deref_mut().map(std::mem::take);
     let startup = thread_cpu() - start;
     println!(
         "startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}",
@@ -352,6 +356,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         .into_iter()
         .collect();
     for (index, path) in req.files.iter().enumerate() {
+        if fin.retained_file(path) { continue; }
         let t0 = thread_cpu();
         let bytes = std::fs::read(Path::new(&req.root).join(path)).expect("read source");
         let id = FileId(index.try_into().expect("file id"));
@@ -365,6 +370,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         parser
             .build_file(parse, &mut elements, &mut symbols, &all)
             .expect("parse file");
+        if let Some(c) = &mut fin.capture { c.visited(path,&bytes); }
         let mut provider = reader::ReaderFacts::new(id.0, &unknown_words);
         reader::project_tree(
             &elements,
@@ -452,10 +458,8 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         let t1 = thread_cpu();
         first_cpu += t1 - t0;
         memory.sample(1);
-        if !fin.visits(&wanted) {
-            continue;
-        }
-        if !packet.ready {
+        let visits = fin.visits(&wanted);
+        if visits && !packet.ready {
             parser.walk_file(
                 &mut elements,
                 &mut symbols,
@@ -465,6 +469,48 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
                 &mut packet.rows,
             );
             packet.index(&facts);
+        }
+        if let Some(c) = &mut fin.capture {
+            use finisher::retained::UnknownOrigin;
+            use ryo_relations::domain::relations::types::Missing;
+            for (rel, cause, missing) in &packet.rows.partials {
+                let kind = match missing { Missing::Any => None, Missing::Kind(kind) => Some(kind.0) };
+                c.unknown(path, catalog::name(*rel).0, kind, cause, UnknownOrigin::Partition);
+            }
+            for (rel, subject, cause) in &packet.rows.partials_at {
+                if *subject == id {
+                    c.unknown(path, catalog::name(*rel).0, None, cause, UnknownOrigin::Partition);
+                } else {
+                    c.partial(path);
+                }
+            }
+            if !unknown_words.is_empty() {
+                let mut scalar = |relation: &str, word: l::Symbol, origin: UnknownOrigin| {
+                    if let Some(&reason) = unknown_words.get(&word.0) {
+                        let cause = std::str::from_utf8(&fin.run.texts[reason as usize]).expect("published cause");
+                        c.unknown(path, relation, None, cause, origin);
+                    }
+                };
+                for n in 0..l::end_of(&elements).0 {
+                    let pos = l::Position(n);
+                    scalar("syntax-tree", l::field_name_at(&elements, pos), UnknownOrigin::Field(n));
+                    scalar("syntax-tree", l::text_at(&elements, pos), UnknownOrigin::Text(n));
+                }
+                let mut offset = 0;
+                for (row, &relation) in packet.rows.relations.iter().enumerate() {
+                    let kinds = catalog::kinds(relation);
+                    for (column, kind) in kinds.iter().enumerate() {
+                        if *kind == l::CellKind::Symbol {
+                            let word = l::Symbol(packet.rows.words[offset + column] as u32);
+                            scalar(catalog::name(relation).0, word, UnknownOrigin::Cell(row as u32, column as u32));
+                        }
+                    }
+                    offset += kinds.len();
+                }
+            }
+        }
+        if !visits {
+            continue;
         }
         packet
             .rows
@@ -496,6 +542,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     }
     fin.time = second_cpu;
     let reporting = thread_cpu();
+    if let Some(c) = capture.take() { *c = fin.capture.take().unwrap(); }
     let ok = fin.end(0., |_| {});
     second_cpu += thread_cpu() - reporting;
     memory.sample(2);
