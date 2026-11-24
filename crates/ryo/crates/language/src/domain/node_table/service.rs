@@ -1460,6 +1460,23 @@ pub fn embedded_segments(table: &NodeTable) -> impl Iterator<Item = EmbeddedSpan
     })
 }
 
+/// Expansion segments use the builder's host/offset machinery. Their origins
+/// live in the semantic file. The evaluator sees the file's concrete prefix.
+pub(crate) fn expose_concrete(table: &mut NodeTable, end: Position) {
+    let columns = &mut table.0;
+    let limit = usize::from(end);
+    if limit == columns.kind.len() {
+        return;
+    }
+    columns.visible = Some(limit);
+    columns.embedded.retain(|segment| segment.root < end);
+    for (code, ids) in columns.by_kind.iter().enumerate() {
+        if ids.first().is_some_and(|first| *first >= end) {
+            columns.present.0[code / PRESENCE_BITS].0 &= !(1 << (code % PRESENCE_BITS));
+        }
+    }
+}
+
 /// Assigns grammatical roles that require the completed sibling list.
 /// Role and index storage are reused between files.
 pub fn classify_fields(table: &mut NodeTable, classify: impl Fn(&NodeTable, Position) -> FieldCode) {

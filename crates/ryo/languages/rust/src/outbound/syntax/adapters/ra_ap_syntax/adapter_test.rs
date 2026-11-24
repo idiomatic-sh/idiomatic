@@ -349,6 +349,11 @@ fn native_difference(bytes: &[u8]) -> String {
     let (mut left, mut right) = (l::Symbols::default(), l::Symbols::default());
     parser.build_file(req, &mut base, &mut left, &[]).expect("Rust fixture");
     parser.build_native_file(req, &mut direct, &mut right, &[]).expect("native Rust fixture");
+    let lent = l::native_table(&direct).expect("native Rust table");
+    if l::node_table::embedded_segments(lent).next().is_some()
+        || usize::from(l::node_table::own_end(lent)) != l::positions(&base).count() {
+        return "concrete table exposes a macro expansion".into();
+    }
     if l::end_of(&base) != l::end_of(&direct)
         || l::contract::notes_of(&base) != l::contract::notes_of(&direct)
         || l::diagnostic_count(&base) != l::diagnostic_count(&direct)

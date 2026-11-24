@@ -129,7 +129,7 @@ pub fn read_native(
     state.syntax_acceptance = table.0.acceptance;
     state.expanded = origins;
     state.expanded_from = (hidden > 0).then_some(own);
-    table.0.visible = (hidden > 0).then_some(usize::from(own));
+    t::expose_concrete(&mut table, own);
     state.native = Some(std::sync::Arc::new(table));
 }
 
