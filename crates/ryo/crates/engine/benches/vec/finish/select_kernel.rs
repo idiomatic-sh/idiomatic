@@ -536,7 +536,6 @@ impl Exec<'_> {
             let Ok(Some(v)) = self.view(run, *s) else { continue };
             if let super::Native::Fact(x) = v.base
                 && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
-
             {
                 continue;
             }
@@ -666,6 +665,7 @@ impl Exec<'_> {
         }
         super::empty_sel::lap(0, self.inner);
         // `srcs` is redo-alloc's kept list (the wrapper's)
+        let mut unread: [Option<Native>; 4] = [None; 4];
         // redo-whole pass 2 (keyed.rs): the source read by key (this run is itself by key), and the source read by the
         // driver's keys (a step whose one consumer is this join, on an equality with the other source)
         let mut deferred = if keyed.is_none() || k == 2 { self.ksel_deferred(f, run, &sp, keyed.map(|x| x.0))? } else { None };
@@ -702,7 +702,26 @@ impl Exec<'_> {
                 srcs.push(Src::Base(Native::Tree));
                 continue;
             }
-            let src = self.src_of(f, run, p, *n)?;
+            // A cursor whose entry has no size hint can be bound without
+            // decoding its admitted columns. Later sources can still end the join.
+            let src = if i < unread.len()
+                && matches!(kp.entries[i], super::view_entry::Entry::Unknown)
+                && kp.kinds[i].0.is_none() && kp.kinds[i].1.is_none()
+                && f.memo[*n].is_none() && f.population(*n).is_none()
+                && self.plan.nodes[*n].op != "closure"
+                && !self.decided_empty(f, *n)
+                && let Some(view) = self.view(run, *n)?
+                && let Native::Fact(id) = view.base
+                && f.facts.get(usize::from(id)).is_none_or(Option::is_none)
+            {
+                if self.admitted_rows(f, run, id) == Some(0) {
+                    return self.empty_rc(run, node);
+                }
+                unread[i] = Some(view.base);
+                Src::View(view, *n)
+            } else {
+                self.src_of(f, run, p, *n)?
+            };
             if let Src::Tab(t, _) = &src
                 && t.n == 0
             {
@@ -759,7 +778,9 @@ impl Exec<'_> {
             }
         }
         super::empty_sel::lap(3, self.inner);
-
+        for base in unread.into_iter().flatten() {
+            self.load_fact(f, run, base)?;
+        }
         let driver = match driver {
             Some(d) => d,
             None => (0..k).find(|i| matches!(srcs[*i], Src::View(..))).ok_or("a select with no source to start from")?,

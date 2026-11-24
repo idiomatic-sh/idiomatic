@@ -225,8 +225,14 @@ const CLASSES: usize = 20;
 /// power of two (so it is found again by its class); for an unknown size (`n` 0) one of the small classes (up to 512
 /// cells) or an empty one.
 #[inline]
-fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
-    let (lo, hi) = if n == 0 { (0, 8) } else { let c = (usize::BITS - (n - 1).leading_zeros()) as usize; (c.saturating_sub(1), (c + 4).min(CLASSES - 1)) };
+fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize, exact: bool) -> Vec<u64> {
+    if n == 0 && exact { return Vec::new(); }
+    let (lo, hi) = if n == 0 {
+        (0, 8)
+    } else {
+        let c = (usize::BITS - (n - 1).leading_zeros()) as usize;
+        (c.saturating_sub(1), c + if exact { 0 } else { 4 })
+    };
     for c in lo..=hi.min(CLASSES - 1) {
         if let Some(v) = p.0[c].pop() {
             p.1 -= v.capacity();
@@ -235,11 +241,11 @@ fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
             }
             // a column just below the room asked: grown once here
             let mut v = v;
-            v.reserve(n);
+            if exact { v.reserve_exact(n); } else { v.reserve(n); }
             return v;
         }
     }
-    Vec::with_capacity(if n >= 16 { n.next_power_of_two() } else { n })
+    Vec::with_capacity(if n >= 16 && !exact { n.next_power_of_two() } else { n })
 }
 
 impl Drop for Table {
@@ -267,20 +273,17 @@ impl Table {
         let mut cols = recycle::take_cols(k);
         POOL.with(|p| {
             let p = &mut *p.borrow_mut();
-            cols.extend((0..k).map(|_| take_col(p, n)));
+            cols.extend((0..k).map(|_| take_col(p, n, false)));
         });
         Table { names, tys, cols, n: 0 }
     }
     /// Allocate buffers only for columns carried by the provider answer.
     pub(super) fn with_projection(names: Names, tys: Tys, n: usize, projection: &languages::ColumnProjection) -> Self {
-        if matches!(projection, languages::ColumnProjection::All) {
-            return Self::with_rows(names, tys, n);
-        }
         let mut cols = recycle::take_cols(names.len());
         POOL.with(|p| {
             let p = &mut *p.borrow_mut();
             cols.extend((0..names.len()).map(|i| {
-                if projection.contains(i) { take_col(p, n) } else { Vec::new() }
+                if projection.contains(i) { take_col(p, n, true) } else { Vec::new() }
             }));
         });
         Self { names, tys, cols, n: 0 }
@@ -291,7 +294,7 @@ impl Table {
         POOL.with(|p| {
             let p = &mut *p.borrow_mut();
             for c in &self.cols {
-                let mut v = take_col(p, c.len());
+                let mut v = take_col(p, c.len(), false);
                 v.extend_from_slice(c);
                 cols.push(v);
             }
@@ -300,7 +303,7 @@ impl Table {
     }
     /// redo-alloc: a column of `n` cells `x` appended, its room from the pool.
     pub(super) fn push_const_col(&mut self, x: u64, n: usize) {
-        let mut v = POOL.with(|p| take_col(&mut p.borrow_mut(), n));
+        let mut v = POOL.with(|p| take_col(&mut p.borrow_mut(), n, false));
         v.resize(n, x);
         self.cols.push(v);
     }

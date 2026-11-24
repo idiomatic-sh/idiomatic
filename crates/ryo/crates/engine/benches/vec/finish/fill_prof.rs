@@ -63,11 +63,13 @@ pub(in super::super) fn reads_line() -> String {
 pub(in super::super) fn dump(run: &Run, file: u32, rel: &str, t: &Table) {
     static PATH: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
     let Some(path) = PATH.get_or_init(|| std::env::var("VEC_FILL_DUMP").ok()) else { return };
+    let projected: Vec<_> = t.cols.iter().enumerate()
+        .filter_map(|(i, column)| (column.len() == t.n).then_some(i)).collect();
     let mut h = rustc_hash::FxHasher::default();
     let mut rows: Vec<u64> = Vec::with_capacity(t.n);
     for r in 0..t.n {
         let mut rh = rustc_hash::FxHasher::default();
-        for c in 0..t.cols.len() {
+        for &c in &projected {
             let v = t.cols[c][r];
             if t.tys[c] == Ty::Sym && v != super::NULL {
                 rh.write(&run.texts[v as usize]);
@@ -87,7 +89,8 @@ pub(in super::super) fn dump(run: &Run, file: u32, rel: &str, t: &Table) {
     for v in &rows {
         hs.write_u64(*v);
     }
-    let line = format!("{}\t{rel}\t{}\t{}\t{:016x}\t{:016x}\n", run.paths[file as usize], t.n, t.names.join(","), hs.finish(), ordered);
+    let names: Vec<_> = projected.iter().map(|&c| t.names[c].as_str()).collect();
+    let line = format!("{}\t{rel}\t{}\t{}\t{:016x}\t{:016x}\n", run.paths[file as usize], t.n, names.join(","), hs.finish(), ordered);
     DUMP.with(|d| {
         let mut d = d.borrow_mut();
         let w = d.get_or_insert_with(|| std::io::BufWriter::new(std::fs::File::create(path).expect("fill dump")));
