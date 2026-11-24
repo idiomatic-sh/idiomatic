@@ -54,6 +54,19 @@ pub(crate) fn live(log: &str, ledger: impl BufRead) -> io::Result<EngineEvidence
     ]) {
         *count = fields.get(key).map(|value| number(value)).transpose()?;
     }
+    if let [
+        _,
+        _,
+        _,
+        Some(selected),
+        Some(evaluated),
+        Some(skipped),
+        None,
+    ] = counts
+        && evaluated.checked_add(skipped) == Some(selected)
+    {
+        counts[6] = Some(0);
+    }
     Ok(EngineEvidence {
         execution: clocks[2..6].iter().flatten().sum(),
         clocks,
