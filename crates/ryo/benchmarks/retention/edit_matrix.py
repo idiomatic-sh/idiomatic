@@ -88,6 +88,7 @@ def run(spec, evidence):
     original = request.read_bytes()
     base = json.loads(original)
     edit = root / spec["edit"]
+    original_stat = edit.stat()
     previous = edit.read_bytes()
     program = pack / "rules" / base["selected_rules"][0] / "query.ryoql"
     rule = program.read_bytes()
@@ -133,6 +134,7 @@ def run(spec, evidence):
 
         def reset():
             edit.write_bytes(previous)
+            os.utime(edit, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns))
             added.unlink(missing_ok=True)
             settings.unlink(missing_ok=True)
             program.write_bytes(rule)
