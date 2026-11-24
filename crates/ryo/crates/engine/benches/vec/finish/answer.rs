@@ -75,10 +75,10 @@ pub(crate) struct Row {
 }
 
 impl Row {
-    fn decode<T: From<String> + From<&'static str>>(
+    fn decode<T: From<String> + From<&'static str>, D: std::ops::Deref<Target = Words>>(
         &self,
         index: usize,
-        dictionary: &Words,
+        dictionary: impl FnOnce() -> D,
         text: impl FnOnce(&Rc<str>) -> T,
     ) -> Option<Cell<T>> {
         let word = self.words[index];
@@ -86,12 +86,13 @@ impl Row {
             return None;
         }
         Some(match self.layout.types[index] {
-            Ty::Sym => Cell::Text(text(&dictionary.symbols[&(word as u32)])),
+            Ty::Sym => Cell::Text(text(&dictionary().symbols[&(word as u32)])),
             Ty::Node => {
-                let path = &dictionary.paths[(word >> 32) as usize];
+                let words = dictionary();
+                let path = &words.paths[(word >> 32) as usize];
                 Cell::Text(format!("{path}#{}", word as u32).into())
             }
-            Ty::File => Cell::File(text(&dictionary.paths[word as usize])),
+            Ty::File => Cell::File(text(&dictionary().paths[word as usize])),
             Ty::Span => Cell::Span(Span {
                 start: Offset((word >> 32) as u32),
                 end: Offset(word as u32),
@@ -102,19 +103,20 @@ impl Row {
     }
 
     pub(crate) fn value(&self, index: usize) -> Value {
-        self.decode(index, &self.layout.words.borrow(), Rc::clone)
+        self.decode(index, || self.layout.words.borrow(), Rc::clone)
     }
 
-    /// A caller owning its strings can take formatted node and flag text directly.
-    pub(crate) fn owned_cells(&self) -> impl Iterator<Item = Option<Cell>> + '_ {
+    /// Borrow the retained dictionary once while projecting all cells of a row.
+    pub(crate) fn cells_with<'a, T: From<String> + From<&'static str>>(
+        &'a self,
+        text: impl Fn(&Rc<str>) -> T + 'a,
+    ) -> impl Iterator<Item = Option<Cell<T>>> + 'a {
         let dictionary = self.layout.words.borrow();
-        (0..self.words.len()).map(move |i| {
-            self.decode(i, &dictionary, |s| Box::<str>::from(s.as_ref()))
-        })
+        (0..self.words.len()).map(move |i| self.decode(i, || &*dictionary, &text))
     }
 
     pub(crate) fn cells(&self) -> impl Iterator<Item = Value> + '_ {
-        (0..self.words.len()).map(|i| self.value(i))
+        self.cells_with(Rc::clone)
     }
 }
 
