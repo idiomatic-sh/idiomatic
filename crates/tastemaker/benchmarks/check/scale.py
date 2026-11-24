@@ -193,6 +193,14 @@ def gate(args):
         tolerance = max(1, start * 0.005)
         if end > start + tolerance:
             failures.append(f"{mode} fails at 4x: {end:.1f} MiB versus {start:.1f} MiB")
+        if mode == "live" and args.live_peak_limit_mib is not None:
+            limit = args.live_peak_limit_mib
+            if not 0 < limit < float("inf"):
+                raise ValueError("a finite positive live RSS limit is required")
+            for row in rows:
+                if row["peak_mib"] > limit + max(1, limit * 0.005):
+                    failures.append(f"live fails at {row['copies']}x: {row['peak_mib']:.1f} MiB "
+                                    f"against the small-workspace reference {limit:.1f} MiB")
     if failures:
         raise SystemExit("\n".join(failures))
 
@@ -213,6 +221,8 @@ def main():
     probe.add_argument("--heap", type=Path)
     probe.add_argument("--live-oracle", type=Path)
     check = commands.add_parser("gate")
+    check.add_argument("--live-peak-limit-mib", type=float,
+                       help="apply the measured small-workspace RSS reference at all live sizes")
     check.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     {"prepare": prepare, "run": run, "gate": gate}[args.command](args)
