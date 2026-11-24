@@ -25,6 +25,7 @@ use std::{
     io::{BufRead, Write},
     path::{Path, PathBuf},
     rc::Rc,
+    sync::Arc,
 };
 
 #[derive(Deserialize)]
@@ -96,12 +97,12 @@ type HostSchema = Vec<(String, Vec<(String, String)>)>;
 
 struct Admission {
     id: usize,
-    contract: Rc<session::completeness::Contract>,
+    contract: Arc<session::completeness::Contract>,
     project_bases: Vec<l::Relation>,
     closed: bool,
     file_cells: bool,
     file_inventory: bool,
-    cut: Option<Rc<finish::partition::Partition>>,
+    cut: Option<Arc<finish::partition::Partition>>,
 }
 
 #[derive(Default)]
@@ -109,7 +110,7 @@ struct Batch {
     workers: Option<std::num::NonZeroUsize>,
     schedule: session::Schedule,
     program_of: Vec<usize>,
-    bindings: Vec<Rc<[Hosted]>>,
+    bindings: Vec<Arc<[Hosted]>>,
     host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
     binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
     queries: HashMap<String, Rc<str>>,
@@ -120,11 +121,12 @@ struct Batch {
     roots: HashMap<String, PathBuf>,
     authorities: Authorities,
     projects: Vec<ProjectSpec>,
-    cut_of: Vec<Option<Rc<finish::partition::Partition>>>,
+    cut_of: Vec<Option<Arc<finish::partition::Partition>>>,
     local_bindings: HashMap<usize, usize>,
     project_keys: HashMap<(String, Authority, Rc<Vec<String>>), usize>,
     admissions: HashMap<(usize, HostSchema), Rc<Admission>>,
-    bound_contracts: HashMap<usize, Rc<session::completeness::Contract>>,
+    bound_contracts: Vec<Arc<session::completeness::Contract>>,
+    reused_binding_entries: usize,
     clocks: Clock,
     populations_built: usize,
     relations_built: usize,
@@ -174,7 +176,7 @@ impl Admission {
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
-        let contract = Rc::new(session::completeness::describe(query, program, relations)?);
+        let contract = Arc::new(session::completeness::describe(query, program, relations)?);
         let held: Vec<_> = program
             .bases
             .iter()
@@ -213,7 +215,7 @@ impl Admission {
                         || hosted.iter().any(|t| t.name == n)
                 },
             )?;
-            Some(Rc::new(scoped))
+            Some(Arc::new(scoped))
         } else {
             None
         };
@@ -358,10 +360,8 @@ impl Batch {
             {
                 return Ok(Work::Project(Rc::new(Ok(session::Reported::skipped(&inventory)))));
             }
-            let binding = self.binding(rule, class.id, req.hosted);
-            self.bound_contracts.insert(binding, Rc::clone(contract));
-            let pairs = if let Some(c) = &class.cut {
-                self.cut_of[binding] = Some(c.clone());
+            let binding = self.binding(rule, &class, req.hosted);
+            let pairs = if class.cut.is_some() {
                 // Caller rows are consumed only after closure. Sources with the same
                 // prepared program and caller schema produce identical local outputs.
                 let local = *self.local_bindings.entry(class.id).or_insert(binding);
@@ -381,13 +381,12 @@ impl Batch {
         if req.files.is_empty() {
             return Err("no complete source contribution for query".into());
         }
-        let binding = self.binding(rule, class.id, req.hosted);
-        self.bound_contracts.insert(binding, contract.clone());
+        let binding = self.binding(rule, &class, req.hosted);
         let pairs = self.schedule.admit(req.root, &req.files, binding)?;
         Ok(Work::Pairs(pairs))
     }
 
-    fn binding(&mut self, rule: usize, class: usize, mut hosted: Vec<Hosted>) -> usize {
+    fn binding(&mut self, rule: usize, class: &Admission, mut hosted: Vec<Hosted>) -> usize {
         let mut payloads = Vec::with_capacity(hosted.len());
         for table in &mut hosted {
             let id = if let Some((rows, &id)) = self.host_rows.get_key_value(&table.rows) {
@@ -402,9 +401,10 @@ impl Batch {
         }
         // The class binds the program and ordered schemas. Each payload ID binds
         // all its cells by value, so the binding lookup need not hash them again.
-        *self.binding_ids.entry((class, payloads)).or_insert_with(|| {
+        *self.binding_ids.entry((class.id, payloads)).or_insert_with(|| {
             self.program_of.push(rule);
-            self.cut_of.push(None);
+            self.cut_of.push(class.cut.clone());
+            self.bound_contracts.push(class.contract.clone());
             self.bindings.push(hosted.into());
             self.bindings.len() - 1
         })
@@ -495,9 +495,8 @@ impl Batch {
             }
         }
         self.clocks.pairs = self.schedule.pairs;
-        let cuts: Vec<_> = self.cut_of.iter().map(|cut| cut.as_deref()).collect();
-        let contracts = self.bound_contracts.iter().map(|(&id, c)| (id, c.as_ref())).collect();
-        let hosted: Vec<_> = self.bindings.iter().map(|t| t.as_ref()).collect();
+        self.reused_binding_entries += self.cut_of.len() + self.bound_contracts.len() + self.bindings.len();
+        let hosted = &self.bindings;
         let paths = (!*keep).then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
         let readers = languages.iter().map(Some).chain([None]);
         for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
@@ -517,15 +516,15 @@ impl Batch {
                 contributions,
                 &self.schedule.programs,
                 &self.program_of,
-                &contracts,
-                &cuts,
+                &self.bound_contracts,
+                &self.cut_of,
                 world,
                 &self.schedule.sources,
                 &files,
                 aliases,
                 answers,
                 |binding, run| {
-                    Ok(bind_tables(hosted[binding], run, |_| None)?
+                    Ok(bind_tables(&hosted[binding], run, |_| None)?
                         .into_iter()
                         .map(|(n, t)| (n, Rc::new(t)))
                         .collect())
@@ -660,7 +659,7 @@ impl Batch {
                     value.clone()
                 } else {Rc::new(population.map_err(Clone::clone).and_then(|p| {
                     let mut carried = BTreeMap::new();
-                    let contract = &self.bound_contracts[binding];
+                    let contract = &self.bound_contracts[*binding];
                     let mut incomplete = BTreeMap::<String, Vec<Option<u32>>>::new();
                     let mut unknowns = Vec::new();
                     if let Some(p) = p {
