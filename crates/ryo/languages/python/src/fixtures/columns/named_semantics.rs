@@ -24,9 +24,7 @@ struct Vocabulary {
 }
 
 impl Vocabulary {
-    fn new() -> Self {
-        let mut words =
-            l::facts::file_words(&l::facts::base_words(l::CheckedNames::default(), &[]));
+    fn new(mut words: l::FileWords) -> Self {
         let empty = l::facts::intern(&mut words, l::NameText("")).0 as u32;
         let kind_sym = kinds()
             .map(|kind| l::facts::intern(&mut words, kind_name(kind)).0 as u32)
@@ -203,6 +201,9 @@ impl ColumnFile<'_, '_> {
         modules: &[Vec<u8>],
         mut output: impl FnMut(&FileRelation, Result<Vec<Vec<u64>>, String>, &l::FileWords),
     ) {
+        // Walk fillers encode fixed words by their declared vocabulary index.
+        // Their answers and the semantic projection must use the walk's dictionary.
+        let words = Vocabulary::new(std::mem::take(self.words));
         let mut semantic = Semantics {
             file: self,
             number: u64::from(file.0),
@@ -212,7 +213,7 @@ impl ColumnFile<'_, '_> {
                 argument_forms,
                 modules,
             },
-            words: Vocabulary::new(),
+            words,
             inputs: HashMap::new(),
         };
         for schema in schemas {
@@ -227,6 +228,7 @@ impl ColumnFile<'_, '_> {
             };
             output(schema, rows.map(|table| table.cols), &semantic.words.words);
         }
+        *semantic.file.words = semantic.words.words;
     }
 }
 
