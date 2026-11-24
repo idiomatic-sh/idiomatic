@@ -1,6 +1,7 @@
 //! File-version contributions used by the closed project executor.
 use super::{Bound, Program, Result, finish};
 use finish::{Run, Table, partition::Partition, population::Block};
+use smallvec::SmallVec;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     rc::Rc,
@@ -65,7 +66,7 @@ impl<'a> FileInputs<'a> {
         reader: Option<usize>,
         words: &HashMap<u32, u32>,
         slot: usize,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let plan = b.plan;
         let nodes = &plan.nodes;
         let hosted = &b.hosted;
@@ -82,7 +83,7 @@ impl<'a> FileInputs<'a> {
             .filter(|(home, _)| *home == id && local_coverage.is_empty())
             .map(|(_, bits)| bits);
         let omitted = |i: usize| absent.is_some_and(|a| a[i]);
-        let missing: Vec<_> = cut
+        let missing: SmallVec<[usize; 8]> = cut
             .inputs
             .iter()
             .enumerate()
@@ -92,7 +93,9 @@ impl<'a> FileInputs<'a> {
             .filter(|&n| !shared_base(n).is_some_and(|name| self.carried_bases.contains_key(name)))
             .collect();
         let tables = {
-            let mut derived = BTreeMap::new();
+            // Gather visits these inputs in their original order. Consume the
+            // derived blocks in that same order when filling the frontier.
+            let mut derived = SmallVec::<[Part; 8]>::new();
             if !missing.is_empty() {
                 let tables = finish::session::gather(
                     exec,
@@ -135,10 +138,11 @@ impl<'a> FileInputs<'a> {
                         self.carried_bases.insert(name.to_owned(), table);
                     } else {
                         if let Some(id) = share(n) { self.produced.insert(*id,table.clone()); }
-                        derived.insert(n, table);
+                        derived.push((n, table));
                     }
                 }
             }
+            let mut derived = derived.into_iter().peekable();
             cut.inputs
                 .iter()
                 .enumerate()
@@ -150,14 +154,19 @@ impl<'a> FileInputs<'a> {
                     let t = if let Some(name) = shared_base(n) {
                         self.carried_bases.get(name).cloned()
                     } else {
-                        derived.remove(&n).or_else(|| share(n).and_then(|id|self.produced.get(id)).cloned())
+                        if derived.peek().is_some_and(|&(node, _)| node == n) {
+                            derived.next().map(|(_, block)| block)
+                        } else {
+                            share(n).and_then(|id| self.produced.get(id)).cloned()
+                        }
                     };
                     Ok((n, t.ok_or("missing local output")?))
                 })
                 .collect::<Result<Vec<_>>>()?
         };
+        let productive = tables.iter().any(|(_, block)| block.n != 0);
         world.frontiers.insert(slot, FileFrontier::Rows(tables.into_boxed_slice()));
-        Ok(())
+        Ok(productive)
     }
 }
 type Part = (usize, Rc<Block>);
@@ -222,9 +231,6 @@ impl World {
         });
         if !parts.is_empty() { self.file(path); }
         self.frontiers.insert(slot, FileFrontier::Empty(parts.clone()));
-    }
-    pub(super) fn productive(&self, slot: usize) -> bool {
-        self.frontiers.get(&slot).is_some_and(|v| v.parts().iter().any(|(_, block)| block.n != 0))
     }
     fn carry(
         &mut self,

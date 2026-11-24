@@ -358,7 +358,7 @@ pub(in super::super) fn gather(
     cut: &[usize],
     projections: &BTreeMap<usize,contribution::Projection>,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
-) -> R<Vec<(usize, Rc<Table>, bool)>> {
+) -> R<smallvec::SmallVec<[(usize, Rc<Table>, bool); 8]>> {
     if !incomplete.is_empty() {
         let mut demanded = vec![false; exec.plan.nodes.len()];
         let mut stack: Vec<_> = cut.iter().map(|&i| slots[i]).collect();
@@ -369,7 +369,7 @@ pub(in super::super) fn gather(
         }
         restrict_uncertain(exec, run, facts, frame, &demanded, incomplete)?;
     }
-    let mut result = Vec::with_capacity(cut.len());
+    let mut result = smallvec::SmallVec::with_capacity(cut.len());
     run.missing.clear();
     for &i in cut {
         if incomplete.is_empty()

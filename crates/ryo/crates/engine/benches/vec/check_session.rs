@@ -1100,13 +1100,13 @@ pub(crate) fn visit<L: FileSource>(
                     let value = shared.contribute(b, &mut exec, current, &mut run, id.0, &mut facts_view, cut,
                         &local_coverage, world, &mut carried_symbols, reader_id, unknown, slot);
                     if value.is_err() { frame = None; exec.release_request(); }
-                    let answer = value.map(|()| {
+                    let answer = value.map(|productive| {
+                        clocks.productive += usize::from(productive);
                         Reported {
                             rows: Vec::new(),
                             unknowns,
                         }
                     });
-                    clocks.productive += usize::from(world.productive(slot));
                     clocks.refused += usize::from(answer.is_err());
                     answers.set(slot, answer);
                     continue;
