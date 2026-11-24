@@ -289,7 +289,7 @@ impl languages::FileRelations for ParseContract {
             return comment_positions::Comments.read(schemas, request, elements, tree, symbols, project);
         }
         let mut result = None;
-        let read = ColumnWalk::retained(self.settings, request, elements, &mut |file| {
+        let read = ColumnWalk::retained(self.settings, request, elements, &mut |file, positions| {
             let lists = self.named.as_ref().map(|(_, lists)| lists);
             let generic = |word: &[u8]| lists.is_some_and(|l| l.generic.contains(word));
             let argument = |word: &[u8]| lists.is_some_and(|l| l.argument_forms.contains(word));
@@ -313,6 +313,9 @@ impl languages::FileRelations for ParseContract {
             let mut answers = file.answer_named_facts(schemas, request.file, request.path.0, request.bytes, symbols,
                 Some((&generic, &argument, modules)), observed_package, lookup);
             for (schema, answer) in schemas.iter().zip(&mut answers) {
+                if let Ok(columns) = answer && let Err(error) = crate::fixtures::columns::positions::publish(columns, schema, request.file, positions) {
+                    *answer = Err(error);
+                }
                 if let Some(error) = failure.as_ref().filter(|_| schema.name == "import-head") {
                     *answer = Err(languages::ParseError::Library { reason: languages::ToolMessage(error.as_str().into()) });
                 }

@@ -17,9 +17,18 @@ impl Lists {
     pub fn parse(text: &str) -> Result<Self, String> {
         let mut lists = Self::default();
         let mut modules = BTreeSet::new();
-        for line in text.lines().map(str::trim).filter(|line| !line.is_empty() && !line.starts_with('#')) {
-            let (kind, path) = line.split_once('\t').ok_or_else(|| format!("invalid type-expression declaration {line}"))?;
-            if path.split('.').any(|word| word.is_empty() || word.chars().any(char::is_whitespace)) {
+        for line in text
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        {
+            let (kind, path) = line
+                .split_once('\t')
+                .ok_or_else(|| format!("invalid type-expression declaration {line}"))?;
+            if path
+                .split('.')
+                .any(|word| word.is_empty() || word.chars().any(char::is_whitespace))
+            {
                 return Err(format!("invalid type-expression name {path}"));
             }
             let names = match kind {

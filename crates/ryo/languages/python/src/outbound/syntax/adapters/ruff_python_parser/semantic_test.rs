@@ -63,7 +63,7 @@ fn subject(begun: Input) -> Result<Value, Failure> {
             fields: languages::FieldRequest::Wanted,
         };
         let mut lent = false;
-        crate::fixtures::columns::ColumnWalk::retained(adapter.settings, request, &elements, &mut |_| lent = true)
+        crate::fixtures::columns::ColumnWalk::retained(adapter.settings, request, &elements, &mut |_, _| lent = true)
             .map_err(|_| ())?;
         if !lent { return Err(()); }
     }

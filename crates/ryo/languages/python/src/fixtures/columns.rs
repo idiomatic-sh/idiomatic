@@ -186,7 +186,7 @@ impl ColumnWalk {
         settings: PythonParserSettings,
         request: languages::ParseRequest<'_>,
         elements: &languages::Elements,
-        visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
+        visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>, &[Position]),
     ) -> Result<(), String> {
         let parsed = languages::retained_parse::<ruff_python_parser::Parsed<ruff_python_ast::Mod>>(elements)
             .ok_or("parser did not retain this module")?;
@@ -195,30 +195,13 @@ impl ColumnWalk {
         let mut reader = Self::with_settings(words, settings);
         let mut identity = Err("provider walk produced no numbered tree".to_owned());
         reader.visit_parse(request.path.0, request.bytes.0, &mut NodeTable::default(), Some(parsed), &mut |file| {
-            // Positions are identities, including embedded nodes. Verify the two
-            // publications in index order. Matching equal spans cannot establish identity.
-            let table = file.table;
-            let kinds = node_table::kind_codes(table);
-            let parents = node_table::parent_ids(table);
-            let starts = node_table::starts(table);
-            let ends = node_table::ends(table);
-            let supplied = languages::end_of(elements).0 as usize;
-            if kinds.len() != supplied {
-                identity = Err(format!("{}: walk has {} nodes, parse has {supplied}", request.path.0, kinds.len()));
-                return;
-            }
-            for (i, &kind) in kinds.iter().enumerate() {
-                let at = Position(i as u32);
-                if kind != languages::kind_at(elements, at).0 ||
-                    (i != 0 && parents[i] != languages::parent_at(elements, at).0) ||
-                    starts[i] != languages::start_at(elements, at).0 || ends[i] != languages::end_at(elements, at).0 {
-                    identity = Err(format!("{}: node {i}: walk ({kind}, {}, {}..{}), parse ({}, {}, {}..{})",
-                        request.path.0, parents[i], starts[i], ends[i], languages::kind_at(elements, at).0, languages::parent_at(elements, at).0, languages::start_at(elements, at).0, languages::end_at(elements, at).0));
-                    return;
+            match positions::numbered(file.table, elements) {
+                Ok(numbered) => {
+                    file.set_file(request.file);
+                    visit(file, &numbered);
                 }
+                Err(error) => { identity = Err(format!("{}: {error}", request.path.0)); return; }
             }
-            file.set_file(request.file);
-            visit(file);
             identity = Ok(());
         }).map_err(|error| error.to_string())?;
         identity
@@ -992,3 +975,5 @@ impl ColumnFile<'_, '_> {
         table.finish(elements);
     }
 }
+
+pub(crate) mod positions;
