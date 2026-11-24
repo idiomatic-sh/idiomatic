@@ -90,6 +90,19 @@ pub(super) fn keyed_left(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: 
 
 /// The left rows no right row matches on every key.
 fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pr: &Prep, l: &Rc<Table>) -> R<Rc<Table>> {
+    if let Some(right)=f.population(pr.right)
+        && l.n<right.n
+        && let Some(key)=pr.rk.iter().position(|&c|right.can_probe(c))
+    {
+        return Ok(WORK.with(|work|{
+            let mut w=work.borrow_mut();
+            w.keep.clear();
+            for i in 0..l.n {
+                if !right.contains_keys(key,l,i,&pr.lk,&pr.rk) {w.keep.push(i as u32);}
+            }
+            gather(pr,l,&w.keep)
+        }));
+    }
     if let Some(ki) = pr.view_key
         && let Res::View(v) = ex.res(f, run, p, pr.right)?
     {

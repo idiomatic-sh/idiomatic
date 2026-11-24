@@ -1,5 +1,8 @@
 //! The corpus runner's TSV is a list of invocations, not an execution schedule.
 //! Only the final comparison has access to a reference digest.
+#[path = "readers.rs"]
+mod readers;
+
 use super::{Hosted, Parameters, bind_tables, execute_ids, finish, read_parameters};
 use crate::check_session::project::{self, Authority, Population};
 use crate::{
@@ -33,7 +36,7 @@ struct Input {
 }
 
 enum Work {
-    Project(Answer),
+    Project(Rc<Answer>),
     Closed {
         project: Option<usize>,
         pairs: Vec<usize>,
@@ -319,7 +322,7 @@ impl Batch {
             };
             if req.files.is_empty() && !inventory.is_empty() && contract.frontier && held.is_empty()
             {
-                return Ok(Work::Project(Ok(session::Reported::skipped(&inventory))));
+                return Ok(Work::Project(Rc::new(Ok(session::Reported::skipped(&inventory)))));
             }
             let binding = self.binding(rule, req.hosted);
             self.bound_contracts.insert(binding, Rc::clone(&contract));
@@ -458,6 +461,9 @@ impl Batch {
                 &mut self.clocks,
             );
         }
+        if !*keep {
+            reader_states.clear();
+        }
         for work in &mut self.work {
             if let Work::Pairs(pairs) | Work::Closed { pairs, .. } = work {
                 for slot in pairs {
@@ -465,18 +471,22 @@ impl Batch {
                 }
             }
         }
+        if !*keep {
+            *aliases=Vec::new();
+        }
         self.schedule.delivered(&pending);
-        self.finish_projects(languages, contributions, world, answers, populations, manifest_failures);
+        self.finish_projects(languages, contributions, world, answers, populations, manifest_failures, *keep);
     }
 
     fn finish_projects<L: session::source::Source>(
         &mut self,
         languages: &[L],
-        contributions: &[Option<Rc<project::Contribution>>],
+        contributions: &mut Vec<Option<Rc<project::Contribution>>>,
         world: &mut session::World,
         answers: &[Answer],
         populations: &mut HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
         manifest_failures: &mut Vec<l::FilePath>,
+        keep: bool,
     ) {
         let t = thread_cpu();
         // Bound values select a different population. Only changed column declarations
@@ -536,12 +546,16 @@ impl Batch {
             })();
             populations.insert(id, (s.wanted.clone(), population));
         }
+        if !keep {
+            *contributions=Vec::new();
+        }
         manifest_failures.clear();
         for id in active {
             if let Ok(population) = &populations[&id].1 {
                 manifest_failures.extend(population.refused.iter().map(|r| r.path.clone()));
             }
         }
+        let mut readers=readers::Closed::new(&self.work,&self.cut_of,keep);
         for ((rule, _), requests) in groups {
             let plan = &self.schedule.programs[rule].as_ref().unwrap().plan;
             let mut exec = finish::Exec::new(plan);
@@ -557,7 +571,10 @@ impl Batch {
                     unreachable!()
                 };
                 let population = project.map(|p| populations[&p].1.as_ref()).transpose();
-                let answer = population.map_err(Clone::clone).and_then(|p| {
+                let answer = if let Some(prior)=readers.duplicate[i] {
+                    let Work::Project(value)=&self.work[prior] else {unreachable!("same binding evaluated in request order")};
+                    value.clone()
+                } else {Rc::new(population.map_err(Clone::clone).and_then(|p| {
                     let mut carried = BTreeMap::new();
                     let contract = &self.bound_contracts[binding];
                     let mut incomplete = BTreeMap::<String, Vec<Option<u32>>>::new();
@@ -621,12 +638,7 @@ impl Batch {
                                     .cloned(),
                             );
                         }
-                        carried = world.joined(pairs, &cut.inputs)?;
-                        if pairs.is_empty() {
-                            for &input in &cut.inputs {
-                                carried.insert(input, exec.empty_rc(&mut world.run, input)?);
-                            }
-                        }
+                        carried=readers.inputs(i,||world.joined(pairs,&cut.inputs))?;
                         if carried.len() != cut.inputs.len() {
                             return Err("source frontier has not been closed".into());
                         }
@@ -644,7 +656,11 @@ impl Batch {
                         &incomplete,
                     )
                     .map(|rows| session::Reported { rows, unknowns })
-                });
+                }))};
+                exec.release_request();
+                if let Some(finished)=readers.release(i,pairs,*project,world) {
+                    populations.remove(&finished);
+                }
                 self.work[i] = Work::Project(answer);
             }
         }

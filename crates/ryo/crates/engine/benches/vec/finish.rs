@@ -134,6 +134,13 @@ mod keyed;
 #[path = "finish/session.rs"]
 pub(super) mod session;
 #[allow(dead_code, reason = "file-only benchmark binaries have no project frontier")]
+#[path = "finish/population.rs"]
+pub(super) mod population;
+
+#[allow(dead_code, reason = "file-only benchmark binaries have no project frontier")]
+#[path = "finish/subject_scope.rs"]
+mod subject_scope;
+#[allow(dead_code)]
 #[path = "finish/partition.rs"]
 pub(super) mod partition;
 
@@ -234,6 +241,11 @@ impl Drop for Table {
 }
 
 impl Table {
+    pub(super) fn retained(names: Names, tys: Tys, rows: usize) -> Self {
+        let cols = (0..names.len()).map(|_| Vec::with_capacity(rows)).collect();
+        Self { names, tys, cols, n: 0 }
+    }
+
     fn with(names: impl Into<Names>, tys: impl Into<Tys>) -> Self {
         Self::with_rows(names, tys, 0)
     }
@@ -695,6 +707,7 @@ pub(super) struct File<'a> {
     pub(super) src: &'a [u8],
     pub(super) file: u32,
     after_last_file: bool,
+    project_inputs: Option<&'a population::Inputs>,
     pub(super) n: usize,
     pub(super) kind: Vec<u16>,
     pub(super) start: Vec<u32>,
@@ -849,6 +862,9 @@ pub(super) trait Provider {
 
     /// Every row of `rel` in `scope`, each cell as the run names it (a file cell is the run's number of the file it names).
     fn fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Table, String>;
+    fn shared_fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Rc<Table>, String> {
+        self.fill(run,rel,scope).map(Rc::new)
+    }
     /// redo-fills pass 2: how many rows `fill(rel, scope)` answers, where known without making them; None: not known.
     fn fill_len(&mut self, _run: &mut Run, _rel: &str, _scope: Scope<'_>) -> Option<usize> {
         None
@@ -858,6 +874,16 @@ pub(super) trait Provider {
 }
 
 impl File<'_> {
+    #[inline]
+    fn population(&self,node:usize) -> Option<&Rc<population::Population>> {
+        let input=self.project_inputs?.get(&node)?;
+        match &self.memo[node] {
+            None => Some(input),
+            Some(Res::Tab(t)) if input.is_materialized(t) => Some(input),
+            _ => None,
+        }
+    }
+
     /// The reusable slots belong to this frame until its destructor returns them empty.
     fn remember(&mut self, node: usize, answer: Res) {
         if self.memo[node].replace(answer).is_none() {
@@ -880,6 +906,7 @@ impl File<'_> {
             src,
             file,
             after_last_file: false,
+            project_inputs: None,
             n,
             kind: b.kind,
             start: b.start,
@@ -1402,6 +1429,7 @@ pub(super) struct Exec<'p> {
     select_preps: Vec<Option<Rc<select_kernel::Prep>>>,
     union_preps: Vec<Option<Rc<union_kernel::Prep>>>,
     antijoin_preps: Vec<Option<Rc<antijoin_kernel::Prep>>>,
+    subject_scope: subject_scope::Scope,
     keyed_forms: Vec<Option<keyed::Form>>,
     band_shapes: FxHashMap<(usize, usize), Rc<band::Shape>>,
     leaves: emptyprop::Leaves,
@@ -1464,6 +1492,7 @@ impl<'p> Exec<'p> {
             select_preps: vec![None; k],
             union_preps: vec![None; k],
             antijoin_preps: vec![None; k],
+            subject_scope: Default::default(),
             keyed_forms: vec![None; k],
             band_shapes: FxHashMap::default(),
             leaves: emptyprop::Leaves::default(),
@@ -1495,6 +1524,15 @@ impl<'p> Exec<'p> {
         }
     }
 
+    #[allow(dead_code, reason = "only a project session keeps the executor across requests")]
+    pub(super) fn release_request(&mut self) { self.run_memo.fill(None); }
+
+    /// A closed population can hold several files. Its file equalities must
+    /// survive both column-use analysis and preparation for execution.
+    fn closed_inputs(&mut self) {
+        self.views.fill(Some(None));
+        self.constant.fill(Some(true));
+    }
 
     /// Whether a step's rows are the same in every file: it reads only run-wide relations, through steps that read no file.
     fn is_constant(&mut self, run: &Run, node: usize) -> bool {
@@ -1906,6 +1944,10 @@ impl<'p> Exec<'p> {
 
     #[inline]
     fn make_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+        if let Some(input) = f.population(node) {
+            let sc = self.schema(run,node)?;
+            return Ok(Res::Tab(input.full(&sc.names,&sc.tys)));
+        }
         if let Some(v) = self.view(run, node)? {
             let was = fill_prof::site("view");
             self.load_fact(f, run, p, v.base)?;
@@ -1922,7 +1964,10 @@ impl<'p> Exec<'p> {
         }
         // 8: a step over an empty input answers its shared empty table before any set-up
         let gate = self.frames[node].gate;
-        if gate < frame::MISSING && self.eval(f, run, p, gate as usize)?.n == 0 {
+        if gate < frame::MISSING && match f.population(gate as usize) {
+            Some(input) => input.n == 0,
+            None => self.eval(f, run, p, gate as usize)?.n == 0,
+        } {
             self.stats.ran(node);
             self.stats.empty[node] += 1;
             let e = self.empty_rc(run, node)?;
@@ -1973,6 +2018,12 @@ impl<'p> Exec<'p> {
     /// reads that table through its index on `col` (made once a file). A view is read in place where its base has a
     /// keyed read for the column; a closure is read through its adjacency (`lazy`), not made whole.
     fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
+        if let Some(input) = f.population(node) {
+            let sc=self.schema(run,node)?;
+            if input.can_probe(col) { return Ok(input.probe(&sc.names,&sc.tys,col,keys)); }
+            let table=input.full(&sc.names,&sc.tys);
+            return Ok(recycle::rc(subset(f,node,&table,col,keys)));
+        }
         if sw!("VEC_COLD_COUNT") { run.cold.probe(f, Some(keys.len())); }
         if keys.is_empty() {
             return self.empty_rc(run, node);
@@ -2479,30 +2530,7 @@ impl<'p> Exec<'p> {
                 let at: Vec<Option<usize>> = caps.map(|c| slot_names.iter().position(|n| n == c)).collect();
                 let separator = a.get("separator").and_then(Param::as_str);
                 let mut out = self.empty(run, node)?;
-                let mut row = Vec::new();
-                let mut found: Vec<Vec<std::ops::Range<usize>>> = Vec::new();
-                for i in 0..from.n {
-                    let v = from.cols[pc][i];
-                    let sym = if from.tys[pc] == Ty::File {
-                        if v == NULL { continue; }
-                        *run.path_sym.get(v as usize).ok_or("unbound capture file")?
-                    } else {
-                        if v == NULL || run.absent_word == Some(v as u32) { continue; }
-                        u32::try_from(v).map_err(|_| "unbound capture text")?
-                    };
-                    let text = run.text(sym).to_vec();
-                    let Ok(text) = String::from_utf8(text) else { continue };
-                    found.clear();
-                    capture::matches(pattern, separator, &text, &mut |sl| found.push(sl.to_vec()));
-                    for sl in &found {
-                        from.row(i, &mut row);
-                        for k in &at {
-                            let t = k.and_then(|k| sl.get(k)).map_or("", |r| &text[r.clone()]);
-                            row.push(u64::from(run.sym(t.as_bytes())));
-                        }
-                        out.push_row(&row);
-                    }
-                }
+                capture::write(run, &from, pc, pattern, separator, &at, f.after_last_file, &mut out)?;
                 Ok(out)
             }
             "group-ordinal" => {
@@ -2725,7 +2753,7 @@ impl<'p> Exec<'p> {
     }
 
     fn src_of(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Src> {
-        if self.plan.nodes[node].op == "closure" {
+        if self.plan.nodes[node].op == "closure" && f.population(node).is_none() {
             // a closure made whole is read as its table, else through its adjacency
             if let Some(Res::Tab(t)) = &f.memo[node] {
                 return Ok(Src::Tab(t.clone(), node));
@@ -3221,6 +3249,9 @@ impl<'p> Exec<'p> {
         }
         let rsc = self.schema(run, rel)?;
         let (pc, cc) = (pos(&rsc.names, "parent")?, pos(&rsc.names, "child")?);
+        if let Some(input)=f.population(rel) {
+            return Ok(Hier::Population(input.clone(),pc,cc));
+        }
         Ok(match self.res(f, run, p, rel)? {
             Res::View(v) if File::probes(v.base, v.map[pc]) && File::probes(v.base, v.map[cc]) => Hier::View(v, pc, cc),
             _ => {
@@ -3580,6 +3611,7 @@ pub(super) enum Hier {
     Tree,
     View(Rc<ViewSpec>, usize, usize),
     Maps(FxHashMap<u64, Vec<u64>>, FxHashMap<u64, Vec<u64>>),
+    Population(Rc<population::Population>,usize,usize),
 }
 
 /// The domain an axis admits by.
@@ -3619,6 +3651,10 @@ fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &mut 
                 }
             }
             HITS.with(|b| *b.borrow_mut() = hits);
+        }
+        Hier::Population(input, parent, child) => {
+            let (by,to) = if up { (*child,*parent) } else { (*parent,*child) };
+            input.neighbors(by,to,x,out);
         }
         Hier::Maps(u, d) => {
             if let Some(xs) = if up { u.get(&x) } else { d.get(&x) } {
