@@ -159,9 +159,9 @@ impl<P: ParseUseCase> ParseEngine for P {
         if self.recognizes(&request) == super::types::Recognition::Declines {
             return Err(ParseError::Unsupported);
         }
-        crate::domain::elements::service::read_native(table, symbols, request.bytes, native);
-        let mut done = crate::domain::completion::service::completion(table, symbols, request.bytes, request.file);
-        self.complete(&request, &mut done);
+        crate::domain::elements::service::read_native(table, symbols, request.bytes, native,
+            request.fields == super::types::FieldRequest::Wanted);
+        super::service::finish_file(self, request, table, symbols, super::service::demanded(self, wanted));
         Ok(())
     }
 

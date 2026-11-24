@@ -62,12 +62,14 @@ impl Output for Writer<'_, '_> {
 
 /// Reads directly into the table that the evaluator borrows. The first origin
 /// belongs to the element at `node_table::own_end`.
-pub fn read(bytes: &[u8], table: &mut l::NodeTable, origins: &mut Vec<l::ExpandedPosition>) {
+pub fn read(bytes: &[u8], table: &mut l::NodeTable, origins: &mut Vec<l::ExpandedPosition>, fields: bool) {
     origins.clear();
     let mut builder = t::builder(table, l::Count(kinds().count()));
     SyntaxRaApSyntaxAdapter::new(OpaqueMacros(&OPAQUE_MACROS)).walk(
         SourceText(bytes), &mut Writer { table: &mut builder, host: None, depth: 0, origins },
     );
     t::finished(&mut builder);
-    t::classify_fields(table, |tree, at| l::FieldCode(field_bits(field_of(tree, at)).0));
+    if fields {
+        t::classify_fields(table, |tree, at| l::FieldCode(field_bits(field_of(tree, at)).0));
+    }
 }

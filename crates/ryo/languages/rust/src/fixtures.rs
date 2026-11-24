@@ -74,5 +74,3 @@ fn stated_unfilled() -> Vec<ryo::languages::contract::Unfilled> {
 fn stated_unfilled() -> Vec<ryo::languages::contract::Unfilled> {
     Vec::new()
 }
-
-pub use crate::outbound::syntax::adapters::ra_ap_syntax::native::read as read_native;
