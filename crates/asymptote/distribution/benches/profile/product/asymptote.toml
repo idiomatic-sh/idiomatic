@@ -1,0 +1,5 @@
+[[tools]]
+id = "lint"
+run = ["cat", "lint.sarif"]
+group = "lint"
+output = "sarif"

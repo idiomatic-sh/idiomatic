@@ -2000,7 +2000,7 @@ def test_ryo_ownership_contracts_are_check_tools() -> None:
 
 
 BENCH = "languages/{lang}/benchmarks/linters/{linter}"
-COLLECTOR = ["cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-benchmark", "--bin", "benchmark-collector", "--"]
+COLLECTOR = ["benchmark-collector"]
 # The one pin of every timed measure: the whole process tree of the bench on processors 0-3 with four workers.
 PIN = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4"]
 # The deterministic measure held to its best exactly, with no tolerance: how many files the store holds.

@@ -1,10 +1,11 @@
 //! Profile an already built image on a frozen workload.
 use super::{
     profile_evidence,
+    profile_images::{archive, cargo_images, git_text},
     profile_workload::{self, Images, Workload},
 };
-use profile_tools::{CommandLine, Observer};
 use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use profile_tools::{CommandLine, Observer};
 use serde::Deserialize;
 use std::{
     collections::BTreeMap,
@@ -18,7 +19,7 @@ use std::{
 #[derive(Deserialize)]
 struct Input {
     name: String,
-    image: Images,
+    image: Option<ImageInput>,
     arguments: Vec<String>,
     #[serde(default = "default_exits")]
     exits: Vec<i32>,
@@ -31,15 +32,78 @@ struct Input {
     oracle: Option<PathBuf>,
     directory: Option<PathBuf>,
     snapshot: Option<PathBuf>,
+    fixture: Option<PathBuf>,
     #[serde(default)]
     environment: BTreeMap<String, String>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum ImageInput {
+    Saved(Images),
+    Cargo {
+        product: PathBuf,
+        allocator_entry: PathBuf,
+        binary: String,
+    },
+}
+
+fn images(input: ImageInput, base: &Path) -> Result<Images, Error> {
+    match input {
+        ImageInput::Saved(mut images) => {
+            images.ordinary = base.join(images.ordinary).canonicalize()?;
+            images.heap = base.join(images.heap).canonicalize()?;
+            images.diagnostic = images
+                .diagnostic
+                .map(|path| base.join(path).canonicalize())
+                .transpose()?;
+            Ok(images)
+        }
+        ImageInput::Cargo {
+            product,
+            allocator_entry,
+            binary,
+        } => {
+            let product = base.join(product).canonicalize()?;
+            let root = git_text(&product, &["rev-parse", "--show-toplevel"])?;
+            let root = Path::new(root.trim());
+            let revision = git_text(root, &["rev-parse", "HEAD"])?;
+            let image = product
+                .join("target/benchmark/profile/images")
+                .join(revision.trim())
+                .join(&binary);
+            let ordinary = image.join("ordinary");
+            let heap = image.join("heap");
+            if !(ordinary.is_file() && heap.is_file()) {
+                fs::create_dir_all(&image)?;
+                let stage = tempfile::tempdir_in(&image)?;
+                let source = stage.path().join("source");
+                archive(root, revision.trim(), &source)?;
+                let relative = product
+                    .strip_prefix(root)
+                    .map_err(|_| Error::Invalid("image source is outside its repository".into()))?;
+                cargo_images(
+                    &source.join(relative),
+                    &allocator_entry,
+                    &binary,
+                    stage.path(),
+                    &image,
+                )?;
+            }
+            Ok(Images {
+                ordinary,
+                heap,
+                diagnostic: None,
+            })
+        }
+    }
 }
 
 fn default_exits() -> Vec<i32> {
     vec![0]
 }
 
-fn input(path: &Path) -> Result<Input, Error> {
+fn input(path: &Path) -> Result<(Input, Images), Error> {
     let file = if path.is_dir() {
         path.join("profile.toml")
     } else {
@@ -51,14 +115,13 @@ fn input(path: &Path) -> Result<Input, Error> {
     };
     let mut input: Input = toml::from_str(&fs::read_to_string(&file)?)
         .map_err(|error| Error::Invalid(error.to_string()))?;
-    input.image.ordinary = parent.join(input.image.ordinary).canonicalize()?;
-    input.image.heap = parent.join(input.image.heap).canonicalize()?;
     input.oracle = input.oracle.map(|path| parent.join(path));
-    input.image.diagnostic = input
-        .image
-        .diagnostic
-        .map(|path| parent.join(path).canonicalize())
-        .transpose()?;
+    input.fixture = input.fixture.map(|path| parent.join(path));
+    if input.fixture.is_some() && (input.snapshot.is_some() || input.directory.is_some()) {
+        return Err(Error::Invalid(
+            "a fixture supplies its own working directory".into(),
+        ));
+    }
     if let Some(snapshot) = &mut input.snapshot {
         *snapshot = parent.join(&*snapshot).canonicalize()?;
         if input.directory.as_ref().is_some_and(|path| {
@@ -72,14 +135,31 @@ fn input(path: &Path) -> Result<Input, Error> {
     } else {
         input.directory = input.directory.map(|path| parent.join(path));
     }
-    Ok(input)
+    let image = input
+        .image
+        .take()
+        .ok_or_else(|| Error::Invalid("workload has no image".into()))?;
+    Ok((input, images(image, parent)?))
 }
 
 fn isolated(input: &Input, path: &Path) -> io::Result<(PathBuf, Option<PathBuf>)> {
+    let checkout = path.join("checkout");
+    if let Some(fixture) = &input.fixture {
+        fs::create_dir_all(&checkout)?;
+        if !Command::new("cp")
+            .arg("-a")
+            .arg(fixture.join("."))
+            .arg(&checkout)
+            .status()?
+            .success()
+        {
+            return Err(io::Error::other("could not make a cold workload fixture"));
+        }
+        return Ok((checkout.clone(), Some(checkout)));
+    }
     let Some(source) = &input.snapshot else {
         return Ok((input.directory.as_deref().unwrap_or(path).to_owned(), None));
     };
-    let checkout = path.join("checkout");
     let status = Command::new("git")
         .args(["clone", "--quiet", "--local", "--shared"])
         .arg(source)
@@ -114,7 +194,7 @@ pub fn profile(
     output: &mut impl Write,
     progress: &mut impl Write,
 ) -> Result<(), Error> {
-    let first = input(bench)?;
+    let (first, first_image) = input(bench)?;
     let other = other.map(input).transpose()?;
     let run = tempfile::Builder::new()
         .prefix("image-profile-")
@@ -131,8 +211,8 @@ pub fn profile(
             has_engine: first.engine,
             instruction_budget: Duration::from_secs(900),
         },
-        &first.image,
-        other.as_ref().map(|other| &other.image),
+        &first_image,
+        other.as_ref().map(|(_, image)| image),
         &mut report,
         |image, observer, path| {
             fs::create_dir_all(path)?;

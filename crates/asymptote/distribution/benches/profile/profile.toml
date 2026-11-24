@@ -1,0 +1,9 @@
+name = "asymptote/check"
+arguments = ["check", "--format", "sarif"]
+exits = [1]
+fixture = "product"
+
+[image]
+product = "../../.."
+allocator_entry = "cli/src/main.rs"
+binary = "asymptote"

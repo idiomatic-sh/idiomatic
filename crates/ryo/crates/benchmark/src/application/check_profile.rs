@@ -1,17 +1,18 @@
 //! The collector's adapter for the registered real check workloads.
 use super::{
     profile_evidence,
+    profile_images::{archive, cargo_images, git_text, run},
     profile_workload::{self, Images, Workload},
 };
-use profile_tools::CommandLine;
 use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use profile_tools::CommandLine;
 use std::{
     collections::BTreeMap,
     ffi::OsString,
     fs,
     io::{BufReader, Write},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::Command,
     time::Duration,
 };
 
@@ -218,97 +219,11 @@ fn build(repo: &Path, bench: &Path, image: &Path, revision: &str) -> Result<(), 
         .args(["-I"])
         .arg(source.join(bench).join("project/live/link-release.py"))
         .arg(&release))?;
-    let product = release.join("crates/tastemaker");
-    let target = stage.path().join("target");
-    let make = || {
-        let mut command = Command::new("cargo");
-        command
-            .current_dir(&product)
-            .env("CARGO_PROFILE_BENCH_DEBUG", "line-tables-only")
-            .args([
-                "build",
-                "--offline",
-                "--profile",
-                "bench",
-                "--bin",
-                "tm",
-                "--target-dir",
-            ])
-            .arg(&target);
-        command
-    };
-    run(&mut make())?;
-    let ordinary = stage.path().join("ordinary");
-    fs::copy(target.join("release/tm"), &ordinary)?;
-    let entry = product.join("cli/src/main.rs");
-    let mut text = fs::read_to_string(&entry)?;
-    for declaration in [
-        "static GLOBAL: mimalloc::MiMalloc",
-        "static GLOBAL: tikv_jemallocator::Jemalloc",
-    ] {
-        let (_, after) = text
-            .split_once(declaration)
-            .ok_or_else(|| Error::Invalid("pinned allocator declaration moved".into()))?;
-        let start = text
-            .find(declaration)
-            .ok_or_else(|| Error::Invalid("allocator declaration".into()))?;
-        let docs = text
-            .get(..start)
-            .and_then(|prefix| prefix.rfind("/// The allocator"))
-            .ok_or_else(|| Error::Invalid("allocator declaration has unexpected shape".into()))?;
-        let end = text.len() - after.len()
-            + after
-                .find('\n')
-                .ok_or_else(|| Error::Invalid("allocator declaration is incomplete".into()))?;
-        text.replace_range(docs..end, "");
-    }
-    fs::write(entry, text)?;
-    run(&mut make())?;
-    let heap = stage.path().join("heap");
-    fs::copy(target.join("release/tm"), &heap)?;
-    fs::rename(ordinary, image.join("ordinary"))?;
-    fs::rename(heap, image.join("heap"))?;
-    Ok(())
-}
-
-fn archive(repo: &Path, revision: &str, directory: &Path) -> Result<(), Error> {
-    fs::create_dir_all(directory)?;
-    let archive = directory.join("source.tar");
-    run(Command::new("git")
-        .current_dir(repo)
-        .arg("archive")
-        .arg("-o")
-        .arg(&archive)
-        .args([revision, "crates", "rust-toolchain.toml"]))?;
-    run(Command::new("tar")
-        .current_dir(directory)
-        .arg("-xf")
-        .arg(&archive))?;
-    fs::remove_file(archive)?;
-    Ok(())
-}
-
-fn git_text(directory: &Path, arguments: &[&str]) -> Result<String, Error> {
-    let output = Command::new("git")
-        .current_dir(directory)
-        .args(arguments)
-        .output()?;
-    if !output.status.success() {
-        return Err(Error::Invalid(
-            String::from_utf8_lossy(&output.stderr).into_owned(),
-        ));
-    }
-    String::from_utf8(output.stdout).map_err(|error| Error::Invalid(error.to_string()))
-}
-
-fn run(command: &mut Command) -> Result<(), Error> {
-    let status = command
-        .stdout(Stdio::null())
-        .stderr(Stdio::inherit())
-        .status()?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(Error::Invalid(format!("{command:?} exited {status}")))
-    }
+    cargo_images(
+        &release.join("crates/tastemaker"),
+        Path::new("cli/src/main.rs"),
+        "tm",
+        stage.path(),
+        image,
+    )
 }

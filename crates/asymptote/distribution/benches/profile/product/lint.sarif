@@ -1,0 +1,1 @@
+{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"lint","rules":[{"id":"r"}]}},"results":[{"ruleId":"r","level":"warning","message":{"text":"a marker"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/a.rs"},"region":{"startLine":1,"startColumn":5}}}]}]}]}

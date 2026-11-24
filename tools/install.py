@@ -99,6 +99,7 @@ ROOT_CRATES = [
     Crate("idiomatic-sh-tastemaker", pinned("tastemaker"), bins=("tm",)),
     Crate("idiomatic-sh-asymptote", pinned("asymptote"), bins=("asymptote",)),
     Crate("idiomatic-sh-ryo", "0.1.1", bins=("ryo",)),
+    Crate("idiomatic-sh-benchmark", "0.2.0", bins=("benchmark-collector",)),
     Crate("cargo-deny", "0.20.2"),
     Crate("cargo-nextest", "0.9.146"),
     Crate("cargo-machete", "0.9.2"),

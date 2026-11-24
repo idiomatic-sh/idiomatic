@@ -234,7 +234,7 @@ inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 [[tools]]
 id = "profile"
 group = "profile"
-run = ["cargo", "run", "--quiet", "--release", "--locked", "-p", "idiomatic-sh-benchmark", "--bin", "benchmark-collector", "--", "profile", "languages/{lang}/benchmarks/linters/{linter}"]
+run = ["benchmark-collector", "profile", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 timeout-seconds = 21600
 inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
@@ -290,7 +290,7 @@ group = "bench"
 # `bench` job judges these alone: a shared runner moves the run's times from run to run, so they are `bench-timing`'s,
 # which no pull request is judged by. The whole process tree runs on processors 0-3 with RAYON_NUM_THREADS=4, and the collector refuses any
 # processor count but four. benchmarks.yml's hand-run bench-seed job seeds the lock on the runner that judges it.
-run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-benchmark", "--bin", "benchmark-collector", "--", "bench", "languages/{lang}/benchmarks/linters/{linter}"]
+run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "benchmark-collector", "bench", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 tolerance-percent = { peak-rss-bytes = 5, warm-peak-rss-bytes = 5, edited-peak-rss-bytes = 5, store-bytes = 1 }
 timeout-seconds = 21600
@@ -304,7 +304,7 @@ group = "bench-timing"
 # by them. It repeats the whole bench, so no workflow runs it (no job runs the bench twice): a developer runs it alone to
 # read a change's cost. The one pin of every timed measure: the whole process tree runs on processors 0-3 with
 # RAYON_NUM_THREADS=4.
-run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-benchmark", "--bin", "benchmark-collector", "--", "bench-timing", "languages/{lang}/benchmarks/linters/{linter}"]
+run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "benchmark-collector", "bench-timing", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 tolerance-percent = { cpu-s = 10, wall-s = 15, warm-cpu-s = 10, edited-cpu-s = 10, total-ms = 10, max-case-ms = 10, compile-ms = 10, doubling-ratio = 10, larger-ms = 10 }
 timeout-seconds = 21600
