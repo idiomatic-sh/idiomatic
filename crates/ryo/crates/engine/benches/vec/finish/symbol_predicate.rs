@@ -88,8 +88,7 @@ pub(super) fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Optio
 /// Interpreted globs often see a file's path on every row of its relations.
 pub(super) struct PreparedGlob {
     pattern: u32,
-    matcher: ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs,
-    last: std::cell::Cell<Option<(u32, bool)>>,
+    matcher: Bound<ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs>,
 }
 
 // The compiled plan identity is independent of which subject was visited last.
@@ -101,7 +100,7 @@ impl fmt::Debug for PreparedGlob {
 
 impl PreparedGlob {
     pub(super) fn new(pattern: u32, matcher: ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs) -> Self {
-        Self { pattern, matcher, last: Default::default() }
+        Self { pattern, matcher: Bound::new(matcher) }
     }
 
     fn bytes(&self, bytes: &[u8]) -> bool {
@@ -109,16 +108,11 @@ impl PreparedGlob {
             interface::MatchingUseCase, types::{MatchOutcome, SearchText}, use_case::MatchingUseCaseImpl,
         };
         let subject = String::from_utf8_lossy(bytes);
-        MatchingUseCaseImpl::new().matches_text_globs(&self.matcher, SearchText(&subject)) == MatchOutcome::Matches
+        MatchingUseCaseImpl::new().matches_text_globs(&self.matcher.pattern, SearchText(&subject)) == MatchOutcome::Matches
     }
 
     fn symbol(&self, run: &Run, id: u32) -> bool {
-        if let Some((last, answer)) = self.last.get() && id == last {
-            return answer;
-        }
-        let answer = self.bytes(run.text(id));
-        self.last.set(Some((id, answer)));
-        answer
+        self.matcher.answer(id, || self.bytes(run.text(id)))
     }
 
     pub(super) fn matches(&self, run: &Run, value: V) -> bool {
