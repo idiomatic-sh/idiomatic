@@ -63,14 +63,21 @@ pub fn run(
         context.verify_receipt(manifest, &request.root, receipt)?;
     }
     validate_coverage(&request.files, &report)?;
+    let clock = phase_path
+        .as_deref()
+        .map(|path| {
+            phases::read(path)?.ok_or_else(|| {
+                Error::Invalid(format!(
+                    "registered benchmark worker omitted the native phase record at {}",
+                    path.display()
+                ))
+            })
+        })
+        .transpose()?;
     Ok(Measurement {
         wall,
         resources,
-        phases: phase_path
-            .as_deref()
-            .map(phases::read)
-            .transpose()?
-            .flatten(),
+        phases: clock,
         report,
     })
 }
