@@ -152,7 +152,7 @@ mod subject_scope;
 #[path = "finish/partition.rs"]
 pub(super) mod partition;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(super) enum Ty {
     Node,
     Sym,
@@ -199,7 +199,7 @@ pub(super) type Names = Rc<Vec<String>>;
 pub(super) type Tys = Rc<Vec<Ty>>;
 
 /// A column table.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Hash)]
 pub(super) struct Table {
     pub(super) names: Names,
     pub(super) tys: Tys,
@@ -2457,7 +2457,12 @@ impl<'p> Exec<'p> {
                 let at: Vec<Option<usize>> = caps.map(|c| slot_names.iter().position(|n| n == c)).collect();
                 let separator = a.get("separator").and_then(Param::as_str);
                 let mut out = self.empty(run, node)?;
-                capture::write(run, &from, pc, pattern, separator, &at, f.after_last_file, &mut out)?;
+                let equal = if f.after_last_file {
+                    capture::required_equalities(self, run, node)
+                } else {
+                    Vec::new()
+                };
+                capture::write(run, &from, pc, pattern, separator, &at, f.after_last_file, &equal, &mut out)?;
                 Ok(out)
             }
             "group-ordinal" => {

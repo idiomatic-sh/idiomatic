@@ -1,5 +1,5 @@
 //! Bind typed pair witnesses to the source adapter's actual row populations.
-use super::{Bound, FileId, FileSource, Program, Result, Run, Source, l, reader_run};
+use super::{Bound, FileId, FileSource, Program, Result, Run, l, reader_run};
 use crate::{
     pair_checks::SyntaxText,
     pair_summary::{self, Source as FactSource},
@@ -21,16 +21,9 @@ impl Checks {
         parser: Option<&L>,
         programs: &[Result<Program>],
         program_of: &[usize],
-        sources: &[Source],
-        selected: &[usize],
+        needed: &[bool],
         cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
     ) -> Self {
-        let mut needed = vec![false; program_of.len()];
-        for &source in selected {
-            for &binding in sources[source].bindings.keys() {
-                needed[binding] = true;
-            }
-        }
         let mut roots = vec![Vec::new(); program_of.len()];
         for (binding, outputs) in roots.iter_mut().enumerate().filter(|(b, _)| needed[*b]) {
             let id = program_of[binding];
@@ -219,7 +212,7 @@ impl Checks {
                 }
                 *excluded = *b.screenable.get_or_insert_with(|| {
                     crate::finish::session::certificate::certified_empty(
-                        &mut b.exec,
+                        &mut crate::finish::Exec::new(b.plan),
                         run,
                         &b.hosted,
                         cuts[*binding].as_deref(),

@@ -27,12 +27,28 @@ use std::{
 #[derive(Deserialize)]
 struct Input {
     root: String,
-    files: Vec<String>,
-    inventory: Option<Vec<String>>,
+    #[serde(deserialize_with = "read_paths")]
+    files: Rc<Vec<String>>,
+    #[serde(default, deserialize_with = "read_inventory")]
+    inventory: Option<Rc<Vec<String>>>,
     repository: Option<Authority>,
     hosted: Vec<Hosted>,
     #[serde(deserialize_with = "read_parameters")]
     parameters: Parameters,
+}
+
+fn read_paths<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Rc<Vec<String>>, D::Error> {
+    Vec::<String>::deserialize(input).map(Rc::new)
+}
+
+fn read_inventory<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Option<Rc<Vec<String>>>, D::Error> {
+    Ok(Option::<Vec<String>>::deserialize(input)?.map(canonical_inventory))
+}
+
+fn canonical_inventory(mut paths: Vec<String>) -> Rc<Vec<String>> {
+    paths.sort_unstable();
+    paths.dedup();
+    Rc::new(paths)
 }
 
 enum Work {
@@ -42,7 +58,7 @@ enum Work {
         pairs: Vec<usize>,
         binding: usize,
         inventory: Rc<Vec<String>>,
-        files: Vec<String>,
+        files: Rc<Vec<String>>,
     },
     Pairs(Vec<usize>),
     Refused(String),
@@ -77,6 +93,7 @@ struct Batch {
     schedule: session::Schedule,
     program_of: Vec<usize>,
     bindings: Vec<Rc<[Hosted]>>,
+    host_rows: std::collections::HashSet<Rc<[Rc<[super::HostCell]>]>>,
     binding_ids: HashMap<(usize, Rc<[Hosted]>), usize>,
     queries: HashMap<String, Rc<str>>,
     work: Vec<Work>,
@@ -102,7 +119,8 @@ struct Batch {
 #[derive(Default)]
 struct Active<F: Default, D: Default> {
     keep: bool,
-    readers: Vec<session::ReaderState<F, D>>,
+    retention: session::Retention<F,D>,
+    readers: Vec<session::ReaderState>,
     world: session::World,
     answers: Vec<Answer>,
     aliases: Vec<usize>,
@@ -224,7 +242,7 @@ impl Batch {
                     .hosted
                     .iter()
                     .map(|t| Hosted {
-                        rows: Vec::new(),
+                        rows: Rc::default(),
                         ..t.clone()
                     })
                     .collect::<Vec<_>>();
@@ -271,11 +289,6 @@ impl Batch {
             };
             let inventory = req
                 .inventory
-                .map(|mut paths| {
-                    paths.sort_unstable();
-                    paths.dedup();
-                    Rc::new(paths)
-                })
                 .or(snapshot)
                 .or_else(|| {
                     let has_file = req
@@ -284,7 +297,7 @@ impl Batch {
                         .any(|h| h.columns.iter().any(|(_, k)| k == "File"));
                     let needs_inventory = program.bases.iter().any(|n| n == "filesystem.file");
                     (!has_file && (!req.files.is_empty() || !needs_inventory)).then(|| {
-                        let mut paths = req.files.clone();
+                        let mut paths = req.files.as_ref().clone();
                         paths.sort_unstable();
                         Rc::new(paths)
                     })
@@ -332,7 +345,7 @@ impl Batch {
                 // Caller rows are consumed only after closure. Sources with the same
                 // prepared program and caller schema produce identical local outputs.
                 let local = *self.local_bindings.entry(schema_key).or_insert(binding);
-                self.schedule.admit(req.root, req.files.clone(), local)?
+                self.schedule.admit(req.root, &req.files, local)?
             } else {
                 Vec::new()
             };
@@ -350,11 +363,20 @@ impl Batch {
         }
         let binding = self.binding(rule, req.hosted);
         self.bound_contracts.insert(binding, contract);
-        let pairs = self.schedule.admit(req.root, req.files, binding)?;
+        let pairs = self.schedule.admit(req.root, &req.files, binding)?;
         Ok(Work::Pairs(pairs))
     }
 
-    fn binding(&mut self, rule: usize, hosted: Vec<Hosted>) -> usize {
+    fn binding(&mut self, rule: usize, mut hosted: Vec<Hosted>) -> usize {
+        // Only the immutable payload is shared. Each declaration keeps its schema,
+        // completeness and file-valued cells in the requesting scope.
+        for table in &mut hosted {
+            if let Some(rows) = self.host_rows.get(&table.rows) {
+                table.rows = Rc::clone(rows);
+            } else {
+                self.host_rows.insert(Rc::clone(&table.rows));
+            }
+        }
         let hosted: Rc<[Hosted]> = hosted.into();
         let host_key = hosted.clone();
         *self.binding_ids.entry((rule, host_key)).or_insert_with(|| {
@@ -379,6 +401,7 @@ impl Batch {
         self.roots.clear();
         self.queries.clear();
         self.binding_ids.clear();
+        self.host_rows.clear();
         let mut state = Active::default();
         self.epoch(readers, &mut state);
         state.answers
@@ -391,6 +414,7 @@ impl Batch {
     ) {
         let Active {
             keep,
+            retention,
             readers: reader_states,
             world,
             answers,
@@ -437,6 +461,7 @@ impl Batch {
             }
             session::visit(
                 &mut reader_states[reader_id],
+                retention,
                 *keep,
                 language,
                 (reader_id != unclaimed).then_some(reader_id),
@@ -761,7 +786,7 @@ pub(crate) fn packets(
         }
         let bytes = std::fs::read(item.request).map_err(|e| e.to_string())?;
         let mut input: Input = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
-        input.inventory = Some(project.inventory);
+        input.inventory = Some(canonical_inventory(project.inventory));
         input.repository = project.repository;
         let work = session
             .register(&item.pack, input, None)

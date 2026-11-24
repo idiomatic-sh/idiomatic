@@ -8,6 +8,7 @@ use serde_json::json;
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufRead as _, Write as _};
+use std::rc::Rc;
 
 #[derive(Deserialize)]
 struct Request {
@@ -41,9 +42,14 @@ enum HostCell {
 struct Hosted {
     name: String,
     columns: Vec<(String, String)>,
-    rows: Vec<Vec<HostCell>>,
+    #[serde(deserialize_with = "read_host_rows")]
+    rows: Rc<[Rc<[HostCell]>]>,
     #[serde(default)]
     partial: Option<String>,
+}
+
+fn read_host_rows<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Rc<[Rc<[HostCell]>]>, D::Error> {
+    Vec::<Vec<HostCell>>::deserialize(input).map(|rows| rows.into_iter().map(Rc::from).collect())
 }
 
 struct Snapshot<'a> {
@@ -134,7 +140,7 @@ fn bind_tables(
         let (_, names, tys) = run.catalog(&table.name).ok_or("missing host declaration")?;
         let mut t = Table::with_rows(names, tys, table.rows.len());
         let mut cells = Vec::with_capacity(columns.len());
-        'rows: for row in &table.rows {
+        'rows: for row in table.rows.iter() {
             if row.len() != columns.len() {
                 return Err(format!("host row width in {}", table.name));
             }
