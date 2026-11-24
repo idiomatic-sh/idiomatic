@@ -94,7 +94,7 @@ fn bind_tables(
         let (_, names, tys) = run.catalog(&table.name).ok_or("missing host declaration")?;
         let mut t = Table::with_rows(names, tys, table.rows.len());
         let mut cells = Vec::with_capacity(columns.len());
-        'rows: for row in &table.rows {
+        'rows: for row in table.rows.iter() {
             if row.len() != columns.len() {
                 return Err(format!("host row width in {}", table.name));
             }
