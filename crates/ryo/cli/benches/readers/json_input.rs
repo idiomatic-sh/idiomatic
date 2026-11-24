@@ -262,7 +262,7 @@ pub(super) struct Project {
     #[serde(deserialize_with = "constants")]
     pub parameters: BTreeMap<String, PlanConstant>,
 }
-#[derive(serde::Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, serde::Deserialize)]
 pub(super) struct Hosted {
     pub name: String,
     pub columns: Vec<(String, String)>,
@@ -271,13 +271,13 @@ pub(super) struct Hosted {
     pub partial: Option<String>,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, serde::Deserialize)]
 #[serde(untagged)]
 pub(super) enum ProjectCell {
     File { file: String },
     Text(String),
     Number(i64),
-    Unsupported(serde::de::IgnoredAny),
+    Unsupported(#[serde(deserialize_with = "discard_cell")] ()),
 }
 fn constants<'de, D: serde::Deserializer<'de>>(
     d: D,
@@ -290,4 +290,30 @@ fn constants<'de, D: serde::Deserializer<'de>>(
 }
 pub(super) fn project(line: &str) -> Project {
     serde_json::from_str(line).expect("project request")
+}
+
+fn discard_cell<'de, D: serde::Deserializer<'de>>(d: D) -> Result<(), D::Error> {
+    <serde::de::IgnoredAny as serde::Deserialize>::deserialize(d).map(|_| ())
+}
+
+#[derive(serde::Deserialize)]
+pub(crate) struct Session {
+    pub(crate) root: String,
+    pub(crate) files: Vec<String>,
+    pub(crate) inventory: Option<Vec<String>>,
+    #[serde(default)]
+    pub(crate) selected_rules: Vec<String>,
+    #[serde(default)]
+    pub(super) hosted: Vec<Hosted>,
+    #[serde(default, deserialize_with = "constants")]
+    pub(crate) parameters: BTreeMap<String, PlanConstant>,
+}
+
+pub(crate) fn read<T: serde::de::DeserializeOwned>(path: impl AsRef<Path>) -> Result<T, String> {
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    super::finish::json_input::decode(&bytes).map_err(|e| e.to_string())
+}
+
+pub(crate) fn read_line<T: serde::de::DeserializeOwned>(line: &str) -> Result<T, String> {
+    super::finish::json_input::decode(line.as_bytes()).map_err(|e| e.to_string())
 }

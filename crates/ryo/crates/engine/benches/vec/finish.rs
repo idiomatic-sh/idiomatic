@@ -540,6 +540,24 @@ pub(super) struct Plan {
 
 }
 
+fn extend_values(args: &Args, mut visit: impl FnMut(&str, &Param) -> R<()>) -> R<()> {
+    let values = args["values"].as_object().ok_or("extend values")?;
+    if let Some(order) = args["value-order"].as_array() {
+        if order.len() != values.len() {
+            return Err("invalid extend column order".into());
+        }
+        for key in order {
+            let name = key.as_str().ok_or("invalid extend column")?;
+            visit(name, values.get(name).ok_or("undeclared extend column")?)?;
+        }
+    } else {
+        for (name, value) in values {
+            visit(name, value)?;
+        }
+    }
+    Ok(())
+}
+
 /// The relations of the tree read in place, by position.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(super) enum Native {
@@ -1467,14 +1485,15 @@ impl<'p> Exec<'p> {
             "extend" => {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
-                for (k, v) in a["values"].as_object().ok_or("extend values")? {
-                    names.push(k.clone());
+                extend_values(a, |k, v| {
+                    names.push(k.to_owned());
                     tys.push(match v {
                         Param::Number(_) => Ty::Num,
                         Param::Text(t) if t == "true" || t == "false" => Ty::Flag,
                         _ => Ty::Sym,
                     });
-                }
+                    Ok(())
+                })?;
                 mk(names, tys)
             }
             "project" => {
@@ -2101,16 +2120,17 @@ impl<'p> Exec<'p> {
             "extend" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let mut out = from.copy();
-                for (k, v) in a["values"].as_object().ok_or("extend values")? {
-                    let (t, x) = match v {
-                        Param::Number(_) => (Ty::Num, v.as_i64().ok_or("extend number")? as u64),
-                        Param::Text(t) if t == "true" || t == "false" => (Ty::Flag, u64::from(t == "true")),
-                        Param::Text(t) => (Ty::Sym, u64::from(run.sym(t.as_bytes()))),
+                extend_values(a, |_, v| {
+                    let x = match v {
+                        Param::Number(_) => v.as_i64().ok_or("extend number")? as u64,
+                        Param::Text(t) if t == "true" || t == "false" => u64::from(t == "true"),
+                        Param::Text(t) => u64::from(run.sym(t.as_bytes())),
                         _ => return Err(format!("extend value {v:?}")),
                     };
                     // redo-alloc: the constant column from the pool
                     out.push_const_col(x, from.n);
-                }
+                    Ok(())
+                })?;
                 let sc = self.schema(run, node)?;
                 (out.names, out.tys) = (sc.names.clone(), sc.tys.clone());
                 Ok(out)
@@ -4031,7 +4051,7 @@ fn static_ty(e: &E) -> Ty {
         E::Col(_, _, t) => *t,
         E::Num(_) => Ty::Num,
         // redo-honest: `integer_successor(a, b)` is a test (the shipping engine's `Test::IntegerSuccessor`)
-        E::Call(n, _) if n == "integer_successor" => Ty::Flag,
+        E::Call(n, _) if matches!(n.as_str(), "integer_successor" | "glob_any") => Ty::Flag,
         E::Text(_) | E::Call(..) => Ty::Sym,
         _ => Ty::Flag,
     }
@@ -4236,9 +4256,17 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
             v
         }
         "glob_any" => {
-            let g = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();
-            let re = run.re(&glob_pattern(&g)).expect("a glob");
-            flag(re.is_match(&text_of(run, vs[0])))
+            use ryo_matching::inbound::use_cases::matching::{
+                interface::MatchingUseCase, types::{GlobPattern, MatchOutcome, SearchText},
+                use_case::MatchingUseCaseImpl,
+            };
+            let subject = text_of(run, vs[0]);
+            let pattern = text_of(run, vs[1]);
+            let matched = MatchingUseCaseImpl::new().matches_text_glob(
+                GlobPattern(&String::from_utf8_lossy(&pattern)),
+                SearchText(&String::from_utf8_lossy(&subject)),
+            );
+            flag(matched == MatchOutcome::Matches)
         }
         "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&text_of(run, vs[0])), &String::from_utf8_lossy(&text_of(run, vs[1])))),
         // redo-honest: the shipping engine's meaning (operators numeric_values::integer_successor): whether the right is

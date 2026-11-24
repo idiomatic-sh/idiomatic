@@ -5,11 +5,10 @@ use ryo::languages::{Language, Recognition};
 use ryo::linter::{Languages, RelativePath};
 use std::collections::BTreeMap;
 
-pub(super) fn run(readers: Vec<Language>, pack: &str, request: &str, output: &str) -> bool {
-    let input = super::finish::json_input::request(request);
+pub(super) fn run(readers: Vec<Language>, pack: &str, request: &str, output: &str, files: Vec<String>) -> bool {
     let readers: Vec<_> = readers.into_iter().map(|l| Languages(vec![l])).collect();
     let mut groups = BTreeMap::<usize, Vec<String>>::new();
-    for file in input.files {
+    for file in files {
         let path = RelativePath(file.into());
         let mut recognized = readers
             .iter()

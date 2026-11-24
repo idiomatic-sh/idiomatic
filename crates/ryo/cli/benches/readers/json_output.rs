@@ -32,16 +32,33 @@ fn finding(finding: &Finding) -> String {
 }
 
 pub(super) fn receipt(id: &str, result: Result<wire::Records, String>) -> String {
+    digest_receipt(id, result.as_ref().map(|rows| digest(&[rows])).map_err(String::as_str))
+}
+
+pub(super) fn digest(records: &[&wire::Records]) -> (usize, String) {
     use sha2::{Digest as _, Sha256};
-    match result {
-        Ok(rows) => {
-            let (count, stream) = rows.wire();
-            let digest = Sha256::digest(stream.as_bytes());
-            json!({"id": id, "rows": count, "sha256": format!("{digest:x}")})
-        }
-        Err(reason) => json!({"id": id, "refused": reason}),
+    let lines = wire::Records::sorted_lines(records);
+    let mut hash = Sha256::new();
+    if lines.is_empty() {
+        hash.update(b"\n");
     }
-    .to_string()
+    for line in &lines {
+        hash.update(line.as_bytes());
+        hash.update(b"\n");
+    }
+    (lines.len(), format!("{:x}", hash.finalize()))
+}
+
+pub(super) fn write_records(records: &[&wire::Records], path: &str) -> Result<(), String> {
+    let lines = wire::Records::sorted_lines(records);
+    std::fs::write(path, lines.join("\n") + "\n").map_err(|e| e.to_string())
+}
+
+pub(super) fn digest_receipt(id: &str, result: Result<(usize, String), &str>) -> String {
+    match result {
+        Ok((count, digest)) => json!({"id": id, "rows": count, "sha256": digest}),
+        Err(reason) => json!({"id": id, "refused": reason}),
+    }.to_string()
 }
 
 pub(super) fn write_findings(findings: &[Finding], path: &std::path::Path) {

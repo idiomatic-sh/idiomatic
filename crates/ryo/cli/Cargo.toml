@@ -53,6 +53,8 @@ tikv-jemallocator.workspace = true
 mimalloc.workspace = true
 
 [dev-dependencies]
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../crates/matching", version = "0.2.0" }
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../crates/execution_domain" }
 bumpalo = "3"
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../crates/engine" }
 regex = "1"

@@ -174,6 +174,25 @@ impl PNode {
             _ => false,
         }
     }
+    /// The closed check knows the source declaration order and the caller's capture grammar.
+    #[allow(dead_code, reason = "only the check-wide entry supplies session parameters")]
+    pub(crate) fn prepare_session_parameters(&mut self, separator: Option<&str>) {
+        let step = self.step();
+        let field = match step {
+            FinishStep::Extend(extend) => ("value-order", Param::strings(extend.values.iter().map(|v| v.name.0.as_ref()))),
+            FinishStep::Capture(_) if self.args()["separator"].as_str().is_none() => {
+                let Some(value) = separator else { return };
+                ("separator", Param::text(value))
+            }
+            _ => return,
+        };
+        let Param::Named(args) = self.args.take().unwrap_or_else(|| parameters(self.step())) else {
+            unreachable!("named query parameters")
+        };
+        let mut args = args;
+        args.insert(field.0.to_owned(), field.1);
+        self.args.set(Param::Named(args)).expect("session owns plan arguments");
+    }
     pub(crate) fn args(&self) -> &Args {
         self.args.get_or_init(|| parameters(self.step()))
     }
@@ -396,6 +415,7 @@ fn parameters(step: &FinishStep) -> Args {
             }
         }
         Capture(a) => {
+            if let Some(sep) = &a.separator { set("separator", Param::text(&sep.0)); }
             set("path", Param::text(&a.path.0));
             set("pattern", Param::text(&a.pattern.0));
             set(

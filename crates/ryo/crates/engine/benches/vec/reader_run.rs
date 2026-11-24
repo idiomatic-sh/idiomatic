@@ -7,13 +7,13 @@ use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
 #[path = "reader_packet.rs"]
-mod packet;
+pub(super) mod packet;
 
 #[path = "reader_pairs.rs"]
 mod pairs;
 
 #[path = "reader_coverage.rs"]
-mod coverage;
+pub(super) mod coverage;
 
 /// Dense local bit numbers only for names that occur in a necessary condition.
 #[derive(Default)]

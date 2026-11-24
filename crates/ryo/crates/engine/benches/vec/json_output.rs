@@ -98,6 +98,15 @@ pub(crate) struct Records {
 }
 
 impl Records {
+    /// Canonical output order across all file answers contributing to one request.
+    pub(crate) fn sorted_lines<'a>(records: &[&'a Self]) -> Vec<&'a str> {
+        let mut lines: Vec<_> = records.iter()
+            .flat_map(|set| set.lines.iter().map(String::as_str))
+            .collect();
+        lines.sort_unstable();
+        lines
+    }
+
     pub(crate) fn query(
         &mut self,
         run: &Run,
