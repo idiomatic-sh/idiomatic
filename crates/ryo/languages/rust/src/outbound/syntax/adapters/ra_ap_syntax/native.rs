@@ -16,10 +16,17 @@ struct Writer<'a, 'b> {
 
 impl Writer<'_, '_> {
     fn begin_root(&mut self) {
-        if self.depth == 0 && let Some(host) = self.host {
-            t::embed(self.table, host, l::EmbeddedText {
-                text: l::NameText(""), mapping: l::EmbeddedMapping::Exact(l::Offset(0)),
-            });
+        if self.depth == 0
+            && let Some(host) = self.host
+        {
+            t::embed(
+                self.table,
+                host,
+                l::EmbeddedText {
+                    text: l::NameText(""),
+                    mapping: l::EmbeddedMapping::Exact(l::Offset(0)),
+                },
+            );
         }
     }
 }
@@ -35,7 +42,13 @@ impl Output for Writer<'_, '_> {
         self.depth -= 1;
         t::leave_node(self.table, end);
     }
-    fn token(&mut self, kind: l::KindBits, start: l::Offset, end: l::Offset, decoded: Option<l::NameText<'_>>) {
+    fn token(
+        &mut self,
+        kind: l::KindBits,
+        start: l::Offset,
+        end: l::Offset,
+        decoded: Option<l::NameText<'_>>,
+    ) {
         self.enter(kind, start);
         *self.flags.last_mut().expect("token position") = l::TOKEN;
         if let Some(text) = decoded {
@@ -46,7 +59,11 @@ impl Output for Writer<'_, '_> {
     fn property(&mut self, key: l::PropertyId, value: l::NameText<'_>) {
         t::node_property(self.table, key, value);
     }
-    fn formatted(&mut self, key: l::PropertyId, value: std::fmt::Arguments<'_>) -> std::fmt::Result {
+    fn formatted(
+        &mut self,
+        key: l::PropertyId,
+        value: std::fmt::Arguments<'_>,
+    ) -> std::fmt::Result {
         t::node_property_fmt(self.table, key, value)
     }
     fn diagnostic(&mut self, message: &str, start: l::Offset, end: l::Offset) {
@@ -56,7 +73,11 @@ impl Output for Writer<'_, '_> {
         self.host = Some(host);
     }
     fn origin(&mut self, element: l::Position, host: l::Position, expansion: l::ExpansionId) {
-        self.origins.push(l::ExpandedPosition { element, call_site: host, expansion });
+        self.origins.push(l::ExpandedPosition {
+            element,
+            call_site: host,
+            expansion,
+        });
     }
     fn release(&mut self) {
         self.host = None;
@@ -65,15 +86,30 @@ impl Output for Writer<'_, '_> {
 
 /// Reads directly into the table that the evaluator borrows. The first origin
 /// belongs to the element at `node_table::own_end`.
-pub fn read(bytes: &[u8], table: &mut l::NodeTable, origins: &mut Vec<l::ExpandedPosition>, flags: &mut Vec<l::Flags>, fields: bool) {
+pub fn read(
+    bytes: &[u8],
+    table: &mut l::NodeTable,
+    origins: &mut Vec<l::ExpandedPosition>,
+    flags: &mut Vec<l::Flags>,
+    fields: bool,
+) {
     origins.clear();
     flags.clear();
     let mut builder = t::builder(table, l::Count(kinds().count()));
     SyntaxRaApSyntaxAdapter::new(OpaqueMacros(&OPAQUE_MACROS)).walk(
-        SourceText(bytes), &mut Writer { table: &mut builder, host: None, depth: 0, origins, flags },
+        SourceText(bytes),
+        &mut Writer {
+            table: &mut builder,
+            host: None,
+            depth: 0,
+            origins,
+            flags,
+        },
     );
     t::finished(&mut builder);
     if fields {
-        t::classify_fields(table, |tree, at| l::FieldCode(field_bits(field_of(&NativeTree { table: tree, flags }, at)).0));
+        t::classify_fields(table, |tree, at| {
+            l::FieldCode(field_bits(field_of(&NativeTree { table: tree, flags }, at)).0)
+        });
     }
 }
