@@ -15,11 +15,8 @@ fn any(bits: &[u64], mut test: impl FnMut(u32) -> bool) -> bool {
     }
     false
 }
-fn contains(bits: &Nodes, id: u32) -> bool {
-    bits.as_ref().is_none_or(|b| {
-        b.get((id / 64) as usize)
-            .is_some_and(|w| w & (1u64 << (id % 64)) != 0)
-    })
+fn contains(arena: &Arena, bits: Nodes, id: u32) -> bool {
+    bits.is_none_or(|b| arena.word(b, (id / 64) as usize) & (1u64 << (id % 64)) != 0)
 }
 impl<const PROFILE: bool> File<'_, PROFILE> {
     /// The same lazy path test can answer either an existence probe or a
@@ -32,6 +29,8 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         let target = self.nodes(edge.targets);
         let unknown = target.is_none()
             && (edge.transitive || !matches!(self.p.domains[edge.targets], Domain::Any));
+        let offset = present.first() as u32 * 64;
+        let present = &self.arena.words[present.range()];
         let matches = |n: u32| {
             if unknown {
                 return true;
@@ -39,7 +38,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             if !edge.to_parent {
                 return node_table::children_of(self.t, Position(n))
                     .iter()
-                    .any(|p| contains(&target, p.0));
+                    .any(|p| contains(self.arena, target, p.0));
             }
             let mut id = n;
             loop {
@@ -47,7 +46,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 if parent == id {
                     return false;
                 }
-                if contains(&target, parent) {
+                if contains(self.arena, target, parent) {
                     return true;
                 }
                 if !edge.transitive {
@@ -58,21 +57,23 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         };
         match output {
             Some(out) => {
-                each(&present, |n| {
+                each(present, |local| {
+                    let n = offset + local;
                     if matches(n) {
                         insert(out, n)
                     }
                 });
                 Some(!out.is_empty())
             }
-            None => Some(any(&present, matches)),
+            None => Some(any(present, |local| matches(offset + local))),
         }
     }
     pub(super) fn path_exists(&mut self, x: Id, down: bool) -> bool {
         let Some(input) = self.nodes(x) else {
             return true;
         };
-        any(&input, |i| {
+        any(&self.arena.words[input.range()], |local| {
+            let i = input.first() as u32 * 64 + local;
             if down {
                 !node_table::children_of(self.t, Position(i)).is_empty()
             } else {

@@ -21,6 +21,16 @@ mod glob_pattern;
 mod host_columns;
 #[path = "../../../../ryo/crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
+#[path = "../../../../ryo/crates/engine/benches/vec/summary_schedule.rs"]
+mod summary_schedule;
+#[path = "../../../../ryo/crates/engine/benches/vec/summary_values.rs"]
+mod summary_values;
+#[path = "../../../../ryo/crates/engine/benches/vec/summary_proofs.rs"]
+mod summary_proofs;
+#[path = "../../../../ryo/crates/engine/benches/vec/summary_rules.rs"]
+mod summary_rules;
+#[path = "../../../../ryo/crates/engine/benches/vec/summary_literals.rs"]
+mod summary_literals;
 use glob_pattern::glob_pattern;
 #[path = "../../../../ryo/crates/engine/benches/vec/check_session.rs"]
 mod check_session;
