@@ -66,11 +66,11 @@ pub(crate) fn dispatch<L: FileSource>(
         return;
     }
     let inventory_start = thread_cpu();
-    let mut paths = BTreeMap::<&str, Vec<usize>>::new();
+    let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
     for &id in selected {
-        paths.entry(&sources[id].path).or_default().push(id);
+        by_path.entry(&sources[id].path).or_default().push(id);
     }
-    let mut jobs: Vec<_> = paths
+    let mut jobs: Vec<_> = by_path
         .into_values()
         .map(|group| {
             let src = &sources[group[0]];
