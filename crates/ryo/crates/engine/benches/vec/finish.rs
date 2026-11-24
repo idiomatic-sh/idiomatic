@@ -671,7 +671,7 @@ pub(super) struct File<'a> {
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
     /// redo-union pass 2: whether a step is known empty in this file from its kinds and per-file tests (`known`).
-    known: Vec<u8>,
+    known: known::States,
     /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
     /// next file (no 30 k-entry table made and dropped a file).
     touched: Vec<u32>,
@@ -680,7 +680,7 @@ pub(super) struct File<'a> {
 }
 
 thread_local! {
-    static SPARE: RefCell<(Vec<Option<Res>>, Vec<u8>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
+    static SPARE: RefCell<(Vec<Option<Res>>, known::States, Vec<u32>)> = const { RefCell::new((Vec::new(), known::States::empty(), Vec::new())) };
     /// redo-alloc: the last file's buffers and maps, emptied (capacity kept), for the next file.
     static SPARE_BUFS: RefCell<Option<FileBufs>> = const { RefCell::new(None) };
 }
@@ -715,7 +715,7 @@ impl Drop for File<'_> {
             }
         }
         let mut memo = std::mem::take(&mut self.memo);
-        let mut known = std::mem::take(&mut self.known);
+        let known = std::mem::take(&mut self.known);
         let mut touched = std::mem::take(&mut self.touched);
         for n in touched.drain(..) {
             // redo-alloc: the answer given back for the next (recycle.rs), not freed
@@ -725,7 +725,6 @@ impl Drop for File<'_> {
         }
         // a substitution's restore never leaves an entry `res` did not set (checked where it is cheap)
         debug_assert!(memo.iter().all(Option::is_none));
-        known.fill(0);
         SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
         // redo-alloc: the file's buffers and maps emptied and kept for the next file
         let mut b = FileBufs {
@@ -828,13 +827,19 @@ impl File<'_> {
             lazies: b.lazies,
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
-            known: Vec::new(),
+            known: known::States::default(),
             touched: Vec::new(),
             fact_read: Vec::new(),
         };
         SPARE.with(|sp| {
-            let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
-            (f.memo, f.known, f.touched) = if memo.len() == nodes && known.len() == nodes { (memo, known, touched) } else { (vec![None; nodes], vec![0; nodes], Vec::new()) };
+            let (memo, mut known, touched) = std::mem::take(&mut *sp.borrow_mut());
+            (f.memo, f.touched) = if memo.len() == nodes {
+                (memo, touched)
+            } else {
+                (vec![None; nodes], Vec::new())
+            };
+            known.renew(nodes);
+            f.known = known;
         });
         if sw!("VEC_COLD_COUNT") {
             let roots = version.extra_roots();
@@ -4156,14 +4161,18 @@ fn eval_expression<const FILE: bool>(run: &mut Run, f: &File<'_>, srcs: &[Src], 
             let want = *o == Op::Eq;
             // File-only evaluation replaces each operand with the current
             // file value. Use the same comparison as for literal operands.
-            let eq = if FILE { None } else { match (&**a, &**b) {
-                (E::Col(s1, c1, t1), E::Col(s2, c2, t2)) if t1 == t2 => {
-                    let (x, y) = (get(run, f, srcs, cur, *s1, *c1), get(run, f, srcs, cur, *s2, *c2));
-                    Some(x == y && x != NULL)
+            let eq = if FILE {
+                None
+            } else {
+                match (&**a, &**b) {
+                        (E::Col(s1, c1, t1), E::Col(s2, c2, t2)) if t1 == t2 => {
+                            let (x, y) = (get(run, f, srcs, cur, *s1, *c1), get(run, f, srcs, cur, *s2, *c2));
+                            Some(x == y && x != NULL)
+                        }
+                        (E::Col(s1, c1, Ty::Sym), E::Text(t)) | (E::Text(t), E::Col(s1, c1, Ty::Sym)) => Some(get(run, f, srcs, cur, *s1, *c1) == u64::from(*t)),
+                        _ => None,
                 }
-                (E::Col(s1, c1, Ty::Sym), E::Text(t)) | (E::Text(t), E::Col(s1, c1, Ty::Sym)) => Some(get(run, f, srcs, cur, *s1, *c1) == u64::from(*t)),
-                _ => None,
-            }};
+            };
             match eq {
                 Some(e) => flag(e == want),
                 None => {

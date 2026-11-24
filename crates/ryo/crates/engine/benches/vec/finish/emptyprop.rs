@@ -304,7 +304,7 @@ impl Exec<'_> {
     /// An emit asked in a file: answered before running anything (its step decided empty by the file's leaves: the old
     /// ones, or the propagation's), or run.
     pub(crate) fn emit_done(&mut self, f: &File<'_>, node: usize) {
-        let k = match f.known[node] {
+        let k = match f.known.get(node) {
             super::known::YES_EP => 1,
             2 => 0,
             _ => 2,
@@ -315,7 +315,7 @@ impl Exec<'_> {
     /// A step skipped (answered empty before the bracket) because the propagation's leaves decided it.
     #[inline]
     pub(super) fn skipped(&mut self, f: &File<'_>, node: usize) {
-        if f.known[node] == super::known::YES_EP {
+        if f.known.get(node) == super::known::YES_EP {
             let l = &mut self.leaves;
             if l.skipped.len() <= node {
                 l.skipped.resize(node + 1, 0);
