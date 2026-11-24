@@ -19,6 +19,7 @@ pub(crate) struct FileVersion<'a> {
     pub(super) by_end: RefCell<Option<Index>>,
     pub(super) by_line: [RefCell<Option<Index>>; 2],
     pub(super) tokens: RefCell<Option<Rc<Tokens>>>,
+    pub(super) indexed: Option<&'a dyn super::request::Indexed>,
     pub(super) facts: RefCell<Vec<Option<super::request::Delivered>>>,
     pub(super) supplied: rustc_hash::FxHashMap<String, Rc<super::Table>>,
     roots: OnceCell<Vec<(u16, u32)>>,
@@ -41,12 +42,17 @@ impl<'a> FileVersion<'a> {
             text_memo: RefCell::new(text.unwrap_or_default().to_vec()),
             present_fields: Default::default(),
             by_start: Default::default(), by_end: Default::default(), by_line: Default::default(),
-            facts: Default::default(), supplied: Default::default(),
+            indexed: None, facts: Default::default(), supplied: Default::default(),
             tokens: Default::default(), roots: Default::default(), lines: Default::default(),
             kinds: Default::default(),
         }
     }
 
+    pub(crate) fn bind_packet(&mut self, packet: Option<&'a dyn super::request::Indexed>) {
+        self.indexed = packet;
+    }
+
+    #[allow(dead_code, reason = "the check host supplies request-scoped columns")]
     pub(crate) fn supply(&mut self, tables: impl IntoIterator<Item = (String, Rc<super::Table>)>) {
         self.supplied.extend(tables);
     }
@@ -86,5 +92,16 @@ impl<'a> FileVersion<'a> {
             }
             bits
         })
+    }
+}
+
+
+impl Drop for FileVersion<'_> {
+    fn drop(&mut self) {
+        for answer in self.facts.get_mut().drain(..).flatten() {
+            if let Ok(super::request::Answer::Columns(table)) = answer.reply {
+                super::recycle::recycle(table);
+            }
+        }
     }
 }

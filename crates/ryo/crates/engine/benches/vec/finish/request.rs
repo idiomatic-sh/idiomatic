@@ -9,13 +9,41 @@ pub(crate) struct Asked<'a> {
     pub(crate) scope: Scope<'a>,
 }
 
-pub(crate) type Reply = R<Rc<Table>>;
+pub(crate) type Reply = R<Answer>;
+
+/// An indexed answer is already complete in the reader's file packet. Its
+/// selected words are widened into executor columns when the frame reads it.
+pub(crate) enum Answer {
+    Columns(Rc<Table>),
+    Indexed { relation: ryo::languages::Relation, columns: Columns, rows: usize },
+}
+
+impl Answer {
+    fn count(&self) -> usize {
+        match self {
+            Self::Columns(table) => table.n,
+            Self::Indexed { rows, .. } => *rows,
+        }
+    }
+
+    pub(crate) fn columns(self) -> R<Rc<Table>> {
+        match self {
+            Self::Columns(table) => Ok(table),
+            Self::Indexed { .. } => Err("closed scope requires owned column tables".into()),
+        }
+    }
+}
 
 pub(crate) fn read(run: &mut Run, provider: &mut dyn Provider, asks: &[Asked<'_>], replies: &mut Vec<Reply>) -> R<()> {
     replies.clear();
     provider.answer(run, asks, replies);
     if replies.len() == asks.len() { Ok(()) }
     else { Err(format!("provider returned {} answers for {} requests", replies.len(), asks.len())) }
+}
+
+/// Decode columns from immutable, already supplied file data.
+pub(crate) trait Indexed {
+    fn widen(&self, run: &mut Run, relation: ryo::languages::Relation, columns: &Columns) -> R<Table>;
 }
 
 #[derive(Default)]
@@ -136,7 +164,7 @@ impl Exec<'_> {
         for node in roots { self.collect_request(run, file, provider, node, &Columns::All, prune); }
         file.admitting = false;
         // A negative decision can change once the admitted fact columns are present.
-        file.known.iter_mut().filter(|value| **value == super::known::NO).for_each(|value| *value = 0);
+        if prune { file.known.iter_mut().filter(|value| **value == super::known::NO).for_each(|value| *value = 0); }
         self.admit_packet(file.version, run, provider, checks)
     }
 
@@ -155,13 +183,13 @@ impl Exec<'_> {
                     let relation = relation.clone();
                     let result = super::host::host_fill(run, &relation, version.file)
                         .unwrap_or_else(|| Err(format!("the host supplies no {relation}")));
-                    packet[id] = Some(Delivered::new(result.map(super::recycle::rc), false));
+                    packet[id] = Some(Delivered::new(result.map(super::recycle::rc).map(Answer::Columns), false));
                 }
                 Supplier::Project(ask) => {
                     if project::covered(run, relation, version.file) {
                         let relation = relation.clone();
                         let table = project::existing(run, &relation, version.file, ask);
-                        packet[id] = Some(Delivered::new(table.map(super::recycle::rc), false));
+                        packet[id] = Some(Delivered::new(table.map(super::recycle::rc).map(Answer::Columns), false));
                     } else {
                         pending.push((id, &Columns::All, Some(ask)));
                         scopes.push(Some(match ask {
@@ -186,10 +214,10 @@ impl Exec<'_> {
         for (((id, _, project), relation), reply) in pending.into_iter().zip(names).zip(self.requests.replies.drain(..returned)) {
             self.requests.answered += u64::from(reply.is_ok());
             self.requests.refused += u64::from(reply.is_err());
-            self.requests.rows += reply.as_ref().map_or(0, |t| t.n as u64);
+            self.requests.rows += reply.as_ref().map_or(0, |t| t.count() as u64);
             let reply = if let Some(ask) = project {
-                project::for_file(version.file, run, &relation, ask, |_, _| reply.map(|t|
-                    Rc::try_unwrap(t).unwrap_or_else(|t| t.copy()))).map(super::recycle::rc)
+                project::for_file(version.file, run, &relation, ask, |_, _| reply.and_then(Answer::columns).map(|t|
+                    Rc::try_unwrap(t).unwrap_or_else(|t| t.copy()))).map(super::recycle::rc).map(Answer::Columns)
             } else {
                 reply
             };
@@ -204,16 +232,24 @@ impl Exec<'_> {
             a.files, a.calls, a.answered, a.refused, a.rows, a.unread, a.missing)
     }
 
-    pub(crate) fn close_file(&mut self, version: &super::FileVersion<'_>) {
-        self.requests.unread += version.facts.borrow().iter().flatten().filter(|a| a.count && !a.read && a.reply.is_ok()).count() as u64;
+    pub(crate) fn close_file(&mut self, version: &super::FileVersion<'_>) -> u64 {
+        let packet = version.facts.borrow();
+        let mut widened = 0;
+        for answer in packet.iter().flatten() {
+            if answer.count && answer.reply.is_ok() && !answer.read { self.requests.unread += 1; }
+            widened += u64::from(answer.widened);
+        }
+        widened
     }
+
 }
 
 pub(super) struct Delivered {
     pub(super) reply: Reply,
     pub(super) read: bool,
     count: bool,
+    pub(super) widened: bool,
 }
 impl Delivered {
-    fn new(reply: Reply, count: bool) -> Self { Self { reply, read: false, count } }
+    fn new(reply: Reply, count: bool) -> Self { Self { reply, read: false, count, widened: false } }
 }

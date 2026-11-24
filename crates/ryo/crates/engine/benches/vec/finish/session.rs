@@ -78,7 +78,7 @@ pub(in super::super) fn evaluate_covered(
     }).collect();
     let mut answers = Vec::new();
     super::request::read(run, provider, &asks, &mut answers)?;
-    let bases: BTreeMap<_, _> = names.into_iter().zip(answers).collect();
+    let bases: BTreeMap<_, _> = names.into_iter().zip(answers.into_iter().map(|r| r.and_then(super::request::Answer::columns))).collect();
     for (i, step) in plan.nodes.iter().enumerate() {
         if !demanded[i] || carried.contains_key(&i) {
             continue;

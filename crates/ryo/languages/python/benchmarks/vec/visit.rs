@@ -150,7 +150,7 @@ impl<'p> Finisher<'p> {
             project: &mut project,
             src: bytes,
         };
-        self.file(file_no, ft, bytes, &mut pv, wanted);
+        self.file(file_no, ft, bytes, &mut pv, wanted, None);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
         for (k, v) in pv.by_rel {

@@ -138,19 +138,21 @@ impl<'p> Finisher<'p> {
     }
 
     /// One file's emits run on its node table and source through the provider `pv`.
-    pub(super) fn file(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
+    pub(super) fn file(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize], indexed: Option<&dyn finish::request::Indexed>) -> u64 {
         let a0 = super::alloc_count::counts();
-        self.file_inner(file_no, ft, bytes, pv, wanted);
+        let widened = self.file_inner(file_no, ft, bytes, pv, wanted, indexed);
         let a1 = super::alloc_count::counts();
         for i in 0..2 {
             self.alloc[i] += a1[i] - a0[i];
         }
+        widened
     }
 
-    fn file_inner(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
+    fn file_inner(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize], indexed: Option<&dyn finish::request::Indexed>) -> u64 {
         self.files_run += 1;
         let plan = self.plan;
-        let version = finish::FileVersion::new(ft, bytes, file_no as u32, pv.syntax_text());
+        let mut version = finish::FileVersion::new(ft, bytes, file_no as u32, pv.syntax_text());
+        version.bind_packet(indexed);
         let mut f = finish::File::new(&version, plan.nodes.len());
         let run = &mut self.run;
         let checks: Vec<_> = if self.check {
@@ -165,7 +167,7 @@ impl<'p> Finisher<'p> {
         let replies = self.exec.open_file(&mut f, run, pv, roots, &checks, true).expect("file provider packet");
         for (rel, reply) in checks.into_iter().zip(replies) {
             let mine = finish::native_table(&mut f, run, rel);
-            match reply {
+            match reply.and_then(finish::request::Answer::columns) {
                 Ok(theirs) => self.check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs))),
                 Err(e) => self.check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
             }
@@ -235,7 +237,7 @@ impl<'p> Finisher<'p> {
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
         self.exec.cold_end(&mut f, run);
-        self.exec.close_file(&version);
+        self.exec.close_file(&version)
     }
 
     /// Write final findings, dumps and statistics after the last file.

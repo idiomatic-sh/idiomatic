@@ -19,9 +19,9 @@ impl Provider for Snapshot<'_> {
             if matches!(ask.scope, Scope::Files(_)) && !self.tables.contains_key(name)
                 && let Some(table) = self.project.and_then(|p| p.tables.get(name))
             {
-                return Ok(table.clone());
+                return Ok(finish::request::Answer::Columns(table.clone()));
             }
-            self.table(run, name, ask.scope).map(std::rc::Rc::new)
+            self.table(run, name, ask.scope).map(std::rc::Rc::new).map(finish::request::Answer::Columns)
         }));
     }
 

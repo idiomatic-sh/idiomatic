@@ -1227,7 +1227,7 @@ impl ColFacts<'_, '_, '_, '_> {
 
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
     fn answer(&mut self, run: &mut finish::Run, asks: &[finish::request::Asked<'_>], replies: &mut Vec<finish::request::Reply>) {
-        replies.extend(asks.iter().map(|ask| self.table(run, ask.relation, ask.scope, ask.columns).map(std::rc::Rc::new)));
+        replies.extend(asks.iter().map(|ask| self.table(run, ask.relation, ask.scope, ask.columns).map(std::rc::Rc::new).map(finish::request::Answer::Columns)));
     }
 
     fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {

@@ -1015,7 +1015,7 @@ pub(crate) fn visit<L: FileSource>(
                 }
             }
             clocks.screen += thread_cpu() - t;
-            let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
+            let mut facts_view = packet.view(&provider, L::symbols(&symbols), &bytes);
             let t = thread_cpu();
             let lines = active
                 .iter()
@@ -1033,9 +1033,11 @@ pub(crate) fn visit<L: FileSource>(
                     table.n = 1;
                     (name.to_owned(), Rc::new(table))
                 });
+            let indexed = facts_view.indexed();
             let mut version = finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text());
             let mut frame = None;
             let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
+            version.bind_packet(Some(&indexed));
             version.supply(supplied.iter().chain(lines.as_ref()).cloned());
             let roots: Vec<_> = active.iter().filter(|(_, _, excluded)| !excluded || !said.is_empty())
                 .flat_map(|(binding, _, _)| {
@@ -1134,7 +1136,7 @@ pub(crate) fn visit<L: FileSource>(
                     answers.set(slot, answer);
             }
             drop(frame);
-            exec.close_file(&version);
+            let _widened = exec.close_file(&version);
             drop(version);
             if keep {
                 held.recovery = Some(recovery);

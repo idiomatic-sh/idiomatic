@@ -2,6 +2,7 @@
 //! or translating its symbols into the executor dictionary waits for demand.
 use super::super::{finish, reader};
 use rustc_hash::FxHashMap;
+use std::{cell::RefCell, collections::HashMap};
 use ryo::languages::{self as l, ByteSlice, CellKind, CellWord, FileWords, FilledColumns};
 use ryo_relations::domain::relations::service as catalog;
 
@@ -109,7 +110,7 @@ impl Packet {
     }
     pub(crate) fn view<'a, 'words>(
         &'a self,
-        parsed: &'a mut reader::ReaderFacts<'words>,
+        parsed: &'a reader::ReaderFacts<'words>,
         symbols: &'a l::Symbols,
         bytes: &'a [u8],
     ) -> View<'a, 'words> {
@@ -118,7 +119,6 @@ impl Packet {
             parsed,
             symbols,
             bytes,
-            resolved: FxHashMap::default(),
         }
     }
     fn partial(&self, rel: l::Relation) -> Option<&str> {
@@ -140,10 +140,9 @@ impl Packet {
 }
 pub(crate) struct View<'a, 'words> {
     packet: &'a Packet,
-    parsed: &'a mut reader::ReaderFacts<'words>,
+    parsed: &'a reader::ReaderFacts<'words>,
     symbols: &'a l::Symbols,
     bytes: &'a [u8],
-    resolved: FxHashMap<u32, u32>,
 }
 impl finish::Provider for View<'_, '_> {
     fn syntax_text(&self) -> Option<&[u32]> {
@@ -155,24 +154,24 @@ impl finish::Provider for View<'_, '_> {
         ))
     }
     fn answer(&mut self, run: &mut finish::Run, asks: &[finish::request::Asked<'_>], replies: &mut Vec<finish::request::Reply>) {
-        replies.extend(asks.iter().map(|ask| self.table(run, ask.relation, ask.scope, ask.columns).map(std::rc::Rc::new)));
+        replies.extend(asks.iter().map(|ask| self.describe(run, ask)));
     }
 }
 
-impl View<'_, '_> {
-    fn table(
-        &mut self,
-        run: &mut finish::Run,
-        name: &str,
-        scope: finish::Scope<'_>,
-        projection: &l::ColumnProjection,
-    ) -> Result<finish::Table, String> {
+impl<'a, 'words: 'a> View<'a, 'words> {
+    pub(crate) fn indexed(&self) -> Indexed<'a> {
+        Indexed { packet: self.packet, symbols: self.symbols, bytes: self.bytes, file: self.parsed.file,
+            unknown: self.parsed.unknown, resolved: RefCell::new(FxHashMap::default()) }
+    }
+
+    fn describe(&self, run: &mut finish::Run, ask: &finish::request::Asked<'_>) -> finish::request::Reply {
+        let (name, scope) = (ask.relation, ask.scope);
         if !matches!(scope, finish::Scope::File(f) if f == self.parsed.file) {
             return Err(format!(
                 "relation {name} requested outside this reader's file"
             ));
         }
-        let (Some(rel), names, tys) = run
+        let (Some(rel), _, _) = run
             .catalog(name)
             .ok_or_else(|| format!("undeclared relation {name}"))?
         else {
@@ -185,22 +184,47 @@ impl View<'_, '_> {
         if !self.packet.requested[i] {
             return Err(format!("no reader for {name}"));
         }
-        let offsets = &self.packet.offsets[i];
+        Ok(finish::request::Answer::Indexed {
+            relation: rel, columns: ask.columns.clone(), rows: self.packet.offsets[i].len(),
+        })
+    }
+}
+
+/// A borrowed view of the already answered raw words and scoped symbol map.
+/// It is held by the file version, independently of its provider.
+pub(crate) struct Indexed<'a> {
+    packet: &'a Packet,
+    symbols: &'a l::Symbols,
+    bytes: &'a [u8],
+    file: u32,
+    unknown: &'a HashMap<u32, u32>,
+    resolved: RefCell<FxHashMap<u32, u32>>,
+}
+
+impl finish::request::Indexed for Indexed<'_> {
+    fn widen(&self, run: &mut finish::Run, rel: l::Relation, projection: &l::ColumnProjection) -> Result<finish::Table, String> {
+        let name = catalog::name(rel).0;
+        let (_, names, tys) = run.catalog(name).ok_or_else(|| format!("undeclared relation {name}"))?;
+        let offsets = &self.packet.offsets[catalog::number_of(rel).0];
+        let width = self.packet.widths[catalog::number_of(rel).0];
+        let mut resolved = self.resolved.borrow_mut();
         let mut table = finish::Table::with_rows(names, tys, 0);
-        for (i, (column, ty)) in table.cols.iter_mut().zip(table.tys.iter()).enumerate() {
-            if !projection.contains(i) { continue; }
-            column.reserve(offsets.len());
-            for &at in offsets {
-                let raw = self.packet.rows.words[at + i];
+        for (i, column) in table.cols.iter_mut().enumerate() {
+            if projection.contains(i) { column.reserve(offsets.len()); }
+        }
+        for &at in offsets {
+            let row = &self.packet.rows.words[at..at + width];
+            for (i, ((column, &raw), ty)) in table.cols.iter_mut().zip(row).zip(table.tys.iter()).enumerate() {
+                if !projection.contains(i) { continue; }
                 let value = match ty {
                     finish::Ty::Sym => {
                         let id = raw as u32;
-                        u64::from(*self.resolved.entry(id).or_insert_with(|| {
-                            reader::symbol(run, self.parsed.unknown, self.symbols, self.bytes, l::Symbol(id))
+                        u64::from(*resolved.entry(id).or_insert_with(|| {
+                            reader::symbol(run, self.unknown, self.symbols, self.bytes, l::Symbol(id))
                         }))
                     }
                     finish::Ty::Node => {
-                        assert_eq!(raw >> 32, u64::from(self.parsed.file), "foreign node in file-scoped answer");
+                        assert_eq!(raw >> 32, u64::from(self.file), "foreign node in file-scoped answer");
                         u64::from(raw as u32)
                     }
                     _ => raw,
@@ -209,7 +233,6 @@ impl View<'_, '_> {
             }
         }
         table.n = offsets.len();
-        self.parsed.fills_made += 1;
         Ok(table)
     }
 }

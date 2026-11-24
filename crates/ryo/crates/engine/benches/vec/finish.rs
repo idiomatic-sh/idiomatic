@@ -2408,7 +2408,7 @@ impl<'p> Exec<'p> {
     }
 
     /// The first view access lends an admitted slot to the current frame.
-    fn load_fact(&mut self, f: &mut File<'_>, run: &Run, native: Native) -> R<()> {
+    fn load_fact(&mut self, f: &mut File<'_>, run: &mut Run, native: Native) -> R<()> {
         let Native::Fact(id) = native else { return Ok(()) };
         let i = usize::from(id);
         if f.facts.get(i).is_some_and(Option::is_some) { return Ok(()); }
@@ -2419,14 +2419,23 @@ impl<'p> Exec<'p> {
         Ok(())
     }
 
-    fn admitted(&mut self, f: &File<'_>, run: &Run, id: u16) -> R<Rc<Table>> {
+    fn admitted(&mut self, f: &File<'_>, run: &mut Run, id: u16) -> R<Rc<Table>> {
         let relation = &run.fact_rels[usize::from(id)].0;
         if let Some(table) = f.version.supplied.get(relation) { return Ok(table.clone()); }
         if !f.admitting
             && let Some(answer) = f.version.facts.borrow_mut().get_mut(usize::from(id)).and_then(Option::as_mut)
         {
             answer.read = true;
-            return answer.reply.clone();
+            if let Ok(request::Answer::Indexed { relation, columns, .. }) = &answer.reply {
+                let indexed = f.version.indexed.as_ref().ok_or("missing indexed file packet")?;
+                answer.reply = indexed.widen(run, *relation, columns).map(recycle::rc).map(request::Answer::Columns);
+                answer.widened = true;
+            }
+            return match &answer.reply {
+                Ok(request::Answer::Columns(table)) => Ok(table.clone()),
+                Err(reason) => Err(reason.clone()),
+                Ok(request::Answer::Indexed { .. }) => unreachable!("the indexed answer was widened"),
+            };
         }
         if !f.admitting {
             self.requests.missing += 1;

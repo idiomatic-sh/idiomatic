@@ -7,7 +7,6 @@ use ryo::languages::{self as l, ByteSlice, FieldCode, NodeTable, node_table};
 pub(super) struct ReaderFacts<'a> {
     pub(super) unknown: &'a HashMap<u32, u32>,
     pub file: u32,
-    pub(super) fills_made: u64,
     pub text: Vec<u32>,
     pub projects_words: bool,
     pub projects_fields: bool,
@@ -18,7 +17,6 @@ impl<'a> ReaderFacts<'a> {
         Self {
             file,
             unknown,
-            fills_made: 0,
             text: Vec::new(),
             projects_words: true,
             projects_fields: true,
