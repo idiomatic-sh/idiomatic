@@ -55,6 +55,8 @@ pub(super) struct Requests {
     seen: Vec<bool>,
     pending: Vec<u32>,
     masks: Vec<Option<Columns>>,
+    empty: Vec<Option<Rc<Table>>>,
+    packet_pending: Vec<Pending>,
     #[allow(dead_code, reason = "used by the check-session host")]
     indexed_slots: Vec<Option<u16>>,
     #[allow(dead_code, reason = "used by the check-session host")]
@@ -83,6 +85,13 @@ struct Demand {
 enum Reads {
     Base(u16, Columns),
     Inputs(Box<[u32]>),
+}
+
+struct Pending {
+    slot: usize,
+    relation: Rc<str>,
+    project: Option<project::ProjectAsk>,
+    files: Option<Vec<u32>>,
 }
 
 fn columns(expr: &E, source: usize, out: &mut Columns) {
@@ -269,17 +278,22 @@ impl Exec<'_> {
         if counted { self.requests.files += 1; }
         let mut packet = version.facts.borrow_mut();
         packet.resize_with(run.fact_rels.len(), || None);
+        self.requests.empty.resize_with(run.fact_rels.len(), || None);
         let proven = version.proven.borrow();
-        let mut pending = Vec::new();
-        let mut scopes = Vec::new();
+        let pending = &mut self.requests.packet_pending;
+        pending.clear();
         for (id, mask) in self.requests.masks.iter().enumerate() {
-            let Some(mask) = mask else { continue };
+            if mask.is_none() { continue; }
             let relation = &run.fact_rels[id].0;
             if packet[id].is_some() || version.supplied.contains_key(relation.as_ref()) { continue; }
             if proven.get(id).copied().unwrap_or(false) {
-                let relation = relation.clone();
-                let reply = run.catalog(&relation).map(|(_, names, types)|
-                    Answer::Columns(Rc::new(Table::with_rows(names, types, 0)))).ok_or_else(|| format!("undeclared {relation}"));
+                let empty = &mut self.requests.empty[id];
+                if empty.is_none() {
+                    let relation = relation.clone();
+                    *empty = run.catalog(&relation).map(|(_, names, types)|
+                        Rc::new(Table::with_projection(names, types, 0, &Columns::default())));
+                }
+                let reply = empty.clone().map(Answer::Columns).ok_or_else(|| format!("undeclared {}", run.fact_rels[id].0));
                 packet[id] = Some(Delivered::new(reply, false));
                 continue;
             }
@@ -296,19 +310,20 @@ impl Exec<'_> {
                         let table = project::existing(run, &relation, version.file, ask);
                         packet[id] = Some(Delivered::new(table.map(super::recycle::rc).map(Answer::Columns), false));
                     } else {
-                        pending.push((id, &Columns::All, Some(ask)));
-                        scopes.push(Some(match ask {
+                        let files = match ask {
                             project::ProjectAsk::Run => (0..run.paths.len() as u32).collect(),
                             project::ProjectAsk::EachFile => vec![version.file],
-                        }));
+                        };
+                        pending.push(Pending { slot: id, relation: relation.clone(), project: Some(ask), files: Some(files) });
                     }
                 }
-                _ => { pending.push((id, mask, None)); scopes.push(None); }
+                _ => pending.push(Pending { slot: id, relation: relation.clone(), project: None, files: None }),
             }
         }
-        let names: Vec<_> = pending.iter().map(|&(id, _, _)| run.fact_rels[id].0.clone()).collect();
-        let list: Vec<_> = pending.iter().zip(&scopes).zip(&names).map(|(((_, columns, _), files), relation)| Asked {
-            relation, columns, scope: files.as_deref().map_or(Scope::File(version.file), Scope::Files),
+        let list: Vec<_> = pending.iter().map(|p| Asked {
+            relation: &p.relation,
+            columns: if p.project.is_some() { &Columns::All } else { self.requests.masks[p.slot].as_ref().expect("selected relation") },
+            scope: p.files.as_deref().map_or(Scope::File(version.file), Scope::Files),
         }).chain(checks.iter().map(|relation| Asked {
             relation, columns: &Columns::All, scope: Scope::File(version.file),
         })).collect();
@@ -316,7 +331,7 @@ impl Exec<'_> {
         read(run, provider, &list, &mut self.requests.replies)?;
         let returned = pending.len();
         drop(list);
-        for (((id, _, project), relation), reply) in pending.into_iter().zip(names).zip(self.requests.replies.drain(..returned)) {
+        for (Pending { slot, project, relation, .. }, reply) in pending.drain(..).zip(self.requests.replies.drain(..returned)) {
             if counted {
                 self.requests.answered += u64::from(reply.is_ok());
                 self.requests.refused += u64::from(reply.is_err());
@@ -328,7 +343,7 @@ impl Exec<'_> {
             } else {
                 reply
             };
-            packet[id] = Some(Delivered::new(reply, counted));
+            packet[slot] = Some(Delivered::new(reply, counted));
         }
         Ok(self.requests.replies.drain(..).collect())
     }
