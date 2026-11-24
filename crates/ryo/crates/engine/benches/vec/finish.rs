@@ -681,8 +681,12 @@ pub(super) struct File<'a> {
     fact_read: Vec<std::cell::Cell<bool>>,
 }
 
+type MemoStorage = (Vec<Option<Res>>, Vec<u8>, Vec<u32>);
 thread_local! {
-    static SPARE: RefCell<(Vec<Option<Res>>, Vec<u8>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
+    static SPARE: RefCell<MemoStorage> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
+    // Adjacent version frames can have the same plan size. Recycle their slots
+    // within the visit, and release the extra storage at the reader boundary.
+    static PARTITION_MEMOS: RefCell<Vec<MemoStorage>> = const { RefCell::new(Vec::new()) };
     /// redo-alloc: the last file's buffers and maps, emptied (capacity kept), for the next file.
     static SPARE_BUFS: RefCell<Option<FileBufs>> = const { RefCell::new(None) };
 }
@@ -728,7 +732,14 @@ impl Drop for File<'_> {
         // a substitution's restore never leaves an entry `res` did not set (checked where it is cheap)
         debug_assert!(memo.iter().all(Option::is_none));
         known.fill(0);
-        SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
+        SPARE.with_borrow_mut(|slot| {
+            let previous=std::mem::replace(slot,(memo,known,touched));
+            if !previous.0.is_empty() && previous.0.len()==slot.0.len() {
+                PARTITION_MEMOS.with_borrow_mut(|spares| {
+                    if spares.len()<8 {spares.push(previous);}
+                });
+            }
+        });
         // redo-alloc: the file's buffers and maps emptied and kept for the next file
         let mut b = FileBufs {
             vrows: std::mem::take(&mut self.vrows),
@@ -793,6 +804,8 @@ impl<'a> std::ops::Deref for File<'a> {
     fn deref(&self) -> &Self::Target { self.version }
 }
 
+pub(super) fn release_batch_memos() { PARTITION_MEMOS.with_borrow_mut(Vec::clear); }
+
 impl File<'_> {
     #[inline]
     fn population(&self,node:usize) -> Option<&Rc<population::Population>> {
@@ -835,7 +848,11 @@ impl File<'_> {
             fact_read: Vec::new(),
         };
         SPARE.with(|sp| {
-            let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
+            let mut storage=std::mem::take(&mut *sp.borrow_mut());
+            if storage.0.is_empty() {
+                if let Some(extra)=PARTITION_MEMOS.with_borrow_mut(Vec::pop) { storage=extra; }
+            }
+            let (memo,known,touched)=storage;
             (f.memo, f.known, f.touched) = if memo.len() == nodes && known.len() == nodes { (memo, known, touched) } else { (vec![None; nodes], vec![0; nodes], Vec::new()) };
         });
         if sw!("VEC_COLD_COUNT") {
@@ -3083,7 +3100,10 @@ impl<'p> Exec<'p> {
     /// The axis over given start rows (made, or a probed subset).
     fn axis_over(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, from: &Table) -> R<Table> {
         let rel = self.arg_rel(node, "relation")?;
-        let dir = s(&a["direction"])?.to_owned();
+        self.axis_partition(f,run,p,node,a,from,rel,s(&a["direction"])?)
+    }
+
+    fn axis_partition(&mut self,f:&mut File<'_>,run:&mut Run,p:&mut dyn Provider,node:usize,a:&Args,from:&Table,rel:usize,dir:&str)->R<Table> {
         let mut out = self.empty(run, node)?;
         if from.n == 0 {
             return Ok(out);
@@ -3142,7 +3162,7 @@ impl<'p> Exec<'p> {
         let mut frontier: Vec<u64> = Vec::new();
         for i in 0..from.n {
             let x = from.cols[ic][i];
-            match dir.as_str() {
+            match dir {
                 "parent" | "ancestor" => {
                     seen.clear();
                     frontier.clear();

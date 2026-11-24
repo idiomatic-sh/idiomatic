@@ -89,7 +89,7 @@ pub(super) fn keyed_left(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: 
 }
 
 /// The left rows no right row matches on every key.
-fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pr: &Prep, l: &Rc<Table>) -> R<Rc<Table>> {
+pub(super) fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pr: &Prep, l: &Rc<Table>) -> R<Rc<Table>> {
     if let Some(right)=f.population(pr.right)
         && l.n<right.n
         && let Some(key)=pr.rk.iter().position(|&c|right.can_probe(c))

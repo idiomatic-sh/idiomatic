@@ -329,6 +329,29 @@ fn give_bufs(mut b: Bufs) {
     BUFS.with(|s| s.borrow_mut().push(b));
 }
 
+struct JoinSegment {
+    source: [Rc<Table>;2],
+    driver: usize,
+    key: usize,
+    index: Rc<super::Index>,
+    out: Table,
+}
+
+fn join_segments(segments:&mut [JoinSegment],items:&[(usize,usize)]) {
+    for segment in segments {
+        let driver=segment.driver;
+        for (row,&key) in segment.source[driver].cols[segment.key].iter().enumerate() {
+            for &other in segment.index.get(&key).unwrap_or_default() {
+                for ((side,column),dest) in items.iter().zip(&mut segment.out.cols) {
+                    let position=if *side==driver {row} else {other as usize};
+                    dest.push(segment.source[*side].cols[*column][position]);
+                }
+                segment.out.n+=1;
+            }
+        }
+    }
+}
+
 impl Exec<'_> {
     fn ksel_prep(&mut self, run: &mut Run, node: usize) -> R<Rc<Prep>> {
         if let Some(prep) = &self.select_preps[node] {
@@ -501,12 +524,79 @@ impl Exec<'_> {
         let projection=self.projection(run,node);
         let prep=self.ksel_prep(run,node)?;
         let mut scratch=take_bufs();
-        let result=ready.iter().map(|(id,_)|lanes[*id].enter(run,|f,r,p|{
+        if projection.is_none()
+            && let Prep::K(k) = &*prep
+            && matches!(k.preds.as_slice(), [P::EqCC(..,true)])
+        {
+            let mut segments=Vec::with_capacity(ready.len());
+            for (id,_) in ready {
+                if let Some(part)=self.made_join(run,lanes[*id].frame,node,k)? { segments.push(part); } else { break; }
+            }
+            if segments.len()==ready.len() {
+                join_segments(&mut segments,&k.items);
+                give_bufs(scratch);
+                return Ok(segments.into_iter().map(|part|super::recycle::rc(part.out)).collect());
+            }
+        }
+        let single = if let Prep::K(kp) = &*prep {
+            let sp=self.sel(run,node)?;
+            if let [src] = sp.srcs.as_slice()
+                && !kp.file_const && kp.semi.is_none()
+                && projection.is_none() && self.view(run,*src)?.is_none()
+                && self.plan.nodes[*src].op != "closure"
+            {
+                Some(self.select_one_partitions(run,lanes,node,*src,kp,ready,&mut scratch))
+            } else { None }
+        } else { None };
+        let result=single.unwrap_or_else(||ready.iter().map(|(id,_)|lanes[*id].enter(run,|f,r,p|{
             if let Some(index)=projection { return self.col_select(f,r,p,node,index); }
             self.select_partition(f,r,p,node,&prep,&mut scratch)
-        })).collect();
+        })).collect());
         give_bufs(scratch);
         result
+    }
+
+    /// A relation holds ordered segments. A predicate is selected once and is
+    /// applied to all its segments before the following predicate starts.
+    fn select_one_partitions(&mut self, run:&mut Run, lanes:&mut [super::batch::Lane<'_, '_>], node:usize, source:usize, kp:&K, ready:&[(usize,Option<Rc<Table>>)], scratch:&mut Bufs) -> R<Vec<Rc<Table>>> {
+        let mut input=Vec::with_capacity(ready.len());
+        for (id,_) in ready {
+            let table=lanes[*id].enter(run,|f,r,p| self.eval(f,r,p,source))?;
+            input.push(table);
+        }
+        if kp.ident { return Ok(input); }
+        let mut parts:Vec<_>=input.into_iter().map(|t|{
+            let selection=(0..t.n as u32).collect::<Vec<_>>();
+            ([Src::Tab(t,source)],selection)
+        }).collect();
+        for pred in &kp.preds {
+            for ((id,_),(sources,selection)) in ready.iter().zip(&mut parts) {
+                lanes[*id].enter(run,|f,r,_|filter(r,f,sources,0,pred,selection));
+            }
+        }
+        let mut result=Vec::with_capacity(ready.len());
+        for ((id,_),(sources,selection)) in ready.iter().zip(parts) {
+            let t=lanes[*id].enter(run,|f,r,_|self.ksel_one(r,f,node,kp,&sources,&selection,true,
+                &mut scratch.seen,&mut scratch.left,&mut scratch.right))?;
+            result.push(if t.n==0 {self.empty_rc(run,node)?} else {super::recycle::rc(t)});
+        }
+        Ok(result)
+    }
+
+    /// Position lists from a file's cached index can be used only by that
+    /// partition. Keeping the index in its segment makes (origin,key) explicit
+    /// without resizing every source row to hold an additional u64.
+    fn made_join(&mut self,run:&mut Run,f:&mut File<'_>,node:usize,k:&K)->R<Option<JoinSegment>> {
+        if k.semi.is_some() || !matches!(k.preds.as_slice(), [P::EqCC(..,true)]) { return Ok(None); }
+        let plan=self.sel(run,node)?;
+        let [left,right]=plan.srcs.as_slice() else {return Ok(None)};
+        let Some(cols)=super::view_pair::columns(&plan.conj) else {return Ok(None)};
+        let (Some(super::Res::Tab(a)),Some(super::Res::Tab(b)))=(&f.memo[*left],&f.memo[*right]) else {return Ok(None)};
+        let source=[a.clone(),b.clone()];
+        let driver=usize::from(b.n<a.n);
+        let probed=1-driver;
+        let index=table_index(f,plan.srcs[probed],&source[probed],&[cols[probed]]);
+        Ok(Some(JoinSegment{source,driver,key:cols[driver],index,out:self.empty(run,node)?}))
     }
 
     fn select_partition(&mut self, f:&mut File<'_>,run:&mut Run,p:&mut dyn Provider,node:usize,prep:&Prep,b:&mut Bufs) -> R<Rc<Table>> {
@@ -514,6 +604,10 @@ impl Exec<'_> {
             let t = self.select(f, run, p, node)?;
             return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
         };
+        if let Some(mut segment)=self.made_join(run,f,node,kp)? {
+            join_segments(std::slice::from_mut(&mut segment),&kp.items);
+            return Ok(super::recycle::rc(segment.out));
+        }
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
             if super::filter_order::file_fails(run, f, &sp.conj) {

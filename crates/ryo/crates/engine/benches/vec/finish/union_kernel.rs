@@ -96,6 +96,10 @@ fn order(ex: &Exec<'_>, u: usize, tree: &[usize], out: &mut Vec<usize>) -> R<()>
 /// The union made whole (its leaves made whole). pass 2: handed on shared, a single answer passed through uncopied.
 pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
     let pr = prep(ex, run, node)?;
+    partition(ex,f,run,p,&pr)
+}
+
+pub(super) fn partition(ex:&mut Exec<'_>, f:&mut File<'_>,run:&mut Run,p:&mut dyn Provider,pr:&Prep)->R<Rc<Table>> {
     let mut got = take_got();
     for (i, lf) in pr.leaves.iter().enumerate() {
         let t = ex.eval(f, run, p, lf.node)?;

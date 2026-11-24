@@ -717,11 +717,13 @@ pub(crate) fn visit<L: FileSource>(
         carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
     }
     let mut pending = Vec::new();
+    let mut packets = Vec::new();
     let mut charge = 0usize;
+    let mut batch_demand = finish::batch::Demand::default();
     let width = std::env::var("VEC_BATCH_FILES").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(4).clamp(1, 32);
     macro_rules! flush {
         () => {
-            file_batch::execute::<L>(&mut pending,&mut exec,&mut run,&supplied,&bound,programs,program_of,cut_of,
+            file_batch::execute::<L>(&mut pending,&mut batch_demand,&mut exec,&mut run,&supplied,&mut bound,programs,program_of,cut_of,
                 reader_id,world,&mut carried_symbols,sources,answers,clocks)
         }
     }
@@ -1051,6 +1053,7 @@ pub(crate) fn visit<L: FileSource>(
                 let contract = &contracts[&binding];
                 let b = bound[&binding].as_mut().unwrap();
                 let mut local_coverage = BTreeMap::new();
+                let mut unavailable = Vec::new();
                 let unknowns = if said.is_empty()
                     && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
                 {
@@ -1076,27 +1079,20 @@ pub(crate) fn visit<L: FileSource>(
                             .iter()
                             .any(|r| matters(r, each) == Bearing::Matters)
                         {
-                            let file = world.file(&source.path);
-                            world
-                                .unavailable
-                                .entry(slot)
-                                .or_default()
-                                .insert((name.to_owned(), file));
+                            unavailable.push(name.to_owned());
                         }
                     }
                     contract.report(&partial, &source.path)
                 };
-                if excluded && unknowns.is_empty() {
-                    if let Some(cut) = &cut_of[binding] {
-                        world.insert_empty(slot, &source.path, b, &mut run, cut);
-                    }
-                    answers.set(slot, Ok(Reported::default()));
+                let skip = excluded && unknowns.is_empty();
+                if skip && cut_of[binding].is_none() && unavailable.is_empty() {
+                    answers.set(slot,Ok(Reported::default()));
                     clocks.skipped += 1;
                     continue;
                 }
-                clocks.evaluated += 1;
+                if skip { clocks.skipped += 1; } else { clocks.evaluated += 1; }
                 let absent = b.absent.as_ref().filter(|(home,_)| *home == id.0).map(|(_,v)| v.clone());
-                work.push(file_batch::Job { binding, slot, coverage:local_coverage, unknowns, absent });
+                work.push(file_batch::Job { binding, slot, coverage:local_coverage, unknowns, absent, skip, unavailable });
             }
             // Charge the retained source, syntax columns, packet cells and per-plan memo.
             // A version over budget runs alone; the reader's scratch never escapes the batch.
@@ -1105,21 +1101,21 @@ pub(crate) fn visit<L: FileSource>(
                 .saturating_add(plan.nodes.len().saturating_mul(32));
             clocks.evaluate += thread_cpu() - t;
             if !pending.is_empty() && charge.saturating_add(cost) > 4 * 1024 * 1024 {
-                flush!(); pending.clear(); charge = 0;
+                flush!(); packets.extend(pending.drain(..).map(|f| f.facts)); charge = 0;
             }
             let t = thread_cpu();
             charge = charge.saturating_add(cost);
             pending.push(file_batch::Packet {
                 index, bytes, tree:std::mem::take(&mut held.tree), native,
                 symbols:std::mem::take(&mut held.symbols), fields:run.field_sym.clone(),
-                facts:std::mem::replace(&mut packet,reader_run::packet::Packet::new()),
+                facts:std::mem::replace(&mut packet,packets.pop().unwrap_or_else(reader_run::packet::Packet::new)),
                 provider, lines, active, jobs:work,
             });
             clocks.evaluate += thread_cpu() - t;
             if keep || pending.len() >= width || world.boundaries.is_some() || cost >= 4 * 1024 * 1024 {
                 flush!();
                 let last = pending.pop().expect("current file");
-                pending.clear();
+                packets.extend(pending.drain(..).map(|f| f.facts));
                 charge = 0;
                 held.tree = last.tree;
                 held.symbols = last.symbols;
@@ -1146,6 +1142,7 @@ pub(crate) fn visit<L: FileSource>(
         }
     }
     flush!();
+    finish::release_batch_memos();
     let parts = clocks.readers.entry(parser.map_or("unclaimed", FileSource::name).to_owned()).or_default();
     parts.total += clocks.read_parse - before.0;
     parts.read += clocks.read_versions - before.1;
