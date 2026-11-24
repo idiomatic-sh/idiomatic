@@ -13,18 +13,18 @@ pub(super) struct Finisher<'p> {
     check: bool,
     pub(super) query_rows: bool,
     dump: Option<String>,
-    dump_text: String,
+    dump_chunks: Vec<(usize, usize, String)>,
     pub(super) run: finish::Run,
     exec: finish::Exec<'p>,
     findings: finish::json_output::Findings,
-    failed: HashMap<String, String>,
+    failed: HashMap<String, (usize, String)>,
     /// redo-honest: per plan emit, whether its rule runs only on a file whose syntax the parser accepted (the request's
     /// `rule_applicability`, `--applicability F`: "accepted-syntax"); without the flag every rule runs on every file.
     accepted_only: Vec<bool>,
     /// redo-union pass 2 c16: a failed emit by its index (no name hashed an emit a file).
     failed_idx: Vec<bool>,
     rule_stats: Vec<[u64; 3]>,
-    check_lines: Vec<String>,
+    check_lines: Vec<(usize, String)>,
     files_run: u64,
     pub(super) provider_time: f64,
     pub(super) provider_rows: u64,
@@ -40,6 +40,11 @@ pub(super) struct Finisher<'p> {
 
 }
 
+#[path = "finisher/worker.rs"]
+pub(crate) mod worker;
+#[path = "workers.rs"]
+pub(crate) mod workers;
+
 use ryo::languages;
 
 impl<'p> Finisher<'p> {
@@ -54,7 +59,7 @@ impl<'p> Finisher<'p> {
             check: args.contains(&"--check-bases"),
             query_rows: false,
             dump: flag(args, "--dump"),
-            dump_text: String::new(),
+            dump_chunks: Vec::new(),
             run,
             exec: finish::Exec::new(plan),
             findings: Default::default(),
@@ -81,11 +86,13 @@ impl<'p> Finisher<'p> {
         me
     }
 
+    pub(super) fn selected_emits(&self) -> &[usize] { &self.emits }
+
     /// The emits retained by the first half for this file.
     pub(super) fn wanted_into(&mut self, mut seeded: impl FnMut(usize) -> bool, out: &mut Vec<usize>) {
         let t0 = thread_cpu();
         out.clear();
-        out.extend(self.emits.iter().copied().filter(|&emit| seeded(emit)));
+        out.extend(self.selected_emits().iter().copied().filter(|&emit| seeded(emit)));
         self.time += thread_cpu() - t0;
     }
 
@@ -115,7 +122,7 @@ impl<'p> Finisher<'p> {
         let mut count = 0;
         super::pair_checks::each(nodes, |i| {
             let span = super::span_bytes(table, i as usize);
-            self.findings.location(emit, file, span.start as u64, span.end as u64);
+            self.findings.location(file, emit, file, span.start as u64, span.end as u64);
             count += 1;
         });
         Some(count)
@@ -142,8 +149,8 @@ impl<'p> Finisher<'p> {
                 if run.reader_tables.contains(rel) { continue; }
                 let mine = finish::native_table(&mut f, run, rel);
                 match pv.fill(run, rel, finish::Scope::File(file_no as u32)) {
-                    Ok(theirs) => self.check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs))),
-                    Err(e) => self.check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
+                    Ok(theirs) => self.check_lines.push((file_no, format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs)))),
+                    Err(e) => self.check_lines.push((file_no, format!("{}\t{rel}\tprovider: {e}", run.paths[file_no]))),
                 }
             }
         }
@@ -164,7 +171,11 @@ impl<'p> Finisher<'p> {
             let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
             let written = got.and_then(|t| {
                 if self.dump.is_some() {
-                    finish::dump_rows(&f, run, &t, &e.0, &run.paths[file_no], &mut self.dump_text);
+                    let mut chunk = String::new();
+                    finish::dump_rows(&f, run, &t, &e.0, &run.paths[file_no], &mut chunk);
+                    if !chunk.is_empty() {
+                        self.dump_chunks.push((file_no, *ei, chunk));
+                    }
                     return Ok(());
                 }
                 if t.n == 0 { return Ok(()); }
@@ -180,7 +191,7 @@ impl<'p> Finisher<'p> {
                         continue;
                     }
                     if self.query_rows {
-                        self.findings.rows.query(run, &t, r, &e.0, Some(file_no), &identity)?;
+                        self.findings.query(run, &t, r, *ei, &e.0, file_no, &identity)?;
                         continue;
                     }
                     let target = if t.tys[subject] == finish::Ty::File {
@@ -188,17 +199,18 @@ impl<'p> Finisher<'p> {
                             .ok_or_else(|| format!("file subject outside the run: {}", t.cols[subject][r]))?
                     } else { file_no };
                     let (st, en) = span.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
-                    self.findings.location(*ei, target, st, en);
+                    self.findings.location(file_no, *ei, target, st, en);
                 }
                 Ok(())
             });
             if let Err(err) = written {
-                self.failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
+                self.failed.insert(e.0.clone(), (file_no, format!("{}: {err}", run.paths[file_no])));
                 self.failed_idx[*ei] = true;
             }
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
         self.exec.cold_end(&mut f, run);
+        self.exec.stats.fact_index_rows += f.fact_index_rows.get();
     }
 
     /// Write final findings, dumps and statistics after the last file.
@@ -208,12 +220,33 @@ impl<'p> Finisher<'p> {
         self.exec.cold_report(&self.run);
         let total = self.time;
         let file_time = self.time;
-        let count = self.findings.finish(self.plan, &self.run, self.out.as_deref(), projection);
+        let start = thread_cpu();
+        let cutoff: Vec<_> = self.plan.emits.iter().map(|e| self.failed.get(&e.0).map_or(usize::MAX, |r| r.0)).collect();
+        let count = self.findings.finish(self.plan, &self.run, self.out.as_deref(), projection, &cutoff);
+        println!("ordered findings and write CPU {:.6} s", thread_cpu() - start);
         if let Some(d) = &self.dump {
-            std::fs::write(d, &self.dump_text).expect("write dump");
+            use std::io::Write;
+            self.dump_chunks.sort_by_key(|(file, _, _)| *file);
+            let mut out = std::io::BufWriter::new(std::fs::File::create(d).expect("open dump"));
+            for (file, emit, text) in self.dump_chunks {
+                if file <= cutoff[emit] {
+                    out.write_all(text.as_bytes()).expect("write dump");
+                }
+            }
+            out.flush().expect("close dump");
         }
         if self.check {
-            std::fs::write(self.check_out.clone().unwrap_or_else(|| "check-bases.tsv".to_owned()), self.check_lines.join("\n") + "\n").expect("write check");
+            use std::io::Write;
+            self.check_lines.sort_by_key(|(file, _)| *file);
+            let path = self.check_out.as_deref().unwrap_or("check-bases.tsv");
+            let mut out = std::io::BufWriter::new(std::fs::File::create(path).expect("open checks"));
+            if self.check_lines.is_empty() {
+                writeln!(out).expect("write empty check");
+            }
+            for (_, line) in self.check_lines {
+                writeln!(out, "{line}").expect("write check");
+            }
+            out.flush().expect("close checks");
         }
         if let Ok(path) = std::env::var("VEC_RULE_STATS") {
             use std::fmt::Write as _;
@@ -252,9 +285,9 @@ impl<'p> Finisher<'p> {
         println!("thread CPU-s: total {total:.3}; walk+table 0.000; in the visit {file_time:.3}: steps {steps:.3}, provider fills {:.3} ({} rows)", self.provider_time, self.provider_rows);
         // the per-file emptiness decision's static part: steps visited and per-file tests decided (VEC_STEP_TIME: its seconds)
         println!("known-empty static part: {} steps visited ({} with no leaf of their own), {} per-file tests; {:.3} s, of which preparing the needs once a run {:.3} s", exec.stats.static_visits, exec.stats.static_pass, exec.stats.static_file_tests, exec.stats.static_time, exec.stats.rec_time);
-        println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
+        println!("fact keyed lists: fill rows listed {}", self.exec.stats.fact_index_rows);
         println!("{}", finish::fill_prof::reads_line());
-        finish::fill_prof::flush();
+        finish::fill_prof::flush(&mut self.run);
         for l in finish::fill_prof::unread_lines(&self.run) {
             println!("{l}");
         }
@@ -288,7 +321,7 @@ impl<'p> Finisher<'p> {
         }
         let mut f: Vec<_> = self.failed.into_iter().collect();
         f.sort();
-        for (r, e) in f {
+        for (r, (_, e)) in f {
             println!("FAILED {r}: {e}");
         }
         // redo-union pass 2 c18: the process ends here: the executor is not dropped one by one

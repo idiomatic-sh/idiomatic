@@ -165,6 +165,14 @@ pub(crate) struct BaseSet {
 #[derive(Debug, Default)]
 pub struct FileWords(pub(crate) WordsEngine);
 
+impl FileWords {
+    /// Start a separate file dictionary with the same immutable vocabulary.
+    #[must_use]
+    pub fn fresh(&self) -> Self {
+        Self(WordsEngine { base: self.0.base.clone(), own: WordSet::default() })
+    }
+}
+
 /// The private body of `FileWords`.
 #[derive(Debug, Default)]
 pub(crate) struct WordsEngine {

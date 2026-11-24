@@ -500,13 +500,15 @@ fn main() {
                 let plan = lower::second_half_plan(&read, same_pack);
                 println!("start-up total {:.4} s", thread_cpu() - t0);
                 let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args, request_path.zip(document.as_ref()));
+                let workers = document.as_ref().and_then(|doc| doc.workers);
                 drop(document);
-                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), Some((finish_args[0], &read)));
+                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), Some((finish_args[0], &read)), workers);
                 fin.end();
                 // The process exits with the immutable plan still in use.
                 std::mem::forget(plan);
             } else {
-                run_funnel(&walk, settings, &vocab, &args[2..], None, None);
+                let workers = flag(&args, "--request").and_then(|p| json_input::metadata(&p).workers);
+                run_funnel(&walk, settings, &vocab, &args[2..], None, None, workers);
             }
         }
         Some("kfloor") => kernel_floor(&walk, args[2]),
@@ -948,7 +950,7 @@ impl ColFacts<'_, '_, '_, '_> {
     /// The position of the file's module node (the scope the implicit-symbol rows name).
     fn module_position(&self, run: &finish::Run) -> Option<u32> {
         let n = node_table::element_count(self.file.table).0 as u32;
-        (0..n).find(|p| &*run.texts[run.kind_sym[usize::from(node_table::kind_of(self.file.table, Position(*p)).0)] as usize] == b"module")
+        (0..n).find(|p| &run.texts[run.kind_sym[usize::from(node_table::kind_of(self.file.table, Position(*p)).0)] as usize] == b"module")
     }
 
     fn whole_fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
@@ -1199,7 +1201,7 @@ impl ColFacts<'_, '_, '_, '_> {
     /// redo-binding pass 4: `deferred-visit` (deferred_visit.rs) from `type-expression`, `annotation-evaluation`, the node
     /// table, the file's embedded expressions, its name (a stub) and its annotations future.
     fn deferred_visit(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
-        let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
+        let stub = run.paths[self.file_no as usize].ends_with(".pyi");
         let evaluations = self.fact(run, fact_catalog::ANNOTATION_EVALUATION_REL)?;
         let embedded = self.whole(run, "embedded-expression")?;
         let features = self.whole(run, "compiler-feature")?;
@@ -1547,7 +1549,7 @@ fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
 }
 
 /// Prepare the file funnel from a rule pack. A finish stage over the same pack reuses its parsed programs.
-fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
+fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>, workers: Option<std::num::NonZeroUsize>) {
     let way = args[0];
     let list = files(args[1]);
     let f0 = thread_cpu();
@@ -1661,8 +1663,9 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     if query.is_some() {println!("summary evaluation preparation {:.6} s",thread_cpu()-prepare_summary);}
     if carry_file && let Some((program,schedule,words_for_file,scratch))=&mut query {
         let root = fin.as_ref().map(|f| f.run.root_dir.clone()).or_else(|| flag(args, "--summary-root"));
-        let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),settings);
-        summary_walk::run(&list, program,&mut skip,&words,fields_width,words_for_file,
+        let parser_words = ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names");
+        let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(parser_words.fresh(), settings);
+        summary_walk::run(&list, settings, vocab, &parser_words, workers, program,&mut skip,&words,fields_width,words_for_file,
             &mut cwalk,&mut other,fin,root.as_deref(),flag(args,"--seed-out").as_deref(),flag(args,"--exact-out").as_deref(),schedule,scratch);
         return;
     }
@@ -1995,7 +1998,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             println!("EXACT\t{}\t{}\t{}\t{}", frules[*ri].name, exact_counts[*ri].0, exact_counts[*ri].1, exact_counts[*ri].2);
         }
     }
-    if let Some(p) = &pairs && let Some(meter) = &p.meter {
+    if let Some((p, _, _, scratch)) = &query && let Some(meter) = &scratch.meter {
         meter.report(p);
     }
     println!("pair summary checks {pair_steps} CPU {pair_cpu:.4} s");

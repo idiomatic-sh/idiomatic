@@ -1,16 +1,16 @@
 //! Proofs validate their regexes at load. Positive checks build a matcher at
 //! the first surviving candidate. A failed positive matcher admits its input.
-use std::cell::OnceCell;
+use std::sync::OnceLock;
 
 pub(in super::super) struct Pattern {
     text: Box<str>,
-    regex: OnceCell<Option<regex::bytes::Regex>>,
+    regex: OnceLock<Option<regex::bytes::Regex>>,
 }
 impl Pattern {
     pub(super) fn new(s: &str) -> Self {
         Self {
             text: s.into(),
-            regex: OnceCell::new(),
+            regex: OnceLock::new(),
         }
     }
     pub(in super::super) fn as_str(&self) -> &str {

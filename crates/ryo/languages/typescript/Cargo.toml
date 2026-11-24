@@ -37,6 +37,7 @@ ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "
 
 [dev-dependencies]
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../crates/matching", version = "0.2.0" }
+hashbrown.workspace = true
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../crates/operators" }
 bumpalo = "3"
 smallvec = "1"
@@ -90,3 +91,6 @@ workspace = true
 schema = "divan-timing/v1"
 workloads = { generated_every_relation = [2500, 10000] }
 metrics = ["median-ns"]
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+rustix = { version = "1", features = ["thread"] }

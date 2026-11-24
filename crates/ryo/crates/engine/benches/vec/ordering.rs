@@ -90,7 +90,7 @@ fn prepare(run: &Run, ty: Ty, cmp: Cmp, v: u64) -> Key {
     let text = || -> Vec<u8> {
         match ty {
             Ty::Sym => run.text(v as u32).to_vec(),
-            Ty::File => run.text(run.path_sym[v as usize]).to_vec(),
+            Ty::File => run.paths[v as usize].as_bytes().to_vec(),
             Ty::Num => (v as i64).to_string().into_bytes(),
             _ => v.to_string().into_bytes(),
         }

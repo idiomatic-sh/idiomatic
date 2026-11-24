@@ -34,7 +34,7 @@ enum P {
     /// Any other comparison, by `compare`.
     Cmp(Op, Opd, Opd),
     In(Opd, Vec<V>, bool),
-    Re(Opd, Rc<regex::bytes::Regex>),
+    Re(Opd, std::sync::Arc<regex::bytes::Regex>),
     Glob(Opd, Rc<super::prepared_glob::PreparedGlob>),
     And(Box<P>, Box<P>),
     Or(Box<P>, Box<P>),
@@ -325,13 +325,18 @@ fn give_bufs(mut b: Bufs) {
     BUFS.with(|s| s.borrow_mut().push(b));
 }
 
-impl Exec<'_> {
-    fn ksel_prep(&mut self, run: &mut Run, node: usize) -> R<Rc<Prep>> {
+impl<'p> Exec<'p> {
+    fn ksel_prep(&mut self, run: &mut Run, node: usize) -> R<super::worker_schemas::Binding<'p, Prep>> {
+        use super::worker_schemas::Binding;
         if let Some(prep) = &self.select_preps[node] {
             return Ok(prep.clone());
         }
-        let prep = Rc::new(self.ksel_make(run, node)?);
-        if let Some(path) = std::env::var_os("VEC_KSEL_LOG") {
+        let prep = match self.shared_kernels.get(node).and_then(Option::as_deref) {
+            Some(recipe) => Binding::Prepared(recipe),
+            None => Binding::Local(Rc::new(self.ksel_make(run, node)?)),
+        };
+        static LOG: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
+        if let Some(path) = LOG.get_or_init(|| std::env::var_os("VEC_KSEL_LOG").map(Into::into)) {
             use std::io::Write;
             let why = match &*prep {
                 Prep::K(k) if k.semi.is_some() => "semi (band, else kernel)",
@@ -339,14 +344,16 @@ impl Exec<'_> {
                 Prep::Old(w) => w,
             };
             if let Ok(mut o) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
-                let _ = writeln!(o, "{node}\t{why}");
+                // Append the complete record in one write, including its newline.
+                let line = format!("{node}\t{why}\n");
+                let _ = o.write_all(line.as_bytes());
             }
         }
         self.select_preps[node] = Some(prep.clone());
         Ok(prep)
     }
 
-    fn ksel_make(&mut self, run: &mut Run, node: usize) -> R<Prep> {
+    pub(super) fn ksel_make(&mut self, run: &mut Run, node: usize) -> R<Prep> {
         let plan = self.plan;
         let pn = &plan.nodes[node];
         // a semi step tries the band first (band.rs); where it declines, the kernels run it (`VEC_KSEL_NO_SEMI`: the old path)

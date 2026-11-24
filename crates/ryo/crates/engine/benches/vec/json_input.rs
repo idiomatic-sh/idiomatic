@@ -6,6 +6,8 @@ pub(crate) type Accepted = HashSet<String>;
 
 #[derive(Deserialize)]
 pub(crate) struct Request {
+    pub(crate) workers: Option<std::num::NonZeroUsize>,
+    pub(crate) step_stats: Option<String>,
     rule_context: Option<serde::de::IgnoredAny>,
     rule_observations: Option<serde::de::IgnoredAny>,
     pub(crate) root: String,

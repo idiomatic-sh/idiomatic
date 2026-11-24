@@ -26,7 +26,7 @@ fn fields(path: &str) -> Value {
             let mut fields = serde_json::Map::new();
             while let Some(name) = entries.next_key::<String>()? {
                 match name.as_str() {
-                    "named_tables"
+                    "workers" | "named_tables"
                     | "rule_context"
                     | "rule_observations"
                     | "selected_rules"
@@ -200,6 +200,7 @@ fn context_from(r: &Value) -> RuleContext {
 }
 
 pub(super) struct Metadata {
+    pub workers: Option<std::num::NonZeroUsize>,
     pub context: RuleContext,
     pub accepted: Option<super::finish::json_input::Accepted>,
     pub search_roots: Option<Vec<String>>,
@@ -208,6 +209,10 @@ pub(super) struct Metadata {
 pub(super) fn metadata(path: &str) -> Metadata {
     let input = fields(path);
     Metadata {
+        workers: input.get("workers").map(|value| {
+            value.as_u64().and_then(|n| usize::try_from(n).ok())
+                .and_then(std::num::NonZeroUsize::new).expect("workers must be a positive integer")
+        }),
         context: context_from(&input),
         accepted: input.get("rule_applicability").map(|v| {
             v.as_object()

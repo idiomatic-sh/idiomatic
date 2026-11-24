@@ -105,13 +105,13 @@ pub(super) struct Fact {
     pub source: Source,
     pub name: &'static str,
     pub key: Option<usize>,
-    pub columns: std::rc::Rc<[&'static str]>,
-    pub kinds: std::rc::Rc<[CellKind]>,
+    pub columns: std::sync::Arc<[&'static str]>,
+    pub kinds: std::sync::Arc<[CellKind]>,
     pub exact: bool,
 }
 
 pub(super) struct Program {
-    pub meter: Option<cost::Meter>,
+    pub metered: bool,
     pub paths: Vec<Option<paths::Edge>>,
     pub file_only: Vec<bool>,
     pub domains: Vec<Domain>,
@@ -1679,7 +1679,7 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
         early_omit: 0,
         signatures: Vec::with_capacity(plan.steps.len()),
         out: Program {
-            meter: None,
+            metered: false,
             paths: Vec::new(),
             file_only: Vec::new(),
             regexes: Vec::new(),
@@ -1808,11 +1808,11 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
     cost::arrange(&mut b.out, omit);
     #[cfg(feature = "pair-diagnostics")]
     if std::env::var_os("VEC_PAIR_METER").is_some() {
-        b.out.meter = Some(cost::Meter::new(b.out.facts.len()));
+        b.out.metered = true;
     }
     (b.out.paths, b.out.file_only) = paths::compile(&b.out);
     phase("arrange");
-    if clock || b.out.meter.is_some() {
+    if clock || b.out.metered {
         println!(
             "PAYREGEX prepare {} {}",
             b.out.regexes.iter().filter(|r| r.initialized()).count(),

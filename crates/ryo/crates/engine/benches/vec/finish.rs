@@ -46,6 +46,8 @@ pub(crate) mod json_input;
 #[allow(dead_code, reason = "benchmark hosts select lint locations or full query output")]
 #[path = "json_output.rs"]
 pub(crate) mod json_output;
+#[path = "finish/constants.rs"]
+pub(crate) mod constants;
 #[path = "finish/recycle.rs"]
 mod recycle;
 #[path = "finish/inline_key.rs"]
@@ -69,7 +71,11 @@ mod tree_class;
 #[path = "finish/frame.rs"]
 mod frame;
 #[path = "finish/known.rs"]
-mod known;
+pub(crate) mod known;
+#[path = "finish/worker_schemas.rs"]
+pub(crate) mod worker_schemas;
+#[path = "finish/worker_patterns.rs"]
+pub(crate) mod worker_patterns;
 #[path = "finish/set_ops.rs"]
 mod set_ops;
 #[path = "finish/empty_why.rs"]
@@ -202,6 +208,7 @@ struct ColumnPool {
     by_capacity: [Vec<Vec<u64>>; CLASSES],
     by_width: [Vec<Vec<Vec<u64>>>; BUNDLE_WIDTH + 1],
     cells: usize,
+    limit: usize,
 }
 
 thread_local! {
@@ -209,11 +216,33 @@ thread_local! {
         by_capacity: [const { Vec::new() }; CLASSES],
         by_width: [const { Vec::new() }; BUNDLE_WIDTH + 1],
         cells: 0,
+        limit: POOL_CELLS,
     }) };
 }
 /// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it (redo-alloc c8
 /// tried 64 MB: no fewer misses, 37 MB more live).
 const POOL_CELLS: usize = 1 << 22;
+/// Retained columns are a request budget. Each participating thread keeps its
+/// share locally while visiting the shard; no other thread accesses this pool.
+pub(crate) struct PoolBudget(usize);
+
+impl PoolBudget {
+    pub(crate) fn for_workers(workers: usize) -> Self {
+        POOL.with_borrow_mut(|pool| Self(std::mem::replace(&mut pool.limit, POOL_CELLS / workers)))
+    }
+}
+
+impl Drop for PoolBudget {
+    fn drop(&mut self) {
+        POOL.with_borrow_mut(|pool| {
+            if cfg!(feature = "pair-diagnostics") && sw!("VEC_STEP_TIME") {
+                println!("worker column pool retained {} bytes; budget {} bytes", pool.cells * 8, pool.limit * 8);
+            }
+            pool.limit = self.0;
+        });
+    }
+}
+
 /// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 16 = 2^18).
 const CLASSES: usize = 20;
 
@@ -300,7 +329,7 @@ impl Table {
             let k = self.cols.len();
             if k <= BUNDLE_WIDTH && p.by_width[k].len() < 128 && self.cols.iter().all(|c| c.capacity() <= BUNDLE_ROWS) {
                 let cells = self.cols.iter().map(Vec::capacity).sum::<usize>();
-                if p.cells + cells <= POOL_CELLS {
+                if p.cells + cells <= p.limit {
                     p.cells += cells;
                     p.by_width[k].push(std::mem::take(&mut self.cols));
                     return;
@@ -308,7 +337,7 @@ impl Table {
             }
             for mut c in self.cols.drain(..) {
                 let cap = c.capacity();
-                if cap == 0 || cap > POOL_CELLS / 16 || p.cells + cap > POOL_CELLS {
+                if cap == 0 || cap > POOL_CELLS / 16 || p.cells + cap > p.limit {
                     continue;
                 }
                 c.clear();
@@ -335,24 +364,62 @@ impl Table {
     }
 }
 
-/// The run: texts, regexes, kind and field names, file paths.
+/// Append-only spellings addressed by the executor's stable numeric word IDs.
+#[derive(Clone)]
+pub(crate) struct Texts {
+    bytes: Vec<u8>,
+    offsets: Vec<usize>,
+}
+
+impl Default for Texts {
+    fn default() -> Self {
+        Self { bytes: Vec::new(), offsets: vec![0] }
+    }
+}
+
+impl Texts {
+    pub(crate) fn len(&self) -> usize {
+        self.offsets.len() - 1
+    }
+
+    pub(crate) fn get(&self, id: usize) -> Option<&[u8]> {
+        let [start, end] = self.offsets.get(id..)?.first_chunk::<2>()?;
+        Some(&self.bytes[*start..*end])
+    }
+
+    pub(crate) fn push(&mut self, text: &[u8]) {
+        self.bytes.extend_from_slice(text);
+        self.offsets.push(self.bytes.len());
+    }
+}
+
+impl std::ops::Index<usize> for Texts {
+    type Output = [u8];
+
+    fn index(&self, id: usize) -> &[u8] {
+        self.get(id).expect("valid executor word ID")
+    }
+}
+
+/// The run owns text IDs, regexes, kind and field names, and file paths.
 #[derive(Default)]
 pub(super) struct Run {
+    pub(super) fill_dump: Vec<(u32, String)>,
     /// Relations whose provider exposes a population other than this native file table.
     pub(super) reader_tables: rustc_hash::FxHashSet<String>,
     cold: cold_list::Plan,
     cold_entries: cold_entries::Audit,
     cold_text: cold_text::Plan,
-    pub(super) texts: Vec<Box<[u8]>>,
-    pub(super) ids: FxHashMap<Box<[u8]>, u32>,
-    pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
+    pub(super) texts: Texts,
+    pub(super) ids: hashbrown::HashTable<u32>,
+    pub(crate) worker_patterns: Option<std::sync::Arc<worker_patterns::Patterns>>,
+    pub(super) regexes: FxHashMap<String, std::sync::Arc<regex::bytes::Regex>>,
     prepared_globs: FxHashMap<u32, Rc<prepared_glob::PreparedGlob>>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
     pub(super) file_field_codes: bool,
-    pub(super) paths: Vec<String>,
-    pub(super) path_sym: Vec<u32>,
+    pub(super) paths: std::sync::Arc<[String]>,
     pub(super) empty: u32,
     /// The SDK symbol without a published value, distinct from an empty string.
     pub(super) absent_word: Option<u32>,
@@ -368,6 +435,7 @@ pub(super) struct Run {
     pub(super) root_dir: String,
     /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
     pub(super) project: FxHashMap<String, project::Answered>,
+    pub(crate) shared_projects: Option<std::sync::Arc<project::Shared>>,
     /// Functions a step asked that are not in the step set (the rule is refused).
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
@@ -387,23 +455,36 @@ impl Run {
     pub(super) fn links(&mut self) {
         self.link_sym = [self.sym(b"next-token"), self.sym(b"matching-delimiter"), self.sym(b"enclosing-delimiter")];
     }
-    pub(super) fn sym(&mut self, t: &[u8]) -> u32 {
-        if let Some(i) = self.ids.get(t) {
-            return *i;
+    /// Only the text vector owns the bytes. The lookup index holds their numbers.
+    /// The reader may reserve a number without interning its spelling.
+    fn word_hash(text: &[u8]) -> u64 {
+        use std::hash::BuildHasher;
+        rustc_hash::FxBuildHasher.hash_one(text)
+    }
+
+    pub(super) fn lookup_word(&self, text: &[u8]) -> Option<u32> {
+        self.ids.find(Self::word_hash(text), |&id| &self.texts[id as usize] == text).copied()
+    }
+
+    pub(super) fn sym(&mut self, text: &[u8]) -> u32 {
+        if let Some(id) = self.lookup_word(text) {
+            return id;
         }
-        let i = self.texts.len() as u32;
-        self.texts.push(t.into());
-        self.ids.insert(t.into(), i);
-        i
+        let hash = Self::word_hash(text);
+        let id = u32::try_from(self.texts.len()).expect("word ID");
+        self.texts.push(text);
+        let _ = self.ids.insert_unique(hash, id, |&key| Self::word_hash(&self.texts[key as usize]));
+        id
     }
     fn text(&self, s: u32) -> &[u8] {
         &self.texts[s as usize]
     }
-    fn re(&mut self, p: &str) -> Result<Rc<regex::bytes::Regex>, String> {
+    fn re(&mut self, p: &str) -> Result<std::sync::Arc<regex::bytes::Regex>, String> {
         if let Some(r) = self.regexes.get(p) {
             return Ok(r.clone());
         }
-        let r = Rc::new(regex::bytes::Regex::new(p).map_err(|e| format!("regex {p}: {e}"))?);
+        let compiled = self.worker_patterns.as_ref().and_then(|patterns| patterns.get(p));
+        let r = std::sync::Arc::new(compiled.unwrap_or_else(|| worker_patterns::compile(p))?);
         self.regexes.insert(p.to_owned(), r.clone());
         Ok(r)
     }
@@ -529,9 +610,9 @@ pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &
 /// A plan node, as lowered.
 pub(super) struct PNode {
     pub(super) op: String,
-    source: Rc<ryo_values::domain::finish_plans::types::FinishPlan>,
+    source: std::sync::Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
     slot: usize,
-    args: std::cell::OnceCell<Args>,
+    args: std::sync::OnceLock<Args>,
     pub(super) inputs: Vec<usize>,
     /// 7: the relation arguments (`args.<name>.rel`), by name.
     pub(super) rels: Vec<(String, usize)>,
@@ -577,9 +658,6 @@ pub(super) enum Native {
     /// The number is the relation's place in `Run::fact_rels`.
     Fact(u16),
 }
-
-/// 6h: the rows of the keyed lists made from provider fills (one entry a fill row a column asked), for the report.
-pub(super) static FACT_IX_ROWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 const TREE_COLS: [(&str, Ty); 5] = [("id", Ty::Node), ("kind", Ty::Sym), ("text", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
 const CHILD_COLS: [(&str, Ty); 5] = [("parent", Ty::Node), ("child", Ty::Node), ("ordinal", Ty::Num), ("field", Ty::Sym), ("file", Ty::File)];
@@ -693,6 +771,7 @@ pub(super) struct File<'a> {
     touched: Vec<u32>,
     /// redo-fills (`VEC_FILL_COUNT`): per fact slot, whether a step read the fill's rows (not only its size).
     fact_read: Vec<std::cell::Cell<bool>>,
+    pub(super) fact_index_rows: std::cell::Cell<u64>,
 }
 
 thread_local! {
@@ -846,6 +925,7 @@ impl File<'_> {
             kind_bits: b.kind_bits,
             touched: Vec::new(),
             fact_read: Vec::new(),
+            fact_index_rows: Default::default(),
         };
         SPARE.with(|sp| {
             let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
@@ -1064,7 +1144,7 @@ impl File<'_> {
         }
         let m = match &self.facts[usize::from(i)] {
             Some(t) => {
-                FACT_IX_ROWS.fetch_add(t.n as u64, std::sync::atomic::Ordering::Relaxed);
+                self.fact_index_rows.set(self.fact_index_rows.get() + t.n as u64);
                 Index::build(t.n, |r| t.cols[col][r])
             }
             None => Index::build(0, |_| 0),
@@ -1164,6 +1244,11 @@ impl File<'_> {
 /// Counters a run keeps: per node, own time, calls, rows out and rows touched.
 #[derive(Default)]
 pub(super) struct Stats {
+    /// Empty-propagation skips by step, decisions by outcome, and timed leaf reads.
+    pub(super) leaf_skips: Vec<u64>,
+    pub(super) leaf_emits: [u64; 3],
+    pub(super) leaf_times: [f64; 3],
+    pub(super) fact_index_rows: u64,
     pub(super) total_runs: u64,
     pub(super) total_rows: u64,
     pub(super) time: Vec<f64>,
@@ -1219,7 +1304,7 @@ enum E {
     Or(Box<E>, Box<E>),
     Not(Box<E>),
     /// A text tested against a constant regex (from `matches` or `glob_any`), compiled once.
-    Re(Box<E>, Rc<regex::bytes::Regex>),
+    Re(Box<E>, std::sync::Arc<regex::bytes::Regex>),
     Glob(Box<E>, Rc<prepared_glob::PreparedGlob>),
 
 }
@@ -1295,6 +1380,7 @@ pub(super) enum Res {
 }
 
 /// A select compiled once a run.
+#[derive(Clone)]
 struct SelPlan {
     srcs: Vec<usize>,
     conj: Vec<E>,
@@ -1332,10 +1418,13 @@ pub(super) struct Exec<'p> {
     pub(super) plan: &'p Plan,
     pub(super) stats: Stats,
     schemas: Vec<Option<Rc<Schema>>>,
+    pub(crate) worker_shapes: Option<worker_schemas::Local>,
     views: Vec<Option<Option<Rc<ViewSpec>>>>,
     sels: Vec<Option<Rc<SelPlan>>>,
+    shared_sels: &'p [Option<Box<SelPlan>>],
     // Each reader group prepares its own column indices and interned names.
-    select_preps: Vec<Option<Rc<select_kernel::Prep>>>,
+    shared_kernels: &'p [Option<Box<select_kernel::Prep>>],
+    select_preps: Vec<Option<worker_schemas::Binding<'p, select_kernel::Prep>>>,
     union_preps: Vec<Option<Rc<union_kernel::Prep>>>,
     antijoin_preps: Vec<Option<Rc<antijoin_kernel::Prep>>>,
     keyed_forms: Vec<Option<keyed::Form>>,
@@ -1344,18 +1433,15 @@ pub(super) struct Exec<'p> {
     inner: f64,
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
     constant: Vec<Option<bool>>,
+    pub(crate) shared_constants: Option<std::sync::Arc<constants::Constants>>,
     run_memo: Vec<Option<Rc<Table>>>,
-    /// redo-union pass 2: per node, what the step bracket reads on every run (`frame`).
-    frames: Vec<frame::Frame>,
-    /// The steps that read each node.
-    pub(super) consumers: Vec<Vec<usize>>,
-    emitted: rustc_hash::FxHashSet<usize>,
+    pub(crate) layout: std::sync::Arc<Layout>,
     pub(super) tally: band::Tally,
     /// 8: row-number buffers of the join (tuples a source), reused across executions; the join's key set, reused.
     u32_pool: Vec<Vec<u32>>,
     /// redo-union pass 2: what each step needs to return anything (`known`), and its shared empty answer.
     needs: Vec<Option<Rc<known::Need>>>,
-    flat: known::Flat,
+    flat: std::borrow::Cow<'p, known::Flat>,
     empties: Vec<Option<Rc<Table>>>,
     /// The view rows a keyed read of a view finds (reused).
     scratch_rows: Vec<u32>,
@@ -1363,6 +1449,17 @@ pub(super) struct Exec<'p> {
     timing: bool,
     col: col::Kernels,
     cold_compiler: cold_test::Compiler,
+}
+
+/// File-independent execution graph built once for the request.
+pub(crate) struct Layout {
+    frames: Vec<frame::Frame>,
+    pub(super) consumers: Vec<Vec<usize>>,
+    emitted: rustc_hash::FxHashSet<usize>,
+}
+impl std::ops::Deref for Exec<'_> {
+    type Target = Layout;
+    fn deref(&self) -> &Layout { &self.layout }
 }
 
 type R<T> = Result<T, String>;
@@ -1385,15 +1482,38 @@ fn pos(names: &[String], c: &str) -> R<usize> {
     names.iter().position(|x| x == c).ok_or_else(|| format!("no column {c} in {names:?}"))
 }
 
+impl Layout {
+    pub(crate) fn prepare(plan: &Plan) -> std::sync::Arc<Self> {
+        let mut consumers = vec![Vec::new(); plan.nodes.len()];
+        for (i,node) in plan.nodes.iter().enumerate() {
+            for &input in &node.inputs {
+                if consumers[input].last() != Some(&i) { consumers[input].push(i); }
+            }
+        }
+        std::sync::Arc::new(Self {
+            frames: frame::frames(plan),
+            consumers,
+            emitted: plan.emits.iter().map(|e| e.1).collect(),
+        })
+    }
+}
+
 impl<'p> Exec<'p> {
     pub(super) fn new(plan: &'p Plan) -> Self {
+        Self::with_layout(plan, Layout::prepare(plan), None)
+    }
+
+    pub(crate) fn with_layout(plan: &'p Plan, layout: std::sync::Arc<Layout>, tests: Option<&'p known::Flat>) -> Self {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
+            stats: Stats { leaf_skips: Vec::new(), leaf_emits: [0; 3], leaf_times: [0.0; 3], fact_index_rows: 0, total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
             schemas: vec![None; k],
+            worker_shapes: None,
             views: vec![None; k],
             sels: vec![None; k],
+            shared_sels: &[],
+            shared_kernels: &[],
             select_preps: vec![None; k],
             union_preps: vec![None; k],
             antijoin_preps: vec![None; k],
@@ -1402,24 +1522,13 @@ impl<'p> Exec<'p> {
             leaves: emptyprop::Leaves::default(),
             inner: 0.0,
             constant: vec![None; k],
+            shared_constants: None,
             run_memo: vec![None; k],
-            frames: frame::frames(plan),
-            consumers: {
-                let mut c = vec![Vec::new(); k];
-                for (i, n) in plan.nodes.iter().enumerate() {
-                    for x in &n.inputs {
-                        if c[*x].last() != Some(&i) {
-                            c[*x].push(i);
-                        }
-                    }
-                }
-                c
-            },
-            emitted: plan.emits.iter().map(|e| e.1).collect(),
+            layout,
             tally: band::Tally::default(),
             u32_pool: Vec::new(),
             needs: vec![None; k],
-            flat: known::Flat::new(k),
+            flat: tests.map_or_else(|| std::borrow::Cow::Owned(known::Flat::new(k)), std::borrow::Cow::Borrowed),
             empties: vec![None; k],
             scratch_rows: Vec::new(),
             timing: sw!("VEC_STEP_TIME"),
@@ -1460,6 +1569,10 @@ impl<'p> Exec<'p> {
     fn schema(&mut self, run: &mut Run, node: usize) -> R<Rc<Schema>> {
         if let Some(sc) = &self.schemas[node] {
             return Ok(sc.clone());
+        }
+        if let Some(sc) = self.worker_shapes.as_mut().and_then(|shapes| shapes.get(node)) {
+            self.schemas[node] = Some(sc.clone());
+            return Ok(sc);
         }
         let plan: &'p Plan = self.plan;
         let pn = &plan.nodes[node];
@@ -1661,9 +1774,12 @@ impl<'p> Exec<'p> {
     }
 
     /// A select's compiled form, once a run.
-    fn sel(&mut self, run: &mut Run, node: usize) -> R<Rc<SelPlan>> {
+    fn sel(&mut self, run: &mut Run, node: usize) -> R<worker_schemas::Selection<'p>> {
+        if let Some(Some(sp)) = self.shared_sels.get(node) {
+            return Ok(worker_schemas::Selection::Prepared(sp));
+        }
         if let Some(sp) = &self.sels[node] {
-            return Ok(sp.clone());
+            return Ok(worker_schemas::Selection::Local(sp.clone()));
         }
         let plan: &'p Plan = self.plan;
         let pn = &plan.nodes[node];
@@ -1701,7 +1817,7 @@ impl<'p> Exec<'p> {
         };
         let sp = Rc::new(SelPlan { srcs, conj, refs, items });
         self.sels[node] = Some(sp.clone());
-        Ok(sp)
+        Ok(worker_schemas::Selection::Local(sp))
     }
 
     /// The view a node is, when it is one: a tree relation, or a select of column picks and tests over one view.
@@ -1799,11 +1915,19 @@ impl<'p> Exec<'p> {
         if let Some(t) = &self.run_memo[node] {
             return Ok(Res::Tab(t.clone()));
         }
+        if self.shared_constants.as_ref().is_some_and(|cache| cache.contains(node)) {
+            return self.shared_constant(f,run,p,node);
+        }
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
             self.skipped(f, node);
             return Ok(Res::Tab(self.empty_rc(run, node)?));
         }
+        self.materialize(f,run,p,node)
+    }
+
+    #[inline]
+    fn materialize(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         // 8: a step over an empty input answers its shared empty table before any set-up
         let gate = self.frames[node].gate;
         if gate < frame::MISSING && self.eval(f, run, p, gate as usize)?.n == 0 {
@@ -2348,7 +2472,7 @@ impl<'p> Exec<'p> {
                 let mut found: Vec<Vec<std::ops::Range<usize>>> = Vec::new();
                 for i in 0..from.n {
                     let v = from.cols[pc][i];
-                    let text = if from.tys[pc] == Ty::File { run.text(run.path_sym[v as usize]).to_vec() } else { run.text(v as u32).to_vec() };
+                    let text = if from.tys[pc] == Ty::File { run.paths[v as usize].as_bytes().to_vec() } else { run.text(v as u32).to_vec() };
                     let Ok(text) = String::from_utf8(text) else { continue };
                     found.clear();
                     capture::matches(pattern, separator, &text, &mut |sl| found.push(sl.to_vec()));
@@ -4109,7 +4233,7 @@ fn text_of(run: &Run, v: V) -> std::borrow::Cow<'_, [u8]> {
     use std::borrow::Cow;
     match v.ty() {
         Ty::Sym => Cow::Borrowed(run.text(v.1 as u32)),
-        Ty::File => Cow::Borrowed(run.text(run.path_sym[v.1 as usize])),
+        Ty::File => Cow::Borrowed(run.paths[v.1 as usize].as_bytes()),
         Ty::Num => Cow::Owned((v.1 as i64).to_string().into_bytes()),
         Ty::Flag => Cow::Borrowed(if v.1 == 1 { b"true".as_slice() } else { b"false".as_slice() }),
         _ => Cow::Borrowed(&[]),

@@ -29,7 +29,7 @@ type Nodes = Option<Bits>;
 #[derive(Clone, Copy)]
 pub(super) struct SyntaxText<'a> {
     pub ids: &'a [u32],
-    pub symbols: &'a [Box<[u8]>],
+    pub symbols: &'a super::finish::Texts,
 }
 impl<'a> SyntaxText<'a> {
     fn at(self, index: usize) -> &'a [u8] {
@@ -53,10 +53,12 @@ struct Table {
 }
 #[derive(Default)]
 pub(super) struct Scratch {
+    pub(super) meter: Option<cost::Meter>,
     postings: postings::Cache,
     pub(super) literals: super::summary_literals::Observed,
     alive_words: Vec<u64>,
     witnesses: Vec<Option<bool>>,
+    searches: super::summary_values::Searches,
     matches: super::summary_values::Matches,
     facts: Vec<Table>,
     sets: memo::Memo<Nodes>,
@@ -90,6 +92,7 @@ struct File<'a, const PROFILE: bool> {
     sets: &'a mut memo::Memo<Nodes>,
     needs: &'a mut [Option<bool>],
     arena: &'a mut Arena,
+    searches: &'a super::summary_values::Searches,
     matches: &'a mut super::summary_values::Matches,
     order: &'a Schedule,
     witnesses: &'a mut [Option<bool>],
@@ -204,7 +207,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Need::InvalidPattern(_) => unreachable!("proof validation happens at load"),
             Need::Any => true,
             Need::Empty => false,
-            Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
+            Need::SourceContains(re) => self.searches.accepts(self.p, re, self.src),
             Need::PathGlob(slot) => self.path.is_none_or(|path| {
                 use ryo_matching::inbound::use_cases::matching::{
                     interface::MatchingUseCase, types::{GlobPattern, MatchOutcome, SearchText},
@@ -216,7 +219,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             }),
             Need::PathMatches(re) => self
                 .path
-                .is_none_or(|path| self.p.regexes[re].is_match(path)),
+                .is_none_or(|path| self.searches.accepts(self.p, re, path)),
             Need::Terms(all, ref terms) => {
                 if all {
                     terms.iter().all(|i| self.pass(*i))
@@ -323,7 +326,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             ),
             Domain::SpanMatching(k, re) | Domain::TextMatching(k, re) => {
                 let decoded = matches!(self.p.domains[id], Domain::TextMatching(..));
-                let regex = &self.p.regexes[*re];
+                let matches = |text: &[u8]| self.searches.accepts(self.p, *re, text);
                 Some(
                     self.arena.bits(
                         node_table::ids_of_kind(self.t, languages::KindBits(*k))
@@ -340,7 +343,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                 };
                                 self.byte_tests
                                     .entry((*re, text))
-                                    .or_insert_with(|| regex.is_match(text))
+                                    .or_insert_with(|| matches(text))
                                     .then_some(pos.0)
                             }),
                     ),
@@ -642,7 +645,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     None
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
-                    let regex = &self.p.regexes[*re];
+                    let matches = |text: &[u8]| self.searches.accepts(self.p, *re, text);
                     Some(
                         self.arena.bits(
                             table
@@ -659,7 +662,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                         .enumerate()
                                         .any(|(p, w)| {
                                             w == delimiter
-                                                && regex.is_match(&text[p + delimiter.len()..])
+                                                && matches(&text[p + delimiter.len()..])
                                         })
                                         .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
                                 }),
@@ -706,7 +709,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     None
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
-                    let Some(regex) = self.p.regexes[*re].compiled() else {
+                    let Some(regex) = self.searches.get(self.p, *re) else {
                         self.sets.set(id, None);
                         return None;
                     };
@@ -725,7 +728,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                     let span = (cell.0 >> 32) as usize..(cell.0 as u32) as usize;
                                     self.src.get(span).is_some_and(|text| regex.is_match(text))
                                 } else {
-                                    self.matches.test(self.p, *re, *cell, self.words)
+                                    self.matches.test(regex, *re, *cell, self.words)
                                 };
                                 (yes != negative)
                                     .then(|| key.map_or(0, |c| c.0[r].0 as u32))
@@ -784,7 +787,8 @@ impl Program {
         exact: Option<&mut Vec<(usize, Vec<u64>)>>,
     ) -> u64 {
         #[cfg(feature = "pair-diagnostics")]
-        if self.meter.is_some() {
+        if self.metered {
+            scratch.meter.get_or_insert_with(|| cost::Meter::new(self.facts.len()));
             return self.evaluate::<true>(scratch, order, t, src, path, syntax_text, words, read, alive, exact);
         }
         self.evaluate::<false>(scratch, order, t, src, path, syntax_text, words, read, alive, exact)
@@ -817,6 +821,7 @@ impl Program {
                 c.0.clear();
             }
         }
+        scratch.searches.prepare(self.regexes.len());
         scratch.matches.reset(
             self.regexes.len(),
             languages::facts::base_count(words).0 as usize,
@@ -837,7 +842,7 @@ impl Program {
                 .iter()
                 .position(|f| f.source == source)
                 .expect("declared source");
-            let meter = self.meter.as_ref().unwrap();
+            let meter = scratch.meter.as_ref().unwrap();
             let mut fills = meter.fills.borrow_mut();
             let entry = &mut fills[slot][reader_class.get()];
             entry.0 += 1;
@@ -861,11 +866,12 @@ impl Program {
             plain_tree: !self.paths.is_empty() && node_table::embedded_segments(t).next().is_none(),
             charged: 0.,
             stats: Default::default(),
-            overhead: self.meter.as_ref().map_or(0., |m| m.overhead),
+            overhead: scratch.meter.as_ref().map_or(0., |m| m.overhead),
             postings: &mut scratch.postings,
             literals: &mut scratch.literals,
             byte_tests: Map::default(),
             witnesses: &mut scratch.witnesses,
+            searches: &scratch.searches,
             matches: &mut scratch.matches,
             p: self,
             t,
@@ -906,7 +912,7 @@ impl Program {
             }
         }
         if PROFILE {
-            let meter = self.meter.as_ref().unwrap();
+            let meter = scratch.meter.as_ref().unwrap();
             for (a, b) in meter.rows.borrow_mut().iter_mut().zip(f.stats) {
                 a.calls += b.calls;
                 a.hits += b.hits;

@@ -1,15 +1,18 @@
 //! Feed each accepted file's summary decisions directly to the executor while
 //! the provider still lends its parse, table and on-demand semantic state.
 use super::{
-    Columns, Skip, fields_present, visit::Finisher, funnel::Words, pair_summary::Program,
-    source_batch::SourceBatch, thread_cpu,
+    Columns, Skip, fields_present, funnel::Words, pair_summary::Program, source_batch::SourceBatch,
+    thread_cpu, visit::Finisher,
 };
 use ryo::languages::{self, FileWords, NodeTable, node_table};
 use ryo_python::fixtures::columns::ColumnWalk;
-use std::fmt::Write;
 
 pub(super) fn run(
     list: &[String],
+    settings: ryo_python::settings::PythonParserSettings,
+    vocab: &super::Vocab,
+    parser_words: &FileWords,
+    requested: Option<std::num::NonZeroUsize>,
     program: &Program,
     skip: &mut Skip,
     words: &Words,
@@ -24,7 +27,10 @@ pub(super) fn run(
     order: &super::summary_schedule::Schedule,
     scratch: &mut super::pair_checks::Scratch,
 ) {
-    let root = root.map(|s| format!("{}/", s.trim_end_matches('/')));
+    use super::finisher::workers;
+    let count = workers::count(requested, list.len());
+    let prefix = usize::from(count > 1 && !list.is_empty());
+    let mut totals = Totals::default();
     let emit_rules: Vec<Vec<usize>> = fin
         .as_ref()
         .map(|f| {
@@ -34,13 +40,203 @@ pub(super) fn run(
                         .roots
                         .iter()
                         .enumerate()
-                        .filter(|(_, (r, _))| r == name)
-                        .map(|(i, _)| i)
+                        .filter_map(|(i, (r, _))| (r == name).then_some(i))
                         .collect()
                 })
                 .collect()
         })
         .unwrap_or_default();
+    let run = |ids: &[usize],
+               skip: &mut Skip,
+               dictionary: &mut FileWords,
+               a: &mut ColumnWalk,
+               b: &mut ColumnWalk,
+               fin: Option<&mut Finisher<'_>>,
+               scratch: &mut super::pair_checks::Scratch| {
+        visit_files(
+            list,
+            ids,
+            program,
+            skip,
+            words,
+            fields,
+            dictionary,
+            a,
+            b,
+            fin,
+            root,
+            seed_out.is_some(),
+            exact_out.is_some(),
+            order,
+            scratch,
+            &emit_rules,
+        )
+    };
+    println!("start-up to first file {:.4} s", thread_cpu());
+    if prefix != 0 {
+        totals.add(run(
+            &[0],
+            skip,
+            fwords,
+            first,
+            second,
+            fin.as_deref_mut(),
+            scratch,
+        ));
+    }
+    let parts = workers::divide(prefix..list.len(), count, |i| {
+        std::fs::metadata(&list[i]).map(|m| m.len())
+    })
+    .expect("size inventory");
+    let seed = if parts.len() > 1 {
+        fin.as_deref_mut()
+            .map(|f| (f.worker_settings(), f.worker_roots()))
+    } else {
+        None
+    };
+    let filters = skip.clone();
+    let dictionary = fwords.fresh();
+    let results = workers::run(
+        &parts,
+        |ids| {
+            (
+                run(
+                    ids,
+                    skip,
+                    fwords,
+                    first,
+                    second,
+                    fin.as_deref_mut(),
+                    scratch,
+                ),
+                None,
+            )
+        },
+        |ids| {
+            let base = parser_words.fresh();
+            let mut a = ColumnWalk::with_settings(base.fresh(), settings);
+            let mut b = ColumnWalk::with_settings(base.fresh(), settings);
+            let mut f = seed
+                .as_ref()
+                .map(|(settings, roots)| Finisher::worker(settings, base, vocab, roots.clone()));
+            let totals = run(
+                ids,
+                &mut filters.clone(),
+                &mut dictionary.fresh(),
+                &mut a,
+                &mut b,
+                f.as_mut(),
+                &mut Default::default(),
+            );
+            (totals, f.map(Finisher::into_report))
+        },
+    );
+    let merge = thread_cpu();
+    for (part, result) in results {
+        totals.add(part);
+        if let Some(r) = result {
+            fin.as_deref_mut().expect("finisher").merge(r);
+        }
+    }
+    println!("worker ordered reduction CPU {:.6} s", thread_cpu() - merge);
+    totals.write(program, seed_out, exact_out);
+}
+
+#[derive(Default)]
+struct Totals {
+    exact: Vec<(u64, u64, u64)>,
+    seeds: Vec<(usize, String)>,
+    logs: Vec<(usize, String)>,
+    counts: [u64; 4],
+    times: [f64; 9],
+}
+impl Totals {
+    fn add(&mut self, part: Self) {
+        self.exact.resize(part.exact.len(), Default::default());
+        for (a, b) in self.exact.iter_mut().zip(part.exact) {
+            a.0 += b.0;
+            a.1 += b.1;
+            a.2 += b.2;
+        }
+        self.seeds.extend(part.seeds);
+        self.logs.extend(part.logs);
+        for (a, b) in self.counts.iter_mut().zip(part.counts) {
+            *a += b;
+        }
+        for (a, b) in self.times.iter_mut().zip(part.times) {
+            *a += b;
+        }
+    }
+    fn write(mut self, program: &Program, seed_out: Option<&str>, exact_out: Option<&str>) {
+        for (path, records) in [(seed_out, &mut self.seeds), (exact_out, &mut self.logs)] {
+            if let Some(path) = path {
+                use std::io::Write;
+                records.sort_by_key(|r| r.0);
+                let mut out =
+                    std::io::BufWriter::new(std::fs::File::create(path).expect("open receipt"));
+                for (_, line) in records {
+                    out.write_all(line.as_bytes()).expect("write receipt");
+                }
+                out.flush().expect("close receipt");
+            }
+        }
+        for (ri, _) in &program.exact {
+            let (pairs, rows, nonempty) = self.exact[*ri];
+            println!(
+                "EXACT\t{}\t{pairs}\t{rows}\t{nonempty}",
+                program.roots[*ri].0
+            );
+        }
+        let [elements, steps, candidates, survivors] = self.counts;
+        let [
+            elapsed,
+            second,
+            read,
+            visit,
+            finish,
+            contents,
+            skip_cpu,
+            checks,
+            fields_kinds,
+        ] = self.times;
+        println!("one walk: the second half inside the first half's visit {second:.4} s");
+        println!("thread CPU total {:.4} s", elapsed - second);
+        println!(
+            "phase read: {read:.4} s\nphase walk+table: {:.4} s\nphase contents: {contents:.4} s\nphase skip tests: {skip_cpu:.4} s\nphase seed handoff: {:.4} s",
+            elapsed - visit - finish - read,
+            visit - contents - skip_cpu - checks + finish - second
+        );
+        println!(
+            "contents kinds and fields {fields_kinds:.4} s words {:.4} s",
+            contents - fields_kinds
+        );
+        println!("pair summary checks {steps} CPU {checks:.4} s");
+        println!("file seeds: {elements} elements");
+        println!(
+            "candidates {candidates} survivors {survivors} steps {steps} rule-files-with-survivors {survivors}"
+        );
+    }
+}
+
+fn visit_files(
+    list: &[String],
+    ids: &[usize],
+    program: &Program,
+    skip: &mut Skip,
+    words: &Words,
+    fields: usize,
+    fwords: &mut FileWords,
+    first: &mut ColumnWalk,
+    second: &mut ColumnWalk,
+    mut fin: Option<&mut Finisher<'_>>,
+    root: Option<&str>,
+    seed_out: bool,
+    exact_out: bool,
+    order: &super::summary_schedule::Schedule,
+    scratch: &mut super::pair_checks::Scratch,
+    emit_rules: &[Vec<usize>],
+) -> Totals {
+    let root = root.map(|s| format!("{}/", s.trim_end_matches('/')));
     for walk in [&mut *first, &mut *second] {
         walk.defer_lexical();
         walk.use_native_navigation();
@@ -61,29 +257,33 @@ pub(super) fn run(
         rustc_hash::FxHashMap::<String, (usize, usize, usize, usize, usize, f64)>::default();
     let certify = fin.as_ref().is_none_or(|f| f.can_finish_exact());
     let mut exact_counts = vec![(0u64, 0u64, 0u64); program.roots.len()];
-    let mut exact_log =
-        exact_out.map(|p| std::io::BufWriter::new(std::fs::File::create(p).expect("exact pairs")));
+    let mut exact_log = Vec::new();
     let mut input = SourceBatch::default();
     let mut table = NodeTable::default();
     let mut other_table = NodeTable::default();
-    let mut alive = std::array::from_fn(|_| (vec![false; program.roots.len()], Vec::new(), std::collections::HashMap::new()));
+    let mut alive = std::array::from_fn(|_| {
+        (
+            vec![false; program.roots.len()],
+            Vec::new(),
+            std::collections::HashMap::new(),
+        )
+    });
     let mut present = vec![0u64; words.names.len().div_ceil(64)];
     let mut kinds = Vec::new();
     let mut fields_kinds = 0.;
     let mut cols = Columns::default();
     let mut wanted = Vec::new();
-    let mut dump = String::new();
+    let mut dump = Vec::new();
     let (mut elements, mut steps, mut candidates, mut survivors) = (0u64, 0, 0u64, 0u64);
     let (mut read, mut contents, mut skip_cpu, mut checks, mut visit, mut finish) =
         (0., 0., 0., 0., 0., 0.);
     let fin0 = fin.as_ref().map_or(0., |f| f.time);
     let executor = std::cell::RefCell::new(fin);
-    println!("start-up to first file {:.4} s", thread_cpu());
     let start = thread_cpu();
     let mut i = 0;
-    while i < list.len() {
+    while i < ids.len() {
         let begin = thread_cpu();
-        let stop = input.load(list, i).expect("read sources");
+        let stop = input.load(list, ids, i).expect("read sources");
         read += thread_cpu() - begin;
         while i < stop {
             let count = (stop - i).min(2);
@@ -92,13 +292,13 @@ pub(super) fn run(
                 &mut table,
                 second,
                 &mut other_table,
-                (&list[i], input.get(i)),
-                (count == 2).then(|| (list[i + 1].as_str(), input.get(i + 1))),
+                (&list[ids[i]], input.get(i)),
+                (count == 2).then(|| (list[ids[i + 1]].as_str(), input.get(i + 1))),
                 &mut alive,
                 &mut |slot, file, (alive, exact, kept)| {
                     let begin = thread_cpu();
-                    let id = i + slot;
-                    let bytes = input.get(id);
+                    let id = ids[i + slot];
+                    let bytes = input.get(i + slot);
                     let t = file.table;
                     elements += node_table::element_count(t).0 as u64;
                     fields_present(t, &mut cols, fields);
@@ -121,7 +321,8 @@ pub(super) fn run(
                     let mut fin = executor.borrow_mut();
                     let run_path = fin.as_deref().map(|f| f.run.paths[id].clone());
                     let path = run_path.as_deref().map(str::as_bytes).or_else(|| {
-                        root.as_ref().map(|r| list[id].strip_prefix(r).unwrap_or(&list[id]).as_bytes())
+                        root.as_ref()
+                            .map(|r| list[id].strip_prefix(r).unwrap_or(&list[id]).as_bytes())
                     });
                     exact.clear();
                     kept.clear();
@@ -137,9 +338,15 @@ pub(super) fn run(
                             #[cfg(feature = "summary-diagnostics")]
                             let _provider_clock = ProviderClock(thread_cpu(), &mut provider_cpu);
                             use super::{pair_checks::Query, pair_summary::Source};
-                            if matches!(source, Source::Catalog(languages::Relation::ModuleIdentity)) {
+                            if matches!(
+                                source,
+                                Source::Catalog(languages::Relation::ModuleIdentity)
+                            ) {
                                 return match query {
-                                    Query::Rows => Some(fin.as_deref_mut().is_some_and(|f| f.identity(id, words, out))),
+                                    Query::Rows => Some(
+                                        fin.as_deref_mut()
+                                            .is_some_and(|f| f.identity(id, words, out)),
+                                    ),
                                     _ => None,
                                 };
                             }
@@ -161,10 +368,18 @@ pub(super) fn run(
                                         _ => None,
                                     };
                                     let answered = host.unwrap_or_else(|| match source {
-                                        Source::Walk(name) if super::pair_provider::visit_table(name) => fin
-                                            .as_deref_mut()
-                                            .is_some_and(|f| f.walk_table(id, file, bytes, name, words, out, kept)),
-                                        _ => super::pair_provider::read(file, id, source, words, out),
+                                        Source::Walk(name)
+                                            if super::pair_provider::visit_table(name) =>
+                                        {
+                                            fin.as_deref_mut().is_some_and(|f| {
+                                                f.walk_table(
+                                                    id, file, bytes, name, words, out, kept,
+                                                )
+                                            })
+                                        }
+                                        _ => {
+                                            super::pair_provider::read(file, id, source, words, out)
+                                        }
                                     });
                                     #[cfg(feature = "summary-diagnostics")]
                                     {
@@ -227,10 +442,10 @@ pub(super) fn run(
                     );
                     checks += thread_cpu() - b;
                     survivors += alive.iter().filter(|a| **a).count() as u64;
-                    if seed_out.is_some() {
+                    if seed_out {
                         for (a, (rule, _)) in alive.iter().zip(&program.roots) {
                             if *a {
-                                writeln!(dump, "{id}\t{rule}").expect("seed receipt");
+                                dump.push((id, format!("{id}\t{rule}\n")));
                             }
                         }
                     }
@@ -239,7 +454,7 @@ pub(super) fn run(
                 &mut |slot, file, (alive, exact, kept)| {
                     let begin = thread_cpu();
                     if let Some(f) = executor.borrow_mut().as_deref_mut() {
-                        let id = i + slot;
+                        let id = ids[i + slot];
                         f.wanted_into(|e| emit_rules[e].iter().any(|&r| alive[r]), &mut wanted);
                         if !exact.is_empty() {
                             wanted.retain(|&e| {
@@ -250,14 +465,14 @@ pub(super) fn run(
                                     return true;
                                 };
                                 if let Some(n) = f.emit_exact(id, file.table, e, &exact[at].1) {
-                                    if let Some(log) = &mut exact_log {
-                                        use std::io::Write;
-                                        writeln!(
-                                            log,
-                                            "{}\t{}\t{n}",
-                                            program.roots[*ri].0, f.run.paths[id]
-                                        )
-                                        .expect("exact pair");
+                                    if exact_out {
+                                        exact_log.push((
+                                            id,
+                                            format!(
+                                                "{}\t{}\t{n}\n",
+                                                program.roots[*ri].0, f.run.paths[id]
+                                            ),
+                                        ));
                                     }
                                     exact_counts[*ri].0 += 1;
                                     exact_counts[*ri].1 += n;
@@ -267,7 +482,7 @@ pub(super) fn run(
                             });
                         }
                         if f.visits(&wanted) {
-                            f.column_file(id, file, input.get(id), &wanted, std::mem::take(kept));
+                            f.column_file(id, file, input.get(i + slot), &wanted, std::mem::take(kept));
                         }
                     }
                     finish += thread_cpu() - begin;
@@ -281,13 +496,6 @@ pub(super) fn run(
         "domain bitset words {} peak {}",
         scratch.words, scratch.peak
     );
-    for (ri, _) in &program.exact {
-        let (pairs, rows, nonempty) = exact_counts[*ri];
-        println!(
-            "EXACT\t{}\t{pairs}\t{rows}\t{nonempty}",
-            program.roots[*ri].0
-        );
-    }
     #[cfg(feature = "summary-diagnostics")]
     println!("SUMMARY_PROVIDER {provider_cpu:.9}");
     let elapsed = thread_cpu() - start;
@@ -299,23 +507,21 @@ pub(super) fn run(
             "summary fill {relation} files {files} whole {whole} keyed 0 projected {projected} rows {rows} CPU {cpu:.6}"
         );
     }
-    if let Some(path) = seed_out {
-        std::fs::write(path, dump).expect("write file seeds");
+    Totals {
+        exact: exact_counts,
+        logs: exact_log,
+        seeds: dump,
+        counts: [elements, steps, candidates, survivors],
+        times: [
+            elapsed,
+            second,
+            read,
+            visit,
+            finish,
+            contents,
+            skip_cpu,
+            checks,
+            fields_kinds,
+        ],
     }
-    println!("one walk: the second half inside the first half's visit {second:.4} s");
-    println!("thread CPU total {:.4} s", elapsed - second);
-    println!(
-        "phase read: {read:.4} s\nphase walk+table: {:.4} s\nphase contents: {contents:.4} s\nphase skip tests: {skip_cpu:.4} s\nphase seed handoff: {:.4} s",
-        elapsed - visit - finish - read,
-        visit - contents - skip_cpu - checks + finish - second
-    );
-    println!(
-        "contents kinds and fields {fields_kinds:.4} s words {:.4} s",
-        contents - fields_kinds
-    );
-    println!("pair summary checks {steps} CPU {checks:.4} s");
-    println!("file seeds: {elements} elements");
-    println!(
-        "candidates {candidates} survivors {survivors} steps {steps} rule-files-with-survivors {survivors}"
-    );
 }

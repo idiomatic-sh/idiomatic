@@ -55,6 +55,7 @@ mimalloc.workspace = true
 [dev-dependencies]
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../crates/matching", version = "0.2.0" }
 ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../crates/execution_domain" }
+hashbrown.workspace = true
 bumpalo = "3"
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../crates/engine" }
 regex = "1"
@@ -138,3 +139,6 @@ pkg-fmt = "zip"
 
 [package.metadata.binstall.overrides.aarch64-pc-windows-msvc]
 pkg-fmt = "zip"
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+rustix = { version = "1", features = ["thread"] }

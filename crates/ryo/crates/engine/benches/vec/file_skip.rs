@@ -1,25 +1,26 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 /// The file skip, flat: each rule's kinds-and-fields clauses and its word CNFs as numbers of distinct clauses, a clause
 /// stored once however many rules share it. A file's kinds-and-fields clauses are all tested once (`file`); a word clause
 /// is tested once a file, when a rule its kinds keep first asks it.
+#[derive(Clone)]
 pub(super) struct Skip {
     kw: usize,
     fw: usize,
     /// The distinct kinds-and-fields clauses, `kw + fw` words each: kind words then field words.
-    masks: Vec<u64>,
+    masks: Arc<[u64]>,
     /// Per rule: never matches, and its clauses (a range of `of`).
-    rules: Vec<(bool, std::ops::Range<u32>)>,
-    of: Vec<u32>,
+    rules: Arc<[(bool, std::ops::Range<u32>)]>,
+    of: Arc<[u32]>,
     /// This file's answer of each distinct kinds-and-fields clause.
     held: Vec<bool>,
     /// Per rule its branches (a range of `branches`; none: unknown, alive), a branch its clauses (a range of `wof`), a
     /// distinct word clause its words (a range of `wwords`).
-    wrules: Vec<std::ops::Range<u32>>,
-    branches: Vec<std::ops::Range<u32>>,
-    wof: Vec<u32>,
-    wclauses: Vec<std::ops::Range<u32>>,
-    wwords: Vec<u16>,
+    wrules: Arc<[std::ops::Range<u32>]>,
+    branches: Arc<[std::ops::Range<u32>]>,
+    wof: Arc<[u32]>,
+    wclauses: Arc<[std::ops::Range<u32>]>,
+    wwords: Arc<[u16]>,
     /// Per distinct word clause: `stamp << 1 | answer` once asked in the file of `stamp`.
     wmemo: Vec<u32>,
     stamp: u32,
@@ -77,15 +78,15 @@ impl Skip {
         Skip {
             kw,
             fw,
-            masks,
-            rules,
-            of,
+            masks: masks.into(),
+            rules: rules.into(),
+            of: of.into(),
             held: vec![false; n_masks],
-            wrules,
-            branches,
-            wof,
-            wclauses,
-            wwords,
+            wrules: wrules.into(),
+            branches: branches.into(),
+            wof: wof.into(),
+            wclauses: wclauses.into(),
+            wwords: wwords.into(),
             wmemo: vec![0; n_w],
             stamp: 0,
         }

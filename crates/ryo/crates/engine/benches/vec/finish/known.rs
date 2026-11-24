@@ -50,8 +50,8 @@ const CAN: u8 = 16;
 /// redo-empty: the step has a leaf of the propagation (`emptyprop`).
 const EP_LEAF: u8 = 32;
 
-#[derive(Default)]
-pub(super) struct Flat {
+#[derive(Clone, Default)]
+pub(crate) struct Flat {
     recs: Vec<Rec>,
     ins: Vec<u32>,
     /// Kind sets: a length, then that many kind codes.
@@ -62,6 +62,21 @@ impl Flat {
     pub(super) fn new(nodes: usize) -> Self {
         Flat { recs: vec![Rec::default(); nodes], ..Flat::default() }
     }
+}
+
+impl<'p> Exec<'p> {
+    /// Kind codes, input indices and file-test flags are closed over the plan and provider.
+    /// Bind selected slots on the primary before lending the three flat arrays to a worker.
+    pub(crate) fn freeze_static_tests(&mut self, run: &mut Run, selected: &[bool]) -> Flat {
+        let plan = self.plan;
+        for (node, step) in plan.nodes.iter().enumerate() {
+            if !selected[node] { continue; }
+            let _ = step.args();
+            self.rec(run, node);
+        }
+        self.flat.as_ref().clone()
+    }
+
 }
 
 impl Exec<'_> {
@@ -200,12 +215,12 @@ impl Exec<'_> {
             return r;
         }
         // a cycle is impossible (a plan is a DAG); mark ready first all the same
-        self.flat.recs[node] = Rec { flags: READY | NEVER, ..Rec::default() };
+        self.flat.to_mut().recs[node] = Rec { flags: READY | NEVER, ..Rec::default() };
         let need = self.need(run, node);
         let mut r = Rec { flags: READY, ..Rec::default() };
         if need.never {
             r.flags |= NEVER;
-            self.flat.recs[node] = r;
+            self.flat.to_mut().recs[node] = r;
             return r;
         }
         let can_in: Vec<bool> = need.inputs.iter().map(|i| self.rec(run, *i).flags & CAN != 0).collect();
@@ -214,15 +229,16 @@ impl Exec<'_> {
         } else {
             need.inputs.iter().zip(&can_in).filter(|(_, c)| **c).map(|(i, _)| *i as u32).collect()
         };
-        r.ins = self.flat.ins.len() as u32;
+        let flat = self.flat.to_mut();
+        r.ins = flat.ins.len() as u32;
         r.n_ins = kept.len() as u16;
-        self.flat.ins.extend(kept);
-        r.kinds = self.flat.kinds.len() as u32;
+        flat.ins.extend(kept);
+        r.kinds = flat.kinds.len() as u32;
         for ks in need.kinds.iter() {
-            self.flat.kinds.push(ks.len() as u16);
-            self.flat.kinds.extend(ks.iter().copied());
+            flat.kinds.push(ks.len() as u16);
+            flat.kinds.extend(ks.iter().copied());
         }
-        r.n_kinds = (self.flat.kinds.len() - r.kinds as usize) as u16;
+        r.n_kinds = (flat.kinds.len() - r.kinds as usize) as u16;
         if need.all {
             r.flags |= ALL;
         }
@@ -235,7 +251,7 @@ impl Exec<'_> {
         if r.n_ins > 0 || r.n_kinds > 0 || need.file_test || r.flags & EP_LEAF != 0 {
             r.flags |= CAN;
         }
-        self.flat.recs[node] = r;
+        self.flat.to_mut().recs[node] = r;
         r
     }
 
