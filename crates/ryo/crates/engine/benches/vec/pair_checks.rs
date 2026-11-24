@@ -252,6 +252,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Need::Any => true,
             Need::Empty => false,
             Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
+            Need::CapturedPath(ref capture) => self.path.is_none_or(|path| capture.allows(path)),
             Need::PathGlob(slot) => self.path.is_none_or(|path| {
                 use ryo_matching::inbound::use_cases::matching::{
                     interface::MatchingUseCase, types::{GlobPattern, MatchOutcome, SearchText},
