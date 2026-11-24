@@ -340,6 +340,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     let mut packet = packet::Packet::new();
     let mut coverage = coverage::Coverage::default();
     let mut symbols = l::Symbols::default();
+    let mut provider = reader::ReaderFacts::new(0, &unknown_words);
     for &index in ids {
         let path = &req.files[index];
         let t0 = thread_cpu();
@@ -355,7 +356,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         parser
             .build_file(parse, &mut elements, &mut symbols, &relations)
             .expect("parse file");
-        let mut provider = reader::ReaderFacts::new(id.0, &unknown_words);
+        provider.begin_file(id.0);
         reader::project_tree(
             &elements,
             &symbols,
@@ -461,7 +462,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             &wanted,
         );
         fills_made += provider.fills_made;
-        drop((provider, bytes));
+        drop(bytes);
         second_cpu += thread_cpu() - t1;
         memory.sample(2);
     }

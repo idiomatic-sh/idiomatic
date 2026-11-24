@@ -20,6 +20,12 @@ impl<'a> ReaderFacts<'a> {
             text: Vec::new(),
         }
     }
+
+    pub(super) fn begin_file(&mut self, file: u32) {
+        self.file = file;
+        self.fills_made = 0;
+        self.text.clear();
+    }
 }
 
 /// Reserve distinct identities for missing text and unresolved names. They are
@@ -57,6 +63,7 @@ pub(super) fn project_tree(
 ) {
     let mut builder = node_table::builder(table, l::Count(run.kind_sym.len()));
     let mut open = Vec::new();
+    facts.text.reserve(l::real_count(elements).0);
     for at in l::positions(elements) {
         while open.last().is_some_and(|&(last, _)| last < at) {
             let (_, end) = open.pop().unwrap();
