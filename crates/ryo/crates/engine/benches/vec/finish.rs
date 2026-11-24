@@ -4136,29 +4136,38 @@ fn member_eq(run: &Run, a: V, b: V) -> bool {
 }
 
 fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
+    eval_expression::<false>(run, f, srcs, cur, e)
+}
+fn eval_file(run: &mut Run, f: &File<'_>, e: &E) -> V {
+    eval_expression::<true>(run, f, &[], &[], e)
+}
+fn eval_expression<const FILE: bool>(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
     match e {
+        E::Col(_, _, _) if FILE => V::new(Ty::File, u64::from(f.file)),
         E::Col(si, c, t) => V::new(*t, get(run, f, srcs, cur, *si, *c)),
         E::Lit(v) => *v,
         E::Text(t) => V::new(Ty::Sym, u64::from(*t)),
         E::Num(n) => V::new(Ty::Num, *n as u64),
         E::List(_) => flag(false),
-        E::And(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) && truthy(eval(run, f, srcs, cur, b))),
-        E::Or(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) || truthy(eval(run, f, srcs, cur, b))),
-        E::Not(a) => flag(!truthy(eval(run, f, srcs, cur, a))),
+        E::And(a, b) => flag(truthy(eval_expression::<FILE>(run, f, srcs, cur, a)) && truthy(eval_expression::<FILE>(run, f, srcs, cur, b))),
+        E::Or(a, b) => flag(truthy(eval_expression::<FILE>(run, f, srcs, cur, a)) || truthy(eval_expression::<FILE>(run, f, srcs, cur, b))),
+        E::Not(a) => flag(!truthy(eval_expression::<FILE>(run, f, srcs, cur, a))),
         E::Cmp(o @ (Op::Eq | Op::Ne), a, b) => {
             let want = *o == Op::Eq;
-            let eq = match (&**a, &**b) {
+            // File-only evaluation replaces each operand with the current
+            // file value. Use the same comparison as for literal operands.
+            let eq = if FILE { None } else { match (&**a, &**b) {
                 (E::Col(s1, c1, t1), E::Col(s2, c2, t2)) if t1 == t2 => {
                     let (x, y) = (get(run, f, srcs, cur, *s1, *c1), get(run, f, srcs, cur, *s2, *c2));
                     Some(x == y && x != NULL)
                 }
                 (E::Col(s1, c1, Ty::Sym), E::Text(t)) | (E::Text(t), E::Col(s1, c1, Ty::Sym)) => Some(get(run, f, srcs, cur, *s1, *c1) == u64::from(*t)),
                 _ => None,
-            };
+            }};
             match eq {
                 Some(e) => flag(e == want),
                 None => {
-                    let (x, y) = (eval(run, f, srcs, cur, a), eval(run, f, srcs, cur, b));
+                    let (x, y) = (eval_expression::<FILE>(run, f, srcs, cur, a), eval_expression::<FILE>(run, f, srcs, cur, b));
                     match compare(run, x, y) {
                         Some(ord) => flag((ord == std::cmp::Ordering::Equal) == want),
                         None => flag(false),
@@ -4167,7 +4176,7 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             }
         }
         E::Cmp(o, a, b) => {
-            let (x, y) = (eval(run, f, srcs, cur, a), eval(run, f, srcs, cur, b));
+            let (x, y) = (eval_expression::<FILE>(run, f, srcs, cur, a), eval_expression::<FILE>(run, f, srcs, cur, b));
             let Some(ord) = compare(run, x, y) else { return flag(false) };
             use std::cmp::Ordering::*;
             flag(match o {
@@ -4180,10 +4189,10 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             })
         }
         E::In(a, b, neg) => {
-            let x = eval(run, f, srcs, cur, a);
+            let x = eval_expression::<FILE>(run, f, srcs, cur, a);
             let hit = match &**b {
                 E::List(items) => items.iter().any(|i| {
-                    let y = eval(run, f, srcs, cur, i);
+                    let y = eval_expression::<FILE>(run, f, srcs, cur, i);
                     member_eq(run, x, y)
                 }),
                 _ => false,
@@ -4191,7 +4200,7 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             flag(hit != *neg)
         }
         E::TextTest(a, re) => {
-            let x = eval(run, f, srcs, cur, a);
+            let x = eval_expression::<FILE>(run, f, srcs, cur, a);
             flag(re.value(run, x))
         }
         E::Call(name, args) => {
@@ -4199,11 +4208,11 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             if args.len() <= 4 {
                 let mut vs = [NULL_V; 4];
                 for (i, x) in args.iter().enumerate() {
-                    vs[i] = eval(run, f, srcs, cur, x);
+                    vs[i] = eval_expression::<FILE>(run, f, srcs, cur, x);
                 }
                 return call(run, name, &vs[..args.len()]);
             }
-            let vs: Vec<V> = args.iter().map(|x| eval(run, f, srcs, cur, x)).collect();
+            let vs: Vec<V> = args.iter().map(|x| eval_expression::<FILE>(run, f, srcs, cur, x)).collect();
             call(run, name, &vs)
         }
     }
