@@ -31,7 +31,7 @@ pub(super) type Selection<'p> = Binding<'p, SelPlan>;
 
 impl<T> std::ops::Deref for Binding<'_, T> {
     type Target = T;
-    fn deref(&self) -> &SelPlan {
+    fn deref(&self) -> &Self::Target {
         match self {
             Self::Prepared(p) => p,
             Self::Local(p) => p,
