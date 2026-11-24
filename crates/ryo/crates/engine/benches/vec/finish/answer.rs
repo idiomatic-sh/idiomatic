@@ -75,25 +75,41 @@ pub(crate) struct Row {
 }
 
 impl Row {
-    pub(crate) fn value(&self, index: usize) -> Value {
+    fn decode<T: From<String> + From<&'static str>>(
+        &self,
+        index: usize,
+        dictionary: &Words,
+        text: impl FnOnce(&Rc<str>) -> T,
+    ) -> Option<Cell<T>> {
         let word = self.words[index];
         if word == NULL && self.layout.types[index] != Ty::Num {
             return None;
         }
         Some(match self.layout.types[index] {
-            Ty::Sym => Cell::Text(self.layout.words.borrow().symbols[&(word as u32)].clone()),
+            Ty::Sym => Cell::Text(text(&dictionary.symbols[&(word as u32)])),
             Ty::Node => {
-                let words = self.layout.words.borrow();
-                let path = &words.paths[(word >> 32) as usize];
+                let path = &dictionary.paths[(word >> 32) as usize];
                 Cell::Text(format!("{path}#{}", word as u32).into())
             }
-            Ty::File => Cell::File(self.layout.words.borrow().paths[word as usize].clone()),
+            Ty::File => Cell::File(text(&dictionary.paths[word as usize])),
             Ty::Span => Cell::Span(Span {
                 start: Offset((word >> 32) as u32),
                 end: Offset(word as u32),
             }),
             Ty::Num => Cell::Number(Integer(word as i64)),
             Ty::Flag => Cell::Text((if word == 0 { "false" } else { "true" }).into()),
+        })
+    }
+
+    pub(crate) fn value(&self, index: usize) -> Value {
+        self.decode(index, &self.layout.words.borrow(), Rc::clone)
+    }
+
+    /// A caller owning its strings can take formatted node and flag text directly.
+    pub(crate) fn owned_cells(&self) -> impl Iterator<Item = Option<Cell>> + '_ {
+        let dictionary = self.layout.words.borrow();
+        (0..self.words.len()).map(move |i| {
+            self.decode(i, &dictionary, |s| Box::<str>::from(s.as_ref()))
         })
     }
 
