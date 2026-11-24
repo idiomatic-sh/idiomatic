@@ -15,6 +15,7 @@ autobenches = false
 name = "ryo_operators"
 
 [dependencies]
+cpu-time.workspace = true
 dhat = { workspace = true, optional = true }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0" }

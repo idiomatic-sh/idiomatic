@@ -96,7 +96,7 @@ struct TraceFields {
     runs: Option<u64>,
     rows_in: Option<u64>,
     rows_out: Option<u64>,
-    nanos: Option<TraceNumber>,
+    cpu_nanos: Option<TraceNumber>,
     rules: Option<String>,
     phase: Option<String>,
     elapsed_ns: Option<u64>,
@@ -148,10 +148,10 @@ pub(crate) fn linter(ledger: impl BufRead, mut output: impl Write) -> io::Result
             event
                 .rows_out
                 .ok_or_else(|| invalid("missing node outputs"))?,
-            match event.nanos {
+            match event.cpu_nanos {
                 Some(TraceNumber::Integer(ns)) => ns,
                 Some(TraceNumber::Text(ns)) => number(&ns)?,
-                None => return Err(invalid("missing node self time")),
+                None => return Err(invalid("missing node self CPU time")),
             },
         ];
         let kind = event.kind.ok_or_else(|| invalid("missing node kind"))?;
@@ -179,11 +179,11 @@ pub(crate) fn linter(ledger: impl BufRead, mut output: impl Write) -> io::Result
     write_operators(
         &mut output,
         "Operators by kind",
-        "Self wall ns",
+        "Self CPU ns",
         kinds,
         usize::MAX,
     )?;
-    write_operators(&mut output, "Top twenty rules", "Self wall ns", rules, 20)
+    write_operators(&mut output, "Top twenty rules", "Self CPU ns", rules, 20)
 }
 
 /// Reduce the observer's typed TSV into counts by operator and by query text.

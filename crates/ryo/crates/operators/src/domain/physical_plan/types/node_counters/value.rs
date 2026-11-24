@@ -38,6 +38,8 @@ pub struct NodeWork {
     pub rows_out: RowCount,
     /// The wall time spent making it, the time spent making the nodes it read not included.
     pub time: Duration,
+    /// The worker's CPU time spent inside this node's own kernel.
+    pub cpu: Duration,
     /// The part of `time` spent in the makings that wrote no row.
     pub empty_time: Duration,
 }
@@ -126,6 +128,8 @@ pub struct NodeCounters {
     pub(crate) open: Vec<OpenMaking>,
     /// The time the timed spans nested in the open one took, which the open one does not count as its own.
     pub(crate) nested: Duration,
+    /// CPU time of the nested spans.
+    nested_cpu: Duration,
 }
 
 /// What is known of a node's making before both its rows and its time are counted: a streamed stage's time comes before its
@@ -164,8 +168,12 @@ pub(crate) enum MadeIn {
 pub(crate) struct OpenSpan {
     /// When it started.
     started: Instant,
+    /// The worker's CPU clock at entry.
+    cpu_started: Option<cpu_time::ThreadTime>,
     /// The nested time of the span it is nested in, so far.
     outer: Duration,
+    /// CPU time of the spans already nested in the parent.
+    outer_cpu: Duration,
 }
 
 impl NodeCounters {
@@ -242,7 +250,9 @@ impl NodeCounters {
     pub(crate) fn opened(&mut self) -> OpenSpan {
         OpenSpan {
             started: Instant::now(),
+            cpu_started: cpu_time::ThreadTime::try_now().ok(),
             outer: std::mem::take(&mut self.nested),
+            outer_cpu: std::mem::take(&mut self.nested_cpu),
         }
     }
 
@@ -252,6 +262,12 @@ impl NodeCounters {
         let took = span.started.elapsed();
         let nested = std::mem::replace(&mut self.nested, span.outer.saturating_add(took));
         let own = took.saturating_sub(nested);
+        let cpu = span
+            .cpu_started
+            .and_then(|started| started.try_elapsed().ok())
+            .unwrap_or_default();
+        let nested_cpu =
+            std::mem::replace(&mut self.nested_cpu, span.outer_cpu.saturating_add(cpu));
         let output = self.open_of(node).and_then(|open| match *open {
             OpenMaking::Counted(output) => {
                 *open = OpenMaking::Unknown;
@@ -268,6 +284,7 @@ impl NodeCounters {
         });
         if let Some(work) = self.work_of(node) {
             work.time = work.time.saturating_add(own);
+            work.cpu = work.cpu.saturating_add(cpu.saturating_sub(nested_cpu));
             if output == Some(Output::Empty) {
                 work.empty_time = work.empty_time.saturating_add(own);
             }
@@ -310,6 +327,7 @@ impl NodeWork {
         self.rows_in.0 = self.rows_in.0.saturating_add(more.rows_in.0);
         self.rows_out.0 = self.rows_out.0.saturating_add(more.rows_out.0);
         self.time = self.time.saturating_add(more.time);
+        self.cpu = self.cpu.saturating_add(more.cpu);
         self.empty_time = self.empty_time.saturating_add(more.empty_time);
     }
 }
