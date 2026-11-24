@@ -16,6 +16,44 @@ import tempfile
 from pathlib import Path
 
 
+def parent_lookup(executable, scratch, env):
+    """A new module satisfies a lookup and removes a finding on its unchanged parent."""
+    root=scratch/"lookup"
+    pack=root/"pack/rules/query"
+    pack.mkdir(parents=True)
+    (pack/"query.ryoql").write_text(
+        'let listed = select l."path" as "file" from "filesystem.file" as l;\n'
+        'let parent = select * from listed where glob_any(file, "src/lib.rs");\n'
+        'let child = select * from listed where glob_any(file, "src/child.rs");\n'
+        'let needs = extend(from=parent, values={"witness": 1});\n'
+        'let has = extend(from=child, values={"witness": 1});\n'
+        'let missing = antijoin(left=needs,right=has,left-on=["witness"],right-on=["witness"]);\n'
+        'emit missing subject file key(file);\n'
+    )
+    (root/"src").mkdir()
+    (root/"src/lib.rs").write_text("pub mod child;\n")
+    manifest=root/"manifest.tsv"
+    req=root/"req"
+    inventory=root/"inventory"
+    manifest.write_text(f"lookup\t{pack.parents[1]}\t{req}\tunused\t{inventory}\n")
+    baseline=None
+    for present in (False,True,False):
+        child=root/"src/child.rs"
+        if present:child.write_text("pub fn child() {}\n")
+        else:child.unlink(missing_ok=True)
+        files=["src/lib.rs"]+(["src/child.rs"] if present else [])
+        inventory.write_text(json.dumps(files))
+        req.write_text(json.dumps(dict(root=str(root),files=files,parameters={},hosted=[])))
+        results=[]
+        for args in (["--tm-batch-retained",root],["--tm-batch"]):
+            out=root/"receipt"
+            subprocess.run([executable,*args,manifest,out],env=env,stdout=subprocess.DEVNULL,check=True)
+            results.append(out.read_bytes())
+        assert results[0]==results[1] and b"refused" not in results[0]
+        if baseline is None:baseline=results[0]
+        assert (results[0]!=baseline)==present
+
+
 def run(fixture, exe, other_build, evidence):
     spec = json.loads((fixture / "edit.json").read_bytes())
     root = fixture / spec["root"]
@@ -80,6 +118,7 @@ def run(fixture, exe, other_build, evidence):
         return output.read_bytes(), diagnostics
 
     with tempfile.TemporaryDirectory(dir=fixture) as tmp:
+        parent_lookup(exe,Path(tmp),env)
         backup = Path(tmp) / "seed"
         original = invoke(exe, True)
         assert original == invoke(exe, False)
