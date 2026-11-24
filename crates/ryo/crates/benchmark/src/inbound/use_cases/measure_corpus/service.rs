@@ -242,32 +242,36 @@ fn measure_project(
         language.valid_profile.0
     )?;
     if let Some((profile, index)) = profiling {
-        profile.project(index, &project.name.0, |state, trace| {
-            use ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On;
-            let mut candidate = request(
-                contestants.context,
-                &project_corpus,
-                workspace.root(),
-                &files,
-                &tracked_paths,
-                state.join("state"),
-            )?;
-            candidate.performance.diagnostics.execution = On;
-            if trace.is_some() {
-                candidate.performance.diagnostics.steps = On;
-            }
-            let mut invocation = contestants.candidate.prepare(&candidate)?;
-            if let Some(trace) = trace {
-                use ryo_benchmark_contracts::domain::requests::constants::DIAGNOSTIC_RYO;
-                let command = invocation
-                    .arguments
-                    .first_mut()
-                    .ok_or_else(|| Error::Invalid("candidate has no diagnostic command".into()))?;
-                *command = DIAGNOSTIC_RYO.into();
-                invocation.arguments.push(trace.as_os_str().to_owned());
-            }
-            Ok(invocation)
-        })?;
+        profile.project(
+            index,
+            &project.name.0,
+            contestants.candidate,
+            |state, trace| {
+                use ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On;
+                let mut candidate = request(
+                    contestants.context,
+                    &project_corpus,
+                    workspace.root(),
+                    &files,
+                    &tracked_paths,
+                    state.join("state"),
+                )?;
+                candidate.performance.diagnostics.execution = On;
+                if trace.is_some() {
+                    candidate.performance.diagnostics.steps = On;
+                }
+                let mut invocation = contestants.candidate.prepare(&candidate)?;
+                if let Some(trace) = trace {
+                    use ryo_benchmark_contracts::domain::requests::constants::DIAGNOSTIC_RYO;
+                    let command = invocation.arguments.first_mut().ok_or_else(|| {
+                        Error::Invalid("candidate has no diagnostic command".into())
+                    })?;
+                    *command = DIAGNOSTIC_RYO.into();
+                    invocation.arguments.push(trace.as_os_str().to_owned());
+                }
+                Ok((invocation, candidate))
+            },
+        )?;
         return Ok(None);
     }
     let accepted_file = accepted_file(contestants.suite, corpus.bench, project)?;

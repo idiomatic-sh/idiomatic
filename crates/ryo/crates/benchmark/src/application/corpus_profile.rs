@@ -1,9 +1,14 @@
 //! Select the ordinary and allocation images for a certified corpus. The
 //! collector and its measurement worker share an explicit state directory.
 use super::measurement::phases;
+use crate::outbound::linter::interface::LinterPort;
 use profile_tools::{self as standard, CommandLine, Observer};
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
+use ryo_benchmark_contracts::domain::measurements::types::{
+    CapturedBytes, Invocation, ProcessExitCode, ProcessOutput, ResourceObservation,
+    TerminationSignal,
+};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
@@ -103,24 +108,30 @@ impl CorpusProfile {
         &self,
         index: usize,
         name: &str,
-        mut invocation: impl FnMut(&Path, Option<&Path>) -> Result<Invocation, Error>,
+        candidate: &dyn LinterPort,
+        mut invocation: impl FnMut(&Path, Option<&Path>) -> Result<(Invocation, RunRequest), Error>,
     ) -> Result<(), Error> {
         let root = self.root.join(format!("project-{index}"));
         let first = root.join("first");
         let other = root.join("other");
         let mut collect = |images: &Images, destination: &Path| -> Result<_, Error> {
+            let mut native_request = None;
             let profile = standard::collect(
                 destination,
                 &[0],
                 Duration::from_secs(360),
                 |observer, path| {
+                    let (invoked, request) = invocation(path, None)
+                        .map_err(|error| io::Error::other(error.to_string()))?;
+                    if observer == Observer::Native {
+                        native_request = Some(request);
+                    }
                     let Invocation {
                         arguments,
                         mut environment,
                         directory,
                         ..
-                    } = invocation(path, None)
-                        .map_err(|error| io::Error::other(error.to_string()))?;
+                    } = invoked;
                     environment.insert("RAYON_NUM_THREADS".into(), "1".into());
                     let executable = if observer == Observer::Heap {
                         &images.heap
@@ -135,14 +146,29 @@ impl CorpusProfile {
                     })
                 },
             )?;
+            let request = native_request
+                .ok_or_else(|| Error::Invalid("missing ordinary profile request".into()))?;
+            let result = candidate.decode(
+                &request,
+                ProcessOutput {
+                    signal: TerminationSignal::Exited,
+                    status: ProcessExitCode(0),
+                    stdout: CapturedBytes(fs::read(&profile.native.stdout)?),
+                    stderr: CapturedBytes(fs::read(&profile.native.stderr)?),
+                    wall: profile.native.elapsed,
+                    resources: ResourceObservation::WallOnly,
+                },
+            )?;
+            crate::domain::diagnostics::service::validate_coverage(&request.files, &result)?;
             let diagnostic_dir = destination.join("engine");
             let trace = diagnostic_dir.join("events.jsonl");
+            let (invoked, _) = invocation(&diagnostic_dir, Some(&trace))?;
             let Invocation {
                 arguments,
                 mut environment,
                 directory,
                 ..
-            } = invocation(&diagnostic_dir, Some(&trace))?;
+            } = invoked;
             environment.insert("RAYON_NUM_THREADS".into(), "1".into());
             let diagnostic = standard::observe(
                 &CommandLine {
@@ -164,9 +190,15 @@ impl CorpusProfile {
             }
             let clock_path = phases::observation_file(&destination.join("native/state"))
                 .ok_or_else(|| Error::Invalid("missing native observation directory".into()))?;
-            Ok((profile, trace, phases::read(&clock_path)?))
+            Ok((
+                profile,
+                diagnostic,
+                trace,
+                phases::read(&clock_path)?,
+                result.coverage,
+            ))
         };
-        let (profile, trace, clock) = collect(&self.first, &first)?;
+        let (profile, diagnostic, trace, clock, coverage) = collect(&self.first, &first)?;
         if clock.is_none() {
             return Err(Error::Invalid(format!(
                 "registered benchmark {name} did not produce ordinary worker phase clocks"
@@ -183,8 +215,20 @@ impl CorpusProfile {
             self.first.ordinary.display(),
             self.first.heap.display()
         )?;
+        writeln!(
+            report,
+            "The heap-compatible worker uses Rust's system allocator.\n"
+        )?;
         writeln!(report, "\n## Ordinary worker phase clocks\n")?;
         phases::table(&mut report, clock, None)?;
+        super::profile_evidence::pair_counts(coverage, &mut report)?;
+        standard::run_table(
+            &mut report,
+            &[
+                ("Ordinary", &profile.native),
+                ("Operator observer", &diagnostic),
+            ],
+        )?;
         let operators = super::profile_evidence::linter(
             io::BufReader::new(fs::File::open(trace)?),
             &mut report,
@@ -192,7 +236,7 @@ impl CorpusProfile {
         standard::report(&mut report, &profile, &first)?;
         self.record(name.to_owned(), &profile, &first)?;
         if let Some(images) = &self.other {
-            let (compared, trace, second_clock) = collect(images, &other)?;
+            let (compared, diagnostic, trace, second_clock, coverage) = collect(images, &other)?;
             writeln!(report, "\n# {name} — second build\n")?;
             writeln!(
                 report,
@@ -202,6 +246,14 @@ impl CorpusProfile {
             )?;
             writeln!(report, "\n## Ordinary worker phase clocks\n")?;
             phases::table(&mut report, second_clock, None)?;
+            super::profile_evidence::pair_counts(coverage, &mut report)?;
+            standard::run_table(
+                &mut report,
+                &[
+                    ("Ordinary", &compared.native),
+                    ("Operator observer", &diagnostic),
+                ],
+            )?;
             let other_operators = super::profile_evidence::linter(
                 io::BufReader::new(fs::File::open(trace)?),
                 &mut report,

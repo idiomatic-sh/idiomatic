@@ -81,10 +81,17 @@ pub fn profile(
         let command = registered_command(&workspace)?;
         let first = directory.join(name).join("first");
         let budget = Duration::from_secs(if name == "root" { 900 } else { 480 });
-        let profile = check(&image, &workspace, &command, &first, budget)?;
+        let (profile, diagnostic) = check(&image, &workspace, &command, &first, budget)?;
         let first_phases = fs::read_to_string(&profile.native.stderr)?;
         writeln!(written, "\n# {name}\n")?;
         profile_evidence::phases(&first_phases, &mut written)?;
+        standard::run_table(
+            &mut written,
+            &[
+                ("Ordinary", &profile.native),
+                ("Operator observer", &diagnostic),
+            ],
+        )?;
         let operators = write_operators(&first, &mut written)?;
         standard::report(&mut written, &profile, &first)?;
         totals.insert(
@@ -93,10 +100,17 @@ pub fn profile(
         );
         if let Some(other) = &other {
             let second = directory.join(name).join("other");
-            let compared = check(other, &workspace, &command, &second, budget)?;
+            let (compared, diagnostic) = check(other, &workspace, &command, &second, budget)?;
             let second_phases = fs::read_to_string(&compared.native.stderr)?;
             writeln!(written, "\n# {name} — second build\n")?;
             profile_evidence::phases(&second_phases, &mut written)?;
+            standard::run_table(
+                &mut written,
+                &[
+                    ("Ordinary", &compared.native),
+                    ("Operator observer", &diagnostic),
+                ],
+            )?;
             let other_operators = write_operators(&second, &mut written)?;
             standard::report(&mut written, &compared, &second)?;
             standard::compare(&mut written, (&profile, &first), (&compared, &second))?;
@@ -133,7 +147,7 @@ fn check(
     arguments: &[OsString],
     destination: &Path,
     budget: Duration,
-) -> io::Result<standard::Profile> {
+) -> io::Result<(standard::Profile, standard::Observation)> {
     let cache = workspace.join(".tastemaker_cache");
     let invocation = |observer| -> io::Result<CommandLine> {
         if cache.exists() {
@@ -173,7 +187,7 @@ fn check(
             observed.stderr.display()
         )));
     }
-    Ok(profile)
+    Ok((profile, observed))
 }
 
 fn registered_command(workspace: &Path) -> Result<Vec<OsString>, Error> {

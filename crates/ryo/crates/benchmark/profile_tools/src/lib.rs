@@ -13,7 +13,7 @@ use std::{
 
 mod heap;
 mod report;
-pub use report::{compare, report};
+pub use report::{compare, report, run_table};
 
 /// One command over an already prepared input.
 #[derive(Clone, Debug)]

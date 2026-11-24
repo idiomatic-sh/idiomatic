@@ -1,4 +1,5 @@
 //! Summarize Ryo's engine-owned counters beside the standard tool output.
+use ryo_benchmark_contracts::domain::reports::types::CoverageAccounting;
 use serde::Deserialize;
 use std::{
     collections::{BTreeMap, btree_map::Entry},
@@ -14,6 +15,24 @@ const PHASES: [(&str, &str); 7] = [
     ("project", "Cross-file"),
     ("assembly", "Delivery"),
 ];
+
+pub(crate) fn pair_counts(coverage: CoverageAccounting, output: &mut impl Write) -> io::Result<()> {
+    let CoverageAccounting::Accounted(coverage) = coverage else {
+        return Err(invalid(
+            "registered candidate did not account for its selected pairs",
+        ));
+    };
+    writeln!(output, "| Rule and file pairs | Count |\n|---|---:|")?;
+    for (name, count) in [
+        ("Selected", coverage.selected.0),
+        ("Evaluated", coverage.evaluated.0),
+        ("Skipped", coverage.skipped.0),
+        ("Unknown or unread", coverage.unknown_or_unread.0),
+    ] {
+        writeln!(output, "| {name} | {count} |")?;
+    }
+    writeln!(output)
+}
 
 /// Write the CPU ledger the ordinary engine reports after the last SDK call.
 ///

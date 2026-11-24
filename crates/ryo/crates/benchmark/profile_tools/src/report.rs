@@ -1,5 +1,7 @@
 //! Present checked output from the standard observers.
-use super::{Observer, Profile, heap_totals, heap_trace, instructions, resources, same_stdout};
+use super::{
+    Observation, Observer, Profile, heap_totals, heap_trace, instructions, resources, same_stdout,
+};
 use std::{
     fs::{self, File},
     io,
@@ -13,27 +15,15 @@ use std::{
 /// # Errors
 /// A captured result cannot be read or the report cannot be written.
 pub fn report(output: &mut impl io::Write, profile: &Profile, directory: &Path) -> io::Result<()> {
-    writeln!(
+    run_table(
         output,
-        "| Pass | Total CPU-s | Wall-s | Peak RSS KiB | Load before → after |"
+        &[
+            ("Ordinary", &profile.native),
+            ("Software clock", &profile.samples),
+            ("Heaptrack companion", &profile.heap),
+            ("Cachegrind", &profile.instructions),
+        ],
     )?;
-    writeln!(output, "|---|---:|---:|---:|---|")?;
-    for (label, run) in [
-        ("Ordinary", &profile.native),
-        ("Software clock", &profile.samples),
-        ("Heaptrack companion", &profile.heap),
-        ("Cachegrind", &profile.instructions),
-    ] {
-        let [before, after] = run
-            .load
-            .map(|load| load.map_or("unavailable".into(), |v| format!("{v:.2}")));
-        let (cpu, rss) = resources(run)?;
-        writeln!(
-            output,
-            "| {label} | {cpu:.3} | {:.3} | {rss} | {before} → {after} |",
-            run.elapsed.as_secs_f64()
-        )?;
-    }
     for (title, path) in [
         ("Software-clock samples by function", "samples/samples.txt"),
         (
@@ -95,6 +85,30 @@ pub fn report(output: &mut impl io::Write, profile: &Profile, directory: &Path) 
         writeln!(output, "| {label} | {} |", resources(run)?.1)?;
     }
     Ok(())
+}
+
+/// Report clocks, peak RSS and one-minute load for these observed passes.
+///
+/// # Errors
+/// A pass has an unreadable process meter, or the table cannot be written.
+pub fn run_table(output: &mut impl io::Write, runs: &[(&str, &Observation)]) -> io::Result<()> {
+    writeln!(
+        output,
+        "| Pass | Total CPU-s | Wall-s | Peak RSS KiB | Load before → after |"
+    )?;
+    writeln!(output, "|---|---:|---:|---:|---|")?;
+    for (label, run) in runs {
+        let [before, after] = run
+            .load
+            .map(|load| load.map_or("unavailable".into(), |v| format!("{v:.2}")));
+        let (cpu, rss) = resources(run)?;
+        writeln!(
+            output,
+            "| {label} | {cpu:.3} | {:.3} | {rss} | {before} → {after} |",
+            run.elapsed.as_secs_f64()
+        )?;
+    }
+    writeln!(output)
 }
 
 fn samples(output: &mut impl io::Write, report: &str) -> io::Result<()> {
