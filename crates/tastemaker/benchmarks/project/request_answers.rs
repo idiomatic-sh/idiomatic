@@ -135,11 +135,15 @@ impl Observations {
             *v
         } else {
             let start = crate::thread_cpu();
-            self.buffer.clear();
-            self.buffer
-                .try_reserve(usize::try_from(metadata.len()).ok()?)
-                .ok()?;
-            input.read_to_end(&mut self.buffer).ok()?;
+            // The descriptor already supplied its length. Consume exactly that
+            // observation; neither a truncated read nor a growing file earns a proof.
+            let size = usize::try_from(metadata.len()).ok()?;
+            self.buffer.try_reserve(size.saturating_sub(self.buffer.len())).ok()?;
+            self.buffer.resize(size, 0);
+            input.read_exact(&mut self.buffer).ok()?;
+            if input.read(&mut [0]).ok()? != 0 {
+                return None;
+            }
             let digest = *blake3::hash(&self.buffer).as_bytes();
             self.hash_cpu += crate::thread_cpu() - start;
             self.hash_bytes += self.buffer.len();
