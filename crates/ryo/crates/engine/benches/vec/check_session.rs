@@ -791,6 +791,7 @@ pub(crate) fn visit<L: FileSource>(
     }
     let (plan, supplied) = merged.finish(keep.then_some(&mut state.previous_plan), &mut bound);
     let mut exec = Exec::new(&plan);
+    let mut read_roots = Vec::new();
     clocks.prepare += thread_cpu() - start;
     let mut carried_symbols = HashMap::new();
     if let Some(dictionary) = reader_id.and_then(|id| world.project_words.get(id)) {
@@ -1140,7 +1141,19 @@ pub(crate) fn visit<L: FileSource>(
             let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
             version.bind_packet(Some(&indexed));
             version.supply(supplied.iter().chain(lines.as_ref()).cloned());
-            if let Err(reason) = exec.open_indexed(&version, &mut run, &mut facts_view, &facts, &[]) {
+            read_roots.clear();
+            let incomplete = !said.is_empty() || recovery != ryo_execution_domain::domain::coverage::types::Recovery::Whole;
+            for &(binding, _, excluded) in &active {
+                let b = bound[&binding].as_ref().unwrap();
+                if incomplete {
+                    read_roots.extend(&b.slots);
+                } else if let Some(cut) = &cut_of[binding] {
+                    read_roots.extend(cut.inputs.iter().map(|&node| b.slots[node]));
+                } else if !excluded {
+                    read_roots.extend(b.plan.emits.iter().map(|emit| b.slots[emit.1]));
+                }
+            }
+            if let Err(reason) = exec.open_file(&version, &mut run, &mut facts_view, read_roots.iter().copied(), &[], None) {
                 for (_, slot, _) in active { answers.set(slot, Err(reason.clone())); }
                 continue;
             }

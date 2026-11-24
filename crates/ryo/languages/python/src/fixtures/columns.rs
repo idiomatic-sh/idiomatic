@@ -27,6 +27,7 @@ use crate::domain::nodes::types::{Category, Node};
 use crate::domain::qualification::constants::{AMBIGUOUS, BUILTIN, LOCAL, NOT_APPLICABLE, UNRESOLVED};
 use crate::domain::relations::collections::relations::expression_type::constants as type_labels;
 use crate::domain::expression_types::types::Resolution;
+use crate::domain::shape_facts::{service::shapes, types::ShapeBuild};
 use crate::domain::string_annotations::service::{form_imports, type_strings};
 use crate::domain::string_annotations::types::FormSource;
 use crate::domain::syntax::service::{category_of, kind_of};
@@ -111,6 +112,7 @@ pub struct ColumnWalk {
     walk: PythonWalk<WalkPorts>,
     scratch: PythonWalkScratch,
     memo: TextMemo,
+    words: FileWords,
     /// When set, the table is written `structured` with these enclosing kind sets.
     structure: Option<Vec<languages::KindSet>>,
 }
@@ -169,12 +171,11 @@ impl ColumnWalk {
     /// Writes facts for the same Python target that governs the source's syntax and annotation evaluation.
     #[must_use]
     pub fn with_settings(words: FileWords, settings: PythonParserSettings) -> Self {
-        let mut scratch = PythonWalkScratch::default();
-        scratch.names.shapes = Some(Box::new(crate::domain::shape_facts::walk::WalkShapes::new(words)));
         Self {
             walk: PythonWalk { ports: WalkPorts { settings, syntax: Arc::new(ruff_python_parser(settings)) } },
-            scratch,
+            scratch: PythonWalkScratch::default(),
             memo: TextMemo::default(),
+            words,
             structure: None,
         }
     }
@@ -202,11 +203,12 @@ impl ColumnWalk {
         let target = self.walk.ports.settings.target_version().components();
         self.scratch.file.model.target = target;
         self.memo.names.clear();
+        languages::facts::clear_words(&mut self.words);
         let mut built_parts = Built::default();
         let scratch = &mut self.scratch;
         let memo = &mut self.memo;
+        let words = &mut self.words;
         let mut names = std::mem::take(&mut scratch.names);
-        if let Some(shapes) = &mut names.shapes { shapes.clear(); }
         crate::domain::model::names::service::cleared(&mut names);
         self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, names, &mut |walked| match walked {
             Walked::Strings(tree) => {
@@ -225,7 +227,7 @@ impl ColumnWalk {
                 hosts
             }
             Walked::Whole(written, tree) => {
-                lend(written, &tree, target, scratch, built_parts, memo, visit);
+                lend(written, &tree, target, scratch, built_parts, memo, words, visit);
                 // the walk's buffers go back to the worker for the next file
                 scratch.names = tree.names;
                 Vec::new()
@@ -243,6 +245,7 @@ fn lend(
     scratch: &mut PythonWalkScratch,
     built_parts: Built,
     memo: &mut TextMemo,
+    words: &mut FileWords,
     visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
 ) {
     let table = node_table::finished(builder);
@@ -262,27 +265,48 @@ fn lend(
         analysed: Analysed::default(),
         buffers: &mut scratch.file.buffers,
     };
-    let shapes = tree.names.shapes.as_deref().expect("the column walk requests expression classes");
     let mut empty = Vec::new();
     if tree.completeness.syntax == languages::SyntaxCompleteness::Complete && tree.completeness.lexical == languages::SyntaxCompleteness::Complete {
         let absent = |kind| node_table::ids_of_kind(table, crate::domain::syntax::service::kind_bits(kind)).is_empty();
-        if !shapes.carriers.string {
+        let mut string = false;
+        let mut bytes = false;
+        let mut number = false;
+        let mut percent = false;
+        let mut brace = false;
+        let constants = crate::domain::syntax::service::kind_bits(Kind::Node(Node::Constant));
+        for &id in node_table::ids_of_kind(table, constants) {
+            match file.syntax.nodes.get(usize::from(id)) {
+                Some(AnyNodeRef::ExprStringLiteral(literal)) => {
+                    string = true;
+                    for part in &literal.value {
+                        if percent && brace { break; }
+                        let value = part.value.as_bytes();
+                        percent |= !percent && value.contains(&b'%');
+                        brace |= !brace && value.contains(&b'{');
+                    }
+                }
+                Some(AnyNodeRef::ExprBytesLiteral(_)) => bytes = true,
+                Some(AnyNodeRef::ExprNumberLiteral(_)) => number = true,
+                _ => {}
+            }
+        }
+        if !string {
             empty.extend(["literal-expression-parse", "raw-format-segment", "raw-format-field"]);
         }
-        if !shapes.carriers.bytes { empty.push("bytes-literal"); }
-        if !shapes.carriers.number { empty.push("numeric-literal"); }
-        let text = shapes.carriers.string || !absent(Kind::Node(Node::JoinedStr)) || !absent(Kind::Node(Node::TemplateStr));
+        if !bytes { empty.push("bytes-literal"); }
+        if !number { empty.push("numeric-literal"); }
+        let text = string || !absent(Kind::Node(Node::JoinedStr)) || !absent(Kind::Node(Node::TemplateStr));
         if !text {
             empty.extend(["string-literal", "brace-format-parse", "brace-format-field", "format-specification"]);
-            if !shapes.carriers.bytes { empty.extend(["format-parse", "format-field"]); }
+            if !bytes { empty.extend(["format-parse", "format-field"]); }
         }
         if absent(Kind::Node(Node::JoinedStr)) {
             empty.push("interpolated-string-literal");
             // A replacement field needs its dialect's opening delimiter in
             // decoded text. A string with escapes can differ from its token.
             if text && absent(Kind::Node(Node::TemplateStr)) {
-                if !shapes.carriers.percent && !shapes.carriers.bytes { empty.push("format-field"); }
-                if !shapes.carriers.brace { empty.extend(["brace-format-field", "format-specification"]); }
+                if !percent && !bytes { empty.push("format-field"); }
+                if !brace { empty.extend(["brace-format-field", "format-specification"]); }
             }
         }
         if absent(Kind::Node(Node::Arg)) { empty.push("parameter"); }
@@ -299,7 +323,7 @@ fn lend(
     if node_table::syntax_error_count(table).0 == 0 { empty.push("syntax-error"); }
     let immediate_annotations = target < crate::domain::binding_schedule::constants::LAZY_ANNOTATIONS_FROM
         && tree.annotations == crate::domain::model::types::BindingAnnotationTiming::Immediate;
-    visit(&mut ColumnFile { table, empty, immediate_annotations, shapes, import_presence: tree.import_presence, file: &mut file, relative_froms: &tree.relative_froms, memo });
+    visit(&mut ColumnFile { table, empty, immediate_annotations, words, import_presence: tree.import_presence, file: &mut file, relative_froms: &tree.relative_froms, memo });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
@@ -321,7 +345,7 @@ pub struct ColumnFile<'a, 'f> {
     pub empty: Vec<&'static str>,
     /// The walk's compiler features and target give annotations immediate evaluation.
     pub immediate_annotations: bool,
-    shapes: &'a crate::domain::shape_facts::walk::WalkShapes,
+    words: &'a mut FileWords,
     /// The node table.
     pub table: &'a NodeTable,
     file: &'a mut PythonFile<'f>,
@@ -854,11 +878,35 @@ impl ColumnFile<'_, '_> {
             table.answered = false;
             return;
         }
-        for (at, class) in self.shapes.rows() {
-            if ask.exists {
-                table.mark(at.0);
-                table.rows += 1;
-            } else {
+        let nodes = node_table::node_count(syntax.table).0;
+        let count = syntax.nodes.len();
+        let is_expression = |id: Position| category_of(kind_of(node_table::kind_of(syntax.table, id))) == Category::Expression;
+        if ask.exists {
+            // whole[id]: the node and every node below it have a shape (a node child is after its parent in id order)
+            let mut whole = vec![false; count];
+            let ipy = crate::domain::syntax::service::kind_bits(Kind::Extra(TypedExtra::IpyEscapeCommand));
+            for id in (0..count).rev() {
+                let at = Position(id as u32);
+                let ok = node_table::kind_of(syntax.table, at) != ipy
+                    && node_table::children_of(syntax.table, at).iter().all(|child| usize::from(*child) >= nodes || whole.get(usize::from(*child)).copied().unwrap_or(false));
+                whole[id] = ok;
+                if ok && is_expression(at) {
+                    table.mark(at.0);
+                    table.rows += 1;
+                }
+            }
+            return;
+        }
+        if self.file.analysed.shapes == PartState::Pending {
+            shapes(&self.file.syntax, &mut ShapeBuild { index: &mut self.file.buffers.shapes, words: self.words, text: &mut self.file.buffers.text });
+            self.file.analysed.shapes = PartState::Ready;
+        }
+        let syntax = &self.file.syntax;
+        for (id, class) in self.file.buffers.shapes.classes.iter().enumerate().take(count) {
+            let at = Position(id as u32);
+            if let Some(class) = class
+                && category_of(kind_of(node_table::kind_of(syntax.table, at))) == Category::Expression
+            {
                 table.put(at.0, &[(shape_at, class.0)]);
             }
         }

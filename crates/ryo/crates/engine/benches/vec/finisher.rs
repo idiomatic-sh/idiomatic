@@ -164,7 +164,7 @@ impl<'p> Finisher<'p> {
         let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
         let roots = wanted.iter().copied().filter(|&i| !self.failed_idx[i] && !(rejected && self.accepted_only[i]))
             .map(|i| plan.emits[i].1);
-        let replies = self.exec.open_file(&mut f, run, pv, roots, &checks, indexed.is_none().then_some(empty))
+        let replies = self.exec.open_file(&version, run, pv, roots, &checks, indexed.is_none().then_some((&mut f, empty)))
             .expect("file provider packet");
         for (rel, reply) in checks.into_iter().zip(replies) {
             let mine = finish::native_table(&mut f, run, rel);

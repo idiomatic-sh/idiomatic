@@ -89,7 +89,7 @@ pub(super) fn walked(
     source_kind: PythonSourceKind,
     reported: ReportedSyntax,
     builder: &mut languages::NodeTableBuilder<'_>,
-    mut names: crate::domain::model::names::types::WalkNames,
+    names: crate::domain::model::names::types::WalkNames,
     read: &mut dyn FnMut(Walked<'_, '_, '_>) -> Vec<Position>,
 ) {
     let Readable(source) = readable(text);
@@ -112,7 +112,6 @@ pub(super) fn walked(
         FutureAnnotations(false)
     };
     let mut walker = Walker {
-        shapes: names.shapes.take(),
         builder,
         tokens: parsed.tokens(),
         next: TokenIndex(0),
@@ -143,7 +142,6 @@ pub(super) fn walked(
     };
     walker.visit_mod(parsed.syntax());
     let Walker {
-        shapes,
         builder,
         nodes,
         parents,
@@ -153,7 +151,7 @@ pub(super) fn walked(
         imports,
         import_presence,
         relative_froms,
-        mut names,
+        names,
         ..
     } = walker;
     let unreadable = if source.len() == text.0.len() && !utf8 {
@@ -248,7 +246,6 @@ pub(super) fn walked(
     } else {
         SyntaxCompleteness::Incomplete
     };
-    names.shapes = shapes;
     let tree = WalkedTree {
         nodes,
         parents,

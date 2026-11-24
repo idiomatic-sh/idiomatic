@@ -58,10 +58,6 @@ pub(super) struct Requests {
     masks: Vec<Option<Columns>>,
     empty: Vec<Option<Rc<Table>>>,
     packet_pending: Vec<Pending>,
-    #[allow(dead_code, reason = "used by the check-session host")]
-    indexed_slots: Vec<Option<u16>>,
-    #[allow(dead_code, reason = "used by the check-session host")]
-    host_slots: Vec<u16>,
     replies: Vec<Reply>,
     pub(super) files: u64,
     pub(super) calls: u64,
@@ -202,8 +198,8 @@ impl Exec<'_> {
         demand
     }
 
-    fn collect_request(&mut self, run: &mut Run, file: &mut File<'_>, provider: &mut dyn Provider,
-        roots: impl IntoIterator<Item = usize>, prune: bool) {
+    fn collect_request(&mut self, run: &mut Run, mut proof: Option<&mut File<'_>>, provider: &mut dyn Provider,
+        roots: impl IntoIterator<Item = usize>) {
         self.requests.seen.fill(false);
         self.requests.pending.extend(roots.into_iter().filter_map(|node| {
             let id = self.requests.by_step[node];
@@ -217,7 +213,9 @@ impl Exec<'_> {
                 continue;
             }
             let demand = &graph[id as usize];
-            if prune && demand.guard.is_some_and(|node| self.static_empty(file, run, provider, node)) {
+            if let Some(file) = proof.as_deref_mut()
+                && demand.guard.is_some_and(|node| self.static_empty(file, run, provider, node))
+            {
                 continue;
             }
             match &demand.reads {
@@ -231,48 +229,26 @@ impl Exec<'_> {
 
     /// The request owns scopes and projection masks only until the provider returns.
     /// Results belong to the shared file version, including refusals for that file.
-    pub(crate) fn open_file(&mut self, file: &mut File<'_>, run: &mut Run, provider: &mut dyn Provider,
-        roots: impl IntoIterator<Item = usize> + Clone, checks: &[&str], empty: Option<&[&str]>) -> R<Vec<Reply>> {
-        let prune = empty.is_some() && !sw!("VEC_NO_KNOWN") && !sw!("VEC_NO_SEMI");
+    pub(crate) fn open_file(&mut self, version: &super::FileVersion<'_>, run: &mut Run, provider: &mut dyn Provider,
+        roots: impl IntoIterator<Item = usize> + Clone, checks: &[&str],
+        evidence: Option<(&mut File<'_>, &[&str])>) -> R<Vec<Reply>> {
+        let prune = evidence.is_some() && !sw!("VEC_NO_KNOWN") && !sw!("VEC_NO_SEMI");
         self.bind_provider_reads(run, roots.clone(), prune);
         self.requests.masks.resize_with(run.fact_rels.len(), || None);
         self.requests.masks.fill(None);
-        if let Some(empty) = empty {
-            let mut proven = file.version.proven.borrow_mut();
+        if let Some((file, empty)) = evidence {
+            let mut proven = version.proven.borrow_mut();
             proven.resize(run.fact_rels.len(), false);
             for name in empty {
                 if let Some(&slot) = run.fact_slots.get(*name) { proven[usize::from(slot)] = true; }
             }
-        }
-        file.admitting = true;
-        self.collect_request(run, file, provider, roots, prune);
-        file.admitting = false;
-        if prune { file.known.iter_mut().filter(|value| **value == super::known::NO_LATE).for_each(|value| *value = 0); }
-        self.admit_packet(file.version, run, provider, checks)
-    }
-
-    /// The indexed reader has already bound these typed relation demands
-    /// for the active bindings. Reuse its admission rather than binding a
-    /// second execution plan merely to describe the existing packet.
-    #[allow(dead_code, reason = "the session host already binds its admission relations")]
-    pub(crate) fn open_indexed(&mut self, version: &super::FileVersion<'_>, run: &mut Run,
-        provider: &mut dyn Provider, relations: &[ryo::languages::Relation], checks: &[&str]) -> R<Vec<Reply>> {
-        use ryo_relations::domain::relations::service::{ALL, name, number_of};
-        if self.requests.indexed_slots.is_empty() {
-            self.requests.indexed_slots.resize(ALL.len(), None);
-            let hosts: Vec<_> = run.declared.iter()
-                .filter(|(_, declaration)| matches!(declaration.supplier, Supplier::Host))
-                .map(|(relation, _)| relation.clone()).collect();
-            self.requests.host_slots.extend(hosts.iter().map(|relation| slot(run, relation)));
-        }
-        for &relation in relations {
-            self.requests.indexed_slots[number_of(relation).0].get_or_insert_with(|| slot(run, name(relation).0));
-        }
-        self.requests.masks.resize_with(run.fact_rels.len(), || None);
-        self.requests.masks.fill(None);
-        let slots = relations.iter().map(|&r| self.requests.indexed_slots[number_of(r).0].expect("bound relation"));
-        for id in slots.chain(self.requests.host_slots.iter().copied()) {
-            self.requests.masks[usize::from(id)] = Some(Columns::All);
+            drop(proven);
+            file.admitting = true;
+            self.collect_request(run, prune.then_some(&mut *file), provider, roots);
+            file.admitting = false;
+            if prune { file.known.iter_mut().filter(|value| **value == super::known::NO_LATE).for_each(|value| *value = 0); }
+        } else {
+            self.collect_request(run, None, provider, roots);
         }
         self.admit_packet(version, run, provider, checks)
     }
