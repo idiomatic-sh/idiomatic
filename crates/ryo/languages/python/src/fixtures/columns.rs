@@ -7,7 +7,7 @@
 
 use crate::domain::definitions::constants as refinements;
 use crate::domain::extras::types::Extra as TypedExtra;
-use crate::domain::file_view::types::{Analysed, PythonFile, PythonWalk};
+use crate::domain::file_view::types::{PythonFile, PythonWalk};
 use crate::domain::language::service::reads;
 use crate::domain::lexical_facts::service::qualify;
 use crate::domain::lexical_facts::types::{NameProvenance, QualifiedPath};
@@ -15,29 +15,24 @@ use crate::domain::literal_facts::service::{number, properties, specifier as loa
 use crate::domain::literal_facts::types::StringValue;
 use crate::domain::model::flow::types::FlowState;
 use crate::domain::model::lexical::service::entry;
-use crate::domain::model::lexical::types::{NameUse, NodeClass, TypedTree};
+use crate::domain::model::lexical::types::{NameUse, NodeClass};
 use crate::domain::model::names::service::text_of;
 use crate::domain::model::names::types::NameCode;
 use crate::domain::model::view::service::built;
-use crate::domain::model::view::types::{Built, ModelPart, ModelView, PartState};
+use crate::domain::model::view::types::{ModelPart, ModelView, PartState};
 use crate::domain::node::service::{nodes_of_kind, table_id};
-use crate::domain::node::types::{Numbered, SyntaxFile, Walked, WalkedTree};
+use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::{Category, Node};
 use crate::domain::qualification::constants::{AMBIGUOUS, BUILTIN, LOCAL, NOT_APPLICABLE, UNRESOLVED};
 use crate::domain::relations::collections::relations::expression_type::constants as type_labels;
 use crate::domain::expression_types::types::Resolution;
 use crate::domain::shape_facts::service::shapes;
 use crate::domain::shape_facts::types::ShapeBuild;
-use crate::domain::string_annotations::service::{form_imports, type_strings};
-use crate::domain::string_annotations::types::FormSource;
 use crate::domain::syntax::service::{category_of, kind_of};
 use crate::domain::syntax::types::Kind;
 use crate::domain::type_facts::service::resolutions;
-use crate::inbound::contracts::parse::service::source_kind;
-use crate::inbound::contracts::walk::contract::{PythonWalkScratch, WalkPorts};
+use crate::inbound::contracts::walk::contract::{PythonWalkScratch, WalkPorts, file_view, visit_numbered};
 use crate::outbound::syntax::factory::ruff_python_parser;
-use crate::outbound::syntax::interface::SyntaxPort as _;
-use crate::outbound::syntax::types::{ReportedSyntax, SourceText};
 use crate::settings::PythonParserSettings;
 use ruff_python_ast::AnyNodeRef;
 use ryo::languages::{
@@ -172,7 +167,31 @@ impl ColumnWalk {
     ///
     /// When the file is not Python.
     pub fn walked(&mut self, path: &str, bytes: &[u8], table: &mut NodeTable, visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>)) -> Result<(), WalkError> {
-        self.visit_parse(path, bytes, table, None, visit)
+        self.visit_file(
+            languages::WalkRequest {
+                path: languages::SourcePath(path),
+                file: FileId(0),
+                source: languages::ByteSlice(bytes),
+            },
+            languages::RelationNeeds(&[]),
+            table,
+            visit,
+        )
+    }
+
+    /// Lends catalog and named columns on the one tree numbered by the parser walk.
+    ///
+    /// # Errors
+    ///
+    /// When the file is not Python.
+    pub fn visit_file(
+        &mut self,
+        request: languages::WalkRequest<'_>,
+        needs: languages::RelationNeeds<'_>,
+        table: &mut NodeTable,
+        visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
+    ) -> Result<(), WalkError> {
+        self.visit_parse(request, needs, table, None, visit)
     }
 
     /// Lend a column file from the module retained by this numbered parse. The
@@ -189,22 +208,38 @@ impl ColumnWalk {
         let words = super::walking::walk_words(&walk).map_err(|error| format!("{error:?}"))?;
         let mut reader = Self::with_settings(words, settings);
         let mut identity = Err("provider walk produced no numbered tree".to_owned());
-        reader.visit_parse(request.path.0, request.bytes.0, &mut NodeTable::default(), Some(parsed), &mut |file| {
-            match positions::numbered(file.table, elements) {
-                Ok(numbered) => {
-                    file.set_file(request.file);
-                    visit(file, &numbered);
-                }
-                Err(error) => { identity = Err(format!("{}: {error}", request.path.0)); return; }
-            }
-            identity = Ok(());
-        }).map_err(|error| error.to_string())?;
+        reader.visit_parse(
+            languages::WalkRequest {
+                path: request.path,
+                file: request.file,
+                source: request.bytes,
+            },
+            languages::RelationNeeds(&[]),
+            &mut NodeTable::default(),
+            Some(parsed),
+            &mut |file| {
+                identity = match positions::numbered(file.table, elements) {
+                    Ok(numbered) => {
+                        visit(file, &numbered);
+                        Ok(())
+                    }
+                    Err(error) => Err(format!("{}: {error}", request.path.0)),
+                };
+            },
+        )
+        .map_err(|error| error.to_string())?;
         identity
     }
 
-    fn visit_parse(&mut self, path: &str, bytes: &[u8], table: &mut NodeTable, parsed: Option<&ruff_python_parser::Parsed<ruff_python_ast::Mod>>, visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>)) -> Result<(), WalkError> {
-        let source_path = languages::SourcePath(path);
-        if parsed.is_none() && reads(source_path) != languages::Recognition::Reads {
+    fn visit_parse(
+        &mut self,
+        request: languages::WalkRequest<'_>,
+        needs: languages::RelationNeeds<'_>,
+        table: &mut NodeTable,
+        parsed: Option<&ruff_python_parser::Parsed<ruff_python_ast::Mod>>,
+        visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
+    ) -> Result<(), WalkError> {
+        if parsed.is_none() && reads(request.path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
         let kinds = <PythonWalk<WalkPorts> as languages::Walk>::KIND_COUNT;
@@ -212,79 +247,31 @@ impl ColumnWalk {
             Some(enclosing) => node_table::structured(table, kinds, enclosing),
             None => node_table::builder(table, kinds),
         };
-        let target = self.walk.ports.settings.target_version().components();
-        self.scratch.file.model.target = target;
         self.memo.names.clear();
         languages::facts::clear_words(&mut self.words);
-        let mut built_parts = Built::default();
-        let scratch = &mut self.scratch;
         let memo = &mut self.memo;
         let words = &mut self.words;
-        let mut names = std::mem::take(&mut scratch.names);
-        crate::domain::model::names::service::cleared(&mut names);
-        let mut consume = |walked: Walked<'_, '_, '_>| match walked {
-            Walked::Strings(tree) => {
-                built_parts = Built::default();
-                let mut hosts = Vec::new();
-                if tree.strings.is_empty() {
-                    return hosts;
-                }
-                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, declarations: tree.declarations, named: &tree.names };
-                form_imports(typed, &tree.imports, &mut scratch.forms);
-                type_strings(
-                    &mut FormSource { tree: typed, imports: &scratch.forms, model: &mut scratch.file.model, built: &mut built_parts, path: &mut scratch.path },
-                    &tree.strings,
-                    &mut hosts,
-                );
-                hosts
-            }
-            Walked::Whole(written, tree) => {
-                lend(written, &tree, target, scratch, built_parts, memo, words, visit);
-                // the walk's buffers go back to the worker for the next file
-                scratch.names = tree.names;
-                Vec::new()
-            }
-        };
-        if let Some(parsed) = parsed {
-            let text = crate::outbound::syntax::adapters::walk_text(SourceText(bytes));
-            crate::outbound::syntax::adapters::visit_parsed(&self.walk.ports.settings, SourceText(bytes), source_kind(source_path),
-                ReportedSyntax::Refusals, &mut builder, names, &mut consume, &text, parsed);
-        } else {
-            self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, names, &mut consume);
-        }
+        visit_numbered(
+            &self.walk,
+            request,
+            needs,
+            &mut builder,
+            &mut self.scratch,
+            parsed,
+            &mut |table, tree, scratch, built| {
+                let mut file = file_view(table, tree, request.file, scratch, built);
+                visit(&mut ColumnFile {
+                    table,
+                    file: &mut file,
+                    relative_froms: &tree.relative_froms,
+                    import_presence: tree.import_presence,
+                    memo,
+                    words,
+                });
+            },
+        );
         Ok(())
     }
-}
-
-#[expect(clippy::too_many_arguments, reason = "throwaway prototype")]
-fn lend(
-    builder: &mut languages::NodeTableBuilder<'_>,
-    tree: &WalkedTree<'_>,
-    target: crate::domain::standard_library::types::TargetVersion,
-    scratch: &mut PythonWalkScratch,
-    built_parts: Built,
-    memo: &mut TextMemo,
-    words: &mut FileWords,
-    visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
-) {
-    let table = node_table::finished(builder);
-    let own = tree.segments.first().map_or(tree.nodes.len(), |segment| usize::from(segment.first));
-    let mut file = PythonFile {
-        syntax: SyntaxFile {
-            table,
-            nodes: tree.nodes.get(..own).unwrap_or_default(),
-            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, declarations: tree.declarations, named: &tree.names },
-            text: tree.text,
-            file: FileId(0),
-            completeness: tree.completeness,
-        },
-        target,
-        model: &mut scratch.file.model,
-        built: built_parts,
-        analysed: Analysed::default(),
-        buffers: &mut scratch.file.buffers,
-    };
-    visit(&mut ColumnFile { table, file: &mut file, relative_froms: &tree.relative_froms, import_presence: tree.import_presence, memo, words });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).

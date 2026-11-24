@@ -10,7 +10,6 @@ use crate::domain::model::lexical::types::TypedTree;
 use crate::domain::model::view::types::Built;
 use crate::domain::node::types::{SyntaxFile, Walked, WalkedTree};
 use crate::domain::nodes::types::Node;
-use crate::domain::standard_library::types::TargetVersion;
 use crate::domain::string_annotations::service::{form_imports, type_strings};
 use crate::domain::string_annotations::types::{FormImports, FormSource};
 use crate::domain::tokens::types::Token;
@@ -78,59 +77,100 @@ impl Walk for PythonWalk<WalkPorts> {
         if reads(request.path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
-        let reported = if needs.0.contains(&languages::Relation::SyntaxError) {
-            ReportedSyntax::Every
-        } else {
-            ReportedSyntax::Refusals
-        };
-        let target = self.ports.settings.target_version().components();
-        scratch.file.model.target = target;
-        let mut names = std::mem::take(&mut scratch.names);
-        crate::domain::model::names::service::cleared(&mut names);
-        let mut reading = Reading {
+        visit_numbered(
+            self,
             request,
-            target,
-            scratch,
-            built: Built::default(),
-            visit,
-        };
-        self.ports.syntax.walk(
-            SourceText(request.source.0),
-            source_kind(request.path),
-            reported,
+            needs,
             builder,
-            names,
-            &mut |walked| match walked {
-                Walked::Strings(tree) => type_hosts(&mut reading, tree),
-                Walked::Whole(written, tree) => {
-                    lent(&mut reading, written, tree);
-                    Vec::new()
-                }
+            scratch,
+            #[cfg(any(test, feature = "fixtures"))]
+            None,
+            &mut |table, tree, view, built| {
+                let mut file = file_view(table, tree, request.file, view, built);
+                let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(&mut file);
+                visit.visit(FileFacts {
+                    table,
+                    source: request.source,
+                    file: request.file,
+                    path: request.path,
+                    facts: &mut source,
+                });
             },
         );
         Ok(())
     }
 }
 
-/// The reader of one file's walk: it says which strings are type expressions while the walk embeds them, then lends the engine
-/// the walked file over the language's fillers.
-struct Reading<'r, 'v> {
-    /// The file asked for.
-    request: WalkRequest<'r>,
-    /// The language version the file is read under.
-    target: TargetVersion,
-    /// The worker's buffers.
-    scratch: &'r mut PythonWalkScratch,
-    /// The parts of the model built for the tree as the walk last showed it.
-    built: Built,
-    /// The engine's visit.
-    visit: &'v mut dyn FileVisit,
+/// The native syntax walk and the annotation expansion share this numbering.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the visit borrows the caller's table and the provider's worker scratch"
+)]
+pub(crate) fn visit_numbered(
+    provider: &PythonWalk<WalkPorts>,
+    request: WalkRequest<'_>,
+    needs: RelationNeeds<'_>,
+    builder: &mut NodeTableBuilder<'_>,
+    scratch: &mut PythonWalkScratch,
+    #[cfg(any(test, feature = "fixtures"))] parsed: Option<
+        &ruff_python_parser::Parsed<ruff_python_ast::Mod>,
+    >,
+    visit: &mut dyn FnMut(&ryo::languages::NodeTable, &WalkedTree<'_>, &mut PythonScratch, Built),
+) {
+    let reported = if needs.0.contains(&languages::Relation::SyntaxError) {
+        ReportedSyntax::Every
+    } else {
+        ReportedSyntax::Refusals
+    };
+    scratch.file.model.target = provider.ports.settings.target_version().components();
+    let mut names = std::mem::take(&mut scratch.names);
+    crate::domain::model::names::service::cleared(&mut names);
+    let mut built = Built::default();
+    let mut consume = |walked: Walked<'_, '_, '_>| match walked {
+        Walked::Strings(tree) => type_hosts(scratch, &mut built, tree),
+        Walked::Whole(written, tree) => {
+            visit(
+                node_table::finished(written),
+                &tree,
+                &mut scratch.file,
+                built,
+            );
+            scratch.names = tree.names;
+            Vec::new()
+        }
+    };
+    let source = SourceText(request.source.0);
+    let kind = source_kind(request.path);
+    #[cfg(any(test, feature = "fixtures"))]
+    if let Some(parsed) = parsed {
+        let text = crate::outbound::syntax::adapters::walk_text(source);
+        crate::outbound::syntax::adapters::visit_parsed(
+            &provider.ports.settings,
+            source,
+            kind,
+            reported,
+            builder,
+            names,
+            &mut consume,
+            &text,
+            parsed,
+        );
+        return;
+    }
+    provider
+        .ports
+        .syntax
+        .walk(source, kind, reported, builder, names, &mut consume);
 }
 
 /// The places of the strings the walk met since it last asked that the language reads as type expressions.
-fn type_hosts(reading: &mut Reading<'_, '_>, tree: &WalkedTree<'_>) -> Vec<Position> {
+fn type_hosts(
+    scratch: &mut PythonWalkScratch,
+    built: &mut Built,
+    tree: &WalkedTree<'_>,
+) -> Vec<Position> {
     // The tree has grown since the model was last built for it, if it was: it is built again when a name is asked.
-    reading.built = Built::default();
+    *built = Built::default();
     let mut hosts = Vec::new();
     if tree.strings.is_empty() {
         return hosts;
@@ -144,14 +184,14 @@ fn type_hosts(reading: &mut Reading<'_, '_>, tree: &WalkedTree<'_>) -> Vec<Posit
         declarations: tree.declarations,
         named: &tree.names,
     };
-    form_imports(typed, &tree.imports, &mut reading.scratch.forms);
+    form_imports(typed, &tree.imports, &mut scratch.forms);
     type_strings(
         &mut FormSource {
             tree: typed,
-            imports: &reading.scratch.forms,
-            model: &mut reading.scratch.file.model,
-            built: &mut reading.built,
-            path: &mut reading.scratch.path,
+            imports: &scratch.forms,
+            model: &mut scratch.file.model,
+            built,
+            path: &mut scratch.path,
         },
         &tree.strings,
         &mut hosts,
@@ -159,46 +199,40 @@ fn type_hosts(reading: &mut Reading<'_, '_>, tree: &WalkedTree<'_>) -> Vec<Posit
     hosts
 }
 
-/// Lends the engine the walked file, over the language's fillers, while the parses live.
-fn lent(reading: &mut Reading<'_, '_>, builder: &mut NodeTableBuilder<'_>, tree: WalkedTree<'_>) {
-    {
-        let table = node_table::finished(builder);
-        let own = tree
-            .segments
-            .first()
-            .map_or(tree.nodes.len(), |segment| usize::from(segment.first));
-        let mut file = PythonFile {
-            syntax: SyntaxFile {
-                table,
-                nodes: tree.nodes.get(..own).unwrap_or_default(),
-                tree: TypedTree {
-                    segments: &tree.segments,
-                    parents: &tree.parents,
-                    ends: &tree.ends,
-                    nodes: &tree.nodes,
-                    annotations: tree.annotations,
-                    declarations: tree.declarations,
-                    named: &tree.names,
-                },
-                text: tree.text,
-                file: reading.request.file,
-                completeness: tree.completeness,
-            },
-            target: reading.target,
-            model: &mut reading.scratch.file.model,
-            built: reading.built,
-            analysed: Analysed::default(),
-            buffers: &mut reading.scratch.file.buffers,
-        };
-        let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(&mut file);
-        reading.visit.visit(FileFacts {
+/// Builds the borrowed file view used by both catalog and column suppliers.
+pub(crate) fn file_view<'a>(
+    table: &'a languages::NodeTable,
+    tree: &'a WalkedTree<'_>,
+    file: languages::FileId,
+    scratch: &'a mut PythonScratch,
+    built: Built,
+) -> PythonFile<'a> {
+    let own = tree
+        .segments
+        .first()
+        .map_or(tree.nodes.len(), |segment| usize::from(segment.first));
+    let target = scratch.model.target;
+    PythonFile {
+        syntax: SyntaxFile {
             table,
-            source: reading.request.source,
-            file: reading.request.file,
-            path: reading.request.path,
-            facts: &mut source,
-        });
+            nodes: tree.nodes.get(..own).unwrap_or_default(),
+            tree: TypedTree {
+                segments: &tree.segments,
+                parents: &tree.parents,
+                ends: &tree.ends,
+                nodes: &tree.nodes,
+                annotations: tree.annotations,
+                declarations: tree.declarations,
+                named: &tree.names,
+            },
+            text: tree.text,
+            file,
+            completeness: tree.completeness,
+        },
+        target,
+        model: &mut scratch.model,
+        built,
+        analysed: Analysed::default(),
+        buffers: &mut scratch.buffers,
     }
-    // The walk's buffers go back to the worker for the next file.
-    reading.scratch.names = tree.names;
 }
