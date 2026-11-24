@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use ryo::languages::{self, contract};
+use ryo::languages::{self, Parse as _, contract};
 
 use super::contract::ParseContract;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -12,6 +12,7 @@ use crate::outbound::syntax::fixtures::fake::SyntaxFake;
 #[derive(Clone, Copy)]
 enum Given {
     Read(&'static str),
+    SameDialect(&'static str, &'static str),
     Contract,
 }
 
@@ -22,6 +23,18 @@ type Failure = languages::ParseError;
 
 /// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("plain_json_and_tsconfig_have_distinct_parse_dialects"),
+        word: Word::Succeeds,
+        input: || Given::SameDialect("data.json", "tsconfig.json"),
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("jsonc_and_tsconfig_share_a_parse_dialect"),
+        word: Word::Succeeds,
+        input: || Given::SameDialect("settings.jsonc", "nested/tsconfig.json"),
+        expect: Expect::Value(1),
+    },
     Case {
         name: CaseName("passes_the_engines_refusals"),
         word: Word::Succeeds,
@@ -39,6 +52,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// Reads one file, or runs the engine's refusals, through the contract over the fake of the syntax port.
 fn subject(given: Input) -> Result<Value, Failure> {
     let language = ParseContract::new(Arc::new(SyntaxFake));
+    if let Given::SameDialect(left, right) = given {
+        return Ok(usize::from(language.body_dialect(languages::SourcePath(left)).is_some_and(|dialect| {
+            language.body_dialect(languages::SourcePath(right)) == Some(dialect)
+        })));
+    }
     let Given::Read(path) = given else {
         contract::parse(&language);
         return Ok(0);

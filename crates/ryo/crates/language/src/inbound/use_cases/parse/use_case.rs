@@ -95,6 +95,8 @@ impl<P: ParseUseCase> ParseEngine for P {
         promises_in(self)
     }
 
+    fn body_dialect(&self, path: crate::domain::files::types::SourcePath<'_>) -> Option<ParseConfigurationIdentity<'static>> { ParseUseCase::body_dialect(self, path) }
+
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
         ParseUseCase::configuration_identity(self)
     }

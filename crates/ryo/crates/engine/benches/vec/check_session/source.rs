@@ -8,6 +8,7 @@ use std::{collections::HashMap, sync::Arc};
 
 pub(crate) trait Source: Clone + Sync {
     fn name(&self) -> &str;
+    fn body_dialect(&self, _path: &str) -> Option<&'static str> { None }
     type File: Default;
     type Dictionary: Default;
     fn lent(_: &Self::File) -> Option<Arc<l::NodeTable>> { None }
@@ -78,6 +79,7 @@ impl From<l::Language> for Linked {
     }
 }
 impl Source for Linked {
+    fn body_dialect(&self, path: &str) -> Option<&'static str> { self.parser.body_dialect(l::SourcePath(path)).map(|dialect| dialect.0) }
     fn name(&self) -> &str { &self.language.name().0 }
     type File = l::Elements;
     type Dictionary = l::Symbols;

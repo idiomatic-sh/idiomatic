@@ -147,6 +147,11 @@ pub trait ParseEngine: Send + Sync {
     /// its `Semantics` answers other than `NotYetRead`, then those it lists in `ParseUseCase::capabilities`.
     fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability>;
 
+    /// Equal bytes with the same returned dialect share syntax, local facts and project notes.
+    /// Return None when the parser embeds path-dependent values.
+    /// Node and file identities in provider rows are rebound for each admitted path.
+    fn body_dialect(&self, _path: crate::domain::files::types::SourcePath<'_>) -> Option<ParseConfigurationIdentity<'static>> { None }
+
     /// Canonical parser settings included in persisted-result cache identity.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
 

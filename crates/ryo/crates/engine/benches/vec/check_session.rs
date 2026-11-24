@@ -4,6 +4,7 @@ use super::{finish, first, lower, reader, reader_run, thread_cpu};
 use finish::{Exec, Plan, Provider, Run, Table};
 use ryo::languages::{self as l, ByteSlice, FileId, SourcePath};
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
+use smallvec::{SmallVec, smallvec};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     path::Path,
@@ -146,6 +147,12 @@ pub(crate) struct ReaderParts {
     pub tree: f64,
     pub facts: f64,
     pub parsed: usize,
+    pub projected: usize,
+    pub filled: usize,
+    pub rebound: usize,
+    pub path_joins_avoided: usize,
+    pub line_scans: usize,
+    pub line_scans_avoided: usize,
 }
 
 /// The root and path identify the caller's immutable effective source. This
@@ -481,9 +488,12 @@ fn bind<'p, L: FileSource>(
     })
 }
 
+type SourceGroup = SmallVec<[usize; 1]>;
+type Versions<'s> = SmallVec<[Version<'s>; 1]>;
+
 struct Version<'s> {
     origin: usize,
-    project_slots: Vec<usize>,
+    project_slots: SourceGroup,
     data: Arc<[u8]>,
     jobs: std::borrow::Cow<'s, BTreeMap<usize, usize>>,
 }
@@ -499,7 +509,8 @@ fn versions<'s>(
     reads: &mut usize,
     retained: &mut HashMap<usize, (Arc<[u8]>, u32)>,
     keep: bool,
-) -> Vec<Version<'s>> {
+    path_joins_avoided: &mut usize,
+) -> Versions<'s> {
     use std::os::unix::fs::MetadataExt;
     if let [idx] = *group && !keep {
         let src = &sources[idx];
@@ -512,7 +523,7 @@ fn versions<'s>(
             std::fs::read(Path::new(&*src.root).join(&src.path)).map(Arc::from)
         };
         return match data {
-            Ok(data) => vec![Version {
+            Ok(data) => smallvec![Version {
                 origin: idx,
                 project_slots: src.project.then_some(idx).into_iter().collect(),
                 data,
@@ -522,22 +533,24 @@ fn versions<'s>(
                 for &slot in src.bindings.values() {
                     answers.set(slot, Err(format!("{}: {error}", src.path)));
                 }
-                Vec::new()
+                Versions::new()
             }
         };
     }
-    let mut files = Vec::<Version>::new();
+    let mut files = Versions::new();
     let mut inodes = HashMap::new();
     let mut contents = BTreeMap::new();
     for &idx in group {
         let src = &sources[idx];
-        let path = Path::new(&*src.root).join(&src.path);
         let found = (|| -> std::io::Result<usize> {
             let (data, inode, perm) = if let Some(bytes) = src.provided.as_ref() {
+                *path_joins_avoided += 1;
                 (Arc::clone(bytes), None, None)
             } else if let Some((bytes, mode)) = retained.get(&idx) {
+                *path_joins_avoided += 1;
                 (Arc::clone(bytes), None, Some(*mode))
             } else {
+                let path = Path::new(&*src.root).join(&src.path);
                 let meta = std::fs::metadata(&path)?;
                 let inode = (meta.dev(), meta.ino());
                 if let Some(&i) = inodes.get(&inode) {
@@ -562,7 +575,7 @@ fn versions<'s>(
                 let i = files.len();
                 files.push(Version {
                     origin: idx,
-                    project_slots: Vec::new(),
+                    project_slots: SourceGroup::new(),
                     data,
                     jobs: std::borrow::Cow::Owned(BTreeMap::new()),
                 });
@@ -595,6 +608,38 @@ fn versions<'s>(
     files
 }
 
+/// In a closed batch only paths with another input of the same length can
+/// share a body. Leave the other paths on the streaming reader's scratch.
+fn body_candidates(
+    paths: &BTreeMap<&str, SourceGroup>,
+    sources: &[Source],
+    retained: &HashMap<usize, (Arc<[u8]>, u32)>,
+    dialect: impl Fn(usize) -> Option<&'static str>,
+) -> rustc_hash::FxHashSet<usize> {
+    let mut first = rustc_hash::FxHashMap::default();
+    let mut candidates = rustc_hash::FxHashSet::default();
+    for group in paths.values() {
+        let path = group[0];
+        for &id in group {
+            let Some(dialect) = dialect(id) else { continue };
+            let source = &sources[id];
+            let bytes = source.provided.as_ref().or_else(|| retained.get(&id).map(|(bytes, _)| bytes));
+            let length = if let Some(bytes) = bytes {
+                Some(bytes.len() as u64)
+            } else {
+                std::fs::metadata(Path::new(&*source.root).join(&source.path)).ok().map(|meta| meta.len())
+            };
+            let Some(length) = length else { continue };
+            let original = *first.entry((dialect, length)).or_insert(path);
+            if original != path {
+                candidates.insert(original);
+                candidates.insert(path);
+            }
+        }
+    }
+    candidates
+}
+
 /// The host may add requests after consuming the previous answers. Source and symbol
 /// identities then live across admissions. A closed batch can recycle one parser scratch.
 #[derive(Default)]
@@ -616,6 +661,7 @@ struct Contents {
 struct HeldFile<F: Default, D: Default> {
     symbols: D,
     native: F,
+    notes: Option<l::Bytes>,
     lent: Option<std::sync::Arc<l::NodeTable>>,
     tree: l::NodeTable,
     fields: Vec<u32>,
@@ -654,6 +700,12 @@ pub(crate) fn visit<L: FileSource>(
     clocks: &mut Clock,
 ) {
     let before = (clocks.read_parse, clocks.read_versions, clocks.build_file, clocks.files);
+    let mut projected = 0;
+    let mut filled_bodies = 0;
+    let mut rebound = 0;
+    let mut path_joins_avoided = 0;
+    let mut line_scans = 0;
+    let mut line_scans_avoided = 0;
     let mut tree_cpu = 0.;
     let mut fact_cpu = 0.;
     let mut run = std::mem::take(&mut state.run);
@@ -688,7 +740,7 @@ pub(crate) fn visit<L: FileSource>(
     let mut distinct = std::cell::RefCell::new(crate::pair_checks::FileSymbols::default());
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
-    let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
+    let mut by_path = BTreeMap::<&str, SourceGroup>::new();
     for &index in selected {
         by_path.entry(&sources[index].path).or_default().push(index);
     }
@@ -714,20 +766,98 @@ pub(crate) fn visit<L: FileSource>(
     if let Some(dictionary) = reader_id.and_then(|id| world.project_words.get(id)) {
         carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
     }
-    for group in by_path.values() {
-        let t = thread_cpu();
-        let versions = versions(
-            group,
-            sources,
-            answers,
-            aliases,
-            &mut clocks.reads,
-            &mut state.bytes,
-            keep,
-        );
-        let elapsed = thread_cpu() - t;
+    // A body belongs to the provider configuration for this visit. Keep paths,
+    // bindings, file identities, manifests and answer slots on the individual versions.
+    let by_path_size = by_path.len();
+    let mut bodies = Vec::<Versions<'_>>::new();
+    let dialect = |index: usize| parser.and_then(|p| p.body_dialect(&sources[index].path));
+    let sharing = world.boundaries.is_none() && by_path_size > 1 && selected.iter().any(|&i| dialect(i).is_some());
+    if sharing {
+        let start = thread_cpu();
+        let mut indexes = rustc_hash::FxHashMap::default();
+        let mut identities = rustc_hash::FxHashMap::default();
+        let candidates = if keep {
+            None
+        } else {
+            Some(body_candidates(&by_path, sources, &state.bytes, dialect))
+        };
+        for (_, group) in by_path.extract_if(.., |_, group| {
+            candidates.as_ref().is_none_or(|paths| paths.contains(&group[0]))
+        }) {
+            for mut version in versions(&group, sources, answers, aliases, &mut clocks.reads, &mut state.bytes, keep, &mut path_joins_avoided) {
+                let Some(dialect) = dialect(version.origin) else {
+                    bodies.push(smallvec![version]);
+                    continue;
+                };
+                let origin = *identities
+                    .entry((dialect, Arc::clone(&version.data)))
+                    .or_insert(version.origin);
+                let i = *indexes.entry(origin).or_insert_with(|| {
+                    bodies.push(Versions::new());
+                    bodies.len() - 1
+                });
+                if let Some(first) = bodies[i].first() {
+                    // A listed alias has its own executable mode and file ID,
+                    // and can use the same immutable byte storage.
+                    if let Some((bytes, _)) = state.bytes.get_mut(&version.origin) {
+                        *bytes = Arc::clone(&first.data);
+                    }
+                    version.data = Arc::clone(&first.data);
+                }
+                bodies[i].push(version);
+            }
+        }
+        let elapsed = thread_cpu() - start;
         clocks.read_versions += elapsed;
         clocks.read_parse += elapsed;
+    }
+    let mut bodies = bodies.into_iter();
+    let mut paths = by_path.into_values();
+    loop {
+        let (group_id, versions, share) = if let Some(versions) = bodies.next() {
+            let share = versions.len() > 1;
+            (versions[0].origin, versions, share)
+        } else if let Some(group) = paths.next() {
+            let t = thread_cpu();
+            let versions = versions(&group, sources, answers, aliases, &mut clocks.reads, &mut state.bytes, keep, &mut path_joins_avoided);
+            let elapsed = thread_cpu() - t;
+            clocks.read_versions += elapsed;
+            clocks.read_parse += elapsed;
+            (group[0], versions, false)
+        } else {
+            break;
+        };
+        // Cross-path sharing lasts for this admission. Retention between SDK
+        // calls still requires repeated demand for the same admitted identity.
+        let mut body = share.then(HeldFile::default);
+        let mut body_mask = FactMask::default();
+        let mut body_facts = Vec::new();
+        let mut body_summary = SummaryColumns::default();
+        let mut body_words = false;
+        let mut body_fields = false;
+        let mut body_notes = false;
+        let mut body_line_count = None;
+        let mut shared_remaining = versions.len();
+        if share {
+            let t = thread_cpu();
+            for version in &versions {
+                body_notes |= !version.project_slots.is_empty();
+                for binding in version.jobs.keys() {
+                    if let Ok(b) = &bound[binding] {
+                        for (mask, bits) in body_mask.iter_mut().zip(b.fact_mask) { *mask |= bits; }
+                        body_words |= b.projects_words;
+                        body_fields |= b.reads_fields;
+                        if cut_of[*binding].is_none() && !b.never {
+                            body_summary.kinds |= b.summary.kinds;
+                            body_summary.fields |= b.summary.fields;
+                            body_summary.words |= b.summary.words;
+                        }
+                    }
+                }
+            }
+            requested_facts(body_mask, &mut body_facts);
+            clocks.prepare += thread_cpu() - t;
+        }
         for Version {
             origin: index,
             project_slots,
@@ -735,15 +865,16 @@ pub(crate) fn visit<L: FileSource>(
             jobs,
         } in versions
         {
+            shared_remaining -= 1;
             clocks.unique_pairs += jobs.len();
             let source = &sources[index];
             let id = FileId(index.try_into().expect("file ID"));
             let t = thread_cpu();
-            let mut required = FactMask::default();
+            let mut required = body_mask;
             let mut have_plan = false;
-            let mut projects_words = keep;
-            let mut projects_fields = keep;
-            let mut summary = SummaryColumns { kinds: keep, fields: keep, words: keep };
+            let mut projects_words = keep || body_words;
+            let mut projects_fields = keep || body_fields;
+            let mut summary = SummaryColumns { kinds: keep || body_summary.kinds, fields: keep || body_summary.fields, words: keep || body_summary.words };
             for (&binding, &slot) in jobs.iter() {
                 match &bound[&binding] {
                     Ok(b) => {
@@ -769,8 +900,9 @@ pub(crate) fn visit<L: FileSource>(
             run.root_dir.clear();
             run.root_dir.push_str(&source.root);
             let session_open = keep;
-            let start = keep.then(|| retention.clock()).flatten();
-            let mut cached = start.and_then(|_| retention.take(index));
+            let start = (keep && !share).then(|| retention.clock()).flatten();
+            let cache_key = if share { group_id } else { index };
+            let mut cached = start.and_then(|_| retention.take(cache_key));
             // An opaque provider dictionary and its projected rows are one version.
             // Rebuild them together if a later binding asks for additional facts.
             if let Some((credit, file)) = cached.as_mut()
@@ -779,8 +911,9 @@ pub(crate) fn visit<L: FileSource>(
                 *file = HeldFile::default();
                 *credit = 0;
             }
-            let keep = cached.is_some();
-            let held = cached.as_mut().map_or(&mut scratch, |(_,file)| file);
+            let keep = cached.is_some() || share;
+            let held = body.as_mut().unwrap_or_else(|| cached.as_mut().map_or(&mut scratch, |(_, file)| file));
+            let body_id = FileId(cache_key.try_into().expect("file ID"));
             let mut symbols = &mut held.symbols;
             let reused = keep && held.recovery.is_some();
             let mut elements = &mut held.native;
@@ -790,32 +923,26 @@ pub(crate) fn visit<L: FileSource>(
             } else if let Some(parser) = &parser {
                 clocks.files += 1;
                 let request = l::ParseRequest {
-                    file: id,
+                    file: body_id,
                     path: SourcePath(&source.path),
                     bytes: ByteSlice(&bytes),
-                    // Later calls can widen the relations asked of a retained file.
                     fields: if session_open || projects_fields {
                         l::FieldRequest::Wanted
                     } else {
                         l::FieldRequest::Unwanted
                     },
-                    notes: if project_slots.is_empty() && !session_open {
+                    notes: if project_slots.is_empty() && !session_open && !body_notes {
                         l::NoteRequest::Unwanted
                     } else {
                         l::NoteRequest::Wanted
                     },
                 };
-
                 let build_start = thread_cpu();
                 let result = parser.build(
                     request,
                     &mut elements,
                     &mut symbols,
-                    if session_open {
-                        relations::service::ALL
-                    } else {
-                        &requested
-                    },
+                    if session_open { relations::service::ALL } else { &requested },
                 );
                 clocks.build_file += thread_cpu() - build_start;
                 result
@@ -831,12 +958,13 @@ pub(crate) fn visit<L: FileSource>(
                 clocks.read_parse += thread_cpu() - t;
                 continue;
             }
-            if !project_slots.is_empty() || (session_open && !reused) {
+            if !project_slots.is_empty() || (session_open && contributions.previous(index).and_then(Option::as_ref).is_none()) {
                 let c = contributions.previous(index).and_then(Option::as_ref).cloned().unwrap_or_else(|| {
                     let manifest = manifests
                         .contains(source.path.rsplit('/').next().unwrap())
                         .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
-                    Rc::new(project::Contribution { reader: reader_id, notes: L::notes(&elements), manifest })
+                    let notes = if keep { held.notes.get_or_insert_with(|| L::notes(elements)).clone() } else { L::notes(elements) };
+                    Rc::new(project::Contribution { reader: reader_id, notes, manifest })
                 });
                 if session_open {
                     contributions.set(index, Some(c.clone()));
@@ -844,7 +972,7 @@ pub(crate) fn visit<L: FileSource>(
                 for slot in project_slots {
                     contributions.set(slot, Some(c.clone()));
                 }
-                if !session_open && jobs.keys().all(|b| bound[b].is_err()) {
+                if !share && !session_open && jobs.keys().all(|b| bound[b].is_err()) {
                     clocks.read_parse += thread_cpu() - t;
                     continue;
                 }
@@ -856,6 +984,7 @@ pub(crate) fn visit<L: FileSource>(
                 run.field_sym.clone_from(&held.fields);
                 provider.text = std::mem::take(&mut held.text);
             } else {
+                projected += usize::from(parser.is_some());
                 let tree_start = thread_cpu();
                 L::tree(
                     &elements,
@@ -939,7 +1068,8 @@ pub(crate) fn visit<L: FileSource>(
             if keep {
                 std::mem::swap(&mut held.facts, &mut packet.rows);
             }
-            let missing: Vec<_> = facts
+            let requested_facts = if share { &body_facts } else { &facts };
+            let missing: Vec<_> = requested_facts
                 .iter()
                 .filter(|rel| !keep || !held.known.contains(rel))
                 .copied()
@@ -947,12 +1077,13 @@ pub(crate) fn visit<L: FileSource>(
             if let Some(parser) = &parser
                 && !missing.is_empty()
             {
+                filled_bodies += 1;
                 let fact_start = thread_cpu();
                 let filled = parser.fill(
                     &mut elements,
                     &mut symbols,
                     &bytes,
-                    id,
+                    body_id,
                     &missing,
                     &mut packet.rows,
                 );
@@ -968,6 +1099,8 @@ pub(crate) fn visit<L: FileSource>(
                     continue;
                 }
             }
+            rebound += usize::from(reused && body_id != id);
+            packet.body_file = (body_id != id).then_some(body_id);
             let partials = std::mem::take(&mut packet.rows.partials);
             let partials_at = std::mem::take(&mut packet.rows.partials_at);
             use ryo_values::domain::stored_facts::types::{
@@ -985,14 +1118,17 @@ pub(crate) fn visit<L: FileSource>(
                     relation: *relation,
                     cause: PartialCause(why.as_str().into()),
                     lacking: ryo_relations::domain::relations::types::Missing::Any,
-                    at: PartialScope::OneFile(PartialAt(file.0)),
+                    at: PartialScope::OneFile(PartialAt(if *file == body_id { id.0 } else { file.0 })),
                 }))
                 .collect();
             if keep {
-                held.known.extend(facts.iter().copied());
+                held.known.extend(requested_facts.iter().copied());
                 packet.index(&held.known.iter().copied().collect::<Vec<_>>());
             } else {
                 packet.index(&facts);
+            }
+            if share && shared_remaining == 0 {
+                *elements = L::File::default();
             }
             let version = std::cell::OnceCell::new();
             clocks.read_parse += thread_cpu() - t;
@@ -1027,10 +1163,18 @@ pub(crate) fn visit<L: FileSource>(
                         run.catalog(name).expect("host line-count declaration");
                     let mut table = Table::with_rows(columns, types, 1);
                     table.cols[0].push(u64::from(id.0));
-                    table.cols[1].push(
+                    let mut count = || {
+                        line_scans += 1;
                         bytes.iter().filter(|&&b| b == b'\n').count() as u64
-                            + u64::from(bytes.last().is_some_and(|&b| b != b'\n')),
-                    );
+                            + u64::from(bytes.last().is_some_and(|&b| b != b'\n'))
+                    };
+                    let lines = if share {
+                        line_scans_avoided += usize::from(body_line_count.is_some());
+                        *body_line_count.get_or_insert_with(count)
+                    } else {
+                        count()
+                    };
+                    table.cols[1].push(lines);
                     table.n = 1;
                     (name.to_owned(), Rc::new(table))
                 });
@@ -1124,7 +1268,9 @@ pub(crate) fn visit<L: FileSource>(
             if keep {
                 held.recovery = Some(recovery);
                 held.lent = native;
-                held.native = L::File::default();
+                if !share {
+                    held.native = L::File::default();
+                }
                 held.text = provider.text;
                 packet.rows.partials = partials;
                 packet.rows.partials_at = partials_at;
@@ -1134,12 +1280,12 @@ pub(crate) fn visit<L: FileSource>(
                 && let (Some(start), Some(end)) = (start, retention.clock()) {
                 // All allocations on this worker during the visit conservatively bound
                 // the new storage, including provider-owned opaque parser allocations.
-                retention.put(index, previous.saturating_add(end.wrapping_sub(start)), file);
+                retention.put(cache_key, previous.saturating_add(end.wrapping_sub(start)), file);
             }
             clocks.evaluate += thread_cpu() - t;
         }
         if let Some(boundaries) = &mut world.boundaries {
-            boundaries.push((group[0], world.run.paths.len(), world.run.texts.len()));
+            boundaries.push((group_id, world.run.paths.len(), world.run.texts.len()));
         }
     }
     let parts = clocks.readers.entry(parser.map_or("unclaimed", FileSource::name).to_owned()).or_default();
@@ -1147,6 +1293,12 @@ pub(crate) fn visit<L: FileSource>(
     parts.read += clocks.read_versions - before.1;
     parts.build += clocks.build_file - before.2;
     parts.parsed += clocks.files - before.3;
+    parts.projected += projected;
+    parts.filled += filled_bodies;
+    parts.rebound += rebound;
+    parts.path_joins_avoided += path_joins_avoided;
+    parts.line_scans += line_scans;
+    parts.line_scans_avoided += line_scans_avoided;
     parts.tree += tree_cpu;
     parts.facts += fact_cpu;
     if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }

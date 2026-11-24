@@ -196,6 +196,12 @@ pub(crate) fn dispatch<L: FileSource>(
                 total.tree += part.tree;
                 total.facts += part.facts;
                 total.parsed += part.parsed;
+                total.projected += part.projected;
+                total.filled += part.filled;
+                total.rebound += part.rebound;
+                total.path_joins_avoided += part.path_joins_avoided;
+                total.line_scans += part.line_scans;
+                total.line_scans_avoided += part.line_scans_avoided;
             }
             clocks.prepare += time.prepare;
             clocks.read_parse += time.read_parse;

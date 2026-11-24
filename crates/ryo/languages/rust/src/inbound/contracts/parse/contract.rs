@@ -56,6 +56,7 @@ impl ParseContract {
 }
 
 impl Parse for ParseContract {
+    fn body_dialect(&self, _path: languages::SourcePath<'_>) -> Option<languages::ParseConfigurationIdentity<'static>> { Some(languages::ParseConfigurationIdentity("")) }
     type FileModel = ReadIndexes;
 
     fn native_reader(&self) -> Option<languages::NativeReader> {
