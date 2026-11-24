@@ -41,6 +41,7 @@ pub struct Live {
     reverse_files: bool,
     admission_wall: f64,
     admission_workers_cpu: f64,
+    admission_shards: usize,
     delivery_wall: f64,
     file_epoch_wall: f64,
     versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
@@ -67,6 +68,7 @@ impl Default for Live {
             reverse_files: std::env::var_os("TM_BENCH_REVERSE_FILES").is_some(),
             admission_wall: 0.0,
             admission_workers_cpu: 0.0,
+            admission_shards: 0,
             delivery_wall: 0.0,
             file_epoch_wall: 0.0,
             store:None, directory:None,
@@ -189,6 +191,9 @@ impl Live {
         last.elapsed += thread_cpu() - t;
         last.worker_cpu = c.delivery_workers_cpu + c.file_workers_cpu + c.project_workers_cpu + self.admission_workers_cpu;
         last.file_shards = c.file_shards;
+        last.project_shards = c.project_shards;
+        last.admission_shards = self.admission_shards;
+        last.project_prepare_wall = c.project_prepare_wall;
         last.call_wall += wall.elapsed().as_secs_f64();
         last.phase_wall = [
             self.admission_wall,
@@ -292,6 +297,7 @@ impl Live {
         if self.store.is_none() && workers > 1 && rules.len() >= 128 {
             prepared.extend(rules.by_ref().map(|(id, rule)| (id, rule, None)));
             let chunk_size = prepared.len().div_ceil(workers);
+            self.admission_shards += prepared.len().div_ceil(chunk_size);
             self.admission_workers_cpu += std::thread::scope(|scope| {
                 let decode = |chunk: &mut [(_, sdk::Rule, Option<_>)]| {
                     let start = thread_cpu();
@@ -514,6 +520,9 @@ struct Measurement {
     elapsed: f64,
     worker_cpu: f64,
     file_shards: usize,
+    admission_shards: usize,
+    project_shards: usize,
+    project_prepare_wall: f64,
     call_wall: f64,
     phase_wall: [f64; 4],
     parts: [f64; 6],
@@ -530,6 +539,9 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     elapsed: 0.0,
     worker_cpu: 0.0,
     file_shards: 0,
+    admission_shards: 0,
+    project_shards: 0,
+    project_prepare_wall: 0.,
     call_wall: 0.0,
     phase_wall: [0.0; 4],
     parts: [0.0; 6],
@@ -549,7 +561,11 @@ pub fn print_measurement() {
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;
     let [admission_wall, file_wall, project_wall, delivery_wall] = m.phase_wall;
-    eprintln!("LIVE_WORKERS file_shards={} child_cpu={:.6}", m.file_shards, m.worker_cpu);
+    eprintln!(
+        "LIVE_WORKERS file_shards={} admission_shards={} project_shards={} child_cpu={:.6} project_prepare_wall={:.6} project_execute_wall={:.6}",
+        m.file_shards, m.admission_shards, m.project_shards, m.worker_cpu,
+        m.project_prepare_wall, project_wall - m.project_prepare_wall,
+    );
     eprintln!("LIVE_PHASE_WALL calls={:.6} admission={admission_wall:.6} files={file_wall:.6} project={project_wall:.6} delivery={delivery_wall:.6}",m.call_wall);
     let [plans, bindings, sources, reads, parses, pairs, skips, eval] = m.counts;
     let [inventories, builds, relations, repeated] = m.project_counts;

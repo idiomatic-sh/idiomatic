@@ -637,6 +637,7 @@ impl Batch {
             input.as_ref().map_err(Clone::clone).and_then(|input| input.read(languages))
         };
         if project_workers > 1 {
+            self.clocks.project_shards += project_workers;
             let pending: Vec<_> = pending.into_iter().map(|id| (id, prepare(id))).collect();
             let other = std::thread::scope(|scope| {
                 let mut channels = Vec::with_capacity(project_workers - 1);
@@ -669,6 +670,7 @@ impl Batch {
                 publish(&input, load(&input));
             }
         }
+        self.clocks.project_prepare_wall += wall.elapsed().as_secs_f64();
         if !keep {
             *contributions=Vec::new();
         }
