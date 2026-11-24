@@ -143,6 +143,7 @@ impl Checks {
         symbols: &l::Symbols,
         requested: &[l::Relation],
         packet: &reader_run::packet::Packet,
+        unknown: &HashMap<u32, u32>,
         cuts: &[Option<std::rc::Rc<crate::finish::partition::Partition>>],
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
     ) {
@@ -165,6 +166,17 @@ impl Checks {
                     self.known.push((need, exists));
                 }
             }
+            let column = |source, index, pattern: &pair_summary::regexes::Matcher| {
+                let FactSource::Catalog(rel) = source else { return None };
+                if partials.iter().any(|p| p.relation == rel) { return None; }
+                packet.any_symbol(rel, index, |word| {
+                    if let Some(text) = l::text_of(symbols, l::ByteSlice(bytes), word) {
+                        return pattern.is_match(text.0.as_bytes());
+                    }
+                    let value = unknown.get(&word.0).copied().or(run.absent_word);
+                    value.is_none_or(|id| pattern.is_match(&run.texts[id as usize]))
+                })
+            };
             self.program.file_columns(
                 tree,
                 bytes,
@@ -173,6 +185,7 @@ impl Checks {
                     ids: text,
                     symbols: &run.texts,
                     patterns: Some(&self.patterns),
+                    column: Some(&column),
                 }),
                 &mut self.words,
                 |source, words, out| {

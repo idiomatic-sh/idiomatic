@@ -784,7 +784,7 @@ pub(crate) fn visit<L: FileSource>(
             {
                 let mut evaluate = |screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
                     screen.exclude(root, jobs, &mut bound, &mut run, tree, &provider.text,
-                        &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, cut_of, &said);
+                        &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, unknown, cut_of, &said);
                 };
                 if let Some(screen) = &mut checks {
                     evaluate(screen, &mut active, |binding| binding);
