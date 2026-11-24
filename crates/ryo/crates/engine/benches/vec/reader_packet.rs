@@ -100,26 +100,29 @@ impl Packet {
         let starts = &self.offsets[catalog::number_of(relation).0];
         let kinds = catalog::kinds(relation);
         out.0.resize_with(kinds.len(), Default::default);
-        for (i, (column, kind)) in out.0.iter_mut().zip(kinds).enumerate() {
+        for (index, (column, kind)) in out.0.iter_mut().zip(kinds).enumerate() {
             column.0.reserve(starts.len());
-            for start in starts {
-                let raw = self.rows.words[start + i];
-                let cell = match kind {
-                    CellKind::Node if raw >> 32 != u64::from(id.0) || raw as u32 as usize >= n => {
-                        return false;
+            let cells = starts.iter().map(|&at| self.rows.words[at + index]);
+            match kind {
+                CellKind::Node => {
+                    for raw in cells {
+                        if raw >> 32 != u64::from(id.0) || raw as u32 as usize >= n {
+                            return false;
+                        }
+                        column.0.push(CellWord(u64::from(raw as u32)));
                     }
-                    CellKind::Node => CellWord(u64::from(raw as u32)),
-                    CellKind::Symbol => {
+                }
+                CellKind::Symbol => {
+                    for raw in cells {
                         let Some(text) =
                             l::text_of(symbols, ByteSlice(bytes), l::Symbol(raw as u32))
                         else {
                             return false;
                         };
-                        l::facts::intern(words, text)
+                        column.0.push(l::facts::intern(words, text));
                     }
-                    _ => CellWord(raw),
-                };
-                column.0.push(cell);
+                }
+                _ => column.0.extend(cells.map(CellWord)),
             }
         }
         true
