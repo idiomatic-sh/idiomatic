@@ -241,7 +241,8 @@ impl ColumnFile<'_, '_> {
         let mut reads = std::collections::BTreeMap::<u32, [Option<u32>; 2]>::new();
         let complete = self.visit_read_outcomes(|reference, binding, _, basis| {
             if let Some(binding) = binding {
-                let slot = &mut reads.entry(binding).or_default()[usize::from(basis == "namespace")];
+                let slot =
+                    &mut reads.entry(binding).or_default()[usize::from(basis == "namespace")];
                 *slot = Some(slot.map_or(reference, |old| old.min(reference)));
             }
         });
@@ -259,7 +260,13 @@ impl ColumnFile<'_, '_> {
         if view.model.flow.state == FlowState::Incomplete {
             return Err("incomplete binding schedule");
         }
-        Ok(view.model.flow.events.iter().map(|event| event.ordinal.0 as u64).max())
+        Ok(view
+            .model
+            .flow
+            .events
+            .iter()
+            .map(|event| event.ordinal.0 as u64)
+            .max())
     }
 
     /// Count the store and unbinding sites of a name in its routed namespace and evaluation phase.
@@ -332,7 +339,10 @@ impl ColumnFile<'_, '_> {
 impl ColumnFile<'_, '_> {
     /// For a named namespace, report its first scheduled declaration or mutation, its first mutation in
     /// schedule order, and the earliest written mutation in source order. Reads do not change a namespace.
-    pub fn visit_namespace_sites(&mut self, mut visit: impl FnMut(u32, &str, u64, Option<u64>, Option<u32>)) -> bool {
+    pub fn visit_namespace_sites(
+        &mut self,
+        mut visit: impl FnMut(u32, &str, u64, Option<u64>, Option<u32>),
+    ) -> bool {
         use crate::domain::model::names::service::text_of;
         let table = self.table;
         let read = self.file.semantics(ModelPart::Flow);
@@ -345,11 +355,17 @@ impl ColumnFile<'_, '_> {
                 FlowEventKind::Read | FlowEventKind::Wildcard => continue,
                 _ => {}
             }
-            let key = NamespaceKey { scope: event.scope, name: event.name };
+            let key = NamespaceKey {
+                scope: event.scope,
+                name: event.name,
+            };
             let ordinal = event.ordinal.0 as u64;
             let entry = sites.entry(key).or_insert((ordinal, None, None));
             entry.0 = entry.0.min(ordinal);
-            if matches!(event.kind, FlowEventKind::Bind | FlowEventKind::Delete | FlowEventKind::Cleanup) {
+            if matches!(
+                event.kind,
+                FlowEventKind::Bind | FlowEventKind::Delete | FlowEventKind::Cleanup
+            ) {
                 entry.1 = Some(entry.1.map_or(ordinal, |prior: u64| prior.min(ordinal)));
                 let node = table_id(read.tree.segments, event.at);
                 let start = ryo::languages::node_table::span_of(table, node).start.0;
@@ -358,9 +374,282 @@ impl ColumnFile<'_, '_> {
         }
         for (key, (first, mutation, written)) in sites {
             if let Some(name) = text_of(&read.model.names, key.name) {
-                visit(table_id(read.tree.segments, key.scope).0, name.0, first, mutation, written);
+                visit(
+                    table_id(read.tree.segments, key.scope).0,
+                    name.0,
+                    first,
+                    mutation,
+                    written,
+                );
             }
         }
         true
     }
+}
+
+impl ColumnFile<'_, '_> {
+    /// Schemas for rows over the parsed file's syntax and binding schedule.
+    pub const SITE_SCHEMAS: &'static [ryo::languages::FileRelation] = {
+        use ryo::languages::{
+            CellKind::{File, Node, Number, Symbol},
+            FileRelation,
+        };
+        &[
+            FileRelation {
+                name: "assignment-source",
+                columns: &[
+                    ("target", Node),
+                    ("value", Node),
+                    ("operation", Symbol),
+                    ("association", Symbol),
+                    ("file", File),
+                ],
+            },
+            FileRelation {
+                name: "binding-read-summary",
+                columns: &[
+                    ("binding", Node),
+                    ("flow-read", Node),
+                    ("namespace-read", Node),
+                    ("file", File),
+                ],
+            },
+            FileRelation {
+                name: "binding-sites",
+                columns: &[
+                    ("binding", Node),
+                    ("stores", Number),
+                    ("removals", Number),
+                    ("later", Number),
+                    ("statement", Node),
+                    ("series-end", Node),
+                    ("next", Node),
+                    ("file", File),
+                ],
+            },
+            FileRelation {
+                name: "namespace-sites",
+                columns: &[
+                    ("scope", Node),
+                    ("name", Symbol),
+                    ("first", Number),
+                    ("first-mutation", Number),
+                    ("first-written", Number),
+                    ("file", File),
+                ],
+            },
+            FileRelation {
+                name: "pre-declaration-read",
+                columns: &[
+                    ("reference", Node),
+                    ("scope", Node),
+                    ("phase", Node),
+                    ("ordinal", Number),
+                    ("file", File),
+                ],
+            },
+            FileRelation {
+                name: "type-region",
+                columns: &[("id", Node), ("file", File)],
+            },
+            FileRelation {
+                name: "namespace-final",
+                columns: &[
+                    ("namespace", Node),
+                    ("name", Symbol),
+                    ("event", Node),
+                    ("kind", Symbol),
+                    ("ordinal", Number),
+                    ("file", File),
+                ],
+            },
+        ]
+    };
+
+    /// Complete binding, assignment and type-region columns in the syntax dictionary.
+    pub fn named_site(
+        &mut self,
+        schema: &ryo::languages::FileRelation,
+        file: ryo::languages::FileId,
+        src: &[u8],
+        symbols: &mut ryo::languages::Symbols,
+    ) -> Result<Vec<ryo::languages::FactColumn>, String> {
+        use ryo::languages as l;
+        if !Self::SITE_SCHEMAS.contains(schema) {
+            return Err(format!("no site relation {}", schema.name));
+        }
+        if self.file.syntax.completeness.syntax != l::SyntaxCompleteness::Complete {
+            return Err(format!("incomplete {}", schema.name));
+        }
+        let mut columns = vec![l::FactColumn::default(); schema.columns.len()];
+        self.visit_site_relation(
+            schema.name,
+            u64::from(file.0),
+            |text| u64::from(l::intern_derived(symbols, l::ByteSlice(src), l::NameText(text)).0),
+            |row| {
+                for ((out, (_, kind)), &cell) in columns.iter_mut().zip(schema.columns).zip(row) {
+                    out.0
+                        .push(if *kind == l::CellKind::Node && cell != u64::MAX {
+                            (u64::from(file.0) << 32) | cell
+                        } else {
+                            cell
+                        });
+                }
+            },
+        )?;
+        Ok(columns)
+    }
+
+    /// Visit site rows using file-local node identities and the supplied symbol dictionary.
+    pub fn visit_site_relation(
+        &mut self,
+        relation: &str,
+        file: u64,
+        mut word: impl FnMut(&str) -> u64,
+        mut row: impl FnMut(&[u64]),
+    ) -> Result<(), String> {
+        const NULL: u64 = u64::MAX;
+        let complete = match relation {
+            "assignment-source" => {
+                self.visit_assignment_sources(|at, value, operation, association| {
+                    row(&[
+                        at.into(),
+                        value.into(),
+                        word(operation),
+                        word(association),
+                        file,
+                    ]);
+                });
+                true
+            }
+            "binding-read-summary" => {
+                self.visit_binding_read_witnesses(|binding, flow, namespace| {
+                    row(&[
+                        binding.into(),
+                        flow.map_or(NULL, u64::from),
+                        namespace.map_or(NULL, u64::from),
+                        file,
+                    ]);
+                })
+            }
+            "binding-sites" => self.visit_binding_sites(|site| {
+                row(&[
+                    site.binding.into(),
+                    site.stores as u64,
+                    site.removals as u64,
+                    site.later as u64,
+                    site.statement.map_or(NULL, u64::from),
+                    site.series_end.into(),
+                    site.next.map_or(NULL, u64::from),
+                    file,
+                ]);
+            }),
+            "namespace-sites" => {
+                self.visit_namespace_sites(|scope, name, first, mutation, written| {
+                    row(&[
+                        scope.into(),
+                        word(name),
+                        first,
+                        mutation.unwrap_or(NULL),
+                        written.map_or(NULL, u64::from),
+                        file,
+                    ]);
+                })
+            }
+            "pre-declaration-read" => {
+                self.visit_pre_declaration_reads(|at, scope, phase, ordinal| {
+                    row(&[at.into(), scope.into(), phase.into(), ordinal, file]);
+                })
+            }
+            "type-region" => {
+                let ids = self.type_regions().ok_or("type-region: incomplete model")?;
+                for id in ids {
+                    row(&[id.into(), file]);
+                }
+                true
+            }
+            "namespace-final" => {
+                self.visit_namespace_final(|scope, name, occurrence, kind, ordinal| {
+                    row(&[
+                        scope.into(),
+                        word(name),
+                        occurrence.into(),
+                        word(kind),
+                        ordinal,
+                        file,
+                    ]);
+                })
+            }
+            _ => return Err(format!("no site relation {relation}")),
+        };
+        if !complete {
+            return Err(format!("{relation}: incomplete flow"));
+        }
+        Ok(())
+    }
+
+    fn visit_namespace_final(
+        &mut self,
+        mut row: impl FnMut(u32, &str, u32, &'static str, u64),
+    ) -> bool {
+        use crate::domain::binding_facts::service::event_word;
+        use crate::domain::model::names::service::text_of;
+        let view = self.file.semantics(ModelPart::Flow);
+        if view.model.flow.state == FlowState::Incomplete {
+            return false;
+        }
+        let segments = view.tree.segments;
+        let mut latest = HashMap::new();
+        let mut events: Vec<_> = view.model.flow.events.iter().collect();
+        events.sort_by_key(|event| event.ordinal);
+        for event in events {
+            match event.kind {
+                FlowEventKind::Read | FlowEventKind::Wildcard => continue,
+                FlowEventKind::Global | FlowEventKind::Nonlocal if event.lexical != event.scope => {
+                    latest.insert((event.lexical, event.name), event);
+                }
+                _ => {}
+            }
+            latest.insert((event.scope, event.name), event);
+        }
+        let mut ordered: Vec<_> = latest.into_iter().collect();
+        ordered.sort_unstable_by_key(|((scope, name), _)| (table_id(segments, *scope).0, *name));
+        for ((scope, name), event) in ordered {
+            row(
+                table_id(segments, scope).0,
+                text_of(&view.model.names, name).map_or("", |text| text.0),
+                table_id(segments, event.at).0,
+                event_word(event.kind).0,
+                event.ordinal.0 as u64,
+            );
+        }
+        true
+    }
+}
+
+#[path = "named_semantics.rs"]
+mod named_semantics;
+
+#[path = "named.rs"]
+mod named;
+
+pub(super) fn qualify_cells(
+    schema: &ryo::languages::FileRelation,
+    file: ryo::languages::FileId,
+    columns: Vec<Vec<u64>>,
+) -> Vec<ryo::languages::FactColumn> {
+    columns
+        .into_iter()
+        .zip(schema.columns)
+        .map(|(mut cells, (_, kind))| {
+            if *kind == ryo::languages::CellKind::Node {
+                for cell in &mut cells {
+                    if *cell != u64::MAX {
+                        *cell |= u64::from(file.0) << 32;
+                    }
+                }
+            }
+            ryo::languages::FactColumn(cells)
+        })
+        .collect()
 }
