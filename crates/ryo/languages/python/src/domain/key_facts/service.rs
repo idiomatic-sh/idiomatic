@@ -194,6 +194,7 @@ pub(crate) fn keyed(file: &SyntaxFile<'_>, build: &mut KeyBuild<'_>) {
 }
 
 /// Only equality inside a dictionary matters for its overwrites. Classify its key operands with the same evaluator.
+#[cfg(any(test, feature = "fixtures"))]
 pub(crate) fn dictionary_keys<'a>(
     size: usize,
     dictionaries: impl Iterator<Item = &'a ruff_python_ast::ExprDict>,
