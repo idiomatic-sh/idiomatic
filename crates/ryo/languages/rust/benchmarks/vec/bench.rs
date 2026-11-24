@@ -64,5 +64,5 @@ fn declaration() -> first::Language {
 }
 
 fn main() {
-    reader_cli::main(ryo_rust::linked, declaration);
+    reader_cli::main(ryo_rust::linked, declaration, ".ryo_cache");
 }

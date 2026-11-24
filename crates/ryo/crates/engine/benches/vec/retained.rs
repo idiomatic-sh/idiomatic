@@ -216,6 +216,7 @@ fn tree(
 fn pack_inputs(
     hash: &mut blake3::Hasher,
     pack: &Path,
+    cache: &Path,
     obs: &mut Vec<(PathBuf, Stamp)>,
 ) -> io::Result<()> {
     remember(pack, obs)?;
@@ -256,7 +257,7 @@ fn pack_inputs(
     }
     let input = pack.join("inputs");
     if input.try_exists()? {
-        tree(hash, pack, &input, &pack.join(".ryo_cache"), obs)?
+        tree(hash, pack, &input, cache, obs)?
     }
     Ok(())
 }
@@ -269,14 +270,14 @@ struct Inputs {
     phase_ms: [f64; 3],
 }
 
-fn inputs(pack: &Path, request: &Path, closed: bool) -> io::Result<Inputs> {
+fn inputs(pack: &Path, request: &Path, cache_name: &str, closed: bool) -> io::Result<Inputs> {
     let start = cpu_time::ThreadTime::now();
     let ms = || start.elapsed().as_secs_f64() * 1000.;
     let mut observations = Vec::new();
     remember(request, &mut observations)?;
     let raw = fs::read(request)?;
     let req: Request = serde_json::from_slice(&raw)?;
-    let cache = req.root.join(".ryo_cache");
+    let cache = req.root.join(cache_name);
     fs::create_dir_all(&cache)?;
     let mut h = blake3::Hasher::new();
     field(&mut h, &raw);
@@ -293,7 +294,7 @@ fn inputs(pack: &Path, request: &Path, closed: bool) -> io::Result<Inputs> {
         field(&mut h, k.as_encoded_bytes());
         field(&mut h, v.as_encoded_bytes());
     }
-    pack_inputs(&mut h, pack, &mut observations)?;
+    pack_inputs(&mut h, pack, &cache, &mut observations)?;
     let pack_ms = ms();
     if closed {
         if !req.project_search_roots.iter().all(|p| local(p)) {
@@ -308,7 +309,7 @@ fn inputs(pack: &Path, request: &Path, closed: bool) -> io::Result<Inputs> {
         if versions.contains_key(name) {
             return Err(invalid("repeated input"));
         }
-        if !local(Path::new(name)) || Path::new(name).starts_with(".ryo_cache") {
+        if !local(Path::new(name)) || Path::new(name).starts_with(cache_name) {
             return Err(invalid("file outside source scope"));
         }
         let p = req.root.join(name);
@@ -408,13 +409,14 @@ pub(crate) fn check(
     pack: &Path,
     request: &Path,
     output: &Path,
+    cache_name: &str,
     closed: bool,
     dedup: bool,
     mut evaluate: impl FnMut(&Request, Option<&mut Capture>) -> bool,
 ) -> io::Result<bool> {
     let now = cpu_time::ThreadTime::now();
     let ms = || now.elapsed().as_secs_f64() * 1000.;
-    let mut first = match inputs(pack, request, closed) {
+    let mut first = match inputs(pack, request, cache_name, closed) {
         Ok(input) => input,
         Err(reason) => {
             eprintln!("retention unavailable: {reason}");
@@ -425,7 +427,7 @@ pub(crate) fn check(
         }
     };
     let req = &first.request;
-    let dir = req.root.join(".ryo_cache");
+    let dir = req.root.join(cache_name);
     let path = dir.join("findings.postcard");
     let build = build_identity()?;
     let before = fs::metadata(&path).ok();
@@ -501,7 +503,7 @@ pub(crate) fn check(
             .map(|m| (m.dev(), m.ino(), m.ctime(), m.ctime_nsec()));
     let mut written = 0;
     if !observed(&first.observations)
-        || !inputs(pack, request, closed).is_ok_and(|after| after.keys == first.keys)
+        || !inputs(pack, request, cache_name, closed).is_ok_and(|after| after.keys == first.keys)
     {
         drop(lock);
         eprintln!("inputs changed during evaluation; evaluating current contents");

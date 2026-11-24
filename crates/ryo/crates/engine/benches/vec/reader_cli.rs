@@ -31,7 +31,7 @@ pub(super) fn rule_context(
     Default::default()
 }
 
-pub(super) fn main(link: fn() -> ryo::languages::Language, declaration: fn() -> first::Language) {
+pub(super) fn main(link: fn() -> ryo::languages::Language, declaration: fn() -> first::Language, cache_name: &str) {
     let start = thread_cpu();
     let _allocator = alloc_count::start();
     let args: Vec<_> = std::env::args()
@@ -39,7 +39,7 @@ pub(super) fn main(link: fn() -> ryo::languages::Language, declaration: fn() -> 
         .filter(|arg| arg != "--bench")
         .collect();
     if let [mode, pack, request, output] = args.as_slice() && mode == "--retain-findings" {
-        let ok = super::finisher::retained::check(pack.as_ref(),request.as_ref(),output.as_ref(),false,false,
+        let ok = super::finisher::retained::check(pack.as_ref(),request.as_ref(),output.as_ref(),cache_name,false,false,
             |_,capture| reader_run::evaluate_files::<false>(start,link(),declaration(),pack,request,output,None,capture))
             .expect("retained findings");
         if !ok { std::process::exit(1); }
