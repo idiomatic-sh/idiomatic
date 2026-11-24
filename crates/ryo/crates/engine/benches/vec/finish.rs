@@ -233,7 +233,7 @@ impl PoolBudget {
 impl Drop for PoolBudget {
     fn drop(&mut self) {
         POOL.with_borrow_mut(|pool| {
-            if sw!("VEC_STEP_TIME") {
+            if cfg!(feature = "pair-diagnostics") && sw!("VEC_STEP_TIME") {
                 println!("worker column pool retained {} bytes; budget {} bytes", pool.cells * 8, pool.limit * 8);
             }
             pool.limit = self.0;
