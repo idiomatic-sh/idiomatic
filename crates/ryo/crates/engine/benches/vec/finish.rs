@@ -211,23 +211,11 @@ pub(super) struct Table {
     pub(super) n: usize,
 }
 
-// Small results commonly repeat a schema width in the next file. Keep their column
-// list intact so retiring one answer does not dismantle and pool each buffer.
-const BUNDLE_WIDTH: usize = 12;
-const BUNDLE_ROWS: usize = 64;
-
-struct ColumnPool {
-    by_capacity: [Vec<Vec<u64>>; CLASSES],
-    by_width: [Vec<Vec<Vec<u64>>>; BUNDLE_WIDTH + 1],
-    cells: usize,
-}
-
 thread_local! {
-    static POOL: RefCell<ColumnPool> = const { RefCell::new(ColumnPool {
-        by_capacity: [const { Vec::new() }; CLASSES],
-        by_width: [const { Vec::new() }; BUNDLE_WIDTH + 1],
-        cells: 0,
-    }) };
+    /// 8: the worker's column buffers: a dropped table's columns come back here (cleared, capacity kept) and the next
+    /// table takes them, so a file's executions reuse the same memory instead of allocating and freeing per execution.
+    /// redo-alloc: by size class (a column of room 2^c..2^(c+1) in class c), so a small table never holds a large column.
+    static POOL: RefCell<([Vec<Vec<u64>>; CLASSES], usize)> = const { RefCell::new(([const { Vec::new() }; CLASSES], 0)) };
 }
 /// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it (redo-alloc c8
 /// tried 64 MB: no fewer misses, 37 MB more live).
@@ -239,11 +227,11 @@ const CLASSES: usize = 20;
 /// power of two (so it is found again by its class); for an unknown size (`n` 0) one of the small classes (up to 512
 /// cells) or an empty one.
 #[inline]
-fn take_col(p: &mut ColumnPool, n: usize) -> Vec<u64> {
+fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
     let (lo, hi) = if n == 0 { (0, 8) } else { let c = (usize::BITS - (n - 1).leading_zeros()) as usize; (c.saturating_sub(1), (c + 4).min(CLASSES - 1)) };
     for c in lo..=hi.min(CLASSES - 1) {
-        if let Some(v) = p.by_capacity[c].pop() {
-            p.cells -= v.capacity();
+        if let Some(v) = p.0[c].pop() {
+            p.1 -= v.capacity();
             if v.capacity() >= n {
                 return v;
             }
@@ -278,18 +266,10 @@ impl Table {
         let (names, tys) = (names.into(), tys.into());
         let k = names.len();
         // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool
-        let cols = POOL.with_borrow_mut(|p| {
-            if n <= BUNDLE_ROWS && k <= BUNDLE_WIDTH && let Some(mut cols) = p.by_width[k].pop() {
-                for col in &mut cols {
-                    p.cells -= col.capacity();
-                    col.clear();
-                    col.reserve(n);
-                }
-                return cols;
-            }
-            let mut cols = recycle::take_cols(k);
+        let mut cols = recycle::take_cols(k);
+        POOL.with(|p| {
+            let p = &mut *p.borrow_mut();
             cols.extend((0..k).map(|_| take_col(p, n)));
-            cols
         });
         Table { names, tys, cols, n: 0 }
     }
@@ -319,24 +299,15 @@ impl Table {
             return;
         }
         let _ = POOL.try_with(|p| {
-            let p = &mut *p.borrow_mut();
-            let k = self.cols.len();
-            if k <= BUNDLE_WIDTH && p.by_width[k].len() < 128 && self.cols.iter().all(|c| c.capacity() <= BUNDLE_ROWS) {
-                let cells = self.cols.iter().map(Vec::capacity).sum::<usize>();
-                if p.cells + cells <= POOL_CELLS {
-                    p.cells += cells;
-                    p.by_width[k].push(std::mem::take(&mut self.cols));
-                    return;
-                }
-            }
+            let (p, cells) = &mut *p.borrow_mut();
             for mut c in self.cols.drain(..) {
                 let cap = c.capacity();
-                if cap == 0 || cap > POOL_CELLS / 16 || p.cells + cap > POOL_CELLS {
+                if cap == 0 || cap > POOL_CELLS / 16 || *cells + cap > POOL_CELLS {
                     continue;
                 }
                 c.clear();
-                p.cells += cap;
-                p.by_capacity[(usize::BITS - 1 - cap.leading_zeros()) as usize].push(c);
+                *cells += cap;
+                p[(usize::BITS - 1 - cap.leading_zeros()) as usize].push(c);
             }
         });
     }
