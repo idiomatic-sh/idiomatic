@@ -39,12 +39,11 @@ impl States {
         Self { words: Vec::new(), stamp: 0 }
     }
 
-
     pub(super) fn renew(&mut self, nodes: usize) {
-        if self.words.len() != nodes {
-            self.words.clear();
+        // A shorter plan can reuse the same words. The stamp makes every old
+        // state invisible even when the next plan grows again.
+        if self.words.len() < nodes {
             self.words.resize(nodes, 0);
-            self.stamp = 0;
         }
         self.stamp = self.stamp.wrapping_add(Self::STATE_MASK + 1);
         if self.stamp == 0 {
