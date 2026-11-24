@@ -26,25 +26,24 @@ pub fn property_at(
     property: PropertyId,
 ) -> Option<NameText<'_>> {
     let table = engine(elements);
-    if let Some(native) = &table.native {
-        return crate::domain::node_table::service::property_of(native, at, property);
-    }
+    let (properties, text) = match &table.native {
+        Some(native) => (&native.0.properties, &native.0.texts),
+        None => (&table.decoded, &table.decoded_text),
+    };
     // Spike (ryo-fmx3, host3): the search starts at this thread's last answer and widens from there: readers ask in tree
     // order, so a lookup reads a few neighbouring entries, not a bisection of the whole file's entries.
     thread_local! {
         static LAST: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     }
-    let found = galloped(&table.decoded, (at, property), LAST.with(std::cell::Cell::get));
+    let found = galloped(properties, (at, property), LAST.with(std::cell::Cell::get));
     if let Ok(place) | Err(place) = found {
         LAST.with(|last| last.set(place));
     }
     let Ok(found) = found else {
         return None; // a binary search answers where a key it does not find would go: that is the key's absence, not a failure
     };
-    let each = table.decoded.get(found)?;
-    table
-        .decoded_text
-        .0
+    let each = properties.get(found)?;
+    text.0
         .get(
             usize::try_from(each.from.0).unwrap_or(usize::MAX)
                 ..usize::try_from(each.to.0).unwrap_or(usize::MAX),
