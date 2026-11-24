@@ -118,6 +118,7 @@ pub(super) struct CallCache {
     path_hashes: HashMap<u64, Vec<usize>>,
     selections: HashMap<Selection, usize>,
     queries: HashSet<Rc<str>>,
+    catalogs: HashMap<usize, (release_sdk::linked_sdk::ModuleSources, crate::check_session::query::Modules)>,
     schemas: HashMap<(String, Vec<(String, String)>), usize>,
     rows: Vec<std::sync::Arc<[HostCell]>>,
     by_hash: HashMap<(usize, u64), Vec<usize>>,
@@ -217,6 +218,15 @@ impl CallCache {
         let owned: Rc<str> = Rc::from(query);
         self.queries.insert(owned.clone());
         owned
+    }
+
+    pub(super) fn modules(&mut self, query: &release_sdk::query::RyoQlQuery) -> Option<crate::check_session::query::Modules> {
+        let registry = release_sdk::linked_sdk::query_modules(query)?;
+        let (_, modules) = self.catalogs.entry(registry.identity()).or_insert_with(|| {
+            let sources = registry.sources().map(|(name, text)| (name.into(), text.clone())).collect();
+            (registry, crate::check_session::query::Modules::new(sources))
+        });
+        Some(modules.clone())
     }
 
     pub(super) fn path_digest(&mut self, paths: &Rc<Vec<String>>) -> stored::Key {

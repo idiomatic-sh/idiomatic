@@ -13,7 +13,28 @@ use std::{
     sync::Arc,
 };
 
-pub(crate) type Modules = Arc<BTreeMap<Box<str>, Arc<str>>>;
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct Modules {
+    sources: Arc<BTreeMap<Box<str>, Arc<str>>>,
+    digest: [u8; 32],
+}
+
+impl Modules {
+    pub(crate) fn new(sources: BTreeMap<Box<str>, Arc<str>>) -> Self {
+        let mut digest = blake3::Hasher::new();
+        for (name, text) in &sources {
+            for value in [name.as_bytes(), text.as_bytes()] {
+                digest.update(&(value.len() as u64).to_le_bytes());
+                digest.update(value);
+            }
+        }
+        Self { sources: Arc::new(sources), digest: *digest.finalize().as_bytes() }
+    }
+}
+
+impl Hash for Modules {
+    fn hash<H: Hasher>(&self, state: &mut H) { self.digest.hash(state); }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Query {
@@ -57,7 +78,7 @@ impl Query {
         };
         let syntax = winnow();
         let mut parsed = BTreeMap::new();
-        for (name, text) in sources.iter() {
+        for (name, text) in sources.sources.iter() {
             let id = QuerySourceId(Arc::from(name.as_ref()));
             let fragment = syntax
                 .read_fragment(&id, QueryView(text))

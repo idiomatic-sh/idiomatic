@@ -83,7 +83,7 @@ pub(super) fn query(
 ) -> Query {
     Query {
         text: cache.query(rule.query.as_ref()),
-        modules: release_sdk::linked_sdk::query_modules(&rule.query),
+        modules: cache.modules(&rule.query),
         accepted_only: rule.applicability == sdk::RuleApplicability::AcceptedSyntax,
         observations: inputs.cloned().unwrap_or_default(),
     }

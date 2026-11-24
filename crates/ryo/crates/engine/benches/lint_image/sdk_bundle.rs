@@ -1,16 +1,20 @@
-/// Transfer the immutable module sources across the linked SDK version boundary.
-pub fn query_modules(
-    query: &crate::query::RyoQlQuery,
-) -> Option<std::sync::Arc<std::collections::BTreeMap<Box<str>, std::sync::Arc<str>>>> {
-    let bundle = query.clone().into_bundle();
-    if bundle.modules.is_empty() {
-        return None;
+/// An immutable module registry from the linked release. Retaining it keeps its
+/// identity valid while roots from the same catalog are admitted.
+#[derive(Clone, PartialEq, Eq)]
+pub struct ModuleSources(std::sync::Arc<std::collections::BTreeMap<
+    ryo_values::domain::query_tokens::types::QuerySourceId,
+    ryo_values::domain::query_tokens::types::QueryDocumentSource,
+>>);
+
+impl ModuleSources {
+    pub fn identity(&self) -> usize { std::sync::Arc::as_ptr(&self.0) as usize }
+
+    pub fn sources(&self) -> impl Iterator<Item = (&str, &std::sync::Arc<str>)> {
+        self.0.iter().map(|(id, document)| (id.0.as_ref(), &document.text.0))
     }
-    Some(std::sync::Arc::new(
-        bundle
-            .modules
-            .iter()
-            .map(|(id, document)| (id.0.clone(), document.text.0.clone()))
-            .collect(),
-    ))
+}
+
+pub fn query_modules(query: &crate::query::RyoQlQuery) -> Option<ModuleSources> {
+    let modules = query.clone().into_bundle().modules;
+    (!modules.is_empty()).then_some(ModuleSources(modules))
 }
