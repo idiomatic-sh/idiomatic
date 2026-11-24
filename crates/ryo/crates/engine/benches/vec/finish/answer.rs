@@ -79,6 +79,7 @@ pub(crate) struct Row {
 
 impl Row {
     /// Rebuild a row from the stable cell values at the retention boundary.
+    #[allow(dead_code, reason = "the check session restores packed answers from persistent storage")]
     pub(crate) fn restored(
         rule: Box<str>,
         identity: Box<[usize]>,
