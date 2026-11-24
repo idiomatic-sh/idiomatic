@@ -624,7 +624,7 @@ impl Batch {
             if let Some((prior, _)) = populations.get(&id) {
                 self.relations_rebuilt += s.wanted.intersection(prior).count();
             }
-            pending.push((id, prepare(id)));
+            pending.push(id);
         }
         let project_workers = self.workers.map_or(1, std::num::NonZeroUsize::get)
             .min(pending.len().div_ceil(8));
@@ -637,6 +637,7 @@ impl Batch {
             input.as_ref().map_err(Clone::clone).and_then(|input| input.read(languages))
         };
         if project_workers > 1 {
+            let pending: Vec<_> = pending.into_iter().map(|id| (id, prepare(id))).collect();
             let other = std::thread::scope(|scope| {
                 let mut channels = Vec::with_capacity(project_workers - 1);
                 for shard in 1..project_workers {
@@ -663,11 +664,11 @@ impl Batch {
             });
             self.clocks.project_workers_cpu += other;
         } else {
-            for input in &pending {
-                publish(input, load(input));
+            for id in pending {
+                let input = (id, prepare(id));
+                publish(&input, load(&input));
             }
         }
-        drop(pending);
         if !keep {
             *contributions=Vec::new();
         }
