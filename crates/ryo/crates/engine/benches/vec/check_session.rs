@@ -1410,7 +1410,7 @@ pub(crate) fn visit<L: FileSource>(
             let elapsed = start.elapsed().as_secs_f64();
             if elapsed > clocks.largest_file_wall {
                 clocks.largest_file_wall = elapsed;
-                clocks.largest_file.clone_from(&sources[group[0]].path);
+                clocks.largest_file.clone_from(&sources[group_id].path);
             }
         }
         if let Some(boundaries) = &mut world.boundaries {
