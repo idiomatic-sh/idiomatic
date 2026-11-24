@@ -66,19 +66,17 @@ impl Flat {
 
 impl<'p> Exec<'p> {
     /// Kind codes, input indices and file-test flags are closed over the plan and provider.
-    /// Bind every slot on the primary before lending the three flat arrays to a worker.
-    pub(crate) fn freeze_static_tests(&mut self, run: &mut Run) -> Flat {
+    /// Bind selected slots on the primary before lending the three flat arrays to a worker.
+    pub(crate) fn freeze_static_tests(&mut self, run: &mut Run, selected: &[bool]) -> Flat {
         let plan = self.plan;
         for (node, step) in plan.nodes.iter().enumerate() {
+            if !selected[node] { continue; }
             let _ = step.args();
             self.rec(run, node);
         }
         self.flat.as_ref().clone()
     }
 
-    pub(crate) fn use_static_tests(&mut self, tests: &'p Flat) {
-        self.flat = std::borrow::Cow::Borrowed(tests);
-    }
 }
 
 impl Exec<'_> {

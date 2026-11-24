@@ -214,7 +214,7 @@ fn bind<'p>(
         .iter()
         .map(|clause| clause.iter().map(|w| run.sym(w.as_bytes())).collect())
         .collect();
-    let exec = Exec::with_layout(&program.plan, program.layout.clone());
+    let exec = Exec::with_layout(&program.plan, program.layout.clone(), None);
     Ok(Bound {
         exec,
         facts,

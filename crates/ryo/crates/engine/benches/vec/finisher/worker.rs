@@ -45,7 +45,15 @@ impl<'p> Finisher<'p> {
                 (name, (*cols).clone(), (*types).clone(), supplier)
             })
             .collect();
-        let static_tests = self.exec.freeze_static_tests(r);
+        // Only nodes reachable from a selected emit can be demanded by these workers.
+        let mut selected = vec![false; self.plan.nodes.len()];
+        let mut pending: Vec<_> = self.emits.iter().map(|&emit| self.plan.emits[emit].1).collect();
+        while let Some(node) = pending.pop() {
+            if !std::mem::replace(&mut selected[node], true) {
+                pending.extend_from_slice(&self.plan.nodes[node].inputs);
+            }
+        }
+        let static_tests = self.exec.freeze_static_tests(r, &selected);
         let shapes = self.exec.freeze_shapes(r, &self.emits);
         let settings = Settings {
             shapes,
@@ -53,7 +61,7 @@ impl<'p> Finisher<'p> {
             constants: self.exec.share_constants(r),
             static_tests,
             ids: r.ids.clone(),
-            patterns: finish::worker_patterns::Patterns::for_workers(self.plan, r),
+            patterns: finish::worker_patterns::Patterns::for_workers(self.plan, r, &selected),
             plan: self.plan,
             layout: self.exec.layout.clone(),
             emits: self.emits.clone(),
@@ -118,7 +126,7 @@ impl<'p> Settings<'p> {
             dump: self.dump.clone(),
             dump_chunks: Vec::new(),
             run,
-            exec: finish::Exec::with_layout(self.plan, self.layout.clone()),
+            exec: finish::Exec::with_layout(self.plan, self.layout.clone(), Some(&self.static_tests)),
             findings: Default::default(),
             failed: Default::default(),
             accepted_only: self.accepted_only.clone(),
@@ -138,7 +146,6 @@ impl<'p> Settings<'p> {
         };
         self.shapes.attach(&mut worker.exec);
         worker.exec.use_constants(self.constants.clone());
-        worker.exec.use_static_tests(&self.static_tests);
         worker.exec.cold_test_load(&mut worker.run);
         worker.exec.cold_load(&mut worker.run);
         worker.exec.col_load(&mut worker.run);

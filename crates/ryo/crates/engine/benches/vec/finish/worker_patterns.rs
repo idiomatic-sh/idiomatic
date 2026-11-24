@@ -13,14 +13,15 @@ use std::sync::Arc;
 pub(crate) struct Patterns(FxHashMap<String, R<Regex>>);
 
 impl Patterns {
-    pub(crate) fn for_workers(plan: &Plan, run: &mut Run) -> Arc<Self> {
+    pub(crate) fn for_workers(plan: &Plan, run: &mut Run, selected: &[bool]) -> Arc<Self> {
         let mut patterns = Self::default();
         for (name, compiled) in &run.regexes {
             let _ = patterns
                 .0
                 .insert(name.clone(), Ok(compiled.as_ref().clone()));
         }
-        for node in &plan.nodes {
+        for (node, &selected) in plan.nodes.iter().zip(selected) {
+            if !selected { continue; }
             match node.step() {
                 FinishStep::Capture(s) => patterns.add(s.pattern.0.to_string()),
                 FinishStep::SourceMatches(s) => patterns.add(s.pattern.0.to_string()),
