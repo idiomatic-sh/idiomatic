@@ -465,41 +465,6 @@ impl FileSummary {
         excluded
     }
 
-    /// Report the first failed prerequisite after `excludes` returned true.
-    #[allow(
-        dead_code,
-        reason = "used by diagnostic builds that trace pair decisions"
-    )]
-    pub(super) fn exclusion(&self, id: usize, bound: &BoundSummary) -> Option<&'static str> {
-        if self.answers.get(id) != Some(true) {
-            return None;
-        }
-        if bound.never {
-            return Some("contradiction");
-        }
-        let Some(clause) = bound
-            .shape
-            .iter()
-            .find(|clause| self.clauses.get(clause.id) == Some(true))
-        else {
-            return Some("word");
-        };
-        let kinds = clause
-            .terms
-            .iter()
-            .any(|term| matches!(term, Shape::Kind(_)));
-        let fields = clause
-            .terms
-            .iter()
-            .any(|term| matches!(term, Shape::Field(_)));
-        Some(match (kinds, fields) {
-            (true, false) => "kind",
-            (false, true) => "field",
-            (true, true) => "kind-or-field",
-            (false, false) => "contradiction",
-        })
-    }
-
     fn missing(
         &mut self,
         bound: &BoundSummary,
