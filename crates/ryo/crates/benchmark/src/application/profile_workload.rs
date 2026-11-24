@@ -23,6 +23,7 @@ pub(crate) struct Workload<'a> {
     pub name: &'a str,
     pub root: &'a Path,
     pub exits: &'a [i32],
+    pub has_engine: bool,
     pub instruction_budget: Duration,
 }
 
@@ -40,7 +41,7 @@ pub(crate) fn profile<T>(
     other: Option<&Images>,
     report: &mut impl Write,
     mut command: impl FnMut(&Path, Option<Observer>, &Path) -> Result<(CommandLine, T), Error>,
-    mut engine: impl FnMut(&standard::Observation, T, &Path) -> Result<EngineEvidence, Error>,
+    mut engine: impl FnMut(&standard::Observation, T, &Path) -> Result<Option<EngineEvidence>, Error>,
 ) -> Result<Measurements, Error> {
     let mut totals = BTreeMap::new();
     let mut run = |images: &Images, folder: &str| {
@@ -48,11 +49,16 @@ pub(crate) fn profile<T>(
         let mut ordinary = None;
         let detail_path = destination.join("engine");
         fs::create_dir_all(&detail_path)?;
-        let (detail, _) = command(
-            images.diagnostic.as_deref().unwrap_or(&images.ordinary),
-            None,
-            &detail_path,
-        )?;
+        let detail = workload
+            .has_engine
+            .then(|| {
+                command(
+                    images.diagnostic.as_deref().unwrap_or(&images.ordinary),
+                    None,
+                    &detail_path,
+                )
+            })
+            .transpose()?;
         let (profile, diagnostic) = standard::collect(
             &destination,
             workload.exits,
@@ -70,14 +76,19 @@ pub(crate) fn profile<T>(
                 }
                 Ok(command)
             },
-            || standard::observe(&detail, Observer::Native, &detail_path),
+            || {
+                detail
+                    .map(|(command, _)| standard::observe(&command, Observer::Native, &detail_path))
+                    .transpose()
+            },
         )?;
         let ordinary = ordinary.ok_or_else(|| Error::Invalid("missing ordinary request".into()))?;
-        if !diagnostic
-            .status
-            .code()
-            .is_some_and(|code| workload.exits.contains(&code))
-            || !standard::same_stdout(&profile.native, &diagnostic, Observer::Native)?
+        if let Some(diagnostic) = &diagnostic
+            && (!diagnostic
+                .status
+                .code()
+                .is_some_and(|code| workload.exits.contains(&code))
+                || !standard::same_stdout(&profile.native, diagnostic, Observer::Native)?)
         {
             return Err(Error::Invalid(format!(
                 "operator observer changed the ordinary output; see {}",
@@ -92,14 +103,14 @@ pub(crate) fn profile<T>(
             images.ordinary.display(),
             images.heap.display()
         )?;
-        evidence.write(report)?;
-        standard::run_table(
-            report,
-            &[
-                ("Ordinary", &profile.native),
-                ("Operator observer", &diagnostic),
-            ],
-        )?;
+        if let Some(evidence) = &evidence {
+            evidence.write(report)?;
+        }
+        let mut clocked = vec![("Ordinary", &profile.native)];
+        if let Some(diagnostic) = &diagnostic {
+            clocked.push(("Operator observer", diagnostic));
+        }
+        standard::run_table(report, &clocked)?;
         standard::report(report, &profile, &destination)?;
         let key = if folder == "first" {
             workload.name.to_owned()
@@ -115,7 +126,9 @@ pub(crate) fn profile<T>(
         let (compared, second_evidence, second_path) = run(other, "other")?;
         writeln!(report, "\n## Build comparison\n")?;
         standard::compare(report, (&profile, &path), (&compared, &second_path))?;
-        evidence.compare(&second_evidence, report)?;
+        if let (Some(evidence), Some(second_evidence)) = (evidence, second_evidence) {
+            evidence.compare(&second_evidence, report)?;
+        }
     }
     Ok(totals)
 }

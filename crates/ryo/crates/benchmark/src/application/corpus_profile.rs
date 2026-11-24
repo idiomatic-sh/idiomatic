@@ -106,6 +106,7 @@ impl CorpusProfile {
                 name,
                 root: &root,
                 exits: &[0],
+                has_engine: true,
                 instruction_budget: Duration::from_secs(360),
             },
             &self.first,
@@ -153,7 +154,11 @@ impl CorpusProfile {
                     )))?;
                 let ledger =
                     BufReader::new(fs::File::open(destination.join("engine/events.jsonl"))?);
-                Ok(profile_evidence::worker(clock, result.coverage, ledger)?)
+                Ok(Some(profile_evidence::worker(
+                    clock,
+                    result.coverage,
+                    ledger,
+                )?))
             },
         )?;
         self.metrics.borrow_mut().extend(totals);

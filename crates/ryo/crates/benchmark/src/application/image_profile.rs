@@ -26,6 +26,8 @@ struct Input {
     clock_launcher: Vec<String>,
     #[serde(default)]
     instruction_launcher: Vec<String>,
+    #[serde(default)]
+    engine: bool,
     oracle: Option<PathBuf>,
     directory: Option<PathBuf>,
     snapshot: Option<PathBuf>,
@@ -126,6 +128,7 @@ pub fn profile(
             name: &first.name,
             root: &run,
             exits: &first.exits,
+            has_engine: first.engine,
             instruction_budget: Duration::from_secs(900),
         },
         &first.image,
@@ -189,6 +192,9 @@ pub fn profile(
                     native.stdout.display()
                 )));
             }
+            if !first.engine {
+                return Ok(None);
+            }
             let mut log = fs::read_to_string(&native.stderr)?;
             if native.stdout != destination.join("native/stdout")
                 && first.arguments.iter().any(|arg| arg == "{answer}")
@@ -202,7 +208,7 @@ pub fn profile(
                 Err(error) if error.kind() == io::ErrorKind::NotFound => None,
                 Err(error) => return Err(error.into()),
             };
-            Ok(profile_evidence::archived(&log, ledger)?)
+            Ok(Some(profile_evidence::archived(&log, ledger)?))
         },
     )?;
     serde_json::to_writer_pretty(output, &totals)

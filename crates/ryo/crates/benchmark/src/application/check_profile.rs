@@ -102,6 +102,7 @@ pub fn profile(
                 name,
                 root: &root,
                 exits: &[0, 1],
+                has_engine: true,
                 instruction_budget: budget,
             },
             &ordinary,
@@ -148,7 +149,7 @@ pub fn profile(
                 let ledger = BufReader::new(fs::File::open(
                     destination.join("engine/ryo-operators.tsv"),
                 )?);
-                Ok(profile_evidence::live(&log, Some(ledger))?)
+                Ok(Some(profile_evidence::live(&log, Some(ledger))?))
             },
         )?);
     }
