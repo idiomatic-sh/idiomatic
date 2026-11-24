@@ -11,12 +11,66 @@ use std::{
 use std::sync::Arc;
 
 #[cfg(feature = "product-session")]
-type BlockWords = Arc<Vec<Words>>;
+thread_local! {
+    static SHARE_LIVE_BLOCKS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(feature = "product-session")]
+pub(crate) fn share_live_blocks(enabled: bool) {
+    SHARE_LIVE_BLOCKS.set(enabled);
+}
+
 #[cfg(not(feature = "product-session"))]
 type BlockWords = Vec<Words>;
 
+#[cfg(feature = "product-session")]
+enum BlockWords {
+    Local(Vec<Words>),
+    Shared(Arc<Vec<Words>>),
+}
+
+#[cfg(feature = "product-session")]
+impl From<Vec<Words>> for BlockWords {
+    fn from(words: Vec<Words>) -> Self {
+        if SHARE_LIVE_BLOCKS.get() {
+            Self::Shared(Arc::new(words))
+        } else {
+            Self::Local(words)
+        }
+    }
+}
+
+#[cfg(feature = "product-session")]
+impl std::ops::Deref for BlockWords {
+    type Target = [Words];
+    fn deref(&self) -> &[Words] {
+        match self {
+            Self::Local(words) => words,
+            Self::Shared(words) => words,
+        }
+    }
+}
+
+#[cfg(feature = "product-session")]
+impl BlockWords {
+    fn share(&self) -> Arc<Vec<Words>> {
+        match self {
+            Self::Local(words) => Arc::new(words.clone()),
+            Self::Shared(words) => words.clone(),
+        }
+    }
+
+    fn take(self) -> Vec<Words> {
+        match self {
+            Self::Local(words) => words,
+            Self::Shared(words) => Arc::unwrap_or_clone(words),
+        }
+    }
+}
+
 /// File-local row numbers and identifiers typically occupy only part of a word.
 /// All representations decode to the exact canonical u64, including public nulls.
+#[cfg_attr(feature = "product-session", derive(Clone))]
 enum Words {
     Constant(u64),
     Sequence(u64),
@@ -91,7 +145,7 @@ pub(crate) struct Block {
 /// The immutable cells and schema can outlive their original project executor.
 #[cfg(feature = "product-session")]
 pub(crate) struct SharedBlock<'a> {
-    block: &'a Arc<Vec<Words>>,
+    block: Arc<Vec<Words>>,
     schema: (usize, usize),
     names: &'a [String],
     types: &'a [Ty],
@@ -109,7 +163,7 @@ impl SharedBlock<'_> {
             tys: tys.clone(),
             n: self.len,
             home: self.home,
-            columns: self.block.clone(),
+            columns: BlockWords::Shared(self.block.clone()),
             postings: Default::default(),
         })
     }
@@ -123,7 +177,7 @@ impl Block {
     #[cfg(feature = "product-session")]
     pub(crate) fn share(&self) -> SharedBlock<'_> {
         SharedBlock {
-            block: &self.columns,
+            block: self.columns.share(),
             schema: (Rc::as_ptr(&self.names) as usize, Rc::as_ptr(&self.tys) as usize),
             names: &self.names,
             types: &self.tys,
@@ -400,7 +454,7 @@ impl Block {
             rows: self.n,
             home: self.home,
             #[cfg(feature = "product-session")]
-            columns: Arc::try_unwrap(self.columns).ok().expect("unshared sending block"),
+            columns: self.columns.take(),
             #[cfg(not(feature = "product-session"))]
             columns: self.columns,
         }
