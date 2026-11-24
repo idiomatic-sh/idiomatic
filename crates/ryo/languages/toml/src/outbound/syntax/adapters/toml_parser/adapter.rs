@@ -165,7 +165,13 @@ impl SyntaxPort for SyntaxTomlParserAdapter {
         let source = Source::new(content.0);
         let tokens = source.lex().into_vec();
         languages::enter_node(builder, kind_bits(Kind::Node(Node::Toml)), Offset(0));
+        // These relations expose decoded scalar values or depend on decoded keys.
+        let values = builder.decode_for(&[
+            languages::Relation::StringLiteral, languages::Relation::Mapping,
+            languages::Relation::Entry, languages::Relation::SequenceElement,
+        ]);
         let mut writer = Writer {
+            values,
             tree: languages::lossless(builder, Offset(0)),
             source,
             open: vec![Kind::Node(Node::Toml)],

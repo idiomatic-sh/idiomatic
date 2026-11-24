@@ -11,6 +11,7 @@ struct Writer<'a, 'b> {
     host: Option<l::Position>,
     depth: usize,
     numeric: bool,
+    strings: bool,
     record_origins: bool,
     origins: &'a mut Vec<l::ExpandedPosition>,
     flags: &'a mut Vec<l::Flags>,
@@ -34,6 +35,9 @@ impl Writer<'_, '_> {
 }
 
 impl Output for Writer<'_, '_> {
+    fn string_values(&self) -> bool {
+        self.strings
+    }
     fn numeric_values(&self) -> bool {
         self.numeric
     }
@@ -99,10 +103,10 @@ pub(crate) fn read(
     table: &mut l::NodeTable,
     origins: &mut Vec<l::ExpandedPosition>,
     flags: &mut Vec<l::Flags>,
-    fields: bool,
+    columns: l::NativeColumns,
     access: l::NodeAccess<'_>,
 ) {
-    read_with(bytes, table, origins, flags, fields, access, crate::domain::model::types::ProviderRevision::Current);
+    read_with(bytes, table, origins, flags, columns, access, crate::domain::model::types::ProviderRevision::Current);
 }
 
 pub(crate) fn read_released(
@@ -110,10 +114,10 @@ pub(crate) fn read_released(
     table: &mut l::NodeTable,
     origins: &mut Vec<l::ExpandedPosition>,
     flags: &mut Vec<l::Flags>,
-    fields: bool,
+    columns: l::NativeColumns,
     access: l::NodeAccess<'_>,
 ) {
-    read_with(bytes, table, origins, flags, fields, access, crate::domain::model::types::ProviderRevision::Released014);
+    read_with(bytes, table, origins, flags, columns, access, crate::domain::model::types::ProviderRevision::Released014);
 }
 
 fn read_with(
@@ -121,7 +125,7 @@ fn read_with(
     table: &mut l::NodeTable,
     origins: &mut Vec<l::ExpandedPosition>,
     flags: &mut Vec<l::Flags>,
-    fields: bool,
+    columns: l::NativeColumns,
     access: l::NodeAccess<'_>,
     revision: crate::domain::model::types::ProviderRevision,
 ) {
@@ -135,6 +139,13 @@ fn read_with(
             host: None,
             depth: 0,
             record_origins: matches!(access, l::NodeAccess::Inspect(_)),
+            strings: columns.notes || match access {
+                l::NodeAccess::Inspect(_) => true,
+                l::NodeAccess::Query(rows) => rows.iter().any(|relation| matches!(relation,
+                    l::Relation::SyntaxTree | l::Relation::SemanticSyntax | l::Relation::TokenLink
+                    | l::Relation::StringLiteral | l::Relation::ExpressionShape
+                )),
+            },
             numeric: match access {
                 l::NodeAccess::Inspect(_) => true,
                 l::NodeAccess::Query(rows) => rows.iter().any(|relation| {
@@ -146,7 +157,7 @@ fn read_with(
         },
     );
     let _ = t::finished(&mut builder);
-    if fields {
+    if columns.fields {
         t::classify_fields(table, |tree, at| {
             l::FieldCode(field_bits(field_of(&NativeTree { table: tree, flags }, at)).0)
         });

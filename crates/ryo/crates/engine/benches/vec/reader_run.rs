@@ -390,6 +390,8 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
     let mut packet = packet::Packet::new();
     let mut coverage = coverage::Coverage::default();
     let mut symbols = l::Symbols::default();
+    let reader_relations: Vec<_> = relations.iter().copied()
+        .chain(std::iter::once(l::Relation::SyntaxTree)).collect();
     for (index, path) in req.files.iter().enumerate() {
         if fin.retained_file(path) { continue; }
         let t0 = thread_cpu();
@@ -403,7 +405,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
             notes: l::NoteRequest::Unwanted,
         };
         parser
-            .build_native_file(parse, &mut elements, &mut symbols, l::NodeAccess::Query(&relations))
+            .build_native_file(parse, &mut elements, &mut symbols, l::NodeAccess::Query(&reader_relations))
             .expect("parse file");
         if let Some(c) = &mut fin.capture { c.visited(path,&bytes); }
         let mut provider = reader::ReaderFacts::new(id.0, &unknown_words);

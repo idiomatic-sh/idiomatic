@@ -90,6 +90,8 @@ pub fn write_embedded(
     if builder_engine(builder).writing == TableWriting::Discards {
         let engine = builder_engine(builder);
         let mut logical = TableBuilder::from(BuilderEngine {
+            requested: None,
+            keep_decoded: true,
             elements: engine.elements,
             symbols: engine.symbols,
             source: engine.source,
@@ -106,6 +108,8 @@ pub fn write_embedded(
     let host_end = crate::domain::elements::service::end_at(engine.elements, host);
     {
         let mut logical = TableBuilder::from(BuilderEngine {
+            requested: None,
+            keep_decoded: true,
             elements: engine.elements,
             symbols: engine.symbols,
             source: engine.source,
@@ -159,6 +163,8 @@ pub fn append_embedded(
     let from = Count(engine(completion.elements).decoded.len());
     {
         let mut builder = TableBuilder::from(BuilderEngine {
+            requested: None,
+            keep_decoded: true,
             elements: completion.elements,
             symbols: completion.symbols,
             source: completion.source,

@@ -42,6 +42,8 @@ enum Scenario {
     Numbers(&'static str),
     /// Compare native and released-layout readers down to each element and its provenance.
     Native(&'static [u8]),
+    /// A query-scoped file, with its local relations and project note demand.
+    ValueReach(&'static [ryo::languages::Relation], ryo::languages::NoteRequest),
 }
 
 /// What a row of the cases is given.
@@ -52,6 +54,30 @@ type Failure = ();
 
 /// The rows of what is specific to this adapter.
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_comment_request_preserves_raw_token_text"),
+        word: Word::Succeeds,
+        input: || Scenario::ValueReach(&[ryo::languages::Relation::Comment], ryo::languages::NoteRequest::Unwanted),
+        expect: Expect::Value("raw"),
+    },
+    Case {
+        name: CaseName("a_value_request_preserves_the_decoded_literal"),
+        word: Word::Succeeds,
+        input: || Scenario::ValueReach(&[ryo::languages::Relation::StringLiteral], ryo::languages::NoteRequest::Unwanted),
+        expect: Expect::Value("decoded"),
+    },
+    Case {
+        name: CaseName("a_native_syntax_request_preserves_decoded_text_predicates"),
+        word: Word::Succeeds,
+        input: || Scenario::ValueReach(&[ryo::languages::Relation::SyntaxTree], ryo::languages::NoteRequest::Unwanted),
+        expect: Expect::Value("decoded"),
+    },
+    Case {
+        name: CaseName("project_notes_preserve_the_decoded_module_path"),
+        word: Word::Succeeds,
+        input: || Scenario::ValueReach(&[ryo::languages::Relation::Comment], ryo::languages::NoteRequest::Wanted),
+        expect: Expect::Value("decoded"),
+    },
     Case {
         name: CaseName("native_positions_preserve_nested_macro_origins_decoded_literals_and_project_notes"),
         word: Word::Succeeds,
@@ -340,6 +366,32 @@ fn numbers(source: &'static str) -> String {
         .join(", ")
 }
 
+fn value_reach(rows: &[ryo::languages::Relation], notes: ryo::languages::NoteRequest) -> String {
+    use ryo::languages as l;
+    let bytes = l::ByteSlice(br#"#[path = "a\tb.rs"] mod b;"#);
+    let request = l::ParseRequest {
+        path: l::SourcePath("src/lib.rs"),
+        bytes,
+        file: l::FileId(0),
+        fields: l::FieldRequest::Unwanted,
+        notes,
+    };
+    let mut file = l::Elements::default();
+    let mut symbols = l::Symbols::default();
+    crate::linked().parse_engine()
+        .build_native_file(request, &mut file, &mut symbols, l::NodeAccess::Query(rows))
+        .expect("Rust file");
+    let at = l::positions(&file).find(|&at| {
+        l::text_of(&symbols, bytes, l::text_at(&file, at))
+            .is_some_and(|word| word.0 == r#""a\tb.rs""#)
+    }).expect("original string token");
+    match l::decoded_at(&file, at) {
+        Some(l::NameText("a\tb.rs")) => "decoded",
+        None => "raw",
+        Some(_) => "wrong value",
+    }.to_owned()
+}
+
 fn native_difference(bytes: &[u8]) -> String {
     use ryo::languages as l;
     let parser = crate::linked().parse_engine();
@@ -378,6 +430,7 @@ fn subject(scenario: Input) -> Value {
         Scenario::Functions(source) => functions(source),
         Scenario::Broken(source) => broken(source),
         Scenario::Native(bytes) => native_difference(bytes),
+        Scenario::ValueReach(rows, notes) => value_reach(rows, notes),
         Scenario::Kinds => kinds(),
         Scenario::Unproduced => unproduced_kinds_a_source_gives().to_string(),
         Scenario::Trees => trees_agree(),
