@@ -237,6 +237,13 @@ impl Finisher<'_> {
         sum(&mut self.alloc, &r.alloc);
         let total = &mut self.exec.stats;
         let s = r.stats;
+        let count = s.leaf_skips.len();
+        if total.leaf_skips.len() < count {
+            total.leaf_skips.resize(count, 0);
+        }
+        sum(&mut total.leaf_skips[..count], &s.leaf_skips);
+        sum(&mut total.leaf_emits, &s.leaf_emits);
+        sum(&mut total.leaf_times, &s.leaf_times);
         total.fact_index_rows += s.fact_index_rows;
         total.total_runs += s.total_runs;
         total.total_rows += s.total_rows;
