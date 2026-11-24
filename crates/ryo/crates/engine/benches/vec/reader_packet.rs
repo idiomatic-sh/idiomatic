@@ -11,6 +11,8 @@ pub(crate) struct Packet {
     offsets: Vec<Vec<usize>>,
     requested: Vec<bool>,
     pub(crate) ready: bool,
+    /// Original identity when a second path borrows this body.
+    pub(crate) body_file: Option<l::FileId>,
 }
 impl Packet {
     pub(crate) fn new() -> Self {
@@ -25,9 +27,11 @@ impl Packet {
             offsets: vec![Vec::new(); count],
             requested: vec![false; count],
             ready: false,
+            body_file: None,
         }
     }
     pub(crate) fn clear(&mut self) {
+        self.body_file = None;
         self.rows.clear();
         self.offsets.iter_mut().for_each(Vec::clear);
         self.requested.fill(false);
@@ -82,15 +86,17 @@ impl Packet {
         }
         let starts = &self.offsets[catalog::number_of(relation).0];
         let kinds = catalog::kinds(relation);
+        let body = self.body_file.unwrap_or(id);
         out.0.resize_with(kinds.len(), Default::default);
         for (i, (column, kind)) in out.0.iter_mut().zip(kinds).enumerate() {
             column.0.reserve(starts.len());
             for start in starts {
                 let raw = self.rows.words[start + i];
                 let cell = match kind {
-                    CellKind::Node if raw >> 32 != u64::from(id.0) || raw as u32 as usize >= n => {
+                    CellKind::Node if raw >> 32 != u64::from(body.0) || raw as u32 as usize >= n => {
                         return false;
                     }
+                    CellKind::File if raw == u64::from(body.0) => CellWord(u64::from(id.0)),
                     CellKind::Node => CellWord(u64::from(raw as u32)),
                     CellKind::Symbol => {
                         let Some(text) =
@@ -194,6 +200,8 @@ impl finish::Provider for View<'_, '_> {
         }
         let offsets = &self.packet.offsets[i];
         let width = self.packet.widths[i];
+        let file = self.parsed.file;
+        let body = self.packet.body_file.map_or(file, |id| id.0);
         let mut table = finish::Table::with_rows(names, tys, offsets.len());
         for &at in offsets {
             let row = &self.packet.rows.words[at..at + width];
@@ -208,11 +216,12 @@ impl finish::Provider for View<'_, '_> {
                     finish::Ty::Node => {
                         assert_eq!(
                             raw >> 32,
-                            u64::from(self.parsed.file),
+                            u64::from(body),
                             "foreign node in file-scoped answer"
                         );
                         u64::from(raw as u32)
                     }
+                    finish::Ty::File if raw == u64::from(body) => u64::from(file),
                     _ => raw,
                 };
                 column.push(value);

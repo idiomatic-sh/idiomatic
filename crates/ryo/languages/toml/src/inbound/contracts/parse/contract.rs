@@ -41,6 +41,7 @@ impl ParseContract {
 }
 
 impl Parse for ParseContract {
+    fn body_dialect(&self, _path: languages::SourcePath<'_>) -> Option<languages::ParseConfigurationIdentity<'static>> { Some(languages::ParseConfigurationIdentity("")) }
     type FileModel = Model;
 
     fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}

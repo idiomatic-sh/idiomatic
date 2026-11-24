@@ -39,6 +39,11 @@ pub trait ParseUseCase: Send + Sync {
     /// its files' trees are never listed here: they are read from what its `Semantics` answers, so the two cannot disagree.
     fn capabilities(&self) -> &'static [ryo_relations::domain::catalog::types::OptionalCapability];
 
+    /// Equal bytes with the same returned dialect share syntax, local facts and project notes.
+    /// Return None when the parser embeds path-dependent values.
+    /// Node and file identities in provider rows are rebound for each admitted path.
+    fn body_dialect(&self, _path: crate::domain::files::types::SourcePath<'_>) -> Option<ParseConfigurationIdentity<'static>> { None }
+
     /// Canonical immutable parser settings that can change the tree or diagnostics.
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_>;
 
