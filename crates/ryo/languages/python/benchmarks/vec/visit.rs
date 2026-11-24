@@ -24,10 +24,10 @@ impl<'p> Finisher<'p> {
         plan: &'p finish::Plan,
         walk: &impl languages::Walk,
         vocab: &Vocab,
-        args: &[&str],
+        args: &[&str], paths:Option<&[String]>,
     ) -> Self {
         let t0 = thread_cpu();
-        let list = files(args[1]);
+        let list = paths.map_or_else(||files(args[1]),|p|p.to_vec());
         let root = format!("{}/", args[2].trim_end_matches('/'));
         let mut run = finish::Run::default();
         run.empty = run.sym(b"");
@@ -173,8 +173,8 @@ impl<'p> Finisher<'p> {
         *kept = provider.kept;
         result.is_ok() && Self::walk_cells(&self.inner.run, &kept[name], words, out)
     }
-    pub(super) fn end(self, walk_time: f64) {
-        self.inner.end(walk_time, |locations| locations.dedup());
+    pub(super) fn end(self, walk_time: f64) -> bool {
+        self.inner.end(walk_time, |locations| locations.dedup())
     }
     /// The second half on one walked file of the direct-columns walk (its own model by parts, built on demand).
     pub(super) fn column_file(

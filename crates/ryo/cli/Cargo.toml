@@ -53,6 +53,9 @@ tikv-jemallocator.workspace = true
 mimalloc.workspace = true
 
 [dev-dependencies]
+object.workspace = true
+blake3.workspace = true
+postcard.workspace = true
 bumpalo = "3"
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../crates/engine" }
 regex = "1"

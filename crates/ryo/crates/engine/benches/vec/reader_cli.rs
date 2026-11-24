@@ -38,6 +38,13 @@ pub(super) fn main(link: fn() -> ryo::languages::Language, declaration: fn() -> 
         .skip(1)
         .filter(|arg| arg != "--bench")
         .collect();
+    if let [mode, pack, request, output] = args.as_slice() && mode == "--retain-findings" {
+        let ok = super::finisher::retained::check(pack.as_ref(),request.as_ref(),output.as_ref(),false,false,
+            |_,capture| reader_run::evaluate_files::<false>(start,link(),declaration(),pack,request,output,None,capture))
+            .expect("retained findings");
+        if !ok { std::process::exit(1); }
+        return;
+    }
     let [pack, request, findings] = args.as_slice() else {
         panic!("usage: vector benchmark: PACK REQUEST FINDINGS");
     };

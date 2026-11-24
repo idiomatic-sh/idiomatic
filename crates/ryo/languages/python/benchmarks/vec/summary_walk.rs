@@ -76,6 +76,7 @@ pub(super) fn run(
     let (mut read, mut contents, mut skip_cpu, mut checks, mut visit, mut finish) =
         (0., 0., 0., 0., 0., 0.);
     let fin0 = fin.as_ref().map_or(0., |f| f.time);
+    let retaining = fin.as_ref().is_some_and(|f| f.capture.is_some());
     let executor = std::cell::RefCell::new(fin);
     println!("start-up to first file {:.4} s", thread_cpu());
     let start = thread_cpu();
@@ -85,7 +86,19 @@ pub(super) fn run(
         let stop = input.load(list, i).expect("read sources");
         read += thread_cpu() - begin;
         while i < stop {
-            let count = (stop - i).min(2);
+            let mut count = (stop - i).min(2);
+            if retaining {
+                let origin = |n: usize| list[n].strip_prefix(root.as_deref().unwrap_or("")).unwrap_or(&list[n]);
+                let mut guard = executor.borrow_mut();
+                let fin = guard.as_deref_mut().unwrap();
+                if fin.retained_file(origin(i)) {
+                    i += 1;
+                    continue;
+                }
+                if count == 2 && fin.capture.as_ref().unwrap().contains(origin(i + 1)) {
+                    count = 1;
+                }
+            }
             super::column_pair::walked_pair(
                 first,
                 &mut table,
@@ -239,6 +252,10 @@ pub(super) fn run(
                     let begin = thread_cpu();
                     if let Some(f) = executor.borrow_mut().as_deref_mut() {
                         let id = i + slot;
+                        if let Some(capture) = &mut f.capture {
+                            let path = list[id].strip_prefix(root.as_deref().unwrap_or("")).unwrap_or(&list[id]);
+                            capture.visited(path, input.get(id));
+                        }
                         let mut wanted =
                             f.wanted(&list[id], &|e| emit_rules[e].iter().any(|&r| alive[r]));
                         if !exact.is_empty() {

@@ -2,6 +2,8 @@
 //! the second half runs either on its own walk (`vec finish`) or inside the first half's visit on the same parsed file
 //! (`vec funnel ... --finish`): one parse and one file view a file for both halves.
 
+#[path = "retained.rs"]
+pub(crate) mod retained;
 use super::{finish, flag, thread_cpu};
 use std::collections::HashMap;
 use ryo::languages::NodeTable;
@@ -25,6 +27,7 @@ pub(super) struct Finisher<'p> {
     pub(super) run: finish::Run,
     exec: finish::Exec<'p>,
     findings: Vec<String>,
+    pub(crate) capture: Option<retained::Capture>,
     failed: HashMap<String, String>,
     /// redo-honest: per plan emit, whether its rule runs only on a file whose syntax the parser accepted (the request's
     /// `rule_applicability`, `--applicability F`: "accepted-syntax"); without the flag every rule runs on every file.
@@ -88,6 +91,7 @@ impl<'p> Finisher<'p> {
             run,
             exec: finish::Exec::new(plan),
             findings: Vec::new(),
+            capture: None,
             failed: HashMap::new(),
             failed_idx: vec![false; plan.emits.len()],
             accepted_only: applicability(plan, flag(args, "--applicability").as_deref()),
@@ -111,6 +115,10 @@ impl<'p> Finisher<'p> {
         me
     }
 
+    pub(crate) fn retained_file(&mut self, origin: &str) -> bool {
+        self.capture.as_mut().is_some_and(|c| c.replay(origin, &mut self.findings))
+    }
+
     /// The emits to run on the file at `path`: a seed rule where it has survivors by node; any other where `seeded` says
     /// the first half kept it (`seeded` gets the emit's index into the plan's emits). Empty and no base check: the file
     /// need not be walked for the second half.
@@ -130,11 +138,6 @@ impl<'p> Finisher<'p> {
         w
     }
 
-    /// redo-general: the plan the second half runs (for a driver that derives its own inputs from it).
-    pub(super) fn plan(&self) -> &'p finish::Plan {
-        self.plan
-    }
-
     /// Whether a file with these emits to run is visited at all.
     pub(super) fn visits(&self, wanted: &[usize]) -> bool {
         !wanted.is_empty() || self.check
@@ -150,7 +153,11 @@ impl<'p> Finisher<'p> {
     }
 
     pub(super) fn emit_exact(&mut self, file: usize, table: &NodeTable, emit: usize, nodes: &[u64]) -> Option<u64> {
-        if self.failed_idx[emit] || (self.accepted_only[emit] && languages::node_table::acceptance_of(table) == languages::SyntaxAcceptance::Rejected) {
+        if self.failed_idx[emit] {
+            if let Some(capture) = &mut self.capture { capture.partial(&self.run.paths[file]); }
+            return None;
+        }
+        if self.accepted_only[emit] && languages::node_table::acceptance_of(table) == languages::SyntaxAcceptance::Rejected {
             return None;
         }
         let rule = serde_json::to_string(&self.plan.emits[emit].0).expect("rule string");
@@ -158,6 +165,10 @@ impl<'p> Finisher<'p> {
         let mut count = 0;
         super::pair_checks::each(nodes, |i| {
             let span = super::span_bytes(table, i as usize);
+            if let Some(c) = &mut self.capture {
+                let origin = &self.run.paths[file];
+                c.finding(origin, retained::Finding { rule: self.plan.emits[emit].0.clone(), file: origin.clone(), start: span.start as u64, end: span.end as u64 });
+            }
             self.findings.push(format!(r#"{{"rule":{rule},"file":{path},"start":{},"end":{}}}"#, span.start, span.end));
             count += 1;
         });
@@ -195,7 +206,11 @@ impl<'p> Finisher<'p> {
         }
         let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
         for ei in wanted {
-            if self.failed_idx[*ei] || (rejected && self.accepted_only[*ei]) {
+            if self.failed_idx[*ei] {
+                if let Some(capture) = &mut self.capture { capture.partial(&run.paths[file_no]); }
+                continue;
+            }
+            if rejected && self.accepted_only[*ei] {
                 continue;
             }
             let e = &plan.emits[*ei];
@@ -235,12 +250,16 @@ impl<'p> Finisher<'p> {
                             .ok_or_else(|| format!("file subject outside the run: {}", t.cols[subject][r]))?
                     } else { &run.paths[file_no] };
                     let (st, en) = span.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
+                    if let Some(c) = &mut self.capture {
+                        c.finding(&run.paths[file_no], retained::Finding { rule: e.0.clone(), file: target.clone(), start: st, end: en });
+                    }
                     let file = serde_json::to_string(target).expect("path string");
                     self.findings.push(format!("{{\"rule\":{rule},\"file\":{file},\"start\":{st},\"end\":{en}}}"));
                 }
                 Ok(())
             });
             if let Err(err) = written {
+                if let Some(c) = &mut self.capture { c.refused(&run.paths[file_no]); }
                 self.failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
                 self.failed_idx[*ei] = true;
             }
