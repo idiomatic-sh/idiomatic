@@ -732,75 +732,14 @@ impl Batch {
                     let Work::Project(value)=&self.work[prior] else {unreachable!("same binding evaluated in request order")};
                     value.clone()
                 } else {Rc::new(population.map_err(Clone::clone).and_then(|p| {
-                    let mut carried = BTreeMap::new();
-                    let contract = &self.bound_contracts[*binding];
-                    let mut incomplete = BTreeMap::<String, Vec<Option<u32>>>::new();
-                    let mut unknowns = Vec::new();
-                    if let Some(p) = p {
-                        use ryo_execution_domain::domain::{
-                            coverage::{
-                                service::{repository, unknown_message},
-                                types::{CoverageScope, PartialPlace},
-                            },
-                            trust::{service::matters, types::Bearing},
-                        };
-                        for partial in &p.partials {
-                            if !contract
-                                .needs
-                                .reads
-                                .iter()
-                                .any(|r| matters(r, partial) == Bearing::Matters)
-                            {
-                                continue;
-                            }
-                            let file = match partial.at {
-                                PartialPlace::Repository => None,
-                                PartialPlace::File(f) => Some(f.0),
-                            };
-                            let path = file
-                                .map(|f| l::FilePath(world.run.paths[f as usize].as_str().into()));
-                            let scope = path
-                                .as_ref()
-                                .map_or(CoverageScope::Repository, CoverageScope::File);
-                            let reason = unknown_message(partial, scope).0.into_string();
-                            unknowns
-                                .push((path.unwrap_or_else(repository).0.into_string(), reason));
-                            incomplete
-                                .entry(relations::service::name(partial.relation).0.to_owned())
-                                .or_default()
-                                .push(file);
-                        }
-                    }
-                    if files.is_empty() && !inventory.is_empty() && contract.frontier {
-                        let mut withheld = session::Reported::skipped(inventory);
-                        withheld.extend_unknowns(unknowns);
-                        return Ok(withheld);
-                    }
-                    if let Some(cut) = &self.cut_of[*binding] {
-                        for &slot in pairs {
-                            if let Some(partials) = world.unavailable.get(&slot) {
-                                for (relation, file) in partials {
-                                    incomplete
-                                        .entry(relation.clone())
-                                        .or_default()
-                                        .push(Some(*file));
-                                }
-                            }
-                            unknowns.extend(
-                                answers[slot]
-                                    .as_ref()
-                                    .map_err(Clone::clone)?
-                                    .unknowns
-                                    .iter()
-                                    .cloned(),
-                            );
-                        }
-                        carried=readers.inputs(i,||world.joined(pairs,&cut.inputs))?;
-                        if carried.len() != cut.inputs.len() {
-                            return Err("source frontier has not been closed".into());
-                        }
-                    }
-                    let reusable = unknowns.is_empty() && incomplete.is_empty() && readers.may_repeat(scope);
+                    let inputs = closed_workers::inputs(&world.run, &self.bound_contracts[*binding],
+                        &world.unavailable, pairs, inventory, files, self.cut_of[*binding].as_deref(), p, answers,
+                        |steps| readers.inputs(i, || world.joined(pairs, steps)))?;
+                    let (carried, incomplete, unknowns, skipped) = match inputs {
+                        closed_workers::Inputs::Withheld(answer) => return Ok(answer),
+                        closed_workers::Inputs::Ready { carried, incomplete, unknowns, skipped } => (carried, incomplete, unknowns, skipped),
+                    };
+                    let reusable = unknowns.is_empty() && incomplete.is_empty() && skipped.is_empty() && readers.may_repeat(scope);
                     if reusable && let Some(answer) = evaluated.find(scope, p, &carried) {
                         return Ok(answer);
                     }
@@ -811,13 +750,13 @@ impl Batch {
                         numbers,
                         &carried,
                         inventory,
-                        files,
+                        &closed_workers::accepted_files(files, &skipped),
                         &self.bindings[*binding],
                         p,
                         &incomplete,
-                        Some((&mut operators, scope)),
+                        skipped.is_empty().then_some((&mut operators, scope)),
                     )?;
-                    let reported = session::Reported::new(rows, unknowns, Vec::new());
+                    let reported = session::Reported::new(rows, unknowns, skipped);
                     if reusable { evaluated.remember(scope, p, &carried, &reported); }
                     Ok(reported)
                 }))};

@@ -983,13 +983,12 @@ pub(crate) fn visit<L: FileSource>(
                 if programs[program_of[binding]].as_ref().is_ok_and(|p| p.accepted_only)
                     && l::node_table::acceptance_of(tree) == l::SyntaxAcceptance::Rejected
                 {
-                    if cut_of[binding].is_some() {
-                        answers.set(slot, Err(format!("closed phase requires syntax coverage for {}", source.path)));
-                        clocks.refused += 1;
-                    } else {
-                        answers.set(slot, Ok(Reported::new(Vec::new(), Vec::new(), vec![source.path.clone()])));
-                        clocks.skipped += 1;
+                    if let Some(cut) = &cut_of[binding] {
+                        let b = bound[&binding].as_mut().unwrap();
+                        world.insert_empty(slot, &source.path, b, &mut run, cut);
                     }
+                    answers.set(slot, Ok(Reported::new(Vec::new(), Vec::new(), vec![source.path.clone()])));
+                    clocks.skipped += 1;
                     continue;
                 }
                 let numbered_complete = parser.is_some()

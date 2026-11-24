@@ -9,7 +9,13 @@ pub(super) enum Inputs {
         carried: finish::population::Inputs,
         incomplete: BTreeMap<String, Vec<Option<u32>>>,
         unknowns: Vec<(String, String)>,
+        skipped: Vec<String>,
     },
+}
+
+pub(super) fn accepted_files<'a>(files: &'a [String], rejected: &[String]) -> std::borrow::Cow<'a, [String]> {
+    if rejected.is_empty() { return std::borrow::Cow::Borrowed(files); }
+    std::borrow::Cow::Owned(files.iter().filter(|p| rejected.binary_search(p).is_err()).cloned().collect())
 }
 
 pub(super) fn inputs(
@@ -27,6 +33,7 @@ pub(super) fn inputs(
     let mut carried = BTreeMap::new();
     let mut incomplete = BTreeMap::<String, Vec<Option<u32>>>::new();
     let mut unknowns = Vec::new();
+    let mut skipped = Vec::new();
     if let Some(p) = p {
         use ryo_execution_domain::domain::{
             coverage::{
@@ -77,21 +84,22 @@ pub(super) fn inputs(
                         .push(Some(*file));
                 }
             }
-            unknowns.extend(
-                answers[slot]
-                    .as_ref()
-                    .map_err(Clone::clone)?
-                    .unknowns
-                    .iter()
-                    .cloned(),
-            );
+            let answer = answers[slot].as_ref().map_err(Clone::clone)?;
+            unknowns.extend(answer.unknowns.iter().cloned());
+            skipped.extend(answer.rejected_syntax.iter().cloned());
+        }
+        skipped.sort_unstable();
+        skipped.dedup();
+        if !files.is_empty() && files.iter().all(|p| skipped.binary_search(p).is_ok()) {
+            unknowns.extend(session::Reported::skipped(&skipped).unknowns.iter().cloned());
+            return Ok(Inputs::Withheld(session::Reported::new(Vec::new(), unknowns, skipped)));
         }
         carried = frontier(&cut.inputs)?;
         if carried.len() != cut.inputs.len() {
             return Err("source frontier has not been closed".into());
         }
     }
-    Ok(Inputs::Ready { carried, incomplete, unknowns })
+    Ok(Inputs::Ready { carried, incomplete, unknowns, skipped })
 }
 
 #[cfg(feature = "product-session")]
@@ -240,10 +248,10 @@ pub(super) fn run(
                         job.cut, p, answers, |steps| frontier.joined(job.pairs, steps, &mut local_blocks, &mut schemas))?
                     {
                         Inputs::Withheld(answer) => Ok(answer),
-                        Inputs::Ready { carried, incomplete, unknowns } => {
+                        Inputs::Ready { carried, incomplete, unknowns, skipped } => {
                             execute_ids(&mut exec, &mut run, numbers[job.inventory_key].as_deref().expect("closed inventory assigned"), &carried,
                                 job.inventory, job.files, job.hosted, p, &incomplete, None)
-                                .map(|rows| session::Reported::new(rows, unknowns, Vec::new()))
+                                .map(|rows| session::Reported::new(rows, unknowns, skipped))
                         }
                     }
                 })();
