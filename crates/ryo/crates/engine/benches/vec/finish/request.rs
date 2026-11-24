@@ -137,10 +137,10 @@ impl Exec<'_> {
         file.admitting = false;
         // A negative decision can change once the admitted fact columns are present.
         file.known.iter_mut().filter(|value| **value == super::known::NO).for_each(|value| *value = 0);
-        self.admit(file.version, run, provider, checks)
+        self.admit_packet(file.version, run, provider, checks)
     }
 
-    fn admit(&mut self, version: &super::FileVersion<'_>, run: &mut Run, provider: &mut dyn Provider, checks: &[&str]) -> R<Vec<Reply>> {
+    fn admit_packet(&mut self, version: &super::FileVersion<'_>, run: &mut Run, provider: &mut dyn Provider, checks: &[&str]) -> R<Vec<Reply>> {
         self.requests.files += 1;
         let mut packet = version.facts.borrow_mut();
         packet.resize_with(run.fact_rels.len(), || None);

@@ -1033,9 +1033,9 @@ pub(crate) fn visit<L: FileSource>(
                     table.n = 1;
                     (name.to_owned(), Rc::new(table))
                 });
+            let mut version = finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text());
             let mut frame = None;
             let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
-            let mut version = finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text());
             version.supply(supplied.iter().chain(lines.as_ref()).cloned());
             let roots: Vec<_> = active.iter().filter(|(_, _, excluded)| !excluded || !said.is_empty())
                 .flat_map(|(binding, _, _)| {
