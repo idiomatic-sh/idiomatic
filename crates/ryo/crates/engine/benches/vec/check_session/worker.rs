@@ -69,7 +69,7 @@ pub(crate) fn dispatch<L: FileSource>(
     sources: &[Source],
     selected: &[usize],
     aliases: &mut PairAliases,
-    answers: &mut [Answer],
+    answers: &mut (impl Slots<Answer> + ?Sized),
     host: impl Fn(usize, &mut Run) -> Result<Tables> + Sync,
     clocks: &mut Clock,
 ) {
@@ -230,7 +230,7 @@ pub(crate) fn dispatch<L: FileSource>(
             let merge_wall = std::time::Instant::now();
             let start = thread_cpu();
             for (id, answer) in a {
-                answers[id] = answer;
+                answers.set(id, answer);
             }
             for (id, target) in links {
                 aliases.set(id, target);

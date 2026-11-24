@@ -49,6 +49,9 @@ type Parameters =
 type Result<T> = std::result::Result<T, String>;
 pub(crate) type Answer = Result<Reported>;
 
+#[path = "finish/answer/slots.rs"]
+pub(crate) mod report_slots;
+
 pub(crate) use finish::answer::Reported;
 pub(crate) type Tables = Vec<(String, Rc<Table>)>;
 

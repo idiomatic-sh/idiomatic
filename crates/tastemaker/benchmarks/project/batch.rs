@@ -6,7 +6,7 @@ mod readers;
 mod stored;
 
 use super::{Hosted, Parameters, bind_tables, execute_ids, finish, read_parameters};
-use crate::check_session::query::Query;
+use crate::check_session::{query::Query, report_slots::ReportSlots};
 use crate::check_session::project::{self, Authority, Population};
 use crate::{
     check_session::{self as session, Answer, Clock, Program},
@@ -161,7 +161,7 @@ struct Active<F: Default, D: Default> {
     retention: session::Retention<F,D>,
     readers: Vec<session::ReaderState>,
     world: session::World,
-    answers: Vec<Answer>,
+    answers: ReportSlots,
     aliases: session::worker::PairAliases,
     contributions: Vec<Option<Rc<project::Contribution>>>,
     populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
@@ -452,7 +452,7 @@ impl Batch {
         })
     }
 
-    fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> Vec<Answer> {
+    fn run_sources<L: session::source::Source>(&mut self, readers: &[L]) -> ReportSlots {
         // The closed, store-disabled capture cannot register another request.
         // Release the admission-only maps before the reader and join heaps grow.
         self.project_keys = Default::default();
@@ -499,7 +499,7 @@ impl Batch {
         if world.run.texts.is_empty() {
             world.declare_words(languages);
         }
-        answers.resize_with(self.schedule.pairs, || Err(String::new()));
+        answers.grow(self.schedule.pairs);
         contributions.resize_with(self.schedule.sources.len(), || None);
         if let Some(s)=store.as_deref_mut() {
             let started = thread_cpu();
@@ -526,7 +526,7 @@ impl Batch {
                 (None, None) => groups[unclaimed].push(i),
                 _ => {
                     for &slot in src.bindings.values() {
-                        answers[slot] = Err(format!("multiple source readers for {}", src.path));
+                        answers.set(slot, Err(format!("multiple source readers for {}", src.path)));
                     }
                 }
             }
@@ -614,7 +614,7 @@ impl Batch {
         languages: &[L],
         contributions: &mut Vec<Option<Rc<project::Contribution>>>,
         world: &mut session::World,
-        answers: &[Answer],
+        answers: &ReportSlots,
         populations: &mut HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
         keep: bool,
         mut store:Option<&mut stored::Store>,
@@ -847,7 +847,7 @@ impl Batch {
         self.clocks.project_wall += wall.elapsed().as_secs_f64();
     }
 
-    fn answer<'a>(work: &'a Work, answers: &'a [Answer]) -> Result<Receipt<'a>, &'a str> {
+    fn answer<'a>(work: &'a Work, answers: &'a ReportSlots) -> Result<Receipt<'a>, &'a str> {
         let mut receipt = Receipt::default();
         match work {
             Work::Project(result) => receipt.append(result)?,

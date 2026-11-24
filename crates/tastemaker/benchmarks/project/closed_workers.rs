@@ -21,7 +21,7 @@ pub(super) fn inputs(
     files: &[String],
     cut: Option<&finish::partition::Partition>,
     p: Option<&Population>,
-    answers: &[Answer],
+    answers: &ReportSlots,
     frontier: impl FnOnce(&[usize]) -> Result<finish::population::Inputs, String>,
 ) -> Result<Inputs, String> {
     let mut carried = BTreeMap::new();
@@ -163,7 +163,7 @@ pub(super) fn run(
     batch: &mut Batch,
     world: &mut session::World,
     populations: &HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
-    answers: &[Answer],
+    answers: &ReportSlots,
     groups: impl Iterator<Item = Vec<usize>>,
     readers: &mut readers::Closed,
 ) -> f64 {
