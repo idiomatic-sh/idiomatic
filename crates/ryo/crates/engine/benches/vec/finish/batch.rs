@@ -60,7 +60,15 @@ impl Exec<'_> {
         run: &mut Run,
         lanes: &mut [Lane<'_, '_>],
         demand: &mut Demand,
+        roots: impl FnOnce(&mut Demand),
     ) -> bool {
+        // With a single file there is no sibling to schedule alongside it.
+        // Let the ordered sink demand each root, keeping provider refusals and
+        // the attribution of step counts to their native rule intact.
+        if lanes.len() <= 1 {
+            return true;
+        }
+        roots(demand);
         // Descending node order collects the entire mask before visiting inputs.
         while let Some(node) = demand.pending.pop() {
             let mask = std::mem::take(&mut demand.masks[node]);

@@ -164,6 +164,20 @@ impl<'p> Finisher<'p> {
             }
         }
         let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
+        // Native drivers present one reader version at a time. The session
+        // and native visitors enter the same partition scheduler.
+        let mut fields = std::mem::take(&mut run.field_sym);
+        let root = std::mem::take(&mut run.root_dir);
+        let mut lane = finish::batch::Lane { frame: &mut f, facts: pv, fields: &mut fields, root: &root };
+        self.exec.prime_batch(run, std::slice::from_mut(&mut lane), &mut finish::batch::Demand::default(), |d| {
+            for &i in wanted {
+                if !self.failed_idx[i] && !(rejected && self.accepted_only[i]) {
+                    d.include(plan.emits[i].1, 1);
+                }
+            }
+        });
+        run.field_sym = fields;
+        run.root_dir = root;
         for ei in wanted {
             if self.failed_idx[*ei] {
                 if let Some(capture) = &mut self.capture { capture.partial(&run.paths[file_no]); }
@@ -234,6 +248,7 @@ impl<'p> Finisher<'p> {
     /// Write final findings, dumps and statistics after the last file.
     pub(super) fn end(mut self, projection: finish::json_output::Projection<'_>) -> bool {
         let ok = self.failed.is_empty();
+        finish::release_batch_memos();
         self.exec.leaf_report(&mut self.run);
         self.exec.cold_report(&self.run);
         let total = self.time;

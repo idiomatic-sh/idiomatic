@@ -98,21 +98,25 @@ pub(super) fn execute<L: FileSource>(
     }
     // Populate shared node results in partitions before the sink consumes them.
 
-    for (lane, (_, _, _, _, _, _, jobs)) in work.iter().enumerate() {
-        for job in jobs.iter().filter(|j| !j.skip && j.coverage.is_empty()) {
-            let binding = job.binding;
-            let b = bound[&binding].as_ref().unwrap();
-            let mut wanted = |node: usize| demand.include(b.slots[node], 1 << lane);
-            if let Some(cut) = cuts[binding] {
-                for (i, &n) in cut.inputs.iter().enumerate() {
-                    if !job.absent.as_ref().is_some_and(|v| v[i]) && !b.projections.contains_key(&n)
-                    {
-                        wanted(n);
+    let mut roots = Vec::new();
+    if work.len() > 1 {
+        for (lane, (_, _, _, _, _, _, jobs)) in work.iter().enumerate() {
+            for job in jobs.iter().filter(|j| !j.skip && j.coverage.is_empty()) {
+                let binding = job.binding;
+                let b = bound[&binding].as_ref().unwrap();
+                let mut wanted = |node: usize| roots.push((b.slots[node], 1 << lane));
+                if let Some(cut) = cuts[binding] {
+                    for (i, &n) in cut.inputs.iter().enumerate() {
+                        if !job.absent.as_ref().is_some_and(|v| v[i])
+                            && !b.projections.contains_key(&n)
+                        {
+                            wanted(n);
+                        }
                     }
-                }
-            } else {
-                for emit in &b.plan.emits {
-                    wanted(emit.1);
+                } else {
+                    for emit in &b.plan.emits {
+                        wanted(emit.1);
+                    }
                 }
             }
         }
@@ -128,7 +132,11 @@ pub(super) fn execute<L: FileSource>(
                 root: &sources[entry.0].root,
             })
             .collect();
-        if !exec.prime_batch(run, &mut lanes, demand) {
+        if !exec.prime_batch(run, &mut lanes, demand, |demand| {
+            for (node, mask) in roots {
+                demand.include(node, mask);
+            }
+        }) {
             drop(lanes);
             for ((frame, v), entry) in frames.iter_mut().zip(&versions).zip(&work) {
                 *frame = finish::session::frame(v, exec.plan, supplied, entry.4.as_ref());
