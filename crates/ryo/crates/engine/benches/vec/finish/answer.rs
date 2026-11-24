@@ -11,8 +11,8 @@ pub(crate) type Value = Option<Cell<Rc<str>>>;
 #[derive(Default)]
 pub(super) struct Words {
     symbols: FxHashMap<u32, Rc<str>>,
-    files: FxHashMap<u32, Rc<str>>,
-    origins: FxHashMap<u32, Rc<str>>,
+    paths: Vec<Rc<str>>,
+    path_ids: FxHashMap<Rc<str>, u32>,
 }
 
 pub(crate) struct Layout {
@@ -84,10 +84,10 @@ impl Row {
             Ty::Sym => Cell::Text(self.layout.words.borrow().symbols[&(word as u32)].clone()),
             Ty::Node => {
                 let words = self.layout.words.borrow();
-                let path = &words.origins[&((word >> 32) as u32)];
+                let path = &words.paths[(word >> 32) as usize];
                 Cell::Text(format!("{path}#{}", word as u32).into())
             }
-            Ty::File => Cell::File(self.layout.words.borrow().files[&(word as u32)].clone()),
+            Ty::File => Cell::File(self.layout.words.borrow().paths[word as usize].clone()),
             Ty::Span => Cell::Span(Span {
                 start: Offset((word >> 32) as u32),
                 end: Offset(word as u32),
@@ -113,19 +113,17 @@ impl Words {
         })
     }
 
-    fn keep_file(&mut self, run: &Run, id: u32) -> Result<(), String> {
-        if !self.files.contains_key(&id) {
-            let path = run
-                .paths
-                .get(id as usize)
-                .ok_or_else(|| format!("file outside the run: {id}"))?;
-            let text = match run.path_sym.get(id as usize) {
-                Some(&symbol) => self.symbol(run, symbol)?.clone(),
-                None => path.as_str().into(),
-            };
-            self.files.insert(id, text);
+    // Project bindings can number a new inventory from zero in the same run.
+    // Retained node and file cells name the path from the producing inventory.
+    fn path(&mut self, text: &str) -> Result<u32, String> {
+        if let Some(&id) = self.path_ids.get(text) {
+            return Ok(id);
         }
-        Ok(())
+        let id = u32::try_from(self.paths.len()).map_err(|e| e.to_string())?;
+        let path: Rc<str> = text.into();
+        self.paths.push(path.clone());
+        self.path_ids.insert(path, id);
+        Ok(id)
     }
 }
 
@@ -147,17 +145,26 @@ pub(crate) fn typed(
                         Some(id) => u32::try_from(id).map_err(|e| e.to_string())?,
                         None => (word >> 32) as u32,
                     };
-                    if let Entry::Vacant(slot) = dictionary.origins.entry(file) {
-                        let path = run
-                            .paths
-                            .get(file as usize)
-                            .ok_or("node has no source origin")?;
-                        slot.insert(path.as_str().into());
-                    }
-                    word = (u64::from(file) << 32) | u64::from(word as u32);
+                    let path = run
+                        .paths
+                        .get(file as usize)
+                        .ok_or("node has no source origin")?;
+                    let origin = dictionary.path(path)?;
+                    word = (u64::from(origin) << 32) | u64::from(word as u32);
                 }
                 Ty::File => {
-                    dictionary.keep_file(run, u32::try_from(word).map_err(|e| e.to_string())?)?
+                    let file = usize::try_from(word).map_err(|e| e.to_string())?;
+                    let path = run
+                        .paths
+                        .get(file)
+                        .ok_or_else(|| format!("file outside the run: {word}"))?;
+                    let text = match run.path_sym.get(file) {
+                        Some(id) => {
+                            std::str::from_utf8(run.text(*id)).map_err(|e| e.to_string())?
+                        }
+                        None => path.as_str(),
+                    };
+                    word = u64::from(dictionary.path(text)?);
                 }
                 Ty::Sym if run.absent_word == Some(word as u32) => word = NULL,
                 Ty::Sym => {
