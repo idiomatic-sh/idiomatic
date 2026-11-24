@@ -1,0 +1,119 @@
+{
+  "stamp": 154,
+  "rule": "idiomatic.arch/thin-command",
+  "dependency": "One file",
+  "admitted": [
+    "src/command.rs"
+  ],
+  "given": {
+    "src/command.rs": "e953f66ed15121a4cd20f7895e488fcc833ee959f171c084cdf4e223e045da28",
+    "tastemaker.toml": "454c213c9dc86b16bcc1dfeb6041b7965592c25ef5d5542775bb0e168765bdaa"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/thin-command",
+      "include": [
+        "**/command.rs",
+        "**/command.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-thin-command-bc8edb1a20ee"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/command.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "function",
+            "src/command.rs#1"
+          ],
+          [
+            "id",
+            "src/command.rs#62"
+          ],
+          [
+            "kind",
+            "match-expr"
+          ],
+          [
+            "file",
+            {
+              "file": "src/command.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                57,
+                146
+              ]
+            }
+          ],
+          [
+            "what",
+            "a command matches beyond a `Result`'s outcome"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              57,
+              146
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/command.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

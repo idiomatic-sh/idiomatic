@@ -1,0 +1,4 @@
+[[bench]]
+name="provider"
+path="benchmarks/provider/bench.rs"
+harness=true

@@ -1,0 +1,6 @@
+mod load;
+mod save;
+
+pub(crate) fn fail() -> &'static str {
+    "configuration missing"
+}

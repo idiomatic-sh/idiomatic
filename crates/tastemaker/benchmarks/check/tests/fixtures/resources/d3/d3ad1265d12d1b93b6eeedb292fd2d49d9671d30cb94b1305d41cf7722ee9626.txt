@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.ryo", path = "/tastemaker-held/292" }] }
+closed = false
+specs = [{ spec = "idiomatic.ryo/benchmark-linter", description = "The definition under test, placed alone.", include = ["."] }]

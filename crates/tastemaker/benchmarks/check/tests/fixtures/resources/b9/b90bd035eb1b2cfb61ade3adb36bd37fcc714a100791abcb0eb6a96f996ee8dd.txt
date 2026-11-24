@@ -1,0 +1,12 @@
+use crate::collections::shapes::interface::ShapesItem;
+
+#[test]
+fn refuses_a_negative_area() {
+    struct Negative;
+    impl ShapesItem for Negative {
+        fn area(&self) -> f64 {
+            -1.0
+        }
+    }
+    assert!(crate::collections::shapes::interface_test::check(&Negative).is_err());
+}

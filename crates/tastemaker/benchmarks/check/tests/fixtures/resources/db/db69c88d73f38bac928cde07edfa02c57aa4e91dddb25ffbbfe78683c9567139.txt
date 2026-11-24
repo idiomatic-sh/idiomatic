@@ -1,0 +1,5 @@
+//! What the `greet` use case promises its callers, in the core's own vocabulary.
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+}

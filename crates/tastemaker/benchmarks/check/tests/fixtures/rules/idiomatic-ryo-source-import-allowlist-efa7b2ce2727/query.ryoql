@@ -1,0 +1,10 @@
+let lists = select occurrence, key from "entry" where key = "imports-allow" or key = "libraries" or key = "domain-libraries";
+let items = select l.key as list, r.file as file, r.span as span, r.kind as kind, r.decoded as decoded from lists as l join "sequence-element" as r on l.occurrence = r.owner;
+let allowed-items = select * from items where list = "imports-allow";
+let declared-items = select * from items where list != "imports-allow" and kind = "string";
+let allowed = capture(from=allowed-items, path="file", pattern="{*language}/src/tastemaker.toml", captures=["language"]);
+let declared = capture(from=declared-items, path="file", pattern="{*language}/tastemaker.toml", captures=["language"]);
+let undeclared = antijoin(left=allowed, right=declared, left-on=["language", "decoded"], right-on=["language", "decoded"]);
+let missing = antijoin(left=declared, right=allowed, left-on=["language", "decoded"], right-on=["language", "decoded"]);
+let found = union(left=undeclared, right=missing);
+emit found subject "file" key("span");

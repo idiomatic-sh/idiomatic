@@ -1,0 +1,9 @@
+//! The names port's failures.
+
+/// Why a names operation failed.
+#[derive(Debug, thiserror::Error)]
+pub enum NamesError {
+    /// No greeting is stored for the name asked for.
+    #[error("no greeting is stored for that name")]
+    Missing,
+}

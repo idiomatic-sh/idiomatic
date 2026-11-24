@@ -1,0 +1,6 @@
+let creating = select l."owner" as "owner" from "static-call" as l where glob_any(target, "{*fs::write,*fs::File::create,File::create,*fs::create_dir,*fs::create_dir_all,*fs::copy,*fs::rename}");
+let named = select l."owner" as "owner", l."file" as "file", l."span" as "span", l."value" as "value" from "string-literal" as l where glob_any(value, "{*[?<>|]*,*[a-zA-Z0-9_][*]*,*[*][a-zA-Z0-9_]*}") and not glob_any(value, "*[ {(=]*") and not glob_any(value, "<*>");
+let unix = select l."declaration" as "owner" from "decorates" as l where target = "cfg" and glob_any(arguments, "{*unix*,*not(windows)*}");
+let written = select l."owner" as "owner", l."file" as "file", l."span" as "span", l."value" as "value" from named as l join creating as r on l."owner" = r."owner";
+let found = antijoin(left=written, right=unix, left-on=["owner"], right-on=["owner"]);
+emit found subject "file" key("span");

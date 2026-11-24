@@ -1,0 +1,5 @@
+use crate::outbound::names::interface::NamesPort;
+
+pub struct GreetUseCaseImpl {
+    pub names: Box<dyn NamesPort>,
+}

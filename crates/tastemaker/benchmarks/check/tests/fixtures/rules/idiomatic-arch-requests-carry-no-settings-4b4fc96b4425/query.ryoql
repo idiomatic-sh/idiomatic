@@ -1,0 +1,8 @@
+param requests: set<string>;
+param settings: set<string>;
+let tree = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l;
+let fields = select l."id" as "id", l."name" as "field", l."file" as "file", l."span" as "span" from "defines" as l where l."kind" = "property" and l."name" in $settings;
+let structs = select l."id" as "id", l."name" as "name" from "defines" as l where l."kind" = "struct" and glob_any(l."name", $requests);
+let up = axis(from=fields, relation="syntax-child", direction=ancestor, domain=tree);
+let carried = select l."field" as "field", l."file" as "file", l."span" as "span", r."name" as "request" from up as l join structs as r on l."related" = r."id";
+emit carried subject "file" key("span");

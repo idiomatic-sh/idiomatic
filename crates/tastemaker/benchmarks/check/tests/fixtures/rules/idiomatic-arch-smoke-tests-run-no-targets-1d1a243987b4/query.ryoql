@@ -1,0 +1,6 @@
+let tree = select l."id" as "id", l."kind" as "kind", l."text" as "text", l."file" as "file", l."span" as "span" from "syntax-tree" as l;
+let named = select * from tree where kind = "ident" and text = "target_test";
+let up = axis(from=named, relation="syntax-child", direction=ancestor, domain=tree);
+let called = select l."id" as "id", l."file" as "file", l."span" as "span" from up as l join tree as r on l."related" = r."id" where r."kind" = "path-expr";
+let found = project(from=called, columns=["file", "span"]);
+emit found subject "file" key("span");

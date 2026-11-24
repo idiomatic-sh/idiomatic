@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/driver-implementers", description = "The definition under test, placed alone.", include = ["**"], params = { implementers = ["engine/src/domain/operator/contract.rs", "engine/src/application/ordered_existence.rs"], ports = ["operators/src/**"], traits = ["*Driver"] } }]

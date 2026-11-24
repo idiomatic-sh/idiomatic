@@ -1,0 +1,4 @@
+let imported = select l."file" as "file", l."span" as "span" from "static-import" as l where glob_any(l."target", "{ryo_benchmark,ryo_benchmark::*,ryo::linter,ryo::linter::*}");
+let called = select l."file" as "file", l."span" as "span" from "static-call" as l where glob_any(l."target", "{ryo_benchmark::*,ryo::linter::*}");
+let rows = union(left=imported, right=called);
+emit rows subject "file" key("span");

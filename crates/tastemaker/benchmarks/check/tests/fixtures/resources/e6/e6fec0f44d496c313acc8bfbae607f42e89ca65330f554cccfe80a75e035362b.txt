@@ -1,0 +1,4 @@
+//! The `demo` domain's rules, one module per concept.
+
+mod greeting;
+mod naming;

@@ -1,0 +1,7 @@
+pub fn interpreted() -> bool {
+    cfg!(not(feature = "fused"))
+}
+
+pub fn sealed() -> bool {
+    std::cfg!(all(test, not(any(feature = "fixtures", feature = "fused"))))
+}

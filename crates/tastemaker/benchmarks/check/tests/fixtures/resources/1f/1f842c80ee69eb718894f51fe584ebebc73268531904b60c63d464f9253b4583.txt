@@ -1,0 +1,21 @@
+//! The fake of the `names` port: what the core's tests stand in for it with.
+
+use crate::outbound::names::errors::NamesError;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// A names port that holds one greeting, for Ada.
+pub struct NamesFake;
+
+impl NamesPort for NamesFake {
+    fn stored(&self, asked: &Asked) -> Result<Greeting, NamesError> {
+        if asked.0 == "Ada" {
+            return Ok(Greeting("hello, Ada"));
+        }
+        Err(NamesError::Missing)
+    }
+}
+
+#[cfg(test)]
+#[path = "fake_test.rs"]
+mod tests;

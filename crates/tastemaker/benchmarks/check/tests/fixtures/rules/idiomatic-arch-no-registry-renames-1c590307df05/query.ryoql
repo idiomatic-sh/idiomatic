@@ -1,0 +1,15 @@
+let workspace-keys = select * from "entry" where key = "workspace";
+let workspace-tables = select r."id" as "table" from workspace-keys as l join "mapping" as r on l."occurrence" = r."owner";
+let workspace-entries = select r."key" as "key", r."occurrence" as "occurrence" from workspace-tables as l join "entry" as r on l."table" = r."owner";
+let dependency-keys = select * from workspace-entries where key = "dependencies";
+let dependency-tables = select r."id" as "table" from dependency-keys as l join "mapping" as r on l."occurrence" = r."owner";
+let dependencies = select r."key" as "name", r."occurrence" as "dependency", r."file" as "file", r."span" as "span" from dependency-tables as l join "entry" as r on l."table" = r."owner";
+let bodies = select r."id" as "body", l."dependency" as "dependency" from dependencies as l join "mapping" as r on l."dependency" = r."owner";
+let body-entries = select r."key" as "key", r."decoded" as "decoded", l."dependency" as "dependency" from bodies as l join "entry" as r on l."body" = r."owner";
+let packages = select * from body-entries where key = "package";
+let paths = select * from body-entries where key = "path";
+let path-ids = project(from=paths, columns=["dependency"]);
+let registry = antijoin(left=packages, right=path-ids, left-on=["dependency"], right-on=["dependency"]);
+let named = select l."decoded" as "package", r."name" as "name", r."file" as "file", r."span" as "span" from registry as l join dependencies as r on l."dependency" = r."dependency";
+let renamed = select * from named where package != name;
+emit renamed subject "file" key("span");

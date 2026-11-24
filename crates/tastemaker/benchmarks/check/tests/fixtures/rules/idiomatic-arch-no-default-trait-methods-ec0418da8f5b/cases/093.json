@@ -1,0 +1,109 @@
+{
+  "stamp": 93,
+  "rule": "idiomatic.arch/no-default-trait-methods",
+  "dependency": "One file",
+  "admitted": [
+    "src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "28557aa14b5451b6579c285e922b3204dc62b08da5140c40e53087e207736e0b",
+    "tastemaker.toml": "dc97ecdfb522698bdb58914d0b375fc847ceb8d6c57d4c58d9aa9131382145cc"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-default-trait-methods",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-default-trait-methods-ec0418da8f5b"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "function",
+            "src/lib.rs#36"
+          ],
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                55,
+                97
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              55,
+              97
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

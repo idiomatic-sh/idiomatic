@@ -1,0 +1,2 @@
+let rows = select * from "package-dependency";
+emit rows subject "source" key("target", "binding", "kind");

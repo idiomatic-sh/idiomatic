@@ -118,3 +118,24 @@ pub(crate) const SHAPES_INCOMPLETE: &str = "expression shapes require a complete
 
 /// A numeric literal a compiler refuses (a digit outside its base, past 128 bits, a suffix naming no numeric type) has no value.
 pub(crate) const NUMBER_UNREAD: &str = "a numeric literal the compiler refuses has no value";
+
+/// Macros with expression arguments in the released 0.1.4 grammar.
+pub(crate) const EXPANDED_MACROS: [&str; 17] = [
+    "format",
+    "print",
+    "println",
+    "eprint",
+    "eprintln",
+    "write",
+    "writeln",
+    "assert",
+    "assert_eq",
+    "assert_ne",
+    "debug_assert",
+    "debug_assert_eq",
+    "debug_assert_ne",
+    "vec",
+    "matches",
+    "panic",
+    "todo",
+];

@@ -1,0 +1,27 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+pub struct Image {
+    pub head: Head,
+    pub rows: Vec<Row>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Head {
+    pub cell: Cell,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Cell {
+    pub leaf: Leaf,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Leaf {
+    pub n: u8,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Row {
+    pub name: String,
+}

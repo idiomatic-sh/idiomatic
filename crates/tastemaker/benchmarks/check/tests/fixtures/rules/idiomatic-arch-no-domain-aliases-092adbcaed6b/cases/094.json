@@ -1,0 +1,115 @@
+{
+  "stamp": 94,
+  "rule": "idiomatic.arch/no-domain-aliases",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/types.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/greeting.rs": "97d44f2fb0ef7fb79cc8f7c04438d34bc262a99774abb427cd310bceb56c7107",
+    "src/greeting/types.rs": "3ec727ca586ad5fda2e658f0fdf609e172cf2b256488d568938a7567371f2138",
+    "src/lib.rs": "16214c8d80af48d737601598b8825da2b7a9bcd1797fe5fb821f0a573887a89c",
+    "tastemaker.toml": "00a16ee397b0f0271a4cd80e5e3af35dbc1a61e24d8375c95d8fe9022d5406df"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-domain-aliases",
+      "include": [
+        "**/errors.rs",
+        "**/errors.rs/**",
+        "**/types.rs",
+        "**/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-domain-aliases-092adbcaed6b"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/greeting.rs",
+        "src/greeting/types.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/greeting/types.rs#8"
+          ],
+          [
+            "file",
+            {
+              "file": "src/greeting/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                15,
+                34
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              15,
+              34
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

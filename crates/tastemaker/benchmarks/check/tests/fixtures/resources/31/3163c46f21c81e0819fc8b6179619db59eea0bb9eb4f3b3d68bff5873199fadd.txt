@@ -1,0 +1,9 @@
+//! Workers.
+
+pub fn workers(settings: &Settings) -> usize {
+    if settings.workers == 0 {
+        4
+    } else {
+        settings.workers
+    }
+}

@@ -1,0 +1,5 @@
+use crate::outbound::clock::interface::ClockPort;
+
+pub struct CountUseCaseImpl {
+    pub clock: Box<dyn ClockPort>,
+}

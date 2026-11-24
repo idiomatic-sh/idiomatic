@@ -1,0 +1,9 @@
+use crate::port::interface::Port;
+
+pub struct PortNativeAdapter;
+
+impl Port for PortNativeAdapter {
+    fn answer(&self) -> u8 {
+        1
+    }
+}

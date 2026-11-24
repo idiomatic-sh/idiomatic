@@ -1,0 +1,7 @@
+//! Cell.
+
+use std::collections::BTreeMap;
+
+pub fn build() {
+    let _m: BTreeMap<String, u8> = BTreeMap::new();
+}

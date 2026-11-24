@@ -1,0 +1,5 @@
+//! A domain item that compares a kind as text.
+
+pub fn is_function(kind: &str) -> bool {
+    kind == "function"
+}

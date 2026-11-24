@@ -1,0 +1,3 @@
+[workspace]
+members = ["demo", "engine", "ryo_language"]
+resolver = "3"

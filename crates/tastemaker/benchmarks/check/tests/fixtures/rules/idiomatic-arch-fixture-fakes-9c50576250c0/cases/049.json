@@ -1,0 +1,160 @@
+{
+  "stamp": 49,
+  "rule": "idiomatic.arch/fixture-fakes",
+  "dependency": "Several files",
+  "admitted": [
+    "src/greeting/fixtures.rs",
+    "src/greeting/interface.rs",
+    "src/storage/interface.rs"
+  ],
+  "given": {
+    "src/greeting/fixtures.rs": "2779fda8e0d569592ecf35f3cc2ebe8de974733999d036b1e5586ffe055f94be",
+    "src/greeting/interface.rs": "59ceb07a4d304e9182bf291e71f04cd7126b3b80bc8b656913840ba96683620a",
+    "src/storage/interface.rs": "4809ce6fed8767d2a991652004d568e17a2da2aee1c55838e86ff8cade203cea",
+    "tastemaker.toml": "cefec63554eb579e879689b68882a716645717a8ed571431557ecd56dfedbafb"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/fixture-fakes",
+      "include": [
+        "**/fixtures.rs",
+        "**/fixtures.rs/**",
+        "**/interface.rs",
+        "**/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-fixture-fakes-9c50576250c0"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/fixtures.rs",
+        "src/greeting/interface.rs",
+        "src/storage/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/greeting/fixtures.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                198,
+                325
+              ]
+            }
+          ],
+          [
+            "trait",
+            "StorageInterface"
+          ],
+          [
+            "problem",
+            "is another hex's port: its fake lives in that hex's fixtures"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              198,
+              325
+            ]
+          },
+          "StorageInterface"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/fixtures.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/storage/interface.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                60
+              ]
+            }
+          ],
+          [
+            "trait",
+            "StorageInterface"
+          ],
+          [
+            "problem",
+            "is this hex's port and has no fake in its fixtures"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              60
+            ]
+          },
+          "StorageInterface"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/storage/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

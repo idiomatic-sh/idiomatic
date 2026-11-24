@@ -1,0 +1,6 @@
+//! The types of the `store` port.
+
+#[derive(Debug, PartialEq)]
+pub struct Row {
+    pub id: u32,
+}

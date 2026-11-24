@@ -899,8 +899,12 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
     );
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;
+    for (name, r) in &c.readers {
+        println!("CHECK_READER {name} parsed={} total={:.6} read={:.6} build={:.6} tree={:.6} facts={:.6} other={:.6}",
+            r.parsed, r.total, r.read, r.build, r.tree, r.facts, r.total - r.read - r.build - r.tree - r.facts);
+    }
     println!(
-        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6}",
+        "CHECK_SESSION programs={} bindings={} sources={} reads={} parses={} pairs={} distinct_pairs={} skipped={} evaluated={} productive={} empty={} refused={} prep={:.6} read_parse={:.6} first={:.6} second={:.6} project={:.6} assembly={:.6} admission={:.6} read_versions={:.6} reader_build={:.6} reader_projection_facts={:.6}",
         session.schedule.programs.len(),
         session.bindings.len(),
         session.schedule.sources.len(),
@@ -917,6 +921,9 @@ fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str,
         c.project,
         c.assemble,
         registration,
+        c.read_versions,
+        c.build_file,
+        c.read_parse - c.read_versions - c.build_file,
     );
 }
 

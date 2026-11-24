@@ -1,0 +1,208 @@
+{
+  "stamp": 174,
+  "rule": "tastemaker-comments",
+  "dependency": "One file",
+  "admitted": [
+    "src/names/adapters/memory/adapter_test.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "src/names/adapters/memory/adapter_test.rs": "0d0ce0e977d0a8f842226a81001d46188b4a62e14e3aed2ea2b69f68384654c2",
+    "tastemaker.toml": "ad7f03c82b0911d3cb9a4310d55bd45e4cdedbc8b2b3bf5c17b90b52527e8ca5"
+  },
+  "beside": {
+    ".tastemaker-rendered/a98b8d2f3c558022.adapter_test.rs": "96e49f0c5c7ccffa1becf8112401b22ff2d32c741e8058cb91515473d5dd022d"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "src/names/adapters/memory/adapter_test.rs"
+          },
+          "adapter-test",
+          "idiomatic.arch",
+          "adapter-test",
+          "0.4.0",
+          "adapter"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "src/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/a98b8d2f3c558022.adapter_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "src/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/a98b8d2f3c558022.adapter_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "src/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/a98b8d2f3c558022.adapter_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "src/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/a98b8d2f3c558022.adapter_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "src/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/a98b8d2f3c558022.adapter_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "src/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/a98b8d2f3c558022.adapter_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "src/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/a98b8d2f3c558022.adapter_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "src/names/adapters/memory/adapter_test.rs",
+        ".tastemaker-rendered/a98b8d2f3c558022.adapter_test.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/names/adapters/memory/adapter_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/names/adapters/memory/adapter_test.rs#1"
+          ],
+          [
+            "text",
+            " What the memory names adapter promises beyond the core's contract."
+          ],
+          [
+            "file",
+            {
+              "file": "src/names/adapters/memory/adapter_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                70
+              ]
+            }
+          ],
+          [
+            "doc",
+            "true"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              70
+            ]
+          },
+          "true",
+          " What the memory names adapter promises beyond the core's contract."
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/names/adapters/memory/adapter_test.rs"
+        }
+      }
+    ],
+    "unknowns": [
+      [
+        "src/names/adapters/memory/adapter_test.rs",
+        "comment is read only in part in src/names/adapters/memory/adapter_test.rs: the file has syntax errors"
+      ]
+    ]
+  }
+}

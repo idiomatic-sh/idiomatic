@@ -1,0 +1,7 @@
+//! The facts port.
+
+/// What every `facts` adapter implements.
+pub trait FactsPort {
+    /// The method.
+    fn rows(&self, window: Window) -> Rows;
+}

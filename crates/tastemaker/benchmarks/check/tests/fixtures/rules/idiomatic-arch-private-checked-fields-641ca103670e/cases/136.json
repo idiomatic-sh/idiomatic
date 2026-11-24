@@ -1,0 +1,117 @@
+{
+  "stamp": 136,
+  "rule": "idiomatic.arch/private-checked-fields",
+  "dependency": "One file",
+  "admitted": [
+    "src/checked/types.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/checked.rs": "97d44f2fb0ef7fb79cc8f7c04438d34bc262a99774abb427cd310bceb56c7107",
+    "src/checked/types.rs": "d29fc038bba246fd168bce05ae13cc4fe7889f11394bebb7749b2f45732757ab",
+    "src/lib.rs": "e5297c87b11dcde86230921c0bb6b5fd861e9b126e0a0a0cfbad8453f3068420",
+    "tastemaker.toml": "1296d1d166ba1d5ac7687ec681f0225d496faa26a9a5934b0a113bc0276a9005"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/private-checked-fields",
+      "include": [
+        "**/types.rs",
+        "**/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-private-checked-fields-641ca103670e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/checked.rs",
+        "src/checked/types.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "Name"
+          ],
+          [
+            "file",
+            {
+              "file": "src/checked/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                140,
+                156
+              ]
+            }
+          ],
+          [
+            "problem",
+            "checks its value, but a field is visible outside its module"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              140,
+              156
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/checked/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

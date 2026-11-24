@@ -1,0 +1,9 @@
+
+//! The `greeting` domain's use cases, one module each.
+
+
+pub mod farewell;
+pub mod greet;
+
+
+

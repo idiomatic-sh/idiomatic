@@ -1,0 +1,6 @@
+//! How each kind is shown.
+
+/// The kinds, with their samples.
+pub(super) fn shown() -> u8 {
+    1
+}

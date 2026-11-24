@@ -1,0 +1,6 @@
+//! Greets.
+
+use crate::inbound::use_cases::greet::types::GreetRequest;
+
+/// Greets.
+pub fn greet(_request: GreetRequest) {}

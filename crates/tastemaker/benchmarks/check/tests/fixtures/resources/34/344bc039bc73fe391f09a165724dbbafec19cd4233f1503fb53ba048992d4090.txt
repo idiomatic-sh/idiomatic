@@ -1,0 +1,4 @@
+//! The `short` application operation.
+mod service;
+#[cfg(test)]
+mod service_test;

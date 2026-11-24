@@ -1,0 +1,103 @@
+{
+  "stamp": 291,
+  "rule": "idiomatic.ryo/language/stateless-adapters",
+  "dependency": "One file",
+  "admitted": [
+    "adapter.rs"
+  ],
+  "given": {
+    "adapter.rs": "edc4df551278c25bf22a4287009e291b2e330c1609812cbf0680208d59b4b740",
+    "tastemaker.toml": "d84aa2228cc68a42862213b1456ecd1ffca2b6c64a46b882c27d8096314abafa"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/language/stateless-adapters",
+      "include": [
+        "adapter.rs",
+        "adapter.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-language-stateless-adapters-424a395cb9a8"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "adapter.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "adapter.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                25,
+                115
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              25,
+              115
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "adapter.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

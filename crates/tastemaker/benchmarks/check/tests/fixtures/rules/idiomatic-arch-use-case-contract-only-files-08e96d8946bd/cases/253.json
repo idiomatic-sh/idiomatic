@@ -1,0 +1,99 @@
+{
+  "stamp": 253,
+  "rule": "idiomatic.arch/use-case/contract-only-files",
+  "dependency": "One file",
+  "admitted": [
+    "src/inbound/use_cases/greet/fixtures/rows/detail.rs"
+  ],
+  "given": {
+    "src/inbound/use_cases/greet/fixtures/rows/detail.rs": "bff1eb2820e33be045f57cc300f72541952f043b9a2f4106a5ff8f2212419fe7",
+    "tastemaker.toml": "337d53be7ed74103dbffe557347f960543a515bc5f04ad228bd4a6996b6c10d3"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/use-case/contract-only-files",
+      "include": [
+        "src/inbound/use_cases/*/fixtures/**",
+        "src/inbound/use_cases/*/fixtures/**/**",
+        "src/inbound/use_cases/*/service.rs",
+        "src/inbound/use_cases/*/service.rs/**",
+        "src/inbound/use_cases/*/service_test.rs",
+        "src/inbound/use_cases/*/service_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-contract-only-files-08e96d8946bd"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/inbound/use_cases/greet/fixtures/rows/detail.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "src/inbound/use_cases/greet/fixtures/rows/detail.rs"
+            }
+          ],
+          [
+            "part",
+            "greet"
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/inbound/use_cases/greet/fixtures/rows/detail.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/greet/fixtures/rows/detail.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

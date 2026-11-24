@@ -1,0 +1,4 @@
+//! The rows.
+
+/// A row.
+pub struct Row;

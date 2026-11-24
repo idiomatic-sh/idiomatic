@@ -1,0 +1,13 @@
+//! The greeting domain's types.
+
+/// Someone to greet.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Name {
+    pub text: String,
+}
+
+impl Name {
+    pub fn new(text: String) -> Self {
+        Self { text }
+    }
+}

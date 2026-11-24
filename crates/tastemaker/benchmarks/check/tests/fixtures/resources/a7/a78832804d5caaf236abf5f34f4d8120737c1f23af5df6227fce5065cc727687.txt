@@ -1,0 +1,7 @@
+pub fn outer() {
+    fn middle() {
+        fn inner() {}
+        inner();
+    }
+    middle();
+}

@@ -1,0 +1,5 @@
+//! The `greet` use case's failures.
+
+/// Why an operation of `greet` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum GreetError {}

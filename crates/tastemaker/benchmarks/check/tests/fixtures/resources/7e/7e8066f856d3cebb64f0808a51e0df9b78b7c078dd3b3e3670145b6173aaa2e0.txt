@@ -1,0 +1,1 @@
+pub const SKELETON: &str = "given.files.\"src/lib.rs\" = \"\\n\"";

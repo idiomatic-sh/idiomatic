@@ -1,0 +1,7 @@
+//! What the `language` port asks of the outside.
+
+/// The promise, named for its noun because the SDK exposes it.
+pub trait Language {
+    /// Does it.
+    fn run(&self);
+}

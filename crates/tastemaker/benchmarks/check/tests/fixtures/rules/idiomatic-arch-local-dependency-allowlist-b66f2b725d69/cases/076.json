@@ -1,0 +1,143 @@
+{
+  "stamp": 76,
+  "rule": "idiomatic.arch/local-dependency-allowlist",
+  "dependency": "Project",
+  "admitted": [
+    "crates/operators/Cargo.toml"
+  ],
+  "given": {
+    "Cargo.toml": "7094cf11042ea9d030a0a4622ca089e6d31eb7b123a5f63eb5337bdba66aaa7c",
+    "crates/core/Cargo.toml": "f6912903429206c5a85b83c60cbdc95f2ba71ce37af6cc58993a21e263f0e020",
+    "crates/core/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/derived/Cargo.toml": "815aaf3de1b6ea7b3b423b999f3401355a86b84cf0dac2f2cc6a4206b3ad63bb",
+    "crates/derived/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/language/Cargo.toml": "714b8d50c1738ca7311553172364e8bc88b2ef6cad89a009c916bdc6c26ac139",
+    "crates/language/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/operators/Cargo.toml": "2915b418f033026e3d67d96d5c4534b55796a3016fa965ee62263d7eabf2df60",
+    "crates/operators/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/values/Cargo.toml": "c9d0aa05a1074633bfeffb467ff82ef4454b5389a1ee7a68a5baa062fcd5f9c5",
+    "crates/values/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "elsewhere/values/Cargo.toml": "57f35105557425be99814f5ba09a7d1c8e18d57fef41f48a05a0a3cf9025b542",
+    "elsewhere/values/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "e22425b5e7c158b665489f97466e11456ab72163e543cce9084f38b6399d148f"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/local-dependency-allowlist",
+      "include": [
+        "crates/operators/Cargo.toml",
+        "crates/operators/Cargo.toml/**"
+      ],
+      "parameters": {
+        "allowed-siblings": [
+          "language",
+          "values"
+        ]
+      },
+      "query": "idiomatic-arch-local-dependency-allowlist-b66f2b725d69"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "crates/core/Cargo.toml",
+        "crates/core/src/lib.rs",
+        "crates/derived/Cargo.toml",
+        "crates/derived/src/lib.rs",
+        "crates/language/Cargo.toml",
+        "crates/language/src/lib.rs",
+        "crates/operators/Cargo.toml",
+        "crates/operators/src/lib.rs",
+        "crates/values/Cargo.toml",
+        "crates/values/src/lib.rs",
+        "elsewhere/values/Cargo.toml",
+        "elsewhere/values/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "crates/operators/Cargo.toml"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                113
+              ]
+            }
+          ],
+          [
+            "target",
+            {
+              "file": "crates/derived/Cargo.toml"
+            }
+          ],
+          [
+            "package",
+            "derived"
+          ]
+        ],
+        "key": [
+          {
+            "file": "crates/operators/Cargo.toml"
+          },
+          {
+            "file": "crates/derived/Cargo.toml"
+          },
+          "derived"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/operators/Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

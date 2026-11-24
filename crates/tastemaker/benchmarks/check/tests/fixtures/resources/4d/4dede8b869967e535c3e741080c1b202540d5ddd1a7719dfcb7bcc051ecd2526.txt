@@ -1,0 +1,11 @@
+//! The executor, which answers a walk itself.
+
+use operators::walk::WalkDriver;
+
+pub struct Shortcut;
+
+impl WalkDriver for Shortcut {
+    fn next(&mut self) -> Option<usize> {
+        Some(0)
+    }
+}

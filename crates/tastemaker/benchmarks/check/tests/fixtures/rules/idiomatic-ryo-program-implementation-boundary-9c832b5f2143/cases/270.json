@@ -1,0 +1,309 @@
+{
+  "stamp": 270,
+  "rule": "idiomatic.ryo/program-implementation-boundary",
+  "dependency": "Project",
+  "admitted": [
+    "src/application.rs",
+    "src/application/caller.rs",
+    "src/application/file_dag.rs",
+    "src/application/file_dag/derived.rs",
+    "src/application/file_dag/derived/owner.rs",
+    "src/application/file_dag/derived/owner/acquisition.rs",
+    "src/application/file_dag/derived/owner/future_acquisition.rs",
+    "src/application/file_dag/derived/owner/leases.rs",
+    "src/application/file_dag/derived/owner/raw_scope.rs",
+    "src/application/file_dag/execution.rs",
+    "src/application/file_dag/execution/lease.rs",
+    "src/application/file_dag/execution/lease/service.rs",
+    "src/application/file_dag/execution/service.rs",
+    "src/application/file_dag/execution/types.rs",
+    "src/application/file_dag/executor.rs",
+    "src/application/file_dag/executor/service.rs",
+    "src/application/file_dag/executor/types.rs",
+    "src/application/file_dag/program.rs",
+    "src/application/file_dag/program/admission.rs",
+    "src/application/file_dag/program/admission/service.rs",
+    "src/application/file_dag/program/admission/types.rs",
+    "src/application/file_dag/program/facade_runtime.rs",
+    "src/application/file_dag/program/facade_runtime/source_admission.rs",
+    "src/application/file_dag/program/facade_runtime/source_admission/service.rs",
+    "src/application/file_dag/program/kernel_session.rs",
+    "src/application/file_dag/program/kernel_session/service.rs",
+    "src/application/file_dag/program/positions.rs",
+    "src/application/file_dag/program/preparation.rs",
+    "src/application/file_dag/program/preparation/service.rs",
+    "src/application/file_dag/program/preparation/types.rs",
+    "src/application/file_dag/program/request_identity.rs",
+    "src/application/file_dag/program/restored.rs",
+    "src/application/file_dag/program/restored/service.rs",
+    "src/application/file_dag/program/restored/types.rs",
+    "src/application/file_dag/program/rule_outcome.rs",
+    "src/application/file_dag/program/rule_outcome/service.rs",
+    "src/application/file_dag/program/rule_outcome/types.rs",
+    "src/application/file_dag/program/runtime.rs",
+    "src/application/file_dag/program/runtime/service.rs",
+    "src/application/file_dag/program/runtime/types.rs",
+    "src/application/file_dag/program/selection.rs",
+    "src/application/file_dag/relations.rs",
+    "src/application/file_dag/relations/positioned.rs",
+    "src/application/file_dag/relations/selection.rs",
+    "src/domain.rs",
+    "src/domain/executable_program.rs",
+    "src/domain/executable_program/kernel.rs",
+    "src/domain/operator.rs",
+    "src/domain/operator/collections.rs",
+    "src/domain/operator/collections/operators.rs",
+    "src/domain/operator/collections/operators/interface.rs",
+    "src/domain/operator/collections/operators/select.rs",
+    "src/domain/operator/collections/operators/select/item.rs",
+    "src/domain/operator/contract.rs",
+    "src/domain/operator/contract/context.rs",
+    "src/domain/operator/contract/registration.rs",
+    "src/domain/operator/contract/types.rs",
+    "src/domain/operator/service.rs",
+    "src/domain/semantic.rs",
+    "src/domain/table_model.rs",
+    "src/domain/table_model/collections.rs",
+    "src/domain/table_model/collections/representations.rs",
+    "src/domain/table_model/collections/representations/interface.rs",
+    "src/domain/table_model/collections/representations/stored.rs",
+    "src/domain/table_model/collections/representations/stored/item.rs",
+    "src/domain/table_model/types.rs",
+    "src/domain/table_model/types/registered_representation.rs",
+    "src/domain/table_model/types/registered_representation/value.rs",
+    "src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "ce482113604143ded9a0bc75b000d935d96b0fd439ac66809f3338db2bc5f67d",
+    "src/application.rs": "5ae7e0995f6c72590e3497525d5a05df881be311b7cc3fceb928f714ad961c4a",
+    "src/application/caller.rs": "b43526bcf4dba2a044b699c9420bcc035b1080d6854aeb269b569a712238b97d",
+    "src/application/file_dag.rs": "bae7563a40220a14eeaac80aa812b70d6dbcfec341fb5364086cf4854ac51336",
+    "src/application/file_dag/derived.rs": "e506caac96184a406724c4e64d00403e10e9fa6d964f0344849b0420dd09f08a",
+    "src/application/file_dag/derived/owner.rs": "1018862555cfe3b8593dff27956e66ac004963247ffb56df7002b212025bdc4e",
+    "src/application/file_dag/derived/owner/acquisition.rs": "43bdc28f6d26de3726890d1886c0c80e7940d3a57da19eaddf9ffbd2c1193e85",
+    "src/application/file_dag/derived/owner/future_acquisition.rs": "43bdc28f6d26de3726890d1886c0c80e7940d3a57da19eaddf9ffbd2c1193e85",
+    "src/application/file_dag/derived/owner/leases.rs": "fe1ec7b054b052d32a7dfba424e4e77e2eaeceb67d8146ef4589fb4b20311083",
+    "src/application/file_dag/derived/owner/raw_scope.rs": "659da8c671b6e2fc59a146b93f8f4b018dbe210769d84165599c75607df31d85",
+    "src/application/file_dag/execution.rs": "4136a76cfd5c11b1ea68e72fddd51e7e6ccf07fd5216a9d2e6333969dcc36118",
+    "src/application/file_dag/execution/lease.rs": "e5a23292a2f3233bcdb733a7a5f8b00607810af5675b0b1c5f61e4aaf2e7e282",
+    "src/application/file_dag/execution/lease/service.rs": "30067cb7481d94b7468843bc8b532431a323e650476255038629dc72a9f77db3",
+    "src/application/file_dag/execution/service.rs": "5d22d62de2d6aaafeb550277a22871cc85b3b002686bd1e0ed9e041d61b3433f",
+    "src/application/file_dag/execution/types.rs": "63a39acc9168003205adaaf8d4a18c1b9fe05371a668c4b1d0aad68130fe2dc7",
+    "src/application/file_dag/executor.rs": "e101b2b8066fd5d06567947c511ef96aab49db8166077d9dd425ff2ea468f619",
+    "src/application/file_dag/executor/service.rs": "588872321058ad148599a818ab21a3f6f73024e72ecca4997572c332b356b03a",
+    "src/application/file_dag/executor/types.rs": "93d2d3513ceb6b93c9e24ecce24824aed96abc6ef2cd5b0145b0b50d322be8f8",
+    "src/application/file_dag/program.rs": "6628de0aa4a26bc06d355bcf48b1e85638ec7217b4cce319face39ed8a064d72",
+    "src/application/file_dag/program/admission.rs": "e101b2b8066fd5d06567947c511ef96aab49db8166077d9dd425ff2ea468f619",
+    "src/application/file_dag/program/admission/service.rs": "778f95f2d3b8a8b9fd7e595f0a6c9ef2093662807408c284102a0cbfc9c542b8",
+    "src/application/file_dag/program/admission/types.rs": "f03961d38157a6fb0caf2f0a15581313c381212fc5caef8a2b5ebda52d9461a6",
+    "src/application/file_dag/program/facade_runtime.rs": "c59cccec475d2cd0cae63609ff0ab34665da00cd953bbc4e1ad6f9cda9f9d064",
+    "src/application/file_dag/program/facade_runtime/source_admission.rs": "e5a23292a2f3233bcdb733a7a5f8b00607810af5675b0b1c5f61e4aaf2e7e282",
+    "src/application/file_dag/program/facade_runtime/source_admission/service.rs": "1f37061998620d5bb4c9feb9fffd268aabb69a77819437d9103090e379911e91",
+    "src/application/file_dag/program/kernel_session.rs": "e5a23292a2f3233bcdb733a7a5f8b00607810af5675b0b1c5f61e4aaf2e7e282",
+    "src/application/file_dag/program/kernel_session/service.rs": "25f0919dd3e697c4ca616f8bda3e7975f019aeb2e507f9ba1b000edb41e31a32",
+    "src/application/file_dag/program/positions.rs": "a8c78f5f56c8f04b161ea7e0de000c6924fa09bb645ffe6331fedb4e4149512a",
+    "src/application/file_dag/program/preparation.rs": "9f82aeb7fa3f04653ad779eeeaa784f3e37fdf11f8d93f2309f3156ba51f289f",
+    "src/application/file_dag/program/preparation/service.rs": "97e5f799f0a59ff09efc42eea7136a28fa9b522bf892a65cdde4c85c27a4d943",
+    "src/application/file_dag/program/preparation/types.rs": "566a9fbdf5c14c1d51aeb1cb94f7146a68b0a8bb653e506d4f021c1a9c880228",
+    "src/application/file_dag/program/request_identity.rs": "e9be4063a9cb8d2400703d1084cc207af6ebfbbb90237468d07c4dc6c0069fde",
+    "src/application/file_dag/program/restored.rs": "e101b2b8066fd5d06567947c511ef96aab49db8166077d9dd425ff2ea468f619",
+    "src/application/file_dag/program/restored/service.rs": "429843ae58a961d9af74ec0c19652f08b0f9505271ced0d8d9dc0be4b600aad4",
+    "src/application/file_dag/program/restored/types.rs": "717ac005a322a00e4fde6a949526f2609352c62acaf2f227bd4514c5faecf772",
+    "src/application/file_dag/program/rule_outcome.rs": "9f82aeb7fa3f04653ad779eeeaa784f3e37fdf11f8d93f2309f3156ba51f289f",
+    "src/application/file_dag/program/rule_outcome/service.rs": "b47b9b3ef5810f40bc9c50d83c09df5901e36690162958f1b21eab96107e6623",
+    "src/application/file_dag/program/rule_outcome/types.rs": "8299c34a97ae40944eea9a153b2fd085a5cbb628fbd6fd9c4ad06f007185c781",
+    "src/application/file_dag/program/runtime.rs": "9f82aeb7fa3f04653ad779eeeaa784f3e37fdf11f8d93f2309f3156ba51f289f",
+    "src/application/file_dag/program/runtime/service.rs": "1bb152b2e334d2261fac371ec5ea0ce8b996e197c605b208bd26bcd714751242",
+    "src/application/file_dag/program/runtime/types.rs": "a4792840133d79e131a7a14f047f0cbe599cacc05793bd8a255a52b10982cc83",
+    "src/application/file_dag/program/selection.rs": "a8c78f5f56c8f04b161ea7e0de000c6924fa09bb645ffe6331fedb4e4149512a",
+    "src/application/file_dag/relations.rs": "4ede28d467de7d80431846b91a30352eeafa18fdacd6cb87bdb91937fe32698f",
+    "src/application/file_dag/relations/positioned.rs": "96970f9461abd1e7ade22ca208a422148a14abaa1e20370cad7d0446bb4682b5",
+    "src/application/file_dag/relations/selection.rs": "96970f9461abd1e7ade22ca208a422148a14abaa1e20370cad7d0446bb4682b5",
+    "src/domain.rs": "b3d5af871ce1f309ba4e994678f6ce7600eb07ddc95953551dccd4be34ac2400",
+    "src/domain/executable_program.rs": "c8de16125738f13fa8a291acb558b0d0e9f06693c397d60c71e65c18c078c99e",
+    "src/domain/executable_program/kernel.rs": "a8c78f5f56c8f04b161ea7e0de000c6924fa09bb645ffe6331fedb4e4149512a",
+    "src/domain/operator.rs": "74ae7c9b050e13d0b1084931444c0d0faedfd649ebe84e737cf0af4ac1d3af82",
+    "src/domain/operator/collections.rs": "e3f49c17b7466958a2ebb5b0ae90437cdf4799e7b7eda0f6e0a1c93b5d160332",
+    "src/domain/operator/collections/operators.rs": "544f3e88333c8e8dc9681f9ece36ecfa26fe23a6d3ab59824b2db87f3fd3e45d",
+    "src/domain/operator/collections/operators/interface.rs": "b27efe981cac152a13072609992dc8d57a485b867db484a2682bcf1664f67e44",
+    "src/domain/operator/collections/operators/select.rs": "981fce6afadbd3aa2c18fb684b558b6846cc0de4c3f4699e7ee7a28f38fba079",
+    "src/domain/operator/collections/operators/select/item.rs": "02ca27cd45a74f5444574c6afe54e0978c8ce43a5a8a432081e1703aa82fb692",
+    "src/domain/operator/contract.rs": "22231dc0d21c68a5d59af2f2a24ae567d452ca442a5b9ed7f686d2e4a7cc3ec0",
+    "src/domain/operator/contract/context.rs": "9cfd24a1ac802c90c17fda9be3c630948af03dc3bef3a71c03174dcce77c614e",
+    "src/domain/operator/contract/registration.rs": "b31032d496827897b8192e1bfbe5be8a3696ecbada09a511989e4f5c8cab0c42",
+    "src/domain/operator/contract/types.rs": "b6047347eb3edc95ed7616c9b048658d8e3515bb73a07c7b9f5fe5145c5fd112",
+    "src/domain/operator/service.rs": "242466ff9aa36ee9781e118437c8df6ef117946ef54cb9b6772cc2cb800ffb35",
+    "src/domain/semantic.rs": "ffb7aff6d723f26a22feb625f9cfec8a8aba631ae2ebb35a9fa103ba9c2a4a89",
+    "src/domain/table_model.rs": "6d299dbd919a6569c9e0bc789bd6036d163664d04bfaf95c6d8a83f5c1963bc4",
+    "src/domain/table_model/collections.rs": "c483ea954e4d9e612499eb62a7ba0173b8bcb7aad594d2a27228d36c0c2dd3e6",
+    "src/domain/table_model/collections/representations.rs": "da22493441fee822ef139615bc853b5de8bfba10cd80857b4861ee77edaa0b56",
+    "src/domain/table_model/collections/representations/interface.rs": "e38674a5f19147c25c13bf00b5b0eb4e5f49f74da309f16f85aecf1bd55e049d",
+    "src/domain/table_model/collections/representations/stored.rs": "981fce6afadbd3aa2c18fb684b558b6846cc0de4c3f4699e7ee7a28f38fba079",
+    "src/domain/table_model/collections/representations/stored/item.rs": "31206f5f4311c5c7a4ccec75701f6ee7b34fdf58a5e362332428583de223d0be",
+    "src/domain/table_model/types.rs": "23b148356a6413ba177ca78a8f8d200182f4aaf8e1a42268c3fd25216bc04004",
+    "src/domain/table_model/types/registered_representation.rs": "8338c893f64bdd337054113520897ef704a57707aaebcf80b7d65ccf05ef0612",
+    "src/domain/table_model/types/registered_representation/value.rs": "dba5266669446d7773d6a24a901dbeb7d79769e24a2ca321a3bc441d9130ffc2",
+    "src/lib.rs": "e3b4208f851765987d293deaa37ff18e30455823d3387c5d497863b13a13dc33",
+    "tastemaker.toml": "4c6467977be50647418596f1e1642d46f78f92f6088d6f4f6d76c0fb305ecd32"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/program-implementation-boundary",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-program-implementation-boundary-9c832b5f2143"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/application.rs",
+        "src/application/caller.rs",
+        "src/application/file_dag.rs",
+        "src/application/file_dag/derived.rs",
+        "src/application/file_dag/derived/owner.rs",
+        "src/application/file_dag/derived/owner/acquisition.rs",
+        "src/application/file_dag/derived/owner/future_acquisition.rs",
+        "src/application/file_dag/derived/owner/leases.rs",
+        "src/application/file_dag/derived/owner/raw_scope.rs",
+        "src/application/file_dag/execution.rs",
+        "src/application/file_dag/execution/lease.rs",
+        "src/application/file_dag/execution/lease/service.rs",
+        "src/application/file_dag/execution/service.rs",
+        "src/application/file_dag/execution/types.rs",
+        "src/application/file_dag/executor.rs",
+        "src/application/file_dag/executor/service.rs",
+        "src/application/file_dag/executor/types.rs",
+        "src/application/file_dag/program.rs",
+        "src/application/file_dag/program/admission.rs",
+        "src/application/file_dag/program/admission/service.rs",
+        "src/application/file_dag/program/admission/types.rs",
+        "src/application/file_dag/program/facade_runtime.rs",
+        "src/application/file_dag/program/facade_runtime/source_admission.rs",
+        "src/application/file_dag/program/facade_runtime/source_admission/service.rs",
+        "src/application/file_dag/program/kernel_session.rs",
+        "src/application/file_dag/program/kernel_session/service.rs",
+        "src/application/file_dag/program/positions.rs",
+        "src/application/file_dag/program/preparation.rs",
+        "src/application/file_dag/program/preparation/service.rs",
+        "src/application/file_dag/program/preparation/types.rs",
+        "src/application/file_dag/program/request_identity.rs",
+        "src/application/file_dag/program/restored.rs",
+        "src/application/file_dag/program/restored/service.rs",
+        "src/application/file_dag/program/restored/types.rs",
+        "src/application/file_dag/program/rule_outcome.rs",
+        "src/application/file_dag/program/rule_outcome/service.rs",
+        "src/application/file_dag/program/rule_outcome/types.rs",
+        "src/application/file_dag/program/runtime.rs",
+        "src/application/file_dag/program/runtime/service.rs",
+        "src/application/file_dag/program/runtime/types.rs",
+        "src/application/file_dag/program/selection.rs",
+        "src/application/file_dag/relations.rs",
+        "src/application/file_dag/relations/positioned.rs",
+        "src/application/file_dag/relations/selection.rs",
+        "src/domain.rs",
+        "src/domain/executable_program.rs",
+        "src/domain/executable_program/kernel.rs",
+        "src/domain/operator.rs",
+        "src/domain/operator/collections.rs",
+        "src/domain/operator/collections/operators.rs",
+        "src/domain/operator/collections/operators/interface.rs",
+        "src/domain/operator/collections/operators/select.rs",
+        "src/domain/operator/collections/operators/select/item.rs",
+        "src/domain/operator/contract.rs",
+        "src/domain/operator/contract/context.rs",
+        "src/domain/operator/contract/registration.rs",
+        "src/domain/operator/contract/types.rs",
+        "src/domain/operator/service.rs",
+        "src/domain/semantic.rs",
+        "src/domain/table_model.rs",
+        "src/domain/table_model/collections.rs",
+        "src/domain/table_model/collections/representations.rs",
+        "src/domain/table_model/collections/representations/interface.rs",
+        "src/domain/table_model/collections/representations/stored.rs",
+        "src/domain/table_model/collections/representations/stored/item.rs",
+        "src/domain/table_model/types.rs",
+        "src/domain/table_model/types/registered_representation.rs",
+        "src/domain/table_model/types/registered_representation/value.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/application/caller.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                4,
+                68
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              4,
+              68
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/application/caller.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

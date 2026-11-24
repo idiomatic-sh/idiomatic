@@ -1,0 +1,114 @@
+{
+  "stamp": 157,
+  "rule": "idiomatic.arch/unfinished-macros",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/code.rs",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/code.rs": "eb8268d11ff7567d02e260eaf29590f59d28254b981b2128ca38e6015bc5902c",
+    "src/lib.rs": "fbb44ebacca548c7f5690341c371c4dfdf0f93a5db5f7522e501ec3bdf86a0c0",
+    "tastemaker.toml": "a7414b5722db18b9be9d67ef787ae43b455f4ee9a6c1cdfb54ba8645f4e8c50a"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/unfinished-macros",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unfinished-macros-a81ceca878c8"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/code.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/code.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                27,
+                34
+              ]
+            }
+          ],
+          [
+            "text",
+            "todo"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              27,
+              34
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/code.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

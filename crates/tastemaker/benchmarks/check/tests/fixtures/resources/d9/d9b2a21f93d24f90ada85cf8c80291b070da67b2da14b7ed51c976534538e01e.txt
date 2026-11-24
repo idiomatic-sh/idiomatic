@@ -1,0 +1,5 @@
+workspace = { name = "scenario", members = ["crates/x"], dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/manifest-placements", include = ["**/tastemaker.toml"], params = { config-roles = ["idiomatic.arch/cargo-workspace"], manifest-roles = [], open-manifest-roles = [], source-extensions = ["rs", "py"] } }]
+templates = [
+]

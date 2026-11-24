@@ -1,0 +1,5 @@
+let imports = project(from="static-import", columns=["file", "span", "target"]);
+let references = project(from="reference", columns=["file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let own = select * from mentions where glob_any(target, "{*::adapter,*::adapter::*,adapter::*,*::schemas,*::schemas::*,schemas::*,Elements,Symbols,TableBuilder,table_builder,*::Elements,*::Symbols,*::TableBuilder,*::table_builder}");
+emit own subject "file" key("span");

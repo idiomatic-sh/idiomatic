@@ -1,0 +1,7 @@
+pub fn radius() -> f64 {
+    1.0
+}
+
+pub fn diameter() -> f64 {
+    radius() * 2.0
+}

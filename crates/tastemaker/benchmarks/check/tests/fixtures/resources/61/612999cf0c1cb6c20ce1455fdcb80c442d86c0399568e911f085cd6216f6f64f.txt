@@ -1,0 +1,4 @@
+//! The resources of the domain.
+
+/// The directory the store is kept in.
+pub const STORE: &str = ".tastemaker_cache";

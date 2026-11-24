@@ -1,0 +1,3 @@
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+rules = [{ rule = "idiomatic.arch/no-temp-in-use-cases", include = ["**"], params = { libraries = ["tempfile", "tempfile::*"], methods = ["scratch", "discard"] } }]
+specs = [{ spec = "idiomatic.arch/benchmark-executable", include = ["owned"] }]

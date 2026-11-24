@@ -1,0 +1,9 @@
+//! The walk a kind asks the engine for.
+
+pub trait WalkDriver {
+    fn next(&mut self) -> Option<usize>;
+}
+
+pub trait WalkSummary {
+    fn total(&self) -> usize;
+}

@@ -1,0 +1,7 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.dependencies]
+engine = { path = "crates/engine", features = ["fixtures"] }
+values = { path = "crates/values" }

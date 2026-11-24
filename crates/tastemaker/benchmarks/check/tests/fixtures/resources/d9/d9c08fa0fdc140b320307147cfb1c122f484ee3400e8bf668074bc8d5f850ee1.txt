@@ -1,0 +1,9 @@
+pub const RENDERED: &str = ".rendered";
+
+pub fn rendered(files: &[&str]) -> Vec<String> {
+    files
+        .iter()
+        .enumerate()
+        .map(|(position, file)| format!("{RENDERED}/{position}.{file}"))
+        .collect()
+}

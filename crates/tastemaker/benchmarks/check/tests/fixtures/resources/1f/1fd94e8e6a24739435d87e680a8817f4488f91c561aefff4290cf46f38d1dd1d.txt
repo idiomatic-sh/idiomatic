@@ -1,0 +1,7 @@
+pub(crate) struct ScopeItem;
+
+ryo::reads! {
+    OtherItem => languages::Scope |tree, at, _symbols| {
+        row { parent: node(at) }
+    }
+}

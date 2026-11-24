@@ -1,0 +1,129 @@
+{
+  "stamp": 282,
+  "rule": "idiomatic.ryo/language/adapter-owns-no-adapter",
+  "dependency": "Project",
+  "admitted": [
+    "src/names/adapters/memory/adapter.rs",
+    "src/names/adapters/memory/types.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "64d503ae7061062e0c11a54ec75519547787b83753235a63340d7acf56b31b26",
+    "src/names.rs": "1dd26dfce3a05cad2b2c1f79f19211f5308c57bb55f8ca44f8d1bbd04697080b",
+    "src/names/adapters.rs": "bc347352edca18b7ba0dad25b309ec821d2808665723fcb82cb321554d283f35",
+    "src/names/adapters/memory.rs": "e408a8bda8be6e2b9582b0e3b7036207f91a72c6ea782d6655afd430b0d84a32",
+    "src/names/adapters/memory/adapter.rs": "60425fa3aa0c008e6a8f71c6f1084b095dd5dc16fbb34489c2c95126b2da83c4",
+    "src/names/adapters/memory/types.rs": "8acfb6cbe6f09d6575f19b277691bef8dedae8a8b1e7fafd336ab6c9d9bb923e",
+    "src/names/adapters/store.rs": "e408a8bda8be6e2b9582b0e3b7036207f91a72c6ea782d6655afd430b0d84a32",
+    "src/names/adapters/store/adapter.rs": "d0ee2b6aee417bcc57cc1b3bab683d3793d7506c746ec5103a2d30416b6309ea",
+    "src/names/adapters/store/types.rs": "dacbfc7e413dd211774d01e9825b3676681d253fddfdbb4b77447e75a642507c",
+    "src/names/factory.rs": "415efc7027794c7e75d351c1191f92da4064be6d7a39fca3667296af8571257d",
+    "tastemaker.toml": "9a05f176df1dc397c9447a0c7ce82af4e5cc43fddbe2e87ebc4e572d9667d710"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/language/adapter-owns-no-adapter",
+      "include": [
+        "src/names/adapters/memory/**/*.rs",
+        "src/names/adapters/memory/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-language-adapter-owns-no-adapter-c0849f60883b"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/names.rs",
+        "src/names/adapters.rs",
+        "src/names/adapters/memory.rs",
+        "src/names/adapters/memory/adapter.rs",
+        "src/names/adapters/memory/types.rs",
+        "src/names/adapters/store.rs",
+        "src/names/adapters/store/adapter.rs",
+        "src/names/adapters/store/types.rs",
+        "src/names/factory.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/names/adapters/memory/adapter.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                62,
+                105
+              ]
+            }
+          ],
+          [
+            "arm",
+            "reaches into another adapter directory (arm a)"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              62,
+              105
+            ]
+          },
+          "reaches into another adapter directory (arm a)"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/names/adapters/memory/adapter.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

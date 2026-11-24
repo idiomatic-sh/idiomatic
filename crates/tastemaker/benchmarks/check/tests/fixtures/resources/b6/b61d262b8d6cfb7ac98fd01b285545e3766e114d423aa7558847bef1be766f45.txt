@@ -1,0 +1,11 @@
+use ryo::languages::Parse;
+
+pub struct ParseContract;
+
+impl ParseContract {
+    /// `parse` over the ports it calls, which the edge injects.
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}

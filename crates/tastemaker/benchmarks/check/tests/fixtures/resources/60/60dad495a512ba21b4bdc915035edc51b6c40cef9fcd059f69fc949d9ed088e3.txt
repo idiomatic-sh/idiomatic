@@ -1,0 +1,9 @@
+pub(crate) fn nearest(ancestors: &[Position], domain_id: Position) -> Position {
+    ancestors
+        .get(usize::try_from(domain_id.0).unwrap_or(usize::MAX))
+        .copied()
+        .unwrap_or(domain_id)
+}
+pub(crate) fn id_at(ids: &[RuleId], place: RuleIndex) -> RuleId {
+    ids.get(place.0).cloned().unwrap_or_default()
+}

@@ -1,0 +1,8 @@
+let tree-nodes = select * from "syntax-tree";
+let derives = select * from "decorates" where target = "derive" and glob_any(arguments, "*Serialize*");
+let serialized = select l."declaration" as "id" from derives as l;
+let parts = axis(from=serialized, relation="syntax-child", direction=descendant, domain=tree-nodes);
+let tokens = select l."id" as "declaration", r."child" as "token" from parts as l join "syntax-child" as r on l."related" = r."parent";
+let hashed = select * from tree-nodes where kind = "ident" and glob_any(text, "{HashMap,HashSet,FxHashMap,FxHashSet,AHashMap,AHashSet,DashMap}");
+let found = select r."file" as "file", r."span" as "span", r."text" as "text" from tokens as l join hashed as r on l."token" = r."id";
+emit found subject "file" key("span");

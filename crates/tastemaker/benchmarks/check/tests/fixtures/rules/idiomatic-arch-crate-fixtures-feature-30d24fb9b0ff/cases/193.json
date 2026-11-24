@@ -1,0 +1,111 @@
+{
+  "stamp": 193,
+  "rule": "idiomatic.arch/crate/fixtures-feature",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml"
+  ],
+  "given": {
+    "Cargo.toml": "f8819f41e9bba8a765f553bad3469fc7f843e0fc0c3000b8fb3af99a02fb8c0a",
+    "tastemaker.toml": "afdda44b3469b55560e1cc40448d0308fff7ab3b4b15d0a178d1b34ed5a9f09b"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/crate/fixtures-feature",
+      "include": [
+        "Cargo.toml",
+        "Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-fixtures-feature-30d24fb9b0ff"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "Cargo.toml"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                125,
+                135
+              ]
+            }
+          ],
+          [
+            "name",
+            "demo-store"
+          ],
+          [
+            "section",
+            "dependencies"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              125,
+              135
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

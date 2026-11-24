@@ -1,0 +1,47 @@
+[workspace]
+members = ["app"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+license = "mit"
+repository = "https://github.com/idiomatic-sh/idiomatic"
+
+[workspace.dependencies]
+tempfile = "=3.27.0"
+tracing = "=0.1.44"
+tracing-chrome = "=0.7.2"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "registry", "std"] }
+indicatif = "=0.18.6"
+snapbox = { version = "0.6", features = ["cmd"] }
+anstream = "=1.0.0"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151" }
+trycmd = "=0.15.11"
+cargo_metadata = "=0.23.1"
+clap = { version = "=4.6.6", features = ["derive"] }
+cucumber = "=0.23.0"
+cpu-time = "=1.0.0"
+mimalloc = "=0.1.52"
+thiserror = "=2.0.20"
+tokio = { version = "=1.53.1", features = ["macros", "rt"] }
+trybuild = "=1.0.120"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+private_interfaces = "deny"
+unnameable_types = "deny"
+
+[workspace.lints.clippy]
+mod_module_files = "deny"
+pub_use = "deny"
+disallowed_methods = "deny"
+disallowed_macros = "deny"
+disallowed_types = "allow"
+pedantic = { level = "warning", priority = -2 }
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"

@@ -1,0 +1,191 @@
+{
+  "stamp": 293,
+  "rule": "imports-scopes",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "demo/Cargo.toml",
+    "demo/src/domain.rs",
+    "demo/src/domain/model.rs",
+    "demo/src/lib.rs",
+    "demo/src/outbound.rs",
+    "demo/src/shared.rs",
+    "demo/src/shared/contract.rs",
+    "demo/tastemaker.toml",
+    "engine/Cargo.toml",
+    "engine/src/lib.rs",
+    "ryo_language/Cargo.toml",
+    "ryo_language/src/files.rs",
+    "ryo_language/src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "96fa190881d3fe519663f5d6f72c16207f6b6b0eff79060fc08a7a88dd93d8a2",
+    "demo/Cargo.toml": "cb3bdef1cd0bc73230798dc1ae3e0a002cf6a3bab360381555af765b3afa47b2",
+    "demo/src/domain.rs": "51191e04bd84309046660216011fcd5e9b30f784bb9bc3b365e9a54eae730099",
+    "demo/src/domain/model.rs": "ac8dc044510fbe51e93420538e4f16c3b762da94231efc04eeec46f156d8acd7",
+    "demo/src/lib.rs": "d3899420b06a8c653b7059c4ddae75875591ee52acac23a5b64518baa3fbb7cc",
+    "demo/src/outbound.rs": "e052142ac598457ea07861254d4c7dda6a086cd4508614f87f5463d033421767",
+    "demo/src/shared.rs": "c7afe445a575013ab2100da021bd399b06ff6ada4d69d87bfd927481ee14d7a5",
+    "demo/src/shared/contract.rs": "3314606f6f5c5dcf65629100e86e067293ebea1ab586afa8d04cbd24496366dc",
+    "demo/tastemaker.toml": "88d53bc591c4886cd514981b9c54fcbe2e428a3f0b0a578a18887010a6845dbc",
+    "engine/Cargo.toml": "7bfe6a4bd43d2cbb3624beeb1f04fbadffd21075b4790b02ad06426f0611fe65",
+    "engine/src/lib.rs": "f20dc6b094dbfa11312e0c95b1a94853cc62ed4e480b79df16f173ee125fd6a0",
+    "ryo_language/Cargo.toml": "1bc8ddbc779142c44f01314bb5e77b9131ff7587fe8238915f178a6e8abb5444",
+    "ryo_language/src/files.rs": "d0b2412f4cfe7d1d0c3bc4ddf3f354ca984af61665658f35948b0779c8ad81d5",
+    "ryo_language/src/lib.rs": "b77d4405c385d6b18e431bc8244fd59328fd4a682dbd96b215670fd31eec1397",
+    "tastemaker.toml": "a83a1cd5883cfb491bde4b4002bc57d21921b904747852bea24c064b6821574d"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/provider-imports/private-engine",
+      "include": [
+        "demo/src/domain/**/*.rs",
+        "demo/src/domain/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-provider-imports-private-engine-e60f29bf62f5"
+    },
+    {
+      "exclude": [],
+      "id": "imports-edges",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-edges-5c4aa0cd1a93"
+    },
+    {
+      "exclude": [],
+      "id": "imports-names",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-names-30e865419592"
+    },
+    {
+      "exclude": [],
+      "id": "imports-owners",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-owners-2799ccd20598"
+    },
+    {
+      "exclude": [],
+      "id": "imports-packages",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-packages-af0ac9d1e4da"
+    },
+    {
+      "exclude": [],
+      "id": "imports-scopes",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-scopes-949cb7045580"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "demo/Cargo.toml",
+        "demo/src/domain.rs",
+        "demo/src/domain/model.rs",
+        "demo/src/lib.rs",
+        "demo/src/outbound.rs",
+        "demo/src/shared.rs",
+        "demo/src/shared/contract.rs",
+        "demo/tastemaker.toml",
+        "engine/Cargo.toml",
+        "engine/src/lib.rs",
+        "ryo_language/Cargo.toml",
+        "ryo_language/src/files.rs",
+        "ryo_language/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "demo/src/domain/model.rs#36"
+          ],
+          [
+            "kind",
+            "item-list"
+          ],
+          [
+            "file",
+            {
+              "file": "demo/src/domain/model.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                53,
+                89
+              ]
+            }
+          ]
+        ],
+        "key": [
+          "demo/src/domain/model.rs#36"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "demo/src/domain/model.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

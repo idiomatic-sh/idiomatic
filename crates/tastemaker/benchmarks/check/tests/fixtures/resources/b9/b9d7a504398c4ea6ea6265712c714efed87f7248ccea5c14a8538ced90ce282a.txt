@@ -1,0 +1,5 @@
+const LOCK_HEAD: &str = "# Written by tm.\n";
+
+pub fn lock(version: i64, names: &str, packages: &str) -> String {
+    format!("{LOCK_HEAD}version = {}\ndependencies = [{}]\n{packages}", version, names)
+}

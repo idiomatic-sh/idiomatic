@@ -142,6 +142,7 @@ pub fn write_fields(
     assign: impl Fn(&Tree<'_>, Position) -> FieldId,
 ) {
     let completion = completion.as_mut();
+    if engine(completion.elements).native.is_some() { return; }
     let mut roles = std::mem::take(&mut completion.elements.field);
     let column = roles.as_mut();
     column.values.clear();

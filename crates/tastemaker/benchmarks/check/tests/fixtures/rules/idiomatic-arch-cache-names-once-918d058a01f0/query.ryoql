@@ -1,0 +1,8 @@
+param locations: set<string>;
+let named = select l."file" as "file", l."span" as "span", l."value" as "value" from "string-literal" as l where glob_any(value, $locations);
+let outside = select * from named where not glob_any(file, "{outbound/*/adapters/**,**/outbound/*/adapters/**,factory.rs,**/factory.rs,composition.rs,**/composition.rs,cli/src/resources.rs,**/cli/src/resources.rs}");
+let spread = group-count(from=named, keys=["value"], count="files", distinct="file");
+let copied = select * from spread where files >= 2;
+let copies = select l."file" as "file", l."span" as "span", l."value" as "value" from named as l join copied as r on l."value" = r."value";
+let found = union(left=outside, right=copies);
+emit found subject "file" key("span");

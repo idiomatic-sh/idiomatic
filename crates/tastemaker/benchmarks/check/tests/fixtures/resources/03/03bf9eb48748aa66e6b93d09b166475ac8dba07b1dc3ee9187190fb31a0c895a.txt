@@ -1,0 +1,5 @@
+mod config;
+
+pub(crate) fn build() -> config::Config {
+    config::Config::new(3)
+}

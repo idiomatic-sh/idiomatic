@@ -1,0 +1,273 @@
+{
+  "stamp": 228,
+  "rule": "idiomatic.arch/idiomatic-rust/stdio-at-presentation",
+  "dependency": "One file",
+  "admitted": [
+    "src/lib.rs",
+    "src/resources.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "519622c2706f352f3f1a6eec2e75875c12a5ead79401063147bb3a3191076eaa",
+    "src/output.rs": "9b868db889a0741126f04578fbf6d5c02eb4921e6b04908184056c20008fcbef",
+    "src/resources.rs": "0079b5dd3d61c6dc4718da9f3bb8f65de97cc6ded1f9fa60980483f1a9cb1745",
+    "tastemaker.toml": "368351d000d8abca222f3c63fffe6fc1dc5112b476072b0f6a3a3274b6b14226"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "**/benches/**",
+        "**/benches/**/**",
+        "**/fixtures.rs",
+        "**/fixtures.rs/**",
+        "**/fixtures/**",
+        "**/fixtures/**/**",
+        "**/tests/**",
+        "**/tests/**/**",
+        "src/output.rs",
+        "src/output.rs/**",
+        "src/output/**",
+        "src/output/**/**",
+        "src/timings.rs",
+        "src/timings.rs/**",
+        "src/timings/**",
+        "src/timings/**/**"
+      ],
+      "id": "idiomatic.arch/idiomatic-rust/stdio-at-presentation",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-stdio-at-presentation-f222de9faccb"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/output.rs",
+        "src/resources.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/resources.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                146,
+                152
+              ]
+            }
+          ],
+          [
+            "target",
+            "stdout"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              146,
+              152
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/resources.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/resources.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                212,
+                228
+              ]
+            }
+          ],
+          [
+            "target",
+            "anstream::stdout"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              212,
+              228
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/resources.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/resources.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                260,
+                275
+              ]
+            }
+          ],
+          [
+            "target",
+            "std::io::stderr"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              260,
+              275
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/resources.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/resources.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                29,
+                44
+              ]
+            }
+          ],
+          [
+            "target",
+            "std::io::stdout"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              29,
+              44
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/resources.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/resources.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                83,
+                98
+              ]
+            }
+          ],
+          [
+            "target",
+            "std::io::stderr"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              83,
+              98
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/resources.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

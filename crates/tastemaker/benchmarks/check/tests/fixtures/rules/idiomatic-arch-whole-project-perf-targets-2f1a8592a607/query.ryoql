@@ -1,0 +1,3 @@
+let directories = select * from "entry" where key = "directory" and kind = "string";
+let inside = select * from directories where decoded != ".";
+emit inside subject "file" key("span");

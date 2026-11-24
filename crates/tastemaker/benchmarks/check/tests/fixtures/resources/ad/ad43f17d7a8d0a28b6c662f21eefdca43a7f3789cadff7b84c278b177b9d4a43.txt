@@ -1,0 +1,8 @@
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+/// `greet`.
+pub struct GreetUseCaseImpl<N: NamesPort> {
+    names: N,
+}

@@ -1,0 +1,119 @@
+{
+  "stamp": 242,
+  "rule": "idiomatic.arch/nu-hex/fixture-location",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/fixtures/contract.rs"
+  ],
+  "given": {
+    "src/greeting/fixtures/contract.rs": "6ef7c9e850d4f36f58cff97efcbc9788390d914ffe0eb92ed2e415be1af965da",
+    "tastemaker.toml": "05f0375b8043cd70c02263b038ac3049a2487cff528d8962d6f655f95d21d719"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/nu-hex/fixture-location",
+      "include": [
+        "src/greeting/fixtures/contract.rs",
+        "src/greeting/fixtures/contract.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-fixture-location-d90c0f972d91"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/fixtures/contract.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/greeting/fixtures/contract.rs#460"
+          ],
+          [
+            "kind",
+            "struct"
+          ],
+          [
+            "ordinal",
+            16
+          ],
+          [
+            "parent",
+            "src/greeting/fixtures/contract.rs#0"
+          ],
+          [
+            "file",
+            {
+              "file": "src/greeting/fixtures/contract.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                660,
+                676
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              660,
+              676
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/fixtures/contract.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

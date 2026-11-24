@@ -1,0 +1,103 @@
+{
+  "stamp": 243,
+  "rule": "idiomatic.arch/nu-hex/library-only",
+  "dependency": "One file",
+  "admitted": [
+    "app/src/lib.rs"
+  ],
+  "given": {
+    "app/src/lib.rs": "ccaa95ce4f9627eb1fd6a7e50292e88b0075eb3a70b026faa5b92f201d6ea317",
+    "tastemaker.toml": "3e0420450c6074e0f3c182b55520433cf3ca109c742d67e94fbb8a3d6eba6289"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/nu-hex/library-only",
+      "include": [
+        "app/src/lib.rs",
+        "app/src/lib.rs/**"
+      ],
+      "parameters": {},
+      "query": "condition-greeting-library-only-90d011cd7b47"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "app/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "app/src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                15
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              15
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "app/src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/grammar-lists-every-parser", description = "The definition under test, placed alone.", include = ["src/**"], params = { field = ["name"], grammar = ["src/constants.rs"], input = ["&mut Input*"], parsers = ["src/adapter.rs"] } }]

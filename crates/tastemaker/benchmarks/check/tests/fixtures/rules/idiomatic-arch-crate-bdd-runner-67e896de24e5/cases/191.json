@@ -1,0 +1,115 @@
+{
+  "stamp": 191,
+  "rule": "idiomatic.arch/crate/bdd-runner",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/inbound/use_cases/greet/acceptance.rs",
+    "tests/bdd.rs"
+  ],
+  "given": {
+    "src/inbound/use_cases/greet/acceptance.rs": "4eca5af46177594bde69811a994dc7f0c0db76d00efea24151bcc03cf71fcb59",
+    "tastemaker.toml": "0dba9e8345d06a0db6b95f567fec7b530dc20436801af3f1fe51695d6ae5d5f1",
+    "tests/bdd.rs": "db3bbeaf3ecabc4babbf0b63d15f39d0bae068350f34d25c1dbf0759cf2ab7b8"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/crate/bdd-runner",
+      "include": [
+        "src/inbound/use_cases/*/acceptance.rs",
+        "src/inbound/use_cases/*/acceptance.rs/**",
+        "tests/bdd.rs",
+        "tests/bdd.rs/**"
+      ],
+      "parameters": {
+        "world": "Behavior"
+      },
+      "query": "idiomatic-arch-crate-bdd-runner-67e896de24e5"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/inbound/use_cases/greet/acceptance.rs",
+        "tastemaker.toml",
+        "tests/bdd.rs"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/greet/acceptance.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                409
+              ]
+            }
+          ],
+          [
+            "what",
+            "has a file-level attribute other than one `#![expect(..)]` with a reason"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              409
+            ]
+          },
+          "has a file-level attribute other than one `#![expect(..)]` with a reason"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/greet/acceptance.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

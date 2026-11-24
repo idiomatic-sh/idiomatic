@@ -1,0 +1,16 @@
+//! Proves the short service.
+
+use crate::cases::{Case, Expect, Word, run};
+
+const CASES: &[Case<u8, u8, Failure>] = &[
+];
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}
+
+#[test]
+fn refuses() {
+    run(CASES, Word::Refuses, subject);
+}

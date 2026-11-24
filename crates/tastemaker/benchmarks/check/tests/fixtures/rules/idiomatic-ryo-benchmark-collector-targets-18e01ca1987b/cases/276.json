@@ -1,0 +1,237 @@
+{
+  "stamp": 276,
+  "rule": "idiomatic.ryo/benchmark-collector/targets",
+  "dependency": "Several readers",
+  "admitted": [
+    "collector/Cargo.toml",
+    "collector/src/main.rs",
+    "collector/src/outbound/execution/adapters/timed/adapter_test.rs"
+  ],
+  "given": {
+    "collector/Cargo.toml": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "collector/src/main.rs": "ef32637cb9c3ec2e3968c9cbdf26a5e9c172be94f88af533e14bd43f892d5297",
+    "collector/src/outbound/execution/adapters/timed/adapter_test.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "419cb02e7b86996903b00a76c35593cf24485102906d79924b18f701e529cf37"
+  },
+  "beside": {
+    ".tastemaker-rendered/e27d5758543411c2.main.rs": "6728c8b38e9854434b6d066c614231c026ee2cf4d1a3c85beee40353b98f8cab"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "collector/src/main.rs"
+          },
+          "entry",
+          "idiomatic.ryo",
+          "entry",
+          "0.1.1",
+          "benchmark-collector"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "collector/src/main.rs",
+        ".tastemaker-rendered/e27d5758543411c2.main.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "collector/src/main.rs",
+        ".tastemaker-rendered/e27d5758543411c2.main.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "collector/src/main.rs",
+        ".tastemaker-rendered/e27d5758543411c2.main.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "collector/src/main.rs",
+        ".tastemaker-rendered/e27d5758543411c2.main.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "collector/src/main.rs",
+        ".tastemaker-rendered/e27d5758543411c2.main.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "collector/src/main.rs",
+        ".tastemaker-rendered/e27d5758543411c2.main.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "collector/src/main.rs",
+        ".tastemaker-rendered/e27d5758543411c2.main.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "collector/src/main.rs",
+        ".tastemaker-rendered/e27d5758543411c2.main.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-shape",
+      "include": [
+        "collector/src/outbound/execution/adapters/timed/adapter_test.rs",
+        "collector/src/outbound/execution/adapters/timed/adapter_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-shape-45f9971bbe85"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.ryo/benchmark-collector/targets",
+      "include": [
+        "collector/Cargo.toml",
+        "collector/Cargo.toml/**",
+        "collector/src/main.rs",
+        "collector/src/main.rs/**",
+        "collector/src/outbound/execution/adapters/timed/adapter_test.rs",
+        "collector/src/outbound/execution/adapters/timed/adapter_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-benchmark-collector-targets-18e01ca1987b"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "collector/Cargo.toml",
+        "collector/src/main.rs",
+        "collector/src/outbound/execution/adapters/timed/adapter_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "collector/src/main.rs"
+            }
+          ],
+          [
+            "root",
+            "collector"
+          ]
+        ],
+        "key": [
+          {
+            "file": "collector/src/main.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "collector/src/main.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "collector/src/outbound/execution/adapters/timed/adapter_test.rs"
+            }
+          ],
+          [
+            "root",
+            "collector"
+          ]
+        ],
+        "key": [
+          {
+            "file": "collector/src/outbound/execution/adapters/timed/adapter_test.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "collector/src/outbound/execution/adapters/timed/adapter_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,13 @@
+pub fn f(a: bool, b: bool, v: &[u8]) -> u8 {
+    for x in v {
+        if a {
+            match b {
+                true => loop {
+                    return *x;
+                },
+                false => {}
+            }
+        }
+    }
+    0
+}

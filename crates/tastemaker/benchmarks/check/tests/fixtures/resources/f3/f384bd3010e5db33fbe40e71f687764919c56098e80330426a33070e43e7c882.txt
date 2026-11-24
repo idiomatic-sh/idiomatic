@@ -1,0 +1,3 @@
+//! The function relation.
+
+pub const NAME: &str = "function";

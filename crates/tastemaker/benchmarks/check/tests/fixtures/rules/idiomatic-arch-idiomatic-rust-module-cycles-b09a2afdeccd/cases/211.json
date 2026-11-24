@@ -1,0 +1,138 @@
+{
+  "stamp": 211,
+  "rule": "idiomatic.arch/idiomatic-rust/module-cycles",
+  "dependency": "Project",
+  "admitted": [
+    "Cargo.toml",
+    "src/first.rs",
+    "src/lib.rs",
+    "src/second.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/first.rs": "5fb31f320db442e4dc947c1e8a8aa268aa32899a27f01ce5943c514b1ed73296",
+    "src/lib.rs": "3517690fbb22ebb7d94dc6ece083ad7793ed01efe50d41dc845e1665a8590496",
+    "src/second.rs": "f15db53e1aba294bb35566183ae08538caa0361192a439d567bd71742d71ef27",
+    "tastemaker.toml": "8f14d996473f632041e15a0dbaffe3d30fc3aa4282dc3a125fbe453bbf672ca5"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/module-cycles",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-module-cycles-b09a2afdeccd"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/first.rs",
+        "src/lib.rs",
+        "src/second.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/first.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                71
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/first.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/first.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/second.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                69
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/second.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/second.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

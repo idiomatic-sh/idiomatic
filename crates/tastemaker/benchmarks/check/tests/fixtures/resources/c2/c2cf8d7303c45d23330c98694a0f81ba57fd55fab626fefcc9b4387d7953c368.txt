@@ -1,0 +1,49 @@
+//! A crate that leaks its library across its boundary.
+
+use contract_sdk::Project;
+use parser_lib::Tree;
+use parser_lib::nested as nest;
+
+pub mod reading;
+
+/// The crate's answer, which leaks the tree.
+pub struct Answer {
+    /// The tree.
+    pub tree: Tree,
+}
+
+/// A name for the library's node.
+pub type Node = parser_lib::Node<u8>;
+
+/// A kind.
+pub enum Kind {
+    /// A leaf of the library.
+    Leaf(parser_lib::Leaf),
+}
+
+/// Reads one tree.
+pub fn read(tree: &parser_lib::Tree) -> Option<nest::Out> {
+    let _ = tree;
+    None
+}
+
+/// Visits a tree.
+pub fn visit<V: parser_lib::Visit>(visitor: V) {
+    let _ = visitor;
+}
+
+/// A port.
+pub trait Port {
+    /// Reads.
+    fn read(&self) -> Tree;
+}
+
+impl contract_sdk::Walk for Answer {
+    type Output = parser_lib::Tree;
+}
+
+impl Project for Answer {
+    type Output = Tree;
+}
+
+pub use parser_lib::Exported;

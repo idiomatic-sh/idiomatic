@@ -1,0 +1,12 @@
+let blocks = select * from "syntax-tree" where kind = "code";
+let markups = select * from "syntax-tree" where kind = "markup";
+let consoles = select * from markups where glob_any(text, "```{console?,console *}");
+let block-children = select r."child" as "child", l."file" as "file", l."span" as "span" from blocks as l join "syntax-child" as r on l."id" = r."parent";
+let console-spans = select l."file" as "file", l."span" as "span" from block-children as l join consoles as r on l."child" = r."id";
+let console-blocks = extend(from=console-spans, values={"info": "console"});
+let runners = select * from "string-literal" where value = "../README.md" and glob_any(file, "{**/,}tests/readme.rs");
+let any-runner = project(from=runners, columns=["value"]);
+let console-keyed = extend(from=console-blocks, values={"value": "../README.md"});
+let unrun-consoles = antijoin(left=console-keyed, right=any-runner, left-on=["value"], right-on=["value"]);
+let unrun-console-rows = project(from=unrun-consoles, columns=["file", "span", "info"]);
+emit unrun-console-rows subject "file" key("span");

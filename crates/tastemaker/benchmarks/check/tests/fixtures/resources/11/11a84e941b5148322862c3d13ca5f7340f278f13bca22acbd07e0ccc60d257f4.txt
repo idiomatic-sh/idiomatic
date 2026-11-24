@@ -1,0 +1,17 @@
+//! The `greet` use case: the struct holding only the ports it calls.
+
+use super::interface::GreetUseCase;
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+struct GreetUseCaseImpl;
+
+impl GreetUseCaseImpl {
+    /// `greet` over the ports it calls, which the edge injects.
+    fn new() -> Self {
+        Self
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self) {}
+}

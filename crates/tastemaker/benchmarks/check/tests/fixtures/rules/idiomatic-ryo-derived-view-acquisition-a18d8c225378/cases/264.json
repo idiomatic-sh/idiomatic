@@ -1,0 +1,189 @@
+{
+  "stamp": 264,
+  "rule": "idiomatic.ryo/derived-view-acquisition",
+  "dependency": "Project",
+  "admitted": [
+    "src/application.rs",
+    "src/application/file_dag.rs",
+    "src/application/file_dag/consumer.rs",
+    "src/application/file_dag/derived.rs",
+    "src/application/file_dag/derived/owner.rs",
+    "src/application/file_dag/derived/owner/acquisition.rs",
+    "src/application/file_dag/derived/owner/acquisition/future.rs",
+    "src/application/file_dag/derived/owner/acquisition/semantics.rs",
+    "src/application/file_dag/derived/owner/acquisition/semantics/service.rs",
+    "src/application/file_dag/derived/owner/acquisition/service.rs",
+    "src/application/owner.rs",
+    "src/application/request.rs",
+    "src/domain.rs",
+    "src/domain/derived_views.rs",
+    "src/domain/derived_views/collections.rs",
+    "src/domain/derived_views/collections/views.rs",
+    "src/domain/derived_views/collections/views/interface.rs",
+    "src/domain/derived_views/collections/views/item.rs",
+    "src/domain/derived_views/collections/views/registration.rs",
+    "src/domain/operator.rs",
+    "src/domain/operator/item.rs",
+    "src/domain/other.rs",
+    "src/domain/other/service.rs",
+    "src/lib.rs",
+    "src/outbound.rs",
+    "src/outbound/derived.rs",
+    "src/outbound/derived/interface.rs"
+  ],
+  "given": {
+    "Cargo.toml": "6955be29c07ea463e79394ba81d10eac96791192970cd823600443ede164982a",
+    "src/application.rs": "305dd10bb99f84713b1330e2b225a852c218043723d47d4ca2bb642bb18d8f0e",
+    "src/application/file_dag.rs": "6355368ba0d7d8df79cf665a1e7fc2fc2761c6fb59dac9fdd0eedbd5d242cbf8",
+    "src/application/file_dag/consumer.rs": "6c5dff3e5e6f4df5e1f2b19846f03d7c32762419237ec8e6e0cef3fff1051117",
+    "src/application/file_dag/derived.rs": "e506caac96184a406724c4e64d00403e10e9fa6d964f0344849b0420dd09f08a",
+    "src/application/file_dag/derived/owner.rs": "385cbc6b14f087fc452dc7e8d0cdecd0aa8303d0f21b1058a2dbfab80344b8ae",
+    "src/application/file_dag/derived/owner/acquisition.rs": "98d8fce3a8e1f078082e431caafd186f72f728a9a60e4e7d2c287f0d34a71390",
+    "src/application/file_dag/derived/owner/acquisition/future.rs": "68884d10ad8d7d3439a8494882ca026a78b6f844540100096da4280917d98e26",
+    "src/application/file_dag/derived/owner/acquisition/semantics.rs": "e5a23292a2f3233bcdb733a7a5f8b00607810af5675b0b1c5f61e4aaf2e7e282",
+    "src/application/file_dag/derived/owner/acquisition/semantics/service.rs": "13cf1b6529126b5b3e3e39667c2fc8e4ad1c005d910a689fda679b31f1ce0847",
+    "src/application/file_dag/derived/owner/acquisition/service.rs": "68884d10ad8d7d3439a8494882ca026a78b6f844540100096da4280917d98e26",
+    "src/application/owner.rs": "68884d10ad8d7d3439a8494882ca026a78b6f844540100096da4280917d98e26",
+    "src/application/request.rs": "68884d10ad8d7d3439a8494882ca026a78b6f844540100096da4280917d98e26",
+    "src/domain.rs": "729cd9e79420e24d8a7ce859a883518b89b381cfc0de29725f39ec39ae188020",
+    "src/domain/derived_views.rs": "6b4c8e3793fc17fcd42d040050a87fb163ee0eca93ce78ed853ecb9ee83f8319",
+    "src/domain/derived_views/collections.rs": "c15b214e1559b24efe6e231aa8f4d0b2a3dd3268fb855ad3a318dfc503fc7cad",
+    "src/domain/derived_views/collections/views.rs": "439506a53a5276c16f011e01f399d7f3b5e1b240eae97aed16333a2315f2ab65",
+    "src/domain/derived_views/collections/views/interface.rs": "2b128201d9a89ba016fc86ea94a46c819f1c6ba9185be40a76ada85c3b400877",
+    "src/domain/derived_views/collections/views/item.rs": "feba75bc2c7cbb86c7cb04f81f96d57716b7ca314053336c9fabb9b44f54ff32",
+    "src/domain/derived_views/collections/views/registration.rs": "242466ff9aa36ee9781e118437c8df6ef117946ef54cb9b6772cc2cb800ffb35",
+    "src/domain/operator.rs": "981fce6afadbd3aa2c18fb684b558b6846cc0de4c3f4699e7ee7a28f38fba079",
+    "src/domain/operator/item.rs": "89b3184a91d1d0c0e3c885b5fd735c63a5c9f6a942efdc7f9d9e50c53d4882e5",
+    "src/domain/other.rs": "e5a23292a2f3233bcdb733a7a5f8b00607810af5675b0b1c5f61e4aaf2e7e282",
+    "src/domain/other/service.rs": "68884d10ad8d7d3439a8494882ca026a78b6f844540100096da4280917d98e26",
+    "src/lib.rs": "dba6363ab346e8fc00cb00cb2d77abbc016d8629df5260be68e697bfd21be12e",
+    "src/outbound.rs": "c6e8010a78c1f03e8d35f5667233a5bb84821f5e7821a689fb98e37e5626e2c5",
+    "src/outbound/derived.rs": "032147bcf2c27f02f230178772254e83d5d1cc58ca876e1832fd059a8f0b03de",
+    "src/outbound/derived/interface.rs": "2568c40c6280998d34ec86394969690e7287d7e318b3f31a05edcf11eeb0d959",
+    "tastemaker.toml": "f7b78b52ff1a3dafa3f3041d3ea2a04cd7b5efedb21cfb4bdf427eac1e705efc"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/derived-view-acquisition",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {
+        "confined": [
+          "admit_view",
+          "AcquiredView"
+        ],
+        "owner-concept": "application/file_dag/derived"
+      },
+      "query": "idiomatic-ryo-derived-view-acquisition-a18d8c225378"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/application.rs",
+        "src/application/file_dag.rs",
+        "src/application/file_dag/consumer.rs",
+        "src/application/file_dag/derived.rs",
+        "src/application/file_dag/derived/owner.rs",
+        "src/application/file_dag/derived/owner/acquisition.rs",
+        "src/application/file_dag/derived/owner/acquisition/future.rs",
+        "src/application/file_dag/derived/owner/acquisition/semantics.rs",
+        "src/application/file_dag/derived/owner/acquisition/semantics/service.rs",
+        "src/application/file_dag/derived/owner/acquisition/service.rs",
+        "src/application/owner.rs",
+        "src/application/request.rs",
+        "src/domain.rs",
+        "src/domain/derived_views.rs",
+        "src/domain/derived_views/collections.rs",
+        "src/domain/derived_views/collections/views.rs",
+        "src/domain/derived_views/collections/views/interface.rs",
+        "src/domain/derived_views/collections/views/item.rs",
+        "src/domain/derived_views/collections/views/registration.rs",
+        "src/domain/operator.rs",
+        "src/domain/operator/item.rs",
+        "src/domain/other.rs",
+        "src/domain/other/service.rs",
+        "src/lib.rs",
+        "src/outbound.rs",
+        "src/outbound/derived.rs",
+        "src/outbound/derived/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/domain/operator/item.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                4,
+                78
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              4,
+              78
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/domain/operator/item.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

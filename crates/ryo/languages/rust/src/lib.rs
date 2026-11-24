@@ -23,6 +23,16 @@ mod domain;
 /// The Rust language, composed over its ports: what an edge links to read Rust.
 #[must_use]
 pub fn linked() -> ryo::languages::Language {
+    linked_revision(domain::model::types::ProviderRevision::Current)
+}
+
+/// The 0.1.4 Rust provider's facts, delivered through the native reader.
+#[must_use]
+pub fn linked_0_1_4() -> ryo::languages::Language {
+    linked_revision(domain::model::types::ProviderRevision::Released014)
+}
+
+fn linked_revision(revision: domain::model::types::ProviderRevision) -> ryo::languages::Language {
     use std::sync::Arc;
 
     use ryo::languages::RootPath;
@@ -43,9 +53,9 @@ pub fn linked() -> ryo::languages::Language {
     ryo::link!(
         domain::language::constants::NAME,
         parse: Arc::new(ParseContract::new(
-            Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS))),
+            Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS)).with_revision(revision)),
             Arc::new(postcard()),
-        )),
+        ).with_revision(revision)),
         project: Arc::new(ProjectContract::new(
             Arc::new(toml()),
             Arc::new(|root: &RootPath| -> Box<dyn RepositoryPort> { Box::new(native(root.clone())) }),

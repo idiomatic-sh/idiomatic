@@ -1,0 +1,16 @@
+param settings: set<string>;
+param locations: set<string>;
+param location-names: set<string>;
+let tree = select l."id" as "id", l."kind" as "kind", l."text" as "text", l."file" as "file", l."span" as "span" from "syntax-tree" as l;
+let types = select l."occurrence" as "id", l."owner" as "owner", l."annotation" as "annotation", l."file" as "file", l."span" as "span" from "annotates" as l;
+let below = axis(from=types, relation="syntax-child", direction=descendant, domain=tree);
+let words = select l."owner" as "owner", l."annotation" as "annotation", l."file" as "file", l."span" as "span", r."text" as "word" from below as l join tree as r on l."related" = r."id" where r."kind" = "ident";
+let set-words = select * from words where word in $settings;
+let place-words = select * from words where word in $locations;
+let methods = select l."id" as "owner" from "defines" as l where (l."kind" = "method" or l."kind" = "function") and l."name" in $location-names;
+let given-back = select l."owner" as "owner", l."annotation" as "annotation", l."file" as "file", l."span" as "span", l."word" as "word" from place-words as l join methods as r on l."owner" = r."owner";
+let named-places = select l."owner" as "owner", l."annotation" as "annotation", l."file" as "file", l."span" as "span", l."word" as "word" from place-words as l join "parameter" as r on l."owner" = r."id" where r."name" in $location-names;
+let leaks = union(left=set-words, right=given-back);
+let all = union(left=leaks, right=named-places);
+let found = project(from=all, columns=["file", "span", "annotation", "word"]);
+emit found subject "file" key("span", "word");

@@ -1,0 +1,314 @@
+{
+  "stamp": 19,
+  "rule": "closed-stray",
+  "dependency": "Host table / setting",
+  "admitted": [],
+  "given": {},
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    },
+    {
+      "columns": [
+        [
+          "entry",
+          "Number"
+        ],
+        [
+          "scope",
+          "Number"
+        ],
+        [
+          "identity",
+          "Text"
+        ],
+        [
+          "pair",
+          "Number"
+        ],
+        [
+          "found",
+          "Number"
+        ],
+        [
+          "condition",
+          "Text"
+        ],
+        [
+          "min",
+          "Number"
+        ],
+        [
+          "max",
+          "Number"
+        ],
+        [
+          "then-min",
+          "Number"
+        ],
+        [
+          "then-max",
+          "Number"
+        ],
+        [
+          "else-min",
+          "Number"
+        ],
+        [
+          "else-max",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.template-entry",
+      "rows": [
+        [
+          0,
+          0,
+          "idiomatic.arch/composition",
+          0,
+          1,
+          "",
+          1,
+          4294967295,
+          0,
+          4294967295,
+          0,
+          4294967295
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "scope",
+          "Number"
+        ],
+        [
+          "condition",
+          "Text"
+        ],
+        [
+          "holds",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.condition-answer",
+      "rows": []
+    },
+    {
+      "columns": [
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "prefix",
+          "Text"
+        ],
+        [
+          "last",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.closed-dir",
+      "rows": [
+        [
+          0,
+          "",
+          0
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "stray",
+          "Number"
+        ],
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "path",
+          "Text"
+        ],
+        [
+          "home",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.closed-under",
+      "rows": [
+        [
+          0,
+          0,
+          "src/lib.rs",
+          "src/"
+        ],
+        [
+          1,
+          0,
+          "src/resources/greeting/show/composition.rs",
+          "src/resources/greeting/show/"
+        ],
+        [
+          2,
+          0,
+          "tastemaker.toml",
+          ""
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "path",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed-file",
+      "rows": [
+        [
+          "src/resources/greeting/show/composition.rs"
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "path",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.own-file",
+      "rows": [
+        [
+          "tastemaker.toml"
+        ]
+      ]
+    },
+    {
+      "columns": [
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "prefix",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.nested-dir",
+      "rows": []
+    },
+    {
+      "columns": [
+        [
+          "group",
+          "Number"
+        ],
+        [
+          "owner",
+          "Number"
+        ],
+        [
+          "prefix",
+          "Text"
+        ],
+        [
+          "depth",
+          "Number"
+        ]
+      ],
+      "name": "tastemaker.occupied",
+      "rows": [
+        [
+          0,
+          0,
+          "src/resources/greeting/show/",
+          4
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "closed-stray",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "closed-stray-4fd6e5bd9f42"
+    },
+    {
+      "exclude": [],
+      "id": "count-refused",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "count-refused-90441b4c6035"
+    },
+    {
+      "exclude": [],
+      "id": "pair-missing",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "pair-missing-145c9d0ab9ce"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "stray",
+            0
+          ],
+          [
+            "owner",
+            0
+          ]
+        ],
+        "key": [
+          0
+        ],
+        "rule": "query",
+        "subject": 0
+      }
+    ],
+    "unknowns": []
+  }
+}

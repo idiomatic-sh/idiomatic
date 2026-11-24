@@ -1,0 +1,100 @@
+{
+  "stamp": 171,
+  "rule": "idiomatic.arch/adapter/schemas-members",
+  "dependency": "One file",
+  "admitted": [
+    "src/names/adapters/memory/adapter.rs"
+  ],
+  "given": {
+    "src/names/adapters/memory/adapter.rs": "794e0bb40d116743808c9ab8582edfa08a8885561ee5af654eb110c885289567",
+    "tastemaker.toml": "a2cec00c98651250aa5e8ccadd7e81247c63d9cf261b0c3d8c67bbd336b59df8"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/adapter/schemas-members",
+      "include": [
+        "src/names/adapters/*/*.rs",
+        "src/names/adapters/*/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-schemas-members-b73652864b66"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/names/adapters/memory/adapter.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/names/adapters/memory/adapter.rs"
+            }
+          ],
+          [
+            "dir",
+            "src/names/adapters/memory"
+          ],
+          [
+            "problem",
+            "parses or writes an external format (a file of it derives or names `Serialize`, `Deserialize`, `serde`, `serde_json`, `postcard`, `toml`, `ra_ap_syntax` or `ra_ap_parser`) and has no `schemas.rs`: the shape of what it reads and writes, and its checked conversion, are written there"
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/names/adapters/memory/adapter.rs"
+          },
+          "parses or writes an external format (a file of it derives or names `Serialize`, `Deserialize`, `serde`, `serde_json`, `postcard`, `toml`, `ra_ap_syntax` or `ra_ap_parser`) and has no `schemas.rs`: the shape of what it reads and writes, and its checked conversion, are written there"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/names/adapters/memory/adapter.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

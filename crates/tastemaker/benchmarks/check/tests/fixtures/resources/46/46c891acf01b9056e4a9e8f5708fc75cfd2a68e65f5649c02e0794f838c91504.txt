@@ -1,0 +1,7 @@
+//! The witness of every entry method.
+
+struct Witness;
+
+impl entry_fixture::interface::FileExecution for Witness {
+    fn run(&self) {}
+}

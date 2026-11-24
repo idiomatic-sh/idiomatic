@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/no-tracker-text-shipped", description = "The definition under test, placed alone.", include = ["src/**", "Cargo.toml"], params = { patterns = ["*ryo-[a-z][a-z][a-z][a-z].[0-9]*", "*ryo-[a-z][a-z][a-z][0-9]*", "*(owner 20*", "*[Tt]he owner's*", "*[Oo]wner's decision*", "*[Tt]he spike", "*[Tt]he spike[!a-z]*", "*[Tt]he devcontainer*", "*[Aa]n agent*"] } }]

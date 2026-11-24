@@ -13,7 +13,7 @@ use super::types::{
     ArgumentGrammar, ArgumentList, Cursor, Expansion, HeldMacro, MacroArgument, MacroName,
     NodeChildren, Open, RustText, Step, Walker,
 };
-use super::writer::emit;
+use super::writer::{emit, Output};
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::{OpaqueMacros, SourceText};
 use ra_ap_parser::{LexedStr, PrefixEntryPoint, TopEntryPoint};
@@ -24,17 +24,29 @@ use ryo::languages::{self, Count, Flag, Offset, Position};
 pub(crate) struct SyntaxRaApSyntaxAdapter {
     /// The built-in macros whose arguments are never read again.
     opaque: OpaqueMacros<'static>,
+    revision: crate::domain::model::types::ProviderRevision,
 }
 
 impl SyntaxRaApSyntaxAdapter {
     /// The adapter, reading again the arguments of every macro call but those of the macros `opaque` names.
     pub(crate) const fn new(opaque: OpaqueMacros<'static>) -> Self {
-        Self { opaque }
+        Self { opaque, revision: crate::domain::model::types::ProviderRevision::Current }
+    }
+
+    pub(crate) fn with_revision(mut self, revision: crate::domain::model::types::ProviderRevision) -> Self {
+        self.revision = revision;
+        self
     }
 }
 
 impl SyntaxPort for SyntaxRaApSyntaxAdapter {
     fn read(&self, text: SourceText<'_>, builder: &mut languages::TableBuilder<'_>) {
+        self.walk(text, builder);
+    }
+}
+
+impl SyntaxRaApSyntaxAdapter {
+    pub(crate) fn walk(&self, text: SourceText<'_>, builder: &mut impl Output) {
         let repaired = repaired(text);
         let whole = RustText(&repaired.0);
         let lexed = LexedStr::new(Edition::CURRENT, whole.0);
@@ -42,9 +54,8 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
         let output = TopEntryPoint::SourceFile.parse(&input);
         for (error, message) in lexed.errors() {
             let range = lexed.text_range(error);
-            languages::diagnose(
-                builder,
-                languages::ReportText(message),
+            builder.diagnostic(
+                message,
                 offset(Count(range.start)),
                 offset(Count(range.end)),
             );
@@ -56,6 +67,7 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
         };
         let mut walker = Walker {
             opaque: self.opaque,
+            revision: self.revision,
             name_from: Offset(0),
             name_to: Offset(0),
             armed: Flag::Lowered,
@@ -63,6 +75,7 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
             held: None,
             found: Vec::new(),
             buffer: ArgumentList::default(),
+            fragment_steps: Vec::new(),
         };
         // The library answers whether the walk reached the end of the text, which a whole file's walk always does.
         let _: bool = lexed.intersperse_trivia(&output, &mut |step| {
@@ -73,7 +86,7 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
         let mut pending = std::collections::VecDeque::from(std::mem::take(&mut walker.found));
         let mut number = 0_u32;
         while let Some(expansion) = pending.pop_front() {
-            languages::adopt(builder, expansion.host);
+            builder.adopt(expansion.host);
             let made = languages::ExpansionId(number);
             number = number.saturating_add(1);
             for argument in expansion.arguments {
@@ -83,12 +96,15 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
                 walker.held = None;
                 for step in argument.steps {
                     if matches!(step, Step::Enter(_) | Step::Token(..)) {
-                        languages::mark_expansion(builder, cursor.next, expansion.host, made);
+                        builder.origin(cursor.next, expansion.host, made);
                     }
-                    feed(&mut walker, builder, whole, step, &mut cursor);
+                    match self.revision {
+                        crate::domain::model::types::ProviderRevision::Released014 => emit(builder, whole, &step, &mut cursor),
+                        crate::domain::model::types::ProviderRevision::Current => feed(&mut walker, builder, whole, step, &mut cursor),
+                    }
                 }
             }
-            languages::release(builder);
+            builder.release();
             pending.extend(walker.found.drain(..));
         }
     }
@@ -98,7 +114,7 @@ impl SyntaxPort for SyntaxRaApSyntaxAdapter {
 /// token tree is held until it is whole, and then its arguments are read, when the call is one whose arguments are code.
 pub(super) fn feed(
     walker: &mut Walker,
-    builder: &mut languages::TableBuilder<'_>,
+    builder: &mut impl Output,
     text: RustText<'_>,
     step: Step,
     cursor: &mut Cursor,
@@ -122,12 +138,16 @@ pub(super) fn feed(
             }
             Step::Exit => each.depth.0 -= 1,
         }
+        if walker.revision == crate::domain::model::types::ProviderRevision::Released014 {
+            walker.fragment_steps.push(step);
+        }
         if each.depth.0 == 0
             && let Some(done) = walker.held.take()
         {
             walker.open.truncate(walker.open.len().saturating_sub(1));
             if let Some(arguments) = called(&done, walker, text, cursor.position)
-                && !arguments.is_empty()
+                && (!arguments.is_empty()
+                    || walker.revision == crate::domain::model::types::ProviderRevision::Released014)
             {
                 walker.found.push(Expansion {
                     host: done.host,
@@ -148,7 +168,13 @@ pub(super) fn feed(
                 .open
                 .last()
                 .is_some_and(|each| each.kind == SyntaxKind::MACRO_CALL);
-            walker.armed = if call { Flag::Raised } else { Flag::Lowered };
+            let expands = match walker.revision {
+                crate::domain::model::types::ProviderRevision::Current => call,
+                crate::domain::model::types::ProviderRevision::Released014 => text.0
+                    .get(index(walker.name_from).0..index(walker.name_to).0)
+                    .is_some_and(|name| crate::domain::syntax::constants::EXPANDED_MACROS.contains(&name)),
+            };
+            walker.armed = if expands { Flag::Raised } else { Flag::Lowered };
         }
         Step::Token(SyntaxKind::WHITESPACE | SyntaxKind::COMMENT, _) | Step::Exit => {}
         Step::Enter(SyntaxKind::TOKEN_TREE) if walker.armed == Flag::Raised => {
@@ -156,6 +182,10 @@ pub(super) fn feed(
             let name = text
                 .0
                 .get(index(walker.name_from).0..index(walker.name_to).0);
+            if walker.revision == crate::domain::model::types::ProviderRevision::Released014 {
+                walker.fragment_steps.clear();
+                walker.fragment_steps.push(Step::Enter(SyntaxKind::TOKEN_TREE));
+            }
             walker.held = Some(HeldMacro {
                 name: MacroName(name.unwrap_or_default().into()),
                 host: walker.open.last().map_or(Position(0), |each| each.at),
@@ -192,6 +222,9 @@ fn called(
     text: RustText<'_>,
     end: Offset,
 ) -> Option<Vec<MacroArgument>> {
+    if walker.revision == crate::domain::model::types::ProviderRevision::Released014 {
+        return super::fragments::expanded(&done.name, text, done.start, &walker.fragment_steps);
+    }
     let closed = matches!(
         (done.opening?, done.closing?),
         (SyntaxKind::L_PAREN, SyntaxKind::R_PAREN)
@@ -372,6 +405,10 @@ fn matched(text: RustText<'_>, start: Offset) -> Option<Vec<MacroArgument>> {
 
 /// The steps of `text` read as `entry`, with no error; nothing when it is not all one of them.
 fn read_as(text: RustText<'_>, entry: &TopEntryPoint) -> Option<Vec<Step>> {
+    read_fragment(text, entry, |step| matches!(step, Step::Error(..) | Step::Enter(SyntaxKind::ERROR)))
+}
+
+pub(super) fn read_fragment(text: RustText<'_>, entry: &TopEntryPoint, invalid: impl Fn(&Step) -> bool) -> Option<Vec<Step>> {
     let lexed = LexedStr::new(Edition::CURRENT, text.0);
     if lexed.errors().next().is_some() {
         return None;
@@ -382,7 +419,7 @@ fn read_as(text: RustText<'_>, entry: &TopEntryPoint) -> Option<Vec<Step>> {
     let whole = lexed.intersperse_trivia(&output, &mut |step| steps.push(step_of(step)));
     let clean = !steps
         .iter()
-        .any(|each| matches!(each, Step::Error(..) | Step::Enter(SyntaxKind::ERROR)));
+        .any(invalid);
     (clean && whole).then_some(steps)
 }
 

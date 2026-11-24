@@ -1,0 +1,31 @@
+[package]
+name = "demo-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+autobenches = false
+
+[dev-dependencies]
+cargo_metadata.workspace = true
+cucumber.workspace = true
+divan.workspace = true
+cpu-time.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
+harness = false
+
+[features]
+fixtures = []
+
+[lints]
+workspace = true

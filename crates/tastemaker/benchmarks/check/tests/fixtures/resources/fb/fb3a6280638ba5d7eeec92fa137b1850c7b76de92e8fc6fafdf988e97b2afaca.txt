@@ -1,0 +1,18 @@
+//! `greeting list`'s workload.
+
+pub(crate) fn workload() -> crate::measure::Measured {
+    crate::measure::rounds(
+        "greeting/list",
+        || (),
+        |()| {
+            let outcome = cli::resources::greeting::list::command::run(
+                cli::resources::greeting::list::command::ListArguments {},
+            );
+            assert_eq!(
+                outcome,
+                cli::outcome::Outcome::Success,
+                "`greeting list` did not succeed"
+            );
+        },
+    )
+}

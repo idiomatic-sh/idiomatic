@@ -362,7 +362,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             notes: l::NoteRequest::Unwanted,
         };
         parser
-            .build_file(parse, &mut elements, &mut symbols, &all)
+            .build_native_file(parse, &mut elements, &mut symbols, &all)
             .expect("parse file");
         let mut provider = reader::ReaderFacts::new(id.0, &unknown_words);
         reader::project_tree(
@@ -373,6 +373,8 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
             &mut table,
             &mut provider,
         );
+        let native = l::native_table(&elements).cloned();
+        let table = native.as_deref().unwrap_or(&table);
         let mut visible_kinds = kinds.present(
             node_table::kind_codes(&table)
                 .iter()

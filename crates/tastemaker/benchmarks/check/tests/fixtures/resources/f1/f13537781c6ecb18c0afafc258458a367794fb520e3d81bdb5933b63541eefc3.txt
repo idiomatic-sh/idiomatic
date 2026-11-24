@@ -1,0 +1,9 @@
+//! The engine's strategies behind the driver ports.
+
+pub struct EngineWalk;
+
+impl operators::walk::WalkDriver for EngineWalk {
+    fn next(&mut self) -> Option<usize> {
+        None
+    }
+}

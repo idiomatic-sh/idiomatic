@@ -1,0 +1,3 @@
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+rules = [{ rule = "idiomatic.arch/client-at-adapter", include = ["**"], params = { libraries = ["rusqlite::*"] } }]
+templates = [{ template = "idiomatic.arch/composition", file = "src/resources/{resource}/{part}/composition.rs" }]

@@ -1,0 +1,115 @@
+{
+  "stamp": 240,
+  "rule": "idiomatic.arch/nu-hex/core-fakes",
+  "dependency": "Several files",
+  "admitted": [
+    "src/outbound/names/fixtures/fake.rs",
+    "src/outbound/names/interface.rs"
+  ],
+  "given": {
+    "src/outbound/names/fixtures/fake.rs": "fecc1ad37845be24f2fd1285c5f6fa9950d4770d9e7f26090fe73f2a18f2509d",
+    "src/outbound/names/interface.rs": "d883b1312ca2fcc2b038e52f24053cbaa7d706fed7750ede28a82a83771291e3",
+    "tastemaker.toml": "71ac1c380025e426c25b13927c7cfdd23d62c5dd4f8b26b948784e7ddd90c8cd"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/nu-hex/core-fakes",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-core-fakes-8ff4d158d83c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/outbound/names/fixtures/fake.rs",
+        "src/outbound/names/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/outbound/names/fixtures/fake.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                302,
+                355
+              ]
+            }
+          ],
+          [
+            "trait",
+            "OtherPort"
+          ],
+          [
+            "problem",
+            "is not the port of this directory: its fake lives in the port that owns it"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              302,
+              355
+            ]
+          },
+          "OtherPort"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outbound/names/fixtures/fake.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

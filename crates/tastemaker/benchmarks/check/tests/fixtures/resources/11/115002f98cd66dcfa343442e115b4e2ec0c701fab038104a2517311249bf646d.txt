@@ -1,0 +1,8 @@
+//! Fakes standing on other's.
+
+use other::fixtures::Fake;
+
+/// The fake.
+pub fn fake() -> Fake {
+    Fake
+}

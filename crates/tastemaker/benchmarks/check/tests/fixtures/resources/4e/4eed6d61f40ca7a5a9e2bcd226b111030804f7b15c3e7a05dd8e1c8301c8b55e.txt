@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/library-surface", description = "The definition under test, placed alone.", include = ["src/**"], params = { library = ["ryo", "ryo::*"], surface = ["ryo::linter::lint", "ryo::linter::lint::*", "ryo::linter::LintRequest", "ryo::linter::LintRequest::*"] } }]

@@ -1,0 +1,9 @@
+pub struct Image;
+pub struct ImageBytesSchema<'a>(pub &'a [u8]);
+impl TryFrom<ImageBytesSchema<'_>> for Image {
+    type Error = ();
+    fn try_from(_: ImageBytesSchema<'_>) -> Result<Self, ()> { Err(()) }
+}
+pub fn image(bytes: &[u8]) -> Option<Image> {
+    Image::try_from(ImageBytesSchema(bytes)).ok()
+}

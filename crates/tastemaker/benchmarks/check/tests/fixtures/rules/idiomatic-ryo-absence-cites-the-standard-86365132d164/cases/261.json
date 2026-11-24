@@ -1,0 +1,107 @@
+{
+  "stamp": 261,
+  "rule": "idiomatic.ryo/absence-cites-the-standard",
+  "dependency": "One file",
+  "admitted": [
+    "contract.rs"
+  ],
+  "given": {
+    "contract.rs": "b0359d4f4d98ff8b187679142243aa96089d5cb3108521db295beac2d55f6f2a",
+    "tastemaker.toml": "73e9a34436c5ddc7699119f3e7c27f8909ba1036dbe0e53f556790e14ab36200"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/absence-cites-the-standard",
+      "include": [
+        "contract.rs",
+        "contract.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-absence-cites-the-standard-86365132d164"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "contract.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "contract.rs#21"
+          ],
+          [
+            "file",
+            {
+              "file": "contract.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                35,
+                162
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              35,
+              162
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "contract.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

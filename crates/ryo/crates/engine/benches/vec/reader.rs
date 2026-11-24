@@ -58,6 +58,25 @@ pub(super) fn project_tree(
     table: &mut NodeTable,
     facts: &mut ReaderFacts<'_>,
 ) {
+    if let Some(native) = l::native_table(elements) {
+        let mut field_names = Vec::new();
+        let mut spelling = rustc_hash::FxHashMap::default();
+        for (index, &field) in node_table::field_codes(native).iter().enumerate() {
+            let at = l::Position(index.try_into().expect("native position"));
+            let slot = usize::from(field);
+            if field_names.len() <= slot { field_names.resize(slot + 1, None); }
+            let _ = field_names[slot].get_or_insert_with(|| symbol(run, facts.unknown, symbols, bytes, l::field_name_at(elements, at)));
+            let word = l::text_at(elements, at);
+            facts.text.push(*spelling.entry(word.0).or_insert_with(|| symbol(run, facts.unknown, symbols, bytes, word)));
+        }
+        for (slot, name) in field_names.into_iter().enumerate() {
+            if let Some(name) = name {
+                run.field_sym.resize(run.field_sym.len().max(slot + 1), run.empty);
+                run.field_sym[slot] = name;
+            }
+        }
+        return;
+    }
     let mut builder = node_table::builder(table, l::Count(run.kind_sym.len()));
     let mut open = Vec::new();
     for at in l::positions(elements) {

@@ -1,0 +1,2125 @@
+{
+  "stamp": 183,
+  "rule": "condition:cli/src/resources/greeting/list/opens-client",
+  "dependency": "One file",
+  "admitted": [
+    "cli/src/resources/greeting/list/composition.rs"
+  ],
+  "given": {
+    "Cargo.toml": "fa7ea2242ac862155483997b6849010622b976046467e69252240b7ec6441173",
+    "cli/Cargo.toml": "85b82c98ca8c49bf527cac329c06ccdec27be59b808cef9a0c759f80a0e235de",
+    "cli/LICENSE": "230c8d2177caaf787c9d55981759f234a9e6e73bc58ccba8a21414b07d0362f4",
+    "cli/README.md": "fb4f3714b43ff09ebee09b98e4d8cc9c116b5886e9eabb7ff8424eaa0e3429fe",
+    "cli/benches/performance/greeting.rs": "15f06d33f6a2ebba490e7e1a922464e618124b73bc688a9199c10bbdbe8b1540",
+    "cli/benches/performance/greeting/list.rs": "647bb0659ce5372392aeda386e6553668dbdae75ef3d1437df92d14b4298a37e",
+    "cli/benches/performance/greeting/list/bench.rs": "fb3a6280638ba5d7eeec92fa137b1850c7b76de92e8fc6fafdf988e97b2afaca",
+    "cli/benches/performance/greeting/show.rs": "df0fcd6870c530ab541a9a41a053057714dddd4085ea3dbf29c04634a3bc0bc3",
+    "cli/benches/performance/main.rs": "f593b3081163ed6b8b3a6f0b585711e150c31172b7de0734aaf965658d74fcc8",
+    "cli/benches/performance/measure.rs": "bdf9258a594381b807eba23e7459fd8832c34e0e64b5694d0d87b2dcb6dede83",
+    "cli/src/cases.rs": "5bcc185ba13bf6e23ec7ad4396472b773c51253675efd9be9240ec0d4a37db29",
+    "cli/src/edge.rs": "b5eb325a512eb39315d1c9c418a20a202c675e8570e0416c957bdca0e9018ed8",
+    "cli/src/lib.rs": "a26284cc246e4a4b0da70da352002121aad05c752be01ee30cb6ff64b0dbafdb",
+    "cli/src/main.rs": "bfd101c24507a8f3fe2c70f0a113896010d6d75b5ae85fee2b27dc54a072625d",
+    "cli/src/outcome.rs": "d2fd96e281f1ac33d1eba6adba7e6db360e4962a4a78313a1bf341361a4d7c04",
+    "cli/src/outcome/remedy.rs": "0bd9ab66bd387163293baa99256551fded089d5d72067d426cc652a9c34f699d",
+    "cli/src/outcome/remedy_test.rs": "b4076231ece1d03ee86c9d9c2de422e518b280077ea5d61ce92ea53b75c6ce7c",
+    "cli/src/outcome_test.rs": "ae14b30293fbda5c2b7fda0fd64a71748a823c6ffd5ac6eaea6d66e61f5de56f",
+    "cli/src/output.rs": "fe510cbce0394be46aed87ea63aeb2b10f5e44ed77d846fd2d34ec742c888aee",
+    "cli/src/output/dry_run.rs": "e2c8869bce5f681063897dfed9cd777d45861f566dd13c3d0ce76a51d3b2ec4c",
+    "cli/src/output/dry_run_test.rs": "c6b14093a3e16db7d7eda54200d4f043122a139e38af747ed69c5eef8d97ab6d",
+    "cli/src/output/pager.rs": "d0540fc32719e5a114ef5f7c9fb5a81083b6222a222cc1c4bdb1171bd5d26b14",
+    "cli/src/output/pager_test.rs": "ae91dacae4742b06a8f65b527002a69e4705cae7307e9080d78dd9627d0c5480",
+    "cli/src/output/progress.rs": "bfd2b69db5c5cdc6b1ec7baa1be3cd1640cc08b52bd0b87b9e84d7e865f7285c",
+    "cli/src/output/progress_test.rs": "521b046485a5ec0b2d210b68bb0702424509af37e3ffd4b5cd867554a25c10c3",
+    "cli/src/output_test.rs": "f70a8b8b427f6ffa8d62e7888af3ee6a8c749f9686096915480ae443771836c5",
+    "cli/src/resources.rs": "70cf90a3858bb35f99c7032e418888d3743494afc95f067dfb658daec8a2e245",
+    "cli/src/resources/greeting.rs": "d6c7c7022ffa4bf221e26e1cc3a4fb32a98ad064735727d10304f69a9ad3e2a5",
+    "cli/src/resources/greeting/list.rs": "b9ec57b9cbc949f25f2ba33e6857478abde57d2a7828b9a36c01bb7b2a86534b",
+    "cli/src/resources/greeting/list/command.rs": "f717675abdecada78e2d69537f1bb1d0842507a5d25beba11fc9af1b68bd37de",
+    "cli/src/resources/greeting/list/command_test.rs": "9e6722d1ebbc53ac650c6f2ee760341c8a4bb66b36fa48043699bc7ae2fee240",
+    "cli/src/resources/greeting/list/composition.rs": "1d7cc13aad5a5b40e17e0d41e06eeb21de6d93c9fc35a0e4871f7bff385fcacf",
+    "cli/src/resources/greeting/list/connections.rs": "469c805e750bf66a0865b7c15a4f25ecd878f23c6887fe82b8ff54f4439f55eb",
+    "cli/src/resources/greeting/list/schemas.rs": "e21c7409a25b56599f934a30d801e3fedfbc15e842fb8ee5f053e7866fb03371",
+    "cli/src/resources/greeting/list/schemas_test.rs": "25bfdc6199697e46bdc28fd44de35397a030414ca839faacdfd890c79e26129d",
+    "cli/src/resources/greeting/show.rs": "6a3f9ab2bf01a6bed4ca2336323f5c358f01e3fd6eee3c6b8c4b9fc0eaad1114",
+    "cli/src/resources/greeting/show/command.rs": "c8b8ff3818af775095a906b3fdbba726b5c56feab913bccb71ebd9cbdc19e61d",
+    "cli/src/resources/greeting/show/command_test.rs": "ed6e2543a826bfbcd66d315bab33e709b8df56306fef1bafb6bcd626071748a1",
+    "cli/src/resources/greeting/show/composition.rs": "ad1cab692eac2add4b3139bae5127305cf3b84d5cf5ed89a68502659c6ed58fd",
+    "cli/src/resources/greeting/show/connections.rs": "e279a0a30eef21ad08ac94f97633a288d6bd9159b9d248e6249da5d37abb1b84",
+    "cli/src/resources/greeting/show/schemas.rs": "e21c7409a25b56599f934a30d801e3fedfbc15e842fb8ee5f053e7866fb03371",
+    "cli/src/resources/greeting/show/schemas_test.rs": "f099bd8478f5d8c458d2a6dde46e9905ce4b3bc5f44294462a10b7c0b7d520f9",
+    "cli/src/timings.rs": "1d5d19adf642f97444d9f7ea5fae8fcd2d7a4c5035e27ae9ddaf25a28c11f8b2",
+    "cli/src/timings/phases.rs": "a4a309be554b0c468ade13ccaa6618f67a42effa75e62c976d6e94e474ca7fcf",
+    "cli/src/timings/phases_test.rs": "6cb8adc07237a45321fbea698c1b8cf1cd0f39cf6b05e019bdc727a256bf3994",
+    "cli/src/timings_test.rs": "f26cf62fcd56deeed48a8afa2cd7ce254c63df280b7b4186716d59291b3bb000",
+    "cli/tests/command_line.rs": "eac2dbd5168155551f675feb10316d7221706a74068697f777ac2c1e8c3c2401",
+    "cli/tests/command_tree.rs": "34e5d21293d69af1814d76ba41ccf983f8260c9266662c80a97b4411bd1cad92",
+    "cli/tests/command_tree/surface.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "cli/tests/readme.rs": "051770ae5cb3642aaa2f3af2aaf056683838e447eb11e52d0c5bf066ef5ab958",
+    "tastemaker.toml": "e47afc9ac0a8be3f7b4c681688409c05b29ba6eb0df111b3390f530e57fdd9f9"
+  },
+  "beside": {
+    ".tastemaker-rendered/096660882176f31e.cases.rs": "0a2e5cd60c72f8c1ec917e7fffb59b8d8c2b1f9c4dbf16e4285c6a0816e41f21",
+    ".tastemaker-rendered/0c10a6d05c18f5cf.list.rs": "b9ec57b9cbc949f25f2ba33e6857478abde57d2a7828b9a36c01bb7b2a86534b",
+    ".tastemaker-rendered/10d896d94e69c59a.command_line.rs": "ac8890e85b06b93e9e51e7f6b027e1b7a49980ede935342427ac3113b1a9e08f",
+    ".tastemaker-rendered/1e8d4adc3461a567.phases_test.rs": "6cb8adc07237a45321fbea698c1b8cf1cd0f39cf6b05e019bdc727a256bf3994",
+    ".tastemaker-rendered/2cd96b62b2fd9c82.timings_test.rs": "5c61cdf4e168e65bcd2b7902a93db5eea413088cdfc31ddfb690e5a34cf40d74",
+    ".tastemaker-rendered/2e4391112f048f65.README.md": "cd1605ecfa88c9199ae7882be32cb6b393c01c5788530098ce00a0b4d8e99f2e",
+    ".tastemaker-rendered/3073c97da0ff5c99.command_tree.rs": "34e5d21293d69af1814d76ba41ccf983f8260c9266662c80a97b4411bd1cad92",
+    ".tastemaker-rendered/32c79ffc6da9e30f.composition.rs": "6f745fba8ca8c8b62c11b65c9872fce662b3c48617d1b485c07201031c67bb61",
+    ".tastemaker-rendered/3625985a6aef7f3e.show.rs": "6a3f9ab2bf01a6bed4ca2336323f5c358f01e3fd6eee3c6b8c4b9fc0eaad1114",
+    ".tastemaker-rendered/3a2ba46241f6026d.command_test.rs": "0aab9854c266068caab24ba2e16ccc0c7571a75d4487e63f09d416c73cd5aed7",
+    ".tastemaker-rendered/3f21f2e2343041cf.main.rs": "4aabe19a8cd2d310f4eb67f1b19c0da7a771bc1f4193ac9e39dc8595a9f24c6f",
+    ".tastemaker-rendered/3fd693bc2dd16b45.phases.rs": "a4a309be554b0c468ade13ccaa6618f67a42effa75e62c976d6e94e474ca7fcf",
+    ".tastemaker-rendered/4419b32ad22ee251.composition.rs": "ea273cb92a03ee9463371a0ba3ab28a480baa54cf1f9c4b7593c1ebffbd1c40b",
+    ".tastemaker-rendered/46d1aabe13144aac.show.rs": "185b6f52c61607f5c0449cf692ee437fcd6f5bb09ab4760528601debab3445b2",
+    ".tastemaker-rendered/47952f3f4a88f035.command.rs": "d9c4eff21a26f6fea29d35b34a7a4afb7b2eacf777a289868cd8b018dd9c8e78",
+    ".tastemaker-rendered/4d60a823d860e8ea.remedy.rs": "fdd9f88840915b585e41b1c94c53cd738d74e1bd54aa92c8eab73035ef57d049",
+    ".tastemaker-rendered/551b4a47b508f455.greeting.rs": "15f06d33f6a2ebba490e7e1a922464e618124b73bc688a9199c10bbdbe8b1540",
+    ".tastemaker-rendered/5d8a4ee513838e69.bench.rs": "2a4f927701e2905cf33552f04cad2f409d56892c5eeb8b4c95477bbd894792b8",
+    ".tastemaker-rendered/5e1a12153d923731.LICENSE": "230c8d2177caaf787c9d55981759f234a9e6e73bc58ccba8a21414b07d0362f4",
+    ".tastemaker-rendered/6871faaeb93cd4dd.outcome.rs": "d2fd96e281f1ac33d1eba6adba7e6db360e4962a4a78313a1bf341361a4d7c04",
+    ".tastemaker-rendered/75e12e580bd1e600.progress_test.rs": "521b046485a5ec0b2d210b68bb0702424509af37e3ffd4b5cd867554a25c10c3",
+    ".tastemaker-rendered/7715f5f721fac5be.pager_test.rs": "ae91dacae4742b06a8f65b527002a69e4705cae7307e9080d78dd9627d0c5480",
+    ".tastemaker-rendered/7cd811c99547087a.schemas_test.rs": "834e9cdcd0b758932a34916a9e8e86bbdcb52af756e2016a36fafb9e2092511e",
+    ".tastemaker-rendered/8dd1a6a61a91c00e.outcome_test.rs": "ae14b30293fbda5c2b7fda0fd64a71748a823c6ffd5ac6eaea6d66e61f5de56f",
+    ".tastemaker-rendered/8ea6d182331c4e24.main.rs": "f8713b781cf3e417307db88ac21a8b4a724cb99abecd09dae904b406f9e69053",
+    ".tastemaker-rendered/8f63469d8cdc53ff.command.rs": "836ecc886391a5669ab82a316fc1429f4063a091da1d9603b4dc486075da64c3",
+    ".tastemaker-rendered/922ca92016a7fbe3.schemas.rs": "7d5a564865093864bbfa3eeb22f7e0f3ddf1fa416ee9badf3a9f2cdfa20f03d4",
+    ".tastemaker-rendered/9316f76c4b946a4d.schemas.rs": "7d5a564865093864bbfa3eeb22f7e0f3ddf1fa416ee9badf3a9f2cdfa20f03d4",
+    ".tastemaker-rendered/96ad18fe79832adc.connections.rs": "68f8125624ab3f079bfac6fe7e68575ec512186860dec4a8ec96df6a1d8681e8",
+    ".tastemaker-rendered/9fc4caeaff8f5108.command_test.rs": "0f4d9d649f1789ae36773e49f662aeaeeff899d04ba0e59d6c6bdfe4e3afb23c",
+    ".tastemaker-rendered/a1521f14b4cecfa0.measure.rs": "bdf9258a594381b807eba23e7459fd8832c34e0e64b5694d0d87b2dcb6dede83",
+    ".tastemaker-rendered/a681fb449f3ea420.schemas_test.rs": "834e9cdcd0b758932a34916a9e8e86bbdcb52af756e2016a36fafb9e2092511e",
+    ".tastemaker-rendered/a6901096bff0d833.timings.rs": "d0b8515533364636543029bb1806000174ffb527b96b56d4c50f8ccddf0b40fe",
+    ".tastemaker-rendered/a724d2a00a6d24d2.greeting.rs": "bcf9573fb6864d9670ad6657aadc07b0b968a45e1fe9fdd17c00d6444d4adc60",
+    ".tastemaker-rendered/a9fd00958eb1aba1.output.rs": "84de149c507e1e4184d82d2d1ba8d6eda847a963e433d0402ee8e046bc47ff11",
+    ".tastemaker-rendered/ab8247530d746ab3.connections.rs": "0d10a1f306c147a2f6c21ce6ced02586d908c3d16c333450c81f11bf7d7a276a",
+    ".tastemaker-rendered/b04859033bd9aa76.progress.rs": "bfd2b69db5c5cdc6b1ec7baa1be3cd1640cc08b52bd0b87b9e84d7e865f7285c",
+    ".tastemaker-rendered/b633844daabca5b9.dry_run.rs": "e2c8869bce5f681063897dfed9cd777d45861f566dd13c3d0ce76a51d3b2ec4c",
+    ".tastemaker-rendered/b701fe2f40ee5abc.readme.rs": "051770ae5cb3642aaa2f3af2aaf056683838e447eb11e52d0c5bf066ef5ab958",
+    ".tastemaker-rendered/b940f7107a175260.edge.rs": "dbdd8a31c368231378c8182670057ee4cf5566377458d37794e636205eb7d318",
+    ".tastemaker-rendered/bffa066a7dd5aaaf.lib.rs": "58f5968f2d8a16a2f34a2b0315d5a58d9782e1e94ef28a3edebbeb123f1e56ed",
+    ".tastemaker-rendered/c233c9371ce5f851.remedy_test.rs": "b4076231ece1d03ee86c9d9c2de422e518b280077ea5d61ce92ea53b75c6ce7c",
+    ".tastemaker-rendered/c5687ecda051438a.list.rs": "647bb0659ce5372392aeda386e6553668dbdae75ef3d1437df92d14b4298a37e",
+    ".tastemaker-rendered/d2aaa5eca2292615.output_test.rs": "f70a8b8b427f6ffa8d62e7888af3ee6a8c749f9686096915480ae443771836c5",
+    ".tastemaker-rendered/d552af2c601583b1.pager.rs": "d0540fc32719e5a114ef5f7c9fb5a81083b6222a222cc1c4bdb1171bd5d26b14",
+    ".tastemaker-rendered/db72e33a730767c4.dry_run_test.rs": "c6b14093a3e16db7d7eda54200d4f043122a139e38af747ed69c5eef8d97ab6d",
+    ".tastemaker-rendered/e491aa198e4fef8d.Cargo.toml": "eb7c293788529484a2e4ba8b5fd4705b51be06823bf06dcb1ba5dde85af046a9",
+    ".tastemaker-rendered/f4711e99cfd17447.resources.rs": "c6dd38c2acf035f6c361f066ec419adca84fe0968265613992b3c67c160fec6b"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "cli/Cargo.toml"
+          },
+          "cargo-package",
+          "idiomatic.arch",
+          "cargo-package",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "cli/LICENSE"
+          },
+          "license",
+          "idiomatic.arch",
+          "license",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/README.md"
+          },
+          "crate-readme",
+          "idiomatic.arch",
+          "crate-readme",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "cli/benches/performance/greeting.rs"
+          },
+          "resource-performance",
+          "idiomatic.arch",
+          "resource-performance",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/benches/performance/greeting/list.rs"
+          },
+          "command-bench-module",
+          "idiomatic.arch",
+          "command-bench-module",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/benches/performance/greeting/list/bench.rs"
+          },
+          "command-bench",
+          "idiomatic.arch",
+          "command-bench",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/benches/performance/greeting/show.rs"
+          },
+          "command-bench-module",
+          "idiomatic.arch",
+          "command-bench-module",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/benches/performance/main.rs"
+          },
+          "performance-main",
+          "idiomatic.arch",
+          "performance-main",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/benches/performance/measure.rs"
+          },
+          "performance-measure",
+          "idiomatic.arch",
+          "performance-measure",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/cases.rs"
+          },
+          "cases",
+          "idiomatic.arch",
+          "cases",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "cli/src/edge.rs"
+          },
+          "edge",
+          "idiomatic.arch",
+          "edge",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/lib.rs"
+          },
+          "crate-root",
+          "idiomatic.arch",
+          "crate-root",
+          "0.13.2",
+          "crate"
+        ],
+        [
+          {
+            "file": "cli/src/main.rs"
+          },
+          "cli-main",
+          "idiomatic.arch",
+          "cli-main",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/outcome.rs"
+          },
+          "outcome",
+          "idiomatic.arch",
+          "outcome",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/outcome/remedy.rs"
+          },
+          "outcome-remedy",
+          "idiomatic.arch",
+          "outcome-remedy",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/outcome/remedy_test.rs"
+          },
+          "outcome-remedy-test",
+          "idiomatic.arch",
+          "outcome-remedy-test",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/outcome_test.rs"
+          },
+          "outcome-test",
+          "idiomatic.arch",
+          "outcome-test",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/output.rs"
+          },
+          "output",
+          "idiomatic.arch",
+          "output",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/output/dry_run.rs"
+          },
+          "output-dry-run",
+          "idiomatic.arch",
+          "output-dry-run",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/output/dry_run_test.rs"
+          },
+          "output-dry-run-test",
+          "idiomatic.arch",
+          "output-dry-run-test",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/output/pager.rs"
+          },
+          "output-pager",
+          "idiomatic.arch",
+          "output-pager",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/output/pager_test.rs"
+          },
+          "output-pager-test",
+          "idiomatic.arch",
+          "output-pager-test",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/output/progress.rs"
+          },
+          "output-progress",
+          "idiomatic.arch",
+          "output-progress",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/output/progress_test.rs"
+          },
+          "output-progress-test",
+          "idiomatic.arch",
+          "output-progress-test",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/output_test.rs"
+          },
+          "output-test",
+          "idiomatic.arch",
+          "output-test",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/resources.rs"
+          },
+          "commands",
+          "idiomatic.arch",
+          "commands",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting.rs"
+          },
+          "resource",
+          "idiomatic.arch",
+          "resource",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/list.rs"
+          },
+          "command-module",
+          "idiomatic.arch",
+          "command-module",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/list/command.rs"
+          },
+          "command",
+          "idiomatic.arch",
+          "command",
+          "0.2.1",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/list/command_test.rs"
+          },
+          "command-test",
+          "idiomatic.arch",
+          "command-test",
+          "0.2.1",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/list/composition.rs"
+          },
+          "composition",
+          "idiomatic.arch",
+          "composition",
+          "0.2.0",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/list/connections.rs"
+          },
+          "connections",
+          "idiomatic.arch",
+          "connections",
+          "0.1.0",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/list/schemas.rs"
+          },
+          "schemas",
+          "idiomatic.arch",
+          "schemas",
+          "0.1.0",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/list/schemas_test.rs"
+          },
+          "schemas-test",
+          "idiomatic.arch",
+          "schemas-test",
+          "0.1.0",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/show.rs"
+          },
+          "command-module",
+          "idiomatic.arch",
+          "command-module",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/show/command.rs"
+          },
+          "command",
+          "idiomatic.arch",
+          "command",
+          "0.2.1",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/show/command_test.rs"
+          },
+          "command-test",
+          "idiomatic.arch",
+          "command-test",
+          "0.2.1",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/show/composition.rs"
+          },
+          "composition",
+          "idiomatic.arch",
+          "composition",
+          "0.2.0",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/show/connections.rs"
+          },
+          "connections",
+          "idiomatic.arch",
+          "connections",
+          "0.1.0",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/show/schemas.rs"
+          },
+          "schemas",
+          "idiomatic.arch",
+          "schemas",
+          "0.1.0",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/resources/greeting/show/schemas_test.rs"
+          },
+          "schemas-test",
+          "idiomatic.arch",
+          "schemas-test",
+          "0.1.0",
+          "command"
+        ],
+        [
+          {
+            "file": "cli/src/timings.rs"
+          },
+          "cli-timings",
+          "idiomatic.arch",
+          "cli-timings",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/timings/phases.rs"
+          },
+          "timings-phases",
+          "idiomatic.arch",
+          "timings-phases",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/timings/phases_test.rs"
+          },
+          "timings-phases-test",
+          "idiomatic.arch",
+          "timings-phases-test",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/src/timings_test.rs"
+          },
+          "timings-test",
+          "idiomatic.arch",
+          "timings-test",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/tests/command_line.rs"
+          },
+          "command-line-contract",
+          "idiomatic.arch",
+          "command-line-contract",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/tests/command_tree.rs"
+          },
+          "command-tree-contract",
+          "idiomatic.arch",
+          "command-tree-contract",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/tests/command_tree/surface.txt"
+          },
+          "command-surface",
+          "idiomatic.arch",
+          "command-surface",
+          "0.12.3",
+          "cli"
+        ],
+        [
+          {
+            "file": "cli/tests/readme.rs"
+          },
+          "readme-test",
+          "idiomatic.arch",
+          "readme-test",
+          "0.12.3",
+          "cli"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "condition:cli/cases",
+      "include": [
+        "cli/src/main.rs",
+        "cli/src/resources.rs"
+      ],
+      "parameters": {},
+      "query": "condition-cli-cases-3b0774d4ea81"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "condition:cli/src/resources/greeting/list/opens-client",
+      "include": [
+        "cli/src/resources/greeting/list/composition.rs"
+      ],
+      "parameters": {},
+      "query": "condition-cli-src-resources-greeting-list-opens-client-16c574baf803"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "condition:cli/src/resources/greeting/show/opens-client",
+      "include": [
+        "cli/src/resources/greeting/show/composition.rs"
+      ],
+      "parameters": {},
+      "query": "condition-cli-src-resources-greeting-list-opens-client-16c574baf803"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "cli/Cargo.toml",
+        ".tastemaker-rendered/e491aa198e4fef8d.Cargo.toml",
+        "cli/LICENSE",
+        ".tastemaker-rendered/5e1a12153d923731.LICENSE",
+        "cli/README.md",
+        ".tastemaker-rendered/2e4391112f048f65.README.md",
+        "cli/benches/performance/greeting.rs",
+        ".tastemaker-rendered/551b4a47b508f455.greeting.rs",
+        "cli/benches/performance/greeting/list.rs",
+        ".tastemaker-rendered/c5687ecda051438a.list.rs",
+        "cli/benches/performance/greeting/list/bench.rs",
+        ".tastemaker-rendered/5d8a4ee513838e69.bench.rs",
+        "cli/benches/performance/greeting/show.rs",
+        ".tastemaker-rendered/46d1aabe13144aac.show.rs",
+        "cli/benches/performance/main.rs",
+        ".tastemaker-rendered/8ea6d182331c4e24.main.rs",
+        "cli/benches/performance/measure.rs",
+        ".tastemaker-rendered/a1521f14b4cecfa0.measure.rs",
+        "cli/src/cases.rs",
+        ".tastemaker-rendered/096660882176f31e.cases.rs",
+        "cli/src/edge.rs",
+        ".tastemaker-rendered/b940f7107a175260.edge.rs",
+        "cli/src/lib.rs",
+        ".tastemaker-rendered/bffa066a7dd5aaaf.lib.rs",
+        "cli/src/main.rs",
+        ".tastemaker-rendered/3f21f2e2343041cf.main.rs",
+        "cli/src/outcome.rs",
+        ".tastemaker-rendered/6871faaeb93cd4dd.outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        ".tastemaker-rendered/4d60a823d860e8ea.remedy.rs",
+        "cli/src/outcome/remedy_test.rs",
+        ".tastemaker-rendered/c233c9371ce5f851.remedy_test.rs",
+        "cli/src/outcome_test.rs",
+        ".tastemaker-rendered/8dd1a6a61a91c00e.outcome_test.rs",
+        "cli/src/output.rs",
+        ".tastemaker-rendered/a9fd00958eb1aba1.output.rs",
+        "cli/src/output/dry_run.rs",
+        ".tastemaker-rendered/b633844daabca5b9.dry_run.rs",
+        "cli/src/output/dry_run_test.rs",
+        ".tastemaker-rendered/db72e33a730767c4.dry_run_test.rs",
+        "cli/src/output/pager.rs",
+        ".tastemaker-rendered/d552af2c601583b1.pager.rs",
+        "cli/src/output/pager_test.rs",
+        ".tastemaker-rendered/7715f5f721fac5be.pager_test.rs",
+        "cli/src/output/progress.rs",
+        ".tastemaker-rendered/b04859033bd9aa76.progress.rs",
+        "cli/src/output/progress_test.rs",
+        ".tastemaker-rendered/75e12e580bd1e600.progress_test.rs",
+        "cli/src/output_test.rs",
+        ".tastemaker-rendered/d2aaa5eca2292615.output_test.rs",
+        "cli/src/resources.rs",
+        ".tastemaker-rendered/f4711e99cfd17447.resources.rs",
+        "cli/src/resources/greeting.rs",
+        ".tastemaker-rendered/a724d2a00a6d24d2.greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        ".tastemaker-rendered/0c10a6d05c18f5cf.list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        ".tastemaker-rendered/47952f3f4a88f035.command.rs",
+        "cli/src/resources/greeting/list/command_test.rs",
+        ".tastemaker-rendered/9fc4caeaff8f5108.command_test.rs",
+        "cli/src/resources/greeting/list/composition.rs",
+        ".tastemaker-rendered/4419b32ad22ee251.composition.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        ".tastemaker-rendered/ab8247530d746ab3.connections.rs",
+        "cli/src/resources/greeting/list/schemas.rs",
+        ".tastemaker-rendered/9316f76c4b946a4d.schemas.rs",
+        "cli/src/resources/greeting/list/schemas_test.rs",
+        ".tastemaker-rendered/a681fb449f3ea420.schemas_test.rs",
+        "cli/src/resources/greeting/show.rs",
+        ".tastemaker-rendered/3625985a6aef7f3e.show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        ".tastemaker-rendered/8f63469d8cdc53ff.command.rs",
+        "cli/src/resources/greeting/show/command_test.rs",
+        ".tastemaker-rendered/3a2ba46241f6026d.command_test.rs",
+        "cli/src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/32c79ffc6da9e30f.composition.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        ".tastemaker-rendered/96ad18fe79832adc.connections.rs",
+        "cli/src/resources/greeting/show/schemas.rs",
+        ".tastemaker-rendered/922ca92016a7fbe3.schemas.rs",
+        "cli/src/resources/greeting/show/schemas_test.rs",
+        ".tastemaker-rendered/7cd811c99547087a.schemas_test.rs",
+        "cli/src/timings.rs",
+        ".tastemaker-rendered/a6901096bff0d833.timings.rs",
+        "cli/src/timings/phases.rs",
+        ".tastemaker-rendered/3fd693bc2dd16b45.phases.rs",
+        "cli/src/timings/phases_test.rs",
+        ".tastemaker-rendered/1e8d4adc3461a567.phases_test.rs",
+        "cli/src/timings_test.rs",
+        ".tastemaker-rendered/2cd96b62b2fd9c82.timings_test.rs",
+        "cli/tests/command_line.rs",
+        ".tastemaker-rendered/10d896d94e69c59a.command_line.rs",
+        "cli/tests/command_tree.rs",
+        ".tastemaker-rendered/3073c97da0ff5c99.command_tree.rs",
+        "cli/tests/readme.rs",
+        ".tastemaker-rendered/b701fe2f40ee5abc.readme.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "cli/Cargo.toml",
+        ".tastemaker-rendered/e491aa198e4fef8d.Cargo.toml",
+        "cli/LICENSE",
+        ".tastemaker-rendered/5e1a12153d923731.LICENSE",
+        "cli/README.md",
+        ".tastemaker-rendered/2e4391112f048f65.README.md",
+        "cli/benches/performance/greeting.rs",
+        ".tastemaker-rendered/551b4a47b508f455.greeting.rs",
+        "cli/benches/performance/greeting/list.rs",
+        ".tastemaker-rendered/c5687ecda051438a.list.rs",
+        "cli/benches/performance/greeting/list/bench.rs",
+        ".tastemaker-rendered/5d8a4ee513838e69.bench.rs",
+        "cli/benches/performance/greeting/show.rs",
+        ".tastemaker-rendered/46d1aabe13144aac.show.rs",
+        "cli/benches/performance/main.rs",
+        ".tastemaker-rendered/8ea6d182331c4e24.main.rs",
+        "cli/benches/performance/measure.rs",
+        ".tastemaker-rendered/a1521f14b4cecfa0.measure.rs",
+        "cli/src/cases.rs",
+        ".tastemaker-rendered/096660882176f31e.cases.rs",
+        "cli/src/edge.rs",
+        ".tastemaker-rendered/b940f7107a175260.edge.rs",
+        "cli/src/lib.rs",
+        ".tastemaker-rendered/bffa066a7dd5aaaf.lib.rs",
+        "cli/src/main.rs",
+        ".tastemaker-rendered/3f21f2e2343041cf.main.rs",
+        "cli/src/outcome.rs",
+        ".tastemaker-rendered/6871faaeb93cd4dd.outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        ".tastemaker-rendered/4d60a823d860e8ea.remedy.rs",
+        "cli/src/outcome/remedy_test.rs",
+        ".tastemaker-rendered/c233c9371ce5f851.remedy_test.rs",
+        "cli/src/outcome_test.rs",
+        ".tastemaker-rendered/8dd1a6a61a91c00e.outcome_test.rs",
+        "cli/src/output.rs",
+        ".tastemaker-rendered/a9fd00958eb1aba1.output.rs",
+        "cli/src/output/dry_run.rs",
+        ".tastemaker-rendered/b633844daabca5b9.dry_run.rs",
+        "cli/src/output/dry_run_test.rs",
+        ".tastemaker-rendered/db72e33a730767c4.dry_run_test.rs",
+        "cli/src/output/pager.rs",
+        ".tastemaker-rendered/d552af2c601583b1.pager.rs",
+        "cli/src/output/pager_test.rs",
+        ".tastemaker-rendered/7715f5f721fac5be.pager_test.rs",
+        "cli/src/output/progress.rs",
+        ".tastemaker-rendered/b04859033bd9aa76.progress.rs",
+        "cli/src/output/progress_test.rs",
+        ".tastemaker-rendered/75e12e580bd1e600.progress_test.rs",
+        "cli/src/output_test.rs",
+        ".tastemaker-rendered/d2aaa5eca2292615.output_test.rs",
+        "cli/src/resources.rs",
+        ".tastemaker-rendered/f4711e99cfd17447.resources.rs",
+        "cli/src/resources/greeting.rs",
+        ".tastemaker-rendered/a724d2a00a6d24d2.greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        ".tastemaker-rendered/0c10a6d05c18f5cf.list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        ".tastemaker-rendered/47952f3f4a88f035.command.rs",
+        "cli/src/resources/greeting/list/command_test.rs",
+        ".tastemaker-rendered/9fc4caeaff8f5108.command_test.rs",
+        "cli/src/resources/greeting/list/composition.rs",
+        ".tastemaker-rendered/4419b32ad22ee251.composition.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        ".tastemaker-rendered/ab8247530d746ab3.connections.rs",
+        "cli/src/resources/greeting/list/schemas.rs",
+        ".tastemaker-rendered/9316f76c4b946a4d.schemas.rs",
+        "cli/src/resources/greeting/list/schemas_test.rs",
+        ".tastemaker-rendered/a681fb449f3ea420.schemas_test.rs",
+        "cli/src/resources/greeting/show.rs",
+        ".tastemaker-rendered/3625985a6aef7f3e.show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        ".tastemaker-rendered/8f63469d8cdc53ff.command.rs",
+        "cli/src/resources/greeting/show/command_test.rs",
+        ".tastemaker-rendered/3a2ba46241f6026d.command_test.rs",
+        "cli/src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/32c79ffc6da9e30f.composition.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        ".tastemaker-rendered/96ad18fe79832adc.connections.rs",
+        "cli/src/resources/greeting/show/schemas.rs",
+        ".tastemaker-rendered/922ca92016a7fbe3.schemas.rs",
+        "cli/src/resources/greeting/show/schemas_test.rs",
+        ".tastemaker-rendered/7cd811c99547087a.schemas_test.rs",
+        "cli/src/timings.rs",
+        ".tastemaker-rendered/a6901096bff0d833.timings.rs",
+        "cli/src/timings/phases.rs",
+        ".tastemaker-rendered/3fd693bc2dd16b45.phases.rs",
+        "cli/src/timings/phases_test.rs",
+        ".tastemaker-rendered/1e8d4adc3461a567.phases_test.rs",
+        "cli/src/timings_test.rs",
+        ".tastemaker-rendered/2cd96b62b2fd9c82.timings_test.rs",
+        "cli/tests/command_line.rs",
+        ".tastemaker-rendered/10d896d94e69c59a.command_line.rs",
+        "cli/tests/command_tree.rs",
+        ".tastemaker-rendered/3073c97da0ff5c99.command_tree.rs",
+        "cli/tests/readme.rs",
+        ".tastemaker-rendered/b701fe2f40ee5abc.readme.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "cli/Cargo.toml",
+        ".tastemaker-rendered/e491aa198e4fef8d.Cargo.toml",
+        "cli/LICENSE",
+        ".tastemaker-rendered/5e1a12153d923731.LICENSE",
+        "cli/README.md",
+        ".tastemaker-rendered/2e4391112f048f65.README.md",
+        "cli/benches/performance/greeting.rs",
+        ".tastemaker-rendered/551b4a47b508f455.greeting.rs",
+        "cli/benches/performance/greeting/list.rs",
+        ".tastemaker-rendered/c5687ecda051438a.list.rs",
+        "cli/benches/performance/greeting/list/bench.rs",
+        ".tastemaker-rendered/5d8a4ee513838e69.bench.rs",
+        "cli/benches/performance/greeting/show.rs",
+        ".tastemaker-rendered/46d1aabe13144aac.show.rs",
+        "cli/benches/performance/main.rs",
+        ".tastemaker-rendered/8ea6d182331c4e24.main.rs",
+        "cli/benches/performance/measure.rs",
+        ".tastemaker-rendered/a1521f14b4cecfa0.measure.rs",
+        "cli/src/cases.rs",
+        ".tastemaker-rendered/096660882176f31e.cases.rs",
+        "cli/src/edge.rs",
+        ".tastemaker-rendered/b940f7107a175260.edge.rs",
+        "cli/src/lib.rs",
+        ".tastemaker-rendered/bffa066a7dd5aaaf.lib.rs",
+        "cli/src/main.rs",
+        ".tastemaker-rendered/3f21f2e2343041cf.main.rs",
+        "cli/src/outcome.rs",
+        ".tastemaker-rendered/6871faaeb93cd4dd.outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        ".tastemaker-rendered/4d60a823d860e8ea.remedy.rs",
+        "cli/src/outcome/remedy_test.rs",
+        ".tastemaker-rendered/c233c9371ce5f851.remedy_test.rs",
+        "cli/src/outcome_test.rs",
+        ".tastemaker-rendered/8dd1a6a61a91c00e.outcome_test.rs",
+        "cli/src/output.rs",
+        ".tastemaker-rendered/a9fd00958eb1aba1.output.rs",
+        "cli/src/output/dry_run.rs",
+        ".tastemaker-rendered/b633844daabca5b9.dry_run.rs",
+        "cli/src/output/dry_run_test.rs",
+        ".tastemaker-rendered/db72e33a730767c4.dry_run_test.rs",
+        "cli/src/output/pager.rs",
+        ".tastemaker-rendered/d552af2c601583b1.pager.rs",
+        "cli/src/output/pager_test.rs",
+        ".tastemaker-rendered/7715f5f721fac5be.pager_test.rs",
+        "cli/src/output/progress.rs",
+        ".tastemaker-rendered/b04859033bd9aa76.progress.rs",
+        "cli/src/output/progress_test.rs",
+        ".tastemaker-rendered/75e12e580bd1e600.progress_test.rs",
+        "cli/src/output_test.rs",
+        ".tastemaker-rendered/d2aaa5eca2292615.output_test.rs",
+        "cli/src/resources.rs",
+        ".tastemaker-rendered/f4711e99cfd17447.resources.rs",
+        "cli/src/resources/greeting.rs",
+        ".tastemaker-rendered/a724d2a00a6d24d2.greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        ".tastemaker-rendered/0c10a6d05c18f5cf.list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        ".tastemaker-rendered/47952f3f4a88f035.command.rs",
+        "cli/src/resources/greeting/list/command_test.rs",
+        ".tastemaker-rendered/9fc4caeaff8f5108.command_test.rs",
+        "cli/src/resources/greeting/list/composition.rs",
+        ".tastemaker-rendered/4419b32ad22ee251.composition.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        ".tastemaker-rendered/ab8247530d746ab3.connections.rs",
+        "cli/src/resources/greeting/list/schemas.rs",
+        ".tastemaker-rendered/9316f76c4b946a4d.schemas.rs",
+        "cli/src/resources/greeting/list/schemas_test.rs",
+        ".tastemaker-rendered/a681fb449f3ea420.schemas_test.rs",
+        "cli/src/resources/greeting/show.rs",
+        ".tastemaker-rendered/3625985a6aef7f3e.show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        ".tastemaker-rendered/8f63469d8cdc53ff.command.rs",
+        "cli/src/resources/greeting/show/command_test.rs",
+        ".tastemaker-rendered/3a2ba46241f6026d.command_test.rs",
+        "cli/src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/32c79ffc6da9e30f.composition.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        ".tastemaker-rendered/96ad18fe79832adc.connections.rs",
+        "cli/src/resources/greeting/show/schemas.rs",
+        ".tastemaker-rendered/922ca92016a7fbe3.schemas.rs",
+        "cli/src/resources/greeting/show/schemas_test.rs",
+        ".tastemaker-rendered/7cd811c99547087a.schemas_test.rs",
+        "cli/src/timings.rs",
+        ".tastemaker-rendered/a6901096bff0d833.timings.rs",
+        "cli/src/timings/phases.rs",
+        ".tastemaker-rendered/3fd693bc2dd16b45.phases.rs",
+        "cli/src/timings/phases_test.rs",
+        ".tastemaker-rendered/1e8d4adc3461a567.phases_test.rs",
+        "cli/src/timings_test.rs",
+        ".tastemaker-rendered/2cd96b62b2fd9c82.timings_test.rs",
+        "cli/tests/command_line.rs",
+        ".tastemaker-rendered/10d896d94e69c59a.command_line.rs",
+        "cli/tests/command_tree.rs",
+        ".tastemaker-rendered/3073c97da0ff5c99.command_tree.rs",
+        "cli/tests/readme.rs",
+        ".tastemaker-rendered/b701fe2f40ee5abc.readme.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "cli/Cargo.toml",
+        ".tastemaker-rendered/e491aa198e4fef8d.Cargo.toml",
+        "cli/LICENSE",
+        ".tastemaker-rendered/5e1a12153d923731.LICENSE",
+        "cli/README.md",
+        ".tastemaker-rendered/2e4391112f048f65.README.md",
+        "cli/benches/performance/greeting.rs",
+        ".tastemaker-rendered/551b4a47b508f455.greeting.rs",
+        "cli/benches/performance/greeting/list.rs",
+        ".tastemaker-rendered/c5687ecda051438a.list.rs",
+        "cli/benches/performance/greeting/list/bench.rs",
+        ".tastemaker-rendered/5d8a4ee513838e69.bench.rs",
+        "cli/benches/performance/greeting/show.rs",
+        ".tastemaker-rendered/46d1aabe13144aac.show.rs",
+        "cli/benches/performance/main.rs",
+        ".tastemaker-rendered/8ea6d182331c4e24.main.rs",
+        "cli/benches/performance/measure.rs",
+        ".tastemaker-rendered/a1521f14b4cecfa0.measure.rs",
+        "cli/src/cases.rs",
+        ".tastemaker-rendered/096660882176f31e.cases.rs",
+        "cli/src/edge.rs",
+        ".tastemaker-rendered/b940f7107a175260.edge.rs",
+        "cli/src/lib.rs",
+        ".tastemaker-rendered/bffa066a7dd5aaaf.lib.rs",
+        "cli/src/main.rs",
+        ".tastemaker-rendered/3f21f2e2343041cf.main.rs",
+        "cli/src/outcome.rs",
+        ".tastemaker-rendered/6871faaeb93cd4dd.outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        ".tastemaker-rendered/4d60a823d860e8ea.remedy.rs",
+        "cli/src/outcome/remedy_test.rs",
+        ".tastemaker-rendered/c233c9371ce5f851.remedy_test.rs",
+        "cli/src/outcome_test.rs",
+        ".tastemaker-rendered/8dd1a6a61a91c00e.outcome_test.rs",
+        "cli/src/output.rs",
+        ".tastemaker-rendered/a9fd00958eb1aba1.output.rs",
+        "cli/src/output/dry_run.rs",
+        ".tastemaker-rendered/b633844daabca5b9.dry_run.rs",
+        "cli/src/output/dry_run_test.rs",
+        ".tastemaker-rendered/db72e33a730767c4.dry_run_test.rs",
+        "cli/src/output/pager.rs",
+        ".tastemaker-rendered/d552af2c601583b1.pager.rs",
+        "cli/src/output/pager_test.rs",
+        ".tastemaker-rendered/7715f5f721fac5be.pager_test.rs",
+        "cli/src/output/progress.rs",
+        ".tastemaker-rendered/b04859033bd9aa76.progress.rs",
+        "cli/src/output/progress_test.rs",
+        ".tastemaker-rendered/75e12e580bd1e600.progress_test.rs",
+        "cli/src/output_test.rs",
+        ".tastemaker-rendered/d2aaa5eca2292615.output_test.rs",
+        "cli/src/resources.rs",
+        ".tastemaker-rendered/f4711e99cfd17447.resources.rs",
+        "cli/src/resources/greeting.rs",
+        ".tastemaker-rendered/a724d2a00a6d24d2.greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        ".tastemaker-rendered/0c10a6d05c18f5cf.list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        ".tastemaker-rendered/47952f3f4a88f035.command.rs",
+        "cli/src/resources/greeting/list/command_test.rs",
+        ".tastemaker-rendered/9fc4caeaff8f5108.command_test.rs",
+        "cli/src/resources/greeting/list/composition.rs",
+        ".tastemaker-rendered/4419b32ad22ee251.composition.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        ".tastemaker-rendered/ab8247530d746ab3.connections.rs",
+        "cli/src/resources/greeting/list/schemas.rs",
+        ".tastemaker-rendered/9316f76c4b946a4d.schemas.rs",
+        "cli/src/resources/greeting/list/schemas_test.rs",
+        ".tastemaker-rendered/a681fb449f3ea420.schemas_test.rs",
+        "cli/src/resources/greeting/show.rs",
+        ".tastemaker-rendered/3625985a6aef7f3e.show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        ".tastemaker-rendered/8f63469d8cdc53ff.command.rs",
+        "cli/src/resources/greeting/show/command_test.rs",
+        ".tastemaker-rendered/3a2ba46241f6026d.command_test.rs",
+        "cli/src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/32c79ffc6da9e30f.composition.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        ".tastemaker-rendered/96ad18fe79832adc.connections.rs",
+        "cli/src/resources/greeting/show/schemas.rs",
+        ".tastemaker-rendered/922ca92016a7fbe3.schemas.rs",
+        "cli/src/resources/greeting/show/schemas_test.rs",
+        ".tastemaker-rendered/7cd811c99547087a.schemas_test.rs",
+        "cli/src/timings.rs",
+        ".tastemaker-rendered/a6901096bff0d833.timings.rs",
+        "cli/src/timings/phases.rs",
+        ".tastemaker-rendered/3fd693bc2dd16b45.phases.rs",
+        "cli/src/timings/phases_test.rs",
+        ".tastemaker-rendered/1e8d4adc3461a567.phases_test.rs",
+        "cli/src/timings_test.rs",
+        ".tastemaker-rendered/2cd96b62b2fd9c82.timings_test.rs",
+        "cli/tests/command_line.rs",
+        ".tastemaker-rendered/10d896d94e69c59a.command_line.rs",
+        "cli/tests/command_tree.rs",
+        ".tastemaker-rendered/3073c97da0ff5c99.command_tree.rs",
+        "cli/tests/readme.rs",
+        ".tastemaker-rendered/b701fe2f40ee5abc.readme.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "cli/Cargo.toml",
+        ".tastemaker-rendered/e491aa198e4fef8d.Cargo.toml",
+        "cli/LICENSE",
+        ".tastemaker-rendered/5e1a12153d923731.LICENSE",
+        "cli/README.md",
+        ".tastemaker-rendered/2e4391112f048f65.README.md",
+        "cli/benches/performance/greeting.rs",
+        ".tastemaker-rendered/551b4a47b508f455.greeting.rs",
+        "cli/benches/performance/greeting/list.rs",
+        ".tastemaker-rendered/c5687ecda051438a.list.rs",
+        "cli/benches/performance/greeting/list/bench.rs",
+        ".tastemaker-rendered/5d8a4ee513838e69.bench.rs",
+        "cli/benches/performance/greeting/show.rs",
+        ".tastemaker-rendered/46d1aabe13144aac.show.rs",
+        "cli/benches/performance/main.rs",
+        ".tastemaker-rendered/8ea6d182331c4e24.main.rs",
+        "cli/benches/performance/measure.rs",
+        ".tastemaker-rendered/a1521f14b4cecfa0.measure.rs",
+        "cli/src/cases.rs",
+        ".tastemaker-rendered/096660882176f31e.cases.rs",
+        "cli/src/edge.rs",
+        ".tastemaker-rendered/b940f7107a175260.edge.rs",
+        "cli/src/lib.rs",
+        ".tastemaker-rendered/bffa066a7dd5aaaf.lib.rs",
+        "cli/src/main.rs",
+        ".tastemaker-rendered/3f21f2e2343041cf.main.rs",
+        "cli/src/outcome.rs",
+        ".tastemaker-rendered/6871faaeb93cd4dd.outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        ".tastemaker-rendered/4d60a823d860e8ea.remedy.rs",
+        "cli/src/outcome/remedy_test.rs",
+        ".tastemaker-rendered/c233c9371ce5f851.remedy_test.rs",
+        "cli/src/outcome_test.rs",
+        ".tastemaker-rendered/8dd1a6a61a91c00e.outcome_test.rs",
+        "cli/src/output.rs",
+        ".tastemaker-rendered/a9fd00958eb1aba1.output.rs",
+        "cli/src/output/dry_run.rs",
+        ".tastemaker-rendered/b633844daabca5b9.dry_run.rs",
+        "cli/src/output/dry_run_test.rs",
+        ".tastemaker-rendered/db72e33a730767c4.dry_run_test.rs",
+        "cli/src/output/pager.rs",
+        ".tastemaker-rendered/d552af2c601583b1.pager.rs",
+        "cli/src/output/pager_test.rs",
+        ".tastemaker-rendered/7715f5f721fac5be.pager_test.rs",
+        "cli/src/output/progress.rs",
+        ".tastemaker-rendered/b04859033bd9aa76.progress.rs",
+        "cli/src/output/progress_test.rs",
+        ".tastemaker-rendered/75e12e580bd1e600.progress_test.rs",
+        "cli/src/output_test.rs",
+        ".tastemaker-rendered/d2aaa5eca2292615.output_test.rs",
+        "cli/src/resources.rs",
+        ".tastemaker-rendered/f4711e99cfd17447.resources.rs",
+        "cli/src/resources/greeting.rs",
+        ".tastemaker-rendered/a724d2a00a6d24d2.greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        ".tastemaker-rendered/0c10a6d05c18f5cf.list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        ".tastemaker-rendered/47952f3f4a88f035.command.rs",
+        "cli/src/resources/greeting/list/command_test.rs",
+        ".tastemaker-rendered/9fc4caeaff8f5108.command_test.rs",
+        "cli/src/resources/greeting/list/composition.rs",
+        ".tastemaker-rendered/4419b32ad22ee251.composition.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        ".tastemaker-rendered/ab8247530d746ab3.connections.rs",
+        "cli/src/resources/greeting/list/schemas.rs",
+        ".tastemaker-rendered/9316f76c4b946a4d.schemas.rs",
+        "cli/src/resources/greeting/list/schemas_test.rs",
+        ".tastemaker-rendered/a681fb449f3ea420.schemas_test.rs",
+        "cli/src/resources/greeting/show.rs",
+        ".tastemaker-rendered/3625985a6aef7f3e.show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        ".tastemaker-rendered/8f63469d8cdc53ff.command.rs",
+        "cli/src/resources/greeting/show/command_test.rs",
+        ".tastemaker-rendered/3a2ba46241f6026d.command_test.rs",
+        "cli/src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/32c79ffc6da9e30f.composition.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        ".tastemaker-rendered/96ad18fe79832adc.connections.rs",
+        "cli/src/resources/greeting/show/schemas.rs",
+        ".tastemaker-rendered/922ca92016a7fbe3.schemas.rs",
+        "cli/src/resources/greeting/show/schemas_test.rs",
+        ".tastemaker-rendered/7cd811c99547087a.schemas_test.rs",
+        "cli/src/timings.rs",
+        ".tastemaker-rendered/a6901096bff0d833.timings.rs",
+        "cli/src/timings/phases.rs",
+        ".tastemaker-rendered/3fd693bc2dd16b45.phases.rs",
+        "cli/src/timings/phases_test.rs",
+        ".tastemaker-rendered/1e8d4adc3461a567.phases_test.rs",
+        "cli/src/timings_test.rs",
+        ".tastemaker-rendered/2cd96b62b2fd9c82.timings_test.rs",
+        "cli/tests/command_line.rs",
+        ".tastemaker-rendered/10d896d94e69c59a.command_line.rs",
+        "cli/tests/command_tree.rs",
+        ".tastemaker-rendered/3073c97da0ff5c99.command_tree.rs",
+        "cli/tests/readme.rs",
+        ".tastemaker-rendered/b701fe2f40ee5abc.readme.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-literals",
+      "include": [
+        "cli/README.md",
+        ".tastemaker-rendered/2e4391112f048f65.README.md",
+        "cli/tests/command_line.rs",
+        ".tastemaker-rendered/10d896d94e69c59a.command_line.rs",
+        "cli/tests/command_tree.rs",
+        ".tastemaker-rendered/3073c97da0ff5c99.command_tree.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-literals-aee9fab8c749"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "cli/Cargo.toml",
+        ".tastemaker-rendered/e491aa198e4fef8d.Cargo.toml",
+        "cli/LICENSE",
+        ".tastemaker-rendered/5e1a12153d923731.LICENSE",
+        "cli/README.md",
+        ".tastemaker-rendered/2e4391112f048f65.README.md",
+        "cli/benches/performance/greeting.rs",
+        ".tastemaker-rendered/551b4a47b508f455.greeting.rs",
+        "cli/benches/performance/greeting/list.rs",
+        ".tastemaker-rendered/c5687ecda051438a.list.rs",
+        "cli/benches/performance/greeting/list/bench.rs",
+        ".tastemaker-rendered/5d8a4ee513838e69.bench.rs",
+        "cli/benches/performance/greeting/show.rs",
+        ".tastemaker-rendered/46d1aabe13144aac.show.rs",
+        "cli/benches/performance/main.rs",
+        ".tastemaker-rendered/8ea6d182331c4e24.main.rs",
+        "cli/benches/performance/measure.rs",
+        ".tastemaker-rendered/a1521f14b4cecfa0.measure.rs",
+        "cli/src/cases.rs",
+        ".tastemaker-rendered/096660882176f31e.cases.rs",
+        "cli/src/edge.rs",
+        ".tastemaker-rendered/b940f7107a175260.edge.rs",
+        "cli/src/lib.rs",
+        ".tastemaker-rendered/bffa066a7dd5aaaf.lib.rs",
+        "cli/src/main.rs",
+        ".tastemaker-rendered/3f21f2e2343041cf.main.rs",
+        "cli/src/outcome.rs",
+        ".tastemaker-rendered/6871faaeb93cd4dd.outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        ".tastemaker-rendered/4d60a823d860e8ea.remedy.rs",
+        "cli/src/outcome/remedy_test.rs",
+        ".tastemaker-rendered/c233c9371ce5f851.remedy_test.rs",
+        "cli/src/outcome_test.rs",
+        ".tastemaker-rendered/8dd1a6a61a91c00e.outcome_test.rs",
+        "cli/src/output.rs",
+        ".tastemaker-rendered/a9fd00958eb1aba1.output.rs",
+        "cli/src/output/dry_run.rs",
+        ".tastemaker-rendered/b633844daabca5b9.dry_run.rs",
+        "cli/src/output/dry_run_test.rs",
+        ".tastemaker-rendered/db72e33a730767c4.dry_run_test.rs",
+        "cli/src/output/pager.rs",
+        ".tastemaker-rendered/d552af2c601583b1.pager.rs",
+        "cli/src/output/pager_test.rs",
+        ".tastemaker-rendered/7715f5f721fac5be.pager_test.rs",
+        "cli/src/output/progress.rs",
+        ".tastemaker-rendered/b04859033bd9aa76.progress.rs",
+        "cli/src/output/progress_test.rs",
+        ".tastemaker-rendered/75e12e580bd1e600.progress_test.rs",
+        "cli/src/output_test.rs",
+        ".tastemaker-rendered/d2aaa5eca2292615.output_test.rs",
+        "cli/src/resources.rs",
+        ".tastemaker-rendered/f4711e99cfd17447.resources.rs",
+        "cli/src/resources/greeting.rs",
+        ".tastemaker-rendered/a724d2a00a6d24d2.greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        ".tastemaker-rendered/0c10a6d05c18f5cf.list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        ".tastemaker-rendered/47952f3f4a88f035.command.rs",
+        "cli/src/resources/greeting/list/command_test.rs",
+        ".tastemaker-rendered/9fc4caeaff8f5108.command_test.rs",
+        "cli/src/resources/greeting/list/composition.rs",
+        ".tastemaker-rendered/4419b32ad22ee251.composition.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        ".tastemaker-rendered/ab8247530d746ab3.connections.rs",
+        "cli/src/resources/greeting/list/schemas.rs",
+        ".tastemaker-rendered/9316f76c4b946a4d.schemas.rs",
+        "cli/src/resources/greeting/list/schemas_test.rs",
+        ".tastemaker-rendered/a681fb449f3ea420.schemas_test.rs",
+        "cli/src/resources/greeting/show.rs",
+        ".tastemaker-rendered/3625985a6aef7f3e.show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        ".tastemaker-rendered/8f63469d8cdc53ff.command.rs",
+        "cli/src/resources/greeting/show/command_test.rs",
+        ".tastemaker-rendered/3a2ba46241f6026d.command_test.rs",
+        "cli/src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/32c79ffc6da9e30f.composition.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        ".tastemaker-rendered/96ad18fe79832adc.connections.rs",
+        "cli/src/resources/greeting/show/schemas.rs",
+        ".tastemaker-rendered/922ca92016a7fbe3.schemas.rs",
+        "cli/src/resources/greeting/show/schemas_test.rs",
+        ".tastemaker-rendered/7cd811c99547087a.schemas_test.rs",
+        "cli/src/timings.rs",
+        ".tastemaker-rendered/a6901096bff0d833.timings.rs",
+        "cli/src/timings/phases.rs",
+        ".tastemaker-rendered/3fd693bc2dd16b45.phases.rs",
+        "cli/src/timings/phases_test.rs",
+        ".tastemaker-rendered/1e8d4adc3461a567.phases_test.rs",
+        "cli/src/timings_test.rs",
+        ".tastemaker-rendered/2cd96b62b2fd9c82.timings_test.rs",
+        "cli/tests/command_line.rs",
+        ".tastemaker-rendered/10d896d94e69c59a.command_line.rs",
+        "cli/tests/command_tree.rs",
+        ".tastemaker-rendered/3073c97da0ff5c99.command_tree.rs",
+        "cli/tests/readme.rs",
+        ".tastemaker-rendered/b701fe2f40ee5abc.readme.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-prose",
+      "include": [
+        "cli/README.md",
+        ".tastemaker-rendered/2e4391112f048f65.README.md",
+        "cli/tests/command_line.rs",
+        ".tastemaker-rendered/10d896d94e69c59a.command_line.rs",
+        "cli/tests/command_tree.rs",
+        ".tastemaker-rendered/3073c97da0ff5c99.command_tree.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-prose-ab90c113c201"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "cli/Cargo.toml",
+        ".tastemaker-rendered/e491aa198e4fef8d.Cargo.toml",
+        "cli/LICENSE",
+        ".tastemaker-rendered/5e1a12153d923731.LICENSE",
+        "cli/README.md",
+        ".tastemaker-rendered/2e4391112f048f65.README.md",
+        "cli/benches/performance/greeting.rs",
+        ".tastemaker-rendered/551b4a47b508f455.greeting.rs",
+        "cli/benches/performance/greeting/list.rs",
+        ".tastemaker-rendered/c5687ecda051438a.list.rs",
+        "cli/benches/performance/greeting/list/bench.rs",
+        ".tastemaker-rendered/5d8a4ee513838e69.bench.rs",
+        "cli/benches/performance/greeting/show.rs",
+        ".tastemaker-rendered/46d1aabe13144aac.show.rs",
+        "cli/benches/performance/main.rs",
+        ".tastemaker-rendered/8ea6d182331c4e24.main.rs",
+        "cli/benches/performance/measure.rs",
+        ".tastemaker-rendered/a1521f14b4cecfa0.measure.rs",
+        "cli/src/cases.rs",
+        ".tastemaker-rendered/096660882176f31e.cases.rs",
+        "cli/src/edge.rs",
+        ".tastemaker-rendered/b940f7107a175260.edge.rs",
+        "cli/src/lib.rs",
+        ".tastemaker-rendered/bffa066a7dd5aaaf.lib.rs",
+        "cli/src/main.rs",
+        ".tastemaker-rendered/3f21f2e2343041cf.main.rs",
+        "cli/src/outcome.rs",
+        ".tastemaker-rendered/6871faaeb93cd4dd.outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        ".tastemaker-rendered/4d60a823d860e8ea.remedy.rs",
+        "cli/src/outcome/remedy_test.rs",
+        ".tastemaker-rendered/c233c9371ce5f851.remedy_test.rs",
+        "cli/src/outcome_test.rs",
+        ".tastemaker-rendered/8dd1a6a61a91c00e.outcome_test.rs",
+        "cli/src/output.rs",
+        ".tastemaker-rendered/a9fd00958eb1aba1.output.rs",
+        "cli/src/output/dry_run.rs",
+        ".tastemaker-rendered/b633844daabca5b9.dry_run.rs",
+        "cli/src/output/dry_run_test.rs",
+        ".tastemaker-rendered/db72e33a730767c4.dry_run_test.rs",
+        "cli/src/output/pager.rs",
+        ".tastemaker-rendered/d552af2c601583b1.pager.rs",
+        "cli/src/output/pager_test.rs",
+        ".tastemaker-rendered/7715f5f721fac5be.pager_test.rs",
+        "cli/src/output/progress.rs",
+        ".tastemaker-rendered/b04859033bd9aa76.progress.rs",
+        "cli/src/output/progress_test.rs",
+        ".tastemaker-rendered/75e12e580bd1e600.progress_test.rs",
+        "cli/src/output_test.rs",
+        ".tastemaker-rendered/d2aaa5eca2292615.output_test.rs",
+        "cli/src/resources.rs",
+        ".tastemaker-rendered/f4711e99cfd17447.resources.rs",
+        "cli/src/resources/greeting.rs",
+        ".tastemaker-rendered/a724d2a00a6d24d2.greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        ".tastemaker-rendered/0c10a6d05c18f5cf.list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        ".tastemaker-rendered/47952f3f4a88f035.command.rs",
+        "cli/src/resources/greeting/list/command_test.rs",
+        ".tastemaker-rendered/9fc4caeaff8f5108.command_test.rs",
+        "cli/src/resources/greeting/list/composition.rs",
+        ".tastemaker-rendered/4419b32ad22ee251.composition.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        ".tastemaker-rendered/ab8247530d746ab3.connections.rs",
+        "cli/src/resources/greeting/list/schemas.rs",
+        ".tastemaker-rendered/9316f76c4b946a4d.schemas.rs",
+        "cli/src/resources/greeting/list/schemas_test.rs",
+        ".tastemaker-rendered/a681fb449f3ea420.schemas_test.rs",
+        "cli/src/resources/greeting/show.rs",
+        ".tastemaker-rendered/3625985a6aef7f3e.show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        ".tastemaker-rendered/8f63469d8cdc53ff.command.rs",
+        "cli/src/resources/greeting/show/command_test.rs",
+        ".tastemaker-rendered/3a2ba46241f6026d.command_test.rs",
+        "cli/src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/32c79ffc6da9e30f.composition.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        ".tastemaker-rendered/96ad18fe79832adc.connections.rs",
+        "cli/src/resources/greeting/show/schemas.rs",
+        ".tastemaker-rendered/922ca92016a7fbe3.schemas.rs",
+        "cli/src/resources/greeting/show/schemas_test.rs",
+        ".tastemaker-rendered/7cd811c99547087a.schemas_test.rs",
+        "cli/src/timings.rs",
+        ".tastemaker-rendered/a6901096bff0d833.timings.rs",
+        "cli/src/timings/phases.rs",
+        ".tastemaker-rendered/3fd693bc2dd16b45.phases.rs",
+        "cli/src/timings/phases_test.rs",
+        ".tastemaker-rendered/1e8d4adc3461a567.phases_test.rs",
+        "cli/src/timings_test.rs",
+        ".tastemaker-rendered/2cd96b62b2fd9c82.timings_test.rs",
+        "cli/tests/command_line.rs",
+        ".tastemaker-rendered/10d896d94e69c59a.command_line.rs",
+        "cli/tests/command_tree.rs",
+        ".tastemaker-rendered/3073c97da0ff5c99.command_tree.rs",
+        "cli/tests/readme.rs",
+        ".tastemaker-rendered/b701fe2f40ee5abc.readme.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "cli/Cargo.toml",
+        ".tastemaker-rendered/e491aa198e4fef8d.Cargo.toml",
+        "cli/LICENSE",
+        ".tastemaker-rendered/5e1a12153d923731.LICENSE",
+        "cli/README.md",
+        ".tastemaker-rendered/2e4391112f048f65.README.md",
+        "cli/benches/performance/greeting.rs",
+        ".tastemaker-rendered/551b4a47b508f455.greeting.rs",
+        "cli/benches/performance/greeting/list.rs",
+        ".tastemaker-rendered/c5687ecda051438a.list.rs",
+        "cli/benches/performance/greeting/list/bench.rs",
+        ".tastemaker-rendered/5d8a4ee513838e69.bench.rs",
+        "cli/benches/performance/greeting/show.rs",
+        ".tastemaker-rendered/46d1aabe13144aac.show.rs",
+        "cli/benches/performance/main.rs",
+        ".tastemaker-rendered/8ea6d182331c4e24.main.rs",
+        "cli/benches/performance/measure.rs",
+        ".tastemaker-rendered/a1521f14b4cecfa0.measure.rs",
+        "cli/src/cases.rs",
+        ".tastemaker-rendered/096660882176f31e.cases.rs",
+        "cli/src/edge.rs",
+        ".tastemaker-rendered/b940f7107a175260.edge.rs",
+        "cli/src/lib.rs",
+        ".tastemaker-rendered/bffa066a7dd5aaaf.lib.rs",
+        "cli/src/main.rs",
+        ".tastemaker-rendered/3f21f2e2343041cf.main.rs",
+        "cli/src/outcome.rs",
+        ".tastemaker-rendered/6871faaeb93cd4dd.outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        ".tastemaker-rendered/4d60a823d860e8ea.remedy.rs",
+        "cli/src/outcome/remedy_test.rs",
+        ".tastemaker-rendered/c233c9371ce5f851.remedy_test.rs",
+        "cli/src/outcome_test.rs",
+        ".tastemaker-rendered/8dd1a6a61a91c00e.outcome_test.rs",
+        "cli/src/output.rs",
+        ".tastemaker-rendered/a9fd00958eb1aba1.output.rs",
+        "cli/src/output/dry_run.rs",
+        ".tastemaker-rendered/b633844daabca5b9.dry_run.rs",
+        "cli/src/output/dry_run_test.rs",
+        ".tastemaker-rendered/db72e33a730767c4.dry_run_test.rs",
+        "cli/src/output/pager.rs",
+        ".tastemaker-rendered/d552af2c601583b1.pager.rs",
+        "cli/src/output/pager_test.rs",
+        ".tastemaker-rendered/7715f5f721fac5be.pager_test.rs",
+        "cli/src/output/progress.rs",
+        ".tastemaker-rendered/b04859033bd9aa76.progress.rs",
+        "cli/src/output/progress_test.rs",
+        ".tastemaker-rendered/75e12e580bd1e600.progress_test.rs",
+        "cli/src/output_test.rs",
+        ".tastemaker-rendered/d2aaa5eca2292615.output_test.rs",
+        "cli/src/resources.rs",
+        ".tastemaker-rendered/f4711e99cfd17447.resources.rs",
+        "cli/src/resources/greeting.rs",
+        ".tastemaker-rendered/a724d2a00a6d24d2.greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        ".tastemaker-rendered/0c10a6d05c18f5cf.list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        ".tastemaker-rendered/47952f3f4a88f035.command.rs",
+        "cli/src/resources/greeting/list/command_test.rs",
+        ".tastemaker-rendered/9fc4caeaff8f5108.command_test.rs",
+        "cli/src/resources/greeting/list/composition.rs",
+        ".tastemaker-rendered/4419b32ad22ee251.composition.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        ".tastemaker-rendered/ab8247530d746ab3.connections.rs",
+        "cli/src/resources/greeting/list/schemas.rs",
+        ".tastemaker-rendered/9316f76c4b946a4d.schemas.rs",
+        "cli/src/resources/greeting/list/schemas_test.rs",
+        ".tastemaker-rendered/a681fb449f3ea420.schemas_test.rs",
+        "cli/src/resources/greeting/show.rs",
+        ".tastemaker-rendered/3625985a6aef7f3e.show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        ".tastemaker-rendered/8f63469d8cdc53ff.command.rs",
+        "cli/src/resources/greeting/show/command_test.rs",
+        ".tastemaker-rendered/3a2ba46241f6026d.command_test.rs",
+        "cli/src/resources/greeting/show/composition.rs",
+        ".tastemaker-rendered/32c79ffc6da9e30f.composition.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        ".tastemaker-rendered/96ad18fe79832adc.connections.rs",
+        "cli/src/resources/greeting/show/schemas.rs",
+        ".tastemaker-rendered/922ca92016a7fbe3.schemas.rs",
+        "cli/src/resources/greeting/show/schemas_test.rs",
+        ".tastemaker-rendered/7cd811c99547087a.schemas_test.rs",
+        "cli/src/timings.rs",
+        ".tastemaker-rendered/a6901096bff0d833.timings.rs",
+        "cli/src/timings/phases.rs",
+        ".tastemaker-rendered/3fd693bc2dd16b45.phases.rs",
+        "cli/src/timings/phases_test.rs",
+        ".tastemaker-rendered/1e8d4adc3461a567.phases_test.rs",
+        "cli/src/timings_test.rs",
+        ".tastemaker-rendered/2cd96b62b2fd9c82.timings_test.rs",
+        "cli/tests/command_line.rs",
+        ".tastemaker-rendered/10d896d94e69c59a.command_line.rs",
+        "cli/tests/command_tree.rs",
+        ".tastemaker-rendered/3073c97da0ff5c99.command_tree.rs",
+        "cli/tests/readme.rs",
+        ".tastemaker-rendered/b701fe2f40ee5abc.readme.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/bdd-members",
+      "include": [
+        "cli/src/inbound/contracts/*.rs",
+        "cli/src/inbound/contracts/*.rs/**",
+        "cli/src/inbound/contracts/*/acceptance.*",
+        "cli/src/inbound/contracts/*/acceptance.*/**",
+        "cli/src/inbound/use_cases/*.rs",
+        "cli/src/inbound/use_cases/*.rs/**",
+        "cli/src/inbound/use_cases/*/acceptance.*",
+        "cli/src/inbound/use_cases/*/acceptance.*/**",
+        "cli/tests/bdd.rs",
+        "cli/tests/bdd.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-bdd-members-16101641f22e"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/case-expectation",
+      "include": [
+        "cli/src/resources/greeting/list/*_test.rs",
+        "cli/src/resources/greeting/list/*_test.rs/**",
+        "cli/src/resources/greeting/show/*_test.rs",
+        "cli/src/resources/greeting/show/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-case-expectation-d0aa767a915e"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/cli/no-root-composition",
+      "include": [
+        "cli/src/composition.rs",
+        "cli/src/composition.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-cli-no-root-composition-39d48f7a8311"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/collection-members",
+      "include": [
+        "cli/src/**/collections.rs",
+        "cli/src/**/collections.rs/**",
+        "cli/src/**/collections/**",
+        "cli/src/**/collections/**/**"
+      ],
+      "parameters": {
+        "item-trait": []
+      },
+      "query": "idiomatic-arch-collection-members-91da55cccd3f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/command/command-refuses",
+      "include": [
+        "cli/src/resources/greeting/list/command.rs",
+        "cli/src/resources/greeting/list/command.rs/**",
+        "cli/src/resources/greeting/list/command_test.rs",
+        "cli/src/resources/greeting/list/command_test.rs/**",
+        "cli/src/resources/greeting/show/command.rs",
+        "cli/src/resources/greeting/show/command.rs/**",
+        "cli/src/resources/greeting/show/command_test.rs",
+        "cli/src/resources/greeting/show/command_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-command-command-refuses-b341b490146a"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/composition-wiring",
+      "include": [
+        "cli/src/resources/greeting/list/composition.rs",
+        "cli/src/resources/greeting/list/composition.rs/**",
+        "cli/src/resources/greeting/show/composition.rs",
+        "cli/src/resources/greeting/show/composition.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-composition-wiring-6c951630078e"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/bdd-runner",
+      "include": [
+        "cli/src/inbound/contracts/*/acceptance.rs",
+        "cli/src/inbound/contracts/*/acceptance.rs/**",
+        "cli/src/inbound/use_cases/*/acceptance.rs",
+        "cli/src/inbound/use_cases/*/acceptance.rs/**",
+        "cli/tests/bdd.rs",
+        "cli/tests/bdd.rs/**"
+      ],
+      "parameters": {
+        "world": "Behavior"
+      },
+      "query": "idiomatic-arch-crate-bdd-runner-67e896de24e5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/captured-workload",
+      "include": [
+        "cli/Cargo.toml",
+        "cli/Cargo.toml/**",
+        "cli/benches/performance/captured/bench.rs",
+        "cli/benches/performance/captured/bench.rs/**",
+        "cli/src/**/adapters/recorded/adapter.rs",
+        "cli/src/**/adapters/recorded/adapter.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-captured-workload-4ce858c6c633"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/error-shape",
+      "include": [
+        "cli/**",
+        "cli/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-error-shape-505aa5cd3814"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/fixtures-feature",
+      "include": [
+        "cli/Cargo.toml",
+        "cli/Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-fixtures-feature-30d24fb9b0ff"
+    },
+    {
+      "exclude": [
+        "cli/**/errors.rs",
+        "cli/**/errors.rs/**",
+        "cli/**/schemas.rs",
+        "cli/**/schemas.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/crate/thiserror-in-errors",
+      "include": [
+        "cli/**",
+        "cli/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-thiserror-in-errors-749b78e75367"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/extension-point-ports",
+      "include": [
+        "cli/**",
+        "cli/**/**"
+      ],
+      "parameters": {
+        "exposed": []
+      },
+      "query": "idiomatic-arch-extension-point-ports-d6269e1f7c08"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/factory-calls",
+      "include": [
+        "cli/src/cases.rs",
+        "cli/src/edge.rs",
+        "cli/src/lib.rs",
+        "cli/src/main.rs",
+        "cli/src/outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        "cli/src/output.rs",
+        "cli/src/output/dry_run.rs",
+        "cli/src/output/pager.rs",
+        "cli/src/output/progress.rs",
+        "cli/src/resources.rs",
+        "cli/src/resources/greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        "cli/src/resources/greeting/list/schemas.rs",
+        "cli/src/resources/greeting/show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        "cli/src/resources/greeting/show/schemas.rs",
+        "cli/src/timings.rs",
+        "cli/src/timings/phases.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-factory-calls-6bd421048346"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/hollow-artifacts",
+      "include": [
+        "cli/src/cases.rs",
+        "cli/src/edge.rs",
+        "cli/src/lib.rs",
+        "cli/src/main.rs",
+        "cli/src/outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        "cli/src/output.rs",
+        "cli/src/output/dry_run.rs",
+        "cli/src/output/pager.rs",
+        "cli/src/output/progress.rs",
+        "cli/src/resources.rs",
+        "cli/src/resources/**",
+        "cli/src/timings.rs",
+        "cli/src/timings/phases.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-artifacts-759d6bcc4a88"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/hollow-services",
+      "include": [
+        "cli/src/resources/greeting/list/composition.rs",
+        "cli/src/resources/greeting/list/composition.rs/**",
+        "cli/src/resources/greeting/show/composition.rs",
+        "cli/src/resources/greeting/show/composition.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-services-22fed80c6dbf"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/item-contract",
+      "include": [
+        "cli/src/**/collections/**",
+        "cli/src/**/collections/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-item-contract-9f28a4c166b5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-runtime-fixtures",
+      "include": [
+        "cli/src/cases.rs",
+        "cli/src/edge.rs",
+        "cli/src/lib.rs",
+        "cli/src/main.rs",
+        "cli/src/outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        "cli/src/output.rs",
+        "cli/src/output/dry_run.rs",
+        "cli/src/output/pager.rs",
+        "cli/src/output/progress.rs",
+        "cli/src/resources.rs",
+        "cli/src/resources/greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        "cli/src/resources/greeting/list/composition.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        "cli/src/resources/greeting/list/schemas.rs",
+        "cli/src/resources/greeting/show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        "cli/src/resources/greeting/show/composition.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        "cli/src/resources/greeting/show/schemas.rs",
+        "cli/src/timings.rs",
+        "cli/src/timings/phases.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-runtime-fixtures-3026c70f4acb"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-vacuous-tests",
+      "include": [
+        "cli/src/cases.rs",
+        "cli/src/cases.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-vacuous-tests-ce4ca1fdc7f5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/orphan-rust-files",
+      "include": [
+        "cli/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-orphan-rust-files-d1ff19eef5c2"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/schema-name",
+      "include": [
+        "cli/src/resources/greeting/list/schemas.rs",
+        "cli/src/resources/greeting/list/schemas.rs/**",
+        "cli/src/resources/greeting/show/schemas.rs",
+        "cli/src/resources/greeting/show/schemas.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-schema-name-126b87b6fe13"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/schema-visibility",
+      "include": [
+        "cli/src/resources/greeting/list/schemas.rs",
+        "cli/src/resources/greeting/list/schemas.rs/**",
+        "cli/src/resources/greeting/show/schemas.rs",
+        "cli/src/resources/greeting/show/schemas.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-schema-visibility-96fa3d7bb5a7"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-runners-match-rows",
+      "include": [
+        "cli/src/resources/greeting/list/*_test.rs",
+        "cli/src/resources/greeting/list/*_test.rs/**",
+        "cli/src/resources/greeting/show/*_test.rs",
+        "cli/src/resources/greeting/show/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-runners-match-rows-4e5621332882"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-shape",
+      "include": [
+        "cli/src/resources/greeting/list/*_test.rs",
+        "cli/src/resources/greeting/list/*_test.rs/**",
+        "cli/src/resources/greeting/show/*_test.rs",
+        "cli/src/resources/greeting/show/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-shape-45f9971bbe85"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/thin-command",
+      "include": [
+        "cli/**/interface.rs",
+        "cli/**/interface.rs/**",
+        "cli/src/resources/*/*/command.rs",
+        "cli/src/resources/*/*/command.rs/**",
+        "cli/src/resources/*/*/entry.rs",
+        "cli/src/resources/*/*/entry.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-thin-command-bc8edb1a20ee"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/unit-cases",
+      "include": [
+        "cli/src/resources/greeting/list/*_test.rs",
+        "cli/src/resources/greeting/list/*_test.rs/**",
+        "cli/src/resources/greeting/list/*_test/**/*.rs",
+        "cli/src/resources/greeting/list/*_test/**/*.rs/**",
+        "cli/src/resources/greeting/show/*_test.rs",
+        "cli/src/resources/greeting/show/*_test.rs/**",
+        "cli/src/resources/greeting/show/*_test/**/*.rs",
+        "cli/src/resources/greeting/show/*_test/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unit-cases-a9a46cde7eef"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/use-case-module-beside",
+      "include": [
+        "cli/src/inbound/use_cases/**",
+        "cli/src/inbound/use_cases/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-module-beside-b252b9858d7c"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/validation-at-edges",
+      "include": [
+        "cli/src/cases.rs",
+        "cli/src/edge.rs",
+        "cli/src/lib.rs",
+        "cli/src/main.rs",
+        "cli/src/outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        "cli/src/output.rs",
+        "cli/src/output/dry_run.rs",
+        "cli/src/output/pager.rs",
+        "cli/src/output/progress.rs",
+        "cli/src/resources.rs",
+        "cli/src/resources/greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        "cli/src/resources/greeting/list/composition.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        "cli/src/resources/greeting/show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        "cli/src/resources/greeting/show/composition.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        "cli/src/timings.rs",
+        "cli/src/timings/phases.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-validation-at-edges-282bc1c4e5c3"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-edges",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-edges-5c4aa0cd1a93"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-names",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-names-30e865419592"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-owners",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-owners-2799ccd20598"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-packages",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-packages-af0ac9d1e4da"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "imports-scopes",
+      "include": [
+        "**"
+      ],
+      "parameters": {},
+      "query": "imports-scopes-949cb7045580"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "cli/Cargo.toml",
+        "cli/LICENSE",
+        "cli/README.md",
+        "cli/benches/performance/greeting.rs",
+        "cli/benches/performance/greeting/list.rs",
+        "cli/benches/performance/greeting/list/bench.rs",
+        "cli/benches/performance/greeting/show.rs",
+        "cli/benches/performance/main.rs",
+        "cli/benches/performance/measure.rs",
+        "cli/src/cases.rs",
+        "cli/src/edge.rs",
+        "cli/src/lib.rs",
+        "cli/src/main.rs",
+        "cli/src/outcome.rs",
+        "cli/src/outcome/remedy.rs",
+        "cli/src/outcome/remedy_test.rs",
+        "cli/src/outcome_test.rs",
+        "cli/src/output.rs",
+        "cli/src/output/dry_run.rs",
+        "cli/src/output/dry_run_test.rs",
+        "cli/src/output/pager.rs",
+        "cli/src/output/pager_test.rs",
+        "cli/src/output/progress.rs",
+        "cli/src/output/progress_test.rs",
+        "cli/src/output_test.rs",
+        "cli/src/resources.rs",
+        "cli/src/resources/greeting.rs",
+        "cli/src/resources/greeting/list.rs",
+        "cli/src/resources/greeting/list/command.rs",
+        "cli/src/resources/greeting/list/command_test.rs",
+        "cli/src/resources/greeting/list/composition.rs",
+        "cli/src/resources/greeting/list/connections.rs",
+        "cli/src/resources/greeting/list/schemas.rs",
+        "cli/src/resources/greeting/list/schemas_test.rs",
+        "cli/src/resources/greeting/show.rs",
+        "cli/src/resources/greeting/show/command.rs",
+        "cli/src/resources/greeting/show/command_test.rs",
+        "cli/src/resources/greeting/show/composition.rs",
+        "cli/src/resources/greeting/show/connections.rs",
+        "cli/src/resources/greeting/show/schemas.rs",
+        "cli/src/resources/greeting/show/schemas_test.rs",
+        "cli/src/timings.rs",
+        "cli/src/timings/phases.rs",
+        "cli/src/timings/phases_test.rs",
+        "cli/src/timings_test.rs",
+        "cli/tests/command_line.rs",
+        "cli/tests/command_tree.rs",
+        "cli/tests/command_tree/surface.txt",
+        "cli/tests/readme.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "cli/src/resources/greeting/list/composition.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "cli/src/resources/greeting/list/composition.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "cli/src/resources/greeting/list/composition.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

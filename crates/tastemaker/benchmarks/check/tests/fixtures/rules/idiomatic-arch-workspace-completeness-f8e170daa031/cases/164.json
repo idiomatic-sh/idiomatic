@@ -1,0 +1,114 @@
+{
+  "stamp": 164,
+  "rule": "idiomatic.arch/workspace-completeness",
+  "dependency": "Project",
+  "admitted": [
+    "Cargo.toml",
+    "crates/app/Cargo.toml",
+    "crates/app/src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "f5752fc89e23c47bf0e9acbea50dbab3fab4f26dbe127329fb6352deb27c741a",
+    "crates/app/Cargo.toml": "01d28e8f28d3ec2b0897a050d599df1205a3da7da7de4c237ac3e46a36487d12",
+    "crates/app/crates/support/Cargo.toml": "9089446edf59d96573bc98c353de58f8bc3192a4b8c0c14999559b16c409747a",
+    "crates/app/crates/support/src/lib.rs": "4e09425d9a3e2538f1ea6c428d5080eade36baf933b917b450b4ab85b5b19e6f",
+    "crates/app/src/lib.rs": "4e09425d9a3e2538f1ea6c428d5080eade36baf933b917b450b4ab85b5b19e6f",
+    "tastemaker.toml": "b1046b70c5ce2e2b59449632e3bf116a2bb963bb8b6657cbaf391f249fbcccf9"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "crates/app/crates/support",
+        "crates/app/crates/support/**"
+      ],
+      "id": "idiomatic.arch/workspace-completeness",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-workspace-completeness-f8e170daa031"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "crates/app/Cargo.toml",
+        "crates/app/crates/support/Cargo.toml",
+        "crates/app/crates/support/src/lib.rs",
+        "crates/app/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "package",
+            {
+              "file": "crates/app/crates/support/Cargo.toml"
+            }
+          ],
+          [
+            "workspace",
+            {
+              "file": "Cargo.toml"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "Cargo.toml"
+          },
+          {
+            "file": "crates/app/crates/support/Cargo.toml"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

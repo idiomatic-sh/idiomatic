@@ -1,0 +1,120 @@
+{
+  "stamp": 29,
+  "rule": "idiomatic.arch/composition-opens-nothing",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/check.rs",
+    "src/check/composition.rs",
+    "src/inventory.rs",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/check.rs": "f65181d8f4676f017b23452443fbf5ab3480dd2ab6267b1f3287f134787b1b61",
+    "src/check/composition.rs": "8b461d6f26417a47a1781920bdd8bc7f8f9817874155aae780bece39200a18de",
+    "src/inventory.rs": "9241b6d5ecedde4eda3323709245644f5db6c64d843a84218dbf1dd23fa12b1f",
+    "src/lib.rs": "6a96264a7932888b63d2cc33b2f4f86f9f0da9f982186b246048ab9f951c3ff5",
+    "tastemaker.toml": "9f756d82a76b8720344481fba5545744d92086b85a9b8ade6fe0d9a146185ee7"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/composition-opens-nothing",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-composition-opens-nothing-6c56c89f7164"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/check.rs",
+        "src/check/composition.rs",
+        "src/inventory.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "text",
+            "crate::inventory::SourceConnection::open"
+          ],
+          [
+            "file",
+            {
+              "file": "src/check/composition.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                202,
+                242
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              202,
+              242
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/check/composition.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

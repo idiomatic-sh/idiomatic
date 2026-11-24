@@ -1,0 +1,86 @@
+{
+  "stamp": 10,
+  "rule": "idiomatic.arch/bdd-members",
+  "dependency": "Several files",
+  "admitted": [
+    "app/src/inbound/contracts/greet.rs",
+    "app/tests/bdd.rs"
+  ],
+  "given": {
+    "app/src/inbound/contracts/greet.rs": "41c43b7d1dfe842eb62e9f1b6627a7775595356d8c51657586f64c94a7b6bd3b",
+    "app/src/inbound/contracts/greet/acceptance.feature": "3a0d2c05b6f411c577a868ba256975dae26206873f8a0968bb94232866a06480",
+    "app/src/inbound/contracts/greet/acceptance.rs": "5b008bf159d62ec4364f73f97594d52c414ee6333dba76f5fd4d0fbfcb680fc2",
+    "app/tests/bdd.rs": "c4aa5214bf26ce0480195dc6bbdf5fa31a566941565a70d3fed451a8e51e92a9",
+    "tastemaker.toml": "344b972a454cefe3e4cce3f3091484a13f2fe577ff09c91caacefbd62ae908bd"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/bdd-members",
+      "include": [
+        "*/tests/bdd.rs",
+        "*/tests/bdd.rs/**",
+        "app/src/inbound/contracts/*.rs",
+        "app/src/inbound/contracts/*.rs/**",
+        "app/src/inbound/use_cases/*.rs",
+        "app/src/inbound/use_cases/*.rs/**",
+        "app/src/inbound/use_cases/*/acceptance.feature",
+        "app/src/inbound/use_cases/*/acceptance.feature/**",
+        "app/src/inbound/use_cases/*/acceptance.rs",
+        "app/src/inbound/use_cases/*/acceptance.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-bdd-members-16101641f22e"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "app/src/inbound/contracts/greet.rs",
+        "app/src/inbound/contracts/greet/acceptance.feature",
+        "app/src/inbound/contracts/greet/acceptance.rs",
+        "app/tests/bdd.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": []
+  }
+}

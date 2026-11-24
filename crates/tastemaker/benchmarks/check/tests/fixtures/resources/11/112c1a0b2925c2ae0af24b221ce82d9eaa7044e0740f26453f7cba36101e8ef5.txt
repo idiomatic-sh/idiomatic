@@ -1,0 +1,11 @@
+//! The composition of `check`.
+
+/// The use case, wired.
+pub fn compose() -> CheckUseCaseImpl {
+    CheckUseCaseImpl {
+        inventory: Arc::new(inventory::factory::arrow(
+            SourceConnection,
+            SourcePartition("source-inventory-v1".into()),
+        )),
+    }
+}
