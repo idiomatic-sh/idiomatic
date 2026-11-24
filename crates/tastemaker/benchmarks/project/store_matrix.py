@@ -91,7 +91,7 @@ def contribution_edits(executable, scratch, env):
     src = root / "src"
     src.mkdir()
     parent, child = "src/parent.py", "src/child.py"
-    (root / parent).write_text("def parent(): return 1\n")
+    (root / parent).write_text("def parent(): return 1\ndef member(): return 1\n")
     local = 'let nodes = select id, file, span from "semantic-syntax" where kind = "function-def";\nemit nodes subject file key(id, span);\n'
     closed = (
         'let listed = select l."path" as "file" from "filesystem.file" as l;\n'
@@ -112,7 +112,7 @@ def contribution_edits(executable, scratch, env):
     manifest.write_text("".join(f"{i}\t{directory}\t{req}\tunused\t{inventory}\n"
                                 for i,directory in [("local",pack.parents[1]),("closed",second.parents[1])]))
     result = {}
-    for label,files in [("forward",[parent,child,parent]),("reverse",[child,parent,parent])]:
+    for label,files in [("forward",[parent,child]),("reverse",[child,parent])]:
         req.write_text(json.dumps(dict(root=str(root),files=files,parameters={},hosted=[])))
         inventory.write_text(json.dumps(files))
         cache=root/label
