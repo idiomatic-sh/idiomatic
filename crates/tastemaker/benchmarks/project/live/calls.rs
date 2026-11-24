@@ -620,18 +620,19 @@ impl Live {
                 retained_rules.push((query, parameters, program, digest));
             }
             let shape = hosted.iter().map(|h| (&h.name, &h.columns)).collect::<Vec<_>>();
-            let supplied = key.1.iter().map(|(path, (bytes, permission))| {
+            let supplied: BTreeMap<_, _> = key.1.iter().map(|(path, (bytes, permission))| {
                 let digest = *blake3::hash(bytes).as_bytes();
                 supplied_versions.insert(path.clone(), super::stored::key((path, &reader, permission, digest)));
                 (path.clone(), super::stored::key((digest, permission)))
             }).collect();
+            let request_scope = super::stored::key((&physical, &authority, &reader, &supplied));
             let proof = self.store.as_mut().unwrap().request_inputs(
                 std::path::Path::new(&*physical),
                 self.cache.path_digest(&paths),
                 super::stored::key((peers, shape, &reader)),
                 supplied,
             );
-            Some((proof, super::stored::key((&physical, &authority, &reader))))
+            Some((proof, request_scope))
         } else {
             None
         };
