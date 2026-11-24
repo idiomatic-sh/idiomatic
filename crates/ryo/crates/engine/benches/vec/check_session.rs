@@ -1252,6 +1252,10 @@ pub(crate) fn visit<L: FileSource>(
                 distinct.get_mut().clear();
                 if !reused {
                     held.literals.get_mut().clear();
+                }
+                // Proof atoms include path predicates. They belong to this
+                // source identity even when the syntax body is shared.
+                if !reused || share {
                     held.proof_atoms.clear();
                 }
                 let scanned = held.literals.get_mut().scanned();
