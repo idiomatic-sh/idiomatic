@@ -151,9 +151,9 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
         if let [x] = ids.as_slice() {
             return Some(Word::Eq(u64::from(*x)));
         }
-        let ids: Box<[u64]> = ids.into_iter().map(u64::from).collect();
+        let ids = super::symbol_predicate::SymbolSet::bind(run, ids.into_iter().map(u64::from).collect());
         return Some(Word::Test(Box::new(move |_, w| {
-            ids.binary_search(&w).is_ok()
+            ids.contains(w)
         })));
     }
     let test: Test = match e {
@@ -180,7 +180,7 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
             let E::List(items) = &**items else {
                 return None;
             };
-            let mut words = items
+            let words = items
                 .iter()
                 .map(|e| {
                     if let E::Text(s) = e {
@@ -190,13 +190,13 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
                     }
                 })
                 .collect::<Option<Vec<_>>>()?;
-            words.sort_unstable();
-            Box::new(move |_, w| words.binary_search(&w).is_err())
+            let words = super::symbol_predicate::SymbolSet::bind(run, words);
+            Box::new(move |_, w| !words.contains(w))
         }
         E::TextTest(x, re) if is_col(x, c) => {
             let re = re.clone();
             if ty == Ty::Sym { Box::new(move |r, w| re.symbol(r, w as u32)) }
-            else if ty == Ty::File && matches!(re, super::TextTest::Glob(_)) {
+            else if ty == Ty::File && matches!(re, super::TextTest::Glob(_) | super::TextTest::Any(_)) {
                 Box::new(move |r, w| re.symbol(r, r.path_sym[w as usize]))
             } else { text_predicate(ty, move |bytes| re.bytes(bytes)) }
         }

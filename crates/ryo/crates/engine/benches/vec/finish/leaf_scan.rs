@@ -41,7 +41,7 @@ pub(super) fn count_tests(
             break;
         }
         n += rows.len() as u64;
-        let one = ViewSpec::new(v.base, Vec::new(), vec![test.clone()]);
+        let one = ViewSpec::new(run, v.base, Vec::new(), vec![test.clone()]);
         super::view_cols::retain(f, run, &one, rows);
     }
     if sw!("VEC_LEAF_TESTS") {

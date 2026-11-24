@@ -108,6 +108,22 @@ impl Exec<'_> {
             }
             ("glob_any", Some(E::Text(t))) if args.len() == 2 => Self::glob_test(run, &args[0], *t),
             ("glob_any", Some(E::List(items))) if args.len() == 2 => {
+                if items.len() > 1 && matches!(args[0], E::Col(_, _, Ty::Sym | Ty::File)) {
+                    let patterns = items.iter().map(|item| match item {
+                        E::Text(pattern) => Ok(*pattern),
+                        _ => Err("glob pattern must be text".to_owned()),
+                    }).collect::<R<Vec<_>>>()?;
+                    let test = if let Some(test) = run.glob_lists.get(&patterns) {
+                        test.clone()
+                    } else {
+                        let tests = patterns.iter().map(|&pattern| Self::glob_predicate(run, pattern))
+                            .collect::<R<Vec<_>>>()?;
+                        let test = TextTest::Any(Rc::new(super::Bound::new(tests.into_boxed_slice())));
+                        run.glob_lists.insert(patterns, test.clone());
+                        test
+                    };
+                    return Ok(E::TextTest(Box::new(args[0].clone()), test));
+                }
                 let mut combined = None;
                 for item in items {
                     let E::Text(t) = item else { return Err("glob pattern must be text".into()) };
@@ -123,8 +139,11 @@ impl Exec<'_> {
         }
     }
     fn glob_test(run: &mut Run, subject: &E, pattern: u32) -> R<E> {
+        Ok(E::TextTest(Box::new(subject.clone()), Self::glob_predicate(run, pattern)?))
+    }
+    fn glob_predicate(run: &mut Run, pattern: u32) -> R<TextTest> {
         match glob_pattern(&String::from_utf8_lossy(run.text(pattern))) {
-            Some(regex) => Ok(E::TextTest(Box::new(subject.clone()), TextTest::Regex(run.re(&regex)?))),
+            Some(regex) => Ok(TextTest::Regex(run.re(&regex)?)),
             None => {
                 use ryo_matching::inbound::use_cases::matching::{
                     interface::MatchingUseCase, types::GlobPattern, use_case::MatchingUseCaseImpl,
@@ -138,7 +157,7 @@ impl Exec<'_> {
                     run.prepared_globs.insert(pattern, Rc::clone(&glob));
                     glob
                 };
-                Ok(E::TextTest(Box::new(subject.clone()), TextTest::Glob(glob)))
+                Ok(TextTest::Glob(glob))
             }
         }
     }

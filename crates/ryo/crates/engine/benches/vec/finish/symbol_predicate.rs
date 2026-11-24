@@ -5,8 +5,22 @@ use std::{cell::RefCell, fmt, rc::Rc};
 
 pub(super) struct Bound<T> {
     pub(super) pattern: T,
-    // Each cell is unseen, false, or true. Allocate a page only after a test in it.
-    pages: RefCell<Vec<Option<Box<[u64; 16]>>>>,
+    pages: RefCell<AnswerPages>,
+}
+
+#[derive(Default)]
+struct AnswerPages {
+    // Zero means this range of 512 symbols has never been queried.
+    slots: Vec<u32>,
+    tested: Vec<TestedPage>,
+    exceptions: Vec<[u64; 8]>,
+}
+
+struct TestedPage {
+    seen: [u64; 8],
+    default: bool,
+    // Only a page with both outcomes needs a second bitmap.
+    exceptions: Option<std::num::NonZeroU32>,
 }
 
 impl<T> Bound<T> {
@@ -15,24 +29,47 @@ impl<T> Bound<T> {
     }
 
     #[inline]
-    fn answer(&self, id: u32, test: impl FnOnce() -> bool) -> bool {
+    pub(super) fn answer(&self, id: u32, test: impl FnOnce() -> bool) -> bool {
         let id = id as usize;
         let page = id / 512;
         let mut pages = self.pages.borrow_mut();
-        if pages.len() <= page {
-            pages.resize_with(page + 1, || None);
+        if pages.slots.len() <= page {
+            pages.slots.resize(page + 1, 0);
         }
-        let words = pages[page].get_or_insert_with(Default::default);
-        let word = &mut words[id % 512 / 32];
-        let shift = 2 * (id % 32);
-        match (*word >> shift) & 3 {
-            0 => {
-                let yes = test();
-                *word |= (1 + u64::from(yes)) << shift;
-                yes
-            }
-            state => state == 2,
+        let word = id % 512 / 64;
+        let bit = 1u64 << (id % 64);
+        let slot = pages.slots[page];
+        if slot == 0 {
+            let answer = test();
+            let mut seen = [0; 8];
+            seen[word] = bit;
+            pages.tested.push(TestedPage { seen, default: answer, exceptions: None });
+            pages.slots[page] = pages.tested.len() as u32;
+            return answer;
         }
+        let slot = slot as usize - 1;
+        let entry = &pages.tested[slot];
+        if entry.seen[word] & bit != 0 {
+            let opposite = entry.exceptions.is_some_and(|index| {
+                pages.exceptions[index.get() as usize - 1][word] & bit != 0
+            });
+            return entry.default ^ opposite;
+        }
+        let answer = test();
+        if answer != entry.default {
+            let index = match entry.exceptions {
+                Some(index) => index.get() as usize - 1,
+                None => {
+                    let index = pages.exceptions.len();
+                    pages.exceptions.push([0; 8]);
+                    pages.tested[slot].exceptions = std::num::NonZeroU32::new((index + 1) as u32);
+                    index
+                }
+            };
+            pages.exceptions[index][word] |= bit;
+        }
+        pages.tested[slot].seen[word] |= bit;
+        answer
     }
 }
 
@@ -45,6 +82,7 @@ impl<T: fmt::Debug> fmt::Debug for Bound<T> {
 pub(super) enum TextTest {
     Regex(Rc<Bound<Regex>>),
     Glob(Rc<PreparedGlob>),
+    Any(Rc<Bound<Box<[TextTest]>>>),
     LowerEqual(Rc<Bound<Rc<[u8]>>>),
 }
 
@@ -53,6 +91,7 @@ impl TextTest {
     pub(super) fn symbol(&self, run: &Run, id: u32) -> bool {
         match self {
             Self::Glob(glob) => glob.symbol(run, id),
+            Self::Any(tests) => tests.answer(id, || tests.pattern.iter().any(|test| test.symbol(run, id))),
             Self::Regex(re) => re.answer(id, || re.pattern.is_match(run.text(id))),
             Self::LowerEqual(lit) => lit.answer(id, || {
                 String::from_utf8_lossy(run.text(id)).to_lowercase().as_bytes() == lit.pattern.as_ref()
@@ -63,6 +102,7 @@ impl TextTest {
     pub(super) fn bytes(&self, bytes: &[u8]) -> bool {
         match self {
             Self::Glob(glob) => glob.bytes(bytes),
+            Self::Any(tests) => tests.pattern.iter().any(|test| test.bytes(bytes)),
             Self::Regex(re) => re.pattern.is_match(bytes),
             Self::LowerEqual(lit) => String::from_utf8_lossy(bytes).to_lowercase().as_bytes() == lit.pattern.as_ref(),
         }
@@ -71,6 +111,7 @@ impl TextTest {
     #[inline]
     pub(super) fn value(&self, run: &Run, v: V) -> bool {
         if let Self::Glob(glob) = self { return glob.matches(run, v); }
+        if v.ty() == Ty::File && matches!(self, Self::Any(_)) { return self.symbol(run, run.path_sym[v.1 as usize]); }
         if v.ty() == Ty::Sym { self.symbol(run, v.1 as u32) } else { self.bytes(&text_of(run, v)) }
     }
 }
@@ -88,8 +129,7 @@ pub(super) fn folded_literal(run: &mut Run, a: &super::E, b: &super::E) -> Optio
 /// Interpreted globs often see a file's path on every row of its relations.
 pub(super) struct PreparedGlob {
     pattern: u32,
-    matcher: ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs,
-    last: std::cell::Cell<Option<(u32, bool)>>,
+    matcher: Bound<ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs>,
 }
 
 // The compiled plan identity is independent of which subject was visited last.
@@ -101,7 +141,7 @@ impl fmt::Debug for PreparedGlob {
 
 impl PreparedGlob {
     pub(super) fn new(pattern: u32, matcher: ryo_matching::inbound::use_cases::matching::types::CompiledTextGlobs) -> Self {
-        Self { pattern, matcher, last: Default::default() }
+        Self { pattern, matcher: Bound::new(matcher) }
     }
 
     fn bytes(&self, bytes: &[u8]) -> bool {
@@ -109,16 +149,11 @@ impl PreparedGlob {
             interface::MatchingUseCase, types::{MatchOutcome, SearchText}, use_case::MatchingUseCaseImpl,
         };
         let subject = String::from_utf8_lossy(bytes);
-        MatchingUseCaseImpl::new().matches_text_globs(&self.matcher, SearchText(&subject)) == MatchOutcome::Matches
+        MatchingUseCaseImpl::new().matches_text_globs(&self.matcher.pattern, SearchText(&subject)) == MatchOutcome::Matches
     }
 
     fn symbol(&self, run: &Run, id: u32) -> bool {
-        if let Some((last, answer)) = self.last.get() && id == last {
-            return answer;
-        }
-        let answer = self.bytes(run.text(id));
-        self.last.set(Some((id, answer)));
-        answer
+        self.matcher.answer(id, || self.bytes(run.text(id)))
     }
 
     pub(super) fn matches(&self, run: &Run, value: V) -> bool {
@@ -127,5 +162,40 @@ impl PreparedGlob {
             Ty::File => self.symbol(run, run.path_sym[value.1 as usize]),
             _ => self.bytes(&text_of(run, value)),
         }
+    }
+}
+
+/// One bit per listed symbol. Empty stretches of the dictionary occupy no space.
+#[derive(Debug)]
+pub(super) struct SymbolSet(Box<[(u64, u64)]>);
+
+impl SymbolSet {
+    pub(super) fn bind(run: &Run, mut words: Vec<u64>) -> Rc<Self> {
+        words.sort_unstable();
+        words.dedup();
+        let mut sets = run.symbol_sets.borrow_mut();
+        if let Some(set) = sets.get(words.as_slice()) {
+            return Rc::clone(set);
+        }
+        let mut blocks = Vec::new();
+        for group in words.chunk_by(|a, b| a / 64 == b / 64) {
+            let block = group[0] / 64;
+            let bits = group.iter().fold(0, |bits, word| bits | (1u64 << (word % 64)));
+            blocks.push((block, bits));
+        }
+        let set = Rc::new(Self(blocks.into_boxed_slice()));
+        sets.insert(words.into_boxed_slice(), Rc::clone(&set));
+        set
+    }
+
+    #[inline]
+    pub(super) fn contains(&self, word: u64) -> bool {
+        let block = word / 64;
+        let bit = 1u64 << (word % 64);
+        if let [(index, bits)] = self.0.as_ref() {
+            return *index == block && bits & bit != 0;
+        }
+        self.0.binary_search_by_key(&block, |entry| entry.0)
+            .is_ok_and(|i| self.0[i].1 & bit != 0)
     }
 }
