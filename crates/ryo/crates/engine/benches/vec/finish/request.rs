@@ -252,7 +252,7 @@ fn select_columns(e: &E, source: usize, columns: &mut Columns) {
             select_columns(a, source, columns);
             select_columns(b, source, columns);
         }
-        E::Not(x) | E::TextTest(x, _) => select_columns(x, source, columns),
+        E::Not(x) | E::Re(x, _) | E::Glob(x, _) => select_columns(x, source, columns),
         _ => {}
     }
 }

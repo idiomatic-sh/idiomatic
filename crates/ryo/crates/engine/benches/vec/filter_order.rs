@@ -2,7 +2,7 @@
 //! column at all) is decided once a file before any row is read: false ends the step and asks for none of its inputs.
 //! The remaining tests keep their order (kind buckets enter first already; row tests short-circuit as written).
 
-use super::{E, File, Op, Run, Ty, eval_cell, truthy};
+use super::{E, File, Op, Run, Ty, V, eval, truthy};
 use std::cell::Cell;
 
 /// Whether a test reads no column but file columns: one value for the whole file.
@@ -14,6 +14,23 @@ pub(super) fn file_const(e: &E) -> bool {
         E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) => file_const(a) && file_const(b),
         E::In(a, b, _) => file_const(a) && file_const(b),
         E::Not(a) | E::Re(a, _) | E::Glob(a, _) => file_const(a),
+    }
+}
+
+fn subst(e: &E, file: u64) -> E {
+    let b = |x: &E| Box::new(subst(x, file));
+    match e {
+        E::Col(_, _, Ty::File) => E::Lit(V::new(Ty::File, file)),
+        E::List(xs) => E::List(xs.iter().map(|x| subst(x, file)).collect()),
+        E::Call(n, xs) => E::Call(n.clone(), xs.iter().map(|x| subst(x, file)).collect()),
+        E::Cmp(o, x, y) => E::Cmp(*o, b(x), b(y)),
+        E::In(x, y, n) => E::In(b(x), b(y), *n),
+        E::And(x, y) => E::And(b(x), b(y)),
+        E::Or(x, y) => E::Or(b(x), b(y)),
+        E::Not(x) => E::Not(b(x)),
+        E::Glob(x, g) => E::Glob(b(x), g.clone()),
+        E::Re(x, r) => E::Re(b(x), r.clone()),
+        other => other.clone(),
     }
 }
 
@@ -42,7 +59,10 @@ pub(super) fn file_fails(run: &mut Run, f: &File<'_>, conj: &[E], tests: &Option
     if f.after_last_file { return false; }
     let Some(tests) = tests else { return false; };
     if let Some((file, failed)) = tests.last.get() && file == f.file { return failed; }
-    let failed = tests.indexes.iter().any(|&i| !truthy(eval_cell(run, &|_, _, _| u64::from(f.file), &conj[i])));
+    let failed = tests.indexes.iter().any(|&i| {
+        let test = subst(&conj[i], u64::from(f.file));
+        !truthy(eval(run, f, &[], &[], &test))
+    });
     tests.last.set(Some((f.file, failed)));
     failed
 }
