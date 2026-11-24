@@ -125,6 +125,27 @@ pub(super) fn keyed(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
     Ok((out, handed))
 }
 
+/// Filter a union's inputs in union column order before deduplicating their surviving rows.
+pub(super) fn filtered(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run,
+    provider: &mut dyn Provider, node: usize, column: usize, test: &super::cold_word::Word,
+) -> R<Rc<Table>> {
+    let pr = prep(ex, run, node)?;
+    let mut out = Table::with(pr.names.clone(), pr.tys.clone());
+    for leaf in &pr.leaves {
+        let input = ex.eval(f, run, provider, leaf.node)?;
+        for (row, &word) in input.cols[leaf.map[column]].iter().enumerate() {
+            if test.accepts(run, word) {
+                for (values, &source) in out.cols.iter_mut().zip(leaf.map.iter()) {
+                    values.push(input.cols[source][row]);
+                }
+                out.n += 1;
+            }
+        }
+    }
+    if out.n == 0 { return Ok(pr.empty.clone()); }
+    Ok(super::recycle::rc(super::distinct(out)))
+}
+
 fn take_got() -> Vec<(Rc<Table>, u32)> {
     GOT.with(|k| k.borrow_mut().pop()).unwrap_or_default()
 }

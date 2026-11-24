@@ -246,6 +246,7 @@ pub(super) fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base
 
 pub(super) enum Prep {
     K(K),
+    FilteredUnion(usize, usize, super::cold_word::Word),
     Old(&'static str),
 }
 
@@ -345,6 +346,7 @@ impl Exec<'_> {
                 Prep::K(k) if k.semi.is_some() => "semi (band, else kernel)",
                 Prep::K(_) => "kernel",
                 Prep::Old(w) => w,
+                Prep::FilteredUnion(..) => "filter union inputs",
             };
             if let Ok(mut o) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
                 let _ = writeln!(o, "{node}\t{why}");
@@ -378,6 +380,21 @@ impl Exec<'_> {
             match e {
                 E::Col(s, c, _) => items.push((*s, *c)),
                 _ => return Ok(Prep::Old("a computed item")),
+            }
+        }
+        if let [source] = sp.srcs.as_slice()
+            && self.plan.nodes[*source].op == "union"
+            && self.consumers[*source] == [node] && !self.emitted.contains(source)
+            && let [condition] = sp.conj.as_slice()
+            && let Some((column, Ty::Sym)) = super::cold_word::column(condition)
+            && !sw!("VEC_OLD_UNION") && !sw!("VEC_UNION_ALL")
+        {
+            let schema = self.schema(run, *source)?;
+            let unchanged = sp.items.len() == schema.names.len()
+                && sp.items.iter().enumerate().all(|(i, (name, item))|
+                    name == &schema.names[i] && matches!(item, E::Col(0, c, _) if *c == i));
+            if unchanged && let Some(test) = super::cold_word::compile(run, condition, column, Ty::Sym) {
+                return Ok(Prep::FilteredUnion(*source, column, test));
             }
         }
         // a join key the front can pick (an equality of a column of one source with an expression over the other) must be a column
@@ -436,6 +453,12 @@ impl Exec<'_> {
         let prof = sw!("VEC_KSEL_PROF");
         let (t0, i0) = if prof { (Clk::now(), self.inner) } else { (Clk::now(), 0.0) };
         let prep = self.ksel_prep(run, node)?;
+        if let Prep::FilteredUnion(source, column, test) = &*prep
+            && !f.after_last_file && f.population(*source).is_none() && f.memo[*source].is_none()
+        {
+            let result = super::union_kernel::filtered(self, f, run, p, *source, *column, test)?;
+            return Ok(Rc::try_unwrap(result).unwrap_or_else(|r| (*r).clone()));
+        }
         let Prep::K(kp) = &*prep else {
             let out = self.select(f, run, p, node);
             if prof {
@@ -492,6 +515,11 @@ impl Exec<'_> {
     /// redo-select2: the kernels' entry for a whole run (from `empty_sel::select_entry`): the step's shared table out.
     pub(super) fn select_kr(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
         let prep = self.ksel_prep(run, node)?;
+        if let Prep::FilteredUnion(source, column, test) = &*prep
+            && !f.after_last_file && f.population(*source).is_none() && f.memo[*source].is_none()
+        {
+            return super::union_kernel::filtered(self, f, run, p, *source, *column, test);
+        }
         let Prep::K(kp) = &*prep else {
             let t = self.select(f, run, p, node)?;
             return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
