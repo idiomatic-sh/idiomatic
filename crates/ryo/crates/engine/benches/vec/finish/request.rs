@@ -78,7 +78,7 @@ impl Exec<'_> {
             if plan.op == "select" && let Ok(select) = self.sel(run, node) {
                 for (i, &input) in select.srcs.iter().enumerate() {
                     let mut mask = Columns::All;
-                    if select.srcs.len() == 1 && matches!(self.keyed_form(run, node), Ok(super::keyed::Form::Not)) {
+                    if select.srcs.len() == 1 && !plan.counted() && matches!(self.keyed_form(run, node), Ok(super::keyed::Form::Not)) {
                         mask = Columns::default();
                         for expr in select.conj.iter().chain(select.items.iter().map(|(_, e)| e)) {
                             columns(expr, i, &mut mask);
@@ -181,7 +181,9 @@ impl Exec<'_> {
         })).collect();
         self.requests.calls += 1;
         read(run, provider, &list, &mut self.requests.replies)?;
-        for (((id, _, project), relation), reply) in pending.into_iter().zip(names).zip(self.requests.replies.drain(..list.len() - checks.len())) {
+        let returned = pending.len();
+        drop(list);
+        for (((id, _, project), relation), reply) in pending.into_iter().zip(names).zip(self.requests.replies.drain(..returned)) {
             self.requests.answered += u64::from(reply.is_ok());
             self.requests.refused += u64::from(reply.is_err());
             self.requests.rows += reply.as_ref().map_or(0, |t| t.n as u64);

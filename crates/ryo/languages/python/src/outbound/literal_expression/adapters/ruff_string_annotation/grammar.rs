@@ -29,6 +29,13 @@ impl LiteralExpressionSyntaxPort for RuffStringAnnotation {
     }
 }
 
+/// Whether the reconstructed source is a string carrier. No expression
+/// outcome is needed to establish this part of the relation's completeness.
+pub(crate) fn string_carrier(source: &str) -> bool {
+    ruff_python_parser::parse_expression(source)
+        .is_ok_and(|parsed| matches!(parsed.expr(), ruff_python_ast::Expr::StringLiteral(_)))
+}
+
 /// SPIKE (track X): what `RuffStringAnnotation::parse` answers of a carrier of one string, for a string literal the
 /// file's own tree holds, read where it is written in `source`: the string-annotation grammar asked once, with no
 /// carrier parsed first to get the literal's node. The grammar reads a single part whose text is its content in
