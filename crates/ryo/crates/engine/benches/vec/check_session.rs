@@ -430,12 +430,12 @@ fn versions(
                     files[i].project_slots.push(idx);
                 }
                 for (&binding, &slot) in &src.bindings {
-                    aliases[slot] = *files[i].jobs.entry(binding).or_insert(slot);
+                    aliases.set(slot, *files[i].jobs.entry(binding).or_insert(slot));
                 }
             }
             Err(e) => {
                 for &slot in src.bindings.values() {
-                    answers[slot] = Err(format!("{}: {e}", src.path));
+                    answers.set(slot, Err(format!("{}: {e}", src.path)));
                 }
             }
         }
@@ -555,7 +555,7 @@ pub(crate) fn visit<L: FileSource>(
                     bind(p, parser, &mut run, tables, cut_of[binding].as_deref())
                 });
                 if let Err(reason) = entry {
-                    answers[slot] = Err(reason.clone());
+                    answers.set(slot, Err(reason.clone()));
                 }
             }
             clocks.prepare += thread_cpu() - t;
@@ -612,7 +612,7 @@ pub(crate) fn visit<L: FileSource>(
             };
             if let Err(reason) = result {
                 for &slot in jobs.values() {
-                    answers[slot] = Err(reason.clone());
+                    answers.set(slot, Err(reason.clone()));
                 }
                 clocks.read_parse += thread_cpu() - t;
                 continue;
@@ -627,10 +627,10 @@ pub(crate) fn visit<L: FileSource>(
                     manifest,
                 });
                 if keep {
-                    contributions[index] = Some(c.clone());
+                    contributions.set(index, Some(c.clone()));
                 }
                 for slot in project_slots {
-                    contributions[slot] = Some(c.clone());
+                    contributions.set(slot, Some(c.clone()));
                 }
                 if !keep && jobs.keys().all(|b| bound[b].is_err()) {
                     clocks.read_parse += thread_cpu() - t;
@@ -694,10 +694,10 @@ pub(crate) fn visit<L: FileSource>(
                         })
                         || !b.words.iter().all(|c| c.iter().any(|v| words.contains(v))));
                 if excluded && partials.is_empty() && b.facts.is_empty() {
-                    answers[slot] = Ok(Reported {
+                    answers.set(slot, Ok(Reported {
                         rows: Vec::new(),
                         unknowns,
-                    });
+                    }));
                     clocks.skipped += 1;
                     continue;
                 }
@@ -731,7 +731,7 @@ pub(crate) fn visit<L: FileSource>(
                     &mut packet.rows,
                 ) {
                     for &slot in jobs.values() {
-                        answers[slot] = Err(reason.clone());
+                        answers.set(slot, Err(reason.clone()));
                     }
                     if keep {
                         held.known.clear();
@@ -828,7 +828,7 @@ pub(crate) fn visit<L: FileSource>(
                     contract.report(&partial, &source.path)
                 };
                 if excluded && unknowns.is_empty() {
-                    answers[slot] = Ok(Reported::default());
+                    answers.set(slot, Ok(Reported::default()));
                     clocks.skipped += 1;
                     continue;
                 }
@@ -840,15 +840,15 @@ pub(crate) fn visit<L: FileSource>(
                     let local: Vec<_> = lines.iter().filter(|_| b.lines).cloned().collect();
                     let value=shared.contribute(b,&mut run,id.0,version,&mut facts_view,&local,cut,
                         &local_coverage,world,&mut carried_symbols,reader_id,unknown,slot);
-                    answers[slot] = value.map(|()| {
+                    answers.set(slot, value.map(|()| {
                         Reported {
                             rows: Vec::new(),
                             unknowns,
                         }
-                    });
+                    }));
                     continue;
                 }
-                answers[slot] = finish::session::pair(
+                answers.set(slot, finish::session::pair(
                     &mut b.exec,
                     &mut run,
                     version,
@@ -856,7 +856,7 @@ pub(crate) fn visit<L: FileSource>(
                     b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
                     &local_coverage,
                 )
-                .map(|rows| Reported { rows, unknowns });
+                .map(|rows| Reported { rows, unknowns }));
             }
             if keep {
                 held.read = true;

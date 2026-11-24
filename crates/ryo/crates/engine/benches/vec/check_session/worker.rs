@@ -2,34 +2,15 @@
 //! immutable project contributions by the original admission slot.
 use super::*;
 use std::num::NonZeroUsize;
-use std::ops::{Index, IndexMut};
-
 pub(crate) enum Slots<'a, T> {
     Direct(&'a mut [T]),
-    Local(BTreeMap<usize, T>, fn() -> T),
-}
-impl<T> Index<usize> for Slots<'_, T> {
-    type Output = T;
-    fn index(&self, index: usize) -> &T {
-        match self {
-            Self::Direct(a) => &a[index],
-            Self::Local(a, _) => &a[&index],
-        }
-    }
-}
-impl<T> IndexMut<usize> for Slots<'_, T> {
-    fn index_mut(&mut self, index: usize) -> &mut T {
-        match self {
-            Self::Direct(a) => &mut a[index],
-            Self::Local(a, init) => a.entry(index).or_insert_with(*init),
-        }
-    }
+    Buffered(&'a mut Vec<(usize, T)>),
 }
 impl<T> Slots<'_, T> {
-    fn take(self) -> BTreeMap<usize, T> {
+    pub(super) fn set(&mut self, slot: usize, value: T) {
         match self {
-            Self::Local(a, _) => a,
-            Self::Direct(_) => unreachable!(),
+            Self::Direct(all) => all[slot] = value,
+            Self::Buffered(changes) => changes.push((slot, value)),
         }
     }
 }
@@ -92,7 +73,10 @@ pub(crate) fn dispatch<L: FileSource>(
         .map(|group| {
             let src = &sources[group[0]];
             let size = src.provided.as_ref().map_or_else(
-                || std::fs::metadata(Path::new(src.root.as_ref()).join(&src.path)).map_or(0, |m| m.len()),
+                || {
+                    std::fs::metadata(Path::new(src.root.as_ref()).join(&src.path))
+                        .map_or(0, |m| m.len())
+                },
                 |bytes| bytes.len() as u64,
             );
             let weight = size.max(1).saturating_mul(src.bindings.len().max(1) as u64);
@@ -115,9 +99,9 @@ pub(crate) fn dispatch<L: FileSource>(
         let mut part = World::default();
         part.declare_words(languages);
         let prefix = part.run.texts.len();
-        let mut a = Slots::Local(Default::default(), || Err(String::new()));
-        let mut links = Slots::Local(Default::default(), || 0);
-        let mut notes = Slots::Local(Default::default(), || None);
+        let mut a = Vec::new();
+        let mut links = Vec::new();
+        let mut notes = Vec::new();
         let mut time = Clock::default();
         visit(
             &mut ReaderState::default(),
@@ -125,7 +109,7 @@ pub(crate) fn dispatch<L: FileSource>(
             parser,
             reader_id,
             manifests,
-            &mut notes,
+            &mut Slots::Buffered(&mut notes),
             programs,
             rules,
             contracts,
@@ -133,23 +117,16 @@ pub(crate) fn dispatch<L: FileSource>(
             &mut part,
             sources,
             files,
-            &mut links,
-            &mut a,
+            &mut Slots::Buffered(&mut links),
+            &mut Slots::Buffered(&mut a),
             &host,
             &mut time,
         );
         let contributions: Vec<_> = notes
-            .take()
             .into_iter()
             .filter_map(|(id, c)| Some((id, Rc::unwrap_or_clone(c?))))
             .collect();
-        (
-            a.take(),
-            links.take(),
-            contributions,
-            part.transfer(prefix),
-            time,
-        )
+        (a, links, contributions, part.transfer(prefix), time)
     };
     std::thread::scope(|scope| {
         let threads: Vec<_> = shards[1..]
