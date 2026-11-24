@@ -195,7 +195,7 @@ fn registered_command(workspace: &Path) -> Result<Vec<OsString>, Error> {
 fn build(repo: &Path, bench: &Path, image: &Path, revision: &str) -> Result<(), Error> {
     fs::create_dir_all(image)?;
     let stage = tempfile::tempdir_in(image)?;
-    let pin = fs::read_to_string(repo.join("tastemaker.toml"))?
+    let pin = git_text(repo, &["show", &format!("{revision}:tastemaker.toml")])?
         .parse::<toml::Value>()
         .map_err(|error| Error::Invalid(error.to_string()))?;
     let version = pin
@@ -215,7 +215,7 @@ fn build(repo: &Path, bench: &Path, image: &Path, revision: &str) -> Result<(), 
         .arg(source.join(bench).join("project/live/link-release.py"))
         .arg(&release))?;
     let product = release.join("crates/tastemaker");
-    let target = image.join("target");
+    let target = stage.path().join("target");
     let make = || {
         let mut command = Command::new("cargo");
         command
