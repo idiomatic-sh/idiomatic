@@ -287,7 +287,7 @@ impl<'p> Finisher<'p> {
         println!("known-empty static part: {} steps visited ({} with no leaf of their own), {} per-file tests; {:.3} s, of which preparing the needs once a run {:.3} s", exec.stats.static_visits, exec.stats.static_pass, exec.stats.static_file_tests, exec.stats.static_time, exec.stats.rec_time);
         println!("fact keyed lists: fill rows listed {}", self.exec.stats.fact_index_rows);
         println!("{}", finish::fill_prof::reads_line());
-        finish::fill_prof::flush();
+        finish::fill_prof::flush(&mut self.run);
         for l in finish::fill_prof::unread_lines(&self.run) {
             println!("{l}");
         }

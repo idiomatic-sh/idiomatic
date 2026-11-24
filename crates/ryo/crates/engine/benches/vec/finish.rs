@@ -342,6 +342,7 @@ impl Table {
 /// The run: texts, regexes, kind and field names, file paths.
 #[derive(Default)]
 pub(super) struct Run {
+    pub(super) fill_dump: Vec<(u32, String)>,
     /// Relations whose provider exposes a population other than this native file table.
     pub(super) reader_tables: rustc_hash::FxHashSet<String>,
     cold: cold_list::Plan,

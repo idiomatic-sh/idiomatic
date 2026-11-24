@@ -156,6 +156,8 @@ impl<'p> Settings<'p> {
 }
 
 pub(crate) struct Report {
+    fill_counts: Option<Box<finish::fill_prof::Counts>>,
+    fill_dump: Vec<(u32, String)>,
     project: Vec<(String, [u64; 3])>,
     findings: finish::json_output::Findings,
     failures: HashMap<String, (usize, String)>,
@@ -186,6 +188,8 @@ impl Finisher<'_> {
 
     fn into_report(self) -> Report {
         Report {
+            fill_counts: finish::fill_prof::Counts::take(&self.run),
+            fill_dump: self.run.fill_dump,
             project: self
                 .run
                 .project
@@ -209,6 +213,8 @@ impl Finisher<'_> {
         }
     }
     pub(crate) fn merge(&mut self, r: Report) {
+        if let Some(counts) = r.fill_counts { counts.merge(&mut self.run); }
+        self.run.fill_dump.extend(r.fill_dump);
         for (name, asks) in r.project {
             sum(&mut self.run.project.entry(name).or_default().asks, &asks);
         }

@@ -20,7 +20,6 @@ thread_local! {
     /// (slot, asking step).
     static ASKER: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
     static UNREAD_BY: RefCell<std::collections::HashMap<(usize, u32), u64>> = RefCell::new(std::collections::HashMap::new());
-    static DUMP: RefCell<Option<std::io::BufWriter<std::fs::File>>> = const { RefCell::new(None) };
 }
 
 /// Whether the fills' section clock runs.
@@ -64,9 +63,9 @@ pub(in super::super) fn reads_line() -> String {
 }
 
 /// One fill's line in the dump (under `VEC_FILL_DUMP`).
-pub(in super::super) fn dump(run: &Run, file: u32, rel: &str, t: &Table) {
+pub(in super::super) fn dump(run: &mut Run, file: u32, rel: &str, t: &Table) {
     static PATH: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
-    let Some(path) = PATH.get_or_init(|| std::env::var("VEC_FILL_DUMP").ok()) else { return };
+    if PATH.get_or_init(|| std::env::var("VEC_FILL_DUMP").ok()).is_none() { return; }
     let mut h = rustc_hash::FxHasher::default();
     let mut rows: Vec<u64> = Vec::with_capacity(t.n);
     for r in 0..t.n {
@@ -92,20 +91,69 @@ pub(in super::super) fn dump(run: &Run, file: u32, rel: &str, t: &Table) {
         hs.write_u64(*v);
     }
     let line = format!("{}\t{rel}\t{}\t{}\t{:016x}\t{:016x}\n", run.paths[file as usize], t.n, t.names.join(","), hs.finish(), ordered);
-    DUMP.with(|d| {
-        let mut d = d.borrow_mut();
-        let w = d.get_or_insert_with(|| std::io::BufWriter::new(std::fs::File::create(path).expect("fill dump")));
-        std::io::Write::write_all(w, line.as_bytes()).expect("fill dump write");
-    });
+    run.fill_dump.push((file, line));
 }
 
-/// Flushes the dump.
-pub(in super::super) fn flush() {
-    DUMP.with(|d| {
-        if let Some(w) = d.borrow_mut().as_mut() {
-            std::io::Write::flush(w).expect("fill dump flush");
-        }
-    });
+/// Flush complete per-file traces after all worker shards have joined.
+pub(in super::super) fn flush(run: &mut Run) {
+    use std::io::Write;
+    if run.fill_dump.is_empty() { return; }
+    let path = std::env::var_os("VEC_FILL_DUMP").expect("configured fill dump");
+    let mut output = std::io::BufWriter::new(std::fs::File::create(path).expect("fill dump"));
+    run.fill_dump.sort_by_key(|(file, _)| *file);
+    for (_, line) in run.fill_dump.drain(..) {
+        output.write_all(line.as_bytes()).expect("fill dump write");
+    }
+    output.flush().expect("fill dump flush");
+}
+
+pub(crate) struct Counts {
+    reads: [u64; 8],
+    columns: [[u64; 16]; 5],
+    relations: Vec<(String, usize)>,
+    filled: Vec<(u64, u64)>,
+    unread: std::collections::HashMap<(usize, u32), u64>,
+}
+
+impl Counts {
+    pub(crate) fn take(run: &Run) -> Option<Box<Self>> {
+        if !counting() && !sw!("VEC_READ_COUNT") { return None; }
+        Some(Box::new(Self {
+            reads: READS.take(),
+            columns: AT.take(),
+            relations: run.fact_rels.clone(),
+            filled: FILLED.take(),
+            unread: UNREAD_BY.take(),
+        }))
+    }
+
+    pub(crate) fn merge(self, run: &mut Run) {
+        READS.with_borrow_mut(|totals| {
+            for (total, part) in totals.iter_mut().zip(self.reads) { *total += part; }
+        });
+        AT.with_borrow_mut(|totals| {
+            for (total, part) in totals.iter_mut().flatten().zip(self.columns.into_iter().flatten()) { *total += part; }
+        });
+        // Fact slots are local to an executor. Compare and report their declared names.
+        let slots: Vec<_> = self.relations.into_iter().map(|relation| {
+            run.fact_rels.iter().position(|r| r.0 == relation.0).unwrap_or_else(|| {
+                run.fact_rels.push(relation);
+                run.fact_rels.len() - 1
+            })
+        }).collect();
+        FILLED.with_borrow_mut(|totals| {
+            totals.resize(totals.len().max(run.fact_rels.len()), (0, 0));
+            for (i, (fills, unread)) in self.filled.into_iter().enumerate() {
+                totals[slots[i]].0 += fills;
+                totals[slots[i]].1 += unread;
+            }
+        });
+        UNREAD_BY.with_borrow_mut(|totals| {
+            for ((i, node), count) in self.unread {
+                *totals.entry((slots[i], node)).or_default() += count;
+            }
+        });
+    }
 }
 
 /// Whether `node` asks a fill for the first time in the run (for `VEC_ASKER_PLAN`'s one line a step).
