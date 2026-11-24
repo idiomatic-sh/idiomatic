@@ -1,7 +1,7 @@
 //! Schedule all consumers of a source before walking it. Keep the emitted rows per
 //! bound program and source version. Parser scratch is released after its last consumer.
 use super::{finish, first, lower, reader, reader_run, thread_cpu};
-use finish::{Exec, Plan, Run, Table};
+use finish::{Exec, Plan, Provider, Run, Table};
 use ryo::languages::{self as l, ByteSlice, FileId, SourcePath};
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use std::{
@@ -517,9 +517,6 @@ pub(crate) fn visit<L: FileSource>(
         by_path.entry(&sources[index].path).or_default().push(index);
     }
     let mut carried_symbols = HashMap::new();
-    if let Some(dictionary) = reader_id.and_then(|id| world.project_words.get(id)) {
-        carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
-    }
     for group in by_path.values() {
         let t = thread_cpu();
         let versions = versions(
@@ -763,6 +760,7 @@ pub(crate) fn visit<L: FileSource>(
                 packet.index(&facts);
             }
             let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
+            let version = std::cell::OnceCell::new();
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
             let lines = active
@@ -828,10 +826,13 @@ pub(crate) fn visit<L: FileSource>(
                     continue;
                 }
                 clocks.evaluated += 1;
+                let version = version.get_or_init(|| {
+                    finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text())
+                });
                 if let Some(cut) = &cut_of[binding] {
                     let local: Vec<_> = lines.iter().filter(|_| b.lines).cloned().collect();
-                    let value=shared.contribute(b,&mut run,id.0,tree,&bytes,&mut facts_view,&local,cut,
-                        &local_coverage,world,&mut carried_symbols,slot);
+                    let value=shared.contribute(b,&mut run,id.0,version,&mut facts_view,&local,cut,
+                        &local_coverage,world,&mut carried_symbols,reader_id,unknown,slot);
                     answers[slot] = value.map(|()| {
                         Reported {
                             rows: Vec::new(),
@@ -843,9 +844,7 @@ pub(crate) fn visit<L: FileSource>(
                 answers[slot] = finish::session::pair(
                     &mut b.exec,
                     &mut run,
-                    id.0,
-                    &tree,
-                    &bytes,
+                    version,
                     &mut facts_view,
                     b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
                     &local_coverage,
@@ -862,5 +861,7 @@ pub(crate) fn visit<L: FileSource>(
             clocks.evaluate += thread_cpu() - t;
         }
     }
-    state.run = run;
+    if keep {
+        state.run = run;
+    }
 }

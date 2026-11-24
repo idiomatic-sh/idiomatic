@@ -285,7 +285,7 @@ fn mark_columns(expr: &E, alias: usize, used: &mut [bool]) {
             mark_columns(a, alias, used);
             mark_columns(b, alias, used);
         }
-        E::Null(x, _) | E::Not(x) | E::Re(x, _) | E::Seed(x, _) => mark_columns(x, alias, used),
+        E::Null(x, _) | E::Not(x) | E::TextTest(x, _) | E::Seed(x, _) => mark_columns(x, alias, used),
         E::Lit(_) | E::Text(_) | E::Num(_) => {}
     }
 }

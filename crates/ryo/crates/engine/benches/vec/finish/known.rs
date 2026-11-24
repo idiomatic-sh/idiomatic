@@ -134,22 +134,13 @@ impl Exec<'_> {
         if r.n_kinds == 0 && r.n_seeds == 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
             self.stats.static_pass += 1;
         }
-        if r.n_kinds > 0 && f.kind_bits.is_empty() {
-            // the file's kinds present, one bit a kind code (once a file)
-            let mut bits = vec![0u64; run.kind_sym.len().div_ceil(64).max(1)];
-            for (c, w) in (0..run.kind_sym.len()).map(|c| (c, c / 64)) {
-                if !super::node_table::ids_of_kind(f.table, super::KindBits(c as u16)).is_empty() {
-                    bits[w] |= 1 << (c % 64);
-                }
-            }
-            f.kind_bits = bits;
-        }
         let mut e = false;
         // a kind set none of whose kinds the file has
         let (mut at, end) = (r.kinds as usize, r.kinds as usize + usize::from(r.n_kinds));
         while !e && at < end {
             let n = usize::from(self.flat.kinds[at]);
-            e = self.flat.kinds[at + 1..at + 1 + n].iter().all(|c| f.kind_bits[usize::from(*c) / 64] & (1 << (c % 64)) == 0);
+            let bits = f.kind_bits(run);
+            e = self.flat.kinds[at + 1..at + 1 + n].iter().all(|c| bits[usize::from(*c) / 64] & (1 << (c % 64)) == 0);
             at += 1 + n;
         }
         if !e && r.n_seeds > 0 {

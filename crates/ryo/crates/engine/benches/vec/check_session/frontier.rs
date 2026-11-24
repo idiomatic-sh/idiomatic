@@ -1,7 +1,6 @@
 //! File-version contributions used by the closed project executor.
 use super::{Bound, Program, Result, finish};
 use finish::{Run, Table, partition::Partition, population::Block};
-use ryo::languages::NodeTable;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     rc::Rc,
@@ -54,14 +53,15 @@ impl<'a> FileInputs<'a> {
         b: &mut Bound<'_>,
         run: &mut Run,
         id: u32,
-        tree: &NodeTable,
-        bytes: &[u8],
+        version: &finish::FileVersion,
         facts_view: &mut dyn finish::Provider,
         local: &[(String, Rc<Table>)],
         cut: &Partition,
         local_coverage: &BTreeMap<String, Vec<Option<u32>>>,
         world: &mut World,
         carried_symbols: &mut HashMap<u32, u32>,
+        reader: Option<usize>,
+        words: &HashMap<u32, u32>,
         slot: usize,
     ) -> Result<()> {
         let plan = b.exec.plan;
@@ -84,9 +84,7 @@ impl<'a> FileInputs<'a> {
                 let tables = finish::session::gather(
                     &mut b.exec,
                     run,
-                    id,
-                    tree,
-                    bytes,
+                    version,
                     facts_view,
                     local,
                     &missing,
@@ -116,6 +114,8 @@ impl<'a> FileInputs<'a> {
                         filtered.as_ref().unwrap_or(&t),
                         columns,
                         carried_symbols,
+                        reader,
+                        words,
                     )?;
                     if let Some(name) = shared_base(n) {
                         self.carried_bases.insert(name.to_owned(), table);
@@ -173,8 +173,15 @@ impl World {
         t: &Table,
         needed: &[bool],
         syms: &mut HashMap<u32, u32>,
+        reader: Option<usize>,
+        words: &HashMap<u32, u32>,
     ) -> Result<Rc<finish::population::Block>> {
         use finish::population::Block;
+        if syms.is_empty() {
+            if let Some(dictionary) = reader.and_then(|id| self.project_words.get(id)) {
+                syms.extend(words.iter().map(|(reason, &word)| (word, dictionary[reason])));
+            }
+        }
         let origin = self.file(&source.paths[home as usize]);
         if t.n == 0 {
             let schema = (Rc::as_ptr(&t.names) as usize, Rc::as_ptr(&t.tys) as usize);
