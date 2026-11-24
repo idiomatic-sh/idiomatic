@@ -35,6 +35,7 @@ enum P {
     Cmp(Op, Opd, Opd),
     In(Opd, Vec<V>, bool),
     Re(Opd, Rc<regex::bytes::Regex>),
+    Glob(Opd, Rc<super::prepared_glob::PreparedGlob>),
     And(Box<P>, Box<P>),
     Or(Box<P>, Box<P>),
     Not(Box<P>),
@@ -88,6 +89,10 @@ fn compile(e: &E) -> P {
                 _ => P::Old(e.clone()),
             }
         }
+        E::Glob(a, g) => match opd(a) {
+            Some(x) => P::Glob(x, g.clone()),
+            None => P::Old(e.clone()),
+        },
         E::Re(a, re) => match opd(a) {
             Some(x) => P::Re(x, re.clone()),
             None => P::Old(e.clone()),
@@ -128,6 +133,10 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
         P::In(a, items, neg) => {
             let x = val(run, f, srcs, cur, a);
             items.iter().any(|y| compare(run, x, *y) == Some(std::cmp::Ordering::Equal)) != *neg
+        }
+        P::Glob(a, glob) => {
+            let value = val(run, f, srcs, cur, a);
+            glob.matches(run, value)
         }
         P::Re(a, re) => {
             let x = val(run, f, srcs, cur, a);

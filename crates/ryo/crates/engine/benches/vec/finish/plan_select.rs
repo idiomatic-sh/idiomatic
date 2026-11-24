@@ -86,27 +86,19 @@ impl Exec<'_> {
                 Ok(E::Re(Box::new(args.into_iter().next().unwrap()), re))
             }
             ("glob_any", Some(E::Text(t))) if args.len() == 2 => {
-                let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                Ok(E::Re(Box::new(args.into_iter().next().unwrap()), re))
+                glob_test(run, &args[0], *t)
             }
             ("glob_any", Some(E::List(items))) if args.len() == 2 => {
-                let mut tests = items
-                    .iter()
-                    .map(|item| {
-                        let E::Text(t) = item else {
-                            return Err("glob pattern must be text".to_owned());
-                        };
-                        let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                        Ok(E::Re(Box::new(args[0].clone()), re))
-                    })
-                    .collect::<R<Vec<_>>>()?
-                    .into_iter();
-                Ok(match tests.next() {
-                    Some(first) => {
-                        tests.fold(first, |left, right| E::Or(Box::new(left), Box::new(right)))
-                    }
-                    None => E::Cmp(Op::Eq, Box::new(E::Num(0)), Box::new(E::Num(1))),
-                })
+                let mut combined = None;
+                for item in items {
+                    let E::Text(t) = item else { return Err("glob pattern must be text".into()) };
+                    let test = glob_test(run, &args[0], *t)?;
+                    combined = Some(match combined {
+                        Some(left) => E::Or(Box::new(left), Box::new(test)),
+                        None => test,
+                    });
+                }
+                Ok(combined.unwrap_or_else(|| E::Cmp(Op::Eq, Box::new(E::Num(0)), Box::new(E::Num(1)))))
             }
             _ => Ok(E::Call(name.to_owned(), args)),
         }
@@ -175,5 +167,28 @@ impl Exec<'_> {
             Or(p) => E::Or(Box::new(bind(&p.left)?), Box::new(bind(&p.right)?)),
             Not(p) => E::Not(Box::new(bind(p)?)),
         })
+    }
+}
+
+/// A translated regex is valid only for equivalent text-glob syntax. The query
+/// evaluator handles every other literal with the production text matcher.
+fn glob_test(run: &mut Run, subject: &E, pattern: u32) -> R<E> {
+    match glob_pattern(&String::from_utf8_lossy(run.text(pattern))) {
+        Some(regex) => Ok(E::Re(Box::new(subject.clone()), run.re(&regex)?)),
+        None => {
+            use ryo_matching::inbound::use_cases::matching::{
+                interface::MatchingUseCase, types::GlobPattern, use_case::MatchingUseCaseImpl,
+            };
+            let glob = if let Some(glob) = run.prepared_globs.get(&pattern) {
+                Rc::clone(glob)
+            } else {
+                let text = String::from_utf8_lossy(run.text(pattern));
+                let matcher = MatchingUseCaseImpl::new().compile_text_globs(&[GlobPattern(&text)]);
+                let glob = Rc::new(super::prepared_glob::PreparedGlob::new(pattern, matcher));
+                run.prepared_globs.insert(pattern, Rc::clone(&glob));
+                glob
+            };
+            Ok(E::Glob(Box::new(subject.clone()), glob))
+        }
     }
 }

@@ -127,6 +127,8 @@ mod cold_entries;
 mod cold_test;
 #[path = "finish/cold_pred.rs"]
 mod cold_pred;
+#[path = "finish/prepared_glob.rs"]
+mod prepared_glob;
 #[path = "finish/cold_word.rs"]
 mod cold_word;
 #[path = "finish/keyed.rs"]
@@ -344,6 +346,7 @@ pub(super) struct Run {
     pub(super) texts: Vec<Box<[u8]>>,
     pub(super) ids: FxHashMap<Box<[u8]>, u32>,
     pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
+    prepared_globs: FxHashMap<u32, Rc<prepared_glob::PreparedGlob>>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
@@ -1217,6 +1220,7 @@ enum E {
     Not(Box<E>),
     /// A text tested against a constant regex (from `matches` or `glob_any`), compiled once.
     Re(Box<E>, Rc<regex::bytes::Regex>),
+    Glob(Box<E>, Rc<prepared_glob::PreparedGlob>),
 
 }
 
@@ -3759,6 +3763,7 @@ fn remap(e: &E, map: &[usize]) -> E {
         E::And(x, y) => E::And(b(x), b(y)),
         E::Or(x, y) => E::Or(b(x), b(y)),
         E::Not(x) => E::Not(b(x)),
+        E::Glob(x, g) => E::Glob(b(x), g.clone()),
         E::Re(x, r) => E::Re(b(x), r.clone()),
         other => other.clone(),
     }
@@ -4041,7 +4046,7 @@ fn refs_of(e: &E) -> u64 {
         E::Col(s, _, _) => 1 << s,
         E::List(v) | E::Call(_, v) => v.iter().map(refs_of).fold(0, |a, b| a | b),
         E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => refs_of(a) | refs_of(b),
-        E::Not(a) | E::Re(a, _) => refs_of(a),
+        E::Not(a) | E::Re(a, _) | E::Glob(a, _) => refs_of(a),
         _ => 0,
     }
 }
@@ -4051,7 +4056,7 @@ fn static_ty(e: &E) -> Ty {
         E::Col(_, _, t) => *t,
         E::Num(_) => Ty::Num,
         // redo-honest: `integer_successor(a, b)` is a test (the shipping engine's `Test::IntegerSuccessor`)
-        E::Call(n, _) if n == "integer_successor" => Ty::Flag,
+        E::Call(n, _) if matches!(n.as_str(), "integer_successor" | "glob_any") => Ty::Flag,
         E::Text(_) | E::Call(..) => Ty::Sym,
         _ => Ty::Flag,
     }
@@ -4191,6 +4196,10 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             };
             flag(hit != *neg)
         }
+        E::Glob(a, g) => {
+            let value = eval(run, f, srcs, cur, a);
+            flag(g.matches(run, value))
+        }
         E::Re(a, re) => {
             let x = eval(run, f, srcs, cur, a);
             flag(match x.ty() {
@@ -4256,9 +4265,20 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
             v
         }
         "glob_any" => {
-            let g = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();
-            let re = run.re(&glob_pattern(&g)).expect("a glob");
-            flag(re.is_match(&text_of(run, vs[0])))
+            use ryo_matching::inbound::use_cases::matching::{
+                interface::MatchingUseCase, types::{GlobPattern, MatchOutcome, SearchText}, use_case::MatchingUseCaseImpl,
+            };
+            if vs[1].ty() == Ty::Sym
+                && let Ok(id) = u32::try_from(vs[1].1)
+                && let Some(pattern) = run.prepared_globs.get(&id)
+            {
+                return flag(pattern.matches(run, vs[0]));
+            }
+            let text = text_of(run, vs[0]);
+            let subject = String::from_utf8_lossy(&text);
+            let g = text_of(run, vs[1]);
+            let matched = MatchingUseCaseImpl::new().matches_text_glob(GlobPattern(&String::from_utf8_lossy(&g)), SearchText(&subject));
+            flag(matched == MatchOutcome::Matches)
         }
         "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&text_of(run, vs[0])), &String::from_utf8_lossy(&text_of(run, vs[1])))),
         // redo-honest: the shipping engine's meaning (operators numeric_values::integer_successor): whether the right is

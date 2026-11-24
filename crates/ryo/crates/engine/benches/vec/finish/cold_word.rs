@@ -52,7 +52,7 @@ pub(super) fn column(e: &E) -> Option<(usize, Ty)> {
         E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => {
             column(a).or_else(|| column(b))
         }
-        E::Re(a, _) | E::Not(a) => column(a),
+        E::Glob(a, _) | E::Re(a, _) | E::Not(a) => column(a),
         E::Call(_, args) => args.iter().find_map(column),
         _ => None,
     }
@@ -188,6 +188,10 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
                 .collect::<Option<Vec<_>>>()?;
             words.sort_unstable();
             Box::new(move |_, w| words.binary_search(&w).is_err())
+        }
+        E::Glob(x, g) if is_col(x, c) => {
+            let glob = g.clone();
+            Box::new(move |r, word| glob.matches(r, super::V::new(ty, word)))
         }
         E::Re(x, re) if is_col(x, c) => {
             let re = re.clone();
