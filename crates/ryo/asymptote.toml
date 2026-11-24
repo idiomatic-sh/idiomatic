@@ -232,12 +232,12 @@ timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
-id = "profile-rust"
+id = "profile"
 group = "profile"
-run = ["cargo", "run", "--quiet", "--release", "--locked", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "profile", "languages/rust/benchmarks/linters/clippy"]
+run = ["cargo", "run", "--quiet", "--release", "--locked", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "profile", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
-timeout-seconds = 7200
-inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
+timeout-seconds = 21600
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
 id = "test-language"
