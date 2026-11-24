@@ -194,7 +194,11 @@ def inherited_inventory(executable,scratch,env):
         if prior is not None:assert prior!=results[0]
         prior=results[0]
 
-def run(fixture, exe, other_build, evidence):
+FULL_CAPTURE_EDITS = ("unchanged", "comment", "answer-change", "same-stamp", "add", "delete",
+                      "manifest", "host-table", "rule", "build", "refusal", "truncated")
+
+
+def run(fixture, exe, other_build, evidence, scenarios=FULL_CAPTURE_EDITS):
     spec = json.loads((fixture / "edit.json").read_bytes())
     root = fixture / spec["root"]
     disk = fixture / spec["disk"]
@@ -284,8 +288,7 @@ def run(fixture, exe, other_build, evidence):
         shutil.copytree(cache, backup)
         passed = True
         try:
-            for case in ("unchanged","comment","answer-change","same-stamp","add","delete",
-                         "manifest","host-table","rule","build","refusal","truncated"):
+            for case in scenarios:
                 bin_path = other_build if case == "build" else exe
                 shutil.rmtree(cache)
                 shutil.copytree(backup,cache)
