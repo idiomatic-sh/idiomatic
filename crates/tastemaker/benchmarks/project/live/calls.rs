@@ -68,7 +68,7 @@ fn execute(
             sdk::Cache::At(path) => Some(path.as_path()),
             _ => None,
         };
-        if let Err(reason) = session.use_cache(directory) {
+        if let Err(reason) = session.link_readers(languages).and_then(|()| session.use_cache(directory)) {
             return requests.into_iter().map(|_| Err(execution(reason.clone()))).collect();
         }
         session.lint(requests, languages)
@@ -343,6 +343,15 @@ fn small_report(report: &sdk::LintReport) -> bool {
 }
 
 impl Live {
+    fn link_readers(&mut self, linked: &sdk::Languages) -> Result<(), String> {
+        if self.languages.is_empty() {
+            let readers = linked.0.iter().cloned().map(Pinned::from).collect::<Vec<_>>();
+            self.batch.file_catalog = crate::check_session::named::Catalog::from_readers(&readers)?;
+            self.languages = readers;
+        }
+        Ok(())
+    }
+
     fn use_cache(&mut self,directory:Option<&std::path::Path>)->Result<(),String>{
         // A cache location is available on every real check. Retention is a caller mode.
         let directory = directory.filter(|_| {
@@ -396,16 +405,6 @@ impl Live {
         self.batch.workers = options.workers;
         let wall = Instant::now();
         let admission = Instant::now();
-        if self.languages.is_empty() {
-            self.languages = linked.0.iter().cloned().map(Pinned::from).collect();
-            match crate::check_session::named::Catalog::from_readers(&self.languages) {
-                Ok(catalog) => self.batch.file_catalog = catalog,
-                Err(reason) => {
-                    self.languages.clear();
-                    return requests.into_iter().map(|_| Err(execution(reason.clone()))).collect();
-                }
-            }
-        }
         let count = requests.iter().map(|request| request.rules.len()).sum::<usize>();
         let pending = requests.into_iter().map(|request| {
             let start = self.batch.work.len();

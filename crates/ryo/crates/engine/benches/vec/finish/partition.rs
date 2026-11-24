@@ -118,7 +118,7 @@ pub(in super::super) fn file_steps(
                     keys_hold(exec, run, "left", "left-on")?
                         && keys_hold(exec, run, "right", "right-on")?
                 }
-                "group-count" | "group-digest" | "group-min" | "group-max" | "group-ordinal" => {
+                "order" | "group-count" | "group-digest" | "group-min" | "group-max" | "group-ordinal" => {
                     keys_hold(exec, run, "from", "keys")?
                 }
                 "rank" | "extend" | "capture" | "span-bounds" | "span-between"
