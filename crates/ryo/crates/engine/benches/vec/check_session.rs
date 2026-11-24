@@ -125,6 +125,7 @@ pub(crate) struct Clock {
     pub(crate) read_versions: f64,
     pub(crate) build_file: f64,
     pub screen: f64,
+    pub bulk_screen_files: usize,
     pub evaluate: f64,
     pub project: f64,
     pub assemble: f64,
@@ -679,7 +680,14 @@ pub(crate) fn visit<L: FileSource>(
             needed[binding] = true;
         }
     }
-    let mut checks = (!keep).then(|| pairs::Checks::new(parser, programs, program_of, &needed, cut_of));
+    // Preparing a dense screen costs a pass over the binding index. Use it
+    // for an open visit when at least as many source versions share that cost.
+    // Smaller visits keep the retained per-program checks.
+    let bulk_screen = !keep || (selected.len() > 1 && selected.len() >= program_of.len());
+    let mut checks = bulk_screen.then(|| pairs::Checks::new(parser, programs, program_of, &needed, cut_of));
+    if keep && bulk_screen {
+        clocks.bulk_screen_files += selected.len();
+    }
     clocks.prepare += thread_cpu() - t;
     let mut bound = Bindings { index: vec![usize::MAX; program_of.len()], entries: Vec::new() };
     let mut registry = finish::session::contribution::Registry::default();

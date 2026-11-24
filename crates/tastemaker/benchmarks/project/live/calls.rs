@@ -232,6 +232,7 @@ impl Live {
         last.calls += results.len();
         last.rounds.push(results.len());
         last.empty_reader_epochs = self.batch.empty_reader_epochs;
+        last.bulk_screen_files = c.bulk_screen_files;
         last.requests += count;
         for reason in results.iter().filter_map(|result| result.as_ref().err()) {
             last.refused += 1;
@@ -478,6 +479,7 @@ struct Measurement {
     sessions: usize,
     rounds: Vec<usize>,
     empty_reader_epochs: usize,
+    bulk_screen_files: usize,
     project_counts: [usize; 4],
     calls: usize,
     requests: usize,
@@ -492,6 +494,7 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     sessions: 0,
     rounds: Vec::new(),
     empty_reader_epochs: 0,
+    bulk_screen_files: 0,
     project_counts: [0; 4],
     calls: 0,
     requests: 0,
@@ -512,8 +515,8 @@ pub fn print_measurement() {
         eprintln!("UNANSWERED\t{count}\t{reason}");
     }
     if m.rounds.iter().any(|&size| size > 1) {
-        eprintln!("TM_ROUND_COUNTS epochs={} max_width={} closed_only={}",
-            m.rounds.len(), m.rounds.iter().max().unwrap(), m.empty_reader_epochs);
+        eprintln!("TM_ROUND_COUNTS epochs={} max_width={} closed_only={} bulk_screen_files={}",
+            m.rounds.len(), m.rounds.iter().max().unwrap(), m.empty_reader_epochs, m.bulk_screen_files);
     }
     let [versions,hits,evictions,peak_charge]=m.retained;
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
