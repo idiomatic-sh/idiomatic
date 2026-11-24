@@ -53,6 +53,12 @@ struct Snapshot<'a> {
 }
 
 impl Provider for Snapshot<'_> {
+    fn shared_fill(&mut self, run:&mut Run, name:&str, scope:Scope<'_>) -> Result<std::rc::Rc<Table>,String> {
+        if matches!(scope,Scope::Files(_)) && !self.tables.contains_key(name) && let Some(t)=self.project.and_then(|p|p.tables.get(name)) {
+            return Ok(t.clone());
+        }
+        self.fill(run,name,scope).map(std::rc::Rc::new)
+    }
     fn fill(&mut self, run: &mut Run, name: &str, scope: Scope<'_>) -> Result<Table, String> {
         let Scope::Files(files) = scope else {
             return Err(format!("local ask in closed session for {name}"));
@@ -228,7 +234,7 @@ fn execute_ids(
     exec: &mut finish::Exec<'_>,
     run: &mut Run,
     numbers: &[u32],
-    carried: &BTreeMap<usize, std::rc::Rc<Table>>,
+    carried: &finish::population::Inputs,
     inventory: &[String],
     files: &[String],
     hosted: &[Hosted],
