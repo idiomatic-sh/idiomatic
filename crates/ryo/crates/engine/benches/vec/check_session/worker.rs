@@ -47,9 +47,11 @@ pub(crate) fn dispatch<L: FileSource>(
         .or_else(|| std::thread::available_parallelism().ok())
         .map_or(1, NonZeroUsize::get)
         .min(selected.len());
-    // An open epoch retains reader-native symbols and files across successive calls.
-    if keep || count <= 1 {
-        if let Some(paths) = paths {
+    // Reuse the open reader for small SDK calls and when a finite cache budget
+    // requires a single global admission order.
+    let parallel_open = keep && paths.is_some() && selected.len() >= 128 && !retention.has_limit();
+    if (keep && !parallel_open) || count <= 1 {
+        if !keep && let Some(paths) = paths {
             state.run.paths = paths.clone();
         }
         visit(
@@ -106,7 +108,10 @@ pub(crate) fn dispatch<L: FileSource>(
         *total = total.saturating_add(weight);
     }
     clocks.inventory += thread_cpu() - inventory_start;
+    clocks.file_shards += shards.len();
+    let snapshots = &state.bytes;
     let work = |files: &[usize]| {
+        let start = thread_cpu();
         let mut part = World::default();
         part.boundaries = Some(Vec::new());
         part.declare_words(languages);
@@ -116,11 +121,16 @@ pub(crate) fn dispatch<L: FileSource>(
         let mut notes = Vec::new();
         let mut time = Clock::default();
         let mut local = ReaderState::default();
-        local.run.paths = paths.expect("closed file inventory").clone();
+        local.run.paths = paths.expect("file worker inventory").clone();
+        if parallel_open {
+            local.bytes.extend(files.iter().filter_map(|id| {
+                snapshots.get(id).map(|value| (*id, value.clone()))
+            }));
+        }
         visit(
             &mut local,
             &mut Retention::default(),
-            false,
+            parallel_open,
             parser,
             reader_id,
             manifests,
@@ -159,7 +169,7 @@ pub(crate) fn dispatch<L: FileSource>(
                     .expect("closed worker owns each contribution")
             })
             .collect();
-        (a, links, slots, owned, part.transfer(prefix), time)
+        (a, links, slots, owned, part.transfer(prefix), time, local.bytes, thread_cpu() - start)
     };
     std::thread::scope(|scope| {
         let threads: Vec<_> = shards[1..]
@@ -168,11 +178,15 @@ pub(crate) fn dispatch<L: FileSource>(
             .collect();
         let first = work(&shards[0]);
         let mut transfers = Vec::with_capacity(shards.len());
-        for (a, links, slots, notes, part, time) in std::iter::once(first).chain(
+        let mut bytes = Vec::new();
+        for (index, (a, links, slots, notes, part, time, snapshots, worker_cpu)) in std::iter::once(first).chain(
             threads
                 .into_iter()
                 .map(|t| t.join().expect("file worker panicked")),
-        ) {
+        ).enumerate() {
+            if index > 0 {
+                clocks.file_workers_cpu += worker_cpu;
+            }
             let start = thread_cpu();
             for (id, answer) in a {
                 answers[id] = answer;
@@ -182,9 +196,12 @@ pub(crate) fn dispatch<L: FileSource>(
             }
             let notes: Vec<_> = notes.into_iter().map(Rc::new).collect();
             for (slot, id) in slots {
-                contributions[slot] = Some(notes[id].clone());
+                if contributions[slot].is_none() {
+                    contributions[slot] = Some(notes[id].clone());
+                }
             }
             transfers.push(part);
+            bytes.push(snapshots);
             clocks.join += thread_cpu() - start;
             clocks.read_versions += time.read_versions;
             clocks.build_file += time.build_file;
@@ -212,5 +229,6 @@ pub(crate) fn dispatch<L: FileSource>(
         let start = thread_cpu();
         world.receive(transfers, sources);
         clocks.join += thread_cpu() - start;
-    });
+        bytes
+    }).into_iter().for_each(|snapshots| state.bytes.extend(snapshots));
 }

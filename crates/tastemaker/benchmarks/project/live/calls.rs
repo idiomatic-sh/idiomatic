@@ -179,7 +179,8 @@ impl Live {
             *last.reasons.entry(reason.clone()).or_default() += 1;
         }
         last.elapsed += thread_cpu() - t;
-        last.delivery_workers_cpu = c.delivery_workers_cpu;
+        last.worker_cpu = c.delivery_workers_cpu + c.file_workers_cpu;
+        last.file_shards = c.file_shards;
         last.call_wall += wall.elapsed().as_secs_f64();
         last.phase_wall = [
             self.admission_wall,
@@ -485,7 +486,8 @@ struct Measurement {
     refused: usize,
     reasons: BTreeMap<String, usize>,
     elapsed: f64,
-    delivery_workers_cpu: f64,
+    worker_cpu: f64,
+    file_shards: usize,
     call_wall: f64,
     phase_wall: [f64; 4],
     parts: [f64; 6],
@@ -500,7 +502,8 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     refused: 0,
     reasons: BTreeMap::new(),
     elapsed: 0.0,
-    delivery_workers_cpu: 0.0,
+    worker_cpu: 0.0,
+    file_shards: 0,
     call_wall: 0.0,
     phase_wall: [0.0; 4],
     parts: [0.0; 6],
@@ -520,6 +523,7 @@ pub fn print_measurement() {
     eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     let [prepare, read, first, second, project, assembly] = m.parts;
     let [admission_wall, file_wall, project_wall, delivery_wall] = m.phase_wall;
+    eprintln!("LIVE_WORKERS file_shards={} child_cpu={:.6}", m.file_shards, m.worker_cpu);
     eprintln!("LIVE_PHASE_WALL calls={:.6} admission={admission_wall:.6} files={file_wall:.6} project={project_wall:.6} delivery={delivery_wall:.6}",m.call_wall);
     let [plans, bindings, sources, reads, parses, pairs, skips, eval] = m.counts;
     let [inventories, builds, relations, repeated] = m.project_counts;
@@ -532,7 +536,7 @@ pub fn print_measurement() {
         m.calls,
         m.requests,
         m.refused,
-        m.elapsed - prepare - read - first - second - project - assembly + m.delivery_workers_cpu
+        m.elapsed + m.worker_cpu - prepare - read - first - second - project - assembly
     );
 }
 

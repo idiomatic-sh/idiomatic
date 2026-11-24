@@ -498,14 +498,16 @@ impl Batch {
         let cuts: Vec<_> = self.cut_of.iter().map(|cut| cut.as_deref()).collect();
         let contracts = self.bound_contracts.iter().map(|(&id, c)| (id, c.as_ref())).collect();
         let hosted: Vec<_> = self.bindings.iter().map(|t| t.as_ref()).collect();
-        let paths = (!*keep).then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
+        let file_workers = if store.is_some() && *keep { Some(std::num::NonZeroUsize::MIN) } else { self.workers };
+        let paths = (!*keep || (pending.len() >= 128 && file_workers.is_some_and(|n| n.get() > 1)))
+            .then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
         let readers = languages.iter().map(Some).chain([None]);
         for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
             if files.is_empty() {
                 continue;
             }
             session::worker::dispatch(
-                self.workers,
+                file_workers,
                 languages,
                 paths.as_ref(),
                 &mut reader_states[reader_id],
