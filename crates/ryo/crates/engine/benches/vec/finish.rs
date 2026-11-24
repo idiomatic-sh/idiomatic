@@ -607,7 +607,7 @@ fn native_of(run: &Run, rel: &str) -> Option<Native> {
         "syntax-tree" | "semantic-syntax" => Some(Native::Tree),
         "semantic-child" | "syntax-child" => Some(Native::Child),
         "source-location" => Some(Native::Location),
-        "token-link" => Some(Native::Token),
+        "token-link" if run.tokens.is_some() => Some(Native::Token),
         _ => None,
     }
 }
