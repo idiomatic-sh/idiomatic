@@ -867,6 +867,9 @@ pub(crate) fn visit<L: FileSource>(
             }
             clocks.evaluate += thread_cpu() - t;
         }
+        if let Some(boundaries)=&mut world.boundaries {
+            boundaries.push((group[0],world.run.paths.len(),world.run.texts.len()));
+        }
     }
     if keep {
         state.run = run;

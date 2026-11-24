@@ -146,6 +146,7 @@ impl<'a> FileInputs<'a> {
 #[derive(Default)]
 pub(crate) struct World {
     pub run: Run,
+    pub(super) boundaries: Option<Vec<(usize,usize,usize)>>,
     pub(super) project_words: Vec<HashMap<u32, u32>>,
     pub files: HashMap<String, u32>,
     frontiers: HashMap<usize, Vec<(usize, Rc<finish::population::Block>)>>,
@@ -304,6 +305,7 @@ pub(super) struct Transfer {
     paths: Vec<String>,
     words: Vec<Vec<u8>>,
     prefix: usize,
+    boundaries: Vec<(usize,usize,usize)>,
     unavailable: HashMap<usize,BTreeSet<(String,u32)>>,
 }
 
@@ -328,15 +330,42 @@ impl World {
             slots,
             blocks: blocks.into_iter().map(|b| Rc::try_unwrap(b).ok().expect("worker owns all frontier blocks").carry()).collect(),
             paths: self.run.paths, prefix,
+            boundaries: self.boundaries.unwrap_or_default(),
             words: self.run.texts.into_iter().skip(prefix).map(|s| s.to_vec()).collect(),
             unavailable: self.unavailable,
         }
     }
 
-    pub(super) fn receive(&mut self, part: Transfer) {
-        let files: Vec<_> = part.paths.iter().map(|p| self.file(p)).collect();
-        let symbols: Vec<_> = (0..part.prefix as u32).chain(part.words.iter().map(|w| self.run.sym(w))).collect();
-        let blocks: Vec<_> = part.blocks.into_iter().map(|b| Rc::new(b.receive(&files,&symbols))).collect();
+    /// The serial reader visits relative paths lexically. Assign file and symbol
+    /// ordinals in that same order, including cross-file references first seen
+    /// in another path's frontier. Worker completion order has no effect.
+    pub(super) fn receive(&mut self, parts: Vec<Transfer>, sources: &[super::Source]) {
+        let mut groups=Vec::new();
+        let mut maps=Vec::with_capacity(parts.len());
+        for (worker,part) in parts.iter().enumerate() {
+            let mut file=0;
+            let mut word=part.prefix;
+            for &(source,files,words) in &part.boundaries {
+                groups.push((&sources[source].path,worker,file..files,(word-part.prefix)..(words-part.prefix)));
+                file=files;
+                word=words;
+            }
+            maps.push((Vec::with_capacity(file),(0..part.prefix as u32).collect::<Vec<_>>()));
+        }
+        groups.sort_unstable_by(|a,b|a.0.cmp(b.0));
+        for (_,worker,file,word) in groups {
+            let (files,symbols)=&mut maps[worker];
+            let part=&parts[worker];
+            symbols.extend(part.words[word].iter().map(|w|self.run.sym(w)));
+            files.extend(part.paths[file].iter().map(|p|self.file(p)));
+        }
+        for (part,(files,symbols)) in parts.into_iter().zip(maps) {
+            self.receive_blocks(part,&files,&symbols);
+        }
+    }
+
+    fn receive_blocks(&mut self, part: Transfer, files:&[u32], symbols:&[u32]) {
+        let blocks: Vec<_> = part.blocks.into_iter().map(|b| Rc::new(b.receive(files,symbols))).collect();
         for (slot, ids) in part.slots {
             self.frontiers.insert(slot,ids.into_iter().map(|(n,i)| (n,blocks[i].clone())).collect());
         }

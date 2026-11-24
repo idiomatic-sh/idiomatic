@@ -97,6 +97,7 @@ pub(crate) fn dispatch<L: FileSource>(
     clocks.inventory += thread_cpu() - inventory_start;
     let work = |files: &[usize]| {
         let mut part = World::default();
+        part.boundaries = Some(Vec::new());
         part.declare_words(languages);
         let prefix = part.run.texts.len();
         let mut a = Vec::new();
@@ -134,6 +135,7 @@ pub(crate) fn dispatch<L: FileSource>(
             .map(|s| scope.spawn(|| work(s)))
             .collect();
         let first = work(&shards[0]);
+        let mut transfers = Vec::with_capacity(shards.len());
         for (a, links, notes, part, time) in std::iter::once(first).chain(
             threads
                 .into_iter()
@@ -149,7 +151,7 @@ pub(crate) fn dispatch<L: FileSource>(
             for (id, c) in notes {
                 contributions[id] = Some(Rc::new(c));
             }
-            world.receive(part);
+            transfers.push(part);
             clocks.join += thread_cpu() - start;
             clocks.prepare += time.prepare;
             clocks.read_parse += time.read_parse;
@@ -161,5 +163,8 @@ pub(crate) fn dispatch<L: FileSource>(
             clocks.skipped += time.skipped;
             clocks.evaluated += time.evaluated;
         }
+        let start = thread_cpu();
+        world.receive(transfers, sources);
+        clocks.join += thread_cpu() - start;
     });
 }
