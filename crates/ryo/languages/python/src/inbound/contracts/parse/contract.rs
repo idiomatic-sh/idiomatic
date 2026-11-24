@@ -26,6 +26,8 @@ use std::sync::Arc;
 
 /// `parse`, implementing `ryo::languages::Parse`.
 pub(crate) struct ParseContract {
+    #[cfg(feature = "fixtures")]
+    pub(crate) named: Option<(String, crate::fixtures::named_inputs::Lists)>,
     pub(super) settings: PythonParserSettings,
     pub(super) syntax: Arc<dyn SyntaxPort>,
     pub(super) notes: Arc<dyn NotesPort>,
@@ -42,6 +44,8 @@ impl ParseContract {
         notes: Arc<dyn NotesPort>,
     ) -> Self {
         Self {
+            #[cfg(feature = "fixtures")]
+            named: None,
             settings,
             syntax,
             notes,
@@ -54,7 +58,7 @@ impl ParseContract {
 impl Parse for ParseContract {
     #[cfg(feature = "fixtures")]
     fn file_relations(&self) -> Option<&dyn languages::FileRelations> {
-        Some(&crate::fixtures::comment_positions::Comments)
+        Some(self)
     }
 
     type FileModel = Declarations;
@@ -77,6 +81,8 @@ impl Parse for ParseContract {
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        #[cfg(feature = "fixtures")]
+        if let Some((identity, _)) = &self.named { return languages::ParseConfigurationIdentity(identity); }
         self.settings.identity()
     }
 
@@ -265,5 +271,33 @@ impl Parse for ParseContract {
 
     fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, Declarations>> {
         languages::absent(AbsenceCause::NotAKeyedDocument)
+    }
+}
+
+
+#[cfg(feature = "fixtures")]
+impl languages::FileRelations for ParseContract {
+    fn declarations(&self) -> &'static [languages::FileRelation] {
+        crate::fixtures::columns::ColumnFile::named_schemas()
+    }
+
+    fn read(&self, schemas: &[&languages::FileRelation], request: languages::ParseRequest<'_>, elements: &languages::Elements,
+        tree: &languages::NodeTable, symbols: &mut languages::Symbols) -> Vec<Result<Vec<languages::FactColumn>, languages::ParseError>> {
+        use crate::fixtures::{columns::ColumnWalk, comment_positions};
+        if schemas.iter().all(|schema| comment_positions::SCHEMAS.contains(schema)) {
+            return comment_positions::Comments.read(schemas, request, elements, tree, symbols);
+        }
+        let mut result = None;
+        let read = ColumnWalk::retained(self.settings, request, elements, &mut |file| {
+            let lists = self.named.as_ref().map(|(_, lists)| lists);
+            let generic = |word: &[u8]| lists.is_some_and(|l| l.generic.contains(word));
+            let argument = |word: &[u8]| lists.is_some_and(|l| l.argument_forms.contains(word));
+            let modules = lists.map_or(&[][..], |l| l.modules.as_slice());
+            result = Some(file.answer_named_facts(schemas, request.file, request.path.0, request.bytes, symbols,
+                Some((&generic, &argument, modules)), None, None));
+        });
+        result.unwrap_or_else(|| schemas.iter().map(|_| Err(languages::ParseError::Library {
+            reason: languages::ToolMessage(format!("retained Python node identities unavailable: {read:?}").into())
+        })).collect())
     }
 }

@@ -281,7 +281,7 @@ with cli_manifest.open("a") as manifest:
     }"""
         path.write_text(f"use ryo_{language} as provider;\n"
             f"const DISTINCT_LOCATIONS: bool = {str(language == 'python').lower()};\n"
-            f"fn configured_provider(settings: Option<&str>) -> Result<ryo::languages::Language, String> {{{configure}\n}}\n"
+            f"fn configured_provider(settings: Option<&str>, _pack: &std::path::Path) -> Result<ryo::languages::Language, String> {{{configure}\n}}\n"
             f"include!({json.dumps(str(image))});\n")
         manifest.write(f'\n[[bin]]\nname = "{binary}"\npath = "src/bin/{binary}.rs"\n')
 
@@ -317,5 +317,6 @@ for binary, name in (("vec", "python"), ("vec_ts", "typescript"), ("vec_rust", "
     if name == "python":
         source = source.replace('Ok(provider::linked_with_settings(PythonParserSettings::new(PythonTargetVersion::Py310)))',
             '''Ok({ let mut p = provider::linked_with_settings(PythonParserSettings::new(PythonTargetVersion::Py310));
-            p.native_provider = Some(native_python::linked_with_settings(native_python::settings::PythonParserSettings::new(native_python::settings::PythonTargetVersion::Py310))); p })''')
+            p.native_provider = Some(native_python::linked_with_fact_inputs(native_python::settings::PythonParserSettings::new(native_python::settings::PythonTargetVersion::Py310), native_python::fixtures::named_inputs::Lists::load(_pack)?)); p })''')
+        source = source.replace('p.native_provider = Some(native_python::linked());', 'p.native_provider = Some(native_python::linked_with_fact_inputs(native_python::settings::PythonParserSettings::default(), native_python::fixtures::named_inputs::Lists::load(_pack)?));')
     file.write_text(source)

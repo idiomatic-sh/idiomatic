@@ -6,6 +6,7 @@ pub mod comment_positions;
 pub mod configuration;
 pub mod contracts;
 pub mod grown;
+pub mod named_inputs;
 #[cfg(not(bless))]
 mod invalid_project;
 pub(crate) mod kinds;

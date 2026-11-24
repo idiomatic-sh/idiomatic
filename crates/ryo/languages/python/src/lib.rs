@@ -32,6 +32,22 @@ pub fn linked() -> ryo::languages::Language {
 /// The Python language with explicit parser settings.
 #[must_use]
 pub fn linked_with_settings(settings: settings::PythonParserSettings) -> ryo::languages::Language {
+    compose(settings, |parser| parser)
+}
+
+/// Compose a provider with the type-expression declarations of the selected pack.
+#[cfg(feature = "fixtures")]
+#[must_use]
+pub fn linked_with_fact_inputs(settings: settings::PythonParserSettings, lists: fixtures::named_inputs::Lists) -> ryo::languages::Language {
+    compose(settings, |mut parser| {
+        if !lists.generic.is_empty() || !lists.argument_forms.is_empty() {
+            parser.named = Some((format!("{};{:?};{:?}", settings.identity().0, lists.generic, lists.argument_forms), lists));
+        }
+        parser
+    })
+}
+
+fn compose(settings: settings::PythonParserSettings, configure: impl FnOnce(crate::inbound::contracts::parse::contract::ParseContract) -> crate::inbound::contracts::parse::contract::ParseContract) -> ryo::languages::Language {
     use std::sync::Arc;
 
     use crate::inbound::contracts::parse::contract::ParseContract;
@@ -55,11 +71,11 @@ pub fn linked_with_settings(settings: settings::PythonParserSettings) -> ryo::la
 
     ryo::link!(
         domain::language::constants::NAME,
-        parse: Arc::new(ParseContract::new(
+        parse: Arc::new(configure(ParseContract::new(
             settings,
             Arc::new(ruff_python_parser(settings)),
             Arc::new(postcard()),
-        )),
+        ))),
         project: Arc::new(ProjectContract::new(adapters, Arc::new(postcard()), Arc::new(outbound::module_context::factory::filesystem()))),
         walk: Arc::new(walk_with_settings(settings)),
     )

@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut request: Input = serde_json::from_reader(fs::File::open(input)?)?;
     let pack = std::path::Path::new(pack);
     let languages = sdk::Languages(vec![configured_provider(
-        request.parser_configuration.as_deref(),
+        request.parser_configuration.as_deref(), pack,
     )?]);
     let hosted = request
         .rule_context

@@ -855,18 +855,10 @@ mod visit;
 mod dump;
 #[path = "type_expression.rs"]
 mod type_expression;
-#[path = "annotation_evaluation.rs"]
-mod annotation_evaluation;
-#[path = "deferred_visit.rs"]
-mod deferred_visit;
-#[path = "deferred_resolution.rs"]
-mod deferred_resolution;
 #[path = "direct_fill.rs"]
 mod direct_fill;
 #[path = "fact_catalog.rs"]
 mod fact_catalog;
-#[path = "relative_import.rs"]
-mod relative_import;
 mod import_syntax;
 mod expression_parts;
 mod lexical_lines;
