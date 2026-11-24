@@ -897,7 +897,11 @@ fn render_receipt<'a, const SHARED: bool>(
                 name: sdk::ColumnName(name.as_str().into()), value: worker_slot(&cell),
             }).collect();
         let key = sdk::FindingKey(keys.iter().map(|&i| columns[i].value.clone()).collect());
-        out.findings.push(finding(id.clone(), columns[subject].value.clone(), key, sdk::Place::Missing, columns));
+        let place = match row.place {
+            (0, _) | (_, 0) => sdk::Place::Missing,
+            (line, column) => sdk::Place::At { line: sdk::Line(line), column: sdk::Column(column) },
+        };
+        out.findings.push(finding(id.clone(), columns[subject].value.clone(), key, place, columns));
     }
     for (path, message) in receipt.unknowns {
         out.unknowns.push(unknown(id.clone(), sdk::RelativePath(path.as_str().into()), sdk::Message(message.as_str().into())));

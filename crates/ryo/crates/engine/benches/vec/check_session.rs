@@ -1198,6 +1198,11 @@ pub(crate) fn visit<L: FileSource>(
                     table.n = 1;
                     (name.to_owned(), Rc::new(table))
                 });
+            let mut coordinates = l::contract::FindingCoordinates::default();
+            let mut locate = |mut report: Reported| -> Result<Reported> {
+                for row in &mut report.rows { row.locate(&source.path, tree, &bytes, &mut coordinates)?; }
+                Ok(report)
+            };
             let mut frame = None;
             let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
             for (binding, slot, excluded) in active {
@@ -1254,6 +1259,7 @@ pub(crate) fn visit<L: FileSource>(
                     continue;
                 }
                 if let Some(result) = certified.remove(&slot) {
+                    let result = result.and_then(&mut locate);
                     clocks.certified += 1;
                     clocks.productive += usize::from(result.as_ref().is_ok_and(|r| !r.rows.is_empty()));
                     clocks.empty += usize::from(result.as_ref().is_ok_and(|r| r.rows.is_empty()));
@@ -1290,7 +1296,7 @@ pub(crate) fn visit<L: FileSource>(
                 let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, binding, &b.slots, &local_coverage);
                 if value.is_err() { frame = None; exec.release_request(); }
                 let answer = value
-                .map(|rows| Reported::new(rows, unknowns, Vec::new()));
+                .map(|rows| Reported::new(rows, unknowns, Vec::new())).and_then(&mut locate);
                 clocks.productive += usize::from(answer.as_ref().is_ok_and(|r| !r.rows.is_empty()));
                 clocks.empty += usize::from(answer.as_ref().is_ok_and(|r| r.rows.is_empty()));
                 clocks.refused += usize::from(answer.is_err());

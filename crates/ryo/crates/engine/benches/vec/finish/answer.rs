@@ -79,6 +79,7 @@ impl Exec<'_> {
 pub(crate) struct Row {
     pub layout: Arc<Layout>,
     words: Box<[u64]>,
+    pub(crate) place: (u32, u32),
 }
 
 #[allow(dead_code, reason = "only the retained check session restores rows under a shared packet dictionary")]
@@ -109,7 +110,7 @@ impl RestoredRows {
             types: types.as_slice().into(),
             words: self.dictionary.clone(),
         }));
-        Row { layout: layout.clone(), words: words.into() }
+        Row { layout: layout.clone(), words: words.into(), place: (0, 0) }
     }
 }
 
@@ -158,6 +159,40 @@ impl Row {
             return Err(format!("location column {column} has a reversed byte range"));
         }
         Ok(Some(span))
+    }
+
+    /// In the shipping emit contract the first located key (then subject) places
+    /// the finding. A position is meaningful only in its own file version.
+    pub(crate) fn locate(&mut self, path: &str, tree: &ryo::languages::NodeTable, bytes: &[u8], coordinates: &mut ryo::languages::contract::FindingCoordinates) -> Result<(), String> {
+        use ryo::languages::{Position, node_table};
+        let Some((&subject, keys)) = self.layout.identity.split_first() else { return Err("missing finding subject".into()); };
+        if !keys.iter().chain([&subject]).any(|&i| matches!(self.layout.types[i], Ty::Span | Ty::Node)) { return Ok(()); }
+        let words = self.layout.words.read().expect("finding dictionary");
+        if self.layout.types[subject] == Ty::File && words.paths.get(self.words[subject] as usize).is_none_or(|p| p.as_ref() != path) {
+            return Ok(());
+        }
+        for &column in keys.iter().chain([&subject]) {
+            let word = self.words[column];
+            if word == NULL { continue; }
+            let span = match self.layout.types[column] {
+                Ty::Span => self.byte_span(&self.layout.names[column])?,
+                Ty::Node => {
+                    let position = Position(word as u32);
+                    if words.paths.get((word >> 32) as usize).is_none_or(|p| p.as_ref() != path)
+                        || position >= node_table::own_end(tree)
+                        || node_table::implied_of(tree, position) == ryo_language::domain::node_table::types::Implied::Yes { continue; }
+                    let span = node_table::span_of(tree, position);
+                    Some(Span { start: span.start, end: span.end })
+                }
+                _ => None,
+            };
+            if let Some(span) = span && span.end.0 as usize <= bytes.len()
+                && let Some(point) = coordinates.at(bytes, span.start) {
+                self.place = point;
+                break;
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn value(&self, index: usize) -> Value {
@@ -269,5 +304,6 @@ pub(crate) fn typed(
     Ok(Row {
         layout: layout.clone(),
         words: values.into_boxed_slice(),
+        place: (0, 0),
     })
 }

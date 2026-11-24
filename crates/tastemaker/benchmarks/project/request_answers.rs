@@ -344,6 +344,7 @@ struct Schema {
 }
 #[derive(Serialize, Deserialize)]
 struct PackedRow {
+    place: (u32, u32),
     schema: usize,
     values: Vec<Option<PackedValue>>,
 }
@@ -443,7 +444,7 @@ pub(super) fn pack_rows<'a>(input: impl IntoIterator<Item = &'a finish::answer::
             Cell::Number(n) => PackedValue::Number(n.0),
             Cell::Span(s) => PackedValue::Span(s.start.0, s.end.0),
         })).collect();
-        PackedRow { schema, values }
+        PackedRow { schema, values, place: r.place }
     }).collect();
     postcard::to_stdvec(&Rows { words, schemas, rows }).expect("typed request rows")
 }
@@ -461,7 +462,9 @@ pub(super) fn unpack_rows(data: &[u8]) -> Vec<finish::answer::Row> {
             Some(PackedValue::Number(n)) => (Ty::Num, n as u64),
             Some(PackedValue::Span(a, b)) => (Ty::Span, (u64::from(a) << 32) | u64::from(b)),
         });
-        restored.row(r.schema, &schema.rule, &schema.columns, &schema.identity, cells)
+        let mut row = restored.row(r.schema, &schema.rule, &schema.columns, &schema.identity, cells);
+        row.place = r.place;
+        row
     }).collect()
 }
 
@@ -497,9 +500,9 @@ mod tests {
                 identity: vec![0],
             }],
             rows: vec![
-                PackedRow { schema: 0, values: vec![Some(PackedValue::File(0)), Some(PackedValue::Number(-1))] },
-                PackedRow { schema: 0, values: vec![Some(PackedValue::Text(0)), None] },
-                PackedRow { schema: 0, values: vec![Some(PackedValue::File(0)), Some(PackedValue::Number(-1))] },
+                PackedRow { place: (2, 3), schema: 0, values: vec![Some(PackedValue::File(0)), Some(PackedValue::Number(-1))] },
+                PackedRow { place: (2, 3), schema: 0, values: vec![Some(PackedValue::Text(0)), None] },
+                PackedRow { place: (2, 3), schema: 0, values: vec![Some(PackedValue::File(0)), Some(PackedValue::Number(-1))] },
             ],
         };
         let encoded = postcard::to_stdvec(&rows).unwrap();
