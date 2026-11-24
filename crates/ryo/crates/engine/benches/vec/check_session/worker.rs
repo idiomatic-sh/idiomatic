@@ -43,7 +43,9 @@ pub(crate) fn dispatch<L: FileSource>(
         .min(selected.len());
     // An open epoch retains reader-native symbols and files across successive calls.
     if keep || count <= 1 {
-        if let Some(paths)=paths { state.run.paths=paths.clone(); }
+        if let Some(paths) = paths {
+            state.run.paths = paths.clone();
+        }
         visit(
             state,
             keep,
@@ -107,7 +109,7 @@ pub(crate) fn dispatch<L: FileSource>(
         let mut notes = Vec::new();
         let mut time = Clock::default();
         let mut local = ReaderState::default();
-        local.run.paths=paths.expect("closed file inventory").clone();
+        local.run.paths = paths.expect("closed file inventory").clone();
         visit(
             &mut local,
             false,
@@ -127,11 +129,29 @@ pub(crate) fn dispatch<L: FileSource>(
             &host,
             &mut time,
         );
-        let contributions: Vec<_> = notes
+        // All aliases to one parsed version share its provider notes.
+        let mut ids = HashMap::new();
+        let mut unique = Vec::new();
+        let mut slots = Vec::new();
+        for (slot, contribution) in notes {
+            if let Some(contribution) = contribution {
+                let id = *ids.entry(Rc::as_ptr(&contribution)).or_insert_with(|| {
+                    let id = unique.len();
+                    unique.push(contribution);
+                    id
+                });
+                slots.push((slot, id));
+            }
+        }
+        let owned: Vec<_> = unique
             .into_iter()
-            .filter_map(|(id, c)| Some((id, Rc::unwrap_or_clone(c?))))
+            .map(|c| {
+                Rc::try_unwrap(c)
+                    .ok()
+                    .expect("closed worker owns each contribution")
+            })
             .collect();
-        (a, links, contributions, part.transfer(prefix), time)
+        (a, links, slots, owned, part.transfer(prefix), time)
     };
     std::thread::scope(|scope| {
         let threads: Vec<_> = shards[1..]
@@ -140,7 +160,7 @@ pub(crate) fn dispatch<L: FileSource>(
             .collect();
         let first = work(&shards[0]);
         let mut transfers = Vec::with_capacity(shards.len());
-        for (a, links, notes, part, time) in std::iter::once(first).chain(
+        for (a, links, slots, notes, part, time) in std::iter::once(first).chain(
             threads
                 .into_iter()
                 .map(|t| t.join().expect("file worker panicked")),
@@ -152,8 +172,9 @@ pub(crate) fn dispatch<L: FileSource>(
             for (id, target) in links {
                 aliases[id] = target;
             }
-            for (id, c) in notes {
-                contributions[id] = Some(Rc::new(c));
+            let notes: Vec<_> = notes.into_iter().map(Rc::new).collect();
+            for (slot, id) in slots {
+                contributions[slot] = Some(notes[id].clone());
             }
             transfers.push(part);
             clocks.join += thread_cpu() - start;
