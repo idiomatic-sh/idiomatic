@@ -121,6 +121,7 @@ struct Batch {
     workers: Option<std::num::NonZeroUsize>,
     schedule: session::Schedule,
     program_of: Vec<usize>,
+    class_of: Vec<usize>,
     bindings: Vec<Arc<[Hosted]>>,
     replay_file_sets: HashSet<Rc<Vec<String>>>,
     shared_replay_files: [usize; 2],
@@ -145,6 +146,7 @@ struct Batch {
     source_lookups_removed: usize,
     slot_lookups_removed: usize,
     clocks: Clock,
+    empty_reader_epochs: usize,
     populations_built: usize,
     relations_built: usize,
     relations_rebuilt: usize,
@@ -160,7 +162,6 @@ struct Active<F: Default, D: Default> {
     answers: Vec<Answer>,
     aliases: Vec<usize>,
     contributions: Vec<Option<Rc<project::Contribution>>>,
-    manifest_failures: Vec<l::FilePath>,
     populations: HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
 }
 
@@ -480,6 +481,7 @@ impl Batch {
         // all its cells by value, so the binding lookup need not hash them again.
         *self.binding_ids.entry((class.id, payloads)).or_insert_with(|| {
             self.program_of.push(rule);
+            self.class_of.push(class.id);
             self.cut_of.push(class.cut.clone());
             self.bound_contracts.push(class.contract.clone());
             self.bindings.push(hosted.into());
@@ -537,7 +539,6 @@ impl Batch {
             answers,
             aliases,
             contributions,
-            manifest_failures,
             populations,
         } = state;
         if world.run.texts.is_empty() {
@@ -555,6 +556,7 @@ impl Batch {
         let pending: Vec<_> = std::mem::take(&mut self.schedule.pending)
             .into_iter()
             .collect();
+        if pending.is_empty() { self.empty_reader_epochs += 1; }
         let unclaimed = languages.len();
         reader_states.resize_with(unclaimed + 1, Default::default);
         let mut groups = vec![Vec::new(); unclaimed + 1];
@@ -649,7 +651,7 @@ impl Batch {
             *aliases=Vec::new();
         }
         self.schedule.delivered(&pending, *keep);
-        self.finish_projects(languages, contributions, world, answers, populations, manifest_failures, *keep,store.as_deref_mut());
+        self.finish_projects(languages, contributions, world, answers, populations, *keep,store.as_deref_mut());
 
     }
 
@@ -660,7 +662,6 @@ impl Batch {
         world: &mut session::World,
         answers: &[Answer],
         populations: &mut HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
-        manifest_failures: &mut Vec<l::FilePath>,
         keep: bool,
         mut store:Option<&mut stored::Store>,
     ) {
@@ -672,11 +673,9 @@ impl Batch {
         for (i, work) in self.work.iter().enumerate() {
             if let Work::Closed { binding, .. } = work {
                 let rule = self.program_of[*binding];
-                let tables = &self.bindings[*binding];
-                let mut schema: Vec<_> = tables.iter().map(|t| (&t.name, &t.columns)).collect();
-                schema.sort_unstable();
+                // Admission has already identified the program and ordered host schema.
                 groups
-                    .entry((rule, schema))
+                    .entry((rule, self.class_of[*binding]))
                     .or_insert_with(Vec::new)
                     .push(i);
             }
@@ -728,12 +727,6 @@ impl Batch {
         }
         if !keep {
             *contributions=Vec::new();
-        }
-        manifest_failures.clear();
-        for id in active {
-            if let Ok(population) = &populations[&id].1 {
-                manifest_failures.extend(population.refused.iter().map(|r| r.path.clone()));
-            }
         }
         self.clocks.project_prepare_wall += wall.elapsed().as_secs_f64();
         if groups.is_empty() {
