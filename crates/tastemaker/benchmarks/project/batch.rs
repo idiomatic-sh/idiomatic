@@ -498,51 +498,53 @@ impl Batch {
             }
         }
         self.clocks.pairs = self.schedule.pairs;
-        let cuts: Vec<_> = self.cut_of.iter().map(|cut| cut.as_deref()).collect();
-        let contracts = self.bound_contracts.iter().map(|(&id, c)| (id, c.as_ref())).collect();
-        let hosted: Vec<_> = self.bindings.iter().map(|t| t.as_ref()).collect();
-        let file_workers = if store.is_some() && *keep { Some(std::num::NonZeroUsize::MIN) } else { self.workers };
-        let paths = (!*keep || (pending.len() >= 128 && file_workers.is_some_and(|n| n.get() > 1)))
-            .then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
-        let readers = languages.iter().map(Some).chain([None]);
-        for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
-            if files.is_empty() {
-                continue;
-            }
-            session::worker::dispatch(
-                file_workers,
-                languages,
-                paths.as_ref(),
-                &mut reader_states[reader_id],
-                retention,
-                *keep,
-                language,
-                (reader_id != unclaimed).then_some(reader_id),
-                &manifests,
-                contributions,
-                &self.schedule.programs,
-                &self.program_of,
-                &contracts,
-                &cuts,
-                world,
-                &self.schedule.sources,
-                &files,
-                aliases,
-                answers,
-                |binding, run| {
-                    Ok(bind_tables(hosted[binding], run, |_| None)?
-                        .into_iter()
-                        .map(|(n, t)| (n, Rc::new(t)))
-                        .collect())
-                },
-                &mut self.clocks,
-            );
-            if !*keep && store.is_none() {
-                // Other readers have disjoint files. Answers and project contributions
-                // already own everything the closed phase will read from this group.
-                self.schedule.delivered(&files, *keep);
-                for i in files {
-                    self.schedule.sources[i].provided = None;
+        if groups.iter().any(|files| !files.is_empty()) {
+            let cuts: Vec<_> = self.cut_of.iter().map(|cut| cut.as_deref()).collect();
+            let contracts = self.bound_contracts.iter().map(|(&id, c)| (id, c.as_ref())).collect();
+            let hosted: Vec<_> = self.bindings.iter().map(|t| t.as_ref()).collect();
+            let file_workers = if store.is_some() && *keep { Some(std::num::NonZeroUsize::MIN) } else { self.workers };
+            let paths = (!*keep || (pending.len() >= 128 && file_workers.is_some_and(|n| n.get() > 1)))
+                .then(|| std::sync::Arc::new(self.schedule.sources.iter().map(|src|src.path.clone()).collect()));
+            let readers = languages.iter().map(Some).chain([None]);
+            for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
+                if files.is_empty() {
+                    continue;
+                }
+                session::worker::dispatch(
+                    file_workers,
+                    languages,
+                    paths.as_ref(),
+                    &mut reader_states[reader_id],
+                    retention,
+                    *keep,
+                    language,
+                    (reader_id != unclaimed).then_some(reader_id),
+                    &manifests,
+                    contributions,
+                    &self.schedule.programs,
+                    &self.program_of,
+                    &contracts,
+                    &cuts,
+                    world,
+                    &self.schedule.sources,
+                    &files,
+                    aliases,
+                    answers,
+                    |binding, run| {
+                        Ok(bind_tables(hosted[binding], run, |_| None)?
+                            .into_iter()
+                            .map(|(n, t)| (n, Rc::new(t)))
+                            .collect())
+                    },
+                    &mut self.clocks,
+                );
+                if !*keep && store.is_none() {
+                    // Other readers have disjoint files. Answers and project contributions
+                    // already own everything the closed phase will read from this group.
+                    self.schedule.delivered(&files, *keep);
+                    for i in files {
+                        self.schedule.sources[i].provided = None;
+                    }
                 }
             }
         }
