@@ -26,12 +26,15 @@ impl<'a> ReaderFacts<'a> {
 /// outside the interner, so an ordinary string can have the same displayed bytes.
 pub(super) fn public_words(run: &mut Run, reasons: &[l::UnknownName]) -> HashMap<u32, u32> {
     let mut unknown = HashMap::new();
-    let absent = u32::try_from(run.texts.len()).expect("word id");
-    run.texts.push(Box::default());
-    run.absent_word = Some(absent);
+    if run.absent_word.is_none() {
+        let absent = u32::try_from(run.texts.len()).expect("word id");
+        run.texts.push(Box::default());
+        run.absent_word = Some(absent);
+    }
     for reason in reasons {
         let number = u32::try_from(run.texts.len()).expect("word id");
         run.texts.push(format!("unknown: {}", reason.text.0).into_bytes().into_boxed_slice());
+        run.unresolved_words.push(number);
         unknown.insert(l::unknown_symbol(reason.reason).0, number);
     }
     unknown

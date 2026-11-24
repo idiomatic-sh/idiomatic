@@ -395,8 +395,7 @@ impl Batch {
             populations,
         } = state;
         if world.run.texts.is_empty() {
-            world.run.empty = world.run.sym(b"");
-            crate::reader::public_words(&mut world.run, &[]);
+            world.declare_words(languages);
         }
         let cuts: Vec<_> = (0..self.bindings.len())
             .map(|i| self.cut_of.get(&i).cloned())

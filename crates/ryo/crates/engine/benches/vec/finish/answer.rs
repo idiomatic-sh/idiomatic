@@ -23,7 +23,8 @@ pub(crate) fn typed(
     let mut columns = Vec::with_capacity(table.names.len());
     for (index, name) in table.names.iter().enumerate() {
         let word = table.cols[index][row];
-        let cell = if word == NULL {
+        // The catalog assigns every bit pattern in a Number column to an i64.
+        let cell = if word == NULL && table.tys[index] != Ty::Num {
             None
         } else {
             match table.tys[index] {

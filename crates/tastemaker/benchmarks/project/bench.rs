@@ -155,9 +155,6 @@ fn bind_tables(
                         let HostCell::Number(n) = cell else {
                             return Err("expected number cell".into());
                         };
-                        if *n == -1 {
-                            return Err("number outside representable project range".into());
-                        }
                         *n as u64
                     }
                     _ => unreachable!(),

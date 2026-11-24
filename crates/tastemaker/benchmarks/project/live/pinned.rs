@@ -232,9 +232,12 @@ impl Source for Pinned {
             })
             .collect()
     }
-    // This provider contract publishes expansion-aware relations through its row writer.
-    fn expands(&self, _: l::Relation) -> bool {
-        true
+    // The pinned SDK reads its native catalog from the concrete tree. Its other
+    // relations, including expanded semantic nodes, go through the provider.
+    fn expands(&self, relation_id: l::Relation) -> bool {
+        relation(relation_id).ok().and_then(
+            release_execution_domain::domain::table_cells::service::native_form,
+        ).is_none()
     }
     fn available(&self, r: l::Relation) -> bool {
         relation(r)

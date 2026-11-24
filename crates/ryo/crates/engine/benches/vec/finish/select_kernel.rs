@@ -132,7 +132,7 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
         }
         P::In(a, items, neg) => {
             let x = val(run, f, srcs, cur, a);
-            items.iter().any(|y| compare(run, x, *y) == Some(std::cmp::Ordering::Equal)) != *neg
+            items.iter().any(|y| super::member_eq(run, x, *y)) != *neg
         }
         P::Re(a, re) => {
             let x = val(run, f, srcs, cur, a);

@@ -326,6 +326,8 @@ pub(super) struct Run {
     pub(super) empty: u32,
     /// The SDK symbol without a published value, distinct from an empty string.
     pub(super) absent_word: Option<u32>,
+    /// Provider symbols with a diagnostic name but no text for a scalar comparison.
+    pub(super) unresolved_words: Vec<u32>,
     /// redo-general: the provider's token order (`token-link`, read in place) and, by kind code, whether an element of the
     /// kind carries its source text (`syntax-tree`'s `text`), both as the provider states them (`TokenOrder`).
     pub(super) tokens: Option<Rc<dyn TokenOrder>>,
@@ -4294,8 +4296,16 @@ fn compare(run: &Run, a: V, b: V) -> Option<std::cmp::Ordering> {
                 Some(run.text(a.1 as u32).cmp(run.text(b.1 as u32)))
             }
         }
-        (Num, Sym) | (Sym, Num) | (Flag, Sym) | (Sym, Flag) | (File, Sym) | (Sym, File) => Some(text_of(run, a).cmp(&text_of(run, b))),
+        (Num, Sym) | (Sym, Num) | (Flag, Sym) | (Sym, Flag) | (File, Sym) | (Sym, File) | (File, File) => Some(text_of(run, a).cmp(&text_of(run, b))),
         _ => Some(a.1.cmp(&b.1)),
+    }
+}
+
+fn member_eq(run: &Run, a: V, b: V) -> bool {
+    if a.ty() == Ty::Sym && b.ty() == Ty::Sym {
+        a.1 == b.1 && a.1 != NULL
+    } else {
+        compare(run, a, b) == Some(std::cmp::Ordering::Equal)
     }
 }
 
@@ -4350,7 +4360,7 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             let hit = match &**b {
                 E::List(items) => items.iter().any(|i| {
                     let y = eval(run, f, srcs, cur, i);
-                    compare(run, x, y) == Some(std::cmp::Ordering::Equal)
+                    member_eq(run, x, y)
                 }),
                 _ => false,
             };

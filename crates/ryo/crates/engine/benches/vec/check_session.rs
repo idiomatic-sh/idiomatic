@@ -829,7 +829,7 @@ pub(crate) fn visit<L: FileSource>(
                         tables
                             .into_iter()
                             .map(|(n, t)| {
-                                Ok((n, world.carry(&run, id.0, &t, &mut carried_symbols)?))
+                                Ok((n, world.carry(&run, id.0, &t, &mut carried_symbols, reader_id, unknown)?))
                             })
                             .collect()
                     });
@@ -873,6 +873,7 @@ pub(crate) fn visit<L: FileSource>(
 #[derive(Default)]
 pub(crate) struct World {
     pub run: Run,
+    project_words: Vec<HashMap<u32, u32>>,
     pub files: HashMap<String, u32>,
     pub frontiers: HashMap<usize, Vec<(usize, Rc<Table>)>>,
     pub unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
@@ -897,7 +898,14 @@ impl World {
         home: u32,
         t: &Table,
         syms: &mut HashMap<u32, u32>,
+        reader: Option<usize>,
+        words: &HashMap<u32, u32>,
     ) -> Result<Rc<Table>> {
+        if syms.is_empty() {
+            if let Some(dictionary) = reader.and_then(|id| self.project_words.get(id)) {
+                syms.extend(words.iter().map(|(reason, &word)| (word, dictionary[reason])));
+            }
+        }
         let mut out = Table::with_rows(t.names.clone(), t.tys.clone(), t.n);
         let origin = self.file(&source.paths[home as usize]);
         for ((dst, src), ty) in out.cols.iter_mut().zip(&t.cols).zip(t.tys.iter()) {
