@@ -1,5 +1,5 @@
 //! Rebind a program's supplied relations and step numbers into the reader's plan.
-use super::{Bindings, Bound, BoundRequirements, Plan, Run, Table, Tables, finish};
+use super::{Bindings, Bound, Plan, Run, Table, Tables, finish};
 use ryo_engine::domain::plan_lowering::shared::SharedSteps;
 use ryo_values::domain::finish_plans::types::{FinishPlan, FinishStep};
 use std::{collections::HashMap, rc::Rc};
@@ -20,16 +20,10 @@ pub(super) struct ReaderPlan {
     inputs: Vec<(usize, Aliases)>,
     hosts: HashMap<Rc<Table>, String>,
     outputs: Vec<(String, usize, String, Vec<String>)>,
-    tests: HashMap<Rc<BoundRequirements>, usize>,
 }
 
 impl ReaderPlan {
     pub(super) fn add(&mut self, b: &mut Bound<'_>, run: &mut Run, program: usize, retain: bool) {
-        let next = self.tests.len();
-        b.test = *self
-            .tests
-            .entry(b.requirements.clone())
-            .or_insert(next);
         let mut given = Aliases::with_capacity(b.hosted.len());
         for (name, table) in &b.hosted {
             let next = self.hosts.len();
@@ -89,7 +83,7 @@ impl ReaderPlan {
         mut self,
         previous: Option<&mut Option<PreviousPlan>>,
         bound: &mut Bindings<'_>,
-    ) -> (Rc<Plan>, Tables, usize) {
+    ) -> (Rc<Plan>, Tables) {
         let plan = if let Some(last) = previous {
             let bindings = bound.entries.iter_mut().filter_map(|entry| entry.as_mut().ok());
             if let Some(hit) = last.as_ref().filter(|p| p.inputs == self.inputs) {
@@ -117,6 +111,6 @@ impl ReaderPlan {
             .into_iter()
             .map(|(table, name)| (name, table))
             .collect();
-        (plan, tables, self.tests.len())
+        (plan, tables)
     }
 }

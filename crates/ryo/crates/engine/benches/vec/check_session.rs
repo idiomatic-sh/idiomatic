@@ -413,7 +413,7 @@ fn bind<'p, L: FileSource>(
     run: &mut Run,
     hosted: Tables,
     cut: Option<&finish::partition::Partition>,
-    requirements: Rc<BoundRequirements>,
+    (requirements, test): (Rc<BoundRequirements>, usize),
 ) -> Result<Bound<'p>> {
     let mut facts = Vec::new();
     let mut projects_words = requirements.summary.words;
@@ -479,7 +479,7 @@ fn bind<'p, L: FileSource>(
         filters,
         plan: &program.plan,
         slots: Vec::with_capacity(program.plan.nodes.len()),
-        test: 0,
+        test,
         facts,
         hosted,
         lines: program
@@ -611,7 +611,8 @@ pub(crate) struct ReaderState {
     run: Run,
     screens: pairs::Retained,
     patterns: crate::pair_checks::SymbolMatches,
-    requirements: HashMap<usize, Rc<BoundRequirements>>,
+    requirements: HashMap<usize, (Rc<BoundRequirements>, usize)>,
+    requirement_ids: HashMap<Rc<BoundRequirements>, usize>,
     previous_plan: Option<shared::PreviousPlan>,
     unknown: Option<HashMap<u32, u32>>,
     bytes: HashMap<usize, (Arc<[u8]>, u32)>,
@@ -620,6 +621,7 @@ pub(crate) struct ReaderState {
 #[derive(Default)]
 struct Contents {
     ready: SummaryColumns,
+    answers: crate::pair_checks::AtomAnswers,
     kinds: rustc_hash::FxHashSet<u32>,
     fields: rustc_hash::FxHashSet<u32>,
     words: rustc_hash::FxHashSet<u32>,
@@ -636,6 +638,7 @@ struct HeldFile<F: Default, D: Default> {
     recovery: Option<ryo_execution_domain::domain::coverage::types::Recovery>,
     contents: Contents,
     literals: std::cell::RefCell<crate::pair_checks::LiteralPositions>,
+    proof_atoms: crate::pair_checks::AtomAnswers,
     known: BTreeSet<l::Relation>,
     facts: l::contract::Collect,
 }
@@ -695,7 +698,12 @@ pub(crate) fn visit<L: FileSource>(
     }
     let mut checks = (!keep).then(|| pairs::Checks::new(parser, programs, program_of, &needed, cut_of));
     let mut local_requirements = HashMap::new();
-    let reader_requirements = if keep { &mut state.requirements } else { &mut local_requirements };
+    let mut local_ids = HashMap::new();
+    let (reader_requirements, requirement_ids) = if keep {
+        (&mut state.requirements, &mut state.requirement_ids)
+    } else {
+        (&mut local_requirements, &mut local_ids)
+    };
     let local_patterns = crate::pair_checks::SymbolMatches::default();
     let pattern_cache = if keep { &state.patterns } else { &local_patterns };
     clocks.prepare += thread_cpu() - t;
@@ -722,7 +730,13 @@ pub(crate) fn visit<L: FileSource>(
             let requirements = reader_requirements.entry(program_id)
                 .or_insert_with(|| {
                     clocks.requirement_programs += 1;
-                    Rc::new(BoundRequirements::new(program, &mut run))
+                    let requirements = Rc::new(BoundRequirements::new(program, &mut run));
+                    if let Some((known, &id)) = requirement_ids.get_key_value(&requirements) {
+                        return (known.clone(), id);
+                    }
+                    let id = requirement_ids.len();
+                    requirement_ids.insert(requirements.clone(), id);
+                    (requirements, id)
                 })
                 .clone();
             let mut b = bind(&mut registry, program, parser, &mut run, tables,
@@ -733,9 +747,8 @@ pub(crate) fn visit<L: FileSource>(
         bound.index[binding] = bound.entries.len();
         bound.entries.push(entry);
     }
-    let (plan, supplied, test_count) = merged.finish(keep.then_some(&mut state.previous_plan), &mut bound);
+    let (plan, supplied) = merged.finish(keep.then_some(&mut state.previous_plan), &mut bound);
     let mut exec = Exec::new(&plan);
-    let mut test_results = vec![None; test_count];
     clocks.prepare += thread_cpu() - start;
     let mut carried_symbols = HashMap::new();
     if let Some(dictionary) = reader_id.and_then(|id| world.project_words.get(id)) {
@@ -905,6 +918,7 @@ pub(crate) fn visit<L: FileSource>(
             let contents = &mut held.contents;
             if !reused {
                 contents.ready = SummaryColumns::default();
+                contents.answers.clear();
             }
             summary.kinds &= !contents.ready.kinds;
             summary.fields &= !contents.ready.fields;
@@ -932,25 +946,22 @@ pub(crate) fn visit<L: FileSource>(
                     l::node_table::kind_codes(tree).len(), summary.kinds.then_some(&mut contents.kinds),
                     summary.fields.then_some(&mut contents.fields), summary.words.then_some(&mut contents.words));
             }
-            let Contents { kinds, fields, words, .. } = &*contents;
+            let Contents { kinds, fields, words, answers: coarse, .. } = contents;
             use ryo_execution_domain::domain::coverage::service::partial_of;
             let recovery = held.recovery.unwrap_or_else(|| L::recovery(&elements));
-            test_results.fill(None);
             let mut active = Vec::new();
             for (&binding, &slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
                 let excluded = cut_of[binding].is_none()
-                    && *test_results[b.test].get_or_insert_with(|| b.requirements.never
-                        || !b.requirements.shape.iter().all(|c| {
-                            c.iter().any(|(k, v)| {
-                                if *k {
-                                    kinds.contains(v)
-                                } else {
-                                    fields.contains(v)
-                                }
+                    && coarse.get(b.test).unwrap_or_else(|| {
+                        let impossible = b.requirements.never
+                            || !b.requirements.shape.iter().all(|c| {
+                                c.iter().any(|(k, v)| if *k { kinds.contains(v) } else { fields.contains(v) })
                             })
-                        })
-                        || !b.requirements.words.iter().all(|c| c.iter().any(|v| words.contains(v))));
+                            || !b.requirements.words.iter().all(|c| c.iter().any(|v| words.contains(v)));
+                        coarse.set(b.test, impossible);
+                        impossible
+                    });
                 if excluded && b.facts.is_empty() {
                     let whole = recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
                     if whole || {
@@ -1039,11 +1050,12 @@ pub(crate) fn visit<L: FileSource>(
                 distinct.get_mut().clear();
                 if !reused {
                     held.literals.get_mut().clear();
+                    held.proof_atoms.clear();
                 }
                 let scanned = held.literals.get_mut().scanned();
                 let mut evaluate = |scope, screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
                     let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
-                    screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns,
+                    screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
                         &bytes, &source.path, id, L::symbols(&symbols), &facts, &packet, unknown, cut_of, &said);
                 };
                 if let Some(screen) = &mut checks {

@@ -226,6 +226,35 @@ impl Answers {
     }
 }
 
+/// Reader-wide proof answers retained with this version's projected syntax.
+#[derive(Default)]
+pub(super) struct AtomAnswers {
+    packed: Answers,
+}
+
+impl AtomAnswers {
+    #[allow(dead_code, reason = "Open sessions retain proof atoms across calls")]
+    pub(super) fn clear(&mut self) {
+        self.packed.0.clear();
+    }
+
+    pub(super) fn get(&self, id: Id) -> Option<bool> {
+        if id / 64 < self.packed.0.len() { self.packed.get(id) } else { None }
+    }
+
+    pub(super) fn set(&mut self, id: Id, value: bool) {
+        if id / 64 >= self.packed.0.len() {
+            self.packed.0.resize(id / 64 + 1, (0, 0));
+        }
+        self.packed.set(id, value);
+    }
+}
+
+pub(super) struct SharedAtoms<'a> {
+    pub slots: &'a [Option<Id>],
+    pub answers: &'a mut AtomAnswers,
+}
+
 /// Empty between files. Only materialized node masks need clearing.
 #[derive(Default)]
 pub(super) struct Scratch {
@@ -235,7 +264,7 @@ pub(super) struct Scratch {
     touched: Vec<Id>,
 }
 
-struct File<'a, const PROFILE: bool> {
+struct File<'a, const PROFILE: bool, const BATCH: bool> {
     owner: usize,
     reader_class: &'a std::cell::Cell<usize>,
     file_owner: Vec<usize>,
@@ -254,6 +283,7 @@ struct File<'a, const PROFILE: bool> {
     facts: Vec<Table>,
     sets: &'a mut [Option<Nodes>],
     needs: &'a mut Answers,
+    atoms: Option<SharedAtoms<'a>>,
     literal_ids: &'a mut Map<Id, Option<u32>>,
     touched: &'a mut Vec<Id>,
     texts: Option<Map<&'a [u8], Vec<u32>>>,
@@ -318,7 +348,7 @@ impl Table {
     }
 }
 
-impl<const PROFILE: bool> File<'_, PROFILE> {
+impl<const PROFILE: bool, const BATCH: bool> File<'_, PROFILE, BATCH> {
     fn complete(&mut self, slots: &[usize]) -> bool {
         let n = node_table::element_count(self.t).0 as u32;
         slots.iter().all(|&slot| {
@@ -344,6 +374,17 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             return result;
         }
         if !PROFILE {
+            if BATCH && let Some(shared) = &self.atoms
+                && let Some(atom) = shared.slots[id]
+            {
+                if let Some(value) = shared.answers.get(atom) {
+                    self.needs.set(id, value);
+                    return value;
+                }
+                let value = self.pass_miss(id);
+                self.atoms.as_mut().unwrap().answers.set(atom, value);
+                return value;
+            }
             return self.pass_miss(id);
         }
         self.file_owner[id] = self.owner;
@@ -1033,6 +1074,25 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
     }
 }
 
+impl SharedAtoms<'_> {
+    /// If every selected output is already known, no evaluator scratch is needed.
+    fn cached_roots(&self, roots: &[(String, Id)], selected: &[u64], alive: &mut [bool]) -> bool {
+        let mut complete = true;
+        each(selected, |rule| {
+            if !complete {
+                return;
+            }
+            let rule = rule as usize;
+            if let Some(result) = self.slots[roots[rule].1].and_then(|id| self.answers.get(id)) {
+                alive[rule] = result;
+            } else {
+                complete = false;
+            }
+        });
+        complete
+    }
+}
+
 impl Program {
     pub(super) fn file(
         &self,
@@ -1060,11 +1120,32 @@ impl Program {
     ) -> u64 {
         #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact, known);
+            return self.evaluate::<true, false>(t, src, path, syntax_text, words, read, alive, exact, known, None, None);
         }
-        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact, known)
+        self.evaluate::<false, false>(t, src, path, syntax_text, words, read, alive, exact, known, None, None)
     }
-    fn evaluate<const PROFILE: bool>(
+
+    #[allow(dead_code, reason = "Session roots are selected by active bindings")]
+    pub(super) fn selected_columns(
+        &self,
+        t: &NodeTable,
+        src: &[u8],
+        path: &[u8],
+        syntax_text: Option<SyntaxText<'_>>,
+        words: &mut FileWords,
+        read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
+        alive: &mut [bool],
+        known: &[(Id, bool)],
+        selected: &[u64],
+        atoms: Option<SharedAtoms<'_>>,
+    ) -> u64 {
+        if atoms.as_ref().is_some_and(|a| a.cached_roots(&self.roots, selected, alive)) {
+            return 0;
+        }
+        self.evaluate::<false, true>(t, src, Some(path), syntax_text, words, read, alive, None, known, Some(selected), atoms)
+    }
+
+    fn evaluate<const PROFILE: bool, const BATCH: bool>(
         &self,
         t: &NodeTable,
         src: &[u8],
@@ -1075,6 +1156,8 @@ impl Program {
         alive: &mut [bool],
         mut exact: Option<&mut Vec<(usize, Bits)>>,
         known: &[(Id, bool)],
+        selected: Option<&[u64]>,
+        atoms: Option<SharedAtoms<'_>>,
     ) -> u64 {
         languages::facts::clear_words(words);
         let reader_class = std::cell::Cell::new(cost::Family::Logic as usize);
@@ -1102,7 +1185,7 @@ impl Program {
         buffers.sets.resize(self.domains.len(), None);
         buffers.needs.reset(self.needs.len());
         buffers.literal_ids.clear();
-        let mut f = File::<PROFILE> {
+        let mut f = File::<PROFILE, BATCH> {
             reader_class: &reader_class,
             owner: 0,
             file_owner: if PROFILE {
@@ -1129,18 +1212,27 @@ impl Program {
             facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
             sets: &mut buffers.sets,
             needs: &mut buffers.needs,
+            atoms,
             literal_ids: &mut buffers.literal_ids,
             touched: &mut buffers.touched,
             texts: None,
             steps: 0,
         };
         for &(need, value) in known { f.needs.set(need, value); }
-        for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
-            if PROFILE {
-                f.owner = rule;
-            }
-            if *a {
-                *a = f.pass(*root)
+        if BATCH {
+            let selected = selected.expect("batch roots");
+            each(selected, |rule| {
+                let rule = rule as usize;
+                alive[rule] = f.pass(self.roots[rule].1);
+            });
+        } else {
+            for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
+                if PROFILE {
+                    f.owner = rule;
+                }
+                if *a {
+                    *a = f.pass(*root)
+                }
             }
         }
         if let Some(out) = exact.as_mut() {

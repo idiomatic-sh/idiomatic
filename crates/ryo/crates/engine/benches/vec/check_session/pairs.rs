@@ -1,7 +1,10 @@
 //! Bind typed pair witnesses to the source adapter's actual row populations.
+#[path = "proof_atoms.rs"]
+mod atoms;
+
 use super::{FileId, FileSource, Program, Result, Run, l, reader_run};
 use crate::{
-    pair_checks::SyntaxText,
+    pair_checks::{AtomAnswers, SharedAtoms, SyntaxText},
     pair_summary::{self, Source as FactSource},
 };
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
@@ -12,6 +15,8 @@ pub(super) struct Checks {
     roots: Vec<Option<Vec<usize>>>,
     domains: Vec<Vec<(usize, usize)>>,
     live: Vec<bool>,
+    selected: Vec<u64>,
+    atoms: Vec<Option<usize>>,
     words: l::FileWords,
     row_guards: Vec<(usize, l::Relation)>,
     known: Vec<(usize, bool)>,
@@ -134,6 +139,8 @@ impl Checks {
             domains,
             row_guards,
             known: Vec::new(),
+            selected: vec![0; live.len().div_ceil(64)],
+            atoms: Vec::new(),
             live,
             words: l::facts::file_words(&l::facts::base_words(Default::default(), &[])),
         }
@@ -149,6 +156,7 @@ impl Checks {
         distinct: &std::cell::RefCell<crate::pair_checks::FileSymbols>,
         literal_positions: &std::cell::RefCell<crate::pair_checks::LiteralPositions>,
         patterns: crate::pair_checks::Predicates<'_>,
+        answers: &mut AtomAnswers,
         bytes: &[u8],
         path: &str,
         id: FileId,
@@ -160,19 +168,21 @@ impl Checks {
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
     ) {
         self.live.fill(false);
+        self.selected.fill(0);
         let mut any = false;
         for &(binding, _, excluded) in active.iter() {
             if !excluded && let Some(roots) = &self.roots[root_for(binding)]
                 && bound[&binding].as_ref().expect("active binding").screenable != Some(false)
             {
-                for &(_, d) in &self.domains[root_for(binding)] { self.live[d] = true; }
-                for &root in roots {
-                    self.live[root] = true;
-                    any = true;
+                any |= !roots.is_empty();
+                for root in roots.iter().copied().chain(self.domains[root_for(binding)].iter().map(|&(_, d)| d)) {
+                    self.selected[root / 64] |= 1 << (root % 64);
                 }
             }
         }
-        if any {
+        if !any {
+            crate::pair_checks::each(&self.selected, |root| self.live[root as usize] = true);
+        } else {
             self.known.clear();
             for &(need, relation) in &self.row_guards {
                 if !partials.iter().any(|p| p.relation == relation)
@@ -197,10 +207,14 @@ impl Checks {
                     })
                 })
             };
-            self.program.file_columns(
+            let atoms = (text.is_some() && !self.atoms.is_empty()).then_some(SharedAtoms {
+                slots: &self.atoms,
+                answers,
+            });
+            self.program.selected_columns(
                 tree,
                 bytes,
-                Some(path.as_bytes()),
+                path.as_bytes(),
                 text.map(|ids| SyntaxText {
                     ids,
                     symbols: &run.texts,
@@ -220,8 +234,9 @@ impl Checks {
                         && packet.columns(rel, symbols, bytes, id, l::node_table::kind_codes(tree).len(), words, out)
                 },
                 &mut self.live,
-                None,
                 &self.known,
+                &self.selected,
+                atoms,
             );
         }
         for (binding, _, excluded) in active {
@@ -288,6 +303,7 @@ pub(super) struct Retained {
     shapes: HashMap<(usize, Vec<usize>, Vec<(usize, usize)>), usize>,
     bindings: Vec<Option<usize>>,
     programs: Vec<Checks>,
+    atoms: atoms::Atoms,
 }
 impl Retained {
     pub(super) fn groups<L: FileSource>(
@@ -307,8 +323,9 @@ impl Retained {
             let index = *self.shapes.entry((id, steps, domains)).or_insert_with_key(|(_, steps, domains)| {
                 let start = super::thread_cpu();
                 let vocab = self.vocabulary.get_or_insert_with(|| vocabulary(parser));
-                let screen = Checks::from_roots(parser, vocab, std::slice::from_ref(&programs[id]),
+                let mut screen = Checks::from_roots(parser, vocab, std::slice::from_ref(&programs[id]),
                     &[0], vec![steps.clone()], vec![domains.clone()]);
+                screen.atoms = self.atoms.bind(&screen.program);
                 let index = self.programs.len();
                 self.programs.push(screen);
                 prepare += super::thread_cpu() - start;
