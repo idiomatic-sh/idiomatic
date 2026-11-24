@@ -257,7 +257,7 @@ impl Packet {
     pub(super) fn save(receipt: &Receipt<'_>) -> Self {
         Self {
             refusal: None,
-            digest: super::super::digest(&receipt.rows),
+            digest: String::new(),
             unknowns: receipt.unknowns.iter().map(|v| (*v).clone()).collect(),
             data: pack_rows(receipt.rows.iter().copied()),
         }
@@ -281,23 +281,30 @@ pub(super) fn pack_rows<'a>(rows: impl IntoIterator<Item = &'a finish::answer::R
     }
     let mut schemas = Vec::new();
     let mut ids = BTreeMap::new();
+    let mut previous: Option<(&finish::answer::Row, usize)> = None;
     let rows = rows
         .into_iter()
         .map(|r| {
-            let shape = (
-                &r.layout.rule,
-                &r.layout.names,
-                &r.layout.identity,
-            );
-            let schema = *ids.entry(shape).or_insert_with(|| {
-                let i = schemas.len();
-                schemas.push(Schema {
-                    rule: r.layout.rule.clone(),
-                    columns: r.layout.names.iter().map(|n| n.as_str().into()).collect(),
-                    identity: r.layout.identity.to_vec(),
-                });
-                i
-            });
+            let schema = if let Some((prior, id)) = previous
+                && std::sync::Arc::ptr_eq(&prior.layout, &r.layout) {
+                id
+            } else {
+                let shape = (
+                    &r.layout.rule,
+                    &r.layout.names,
+                    &r.layout.identity,
+                );
+                *ids.entry(shape).or_insert_with(|| {
+                    let i = schemas.len();
+                    schemas.push(Schema {
+                        rule: r.layout.rule.clone(),
+                        columns: r.layout.names.iter().map(|n| n.as_str().into()).collect(),
+                        identity: r.layout.identity.to_vec(),
+                    });
+                    i
+                })
+            };
+            previous = Some((r, schema));
             PackedRow {
                 schema,
                 values: r.cells()

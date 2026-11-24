@@ -107,6 +107,7 @@ pub(super) struct Segment {
 }
 pub(super) type Segments = BTreeMap<u8, Segment>;
 pub(super) struct Records<T> {
+    name: &'static str,
     pub index: Segments,
     directories: BTreeMap<u8, (fs::File, Directory, u64)>,
     rows: BTreeMap<Key, T>,
@@ -116,8 +117,9 @@ pub(super) struct Records<T> {
     pub write_bytes: usize,
 }
 impl<T: Serialize + DeserializeOwned + Default> Records<T> {
-    pub fn new(index: Segments) -> Self {
+    pub fn new(name: &'static str, index: Segments) -> Self {
         Self {
+            name,
             index,
             directories: BTreeMap::new(),
             rows: BTreeMap::new(),
@@ -131,7 +133,7 @@ impl<T: Serialize + DeserializeOwned + Default> Records<T> {
         use std::os::unix::fs::FileExt;
         if !self.directories.contains_key(&prefix) {
             let s = self.index.get(&prefix)?;
-            let file = fs::File::open(table(dir, "pairs", s.name)).ok()?;
+            let file = fs::File::open(table(dir, self.name, s.name)).ok()?;
             if s.bytes as u64 > file.metadata().ok()?.len() {
                 return None;
             }
@@ -220,7 +222,7 @@ impl<T: Serialize + DeserializeOwned + Default> Records<T> {
             let len = bytes.len();
             bytes.extend(body);
             let name = *blake3::hash(&bytes).as_bytes();
-            atomic(dir, &table(dir, "pairs", name), &bytes)?;
+            atomic(dir, &table(dir, self.name, name), &bytes)?;
             written += bytes.len();
             if let Some(old) = self.index.insert(
                 prefix,
@@ -231,7 +233,7 @@ impl<T: Serialize + DeserializeOwned + Default> Records<T> {
                 },
             ) && old.name != name
             {
-                obsolete.push(table(dir, "pairs", old.name));
+                obsolete.push(table(dir, self.name, old.name));
             }
             self.directories.remove(&prefix);
         }

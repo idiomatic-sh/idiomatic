@@ -892,6 +892,15 @@ fn batch_with_workers<L: session::source::Source>(
 ) {
     batch_mode_with_workers(readers, manifest, output, None, workers, || {})
 }
+fn write_receipt<U: std::borrow::Borrow<(String,String)> + serde::Serialize>(out: &mut impl Write, id: &str, expected: &str, digest: &str, unknowns: &[U]) {
+    let status = if expected == digest && unknowns.is_empty() { "exact" } else { "different" };
+    write!(out, "{id}\t{status}\t{digest}").unwrap();
+    if !unknowns.is_empty() {
+        write!(out, "\t").unwrap();
+        json_output::write_unknowns(&mut *out, unknowns);
+    }
+    writeln!(out).unwrap();
+}
 fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,root:Option<&Path>){
     batch_mode_with_workers(readers, manifest, output, root, None, || {})
 }
@@ -982,7 +991,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     }else{session.run_sources(readers)};
     let t=thread_cpu();
     let mut out=std::io::BufWriter::new(std::fs::File::create(output).unwrap());
-    enum Output { Packet(stored::Key), Computed(String, Vec<(String,String)>) }
+    enum Output<'a> { Packet(stored::Key), Computed(String, Vec<&'a (String,String)>) }
     let results:Vec<Result<Output,String>>=entries.into_iter().chain(
         (0..if store.is_none() { session.work.len() } else { 0 }).map(|i| Entry::Evaluate(i,None))
     ).map(|entry|{
@@ -995,7 +1004,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
                 }
                 let r=Batch::answer(&session.work[i],&answers).map_err(str::to_owned)?;
                 if let (Some(s),Some(k))=(&mut store,id) && let Some(k)=s.save(k,i,&r){k}
-                else{return Ok(Output::Computed(digest(&r.rows),r.unknowns.into_iter().cloned().collect()))}
+                else{return Ok(Output::Computed(digest(&r.rows),r.unknowns))}
             }
         };
         Ok(Output::Packet(packet))
@@ -1008,36 +1017,22 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     }
     let mut refusals = BTreeMap::new();
     for (i, id, expected) in invocations {
-        let receipt = match &results[i] {
+        let refusal = match &results[i] {
             Ok(Output::Packet(k)) => {
                 let packet = store.as_ref().unwrap().packet(k);
-                match &packet.refusal {
-                    Some(reason) => Err(reason),
-                    None => Ok((&packet.digest, &packet.unknowns)),
+                if let Some(reason) = &packet.refusal { reason } else {
+                    write_receipt(&mut out, &id, &expected, &packet.digest, &packet.unknowns);
+                    continue;
                 }
             }
-            Ok(Output::Computed(d, u)) => Ok((d, u)),
-            Err(reason) => Err(reason),
+            Ok(Output::Computed(d, u)) => {
+                write_receipt(&mut out, &id, &expected, d, u);
+                continue;
+            }
+            Err(reason) => reason,
         };
-        match receipt {
-            Ok((d, unknowns)) => {
-                let status = if d.as_str() == expected.as_ref() && unknowns.is_empty() {
-                    "exact"
-                } else {
-                    "different"
-                };
-                write!(out, "{id}\t{status}\t{d}").unwrap();
-                if !unknowns.is_empty() {
-                    write!(out, "\t").unwrap();
-                    json_output::write_unknowns(&mut out, unknowns);
-                }
-                writeln!(out).unwrap();
-            }
-            Err(reason) => {
-                *refusals.entry(reason.as_str()).or_insert(0usize) += 1;
-                writeln!(out, "{id}\trefused\t").unwrap();
-            }
-        }
+        *refusals.entry(refusal.as_str()).or_insert(0usize) += 1;
+        writeln!(out, "{id}\trefused\t").unwrap();
     }
     out.flush().unwrap();
     for (reason, n) in refusals {
