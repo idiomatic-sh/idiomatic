@@ -64,4 +64,4 @@ fn declaration() -> first::Language {
 #[path = "../bench.rs"]
 mod project_bench;
 
-pub use project_bench::{Live, LiveReport, capture, capture_retained, capture_one, print_measurement};
+pub use project_bench::{Live, LiveReport, capture, capture_then, capture_retained, capture_one, print_measurement};

@@ -8,8 +8,7 @@ mod pinned;
 mod call_cache;
 #[path = "allocated.rs"]
 mod allocated;
-use call_cache::CallCache;
-use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
+use call_cache::{CallCache, PathFilter};
 use pinned::{Dictionary, Pinned};
 use release_sdk::linter as sdk;
 use ryo_values::domain::finish_plans::expressions::types::{
@@ -36,7 +35,7 @@ pub struct Live {
     directory:Option<std::path::PathBuf>,
     state: Active<pinned::File, Dictionary>,
     languages: Vec<Pinned>,
-    filters: HashMap<Vec<sdk::Glob>, (usize, Rc<GlobSet>)>,
+    filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
     versions: HashMap<(Authority, BTreeMap<String, Arc<[u8]>>), Arc<str>>,
 }
@@ -129,20 +128,12 @@ impl Live {
         }
         Ok(())
     }
-    fn globs(&mut self, names: &[sdk::Glob]) -> Result<(usize, Rc<GlobSet>), String> {
+    fn globs(&mut self, names: &[sdk::Glob]) -> Result<(usize, Rc<PathFilter>), String> {
         if let Some(found) = self.filters.get(names) {
             return Ok(found.clone());
         }
-        let mut builder = GlobSetBuilder::new();
-        for name in names {
-            builder.add(
-                GlobBuilder::new(name.as_ref())
-                    .literal_separator(true)
-                    .build()
-                    .map_err(|e| e.to_string())?,
-            );
-        }
-        let set = (self.filters.len(), Rc::new(builder.build().map_err(|e| e.to_string())?));
+        let matcher = PathFilter::compile(names)?;
+        let set = (self.filters.len(), Rc::new(matcher));
         self.filters.insert(names.to_vec(), set.clone());
         Ok(set)
     }
@@ -236,21 +227,7 @@ impl Live {
         let (inventory, paths) = self.cache.inventory(listed.iter().map(|p| p.0.as_ref())
             .chain(overlay.keys().map(String::as_str)).collect());
         let key = (authority.clone(), overlay);
-        let root = if let Some(id) = self.versions.get(&key) {
-            id.clone()
-        } else {
-            let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
-            for (p, v) in &key.1 {
-                self.batch.schedule.provide(&id, p.clone(), v.clone())?;
-            }
-            self.versions.insert(key.clone(), id.clone());
-            id
-        };
-        for p in listed {
-            if !key.1.contains_key(p.0.as_ref()) {
-                self.batch.schedule.listed(&root, &physical, &p.0)?;
-            }
-        }
+        let mut prepared_root=None;
         let filter = self.globs(&req.files)?;
         let hosted = req
             .hosted
@@ -258,6 +235,19 @@ impl Live {
             .map(|t| self.cache.table(t))
             .collect::<Result<Vec<_>, _>>()?;
         let mut ids = Vec::new();
+        let scope=if let Some(s)=&mut self.store{
+            // The unread list belongs to the union of requested project relations.
+            // File-only requests have no dependency on this peer inventory.
+            let peers=req.rules.iter().map(|(id,rule)|{
+                let parameters=rule.parameters.iter().map(|(k,v)|Ok((&k.0,parameter(v.clone())?))).collect::<Result<Vec<_>,String>>()?;
+                Ok(super::stored::key((id.as_ref(),rule.query.as_ref(),&rule.include,&rule.exclude,parameters)))
+            }).collect::<Result<Vec<_>,String>>()?;
+            let shape=hosted.iter().map(|h|(&h.name,&h.columns)).collect::<Vec<_>>();
+            s.overlay(std::path::Path::new(&*physical),&paths,super::stored::key((peers,shape)),&key.1);
+            Some(super::stored::key((&physical,&authority)))
+        }else{None};
+        let host_keys=self.store.as_ref().map(|_|hosted.iter().map(super::stored::key).collect::<Vec<_>>());
+        let mut restored_unread=BTreeMap::<String,usize>::new();
         self.batch.work.clear();
         for (id, rule) in req.rules {
             if rule.applicability != sdk::RuleApplicability::Always || !rule.observations.is_empty()
@@ -268,20 +258,57 @@ impl Live {
             }
             let inc = self.globs(&rule.include)?;
             let exc = self.globs(&rule.exclude)?;
-            let files = self.cache.files((inventory, filter.0, inc.0, exc.0), |p| {
-                    (req.files.is_empty() || filter.1.is_match(p))
-                        && (rule.include.is_empty() || inc.1.is_match(p))
-                        && !exc.1.is_match(p)
-            });
+            let files = self.cache.files(
+                (inventory, filter.0, inc.0, exc.0),
+                &filter.1,
+                &inc.1,
+                &exc.1,
+            );
             let parameters = rule
                 .parameters
                 .into_iter()
                 .map(|(k, v)| Ok((k.0, parameter(v)?)))
                 .collect::<Result<_, String>>()?;
+            let query=self.cache.query(rule.query.as_ref());
+            let contract=scope.map(|scope|{
+                let rule=self.batch.prepared_rule(query.clone(),&parameters);
+                let plan=self.batch.schedule.programs[rule].as_ref().ok();
+                let consumed:Vec<_>=hosted.iter().enumerate().filter(|(_,t)|plan.is_some_and(|p|p.bases.contains(&t.name)))
+                    .map(|(i,_)|host_keys.as_ref().unwrap()[i]).collect();
+                super::stored::key((scope,&query,&parameters,&files,consumed))
+            });
+            if let (Some(store),Some(k))=(&mut self.store,contract)
+                && let Some((packet,unread))=store.lookup(k){
+                if let Some(reason)=&store.packet(&packet).refusal{return Err(format!("{id}: {reason}"))}
+                let mut counts=BTreeMap::<String,usize>::new();
+                for p in unread{*counts.entry(p).or_default()+=1;}
+                for (p,n) in counts{let total=restored_unread.entry(p).or_default();*total=(*total).max(n);}
+                ids.push((id,Ok(packet)));
+                continue
+            }
+            if prepared_root.is_none(){
+        let root = if let Some(id) = self.versions.get(&key) {
+            id.clone()
+        } else {
+            let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
+            for (p, v) in &key.1 {
+                self.batch.schedule.provide(&id, p.clone(), v.clone())?;
+            }
+            self.versions.insert(key.clone(), id.clone());
+            id
+        };
+        for p in &listed {
+            if !key.1.contains_key(p.0.as_ref()) {
+                self.batch.schedule.listed(&root, &physical, &p.0)?;
+            }
+        }
+                prepared_root=Some(root);
+            }
+            let root=prepared_root.as_ref().unwrap();
             let work = self
                 .batch
                 .register_query(
-                    self.cache.query(rule.query.as_ref()),
+                    query,
                     Input {
                         root: root.to_string(),
                         files,
@@ -293,19 +320,33 @@ impl Live {
                     None,
                 )
                 .map_err(|e| format!("{id}: {e}"))?;
+            if let super::Work::Invalid(reason)=&work{
+                if let (Some(store),Some(k))=(&mut self.store,contract){store.decline(k,reason);}
+                return Err(format!("{id}: {reason}"))
+            }
+            ids.push((id,Err((self.batch.work.len(),contract))));
             self.batch.work.push(work);
-            ids.push(id);
         }
         if let Some(store)=&mut self.store {
-            self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));
+            if !self.batch.work.is_empty(){self.batch.epoch_with_store(&self.languages,&mut self.state,Some(store));}else{self.state.manifest_failures.clear();}
         } else {
             self.batch.epoch(&self.languages,&mut self.state);
         }
         let mut out = LiveReport::default();
         let start = thread_cpu();
-        for (id, work) in ids.into_iter().zip(&self.batch.work) {
-            let receipt =
-                Batch::answer(work, &self.state.answers).map_err(|e| format!("{id}: {e}"))?;
+        for (id,entry) in ids {
+            let held;
+            let receipt=match entry {
+                Ok(k)=>{
+                    held=self.store.as_ref().unwrap().packet(&k).report();
+                    super::Receipt {rows:held.rows.iter().collect(),unknowns:held.unknowns.iter().collect()}
+                }
+                Err((i,k))=>{
+                    let r=Batch::answer(&self.batch.work[i],&self.state.answers).map_err(|e|format!("{id}: {e}"))?;
+                    if let (Some(store),Some(k))=(&mut self.store,k){store.save(k,i,&r);}
+                    r
+                }
+            };
             for row in receipt.rows {
                 let subject = row.layout.identity.first()
                     .map(|&i| row.value(i))
@@ -331,8 +372,10 @@ impl Live {
                 out.unread.push(p.0);
             }
         }
-        out.unread
-            .extend(self.state.manifest_failures.iter().map(|p| p.0.clone()));
+        let mut manifest=BTreeMap::<String,usize>::new();
+        for p in &self.state.manifest_failures{*manifest.entry(p.0.to_string()).or_default()+=1;}
+        for (p,n) in restored_unread{let total=manifest.entry(p).or_default();*total=(*total).max(n);}
+        for (p,n) in manifest{out.unread.extend(std::iter::repeat_n(Box::<str>::from(p),n));}
         out.unread.sort_unstable();
         self.batch.clocks.assemble += thread_cpu() - start;
         Ok(out)
@@ -341,8 +384,12 @@ impl Live {
 
 /// Replay a closed capture with exactly the parsers linked into this release.
 pub fn capture(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>) {
+    capture_then(linked, manifest, output, workers, || {});
+}
+
+pub fn capture_then(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>, completed: impl FnOnce()) {
     let readers: Vec<_> = linked.0.into_iter().map(Pinned::from).collect();
-    super::batch_with_workers(&readers, manifest, output, workers);
+    super::batch_mode_with_workers(&readers, manifest, output, None, workers, completed);
 }
 
 pub fn capture_retained(linked:sdk::Languages,manifest:&str,output:&str,root:&str){
