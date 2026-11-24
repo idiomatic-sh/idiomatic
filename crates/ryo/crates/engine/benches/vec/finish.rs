@@ -326,6 +326,8 @@ pub(super) struct Run {
     pub(super) root_dir: String,
     /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
     pub(super) project: FxHashMap<String, project::Answered>,
+    /// Exact refusal returned by the current provider call on bound inputs.
+    pub(super) provider_refusal: Option<String>,
     /// Functions a step asked that are not in the step set (the rule is refused).
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.

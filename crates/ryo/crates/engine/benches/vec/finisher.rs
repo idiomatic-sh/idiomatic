@@ -116,7 +116,7 @@ impl<'p> Finisher<'p> {
     }
 
     pub(crate) fn retained_file(&mut self, origin: &str) -> bool {
-        self.capture.as_mut().is_some_and(|c| c.replay(origin, &mut self.findings))
+        self.capture.as_mut().is_some_and(|c| c.replay(origin, &mut self.findings, &mut self.failed))
     }
 
     /// The emits to run on the file at `path`: a seed rule where it has survivors by node; any other where `seeded` says
@@ -169,6 +169,7 @@ impl<'p> Finisher<'p> {
                 let origin = &self.run.paths[file];
                 c.finding(origin, retained::Finding { rule: self.plan.emits[emit].0.clone(), file: origin.clone(), start: span.start as u64, end: span.end as u64 });
             }
+            if self.capture.is_some() && self.failed.contains_key(&self.plan.emits[emit].0) { return; }
             self.findings.push(format!(r#"{{"rule":{rule},"file":{path},"start":{},"end":{}}}"#, span.start, span.end));
             count += 1;
         });
@@ -214,6 +215,7 @@ impl<'p> Finisher<'p> {
                 continue;
             }
             let e = &plan.emits[*ei];
+            run.provider_refusal = None;
             run.missing.clear();
             let before = (self.exec.stats.total_runs, self.exec.stats.total_rows);
             let got = self.exec.eval(&mut f, run, pv, e.1);
@@ -254,14 +256,19 @@ impl<'p> Finisher<'p> {
                         c.finding(&run.paths[file_no], retained::Finding { rule: e.0.clone(), file: target.clone(), start: st, end: en });
                     }
                     let file = serde_json::to_string(target).expect("path string");
+                    if self.capture.is_some() && self.failed.contains_key(&e.0) { continue; }
                     self.findings.push(format!("{{\"rule\":{rule},\"file\":{file},\"start\":{st},\"end\":{en}}}"));
                 }
                 Ok(())
             });
             if let Err(err) = written {
-                if let Some(c) = &mut self.capture { c.refused(&run.paths[file_no]); }
-                self.failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
-                self.failed_idx[*ei] = true;
+                if let Some(c) = &mut self.capture && run.provider_refusal.as_ref() == Some(&err) {
+                    c.refusal(&run.paths[file_no], &e.0, &err);
+                } else {
+                    if let Some(c) = &mut self.capture { c.failed(&run.paths[file_no]); }
+                    self.failed_idx[*ei] = true;
+                }
+                self.failed.entry(e.0.clone()).or_insert_with(|| format!("{}: {err}", run.paths[file_no]));
             }
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);

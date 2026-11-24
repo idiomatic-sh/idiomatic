@@ -60,12 +60,15 @@ def inspect_table(data, output, refused, admitted):
         origin = reader.string()
         assert origin in admitted and origin not in origins
         origins.add(origin)
-        assert origin not in refused, f"retained refused origin {origin}"
+        # The origin may contain both findings and deterministic refusals.
         for _ in range(reader.uint()):
             rule, subject = reader.string(), reader.string()
             start, end = reader.uint(), reader.uint()
             row = dict(rule=rule, file=subject, start=start, end=end)
             assert tuple(sorted(row.items())) in public, (origin, row)
+        for _ in range(reader.uint()):
+            emit, reason = reader.string(), reader.string()
+            assert emit and reason
         for _ in range(reader.uint()):
             reader.string()
             if reader.take(1)[0]:
@@ -146,7 +149,7 @@ def run(spec, evidence):
             restore_store(None)
             invoke("retained", base, spec["exe"], "seed")
             seed = snap()
-            for scenario in ("unchanged","edit","finding-edit","same-stamp","add","delete","manifest-settings","rule-pack","build","refused","truncated"):
+            for scenario in ("unchanged","edit","finding-edit","same-stamp","add","delete","manifest-settings","rule-pack","build","refused","refused-reverse","refused-input","truncated"):
                 reset()
                 restore_store(seed)
                 exe = spec["exe"]
@@ -176,8 +179,13 @@ def run(spec, evidence):
                     program.write_bytes(rule+b"\n")
                 elif scenario == "build":
                     exe = spec["other_build"]
-                elif scenario == "refused":
+                elif scenario in ("refused", "refused-reverse", "refused-input"):
                     program.write_text(spec["refused_query"])
+                    invoke("retained", j, exe, "refusing-seed")
+                    if scenario == "refused-reverse":
+                        j["files"].reverse()
+                    elif scenario == "refused-input":
+                        edit.write_bytes(previous + spec["comment"].encode())
                 elif scenario == "truncated" and seed:
                     store.write_bytes(seed[:len(seed)//2])
                 if j != base:
@@ -186,7 +194,7 @@ def run(spec, evidence):
                 stamp = store.stat() if before is not None else None
                 trial = invoke("retained", j, exe, "trial")
                 after = store.stat() if store.exists() else None
-                repeated = invoke("retained", j, exe, "again") if scenario == "refused" else trial
+                repeated = invoke("retained", j, exe, "again") if scenario.startswith("refused") else trial
                 stored = snap()
                 restore_store(None)
                 cold = invoke("cold", j, exe, "cold")
@@ -214,7 +222,10 @@ def run(spec, evidence):
                            if line.startswith("FAILED ") and line.count(": ")>=2}
                 try:
                     rows = inspect_table(stored, cold[1], refused, set(j["files"]))
-                    if scenario == "unchanged" and cold[0] == 0 and not cold[2] and j["files"]:
+                    if scenario == "refused-reverse" and spec.get("lang") == "python" and rows:
+                        if hits["trial"] != rows:
+                            errors.append("reverse traversal did not replay stable outcomes")
+                    if scenario == "unchanged" and cold[0] == 0 and j["files"]:
                         if not rows or not hits["trial"]:
                             errors.append("no completed file reused on an unchanged successful corpus")
                 except (ValueError, AssertionError) as failure:

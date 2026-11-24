@@ -525,11 +525,17 @@ fn run_check(args:&[&str],mut capture:Option<&mut finisher::retained::Capture>, 
                     finish::load(finish_args[0])
                 };
                 println!("start-up total {:.4} s", thread_cpu() - t0);
+                let lowered = thread_cpu();
                 let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args, paths);
                 fin.capture = capture.as_deref_mut().map(std::mem::take);
                 run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)), paths);
                 if let Some(c) = capture.take() { *c = fin.capture.take().unwrap(); }
+                let walked = thread_cpu();
                 let ok = fin.end(0.0);
+                if paths.is_some() {
+                    eprintln!("retained_evaluation_ms lowering={:.3} setup_walk_and_replay={:.3} finish_report={:.3}",
+                        (lowered-t0)*1000.,(walked-lowered)*1000.,(thread_cpu()-walked)*1000.);
+                }
                 // redo-union pass 2 c18: the plan (30 k nodes of JSON) is not dropped one by one at exit
                 std::mem::forget(plan);
                 return ok;
@@ -1037,7 +1043,12 @@ impl ColFacts<'_, '_, '_, '_> {
         let t1 = if timed { thread_cpu() } else { 0.0 };
         let t = match answer {
             languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
-            _ => Err(format!("{rel} not answered")),
+            languages::FactAnswer::Refused(_) => {
+                let reason = format!("{rel} not answered");
+                run.provider_refusal = Some(reason.clone());
+                Err(reason)
+            }
+            languages::FactAnswer::Partial(_) => Err(format!("{rel} not answered")),
         };
         if timed {
             let t2 = thread_cpu();
@@ -1502,7 +1513,12 @@ impl finish::Provider for Facts<'_, '_, '_> {
         let answer = self.facts.facts.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
         let mut t = match answer {
             languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
-            _ => Err(format!("{rel} not answered")),
+            languages::FactAnswer::Refused(_) => {
+                let reason = format!("{rel} not answered");
+                run.provider_refusal = Some(reason.clone());
+                Err(reason)
+            }
+            languages::FactAnswer::Partial(_) => Err(format!("{rel} not answered")),
         }?;
         // the walk names its file FileId(0): that cell is this provider's file (a cell naming another file is kept)
         for c in 0..t.tys.len() {

@@ -83,6 +83,13 @@ pub(super) fn run(
     let mut i = 0;
     while i < list.len() {
         let begin = thread_cpu();
+        if retaining {
+            let path = list[i].strip_prefix(root.as_deref().unwrap_or("")).unwrap_or(&list[i]);
+            if executor.borrow_mut().as_deref_mut().unwrap().retained_file(path) {
+                i += 1;
+                continue;
+            }
+        }
         let stop = input.load(list, i).expect("read sources");
         read += thread_cpu() - begin;
         while i < stop {

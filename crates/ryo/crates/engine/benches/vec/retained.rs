@@ -29,6 +29,7 @@ pub(crate) enum UnknownOrigin {
 struct Answer {
     origin: String,
     findings: Vec<Finding>,
+    refusals: Vec<(String, String)>,
     // A partial provider partition is never promoted to a complete file.
     unknowns: Vec<(String, Option<String>, String, UnknownOrigin)>,
 }
@@ -83,7 +84,12 @@ impl Capture {
     pub(crate) fn partial(&mut self, origin: &str) {
         self.files.remove(origin);
     }
-    pub(crate) fn refused(&mut self, origin: &str) {
+    pub(crate) fn refusal(&mut self, origin: &str, emit: &str, reason: &str) {
+        if let Some(answer) = self.files.get_mut(origin) {
+            answer.refusals.push((emit.into(), reason.into()));
+        }
+    }
+    pub(crate) fn failed(&mut self, origin: &str) {
         self.partial(origin);
         self.prior_refusal = true;
     }
@@ -94,7 +100,7 @@ impl Capture {
     pub(crate) fn contains(&self, origin: &str) -> bool {
         !self.prior_refusal && self.reusable.contains_key(origin)
     }
-    pub(crate) fn replay(&mut self, origin: &str, output: &mut Vec<String>) -> bool {
+    pub(crate) fn replay(&mut self, origin: &str, output: &mut Vec<String>, failures: &mut std::collections::HashMap<String, String>) -> bool {
         if self.prior_refusal {
             return false;
         }
@@ -102,7 +108,12 @@ impl Capture {
             return false;
         };
         for finding in &answer.findings {
-            output.push(serde_json::to_string(finding).expect("finding output"));
+            if !failures.contains_key(&finding.rule) {
+                output.push(serde_json::to_string(finding).expect("finding output"));
+            }
+        }
+        for (emit, reason) in &answer.refusals {
+            failures.entry(emit.clone()).or_insert_with(|| format!("{origin}: {reason}"));
         }
         self.files.insert(origin.to_owned(), answer);
         self.hits += 1;
@@ -142,16 +153,15 @@ fn invalid(reason: &str) -> io::Error {
 // Process-local observations detect replacement while a check is reading its inputs.
 // Across processes validity always depends on the content digest.
 type Stamp = (u64, u64, i64, i64, u64);
-fn stamp(p: &Path) -> io::Result<Stamp> {
+fn stamp(m: &fs::Metadata) -> Stamp {
     use std::os::unix::fs::MetadataExt;
-    let m = fs::metadata(p)?;
-    Ok((m.dev(), m.ino(), m.ctime(), m.ctime_nsec(), m.size()))
+    (m.dev(), m.ino(), m.ctime(), m.ctime_nsec(), m.size())
 }
 fn observed(obs: &[(PathBuf, Stamp)]) -> bool {
-    obs.iter().all(|(p, s)| stamp(p).is_ok_and(|v| v == *s))
+    obs.iter().all(|(p, s)| fs::metadata(p).is_ok_and(|m| stamp(&m) == *s))
 }
 fn remember(path: &Path, obs: &mut Vec<(PathBuf, Stamp)>) -> io::Result<()> {
-    obs.push((path.to_owned(), stamp(path)?));
+    obs.push((path.to_owned(), stamp(&fs::metadata(path)?)));
     Ok(())
 }
 
@@ -297,7 +307,20 @@ fn inputs(
     let cache = req.root.join(cache_name);
     fs::create_dir_all(&cache)?;
     let mut h = blake3::Hasher::new();
-    field(&mut h, &raw);
+    // The request order selects the first visible refusal. Each stored answer is
+    // local to its origin, so bind membership and apply ordering at replay.
+    let external: BTreeMap<String, &serde_json::value::RawValue> = serde_json::from_slice(&raw)?;
+    for (name, value) in external {
+        if name != "files" {
+            field(&mut h, name.as_bytes());
+            field(&mut h, value.get().as_bytes());
+        }
+    }
+    let mut inventory: Vec<_> = req.files.iter().collect();
+    inventory.sort_unstable();
+    for path in inventory {
+        field(&mut h, path.as_bytes());
+    }
     field(
         &mut h,
         fs::canonicalize(pack)?.as_os_str().as_encoded_bytes(),
@@ -342,11 +365,9 @@ fn inputs(
         let mut file = h.clone();
         field(&mut file, name.as_bytes());
         use std::os::unix::fs::PermissionsExt;
-        field(
-            &mut file,
-            &fs::metadata(&p)?.permissions().mode().to_le_bytes(),
-        );
-        remember(&p, &mut observations)?;
+        let metadata = fs::metadata(&p)?;
+        field(&mut file, &metadata.permissions().mode().to_le_bytes());
+        observations.push((p.clone(), stamp(&metadata)));
         let version = *blake3::hash(&fs::read(p)?).as_bytes();
         field(&mut file, &version);
         versions.insert(name.to_owned(), version);
@@ -408,11 +429,18 @@ fn publish(
     Ok(data.len() + 32)
 }
 
-fn report(rows: &Records, keys: &[Key], out: &Path, dedup: bool) -> io::Result<()> {
+fn report(rows: &Records, keys: &[Key], out: &Path, dedup: bool) -> io::Result<bool> {
+    let mut failures = BTreeMap::new();
     let mut lines = Vec::new();
     for k in keys {
         for row in &rows[k].findings {
-            lines.push(serde_json::to_string(row)?);
+            if !failures.contains_key(&row.rule) {
+                lines.push(serde_json::to_string(row)?);
+            }
+        }
+        let answer = &rows[k];
+        for (emit, reason) in &answer.refusals {
+            failures.entry(emit.clone()).or_insert_with(|| format!("{}: {reason}", answer.origin));
         }
     }
     lines.sort_unstable();
@@ -426,7 +454,11 @@ fn report(rows: &Records, keys: &[Key], out: &Path, dedup: bool) -> io::Result<(
     for line in lines {
         writeln!(writer, "{line}")?;
     }
-    writer.flush()
+    writer.flush()?;
+    for (emit, reason) in &failures {
+        println!("FAILED {emit}: {reason}");
+    }
+    Ok(failures.is_empty())
 }
 
 /// Invoke the normal evaluator on misses. The reader host may replay individual files only when
@@ -471,14 +503,8 @@ pub(crate) fn check(
             .zip(&req.files)
             .all(|(k, name)| rows.get(k).is_some_and(|r| r.origin == *name))
     {
-        if !observed(&first.observations) {
-            return Ok(evaluate(
-                &serde_json::from_slice(&fs::read(request)?)?,
-                None,
-            ));
-        }
         let checked = ms();
-        report(rows, &first.keys, output, dedup)?;
+        let ok = report(rows, &first.keys, output, dedup)?;
         let rendered = ms();
         eprintln!(
             "retained_cpu_ms pack={pack_ms:.3} scope={scope_ms:.3} files={files_ms:.3} load={:.3} check={:.3} report={:.3}",
@@ -491,7 +517,7 @@ pub(crate) fn check(
             first.keys.len(),
             rows.len()
         );
-        return Ok(true);
+        return Ok(ok);
     }
     let had_empty = rows.as_ref().is_some_and(Records::is_empty);
     let mut old = rows.unwrap_or_default();
@@ -528,10 +554,8 @@ pub(crate) fn check(
             .as_ref()
             .map(|m| (m.dev(), m.ino(), m.ctime(), m.ctime_nsec()));
     let mut written = 0;
-    if !observed(&first.observations)
-        || !inputs(pack, request, cache_name, project_entries)
-            .is_ok_and(|after| after.keys == first.keys)
-    {
+    let publishing = same_parent && !(next.is_empty() && had_empty);
+    if publishing && !observed(&first.observations) {
         drop(lock);
         eprintln!("inputs changed during evaluation; evaluating current contents");
         return Ok(evaluate(
@@ -540,7 +564,7 @@ pub(crate) fn check(
         ));
     }
     let checked = ms();
-    if same_parent && !(next.is_empty() && had_empty) {
+    if publishing {
         written = publish(&dir, &path, build, previous, &next)?;
     }
     eprintln!(
