@@ -932,6 +932,10 @@ impl ColumnFile<'_, '_> {
         ]
     }
 
+    pub(super) fn named_import_requires_tokens(schema: &l::FileRelation) -> bool {
+        matches!(schema.name, HEADS | LINE_COMMENTS)
+    }
+
     /// Complete file-local import facts in the same dictionary as the syntax.
     pub(super) fn named_import(
         &self,
@@ -943,13 +947,6 @@ impl ColumnFile<'_, '_> {
         package_root: Option<&str>,
         prefixes: &mut Option<&mut dyn FnMut(&str) -> (String, String, bool)>,
     ) -> Result<Vec<l::FactColumn>, String> {
-        let completeness = self.file.syntax.completeness;
-        if completeness.syntax != l::SyntaxCompleteness::Complete
-            || (matches!(schema.name, HEADS | LINE_COMMENTS)
-                && completeness.lexical != l::SyntaxCompleteness::Complete)
-        {
-            return Err(format!("incomplete {}", schema.name));
-        }
         let intern = |symbols: &mut l::Symbols, text: &str| {
             l::intern_derived(symbols, l::ByteSlice(src), l::NameText(text)).0
         };

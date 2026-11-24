@@ -663,9 +663,13 @@ impl ColumnFile<'_, '_> {
         },
     ];
 
+    pub(super) fn named_expression_requires_tokens(schema: &FileRelation) -> bool {
+        matches!(schema.name, WITH_HEADER | NESTED_DELIMITERS)
+    }
+
     /// Lend a complete expression relation in the caller's symbol dictionary.
     /// Node cells carry the full provider file and element identity.
-    pub fn named_expression(
+    pub(super) fn named_expression(
         &mut self,
         schema: &FileRelation,
         file: l::FileId,
@@ -674,13 +678,6 @@ impl ColumnFile<'_, '_> {
     ) -> Result<Vec<l::FactColumn>, String> {
         if !Self::EXPRESSION_SCHEMAS.contains(schema) {
             return Err(format!("no expression relation {}", schema.name));
-        }
-        let complete = self.file.syntax.completeness;
-        if complete.syntax != l::SyntaxCompleteness::Complete
-            || (matches!(schema.name, WITH_HEADER | NESTED_DELIMITERS)
-                && complete.lexical != l::SyntaxCompleteness::Complete)
-        {
-            return Err(format!("incomplete {}", schema.name));
         }
         let mut columns = vec![Vec::new(); schema.columns.len()];
         self.visit_expression_relation(

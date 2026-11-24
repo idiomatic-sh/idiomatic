@@ -13,6 +13,7 @@ const RELATIVE_IMPORT: FileRelation = FileRelation {
 };
 
 type Columns = Result<Vec<l::FactColumn>, l::ParseError>;
+type Covered = Result<l::FileRows, l::ParseError>;
 type TypingInputs<'a> = (
     &'a dyn Fn(&[u8]) -> bool,
     &'a dyn Fn(&[u8]) -> bool,
@@ -23,6 +24,13 @@ type ImportPrefixes<'a> = &'a mut dyn FnMut(&str) -> (String, String, bool);
 fn failed(reason: String) -> l::ParseError {
     l::ParseError::Library {
         reason: l::ToolMessage(reason.into()),
+    }
+}
+
+fn complete(columns: Vec<l::FactColumn>) -> l::FileRows {
+    l::FileRows {
+        columns,
+        partial: None,
     }
 }
 
@@ -42,12 +50,39 @@ impl ColumnFile<'_, '_> {
         })
     }
 
-    /// Answer named tables from the numbered Python file. The result follows request order.
-    ///
-    /// The optional package pair is the enclosing dotted package, if any, and the
-    /// enclosing regular package's root name. An absent pair means the project was
-    /// not observed. The prefix callback reports module, package and namespace
-    /// observations under the host's declared search roots.
+    /// Report an uncovered source extent for a declared relation before publishing rows.
+    pub fn named_uncovered(
+        schema: &FileRelation,
+        syntax: l::SyntaxCompleteness,
+        lexical: l::SyntaxCompleteness,
+    ) -> Option<l::FileRows> {
+        if syntax == l::SyntaxCompleteness::Complete && lexical == l::SyntaxCompleteness::Complete {
+            return None;
+        }
+        let lexical_only = crate::fixtures::comment_positions::SCHEMAS.contains(schema);
+        let extent = if lexical == l::SyntaxCompleteness::Incomplete
+            && (lexical_only
+                || Self::named_expression_requires_tokens(schema)
+                || Self::named_import_requires_tokens(schema))
+        {
+            "lexical stream"
+        } else if syntax == l::SyntaxCompleteness::Incomplete
+            && !lexical_only
+            && Self::named_schemas().contains(schema)
+        {
+            "syntax"
+        } else {
+            return None;
+        };
+        Some(l::FileRows {
+            columns: vec![l::FactColumn::default(); schema.columns.len()],
+            partial: Some(l::ToolMessage(
+                format!("incomplete {extent} for {}", schema.name).into(),
+            )),
+        })
+    }
+
+    /// Answer complete tables for readers of the original named-fact interface.
     pub fn answer_named_facts(
         &mut self,
         schemas: &[&FileRelation],
@@ -57,14 +92,51 @@ impl ColumnFile<'_, '_> {
         symbols: &mut l::Symbols,
         typing: Option<TypingInputs<'_>>,
         package: Option<(Option<&str>, &str)>,
-        mut prefixes: Option<ImportPrefixes<'_>>,
+        prefixes: Option<ImportPrefixes<'_>>,
     ) -> Vec<Columns> {
+        self.answer_named_facts_covered(
+            schemas, file, path, bytes, symbols, typing, package, prefixes,
+        )
+        .into_iter()
+        .map(|answer| {
+            let l::FileRows { columns, partial } = answer?;
+            match partial {
+                Some(reason) => Err(l::ParseError::Library { reason }),
+                None => Ok(columns),
+            }
+        })
+        .collect()
+    }
+
+    /// Answer named tables from the numbered Python file. The result follows request order.
+    ///
+    /// The optional package pair is the enclosing dotted package, if any, and the
+    /// enclosing regular package's root name. An absent pair means the project was
+    /// not observed. The prefix callback reports module, package and namespace
+    /// observations under the host's declared search roots.
+    pub fn answer_named_facts_covered(
+        &mut self,
+        schemas: &[&FileRelation],
+        file: l::FileId,
+        path: &str,
+        bytes: l::ByteSlice<'_>,
+        symbols: &mut l::Symbols,
+        typing: Option<TypingInputs<'_>>,
+        package: Option<(Option<&str>, &str)>,
+        mut prefixes: Option<ImportPrefixes<'_>>,
+    ) -> Vec<Covered> {
         let mut comments = None;
         let mut answers = Vec::with_capacity(schemas.len());
         let mut semantic = Vec::new();
         let mut semantic_order = Vec::new();
 
+        let coverage = self.file.syntax.completeness;
         for (slot, &schema) in schemas.iter().enumerate() {
+            if let Some(partial) = Self::named_uncovered(schema, coverage.syntax, coverage.lexical)
+            {
+                answers.push(Ok(partial));
+                continue;
+            }
             if Self::TYPING_SCHEMAS.contains(schema) {
                 semantic_order.push(slot);
                 semantic.push(*schema);
@@ -98,7 +170,7 @@ impl ColumnFile<'_, '_> {
             } else {
                 Err(l::ParseError::Unsupported)
             };
-            answers.push(answer);
+            answers.push(answer.map(complete));
         }
 
         if !semantic.is_empty() {
@@ -127,7 +199,7 @@ impl ColumnFile<'_, '_> {
                                     }
                                 }
                             }
-                            qualify_cells(schema, file, columns)
+                            complete(qualify_cells(schema, file, columns))
                         })
                         .map_err(failed);
                 },
@@ -145,9 +217,6 @@ impl ColumnFile<'_, '_> {
         package: Option<(Option<&str>, &str)>,
     ) -> Result<Vec<l::FactColumn>, String> {
         let mut columns = vec![Vec::new(); RELATIVE_IMPORT.columns.len()];
-        if self.file.syntax.completeness.syntax != l::SyntaxCompleteness::Complete {
-            return Err("incomplete relative-import-target".to_owned());
-        }
         if self.has_relative_imports() {
             let package =
                 package.ok_or("relative-import-target needs the containing package observation")?;
