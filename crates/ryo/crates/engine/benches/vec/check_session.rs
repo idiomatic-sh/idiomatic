@@ -1172,6 +1172,7 @@ pub(crate) fn visit<L: FileSource>(
             clocks.bound_proofs += proof_time;
             let mut named_tables = Vec::new();
             let mut named_errors = BTreeMap::new();
+            let mut named_partials = BTreeMap::new();
             if needs_native && let Some(parser) = parser {
                 let mut demanded = BTreeMap::new();
                 for (binding, _, _) in &active {
@@ -1190,7 +1191,12 @@ pub(crate) fn visit<L: FileSource>(
                         }
                     } else {
                         for (schema, answer) in schemas.into_iter().zip(answers) {
-                            let table = answer.and_then(|cols| named::table(cols, schema, id, L::symbols(symbols), &bytes, &mut run, unknown));
+                            let table = answer.and_then(|rows| {
+                                if let Some(reason) = rows.partial {
+                                    named_partials.insert(schema.name, reason.0);
+                                }
+                                named::table(rows.columns, schema, id, L::symbols(symbols), &bytes, &mut run, unknown)
+                            });
                             match table {
                                 Ok(table) => {
                                     clocks.named_counts[1] += 1;
@@ -1253,7 +1259,7 @@ pub(crate) fn visit<L: FileSource>(
                     continue;
                 }
                 let mut local_coverage = BTreeMap::new();
-                let unknowns = if said.is_empty()
+                let mut unknowns = if said.is_empty()
                     && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
                 {
                     Vec::new()
@@ -1288,6 +1294,16 @@ pub(crate) fn visit<L: FileSource>(
                     }
                     contract.report(&partial, &source.path)
                 };
+                for schema in &b.named {
+                    if let Some(reason) = named_partials.get(schema.name) {
+                        local_coverage.insert(schema.name.to_owned(), vec![Some(id.0)]);
+                        if cut_of[binding].is_some() {
+                            let origin = world.file(&source.path);
+                            world.unavailable.entry(slot).or_default().insert((schema.name.to_owned(), origin));
+                        }
+                        unknowns.push((source.path.clone(), reason.to_string()));
+                    }
+                }
                 if excluded && unknowns.is_empty() {
                     if let Some(cut) = &cut_of[binding] {
                         world.insert_empty(slot, &source.path, b, &mut run, cut);

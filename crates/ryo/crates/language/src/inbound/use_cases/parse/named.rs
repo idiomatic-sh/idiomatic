@@ -41,6 +41,14 @@ pub trait FileProject {
     fn entry(&self, path: &std::path::Path) -> crate::domain::project_context::types::ObservedEntryState;
 }
 
+/// The established rows of a named relation and any uncovered part of its source.
+pub struct FileRows {
+    /// Typed columns in catalog order. Positive rows survive partial input.
+    pub columns: Vec<FactColumn>,
+    /// A missing part prevents conclusions that depend on its absence.
+    pub partial: Option<crate::domain::reasons::types::ToolMessage>,
+}
+
 /// Additional relations from the same numbered parse. An error means the provider
 /// could not establish a complete answer for this file.
 pub trait FileRelations: Send + Sync {
@@ -49,6 +57,21 @@ pub trait FileRelations: Send + Sync {
 
     /// Every relation this provider can supply.
     fn declarations(&self) -> &'static [FileRelation];
+
+    /// Supplies rows and their coverage. Providers with complete tables can use
+    /// the ordinary read implementation; an execution error remains a refusal.
+    fn read_covered(
+        &self,
+        relations: &[&FileRelation],
+        request: super::types::ParseRequest<'_>,
+        elements: &Elements,
+        tree: &crate::domain::node_table::types::NodeTable,
+        symbols: &mut Symbols,
+        project: Option<&dyn FileProject>,
+    ) -> Vec<Result<FileRows, super::errors::ParseError>> {
+        self.read(relations, request, elements, tree, symbols, project)
+            .into_iter().map(|result| result.map(|columns| FileRows { columns, partial: None })).collect()
+    }
 
     /// Answers all requested tables from the same numbered file, in declaration order.
     /// A refusal applies to its relation. A complete empty table has one column per label.

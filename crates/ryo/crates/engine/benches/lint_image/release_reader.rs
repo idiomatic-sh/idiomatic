@@ -222,7 +222,7 @@ impl Source for Pinned {
     fn declarations(&self) -> &'static [crate::check_session::source::FileRelation] {
         self.native.as_ref().map_or(&[], Source::declarations)
     }
-    fn named_rows(&self, relations: &[&crate::check_session::source::FileRelation], request: l::ParseRequest<'_>, file: &File, projection: &l::NodeTable, dict: &mut Dictionary, project: Option<&dyn l::FileProject>) -> Vec<Result<crate::check_session::source::Columns>> {
+    fn named_rows(&self, relations: &[&crate::check_session::source::FileRelation], request: l::ParseRequest<'_>, file: &File, projection: &l::NodeTable, dict: &mut Dictionary, project: Option<&dyn l::FileProject>) -> Vec<Result<l::FileRows>> {
         match (&self.native, file) {
             (Some(reader), File::Native(tree)) => reader.named_rows(relations, request, tree, projection, &mut dict.out, project),
             _ => relations.iter().map(|schema| Err(format!("no linked provider for {}", schema.name))).collect(),

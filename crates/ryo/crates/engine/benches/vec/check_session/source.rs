@@ -13,7 +13,7 @@ pub(crate) trait Source: Clone + Sync {
     fn source_words(&self) -> Option<l::SourceWords> { None }
     fn uses_project(&self) -> bool { false }
     fn declarations(&self) -> &'static [FileRelation] { &[] }
-    fn named_rows(&self, relations: &[&FileRelation], _: l::ParseRequest<'_>, _: &Self::File, _: &l::NodeTable, _: &mut Self::Dictionary, _: Option<&dyn l::FileProject>) -> Vec<Result<Columns>> {
+    fn named_rows(&self, relations: &[&FileRelation], _: l::ParseRequest<'_>, _: &Self::File, _: &l::NodeTable, _: &mut Self::Dictionary, _: Option<&dyn l::FileProject>) -> Vec<Result<l::FileRows>> {
         relations.iter().map(|schema| Err(format!("provider does not supply {}", schema.name))).collect()
     }
 
@@ -103,9 +103,9 @@ impl Source for Linked {
     fn declarations(&self) -> &'static [FileRelation] {
         self.parser.file_relations().map_or(&[], |supplier| supplier.declarations())
     }
-    fn named_rows(&self, relations: &[&FileRelation], request: l::ParseRequest<'_>, file: &Self::File, tree: &l::NodeTable, dict: &mut Self::Dictionary, project: Option<&dyn l::FileProject>) -> Vec<Result<Columns>> {
+    fn named_rows(&self, relations: &[&FileRelation], request: l::ParseRequest<'_>, file: &Self::File, tree: &l::NodeTable, dict: &mut Self::Dictionary, project: Option<&dyn l::FileProject>) -> Vec<Result<l::FileRows>> {
         match self.parser.file_relations() {
-            Some(supplier) => supplier.read(relations, request, file, tree, dict, project).into_iter().map(|answer| answer.map_err(|error| error.to_string())).collect(),
+            Some(supplier) => supplier.read_covered(relations, request, file, tree, dict, project).into_iter().map(|answer| answer.map_err(|error| error.to_string())).collect(),
             None => relations.iter().map(|schema| Err(format!("no provider for {}", schema.name))).collect(),
         }
     }
