@@ -687,11 +687,6 @@ pub(crate) fn visit<L: FileSource>(
             let mut active = Vec::new();
             for (&binding, &slot) in &jobs {
                 let Ok(b) = &bound[&binding] else { continue };
-                let p = programs[program_of[binding]].as_ref().unwrap();
-                let c = &contracts[&binding];
-                let rels: Vec<_> = c.needs.reads.iter().map(|r| r.relation()).collect();
-                let partials = partial_of(&[], recovery, &rels);
-                let unknowns = c.report(&partials, &source.path);
                 let excluded = cut_of[binding].is_none()
                     && (b.never
                         || !b.shape.iter().all(|c| {
@@ -704,13 +699,17 @@ pub(crate) fn visit<L: FileSource>(
                             })
                         })
                         || !b.words.iter().all(|c| c.iter().any(|v| words.contains(v))));
-                if excluded && partials.is_empty() && b.facts.is_empty() {
-                    answers[slot] = Ok(Reported {
-                        rows: Vec::new(),
-                        unknowns,
-                    });
-                    clocks.skipped += 1;
-                    continue;
+                if excluded && b.facts.is_empty() {
+                    let whole = recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
+                    if whole || {
+                        let rels: Vec<_> = contracts[&binding].needs.reads.iter()
+                            .map(|r| r.relation()).collect();
+                        partial_of(&[], recovery, &rels).is_empty()
+                    } {
+                        answers[slot] = Ok(Reported::default());
+                        clocks.skipped += 1;
+                        continue;
+                    }
                 }
                 active.push((binding, slot, excluded));
             }
