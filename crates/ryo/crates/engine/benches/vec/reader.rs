@@ -63,8 +63,9 @@ pub(super) fn project_tree(
 ) {
     let mut builder = node_table::builder(table, l::Count(run.kind_sym.len()));
     let mut open = Vec::new();
-    facts.text.reserve(l::real_count(elements).0);
-    for at in l::positions(elements) {
+    let positions = l::positions(elements);
+    facts.text.reserve(positions.size_hint().0);
+    for at in positions {
         while open.last().is_some_and(|&(last, _)| last < at) {
             let (_, end) = open.pop().unwrap();
             node_table::leave_node(&mut builder, end);
