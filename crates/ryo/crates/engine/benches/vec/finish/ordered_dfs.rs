@@ -5,7 +5,7 @@
 //! the edge's source, destination and edge columns, then the ordinal. Two edges of one source with one order are refused,
 //! as the shipping engine refuses them (`DuplicateOrder`).
 
-use super::{Args, NULL, R, Table, Ty, s, strs};
+use super::{Args, NULL, R, Table, Ty, inline_key::Key, s, strs};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 /// The output's column names and types from the two inputs' schemas.
@@ -38,14 +38,16 @@ pub(super) fn walked(a: &Args, from: &Table, edges: &Table, out: &mut Table) -> 
     let (src, dst, ord, edge) =
         (edges.col(s(&a["source"])?)?, edges.col(s(&a["destination"])?)?, edges.col(s(&a["order"])?)?, edges.col(s(&a["edge"])?)?);
     // each (keys, source)'s edges, ascending by order (a number cell: its bits as a signed integer)
-    let mut runs: FxHashMap<Vec<u64>, Vec<usize>> = FxHashMap::default();
+    let mut runs: FxHashMap<Key, Vec<usize>> = FxHashMap::default();
+    let mut key = Vec::with_capacity(ek.len() + 1);
     for r in 0..edges.n {
         if edges.cols[ord][r] == NULL {
             return Err("ordered-dfs: an edge with no order".to_owned());
         }
-        let mut k: Vec<u64> = ek.iter().map(|c| edges.cols[*c][r]).collect();
-        k.push(edges.cols[src][r]);
-        runs.entry(k).or_default().push(r);
+        key.clear();
+        key.extend(ek.iter().map(|c| edges.cols[*c][r]));
+        key.push(edges.cols[src][r]);
+        runs.entry(Key::of(&key)).or_default().push(r);
     }
     for v in runs.values_mut() {
         v.sort_unstable_by_key(|r| edges.cols[ord][*r] as i64);
@@ -53,25 +55,27 @@ pub(super) fn walked(a: &Args, from: &Table, edges: &Table, out: &mut Table) -> 
             return Err("ordered-dfs: two edges of one source with one order".to_owned());
         }
     }
-    let mut done: FxHashSet<Vec<u64>> = FxHashSet::default();
+    let mut done = FxHashSet::default();
+    let mut k = Vec::with_capacity(fk.len() + 1);
     let mut row = Vec::with_capacity(out.names.len());
     for r in 0..from.n {
-        let mut k: Vec<u64> = fk.iter().map(|c| from.cols[*c][r]).collect();
+        k.clear();
+        k.extend(fk.iter().map(|c| from.cols[*c][r]));
         let start = from.cols[root][r];
         k.push(start);
-        if !done.insert(k.clone()) {
+        if !done.insert(Key::of(&k)) {
             continue;
         }
-        let kp = k[..k.len() - 1].to_vec();
+        key.clear();
+        key.extend_from_slice(&k);
         let mut met: FxHashSet<u64> = FxHashSet::default();
         met.insert(start);
         // frames: (the run's edges, the next place in it)
         let mut frames: Vec<(&[usize], usize)> = Vec::new();
-        if let Some(v) = runs.get(&k) {
+        if let Some(v) = runs.get(&k[..]) {
             frames.push((v, 0));
         }
         let mut ordinal = 0i64;
-        let mut key = kp.clone();
         while let Some((v, next)) = frames.last_mut() {
             if *next >= v.len() {
                 frames.pop();
@@ -86,9 +90,8 @@ pub(super) fn walked(a: &Args, from: &Table, edges: &Table, out: &mut Table) -> 
             ordinal += 1;
             let d = edges.cols[dst][e];
             if met.insert(d) {
-                key.truncate(kp.len());
-                key.push(d);
-                if let Some(w) = runs.get(&key) {
+                key[fk.len()] = d;
+                if let Some(w) = runs.get(&key[..]) {
                     frames.push((w, 0));
                 }
             }
