@@ -52,6 +52,10 @@ pub(super) struct Requests {
     steps: Vec<Option<Demand>>,
     seen: Vec<bool>,
     masks: Vec<Option<Columns>>,
+    #[allow(dead_code, reason = "used by the check-session host")]
+    indexed_slots: Vec<Option<u16>>,
+    #[allow(dead_code, reason = "used by the check-session host")]
+    host_slots: Vec<u16>,
     replies: Vec<Reply>,
     pub(super) files: u64,
     pub(super) calls: u64,
@@ -92,7 +96,7 @@ pub(super) fn slot(run: &mut Run, relation: &str) -> u16 {
     if let Some(&id) = run.fact_slots.get(relation) { return id; }
     let id = u16::try_from(run.fact_rels.len()).expect("provider relation slots");
     let width = run.catalog(relation).map_or(0, |(_, names, _)| names.len());
-    run.fact_rels.push((relation.to_owned(), width));
+    run.fact_rels.push((Rc::from(relation), width));
     run.fact_slots.insert(relation.to_owned(), id);
     id
 }
@@ -196,23 +200,32 @@ impl Exec<'_> {
     /// The indexed reader has already bound these typed relation demands
     /// for the active bindings. Reuse its admission rather than binding a
     /// second execution plan merely to describe the existing packet.
+    #[allow(dead_code, reason = "the session host already binds its admission relations")]
     pub(crate) fn open_indexed(&mut self, version: &super::FileVersion<'_>, run: &mut Run,
         provider: &mut dyn Provider, relations: &[ryo::languages::Relation], checks: &[&str]) -> R<Vec<Reply>> {
-        use ryo_relations::domain::relations::service::name;
-        let host: Vec<_> = run.declared.iter().filter(|(_, declaration)| matches!(declaration.supplier, Supplier::Host))
-            .map(|(relation, _)| relation.clone()).collect();
-        let extras: Vec<_> = host.iter().map(|relation| slot(run, relation)).collect();
-        let slots: Vec<_> = relations.iter().map(|&relation| slot(run, name(relation).0)).collect();
+        use ryo_relations::domain::relations::service::{ALL, name, number_of};
+        if self.requests.indexed_slots.is_empty() {
+            self.requests.indexed_slots.resize(ALL.len(), None);
+            let hosts: Vec<_> = run.declared.iter()
+                .filter(|(_, declaration)| matches!(declaration.supplier, Supplier::Host))
+                .map(|(relation, _)| relation.clone()).collect();
+            self.requests.host_slots.extend(hosts.iter().map(|relation| slot(run, relation)));
+        }
+        for &relation in relations {
+            self.requests.indexed_slots[number_of(relation).0].get_or_insert_with(|| slot(run, name(relation).0));
+        }
         self.requests.masks.resize_with(run.fact_rels.len(), || None);
         self.requests.masks.fill(None);
-        for id in slots.into_iter().chain(extras) {
+        let slots = relations.iter().map(|&r| self.requests.indexed_slots[number_of(r).0].expect("bound relation"));
+        for id in slots.chain(self.requests.host_slots.iter().copied()) {
             self.requests.masks[usize::from(id)] = Some(Columns::All);
         }
         self.admit_packet(version, run, provider, checks)
     }
 
     fn admit_packet(&mut self, version: &super::FileVersion<'_>, run: &mut Run, provider: &mut dyn Provider, checks: &[&str]) -> R<Vec<Reply>> {
-        self.requests.files += 1;
+        let counted = super::fill_prof::counting();
+        if counted { self.requests.files += 1; }
         let mut packet = version.facts.borrow_mut();
         packet.resize_with(run.fact_rels.len(), || None);
         let proven = version.proven.borrow();
@@ -221,7 +234,7 @@ impl Exec<'_> {
         for (id, mask) in self.requests.masks.iter().enumerate() {
             let Some(mask) = mask else { continue };
             let relation = &run.fact_rels[id].0;
-            if packet[id].is_some() || version.supplied.contains_key(relation) { continue; }
+            if packet[id].is_some() || version.supplied.contains_key(relation.as_ref()) { continue; }
             if proven.get(id).copied().unwrap_or(false) {
                 let relation = relation.clone();
                 let reply = run.catalog(&relation).map(|(_, names, types)|
@@ -258,21 +271,23 @@ impl Exec<'_> {
         }).chain(checks.iter().map(|relation| Asked {
             relation, columns: &Columns::All, scope: Scope::File(version.file),
         })).collect();
-        self.requests.calls += 1;
+        if counted { self.requests.calls += 1; }
         read(run, provider, &list, &mut self.requests.replies)?;
         let returned = pending.len();
         drop(list);
         for (((id, _, project), relation), reply) in pending.into_iter().zip(names).zip(self.requests.replies.drain(..returned)) {
-            self.requests.answered += u64::from(reply.is_ok());
-            self.requests.refused += u64::from(reply.is_err());
-            self.requests.rows += reply.as_ref().map_or(0, |t| t.count() as u64);
+            if counted {
+                self.requests.answered += u64::from(reply.is_ok());
+                self.requests.refused += u64::from(reply.is_err());
+                self.requests.rows += reply.as_ref().map_or(0, |t| t.count() as u64);
+            }
             let reply = if let Some(ask) = project {
                 project::for_file(version.file, run, &relation, ask, |_, _| reply.and_then(Answer::columns).map(|t|
                     Rc::try_unwrap(t).unwrap_or_else(|t| t.copy()))).map(super::recycle::rc).map(Answer::Columns)
             } else {
                 reply
             };
-            packet[id] = Some(Delivered::new(reply, true));
+            packet[id] = Some(Delivered::new(reply, counted));
         }
         Ok(self.requests.replies.drain(..).collect())
     }

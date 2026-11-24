@@ -36,7 +36,8 @@ fn output(table: &NodeTable, ft: &FactTable, key: usize, file_no: u32, names: fi
     if !ft.answered { return None; }
     let keys = ft.keys();
     let n = keys.len();
-    let mut out = Table::with_rows(names, tys.clone(), 0);
+    let mask = ryo::languages::ColumnProjection::First(columns);
+    let mut out = Table::with_projection(names, tys.clone(), n, &mask);
     for (c, ty) in tys.iter().enumerate() {
         if columns & (1 << c) == 0 { continue; }
         let col = &mut out.cols[c];

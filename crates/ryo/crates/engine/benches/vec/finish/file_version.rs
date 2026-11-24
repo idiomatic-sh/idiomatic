@@ -3,6 +3,12 @@ use super::{Index, KindBits, NodeTable, Run, Tokens, node_table};
 use std::cell::{OnceCell, RefCell};
 use std::rc::Rc;
 
+type AnswerSlots = Vec<Option<super::request::Delivered>>;
+
+thread_local! {
+    static SPARE_FACTS: RefCell<(Vec<bool>, AnswerSlots)> = const { RefCell::new((Vec::new(), Vec::new())) };
+}
+
 pub(crate) struct FileVersion<'a> {
     pub(crate) table: &'a NodeTable,
     pub(crate) src: &'a [u8],
@@ -21,7 +27,7 @@ pub(crate) struct FileVersion<'a> {
     pub(super) tokens: RefCell<Option<Rc<Tokens>>>,
     pub(super) indexed: Option<&'a dyn super::request::Indexed>,
     pub(super) proven: RefCell<Vec<bool>>,
-    pub(super) facts: RefCell<Vec<Option<super::request::Delivered>>>,
+    pub(super) facts: RefCell<AnswerSlots>,
     pub(super) supplied: rustc_hash::FxHashMap<String, Rc<super::Table>>,
     roots: OnceCell<Vec<(u16, u32)>>,
     lines: OnceCell<Vec<u32>>,
@@ -34,6 +40,7 @@ impl<'a> FileVersion<'a> {
         if let Some(symbols) = text {
             assert_eq!(symbols.len(), kind.len());
         }
+        let (proven, facts) = SPARE_FACTS.with(|spare| spare.take());
         Self {
             table, src, file, n: kind.len(), kind,
             start: node_table::starts(table),
@@ -43,7 +50,7 @@ impl<'a> FileVersion<'a> {
             text_memo: RefCell::new(text.unwrap_or_default().to_vec()),
             present_fields: Default::default(),
             by_start: Default::default(), by_end: Default::default(), by_line: Default::default(),
-            indexed: None, proven: Default::default(), facts: Default::default(), supplied: Default::default(),
+            indexed: None, proven: RefCell::new(proven), facts: RefCell::new(facts), supplied: Default::default(),
             tokens: Default::default(), roots: Default::default(), lines: Default::default(),
             kinds: Default::default(),
         }
@@ -104,5 +111,13 @@ impl Drop for FileVersion<'_> {
                 super::recycle::recycle(table);
             }
         }
+        let mut proven = self.proven.take();
+        proven.clear();
+        let facts = self.facts.take();
+        let _ = SPARE_FACTS.try_with(|spare| {
+            let mut spare = spare.borrow_mut();
+            if proven.capacity() > spare.0.capacity() { spare.0 = proven; }
+            if facts.capacity() > spare.1.capacity() { spare.1 = facts; }
+        });
     }
 }

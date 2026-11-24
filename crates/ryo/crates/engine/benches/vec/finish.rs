@@ -271,6 +271,20 @@ impl Table {
         });
         Table { names, tys, cols, n: 0 }
     }
+    /// Allocate buffers only for columns carried by the provider answer.
+    pub(super) fn with_projection(names: Names, tys: Tys, n: usize, projection: &languages::ColumnProjection) -> Self {
+        if matches!(projection, languages::ColumnProjection::All) {
+            return Self::with_rows(names, tys, n);
+        }
+        let mut cols = recycle::take_cols(names.len());
+        POOL.with(|p| {
+            let p = &mut *p.borrow_mut();
+            cols.extend((0..names.len()).map(|i| {
+                if projection.contains(i) { take_col(p, n) } else { Vec::new() }
+            }));
+        });
+        Self { names, tys, cols, n: 0 }
+    }
     /// redo-alloc: a copy of the table in the worker's pooled list and columns (`clone` makes both new).
     pub(super) fn copy(&self) -> Table {
         let mut cols = recycle::take_cols(self.cols.len());
@@ -371,7 +385,7 @@ pub(super) struct Run {
     /// Functions a step asked that are not in the step set (the rule is refused).
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
-    pub(super) fact_rels: Vec<(String, usize)>,
+    pub(super) fact_rels: Vec<(Rc<str>, usize)>,
     fact_slots: FxHashMap<String, u16>,
     /// pass 2: the kind codes of each kind name's symbol (made at the first ask, after `kind_sym` is set).
     pub(super) kind_codes: std::cell::OnceCell<FxHashMap<u32, Box<[u16]>>>,
@@ -2424,7 +2438,7 @@ impl<'p> Exec<'p> {
 
     fn admitted(&mut self, f: &File<'_>, run: &mut Run, id: u16) -> R<Rc<Table>> {
         let relation = &run.fact_rels[usize::from(id)].0;
-        if let Some(table) = f.version.supplied.get(relation) { return Ok(table.clone()); }
+        if let Some(table) = f.version.supplied.get(relation.as_ref()) { return Ok(table.clone()); }
         if !f.admitting
             && let Some(answer) = f.version.facts.borrow_mut().get_mut(usize::from(id)).and_then(Option::as_mut)
         {
@@ -4350,10 +4364,9 @@ fn token_links(f: &File<'_>, run: &mut Run) -> Table {
 pub(super) fn filled_columns(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords,
     mask: &languages::ColumnProjection, n: usize) -> R<Table> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
-    let mut out = Table::with_rows(names, tys.clone(), 0);
+    let mut out = Table::with_projection(names, tys.clone(), n, mask);
     for (c, ty) in tys.iter().enumerate() {
         if !mask.contains(c) { continue; }
-        out.cols[c].reserve(n);
         let Some(column) = filled.0.get(c) else {
             out.cols[c] = vec![NULL; n];
             continue;

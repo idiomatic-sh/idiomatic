@@ -110,7 +110,7 @@ fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
         Native::Location => ("location", None),
         Native::Token => ("token", None),
         Native::Fact(i) => {
-            return vec![vec!["fact".into(), run.fact_rels[usize::from(i)].0.clone()]];
+            return vec![vec!["fact".into(), run.fact_rels[usize::from(i)].0.to_string()]];
         }
     };
     if let Some(column) = column {
@@ -175,7 +175,7 @@ fn current_entries(run: &mut Run, v: &ViewSpec) -> Vec<Vec<String>> {
         ),
         Native::Child => return vec![vec!["child".into()]],
         Native::Fact(i) => {
-            let mut prefix = vec!["fact".to_owned(), run.fact_rels[usize::from(i)].0.clone()];
+            let mut prefix = vec!["fact".to_owned(), run.fact_rels[usize::from(i)].0.to_string()];
             let values = fact_entry(run, i, &v.filter).map(|(_, name, xs)| {
                 prefix.push(name);
                 xs

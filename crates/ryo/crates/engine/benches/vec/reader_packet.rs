@@ -208,10 +208,7 @@ impl finish::request::Indexed for Indexed<'_> {
         let offsets = &self.packet.offsets[catalog::number_of(rel).0];
         let width = self.packet.widths[catalog::number_of(rel).0];
         let mut resolved = self.resolved.borrow_mut();
-        let mut table = finish::Table::with_rows(names, tys, 0);
-        for (i, column) in table.cols.iter_mut().enumerate() {
-            if projection.contains(i) { column.reserve(offsets.len()); }
-        }
+        let mut table = finish::Table::with_projection(names, tys, offsets.len(), projection);
         for &at in offsets {
             let row = &self.packet.rows.words[at..at + width];
             for (i, ((column, &raw), ty)) in table.cols.iter_mut().zip(row).zip(table.tys.iter()).enumerate() {

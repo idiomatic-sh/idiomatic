@@ -186,7 +186,7 @@ impl Exec<'_> {
             let filled = f.facts.get(usize::from(i)).and_then(Option::as_ref);
             if filled.is_some_and(|t| t.n == 0) {
                 if sw!("VEC_EP_COUNT") {
-                    C.with(|c| *c.borrow_mut().no_rows.entry(rel.clone()).or_default() += 1);
+                    C.with(|c| *c.borrow_mut().no_rows.entry(rel.to_string()).or_default() += 1);
                 }
                 return 1;
             }
