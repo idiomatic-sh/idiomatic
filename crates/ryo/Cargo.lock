@@ -1890,6 +1890,7 @@ dependencies = [
  "cargo_metadata",
  "cucumber",
  "divan",
+ "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",

@@ -41,6 +41,7 @@ arrow-select = { version = "=60.0.0", optional = true }
 mimalloc = { workspace = true, optional = true }
 
 [dev-dependencies]
+ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../../crates/execution_domain" }
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../crates/matching" }
 object.workspace = true
 blake3.workspace = true
