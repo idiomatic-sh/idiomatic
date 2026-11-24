@@ -1151,7 +1151,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         c.pairs,
         c.unique_pairs,
         c.skipped,
-        c.evaluated, c.productive, c.evaluated-c.productive-c.refused, c.refused,
+        c.evaluated, c.productive, c.empty, c.refused,
         c.prepare,
         c.read_parse,
         c.screen,

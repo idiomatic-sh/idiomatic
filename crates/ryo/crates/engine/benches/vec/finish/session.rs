@@ -117,6 +117,9 @@ pub(in super::super) fn evaluate_covered(
                 };
                 exec.run_memo[i] = Some(table);
             }
+            // Class numbers are interned across the complete input. A local class
+            // from one file has no meaning in another file's class dictionary.
+            "subtree-class" if incomplete.is_empty() => {}
             "rows" | "select" | "project" | "union" | "antijoin" | "group-count" | "words" | "axis" | "closure" | "cycles" | "rank" | "intersection" | "difference" | "group-digest" | "replace" | "span-bounds" => {}
             "extend"
                 if step.args()["values"]

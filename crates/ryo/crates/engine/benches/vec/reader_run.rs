@@ -189,7 +189,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
             eprintln!("{message}");
             return false;
         };
-        if catalog::class_of(relation) == ryo_relations::domain::relations::types::Class::Engine {
+        if crate::host_columns::supplies(relation) {
             let (_, names, types) = run.catalog(name).expect("host schema");
             let columns: Vec<_> = names.iter().zip(types.iter())
                 .map(|(name, ty)| (name.as_str(), *ty)).collect();

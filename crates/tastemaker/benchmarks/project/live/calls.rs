@@ -452,6 +452,7 @@ impl Live {
         last.bound_proofs = c.bound_proofs;
         last.literal_positions = c.literal_positions;
         last.certified = c.certified;
+        last.empty = c.empty;
         last.requirement_programs = c.requirement_programs;
         last.requirement_bindings = c.requirement_bindings;
         let children = self.child_cpu();
@@ -963,6 +964,7 @@ struct Measurement {
     bound_proofs: f64,
     literal_positions: usize,
     certified: usize,
+    empty: usize,
     requirement_programs: usize,
     requirement_bindings: usize,
     counts: [usize; 10],
@@ -1003,6 +1005,7 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     bound_proofs: 0.,
     literal_positions: 0,
     certified: 0,
+    empty: 0,
     requirement_programs: 0,
     requirement_bindings: 0,
     counts: [0; 10],
@@ -1097,7 +1100,7 @@ pub fn print_measurement() {
     );
     eprintln!("LIVE_PHASE_WALL calls={:.6} admission={admission_wall:.6} files={file_wall:.6} project={project_wall:.6} delivery={delivery_wall:.6}",m.call_wall);
     let [plans, bindings, sources, reads, parses, pairs, skips, eval, productive, refused] = m.counts;
-    let empty = eval - productive - refused;
+    let empty = m.empty;
     let [inventories, builds, relations, repeated] = m.project_counts;
     eprintln!(
         "PROJECT_POPULATIONS sessions={} inventories={inventories} builds={builds} relations={relations} repeated_relations={repeated}",

@@ -145,6 +145,7 @@ pub(crate) struct Clock {
     pub evaluated: usize,
     pub certified: usize,
     pub productive: usize,
+    pub empty: usize,
     pub refused: usize,
 }
 
@@ -161,7 +162,7 @@ pub(crate) struct ReaderParts {
 /// The root and path identify the caller's immutable effective source. This
 /// distinguishes in-memory replacements staged at different roots.
 pub(crate) struct Source {
-    environment: Option<Arc<project::Environment>>,
+    pub(crate) environment: Option<Arc<project::Environment>>,
     pub(crate) permission: Permission,
     pub root: Arc<str>,
     pub path: String,
@@ -451,7 +452,7 @@ fn bind<'p, L: FileSource>(
         let name = name.as_str();
         projects_words |= matches!(rel, l::Relation::SyntaxTree | l::Relation::SemanticSyntax | l::Relation::TokenLink);
         reads_fields |= matches!(rel, l::Relation::SemanticChild | l::Relation::SyntaxChild);
-        if relations::service::class_of(rel) == relations::types::Class::Engine {
+        if crate::host_columns::supplies(rel) {
             let (_, names, tys) = run.catalog(name).ok_or("no engine schema")?;
             let cols: Vec<_> = names
                 .iter()
@@ -1241,6 +1242,7 @@ pub(crate) fn visit<L: FileSource>(
                 if let Some(result) = certified.remove(&slot) {
                     clocks.certified += 1;
                     clocks.productive += usize::from(result.as_ref().is_ok_and(|r| !r.rows.is_empty()));
+                    clocks.empty += usize::from(result.as_ref().is_ok_and(|r| r.rows.is_empty()));
                     clocks.refused += usize::from(result.is_err());
                     answers.set(slot, result);
                     continue;
@@ -1264,7 +1266,9 @@ pub(crate) fn visit<L: FileSource>(
                     let answer = value.map(|()| {
                         Reported::new(Vec::new(), unknowns, Vec::new())
                     });
-                    clocks.productive += usize::from(world.productive(slot));
+                    let productive = world.productive(slot);
+                    clocks.productive += usize::from(answer.is_ok() && productive);
+                    clocks.empty += usize::from(answer.is_ok() && !productive);
                     clocks.refused += usize::from(answer.is_err());
                     answers.set(slot, answer);
                     continue;
@@ -1274,6 +1278,7 @@ pub(crate) fn visit<L: FileSource>(
                 let answer = value
                 .map(|rows| Reported::new(rows, unknowns, Vec::new()));
                 clocks.productive += usize::from(answer.as_ref().is_ok_and(|r| !r.rows.is_empty()));
+                clocks.empty += usize::from(answer.as_ref().is_ok_and(|r| r.rows.is_empty()));
                 clocks.refused += usize::from(answer.is_err());
                     answers.set(slot, answer);
             }

@@ -576,6 +576,10 @@ impl Store {
         let prior = self.versions.len();
         self.versions
             .extend(b.schedule.sources.iter().skip(prior).map(|source| {
+                // This snapshot format records file and project-phase dependencies.
+                // A contextual file supplier can also observe entries during its visit.
+                // Recompute it until those probes are part of the stored proof.
+                if source.environment.is_some() { return None; }
                 let d = if let Some(v) = &source.provided {
                     *blake3::hash(v).as_bytes()
                 } else {

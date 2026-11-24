@@ -3,6 +3,13 @@ use ryo::languages::{CellWord, FilledColumn, FilledColumns, Relation};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
+/// Relations produced from source admission or the filesystem. Catalog ownership
+/// alone does not identify the row producer: parser configuration also has an engine schema.
+pub(super) fn supplies(rel: Relation) -> bool {
+    matches!(rel, Relation::FilesystemFile | Relation::FilesystemExecutable |
+        Relation::FilesystemReadFailure | Relation::FilesystemLineCount)
+}
+
 pub(super) const FILE_SETS: &[&str] = &["filesystem.executable"];
 
 pub(super) fn executable(path: &Path) -> std::io::Result<bool> {
