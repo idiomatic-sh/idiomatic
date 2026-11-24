@@ -450,6 +450,8 @@ fn main() {
     // `cargo bench` passes `--bench`; drop it.
     let args: Vec<&str> = args.iter().map(String::as_str).filter(|a| *a != "--bench").collect();
     if let [_, "--retain-findings", pack, request, output] = args.as_slice() {
+        // Packaging tests file and directory membership under its search roots. Its
+        // only parsed bytes are those of the admitted source currently being visited.
         finisher::retained::check(pack.as_ref(),request.as_ref(),output.as_ref(),".ryo_cache",true,true, |req,capture| {
             let paths: Vec<_> = req.files.iter().map(|p|req.root.join(p).to_str().expect("source path").to_owned()).collect();
             let selected=req.selected_rules.join(",");

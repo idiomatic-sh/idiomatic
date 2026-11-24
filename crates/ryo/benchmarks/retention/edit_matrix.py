@@ -144,7 +144,7 @@ def run(spec, evidence):
             restore_store(None)
             invoke("retained", base, spec["exe"], "seed")
             seed = snap()
-            for scenario in ("unchanged","edit","finding-edit","add","delete","manifest-settings","rule-pack","build","refused","truncated"):
+            for scenario in ("unchanged","edit","finding-edit","same-stamp","add","delete","manifest-settings","rule-pack","build","refused","truncated"):
                 reset()
                 restore_store(seed)
                 exe = spec["exe"]
@@ -153,6 +153,10 @@ def run(spec, evidence):
                     edit.write_bytes(previous + spec["comment"].encode())
                 elif scenario == "finding-edit":
                     edit.write_bytes(spec["replacement"].encode())
+                elif scenario == "same-stamp":
+                    stat = edit.stat()
+                    edit.write_bytes(bytes(byte if byte in (10, 13) else 32 for byte in previous))
+                    os.utime(edit, ns=(stat.st_atime_ns, stat.st_mtime_ns))
                 elif scenario == "add":
                     added.write_bytes(previous)
                     relative = str(added.relative_to(root))
@@ -200,7 +204,7 @@ def run(spec, evidence):
                     errors.append("snapshot differs from a fresh evaluation")
                 if scenario == "refused" and not cold[2] and cold[0] == 0:
                     errors.append("fixture did not refuse")
-                if scenario == "finding-edit" and cold[1] == unchanged_output:
+                if scenario in ("finding-edit", "same-stamp") and cold[1] == unchanged_output:
                     errors.append("edit did not change a finding")
                 if scenario == "unchanged":
                     unchanged_output = cold[1]

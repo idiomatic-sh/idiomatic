@@ -146,13 +146,14 @@ fn remember(path: &Path, obs: &mut Vec<(PathBuf, Stamp)>) -> io::Result<()> {
     Ok(())
 }
 
-// For providers with project reads, include both names and contents over the declared closed scope.
+// Close a directory over the observations its consumer reads. Pack inputs also consume contents.
 // A symlink crossing the scope or unsupported file kind has no reusable proof here.
 fn tree(
     hash: &mut blake3::Hasher,
     root: &Path,
     dir: &Path,
     cache: &Path,
+    contents: bool,
     obs: &mut Vec<(PathBuf, Stamp)>,
 ) -> io::Result<()> {
     remember(dir, obs)?;
@@ -175,10 +176,12 @@ fn tree(
         use std::os::unix::fs::PermissionsExt;
         field(hash, &meta.permissions().mode().to_le_bytes());
         if meta.is_file() {
-            remember(&path, obs)?;
-            field(hash, blake3::hash(&fs::read(&path)?).as_bytes());
+            if contents {
+                remember(&path, obs)?;
+                field(hash, blake3::hash(&fs::read(&path)?).as_bytes());
+            }
         } else if meta.is_dir() {
-            tree(hash, root, &path, cache, obs)?;
+            tree(hash, root, &path, cache, contents, obs)?;
         } else if meta.is_symlink() {
             let target = fs::read_link(&path)?;
             field(hash, target.as_os_str().as_encoded_bytes());
@@ -257,7 +260,7 @@ fn pack_inputs(
     }
     let input = pack.join("inputs");
     if input.try_exists()? {
-        tree(hash, pack, &input, cache, obs)?
+        tree(hash, pack, &input, cache, true, obs)?
     }
     Ok(())
 }
@@ -270,7 +273,12 @@ struct Inputs {
     phase_ms: [f64; 3],
 }
 
-fn inputs(pack: &Path, request: &Path, cache_name: &str, closed: bool) -> io::Result<Inputs> {
+fn inputs(
+    pack: &Path,
+    request: &Path,
+    cache_name: &str,
+    project_entries: bool,
+) -> io::Result<Inputs> {
     let start = cpu_time::ThreadTime::now();
     let ms = || start.elapsed().as_secs_f64() * 1000.;
     let mut observations = Vec::new();
@@ -296,11 +304,20 @@ fn inputs(pack: &Path, request: &Path, cache_name: &str, closed: bool) -> io::Re
     }
     pack_inputs(&mut h, pack, &cache, &mut observations)?;
     let pack_ms = ms();
-    if closed {
+    if project_entries {
         if !req.project_search_roots.iter().all(|p| local(p)) {
             return Err(invalid("open search root"));
         }
-        tree(&mut h, &req.root, &req.root, &cache, &mut observations)?;
+        // This host declares that its cross-file reads inspect path existence and kind.
+        // Effective bytes and permissions of every admitted file are bound below.
+        tree(
+            &mut h,
+            &req.root,
+            &req.root,
+            &cache,
+            false,
+            &mut observations,
+        )?;
     }
     let scope_ms = ms() - pack_ms;
     let mut versions = BTreeMap::new();
@@ -410,13 +427,13 @@ pub(crate) fn check(
     request: &Path,
     output: &Path,
     cache_name: &str,
-    closed: bool,
+    project_entries: bool,
     dedup: bool,
     mut evaluate: impl FnMut(&Request, Option<&mut Capture>) -> bool,
 ) -> io::Result<bool> {
     let now = cpu_time::ThreadTime::now();
     let ms = || now.elapsed().as_secs_f64() * 1000.;
-    let mut first = match inputs(pack, request, cache_name, closed) {
+    let mut first = match inputs(pack, request, cache_name, project_entries) {
         Ok(input) => input,
         Err(reason) => {
             eprintln!("retention unavailable: {reason}");
@@ -503,7 +520,8 @@ pub(crate) fn check(
             .map(|m| (m.dev(), m.ino(), m.ctime(), m.ctime_nsec()));
     let mut written = 0;
     if !observed(&first.observations)
-        || !inputs(pack, request, cache_name, closed).is_ok_and(|after| after.keys == first.keys)
+        || !inputs(pack, request, cache_name, project_entries)
+            .is_ok_and(|after| after.keys == first.keys)
     {
         drop(lock);
         eprintln!("inputs changed during evaluation; evaluating current contents");
