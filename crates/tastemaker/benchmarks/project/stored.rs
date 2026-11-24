@@ -207,6 +207,10 @@ pub(super) struct Store {
     pub evaluated_pairs: usize,
     pub evaluated_closed: usize,
     pub request_hits: usize,
+    absent_file: usize,
+    absent_local: usize,
+    absent_frontier: usize,
+    restored_blocks: usize,
 }
 fn table(dir: &Path, name: &str, digest: Key) -> PathBuf {
     dir.join(format!(
@@ -282,6 +286,10 @@ impl Store {
             evaluated_pairs: 0,
             evaluated_closed: 0,
             request_hits: 0,
+            absent_file: 0,
+            absent_local: 0,
+            absent_frontier: 0,
+            restored_blocks: 0,
         })
     }
     pub(super) fn publish(&mut self) -> Res<usize> {
@@ -346,6 +354,10 @@ impl Store {
         Ok(written)
     }
     pub(super) fn costs(&self) {
+        eprintln!(
+            "contributions restored_blocks={} missing_file_slots={} missing_local_bindings={} missing_frontier_bindings={}",
+            self.restored_blocks, self.absent_file, self.absent_local, self.absent_frontier
+        );
         eprintln!(
             "request_store hash_cpu={:.6} hash_bytes={} pairs_read={} project_read={} requests_read={} inputs_read={} answers_read={} pairs_written={} project_written={} requests_written={} inputs_written={} answers_written={}",
             self.observed.hash_cpu,
@@ -627,6 +639,7 @@ impl Store {
                 world.unavailable.insert(slot, missing);
             }
         }
+        self.restored_blocks += restored.len();
         for (i, src) in b.schedule.sources.iter_mut().enumerate() {
             if !projects.contains(&i) {
                 src.project = false;
@@ -643,15 +656,23 @@ impl Store {
                 }));
                 src.project = false;
             }
-            src.bindings.retain(|_, slot| {
+            src.bindings.retain(|&binding, slot| {
                 if !needed[*slot] {
                     return false;
                 }
                 let Some((_, bind)) = self.pairs[*slot] else {
                     return true;
                 };
-                let Some(file) = held else { return true };
+                let Some(file) = held else {
+                    self.absent_file += 1;
+                    return true;
+                };
                 let Some(pair) = file.pairs.get(&bind) else {
+                    if b.cut_of.contains_key(&binding) {
+                        self.absent_frontier += 1
+                    } else {
+                        self.absent_local += 1
+                    }
                     return true;
                 };
                 answers[*slot] = Ok(pair.report.read());
