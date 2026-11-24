@@ -20,6 +20,9 @@ use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use serde::Deserialize;
 use crate::{json_input, json_output};
 use sha2::{Digest, Sha256};
+#[path = "closed_workers.rs"]
+mod closed_workers;
+
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     io::{BufRead, Write},
@@ -599,24 +602,12 @@ impl Batch {
                 _ => None,
             })
             .collect();
-        let prepare = |id: usize| {
-            let s = &self.projects[id];
-            let contributions = s.slots.iter().map(|&slot| {
-                contributions[slot].as_deref().ok_or_else(|| {
-                    format!("missing project input {}", self.schedule.sources[slot].path)
-                })
-            }).collect::<Result<Vec<_>, _>>()?;
-            Ok(project::ProjectInput {
-                authority: &s.authority,
-                inventory: &s.paths,
-                contributions,
-                wanted: s.wanted.iter().copied().collect(),
-            })
-        };
-        let mut pending = Vec::new();
         for &id in &active {
             let s = &self.projects[id];
-            if populations.get(&id).is_some_and(|(wanted, _)| wanted == &s.wanted) {
+            if populations
+                .get(&id)
+                .is_some_and(|(wanted, _)| wanted == &s.wanted)
+            {
                 continue;
             }
             self.populations_built += 1;
@@ -624,53 +615,27 @@ impl Batch {
             if let Some((prior, _)) = populations.get(&id) {
                 self.relations_rebuilt += s.wanted.intersection(prior).count();
             }
-            pending.push(id);
+            let population = (|| {
+                let sources = s
+                    .slots
+                    .iter()
+                    .map(|&slot| {
+                        contributions[slot].clone().ok_or_else(|| {
+                            format!("missing project input {}", self.schedule.sources[slot].path)
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                project::collect(
+                    world,
+                    languages,
+                    &s.authority,
+                    &s.paths,
+                    &sources,
+                    &s.wanted.iter().copied().collect::<Vec<_>>(),
+                )
+            })();
+            populations.insert(id, (s.wanted.clone(), population));
         }
-        let project_workers = self.workers.map_or(1, std::num::NonZeroUsize::get)
-            .min(pending.len().div_ceil(8));
-        let mut publish = |(id, input): &(usize, Result<project::ProjectInput<'_>, String>), packet| {
-            let population = input.as_ref().map_err(Clone::clone)
-                .and_then(|input| input.publish(world, packet?));
-            populations.insert(*id, (self.projects[*id].wanted.clone(), population));
-        };
-        let load = |(_, input): &(usize, Result<project::ProjectInput<'_>, String>)| {
-            input.as_ref().map_err(Clone::clone).and_then(|input| input.read(languages))
-        };
-        if project_workers > 1 {
-            self.clocks.project_shards += project_workers;
-            let pending: Vec<_> = pending.into_iter().map(|id| (id, prepare(id))).collect();
-            let other = std::thread::scope(|scope| {
-                let mut channels = Vec::with_capacity(project_workers - 1);
-                for shard in 1..project_workers {
-                    let (send, recv) = std::sync::mpsc::sync_channel(1);
-                    let pending = &pending;
-                    let load = &load;
-                    let handle = scope.spawn(move || {
-                        let start = thread_cpu();
-                        for input in pending.iter().skip(shard).step_by(project_workers) {
-                            if send.send(load(input)).is_err() { break; }
-                        }
-                        thread_cpu() - start
-                    });
-                    channels.push((recv, handle));
-                }
-                for (i, input) in pending.iter().enumerate() {
-                    let shard = i % project_workers;
-                    let packet = if shard == 0 { load(input) } else {
-                        channels[shard - 1].0.recv().expect("population packet")
-                    };
-                    publish(input, packet);
-                }
-                channels.into_iter().map(|(_, handle)| handle.join().expect("population worker panicked")).sum::<f64>()
-            });
-            self.clocks.project_workers_cpu += other;
-        } else {
-            for id in pending {
-                let input = (id, prepare(id));
-                publish(&input, load(&input));
-            }
-        }
-        self.clocks.project_prepare_wall += wall.elapsed().as_secs_f64();
         if !keep {
             *contributions=Vec::new();
         }
@@ -680,7 +645,18 @@ impl Batch {
                 manifest_failures.extend(population.refused.iter().map(|r| r.path.clone()));
             }
         }
+        self.clocks.project_prepare_wall += wall.elapsed().as_secs_f64();
         let mut readers=readers::Closed::new(&self.work,&self.cut_of,keep);
+        let workers = self.workers.map_or(1, std::num::NonZeroUsize::get);
+        if keep && store.is_none() && workers > 1 && groups.len() >= 16 {
+            self.clocks.project_shards += workers.min(groups.len());
+            self.clocks.project_workers_cpu += closed_workers::run(
+                workers, self, world, populations, answers, groups.into_values(), &readers.duplicate,
+            );
+            self.clocks.project += thread_cpu() - t;
+            self.clocks.project_wall += wall.elapsed().as_secs_f64();
+            return;
+        }
         for ((rule, _), requests) in groups {
             let plan = &self.schedule.programs[rule].as_ref().unwrap().plan;
             let mut exec = finish::Exec::new(plan);
@@ -700,87 +676,20 @@ impl Batch {
                     let Work::Project(value)=&self.work[prior] else {unreachable!("same binding evaluated in request order")};
                     value.clone()
                 } else {Rc::new(population.map_err(Clone::clone).and_then(|p| {
-                    let mut carried = BTreeMap::new();
-                    let contract = &self.bound_contracts[binding];
-                    let mut incomplete = BTreeMap::<String, Vec<Option<u32>>>::new();
-                    let mut unknowns = Vec::new();
-                    if let Some(p) = p {
-                        use ryo_execution_domain::domain::{
-                            coverage::{
-                                service::{repository, unknown_message},
-                                types::{CoverageScope, PartialPlace},
-                            },
-                            trust::{service::matters, types::Bearing},
-                        };
-                        for partial in &p.partials {
-                            if !contract
-                                .needs
-                                .reads
-                                .iter()
-                                .any(|r| matters(r, partial) == Bearing::Matters)
-                            {
-                                continue;
-                            }
-                            let file = match partial.at {
-                                PartialPlace::Repository => None,
-                                PartialPlace::File(f) => Some(f.0),
-                            };
-                            let path = file
-                                .map(|f| l::FilePath(world.run.paths[f as usize].as_str().into()));
-                            let scope = path
-                                .as_ref()
-                                .map_or(CoverageScope::Repository, CoverageScope::File);
-                            let reason = unknown_message(partial, scope).0.into_string();
-                            unknowns
-                                .push((path.unwrap_or_else(repository).0.into_string(), reason));
-                            incomplete
-                                .entry(relations::service::name(partial.relation).0.to_owned())
-                                .or_default()
-                                .push(file);
+                    let input = closed_workers::inputs(
+                        &world.run, &self.bound_contracts[binding], &world.unavailable,
+                        pairs, inventory, files, self.cut_of[*binding].as_deref(), p, answers,
+                        |steps| readers.inputs(i, || world.joined(pairs, steps)),
+                    )?;
+                    match input {
+                        closed_workers::Inputs::Withheld(answer) => Ok(answer),
+                        closed_workers::Inputs::Ready { carried, incomplete, unknowns } => {
+                            let numbers: Vec<_> = inventory.iter().map(|p| world.file(p)).collect();
+                            execute_ids(&mut exec, &mut world.run, &numbers, &carried, inventory,
+                                files, &self.bindings[*binding], p, &incomplete)
+                                .map(|rows| session::Reported { rows, unknowns })
                         }
                     }
-                    if files.is_empty() && !inventory.is_empty() && contract.frontier {
-                        let mut withheld = session::Reported::skipped(inventory);
-                        withheld.unknowns.extend(unknowns);
-                        return Ok(withheld);
-                    }
-                    if let Some(cut) = &self.cut_of[*binding] {
-                        for &slot in pairs {
-                            if let Some(partials) = world.unavailable.get(&slot) {
-                                for (relation, file) in partials {
-                                    incomplete
-                                        .entry(relation.clone())
-                                        .or_default()
-                                        .push(Some(*file));
-                                }
-                            }
-                            unknowns.extend(
-                                answers[slot]
-                                    .as_ref()
-                                    .map_err(Clone::clone)?
-                                    .unknowns
-                                    .iter()
-                                    .cloned(),
-                            );
-                        }
-                        carried=readers.inputs(i,||world.joined(pairs,&cut.inputs))?;
-                        if carried.len() != cut.inputs.len() {
-                            return Err("source frontier has not been closed".into());
-                        }
-                    }
-                    let numbers: Vec<_> = inventory.iter().map(|p| world.file(p)).collect();
-                    execute_ids(
-                        &mut exec,
-                        &mut world.run,
-                        &numbers,
-                        &carried,
-                        inventory,
-                        files,
-                        &self.bindings[*binding],
-                        p,
-                        &incomplete,
-                    )
-                    .map(|rows| session::Reported { rows, unknowns })
                 }))};
                 exec.release_request();
                 if let Some(s)=store.as_deref_mut() {

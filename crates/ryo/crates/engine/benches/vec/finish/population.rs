@@ -7,6 +7,14 @@ use std::{
     rc::Rc,
 };
 
+#[cfg(feature = "product-session")]
+use std::sync::Arc;
+
+#[cfg(feature = "product-session")]
+type BlockWords = Arc<Vec<Words>>;
+#[cfg(not(feature = "product-session"))]
+type BlockWords = Vec<Words>;
+
 /// File-local row numbers and identifiers typically occupy only part of a word.
 /// All representations decode to the exact canonical u64, including public nulls.
 enum Words {
@@ -76,11 +84,45 @@ pub(crate) struct Block {
     pub(crate) tys: Tys,
     pub(crate) n: usize,
     pub(crate) home: u32,
-    columns: Vec<Words>,
+    columns: BlockWords,
     postings: RefCell<FxHashMap<usize, Posting>>,
 }
 
+/// The immutable cells and schema can outlive their original project executor.
+#[cfg(feature = "product-session")]
+pub(crate) struct SharedBlock<'a> {
+    block: &'a Arc<Vec<Words>>,
+    names: &'a [String],
+    types: &'a [Ty],
+    len: usize,
+    home: u32,
+}
+#[cfg(feature = "product-session")]
+impl SharedBlock<'_> {
+    pub(crate) fn local(&self) -> Rc<Block> {
+        Rc::new(Block {
+            names: Rc::new(self.names.to_vec()),
+            tys: Rc::new(self.types.to_vec()),
+            n: self.len,
+            home: self.home,
+            columns: self.block.clone(),
+            postings: Default::default(),
+        })
+    }
+}
+
 impl Block {
+    #[cfg(feature = "product-session")]
+    pub(crate) fn share(&self) -> SharedBlock<'_> {
+        SharedBlock {
+            block: &self.columns,
+            names: &self.names,
+            types: &self.tys,
+            len: self.n,
+            home: self.home,
+        }
+    }
+
     pub(crate) fn words(&self,col:usize)->Vec<u64>{
         let mut out=Vec::with_capacity(self.n);
         self.columns[col].append(self.n,&mut out);
@@ -92,7 +134,7 @@ impl Block {
             names,
             tys,
             n,
-            columns: columns.into_iter().map(Words::pack).collect(),
+            columns: columns.into_iter().map(Words::pack).collect::<Vec<_>>().into(),
             postings: Default::default(),
         }
     }
@@ -348,6 +390,9 @@ impl Block {
             schema: shapes.intern(self.names, self.tys),
             rows: self.n,
             home: self.home,
+            #[cfg(feature = "product-session")]
+            columns: Arc::try_unwrap(self.columns).ok().expect("unshared sending block"),
+            #[cfg(not(feature = "product-session"))]
             columns: self.columns,
         }
     }
@@ -393,7 +438,7 @@ impl CarriedBlock {
             } else {
                 files[self.home as usize]
             },
-            columns: self.columns,
+            columns: self.columns.into(),
             postings: Default::default(),
         }
     }
