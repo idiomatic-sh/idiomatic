@@ -657,11 +657,17 @@ pub(crate) fn visit<L: FileSource>(
                 contents.kinds.clear();
                 contents.fields.clear();
                 contents.words.clear();
-                contents.kinds.extend(l::node_table::kind_codes(tree).iter()
-                    .map(|&k| run.kind_sym[usize::from(k)]));
-                contents.fields.extend(l::node_table::field_codes(tree).iter()
-                    .map(|&f| run.field_sym[usize::from(f)]));
-                contents.words.extend(provider.text.iter().copied());
+                // The source slices have one entry per node. Reserve only as
+                // distinct values arrive, since the session retains these sets.
+                for &kind in l::node_table::kind_codes(tree) {
+                    contents.kinds.insert(run.kind_sym[usize::from(kind)]);
+                }
+                for &field in l::node_table::field_codes(tree) {
+                    contents.fields.insert(run.field_sym[usize::from(field)]);
+                }
+                for &word in &provider.text {
+                    contents.words.insert(word);
+                }
                 contents.words.insert(run.empty);
                 L::expanded_summary(elements, symbols, &bytes, &mut run, unknown,
                     provider.text.len(), &mut contents.kinds, &mut contents.fields, &mut contents.words);
