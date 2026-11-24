@@ -146,7 +146,7 @@ impl<'a> FileInputs<'a> {
 #[derive(Default)]
 pub(crate) struct World {
     pub run: Run,
-    pub(super) boundaries: Option<Vec<(usize,usize,usize)>>,
+    pub(super) boundaries: Option<Vec<(usize, usize, usize)>>,
     pub(super) project_words: Vec<HashMap<u32, u32>>,
     pub files: HashMap<String, u32>,
     frontiers: HashMap<usize, Vec<(usize, Rc<finish::population::Block>)>>,
@@ -300,14 +300,14 @@ impl World {
 /// Slot ordinals survive the join. A repeated block in different request frontiers
 /// is transferred once, including the reference to its file and symbol domains.
 pub(super) struct Transfer {
-    slots: Vec<(usize,Vec<(usize,usize)>)>,
+    slots: Vec<(usize, Vec<(usize, usize)>)>,
     blocks: Vec<finish::population::CarriedBlock>,
     schemas: finish::population::CarriedSchemas,
     paths: Vec<String>,
     words: Vec<Vec<u8>>,
     prefix: usize,
-    boundaries: Vec<(usize,usize,usize)>,
-    unavailable: HashMap<usize,BTreeSet<(String,u32)>>,
+    boundaries: Vec<(usize, usize, usize)>,
+    unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
 }
 
 impl World {
@@ -317,24 +317,42 @@ impl World {
         let mut blocks = Vec::new();
         let mut slots = Vec::new();
         for (slot, frontier) in self.frontiers {
-            let pieces = frontier.into_iter().map(|(node,block)| {
-                let id = *ids.entry(Rc::as_ptr(&block)).or_insert_with(|| {
-                    let id = blocks.len();
-                    blocks.push(block);
-                    id
-                });
-                (node,id)
-            }).collect();
-            slots.push((slot,pieces));
+            let pieces = frontier
+                .into_iter()
+                .map(|(node, block)| {
+                    let id = *ids.entry(Rc::as_ptr(&block)).or_insert_with(|| {
+                        let id = blocks.len();
+                        blocks.push(block);
+                        id
+                    });
+                    (node, id)
+                })
+                .collect();
+            slots.push((slot, pieces));
         }
-        let mut schemas=finish::population::CarriedSchemas::default();
+        let mut schemas = finish::population::CarriedSchemas::default();
         Transfer {
             slots,
-            blocks: blocks.into_iter().map(|b| Rc::try_unwrap(b).ok().expect("worker owns all frontier blocks").carry(&mut schemas)).collect(),
+            blocks: blocks
+                .into_iter()
+                .map(|b| {
+                    Rc::try_unwrap(b)
+                        .ok()
+                        .expect("worker owns all frontier blocks")
+                        .carry(&mut schemas)
+                })
+                .collect(),
             schemas,
-            paths: self.run.paths, prefix,
+            paths: self.run.paths,
+            prefix,
             boundaries: self.boundaries.unwrap_or_default(),
-            words: self.run.texts.into_iter().skip(prefix).map(|s| s.to_vec()).collect(),
+            words: self
+                .run
+                .texts
+                .into_iter()
+                .skip(prefix)
+                .map(|s| s.to_vec())
+                .collect(),
             unavailable: self.unavailable,
         }
     }
@@ -343,38 +361,60 @@ impl World {
     /// ordinals in that same order, including cross-file references first seen
     /// in another path's frontier. Worker completion order has no effect.
     pub(super) fn receive(&mut self, parts: Vec<Transfer>, sources: &[super::Source]) {
-        let mut groups=Vec::new();
-        let mut maps=Vec::with_capacity(parts.len());
-        for (worker,part) in parts.iter().enumerate() {
-            let mut file=0;
-            let mut word=part.prefix;
-            for &(source,files,words) in &part.boundaries {
-                groups.push((&sources[source].path,worker,file..files,(word-part.prefix)..(words-part.prefix)));
-                file=files;
-                word=words;
+        let mut groups = Vec::new();
+        let mut maps = Vec::with_capacity(parts.len());
+        for (worker, part) in parts.iter().enumerate() {
+            let mut file = 0;
+            let mut word = part.prefix;
+            for &(source, files, words) in &part.boundaries {
+                groups.push((
+                    &sources[source].path,
+                    worker,
+                    file..files,
+                    (word - part.prefix)..(words - part.prefix),
+                ));
+                file = files;
+                word = words;
             }
-            maps.push((Vec::with_capacity(file),(0..part.prefix as u32).collect::<Vec<_>>()));
+            maps.push((
+                Vec::with_capacity(file),
+                (0..part.prefix as u32).collect::<Vec<_>>(),
+            ));
         }
-        groups.sort_unstable_by(|a,b|a.0.cmp(b.0));
-        for (_,worker,file,word) in groups {
-            let (files,symbols)=&mut maps[worker];
-            let part=&parts[worker];
-            symbols.extend(part.words[word].iter().map(|w|self.run.sym(w)));
-            files.extend(part.paths[file].iter().map(|p|self.file(p)));
+        groups.sort_unstable_by(|a, b| a.0.cmp(b.0));
+        for (_, worker, file, word) in groups {
+            let (files, symbols) = &mut maps[worker];
+            let part = &parts[worker];
+            symbols.extend(part.words[word].iter().map(|w| self.run.sym(w)));
+            files.extend(part.paths[file].iter().map(|p| self.file(p)));
         }
-        for (part,(files,symbols)) in parts.into_iter().zip(maps) {
-            self.receive_blocks(part,&files,&symbols);
+        for (part, (files, symbols)) in parts.into_iter().zip(maps) {
+            self.receive_blocks(part, &files, &symbols);
         }
     }
 
-    fn receive_blocks(&mut self, part: Transfer, files:&[u32], symbols:&[u32]) {
-        let schemas=part.schemas.receive();
-        let blocks: Vec<_> = part.blocks.into_iter().map(|b| Rc::new(b.receive(files,symbols,&schemas))).collect();
+    fn receive_blocks(&mut self, part: Transfer, files: &[u32], symbols: &[u32]) {
+        let schemas = part.schemas.receive();
+        let blocks: Vec<_> = part
+            .blocks
+            .into_iter()
+            .map(|b| Rc::new(b.receive(files, symbols, &schemas)))
+            .collect();
         for (slot, ids) in part.slots {
-            self.frontiers.insert(slot,ids.into_iter().map(|(n,i)| (n,blocks[i].clone())).collect());
+            self.frontiers.insert(
+                slot,
+                ids.into_iter()
+                    .map(|(n, i)| (n, blocks[i].clone()))
+                    .collect(),
+            );
         }
         for (slot, set) in part.unavailable {
-            self.unavailable.insert(slot,set.into_iter().map(|(name,file)| (name,files[file as usize])).collect());
+            self.unavailable.insert(
+                slot,
+                set.into_iter()
+                    .map(|(name, file)| (name, files[file as usize]))
+                    .collect(),
+            );
         }
     }
 }

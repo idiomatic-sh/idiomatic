@@ -103,8 +103,8 @@ impl Program {
 
 #[derive(Default)]
 pub(crate) struct Clock {
-    pub inventory:f64,
-    pub join:f64,
+    pub inventory: f64,
+    pub join: f64,
     pub prepare: f64,
     pub read_parse: f64,
     pub screen: f64,
@@ -867,8 +867,8 @@ pub(crate) fn visit<L: FileSource>(
             }
             clocks.evaluate += thread_cpu() - t;
         }
-        if let Some(boundaries)=&mut world.boundaries {
-            boundaries.push((group[0],world.run.paths.len(),world.run.texts.len()));
+        if let Some(boundaries) = &mut world.boundaries {
+            boundaries.push((group[0], world.run.paths.len(), world.run.texts.len()));
         }
     }
     if keep {

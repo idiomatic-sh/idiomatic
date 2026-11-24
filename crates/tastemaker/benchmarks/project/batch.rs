@@ -433,14 +433,16 @@ impl Batch {
         }
         let rules: Vec<_> = self.bindings.iter().map(|(r, _)| *r).collect();
         self.clocks.pairs = self.schedule.pairs;
-        let contracts = self.bound_contracts.iter().map(|(&id,c)| (id,c.as_ref())).collect();
-        let hosted: Vec<_> = self.bindings.iter().map(|(_,t)| t.as_ref()).collect();
+        let contracts = self.bound_contracts.iter().map(|(&id, c)| (id, c.as_ref())).collect();
+        let hosted: Vec<_> = self.bindings.iter().map(|(_, t)| t.as_ref()).collect();
         let readers = languages.iter().map(Some).chain([None]);
         for (reader_id, (language, files)) in readers.zip(groups).enumerate() {
             if files.is_empty() {
                 continue;
             }
-            session::worker::dispatch(self.workers, languages,
+            session::worker::dispatch(
+                self.workers,
+                languages,
                 &mut reader_states[reader_id],
                 *keep,
                 language,
@@ -800,11 +802,16 @@ pub(crate) fn batch(languages: Vec<Language>, manifest: &str, output: &str) {
 }
 
 fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str, output: &str) {
-    batch_with_workers(readers,manifest,output,None);
+    batch_with_workers(readers, manifest, output, None);
 }
-fn batch_with_workers<L: session::source::Source>(readers: &[L], manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>) {
+fn batch_with_workers<L: session::source::Source>(
+    readers: &[L],
+    manifest: &str,
+    output: &str,
+    workers: Option<std::num::NonZeroUsize>,
+) {
     let start = thread_cpu();
-    let mut session = Batch {workers, ..Default::default()};
+    let mut session = Batch { workers, ..Default::default() };
     if let Some(index) = std::env::var_os("TM_CORPUS_INVENTORIES") {
         let bytes = std::fs::read(index).expect("closed input inventories");
         session.roots = serde_json::from_slice(&bytes).expect("source roots and their inventories");
@@ -898,7 +905,9 @@ fn batch_with_workers<L: session::source::Source>(readers: &[L], manifest: &str,
         c.evaluate,
         c.project,
         c.assemble,
-        registration, c.inventory, c.join,
+        registration,
+        c.inventory,
+        c.join,
     );
 }
 

@@ -317,41 +317,58 @@ pub(crate) struct CarriedBlock {
 /// for the join even when many frontier blocks use the same declaration.
 #[derive(Default)]
 pub(crate) struct CarriedSchemas {
-    ids: FxHashMap<(usize,usize),usize>,
+    ids: FxHashMap<(usize, usize), usize>,
     schemas: Vec<(Vec<String>, Vec<Ty>)>,
 }
 impl CarriedSchemas {
-    fn intern(&mut self, names:Names, types:Tys)->usize {
-        let key=(Rc::as_ptr(&names) as usize,Rc::as_ptr(&types) as usize);
-        *self.ids.entry(key).or_insert_with(||{
-            let id=self.schemas.len();
-            self.schemas.push((Rc::unwrap_or_clone(names),Rc::unwrap_or_clone(types)));
+    fn intern(&mut self, names: Names, types: Tys) -> usize {
+        let key = (Rc::as_ptr(&names) as usize, Rc::as_ptr(&types) as usize);
+        *self.ids.entry(key).or_insert_with(|| {
+            let id = self.schemas.len();
+            self.schemas
+                .push((Rc::unwrap_or_clone(names), Rc::unwrap_or_clone(types)));
             id
         })
     }
-    pub(crate) fn receive(self)->Vec<(Names,Tys)> {
-        self.schemas.into_iter().map(|(n,t)|(Rc::new(n),Rc::new(t))).collect()
+    pub(crate) fn receive(self) -> Vec<(Names, Tys)> {
+        self.schemas
+            .into_iter()
+            .map(|(n, t)| (Rc::new(n), Rc::new(t)))
+            .collect()
     }
 }
 impl Block {
-    pub(crate) fn carry(self, shapes:&mut CarriedSchemas) -> CarriedBlock {
+    pub(crate) fn carry(self, shapes: &mut CarriedSchemas) -> CarriedBlock {
         CarriedBlock {
-            schema: shapes.intern(self.names,self.tys),
-            rows: self.n, home: self.home, columns: self.columns,
+            schema: shapes.intern(self.names, self.tys),
+            rows: self.n,
+            home: self.home,
+            columns: self.columns,
         }
     }
 }
 
 impl CarriedBlock {
-    pub(crate) fn receive(mut self, files: &[u32], symbols: &[u32], schemas:&[(Names,Tys)]) -> Block {
-        let (names,types)=&schemas[self.schema];
+    pub(crate) fn receive(
+        mut self,
+        files: &[u32],
+        symbols: &[u32],
+        schemas: &[(Names, Tys)],
+    ) -> Block {
+        let (names, types) = &schemas[self.schema];
         for (words, ty) in self.columns.iter_mut().zip(types.iter()) {
-            if !matches!(ty, Ty::File | Ty::Node | Ty::Sym) { continue; }
+            if !matches!(ty, Ty::File | Ty::Node | Ty::Sym) {
+                continue;
+            }
             let remap = |v: u64| {
-                if v == u64::MAX { return v; }
+                if v == u64::MAX {
+                    return v;
+                }
                 match ty {
                     Ty::File => u64::from(files[v as usize]),
-                    Ty::Node => (u64::from(files[(v >> 32) as usize]) << 32) | (v & u64::from(u32::MAX)),
+                    Ty::Node => {
+                        (u64::from(files[(v >> 32) as usize]) << 32) | (v & u64::from(u32::MAX))
+                    }
                     Ty::Sym => u64::from(symbols[v as usize]),
                     _ => unreachable!(),
                 }
@@ -363,9 +380,16 @@ impl CarriedBlock {
             }
         }
         Block {
-            names: names.clone(), tys: types.clone(), n: self.rows,
-            home: if self.rows == 0 { 0 } else { files[self.home as usize] },
-            columns: self.columns, postings: Default::default(),
+            names: names.clone(),
+            tys: types.clone(),
+            n: self.rows,
+            home: if self.rows == 0 {
+                0
+            } else {
+                files[self.home as usize]
+            },
+            columns: self.columns,
+            postings: Default::default(),
         }
     }
 }
