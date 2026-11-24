@@ -46,7 +46,6 @@ type Reader<'a> =
 
 #[derive(Default)]
 struct Table {
-    file: u32,
     read: bool,
     answered: bool,
     complete: bool,
@@ -113,15 +112,6 @@ pub(super) fn each(b: &[u64], mut visit: impl FnMut(u32)) {
         }
     }
 }
-/// Node words include their owning file. A foreign or absent endpoint
-/// cannot establish a necessary node-domain restriction for this file.
-fn position_in_file(word: languages::CellWord, file: languages::FileId, n: u32) -> Option<u32> {
-    use ryo_relations::domain::relations::service::{node_file, node_position};
-    let node = languages::NodeId(word.0);
-    let position = node_position(node).0;
-    (node_file(node) == file && position < n).then_some(position)
-}
-
 impl Table {
     fn load(
         &mut self,
@@ -153,7 +143,7 @@ impl Table {
                     .cells
                     .0
                     .get(key)
-                    .is_some_and(|c| c.0.iter().all(|x| position_in_file(*x, languages::FileId(self.file), n).is_some()));
+                    .is_some_and(|c| c.0.iter().all(|x| x.0 < u64::from(n)));
         }
     }
 }
@@ -549,7 +539,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                         .as_ref()
                                         .is_some_and(|id| ids.binary_search(id).is_ok())
                                     });
-                                    if keep && position_in_file(*k, languages::FileId(table.file), n).is_none() {
+                                    if keep && k.0 >= u64::from(n) {
                                         valid = false;
                                         return None;
                                     }
@@ -779,19 +769,6 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
     }
 }
 
-impl Scratch {
-    /// Lend just the complete rows and decisions already produced for this file.
-    pub(super) fn handoff(&mut self, program: &Program, decisions: &mut Vec<Option<bool>>,
-        mut keep: impl FnMut(languages::Relation, FilledColumns)) {
-        std::mem::swap(&mut self.needs, decisions);
-        for (spec, table) in program.facts.iter().zip(&mut self.facts) {
-            if table.answered && let Source::Catalog(rel) = spec.source {
-                keep(rel, std::mem::take(&mut table.cells));
-            }
-        }
-    }
-}
-
 impl Program {
     pub(super) fn eval(
         &self,
@@ -804,14 +781,13 @@ impl Program {
         words: &mut FileWords,
         read: impl FnMut(Source, Query<'_>, &mut FileWords, &mut FilledColumns) -> Option<bool>,
         alive: &mut [bool],
-        file: languages::FileId,
         exact: Option<&mut Vec<(usize, Vec<u64>)>>,
     ) -> u64 {
         #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            return self.evaluate::<true>(scratch, order, t, src, path, syntax_text, words, read, alive, file, exact);
+            return self.evaluate::<true>(scratch, order, t, src, path, syntax_text, words, read, alive, exact);
         }
-        self.evaluate::<false>(scratch, order, t, src, path, syntax_text, words, read, alive, file, exact)
+        self.evaluate::<false>(scratch, order, t, src, path, syntax_text, words, read, alive, exact)
     }
 
     fn evaluate<const PROFILE: bool>(
@@ -825,7 +801,6 @@ impl Program {
         words: &mut FileWords,
         mut read: impl FnMut(Source, Query<'_>, &mut FileWords, &mut FilledColumns) -> Option<bool>,
         alive: &mut [bool],
-        file: languages::FileId,
         mut exact: Option<&mut Vec<(usize, Vec<u64>)>>,
     ) -> u64 {
         languages::facts::clear_words(words);
@@ -835,7 +810,6 @@ impl Program {
         scratch.needs.resize(self.needs.len(), None);
         scratch.facts.resize_with(self.facts.len(), Table::default);
         for t in &mut scratch.facts {
-            t.file = file.0;
             t.read = false;
             t.answered = false;
             t.complete = false;

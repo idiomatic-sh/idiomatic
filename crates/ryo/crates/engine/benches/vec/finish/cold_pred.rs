@@ -304,7 +304,7 @@ impl Program {
                             return;
                         }
                         if sw!("VEC_COLD_COUNT") {
-                            let fresh = f.fact_ix.borrow()[f.fact_index_slot(*family, key.column)].is_none();
+                            let fresh = !f.fact_ix.borrow().contains_key(&(*family, key.column));
                             fact_counts(|n| {
                                 n[0] += 1;
                                 if fresh {

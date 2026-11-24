@@ -31,7 +31,7 @@ fn class_(ex: &mut Exec<'_>, f: &File<'_>, run: &mut Run, node: usize) -> String
     let op = pn.op.as_str();
     if op == "select" {
         let Ok(sp) = ex.sel(run, node) else { return "select plan error".into() };
-        if super::filter_order::file_fails(run, f, &sp.conj, &sp.file_tests) {
+        if super::filter_order::file_fails(run, f, &sp.conj) {
             return "a per-file test fails".into();
         }
         if let Some(i) = sp.srcs.iter().position(|s| made_empty(f, *s)) {

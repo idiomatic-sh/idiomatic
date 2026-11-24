@@ -73,7 +73,7 @@ impl Packet {
                     CellKind::Node if raw >> 32 != u64::from(id.0) || raw as u32 as usize >= n => {
                         return false;
                     }
-                    CellKind::Node => CellWord(raw),
+                    CellKind::Node => CellWord(u64::from(raw as u32)),
                     CellKind::Symbol => {
                         let Some(text) =
                             l::text_of(symbols, ByteSlice(bytes), l::Symbol(raw as u32))
@@ -102,10 +102,6 @@ impl Packet {
             bytes,
             resolved: FxHashMap::default(),
         }
-    }
-    pub(super) fn complete_empty(&self, rel: l::Relation) -> bool {
-        let i = catalog::number_of(rel).0;
-        self.ready && self.requested[i] && self.offsets[i].is_empty() && self.partial(rel).is_none()
     }
     fn partial(&self, rel: l::Relation) -> Option<&str> {
         self.rows
@@ -140,22 +136,31 @@ impl finish::Provider for View<'_, '_> {
             "reader does not supply syntax rendering in {context}"
         ))
     }
-    fn answer(&mut self, run: &mut finish::Run, request: &finish::request::Request<'_>, out: &mut Vec<Result<finish::Table, String>>) -> Result<(), String> {
-        for asked in request.relations {
-            out.push(self.table(run, asked));
+    fn fill_len(
+        &mut self,
+        run: &mut finish::Run,
+        name: &str,
+        scope: finish::Scope<'_>,
+    ) -> Option<usize> {
+        if !matches!(scope, finish::Scope::File(f) if f == self.parsed.file) {
+            return None;
         }
-        Ok(())
+        let rel = run.catalog(name)?.0?;
+        let i = catalog::number_of(rel).0;
+        (self.packet.requested[i] && self.packet.partial(rel).is_none())
+            .then(|| self.packet.offsets[i].len())
     }
-}
-
-impl View<'_, '_> {
-    fn table(&mut self, run: &mut finish::Run, asked: &finish::request::Asked<'_>) -> Result<finish::Table, String> {
-        let name = asked.rel;
-        let current = match asked.scope {
-            finish::Scope::File(file) => file == self.parsed.file,
-            finish::Scope::Files(files) => files == [self.parsed.file],
-        };
-        if !current { return Err(format!("relation {name} requested outside this reader's file")); }
+    fn fill(
+        &mut self,
+        run: &mut finish::Run,
+        name: &str,
+        scope: finish::Scope<'_>,
+    ) -> Result<finish::Table, String> {
+        if !matches!(scope, finish::Scope::File(f) if f == self.parsed.file) {
+            return Err(format!(
+                "relation {name} requested outside this reader's file"
+            ));
+        }
         let (Some(rel), names, tys) = run
             .catalog(name)
             .ok_or_else(|| format!("undeclared relation {name}"))?
@@ -170,11 +175,11 @@ impl View<'_, '_> {
             return Err(format!("no reader for {name}"));
         }
         let offsets = &self.packet.offsets[i];
-        let mut table = finish::Table::projected_where(names, tys, offsets.len(), |c| asked.columns.contains(c));
-        for (c, (column, ty)) in table.cols.iter_mut().zip(table.tys.iter()).enumerate() {
-            if !asked.columns.contains(c) { continue; }
-            for &at in offsets {
-                let raw = self.packet.rows.words[at + c];
+        let width = self.packet.widths[i];
+        let mut table = finish::Table::with_rows(names, tys, offsets.len());
+        for &at in offsets {
+            let row = &self.packet.rows.words[at..at + width];
+            for ((column, &raw), ty) in table.cols.iter_mut().zip(row).zip(table.tys.iter()) {
                 let value = match ty {
                     finish::Ty::Sym => {
                         let id = raw as u32;

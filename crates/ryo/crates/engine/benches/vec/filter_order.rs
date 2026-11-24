@@ -2,8 +2,7 @@
 //! column at all) is decided once a file before any row is read: false ends the step and asks for none of its inputs.
 //! The remaining tests keep their order (kind buckets enter first already; row tests short-circuit as written).
 
-use super::{E, File, Op, Run, Ty, V, eval, truthy};
-use std::cell::Cell;
+use super::{E, File, Run, Src, Ty, V, eval, truthy};
 
 /// Whether a test reads no column but file columns: one value for the whole file.
 pub(super) fn file_const(e: &E) -> bool {
@@ -34,35 +33,32 @@ fn subst(e: &E, file: u64) -> E {
     }
 }
 
-/// File-only conjuncts point into their immutable select or view. The owner is
-/// run-scoped, so a file number uniquely identifies its cached decision.
-pub(super) struct FileTests {
-    indexes: Box<[usize]>,
-    last: Cell<Option<(u32, bool)>>,
-}
-
-impl FileTests {
-    pub(super) fn prepare(conj: &[E]) -> Option<Box<Self>> {
-        if sw!("VEC_NO_FILECONST") { return None; }
-        let indexes: Vec<_> = conj.iter().enumerate().filter_map(|(i, term)| {
-            // Both file columns denote this file in a file-only predicate.
-            let same_file = matches!(term, E::Cmp(Op::Eq, a, b)
-                if matches!((&**a, &**b), (E::Col(_, _, Ty::File), E::Col(_, _, Ty::File))));
-            (!same_file && !matches!(term, E::Lit(_)) && file_const(term)).then_some(i)
-        }).collect();
-        if indexes.is_empty() { return None; }
-        Some(Box::new(Self { indexes: indexes.into_boxed_slice(), last: Cell::new(None) }))
+/// Whether some per-file test of `conj` fails in this file (the step is then empty).
+pub(super) fn file_fails(run: &mut Run, f: &File<'_>, conj: &[E]) -> bool {
+    if f.after_last_file || sw!("VEC_NO_FILECONST") {
+        return false;
     }
-}
-
-pub(super) fn file_fails(run: &mut Run, f: &File<'_>, conj: &[E], tests: &Option<Box<FileTests>>) -> bool {
-    if f.after_last_file { return false; }
-    let Some(tests) = tests else { return false; };
-    if let Some((file, failed)) = tests.last.get() && file == f.file { return failed; }
-    let failed = tests.indexes.iter().any(|&i| {
-        let test = subst(&conj[i], u64::from(f.file));
-        !truthy(eval(run, f, &[], &[], &test))
+    // redo-alloc: decided once a file a test list (the plan's lists stay in place while it runs; a later ask in the same
+    // file reads the answer, no substituted copy of the test made again)
+    thread_local! {
+        static SEEN: std::cell::RefCell<(u32, rustc_hash::FxHashMap<(usize, usize), bool>)> = std::cell::RefCell::new((u32::MAX, rustc_hash::FxHashMap::default()));
+    }
+    let key = (conj.as_ptr() as usize, conj.len());
+    if let Some(v) = SEEN.with(|s| {
+        let s = s.borrow();
+        if s.0 == f.file { s.1.get(&key).copied() } else { None }
+    }) {
+        return v;
+    }
+    let srcs: [Src; 0] = [];
+    let v = conj.iter().filter(|c| file_const(c) && !matches!(c, E::Lit(_))).any(|c| !truthy(eval(run, f, &srcs, &[], &subst(c, u64::from(f.file)))));
+    SEEN.with(|s| {
+        let mut s = s.borrow_mut();
+        if s.0 != f.file {
+            s.0 = f.file;
+            s.1.clear();
+        }
+        s.1.insert(key, v);
     });
-    tests.last.set(Some((f.file, failed)));
-    failed
+    v
 }

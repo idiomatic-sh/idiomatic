@@ -14,7 +14,6 @@ use ryo_engine::domain::programs::service::needs;
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
 use ryo_engine::inbound::use_cases::scan::errors::ScanError;
-use ryo_language::domain::facts::projection::ColumnProjection;
 use ryo_language::domain::facts::types::{
     CellWord, FactAnswer, FactSource, FileFacts, FileWords, FillExtent, FilledColumn, FilledColumns,
     FillerSentence, PartialRows, Wanted,
@@ -187,24 +186,22 @@ struct HostFacts<'a> {
 }
 
 /// Appends one row to the columns, widened to the row.
-fn host_row(out: &mut FilledColumns, words: impl ExactSizeIterator<Item = u64>, mask: Option<&ColumnProjection>) {
+fn host_row(out: &mut FilledColumns, words: &[u64]) {
     if out.0.len() < words.len() {
         out.0.resize_with(words.len(), FilledColumn::default);
     }
-    for (i, (column, word)) in out.0.iter_mut().zip(words).enumerate() {
-        if mask.is_none_or(|m| m.contains(i)) { column.0.push(CellWord(word)); }
+    for (column, word) in out.0.iter_mut().zip(words) {
+        column.0.push(CellWord(*word));
     }
 }
 
-impl HostFacts<'_> {
-    fn write(
+impl FactSource for HostFacts<'_> {
+    fn fill(
         &mut self,
         relation: Relation,
         wanted: Wanted,
         words: &mut FileWords,
         out: &mut FilledColumns,
-        mask: Option<&ColumnProjection>,
-        count: &mut usize,
     ) -> FactAnswer {
         let extent = match wanted {
             Wanted::Whole => FillExtent::Asked,
@@ -213,8 +210,7 @@ impl HostFacts<'_> {
         match relation {
             Relation::FilesystemFile => {
                 let row = FilesystemFile::words(FilesystemFileRow { path: self.file });
-                host_row(out, row.as_ref().iter().map(|word| word.0), mask);
-                *count += 1;
+                host_row(out, &row.as_ref().iter().map(|word| word.0).collect::<Vec<u64>>());
                 FactAnswer::Answered(extent)
             }
             Relation::FilesystemExecutable => {
@@ -236,38 +232,14 @@ impl HostFacts<'_> {
                     path: self.file,
                     executable: raised,
                 });
-                host_row(out, row.as_ref().iter().map(|word| word.0), mask);
-                *count += 1;
+                host_row(out, &row.as_ref().iter().map(|word| word.0).collect::<Vec<u64>>());
                 FactAnswer::Answered(extent)
             }
             // A file that is scanned was read: it has no row. A file that could not be read is never walked, so its row
             // has nowhere to be handed yet.
             Relation::FilesystemReadFailure => FactAnswer::Answered(extent),
-            _ => if let Some(mask) = mask {
-                    let (answer, rows) = self.language.fill_columns(relation, wanted, mask, words, out);
-                    *count = rows;
-                    answer
-                } else { self.language.fill(relation, wanted, words, out) },
+            _ => self.language.fill(relation, wanted, words, out),
         }
-    }
-
-}
-
-impl FactSource for HostFacts<'_> {
-    fn fill(
-        &mut self, relation: Relation, wanted: Wanted, words: &mut FileWords, out: &mut FilledColumns,
-    ) -> FactAnswer {
-        self.write(relation, wanted, words, out, None, &mut 0)
-    }
-
-    fn fill_columns(
-        &mut self, relation: Relation, wanted: Wanted, mask: &ColumnProjection,
-        words: &mut FileWords, out: &mut FilledColumns,
-    ) -> (FactAnswer, usize) {
-        out.clear_for(relation);
-        let mut rows = 0;
-        let answer = self.write(relation, wanted, words, out, Some(mask), &mut rows);
-        (answer, rows)
     }
 
     fn render(&mut self, request: RenderRequest) -> RenderOutcome {

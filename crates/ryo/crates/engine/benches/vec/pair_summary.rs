@@ -118,7 +118,6 @@ pub(super) struct Program {
     pub needs: Vec<Need>,
     pub exact: Vec<(usize, exact::Certificate)>,
     pub roots: Vec<(String, Id)>,
-    pub drivers: Vec<(usize, Id)>,
     pub skips: Vec<(bool, Vec<Vec<String>>, Vec<Vec<String>>)>,
     pub regexes: Vec<regexes::Pattern>,
     pub path_globs: Vec<String>,
@@ -1694,7 +1693,6 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
             facts: vec![],
             exact: vec![],
             roots: vec![],
-            drivers: vec![],
             skips: vec![],
             capped: 0,
         },
@@ -1779,18 +1777,6 @@ pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, languag
         rows.push(row);
         skips.push(skip);
     }
-    for step in &plan.steps {
-        let driver = match step {
-            FinishStep::Antijoin(join) => join.left,
-            FinishStep::AsOf(join) => join.left,
-            FinishStep::OrderedMatch(join) => join.left,
-            _ => continue,
-        };
-        let need = rows[driver.0].need;
-        if need != ANY { b.out.drivers.push((driver.0, need)); }
-    }
-    b.out.drivers.sort_unstable();
-    b.out.drivers.dedup();
     phase("rows-and-skips");
     #[cfg(feature = "pair-diagnostics")]
     if std::env::var_os("VEC_PAIR_TRACE").is_some() {

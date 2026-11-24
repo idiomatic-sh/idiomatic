@@ -39,33 +39,18 @@ pub(in super::super) fn evaluate(
     // are inapplicable even when this particular request admits just one file.
     exec.views.fill(Some(None));
     exec.constant.fill(Some(true));
-    // A closed session asks once for all complete populations, even when the
-    // admitted set is empty. Retain the first occurrence order of the plan.
-    let mut ordered = Vec::new();
-    let mut slots = BTreeMap::new();
-    for (node, step) in plan.nodes.iter().enumerate() {
-        if step.op != "base" { continue; }
-        let rel = step.base().ok_or("missing base relation")?;
-        if let std::collections::btree_map::Entry::Vacant(entry) = slots.entry(rel) {
-            entry.insert((ordered.len(), node));
-            ordered.push(super::request::Asked { rel, columns: &ryo::languages::ColumnProjection::All, scope: Scope::Files(admitted) });
-        }
-    }
-    let mut answer = Vec::with_capacity(ordered.len());
-    super::request::Request { relations: &ordered }.read_into(run, provider, &mut answer)?;
-    let mut answers = answer.into_iter().map(Some).collect::<Vec<_>>();
+    let mut bases = BTreeMap::<&str, Rc<Table>>::new();
     for (i, step) in plan.nodes.iter().enumerate() {
         match step.op.as_str() {
             "base" => {
                 let rel = step.base().ok_or("missing base relation")?;
-                let (slot, first) = slots[rel];
-                let table = match &exec.run_memo[first] {
+                let table = match bases.get(rel) {
                     Some(t) => Rc::clone(t),
                     None => {
                         let (_, names, tys) = run
                             .catalog(rel)
                             .ok_or_else(|| format!("undeclared relation {rel}"))?;
-                        let t = answers[slot].take().expect("first use of a closed population")?;
+                        let t = provider.fill(run, rel, Scope::Files(admitted))?;
                         if t.names != names
                             || t.tys != tys
                             || t.cols.len() != names.len()
@@ -89,7 +74,9 @@ pub(in super::super) fn evaluate(
                                 return Err(format!("unbound or absent {ty:?} cell in {rel}"));
                             }
                         }
-                        Rc::new(t)
+                        let t = Rc::new(t);
+                        let _previous = bases.insert(rel, Rc::clone(&t));
+                        t
                     }
                 };
                 exec.run_memo[i] = Some(table);
@@ -139,7 +126,7 @@ pub(in super::super) fn evaluate(
         }
     }
     let scratch = NodeTable::default();
-    let mut frame = File::new(&scratch, &[], u32::MAX, plan.nodes.len(), run.provider_slots.fact_offsets.clone());
+    let mut frame = File::new(&scratch, &[], u32::MAX, plan.nodes.len());
     frame.after_last_file = true;
     let mut rows = json_output::Records::default();
     for (rule, node, subject, keys) in &plan.emits {
@@ -185,7 +172,6 @@ pub(in super::super) fn evaluate(
 /// tables have already been numbered in this request and belong to this binding.
 pub(in super::super) fn pair<'tables>(
     exec: &mut Exec<'_>,
-    roots: &[usize],
     run: &mut Run,
     path: u32,
     tree: &NodeTable,
@@ -194,11 +180,10 @@ pub(in super::super) fn pair<'tables>(
     supplied: impl IntoIterator<Item = &'tables (String, Rc<Table>)>,
 ) -> R<json_output::Records> {
     let plan = exec.plan;
-    let mut frame = File::new(tree, bytes, path, plan.nodes.len(), run.provider_slots.fact_offsets.clone());
+    let mut frame = File::new(tree, bytes, path, plan.nodes.len());
     if let Some(text) = facts.syntax_text() {
         frame.set_text(text);
     }
-    frame.facts.resize_with(run.provider_slots.fact_rels.len(), || None);
     for (name, table) in supplied {
         if run
             .catalog(name)
@@ -212,11 +197,8 @@ pub(in super::super) fn pair<'tables>(
                 .collect();
             run.declare(name, &fields, super::Supplier::Host);
         }
-        if let Some(&slot) = run.provider_slots.fact_slots.get(name) {
-            frame.facts[usize::from(slot)] = Some(table.clone());
-        }
+        frame.fills.insert(name.clone(), table.clone());
     }
-    exec.open_file(&mut frame, run, facts, roots, &[])?;
     let mut rows = json_output::Records::default();
     for (rule, node, subject, keys) in &plan.emits {
         run.missing.clear();

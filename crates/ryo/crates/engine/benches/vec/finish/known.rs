@@ -118,14 +118,11 @@ impl Exec<'_> {
             self.stats.static_depth = 0;
             return e;
         }
-        let decision = self.file_decision(f, run, node);
-        match decision {
-            Some((false, _)) => { f.known[node] = YES; return true; }
-            Some((true, false)) => { f.known[node] = NO; return false; }
-            _ => {}
-        }
         let r = self.rec(run, node);
-        if r.flags & CAN == 0 { f.known[node] = NO; return false; }
+        if r.flags & CAN == 0 {
+            f.known[node] = NO;
+            return false;
+        }
         f.known[node] = BUSY;
         self.stats.static_visits += 1;
         if r.n_kinds == 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
@@ -144,12 +141,12 @@ impl Exec<'_> {
         let mut e = false;
         // a kind set none of whose kinds the file has
         let (mut at, end) = (r.kinds as usize, r.kinds as usize + usize::from(r.n_kinds));
-        while decision.is_none() && !e && at < end {
+        while !e && at < end {
             let n = usize::from(self.flat.kinds[at]);
             e = self.flat.kinds[at + 1..at + 1 + n].iter().all(|c| f.kind_bits[usize::from(*c) / 64] & (1 << (c % 64)) == 0);
             at += 1 + n;
         }
-        if decision.is_none() && !e && r.flags & FILE_TEST != 0 {
+        if !e && r.flags & FILE_TEST != 0 {
             self.stats.static_file_tests += 1;
             e = self.file_fails_of(f, run, node);
         }
@@ -253,13 +250,14 @@ impl Exec<'_> {
         n
     }
 
-    // Only a prepared Need with a file test calls this method. Its view or
-    // select already owns the compiled expression and its file conjuncts.
-    pub(super) fn file_fails_of(&self, f: &File<'_>, run: &mut Run, node: usize) -> bool {
-        if let Some(Some(v)) = &self.views[node] {
-            return filter_order::file_fails(run, f, &v.filter, &v.file_tests);
+    fn file_fails_of(&mut self, f: &File<'_>, run: &mut Run, node: usize) -> bool {
+        if let Ok(Some(v)) = self.view(run, node) {
+            return filter_order::file_fails(run, f, &v.filter);
         }
-        self.sels[node].as_ref().is_some_and(|sp| filter_order::file_fails(run, f, &sp.conj, &sp.file_tests))
+        match self.sel(run, node) {
+            Ok(sp) => filter_order::file_fails(run, f, &sp.conj),
+            Err(_) => false,
+        }
     }
 
     fn need_of(&mut self, run: &mut Run, node: usize) -> Need {
@@ -269,11 +267,12 @@ impl Exec<'_> {
             return n;
         }
         let codes = |run: &Run, syms: &[u32]| -> Box<[u16]> { run.kind_sym.iter().enumerate().filter(|(_, s)| syms.contains(s)).map(|(c, _)| c as u16).collect() };
+        let file_test = |conj: &[E]| conj.iter().any(|c| filter_order::file_const(c) && !matches!(c, E::Lit(_)));
         if let Ok(Some(v)) = self.view(run, node) {
             if v.base == Native::Tree {
                 n.kinds = v.filter.iter().filter_map(|c| super::kind_set(run, std::slice::from_ref(c), 0, v.base, &[])).map(|ks| codes(run, &ks)).collect();
             }
-            n.file_test = v.file_tests.is_some();
+            n.file_test = file_test(&v.filter);
             return n;
         }
         let plan = self.plan;
@@ -293,7 +292,7 @@ impl Exec<'_> {
                     }
                 }
                 n.kinds = kinds.into();
-                n.file_test = sp.file_tests.is_some();
+                n.file_test = file_test(&sp.conj);
                 n.inputs = sp.srcs.clone().into();
                 return n;
             }

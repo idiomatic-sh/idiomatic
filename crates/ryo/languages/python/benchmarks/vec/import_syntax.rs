@@ -18,6 +18,10 @@ pub(super) const ENTRIES: &str = "import-module-context";
 pub(super) struct LineComments(Option<Vec<(Position, Position, bool)>>);
 
 impl LineComments {
+    pub(super) fn known_count(&self) -> Option<usize> {
+        self.0.as_ref().map(Vec::len)
+    }
+
     fn rows(&mut self, file: &ColumnFile<'_, '_>) -> &[(Position, Position, bool)] {
         self.0.get_or_insert_with(|| {
             let mut rows = Vec::new();

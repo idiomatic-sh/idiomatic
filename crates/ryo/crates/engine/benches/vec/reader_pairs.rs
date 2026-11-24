@@ -55,7 +55,7 @@ impl Decisions {
             .iter()
             .map(|emit| index[emit.0.as_str()])
             .collect();
-        let ([words], codes) = super::super::summary_values::register_symbols(&program, &[]);
+        let (words, codes) = super::super::summary_values::register_symbols(&program, &[]);
         let order = super::super::summary_schedule::Schedule::new(&program, None, codes);
         Self {
             program,
@@ -109,7 +109,6 @@ impl Decisions {
                 Some(packet.columns(relation, symbols, bytes, id, n, words, out))
             },
             &mut live,
-            id,
             None,
         );
         wanted.retain(|&i| live[self.roots[i]]);

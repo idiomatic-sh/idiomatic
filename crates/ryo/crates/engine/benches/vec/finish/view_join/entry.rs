@@ -33,7 +33,7 @@ impl Entry {
         let Native::Fact(fact) = view.base else {
             return Self::Unknown;
         };
-        let name = run.provider_slots.fact_rels[usize::from(fact)].0.clone();
+        let name = run.fact_rels[usize::from(fact)].0.clone();
         let Some((_, _, types)) = run.catalog(&name) else {
             return Self::Unknown;
         };

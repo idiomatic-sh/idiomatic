@@ -12,7 +12,6 @@ use ryo::languages::{
 };
 use std::collections::HashMap;
 use std::hint::black_box;
-use std::rc::Rc;
 
 /// (allocation calls, bytes allocated, -, live peak) so far, from the run's counter (`alloc_count`, a `vec-dhat` build);
 /// zeros in any other.
@@ -837,7 +836,6 @@ mod pair_provider;
 #[path = "../../../../crates/engine/benches/vec/host_columns.rs"]
 mod host_columns;
 mod json_input;
-mod completed_facts;
 #[path = "../../../../crates/engine/benches/vec/finisher.rs"]
 mod finisher;
 mod visit;
@@ -855,8 +853,6 @@ mod deferred_resolution;
 mod direct_fill;
 #[path = "fact_catalog.rs"]
 mod fact_catalog;
-#[path = "composition_inputs.rs"]
-mod composition_inputs;
 #[path = "relative_import.rs"]
 mod relative_import;
 mod import_syntax;
@@ -867,10 +863,14 @@ mod provider_packaging;
 #[path = "provider_tokens.rs"]
 mod provider_tokens;
 
+thread_local! {
+    /// redo-binding pass 5: the implicit-symbol catalog of this run (module position, table), filled once.
+    static IMPLICIT_CATALOG: std::cell::RefCell<Option<(u32, finish::Table)>> = const { std::cell::RefCell::new(None) };
+}
+
 /// The visit's facts as the finish's provider.
 struct ColFacts<'v, 'a, 'f, 'w> {
     file: &'v mut ryo_python::fixtures::columns::ColumnFile<'a, 'f>,
-    completed: &'w mut completed_facts::Completed,
     words: &'w mut languages::FileWords,
     filled: languages::FilledColumns,
     time: f64,
@@ -879,41 +879,69 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     file_no: u32,
     /// redo-binding pass 3: the provider relations the harness facts are written from, kept for the file once filled, so
     /// a fact and the steps that read the same relation share one fill.
-    kept: composition_inputs::Tables,
-    implicit: &'w mut Option<(u32, finish::Table)>,
-    type_paths: &'w mut type_expression::Paths,
-    input_layout: composition_inputs::Layout,
-    input_columns: composition_inputs::Columns,
-    direct_memo: &'w mut ryo_python::fixtures::columns::ColumnMemo,
     import_comments: import_syntax::LineComments,
+    kept: HashMap<String, finish::Table>,
     /// redo-general: the provider's project (its packaging knowledge, run-wide) and this file's bytes, for the relations it
     /// answers for a project.
     project: &'w mut provider_packaging::Project,
     src: &'w [u8],
 }
 
-enum Made {
-    Owned(finish::Table),
-    Shared(Rc<finish::Table>),
-}
-
-impl Made {
-    fn table(&self) -> &finish::Table {
-        match self { Self::Owned(t) => t, Self::Shared(t) => t }
+impl<'v, 'a, 'f, 'w> ColFacts<'v, 'a, 'f, 'w> {
+    fn for_visit(
+        file: &'v mut ryo_python::fixtures::columns::ColumnFile<'a, 'f>,
+        file_no: usize,
+        src: &'w [u8],
+        words: &'w mut languages::FileWords,
+        project: &'w mut provider_packaging::Project,
+        kept: HashMap<String, finish::Table>,
+    ) -> Self {
+        Self {
+            file,
+            file_no: file_no as u32,
+            src,
+            words,
+            project,
+            kept,
+            import_comments: Default::default(),
+            filled: Default::default(),
+            time: 0.0,
+            rows: 0,
+            by_rel: HashMap::new(),
+        }
     }
 }
 
 impl ColFacts<'_, '_, '_, '_> {
     /// A catalog relation of this file, filled whole (once a file for the relations the harness facts read).
-    fn whole(&mut self, run: &mut finish::Run, rel: &str) -> Result<Rc<finish::Table>, String> {
+    fn whole(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         if let Some(t) = self.kept.get(rel) {
             return Ok(t.clone());
         }
-        let mask = self.input_columns.get(rel).unwrap_or(u64::MAX);
-        let selected = if mask == u64::MAX { languages::ColumnProjection::All } else { languages::ColumnProjection::First(mask) };
-        let t = self.whole_fill(run, rel, &selected)?;
-        let t = Rc::new(t);
-        self.kept.insert(rel, t.clone());
+        // redo-binding pass 5: the implicit-symbol catalog is the same for every file whose module node is the same (the
+        // rows name the module scope and the file only; the file column is set by `fill`), so it is filled once a run
+        let module = (rel == "implicit-symbol").then(|| self.module_position(run)).flatten();
+        if let Some(m) = module
+            && let Some(t) = IMPLICIT_CATALOG.with(|c| c.borrow().as_ref().filter(|(at, _)| *at == m).map(|(_, t)| t.clone()))
+        {
+            // the rows name the module scope and the file: the cached rows' file cells become this file's
+            let mut t = t;
+            let f = u64::from(self.file_no);
+            for c in 0..t.tys.len() {
+                if t.tys[c] == finish::Ty::File {
+                    t.cols[c].iter_mut().for_each(|v| *v = f);
+                }
+            }
+            let _ = self.kept.insert(rel.to_owned(), t.clone());
+            return Ok(t);
+        }
+        let t = self.whole_fill(run, rel)?;
+        if let Some(m) = module {
+            IMPLICIT_CATALOG.with(|c| *c.borrow_mut() = Some((m, t.clone())));
+        }
+        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target" | "lookup-scope" | "implicit-symbol") {
+            let _ = self.kept.insert(rel.to_owned(), t.clone());
+        }
         Ok(t)
     }
 
@@ -923,56 +951,11 @@ impl ColFacts<'_, '_, '_, '_> {
         (0..n).find(|p| &*run.texts[run.kind_sym[usize::from(node_table::kind_of(self.file.table, Position(*p)).0)] as usize] == b"module")
     }
 
-    fn whole_fill(&mut self, run: &mut finish::Run, rel: &str, columns: &languages::ColumnProjection) -> Result<finish::Table, String> {
-        // Python's implicit names have the same scope, versions and spellings
-        // in every complete module at the same position. The file column belongs
-        // to this loan. Retain all columns once so later projections can widen.
-        if rel == "implicit-symbol" && self.file.complete() && let Some(module) = self.module_position(run) {
-            if self.implicit.as_ref().is_none_or(|(at, _)| *at != module) {
-                let rows = self.fresh_fill(run, rel, &languages::ColumnProjection::All)?;
-                *self.implicit = Some((module, rows));
-            }
-            let (_, rows) = self.implicit.as_ref().expect("complete implicit name catalog");
-            let cols = rows.cols.iter().enumerate().map(|(i, cells)| {
-                if !columns.contains(i) { Vec::new() }
-                else if rows.tys[i] == finish::Ty::File { vec![u64::from(self.file_no); rows.n] }
-                else { cells.clone() }
-            }).collect();
-            return Ok(finish::Table { names: rows.names.clone(), tys: rows.tys.clone(), n: rows.n, cols });
-        }
-        if let Some((Some(relation), _, _)) = run.catalog(rel)
-            && let Some(rows) = self.completed.take(relation)
-        {
-            let timed = finish::fill_prof::timed();
-            let start = if timed { thread_cpu() } else { 0.0 };
-            let count = rows.0.first().map_or(0, |column| column.0.len());
-            let answer = finish::owned_columns(run, rel, rows, self.words, columns, count)?;
-            if timed {
-                let cost = thread_cpu() - start;
-                for label in ["convert", "completed"] {
-                    let e = self.by_rel.entry(format!("{label}:{rel}")).or_default();
-                    e.0 += cost;
-                    e.1 += count as u64;
-                    e.2 += 1;
-                }
-            }
-            if finish::fill_prof::dumping() {
-                let reference = self.fresh_fill(run, rel, columns)?;
-                assert_eq!(answer.n, reference.n, "{rel} retained row count");
-                for (c, words) in answer.cols.iter().enumerate() {
-                    if columns.contains(c) { assert_eq!(*words, reference.cols[c], "{rel} retained column {c}"); }
-                }
-            }
-            return Ok(answer);
-        }
-        self.fresh_fill(run, rel, columns)
-    }
-
-    fn fresh_fill(&mut self, run: &mut finish::Run, rel: &str, columns: &languages::ColumnProjection) -> Result<finish::Table, String> {
+    fn whole_fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         let timed = finish::fill_prof::timed();
         // redo-fills pass 2: the provider's direct columns, no reader rows and no conversion (direct_fill.rs)
         if direct_fill::direct(rel)
-            && let Some((t, write, make)) = direct_fill::fill(self.file, run, rel, self.file_no, timed, columns.word(0), self.direct_memo)
+            && let Some((t, write, make)) = direct_fill::fill(self.file, run, rel, self.file_no, timed)
         {
             if timed {
                 let n = t.as_ref().map_or(0, |t| t.n as u64);
@@ -983,15 +966,24 @@ impl ColFacts<'_, '_, '_, '_> {
                     e.2 += 1;
                 }
             }
+            if direct_fill::checking() {
+                let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+                let relation = relation.ok_or_else(|| format!("{rel}: no reader relation"))?;
+                self.filled.0.clear();
+                let _ = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
+                let r = finish::filled_table(run, rel, &self.filled, self.words)?;
+                direct_fill::check(run, rel, self.file_no, &r, t.as_ref().map_err(String::clone)?);
+            }
             return t;
         }
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         let relation = relation.ok_or_else(|| format!("{rel}: no reader relation"))?;
+        self.filled.0.clear();
         let t0 = if timed { thread_cpu() } else { 0.0 };
-        let (answer, rows) = self.file.fill_columns(relation, columns, self.words, &mut self.filled);
+        let answer = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
         let t1 = if timed { thread_cpu() } else { 0.0 };
         let t = match answer {
-            languages::FactAnswer::Answered(_) => finish::filled_columns(run, rel, &self.filled, self.words, columns, rows),
+            languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
             _ => Err(format!("{rel} not answered")),
         };
         if timed {
@@ -1104,30 +1096,26 @@ impl ColFacts<'_, '_, '_, '_> {
 
 impl ColFacts<'_, '_, '_, '_> {
     /// redo-binding pass 4: `type-expression` (type_expression.rs) from the node table and four provider relations.
-    fn type_expression(&mut self, run: &mut finish::Run, mask: u64) -> Result<finish::Table, String> {
+    fn type_expression(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
         let qualified = self.whole(run, "qualified-name")?;
         let embedded = self.whole(run, "embedded-expression")?;
         // redo-fills pass 2: no root, no row, and the other two inputs are not filled
-        if !type_expression::any_root(run, self.file.table, &qualified, embedded.n, type_expression::LISTS.get_or_init(type_expression::Lists::default), self.type_paths)? {
+        if !type_expression::any_root(run, self.file.table, &qualified, embedded.n, type_expression::LISTS.get_or_init(type_expression::Lists::default))? {
             let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
             return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 });
         }
         let arguments = self.whole(run, "call-argument")?;
-        let keyword = run.sym(b"keyword");
-        let has_keywords = run.kind_sym.iter().enumerate().any(|(i, sym)| *sym == keyword
-            && !languages::node_table::ids_of_kind(self.file.table, languages::KindBits(i as u16)).is_empty());
-        let identifiers = if has_keywords { Some(self.whole(run, "identifier")?) } else { None };
-        let inputs = type_expression::Inputs { qualified: &qualified, arguments: &arguments, identifiers: identifiers.as_deref(), embedded: &embedded, lists: type_expression::LISTS.get_or_init(type_expression::Lists::default) };
-        let rows = type_expression::rows(run, self.file.table, &inputs, self.type_paths)?;
+        let identifiers = self.whole(run, "identifier")?;
+        let inputs = type_expression::Inputs { qualified: &qualified, arguments: &arguments, identifiers: &identifiers, embedded: &embedded, lists: type_expression::LISTS.get_or_init(type_expression::Lists::default) };
+        let rows = type_expression::rows(run, self.file.table, &inputs)?;
         let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
-        let mut t = finish::Table::projected(names, tys, rows.len(), mask);
-        t.n = rows.len();
-        if finish::request::wants(mask, 0) { t.cols[0].extend(rows.iter().map(|(id, _)| u64::from(*id))); }
-        if finish::request::wants(mask, 1) {
-            let (ty, value) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"value")));
-            t.cols[1].extend(rows.iter().map(|(_, typed)| if *typed { ty } else { value }));
+        let (ty, value) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"value")));
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
+        for (id, typed) in rows {
+            t.cols[0].push(u64::from(id));
+            t.cols[1].push(if typed { ty } else { value });
+            t.cols[2].push(u64::from(self.file_no));
         }
-        if finish::request::wants(mask, 2) { t.cols[2].resize(t.n, u64::from(self.file_no)); }
         Ok(t)
     }
 }
@@ -1135,7 +1123,7 @@ impl ColFacts<'_, '_, '_, '_> {
 impl ColFacts<'_, '_, '_, '_> {
     /// redo-binding pass 4: `annotation-evaluation` (annotation_evaluation.rs) from the node table, the file's compiler features
     /// and target, and its embedded expressions.
-    fn annotation_evaluation(&mut self, run: &mut finish::Run, mask: u64) -> Result<finish::Table, String> {
+    fn annotation_evaluation(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
         // redo-fills pass 2: no annotation, no row (and no input filled)
         if !annotation_evaluation::has_annotation(run, self.file.table) {
             let (_, names, tys) = run.catalog(fact_catalog::ANNOTATION_EVALUATION_REL).ok_or("no annotation-evaluation")?;
@@ -1147,36 +1135,31 @@ impl ColFacts<'_, '_, '_, '_> {
         let target = annotation_evaluation::target(run, &features, &targets)?;
         let rows = annotation_evaluation::rows(run, self.file.table, &target, &embedded)?;
         let (_, names, tys) = run.catalog(fact_catalog::ANNOTATION_EVALUATION_REL).ok_or("no annotation-evaluation")?;
-        let mut t = finish::Table::projected(names, tys, rows.len(), mask);
-        t.n = rows.len();
-        if finish::request::wants(mask, 0) { t.cols[0].extend(rows.iter().map(|(id, _, _)| u64::from(*id))); }
-        if finish::request::wants(mask, 1) { t.cols[1].extend(rows.iter().map(|(_, root, _)| u64::from(*root))); }
-        for c in [2, 3] {
-            if finish::request::wants(mask, c) {
-                let words = annotation_evaluation::NAMES.map(|(e, m)| u64::from(run.sym(if c == 2 { e } else { m })));
-                t.cols[c].extend(rows.iter().map(|(_, _, class)| words[*class]));
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 5], n: rows.len() };
+        for (id, root, evaluation, mode) in rows {
+            let (e, m) = (u64::from(run.sym(evaluation)), u64::from(run.sym(mode)));
+            for (c, v) in [u64::from(id), u64::from(root), e, m, u64::from(self.file_no)].into_iter().enumerate() {
+                t.cols[c].push(v);
             }
         }
-        if finish::request::wants(mask, 4) { t.cols[4].resize(t.n, u64::from(self.file_no)); }
         Ok(t)
     }
 }
 
 impl ColFacts<'_, '_, '_, '_> {
     /// redo-binding pass 4: a harness fact, made once a file (the facts that compose others read it from here).
-    fn fact(&mut self, run: &mut finish::Run, rel: &str) -> Result<Rc<finish::Table>, String> {
+    fn fact(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         if let Some(t) = self.kept.get(rel) {
             return Ok(t.clone());
         }
         let timed = finish::fill_prof::timed();
         let t0 = if timed { thread_cpu() } else { 0.0 };
-        let mask = self.input_columns.get(rel).unwrap_or(u64::MAX);
         let t = match rel {
-            fact_catalog::TYPE_EXPRESSION_REL => self.type_expression(run, mask)?,
-            fact_catalog::ANNOTATION_EVALUATION_REL => self.annotation_evaluation(run, mask)?,
+            fact_catalog::TYPE_EXPRESSION_REL => self.type_expression(run)?,
+            fact_catalog::ANNOTATION_EVALUATION_REL => self.annotation_evaluation(run)?,
             fact_catalog::FINAL_REL => self.namespace_final(run)?,
             fact_catalog::DEFERRED_RESOLUTION_REL => self.deferred_resolution(run)?,
-            _ => self.deferred_visit(run, mask)?,
+            _ => self.deferred_visit(run)?,
         };
         if timed {
             let e = self.by_rel.entry(format!("fact:{rel}")).or_default();
@@ -1184,8 +1167,7 @@ impl ColFacts<'_, '_, '_, '_> {
             e.1 += t.n as u64;
             e.2 += 1;
         }
-        let t = Rc::new(t);
-        self.kept.insert(rel, t.clone());
+        let _ = self.kept.insert(rel.to_owned(), t.clone());
         Ok(t)
     }
 
@@ -1216,7 +1198,7 @@ impl ColFacts<'_, '_, '_, '_> {
 
     /// redo-binding pass 4: `deferred-visit` (deferred_visit.rs) from `type-expression`, `annotation-evaluation`, the node
     /// table, the file's embedded expressions, its name (a stub) and its annotations future.
-    fn deferred_visit(&mut self, run: &mut finish::Run, mask: u64) -> Result<finish::Table, String> {
+    fn deferred_visit(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
         let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
         let evaluations = self.fact(run, fact_catalog::ANNOTATION_EVALUATION_REL)?;
         let embedded = self.whole(run, "embedded-expression")?;
@@ -1234,95 +1216,101 @@ impl ColFacts<'_, '_, '_, '_> {
             self.fact(run, fact_catalog::TYPE_EXPRESSION_REL)?
         } else {
             let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
-            Rc::new(finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 })
+            finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 }
         };
         let inputs = deferred_visit::Inputs { types: &types, evaluations: &evaluations, embedded: &embedded, stub, future };
         let rows = deferred_visit::rows(run, self.file.table, &inputs)?;
         let (_, names, tys) = run.catalog(fact_catalog::DEFERRED_VISIT_REL).ok_or("no deferred-visit")?;
-        let mut t = finish::Table::projected(names, tys, rows.len(), mask);
-        t.n = rows.len();
-        if finish::request::wants(mask, 0) { t.cols[0].extend(rows.into_iter().map(u64::from)); }
-        if finish::request::wants(mask, 1) { t.cols[1].resize(t.n, u64::from(run.sym(b"deferred"))); }
-        if finish::request::wants(mask, 2) { t.cols[2].resize(t.n, u64::from(self.file_no)); }
+        let deferred = u64::from(run.sym(b"deferred"));
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
+        for id in rows {
+            t.cols[0].push(u64::from(id));
+            t.cols[1].push(deferred);
+            t.cols[2].push(u64::from(self.file_no)); // redo-fills pass 2: the supplier writes the file its rows name
+        }
         Ok(t)
     }
 }
 
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
-    /// redo-fills pass 3: the file's one request answered in one call: each asked relation written once, in the request's
-    /// order; the model parts are built at the first family that reads each (and never again in the file).
-    fn answer(&mut self, run: &mut finish::Run, request: &finish::request::Request<'_>, out: &mut Vec<Result<finish::Table, String>>) -> Result<(), String> {
-        // the families first, the facts composed of them after (each input is made once and kept; the clock then gives
-        // each its own work), the answer in the request's order
-        let stub = run.paths[self.file_no as usize].ends_with(".pyi");
-        self.input_columns = self.input_layout.for_file(request.relations, stub);
-        let base = out.len();
-        out.resize_with(base + request.relations.len(), || Err(String::new()));
-        let mut pending = Vec::new();
-        for composed in [false, true] {
-            for (i, asked) in request.relations.iter().enumerate() {
-                if COMPOSED.contains(&asked.rel) == composed {
-                    out[base + i] = match asked.scope {
-                        finish::Scope::Files(files) => self.project.fill(run, asked.rel, asked.columns.word(0), files, self.file_no, self.file.table, self.src),
-                        finish::Scope::File(f) if f == self.file_no => match self.one(run, asked.rel, asked.columns) {
-                            Ok(Made::Owned(t)) => Ok(t),
-                            Ok(Made::Shared(t)) => { pending.push((i, t)); continue; }
-                            Err(e) => Err(e),
-                        },
-                        finish::Scope::File(f) => Err(format!("asked for file {f}, this provider holds file {}", self.file_no)),
-                    };
-                }
+    fn fill_len(&mut self, run: &mut finish::Run, rel: &str, scope: finish::Scope<'_>) -> Option<usize> {
+        if !matches!(scope, finish::Scope::File(f) if f == self.file_no) || self.kept.contains_key(rel) {
+            return None;
+        }
+        if matches!(rel, import_syntax::HEADS | import_syntax::LINE_COMMENTS) {
+            let timed = finish::fill_prof::timed();
+            let start = if timed { thread_cpu() } else { 0.0 };
+            let count = if rel == import_syntax::HEADS {
+                Some(self.file.import_statement_count())
+            } else {
+                self.import_comments.known_count().or_else(|| (!self.file.can_have_import_line_comments()).then_some(0))
+            };
+            if timed {
+                let elapsed = thread_cpu() - start;
+                let kind = if count == Some(0) { "empty" } else { "other" };
+                let e = self.by_rel.entry(format!("length-{kind}:{rel}")).or_default();
+                e.0 += elapsed;
+                e.2 += 1;
             }
+            return count;
         }
-        // Composed writers have finished reading their inputs. Hand the requested
-        // tables to the executor in request order, moving their column buffers.
-        self.kept.clear();
-        for (i, t) in pending {
-            // Repeated asks share the completed table until the last one takes ownership.
-            out[base + i] = Ok(Rc::try_unwrap(t).unwrap_or_else(|t| t.copy()));
-        }
-        for (entry, table) in request.relations.iter().zip(&mut out[base..]) {
-            if let Ok(t) = table {
-                for (c, col) in t.cols.iter_mut().enumerate() {
-                    if !entry.columns.contains(c) { col.clear(); }
-                }
-            }
-        }
-        Ok(())
+        let (relation, _, _) = run.catalog(rel)?;
+        self.file.row_count(relation?)
     }
 
-    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
-        self.render_node(node, context)
-    }
-}
-
-/// redo-fills pass 3: the provider's facts composed of its other relations (made after them in an answer).
-const COMPOSED: [&str; 9] = [fact_catalog::PREDECESSOR_REL, fact_catalog::REGION_REL, fact_catalog::RESOLUTION_REL, fact_catalog::TYPE_REGION_REL, fact_catalog::FINAL_REL, fact_catalog::TYPE_EXPRESSION_REL, fact_catalog::ANNOTATION_EVALUATION_REL, fact_catalog::DEFERRED_VISIT_REL, fact_catalog::DEFERRED_RESOLUTION_REL];
-
-impl ColFacts<'_, '_, '_, '_> {
-    fn make(&mut self, run: &mut finish::Run, rel: &str, selection: &languages::ColumnProjection) -> Result<Made, String> {
-        let columns = selection.word(0);
-        if rel == expression_parts::NESTED_DELIMITERS && let Some(rows) = self.kept.get(rel) {
-            return Ok(Made::Shared(rows.clone()));
+    fn fill(&mut self, run: &mut finish::Run, rel: &str, scope: finish::Scope<'_>) -> Result<finish::Table, String> {
+        // redo-general: a project's relations from the provider's project (its packaging knowledge)
+        let file = match scope {
+            finish::Scope::File(file) => file,
+            finish::Scope::Files(files) => {
+                let start = finish::fill_prof::timed().then(thread_cpu);
+                let result = self.project.fill(run, rel, files, self.file_no, self.file.table, self.src);
+                if let (Some(start), Ok(table)) = (start, &result) {
+                    let stat = self.by_rel.entry(rel.to_owned()).or_default();
+                    stat.0 += thread_cpu() - start;
+                    stat.1 += table.n as u64;
+                    stat.2 += 1;
+                }
+                return result;
+            }
+        };
+        if file != self.file_no {
+            return Err(format!("{rel}: asked for file {file}, this provider holds file {}", self.file_no));
         }
-        Ok(if rel == fact_catalog::REGION_REL {
+        // The syntax walk indexed every relative form. Report the fixed cost of a proven empty answer separately.
+        if rel == fact_catalog::RELATIVE_IMPORT_REL && !self.file.has_relative_imports() {
+            let timed = finish::fill_prof::timed();
+            let start = if timed { thread_cpu() } else { 0.0 };
+            let (_, names, tys) = run.catalog(rel).ok_or("no relative-import-target")?;
+            let table = finish::Table::with_rows(names, tys, 0);
+            if timed {
+                let e = self.by_rel.entry("empty-proof:relative-import-target".to_owned()).or_default();
+                e.0 += thread_cpu() - start;
+                e.2 += 1;
+            }
+            return Ok(table);
+        }
+        let timed = finish::fill_prof::timed();
+        let t0 = if timed { thread_cpu() } else { 0.0 };
+        let mut t = if rel == fact_catalog::REGION_REL {
             let (deferred, rows) = self.file.evaluation_region().ok_or("evaluation-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no evaluation-region")?;
-            let mut t = finish::Table::projected(names, tys, rows.len(), columns);
-            t.n = rows.len();
-            if finish::request::wants(columns, 0) { t.cols[0].extend(rows.iter().map(|r| u64::from(r.id))); }
-            if finish::request::wants(columns, 1) { t.cols[1].extend(rows.iter().map(|r| u64::from(r.region))); }
-            if finish::request::wants(columns, 2) { t.cols[2].extend(rows.iter().map(|r| u64::from(run.sym(r.kind.as_bytes())))); }
-            if finish::request::wants(columns, 3) {
-                t.cols[3].extend(rows.iter().map(|r| if r.annotation == u32::MAX { finish::NULL } else { u64::from(r.annotation) }));
+            let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 6], n: rows.len() };
+            let timing = u64::from(run.sym(if deferred { b"deferred" } else { b"immediate" }));
+            for r in &rows {
+                let kind = u64::from(run.sym(r.kind.as_bytes()));
+                t.cols[0].push(u64::from(r.id));
+                t.cols[1].push(u64::from(r.region));
+                t.cols[2].push(kind);
+                t.cols[3].push(if r.annotation == u32::MAX { finish::NULL } else { u64::from(r.annotation) });
+                t.cols[4].push(timing);
+                t.cols[5].push(u64::from(self.file_no));
             }
-            if finish::request::wants(columns, 4) { t.cols[4].resize(t.n, u64::from(run.sym(if deferred { b"deferred" } else { b"immediate" }))); }
-            if finish::request::wants(columns, 5) { t.cols[5].resize(t.n, u64::from(self.file_no)); }
-            Made::Owned(t)
+            t
         } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
-            Made::Owned(relative_import::walked(run, self.project, self.file, self.file_no)?)
+            relative_import::walked(run, self.project, self.file, self.file_no)?
         } else if matches!(rel, lexical_lines::COMMENT | lexical_lines::MULTILINE | lexical_lines::BREAKS) {
-            Made::Owned(lexical_lines::fill(run, self.file, self.src, self.file_no, rel)?)
+            lexical_lines::fill(run, self.file, self.src, self.file_no, rel)?
         } else if matches!(
             rel,
             expression_parts::CALL_SITE
@@ -1342,9 +1330,13 @@ impl ColFacts<'_, '_, '_, '_> {
                 | expression_parts::ATTRIBUTE_PREFIX
                 | expression_parts::DISPLAY_ELEMENT
         ) {
-            Made::Owned(expression_parts::fill(run, self.file, self.words, self.src, self.file_no, rel)?)
+            if rel == expression_parts::NESTED_DELIMITERS && let Some(rows) = self.kept.remove(rel) {
+                rows
+            } else {
+                expression_parts::fill(run, self.file, self.src, self.file_no, rel)?
+            }
         } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::HEADS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
-            Made::Owned(import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel, &mut self.import_comments)?)
+            import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel, &mut self.import_comments)?
         } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no pre-declaration-read")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
@@ -1359,7 +1351,7 @@ impl ColFacts<'_, '_, '_, '_> {
             if !complete {
                 return Err("pre-declaration-read: incomplete flow".to_owned());
             }
-            Made::Owned(rows)
+            rows
         } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL | fact_catalog::BINDING_READ_REL) {
             let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no {rel}"))?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
@@ -1369,7 +1361,7 @@ impl ColFacts<'_, '_, '_, '_> {
                     rows.n += 1;
                 });
             if !complete { return Err(format!("{rel}: incomplete flow")); }
-            Made::Owned(rows)
+            rows
         } else if rel == fact_catalog::BINDING_SITES_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no binding-sites")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
@@ -1382,91 +1374,51 @@ impl ColFacts<'_, '_, '_, '_> {
             if !complete {
                 return Err("binding-sites: incomplete flow".to_owned());
             }
-            Made::Owned(rows)
+            rows
         } else if rel == fact_catalog::PREDECESSOR_REL {
-            Made::Owned(self.scheduled_read_predecessor(run)?)
+            self.scheduled_read_predecessor(run)?
         } else if rel == fact_catalog::RESOLUTION_REL {
-            Made::Owned(self.read_resolution(run)?)
+            self.read_resolution(run)?
         } else if rel == fact_catalog::TYPE_REGION_REL {
             let ids = self.file.type_regions().ok_or("type-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no type-region")?;
-            let mut t = finish::Table::projected(names, tys, ids.len(), columns);
-            t.n = ids.len();
-            if finish::request::wants(columns, 0) { t.cols[0].extend(ids.into_iter().map(u64::from)); }
-            if finish::request::wants(columns, 1) { t.cols[1].resize(t.n, u64::from(self.file_no)); }
-            Made::Owned(t)
+            finish::Table { names, tys, n: ids.len(), cols: vec![ids.iter().map(|i| u64::from(*i)).collect(), vec![u64::from(self.file_no); ids.len()]] }
         } else if rel == fact_catalog::FINAL_REL
             || rel == fact_catalog::TYPE_EXPRESSION_REL
             || rel == fact_catalog::ANNOTATION_EVALUATION_REL
             || rel == fact_catalog::DEFERRED_VISIT_REL
             || rel == fact_catalog::DEFERRED_RESOLUTION_REL
         {
-            Made::Shared(self.fact(run, rel)?)
-        } else if self.input_columns.get(rel).is_some() {
-            Made::Shared(self.whole(run, rel)?)
+            self.fact(run, rel)?
         } else {
-            Made::Owned(self.whole_fill(run, rel, selection)?)
-        })
-    }
-
-    /// One asked relation of this file: none made where the file's own contents say it has no row (`row_count`).
-    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: &languages::ColumnProjection) -> Result<Made, String> {
-        if self.kept.get(rel).is_none()
-            && let Some((Some(relation), names, tys)) = run.catalog(rel)
-            && self.file.row_count(relation) == Some(0)
-        {
-            return Ok(Made::Owned(finish::Table::with_rows(names, tys, 0)));
-        }
-        let timed = finish::fill_prof::timed();
-        let t0 = if timed { thread_cpu() } else { 0.0 };
-        let made = self.make(run, rel, columns)?;
-        let t = made.table();
+            self.whole(run, rel)?
+        };
         let dt = if timed { thread_cpu() - t0 } else { 0.0 };
         self.time += dt;
         self.rows += t.n as u64;
-        let e = if let Some(e) = self.by_rel.get_mut(rel) { e } else { self.by_rel.entry(rel.to_owned()).or_default() };
+        let e = self.by_rel.entry(rel.to_owned()).or_default();
         e.0 += dt;
         e.1 += t.n as u64;
         e.2 += 1;
-        if t.n == 0 && finish::fill_prof::counting() {
-            self.by_rel.entry(format!("zero:{rel}")).or_default().2 += 1;
-        }
-        if finish::fill_prof::dumping() {
-            if t.cols.iter().any(|c| c.len() < t.n) {
-                // The gate compares full-row digests across versions. Check every
-                // delivered cell in order against the full writer before hashing it.
-                let reference = match rel {
-                    fact_catalog::TYPE_EXPRESSION_REL => self.type_expression(run, u64::MAX)?,
-                    fact_catalog::ANNOTATION_EVALUATION_REL => self.annotation_evaluation(run, u64::MAX)?,
-                    fact_catalog::DEFERRED_VISIT_REL => self.deferred_visit(run, u64::MAX)?,
-                    fact_catalog::REGION_REL | fact_catalog::TYPE_REGION_REL => match self.make(run, rel, &languages::ColumnProjection::All)? {
-                        Made::Owned(t) => t, Made::Shared(_) => unreachable!(),
-                    },
-                    _ => self.whole_fill(run, rel, &languages::ColumnProjection::All)?,
-                };
-                assert_eq!(t.n, reference.n, "{rel} rows");
-                for c in 0..t.cols.len() {
-                    if columns.contains(c) {
-                        assert_eq!(t.cols[c], reference.cols[c], "{rel} column {}", t.names[c]);
-                    }
-                }
-                finish::fill_prof::dump(run, self.file_no, rel, &reference);
-            } else {
-                finish::fill_prof::dump(run, self.file_no, rel, &t);
+        if finish::fill_prof::counting() {
+            if t.n == 0 {
+                self.by_rel.entry(format!("zero:{rel}")).or_default().2 += 1;
             }
+            let site = finish::fill_prof::SITE.with(std::cell::Cell::get);
+            self.by_rel.entry(format!("site:{site}:{rel}")).or_default().2 += 1;
         }
-        Ok(made)
+        finish::fill_prof::dump(run, self.file_no, rel, &t);
+        Ok(t)
     }
 
-    fn render_node(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
+    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
         let context = match context {
             "assignment-target" => languages::RenderContext::AssignmentTarget,
             "attribute-receiver" => languages::RenderContext::AttributeReceiver,
             "positional-argument" => languages::RenderContext::PositionalArgument,
             other => return Err(format!("render context {other}")),
         };
-        let node = ryo_relations::domain::relations::service::node_id(FileId(self.file_no), languages::Position(node));
-        match self.file.render(languages::RenderRequest { node, context }) {
+        match self.file.render(languages::RenderRequest { node: languages::NodeId(u64::from(node)), context }) {
             languages::RenderOutcome::Known(t) => Ok(Some(t.0.as_bytes().to_vec())),
             languages::RenderOutcome::NotApplicable => Ok(None),
             languages::RenderOutcome::Unsupported(_) => Err("render unsupported".to_owned()),
@@ -1619,12 +1571,10 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         // A separately loaded finish plan may use the same rule names for
         // different emits. Only the shared typed plan certifies its output.
         let shared_plan = read.typed.borrow().is_some();
-        let shared_steps = shared_plan && pack.is_some_and(|(_, combined)| std::ptr::eq(read, combined));
         let mut prepared = first::prepare(read, python_language(vocab), vocab);
         if !shared_plan {
             prepared.pairs.exact.clear();
         }
-        if !shared_steps { prepared.pairs.drivers.clear(); }
         let f2 = thread_cpu();
         let rules = rules_of_skips(&prepared.skips, vocab);
         let (frules, words) = funnel::build(&prepared.rules);
@@ -1636,13 +1586,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         );
         (rules, frules, words)
     };
-    if let Some(fin) = fin.as_deref_mut() {
-        let drivers = pairs.as_ref().filter(|_| !no_skip).map_or(&[][..], |program| program.drivers.as_slice());
-        fin.prepare_requests(vocab, drivers);
-    }
-
     let use_facts = args.contains(&"--facts");
-    let reader_needs = fact_catalog::walk_needs(fin.as_deref().map(|f| f.plan()), pairs.as_ref());
     let direct = args.contains(&"--direct");
     let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::with_settings(
         ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),
@@ -1718,7 +1662,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     if carry_file && let Some((program,schedule,words_for_file,scratch))=&mut query {
         let root = fin.as_ref().map(|f| f.run.root_dir.clone()).or_else(|| flag(args, "--summary-root"));
         let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),settings);
-        summary_walk::run(&list, program,&mut skip,&words,fields_width,std::mem::take(words_for_file),
+        summary_walk::run(&list, program,&mut skip,&words,fields_width,words_for_file,
             &mut cwalk,&mut other,fin,root.as_deref(),flag(args,"--seed-out").as_deref(),flag(args,"--exact-out").as_deref(),schedule,scratch);
         return;
     }
@@ -1751,7 +1695,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         let mut prepared = false;
         let mut codes_taken = false;
         macro_rules! prepare {
-            ($t:expr,$catalog_file:expr,$fill:expr) => {{
+            ($t:expr,$fill:expr) => {{
                 let pt: &NodeTable = $t;
                 let c1 = thread_cpu();
                 fields_present(pt, &mut cols, fields_width.max(1));
@@ -1881,10 +1825,10 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                 exact_rows.clear();
                 if !no_skip && let Some((program,schedule,words_for_file,scratch)) = &mut query {
                     let start = thread_cpu();
+                    let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].clone());
                     let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
-                    let relative_path = fin.as_ref().map(|f| f.run.paths[file_no].clone());
                     schedule.literals.names(pt,&bytes,&mut summary_names,&mut scratch.literals);
-                    pair_steps += program.eval(scratch,schedule,pt, &bytes, relative_path.as_deref().map(str::as_bytes), None, &mut words_for_file[0], |rel, request, words, out| {
+                    pair_steps += program.eval(scratch,schedule,pt, &bytes, relative_path.as_deref().map(str::as_bytes), None, words_for_file, |rel, request, words, out| {
                         if !matches!(request,pair_checks::Query::Rows){return None;}
                         if matches!(rel, pair_summary::Source::Catalog(languages::Relation::ModuleIdentity)) {
                             return Some(fin.as_deref_mut().is_some_and(|f| f.identity(file_no, words, out)));
@@ -1894,7 +1838,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                             return Some(result);
                         }
                         Some(($fill)(rel, words, out))
-                    }, &mut alive, $catalog_file, exact);
+                    }, &mut alive, exact);
                     pair_cpu += thread_cpu() - start;
                 }
                 rule_files += frules.len() as u64;
@@ -1947,9 +1891,8 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let ft = file.table;
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
-                    let mut walk_tables = Default::default();
-                    file.set_file(FileId(file_no as u32));
-                    prepare!(ft, FileId(file_no as u32), |rel,words,out| {
+                    let mut walk_tables = HashMap::new();
+                    prepare!(ft, |rel,words,out| {
                         if let pair_summary::Source::Walk(name) = rel
                             && pair_provider::visit_table(name) {
                             fin.as_deref_mut().is_some_and(|f| f.walk_table(file_no, file, &bytes, name, words, out, &mut walk_tables))
@@ -1957,7 +1900,6 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                             pair_provider::read(file, file_no, rel, words, out)
                         }
                     });
-                    file.set_file(FileId(0));
                     prepared = true;
                     if dump_out.is_some() {
                         dump_table!(ft);
@@ -1992,7 +1934,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                         // wanted() already charges its own time to the second half.
                         phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0));
                         if fin.visits(&wanted) {
-                            fin.column_file(file_no, path, file, &bytes, &wanted, &mut walk_tables);
+                            fin.column_file(file_no, file, &bytes, &wanted, walk_tables);
                         }
                     } else {
                         phases.add("seed handoff", thread_cpu() - handoff);
@@ -2001,9 +1943,9 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                 })
                 .is_ok()
         } else if use_facts {
-            ryo_python::fixtures::walking::walked_structured(walk, path, &bytes, reader_needs, &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
+            ryo_python::fixtures::walking::walked_structured(walk, path, &bytes, &[], &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
                 let p0 = thread_cpu();
-                prepare!(file.table, FileId(0), |rel, words, out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r, languages::Wanted::Whole, words, out), languages::FactAnswer::Answered(_))));
+                prepare!(file.table, |rel, words, out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r, languages::Wanted::Whole, words, out), languages::FactAnswer::Answered(_))));
                 prepared = true;
                 visit_time += thread_cpu() - p0;
             }).is_ok()
@@ -2028,7 +1970,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             continue;
         }
         if !prepared {
-            prepare!(t, FileId(0), |_,_,_| false);
+            prepare!(t, |_,_,_| false);
         }
         if dump_out.is_some() && !dumped_table {
             dump_table!(t);

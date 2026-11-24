@@ -4,23 +4,22 @@
 use super::pair_summary::{Id, Program};
 use ryo::languages::{self, CellWord, FileWords, NameText, Walk, facts};
 
-pub(super) fn vocabulary<W: Walk>(_: &W, p: &Program) -> ([FileWords; 2], Vec<Option<Id>>) {
+pub(super) fn vocabulary<W: Walk>(_: &W, p: &Program) -> (FileWords, Vec<Option<Id>>) {
     register_symbols(p, &W::vocabulary().fixed.0)
 }
 
-pub(super) fn register_symbols<const N: usize>(p: &Program, names: &[NameText<'_>]) -> ([FileWords; N], Vec<Option<Id>>) {
+pub(super) fn register_symbols(p: &Program, names: &[NameText<'_>]) -> (FileWords, Vec<Option<Id>>) {
     let mut text: Vec<_> = p.symbols.iter().map(|(k, &id)| (id, NameText(k))).collect();
     text.sort_unstable_by_key(|x| x.0);
     let selected: Vec<_> = text.iter().map(|x| x.1).collect();
     let fixed = languages::fixed_names::checked(names).expect("declared fixed words");
-    let base = facts::base_words(fixed, &selected);
-    let mut words = facts::file_words(&base);
+    let mut words = facts::file_words(&facts::base_words(fixed, &selected));
     let mut codes = vec![None; facts::base_count(&words).0 as usize];
     for (id, s) in text {
         let n = facts::intern(&mut words, s);
         codes[n.0 as usize] = Some(id);
     }
-    (std::array::from_fn(|_| facts::file_words(&base)), codes)
+    (words, codes)
 }
 
 #[inline]

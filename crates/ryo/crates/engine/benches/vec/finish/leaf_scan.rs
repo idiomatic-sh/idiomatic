@@ -110,9 +110,8 @@ fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
         Native::Location => ("location", None),
         Native::Token => ("token", None),
         Native::Fact(i) => {
-            return vec![vec!["fact".into(), run.provider_slots.fact_rels[usize::from(i)].0.clone()]];
+            return vec![vec!["fact".into(), run.fact_rels[usize::from(i)].0.clone()]];
         }
-        Native::Empty => return Vec::new(),
     };
     if let Some(column) = column {
         for test in &v.filter {
@@ -125,7 +124,7 @@ fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
                 names.dedup();
                 return names
                     .into_iter()
-                    .map(|name| vec![base.into(), name.into_owned()])
+                    .map(|n| vec![base.into(), n.into_owned()])
                     .collect();
             }
         }
@@ -151,7 +150,7 @@ pub(super) fn fact_entry(
             _ => {}
         }
     }
-    let rel = run.provider_slots.fact_rels[usize::from(i)].0.clone();
+    let rel = run.fact_rels[usize::from(i)].0.clone();
     let (_, names, types) = run.catalog(&rel).expect("loaded fact");
     let mut cols = Vec::new();
     for e in filter {
@@ -176,7 +175,7 @@ fn current_entries(run: &mut Run, v: &ViewSpec) -> Vec<Vec<String>> {
         ),
         Native::Child => return vec![vec!["child".into()]],
         Native::Fact(i) => {
-            let mut prefix = vec!["fact".to_owned(), run.provider_slots.fact_rels[usize::from(i)].0.clone()];
+            let mut prefix = vec!["fact".to_owned(), run.fact_rels[usize::from(i)].0.clone()];
             let values = fact_entry(run, i, &v.filter).map(|(_, name, xs)| {
                 prefix.push(name);
                 xs

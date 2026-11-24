@@ -45,7 +45,6 @@ ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../crates/engine"
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../../crates/values" }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../../crates/query_language" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/relations" }
-aho-corasick = "1"
 rustc-hash = "2"
 regex = "1"
 smallvec = "1"

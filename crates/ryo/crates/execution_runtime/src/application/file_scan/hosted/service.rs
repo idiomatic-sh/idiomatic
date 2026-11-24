@@ -2,7 +2,6 @@
 //! language's (`HostedFacts`).
 
 use super::types::{HostedCell, HostedPartial, HostedRows, HostedWriter, WrittenRow};
-use ryo_language::domain::facts::projection::ColumnProjection;
 use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::{
     CellWord, FactAnswer, FactSource, FileWords, FillExtent, FilledColumn, FilledColumns,
@@ -134,26 +133,20 @@ pub(crate) struct HostedFacts<'a> {
     pub(crate) file: FileId,
 }
 
-impl HostedFacts<'_> {
-    fn write(
+impl FactSource for HostedFacts<'_> {
+    fn fill(
         &mut self,
         relation: Relation,
         wanted: Wanted,
         words: &mut FileWords,
         out: &mut FilledColumns,
-        mask: Option<&ColumnProjection>,
-        count: &mut usize,
     ) -> FactAnswer {
         let extent = match wanted {
             Wanted::Whole => FillExtent::Asked,
             Wanted::Key(_, _) => FillExtent::Whole,
         };
         if self.rows.held.binary_search(&relation).is_err() {
-            return if let Some(mask) = mask {
-                    let (answer, rows) = self.language.fill_columns(relation, wanted, mask, words, out);
-                    *count = rows;
-                    answer
-                } else { self.language.fill(relation, wanted, words, out) };
+            return self.language.fill(relation, wanted, words, out);
         }
         let partial = self.rows.partials.iter().find(|each| {
             each.relation == relation && each.file.is_none_or(|file| file == self.file)
@@ -168,9 +161,7 @@ impl HostedFacts<'_> {
             if out.0.len() < row.len() {
                 out.0.resize_with(row.len(), FilledColumn::default);
             }
-            *count += 1;
-            for (i, (column, cell)) in out.0.iter_mut().zip(row).enumerate() {
-                if mask.is_some_and(|m| !m.contains(i)) { continue; }
+            for (column, cell) in out.0.iter_mut().zip(row) {
                 column.0.push(match cell {
                     HostedCell::Word(word) => CellWord(*word),
                     HostedCell::Text(text) => intern(words, NameText(text)),
@@ -178,25 +169,6 @@ impl HostedFacts<'_> {
             }
         }
         FactAnswer::Answered(extent)
-    }
-
-}
-
-impl FactSource for HostedFacts<'_> {
-    fn fill(
-        &mut self, relation: Relation, wanted: Wanted, words: &mut FileWords, out: &mut FilledColumns,
-    ) -> FactAnswer {
-        self.write(relation, wanted, words, out, None, &mut 0)
-    }
-
-    fn fill_columns(
-        &mut self, relation: Relation, wanted: Wanted, mask: &ColumnProjection,
-        words: &mut FileWords, out: &mut FilledColumns,
-    ) -> (FactAnswer, usize) {
-        out.clear_for(relation);
-        let mut rows = 0;
-        let answer = self.write(relation, wanted, words, out, Some(mask), &mut rows);
-        (answer, rows)
     }
 
     fn render(&mut self, request: RenderRequest) -> RenderOutcome {
@@ -219,14 +191,6 @@ impl FactSource for NoLanguage {
             Wanted::Whole => FillExtent::Asked,
             Wanted::Key(_, _) => FillExtent::Whole,
         })
-    }
-
-    fn fill_columns(
-        &mut self, relation: Relation, wanted: Wanted, _mask: &ColumnProjection,
-        words: &mut FileWords, out: &mut FilledColumns,
-    ) -> (FactAnswer, usize) {
-        out.clear_for(relation);
-        (self.fill(relation, wanted, words, out), 0)
     }
 
     fn render(&mut self, _request: RenderRequest) -> RenderOutcome {
