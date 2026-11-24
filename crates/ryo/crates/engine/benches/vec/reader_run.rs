@@ -207,6 +207,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
     declaration.text_kinds = (0..kind_names.0.len())
         .map(|k| u16::try_from(k).expect("kind code"))
         .collect();
+    let typed = read.typed.take().expect("executor must hand over the typed plan");
     assert!(typed.unplanned.is_empty());
     let mut program =
         super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows);
@@ -285,7 +286,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
         fields.width(),
     );
     let mut dependencies: Vec<BTreeSet<l::Relation>> = Vec::new();
-    for (slot, n) in plan.nodes.iter().enumerate() {
+    for n in &plan.nodes {
         let mut reads = BTreeSet::new();
         for &i in &n.inputs {
             reads.extend(&dependencies[i]);

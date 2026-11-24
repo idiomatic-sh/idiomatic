@@ -1909,8 +1909,9 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             if f.retained_file(&origin){continue}
         }
         let bytes = std::fs::read(path).expect("read");
-        if let Some(f)=fin.as_deref_mut() && let Some(c)=&mut f.capture {
-            c.visited(&f.run.paths[file_no],&bytes);
+        if let Some(f)=fin.as_deref_mut() && f.capture.is_some() {
+            let origin=f.run.paths[file_no].clone();
+            f.capture.as_mut().unwrap().visited(&origin,&bytes);
         }
         let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
         store.reset(slots_n);
