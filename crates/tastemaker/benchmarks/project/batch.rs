@@ -97,6 +97,58 @@ impl Authorities {
     }
 }
 
+#[derive(Default)]
+struct ReplayInputs {
+    queries: HashMap<String, Rc<str>>,
+    inventories: HashMap<PathBuf, Rc<Vec<String>>>,
+    roots: HashMap<String, PathBuf>,
+    authorities: Authorities,
+}
+
+impl ReplayInputs {
+    fn register(&mut self, batch: &mut Batch, pack: &str, mut req: Input, closed: Option<&Path>) -> Result<Work, String> {
+        let t = thread_cpu();
+        let query = match self.queries.get(pack) {
+            Some(q) => q.clone(),
+            None => {
+                let q: Rc<str> =
+                    std::fs::read_to_string(Path::new(pack).join("rules/query/query.ryoql"))
+                        .map_err(|e| e.to_string())?
+                        .into();
+                self.queries.insert(pack.to_owned(), q.clone());
+                q
+            }
+        };
+        batch.clocks.prepare += thread_cpu() - t;
+        if req.repository.is_none() {
+            req.repository = self.authorities.roots.get(&req.root).or(self.authorities.default.as_ref()).cloned();
+        }
+        batch.register_query(query.into(), req, |root| self.inventory(root, closed), None)
+    }
+
+    fn inventory(&mut self, root: &str, closed: Option<&Path>) -> Result<Option<Rc<Vec<String>>>, String> {
+        let closed = closed.or_else(|| self.roots.get(root).map(PathBuf::as_path));
+        Ok(if let Some(path) = closed {
+            if !self.inventories.contains_key(path) {
+                let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+                self.inventories.insert(
+                    path.to_owned(),
+                    Rc::new({
+                        let mut paths: Vec<String> =
+                            json_input::decode(&bytes).map_err(|e| e.to_string())?;
+                        paths.sort_unstable();
+                        paths.dedup();
+                        paths
+                    }),
+                );
+            }
+            self.inventories.get(path).cloned()
+        } else {
+            None
+        })
+    }
+}
+
 type HostSchema = Vec<(String, Vec<(String, String)>)>;
 
 #[derive(Clone, Copy)]
@@ -129,13 +181,7 @@ struct Batch {
     shared_replay_files: [usize; 2],
     host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
     binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
-    queries: HashMap<String, Rc<str>>,
     work: Vec<Work>,
-    inventories: HashMap<PathBuf, Rc<Vec<String>>>,
-    // A bench driver may supply the original closed inventory separately from
-    // the admitted file set. Its key is the source root, shared by sibling rules.
-    roots: HashMap<String, PathBuf>,
-    authorities: Authorities,
     projects: Vec<ProjectSpec>,
     cut_of: Vec<Option<Arc<finish::partition::Partition>>>,
     local_bindings: HashMap<usize, usize>,
@@ -214,23 +260,6 @@ impl Admission {
 }
 
 impl Batch {
-    fn register(&mut self, pack: &str, req: Input, closed: Option<&Path>) -> Result<Work, String> {
-        let t = thread_cpu();
-        let query = match self.queries.get(pack) {
-            Some(q) => q.clone(),
-            None => {
-                let q: Rc<str> =
-                    std::fs::read_to_string(Path::new(pack).join("rules/query/query.ryoql"))
-                        .map_err(|e| e.to_string())?
-                        .into();
-                self.queries.insert(pack.to_owned(), q.clone());
-                q
-            }
-        };
-        self.clocks.prepare += thread_cpu() - t;
-        self.register_query(query.into(), req, closed, None)
-    }
-
     fn prepared_rule(&mut self,query:Query,parameters:&Parameters)->usize{
         let t = thread_cpu();
         let rule = self
@@ -248,7 +277,7 @@ impl Batch {
         &mut self,
         query: Query,
         mut req: Input,
-        closed: Option<&Path>,
+        inventory_for: impl FnOnce(&str) -> Result<Option<Rc<Vec<String>>>, String>,
         sdk: Option<LiveAdmission<'_>>,
     ) -> Result<Work, String> {
         let rule=self.prepared_rule(query.clone(),&req.parameters);
@@ -284,27 +313,7 @@ impl Batch {
         }
         if class.closed {
             let t = thread_cpu();
-            // Closed fixture inventories accompany the production input stream. If
-            // only typed scalar host cells are read, no file identity needs binding.
-            let closed = closed.or_else(|| self.roots.get(&req.root).map(PathBuf::as_path));
-            let snapshot = if let Some(path) = closed {
-                if !self.inventories.contains_key(path) {
-                    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
-                    self.inventories.insert(
-                        path.to_owned(),
-                        Rc::new({
-                            let mut paths: Vec<String> =
-                                json_input::decode(&bytes).map_err(|e| e.to_string())?;
-                            paths.sort_unstable();
-                            paths.dedup();
-                            paths
-                        }),
-                    );
-                }
-                self.inventories.get(path).cloned()
-            } else {
-                None
-            };
+            let snapshot = inventory_for(&req.root)?;
             let inventory = req
                 .inventory
                 .or(snapshot)
@@ -321,13 +330,6 @@ impl Batch {
             } else {
                 let authority = req
                     .repository
-                    .or_else(|| {
-                        self.authorities
-                            .roots
-                            .get(&req.root)
-                            .or(self.authorities.default.as_ref())
-                            .cloned()
-                    })
                     .ok_or("project source authority was not declared")?;
                 let key = (req.root.clone(), authority.clone(), inventory.clone());
                 let id = match self.project_keys.get(&key) {
@@ -456,7 +458,6 @@ impl Batch {
         // The closed, store-disabled capture cannot register another request.
         // Release the admission-only maps before the reader and join heaps grow.
         self.project_keys = Default::default();
-        self.authorities = Default::default();
         self.admissions = Default::default();
         self.local_bindings = Default::default();
         self.release_admission();
@@ -470,9 +471,6 @@ impl Batch {
         self.replay_file_sets = HashSet::new();
         self.last_sources = None;
         self.schedule.close();
-        self.inventories.clear();
-        self.roots.clear();
-        self.queries.clear();
         self.binding_ids.clear();
     }
 
@@ -857,7 +855,7 @@ pub(crate) fn packets(
     }
     let readers: Vec<_> = languages.into_iter().map(session::source::Linked::from).collect();
     let mut session = Batch { file_catalog: session::named::Catalog::from_readers(&readers)?, ..Default::default() };
-    session.authorities = Authorities::from_input()?;
+    let mut inputs = ReplayInputs { authorities: Authorities::from_input()?, ..Default::default() };
     let mut ids = Vec::new();
     let source = std::fs::File::open(manifest).map_err(|e| e.to_string())?;
     let stdin = std::io::stdin();
@@ -877,8 +875,7 @@ pub(crate) fn packets(
         let mut input: Input = json_input::decode(&bytes).map_err(|e| e.to_string())?;
         input.inventory = Some(canonical_inventory(project.inventory));
         input.repository = project.repository;
-        let work = session
-            .register(&item.pack, input, None)
+        let work = inputs.register(&mut session, &item.pack, input, None)
             .unwrap_or_else(Work::Refused);
         session.work.push(work);
         ids.push(item.id);
@@ -886,6 +883,7 @@ pub(crate) fn packets(
     if projects.next().is_some() {
         return Err("extra closed inventory".into());
     }
+    drop(inputs);
     let answers = session.run_sources(&readers);
     let mut out =
         std::io::BufWriter::new(std::fs::File::create(output).map_err(|e| e.to_string())?);
@@ -935,11 +933,11 @@ fn batch_mode<L:session::source::Source>(readers:&[L],manifest:&str,output:&str,
 fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&str, output:&str, root:Option<&Path>, workers:Option<std::num::NonZeroUsize>, completed: impl FnOnce()){
     let start = thread_cpu();
     let mut session = Batch { workers, file_catalog: session::named::Catalog::from_readers(readers).expect("linked file catalog"), ..Default::default() };
+    let mut replay = ReplayInputs { authorities: Authorities::from_input().expect("repository declarations"), ..Default::default() };
     if let Some(index) = std::env::var_os("TM_CORPUS_INVENTORIES") {
         let bytes = std::fs::read(index).expect("closed input inventories");
-        session.roots = json_input::decode(&bytes).expect("source roots and their inventories");
+        replay.roots = json_input::decode(&bytes).expect("source roots and their inventories");
     }
-    session.authorities = Authorities::from_input().expect("repository declarations");
     let mut store=root.map(|p|stored::Store::open(p, readers).expect("open request store"));
     let authority=store.as_mut().map(|s| {
         ["TM_CORPUS_INVENTORIES","TM_CORPUS_PROJECTS"].map(|name|std::env::var_os(name).map(|p|
@@ -980,8 +978,8 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
                 let result=std::fs::read(req).map_err(|e|e.to_string())
                     .and_then(|bytes|json_input::decode::<Input>(&bytes).map_err(|e|e.to_string()))
                     .and_then(|input|{
-                        let inherited=if closed.is_none() && store.is_some(){session.roots.get(&input.root).cloned()}else{None};
-                        let work=session.register(pack,input,closed)?;
+                        let inherited=if closed.is_none() && store.is_some(){replay.roots.get(&input.root).cloned()}else{None};
+                        let work=replay.register(&mut session,pack,input,closed)?;
                         if let (Some(p),Some(s))=(inherited,&mut store) && matches!(work,Work::Closed{..}|Work::Project(_)){
                             let expected=s.contract_file(&p);
                             inherited_inventories.push((session.work.len(),p,expected));
@@ -1008,6 +1006,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         invocations.push((idx, Box::<str>::from(id), expected));
     }
     drop(inputs);
+    drop(replay);
     drop(expected_text);
     let invocations = invocations.into_boxed_slice();
     let registration = thread_cpu() - start - session.clocks.prepare - session.clocks.project;
@@ -1134,7 +1133,7 @@ fn one_source<L: session::source::Source>(
 ) -> Result<(), String> {
     let mut session = Batch::default();
     session.file_catalog = session::named::Catalog::from_readers(readers)?;
-    let work = session.register(pack, req, None)?;
+    let work = ReplayInputs::default().register(&mut session, pack, req, None)?;
     session.work.push(work);
     let answers = session.run_sources(readers);
     let rows = Batch::answer(&session.work[0], &answers)?;

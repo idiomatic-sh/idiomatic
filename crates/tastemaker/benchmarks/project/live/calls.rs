@@ -735,7 +735,7 @@ impl Live {
                         hosted: hosted.clone(),
                         parameters,
                     },
-                    None,
+                    |_| Ok(None),
                     Some(LiveAdmission { version: root, selection, host_tables: &table_ids }),
                 )
                 .map_err(|reason| rule_error(id.clone(), rule.query.clone(), linked, &hosted, reason))?;
