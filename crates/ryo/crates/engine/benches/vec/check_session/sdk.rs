@@ -650,6 +650,12 @@ impl Live {
                     },
                     |_| Ok(None),
                     Some(LiveAdmission { version: root, selection, host_tables: &table_ids }),
+                    // The retained store must key these pairs by the layout's
+                    // physical observations before they can use the file path.
+                    self.store.is_none().then(|| (
+                        self.languages.as_slice(),
+                        self.environments.get(root).map(Arc::as_ref),
+                    )),
                 )
                 .map_err(|reason| rule_error(id.clone(), rule.query.clone(), linked, &hosted, reason))?;
             if let super::Work::Invalid(reason)=&work{

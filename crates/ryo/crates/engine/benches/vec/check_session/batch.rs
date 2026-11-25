@@ -89,6 +89,7 @@ struct Admission {
     closed: bool,
     file_cells: bool,
     file_inventory: bool,
+    layout: Option<(l::Relation, Arc<session::completeness::Contract>)>,
     cut: Option<Arc<finish::partition::Partition>>,
 }
 
@@ -103,7 +104,10 @@ struct Batch {
     class_of: Vec<usize>,
     bindings: Vec<Arc<[Hosted]>>,
     host_rows: HashMap<std::sync::Arc<[std::sync::Arc<[super::HostCell]>]>, usize>,
-    binding_ids: HashMap<(usize, Vec<(usize, Option<String>)>), usize>,
+    binding_ids: HashMap<(usize, Option<usize>, Vec<(usize, Option<String>)>), usize>,
+    layout_of: Vec<Option<usize>>,
+    layouts: Vec<Option<project::Layout>>,
+    layout_ids: HashMap<(String, Authority, Rc<Vec<String>>, l::Relation), Option<usize>>,
     work: Vec<Work>,
     projects: Vec<ProjectSpec>,
     cut_of: Vec<Option<Arc<finish::partition::Partition>>>,
@@ -169,6 +173,17 @@ impl Admission {
         })?;
         let contract = Arc::new(session::completeness::describe(program, &local)?);
         let wide = contract.cross || numbered_host;
+        let layout = if !scope_only && !numbered_host
+            && let [relation] = held.as_slice() && project::layout_relation(*relation)
+        {
+            let name = relations::service::name(*relation).0;
+            finish::partition::with_file_slice(&mut exec, &mut run, name, |base| {
+                hosted.iter().any(|table| table.name == base)
+            })?.map(|local| session::completeness::describe(program, &local)
+                .map(|contract| (*relation, Arc::new(contract)))).transpose()?
+        } else {
+            None
+        };
         let cut = if !scope_only && wide {
             Some(Arc::new(finish::partition::partition(&mut exec, &mut run, local)?))
         } else { None };
@@ -180,6 +195,7 @@ impl Admission {
             file_cells: numbered_host,
             file_inventory: program.bases.iter().any(|name| name == "filesystem.file"),
             cut,
+            layout,
         })
     }
 }
@@ -199,12 +215,13 @@ impl Batch {
         crate::finish::operators::query(rule, &query.text);
         rule
     }
-    fn register_query(
+    fn register_query<L: session::source::Source>(
         &mut self,
         query: Query,
         mut req: Input,
         inventory_for: impl FnOnce(&str) -> Result<Option<Rc<Vec<String>>>, String>,
         sdk: Option<LiveAdmission<'_>>,
+        layouts: Option<(&[L], Option<&project::Environment>)>,
     ) -> Result<Work, String> {
         let rule=self.prepared_rule(query.clone(),&req.parameters);
         let program=match &self.schedule.programs[rule]{Ok(p)=>p,Err(reason)=>return Ok(Work::Invalid(reason.clone()))};
@@ -232,6 +249,28 @@ impl Batch {
                 class
             }
         };
+        if let (Some((relation, _)), Some((readers, environment)), Some(inventory), Some(authority)) =
+            (&class.layout, layouts, &req.inventory, &req.repository)
+            && !req.files.is_empty()
+            && req.files.iter().all(|path| inventory.binary_search(path).is_ok())
+            && (req.files.windows(2).all(|pair| pair[0] < pair[1])
+                || req.files.windows(2).all(|pair| pair[0] > pair[1])
+                || req.files.iter().collect::<BTreeSet<_>>().len() == req.files.len())
+        {
+            let key = (req.root.clone(), authority.clone(), inventory.clone(), *relation);
+            let layout = *self.layout_ids.entry(key).or_insert_with(|| {
+                let table = project::layout(readers, authority, inventory, environment, *relation)?;
+                let id = self.layouts.len();
+                self.layouts.push(Some(table));
+                Some(id)
+            });
+            if let Some(layout) = layout {
+                let existing = self.bindings.len();
+                let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()), Some(layout));
+                let pairs = self.admit(&req.root, &req.files, binding, binding < existing, sdk)?;
+                return Ok(Work::Pairs(pairs));
+            }
+        }
         let held = &class.project_bases;
         let contract = &class.contract;
         if req.files.is_empty() && !contract.cross {
@@ -280,7 +319,7 @@ impl Batch {
                 return Ok(Work::Project(Rc::new(Ok(session::Reported::skipped(&inventory)))));
             }
             let existing = self.bindings.len();
-            let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()));
+            let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()), None);
             let pairs = if class.cut.is_some() {
                 // Caller rows are consumed only after closure. Sources with the same
                 // prepared program and caller schema produce identical local outputs.
@@ -303,7 +342,7 @@ impl Batch {
             return Err("no complete source contribution for query".into());
         }
         let existing = self.bindings.len();
-        let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()));
+        let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()), None);
         let pairs = self.admit(&req.root, &req.files, binding, binding < existing, sdk)?;
         Ok(Work::Pairs(pairs))
     }
@@ -342,6 +381,7 @@ impl Batch {
         class: &Admission,
         mut hosted: Vec<Hosted>,
         canonical: Option<&[usize]>,
+        layout: Option<usize>,
     ) -> usize {
         let mut payloads = Vec::with_capacity(hosted.len());
         for (position, table) in hosted.iter_mut().enumerate() {
@@ -361,11 +401,16 @@ impl Batch {
         }
         // The class binds the program and ordered schemas. Each payload ID binds
         // all its cells by value, so the binding lookup need not hash them again.
-        *self.binding_ids.entry((class.id, payloads)).or_insert_with(|| {
+        *self.binding_ids.entry((class.id, layout, payloads)).or_insert_with(|| {
             self.program_of.push(rule);
             self.class_of.push(class.id);
-            self.cut_of.push(class.cut.clone());
-            self.bound_contracts.push(class.contract.clone());
+            self.layout_of.push(layout);
+            self.cut_of.push(if layout.is_some() { None } else { class.cut.clone() });
+            self.bound_contracts.push(if layout.is_some() {
+                class.layout.as_ref().expect("proved file layout").1.clone()
+            } else {
+                class.contract.clone()
+            });
             self.bindings.push(hosted.into());
             self.bindings.len() - 1
         })
@@ -467,6 +512,9 @@ impl Batch {
         self.schedule.delivered(&probe, *keep, |id| self.cut_of[id].is_none());
         self.schedule.delivered(&pending, *keep, |id| self.cut_of[id].is_none());
         self.finish_projects(languages, reader_states, contributions, world, answers, populations, project_unread, *keep,store.as_deref_mut());
+        for layout in self.layout_ids.drain().filter_map(|(_, id)| id) {
+            self.layouts[layout] = None;
+        }
 
     }
 
@@ -530,6 +578,7 @@ impl Batch {
                     &self.program_of,
                     &self.bound_contracts,
                     &self.cut_of,
+                    (&self.layout_of, &self.layouts),
                     world,
                     &self.schedule.sources,
                     &files,

@@ -16,6 +16,85 @@ use std::{
     rc::Rc,
 };
 
+/// The existing project answer is independent of parsed notes and manifests.
+/// Its typed File cell identifies the file that owns the row.
+pub(crate) fn layout_relation(relation: l::Relation) -> bool {
+    matches!(relation, l::Relation::ModuleIdentity)
+}
+
+/// Compact project input indexed by file. Evaluator tables are made only
+/// inside the file visit so they use its file IDs and symbol dictionary.
+pub(crate) struct Layout {
+    pub(crate) relation: l::Relation,
+    columns: Vec<(String, finish::Ty)>,
+    words: Vec<Box<[u8]>>,
+    rows: std::collections::HashMap<String, Vec<u64>>,
+}
+
+pub(crate) fn layout<L: super::FileSource>(
+    readers: &[L],
+    authority: &Authority,
+    inventory: &[String],
+    environment: Option<&Environment>,
+    relation: l::Relation,
+) -> Option<Layout> {
+    let mut world = super::World::default();
+    world.declare_words(readers);
+    let input = Rc::new(Contribution::default());
+    let population = collect(&mut world, readers, authority, inventory, environment,
+        &vec![input; inventory.len()], &[relation]).ok()?;
+    // The established closure path already reports incomplete and refused
+    // answers with their exact project or file scope.
+    if !population.partials.is_empty() || !population.refused.is_empty() {
+        return None;
+    }
+    let table = population.tables.get(name(relation).0)?;
+    let mut file_columns = table.tys.iter().enumerate()
+        .filter_map(|(c, ty)| (*ty == finish::Ty::File).then_some(c));
+    let key = file_columns.next()?;
+    if file_columns.next().is_some()
+        || table.tys.iter().any(|ty| matches!(ty, finish::Ty::Node | finish::Ty::Span))
+    {
+        return None;
+    }
+    let mut rows: std::collections::HashMap<String, Vec<u64>> = Default::default();
+    for row in 0..table.n {
+        let path = world.run.paths.get(usize::try_from(table.cols[key][row]).ok()?)?;
+        rows.entry(path.clone()).or_default()
+            .extend(table.cols.iter().map(|column| column[row]));
+    }
+    Some(Layout {
+        relation,
+        columns: table.names.iter().cloned().zip(table.tys.iter().copied()).collect(),
+        words: world.run.texts.iter().map(|word| Box::from(word.as_ref())).collect(),
+        rows,
+    })
+}
+
+impl Layout {
+    pub(crate) fn declare(&self, run: &mut finish::Run, alias: &str) {
+        let columns: Vec<_> = self.columns.iter().map(|(name, ty)| (name.as_str(), *ty)).collect();
+        run.declare(alias, &columns, finish::Supplier::Provider);
+    }
+
+    pub(crate) fn slice(&self, run: &mut finish::Run, alias: &str, path: &str, file: l::FileId) -> Rc<Table> {
+        let (_, names, types) = run.catalog(alias).expect("bound project layout");
+        let cells = self.rows.get(path).map_or(&[][..], Vec::as_slice);
+        let mut table = Table::with_rows(names, types, cells.len() / self.columns.len());
+        for row in cells.chunks_exact(self.columns.len()) {
+            for ((column, (_, ty)), &cell) in table.cols.iter_mut().zip(&self.columns).zip(row) {
+                column.push(match ty {
+                    finish::Ty::File => u64::from(file.0),
+                    finish::Ty::Sym if cell != finish::NULL => u64::from(run.sym(&self.words[cell as usize])),
+                    _ => cell,
+                });
+            }
+            table.n += 1;
+        }
+        Rc::new(table)
+    }
+}
+
 #[derive(Clone, Default)]
 pub(crate) struct Contribution {
     pub reader: Option<usize>,

@@ -518,6 +518,7 @@ struct Bound<'p> {
     facts: Vec<l::Relation>,
     filters: BTreeMap<usize,Vec<(usize,u64)>>,
     hosted: Tables,
+    layout: Option<(l::Relation, String)>,
 
     lines: bool,
     coverage: reader_run::coverage::Coverage,
@@ -530,6 +531,7 @@ fn bind<'p, L: FileSource>(
     run: &mut Run,
     hosted: Tables,
     cut: Option<&finish::partition::Partition>,
+    layout: Option<(l::Relation, String)>,
     (requirements, test): (Rc<BoundRequirements>, usize),
 ) -> Result<Bound<'p>> {
     let mut named = Vec::new();
@@ -547,6 +549,9 @@ fn bind<'p, L: FileSource>(
             if !named.contains(&schema) { named.push(schema); }
             continue;
         };
+        if layout.as_ref().is_some_and(|(relation, _)| *relation == rel) {
+            continue;
+        }
         let name = name.as_str();
         projects_words |= matches!(rel, l::Relation::SyntaxTree | l::Relation::SemanticSyntax | l::Relation::TokenLink);
         reads_fields |= matches!(rel, l::Relation::SemanticChild | l::Relation::SyntaxChild);
@@ -597,8 +602,10 @@ fn bind<'p, L: FileSource>(
         requirements,
         reads_fields,
         projects_words,
-        screenable: None,
-        screenable_left: None,
+        // The packet proof has no slot for project layouts. The ordinary
+        // syntax prerequisites can still screen these file programs.
+        screenable: layout.is_some().then_some(Err(())),
+        screenable_left: layout.is_some().then_some(Err(())),
         absent: None,
         empty_frontier: None,
         outputs,
@@ -609,6 +616,7 @@ fn bind<'p, L: FileSource>(
         test,
         facts,
         hosted,
+        layout,
         lines: program
             .bases
             .iter()
@@ -789,6 +797,7 @@ pub(crate) fn visit<L: FileSource>(
     program_of: &[usize],
     contracts: &[Arc<completeness::Contract>],
     cut_of: &[Option<Arc<finish::partition::Partition>>],
+    layouts: (&[Option<usize>], &[Option<project::Layout>]),
     world: &mut World,
     sources: &[Source],
     selected: &[usize],
@@ -889,8 +898,14 @@ pub(crate) fn visit<L: FileSource>(
                     (requirements, id)
                 })
                 .clone();
+            let layout = layouts.0[binding].map(|id| {
+                let layout = layouts.1[id].as_ref().expect("live project layout");
+                let alias = format!("\0layout/{id}");
+                layout.declare(&mut run, &alias);
+                (layout.relation, alias)
+            });
             let mut b = bind(&mut registry, program, parser, &mut run, tables,
-                cut_of[binding].as_deref(), requirements)?;
+                cut_of[binding].as_deref(), layout, requirements)?;
             merged.add(&mut b, &mut run, program_id, keep);
             Ok(b)
         })();
@@ -898,6 +913,7 @@ pub(crate) fn visit<L: FileSource>(
         bound.entries.push(entry);
     }
     drop(language);
+    let has_layout = bound.entries.iter().flatten().any(|bound| bound.layout.is_some());
     let (plan, supplied) = merged.finish(keep.then_some(&mut state.previous_plan), &mut bound);
     let mut exec = Exec::new(&plan);
     clocks.prepare += thread_cpu() - start;
@@ -1283,7 +1299,7 @@ pub(crate) fn visit<L: FileSource>(
                         clocks.exact_inputs[5] += usize::from(!b.named.is_empty());
                         clocks.exact_inputs[6] += usize::from(cut_of[binding].is_some());
                         clocks.exact_inputs[7] += usize::from(!said.is_empty());
-                        if !said.is_empty() || !provider.projects_words || cut_of[binding].is_some() { continue; }
+                        if !said.is_empty() || !provider.projects_words || cut_of[binding].is_some() || b.layout.is_some() { continue; }
                         if let Some(locations) = screen.exact_locations(positions[binding]) {
                             let mut rows = Vec::new();
                             let result = b.plan.emits.iter().zip(locations).enumerate().try_for_each(
@@ -1371,6 +1387,20 @@ pub(crate) fn visit<L: FileSource>(
                     table.n = 1;
                     (name.to_owned(), Rc::new(table))
                 });
+            let mut project_tables = rustc_hash::FxHashMap::default();
+            if has_layout {
+                for &(binding, _, excluded) in &active {
+                    if excluded { continue; }
+                    let bound = bound[&binding].as_ref().unwrap();
+                    if let Some((_, alias)) = &bound.layout {
+                        let id_of_layout = layouts.0[binding].expect("bound layout index");
+                        project_tables.entry(id_of_layout).or_insert_with(|| {
+                            let layout = layouts.1[id_of_layout].as_ref().expect("live project layout");
+                            (alias.clone(), layout.slice(&mut run, alias, &source.path, id))
+                        });
+                    }
+                }
+            }
             let mut coordinates = l::contract::FindingCoordinates::default();
             let mut locate = |mut report: Reported| -> Result<Reported> {
                 for row in &mut report.rows { row.locate(&source.path, Some(tree), &bytes, &mut coordinates)?; }
@@ -1474,7 +1504,13 @@ pub(crate) fn visit<L: FileSource>(
                 let version = version.get_or_init(|| {
                     finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text())
                 });
-                let make_frame = || finish::session::frame(version, &plan, &supplied, loan.as_ref().map(|l| l as &dyn finish::fact_view::FileFacts), lines.iter().chain(&named_tables));
+                let make_frame = || finish::session::frame(
+                    version,
+                    &plan,
+                    &supplied,
+                    loan.as_ref().map(|l| l as &dyn finish::fact_view::FileFacts),
+                    lines.iter().chain(&named_tables).chain(project_tables.values()),
+                );
                 let mut restricted;
                 let current = if local_coverage.is_empty() {
                     frame.get_or_insert_with(make_frame)

@@ -41,6 +41,10 @@ impl ReaderPlan {
             });
             given.insert(name.clone(), alias.clone());
         }
+        if let Some((relation, alias)) = &b.layout {
+            let name = ryo_relations::domain::relations::service::name(*relation).0;
+            given.insert(name.to_owned(), alias.clone());
+        }
         if retain {
             self.inputs.push((program, given));
         } else {

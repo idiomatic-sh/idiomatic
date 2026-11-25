@@ -76,7 +76,7 @@ struct ReplayInputs {
 }
 
 impl ReplayInputs {
-    fn register(&mut self, batch: &mut Batch, pack: &str, mut req: Input, closed: Option<&Path>) -> Result<Work, String> {
+    fn register<L: session::source::Source>(&mut self, batch: &mut Batch, pack: &str, mut req: Input, closed: Option<&Path>, layouts: Option<&[L]>) -> Result<Work, String> {
         let t = thread_cpu();
         let query = match self.queries.get(pack) {
             Some(q) => q.clone(),
@@ -93,7 +93,7 @@ impl ReplayInputs {
         if req.repository.is_none() {
             req.repository = self.authorities.roots.get(&req.root).or(self.authorities.default.as_ref()).cloned();
         }
-        let mut work = batch.register_query(query.into(), req, |root| self.inventory(root, closed), None)?;
+        let mut work = batch.register_query(query.into(), req, |root| self.inventory(root, closed), None, layouts.map(|readers| (readers, None)))?;
         if let Work::Closed { files, .. } = &mut work {
             if let Some(existing) = self.file_sets.get(files.as_ref()) {
                 self.shared_files[0] += 1;
@@ -200,7 +200,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
                     .and_then(|bytes|json_input::decode::<Input>(&bytes).map_err(|e|e.to_string()))
                     .and_then(|input|{
                         let inherited=if closed.is_none() && store.is_some(){replay.roots.get(&input.root).cloned()}else{None};
-                        let work=replay.register(&mut session,pack,input,closed)?;
+                        let work=replay.register(&mut session,pack,input,closed,store.is_none().then_some(readers))?;
                         if let (Some(p),Some(s))=(inherited,&mut store) && matches!(work,Work::Closed{..}|Work::Project(_)){
                             let expected=s.contract_file(&p);
                             inherited_inventories.push((session.work.len(),p,expected));
@@ -339,7 +339,7 @@ fn one_source<L: session::source::Source>(
 ) -> Result<(), String> {
     let mut session = Batch::default();
     session.file_catalog = session::named::Catalog::from_readers(readers)?;
-    let work = ReplayInputs::default().register(&mut session, pack, req, None)?;
+    let work = ReplayInputs::default().register(&mut session, pack, req, None, Some(readers))?;
     session.work.push(work);
     let answers = session.run_sources(readers);
     let rows = Batch::answer(&session.work[0], &answers)?;
