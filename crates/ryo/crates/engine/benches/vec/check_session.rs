@@ -1225,7 +1225,10 @@ pub(crate) fn visit<L: FileSource>(
             let lazy_fills = scoped_facts.as_deref_mut().is_some_and(|supplier| supplier.fills_are_complete());
             let missing: Vec<_> = if lazy_fills {
                 let asked = screen.asked_first();
+                // A relation the language never answers is recorded up front, as the fill of every relation up front records it
+                // (`NotYetRead` in the file's partial coverage, any other cause as no facts): the fill on first use never meets one.
                 facts.iter().copied().filter(|&rel| asked.contains(&rel)
+                    || parser.as_ref().is_some_and(|p| p.absent(rel))
                     || ryo_relations::domain::catalog::service::fact_form(rel) == ryo_relations::domain::relations::types::FactForm::NodeTable).collect()
             } else {
                 facts.clone()
