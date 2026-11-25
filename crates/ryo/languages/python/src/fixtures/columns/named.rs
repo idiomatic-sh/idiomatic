@@ -28,7 +28,6 @@ impl ColumnFile<'_, '_> {
             schemas.extend_from_slice(crate::fixtures::comment_positions::SCHEMAS);
             schemas.extend_from_slice(Self::EXPRESSION_SCHEMAS);
             schemas.extend_from_slice(Self::IMPORT_SCHEMAS);
-            schemas.extend_from_slice(Self::SITE_SCHEMAS);
             schemas.extend_from_slice(Self::TYPING_SCHEMAS);
             schemas
         })
@@ -113,9 +112,6 @@ impl ColumnFile<'_, '_> {
                     &mut prefixes,
                 )
                 .map_err(failed)
-            } else if Self::SITE_SCHEMAS.contains(schema) {
-                self.named_site(schema, file, bytes.0, symbols)
-                    .map_err(failed)
             } else {
                 Err(l::ParseError::Unsupported)
             };

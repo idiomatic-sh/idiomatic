@@ -23,7 +23,9 @@ let augmented = select id, file from "semantic-syntax" where kind = "aug-assign"
 let targets = select r.child as reference, l.file as file from augmented as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "target";
 let augmented_slots = select l.reference as reference, l.reference as binding, r.name as name, l.file as file from targets as l join "binding-read" as r on l.reference = r.reference and l.file = r.file;
 let local_slots = union(left=loaded_slots, right=augmented_slots);
-let leading_reads = select reference,scope,phase,ordinal,file from "pre-declaration-read" where scope=phase;
+let declaration_events = select scope,phase,name,ordinal,file from "binding-event" where scope = phase and (kind = "bind" or kind = "annotation");
+let slot_reads = select occurrence as reference,scope,phase,name,ordinal,file from "binding-event" where kind = "read" and scope = phase;
+let leading_reads = as-of(left=slot_reads, right=declaration_events, left-on=[scope,phase,name,file], right-on=[scope,phase,name,file], left-order="ordinal", right-order="ordinal", bound=after, output={reference:[left,reference], scope:[left,scope], phase:[left,phase], ordinal:[left,ordinal], file:[left,file]});
 let ignored_declarations = select l.occurrence as occurrence,l.scope as scope,l.phase as phase,l.name as name,l.file as file from local_events as l join ignored_events as r on l.occurrence=r.id where l.kind="bind" or l.kind="annotation";
 let reads_in_exceptional_slots = select r.occurrence as reference,r.scope as scope,r.phase as phase,r.ordinal as ordinal,r.file as file from ignored_declarations as l join "binding-event" as r on l.name=r.name and l.scope=r.scope and l.phase=r.phase and l.file=r.file where r.kind="read";
 let read_points = union(left=leading_reads,right=reads_in_exceptional_slots);

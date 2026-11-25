@@ -243,14 +243,11 @@ fn flag(value: Flag) -> u32 {
     u32::from(value == Flag::Raised)
 }
 
-mod forward_reads;
 mod expression_parts;
 mod imports;
 pub use imports::ImportAlias;
 mod named;
 mod named_semantics;
-mod resolution;
-pub use resolution::BindingSite;
 
 fn qualify_cells(
     schema: &ryo::languages::FileRelation,

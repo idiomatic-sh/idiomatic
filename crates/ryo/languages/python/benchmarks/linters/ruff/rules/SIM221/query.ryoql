@@ -58,7 +58,9 @@ let check_read_events = select l.owner as owner, r.phase as phase, r.ordinal as 
 let first_check_read_events = group-min(from=check_read_events, keys=["owner"], order="ordinal");
 let owner_check_anchors = select l.owner as owner, l.phase as phase, l.ordinal as ordinal, r.scope as scope, l.file as file from first_check_read_events as l join nearest_owner_scopes as r on l.owner = r.owner and l.file = r.file;
 let owner_scope_calls = select l.owner as owner, l.call as call, l.name as name, l.file as file, r.scope as scope, r.phase as phase, r.ordinal as ordinal from owner_call_candidates as l join owner_check_anchors as r on l.owner = r.owner and l.file = r.file;
-let lookup_events = select l.name as name,l.scope as scope,r.ordinal as ordinal,l.file as file from "namespace-sites" as l join "binding-event" as r on l."first-mutation"=r.ordinal and l.file=r.file;
+let mutation_events = select occurrence, name, scope, ordinal, file from "binding-event" where kind = "bind" or kind = "delete" or kind = "cleanup";
+let first_mutations = group-min(from=mutation_events, keys=["scope","name","file"], order="ordinal");
+let lookup_events = select name,scope,ordinal,file from first_mutations;
 let visible_owner_lookup_scopes = select l.owner as owner, l.call as call, l.name as name, l.file as file, l.ordinal as ordinal, r.scope as scope from owner_scope_calls as l join visible_owner_scopes as r on l.owner = r.owner and l.file = r.file;
 let prior_scope_events = select l.owner as owner, l.call as call from visible_owner_lookup_scopes as l join lookup_events as r on l.name = r.name and l.scope = r.scope and l.file = r.file where r.ordinal < l.ordinal;
 let shadowed_owner_calls = select owner, call from prior_scope_events;

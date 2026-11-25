@@ -42,7 +42,9 @@ let current_class = select l.reference as reference, r.related as lookup_scope, 
 let visible_current_class = select l.call as call, l.reference as reference, l.file as file, l.span as span, l.lookup_scope as lookup_scope, l.phase as phase, l.ordinal as ordinal from class_ancestors as l join current_class as r on l.reference = r.reference and l.file = r.file and l.lookup_scope = r.lookup_scope;
 let nonclass_scopes = antijoin(left=visible_scopes,right=class_scopes,left-on=["lookup_scope","file"],right-on=["id","file"]);
 let lookup_scopes = union(left=nonclass_scopes,right=visible_current_class);
-let prior_events = select l.name as name,l.scope as scope,r.ordinal as ordinal,l.file as file from "namespace-sites" as l join "binding-event" as r on l."first-mutation"=r.ordinal and l.file=r.file;
+let mutation_events = select occurrence, name, scope, ordinal, file from "binding-event" where kind = "bind" or kind = "delete" or kind = "cleanup";
+let first_mutations = group-min(from=mutation_events, keys=["scope","name","file"], order="ordinal");
+let prior_events = select name,scope,ordinal,file from first_mutations;
 let shadowed = select l.call as call, l.reference as reference from lookup_scopes as l join prior_events as r on l.lookup_scope = r.scope and l.file = r.file where r.name = "type" and r.ordinal < l.ordinal;
 let unshadowed = antijoin(left=candidates,right=shadowed,left-on=["call","reference"],right-on=["call","reference"]);
 let qualified_with_spans = select l.call as call, l.reference as reference, l.file as file, r.span as span from qualified_typed_calls as l join calls as r on l.call = r.id and l.file = r.file;
