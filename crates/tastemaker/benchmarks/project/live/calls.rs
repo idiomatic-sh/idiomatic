@@ -101,8 +101,12 @@ pub fn configure_bench_check(workers: Option<std::num::NonZeroUsize>, reverse_fi
     let _ = CHECK_OPTIONS.set(LiveOptions { workers, reverse_files });
 }
 
+/// The workers every linked image gives its pool: the request's count, else the CPUs the process may use.
 pub fn configured_workers() -> usize {
-    check_options().workers.map_or(1, std::num::NonZeroUsize::get)
+    check_options()
+        .workers
+        .or_else(|| std::thread::available_parallelism().ok())
+        .map_or(1, std::num::NonZeroUsize::get)
 }
 
 pub fn check_options() -> LiveOptions {

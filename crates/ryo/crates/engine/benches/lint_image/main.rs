@@ -144,7 +144,7 @@ pub fn run(
     tm_project_session::link_executor();
     let engine = sdk::Linter::new(
         languages,
-        sdk::Workers(NonZeroUsize::MIN).into(),
+        sdk::Workers(NonZeroUsize::new(tm_project_session::configured_workers()).unwrap_or(NonZeroUsize::MIN)).into(),
         cache,
     );
     eprintln!("HARNESS_STARTUP process_cpu={:.6} request={parsed:.6} provider={provider:.6}", clock());
