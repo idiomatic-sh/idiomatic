@@ -32,9 +32,9 @@ impl Ids<'_> {
 pub(super) fn supports(f: &File<'_>, v: &ViewSpec, col: usize) -> bool {
     let singleton = matches!(
         (v.base, col),
-        (Native::Tree | Native::Location, 0) | (Native::Child, 1)
+        (Native::Tree(_) | Native::Location, 0) | (Native::Child(_), 1)
     );
-    (singleton || matches!((v.base, col), (Native::Child, 0) | (Native::Fact(_), _)))
+    (singleton || matches!((v.base, col), (Native::Child(_), 0) | (Native::Fact(_), _)))
         && Filter::bind(f, v, singleton).is_some()
 }
 
@@ -58,7 +58,7 @@ impl<'a> Filter<'a> {
             return Some(Self::All);
         }
         if let Some(entry) = v.cold_bucket.get() {
-            let column = if v.base == Native::Child {
+            let column = if v.base == Native::Child(_) {
                 &f.field
             } else {
                 &f.kind
@@ -156,7 +156,7 @@ fn pairs_where(
     let native = (view.base, column);
     let singleton = matches!(
         native,
-        (Native::Tree | Native::Location, 0) | (Native::Child, 1)
+        (Native::Tree(_) | Native::Location, 0) | (Native::Child(_), 1)
     );
     let filter = Filter::bind(f, view, singleton)?;
     let mut batch = Batch {
@@ -171,11 +171,11 @@ fn pairs_where(
     };
     let n = f.n as u64;
     let count = match native {
-        (Native::Tree | Native::Location, 0) => batch.drive(|key| (key < n).then_some(key as u32)),
-        (Native::Child, 1) => {
+        (Native::Tree(_) | Native::Location, 0) => batch.drive(|key| (key < n).then_some(key as u32)),
+        (Native::Child(_), 1) => {
             batch.drive(|key| (key < n && f.has_parent(key as u32)).then_some(key as u32))
         }
-        (Native::Child, 0) => batch.drive(|key| f.child_rows(key)),
+        (Native::Child(_), 0) => batch.drive(|key| f.child_rows(key)),
         (Native::Fact(i), c) => {
             if batch.driver.rows.len() == 0 {
                 return Some(0);

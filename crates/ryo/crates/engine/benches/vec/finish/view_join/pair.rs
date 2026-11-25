@@ -46,7 +46,7 @@ pub(super) fn run(
     let rows = match &sources[driver] {
         Src::Tab(t, _) => view_probe::Ids::Range(t.n as u32),
         Src::View(v, _)
-            if v.filter.is_empty() && matches!(v.base, Native::Tree | Native::Location) =>
+            if v.filter.is_empty() && matches!(v.base, Native::Tree(_) | Native::Location) =>
         {
             view_probe::Ids::Range(f.n as u32)
         }

@@ -18,8 +18,8 @@ impl<'a> Key<'a> {
             _ => unreachable!("resolved join driver"),
         };
         match (base, column) {
-            (Native::Tree | Native::Location, 0) | (Native::Child, 1) => Self::Position,
-            (Native::Child, 0) => Self::Parent(&f.parent),
+            (Native::Tree(_) | Native::Location, 0) | (Native::Child(_), 1) => Self::Position,
+            (Native::Child(_), 0) => Self::Parent(&f.parent),
             (Native::Fact(i), c) => {
                 if fill_prof::counting() {
                     f.mark_read(i);

@@ -31,7 +31,7 @@ fn smaller<'a>(f: &File<'a>, view: &ViewSpec, node: usize, limit: usize) -> Opti
         return None;
     }
     let n = match view.base {
-        Native::Tree | Native::Location => f.n,
+        Native::Tree(_) | Native::Location => f.n,
         Native::Fact(i) => f.fact(usize::from(i))?.len(),
         _ => return None,
     };
@@ -78,7 +78,7 @@ pub(super) fn reverse(
     let hits = view_probe::filtered_pairs(f, run, sources, batch, old, key, pushed, |_, new_id, old_id| {
         pairs.push((old_id, new_id));
     })?;
-    if (new.base, new.map[columns[other]]) == (Native::Child, 0) {
+    if (new.base, new.map[columns[other]]) == (Native::Child(_), 0) {
         pairs
             .sort_unstable_by_key(|&(a, b)| (a, node_table::ordinal_of(f.table, Position(b)).0, b));
     } else {

@@ -60,14 +60,14 @@ pub(super) fn cell(f: &File<'_>, run: &mut Run, base: Native, row: u32, col: usi
             }
             f.fact(usize::from(i)).map_or(NULL, |t| t.cell(col, row as usize))
         }
-        Native::Tree if col == 1 => u64::from(run.kind_sym[usize::from(f.kind[row as usize])]),
-        Native::Tree | Native::Location if col == 0 => u64::from(row),
-        Native::Child if col == 0 => u64::from(f.parent[row as usize]),
-        Native::Child if col == 1 => u64::from(row),
-        Native::Child if col == 3 => u64::from(run.field_sym.get(usize::from(f.field[row as usize])).copied().unwrap_or(run.empty)),
-        Native::Tree if col == 3 => u64::from(f.file),
-        Native::Tree if col == 2 => u64::from(f.elem_text(run, row)),
-        Native::Child if col == 4 => u64::from(f.file),
+        Native::Tree(_) if col == 1 => u64::from(run.kind_sym[usize::from(f.kind[row as usize])]),
+        Native::Tree(_) | Native::Location if col == 0 => u64::from(row),
+        Native::Child(_) if col == 0 => u64::from(f.parent[row as usize]),
+        Native::Child(_) if col == 1 => u64::from(row),
+        Native::Child(_) if col == 3 => u64::from(run.field_sym.get(usize::from(f.field[row as usize])).copied().unwrap_or(run.empty)),
+        Native::Tree(_) if col == 3 => u64::from(f.file),
+        Native::Tree(_) if col == 2 => u64::from(f.elem_text(run, row)),
+        Native::Child(_) if col == 4 => u64::from(f.file),
         _ => f.native_get(run, base, row, col),
     }
 }
@@ -158,8 +158,8 @@ pub(super) fn gather_ids(f: &File<'_>, run: &mut Run, base: Native, bc: usize, r
                 None => out.extend(rows.map(|_| NULL)),
             }
         }
-        Native::Tree if bc == 1 => out.extend(rows.map(|r| u64::from(run.kind_sym[usize::from(f.kind[r as usize])]))),
-        Native::Tree | Native::Location | Native::Child if matches!((base, bc), (Native::Tree | Native::Location, 0) | (Native::Tree, 2 | 3) | (Native::Child, 0 | 1 | 3 | 4)) => {
+        Native::Tree(_) if bc == 1 => out.extend(rows.map(|r| u64::from(run.kind_sym[usize::from(f.kind[r as usize])]))),
+        Native::Tree(_) | Native::Location | Native::Child(_) if matches!((base, bc), (Native::Tree(_) | Native::Location, 0) | (Native::Tree(_), 2 | 3) | (Native::Child(_), 0 | 1 | 3 | 4)) => {
             out.extend(rows.map(|r| cell(f, run, base, r, bc)));
         }
         _ => out.extend(rows.map(|r| f.native_get(run, base, r, bc))),

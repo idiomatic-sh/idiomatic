@@ -105,8 +105,8 @@ impl Exec<'_> {
 /// several buckets. Fact entries group by family so other filters share its scan.
 fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
     let (base, column) = match v.base {
-        Native::Tree => ("tree", Some(1)),
-        Native::Child => ("child", Some(3)),
+        Native::Tree(_) => ("tree", Some(1)),
+        Native::Child(_) => ("child", Some(3)),
         Native::Location => ("location", None),
         Native::Token => ("token", None),
         Native::Fact(i) => {
@@ -169,11 +169,11 @@ pub(super) fn fact_entry(
 
 fn current_entries(run: &mut Run, v: &ViewSpec) -> Vec<Vec<String>> {
     let (prefix, values) = match v.base {
-        Native::Tree => (
+        Native::Tree(_) => (
             vec!["tree".to_owned()],
             super::kind_set(run, &v.filter, 0, v.base, &[]),
         ),
-        Native::Child => return vec![vec!["child".into()]],
+        Native::Child(_) => return vec![vec!["child".into()]],
         Native::Fact(i) => {
             let mut prefix = vec!["fact".to_owned(), run.fact_rels[usize::from(i)].0.clone()];
             let values = fact_entry(run, i, &v.filter).map(|(_, name, xs)| {

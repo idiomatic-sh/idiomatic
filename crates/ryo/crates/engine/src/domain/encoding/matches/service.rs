@@ -33,15 +33,34 @@ use crate::domain::steps::types::{
 use ryo_relations::domain::catalog::service::node_extent;
 use ryo_relations::domain::relations::types::{Count, KindBits, NodeExtent, Relation};
 
+/// Whether a read of the node table through `relation` covers the file's own tree alone (the catalog's extent for it is `Own`):
+/// the one decision of what a node relation covers, which every read of the numbered table honours, whether it reads rows,
+/// buckets or the table's length.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::encoding::matches::service::covers_own_tree_only;
+/// use ryo_relations::domain::relations::types::Relation;
+///
+/// assert!(covers_own_tree_only(Relation::SyntaxTree));
+/// assert!(covers_own_tree_only(Relation::SyntaxChild));
+/// assert!(!covers_own_tree_only(Relation::SemanticSyntax));
+/// assert!(!covers_own_tree_only(Relation::SemanticChild));
+/// assert!(!covers_own_tree_only(Relation::Function));
+/// ```
+#[must_use]
+pub fn covers_own_tree_only(relation: Relation) -> bool {
+    node_extent(relation) == Some(NodeExtent::Own)
+}
+
 /// The flag of the node rows a source covers: `OWN_TREE` when it reads the node table through a relation whose extent is the
 /// file's own tree alone, so the rows of embedded segments are left out. Every word of a node source takes it from here.
 pub(crate) fn extent_flag(source: StepRows) -> WordFlag {
     match source {
-        StepRows::Node(relation) => match node_extent(relation) {
-            Some(NodeExtent::Own) => OWN_TREE,
-            // A relation over the embedded segments too; a filled relation read as node rows has no extent to hold to.
-            Some(NodeExtent::Embedded) | None => WordFlag(0),
-        },
+        StepRows::Node(relation) if covers_own_tree_only(relation) => OWN_TREE,
+        // A relation over the embedded segments too; a filled relation read as node rows has no extent to hold to.
+        StepRows::Node(_) => WordFlag(0),
         StepRows::Filled(_)
         | StepRows::Made(_)
         | StepRows::Written(_)

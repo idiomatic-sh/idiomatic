@@ -73,7 +73,7 @@ fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
         && let Some(word) = cold_word::compile(run, e, c, ty)
     {
         return Some(match (base, c) {
-            (Native::Tree, 1) => {
+            (Native::Tree(_), 1) => {
                 let test = word.bind();
                 Action::Kind(
                     run.kind_sym
@@ -82,14 +82,14 @@ fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
                         .collect(),
                 )
             }
-            (Native::Child, 3) if run.file_field_codes => {
+            (Native::Child(_), 3) if run.file_field_codes => {
                 let test = word.bind();
                 Action::Rows(Box::new(move |f, run, _, r| {
-                    let field = f.native_get(run, Native::Child, r, 3);
+                    let field = f.native_get(run, Native::Child(_), r, 3);
                     test(run, field)
                 }))
             }
-            (Native::Child, 3) => {
+            (Native::Child(_), 3) => {
                 let test = word.bind();
                 Action::Field(
                     run.field_sym
@@ -99,14 +99,14 @@ fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
                     test(run, u64::from(run.empty)),
                 )
             }
-            (Native::Tree, 2) => {
+            (Native::Tree(_), 2) => {
                 Action::Text(super::cold_text::Predicate::compile(run, e, word.bind()))
             }
             (Native::Token, 2) => {
                 let test = word.bind();
                 Action::Token(run.link_sym.map(|s| test(run, u64::from(s))))
             }
-            (Native::Tree | Native::Token, 3) | (Native::Child, 4) | (Native::Location, 1) => {
+            (Native::Tree(_) | Native::Token, 3) | (Native::Child(_), 4) | (Native::Location, 1) => {
                 Action::File(word.bind())
             }
             (Native::Fact(_), _) => Action::Fact(c, word),
@@ -226,7 +226,7 @@ impl Program {
             actions.truncate(1);
         }
         let entry = match v.base {
-            Native::Tree => v
+            Native::Tree(_) => v
                 .filter
                 .iter()
                 .enumerate()
