@@ -35,18 +35,16 @@ fn engine_source(path: &Path) -> bool {
     if path.extension().is_none_or(|e| e != "rs") {
         return false;
     }
-    let path = path.to_string_lossy();
-    // Keep revisions distinct: a pinned SDK and the current SDK do not define
-    // interchangeable types. This classifier only selects, never renames, inputs.
-    if path.contains("/crates/ryo/") || path.contains("/idiomatic-sh-ryo-") {
-        return !path.contains("/benches/lint_image/main.rs")
-            && !path.contains("/benches/lint_image/request.rs");
-    }
-    if let Some((_, relative)) = path.rsplit_once("/crates/tastemaker/benchmarks/project/") {
-        // The release host supplies its own request ordering.
-        return relative != "live/round-host.rs";
-    }
-    false
+    // Classify by the six actual entry files, not by where an implementation
+    // was put. A new private module in the host or an external crate must fail.
+    ![
+        "crates/tastemaker/cli/src/main.rs",
+        "crates/tastemaker/cli/src/bin/vec.rs",
+        "crates/tastemaker/cli/src/bin/vec_ts.rs",
+        "crates/tastemaker/cli/src/bin/vec_rust.rs",
+        "crates/ryo/crates/engine/benches/lint_image/main.rs",
+        "crates/ryo/crates/engine/benches/lint_image/request.rs",
+    ].iter().any(|file| path.ends_with(file))
 }
 
 fn differences(images: &[BTreeSet<PathBuf>; 4]) -> BTreeMap<PathBuf, Vec<&'static str>> {
@@ -73,6 +71,8 @@ fn catches_a_private_engine_module_in_each_image() {
             BTreeMap::from([(path.clone(), vec![*name])])
         );
     }
+    assert!(engine_source(Path::new("/repo/crates/tastemaker/cli/src/new_engine.rs")));
+    assert!(!engine_source(Path::new("/repo/crates/tastemaker/cli/src/bin/vec_ts.rs")));
     assert_eq!(
         inputs("image: /a\\ b.rs /c.rs\n").unwrap(),
         BTreeSet::from([PathBuf::from("/a b.rs"), PathBuf::from("/c.rs")])
