@@ -1,5 +1,6 @@
 //! The parser's diagnostics, including malformed UTF-8 and recovered syntax.
 
+use crate::domain::file_view::types::TypeScriptWalk;
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::{INCOMPLETE_IMPACT, PARSE_PHASE, UNSPECIFIED_CODE};
@@ -24,5 +25,12 @@ ryo::reads! {
                 span: value(languages::Span { start: diagnostic.start, end: diagnostic.end }),
             }
         }
+    }
+}
+
+// The engine fills `syntax-error` from the walked file: every diagnostic the parser reported, once.
+ryo::fills! {
+    SyntaxErrorItem => languages::SyntaxError, walk(TypeScriptWalk) |file, words, rows| {
+        languages::facts::syntax_error_rows(file.table, file.file, words, rows);
     }
 }

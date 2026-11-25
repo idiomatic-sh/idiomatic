@@ -330,3 +330,38 @@ fn binding_read_fills_equal_reads() {
 fn binding_use_fills_equal_reads() {
     equal::<languages::BindingUse>(Relation::BindingUse);
 }
+
+#[test]
+fn annotates_fills_equal_reads() {
+    equal::<languages::Annotates>(Relation::Annotates);
+}
+
+#[test]
+fn assigns_fills_equal_reads() {
+    equal::<languages::Assigns>(Relation::Assigns);
+}
+
+#[test]
+fn directive_fills_equal_reads() {
+    equal::<languages::Directive>(Relation::Directive);
+}
+
+#[test]
+fn static_call_fills_equal_reads() {
+    equal::<languages::StaticCall>(Relation::StaticCall);
+}
+
+#[test]
+fn visibility_fills_equal_reads() {
+    equal::<languages::Visibility>(Relation::Visibility);
+}
+
+#[test]
+fn inherits_fills_equal_reads() {
+    equal::<languages::Inherits>(Relation::Inherits);
+}
+
+#[test]
+fn syntax_error_fills_equal_reads() {
+    equal::<languages::SyntaxError>(Relation::SyntaxError);
+}

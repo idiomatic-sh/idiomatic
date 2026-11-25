@@ -7,37 +7,34 @@ use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{kind, parent};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
-use ryo::languages::{self, Position, Symbol, Symbols, Tree};
+use crate::domain::syntax::reading::{Interner, Syntax};
+use ryo::languages::{self, Position, Symbol};
 
 /// The string literal that is the whole of the statement at `at`, when the statement is a string statement.
-fn literal_of(tree: &Tree<'_>, at: Position) -> Option<Position> {
+fn literal_of(tree: &impl Syntax, at: Position) -> Option<Position> {
     if kind(tree, at) != Kind::Node(Node::ExpressionStatement) {
         return None;
     }
-    let first = languages::children(tree.elements, at).next()?;
+    let first = tree.children_of(at).next()?;
     if kind(tree, first) != Kind::Node(Node::Literal) {
         return None;
     }
-    languages::children(tree.elements, first)
+    tree.children_of(first)
         .any(|child| kind(tree, child) == Kind::Token(Token::String))
         .then_some(first)
 }
 
 /// The text of a string literal between its quotes, as written: an escape is not decoded, so `"use\x20strict"` is not `use strict`.
-fn written(tree: &Tree<'_>, symbols: &mut Symbols, literal: Position) -> Option<Symbol> {
-    let token = languages::children(tree.elements, literal)
+fn written(tree: &impl Syntax, symbols: &mut impl Interner, literal: Position) -> Option<Symbol> {
+    let token = tree.children_of(literal)
         .find(|child| kind(tree, *child) == Kind::Token(Token::String))?;
     let raw = text(tree, token).0;
     let inner = raw.get(1..raw.len().checked_sub(1)?)?;
-    Some(languages::intern_derived(
-        symbols,
-        tree.source,
-        languages::NameText(inner),
-    ))
+    Some(symbols.derived(tree.bytes(), languages::NameText(inner)))
 }
 
 /// The directive the statement at `at` is, as written between its quotes, when it is in a prologue.
-pub(crate) fn directive(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Option<Symbol> {
+pub(crate) fn directive(tree: &impl Syntax, symbols: &mut impl Interner, at: Position) -> Option<Symbol> {
     let literal = literal_of(tree, at)?;
     let enclosing = parent(tree, at);
     let holds_prologue = match kind(tree, enclosing) {
@@ -66,6 +63,6 @@ pub(crate) fn directive(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) ->
 }
 
 /// The text of a directive: empty, because a prologue directive has no argument.
-pub(crate) fn argument(tree: &Tree<'_>, symbols: &mut Symbols) -> Symbol {
-    languages::intern_derived(symbols, tree.source, languages::NameText(NO_ARGUMENT))
+pub(crate) fn argument(tree: &impl Syntax, symbols: &mut impl Interner) -> Symbol {
+    symbols.derived(tree.bytes(), languages::NameText(NO_ARGUMENT))
 }

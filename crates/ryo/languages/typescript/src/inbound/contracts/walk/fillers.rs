@@ -65,6 +65,13 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         resolves: Resolves => crate::domain::relations::collections::relations::resolves::item::ResolvesItem;
         binding_read: BindingRead => crate::domain::relations::collections::relations::binding_read::item::BindingReadItem;
         binding_use: BindingUse => crate::domain::relations::collections::relations::binding_use::item::BindingUseItem;
+        annotates: Annotates => crate::domain::relations::collections::relations::annotates::item::AnnotatesItem;
+        assigns: Assigns => crate::domain::relations::collections::relations::assigns::item::AssignsItem;
+        directive: Directive => crate::domain::relations::collections::relations::directive::item::DirectiveItem;
+        static_call: StaticCall => crate::domain::relations::collections::relations::static_call::item::StaticCallItem;
+        visibility: Visibility => crate::domain::relations::collections::relations::visibility::item::VisibilityItem;
+        inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
+        syntax_error: SyntaxError => crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
     }
 
     absent! {
@@ -89,20 +96,15 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         raw_format_field: RawFormatField => NotYetRead;
         source_location: SourceLocation => NotYetRead;
         standard_library_import: StandardLibraryImport => NotYetRead;
-        syntax_error: SyntaxError => NotYetRead;
         binding_shadow: BindingShadow => NotYetRead;
         constant_key: ConstantKey => NotYetRead;
         expression_shape: ExpressionShape => NotYetRead;
         expression_type: ExpressionType => NotYetRead;
-        inherits: Inherits => NotYetRead;
         lookup_scope: LookupScope => NotYetRead;
         raw_format_segment: RawFormatSegment => NotYetRead;
         token_link: TokenLink => NotYetRead;
         analyzed_source: AnalyzedSource => NotYetRead;
-        annotates: Annotates => NotYetRead;
-        assigns: Assigns => NotYetRead;
         attribute_path: AttributePath => NotYetRead;
-        directive: Directive => NotYetRead;
         entry: Entry => NotYetRead;
         file_package: FilePackage => NotYetRead;
         filesystem_executable: FilesystemExecutable => NotYetRead;
@@ -125,8 +127,6 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         prose: Prose => NotYetRead;
         sequence_element: SequenceElement => NotYetRead;
         source_dependency: SourceDependency => NotYetRead;
-        static_call: StaticCall => NotYetRead;
-        visibility: Visibility => NotYetRead;
         workspace_member: WorkspaceMember => NotYetRead;
     }
 
