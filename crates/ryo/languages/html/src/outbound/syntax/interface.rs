@@ -2,7 +2,7 @@
 //! out.
 
 use super::types::SourceText;
-use ryo::languages::{SourcePath, TableBuilder};
+use ryo::languages::{NodeTableBuilder, SourcePath, TableBuilder};
 
 /// What every `syntax` adapter implements.
 pub(crate) trait SyntaxPort: Send + Sync {
@@ -11,4 +11,9 @@ pub(crate) trait SyntaxPort: Send + Sync {
     /// URL-valued attribute points at is written on its node as the path of the run it names, resolved against `at`, the file's own
     /// path.
     fn read(&self, text: SourceText<'_>, at: SourcePath<'_>, builder: &mut TableBuilder<'_>);
+
+    /// Reads html text into the numbered node table `builder` writes, each node with its role under its parent: the same tree
+    /// `read` writes, and what the library said of the file. Reading never fails.
+    #[cfg_attr(not(test), allow(dead_code, reason = "the walk is linked when step 0 of the ports lands"))]
+    fn walk(&self, text: SourceText<'_>, at: SourcePath<'_>, builder: &mut NodeTableBuilder<'_>);
 }

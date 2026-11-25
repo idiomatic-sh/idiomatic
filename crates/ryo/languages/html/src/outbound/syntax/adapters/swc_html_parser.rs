@@ -2,6 +2,7 @@
 
 pub(crate) mod adapter;
 mod constants;
+mod output;
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod fixtures;
 mod schemas;

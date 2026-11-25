@@ -3,6 +3,7 @@
 
 use super::{
     constants::{HTML_WHITESPACE, NOT_UTF8},
+    output::{Elements, Numbered, Output},
     schemas::published,
     types::{PropertyValue, Recording, SourceLength},
 };
@@ -15,7 +16,7 @@ use crate::domain::{
     nodes::types::Node,
     syntax::{
         constants::{BASE, HREF, TARGET_PROPERTY},
-        service::{kind_bits, property_id, property_node, url_valued},
+        service::{property_id, property_node, url_valued},
         types::{Kind, Property, Reference},
     },
     tokens::types::Token,
@@ -81,11 +82,11 @@ fn end(span: Span) -> Offset {
 }
 
 /// Opens a node of `kind` at `span`, or one the parser implied, with no bytes of its own, when the span is the library's dummy.
-fn enter(builder: &mut languages::TableBuilder<'_>, kind: Node, span: Span) {
+fn enter(out: &mut impl Output, kind: Node, span: Span) {
     if span.is_dummy() {
-        languages::enter_implied_node(builder, kind_bits(Kind::Node(kind)));
+        out.imply(Kind::Node(kind));
     } else {
-        languages::enter_node(builder, kind_bits(Kind::Node(kind)), start(span));
+        out.enter(Kind::Node(kind), start(span));
     }
 }
 
@@ -93,23 +94,19 @@ fn enter(builder: &mut languages::TableBuilder<'_>, kind: Node, span: Span) {
 /// own under the node, with no bytes of its own, whose value is the property's: the structure a rule reads the name or the value
 /// of an element or an attribute by. A property the DOM leaves empty has none, except a value, which an attribute, a text and a
 /// comment always have.
-fn properties(builder: &mut languages::TableBuilder<'_>, values: &[PropertyValue<'_>]) {
+fn properties(out: &mut impl Output, values: &[PropertyValue<'_>]) {
     for PropertyValue { key, value } in values {
-        languages::node_property(builder, property_id(*key), *value);
+        out.property(property_id(*key), *value);
     }
     let published = published(values);
-    languages::node_property(
-        builder,
-        languages::PropertyId(0),
-        languages::NameText(&published.0),
-    );
+    out.property(languages::PropertyId(0), languages::NameText(&published.0));
     for PropertyValue { key, value } in values {
         if value.0.is_empty() && *key != Property::Value {
             continue;
         }
-        languages::enter_implied_node(builder, kind_bits(Kind::Node(property_node(*key))));
-        languages::node_property(builder, languages::PropertyId(0), *value);
-        languages::leave_node(builder, languages::NO_SPAN.end);
+        out.imply(Kind::Node(property_node(*key)));
+        out.property(languages::PropertyId(0), *value);
+        out.leave(languages::NO_SPAN.end);
     }
 }
 
@@ -134,11 +131,11 @@ fn base_href(children: &[Child]) -> Option<languages::WrittenTarget<'_>> {
 
 /// Writes an element: its name and namespace, its attributes, the first of each expanded name, a URL-valued one with its target
 /// resolved against `at`, its children and its template contents.
-fn element(builder: &mut languages::TableBuilder<'_>, value: &Element, at: &Targeting<'_>) {
-    enter(builder, Node::Element, value.span);
+fn element(out: &mut impl Output, value: &Element, at: &Targeting<'_>) {
+    enter(out, Node::Element, value.span);
     let namespace = value.namespace.to_string();
     properties(
-        builder,
+        out,
         &[
             PropertyValue {
                 key: Property::Name,
@@ -156,14 +153,14 @@ fn element(builder: &mut languages::TableBuilder<'_>, value: &Element, at: &Targ
         if !names.insert((attribute.namespace, attribute.name.clone())) {
             continue;
         }
-        enter(builder, Node::Attribute, attribute.span);
+        enter(out, Node::Attribute, attribute.span);
         let attribute_namespace = attribute
             .namespace
             .map(|each| each.to_string())
             .unwrap_or_default();
         let written = attribute.value.as_deref().unwrap_or_default();
         properties(
-            builder,
+            out,
             &[
                 PropertyValue {
                     key: Property::Name,
@@ -205,32 +202,32 @@ fn element(builder: &mut languages::TableBuilder<'_>, value: &Element, at: &Targ
                 languages::WrittenTarget(written.trim_matches(HTML_WHITESPACE)),
                 whose,
             );
-            languages::node_property(builder, TARGET_PROPERTY, languages::NameText(&target.0));
+            out.property(TARGET_PROPERTY, languages::NameText(&target.0));
         }
-        languages::leave_node(builder, end(attribute.span));
+        out.leave(end(attribute.span));
     }
     for item in &value.children {
-        child(builder, item, at);
+        child(out, item, at);
     }
     if let Some(fragment) = &value.content {
-        enter(builder, Node::DocumentFragment, fragment.span);
+        enter(out, Node::DocumentFragment, fragment.span);
         for item in &fragment.children {
-            child(builder, item, at);
+            child(out, item, at);
         }
-        languages::leave_node(builder, end(fragment.span));
+        out.leave(end(fragment.span));
     }
-    languages::leave_node(builder, end(value.span));
+    out.leave(end(value.span));
 }
 
 /// Writes a child of an element or of the document, in the file at `at`: an element, a doctype, a text or a comment.
-fn child(builder: &mut languages::TableBuilder<'_>, value: &Child, at: &Targeting<'_>) {
+fn child(out: &mut impl Output, value: &Child, at: &Targeting<'_>) {
     let kind = super::schemas::child_kind(value);
     match value {
-        Child::Element(value) => element(builder, value, at),
+        Child::Element(value) => element(out, value, at),
         Child::DocumentType(value) => {
-            enter(builder, kind, value.span);
+            enter(out, kind, value.span);
             properties(
-                builder,
+                out,
                 &[
                     PropertyValue {
                         key: Property::Name,
@@ -246,36 +243,36 @@ fn child(builder: &mut languages::TableBuilder<'_>, value: &Child, at: &Targetin
                     },
                 ],
             );
-            languages::leave_node(builder, end(value.span));
+            out.leave(end(value.span));
         }
         Child::Text(value) => {
-            enter(builder, kind, value.span);
+            enter(out, kind, value.span);
             properties(
-                builder,
+                out,
                 &[PropertyValue {
                     key: Property::Value,
                     value: languages::NameText(&value.data),
                 }],
             );
-            languages::leave_node(builder, end(value.span));
+            out.leave(end(value.span));
         }
         Child::Comment(value) => {
-            enter(builder, kind, value.span);
+            enter(out, kind, value.span);
             properties(
-                builder,
+                out,
                 &[PropertyValue {
                     key: Property::Value,
                     value: languages::NameText(&value.data),
                 }],
             );
-            languages::leave_node(builder, end(value.span));
+            out.leave(end(value.span));
         }
     }
 }
 
 /// Writes the tokens the lexer recorded, adjacent characters merged into one text token, and the bytes no token covers as text
 /// the parser could not read.
-fn lexical(builder: &mut languages::TableBuilder<'_>, tokens: &[TokenAndSpan], length: Offset) {
+fn lexical(out: &mut impl Output, tokens: &[TokenAndSpan], length: Offset) {
     let mut cursor = Offset(0);
     let mut index = 0;
     while let Some(token) = tokens.get(index) {
@@ -296,21 +293,88 @@ fn lexical(builder: &mut languages::TableBuilder<'_>, tokens: &[TokenAndSpan], l
             }
         }
         if cursor < from {
-            languages::token(builder, kind_bits(Kind::Extra(Extra::Error)), cursor, from);
+            out.token(Kind::Extra(Extra::Error), cursor, from);
         }
         if cursor <= from && from < to {
-            languages::token(builder, kind_bits(Kind::Token(kind)), from, to);
+            out.token(Kind::Token(kind), from, to);
         }
         cursor = cursor.max(to);
     }
     if cursor < length {
-        languages::token(
-            builder,
-            kind_bits(Kind::Extra(Extra::Error)),
-            cursor,
-            length,
+        out.token(Kind::Extra(Extra::Error), cursor, length);
+    }
+}
+
+/// Reads `text` as the library does and writes what it finds through `out`: the tree, what the library said of the file, and the
+/// tokens its tokenizer delivered.
+fn reading(out: &mut impl Output, text: SourceText<'_>, at: languages::SourcePath<'_>) {
+    let readable = std::str::from_utf8(text.0).map_or_else(|error| error.valid_up_to(), str::len);
+    let source = std::str::from_utf8(text.0.get(..readable).unwrap_or_default()).unwrap_or_default();
+    let lexer = Lexer::new(StringInput::new(
+        source,
+        BytePos(1),
+        BytePos(offset(SourceLength(readable)).0.saturating_add(1)),
+    ));
+    let mut tokens = Vec::new();
+    let mut parser = Parser::new(
+        Recording {
+            input: lexer,
+            tokens: &mut tokens,
+        },
+        ParserConfig {
+            scripting_enabled: true,
+            ..ParserConfig::default()
+        },
+    );
+    let document = parser.parse_document();
+    let mut errors = parser.take_errors();
+    drop(parser);
+    out.enter(Kind::Node(Node::SourceFile), Offset(0));
+    match document {
+        Ok(document) => {
+            enter(out, Node::Document, document.span);
+            properties(
+                out,
+                &[PropertyValue {
+                    key: Property::DocumentMode,
+                    value: languages::NameText(&document.mode.to_string()),
+                }],
+            );
+            let targeting = based(at, base_href(&document.children));
+            for item in &document.children {
+                child(out, item, &targeting);
+            }
+            out.leave(end(document.span));
+        }
+        Err(error) => errors.push(error),
+    }
+    for error in errors {
+        let message = error.message().into_owned();
+        let span = error.into_inner().0;
+        let location = if span.is_dummy() {
+            languages::NO_SPAN
+        } else {
+            languages::Span {
+                start: start(span),
+                end: end(span),
+            }
+        };
+        out.diagnose(&message, location.start, location.end);
+    }
+    lexical(out, &tokens, offset(SourceLength(readable)));
+    if readable < text.0.len() {
+        out.token(
+            Kind::Extra(Extra::Error),
+            offset(SourceLength(readable)),
+            offset(SourceLength(text.0.len())),
+        );
+        out.diagnose(
+            NOT_UTF8,
+            offset(SourceLength(readable)),
+            offset(SourceLength(text.0.len())),
         );
     }
+    out.leave(offset(SourceLength(text.0.len())));
 }
 
 impl SyntaxPort for SyntaxSwcHtmlParserAdapter {
@@ -320,81 +384,15 @@ impl SyntaxPort for SyntaxSwcHtmlParserAdapter {
         at: languages::SourcePath<'_>,
         builder: &mut languages::TableBuilder<'_>,
     ) {
-        let readable =
-            std::str::from_utf8(text.0).map_or_else(|error| error.valid_up_to(), str::len);
-        let source =
-            std::str::from_utf8(text.0.get(..readable).unwrap_or_default()).unwrap_or_default();
-        let lexer = Lexer::new(StringInput::new(
-            source,
-            BytePos(1),
-            BytePos(offset(SourceLength(readable)).0.saturating_add(1)),
-        ));
-        let mut tokens = Vec::new();
-        let mut parser = Parser::new(
-            Recording {
-                input: lexer,
-                tokens: &mut tokens,
-            },
-            ParserConfig {
-                scripting_enabled: true,
-                ..ParserConfig::default()
-            },
-        );
-        let document = parser.parse_document();
-        let mut errors = parser.take_errors();
-        drop(parser);
-        languages::enter_node(builder, kind_bits(Kind::Node(Node::SourceFile)), Offset(0));
-        match document {
-            Ok(document) => {
-                enter(builder, Node::Document, document.span);
-                properties(
-                    builder,
-                    &[PropertyValue {
-                        key: Property::DocumentMode,
-                        value: languages::NameText(&document.mode.to_string()),
-                    }],
-                );
-                let targeting = based(at, base_href(&document.children));
-                for item in &document.children {
-                    child(builder, item, &targeting);
-                }
-                languages::leave_node(builder, end(document.span));
-            }
-            Err(error) => errors.push(error),
-        }
-        for error in errors {
-            let message = error.message().into_owned();
-            let span = error.into_inner().0;
-            let location = if span.is_dummy() {
-                languages::NO_SPAN
-            } else {
-                languages::Span {
-                    start: start(span),
-                    end: end(span),
-                }
-            };
-            languages::diagnose(
-                builder,
-                languages::ReportText(&message),
-                location.start,
-                location.end,
-            );
-        }
-        lexical(builder, &tokens, offset(SourceLength(readable)));
-        if readable < text.0.len() {
-            languages::token(
-                builder,
-                kind_bits(Kind::Extra(Extra::Error)),
-                offset(SourceLength(readable)),
-                offset(SourceLength(text.0.len())),
-            );
-            languages::diagnose(
-                builder,
-                languages::ReportText(NOT_UTF8),
-                offset(SourceLength(readable)),
-                offset(SourceLength(text.0.len())),
-            );
-        }
-        languages::leave_node(builder, offset(SourceLength(text.0.len())));
+        reading(&mut Elements(builder), text, at);
+    }
+
+    fn walk(
+        &self,
+        text: SourceText<'_>,
+        at: languages::SourcePath<'_>,
+        builder: &mut languages::NodeTableBuilder<'_>,
+    ) {
+        reading(&mut Numbered(builder), text, at);
     }
 }
