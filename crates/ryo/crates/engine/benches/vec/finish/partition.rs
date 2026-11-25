@@ -35,11 +35,10 @@ pub(in super::super) fn file_steps(
         // Use the schema that evaluation itself will bind. A request with no admitted
         // files must still refuse an unknown relation or a malformed projection.
         exec.schema(run, i)?;
-        let args = step.args();
         let keys_hold = |ex: &mut Exec<'_>, run: &mut Run, from: &str, keys: &str| -> R<bool> {
             let source = ex.arg_rel(i, from)?;
             let s = ex.schema(run, source)?;
-            for name in super::strs(&args[keys])? {
+            for name in super::strs(&step.args()[keys])? {
                 if anchor(s.tys[super::pos(&s.names, name)?]) {
                     return Ok(true);
                 }
@@ -134,7 +133,7 @@ pub(in super::super) fn file_steps(
                 "closure" | "cycles" | "follow" => {
                     let source = exec.arg_rel(i, "edges")?;
                     let edges = exec.schema(run, source)?;
-                    let source = super::pos(&edges.names, super::s(&args["source"])?)?;
+                    let source = super::pos(&edges.names, super::s(&step.args()["source"])?)?;
                     anchor(edges.tys[source])
                         || (step.op.as_str() != "cycles" && keys_hold(exec, run, "edges", "keys")?)
                 }
@@ -145,7 +144,7 @@ pub(in super::super) fn file_steps(
                     let mut held = true;
                     for (input, vertex) in [("from", "root"), ("edges", "source")] {
                         let schema = exec.schema(run, exec.arg_rel(i, input)?)?;
-                        let vertex = super::pos(&schema.names, super::s(&args[vertex])?)?;
+                        let vertex = super::pos(&schema.names, super::s(&step.args()[vertex])?)?;
                         held &= anchor(schema.tys[vertex]) || keys_hold(exec, run, input, "keys")?;
                     }
                     held

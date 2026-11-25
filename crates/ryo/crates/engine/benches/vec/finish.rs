@@ -1428,7 +1428,6 @@ impl<'p> Exec<'p> {
         }
         let plan: &'p Plan = self.plan;
         let pn = &plan.nodes[node];
-        let a = pn.args();
         let op = pn.op.as_str();
         let from = |me: &mut Self, run: &mut Run, name: &str| -> R<Rc<Schema>> {
             let n = me.arg_rel(node, name)?;
@@ -1452,6 +1451,7 @@ impl<'p> Exec<'p> {
             "intersection" | "difference" => from(self, run, "left")?,
             "union" | "antijoin" | "group-min" | "group-max" => from(self, run, if op == "union" || op == "antijoin" { "left" } else { "from" })?,
             "extend" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 extend_values(a, |k, v| {
@@ -1466,6 +1466,7 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "project" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let cols: Vec<usize> = strs(&a["columns"])?.map(|c| pos(&f.names, c)).collect::<R<_>>()?;
                 mk(cols.iter().map(|c| f.names[*c].clone()).collect(), cols.iter().map(|c| f.tys[*c]).collect())
@@ -1478,6 +1479,7 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "group-count" | "group-digest" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let keys: Vec<usize> = strs(&a["keys"])?.map(|c| pos(&f.names, c)).collect::<R<_>>()?;
                 let mut names: Vec<String> = keys.iter().map(|c| f.names[*c].clone()).collect();
@@ -1492,6 +1494,7 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "worklist" => {
+                let a = pn.args();
                 let roots = from(self, run, "from")?;
                 let edges = from(self, run, "edges")?;
                 let lattice = from(self, run, "lattice")?;
@@ -1499,6 +1502,7 @@ impl<'p> Exec<'p> {
                 mk(names, types)
             }
             "cycles" | "closure" | "follow" => {
+                let a = pn.args();
                 let e = from(self, run, "edges")?;
                 let keys: Vec<usize> = strs(&a["keys"])?.map(|c| pos(&e.names, c)).collect::<R<_>>()?;
                 let (si, di) = (pos(&e.names, s(&a["source"])?)?, pos(&e.names, s(&a["destination"])?)?);
@@ -1509,6 +1513,7 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "ordered-match" | "as-of" => {
+                let a = pn.args();
                 let (l, r) = (from(self, run, "left")?, from(self, run, "right")?);
                 let mut names = Vec::new();
                 let mut tys = Vec::new();
@@ -1520,6 +1525,7 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "span-between" | "replace" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
@@ -1527,6 +1533,7 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "rank" => {
+                let a = pn.args();
                 let input = from(self, run, "from")?;
                 let (mut names, mut types) = ((*input.names).clone(), (*input.tys).clone());
                 pos(&names, s(&a["column"])?)?;
@@ -1535,6 +1542,7 @@ impl<'p> Exec<'p> {
                 mk(names, types)
             }
             "words" => {
+                let a = pn.args();
                 let source = from(self, run, "from")?;
                 let _text = pos(&source.names, s(&a["text"])?)?;
                 let mut names = (*source.names).clone();
@@ -1544,6 +1552,7 @@ impl<'p> Exec<'p> {
                 mk(names, types)
             }
             "span-bounds" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.extend([s(&a["start-output"])?.to_owned(), s(&a["end-output"])?.to_owned()]);
@@ -1551,6 +1560,7 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "source-matches" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
@@ -1582,6 +1592,7 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "capture" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 for c in strs(&a["captures"])? {
@@ -1591,11 +1602,13 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "rows" => {
+                let a = pn.args();
                 let names: Vec<_> = strs(&a["columns"])?.map(str::to_owned).collect();
                 let k = names.len();
                 mk(names, vec![Ty::Sym; k])
             }
             "render-syntax" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
@@ -1604,6 +1617,7 @@ impl<'p> Exec<'p> {
             }
             "fits-rendered" => from(self, run, "from")?,
             "prefixes" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
@@ -1611,6 +1625,7 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "subtree-class" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
@@ -1618,6 +1633,7 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "group-ordinal" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
@@ -1625,11 +1641,13 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "ordered-dfs" => {
+                let a = pn.args();
                 let (f, e) = (from(self, run, "from")?, from(self, run, "edges")?);
                 let (names, tys) = ordered_dfs::schema(a, (&f.names, &f.tys), (&e.names, &e.tys))?;
                 mk(names, tys)
             }
             "order" => {
+                let a = pn.args();
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.extend([s(&a["rank"])?.to_owned(), s(&a["step"])?.to_owned()]);
