@@ -829,6 +829,59 @@ pub fn finished<'b>(builder: &'b mut NodeTableBuilder<'_>) -> &'b NodeTable {
     state.table
 }
 
+/// Classifies the fields of the table a walk has written, after its last node and before `finished` lends it: `classify` is asked
+/// of every node, reading the whole table, so it may look at LATER siblings, and the by-field index is built from its answers.
+///
+/// A provider uses this only for a role that depends on what follows the node (a declaration's `!important` is known when the
+/// declaration closes); a role known when the node is entered is given at entry (`enter_node`) and is never classified here. Open
+/// nodes are closed first, as `finished` closes them. Valid until `finished`: after it, the call is ignored.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{
+///     builder, classify_written_fields, enter_node, field_of, finished, ids_of_field, leave_node,
+/// };
+/// use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(4));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// enter_node(&mut writer, KindBits(2), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(1));
+/// enter_node(&mut writer, KindBits(3), FieldCode(0), Offset(1));
+/// leave_node(&mut writer, Offset(2));
+/// leave_node(&mut writer, Offset(2));
+/// // The first child is classified from the sibling that follows it.
+/// classify_written_fields(&mut writer, |table, at| {
+///     let after = Position(at.0 + 1);
+///     if at == Position(1) && ryo_language::domain::node_table::service::kind_of(table, after) == KindBits(3) {
+///         FieldCode(1)
+///     } else {
+///         FieldCode(0)
+///     }
+/// });
+/// let table = finished(&mut writer);
+/// assert_eq!(field_of(table, Position(1)), FieldCode(1));
+/// assert_eq!(ids_of_field(table, FieldCode(1)), &[Position(1)]);
+/// assert_eq!(ids_of_field(table, FieldCode(0)), &[Position(0), Position(2)]);
+/// ```
+pub fn classify_written_fields(
+    builder: &mut NodeTableBuilder<'_>,
+    classify: impl Fn(&NodeTable, Position) -> FieldCode,
+) {
+    let state = &mut builder.0;
+    if state.finished != Finish::Open {
+        return;
+    }
+    while !state.open.is_empty() {
+        let end = state.cursor;
+        leave_open(state, end);
+    }
+    classify_fields(state.table, classify);
+}
+
 /// The kind of an element.
 ///
 /// # Examples
