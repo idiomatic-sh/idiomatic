@@ -27,7 +27,7 @@ impl Exec<'_> {
         let dom = self.dom(f, run, p, node)?;
         let size = match &dom {
             Dom::Set(x) => Some(x.len()),
-            Dom::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).map(|ks| bucket_len(f, run, &ks)),
+            Dom::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).map(|ks| bucket_len(f, run, &ks, v.base.extent())),
             _ => None,
         };
         if size == Some(0) {
@@ -36,7 +36,7 @@ impl Exec<'_> {
         }
         let rel = self.arg_rel(node, "relation")?;
         let hier = self.hier(f, run, p, rel)?;
-        let tree = matches!(hier, Hier::Tree);
+        let tree = matches!(hier, Hier::Tree(_));
         let ic = from.col("id")?;
         let mut out = self.empty(run, node)?;
         let mut row = Vec::new();
@@ -53,7 +53,7 @@ impl Exec<'_> {
                 Dom::Set(x) => x.iter().filter(|v| (**v as usize) < f.n).map(|v| *v as u32).collect(),
                 Dom::View(v, _) => {
                     let ks = kind_set(run, &v.filter, 0, v.base, &[]).ok_or("a sized view domain with no kinds")?;
-                    bucket(f, run, &ks).into_iter().filter(|r| view_holds(f, run, v, *r)).collect()
+                    bucket(f, run, &ks, v.base.extent()).into_iter().filter(|r| view_holds(f, run, v, *r)).collect()
                 }
                 _ => unreachable!(),
             };

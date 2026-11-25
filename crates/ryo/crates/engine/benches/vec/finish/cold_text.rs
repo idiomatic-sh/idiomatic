@@ -96,6 +96,7 @@ impl Predicate {
 }
 
 pub(super) fn candidates(
+    extent: super::Extent,
     f: &File<'_>,
     run: &mut Run,
     slots: &[usize],
@@ -139,6 +140,8 @@ pub(super) fn candidates(
         let rows = &postings[slot];
         if !rows.is_empty() {
             streams += 1;
+            // the postings of a file with embedded segments are cut at the extent: one compare to pick the slice
+            let rows = if extent == super::Extent::Own && f.own < f.n { &rows[..rows.partition_point(|r| (*r as usize) < f.own)] } else { &rows[..] };
             out.extend_from_slice(rows);
         }
     }

@@ -5,7 +5,7 @@ use ryo::languages::{KindBits, node_table};
 
 pub(super) enum Entry {
     Unknown,
-    Kinds(Box<[u16]>, super::super::Extent),
+    Kinds(Box<[u16]>, super::Extent),
     Literal {
         fact: u16,
         column: usize,
