@@ -14,6 +14,5 @@ pub(crate) trait SyntaxPort: Send + Sync {
 
     /// Reads html text into the numbered node table `builder` writes, each node with its role under its parent: the same tree
     /// `read` writes, and what the library said of the file. Reading never fails.
-    #[cfg_attr(not(test), allow(dead_code, reason = "the walk is linked when step 0 of the ports lands"))]
     fn walk(&self, text: SourceText<'_>, at: SourcePath<'_>, builder: &mut NodeTableBuilder<'_>);
 }

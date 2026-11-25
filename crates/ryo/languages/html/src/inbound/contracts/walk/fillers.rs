@@ -3,9 +3,10 @@
 //! the names the language states for the whole run are its kinds and its fields.
 
 use crate::domain::file_view::types::{HtmlFile, HtmlWalk};
-use crate::domain::syntax::service::{field_name, fields, kind_name, kinds};
+use crate::domain::syntax::service::{field_name, fields, kind_name, kind_of, kinds};
+use crate::domain::syntax::types::Kind;
 use ryo::languages::{
-    self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames, NameText, RenderOutcome, RenderRequest,
+    self, AbsenceCause, ByteSlice, Bytes, CatalogRelation, FileCompleteness, KindBits, NodeTable, SyntaxCompleteness, node_table, FieldNames, FileWords, Fill, Fillers, FixedNames, NameText, RenderOutcome, RenderRequest,
     Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
 };
 
@@ -41,6 +42,164 @@ macro_rules! absent {
     };
 }
 
+/// The relations HTML does not fill, with the cause: the one list, handed to the macro that makes the fillers of them and to the one
+/// that makes the static answer.
+macro_rules! each_absent {
+    ($callback:ident) => {
+        $callback! {
+            binding_event: BindingEvent => NotYetRead;
+            binding_resolution: BindingResolution => NotYetRead;
+            binding_use: BindingUse => NotYetRead;
+            brace_format_field: BraceFormatField => NotYetRead;
+            brace_format_parse: BraceFormatParse => NotYetRead;
+            bytes_literal: BytesLiteral => NotYetRead;
+            call_argument: CallArgument => NoSuchConstruct;
+            compiler_feature: CompilerFeature => NotYetRead;
+            decorates: Decorates => NoSuchConstruct;
+            embedded_expression: EmbeddedExpression => NotYetRead;
+            format_field: FormatField => NotYetRead;
+            format_parse: FormatParse => NotYetRead;
+            format_specification: FormatSpecification => NotYetRead;
+            function_terminal: FunctionTerminal => NotYetRead;
+            identifier: Identifier => NotYetRead;
+            implicit_symbol: ImplicitSymbol => NotYetRead;
+            indent_region: IndentRegion => NoSuchConstruct;
+            interpolated_string_literal: InterpolatedStringLiteral => NotYetRead;
+            language_target: LanguageTarget => NotYetRead;
+            literal_expression_parse: LiteralExpressionParse => NotYetRead;
+            literal_properties: LiteralProperties => NotYetRead;
+            numeric_literal: NumericLiteral => NotYetRead;
+            parameter: Parameter => NoSuchConstruct;
+            qualified_name: QualifiedName => NotYetRead;
+            raw_format_field: RawFormatField => NotYetRead;
+            standard_library_import: StandardLibraryImport => NotYetRead;
+            static_import: StaticImport => NoSuchConstruct;
+            binding_read: BindingRead => NotYetRead;
+            binding_shadow: BindingShadow => NotYetRead;
+            constant_key: ConstantKey => NotYetRead;
+            expression_shape: ExpressionShape => NotYetRead;
+            expression_type: ExpressionType => NotYetRead;
+            function: Function => NoSuchConstruct;
+            inherits: Inherits => NoSuchConstruct;
+            lookup_scope: LookupScope => NotYetRead;
+            raw_format_segment: RawFormatSegment => NotYetRead;
+            resolves: Resolves => NoSuchConstruct;
+            token_link: TokenLink => NotYetRead;
+            analyzed_source: AnalyzedSource => NoManifests;
+            annotates: Annotates => NoSuchConstruct;
+            assigns: Assigns => NoSuchConstruct;
+            attribute_path: AttributePath => NotYetRead;
+            directive: Directive => NoSuchConstruct;
+            entry: Entry => NoSuchConstruct;
+            file_package: FilePackage => NoManifests;
+            filesystem_executable: FilesystemExecutable => NotYetRead;
+            filesystem_file: FilesystemFile => NotYetRead;
+            filesystem_line_count: FilesystemLineCount => NotYetRead;
+            filesystem_read_failure: FilesystemReadFailure => NotYetRead;
+            flow_block: FlowBlock => NotYetRead;
+            flow_edge: FlowEdge => NotYetRead;
+            flow_member: FlowMember => NotYetRead;
+            flow_step: FlowStep => NotYetRead;
+            manifest_diagnostic: ManifestDiagnostic => NoManifests;
+            mapping: Mapping => NoSuchConstruct;
+            mention: Mention => NoSuchConstruct;
+            module_identity: ModuleIdentity => NoManifests;
+            package_dependency: PackageDependency => NoManifests;
+            pattern_child: PatternChild => NotYetRead;
+            pattern_parse: PatternParse => NotYetRead;
+            pattern_syntax: PatternSyntax => NotYetRead;
+            project_namespace_membership: ProjectNamespaceMembership => NoManifests;
+            sequence_element: SequenceElement => NoSuchConstruct;
+            source_dependency: SourceDependency => NoManifests;
+            static_call: StaticCall => NoSuchConstruct;
+            visibility: Visibility => NoSuchConstruct;
+            workspace_member: WorkspaceMember => NoManifests;
+        }
+    };
+    ($callback:ident, $asked:ident) => {
+        $callback! {
+            $asked;
+            binding_event: BindingEvent => NotYetRead;
+            binding_resolution: BindingResolution => NotYetRead;
+            binding_use: BindingUse => NotYetRead;
+            brace_format_field: BraceFormatField => NotYetRead;
+            brace_format_parse: BraceFormatParse => NotYetRead;
+            bytes_literal: BytesLiteral => NotYetRead;
+            call_argument: CallArgument => NoSuchConstruct;
+            compiler_feature: CompilerFeature => NotYetRead;
+            decorates: Decorates => NoSuchConstruct;
+            embedded_expression: EmbeddedExpression => NotYetRead;
+            format_field: FormatField => NotYetRead;
+            format_parse: FormatParse => NotYetRead;
+            format_specification: FormatSpecification => NotYetRead;
+            function_terminal: FunctionTerminal => NotYetRead;
+            identifier: Identifier => NotYetRead;
+            implicit_symbol: ImplicitSymbol => NotYetRead;
+            indent_region: IndentRegion => NoSuchConstruct;
+            interpolated_string_literal: InterpolatedStringLiteral => NotYetRead;
+            language_target: LanguageTarget => NotYetRead;
+            literal_expression_parse: LiteralExpressionParse => NotYetRead;
+            literal_properties: LiteralProperties => NotYetRead;
+            numeric_literal: NumericLiteral => NotYetRead;
+            parameter: Parameter => NoSuchConstruct;
+            qualified_name: QualifiedName => NotYetRead;
+            raw_format_field: RawFormatField => NotYetRead;
+            standard_library_import: StandardLibraryImport => NotYetRead;
+            static_import: StaticImport => NoSuchConstruct;
+            binding_read: BindingRead => NotYetRead;
+            binding_shadow: BindingShadow => NotYetRead;
+            constant_key: ConstantKey => NotYetRead;
+            expression_shape: ExpressionShape => NotYetRead;
+            expression_type: ExpressionType => NotYetRead;
+            function: Function => NoSuchConstruct;
+            inherits: Inherits => NoSuchConstruct;
+            lookup_scope: LookupScope => NotYetRead;
+            raw_format_segment: RawFormatSegment => NotYetRead;
+            resolves: Resolves => NoSuchConstruct;
+            token_link: TokenLink => NotYetRead;
+            analyzed_source: AnalyzedSource => NoManifests;
+            annotates: Annotates => NoSuchConstruct;
+            assigns: Assigns => NoSuchConstruct;
+            attribute_path: AttributePath => NotYetRead;
+            directive: Directive => NoSuchConstruct;
+            entry: Entry => NoSuchConstruct;
+            file_package: FilePackage => NoManifests;
+            filesystem_executable: FilesystemExecutable => NotYetRead;
+            filesystem_file: FilesystemFile => NotYetRead;
+            filesystem_line_count: FilesystemLineCount => NotYetRead;
+            filesystem_read_failure: FilesystemReadFailure => NotYetRead;
+            flow_block: FlowBlock => NotYetRead;
+            flow_edge: FlowEdge => NotYetRead;
+            flow_member: FlowMember => NotYetRead;
+            flow_step: FlowStep => NotYetRead;
+            manifest_diagnostic: ManifestDiagnostic => NoManifests;
+            mapping: Mapping => NoSuchConstruct;
+            mention: Mention => NoSuchConstruct;
+            module_identity: ModuleIdentity => NoManifests;
+            package_dependency: PackageDependency => NoManifests;
+            pattern_child: PatternChild => NotYetRead;
+            pattern_parse: PatternParse => NotYetRead;
+            pattern_syntax: PatternSyntax => NotYetRead;
+            project_namespace_membership: ProjectNamespaceMembership => NoManifests;
+            sequence_element: SequenceElement => NoSuchConstruct;
+            source_dependency: SourceDependency => NoManifests;
+            static_call: StaticCall => NoSuchConstruct;
+            visibility: Visibility => NoSuchConstruct;
+            workspace_member: WorkspaceMember => NoManifests;
+        }
+    };
+}
+
+/// The static answer of the absent relations: the cause, when `relation` is one of them.
+macro_rules! absent_arms {
+    ($asked:ident; $( $module:ident: $relation:ident => $cause:ident; )*) => {
+        match $asked {
+            $( languages::Relation::$relation => Some(AbsenceCause::$cause), )*
+            _ => None,
+        }
+    };
+}
+
 impl<P: Send + Sync + 'static> Fillers for HtmlWalk<P> {
     type File<'f>
         = HtmlFile<'f>
@@ -58,74 +217,40 @@ impl<P: Send + Sync + 'static> Fillers for HtmlWalk<P> {
         syntax_error: SyntaxError => crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
     }
 
-    absent! {
-        binding_event: BindingEvent => NotYetRead;
-        binding_resolution: BindingResolution => NotYetRead;
-        binding_use: BindingUse => NotYetRead;
-        brace_format_field: BraceFormatField => NotYetRead;
-        brace_format_parse: BraceFormatParse => NotYetRead;
-        bytes_literal: BytesLiteral => NotYetRead;
-        call_argument: CallArgument => NoSuchConstruct;
-        compiler_feature: CompilerFeature => NotYetRead;
-        decorates: Decorates => NoSuchConstruct;
-        embedded_expression: EmbeddedExpression => NotYetRead;
-        format_field: FormatField => NotYetRead;
-        format_parse: FormatParse => NotYetRead;
-        format_specification: FormatSpecification => NotYetRead;
-        function_terminal: FunctionTerminal => NotYetRead;
-        identifier: Identifier => NotYetRead;
-        implicit_symbol: ImplicitSymbol => NotYetRead;
-        indent_region: IndentRegion => NoSuchConstruct;
-        interpolated_string_literal: InterpolatedStringLiteral => NotYetRead;
-        language_target: LanguageTarget => NotYetRead;
-        literal_expression_parse: LiteralExpressionParse => NotYetRead;
-        literal_properties: LiteralProperties => NotYetRead;
-        numeric_literal: NumericLiteral => NotYetRead;
-        parameter: Parameter => NoSuchConstruct;
-        qualified_name: QualifiedName => NotYetRead;
-        raw_format_field: RawFormatField => NotYetRead;
-        standard_library_import: StandardLibraryImport => NotYetRead;
-        static_import: StaticImport => NoSuchConstruct;
-        binding_read: BindingRead => NotYetRead;
-        binding_shadow: BindingShadow => NotYetRead;
-        constant_key: ConstantKey => NotYetRead;
-        expression_shape: ExpressionShape => NotYetRead;
-        expression_type: ExpressionType => NotYetRead;
-        function: Function => NoSuchConstruct;
-        inherits: Inherits => NoSuchConstruct;
-        lookup_scope: LookupScope => NotYetRead;
-        raw_format_segment: RawFormatSegment => NotYetRead;
-        resolves: Resolves => NoSuchConstruct;
-        token_link: TokenLink => NotYetRead;
-        analyzed_source: AnalyzedSource => NoManifests;
-        annotates: Annotates => NoSuchConstruct;
-        assigns: Assigns => NoSuchConstruct;
-        attribute_path: AttributePath => NotYetRead;
-        directive: Directive => NoSuchConstruct;
-        entry: Entry => NoSuchConstruct;
-        file_package: FilePackage => NoManifests;
-        filesystem_executable: FilesystemExecutable => NotYetRead;
-        filesystem_file: FilesystemFile => NotYetRead;
-        filesystem_line_count: FilesystemLineCount => NotYetRead;
-        filesystem_read_failure: FilesystemReadFailure => NotYetRead;
-        flow_block: FlowBlock => NotYetRead;
-        flow_edge: FlowEdge => NotYetRead;
-        flow_member: FlowMember => NotYetRead;
-        flow_step: FlowStep => NotYetRead;
-        manifest_diagnostic: ManifestDiagnostic => NoManifests;
-        mapping: Mapping => NoSuchConstruct;
-        mention: Mention => NoSuchConstruct;
-        module_identity: ModuleIdentity => NoManifests;
-        package_dependency: PackageDependency => NoManifests;
-        pattern_child: PatternChild => NotYetRead;
-        pattern_parse: PatternParse => NotYetRead;
-        pattern_syntax: PatternSyntax => NotYetRead;
-        project_namespace_membership: ProjectNamespaceMembership => NoManifests;
-        sequence_element: SequenceElement => NoSuchConstruct;
-        source_dependency: SourceDependency => NoManifests;
-        static_call: StaticCall => NoSuchConstruct;
-        visibility: Visibility => NoSuchConstruct;
-        workspace_member: WorkspaceMember => NoManifests;
+    each_absent!(absent);
+
+    fn absent(relation: languages::Relation) -> Option<AbsenceCause> {
+        use languages::Relation as R;
+        // The manifest and filesystem relations are the project contract's and the host's: the language does not say they are absent.
+        if matches!(
+            relation,
+            R::AnalyzedSource | R::FilePackage | R::FilesystemExecutable | R::FilesystemFile | R::FilesystemLineCount
+                | R::FilesystemReadFailure | R::ManifestDiagnostic | R::ModuleIdentity | R::PackageDependency
+                | R::ProjectNamespaceMembership | R::SourceDependency | R::WorkspaceMember
+        ) {
+            return None;
+        }
+        each_absent!(absent_arms, relation)
+    }
+
+    fn completeness(file: &HtmlFile<'_>) -> FileCompleteness {
+        // every diagnostic of the parser says its syntax was recovered, and a recovered tree leaves its token stream in part too
+        let wholeness = if node_table::syntax_error_count(file.table).0 == 0 {
+            SyntaxCompleteness::Complete
+        } else {
+            SyntaxCompleteness::Incomplete
+        };
+        FileCompleteness { syntax: wholeness, lexical: wholeness }
+    }
+
+    fn fills_are_complete(file: &mut HtmlFile<'_>) -> bool {
+        Self::completeness(file).syntax == SyntaxCompleteness::Complete
+    }
+
+    fn notes(_file: &mut HtmlFile<'_>, _table: &NodeTable, _source: ByteSlice<'_>, _out: &mut Bytes) {}
+
+    fn spells(kind: KindBits) -> bool {
+        matches!(kind_of(kind), Kind::Token(_) | Kind::Extra(_))
     }
 
     fn render(_file: &mut HtmlFile<'_>, _request: RenderRequest) -> RenderOutcome {
@@ -140,7 +265,3 @@ impl<P: Send + Sync + 'static> Fillers for HtmlWalk<P> {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "fillers_test.rs"]
-mod tests;
