@@ -1,7 +1,7 @@
 //! A closed equality can get its node keys from a file-local posting. For an
 //! axis, every returned "related" node belongs to the axis's declared domain.
 use super::super::{
-    E, Exec, File, Native, Op, Provider, R, Run, Supplier, Table, Ty, native_of,
+    E, Exec, Extent, File, Native, Op, Provider, R, Run, Supplier, Table, Ty, native_of,
 };
 use std::{collections::{BTreeMap, BTreeSet}, rc::Rc};
 
@@ -413,7 +413,7 @@ pub(super) fn reach_nodes(
     while let Some(node) = pending.pop() {
         if below {
             children.clear();
-            file.native_probe(run, Native::Child(_), 0, u64::from(node), &mut children);
+            file.native_probe(run, Native::Child(Extent::Whole), 0, u64::from(node), &mut children);
             pending.extend(children.iter().copied().filter(|&child| seen.insert(child)));
         } else if file.has_parent(node) {
             let parent = file.parent[node as usize];
@@ -451,7 +451,7 @@ pub(super) fn nodes_of(
             let parents = nodes_of(exec, run, file, facts, slots, inner)?;
             let mut rows = Vec::new();
             for parent in parents {
-                file.native_probe(run, Native::Child(_), 0, u64::from(parent), &mut rows);
+                file.native_probe(run, Native::Child(Extent::Whole), 0, u64::from(parent), &mut rows);
             }
             rows
         }
@@ -479,7 +479,7 @@ pub(super) fn nodes_of(
 fn native_child(exec: &Exec<'_>, run: &Run, source: usize) -> bool {
     exec.plan.nodes[source].base().is_some_and(|name| {
         matches!(run.supplier(name), Supplier::Provider)
-            && native_of(run, name) == Some(Native::Child(_))
+            && native_of(run, name).map(Native::shape) == Some(Native::Child(Extent::Whole))
     })
 }
 
@@ -509,7 +509,7 @@ pub(super) fn ancestor_edges(
     let mut children = Vec::new();
     while let Some(parent) = pending.pop() {
         children.clear();
-        file.native_probe(run, Native::Child(_), 0, u64::from(parent), &mut children);
+        file.native_probe(run, Native::Child(Extent::Whole), 0, u64::from(parent), &mut children);
         pending.extend(children.iter().copied().filter(|child| seen.insert(*child)));
     }
     let mut children: Vec<_> = seen.into_iter().collect();

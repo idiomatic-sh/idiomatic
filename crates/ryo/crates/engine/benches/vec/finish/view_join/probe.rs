@@ -1,6 +1,6 @@
 //! A native equality probe reads the provider's ordered hits directly. The outer
 //! select retains its driver order, residual predicates, touched count and projection.
-use super::{File, Native, Run, Src, ViewSpec, fill_prof, view_cols};
+use super::{Extent, File, Native, Run, Src, ViewSpec, fill_prof, view_cols};
 use super::select_kernel::Pushed;
 
 #[derive(Clone, Copy)]
@@ -58,7 +58,7 @@ impl<'a> Filter<'a> {
             return Some(Self::All);
         }
         if let Some(entry) = v.cold_bucket.get() {
-            let column = if v.base == Native::Child(_) {
+            let column = if v.base.shape() == Native::Child(Extent::Whole) {
                 &f.field
             } else {
                 &f.kind

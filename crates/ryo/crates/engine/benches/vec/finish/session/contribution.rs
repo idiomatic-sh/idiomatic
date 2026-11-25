@@ -1,6 +1,6 @@
 //! A local projection read after closure can use the provider's ordinal as a join key.
 //! Each child edge has exactly one row with that child ID, in node order.
-use super::super::{E, Exec, File, Native, Op, Provider, R, Run, Schema, Supplier, Table, Ty, ViewSpec, view_cols};
+use super::super::{E, Exec, Extent, File, Native, Op, Provider, R, Run, Schema, Supplier, Table, Ty, ViewSpec, view_cols};
 use super::demand::Nodes;
 use std::{
     collections::{BTreeMap, HashMap},
@@ -129,7 +129,7 @@ impl Projection {
                 return None;
             };
             let tree = exec.view(run, node).ok()??;
-            if tree.base != Native::Child(_) || !tree.filter.is_empty() || tree.map.get(column) != Some(&0) {
+            if tree.base.shape() != Native::Child(Extent::Whole) || !tree.filter.is_empty() || tree.map.get(column) != Some(&0) {
                 return None;
             }
             let columns = tree
@@ -137,7 +137,7 @@ impl Projection {
                 .iter()
                 .enumerate()
                 .filter(|(c, _)| mask.get(*c) != Some(&false))
-                .map(|(c, &col)| (c, Native::Child(_), col))
+                .map(|(c, &col)| (c, Native::Child(Extent::Whole), col))
                 .collect();
             return Some(Self {
                 demand: Some(keys),
@@ -181,7 +181,7 @@ impl Projection {
             }
             // Visiting only the surviving rows must not hide an unsupported
             // expression that the original producer would have reported.
-            if tree.base != Native::Tree(_)
+            if tree.base.shape() != Native::Tree(Extent::Whole)
                 || tree.filter.iter().any(|expr| super::scalar(expr).is_err())
             {
                 return None;
@@ -202,7 +202,7 @@ impl Projection {
                     .iter()
                     .enumerate()
                     .filter(|(c, _)| read(*c))
-                    .map(|(c, &col)| (c, Native::Tree(_), col))
+                    .map(|(c, &col)| (c, Native::Tree(Extent::Whole), col))
                     .collect();
                 return Some(Self {
                     demand: Some(keys),
@@ -231,7 +231,7 @@ impl Projection {
                 .iter()
                 .enumerate()
                 .filter(|(c, _)| read(*c))
-                .map(|(c, &col)| (c, Native::Tree(_), col))
+                .map(|(c, &col)| (c, Native::Tree(Extent::Whole), col))
                 .collect();
             return Some(Self {
                 demand: None,
@@ -251,10 +251,10 @@ impl Projection {
             exec.view(run, plan.srcs[0]).ok()??,
             exec.view(run, plan.srcs[1]).ok()??,
         ];
-        let tree_side = views.iter().position(|v| v.base == Native::Tree(_))?;
+        let tree_side = views.iter().position(|v| v.base.shape() == Native::Tree(Extent::Whole))?;
         let edge_side = 1 - tree_side;
         let edge = &views[edge_side];
-        if edge.base != Native::Child(_) || !edge.filter.is_empty() {
+        if edge.base.shape() != Native::Child(Extent::Whole) || !edge.filter.is_empty() {
             return None;
         }
         let [E::Cmp(Op::Eq, a, b)] = plan.conj.as_slice() else {
@@ -265,7 +265,7 @@ impl Projection {
             _ => None,
         };
         let keys = [endpoint(a)?, endpoint(b)?];
-        if !keys.contains(&(Native::Tree(_), 0)) || !keys.contains(&(Native::Child(_), 1)) {
+        if !keys.contains(&(Native::Tree(Extent::Whole), 0)) || !keys.contains(&(Native::Child(Extent::Whole), 1)) {
             return None;
         }
         // A projected ordinal also makes the result distinct under projection.
@@ -292,7 +292,7 @@ impl Projection {
             };
             columns
                 .iter()
-                .any(|&(out, base, col)| out == column && base == Native::Child(_) && col == 0)
+                .any(|&(out, base, col)| out == column && base.shape() == Native::Child(Extent::Whole) && col == 0)
                 .then_some(keys)
         });
         if demand.is_some() && !views[tree_side].filter.iter().all(super::certificate::total) {
@@ -340,7 +340,7 @@ impl Projection {
             Rows::Edges | Rows::WithParent if self.demand.is_some() => {
                 let mut rows = Vec::new();
                 for &parent in keys? {
-                    file.native_probe(run, Native::Child(_), 0, u64::from(parent), &mut rows);
+                    file.native_probe(run, Native::Child(Extent::Whole), 0, u64::from(parent), &mut rows);
                 }
                 rows.sort_unstable();
                 rows.dedup();
