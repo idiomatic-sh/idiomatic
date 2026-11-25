@@ -7,3 +7,6 @@ mod fillers;
 
 #[cfg(test)]
 mod contract_test;
+
+#[cfg(test)]
+mod fills_test;

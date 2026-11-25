@@ -7,8 +7,25 @@ use crate::domain::file_view::types::{TypeScriptFile, TypeScriptWalk};
 use crate::domain::syntax::service::{kind_name, kinds};
 use ryo::languages::{
     self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames, NameText, RenderOutcome, RenderRequest,
-    Rows, WalkKinds, WalkVocabulary, Wanted,
+    Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
 };
+
+/// The filler of each relation whose `fills!` item writes it whole alone: the item's run. Asked for a key, it writes the whole
+/// relation and says so; `fillers::filled` is the one place that answer is written.
+macro_rules! written {
+    ($( $module:ident: $relation:ident => $item:path; )*) => {
+        $(
+            fn $module(
+                file: &mut TypeScriptFile<'_>,
+                words: &mut FileWords,
+                wanted: Wanted,
+                rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
+            ) -> Fill {
+                fillers::filled::<$item>(file, words, wanted, rows)
+            }
+        )*
+    };
+}
 
 /// The filler of each relation the language does not fill yet, with the cause.
 macro_rules! absent {
@@ -32,18 +49,42 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
     where
         Self: 'f;
 
+    written! {
+        comment: Comment => crate::domain::relations::collections::relations::comment::item::CommentItem;
+        numeric_literal: NumericLiteral => crate::domain::relations::collections::relations::numeric_literal::item::NumericLiteralItem;
+        string_literal: StringLiteral => crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
+        parameter: Parameter => crate::domain::relations::collections::relations::parameter::item::ParameterItem;
+        call_argument: CallArgument => crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem;
+        function: Function => crate::domain::relations::collections::relations::function::item::FunctionItem;
+        compiler_feature: CompilerFeature => crate::domain::relations::collections::relations::compiler_feature::item::CompilerFeatureItem;
+        decorates: Decorates => crate::domain::relations::collections::relations::decorates::item::DecoratesItem;
+        static_import: StaticImport => crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
+        defines: Defines => crate::domain::relations::collections::relations::defines::item::DefinesItem;
+        reference: Reference => crate::domain::relations::collections::relations::reference::item::ReferenceItem;
+        scope: Scope => crate::domain::relations::collections::relations::scope::item::ScopeItem;
+        resolves: Resolves => crate::domain::relations::collections::relations::resolves::item::ResolvesItem;
+        binding_read: BindingRead => crate::domain::relations::collections::relations::binding_read::item::BindingReadItem;
+        binding_use: BindingUse => crate::domain::relations::collections::relations::binding_use::item::BindingUseItem;
+        annotates: Annotates => crate::domain::relations::collections::relations::annotates::item::AnnotatesItem;
+        assigns: Assigns => crate::domain::relations::collections::relations::assigns::item::AssignsItem;
+        directive: Directive => crate::domain::relations::collections::relations::directive::item::DirectiveItem;
+        static_call: StaticCall => crate::domain::relations::collections::relations::static_call::item::StaticCallItem;
+        visibility: Visibility => crate::domain::relations::collections::relations::visibility::item::VisibilityItem;
+        inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
+        syntax_error: SyntaxError => crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
+        expression_shape: ExpressionShape => crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem;
+        flow_block: FlowBlock => crate::domain::relations::collections::relations::flow_block::item::FlowBlockItem;
+        flow_edge: FlowEdge => crate::domain::relations::collections::relations::flow_edge::item::FlowEdgeItem;
+        flow_member: FlowMember => crate::domain::relations::collections::relations::flow_member::item::FlowMemberItem;
+        flow_step: FlowStep => crate::domain::relations::collections::relations::flow_step::item::FlowStepItem;
+    }
+
     absent! {
         binding_event: BindingEvent => NotYetRead;
         binding_resolution: BindingResolution => NotYetRead;
-        binding_use: BindingUse => NotYetRead;
         brace_format_field: BraceFormatField => NotYetRead;
         brace_format_parse: BraceFormatParse => NotYetRead;
         bytes_literal: BytesLiteral => NotYetRead;
-        call_argument: CallArgument => NotYetRead;
-        comment: Comment => NotYetRead;
-        compiler_feature: CompilerFeature => NotYetRead;
-        decorates: Decorates => NotYetRead;
-        defines: Defines => NotYetRead;
         embedded_expression: EmbeddedExpression => NotYetRead;
         format_field: FormatField => NotYetRead;
         format_parse: FormatParse => NotYetRead;
@@ -56,43 +97,24 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         language_target: LanguageTarget => NotYetRead;
         literal_expression_parse: LiteralExpressionParse => NotYetRead;
         literal_properties: LiteralProperties => NotYetRead;
-        numeric_literal: NumericLiteral => NotYetRead;
-        parameter: Parameter => NotYetRead;
         qualified_name: QualifiedName => NotYetRead;
         raw_format_field: RawFormatField => NotYetRead;
         source_location: SourceLocation => NotYetRead;
         standard_library_import: StandardLibraryImport => NotYetRead;
-        static_import: StaticImport => NotYetRead;
-        string_literal: StringLiteral => NotYetRead;
-        syntax_error: SyntaxError => NotYetRead;
-        binding_read: BindingRead => NotYetRead;
         binding_shadow: BindingShadow => NotYetRead;
         constant_key: ConstantKey => NotYetRead;
-        expression_shape: ExpressionShape => NotYetRead;
         expression_type: ExpressionType => NotYetRead;
-        function: Function => NotYetRead;
-        inherits: Inherits => NotYetRead;
         lookup_scope: LookupScope => NotYetRead;
         raw_format_segment: RawFormatSegment => NotYetRead;
-        reference: Reference => NotYetRead;
-        resolves: Resolves => NotYetRead;
-        scope: Scope => NotYetRead;
         token_link: TokenLink => NotYetRead;
         analyzed_source: AnalyzedSource => NotYetRead;
-        annotates: Annotates => NotYetRead;
-        assigns: Assigns => NotYetRead;
         attribute_path: AttributePath => NotYetRead;
-        directive: Directive => NotYetRead;
         entry: Entry => NotYetRead;
         file_package: FilePackage => NotYetRead;
         filesystem_executable: FilesystemExecutable => NotYetRead;
         filesystem_file: FilesystemFile => NotYetRead;
         filesystem_line_count: FilesystemLineCount => NotYetRead;
         filesystem_read_failure: FilesystemReadFailure => NotYetRead;
-        flow_block: FlowBlock => NotYetRead;
-        flow_edge: FlowEdge => NotYetRead;
-        flow_member: FlowMember => NotYetRead;
-        flow_step: FlowStep => NotYetRead;
         manifest_diagnostic: ManifestDiagnostic => NotYetRead;
         mapping: Mapping => NotYetRead;
         mention: Mention => NotYetRead;
@@ -105,8 +127,6 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         prose: Prose => NotYetRead;
         sequence_element: SequenceElement => NotYetRead;
         source_dependency: SourceDependency => NotYetRead;
-        static_call: StaticCall => NotYetRead;
-        visibility: Visibility => NotYetRead;
         workspace_member: WorkspaceMember => NotYetRead;
     }
 

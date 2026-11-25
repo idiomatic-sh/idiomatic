@@ -2,6 +2,7 @@
 //! ports. It maps a kind to the number the element table holds and back, says its name, and reads the kind of an element of a file's
 //! syntax tree: a position is an element of the table; its kind is the language's own.
 
+use crate::domain::syntax::reading::{Interner, Syntax};
 use ryo::languages::{self, Tree};
 
 use super::constants::{
@@ -16,14 +17,14 @@ ryo::languages::kinds!(pub Kind { Node(Node), Token(Token), Extra(Extra), Patter
 
 /// The kind of the element at `at`.
 #[must_use]
-pub(crate) fn kind(tree: &Tree<'_>, at: languages::Position) -> Kind {
-    kind_of(languages::kind_at(tree.elements, at))
+pub(crate) fn kind(tree: &impl Syntax, at: languages::Position) -> Kind {
+    kind_of(tree.kind_bits(at))
 }
 
 /// Whether the element at `at` is a token, a leaf, and not a node.
 #[must_use]
-pub(crate) fn is_token(tree: &Tree<'_>, at: languages::Position) -> Leaf {
-    if languages::flags_at(tree.elements, at).0 & languages::TOKEN.0 == 0 {
+pub(crate) fn is_token(tree: &impl Syntax, at: languages::Position) -> Leaf {
+    if !tree.is_leaf(at) {
         Leaf::Node
     } else {
         Leaf::Token
@@ -32,18 +33,18 @@ pub(crate) fn is_token(tree: &Tree<'_>, at: languages::Position) -> Leaf {
 
 /// The parent of the element at `at`; the root is its own.
 #[must_use]
-pub(crate) fn parent(tree: &Tree<'_>, at: languages::Position) -> languages::Position {
-    languages::parent_at(tree.elements, at)
+pub(crate) fn parent(tree: &impl Syntax, at: languages::Position) -> languages::Position {
+    tree.parent_of(at)
 }
 
 /// The name of the kind of the element at `at`, as the `kind` column of the tree holds it.
 pub(crate) fn kind_symbol(
-    tree: &Tree<'_>,
-    symbols: &mut languages::Symbols,
+    tree: &impl Syntax,
+    symbols: &mut impl Interner,
     at: languages::Position,
 ) -> languages::Symbol {
     let element = kind(tree, at);
-    languages::vocabulary_symbol(symbols, tree.source, kind_bits(element), kind_name(element))
+    symbols.vocabulary(tree.bytes(), kind_bits(element), kind_name(element))
 }
 
 /// The text of the token at `at`; no text for a node.
@@ -58,16 +59,16 @@ pub(crate) fn token_text(tree: &Tree<'_>, at: languages::Position) -> languages:
 
 /// The last element below the element at `at`, in pre-order; `at` itself when it has none.
 #[must_use]
-pub(crate) fn last(tree: &Tree<'_>, at: languages::Position) -> languages::Position {
-    languages::last_at(tree.elements, at)
+pub(crate) fn last(tree: &impl Syntax, at: languages::Position) -> languages::Position {
+    tree.last_of(at)
 }
 
 /// The bytes of the element at `at`, as the file spells them.
-pub(crate) fn written<'a>(tree: &Tree<'a>, at: languages::Position) -> languages::NameText<'a> {
-    let from = usize::try_from(languages::start_at(tree.elements, at).0).unwrap_or(usize::MAX);
-    let to = usize::try_from(languages::end_at(tree.elements, at).0).unwrap_or(usize::MAX);
+pub(crate) fn written<'a>(tree: &'a impl Syntax, at: languages::Position) -> languages::NameText<'a> {
+    let from = usize::try_from(tree.start_of(at).0).unwrap_or(usize::MAX);
+    let to = usize::try_from(tree.end_of(at).0).unwrap_or(usize::MAX);
     languages::NameText(
-        tree.source
+        tree.bytes()
             .0
             .get(from..to)
             // the bytes of a node that are not text have no text, which the reader takes as an empty name: the row keeps its place either way
@@ -79,8 +80,13 @@ pub(crate) fn written<'a>(tree: &Tree<'a>, at: languages::Position) -> languages
 /// Whether the comment at `at` is documentation, as TypeScript reads it: a block comment that opens with `/**`, the empty `/**/`
 /// aside.
 #[must_use]
-pub(crate) fn documentation(tree: &Tree<'_>, at: languages::Position) -> languages::Flag {
-    let raw = written(tree, at).0;
+pub(crate) fn documentation(tree: &impl Syntax, at: languages::Position) -> languages::Flag {
+    documentation_of(written(tree, at).0)
+}
+
+/// Whether a comment written as `raw` is documentation.
+#[must_use]
+pub(crate) fn documentation_of(raw: &str) -> languages::Flag {
     if raw.starts_with(DOC_OPEN) && raw != EMPTY_BLOCK {
         languages::Flag::Raised
     } else {
@@ -92,22 +98,32 @@ pub(crate) fn documentation(tree: &Tree<'_>, at: languages::Position) -> languag
 /// size. A Number's digits are its spelling without `_` and leading zeros, copied to the stack: a `0x`, `0o` or `0b` prefix in
 /// lower case and the digits after it, a legacy octal `017` as `0o17`, or else the decimal digits before the exponent.
 #[must_use]
-pub(crate) fn exactness(tree: &Tree<'_>, at: languages::Position) -> languages::Flag {
-    if languages::property_at(tree.elements, at, NUMERIC_KIND).map(|kind| kind.0)
-        != Some(FLOAT_NUMBER)
-    {
+pub(crate) fn exactness(tree: &impl Syntax, at: languages::Position) -> languages::Flag {
+    exactness_of(
+        tree.property_of(at, NUMERIC_KIND),
+        tree.property_of(at, NUMERIC_VALUE),
+        written(tree, at).0,
+    )
+}
+
+/// Whether a numeric literal written as `raw`, of the parser's `kind` and `value`, writes digits its value gives back.
+#[must_use]
+pub(crate) fn exactness_of(
+    kind: Option<languages::NameText<'_>>,
+    value: Option<languages::NameText<'_>>,
+    raw: &str,
+) -> languages::Flag {
+    if kind.map(|kind| kind.0) != Some(FLOAT_NUMBER) {
         return languages::Flag::Raised;
     }
-    let Some(value) = languages::property_at(tree.elements, at, NUMERIC_VALUE).and_then(|value| {
-        match value.0.parse::<f64>() {
-            Ok(parsed) => Some(parsed),
-            Err(_) => None,
-        }
+    let Some(value) = value.and_then(|value| match value.0.parse::<f64>() {
+        Ok(parsed) => Some(parsed),
+        Err(_) => None,
     }) else {
         // a Number without its decoded value has no digits to give back
         return languages::Flag::Lowered;
     };
-    let raw = written(tree, at).0.as_bytes();
+    let raw = raw.as_bytes();
     let (prefix, rest) = match raw {
         [
             b'0',
@@ -150,7 +166,7 @@ pub(crate) fn exactness(tree: &Tree<'_>, at: languages::Position) -> languages::
 /// How the parameter at `at` takes its argument: a rest element takes the arguments left over, a `this` parameter types the
 /// receiver, and every other is positional.
 #[must_use]
-pub(crate) fn parameter_kind(tree: &Tree<'_>, at: languages::Position) -> languages::ParameterKind {
+pub(crate) fn parameter_kind(tree: &impl Syntax, at: languages::Position) -> languages::ParameterKind {
     match kind(tree, at) {
         Kind::Node(Node::RestElement) => languages::ParameterKind::VariadicPositional,
         Kind::Node(Node::Identifier)
@@ -174,11 +190,11 @@ pub(crate) fn parameter_kind(tree: &Tree<'_>, at: languages::Position) -> langua
 /// The offset a property of the element at `at` holds, in decimal, when it holds one.
 #[must_use]
 pub(crate) fn offset(
-    tree: &Tree<'_>,
+    tree: &impl Syntax,
     at: languages::Position,
     property: languages::PropertyId,
 ) -> Option<languages::Offset> {
-    let Ok(offset) = languages::property_at(tree.elements, at, property)?
+    let Ok(offset) = tree.property_of(at, property)?
         .0
         .parse()
     else {

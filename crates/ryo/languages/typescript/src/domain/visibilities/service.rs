@@ -7,10 +7,11 @@ use crate::domain::names::service::{declared, nodes, text};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::{service::kind, types::Kind};
 use crate::domain::tokens::types::Token;
-use ryo::languages::{self, Position, Span, Symbol, Symbols, Tree};
+use crate::domain::syntax::reading::{Interner, Syntax};
+use ryo::languages::{self, Position, Span, Symbol};
 
 /// Whether the node at `at` has a `defines` row of its own.
-fn defined(tree: &Tree<'_>, at: Position) -> Declaring {
+fn defined(tree: &impl Syntax, at: Position) -> Declaring {
     if declared(tree, at).next().is_some() {
         Declaring::Declares
     } else {
@@ -19,7 +20,7 @@ fn defined(tree: &Tree<'_>, at: Position) -> Declaring {
 }
 
 /// Whether the node at `at` is a declaration an export can hold, with a `defines` row of its own.
-fn declaration(tree: &Tree<'_>, at: Position) -> Declaring {
+fn declaration(tree: &impl Syntax, at: Position) -> Declaring {
     let declaration = matches!(
         kind(tree, at),
         Kind::Node(
@@ -40,7 +41,7 @@ fn declaration(tree: &Tree<'_>, at: Position) -> Declaring {
 }
 
 /// The declarations an export holds, each by its own node: the declarators of a variable declaration, or the one declaration.
-fn exported<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Position> + 'a {
+fn exported<'a>(tree: &'a impl Syntax, at: Position) -> impl Iterator<Item = Position> + 'a {
     let held = nodes(tree, at).find(|child| kind(tree, *child) != Kind::Node(Node::Decorator));
     let variables = held.filter(|each| kind(tree, *each) == Kind::Node(Node::VariableDeclaration));
     let own =
@@ -56,7 +57,7 @@ fn exported<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Positi
 
 /// The keyword tokens of the node at `at` that write its visibility: those before its declaration for an export, the accessibility of a
 /// class member.
-fn keywords<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Position> + 'a {
+fn keywords<'a>(tree: &'a impl Syntax, at: Position) -> impl Iterator<Item = Position> + 'a {
     let export = matches!(
         kind(tree, at),
         Kind::Node(Node::ExportNamedDeclaration | Node::ExportDefaultDeclaration)
@@ -64,13 +65,13 @@ fn keywords<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Positi
     let held = nodes(tree, at)
         .find(|child| kind(tree, *child) != Kind::Node(Node::Decorator))
         .map_or_else(
-            || languages::end_at(tree.elements, at),
-            |child| languages::start_at(tree.elements, child),
+            || tree.end_of(at),
+            |child| tree.start_of(child),
         );
-    languages::children(tree.elements, at).filter(move |child| {
+    tree.children_of(at).filter(move |child| {
         kind(tree, *child) == Kind::Token(Token::Keyword)
             && if export {
-                languages::end_at(tree.elements, *child) <= held
+                tree.end_of(*child) <= held
             } else {
                 ACCESSIBILITIES.contains(&text(tree, *child).0)
             }
@@ -78,7 +79,7 @@ fn keywords<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Positi
 }
 
 /// The visibilities the node at `at` writes, one for each declaration it is written on.
-pub(crate) fn visible<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Visible> + 'a {
+pub(crate) fn visible<'a>(tree: &'a impl Syntax, at: Position) -> impl Iterator<Item = Visible> + 'a {
     let first = keywords(tree, at).next();
     let last = keywords(tree, at).last();
     let export = matches!(
@@ -97,8 +98,8 @@ pub(crate) fn visible<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Ite
             holder: at,
             occurrence: opening,
             declaration,
-            from: languages::start_at(tree.elements, opening),
-            to: languages::end_at(tree.elements, closing),
+            from: tree.start_of(opening),
+            to: tree.end_of(closing),
         })
     })
 }
@@ -112,18 +113,13 @@ pub(crate) fn span(visible: &Visible) -> Span {
 }
 
 /// A visibility as written, its keywords one space apart.
-pub(crate) fn written(tree: &Tree<'_>, symbols: &mut Symbols, visible: &Visible) -> Symbol {
-    let begun = languages::begin_name(symbols);
+pub(crate) fn written(tree: &impl Syntax, symbols: &mut impl Interner, visible: &Visible) -> Symbol {
+    let begun = symbols.begin_name();
     for (place, keyword) in keywords(tree, visible.holder).enumerate() {
         if place > 0 {
-            languages::push_text(symbols, languages::NameText(SPACE));
+            symbols.push_text(languages::NameText(SPACE));
         }
-        languages::push_span(
-            symbols,
-            tree.source,
-            languages::start_at(tree.elements, keyword),
-            languages::end_at(tree.elements, keyword),
-        );
+        symbols.push_span(tree.bytes(), tree.start_of(keyword), tree.end_of(keyword));
     }
-    languages::end_name(symbols, tree.source, begun)
+    symbols.end_name(tree.bytes(), begun)
 }

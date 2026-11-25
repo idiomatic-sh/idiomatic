@@ -7,12 +7,13 @@ use crate::domain::syntax::{
     service::{kind, parent},
     types::Kind,
 };
-use ryo::languages::{self, Position, Tree};
+use crate::domain::syntax::reading::Syntax;
+use ryo::languages::{self, Position};
 
 /// The one name the type reference at `at` writes: a reference to an identifier, with no qualifier before it. The identifier is the
 /// first node of the reference.
 #[must_use]
-pub(crate) fn plain_type_name(tree: &Tree<'_>, at: Position) -> Option<Position> {
+pub(crate) fn plain_type_name(tree: &impl Syntax, at: Position) -> Option<Position> {
     if kind(tree, at) != Kind::Node(Node::TSTypeReference) {
         return None;
     }
@@ -23,7 +24,7 @@ pub(crate) fn plain_type_name(tree: &Tree<'_>, at: Position) -> Option<Position>
 
 /// What holds the element at `at`: the nearest class, interface, type alias, enum, function or method it is written in, else the file.
 #[must_use]
-pub(crate) fn holder(tree: &Tree<'_>, at: Position) -> languages::NodeId {
+pub(crate) fn holder(tree: &impl Syntax, at: Position) -> languages::NodeId {
     let mut above = at;
     while parent(tree, above) != above {
         above = parent(tree, above);
@@ -38,8 +39,8 @@ pub(crate) fn holder(tree: &Tree<'_>, at: Position) -> languages::NodeId {
                     | Node::MethodDefinition
             )
         ) {
-            return languages::node_id(tree.file, above);
+            return languages::node_id(tree.file_number(), above);
         }
     }
-    languages::node_id(tree.file, above)
+    languages::node_id(tree.file_number(), above)
 }
