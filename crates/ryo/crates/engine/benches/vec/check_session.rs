@@ -848,6 +848,8 @@ pub(crate) fn visit<L: FileSource>(
     #[derive(Default)]
     struct FileDemand {
         named: Vec<&'static source::FileRelation>,
+        rejected_named: Vec<&'static source::FileRelation>,
+        rejected_facts: FactMask,
         closed: bool,
         facts: FactMask,
         executable: bool,
@@ -940,13 +942,19 @@ pub(crate) fn visit<L: FileSource>(
             let demand = || {
                 let mut demand = FileDemand::default();
                 let mut named = BTreeMap::new();
+                let mut rejected_named = BTreeMap::new();
                 for (binding, _) in jobs.iter() {
                     match &bound[&binding] {
                         Ok(b) => {
                             demand.has_plan = true;
                             demand.closed |= cut_of[binding].is_some();
-                            if scoped.is_some() {
-                                for &schema in &b.named { named.insert(schema.name, schema); }
+                            let accepted_only = programs[program_of[binding]].as_ref().is_ok_and(|p| p.accepted_only);
+                            for &schema in &b.named {
+                                named.insert(schema.name, schema);
+                                if !accepted_only { rejected_named.insert(schema.name, schema); }
+                            }
+                            if !accepted_only {
+                                for (word, bits) in demand.rejected_facts.iter_mut().zip(b.fact_mask) { *word |= bits; }
                             }
                             demand.executable |= b.executable;
                             demand.native |= !b.named.is_empty() || programs[program_of[binding]].as_ref().is_ok_and(|p| p.renders);
@@ -958,6 +966,7 @@ pub(crate) fn visit<L: FileSource>(
                     }
                 }
                 demand.named = named.into_values().collect();
+                demand.rejected_named = rejected_named.into_values().collect();
                 demand
             };
             let temporary;
@@ -1125,11 +1134,12 @@ pub(crate) fn visit<L: FileSource>(
             }
             use ryo_execution_domain::domain::coverage::service::partial_of;
             let recovery = coverage.or(held.recovery).unwrap_or_else(|| L::recovery(&elements));
+            let rejected = l::node_table::acceptance_of(tree) == l::SyntaxAcceptance::Rejected;
             let mut active = Vec::new();
             for (binding, slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
                 if programs[program_of[binding]].as_ref().is_ok_and(|p| p.accepted_only)
-                    && l::node_table::acceptance_of(tree) == l::SyntaxAcceptance::Rejected
+                    && rejected
                 {
                     if let Some(cut) = &cut_of[binding] {
                         let b = bound[&binding].as_mut().unwrap();
@@ -1178,11 +1188,9 @@ pub(crate) fn visit<L: FileSource>(
             }
             clocks.screen += thread_cpu() - t;
             let t = thread_cpu();
-            let mut required = FactMask::default();
-            for (binding, _, _) in &active {
-                for (word, bits) in required.iter_mut().zip(bound[binding].as_ref().unwrap().fact_mask) { *word |= bits; }
-            }
-            requested_facts(required, &mut facts);
+            // The content screen above only retires programs with no provider dependencies.
+            // Syntax acceptance selects the remaining dependency set for this admission.
+            requested_facts(if rejected { demand.rejected_facts } else { demand.facts }, &mut facts);
             packet.clear();
             if keep {
                 std::mem::swap(&mut held.facts, &mut packet.rows);
@@ -1310,21 +1318,15 @@ pub(crate) fn visit<L: FileSource>(
             let mut named_errors = BTreeMap::new();
             let mut named_partials = BTreeMap::new();
             if needs_native && let Some(parser) = parser {
-                let mut demanded = BTreeMap::new();
-                for (binding, _, _) in &active {
-                    for &schema in &bound[binding].as_ref().unwrap().named {
-                        demanded.insert(schema.name, schema);
-                    }
-                }
-                if !demanded.is_empty() {
-                    let schemas: Vec<_> = demanded.into_values().collect();
+                let schemas = if rejected { &demand.rejected_named } else { &demand.named };
+                if !schemas.is_empty() {
                     let named_start = thread_cpu();
                     clocks.named_counts[0] += 1;
                     let answers = if let Some(supplier) = scoped_facts.as_deref_mut() {
-                        supplier.named(&schemas, scoped_symbols.as_deref_mut().expect("scoped dictionary"))
+                        supplier.named(schemas, scoped_symbols.as_deref_mut().expect("scoped dictionary"))
                             .into_iter().map(|result| result.map_err(|e| e.to_string())).collect()
                     } else {
-                        parser.named_rows(&schemas, request, elements, tree, symbols, source.environment.as_deref().map(|e| e as &dyn l::FileProject))
+                        parser.named_rows(schemas, request, elements, tree, symbols, source.environment.as_deref().map(|e| e as &dyn l::FileProject))
                     };
                     if answers.len() != schemas.len() {
                         for schema in schemas {
