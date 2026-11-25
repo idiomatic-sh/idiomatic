@@ -260,7 +260,7 @@ pub(super) fn run(
                         Inputs::Ready { carried, incomplete, unknowns, skipped } => {
                             let evaluated = finish::operators::enter(usize::MAX - 1, 0);
                             let rows = execute_ids(&mut exec, &mut run, numbers[job.inventory_key].as_deref().expect("closed inventory assigned"), &carried,
-                                job.inventory, job.files, job.hosted, p, &incomplete, None);
+                                job.inventory, job.files, job.hosted, p, &incomplete);
                             if let Some(start) = evaluated {
                                 finish::operators::leave(start, "closed-execute", rows.as_ref().map_or(0, Vec::len), true);
                             }

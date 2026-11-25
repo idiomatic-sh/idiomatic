@@ -131,7 +131,6 @@ fn execute_ids(
     hosted: &[Hosted],
     project: Option<&crate::check_session::project::Population>,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
-    memo: Option<(&mut finish::session::reuse::Reuse, [usize; 3])>,
 ) -> Result<Vec<finish::answer::Row>, String> {
     let number = |p: &str| {
         inventory
@@ -166,6 +165,5 @@ fn execute_ids(
         |file| subject_files.contains(&file),
         carried,
         incomplete,
-        memo,
     )
 }

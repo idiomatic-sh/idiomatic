@@ -99,7 +99,6 @@ struct Admission {
 struct Batch {
     patterns: finish::Patterns,
     file_catalog: session::named::Catalog,
-    closed_reuse: [usize; 5],
     workers: Option<std::num::NonZeroUsize>,
     schedule: session::Schedule,
     program_of: Vec<usize>,
@@ -762,11 +761,9 @@ impl Batch {
             return;
         }
         let mut coordinates = HashMap::new();
-        let mut reused = [0; 3];
         for ((rule, _), requests) in groups {
             let plan = &self.schedule.programs[rule].as_ref().unwrap().plan;
             let mut exec = finish::Exec::new(plan);
-            let mut operators = finish::session::reuse::Reuse::new(requests.len());
             let mut evaluated = readers::Evaluated::default();
             for i in requests {
                 let Work::Closed {
@@ -818,7 +815,6 @@ impl Batch {
                         &self.bindings[*binding],
                         p,
                         &incomplete,
-                        skipped.is_empty().then_some((&mut operators, scope)),
                     );
                     if let Some(start) = evaluating {
                         finish::operators::leave(start, "closed-execute", rows.as_ref().map_or(0, Vec::len), true);
@@ -855,15 +851,6 @@ impl Batch {
                 }
                 self.work[i] = Work::Project(answer);
             }
-            reused[0] += operators.empty_emits;
-            reused[1] += evaluated.hits;
-            reused[2] += operators.restored;
-        }
-        let (posting, capture) = finish::session::reuse::take_counts();
-        for (count, additional) in self.closed_reuse.iter_mut().zip([
-            reused[0], reused[1], reused[2], posting, capture,
-        ]) {
-            *count += additional;
         }
         self.clocks.project_number_wall += readers.number_wall;
         self.clocks.project_numbered += readers.numbered;

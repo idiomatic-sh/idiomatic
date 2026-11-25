@@ -211,15 +211,11 @@ pub(super) fn write(
         let ways = if project {
             use std::collections::hash_map::Entry;
             match by_path.entry(word) {
-                Entry::Occupied(entry) => {
-                    if !file { super::session::reuse::capture(); }
-                    entry.into_mut()
-                }
+                Entry::Occupied(entry) => entry.into_mut(),
                 Entry::Vacant(entry) => entry.insert(captured(run, text, pattern, separator, columns, &mut slots)),
             }
         } else {
             if recent[1].as_ref().is_some_and(|(subject,_)| *subject == word) {
-                super::session::reuse::capture();
                 recent.swap(0, 1);
             } else {
                 let ways = captured(run, text, pattern, separator, columns, &mut slots);

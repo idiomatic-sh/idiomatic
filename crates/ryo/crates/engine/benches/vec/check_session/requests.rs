@@ -248,7 +248,6 @@ mod tests {
 pub(super) struct Evaluated {
     entries: HashMap<[usize; 3], Vec<Evaluation>>,
     cells: usize,
-    pub(super) hits: usize,
 }
 
 struct Evaluation {
@@ -272,7 +271,6 @@ impl Evaluated {
                     slot == other && a.same_rows(b)
                 })
         })?;
-        self.hits += 1;
         Some(match_.answer.clone())
     }
 

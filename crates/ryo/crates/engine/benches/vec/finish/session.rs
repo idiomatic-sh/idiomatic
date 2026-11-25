@@ -5,8 +5,6 @@ pub(in super::super) mod certificate;
 pub(in super::super) mod demand;
 #[path = "session/contribution.rs"]
 pub(in super::super) mod contribution;
-#[path = "session/reuse.rs"]
-pub(in super::super) mod reuse;
 use super::population::Inputs;
 use super::{E, Exec, File, FileVersion, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};
 use std::{collections::BTreeMap, rc::Rc};
@@ -42,7 +40,6 @@ pub(in super::super) fn evaluate_covered(
     admit_file_subject: impl Fn(u32) -> bool,
     carried: &Inputs,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
-    mut memo: Option<(&mut reuse::Reuse, [usize; 3])>,
 ) -> R<Vec<answer::Row>> {
     let plan = exec.plan;
     let setting_up = super::operators::enter(usize::MAX - 10, 0);
@@ -158,7 +155,6 @@ pub(in super::super) fn evaluate_covered(
 
     let complete = incomplete.is_empty();
     let mut zero = vec![false; plan.nodes.len()];
-    let mut deps = if complete && memo.as_ref().is_some_and(|(state, _)| state.enabled) { vec![reuse::VARIABLE; plan.nodes.len()] } else { Vec::new() };
     for (i, step) in plan.nodes.iter().enumerate() {
         if let Some(input) = carried.get(&i) {
             zero[i] = input.n == 0;
@@ -197,32 +193,9 @@ pub(in super::super) fn evaluate_covered(
         }
         if complete {
             zero[i] = exec.run_memo[i].as_ref().map_or_else(
-                || reuse::empty(step, &zero),
+                || empty(step, &zero),
                 |table| table.n == 0,
             );
-            if !deps.is_empty() {
-                let mask = match step.base() {
-                    Some("filesystem.file") => reuse::INVENTORY,
-                    Some(name) if matches!(run.supplier(name), super::Supplier::Host) => reuse::HOST | reuse::INVENTORY,
-                    Some(_) => reuse::VARIABLE,
-                    None => step.inputs.iter().fold(0, |mask, &j| mask | (deps[j] & !reuse::RESTORED)),
-                };
-                deps[i] = mask;
-                if step.op() != "base" && !zero[i]
-                    && mask & reuse::VARIABLE == 0
-                    && let Some((memo, scope)) = memo.as_mut()
-                {
-                    let hit = memo.get(i, mask, *scope);
-                    if let Some(start) = super::operators::enter(usize::MAX - 2, 0) {
-                        super::operators::leave(start, if hit.is_some() { "memo-hit" } else { "memo-miss" }, 0, true);
-                    }
-                    if let Some(table) = hit {
-                        zero[i] = table.n == 0;
-                        exec.run_memo[i] = Some(table);
-                        deps[i] |= reuse::RESTORED;
-                    }
-                }
-            }
         }
     }
     if complete && !checked {
@@ -241,9 +214,7 @@ pub(in super::super) fn evaluate_covered(
     // A supplied population is a materialized input, including for keyed and closure
     // kernels, which consult the frame before deciding to visit an input's children.
     for (node, table) in exec.run_memo.iter().enumerate() {
-        if let Some(table) = table
-            && deps.get(node).is_none_or(|d| d & reuse::RESTORED == 0)
-        {
+        if let Some(table) = table {
             frame.remember(node, super::Res::Tab(Rc::clone(table)));
         }
     }
@@ -257,7 +228,6 @@ pub(in super::super) fn evaluate_covered(
     let mut rows = Vec::new();
     for (emit, (rule, node, subject, keys)) in plan.emits.iter().enumerate() {
         let t = if complete && zero[*node] && frame.memo[*node].is_none() {
-            if let Some((memo, _)) = memo.as_mut() { memo.empty_emits += 1; }
             exec.empty_rc(run, *node)?
         } else {
             exec.eval(&mut frame, run, provider, *node)?
@@ -277,9 +247,6 @@ pub(in super::super) fn evaluate_covered(
     }
     if let Some(start) = publishing {
         super::operators::leave(start, "cover-publish", rows.len(), true);
-    }
-    if let Some((memo, scope)) = memo {
-        memo.remember(&deps, scope, &frame.memo);
     }
     Ok(rows)
 }
@@ -620,4 +587,20 @@ pub(in super::super) fn gather(
         }
     }
     Ok(result)
+}
+
+/// Whether a step is empty for sure because an input it needs is.
+fn empty(step: &super::PNode, zero: &[bool]) -> bool {
+    let input = |arg| step.relation_input(arg).is_some_and(|i| zero[i]);
+    match step.op() {
+        "union" => !step.inputs.is_empty() && step.inputs.iter().all(|&i| zero[i]),
+        "antijoin" | "difference" => input("left"),
+        "axis" => input("from"),
+        "select" | "intersection" => step.inputs.iter().any(|&i| zero[i]),
+        "project" | "extend" | "capture" | "words" | "group-count" | "group-digest"
+        | "closure" | "cycles" | "rank" | "span-bounds" => {
+            step.inputs.len() == 1 && zero[step.inputs[0]]
+        }
+        _ => false,
+    }
 }

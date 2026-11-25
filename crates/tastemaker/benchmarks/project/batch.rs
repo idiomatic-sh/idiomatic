@@ -290,8 +290,6 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         "PROJECT_POPULATIONS inventories={} builds={} relations={} repeated_relations={}",
         session.projects.len(), session.populations_built, session.relations_built, session.relations_rebuilt,
     );
-    let [empty, eval, operators, posting, capture] = session.closed_reuse;
-    eprintln!("CLOSED_REUSE empty_emits={empty} evaluations={eval} operators={operators} posting_builds={posting} capture_splits={capture}");
     println!("ADMISSION_REPLAY aliased_file_sets={lists} duplicate_path_bytes_removed={path_bytes}");
     let c = &mut session.clocks;
     c.assemble += thread_cpu() - t;

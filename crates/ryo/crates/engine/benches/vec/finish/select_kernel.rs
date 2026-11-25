@@ -1001,7 +1001,6 @@ impl Exec<'_> {
                                 .cloned()
                         } else { None };
                         let ix = if posting.is_some() {
-                            super::session::reuse::posting();
                             None
                         } else if fresh && !sw!("VEC_KSEL_INDEX") {
                             let pairs = &mut b.pairs;
