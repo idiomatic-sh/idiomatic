@@ -2,7 +2,6 @@
 //! parent held in plain slices instead of over a finished tree. The writer already holds the whole tree of pieces when it writes, so
 //! every sibling, before or after, is known when a child is entered.
 
-#![cfg_attr(not(test), allow(dead_code, reason = "the walk is linked when step 0 of the ports lands; its tests read it until then"))]
 
 mod holding;
 mod placing;

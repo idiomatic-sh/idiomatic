@@ -58,7 +58,40 @@ pub fn linked() -> ryo::languages::Language {
             Arc::new(postcard()),
         )),
         project: Arc::new(ProjectContract::new(project_adapters, Arc::new(postcard()))),
+        walk: Arc::new(walk()),
     )
+}
+
+/// The typescript language's walk for the engine, composed over its parser and its embedded adapters: what an edge that runs the
+/// engine links to walk typescript and javascript files into the engine's node table and fill its relations.
+///
+/// # Examples
+///
+/// ```
+/// use ryo::languages::Walk;
+///
+/// fn kinds<W: Walk>(_: &W) -> ryo::languages::Count {
+///     W::KIND_COUNT
+/// }
+/// assert!(kinds(&ryo_typescript::walk()).0 > 0);
+/// ```
+#[must_use]
+pub fn walk() -> impl ryo::languages::Walk {
+    use std::sync::Arc;
+
+    use crate::domain::file_view::types::TypeScriptWalk;
+    use crate::inbound::contracts::walk::contract::WalkPorts;
+    use crate::outbound::syntax::factory::oxc_parser;
+
+    TypeScriptWalk {
+        ports: WalkPorts {
+            syntax: Arc::new(oxc_parser()),
+            embedded: vec![
+                Arc::new(outbound::embedded::factory::vue()),
+                Arc::new(outbound::embedded::factory::svelte()),
+            ],
+        },
+    }
 }
 
 #[cfg(any(test, feature = "fixtures"))]

@@ -2,7 +2,6 @@
 use crate::domain::file_view::service::{node_cell, of_kinds, span_at};
 use crate::domain::file_view::types::TypeScriptWalk;
 use crate::domain::syntax::reading::WordSink;
-use crate::domain::syntax::reading::Syntax as _;
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::names::service as names;
 use crate::domain::nodes::types::Node;

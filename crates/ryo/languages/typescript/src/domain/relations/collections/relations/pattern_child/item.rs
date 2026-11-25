@@ -1,5 +1,5 @@
 //! TypeScript `pattern_child` rows: the edges of the regular-expression patterns the file carries, in pattern order.
-use crate::domain::file_view::service::{node_cell, of_kinds, span_at};
+use crate::domain::file_view::service::{node_cell, of_kinds};
 use crate::domain::file_view::types::TypeScriptWalk;
 use crate::domain::syntax::reading::WordSink;
 use crate::domain::syntax::reading::Syntax as _;

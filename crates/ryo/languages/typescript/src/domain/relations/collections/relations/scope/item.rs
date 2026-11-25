@@ -1,7 +1,6 @@
 //! TypeScript scope rows from its standard syntax tree.
 use crate::domain::file_view::service::{node_cell, of_kinds, span_at};
 use crate::domain::file_view::types::TypeScriptWalk;
-use crate::domain::syntax::reading::WordSink;
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service as scopes;

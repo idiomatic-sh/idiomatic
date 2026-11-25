@@ -1,8 +1,6 @@
 //! TypeScript `flow_block` rows: the basic blocks of the file's control flow graphs, numbered from zero, as the read kept them from `oxc_semantic`'s graph.
 
-use crate::domain::file_view::service::node_cell;
 use crate::domain::file_view::types::TypeScriptWalk;
-use crate::domain::syntax::reading::WordSink;
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_bits;

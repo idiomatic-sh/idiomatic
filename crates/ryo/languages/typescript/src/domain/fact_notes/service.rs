@@ -2,7 +2,7 @@
 //! imports when the parse reads it, for the project of the same run to read.
 
 use crate::domain::syntax::reading::Syntax;
-use ryo::languages::{self, Position, Tree};
+use ryo::languages::{self, Position};
 
 use super::types::{ImportNote, ImportSpelling, Note, Specifier};
 use crate::domain::names::constants::REQUIRE;
@@ -14,8 +14,8 @@ use crate::domain::tokens::types::Token;
 
 /// The notes of the file whose tree is `tree`: each module it imports by a string, in source order.
 #[must_use]
-pub(crate) fn noted(tree: &Tree<'_>) -> Note {
-    let imports = languages::positions(tree.elements)
+pub(crate) fn noted(tree: &impl Syntax) -> Note {
+    let imports = tree.positions()
         .filter_map(|at| import_of(tree, at))
         .collect();
     Note { imports }

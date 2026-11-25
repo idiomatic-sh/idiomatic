@@ -6,7 +6,7 @@ use crate::domain::names::service::nodes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::{service::kind, types::Kind};
 use crate::domain::syntax::reading::{Interner, Syntax};
-use ryo::languages::{self, ByteSlice, Offset, Position, Symbol, Symbols, Tree};
+use ryo::languages::{ByteSlice, Offset, Position, Symbol};
 /// The arguments the decorator at `at` passes, as written between the parentheses of its call, or nothing when it is no call.
 pub(crate) fn arguments(tree: &impl Syntax, symbols: &mut impl Interner, at: Position) -> Symbol {
     let call = nodes(tree, at).find(|child| kind(tree, *child) == Kind::Node(Node::CallExpression));

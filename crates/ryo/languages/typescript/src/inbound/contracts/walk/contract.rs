@@ -60,6 +60,46 @@ impl Walk for TypeScriptWalk<WalkPorts> {
 
     const KIND_COUNT: Count = Count(Node::COUNT + Token::COUNT + Extra::COUNT + PatternNode::COUNT);
 
+    fn recognizes(&self, path: ryo::languages::SourcePath<'_>, explicit: bool) -> Recognition {
+        // The language does not claim a file it was only explicitly asked for. A file of another format is read when an embedded
+        // adapter claims it; whether it carries a block of script is found when the file is walked.
+        if explicit {
+            return Recognition::Declines;
+        }
+        if reads(path) == Recognition::Reads
+            || self.ports.embedded.iter().any(|adapter| adapter.claims(path) == Recognition::Reads)
+        {
+            Recognition::Reads
+        } else {
+            Recognition::Declines
+        }
+    }
+
+    fn skips(&self) -> &'static [ryo::languages::SkippedDirectory] {
+        crate::domain::language::constants::SKIPS
+    }
+
+    fn configuration_identity(&self) -> ryo::languages::ParseConfigurationIdentity<'_> {
+        ryo::languages::ParseConfigurationIdentity(crate::domain::syntax::constants::NO_CONFIGURATION)
+    }
+
+    fn capabilities(&self) -> &'static [ryo::languages::OptionalCapability] {
+        &[]
+    }
+
+    fn unknown_reasons(&self) -> &'static [ryo::languages::UnknownName] {
+        crate::domain::language::constants::UNKNOWN_REASONS
+    }
+
+    fn includes_expansions(&self, relation: Relation) -> bool {
+        // The patterns a file carries are embedded segments of its table, and the relations over every element cover them.
+        matches!(relation, Relation::SourceLocation | Relation::PatternSyntax | Relation::PatternChild)
+    }
+
+    fn source_words(&self) -> Option<ryo::languages::SourceWords> {
+        Some(ryo::languages::SourceWords { identifier: oxc_syntax::identifier::is_identifier_name, columns: &[] })
+    }
+
     fn walk(
         &self,
         request: WalkRequest<'_>,

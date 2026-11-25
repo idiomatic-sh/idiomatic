@@ -6,7 +6,7 @@ use crate::domain::fields::service::{field_name, fields};
 use crate::domain::file_view::types::{TypeScriptFile, TypeScriptWalk};
 use crate::domain::syntax::service::{kind_name, kinds};
 use ryo::languages::{
-    self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames, NameText, RenderOutcome, RenderRequest,
+    self, AbsenceCause, ByteSlice, Bytes, CatalogRelation, FieldNames, FileCompleteness, FileWords, KindBits, NodeTable, SyntaxCompleteness, node_table, Fill, Fillers, FixedNames, NameText, RenderOutcome, RenderRequest,
     Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
 };
 
@@ -40,6 +40,117 @@ macro_rules! absent {
                 Fill::Absent(AbsenceCause::$cause)
             }
         )*
+    };
+}
+
+/// The relations TypeScript does not fill, with the cause: the one list, handed to the macro that makes the fillers of them and to
+/// the one that makes the static answer.
+macro_rules! each_absent {
+    ($callback:ident) => {
+        $callback! {
+            binding_event: BindingEvent => NotYetRead;
+            binding_resolution: BindingResolution => NotYetRead;
+            brace_format_field: BraceFormatField => NotYetRead;
+            brace_format_parse: BraceFormatParse => NotYetRead;
+            bytes_literal: BytesLiteral => NotYetRead;
+            embedded_expression: EmbeddedExpression => NotYetRead;
+            format_field: FormatField => NotYetRead;
+            format_parse: FormatParse => NotYetRead;
+            format_specification: FormatSpecification => NotYetRead;
+            function_terminal: FunctionTerminal => NotYetRead;
+            identifier: Identifier => NotYetRead;
+            implicit_symbol: ImplicitSymbol => NotYetRead;
+            indent_region: IndentRegion => NoSuchConstruct;
+            interpolated_string_literal: InterpolatedStringLiteral => NotYetRead;
+            language_target: LanguageTarget => NotYetRead;
+            literal_expression_parse: LiteralExpressionParse => NotYetRead;
+            literal_properties: LiteralProperties => NotYetRead;
+            qualified_name: QualifiedName => NotYetRead;
+            raw_format_field: RawFormatField => NotYetRead;
+            standard_library_import: StandardLibraryImport => NotYetRead;
+            binding_shadow: BindingShadow => NotYetRead;
+            constant_key: ConstantKey => NotYetRead;
+            expression_type: ExpressionType => NotYetRead;
+            lookup_scope: LookupScope => NotYetRead;
+            raw_format_segment: RawFormatSegment => NotYetRead;
+            token_link: TokenLink => NotYetRead;
+            analyzed_source: AnalyzedSource => NotYetRead;
+            attribute_path: AttributePath => NoSuchConstruct;
+            entry: Entry => NotAKeyedDocument;
+            file_package: FilePackage => NotYetRead;
+            filesystem_executable: FilesystemExecutable => NotYetRead;
+            filesystem_file: FilesystemFile => NotYetRead;
+            filesystem_line_count: FilesystemLineCount => NotYetRead;
+            filesystem_read_failure: FilesystemReadFailure => NotYetRead;
+            manifest_diagnostic: ManifestDiagnostic => NotYetRead;
+            mapping: Mapping => NotAKeyedDocument;
+            mention: Mention => NoSuchConstruct;
+            module_identity: ModuleIdentity => NotYetRead;
+            package_dependency: PackageDependency => NotYetRead;
+            project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
+            prose: Prose => NotADocument;
+            sequence_element: SequenceElement => NotAKeyedDocument;
+            source_dependency: SourceDependency => NotYetRead;
+            workspace_member: WorkspaceMember => NotYetRead;
+        }
+    };
+    ($callback:ident, $asked:ident) => {
+        $callback!($asked;
+            binding_event: BindingEvent => NotYetRead;
+            binding_resolution: BindingResolution => NotYetRead;
+            brace_format_field: BraceFormatField => NotYetRead;
+            brace_format_parse: BraceFormatParse => NotYetRead;
+            bytes_literal: BytesLiteral => NotYetRead;
+            embedded_expression: EmbeddedExpression => NotYetRead;
+            format_field: FormatField => NotYetRead;
+            format_parse: FormatParse => NotYetRead;
+            format_specification: FormatSpecification => NotYetRead;
+            function_terminal: FunctionTerminal => NotYetRead;
+            identifier: Identifier => NotYetRead;
+            implicit_symbol: ImplicitSymbol => NotYetRead;
+            indent_region: IndentRegion => NoSuchConstruct;
+            interpolated_string_literal: InterpolatedStringLiteral => NotYetRead;
+            language_target: LanguageTarget => NotYetRead;
+            literal_expression_parse: LiteralExpressionParse => NotYetRead;
+            literal_properties: LiteralProperties => NotYetRead;
+            qualified_name: QualifiedName => NotYetRead;
+            raw_format_field: RawFormatField => NotYetRead;
+            standard_library_import: StandardLibraryImport => NotYetRead;
+            binding_shadow: BindingShadow => NotYetRead;
+            constant_key: ConstantKey => NotYetRead;
+            expression_type: ExpressionType => NotYetRead;
+            lookup_scope: LookupScope => NotYetRead;
+            raw_format_segment: RawFormatSegment => NotYetRead;
+            token_link: TokenLink => NotYetRead;
+            analyzed_source: AnalyzedSource => NotYetRead;
+            attribute_path: AttributePath => NoSuchConstruct;
+            entry: Entry => NotAKeyedDocument;
+            file_package: FilePackage => NotYetRead;
+            filesystem_executable: FilesystemExecutable => NotYetRead;
+            filesystem_file: FilesystemFile => NotYetRead;
+            filesystem_line_count: FilesystemLineCount => NotYetRead;
+            filesystem_read_failure: FilesystemReadFailure => NotYetRead;
+            manifest_diagnostic: ManifestDiagnostic => NotYetRead;
+            mapping: Mapping => NotAKeyedDocument;
+            mention: Mention => NoSuchConstruct;
+            module_identity: ModuleIdentity => NotYetRead;
+            package_dependency: PackageDependency => NotYetRead;
+            project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
+            prose: Prose => NotADocument;
+            sequence_element: SequenceElement => NotAKeyedDocument;
+            source_dependency: SourceDependency => NotYetRead;
+            workspace_member: WorkspaceMember => NotYetRead;
+        )
+    };
+}
+
+/// The static answer of the absent relations: the cause, when `relation` is one of them.
+macro_rules! absent_arms {
+    ($asked:ident; $( $module:ident: $relation:ident => $cause:ident; )*) => {
+        match $asked {
+            $( languages::Relation::$relation => Some(AbsenceCause::$cause), )*
+            _ => None,
+        }
     };
 }
 
@@ -83,52 +194,42 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         source_location: SourceLocation => super::source_location::SourceLocationItem;
     }
 
-    absent! {
-        binding_event: BindingEvent => NotYetRead;
-        binding_resolution: BindingResolution => NotYetRead;
-        brace_format_field: BraceFormatField => NotYetRead;
-        brace_format_parse: BraceFormatParse => NotYetRead;
-        bytes_literal: BytesLiteral => NotYetRead;
-        embedded_expression: EmbeddedExpression => NotYetRead;
-        format_field: FormatField => NotYetRead;
-        format_parse: FormatParse => NotYetRead;
-        format_specification: FormatSpecification => NotYetRead;
-        function_terminal: FunctionTerminal => NotYetRead;
-        identifier: Identifier => NotYetRead;
-        implicit_symbol: ImplicitSymbol => NotYetRead;
-        indent_region: IndentRegion => NoSuchConstruct;
-        interpolated_string_literal: InterpolatedStringLiteral => NotYetRead;
-        language_target: LanguageTarget => NotYetRead;
-        literal_expression_parse: LiteralExpressionParse => NotYetRead;
-        literal_properties: LiteralProperties => NotYetRead;
-        qualified_name: QualifiedName => NotYetRead;
-        raw_format_field: RawFormatField => NotYetRead;
-        standard_library_import: StandardLibraryImport => NotYetRead;
-        binding_shadow: BindingShadow => NotYetRead;
-        constant_key: ConstantKey => NotYetRead;
-        expression_type: ExpressionType => NotYetRead;
-        lookup_scope: LookupScope => NotYetRead;
-        raw_format_segment: RawFormatSegment => NotYetRead;
-        token_link: TokenLink => NotYetRead;
-        analyzed_source: AnalyzedSource => NotYetRead;
-        attribute_path: AttributePath => NoSuchConstruct;
-        entry: Entry => NotAKeyedDocument;
-        file_package: FilePackage => NotYetRead;
-        filesystem_executable: FilesystemExecutable => NotYetRead;
-        filesystem_file: FilesystemFile => NotYetRead;
-        filesystem_line_count: FilesystemLineCount => NotYetRead;
-        filesystem_read_failure: FilesystemReadFailure => NotYetRead;
-        manifest_diagnostic: ManifestDiagnostic => NotYetRead;
-        mapping: Mapping => NotAKeyedDocument;
-        mention: Mention => NoSuchConstruct;
-        module_identity: ModuleIdentity => NotYetRead;
-        package_dependency: PackageDependency => NotYetRead;
-        project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
-        prose: Prose => NotADocument;
-        sequence_element: SequenceElement => NotAKeyedDocument;
-        source_dependency: SourceDependency => NotYetRead;
-        workspace_member: WorkspaceMember => NotYetRead;
+    each_absent!(absent);
+
+    fn absent(relation: languages::Relation) -> Option<AbsenceCause> {
+        use languages::Relation as R;
+        // The manifest and filesystem relations are the project contract's and the host's: the language does not say they are absent.
+        if matches!(
+            relation,
+            R::AnalyzedSource | R::FilePackage | R::FilesystemExecutable | R::FilesystemFile | R::FilesystemLineCount
+                | R::FilesystemReadFailure | R::ManifestDiagnostic | R::ModuleIdentity | R::PackageDependency
+                | R::ProjectNamespaceMembership | R::SourceDependency | R::WorkspaceMember
+        ) {
+            return None;
+        }
+        each_absent!(absent_arms, relation)
     }
+
+    /// The parser reported nothing that lost syntax: the table holds no syntax error.
+    fn completeness(file: &TypeScriptFile<'_>) -> FileCompleteness {
+        let whole = if node_table::syntax_error_count(file.table).0 == 0 { SyntaxCompleteness::Complete } else { SyntaxCompleteness::Incomplete };
+        FileCompleteness { syntax: whole, lexical: whole }
+    }
+
+    /// The syntax was read whole: no relation of the file answers in part.
+    fn fills_are_complete(file: &mut TypeScriptFile<'_>) -> bool {
+        node_table::syntax_error_count(file.table).0 == 0
+    }
+
+    fn notes(file: &mut TypeScriptFile<'_>, _table: &NodeTable, _source: ByteSlice<'_>, out: &mut Bytes) {
+        use crate::outbound::notes::interface::NotesPort as _;
+        crate::outbound::notes::factory::postcard().write(&crate::domain::fact_notes::service::noted(&*file), out);
+    }
+
+    fn spells(kind: KindBits) -> bool {
+        matches!(crate::domain::syntax::service::kind_of(kind), crate::domain::syntax::types::Kind::Token(_))
+    }
+
 
     fn render(_file: &mut TypeScriptFile<'_>, _request: RenderRequest) -> RenderOutcome {
         RenderOutcome::NotApplicable

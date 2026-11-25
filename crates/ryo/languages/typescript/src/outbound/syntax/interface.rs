@@ -13,6 +13,5 @@ pub(crate) trait SyntaxPort: Send + Sync {
 
     /// With `flow`, the control-flow facts are kept for the fillers. Reads typescript text into the numbered node table `builder` writes, each node with its role under its parent. Reading never
     /// fails: a file with errors still gives the nodes that could be read, and what the library said of the rest.
-    #[cfg_attr(not(test), allow(dead_code, reason = "the walk is linked when step 0 of the ports lands"))]
     fn walk(&self, text: SourceText<'_>, dialect: Dialect, builder: &mut NodeTableBuilder<'_>, wants: Wants) -> Walked;
 }

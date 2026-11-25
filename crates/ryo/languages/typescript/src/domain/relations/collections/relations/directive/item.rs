@@ -1,5 +1,5 @@
 //! typescript `directive` rows: the directives of a prologue, by the word between their quotes.
-use crate::domain::file_view::service::{node_cell, of_kinds, span_at};
+use crate::domain::file_view::service::{of_kinds, span_at};
 use crate::domain::file_view::types::TypeScriptWalk;
 use crate::domain::syntax::reading::WordSink;
 use crate::domain::model::types::ReadIndexes;

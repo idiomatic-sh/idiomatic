@@ -5,7 +5,7 @@ use crate::domain::names::service::{identifier, nodes, string, text, unknown};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::{service::kind, types::Kind};
 use crate::domain::syntax::reading::{Interner, Syntax};
-use ryo::languages::{Position, Symbol, Symbols, Tree};
+use ryo::languages::{Position, Symbol};
 
 /// Each imported binding; a side-effect import has one unknown binding.
 pub(crate) fn imports<'a>(tree: &'a impl Syntax, at: Position) -> impl Iterator<Item = Position> + 'a {

@@ -2,7 +2,6 @@
 //! walk contract builds. The projection is the same; what differs is how a table is written and that the numbered table needs each
 //! node's role (its field) when the node is entered.
 
-#![cfg_attr(not(test), allow(dead_code, reason = "the walk is linked when step 0 of the ports lands; its tests read it until then"))]
 
 use super::flow::service::written_flow;
 use super::patterns::service::{written_numbered_patterns, written_patterns};
