@@ -133,7 +133,7 @@ pub(crate) struct Clock {
     pub screen: f64,
     pub bound_proofs: f64,
     pub literal_positions: usize,
-    pub witnesses: [usize; 2],
+    pub witnesses: [usize; 4],
     pub exact_inputs: [usize; 8],
     pub named_counts: [usize; 4],
     pub named_cpu: f64,

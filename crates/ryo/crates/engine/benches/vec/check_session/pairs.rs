@@ -189,7 +189,7 @@ impl Checks {
         unknown: &HashMap<u32, u32>,
         cuts: &[Option<Arc<crate::finish::partition::Partition>>],
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
-        witnesses: &mut [usize; 2],
+        witnesses: &mut [usize; 4],
     ) {
         self.live.fill(false);
         self.selected.fill(0);
@@ -324,9 +324,9 @@ impl Checks {
             if !left_absent && !full_absent {
                 continue;
             }
-            witnesses[0] += 1;
+            witnesses[1] += 1;
             if partials.iter().any(|p| b.facts.contains(&p.relation)) {
-                witnesses[1] += 1;
+                witnesses[2] += 1;
                 continue;
             }
             // As in the former file loop, an absent witness removes the pair.
