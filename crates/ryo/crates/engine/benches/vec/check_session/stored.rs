@@ -893,6 +893,9 @@ impl Store {
     }
 
     pub(super) fn reuse_closed(&mut self, b: &mut Batch, candidates: Vec<PriorClosed>) {
+        let count = candidates.len();
+        let already_reused = self.closed_hits;
+        let started = crate::thread_cpu();
         for prior in candidates {
             let Work::Closed { pairs, project, .. } = &b.work[prior.work] else { continue };
             let Some(current) = self.versions[prior.source] else { continue };
@@ -926,6 +929,11 @@ impl Store {
             self.updated_proofs.insert(prior.work, prior.record);
             self.closed_hits += 1;
         }
+        eprintln!(
+            "retained_closed_proof candidates={count} reused={} cpu={:.6}",
+            self.closed_hits - already_reused,
+            crate::thread_cpu() - started,
+        );
     }
 
     fn same_frontier(&mut self, before: Key, after: Key, binding: Key) -> bool {
