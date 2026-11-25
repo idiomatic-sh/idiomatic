@@ -375,9 +375,14 @@ impl Checks {
 }
 
 fn domain_steps(cut: Option<&crate::finish::partition::Partition>) -> Vec<(usize, usize)> {
+    // A source with one file-local origin step is absent where that step is.
     cut.into_iter().flat_map(|c| c.inputs.iter().enumerate()
         .filter_map(|(i, n)| {
-            c.domains.get(n).map(|&(_, d, _)| (i, d)).or_else(|| c.reach.get(n).map(|r| (i, r.domain)))
+            let nodes = c.domains.get(n).map(|(_, nodes)| nodes).or_else(|| c.reach.get(n))?;
+            let mut steps = Vec::new();
+            nodes.steps(&mut steps);
+            steps.dedup();
+            (steps.len() == 1).then(|| (i, steps[0]))
         })).collect()
 }
 fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partition>) -> Vec<usize> {
