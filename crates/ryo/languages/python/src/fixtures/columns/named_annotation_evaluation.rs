@@ -267,10 +267,14 @@ pub(super) fn rows(
     let mut nearest: Vec<u32> = vec![u32::MAX; n as usize];
     let mut done = vec![false; n as usize];
     for x in 0..n {
-        // the nearest root strictly above x
+        // the nearest root strictly above x: from the parent's answer when it is known, else up the chain
         let mut chain: Vec<u32> = Vec::new();
         let mut at = parent(x);
-        let found = loop {
+        let found = match at {
+            None => u32::MAX,
+            Some(a) if class.get(a as usize).is_some_and(Option::is_some) => a,
+            Some(a) if done[a as usize] => nearest[a as usize],
+            Some(_) => loop {
             let Some(a) = at else { break u32::MAX };
             if class.get(a as usize).is_some_and(Option::is_some) {
                 break a;
@@ -280,6 +284,7 @@ pub(super) fn rows(
             }
             chain.push(a);
             at = parent(a);
+        },
         };
         for c in chain {
             nearest[c as usize] = found;

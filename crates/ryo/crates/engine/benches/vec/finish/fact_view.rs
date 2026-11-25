@@ -66,8 +66,26 @@ impl Column<'_> {
                 let value = cell.0;
                 u64::from(words.get(value as usize).copied().or_else(|| u32::try_from(value).ok().and_then(|v| public.get(&v).copied())).unwrap_or(absent))
             })),
-            Self::Row(..) | Self::RowNodes(..) | Self::RowWords(..) => out.extend((0..n).map(|row| self.at(row))),
+            Self::Row(words, offsets, col) => out.extend(offsets[..n].iter().map(|&at| words[at + col])),
+            Self::RowNodes(words, offsets, col) => out.extend(offsets[..n].iter().map(|&at| {
+                let value = words[at + col];
+                if value == NULL { NULL } else { u64::from(value as u32) }
+            })),
+            Self::RowWords(words, offsets, col, table, beyond) => out.extend(offsets[..n].iter().map(|&at| {
+                let raw = words[at + col] as u32;
+                match table.get(raw as usize) {
+                    Some(&id) if id != u32::MAX => u64::from(id),
+                    _ => u64::from(beyond[&raw]),
+                }
+            })),
         }
+    }
+
+    /// Every cell of the column in the executor's words, one typed pass over the provider's storage.
+    fn translated(self) -> Vec<u64> {
+        let mut out = Vec::new();
+        self.extend_into(&mut out, self.len());
+        out
     }
 
     pub(super) fn len(self) -> usize {
@@ -88,6 +106,47 @@ pub(crate) enum Columns<'a> {
 }
 
 impl<'a> Columns<'a> {
+    /// One cell. A column read cell by cell is translated once, in a typed pass, after enough reads to pay for it.
+    #[inline]
+    pub(super) fn cell(self, column: usize, row: usize) -> u64 {
+        let cache = match self {
+            Self::Owned(c) => return c[column][row],
+            Self::Lent(_, _, _, _, _, cache) | Self::Rows(_, _, _, _, _, cache) => cache,
+        };
+        if let Some(cells) = cache.cells[column].get() {
+            return cells[row];
+        }
+        let lent = self.raw(column);
+        if matches!(lent, Column::Nodes(_) | Column::Words(..) | Column::RowNodes(..) | Column::RowWords(..)) {
+            let asked = cache.reads[column].get().saturating_add(1);
+            cache.reads[column].set(asked);
+            if (asked as usize).saturating_mul(8) >= lent.len() {
+                return cache.cells[column].get_or_init(|| lent.translated())[row];
+            }
+        }
+        lent.at(row)
+    }
+
+    #[inline]
+    fn raw(self, column: usize) -> Column<'a> {
+        match self {
+            Self::Owned(c) => Column::Owned(&c[column]),
+            Self::Rows(words, offsets, kinds, table, beyond, _) => match kinds[column] {
+                CellKind::Node => Column::RowNodes(words, offsets, column),
+                CellKind::Symbol => Column::RowWords(words, offsets, column, table, beyond),
+                _ => Column::Row(words, offsets, column),
+            },
+            Self::Lent(cols, kinds, words, public, absent, _) => {
+                let cells = cols.get(column).map_or(&[][..], |c| c.0.as_slice());
+                match kinds[column] {
+                    CellKind::Node => Column::Nodes(cells),
+                    CellKind::Symbol => Column::Words(cells, words, public, absent),
+                    _ => Column::Numbers(cells),
+                }
+            }
+        }
+    }
+
     #[inline]
     pub(super) fn get(self, column: usize) -> Column<'a> {
         match self {
@@ -123,7 +182,7 @@ fn cached<'a>(cache: &'a ColumnCache, column: usize, lent: Column<'a>) -> Column
     if (asked as usize).saturating_mul(4) < rows {
         return lent;
     }
-    Column::Owned(cache.cells[column].get_or_init(|| (0..rows).map(|row| lent.at(row)).collect()))
+    Column::Owned(cache.cells[column].get_or_init(|| lent.translated()))
 }
 
 #[derive(Clone, Copy)]
@@ -135,6 +194,10 @@ pub(crate) enum Fact<'a> {
 impl<'a> Fact<'a> {
     pub(super) fn len(self) -> usize {
         match self { Self::Owned(t) => t.n, Self::Lent { rows, .. } => rows }
+    }
+    #[inline]
+    pub(super) fn cell(self, column: usize, row: usize) -> u64 {
+        self.columns().cell(column, row)
     }
     pub(super) fn columns(self) -> Columns<'a> {
         match self { Self::Owned(t) => Columns::Owned(&t.cols), Self::Lent { columns, .. } => columns }

@@ -58,7 +58,7 @@ pub(super) fn cell(f: &File<'_>, run: &mut Run, base: Native, row: u32, col: usi
             if fill_counting() {
                 f.mark_read(i);
             }
-            f.fact(usize::from(i)).map_or(NULL, |t| t.columns().get(col).at(row as usize))
+            f.fact(usize::from(i)).map_or(NULL, |t| t.cell(col, row as usize))
         }
         Native::Tree if col == 1 => u64::from(run.kind_sym[usize::from(f.kind[row as usize])]),
         Native::Tree | Native::Location if col == 0 => u64::from(row),
