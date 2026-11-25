@@ -3,7 +3,7 @@
 //! the names it declares and then their type: all its nodes but the last are names, unless it has only one, which is a type.
 
 use crate::domain::file_view::types::{Syntax as Tree, Words};
-use ryo::languages::{self, Count, Integer, ParameterKind, Position};
+use ryo::languages::{Count, Integer, ParameterKind, Position};
 
 use crate::domain::signatures::constants::{PARAMETER, RECEIVER, RESULT, VARIADIC};
 use crate::domain::signatures::types::{Callable, Listing, Parameter, Signature};

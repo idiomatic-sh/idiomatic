@@ -1,7 +1,7 @@
 //! The `assignments` service: free functions named by verb over the domain's types, with no IO and no ports.
 
-use crate::domain::file_view::types::{Syntax as Tree, Words};
-use ryo::languages::{Position};
+use crate::domain::file_view::types::Syntax as Tree;
+use ryo::languages::Position;
 
 use crate::domain::assignments::types::Operator;
 use crate::domain::nodes::types::Node;

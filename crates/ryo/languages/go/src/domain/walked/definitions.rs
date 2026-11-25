@@ -2,7 +2,7 @@
 //! as the `defines` and `annotates` relations say it: its shared kind, Go's word for it, its name and its scope.
 
 use crate::domain::file_view::types::{Syntax as Tree, Words};
-use ryo::languages::{self, DeclarationKind, Position, Symbol};
+use ryo::languages::{DeclarationKind, Position, Symbol};
 
 use crate::domain::definitions::constants::{
     ALIAS, CONSTANT, DEFINED_TYPE, EMBEDDED_FIELD, FIELD, FUNCTION, IMPORT, INTERFACE,
@@ -37,11 +37,7 @@ const fn defined(kind: DeclarationKind, word: SignatureRefinement) -> Defined {
 }
 
 /// A word of the language as a name of the file.
-pub(crate) fn word(
-    tree: &Tree<'_>,
-    symbols: &Words<'_>,
-    text: SignatureRefinement,
-) -> Symbol {
+pub(crate) fn word(symbols: &Words<'_>, text: SignatureRefinement) -> Symbol {
     crate::domain::walked::syntax::word(symbols, text.0)
 }
 

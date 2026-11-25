@@ -1,8 +1,8 @@
 //! The `slots` service: free functions named by verb over the domain's types, with no IO and no ports. It tells what an identifier is
 //! where it stands, and what an identifier or a selection is as a reference.
 
-use crate::domain::file_view::types::{Syntax as Tree, Words};
-use ryo::languages::{Position};
+use crate::domain::file_view::types::Syntax as Tree;
+use ryo::languages::Position;
 
 use crate::domain::slots::types::{Referencing, Slot};
 use crate::domain::walked::assignments::{left, operator};

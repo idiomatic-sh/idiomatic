@@ -7,7 +7,7 @@ use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
-use crate::domain::file_view::types::{GoWalk, Words};
+use crate::domain::file_view::types::GoWalk;
 use crate::domain::walked::syntax as walked_syntax;
 use ryo::languages::node_table;
 

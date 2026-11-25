@@ -1,7 +1,7 @@
 //! The `scopes` service: free functions named by verb over the domain's types, with no IO and no ports. A scope is a function, a
 //! method or a function literal; the file is the scope of everything outside them.
 
-use crate::domain::file_view::types::{Syntax as Tree, Words};
+use crate::domain::file_view::types::Syntax as Tree;
 use ryo::languages::{self, Position};
 
 use crate::domain::scopes::types::Scopeness;

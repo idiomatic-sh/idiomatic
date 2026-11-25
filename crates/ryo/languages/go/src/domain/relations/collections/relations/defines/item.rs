@@ -66,7 +66,7 @@ ryo::fills! {
                     rows.write(Row {
                         id: walked_syntax::node_cell(&tree, at),
                         kind: declared.defined.kind,
-                        refinement: crate::domain::walked::definitions::word(&tree, &words, declared.defined.word),
+                        refinement: crate::domain::walked::definitions::word(&words, declared.defined.word),
                         name,
                         owner: walked_syntax::node_cell(&tree, declared.owner),
                         file: tree.file,

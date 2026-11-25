@@ -3,8 +3,8 @@
 //! header `go/build`'s `parseFileHeader` reads says where one counts: a `//go:build` line before the first text that is no comment, a
 //! `// +build` line only above a blank line that comes before it.
 
-use crate::domain::file_view::types::{Syntax as Tree, Words};
-use ryo::languages::{self, Position};
+use crate::domain::file_view::types::Syntax as Tree;
+use ryo::languages::Position;
 
 use crate::domain::constraints::constants::{
     GO_BUILD, GO_BUILD_KIND, NEWLINE, PLUS_BUILD, PLUS_BUILD_KIND, SLASH_SLASH, SLASH_STAR,
