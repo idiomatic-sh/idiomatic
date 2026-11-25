@@ -35,11 +35,11 @@ struct State {
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
 
 #[inline]
-pub(super) fn on() -> bool {
+pub(crate) fn on() -> bool {
     sw!("VEC_MAKE_COUNT")
 }
 
-pub(super) fn program(id: usize) {
+pub(crate) fn program(id: usize) {
     STATE.with_borrow_mut(|s| s.program = id);
 }
 
