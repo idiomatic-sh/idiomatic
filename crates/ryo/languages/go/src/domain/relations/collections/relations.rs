@@ -12,6 +12,7 @@ pub(crate) mod mapping;
 pub(crate) mod parameter;
 pub(crate) mod reference;
 pub(crate) mod scope;
+pub(crate) mod source_location;
 pub(crate) mod static_call;
 pub(crate) mod static_import;
 pub(crate) mod string_literal;

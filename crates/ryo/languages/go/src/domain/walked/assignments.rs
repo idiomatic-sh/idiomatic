@@ -1,11 +1,11 @@
 //! The `assignments` service: free functions named by verb over the domain's types, with no IO and no ports.
 
-use crate::domain::file_view::types::{Syntax as Tree, Words};
-use ryo::languages::{Position};
+use crate::domain::file_view::types::Syntax as Tree;
+use ryo::languages::Position;
 
 use crate::domain::assignments::types::Operator;
 use crate::domain::nodes::types::Node;
-use crate::domain::walked::syntax::{kind, nodes, tokens};
+use crate::domain::walked::syntax::{before, kind, nodes, tokens};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
@@ -50,12 +50,12 @@ pub(crate) fn left<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item =
         .map(|each| each.at);
     let stop = operator(tree, at)
         .map(|each| each.at)
-        .filter(|place| keyword.is_none_or(|range| *place < range));
-    nodes(tree, at).take_while(move |each| stop.is_some_and(|stop| *each < stop))
+        .filter(|place| keyword.is_none_or(|range| before(tree, *place, range)));
+    nodes(tree, at).take_while(move |each| stop.is_some_and(|stop| before(tree, *each, stop)))
 }
 
 /// The elements after the operator of the assignment at `at`: what it assigns.
 pub(crate) fn right<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Position> + 'a {
     let stop = operator(tree, at).map(|each| each.at);
-    nodes(tree, at).filter(move |each| stop.is_some_and(|stop| *each > stop))
+    nodes(tree, at).filter(move |each| stop.is_some_and(|stop| before(tree, stop, *each)))
 }

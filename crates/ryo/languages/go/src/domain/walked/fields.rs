@@ -1,8 +1,8 @@
 //! The `fields` service: free functions named by verb over the domain's types, with no IO and no ports. A `Field` holds the names it
 //! declares, then its type, then (in a struct) its tag; one with a single element has no name, and that element is its type.
 
-use crate::domain::file_view::types::{Syntax as Tree, Words};
-use ryo::languages::{Position};
+use crate::domain::file_view::types::Syntax as Tree;
+use ryo::languages::Position;
 
 use crate::domain::nodes::types::Node;
 use crate::domain::walked::syntax::{kind, nodes};

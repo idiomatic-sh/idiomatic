@@ -2,7 +2,7 @@
 //! as the `defines` and `annotates` relations say it: its shared kind, Go's word for it, its name and its scope.
 
 use crate::domain::file_view::types::{Syntax as Tree, Words};
-use ryo::languages::{self, DeclarationKind, Position, Symbol};
+use ryo::languages::{DeclarationKind, Position, Symbol};
 
 use crate::domain::definitions::constants::{
     ALIAS, CONSTANT, DEFINED_TYPE, EMBEDDED_FIELD, FIELD, FUNCTION, IMPORT, INTERFACE,
@@ -27,7 +27,7 @@ use crate::domain::walked::specs::{
     declares, import_name, name as spec_name, names as spec_names, underlying, value_type,
 };
 use crate::domain::specs::types::{Declares, Underlying};
-use crate::domain::walked::syntax::{ancestors, kind, nodes, parent, token};
+use crate::domain::walked::syntax::{ancestors, before, kind, nodes, parent, token};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
@@ -37,11 +37,7 @@ const fn defined(kind: DeclarationKind, word: SignatureRefinement) -> Defined {
 }
 
 /// A word of the language as a name of the file.
-pub(crate) fn word(
-    tree: &Tree<'_>,
-    symbols: &Words<'_>,
-    text: SignatureRefinement,
-) -> Symbol {
+pub(crate) fn word(symbols: &Words<'_>, text: SignatureRefinement) -> Symbol {
     crate::domain::walked::syntax::word(symbols, text.0)
 }
 
@@ -311,7 +307,7 @@ pub(crate) fn assignments<'a>(
     let assign = token(tree, at, Token::Assign);
     let from_spec = (kind(tree, at) == Kind::Node(Node::ValueSpec)).then(|| {
         spec_names(tree, at)
-            .zip(nodes(tree, at).skip_while(move |each| assign.is_none_or(|assign| *each < assign)))
+            .zip(nodes(tree, at).skip_while(move |each| assign.is_none_or(|assign| before(tree, *each, assign))))
     });
     from_statement
         .into_iter()

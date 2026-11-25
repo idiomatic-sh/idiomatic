@@ -13,6 +13,10 @@ use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
+use crate::domain::file_view::types::{GoWalk, Words};
+use crate::domain::walked::syntax as walked_syntax;
+use ryo::languages::node_table;
+
 /// The reader the `parse` contract hands the `reference` relation to, which reads its rows from a file's tree.
 pub(crate) struct ReferenceItem;
 
@@ -40,6 +44,35 @@ ryo::reads! {
                 }
             }
             Referencing::Other => {}
+        }
+    }
+}
+
+// The engine fills `reference` from the walked file: a name used where it is not declared, and a dotted name used, by the whole dotted text.
+ryo::fills! {
+    ReferenceItem => languages::Reference, walk(GoWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::Reference as languages::CatalogRelation>::Row;
+        let tree = file.syntax;
+        let words = Words(std::cell::RefCell::new(words));
+        for wanted in [Kind::Node(Node::Ident), Kind::Node(Node::SelectorExpr)] {
+            for &at in node_table::ids_of_kind(tree.table, kind_bits(wanted)) {
+                let target = match crate::domain::walked::slots::referencing(&tree, at) {
+                    Referencing::Used => {
+                        let Some(target) = crate::domain::walked::names::dotted(&tree, &words, at) else { continue };
+                        target
+                    }
+                    Referencing::Unclear => crate::domain::walked::names::unknown(Unresolved::AmbiguousKey),
+                    Referencing::Other => continue,
+                };
+                rows.write(Row {
+                    occurrence: walked_syntax::node_cell(&tree, at),
+                    owner: crate::domain::walked::scopes::owner(&tree, at),
+                    target,
+                    file: tree.file,
+                    span: walked_syntax::span_of(&tree, at),
+                });
+            }
         }
     }
 }

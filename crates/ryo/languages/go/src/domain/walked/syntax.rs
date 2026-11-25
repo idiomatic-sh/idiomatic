@@ -39,12 +39,6 @@ pub(crate) fn is_root(tree: &Tree<'_>, at: Position) -> Rootness {
     }
 }
 
-/// The place of the element at `at` among its parent's children.
-#[must_use]
-pub(crate) fn ordinal(tree: &Tree<'_>, at: Position) -> languages::Integer {
-    languages::Integer(i64::from(node_table::ordinal_of(tree.table, at).0))
-}
-
 /// The elements directly under `at`, in order.
 pub(crate) fn children<'f>(tree: &Tree<'f>, at: Position) -> impl Iterator<Item = Position> + use<'f> {
     let table: &'f languages::NodeTable = tree.table;
@@ -131,15 +125,6 @@ pub(crate) fn word(words: &Words<'_>, text: &str) -> Symbol {
     Symbol(u32::try_from(languages::facts::intern(&mut words.0.borrow_mut(), NameText(text)).0).unwrap_or(u32::MAX))
 }
 
-/// The text of the token at `at`, as a name; no text for a node.
-pub(crate) fn token_text(tree: &Tree<'_>, words: &Words<'_>, at: Position) -> Symbol {
-    if is_token(tree, at) == Leaf::Token {
-        word(words, written(tree, at).0)
-    } else {
-        languages::NO_SYMBOL
-    }
-}
-
 /// The text the element at `at` spans, as a name.
 pub(crate) fn spanned(tree: &Tree<'_>, words: &Words<'_>, at: Position) -> Symbol {
     word(words, written(tree, at).0)
@@ -163,4 +148,11 @@ pub(crate) fn node_cell(tree: &Tree<'_>, at: Position) -> languages::NodeId {
 pub(crate) fn span_of(tree: &Tree<'_>, at: Position) -> languages::Span {
     let span = node_table::span_of(tree.table, at);
     languages::Span { start: span.start, end: span.end }
+}
+
+/// Whether the element `first` comes before its sibling `second`: the tokens are numbered after the nodes, so two siblings are told
+/// by their places among the children of their parent.
+#[must_use]
+pub(crate) fn before(tree: &Tree<'_>, first: Position, second: Position) -> bool {
+    node_table::ordinal_of(tree.table, first).0 < node_table::ordinal_of(tree.table, second).0
 }

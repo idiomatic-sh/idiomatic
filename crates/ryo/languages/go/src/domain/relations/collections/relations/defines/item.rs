@@ -9,6 +9,10 @@ use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
+use crate::domain::file_view::types::{GoWalk, Words};
+use crate::domain::walked::syntax as walked_syntax;
+use ryo::languages::node_table;
+
 /// The reader the `parse` contract hands the `defines` relation to, which reads its rows from a file's tree.
 pub(crate) struct DefinesItem;
 
@@ -34,6 +38,41 @@ ryo::reads! {
                 owner: node(declared.owner),
                 file: file,
                 span: span(declared.named),
+            }
+        }
+    }
+}
+
+// The engine fills `defines` from the walked file: every name the file declares or brings in, each in the function that holds it.
+ryo::fills! {
+    DefinesItem => languages::Defines, walk(GoWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::Defines as languages::CatalogRelation>::Row;
+        let tree = file.syntax;
+        let words = Words(std::cell::RefCell::new(words));
+        for wanted in [
+            Kind::Node(Node::FuncDecl),
+            Kind::Node(Node::TypeSpec),
+            Kind::Node(Node::ValueSpec),
+            Kind::Node(Node::ImportSpec),
+            Kind::Node(Node::Field),
+            Kind::Node(Node::AssignStmt),
+            Kind::Node(Node::RangeStmt),
+            Kind::Node(Node::LabeledStmt),
+        ] {
+            for &at in node_table::ids_of_kind(tree.table, kind_bits(wanted)) {
+                for declared in crate::domain::walked::definitions::declarations(&tree, at) {
+                    let Some(name) = crate::domain::walked::definitions::declared_name(&tree, &words, &declared) else { continue };
+                    rows.write(Row {
+                        id: walked_syntax::node_cell(&tree, at),
+                        kind: declared.defined.kind,
+                        refinement: crate::domain::walked::definitions::word(&words, declared.defined.word),
+                        name,
+                        owner: walked_syntax::node_cell(&tree, declared.owner),
+                        file: tree.file,
+                        span: walked_syntax::span_of(&tree, declared.named),
+                    });
+                }
             }
         }
     }
