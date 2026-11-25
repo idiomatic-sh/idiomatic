@@ -249,12 +249,13 @@ fn placed(state: &mut BuilderState<'_>, id: Position) -> ChildPlace {
                 ordinal,
             }
         }
-        None => ChildPlace {
-            parent: match state.segment {
-                BuilderSegment::File => id,
-                BuilderSegment::Embedded(host, _) => host,
+        None => match state.segment {
+            BuilderSegment::File => ChildPlace { parent: id, ordinal: ChildOrdinal(0) },
+            // An embedded root is a child of its host: its place is after the host's own children.
+            BuilderSegment::Embedded(host, _) => ChildPlace {
+                parent: host,
+                ordinal: ChildOrdinal(u32::try_from(children_of(state.table, host).len()).unwrap_or(u32::MAX)),
             },
-            ordinal: ChildOrdinal(0),
         },
     }
 }
