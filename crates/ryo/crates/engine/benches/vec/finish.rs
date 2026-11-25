@@ -952,7 +952,7 @@ impl File<'_> {
                 if fill_prof::counting() {
                     self.mark_read(i);
                 }
-                self.fact(usize::from(i)).map_or(NULL, |t| t.columns().get(c).at(r))
+                self.fact(usize::from(i)).map_or(NULL, |t| t.cell(c, r))
             }
             (Native::Token, _) => {
                 let (src, k) = (row / 3, row % 3);
