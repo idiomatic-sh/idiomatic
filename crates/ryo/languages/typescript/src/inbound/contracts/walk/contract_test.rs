@@ -251,7 +251,7 @@ fn every_leaf_kind_spells_its_source_text() {
     use crate::domain::syntax::types::Kind;
     use crate::domain::tokens::types::Token;
     // The old reading's text of a token is its spelling, white space included: a rule asks a gap between tokens by its text.
-    for kind in [Kind::Token(Token::Semicolon), Kind::Extra(Extra::Whitespace), Kind::Extra(Extra::Hashbang), Kind::Extra(Extra::Error)] {
+    for kind in [Kind::Token(Token::Boolean), Kind::Extra(Extra::Whitespace), Kind::Extra(Extra::Hashbang), Kind::Extra(Extra::Error)] {
         assert!(<TypeScriptWalk<WalkPorts> as Fillers>::spells(kind_bits(kind)), "{kind:?} spells its text");
     }
     assert!(!<TypeScriptWalk<WalkPorts> as Fillers>::spells(kind_bits(Kind::Node(crate::domain::nodes::types::Node::Program))));
