@@ -6,10 +6,26 @@ use crate::domain::file_view::types::{HtmlFile, HtmlWalk};
 use crate::domain::syntax::service::{field_name, fields, kind_name, kinds};
 use ryo::languages::{
     self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames, NameText, RenderOutcome, RenderRequest,
-    Rows, WalkKinds, WalkVocabulary, Wanted,
+    Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
 };
 
-/// The filler of each relation the language does not fill yet, with the cause.
+/// The filler of each relation whose `fills!` item writes it whole alone: the item's run.
+macro_rules! written {
+    ($( $module:ident: $relation:ident => $item:path; )*) => {
+        $(
+            fn $module(
+                file: &mut HtmlFile<'_>,
+                words: &mut FileWords,
+                wanted: Wanted,
+                rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
+            ) -> Fill {
+                fillers::filled::<$item>(file, words, wanted, rows)
+            }
+        )*
+    };
+}
+
+/// The filler of each relation the language does not fill, with the cause.
 macro_rules! absent {
     ($( $module:ident: $relation:ident => $cause:ident; )*) => {
         $(
@@ -31,6 +47,17 @@ impl<P: Send + Sync + 'static> Fillers for HtmlWalk<P> {
     where
         Self: 'f;
 
+    written! {
+        comment: Comment => crate::domain::relations::collections::relations::comment::item::CommentItem;
+        defines: Defines => crate::domain::relations::collections::relations::defines::item::DefinesItem;
+        prose: Prose => crate::domain::relations::collections::relations::prose::item::ProseItem;
+        reference: Reference => crate::domain::relations::collections::relations::reference::item::ReferenceItem;
+        scope: Scope => crate::domain::relations::collections::relations::scope::item::ScopeItem;
+        source_location: SourceLocation => crate::domain::relations::collections::relations::source_location::item::SourceLocationItem;
+        string_literal: StringLiteral => crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
+        syntax_error: SyntaxError => crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
+    }
+
     absent! {
         binding_event: BindingEvent => NotYetRead;
         binding_resolution: BindingResolution => NotYetRead;
@@ -39,10 +66,8 @@ impl<P: Send + Sync + 'static> Fillers for HtmlWalk<P> {
         brace_format_parse: BraceFormatParse => NotYetRead;
         bytes_literal: BytesLiteral => NotYetRead;
         call_argument: CallArgument => NotYetRead;
-        comment: Comment => NotYetRead;
         compiler_feature: CompilerFeature => NotYetRead;
         decorates: Decorates => NotYetRead;
-        defines: Defines => NotYetRead;
         embedded_expression: EmbeddedExpression => NotYetRead;
         format_field: FormatField => NotYetRead;
         format_parse: FormatParse => NotYetRead;
@@ -59,11 +84,8 @@ impl<P: Send + Sync + 'static> Fillers for HtmlWalk<P> {
         parameter: Parameter => NotYetRead;
         qualified_name: QualifiedName => NotYetRead;
         raw_format_field: RawFormatField => NotYetRead;
-        source_location: SourceLocation => NotYetRead;
         standard_library_import: StandardLibraryImport => NotYetRead;
         static_import: StaticImport => NotYetRead;
-        string_literal: StringLiteral => NotYetRead;
-        syntax_error: SyntaxError => NotYetRead;
         binding_read: BindingRead => NotYetRead;
         binding_shadow: BindingShadow => NotYetRead;
         constant_key: ConstantKey => NotYetRead;
@@ -73,9 +95,7 @@ impl<P: Send + Sync + 'static> Fillers for HtmlWalk<P> {
         inherits: Inherits => NotYetRead;
         lookup_scope: LookupScope => NotYetRead;
         raw_format_segment: RawFormatSegment => NotYetRead;
-        reference: Reference => NotYetRead;
         resolves: Resolves => NotYetRead;
-        scope: Scope => NotYetRead;
         token_link: TokenLink => NotYetRead;
         analyzed_source: AnalyzedSource => NotYetRead;
         annotates: Annotates => NotYetRead;
@@ -101,7 +121,6 @@ impl<P: Send + Sync + 'static> Fillers for HtmlWalk<P> {
         pattern_parse: PatternParse => NotYetRead;
         pattern_syntax: PatternSyntax => NotYetRead;
         project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
-        prose: Prose => NotYetRead;
         sequence_element: SequenceElement => NotYetRead;
         source_dependency: SourceDependency => NotYetRead;
         static_call: StaticCall => NotYetRead;
@@ -121,3 +140,7 @@ impl<P: Send + Sync + 'static> Fillers for HtmlWalk<P> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "fillers_test.rs"]
+mod tests;
