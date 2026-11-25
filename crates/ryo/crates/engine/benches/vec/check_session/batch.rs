@@ -662,6 +662,8 @@ impl Batch {
     ) {
         let wall = std::time::Instant::now();
         let t = thread_cpu();
+        let _profile = finish::operators::scope(usize::MAX, "closed");
+        let preparing = finish::operators::enter(usize::MAX - 3, 0);
         // Bound values select a different population. Only changed column declarations
         // require another prepared layout for the same lowered program.
         let mut groups = BTreeMap::new();
@@ -725,6 +727,9 @@ impl Batch {
             populations.insert(id, (s.wanted.clone(), population));
         }
         contributions.clear();
+        if let Some(start) = preparing {
+            finish::operators::leave(start, "closed-prepare-populations", 0, true);
+        }
         self.clocks.project_prepare_wall += wall.elapsed().as_secs_f64();
         if groups.is_empty() {
             self.clocks.empty_project_epochs += 1;
@@ -797,7 +802,11 @@ impl Batch {
                     if reusable && let Some(answer) = evaluated.find(scope, p, &carried) {
                         return Ok(answer);
                     }
+                    let numbering = finish::operators::enter(usize::MAX - 3, 0);
                     let numbers = readers.numbers(i, inventory, world);
+                    if let Some(start) = numbering {
+                        finish::operators::leave(start, "closed-number", 0, true);
+                    }
                     let evaluating = finish::operators::enter(usize::MAX - 1, 0);
                     let rows = execute_ids(
                         &mut exec,
@@ -819,9 +828,15 @@ impl Batch {
                     if reusable { evaluated.remember(scope, p, &carried, &reported); }
                     Ok(reported)
                 }).and_then(|mut report| {
-                    self.schedule.locate_closed(root, reader_states, &mut report, &mut coordinates)?;
+                    let locating = finish::operators::enter(usize::MAX - 3, 0);
+                    let located = self.schedule.locate_closed(root, reader_states, &mut report, &mut coordinates);
+                    if let Some(start) = locating {
+                        finish::operators::leave(start, "closed-locate", 0, true);
+                    }
+                    located?;
                     Ok(report)
                 }))};
+                let releasing = finish::operators::enter(usize::MAX - 3, 0);
                 exec.release_request();
                 if let Some(s)=store.as_deref_mut() {
                     let pop=project.and_then(|id| populations[&id].1.as_ref().ok());
@@ -834,6 +849,9 @@ impl Batch {
                     answers.release(slot);
                 }) {
                     populations.remove(&finished);
+                }
+                if let Some(start) = releasing {
+                    finish::operators::leave(start, "closed-release", 0, true);
                 }
                 self.work[i] = Work::Project(answer);
             }
