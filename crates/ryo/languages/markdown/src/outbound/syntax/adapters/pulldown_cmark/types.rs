@@ -2,7 +2,7 @@
 
 use crate::domain::syntax::types::{Kind, Level};
 use ryo::languages::SourcePath;
-use ryo::languages::{ByteSlice, Count, Lossless, Offset};
+use ryo::languages::{ByteSlice, Count, Offset};
 
 /// Whether the parser's text is the code of a code block, the indentation of a block of HTML, or text of the document.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,9 +26,9 @@ pub(super) struct Stretch {
 }
 
 /// What the adapter keeps while it writes the parser's events into the table as nodes and tokens.
-pub(super) struct Writer<'b, 'w> {
+pub(super) struct Writer<'b, T> {
     /// The tree, and where its last token ends.
-    pub tree: Lossless<'b, 'w>,
+    pub tree: T,
     /// What the gap tokenizer keeps between two events.
     pub gap: Gap<'b>,
     /// The constructs open below the document.

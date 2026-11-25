@@ -12,19 +12,21 @@ use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
 use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use ryo::languages::SourcePath;
-use ryo::languages::{self, ByteSlice, Count, NameText, Offset};
+use ryo::languages::{self, ByteSlice, Count, NameText, Offset, node_table};
 
-use crate::domain::syntax::service::kind_bits;
-use crate::domain::syntax::types::{Kind, Level};
+use crate::domain::syntax::service::{field_bits, kind_bits};
+use crate::domain::syntax::types::{Field, Kind, Level};
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 
 use super::constants::{NOT_UTF8, OPTIONS, WHITE_SPACE};
 use super::schemas::{depth_of, event_kind, level_of, tag_kind};
+use super::interface::{Ops, Tree};
 use super::types::{
     Carried, Closing, Definition, Gap, MarkdownText, Opened, Passed, Pending, Stretch, Within,
     Writer,
 };
+use super::walk::Numbered;
 
 /// The `pulldown_cmark` syntax adapter.
 #[derive(Debug)]
@@ -37,7 +39,7 @@ fn offset(index: Count) -> Offset {
 
 /// Writes the bytes from `from`, where the last token ends, to `to`, which no event spans, as white space or markup: the gap tokenizer of
 /// the tree. The definition of a link reference among them is a token of its own, with the label it gives.
-fn fill(gap: &mut Gap<'_>, builder: &mut languages::TableBuilder<'_>, from: Offset, to: Offset) {
+pub(super) fn fill(gap: &mut Gap<'_>, builder: &mut impl Ops, from: Offset, to: Offset) {
     let mut end = from;
     while end < to {
         while gap
@@ -53,13 +55,7 @@ fn fill(gap: &mut Gap<'_>, builder: &mut languages::TableBuilder<'_>, from: Offs
             .map(|definition| (definition.start, definition.end, definition.label.clone()));
         if let Some((_, stop_at, label)) = next.clone().filter(|(start, _, _)| *start <= end) {
             let stop = stop_at.min(to);
-            languages::decoded_token(
-                builder,
-                kind_bits(Kind::Node(Node::Definition)),
-                end,
-                stop,
-                NameText(&label.0),
-            );
+            builder.decoded(Kind::Node(Node::Definition), end, stop, &label.0);
             end = stop;
         } else if let Some(start) = next.map(|(start, _, _)| start).filter(|start| *start < to) {
             plain(gap, builder, end, start);
@@ -73,7 +69,7 @@ fn fill(gap: &mut Gap<'_>, builder: &mut languages::TableBuilder<'_>, from: Offs
 
 /// Writes the bytes from `from` to `to` as white space or markup; the markup that opens a construct which names something carries what
 /// it names.
-fn plain(gap: &mut Gap<'_>, builder: &mut languages::TableBuilder<'_>, from: Offset, to: Offset) {
+fn plain(gap: &mut Gap<'_>, builder: &mut impl Ops, from: Offset, to: Offset) {
     let bytes = gap
         .source
         .0
@@ -83,40 +79,22 @@ fn plain(gap: &mut Gap<'_>, builder: &mut languages::TableBuilder<'_>, from: Off
         )
         .unwrap_or_default();
     if bytes.iter().all(|byte| WHITE_SPACE.contains(byte)) {
-        languages::token(builder, kind_bits(Kind::Token(Token::Whitespace)), from, to);
+        builder.token(Kind::Token(Token::Whitespace), from, to);
     } else if let Pending::Carrying(named) = std::mem::replace(&mut gap.pending, Pending::Nothing) {
-        languages::decoded_token(
-            builder,
-            kind_bits(Kind::Extra(Extra::Markup)),
-            from,
-            to,
-            NameText(&named.0),
-        );
+        builder.decoded(Kind::Extra(Extra::Markup), from, to, &named.0);
     } else {
-        languages::token(builder, kind_bits(Kind::Extra(Extra::Markup)), from, to);
+        builder.token(Kind::Extra(Extra::Markup), from, to);
     }
 }
 
-/// Writes the bytes the parser read no further, which no event spans, as text it could not read: the gap tokenizer of the end of the
-/// tree.
-fn unread(builder: &mut languages::TableBuilder<'_>, from: Offset, to: Offset) {
-    languages::token(builder, kind_bits(Kind::Extra(Extra::Error)), from, to);
-}
-
 /// Opens a construct, where its event starts, or where the last token ends when the event starts before it.
-fn enter(writer: &mut Writer<'_, '_>, kind: Kind, stretch: Stretch) {
-    let gap = &mut writer.gap;
-    languages::lossless_enter(
-        &mut writer.tree,
-        kind_bits(kind),
-        offset(stretch.start),
-        &mut |builder: &mut languages::TableBuilder<'_>, from, to| fill(gap, builder, from, to),
-    );
+fn enter<T: Tree>(writer: &mut Writer<'_, T>, kind: Kind, stretch: Stretch) {
+    writer.tree.enter(kind, offset(stretch.start), &mut writer.gap);
     writer.open.push(kind);
 }
 
 /// Closes the open sections that `holds` says end: each where its last block ends, so the bytes after it are its parent's.
-fn close_sections(writer: &mut Writer<'_, '_>, closing: Closing) {
+fn close_sections<T: Tree>(writer: &mut Writer<'_, T>, closing: Closing) {
     while let Some(&last) = writer.sections.last() {
         let held = match closing {
             Closing::Heading { depth, level } => {
@@ -129,68 +107,42 @@ fn close_sections(writer: &mut Writer<'_, '_>, closing: Closing) {
             break;
         }
         let _: Option<Opened> = writer.sections.pop();
-        languages::leave_node(writer.tree.builder, writer.tree.end);
+        writer.tree.leave();
     }
 }
 
 /// Opens the section of a heading `level` deep, where the heading starts, after closing the sections among the same blocks that
 /// are as deep or deeper.
-fn open_section(writer: &mut Writer<'_, '_>, level: Level, stretch: Stretch) {
+fn open_section<T: Tree>(writer: &mut Writer<'_, T>, level: Level, stretch: Stretch) {
     let depth = Count(writer.open.len());
     close_sections(writer, Closing::Heading { depth, level });
-    let gap = &mut writer.gap;
-    languages::lossless_enter(
-        &mut writer.tree,
-        kind_bits(Kind::Extra(Extra::Section)),
-        offset(stretch.start),
-        &mut |builder: &mut languages::TableBuilder<'_>, from, to| fill(gap, builder, from, to),
-    );
+    writer.tree.enter(Kind::Extra(Extra::Section), offset(stretch.start), &mut writer.gap);
     writer.sections.push(Opened { level, depth });
 }
 
 /// Closes the innermost construct, at the end of its event or of its last token, whichever is later: the sections among its blocks
 /// first.
-fn leave(writer: &mut Writer<'_, '_>, stretch: Stretch) {
+fn leave<T: Tree>(writer: &mut Writer<'_, T>, stretch: Stretch) {
     close_sections(writer, Closing::Within(Count(writer.open.len())));
-    let gap = &mut writer.gap;
-    languages::fill_to(
-        &mut writer.tree,
-        offset(stretch.end),
-        &mut |builder: &mut languages::TableBuilder<'_>, from, to| fill(gap, builder, from, to),
-    );
-    gap.pending = Pending::Nothing;
+    writer.tree.fill_to(offset(stretch.end), &mut writer.gap);
+    writer.gap.pending = Pending::Nothing;
     if writer.open.pop().is_some() {
-        languages::leave_node(writer.tree.builder, writer.tree.end);
+        writer.tree.leave();
     }
 }
 
 /// Writes an event of text as a token, with the text the library read from it when it is given.
-fn leaf(writer: &mut Writer<'_, '_>, kind: Kind, stretch: Stretch, decoded: Option<NameText<'_>>) {
-    let gap = &mut writer.gap;
-    let mut tokenize =
-        |builder: &mut languages::TableBuilder<'_>, from, to| fill(gap, builder, from, to);
+fn leaf<T: Tree>(writer: &mut Writer<'_, T>, kind: Kind, stretch: Stretch, decoded: Option<NameText<'_>>) {
+    let (start, end) = (offset(stretch.start), offset(stretch.end));
     match decoded {
-        Some(text) => languages::lossless_decoded_token(
-            &mut writer.tree,
-            kind_bits(kind),
-            offset(stretch.start),
-            offset(stretch.end),
-            text,
-            &mut tokenize,
-        ),
-        None => languages::lossless_token(
-            &mut writer.tree,
-            kind_bits(kind),
-            offset(stretch.start),
-            offset(stretch.end),
-            &mut tokenize,
-        ),
+        Some(text) => writer.tree.decoded(kind, start, end, text.0, &mut writer.gap),
+        None => writer.tree.token(kind, start, end, &mut writer.gap),
     }
 }
 
 /// Writes an event that is a piece of the document as the token or node of its kind, with the text the library read when it is given.
-fn emit(
-    writer: &mut Writer<'_, '_>,
+fn emit<T: Tree>(
+    writer: &mut Writer<'_, T>,
     event: &Event<'_>,
     stretch: Stretch,
     decoded: Option<NameText<'_>>,
@@ -201,7 +153,7 @@ fn emit(
 }
 
 /// Writes one event of the parser.
-fn event(writer: &mut Writer<'_, '_>, event: &Event<'_>, stretch: Stretch) {
+fn event<T: Tree>(writer: &mut Writer<'_, T>, event: &Event<'_>, stretch: Stretch) {
     match event {
         Event::Start(tag) => {
             let within = if matches!(tag, Tag::CodeBlock(_)) {
@@ -256,6 +208,57 @@ fn event(writer: &mut Writer<'_, '_>, event: &Event<'_>, stretch: Stretch) {
     }
 }
 
+/// Reads `content`, the bytes of the file the parser reads, into `tree`, which holds the document node open, and closes the document.
+/// `whole` is the length of the whole file.
+fn events<T: Tree>(tree: T, text: SourceText<'_>, content: MarkdownText<'_>, at: SourcePath<'_>) -> T {
+    let parser = Parser::new_ext(content.0, OPTIONS);
+    let mut definitions: Vec<Definition> = parser
+        .reference_definitions()
+        .iter()
+        .map(|(label, definition)| Definition {
+            start: offset(Count(definition.span.start)),
+            end: offset(Count(definition.span.end)),
+            label: Carried(label.to_owned()),
+        })
+        .collect();
+    definitions.sort_by_key(|definition| definition.start);
+    let mut writer = Writer {
+        tree,
+        gap: Gap {
+            source: ByteSlice(text.0),
+            definitions,
+            passed: Passed(0),
+            pending: Pending::Nothing,
+        },
+        open: Vec::new(),
+        within: Within::Prose,
+        location: at,
+        sections: Vec::new(),
+    };
+    for (each, range) in parser.into_offset_iter() {
+        let stretch = Stretch {
+            start: Count(range.start),
+            end: Count(range.end),
+        };
+        event(&mut writer, &each, stretch);
+    }
+    let read = Count(content.0.len());
+    while !writer.open.is_empty() {
+        leave(
+            &mut writer,
+            Stretch {
+                start: read,
+                end: read,
+            },
+        );
+    }
+    close_sections(&mut writer, Closing::Every);
+    writer
+        .tree
+        .finish(offset(read), offset(Count(text.0.len())), &mut writer.gap);
+    writer.tree
+}
+
 impl SyntaxPort for SyntaxPulldownCmarkAdapter {
     fn read(
         &self,
@@ -265,69 +268,122 @@ impl SyntaxPort for SyntaxPulldownCmarkAdapter {
     ) {
         // Markdown is UTF-8: the library reads the text up to the first byte that is not, and the rest is text it could not read.
         let content = MarkdownText(languages::readable_text(ByteSlice(text.0)).0);
-        let parser = Parser::new_ext(content.0, OPTIONS);
-        let mut definitions: Vec<Definition> = parser
-            .reference_definitions()
-            .iter()
-            .map(|(label, definition)| Definition {
-                start: offset(Count(definition.span.start)),
-                end: offset(Count(definition.span.end)),
-                label: Carried(label.to_owned()),
-            })
-            .collect();
-        definitions.sort_by_key(|definition| definition.start);
         languages::enter_node(builder, kind_bits(Kind::Node(Node::Root)), Offset(0));
         let _ = builder.decode_for(&[
             languages::Relation::StringLiteral, languages::Relation::Defines,
             languages::Relation::Reference, languages::Relation::Scope, languages::Relation::Prose,
         ]);
-        let mut writer = Writer {
-            tree: languages::lossless(builder, Offset(0)),
-            gap: Gap {
-                source: ByteSlice(text.0),
-                definitions,
-                passed: Passed(0),
-                pending: Pending::Nothing,
-            },
-            open: Vec::new(),
-            within: Within::Prose,
-            location: at,
-            sections: Vec::new(),
-        };
-        for (each, range) in parser.into_offset_iter() {
-            let stretch = Stretch {
-                start: Count(range.start),
-                end: Count(range.end),
-            };
-            event(&mut writer, &each, stretch);
-        }
-        let read = Count(content.0.len());
-        while !writer.open.is_empty() {
-            leave(
-                &mut writer,
-                Stretch {
-                    start: read,
-                    end: read,
-                },
-            );
-        }
-        close_sections(&mut writer, Closing::Every);
-        let gap = &mut writer.gap;
-        languages::fill_to(
-            &mut writer.tree,
-            offset(read),
-            &mut |table: &mut languages::TableBuilder<'_>, from, to| fill(gap, table, from, to),
-        );
-        let length = offset(Count(text.0.len()));
-        languages::fill_to(&mut writer.tree, length, &mut unread);
-        languages::leave_node(writer.tree.builder, length);
+        let tree = events(languages::lossless(builder, Offset(0)), text, content, at);
         if content.0.len() < text.0.len() {
             languages::diagnose(
-                writer.tree.builder,
+                tree.builder,
                 languages::ReportText(NOT_UTF8),
-                offset(read),
-                length,
+                offset(Count(content.0.len())),
+                offset(Count(text.0.len())),
             );
         }
+    }
+
+    fn walk(
+        &self,
+        text: SourceText<'_>,
+        at: SourcePath<'_>,
+        builder: &mut languages::NodeTableBuilder<'_>,
+    ) {
+        let content = MarkdownText(languages::readable_text(ByteSlice(text.0)).0);
+        node_table::enter_node(
+            builder,
+            kind_bits(Kind::Node(Node::Root)),
+            languages::FieldCode(field_bits(Field::None).0),
+            Offset(0),
+        );
+        let tree = events(Numbered::new(builder), text, content, at);
+        let builder = tree.builder;
+        let accepted = content.0.len() == text.0.len();
+        if !accepted {
+            node_table::diagnose(
+                builder,
+                offset(Count(content.0.len())),
+                offset(Count(text.0.len())),
+                NameText(NOT_UTF8),
+            );
+        }
+        node_table::set_syntax_acceptance(
+            builder,
+            if accepted {
+                languages::SyntaxAcceptance::Accepted
+            } else {
+                languages::SyntaxAcceptance::Rejected
+            },
+        );
+    }
+}
+
+/// The old element table's tokens, written by the gap tokenizer through the builder.
+struct Old<'b, 'w>(&'b mut languages::TableBuilder<'w>);
+
+impl Ops for Old<'_, '_> {
+    fn token(&mut self, kind: Kind, from: Offset, to: Offset) {
+        languages::token(self.0, kind_bits(kind), from, to);
+    }
+
+    fn decoded(&mut self, kind: Kind, from: Offset, to: Offset, text: &str) {
+        languages::decoded_token(self.0, kind_bits(kind), from, to, NameText(text));
+    }
+}
+
+impl Tree for languages::Lossless<'_, '_> {
+    fn enter(&mut self, kind: Kind, start: Offset, gap: &mut Gap<'_>) {
+        languages::lossless_enter(
+            self,
+            kind_bits(kind),
+            start,
+            &mut |builder: &mut languages::TableBuilder<'_>, from, to| fill(gap, &mut Old(builder), from, to),
+        );
+    }
+
+    fn leave(&mut self) {
+        languages::leave_node(self.builder, self.end);
+    }
+
+    fn fill_to(&mut self, to: Offset, gap: &mut Gap<'_>) {
+        languages::fill_to(
+            self,
+            to,
+            &mut |builder: &mut languages::TableBuilder<'_>, from, to| fill(gap, &mut Old(builder), from, to),
+        );
+    }
+
+    fn token(&mut self, kind: Kind, start: Offset, end: Offset, gap: &mut Gap<'_>) {
+        languages::lossless_token(
+            self,
+            kind_bits(kind),
+            start,
+            end,
+            &mut |builder: &mut languages::TableBuilder<'_>, from, to| fill(gap, &mut Old(builder), from, to),
+        );
+    }
+
+    fn decoded(&mut self, kind: Kind, start: Offset, end: Offset, text: &str, gap: &mut Gap<'_>) {
+        languages::lossless_decoded_token(
+            self,
+            kind_bits(kind),
+            start,
+            end,
+            NameText(text),
+            &mut |builder: &mut languages::TableBuilder<'_>, from, to| fill(gap, &mut Old(builder), from, to),
+        );
+    }
+
+    fn finish(&mut self, read: Offset, length: Offset, gap: &mut Gap<'_>) {
+        Tree::fill_to(self, read, gap);
+        languages::fill_to(
+            self,
+            length,
+            &mut |builder: &mut languages::TableBuilder<'_>, from, to| {
+                languages::token(builder, kind_bits(Kind::Extra(Extra::Error)), from, to);
+            },
+        );
+        languages::leave_node(self.builder, length);
     }
 }
