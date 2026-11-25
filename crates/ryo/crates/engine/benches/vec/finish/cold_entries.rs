@@ -229,7 +229,7 @@ impl Audit {
                 .sum();
         } else {
             let mut rows = if ns == KIND_ENTRY {
-                bucket(f, run, &d.kinds, d.view.as_ref().map_or(super::Extent::Whole, |v| v.base.extent()))
+                bucket(f, run, &d.kinds, d.view.as_ref().expect("a select entry has its view").base.extent())
             } else {
                 f.vrows.data[&((2 << SHIFT) | (key & MASK))]
                     .owned().as_ref()

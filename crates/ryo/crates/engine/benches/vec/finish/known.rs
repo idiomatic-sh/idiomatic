@@ -239,7 +239,7 @@ impl Exec<'_> {
         let codes = |run: &Run, syms: &[u32]| -> Box<[u16]> { run.kind_sym.iter().enumerate().filter(|(_, s)| syms.contains(s)).map(|(c, _)| c as u16).collect() };
         let file_test = |conj: &[E]| conj.iter().any(|c| filter_order::file_const(c) && !matches!(c, E::Lit(_)));
         if let Ok(Some(v)) = self.view(run, node) {
-            if v.base.shape() == Native::Tree(Extent::Whole) {
+            if v.base.is_tree() {
                 n.kinds = v.filter.iter().filter_map(|c| super::kind_set(run, std::slice::from_ref(c), 0, v.base, &[])).map(|ks| codes(run, &ks)).collect();
             }
             n.file_test = file_test(&v.filter);
@@ -256,7 +256,7 @@ impl Exec<'_> {
                 let mut kinds = Vec::new();
                 for (i, s) in sp.srcs.iter().enumerate() {
                     if let Ok(Some(v)) = self.view(run, *s)
-                        && v.base.shape() == Native::Tree(Extent::Whole)
+                        && v.base.is_tree()
                     {
                         kinds.extend(sp.conj.iter().filter_map(|c| super::kind_set(run, std::slice::from_ref(c), i, v.base, &v.map)).map(|ks| codes(run, &ks)));
                     }

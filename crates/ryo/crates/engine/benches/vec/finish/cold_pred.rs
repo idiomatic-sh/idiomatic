@@ -85,7 +85,7 @@ fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
             (Native::Child(_), 3) if run.file_field_codes => {
                 let test = word.bind();
                 Action::Rows(Box::new(move |f, run, _, r| {
-                    let field = f.native_get(run, Native::Child(Extent::Whole), r, 3);
+                    let field = f.native_get(run, base, r, 3);
                     test(run, field)
                 }))
             }

@@ -701,7 +701,7 @@ impl Exec<'_> {
                 continue;
             }
             if deferred.is_some_and(|d| d.0 == i) {
-                srcs.push(Src::Base(Native::Tree(Extent::Whole)));
+                srcs.push(Src::Base(Native::Location));
                 continue;
             }
             let src = match if i < 4 { self.lazy_view(f, run, *n, conj, i, kp.kinds[i].0.is_some() || kp.kinds[i].1.is_some())? } else { None } {

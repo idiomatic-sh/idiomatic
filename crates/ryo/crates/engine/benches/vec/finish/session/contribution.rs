@@ -22,6 +22,8 @@ pub(in super::super::super) struct Projection {
     schema: Rc<Schema>,
     columns: Vec<(usize, Native, usize)>,
     rows: Rows,
+    /// The child relation whose edges a demanded read probes, with the extent the catalog states for it.
+    edge: Option<Native>,
     share_with_local_reader: bool,
 }
 
@@ -129,7 +131,7 @@ impl Projection {
                 return None;
             };
             let tree = exec.view(run, node).ok()??;
-            if tree.base.shape() != Native::Child(Extent::Whole) || !tree.filter.is_empty() || tree.map.get(column) != Some(&0) {
+            if !tree.base.is_child() || !tree.filter.is_empty() || tree.map.get(column) != Some(&0) {
                 return None;
             }
             let columns = tree
@@ -137,8 +139,9 @@ impl Projection {
                 .iter()
                 .enumerate()
                 .filter(|(c, _)| mask.get(*c) != Some(&false))
-                .map(|(c, &col)| (c, Native::Child(Extent::Whole), col))
+                .map(|(c, &col)| (c, tree.base, col))
                 .collect();
+            let edge = tree.base;
             return Some(Self {
                 demand: Some(keys),
                 source: node,
@@ -146,6 +149,7 @@ impl Projection {
                 tree,
                 columns,
                 rows: Rows::Edges,
+                edge: Some(edge),
                 share_with_local_reader: false,
             });
         }
@@ -176,12 +180,13 @@ impl Projection {
                     schema,
                     columns,
                     rows: Rows::ProviderProjection,
+                    edge: None,
                     share_with_local_reader: false,
                 });
             }
             // Visiting only the surviving rows must not hide an unsupported
             // expression that the original producer would have reported.
-            if tree.base.shape() != Native::Tree(Extent::Whole)
+            if !tree.base.is_tree()
                 || tree.filter.iter().any(|expr| super::scalar(expr).is_err())
             {
                 return None;
@@ -202,7 +207,7 @@ impl Projection {
                     .iter()
                     .enumerate()
                     .filter(|(c, _)| read(*c))
-                    .map(|(c, &col)| (c, Native::Tree(Extent::Whole), col))
+                    .map(|(c, &col)| (c, tree.base, col))
                     .collect();
                 return Some(Self {
                     demand: Some(keys),
@@ -211,6 +216,7 @@ impl Projection {
                     schema,
                     columns,
                     rows: Rows::Nodes,
+                    edge: None,
                     share_with_local_reader: false,
                 });
             };
@@ -231,7 +237,7 @@ impl Projection {
                 .iter()
                 .enumerate()
                 .filter(|(c, _)| read(*c))
-                .map(|(c, &col)| (c, Native::Tree(Extent::Whole), col))
+                .map(|(c, &col)| (c, tree.base, col))
                 .collect();
             return Some(Self {
                 demand: None,
@@ -240,6 +246,7 @@ impl Projection {
                 schema,
                 columns,
                 rows: Rows::Literals { kinds, text_slots },
+                edge: None,
                 share_with_local_reader: false,
             });
         }
@@ -251,10 +258,10 @@ impl Projection {
             exec.view(run, plan.srcs[0]).ok()??,
             exec.view(run, plan.srcs[1]).ok()??,
         ];
-        let tree_side = views.iter().position(|v| v.base.shape() == Native::Tree(Extent::Whole))?;
+        let tree_side = views.iter().position(|v| v.base.is_tree())?;
         let edge_side = 1 - tree_side;
         let edge = &views[edge_side];
-        if edge.base.shape() != Native::Child(Extent::Whole) || !edge.filter.is_empty() {
+        if !edge.base.is_child() || !edge.filter.is_empty() {
             return None;
         }
         let [E::Cmp(Op::Eq, a, b)] = plan.conj.as_slice() else {
@@ -265,7 +272,7 @@ impl Projection {
             _ => None,
         };
         let keys = [endpoint(a)?, endpoint(b)?];
-        if !keys.contains(&(Native::Tree(Extent::Whole), 0)) || !keys.contains(&(Native::Child(Extent::Whole), 1)) {
+        if !keys.iter().any(|(base, column)| base.is_tree() && *column == 0) || !keys.iter().any(|(base, column)| base.is_child() && *column == 1) {
             return None;
         }
         // A projected ordinal also makes the result distinct under projection.
@@ -292,7 +299,7 @@ impl Projection {
             };
             columns
                 .iter()
-                .any(|&(out, base, col)| out == column && base.shape() == Native::Child(Extent::Whole) && col == 0)
+                .any(|&(out, base, col)| out == column && base.is_child() && col == 0)
                 .then_some(keys)
         });
         if demand.is_some() && !views[tree_side].filter.iter().all(super::certificate::total) {
@@ -306,6 +313,7 @@ impl Projection {
             schema,
             columns,
             rows: Rows::WithParent,
+            edge: Some(edge.base),
             share_with_local_reader: shared,
         })
     }
@@ -340,7 +348,7 @@ impl Projection {
             Rows::Edges | Rows::WithParent if self.demand.is_some() => {
                 let mut rows = Vec::new();
                 for &parent in keys? {
-                    file.native_probe(run, Native::Child(Extent::Whole), 0, u64::from(parent), &mut rows);
+                    file.native_probe(run, self.edge.expect("a read of edges names its relation"), 0, u64::from(parent), &mut rows);
                 }
                 rows.sort_unstable();
                 rows.dedup();

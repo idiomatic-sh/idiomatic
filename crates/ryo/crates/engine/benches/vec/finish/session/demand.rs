@@ -101,7 +101,7 @@ pub(in super::super::super) fn ancestor_domains(
     for &source in inputs {
         // The preparation executor has disabled all its views so that File
         // equalities survive. Discover the native base without a view lookup.
-        if !native_child(exec, run, source) || exec.plan.emits.iter().any(|e| e.1 == source)
+        if native_child(exec, run, source).is_none() || exec.plan.emits.iter().any(|e| e.1 == source)
         {
             continue;
         }
@@ -140,9 +140,9 @@ pub(in super::super::super) fn ancestor_domains(
 pub(in super::super::super) enum Nodes {
     /// The node values of a file-local step's column, for rows passing literal tests.
     Column { step: usize, column: usize, tests: Vec<(usize, Vec<u8>)> },
-    Children(Box<Nodes>),
-    Below(Box<Nodes>),
-    Above(Box<Nodes>),
+    Children(Box<Nodes>, Extent),
+    Below(Box<Nodes>, Extent),
+    Above(Box<Nodes>, Extent),
     Union(Vec<Nodes>),
 }
 
@@ -172,7 +172,7 @@ impl Nodes {
     pub(in super::super::super) fn steps(&self, out: &mut Vec<usize>) {
         match self {
             Self::Column { step, .. } => out.push(*step),
-            Self::Children(inner) | Self::Below(inner) | Self::Above(inner) => inner.steps(out),
+            Self::Children(inner, _) | Self::Below(inner, _) | Self::Above(inner, _) => inner.steps(out),
             Self::Union(parts) => parts.iter().for_each(|part| part.steps(out)),
         }
     }
@@ -215,7 +215,7 @@ fn origin(
             if !local[src] {
                 return origin(exec, run, local, src, c, depth - 1);
             }
-            if native_child(exec, run, src) {
+            if let Some(extent) = native_child(exec, run, src) {
                 // A child looked up by an equality on its parent.
                 if c != 1 {
                     return None;
@@ -231,7 +231,7 @@ fn origin(
                         continue;
                     };
                     let inner = origin(exec, run, local, sel.srcs[other], key, depth - 1)?;
-                    return Some(Nodes::Children(Box::new(inner)));
+                    return Some(Nodes::Children(Box::new(inner), extent));
                 }
                 return None;
             }
@@ -282,13 +282,11 @@ fn origin(
             let relation = exec.arg_rel(step, "relation").ok()?;
             let id = super::super::pos(&exec.schema(run, from).ok()?.names, "id").ok()?;
             let reach = origin(exec, run, local, from, id, depth - 1)?;
-            if !native_child(exec, run, relation) {
-                return None;
-            }
+            let extent = native_child(exec, run, relation)?;
             Some(if ancestor_direction(super::super::s(&node.args()["direction"]).ok()?)? {
-                Nodes::Above(Box::new(reach))
+                Nodes::Above(Box::new(reach), extent)
             } else {
-                Nodes::Below(Box::new(reach))
+                Nodes::Below(Box::new(reach), extent)
             })
         }
         _ => None,
@@ -329,7 +327,10 @@ pub(in super::super::super) fn reach_domains(
                 else {
                     return false;
                 };
-                if !native_child(exec, run, relation) || (from != source && domain != source) {
+                let Some(extent) = native_child(exec, run, relation) else {
+                    return false;
+                };
+                if from != source && domain != source {
                     return false;
                 }
                 let start = from == source;
@@ -342,7 +343,7 @@ pub(in super::super::super) fn reach_domains(
                 let Some(base) = origin(exec, run, local, other, id, 32) else {
                     return false;
                 };
-                parts.push(if start == ancestors { Nodes::Below(Box::new(base)) } else { Nodes::Above(Box::new(base)) });
+                parts.push(if start == ancestors { Nodes::Below(Box::new(base), extent) } else { Nodes::Above(Box::new(base), extent) });
                 true
             });
         if bounded && !parts.is_empty() {
@@ -363,9 +364,12 @@ pub(in super::super::super) fn walk_domains(
 ) -> BTreeMap<usize, (usize, Nodes)> {
     let mut found = BTreeMap::new();
     for &source in inputs {
-        if exec.plan.emits.iter().any(|e| e.1 == source) || !native_child(exec, run, source) {
+        if exec.plan.emits.iter().any(|e| e.1 == source) {
             continue;
         }
+        let Some(extent) = native_child(exec, run, source) else {
+            continue;
+        };
         let mut parts = Vec::new();
         let bounded = exec.plan.consumers(source).iter().copied()
             .filter(|&reader| reached[reader] && !local[reader])
@@ -389,7 +393,7 @@ pub(in super::super::super) fn walk_domains(
                 let Some(start) = origin(exec, run, local, from, id, 32) else {
                     return false;
                 };
-                parts.push(union(vec![start.clone(), Nodes::Below(Box::new(start))]));
+                parts.push(union(vec![start.clone(), Nodes::Below(Box::new(start), extent)]));
                 true
             });
         if bounded && !parts.is_empty() {
@@ -406,6 +410,7 @@ pub(super) fn reach_nodes(
     file: &mut File<'_>,
     from: &[u32],
     below: bool,
+    extent: Extent,
 ) -> Vec<u32> {
     let mut seen = rustc_hash::FxHashSet::default();
     let mut pending: Vec<u32> = from.to_vec();
@@ -413,7 +418,7 @@ pub(super) fn reach_nodes(
     while let Some(node) = pending.pop() {
         if below {
             children.clear();
-            file.native_probe(run, Native::Child(Extent::Whole), 0, u64::from(node), &mut children);
+            file.native_probe(run, Native::Child(extent), 0, u64::from(node), &mut children);
             pending.extend(children.iter().copied().filter(|&child| seen.insert(child)));
         } else if file.has_parent(node) {
             let parent = file.parent[node as usize];
@@ -447,21 +452,21 @@ pub(super) fn nodes_of(
                 .map(|node| node as u32)
                 .collect()
         }
-        Nodes::Children(inner) => {
+        Nodes::Children(inner, extent) => {
             let parents = nodes_of(exec, run, file, facts, slots, inner)?;
             let mut rows = Vec::new();
             for parent in parents {
-                file.native_probe(run, Native::Child(Extent::Whole), 0, u64::from(parent), &mut rows);
+                file.native_probe(run, Native::Child(*extent), 0, u64::from(parent), &mut rows);
             }
             rows
         }
-        Nodes::Below(inner) => {
+        Nodes::Below(inner, extent) => {
             let from = nodes_of(exec, run, file, facts, slots, inner)?;
-            reach_nodes(run, file, &from, true)
+            reach_nodes(run, file, &from, true, *extent)
         }
-        Nodes::Above(inner) => {
+        Nodes::Above(inner, extent) => {
             let from = nodes_of(exec, run, file, facts, slots, inner)?;
-            reach_nodes(run, file, &from, false)
+            reach_nodes(run, file, &from, false, *extent)
         }
         Nodes::Union(parts) => {
             let mut all = Vec::new();
@@ -476,11 +481,16 @@ pub(super) fn nodes_of(
     Ok(out)
 }
 
-fn native_child(exec: &Exec<'_>, run: &Run, source: usize) -> bool {
-    exec.plan.nodes[source].base().is_some_and(|name| {
-        matches!(run.supplier(name), Supplier::Provider)
-            && native_of(run, name).map(Native::shape) == Some(Native::Child(Extent::Whole))
-    })
+/// The extent of the native child relation a plan node reads in place, when it is one.
+fn native_child(exec: &Exec<'_>, run: &Run, source: usize) -> Option<Extent> {
+    let name = exec.plan.nodes[source].base()?;
+    if !matches!(run.supplier(name), Supplier::Provider) {
+        return None;
+    }
+    match native_of(run, name)? {
+        Native::Child(extent) => Some(extent),
+        _ => None,
+    }
 }
 
 pub(super) fn ancestor_edges(
@@ -492,15 +502,15 @@ pub(super) fn ancestor_edges(
     domain: usize,
 ) -> R<Option<Rc<Table>>> {
     // Binding can override the native child edge with a reader-supplied graph.
-    if !native_child(exec, run, source) {
+    let Some(extent) = native_child(exec, run, source) else {
         return Ok(None);
-    }
+    };
     let domain = exec.eval(file, run, facts, domain)?;
     let id = domain.col("id")?;
     let schema = exec.schema(run, source)?;
     let sample = super::super::operators::enter(source, domain.n);
     let mut pending: Vec<_> = domain.cols[id].iter().copied()
-        .filter(|&node| node < file.n as u64)
+        .filter(|&node| node < file.limit(extent) as u64)
         .map(|node| node as u32)
         .collect();
     // A provider can lend physical tokens after the AST positions. Follow
@@ -509,7 +519,7 @@ pub(super) fn ancestor_edges(
     let mut children = Vec::new();
     while let Some(parent) = pending.pop() {
         children.clear();
-        file.native_probe(run, Native::Child(Extent::Whole), 0, u64::from(parent), &mut children);
+        file.native_probe(run, Native::Child(extent), 0, u64::from(parent), &mut children);
         pending.extend(children.iter().copied().filter(|child| seen.insert(*child)));
     }
     let mut children: Vec<_> = seen.into_iter().collect();

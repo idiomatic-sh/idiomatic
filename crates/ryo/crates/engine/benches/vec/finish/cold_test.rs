@@ -60,7 +60,7 @@ impl Kernel {
 // Positive literals in the same column of a conjunction intersect. Provider codes
 // with the same symbol (and out-of-vocabulary fields) keep their original meaning.
 fn field_members(v: &ViewSpec) -> Option<Vec<u32>> {
-    if v.base.shape() != Native::Child(Extent::Whole) {
+    if !v.base.is_child() {
         return None;
     }
     let mut exprs = v.filter.iter();

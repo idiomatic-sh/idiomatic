@@ -625,13 +625,14 @@ impl Native {
         }
     }
 
-    /// The relation's shape alone, its extent set aside: what two reads share when they read the same columns of the table.
-    pub(super) fn shape(self) -> Self {
-        match self {
-            Self::Tree(_) => Self::Tree(Extent::Whole),
-            Self::Child(_) => Self::Child(Extent::Whole),
-            other => other,
-        }
+    /// Whether the relation is a row an element, whatever its extent.
+    pub(super) fn is_tree(self) -> bool {
+        matches!(self, Self::Tree(_))
+    }
+
+    /// Whether the relation is a row an element with a parent, whatever its extent.
+    pub(super) fn is_child(self) -> bool {
+        matches!(self, Self::Child(_))
     }
 }
 
@@ -3252,16 +3253,10 @@ impl<'p> Exec<'p> {
                     }
                 }
                 "descendant" | "child" => {
-                    if let Hier::Tree(extent) = hier && (x as usize) < f.limit(extent)
-                        && (dir == "child" || node_table::node_count(f.table).0 == f.n)
-                    {
+                    if let Hier::Tree(extent) = hier && dir == "child" && (x as usize) < f.limit(extent) {
+                        // a node's children are its edges, never a range of positions: the table numbers nodes before tokens
                         let limit = f.limit(extent) as u32;
-                        if dir == "child" {
-                            all.extend(f.child_rows(x).filter(|child| *child < limit).map(|child| (i, u64::from(child))));
-                        } else {
-                            let end = node_table::subtree_end_of(f.table, Position(x as u32)).0.min(limit);
-                            all.extend((x as u32 + 1..end).map(|q| (i, u64::from(q))));
-                        }
+                        all.extend(f.child_rows(x).filter(|child| *child < limit).map(|child| (i, u64::from(child))));
                     } else {
                         seen.clear();
                         frontier.clear();
@@ -3752,7 +3747,7 @@ fn lit_pick_for(conj: &[E], si: usize, map: &[usize], symbol_column: impl Fn(usi
 /// The kinds a conjunction requires of a tree source's `kind` column (a literal or an or of literals), if any. `map` takes a
 /// view's column to its base column (empty: the columns are the base's).
 fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
-    if base.shape() != Native::Tree(Extent::Whole) {
+    if !base.is_tree() {
         return None;
     }
     let is_kind = |c: usize| if map.is_empty() { c == 1 } else { map.get(c) == Some(&1) };

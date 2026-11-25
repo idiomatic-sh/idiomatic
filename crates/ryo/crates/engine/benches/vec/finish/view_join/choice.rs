@@ -79,7 +79,7 @@ pub(super) fn reverse(
     let hits = view_probe::filtered_pairs(f, run, sources, batch, old, key, pushed, |_, new_id, old_id| {
         pairs.push((old_id, new_id));
     })?;
-    if (new.base, new.map[columns[other]]) == (Native::Child(Extent::Whole), 0) {
+    if new.base.is_child() && new.map[columns[other]] == 0 {
         pairs
             .sort_unstable_by_key(|&(a, b)| (a, node_table::ordinal_of(f.table, Position(b)).0, b));
     } else {

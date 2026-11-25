@@ -37,7 +37,7 @@ impl Exec<'_> {
         };
         // Gathering a tree text column may assign fresh run symbols. Keep the
         // original column order wherever that side effect could be observable.
-        if (view.base.shape() == Native::Tree(Extent::Whole) && view.map.contains(&2)) || !accepts(&view) {
+        if (view.base.is_tree() && view.map.contains(&2)) || !accepts(&view) {
             return Ok(None);
         }
         if !matches!(self.res(f, run, p, node)?, super::Res::View(_)) {

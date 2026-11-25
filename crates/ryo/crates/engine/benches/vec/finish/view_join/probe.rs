@@ -58,7 +58,7 @@ impl<'a> Filter<'a> {
             return Some(Self::All);
         }
         if let Some(entry) = v.cold_bucket.get() {
-            let column = if v.base.shape() == Native::Child(Extent::Whole) {
+            let column = if v.base.is_child() {
                 &f.field
             } else {
                 &f.kind

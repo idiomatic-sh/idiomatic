@@ -33,6 +33,7 @@ impl<'a> FileVersion<'a> {
         if let Some(symbols) = &text {
             assert_eq!(symbols.len(), kind.len());
         }
+        debug_assert!(node_table::embedded_segments(table).all(|segment| usize::from(segment.root) >= usize::try_from(node_table::own_end(table).0).unwrap_or(usize::MAX)), "every embedded root lies at or after own_end");
         Self {
             table, src, file, n: kind.len(), own: usize::try_from(node_table::own_end(table).0).unwrap_or(usize::MAX).min(kind.len()), kind,
             start: node_table::starts(table),
@@ -61,6 +62,7 @@ impl<'a> FileVersion<'a> {
         if extent == super::Extent::Whole || self.own >= self.n {
             return ids;
         }
+        debug_assert!(ids.windows(2).all(|w| w[0] < w[1]), "a kind or field list is in ascending position order");
         let own = self.own as u32;
         &ids[..ids.partition_point(|p| p.0 < own)]
     }
