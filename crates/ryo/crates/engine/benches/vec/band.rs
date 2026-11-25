@@ -128,7 +128,7 @@ impl Exec<'_> {
         let arows: Vec<u32> = match &sa {
             Src::Tab(t, _) => (0..t.n as u32).collect(),
             Src::View(v, vn) => match kind_set(run, &sp.conj, ka, v.base, &v.map) {
-                Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => bucket(f, run, &ks).into_iter().filter(|r| view_holds(f, run, v, *r)).collect(),
+                Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => bucket(f, run, &ks, v.base.extent()).into_iter().filter(|r| view_holds(f, run, v, *r)).collect(),
                 _ => view_rows(f, run, v, *vn).to_vec(),
             },
             _ => unreachable!(),
@@ -178,7 +178,7 @@ impl Exec<'_> {
             Src::Tab(..) => sb,
             Src::View(v, vn) => match kind_set(run, &sp.conj, pb, v.base, &v.map) {
                 Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => {
-                    let rows: Vec<u32> = bucket(f, run, &ks).into_iter().filter(|r| view_holds(f, run, &v, *r)).collect();
+                    let rows: Vec<u32> = bucket(f, run, &ks, v.base.extent()).into_iter().filter(|r| view_holds(f, run, &v, *r)).collect();
                     let sc = self.schema(run, bn)?;
                     let mut t = Table::with(sc.names.clone(), sc.tys.clone());
                     for c in 0..v.map.len() {

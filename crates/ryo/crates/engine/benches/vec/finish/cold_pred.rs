@@ -302,7 +302,7 @@ impl Program {
             let (cols, skip): (Columns<'_>, _) = match &self.entry {
                 Entry::Text { slots, captured } => {
                     let start = phase_clock();
-                    let indexed = super::cold_text::candidates(f, run, slots, out);
+                    let indexed = super::cold_text::candidates(self.base.extent(), f, run, slots, out);
                     phase("text literal entry including postings", start);
                     entered = indexed + out.len();
                     (Columns::Owned(&[]), Some(*captured))

@@ -320,10 +320,10 @@ impl Projection {
         let rows = match &self.rows {
             Rows::ProviderProjection => return None,
             Rows::Literals { kinds, text_slots } => {
-                let mut rows = super::super::bucket(file, run, kinds);
+                let mut rows = super::super::bucket(file, run, kinds, self.tree.base.extent());
                 if !text_slots.is_empty() {
                     let prior = rows.len();
-                    super::super::cold_text::candidates(file, run, text_slots, &mut rows);
+                    super::super::cold_text::candidates(self.tree.base.extent(), file, run, text_slots, &mut rows);
                     if prior != 0 && rows.len() != prior {
                         rows.sort_unstable();
                         rows.dedup();
