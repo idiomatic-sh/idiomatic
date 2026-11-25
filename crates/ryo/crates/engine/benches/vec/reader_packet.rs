@@ -115,8 +115,6 @@ pub(crate) struct Packet {
     spare: FxHashMap<usize, FilledColumns>,
     requested: Vec<bool>,
     indexed: Vec<usize>,
-    indexed_rows: usize,
-    indexed_at: usize,
     pub(crate) ready: bool,
 }
 impl Packet {
@@ -128,8 +126,6 @@ impl Packet {
             spare: Default::default(),
             requested: vec![false; RELATIONS],
             indexed: Vec::new(),
-            indexed_rows: 0,
-            indexed_at: 0,
             ready: false,
         }
     }
@@ -149,8 +145,6 @@ impl Packet {
             }
             self.requested[slot] = false;
         }
-        self.indexed_rows = 0;
-        self.indexed_at = 0;
         self.ready = false;
     }
     /// The structural projection has its own provider contract. Every filled
@@ -209,21 +203,20 @@ impl Packet {
         self.local(slot).map_or_else(|| self.offsets[slot].len(), |t| t.rows)
     }
     pub(crate) fn index(&mut self, wanted: &[l::Relation]) {
+        debug_assert!(!self.ready);
         for &rel in wanted {
             let slot = catalog::number_of(rel).0;
             self.touch(slot);
         }
         let widths = widths();
-        let mut at = self.indexed_at;
-        for &rel in &self.rows.relations[self.indexed_rows..] {
+        let mut at = 0;
+        for &rel in &self.rows.relations {
             let i = catalog::number_of(rel).0;
             debug_assert!(self.requested[i]);
             self.offsets[i].push(at);
             at += widths[i];
         }
         debug_assert_eq!(at, self.rows.words.len());
-        self.indexed_rows = self.rows.relations.len();
-        self.indexed_at = at;
         self.ready = true;
     }
     /// An indexed, requested relation already has an exact row count. The
