@@ -16,6 +16,7 @@ use ryo::languages::{
     ByteSlice, Count, FileFacts, FileVisit, NodeTableBuilder, Recognition, Relation, RelationNeeds, Walk, WalkError, WalkRequest,
     fillers, node_table,
 };
+use crate::outbound::syntax::types::Wants;
 use std::sync::Arc;
 use strum::EnumCount as _;
 
@@ -76,12 +77,13 @@ impl Walk for TypeScriptWalk<WalkPorts> {
         let flow = [Relation::FlowBlock, Relation::FlowEdge, Relation::FlowMember, Relation::FlowStep]
             .iter()
             .any(|relation| needs.0.contains(relation));
+        let wants = Wants { flow, patterns: [Relation::PatternSyntax, Relation::PatternChild, Relation::PatternParse].iter().any(|relation| needs.0.contains(relation)) };
         let walked = match reading_of(request.path, bytes, stretches.as_deref()) {
-            Scripting::Own(dialect) => self.ports.syntax.walk(SourceText(bytes.0), dialect, builder, flow),
-            Scripting::Script(script, dialect) => self.ports.syntax.walk(SourceText(&script.0), dialect, builder, flow),
+            Scripting::Own(dialect) => self.ports.syntax.walk(SourceText(bytes.0), dialect, builder, wants),
+            Scripting::Script(script, dialect) => self.ports.syntax.walk(SourceText(&script.0), dialect, builder, wants),
         };
         let table = node_table::finished(builder);
-        let mut file = TypeScriptFile { table, source: request.source, file: request.file, model: ReadIndexes::default(), flow: walked.flow };
+        let mut file = TypeScriptFile { table, source: request.source, file: request.file, model: ReadIndexes::default(), flow: walked.flow, patterns: walked.patterns };
         let mut source = fillers::file_source::<TypeScriptWalk<WalkPorts>>(&mut file);
         visit.visit(FileFacts {
             table,

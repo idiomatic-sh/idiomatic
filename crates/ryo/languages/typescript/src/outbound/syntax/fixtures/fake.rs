@@ -35,7 +35,7 @@ impl SyntaxPort for SyntaxFake {
         text: SourceText<'_>,
         _dialect: Dialect,
         builder: &mut languages::NodeTableBuilder<'_>,
-        _flow: bool,
+        _wants: crate::outbound::syntax::types::Wants,
     ) -> crate::outbound::syntax::types::Walked {
         use languages::{FieldCode, node_table};
         let end = languages::Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));

@@ -14,6 +14,7 @@ use crate::domain::syntax::constants::{
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::syntax::types::PatternNode;
+use crate::domain::file_view::types::CarrierFacts;
 use oxc_allocator::Allocator;
 use oxc_ast::{
     AstKind,
@@ -152,6 +153,84 @@ pub(in super::super) fn carried(projection: &mut VisitorStack<'_>, kind: AstKind
     }
 }
 
+/// What the library made of the pattern a carrier gives it.
+pub(in super::super) enum Outcome<'a> {
+    /// The pattern, parsed.
+    Parsed(oxc_regular_expression::ast::Pattern<'a>),
+    /// What the library refused: its message and where it points.
+    Refused {
+        /// The library's message.
+        message: String,
+        /// The place the message points at.
+        place: Option<Span>,
+    },
+}
+
+/// A carrier's pattern as the library read it, and how far it is written.
+pub(in super::super) struct Parsed<'a> {
+    /// Whether the carrier's pattern is written whole or only when refused.
+    pub(in super::super) reach: Reach,
+    /// The flags the pattern was read with.
+    pub(in super::super) flags: NameText<'a>,
+    /// Where the flags are written, when they are.
+    pub(in super::super) flags_span: Option<Span>,
+    /// What the library made of the pattern.
+    pub(in super::super) outcome: Outcome<'a>,
+}
+
+/// Reads the pattern of one carrier with the library; none for a carrier that gives it no pattern to read.
+pub(in super::super) fn parsed<'a>(
+    allocator: &'a Allocator,
+    source: NameText<'a>,
+    carrier: &'a Carrier<'_>,
+    scoping: &Scoping,
+) -> Option<Parsed<'a>> {
+    let (flags, flags_span) = match &carrier.flags {
+        PatternFlags::Bare(span) => (slice(source, *span), Some(*span)),
+        PatternFlags::Quoted(span, text) => (NameText(text.0.as_str()), Some(*span)),
+        PatternFlags::Absent => (NameText(NO_FLAGS), None),
+        PatternFlags::Unknown => (NameText(UNKNOWN_FLAGS), None),
+    };
+    let (reach, parsed) = match carrier.form {
+        Form::Literal(pattern) => {
+            let PatternFlags::Bare(bare) = carrier.flags else {
+                return None;
+            };
+            let parsed = LiteralParser::new(
+                allocator,
+                slice(source, pattern).0,
+                Some(slice(source, bare).0),
+                Options { pattern_span_offset: pattern.start, flags_span_offset: bare.start },
+            )
+            .parse();
+            (Reach::Read, parsed)
+        }
+        Form::Constructor(name) => {
+            let global = name
+                .reference_id
+                .get()
+                .is_some_and(|reference| declaration_start(scoping, reference).is_none());
+            let reach = if global { Reach::Read } else { Reach::Checked };
+            let parser = constructor_parser(allocator, source, Some(carrier.span), &carrier.flags);
+            (reach, parser.parse())
+        }
+        Form::Flags => (
+            Reach::Checked,
+            constructor_parser(allocator, source, None, &carrier.flags).parse(),
+        ),
+    };
+    let outcome = match parsed {
+        Ok(pattern) => Outcome::Parsed(pattern),
+        Err(error) => Outcome::Refused {
+            message: error.to_string(),
+            place: error.labels.as_slice().first().map(|label| {
+                Span::new(label.offset(), label.offset().saturating_add(label.len()))
+            }),
+        },
+    };
+    Some(Parsed { reach, flags, flags_span, outcome })
+}
+
 /// Parses the pattern of every carrier the projection wrote and writes it under the carrier. A pattern a literal or the global
 /// constructor reads is written whole: the flags it was read with, then its elements with their numbers, or the place and message of
 /// what the library refused. The global constructor is a `RegExp` whose identifier has no `REFERENCE_DECLARATION`, so no declaration
@@ -168,45 +247,10 @@ pub(in super::super) fn written_patterns(
         let Hosting::At(host) = carrier.host else {
             continue;
         };
-        let (flags, flags_span) = match &carrier.flags {
-            PatternFlags::Bare(span) => (slice(source, *span), Some(*span)),
-            PatternFlags::Quoted(span, text) => (NameText(text.0.as_str()), Some(*span)),
-            PatternFlags::Absent => (NameText(NO_FLAGS), None),
-            PatternFlags::Unknown => (NameText(UNKNOWN_FLAGS), None),
+        let Some(read) = parsed(allocator, source, carrier, scoping) else {
+            continue;
         };
-        let (reach, parsed) = match carrier.form {
-            Form::Literal(pattern) => {
-                let PatternFlags::Bare(bare) = carrier.flags else {
-                    continue;
-                };
-                let parsed = LiteralParser::new(
-                    allocator,
-                    slice(source, pattern).0,
-                    Some(slice(source, bare).0),
-                    Options {
-                        pattern_span_offset: pattern.start,
-                        flags_span_offset: bare.start,
-                    },
-                )
-                .parse();
-                (Reach::Read, parsed)
-            }
-            Form::Constructor(name) => {
-                let global = name
-                    .reference_id
-                    .get()
-                    .is_some_and(|reference| declaration_start(scoping, reference).is_none());
-                let reach = if global { Reach::Read } else { Reach::Checked };
-                let parser =
-                    constructor_parser(allocator, source, Some(carrier.span), &carrier.flags);
-                (reach, parser.parse())
-            }
-            Form::Flags => (
-                Reach::Checked,
-                constructor_parser(allocator, source, None, &carrier.flags).parse(),
-            ),
-        };
-        if reach == Reach::Checked && parsed.is_ok() {
+        if read.reach == Reach::Checked && matches!(read.outcome, Outcome::Parsed(_)) {
             continue;
         }
         languages::write_embedded(
@@ -215,19 +259,100 @@ pub(in super::super) fn written_patterns(
             ByteSlice(source.0.as_bytes()),
             EmbeddedMapping::Exact(Offset(0)),
             |logical| {
-                languages::node_property(logical, PATTERN_FLAGS, flags);
-                match parsed {
-                    Ok(pattern) => PatternWriter { builder: logical }.visit_pattern(&pattern),
-                    Err(error) => {
-                        let place = error.labels.as_slice().first().map(|label| {
-                            Span::new(label.offset(), label.offset().saturating_add(label.len()))
-                        });
-                        refusal(logical, place, flags_span, format_args!("{error}"));
+                languages::node_property(logical, PATTERN_FLAGS, read.flags);
+                match &read.outcome {
+                    Outcome::Parsed(pattern) => PatternWriter { builder: logical }.visit_pattern(pattern),
+                    Outcome::Refused { message, place } => {
+                        refusal(logical, *place, read.flags_span, format_args!("{message}"));
                     }
                 }
             },
         );
     }
+}
+
+/// What writes a parsed pattern's elements into the numbered table, as an embedded segment under the carrier.
+struct NumberedWriter<'b, 't> {
+    /// The table being written.
+    builder: &'b mut languages::NodeTableBuilder<'t>,
+}
+
+impl<'a> Visit<'a> for NumberedWriter<'_, '_> {
+    fn enter_node(&mut self, kind: RegExpAstKind<'a>) {
+        let Some(node) = pattern_node(kind) else {
+            return;
+        };
+        languages::node_table::enter_node(
+            self.builder,
+            kind_bits(Kind::Pattern(node)),
+            languages::FieldCode(0),
+            Offset(kind.span().start),
+        );
+        let number = if let RegExpAstKind::Character(character) = kind {
+            Some(character.value)
+        } else if let RegExpAstKind::IndexedReference(reference) = kind {
+            Some(reference.index)
+        } else {
+            None
+        };
+        if let Some(number) = number {
+            let _written = languages::node_table::node_property_fmt(
+                self.builder,
+                PATTERN_VALUE,
+                format_args!("{number}"),
+            );
+        }
+    }
+
+    fn leave_node(&mut self, kind: RegExpAstKind<'a>) {
+        if pattern_node(kind).is_some() {
+            languages::node_table::leave_node(self.builder, Offset(kind.span().end));
+        }
+    }
+}
+
+/// Writes the pattern of every carrier the projection wrote as an embedded segment of the numbered table, exactly where
+/// `written_patterns` writes it into the old one, and returns what the old table keeps as the carrier's properties.
+pub(in super::super) fn written_numbered_patterns(
+    allocator: &Allocator,
+    source: NameText<'_>,
+    carriers: &[Carrier<'_>],
+    scoping: &Scoping,
+    builder: &mut languages::NodeTableBuilder<'_>,
+) -> Vec<CarrierFacts> {
+    let mut facts = Vec::new();
+    for carrier in carriers {
+        let Hosting::At(host) = carrier.host else {
+            continue;
+        };
+        let Some(read) = parsed(allocator, source, carrier, scoping) else {
+            continue;
+        };
+        if read.reach == Reach::Checked && matches!(read.outcome, Outcome::Parsed(_)) {
+            continue;
+        }
+        let mut fact = CarrierFacts {
+            host,
+            flags: read.flags.0.to_owned(),
+            refusal: None,
+            flags_refused: false,
+            place: None,
+        };
+        let text = languages::EmbeddedText { text: source, mapping: EmbeddedMapping::Exact(Offset(0)) };
+        let _root = languages::node_table::embed(builder, host, text);
+        match &read.outcome {
+            Outcome::Parsed(pattern) => NumberedWriter { builder }.visit_pattern(pattern),
+            Outcome::Refused { message, place } => {
+                fact.flags_refused = place
+                    .zip(read.flags_span)
+                    .is_some_and(|(place, flags)| flags.contains_inclusive(place));
+                fact.refusal = Some(message.clone());
+                fact.place = place.map(|place| (Offset(place.start), Offset(place.end)));
+            }
+        }
+        facts.push(fact);
+    }
+    facts
 }
 
 /// The parser of the pattern string a call of `RegExp` is given at `pattern`, or of an empty one when it is given none, with the flags

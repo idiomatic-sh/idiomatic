@@ -138,7 +138,7 @@ fn old_rows<R: CatalogRelation>(relation: Relation, path: &str, bytes: &[u8]) ->
         &mut out,
     )
     .expect("today's reading reads the source");
-    let own = if languages::end_of(&elements).0 == 0 { 0 } else { usize::from(languages::last_at(&elements, Position(0))) + 1 };
+    let own = usize::try_from(languages::end_of(&elements).0).unwrap_or(0);
     let keys = keyed((0..own).map(|at| {
         let at = Position(u32::try_from(at).unwrap_or(u32::MAX));
         (languages::kind_at(&elements, at).0, languages::start_at(&elements, at).0, languages::end_at(&elements, at).0)
@@ -214,7 +214,7 @@ fn new_rows<R: CatalogRelation>(relation: Relation, path: &str, bytes: &[u8]) ->
     let mut visit = Fill::<R> { relation, rows: &mut rows, kind: std::marker::PhantomData };
     walk.walk(
         WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(bytes) },
-        RelationNeeds(&[Relation::FlowBlock, Relation::FlowEdge, Relation::FlowMember, Relation::FlowStep]),
+        RelationNeeds(&[Relation::SourceLocation, Relation::FlowBlock, Relation::FlowEdge, Relation::FlowMember, Relation::FlowStep, Relation::PatternSyntax, Relation::PatternChild, Relation::PatternParse]),
         &mut node_table::builder(&mut table, <TypeScriptWalk<WalkPorts> as Walk>::KIND_COUNT),
         &mut (),
         &mut visit,
@@ -225,14 +225,18 @@ fn new_rows<R: CatalogRelation>(relation: Relation, path: &str, bytes: &[u8]) ->
 
 /// What differs between the rows today's reader writes and the filler's, over every fixture source: the first differing rows of
 /// each source, and how many rows the sources hold in all.
-fn differences<R: CatalogRelation>(relation: Relation) -> (String, usize) {
+fn differences<R: CatalogRelation>(relation: Relation) -> (String, usize, usize, usize) {
     let mut report = String::new();
     let mut total = 0;
+    let mut files = 0;
+    let mut differing = 0;
     for (path, bytes) in sources() {
+        files += 1;
         let name = format!("input.{}", path.extension().and_then(|e| e.to_str()).unwrap_or("ts"));
         let (old, new) = (old_rows::<R>(relation, &name, &bytes), new_rows::<R>(relation, &name, &bytes));
         total += old.len();
         if old != new {
+            differing += 1;
             let lacking = |side: &str, have: &[Vec<Seen>], other: &[Vec<Seen>]| {
                 have.iter().filter(|each| !other.contains(each)).take(2).map(|each| format!("  {side} only: {each:?}\n")).collect::<String>()
             };
@@ -246,14 +250,14 @@ fn differences<R: CatalogRelation>(relation: Relation) -> (String, usize) {
             ));
         }
     }
-    (report, total)
+    (report, total, files, differing)
 }
 
 /// Holds one relation's filler to its reader.
 fn equal<R: CatalogRelation>(relation: Relation) {
-    let (found, total) = differences::<R>(relation);
-    assert!(found.is_empty(), "{relation:?}: {found}");
-    println!("{relation:?}: {total} rows equal");
+    let (found, total, files, differing) = differences::<R>(relation);
+    assert!(found.is_empty(), "{relation:?}: {differing} of {files} files differ: {found}");
+    println!("{relation:?}: {total} rows equal over {files} files, {differing} differing");
 }
 
 #[test]
@@ -389,4 +393,178 @@ fn flow_member_fills_equal_reads() {
 #[test]
 fn flow_step_fills_equal_reads() {
     equal::<languages::FlowStep>(Relation::FlowStep);
+}
+
+#[test]
+fn pattern_syntax_fills_equal_reads() {
+    equal::<languages::PatternSyntax>(Relation::PatternSyntax);
+}
+
+#[test]
+fn pattern_child_fills_equal_reads() {
+    equal::<languages::PatternChild>(Relation::PatternChild);
+}
+
+#[test]
+fn pattern_parse_fills_equal_reads() {
+    equal::<languages::PatternParse>(Relation::PatternParse);
+}
+
+/// Every relation of the catalog: filled or absent.
+const FILLERS: [Relation; 75] = [
+    Relation::Comment,
+    Relation::Defines,
+    Relation::Prose,
+    Relation::Reference,
+    Relation::Scope,
+    Relation::SourceLocation,
+    Relation::StringLiteral,
+    Relation::SyntaxError,
+    Relation::BindingEvent,
+    Relation::BindingResolution,
+    Relation::BindingUse,
+    Relation::BraceFormatField,
+    Relation::BraceFormatParse,
+    Relation::BytesLiteral,
+    Relation::CallArgument,
+    Relation::CompilerFeature,
+    Relation::Decorates,
+    Relation::EmbeddedExpression,
+    Relation::FormatField,
+    Relation::FormatParse,
+    Relation::FormatSpecification,
+    Relation::FunctionTerminal,
+    Relation::Identifier,
+    Relation::ImplicitSymbol,
+    Relation::IndentRegion,
+    Relation::InterpolatedStringLiteral,
+    Relation::LanguageTarget,
+    Relation::LiteralExpressionParse,
+    Relation::LiteralProperties,
+    Relation::NumericLiteral,
+    Relation::Parameter,
+    Relation::QualifiedName,
+    Relation::RawFormatField,
+    Relation::StandardLibraryImport,
+    Relation::StaticImport,
+    Relation::BindingRead,
+    Relation::BindingShadow,
+    Relation::ConstantKey,
+    Relation::ExpressionShape,
+    Relation::ExpressionType,
+    Relation::Function,
+    Relation::Inherits,
+    Relation::LookupScope,
+    Relation::RawFormatSegment,
+    Relation::Resolves,
+    Relation::TokenLink,
+    Relation::AnalyzedSource,
+    Relation::Annotates,
+    Relation::Assigns,
+    Relation::AttributePath,
+    Relation::Directive,
+    Relation::Entry,
+    Relation::FilePackage,
+    Relation::FilesystemExecutable,
+    Relation::FilesystemFile,
+    Relation::FilesystemLineCount,
+    Relation::FilesystemReadFailure,
+    Relation::FlowBlock,
+    Relation::FlowEdge,
+    Relation::FlowMember,
+    Relation::FlowStep,
+    Relation::ManifestDiagnostic,
+    Relation::Mapping,
+    Relation::Mention,
+    Relation::ModuleIdentity,
+    Relation::PackageDependency,
+    Relation::PatternChild,
+    Relation::PatternParse,
+    Relation::PatternSyntax,
+    Relation::ProjectNamespaceMembership,
+    Relation::SequenceElement,
+    Relation::SourceDependency,
+    Relation::StaticCall,
+    Relation::Visibility,
+    Relation::WorkspaceMember,
+];
+
+/// The relations the language's project contract reads from the manifests, which the walk of a source does not answer.
+const PROJECT: [Relation; 6] = [
+    Relation::AnalyzedSource,
+    Relation::FilePackage,
+    Relation::ManifestDiagnostic,
+    Relation::PackageDependency,
+    Relation::SourceDependency,
+    Relation::WorkspaceMember,
+];
+
+/// The cause the walk gives each relation the language does not fill, which is the cause today's contracts give it.
+fn causes(walk_cause: &mut dyn FnMut(Relation) -> Option<languages::AbsenceCause>) -> String {
+    use std::fmt::Write as _;
+    let language = crate::linked();
+    let parse = language.parse_engine();
+    let project = language.project();
+    let mut report = String::new();
+    for relation in FILLERS {
+        // The manifests' relations are the project contract's: the walk is never asked for them.
+        if PROJECT.contains(&relation) {
+            continue;
+        }
+        let old = parse.absence_of(relation).or_else(|| project.absence_of(relation)).or(
+            // the engine reads the file system itself; the language is never asked, and says so
+            matches!(
+                relation,
+                Relation::FilesystemExecutable | Relation::FilesystemFile | Relation::FilesystemLineCount | Relation::FilesystemReadFailure
+            )
+            .then_some(languages::AbsenceCause::NotYetRead),
+        );
+        let new = walk_cause(relation);
+        if old != new {
+            let _ = writeln!(report, "{relation:?}: today {old:?}, walk {new:?}");
+        }
+    }
+    report
+}
+
+/// The walk's cause for a relation, asked of a file's fillers: nothing when it fills the relation.
+fn walked_cause(relation: Relation) -> Option<languages::AbsenceCause> {
+    let walk = walk();
+    let mut table = NodeTable::default();
+    let mut found = None;
+    walk.walk(
+        WalkRequest { path: languages::SourcePath("input.ts"), file: FileId(0), source: ByteSlice(b"let a = 1;\n") },
+        RelationNeeds(&[]),
+        &mut node_table::builder(&mut table, <TypeScriptWalk<WalkPorts> as Walk>::KIND_COUNT),
+        &mut (),
+        &mut Probe(&mut |mut lent: FileFacts<'_>| {
+            let mut words = facts::file_words(&facts::base_words(Default::default(), &[]));
+            found = match lent.facts.fill(relation, languages::Wanted::Whole, &mut words, &mut FilledColumns::default()) {
+                languages::FactAnswer::Refused(cause) => Some(cause),
+                _ => None,
+            };
+        }),
+    )
+    .expect("the walk reads the source");
+    found
+}
+
+/// A visit that runs a closure on the lent file.
+struct Probe<'a>(&'a mut dyn FnMut(FileFacts<'_>));
+
+impl FileVisit for Probe<'_> {
+    fn visit(&mut self, file: FileFacts<'_>) {
+        (self.0)(file);
+    }
+}
+
+#[test]
+fn each_relation_the_walk_does_not_fill_has_the_cause_todays_contracts_give() {
+    let report = causes(&mut walked_cause);
+    assert!(report.is_empty(), "{report}");
+}
+
+#[test]
+fn source_location_fills_equal_reads() {
+    equal::<languages::SourceLocation>(Relation::SourceLocation);
 }
