@@ -459,13 +459,29 @@ impl Batch {
             Work::Closed { project, .. } => *project,
             _ => None,
         }).collect();
+        // A project whose population is already built for the same relations reads no notes.
+        let built = |project: usize, populations: &HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>|
+            populations.get(&project).is_some_and(|(wanted, _)| *wanted == self.projects[project].wanted);
+        let mut notes_needed = BTreeSet::new();
         for project in needed_projects {
+            if built(project, &state.populations) { continue; }
             for &id in &self.projects[project].slots {
+                notes_needed.insert(id);
                 if state.contributions[id].is_none() {
                     self.schedule.sources[id].project = true;
                     self.schedule.pending.insert(id);
                 }
             }
+        }
+        // A source pending only as a project input, whose notes no unbuilt population needs, is not opened.
+        let schedule = &mut self.schedule;
+        let idle: Vec<usize> = schedule.pending.iter().copied().filter(|&id| {
+            let source = &schedule.sources[id];
+            source.project && source.bindings.is_empty() && !notes_needed.contains(&id)
+        }).collect();
+        for id in idle {
+            schedule.pending.remove(&id);
+            schedule.sources[id].project = false;
         }
         let mut probe = Vec::new();
         if let Some(store) = store.as_deref_mut() {
