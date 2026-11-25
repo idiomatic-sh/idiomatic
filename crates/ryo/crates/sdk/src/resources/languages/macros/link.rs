@@ -7,8 +7,8 @@ use ryo_language::inbound::use_cases::walk::types::WalkEngine;
 use crate::domain::language::types::{Language, LanguageBuild, LanguageName};
 
 /// A language as an edge links it: its name, which is the name of its directory, its two use cases, and the build, which is its
-/// crate's version: the language does not write the build. A language that implements `Walk` links it with `walk:`, beside the
-/// two: the new engine scans its files through that walk, and refuses a language linked without one.
+/// crate's version: the language does not write the build. Every language implements `Walk` and links it with `walk:`, beside the
+/// two: the engine scans its files through that walk, and a language linked without one does not compile.
 ///
 /// # Examples
 ///
@@ -24,16 +24,13 @@ use crate::domain::language::types::{Language, LanguageBuild, LanguageName};
 macro_rules! link {
     ($name:expr, parse: $parse:expr, project: $project:expr, walk: $walk:expr $(,)?) => {
         $crate::languages::walking(
-            $crate::link!($name, parse: $parse, project: $project),
+            $crate::languages::link(
+                $crate::languages::LanguageName(($name).into()),
+                $crate::languages::LanguageBuild($crate::language_crate_version!().into()),
+                $parse,
+                $project,
+            ),
             $walk,
-        )
-    };
-    ($name:expr, parse: $parse:expr, project: $project:expr $(,)?) => {
-        $crate::languages::link(
-            $crate::languages::LanguageName(($name).into()),
-            $crate::languages::LanguageBuild($crate::language_crate_version!().into()),
-            $parse,
-            $project,
         )
     };
 }
