@@ -52,15 +52,15 @@ def check(executor, shipping):
         ("all-partitions-skipped", files, paths, [], "partitions excluded"),
         ("unclosed-inventory", files, None, [], "incomplete project inventory"),
     ]
-    requests, expected = [], []
+    entries = []
     with tempfile.TemporaryDirectory() as scratch:
         root = Path(scratch)
-        pack = root / "pack"
-        rules = pack / "rules/query"
-        rules.mkdir(parents=True)
         for path in paths:
             (root / path).write_text("")
         for name, query, inventory, hosted, reference in controls:
+            pack = root / hashlib.sha256(query.encode()).hexdigest()
+            rules = pack / "rules/query"
+            rules.mkdir(parents=True, exist_ok=True)
             (rules / "query.ryoql").write_text(query)
             for order, stride in (("forward", 1), ("reverse", -1)):
                 admission = (inventory or [])[::stride]
@@ -73,28 +73,39 @@ def check(executor, shipping):
                 inputs = dict(root=str(root), include=include, selected_rules=["query"], inventory=inventory,
                               files=admission, parameters={}, hosted=[dict(t, rows=t["rows"][::stride])
                                                                       for t in hosted[::stride]])
+                identity = f"{name}/{order}"
+                request = root / f"{name}-{order}.json"
+                request.write_text(json.dumps(inputs))
                 if isinstance(reference, int):
-                    request = root / "request.json"
                     output = root / "shipping.jsonl"
-                    request.write_text(json.dumps(inputs))
                     subprocess.run([shipping, "--shipping", pack, request, output], check=True,
                                    stdout=subprocess.DEVNULL)
                     buf = output.read_bytes()
                     assert len(buf.splitlines()) - int(buf == b"\n") == reference, (name, buf)
-                    expected.append(hashlib.sha256(buf).hexdigest())
+                    wanted = hashlib.sha256(buf).hexdigest()
                 else:
-                    expected.append(reference)
-                requests.append(dict(inputs, id=f"{name}/{order}", query=query))
-        got = subprocess.run([executor, "--project"], check=True, capture_output=True, text=True,
-                             input="".join(json.dumps(r) + "\n" for r in requests))
-    for request, line, wanted in zip(requests, got.stdout.splitlines(), expected, strict=True):
-        answer = json.loads(line)
-        assert answer["id"] == request["id"], answer
-        if "sha256" in answer:
-            assert wanted == answer["sha256"], (request["id"], wanted, answer)
-        else:
-            assert wanted in answer["refused"], (request["id"], wanted, answer)
-        print(request["id"], answer.get("rows", answer.get("refused")))
+                    wanted = reference
+                entries.append((identity, pack, request, wanted, isinstance(reference, int)))
+
+        manifest = root / "manifest.tsv"
+        manifest.write_text("".join(f"{key}\t{pack}\t{request}\t-\n"
+                                    for key, pack, request, _, _ in entries))
+        results = root / "receipts.tsv"
+        subprocess.run([executor, "--tm-batch", manifest, results, "--workers", "1"], check=True)
+        for entry, line in zip(entries, results.read_text().splitlines(), strict=True):
+            key, pack, request, wanted, answered = entry
+            identity, status, digest, *unknowns = line.split("\t")
+            assert identity == key and not unknowns, (key, line)
+            if answered:
+                assert status != "refused" and digest == wanted, (key, wanted, line)
+            else:
+                assert status == "refused", (key, wanted, line)
+                # Batch receipts omit the refusal sentence. Read it through the
+                # single-request replay of the same input.
+                single = subprocess.run([executor, "--mixed", pack, request, root / "unused"],
+                                        capture_output=True, text=True)
+                assert single.returncode and wanted in single.stderr, (key, wanted, single.stderr)
+            print(key, digest if answered else wanted)
 
 
 if __name__ == "__main__":
