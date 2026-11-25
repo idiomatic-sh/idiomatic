@@ -3,10 +3,12 @@
 //! and its fields. CSS's fillers write no fixed name.
 
 use crate::domain::file_view::types::{CssFile, CssWalk};
-use crate::domain::syntax::service::{field_name, fields, kind_name, kinds};
+use crate::domain::extras::types::Extra;
+use crate::domain::syntax::service::{field_name, fields, kind_bits, kind_name, kind_of, kinds};
+use crate::domain::syntax::types::Kind;
 use ryo::languages::{
     self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames,
-    RenderOutcome, RenderRequest, Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
+    FileCompleteness, RenderOutcome, RenderRequest, Rows, WalkKinds, WalkVocabulary, Wanted, fillers, node_table,
 };
 
 /// The filler of each relation whose `fills!` item writes it whole alone: the item's run. Asked for a key, it writes the whole
@@ -42,6 +44,95 @@ macro_rules! absent {
     };
 }
 
+/// The relations the language does not fill, with the cause: the one list, handed to the macro that makes the fillers of them and to
+/// the one that makes the static answer.
+macro_rules! each_absent {
+    ($callback:ident $(, $asked:ident)?) => {
+        $callback! {
+            $( $asked; )?
+            analyzed_source: AnalyzedSource => NotYetRead;
+            annotates: Annotates => NoSuchConstruct;
+            assigns: Assigns => NoSuchConstruct;
+            attribute_path: AttributePath => NotYetRead;
+            binding_event: BindingEvent => NotYetRead;
+            binding_read: BindingRead => NotYetRead;
+            binding_resolution: BindingResolution => NotYetRead;
+            binding_shadow: BindingShadow => NotYetRead;
+            binding_use: BindingUse => NotYetRead;
+            brace_format_field: BraceFormatField => NotYetRead;
+            brace_format_parse: BraceFormatParse => NotYetRead;
+            bytes_literal: BytesLiteral => NotYetRead;
+            call_argument: CallArgument => NoSuchConstruct;
+            compiler_feature: CompilerFeature => NotYetRead;
+            constant_key: ConstantKey => NotYetRead;
+            decorates: Decorates => NoSuchConstruct;
+            defines: Defines => NoSuchConstruct;
+            directive: Directive => NoSuchConstruct;
+            embedded_expression: EmbeddedExpression => NotYetRead;
+            entry: Entry => NotAKeyedDocument;
+            expression_shape: ExpressionShape => NotYetRead;
+            expression_type: ExpressionType => NotYetRead;
+            file_package: FilePackage => NotYetRead;
+            filesystem_executable: FilesystemExecutable => NotYetRead;
+            filesystem_file: FilesystemFile => NotYetRead;
+            filesystem_line_count: FilesystemLineCount => NotYetRead;
+            filesystem_read_failure: FilesystemReadFailure => NotYetRead;
+            flow_block: FlowBlock => NotYetRead;
+            flow_edge: FlowEdge => NotYetRead;
+            flow_member: FlowMember => NotYetRead;
+            flow_step: FlowStep => NotYetRead;
+            format_field: FormatField => NotYetRead;
+            format_parse: FormatParse => NotYetRead;
+            format_specification: FormatSpecification => NotYetRead;
+            function: Function => NoSuchConstruct;
+            function_terminal: FunctionTerminal => NotYetRead;
+            identifier: Identifier => NotYetRead;
+            implicit_symbol: ImplicitSymbol => NotYetRead;
+            indent_region: IndentRegion => NoSuchConstruct;
+            inherits: Inherits => NoSuchConstruct;
+            interpolated_string_literal: InterpolatedStringLiteral => NotYetRead;
+            language_target: LanguageTarget => NotYetRead;
+            literal_expression_parse: LiteralExpressionParse => NotYetRead;
+            literal_properties: LiteralProperties => NotYetRead;
+            lookup_scope: LookupScope => NotYetRead;
+            manifest_diagnostic: ManifestDiagnostic => NotYetRead;
+            mapping: Mapping => NotAKeyedDocument;
+            mention: Mention => NoSuchConstruct;
+            module_identity: ModuleIdentity => NotYetRead;
+            numeric_literal: NumericLiteral => NotYetRead;
+            package_dependency: PackageDependency => NotYetRead;
+            parameter: Parameter => NoSuchConstruct;
+            pattern_child: PatternChild => NotYetRead;
+            pattern_parse: PatternParse => NotYetRead;
+            pattern_syntax: PatternSyntax => NotYetRead;
+            project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
+            prose: Prose => NotADocument;
+            qualified_name: QualifiedName => NotYetRead;
+            raw_format_field: RawFormatField => NotYetRead;
+            raw_format_segment: RawFormatSegment => NotYetRead;
+            resolves: Resolves => NoSuchConstruct;
+            scope: Scope => NoSuchConstruct;
+            sequence_element: SequenceElement => NotAKeyedDocument;
+            source_dependency: SourceDependency => NotYetRead;
+            standard_library_import: StandardLibraryImport => NotYetRead;
+            static_call: StaticCall => NoSuchConstruct;
+            token_link: TokenLink => NotYetRead;
+            visibility: Visibility => NoSuchConstruct;
+            workspace_member: WorkspaceMember => NotYetRead;
+        }
+    };
+}
+
+/// The static answer of the absent relations: the cause, when `relation` is one of them.
+macro_rules! absent_arms {
+    ($asked:ident; $( $module:ident: $relation:ident => $cause:ident; )*) => {
+        match $asked {
+            $( languages::Relation::$relation => Some(AbsenceCause::$cause), )*
+            _ => None,
+        }
+    };
+}
+
 impl<P: Send + Sync + 'static> Fillers for CssWalk<P> {
     type File<'f>
         = CssFile<'f>
@@ -57,76 +148,58 @@ impl<P: Send + Sync + 'static> Fillers for CssWalk<P> {
         syntax_error: SyntaxError => crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
     }
 
-    absent! {
-        analyzed_source: AnalyzedSource => NotYetRead;
-        annotates: Annotates => NoSuchConstruct;
-        assigns: Assigns => NoSuchConstruct;
-        attribute_path: AttributePath => NoSuchConstruct;
-        binding_event: BindingEvent => NoSuchConstruct;
-        binding_read: BindingRead => NoSuchConstruct;
-        binding_resolution: BindingResolution => NoSuchConstruct;
-        binding_shadow: BindingShadow => NoSuchConstruct;
-        binding_use: BindingUse => NoSuchConstruct;
-        brace_format_field: BraceFormatField => NoSuchConstruct;
-        brace_format_parse: BraceFormatParse => NoSuchConstruct;
-        bytes_literal: BytesLiteral => NoSuchConstruct;
-        call_argument: CallArgument => NoSuchConstruct;
-        compiler_feature: CompilerFeature => NoSuchConstruct;
-        constant_key: ConstantKey => NoSuchConstruct;
-        decorates: Decorates => NoSuchConstruct;
-        defines: Defines => NoSuchConstruct;
-        directive: Directive => NoSuchConstruct;
-        embedded_expression: EmbeddedExpression => NoSuchConstruct;
-        entry: Entry => NotAKeyedDocument;
-        expression_shape: ExpressionShape => NoSuchConstruct;
-        expression_type: ExpressionType => NoSuchConstruct;
-        file_package: FilePackage => NotYetRead;
-        filesystem_executable: FilesystemExecutable => NotYetRead;
-        filesystem_file: FilesystemFile => NotYetRead;
-        filesystem_line_count: FilesystemLineCount => NotYetRead;
-        filesystem_read_failure: FilesystemReadFailure => NotYetRead;
-        flow_block: FlowBlock => NotYetRead;
-        flow_edge: FlowEdge => NotYetRead;
-        flow_member: FlowMember => NotYetRead;
-        flow_step: FlowStep => NotYetRead;
-        format_field: FormatField => NoSuchConstruct;
-        format_parse: FormatParse => NoSuchConstruct;
-        format_specification: FormatSpecification => NoSuchConstruct;
-        function: Function => NoSuchConstruct;
-        function_terminal: FunctionTerminal => NoSuchConstruct;
-        identifier: Identifier => NoSuchConstruct;
-        implicit_symbol: ImplicitSymbol => NoSuchConstruct;
-        indent_region: IndentRegion => NoSuchConstruct;
-        inherits: Inherits => NoSuchConstruct;
-        interpolated_string_literal: InterpolatedStringLiteral => NoSuchConstruct;
-        language_target: LanguageTarget => NoSuchConstruct;
-        literal_expression_parse: LiteralExpressionParse => NoSuchConstruct;
-        literal_properties: LiteralProperties => NoSuchConstruct;
-        lookup_scope: LookupScope => NoSuchConstruct;
-        manifest_diagnostic: ManifestDiagnostic => NotYetRead;
-        mapping: Mapping => NotAKeyedDocument;
-        mention: Mention => NoSuchConstruct;
-        module_identity: ModuleIdentity => NotYetRead;
-        numeric_literal: NumericLiteral => NoSuchConstruct;
-        package_dependency: PackageDependency => NotYetRead;
-        parameter: Parameter => NoSuchConstruct;
-        pattern_child: PatternChild => NotYetRead;
-        pattern_parse: PatternParse => NotYetRead;
-        pattern_syntax: PatternSyntax => NotYetRead;
-        project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
-        prose: Prose => NotADocument;
-        qualified_name: QualifiedName => NoSuchConstruct;
-        raw_format_field: RawFormatField => NoSuchConstruct;
-        raw_format_segment: RawFormatSegment => NoSuchConstruct;
-        resolves: Resolves => NoSuchConstruct;
-        scope: Scope => NoSuchConstruct;
-        sequence_element: SequenceElement => NotAKeyedDocument;
-        source_dependency: SourceDependency => NotYetRead;
-        standard_library_import: StandardLibraryImport => NoSuchConstruct;
-        static_call: StaticCall => NoSuchConstruct;
-        token_link: TokenLink => NoSuchConstruct;
-        visibility: Visibility => NoSuchConstruct;
-        workspace_member: WorkspaceMember => NotYetRead;
+    each_absent!(absent);
+
+    fn absent(relation: languages::Relation) -> Option<AbsenceCause> {
+        use languages::Relation as R;
+        // The manifest and filesystem relations are the project contract's and the host's: the language does not say they are absent.
+        if matches!(
+            relation,
+            R::AnalyzedSource | R::FilePackage | R::FilesystemExecutable | R::FilesystemFile | R::FilesystemLineCount
+                | R::FilesystemReadFailure | R::ManifestDiagnostic | R::ModuleIdentity | R::PackageDependency
+                | R::ProjectNamespaceMembership | R::SourceDependency | R::WorkspaceMember
+        ) {
+            return None;
+        }
+        each_absent!(absent_arms, relation)
+    }
+
+    /// Whether the parser read the file whole: its syntax when it accepted the file, its lexical stream when no text is left it could
+    /// not read.
+    fn completeness(file: &CssFile<'_>) -> FileCompleteness {
+        let table = file.syntax.table;
+        let whole = |held: bool| {
+            if held {
+                languages::SyntaxCompleteness::Complete
+            } else {
+                languages::SyntaxCompleteness::Incomplete
+            }
+        };
+        FileCompleteness {
+            syntax: whole(node_table::acceptance_of(table) == languages::SyntaxAcceptance::Accepted),
+            lexical: whole(
+                node_table::ids_of_kind(table, kind_bits(Kind::Extra(Extra::Error))).is_empty(),
+            ),
+        }
+    }
+
+    /// No relation of a file the parser accepted answers in part: a partial answer comes only from something the parser or the decoder
+    /// reported, and every report rejects the file (held by the routes row's corpus test).
+    fn fills_are_complete(file: &mut CssFile<'_>) -> bool {
+        Self::completeness(file).syntax == languages::SyntaxCompleteness::Complete
+    }
+
+    /// The language reads no project notes from a file.
+    fn notes(
+        _file: &mut CssFile<'_>,
+        _table: &languages::NodeTable,
+        _source: languages::ByteSlice<'_>,
+        _out: &mut languages::Bytes,
+    ) {
+    }
+
+    fn spells(kind: languages::KindBits) -> bool {
+        matches!(kind_of(kind), Kind::Token(_) | Kind::Extra(_))
     }
 
     /// CSS renders no expression: it has none.

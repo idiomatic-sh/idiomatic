@@ -1,0 +1,9 @@
+//! The routes row of the language contract: over every fixture sample, the old reader and the walk's fillers write the same rows,
+//! and the language's metadata is the same on both routes.
+
+fn main() {
+    ryo::languages::contract::routes_agree(
+        &ryo_css::linked(),
+        ryo::languages::contract::ManifestDir(env!("CARGO_MANIFEST_DIR")),
+    );
+}

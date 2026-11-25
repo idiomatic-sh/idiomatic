@@ -59,4 +59,29 @@ impl Walk for CssWalk<WalkPorts> {
         });
         Ok(())
     }
+
+    fn recognizes(&self, path: languages::SourcePath<'_>, _explicit: bool) -> languages::Recognition {
+        reads(path)
+    }
+
+    fn skips(&self) -> &'static [languages::SkippedDirectory] {
+        crate::domain::language::constants::SKIPS
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity(crate::domain::syntax::constants::NO_CONFIGURATION)
+    }
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn includes_expansions(&self, relation: languages::Relation) -> bool {
+        // The engine's reader of an element table covers every element, those a parser embeds too: it answers source-location.
+        relation == languages::Relation::SourceLocation
+    }
+
+    fn unknown_reasons(&self) -> &'static [languages::UnknownName] {
+        crate::domain::language::constants::UNKNOWN_REASONS
+    }
 }
