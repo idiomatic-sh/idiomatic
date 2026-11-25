@@ -41,7 +41,7 @@ pub(super) fn fill(
         .catalog(relation)
         .ok_or_else(|| format!("missing {relation}"))?;
     let mut table = Table::with_rows(names, types, 0);
-    file.visit_expression_relation(
+    let _complete = file.visit_expression_relation(
         relation,
         source,
         number,

@@ -58,7 +58,8 @@ impl ColumnFile<'_, '_> {
         if syntax == l::SyntaxCompleteness::Complete && lexical == l::SyntaxCompleteness::Complete {
             return None;
         }
-        let lexical_only = crate::fixtures::comment_positions::SCHEMAS.contains(schema);
+        let lexical_only = crate::fixtures::comment_positions::SCHEMAS.contains(schema)
+            || Self::named_expression_is_lexical(schema);
         let extent = if lexical == l::SyntaxCompleteness::Incomplete
             && (lexical_only
                 || Self::named_expression_requires_tokens(schema)
@@ -110,6 +111,13 @@ impl ColumnFile<'_, '_> {
                 answers.push(Ok(partial));
                 continue;
             }
+            if Self::EXPRESSION_SCHEMAS.contains(schema) {
+                answers.push(
+                    self.named_expression(schema, file, bytes.0, symbols)
+                        .map_err(failed),
+                );
+                continue;
+            }
             if Self::TYPING_SCHEMAS.contains(schema) {
                 semantic_order.push(slot);
                 semantic.push(*schema);
@@ -120,9 +128,6 @@ impl ColumnFile<'_, '_> {
                 crate::fixtures::comment_positions::columns(
                     schema, file, self.table, bytes, symbols,
                 )
-            } else if Self::EXPRESSION_SCHEMAS.contains(schema) {
-                self.named_expression(schema, file, bytes.0, symbols)
-                    .map_err(failed)
             } else if Self::IMPORT_SCHEMAS.contains(schema) {
                 self.named_import(
                     schema,

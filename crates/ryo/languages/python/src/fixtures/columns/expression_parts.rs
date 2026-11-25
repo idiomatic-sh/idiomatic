@@ -664,10 +664,14 @@ impl ColumnFile<'_, '_> {
     ];
 
     pub(super) fn named_expression_requires_tokens(schema: &FileRelation) -> bool {
-        matches!(schema.name, WITH_HEADER | NESTED_DELIMITERS)
+        schema.name == WITH_HEADER
     }
 
-    /// Lend a complete expression relation in the caller's symbol dictionary.
+    pub(super) fn named_expression_is_lexical(schema: &FileRelation) -> bool {
+        schema.name == NESTED_DELIMITERS
+    }
+
+    /// Lend an expression relation and its coverage in the caller's symbol dictionary.
     /// Node cells carry the full provider file and element identity.
     pub(super) fn named_expression(
         &mut self,
@@ -675,12 +679,12 @@ impl ColumnFile<'_, '_> {
         file: l::FileId,
         src: &[u8],
         symbols: &mut l::Symbols,
-    ) -> Result<Vec<l::FactColumn>, String> {
+    ) -> Result<l::FileRows, String> {
         if !Self::EXPRESSION_SCHEMAS.contains(schema) {
             return Err(format!("no expression relation {}", schema.name));
         }
         let mut columns = vec![Vec::new(); schema.columns.len()];
-        self.visit_expression_relation(
+        let complete = self.visit_expression_relation(
             schema.name,
             src,
             file.0,
@@ -695,11 +699,15 @@ impl ColumnFile<'_, '_> {
                 }
             },
         )?;
-        Ok(super::resolution::qualify_cells(schema, file, columns))
+        Ok(l::FileRows {
+            columns: super::resolution::qualify_cells(schema, file, columns),
+            partial: (!complete).then(|| l::ToolMessage("incomplete delimiter pairing".into())),
+        })
     }
 
     /// Write expression rows in language order using local node positions.
-    /// The caller supplies the dictionary and the destination for each row.
+    /// The caller supplies the dictionary and row destination. The result says
+    /// whether the token pairing used to produce these rows is complete.
     pub fn visit_expression_relation(
         &mut self,
         relation: &str,
@@ -707,7 +715,8 @@ impl ColumnFile<'_, '_> {
         number: u32,
         mut word: impl FnMut(&[u8]) -> u32,
         mut write: impl FnMut(&[u64]),
-    ) -> Result<(), String> {
+    ) -> Result<bool, String> {
+        let mut complete = true;
         let file_id = u64::from(number);
         if relation == CALL_SITE {
             let optional = |node: Option<Position>| node.map_or(u64::MAX, |id| u64::from(id.0));
@@ -854,7 +863,7 @@ impl ColumnFile<'_, '_> {
                     .collect();
 
                 // The lexical stream identifies each delimiter's matching end and its directly enclosed tokens.
-                let _pairing = crate::domain::layout_facts::service::token_links(
+                let pairing = crate::domain::layout_facts::service::token_links(
                     &self.file.syntax,
                     &mut Vec::new(),
                     &mut |link| match link.kind {
@@ -885,10 +894,14 @@ impl ColumnFile<'_, '_> {
                         _ => {}
                     },
                 );
+                complete = pairing == crate::domain::token_links::types::Pairing::Whole;
                 let value = |id: Option<Position>| id.map_or(u64::MAX, |p| u64::from(p.0));
                 for (outer, inner) in pairs {
                     let info = &interiors[&inner.0];
                     let close = info.close;
+                    if !complete && close.is_none() {
+                        continue;
+                    }
                     let nonempty = close.is_some_and(|c| {
                         self.next_code_token(inner).is_some_and(|first| first != c)
                     });
@@ -923,6 +936,6 @@ impl ColumnFile<'_, '_> {
         } else {
             return Err(format!("no expression relation {relation}"));
         }
-        Ok(())
+        Ok(complete)
     }
 }
