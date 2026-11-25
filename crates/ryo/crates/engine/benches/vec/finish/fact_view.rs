@@ -79,8 +79,7 @@ impl<'a> Fact<'a> {
 
 /// The file supplies a loan only for a complete population in this version.
 pub(crate) trait FileFacts {
-    fn bind(&self, relation: ryo::languages::Relation, run: &mut super::Run) -> Result<bool, String>;
-    fn relation(&self, relation: ryo::languages::Relation) -> Option<Fact<'_>>;
+    fn bind(&self, relation: ryo::languages::Relation, run: &mut super::Run) -> Result<Option<Fact<'_>>, String>;
 }
 
 #[cfg(test)]

@@ -703,7 +703,7 @@ pub(super) struct File<'a> {
     project_inputs: Option<&'a population::Inputs>,
     bound_inputs: Option<&'a FxHashMap<String, Rc<Table>>>,
     loan: Option<&'a dyn fact_view::FileFacts>,
-    borrowed: Vec<Option<languages::Relation>>,
+    borrowed: Vec<Option<fact_view::Fact<'a>>>,
     memo: Vec<Option<Res>>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
@@ -754,7 +754,7 @@ impl File<'_> {
         if let Some(table) = self.facts.get(slot).and_then(Option::as_deref) {
             return Some(fact_view::Fact::Owned(table));
         }
-        self.loan?.relation((*self.borrowed.get(slot)?)?)
+        self.borrowed.get(slot).copied().flatten()
     }
 
     fn filled(&self, relation: &str) -> Option<&Rc<Table>> {
@@ -2553,10 +2553,10 @@ impl<'p> Exec<'p> {
         if let Some(loan) = f.loan
             && f.filled(&rel).is_none()
             && let Some((Some(relation), _, _)) = run.catalog(&rel)
-            && loan.bind(relation, run)?
+            && let Some(fact) = loan.bind(relation, run)?
         {
             if f.borrowed.len() <= i { f.borrowed.resize(i + 1, None); }
-            f.borrowed[i] = Some(relation);
+            f.borrowed[i] = Some(fact);
             return Ok(());
         }
         if fill_prof::counting() {

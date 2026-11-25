@@ -63,9 +63,14 @@ pub(crate) struct OperatorColumns<'file> {
 }
 
 impl finish::fact_view::FileFacts for OperatorColumns<'_> {
-    fn bind(&self, relation: l::Relation, run: &mut finish::Run) -> Result<bool, String> {
+    fn bind(&self, relation: l::Relation, run: &mut finish::Run) -> Result<Option<finish::fact_view::Fact<'_>>, String> {
         let slot = catalog::number_of(relation).0;
-        if self.relation(relation).is_none() { return Ok(false); }
+        let Some(table) = self.file.tables.get(slot).and_then(Option::as_ref) else {
+            return Ok(None);
+        };
+        if !matches!(table.answer, l::FactAnswer::Answered(_)) || table.wanted != l::Wanted::Whole {
+            return Ok(None);
+        }
         for (column, kind) in catalog::kinds(relation).iter().enumerate() {
             if *kind == CellKind::Symbol {
                 self.symbols.get_or_init(|| (0..l::facts::words_end(self.file.words).0)
@@ -76,19 +81,11 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_> {
                 return Err(format!("node outside this file in {}", catalog::name(relation).0));
             }
         }
-        Ok(true)
-    }
-    fn relation(&self, relation: l::Relation) -> Option<finish::fact_view::Fact<'_>> {
-        let slot = catalog::number_of(relation).0;
-        let table = self.file.tables.get(slot)?.as_ref()?;
-        if !matches!(table.answer, l::FactAnswer::Answered(_)) || table.wanted != l::Wanted::Whole {
-            return None;
-        }
         let kinds = catalog::kinds(relation);
-        Some(finish::fact_view::Fact::Lent {
+        Ok(Some(finish::fact_view::Fact::Lent {
             rows: table.rows, kinds,
             columns: finish::fact_view::Columns::Lent(&table.columns.0, kinds, self.symbols.get().map_or(&[], Vec::as_slice), self.absent),
-        })
+        }))
     }
 }
 
