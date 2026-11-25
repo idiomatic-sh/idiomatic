@@ -182,7 +182,7 @@ impl Checks {
         path: &str,
         id: FileId,
         symbols: &l::Symbols,
-        local_words: Option<&l::FileWords>,
+        local_words: Option<&mut l::FileWords>,
         requested: &[l::Relation],
         packet: &reader_run::packet::Packet,
         unknown: &HashMap<u32, u32>,
@@ -241,11 +241,18 @@ impl Checks {
                     self.known.push((need, exists));
                 }
             }
-            let column = |source, index, predicate, pattern: &pair_summary::regexes::Matcher| {
+            // Numbered cells already use the supplier's file dictionary. New terms
+            // are appended without renumbering any word the provider lent us.
+            let numbered_end = local_words.as_deref().map(l::facts::words_end);
+            let words = local_words.unwrap_or_else(|| {
+                l::facts::clear_words(&mut self.words);
+                &mut self.words
+            });
+            let column = |source, index, predicate, pattern: &pair_summary::regexes::Matcher, words: &l::FileWords| {
                 let FactSource::Catalog(rel) = source else { return None };
                 if partials.iter().any(|p| p.relation == rel) { return None; }
                 patterns.with_predicate(predicate, pattern, &run.texts, |test| {
-                    packet.any_symbol(rel, index, symbols, bytes, local_words, |text, word| {
+                    packet.any_symbol(rel, index, symbols, bytes, numbered_end.map(|end| (words, end)), |text, word| {
                         if let Some(text) = text {
                             let subject = text.0.as_bytes();
                             return match run.ids.get(subject) {
@@ -275,14 +282,14 @@ impl Checks {
                     column: Some(&column),
                 }),
                 crate::pair_checks::ReservedWords { names: unknown, texts: &run.texts },
-                &mut self.words,
+                words,
                 |source, words, out| {
                     let FactSource::Catalog(rel) = source else {
                         return false;
                     };
                     requested.contains(&rel)
                         && !partials.iter().any(|p| p.relation == rel)
-                        && packet.columns(rel, symbols, bytes, id, local_words, unknown, words, out)
+                        && packet.columns(rel, symbols, bytes, id, numbered_end, unknown, words, out)
                 },
                 &mut self.live,
                 &self.known,

@@ -13,7 +13,7 @@ mod witness;
 pub(super) type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
 type Nodes = Option<Bits>;
-type SymbolColumn<'a> = dyn Fn(Source, usize, Id, &super::pair_summary::regexes::Matcher) -> Option<bool> + 'a;
+type SymbolColumn<'a> = dyn Fn(Source, usize, Id, &super::pair_summary::regexes::Matcher, &FileWords) -> Option<bool> + 'a;
 /// The exact syntax text column supplied by a host with per-position symbol IDs.
 #[derive(Clone, Copy)]
 pub(super) struct SyntaxText<'a> {
@@ -575,7 +575,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 {
                     let view = self.syntax_text.unwrap();
                     let found = self.p.regexes[*pattern].compiled().and_then(|p|
-                        (view.column.unwrap())(self.p.facts[*slot].source, *column, *pattern, p));
+                        (view.column.unwrap())(self.p.facts[*slot].source, *column, *pattern, p, self.words));
                     found.unwrap_or_else(|| self.nodes(x).is_none_or(|bits| !bits.is_empty()))
                 }
                 Domain::Fact(slot, None) => {
@@ -1208,7 +1208,6 @@ impl Program {
         selected: &[u64],
         atoms: Option<SharedAtoms<'_>>,
     ) -> u64 {
-        languages::facts::clear_words(words);
         let reader_class = std::cell::Cell::new(cost::Family::Logic as usize);
         let mut observe = |source, words: &mut FileWords, cells: &mut FilledColumns| {
             if !PROFILE {

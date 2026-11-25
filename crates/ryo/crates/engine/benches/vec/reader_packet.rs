@@ -43,22 +43,13 @@ impl FileColumns<'_> {
         table.columns.0.get(column)?.0.get(..table.rows)
     }
 
-    pub(crate) fn coverage(&self, relation: usize) -> Option<(&l::FactAnswer, l::Wanted)> {
-        let table = self.tables.get(relation)?.as_ref()?;
-        Some((&table.answer, table.wanted))
-    }
-
-    pub(crate) fn text(&self, word: CellWord) -> Option<l::NameText<'_>> {
-        local_word_text(self.words, word)
-    }
-
 
 }
 
-fn local_word_text(words: &FileWords, word: CellWord) -> Option<l::NameText<'_>> {
+fn local_word_text(words: &FileWords, word: CellWord, end: CellWord) -> Option<l::NameText<'_>> {
     u32::try_from(word.0).ok().and_then(|code| {
         ryo_relations::domain::terms::service::term_text(l::Symbol(code))
-    }).or_else(|| (word < l::facts::words_end(words)).then(|| l::facts::text(words, word)))
+    }).or_else(|| (word < end).then(|| l::facts::text(words, word)))
 }
 
 pub(crate) struct OperatorColumns<'file> {
@@ -250,15 +241,15 @@ impl Packet {
     /// Visit a complete symbol column without interpreting unrelated node IDs.
     pub(crate) fn any_symbol(
         &self, relation: l::Relation, column: usize, symbols: &l::Symbols, bytes: &[u8],
-        local_words: Option<&FileWords>, mut matches: impl FnMut(Option<l::NameText<'_>>, l::Symbol) -> bool,
+        local_words: Option<(&FileWords, CellWord)>, mut matches: impl FnMut(Option<l::NameText<'_>>, l::Symbol) -> bool,
     ) -> Option<bool> {
         self.has_rows(relation)?;
         if catalog::kinds(relation).get(column) != Some(&CellKind::Symbol) { return None; }
         let slot = catalog::number_of(relation).0;
         if let Some(table) = self.local(slot) {
-            let words = local_words?;
+            let (words, end) = local_words?;
             return Some(table.rows != 0 && table.columns.0[column].0.iter().any(|&raw| {
-                matches(local_word_text(words, raw), l::Symbol(raw.0 as u32))
+                matches(local_word_text(words, raw, end), l::Symbol(raw.0 as u32))
             }));
         }
         Some(self.offsets[slot].iter().any(|&at| {
@@ -272,7 +263,7 @@ impl Packet {
         symbols: &l::Symbols,
         bytes: &[u8],
         id: l::FileId,
-        local_words: Option<&FileWords>,
+        numbered_end: Option<CellWord>,
         unknown: &std::collections::HashMap<u32, u32>,
         words: &mut FileWords,
         out: &mut FilledColumns,
@@ -289,23 +280,25 @@ impl Packet {
         let kinds = catalog::kinds(relation);
         out.0.resize_with(kinds.len(), Default::default);
         let slot = catalog::number_of(relation).0;
-        if self.local(slot).is_some() {
-            let loan = FileColumns { home: id, words: local_words.expect("file dictionary"), tables: &self.local };
-            if !matches!(loan.coverage(slot), Some((l::FactAnswer::Answered(_), l::Wanted::Whole))) {
+        if let Some(table) = self.local(slot) {
+            let Some(end) = numbered_end else { return false };
+            if !matches!(table.answer, l::FactAnswer::Answered(_)) || table.wanted != l::Wanted::Whole {
                 return false;
             }
             for (index, (dst, kind)) in out.0.iter_mut().zip(kinds).enumerate() {
-                for &raw in loan.column(slot, index).unwrap_or(&[]) {
+                let Some(cells) = table.columns.0.get(index) else { continue };
+                dst.0.reserve(table.rows);
+                for &raw in &cells.0 {
                     dst.0.push(match kind {
-                        // The witness validates the column it actually uses as a tree position.
                         CellKind::Node => match file_node(id.0, raw.0) {
                             Ok(local) => CellWord(local),
                             Err(_) => return false,
                         },
-                        CellKind::Symbol if reserved(raw.0) => raw,
-                        CellKind::Symbol => {
-                            let Some(text) = loan.text(raw) else { return false };
-                            l::facts::intern(words, text)
+                        CellKind::Symbol if raw >= end && !reserved(raw.0) => {
+                            let Some(term) = u32::try_from(raw.0).ok().and_then(|code|
+                                ryo_relations::domain::terms::service::term_text(l::Symbol(code)))
+                            else { return false };
+                            l::facts::intern(words, term)
                         }
                         _ => raw,
                     });
@@ -508,7 +501,7 @@ impl View<'_, '_> {
                     finish::Ty::Sym if raw.0 == u64::from(l::NO_SYMBOL.0) =>
                         u64::from(run.absent_word.expect("reader word table")),
                     finish::Ty::Sym => u64::from(*self.local_symbols.entry(raw.0).or_insert_with(
-                        || match local_word_text(words, *raw) {
+                        || match local_word_text(words, *raw, l::facts::words_end(words)) {
                             Some(text) => run.sym(text.0.as_bytes()),
                             None => run.public_word_ids.get(&(raw.0 as u32)).copied().unwrap_or(run.absent_word.expect("reader dictionary")),
                         })),
