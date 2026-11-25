@@ -370,10 +370,12 @@ pub(in super::super) fn frame<'a, 't>(
     version: &'a FileVersion<'a>,
     plan: &super::Plan,
     supplied: &'a super::FxHashMap<String, Rc<Table>>,
+    loan: Option<&'a dyn super::fact_view::FileFacts>,
     local: impl IntoIterator<Item = &'t (String, Rc<Table>)>,
 ) -> File<'a> {
     let mut frame = File::new(version, plan.nodes.len());
     frame.bound_inputs = Some(supplied);
+    frame.loan = loan;
     frame.fills.extend(local.into_iter().cloned());
     frame
 }

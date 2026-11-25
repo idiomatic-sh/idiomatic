@@ -98,6 +98,8 @@ mod worklist;
 mod lazy_view;
 #[path = "finish/fill_len.rs"]
 pub(super) mod fill_len;
+#[path = "finish/fact_view.rs"]
+pub(crate) mod fact_view;
 #[path = "finish/host.rs"]
 pub(super) mod host;
 
@@ -700,6 +702,8 @@ pub(super) struct File<'a> {
     after_last_file: bool,
     project_inputs: Option<&'a population::Inputs>,
     bound_inputs: Option<&'a FxHashMap<String, Rc<Table>>>,
+    loan: Option<&'a dyn fact_view::FileFacts>,
+    borrowed: Vec<Option<languages::Relation>>,
     memo: Vec<Option<Res>>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
@@ -746,6 +750,13 @@ fn give_tables<K>(m: &mut FxHashMap<K, Rc<Table>>) {
 }
 
 impl File<'_> {
+    fn fact(&self, slot: usize) -> Option<fact_view::Fact<'_>> {
+        if let Some(table) = self.facts.get(slot).and_then(Option::as_deref) {
+            return Some(fact_view::Fact::Owned(table));
+        }
+        self.loan?.relation((*self.borrowed.get(slot)?)?)
+    }
+
     fn filled(&self, relation: &str) -> Option<&Rc<Table>> {
         self.fills.get(relation).or_else(|| self.bound_inputs?.get(relation))
     }
@@ -871,6 +882,8 @@ impl File<'_> {
             index: b.index,
             fills: b.fills,
             bound_inputs: None,
+            loan: None,
+            borrowed: Vec::new(),
             lazies: b.lazies,
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
@@ -974,7 +987,7 @@ impl File<'_> {
                 if fill_prof::counting() {
                     self.mark_read(i);
                 }
-                self.facts[usize::from(i)].as_ref().map_or(NULL, |t| t.cols[c][r])
+                self.fact(usize::from(i)).map_or(NULL, |t| t.columns().get(c).at(r))
             }
             (Native::Token, _) => {
                 let (src, k) = (row / 3, row % 3);
@@ -1019,7 +1032,7 @@ impl File<'_> {
                     }
                 }
             }
-            Native::Fact(i) => out.extend(0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.n as u32)),
+            Native::Fact(i) => out.extend(0..self.fact(usize::from(i)).map_or(0, |t| t.len() as u32)),
         }
     }
     fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
@@ -1043,7 +1056,7 @@ impl File<'_> {
                 if fill_prof::counting() {
                     self.mark_read(i);
                 }
-                (0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.n as u32)).collect()
+                (0..self.fact(usize::from(i)).map_or(0, |t| t.len() as u32)).collect()
             }
         }
     }
@@ -1057,10 +1070,10 @@ impl File<'_> {
         if let Some(ix) = self.fact_ix.borrow().get(&(i, col)) {
             return ix.clone();
         }
-        let m = match &self.facts[usize::from(i)] {
+        let m = match self.fact(usize::from(i)) {
             Some(t) => {
-                FACT_IX_ROWS.fetch_add(t.n as u64, std::sync::atomic::Ordering::Relaxed);
-                Index::build(t.n, |r| t.cols[col][r])
+                FACT_IX_ROWS.fetch_add(t.len() as u64, std::sync::atomic::Ordering::Relaxed);
+                { let values = t.columns().get(col); Index::build(t.len(), |r| values.at(r)) }
             }
             None => Index::build(0, |_| 0),
         };
@@ -1774,7 +1787,7 @@ impl<'p> Exec<'p> {
             Some(Res::View(v)) => {
                 // redo-fills pass 2: a view a lazy select source left unfilled is filled at its first read (lazy_view.rs)
                 if let Native::Fact(x) = v.base
-                    && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
+                    && f.fact(usize::from(x)).is_none()
                 {
                     let v = v.clone();
                     let was = fill_prof::site("view");
@@ -2533,10 +2546,19 @@ impl<'p> Exec<'p> {
     fn load_fact(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, nat: Native) -> R<()> {
         let Native::Fact(i) = nat else { return Ok(()) };
         let i = usize::from(i);
-        if f.facts.get(i).is_some_and(Option::is_some) {
+        if f.fact(i).is_some() {
             return Ok(());
         }
         let rel = run.fact_rels[i].0.clone();
+        if let Some(loan) = f.loan
+            && f.filled(&rel).is_none()
+            && let Some((Some(relation), _, _)) = run.catalog(&rel)
+            && loan.bind(relation, run)?
+        {
+            if f.borrowed.len() <= i { f.borrowed.resize(i + 1, None); }
+            f.borrowed[i] = Some(relation);
+            return Ok(());
+        }
         if fill_prof::counting() {
             // redo-int round 37: redo-whole deleted the run stack this diagnostic read; the asker is not known now
             let by = u32::MAX;
@@ -3712,7 +3734,7 @@ fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize
 /// The literal test `lit_rows` reads by: the fill, its base column and the literals.
 fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<(u16, usize, Vec<u32>)> {
     let Native::Fact(i) = base else { return None };
-    lit_pick_for(conj, si, map, |bc| f.facts[usize::from(i)].as_ref().is_some_and(|t| t.tys[bc] == Ty::Sym))
+    lit_pick_for(conj, si, map, |bc| f.fact(usize::from(i)).is_some_and(|t| t.ty(bc) == Ty::Sym))
         .map(|(column, values)| (i, column, values))
 }
 

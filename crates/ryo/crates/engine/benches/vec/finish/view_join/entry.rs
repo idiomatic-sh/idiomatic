@@ -67,7 +67,7 @@ impl Entry {
                 column,
                 words,
             } => {
-                f.facts.get(usize::from(*fact))?.as_ref()?;
+                f.fact(usize::from(*fact))?;
                 let index = f.fact_list(*fact, *column);
                 Some(
                     words

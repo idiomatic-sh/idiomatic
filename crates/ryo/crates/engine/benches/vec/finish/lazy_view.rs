@@ -21,7 +21,7 @@ impl Exec<'_> {
         let Some(v) = self.view(run, node)? else { return Ok(None) };
         let Native::Fact(x) = v.base else { return Ok(None) };
         let x = usize::from(x);
-        if f.facts.get(x).is_some_and(Option::is_some) {
+        if f.fact(x).is_some() {
             return Ok(None);
         }
         let width = v.map.len().max(v.map.iter().map(|c| c + 1).max().unwrap_or(0));

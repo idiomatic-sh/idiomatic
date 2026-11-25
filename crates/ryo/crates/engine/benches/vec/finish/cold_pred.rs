@@ -1,9 +1,10 @@
 //! Typed selection-vector loops over provider columns. Compound predicates bind
 //! their row functions during plan load and preserve Boolean short-circuit order.
+use super::fact_view::Columns;
 use super::cold_word::{self, Test, Word};
 use super::{E, File, NULL, Native, Op, Run, Ty, ViewSpec};
 
-type Row = Box<dyn Fn(&File<'_>, &mut Run, &[Vec<u64>], u32) -> bool>;
+type Row = Box<dyn Fn(&File<'_>, &mut Run, Columns<'_>, u32) -> bool>;
 enum Action {
     Kind(Box<[bool]>),
     Field(Box<[bool]>, bool),
@@ -16,7 +17,7 @@ enum Action {
 }
 
 impl Action {
-    fn retain(&self, f: &File<'_>, run: &mut Run, cols: &[Vec<u64>], rows: &mut Vec<u32>) {
+    fn retain(&self, f: &File<'_>, run: &mut Run, cols: Columns<'_>, rows: &mut Vec<u32>) {
         match self {
             Self::Kind(allowed) => rows.retain(|r| allowed[usize::from(f.kind[*r as usize])]),
             Self::Field(allowed, other) => rows.retain(|r| {
@@ -32,12 +33,12 @@ impl Action {
                     rows.clear();
                 }
             }
-            Self::Fact(c, test) => test.retain(run, &cols[*c], rows),
+            Self::Fact(c, test) => test.retain(run, cols.get(*c), rows),
             Self::Pair(a, b, want) => {
-                let (lhs, rhs) = (&cols[*a], &cols[*b]);
+                let (lhs, rhs) = (cols.get(*a), cols.get(*b));
                 rows.retain(|r| {
                     let i = *r as usize;
-                    (lhs[i] != NULL && lhs[i] == rhs[i]) == *want
+                    (lhs.at(i) != NULL && lhs.at(i) == rhs.at(i)) == *want
                 });
             }
             Self::Rows(test) => rows.retain(|r| test(f, run, cols, *r)),
@@ -56,11 +57,11 @@ impl Action {
             Self::File(test) => Box::new(move |f, run, _, _| test(run, u64::from(f.file))),
             Self::Fact(c, test) => {
                 let test = test.bind();
-                Box::new(move |_, run, cols, r| test(run, cols[c][r as usize]))
+                Box::new(move |_, run, cols, r| test(run, cols.get(c).at(r as usize)))
             }
             Self::Pair(a, b, want) => Box::new(move |_, _, cols, r| {
-                let x = cols[a][r as usize];
-                (x != NULL && x == cols[b][r as usize]) == want
+                let x = cols.get(a).at(r as usize);
+                (x != NULL && x == cols.get(b).at(r as usize)) == want
             }),
             Self::Rows(test) => test,
         }
@@ -138,19 +139,19 @@ fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
             let (a, b) = (*a, *b);
             let test: Row = match (*ta, *tb) {
                 (Ty::Num, Ty::Num) => Box::new(move |_, _, cols, r| {
-                    let (x, y) = (cols[a][r as usize], cols[b][r as usize]);
+                    let (x, y) = (cols.get(a).at(r as usize), cols.get(b).at(r as usize));
                     x != NULL && y != NULL && accept((x as i64).cmp(&(y as i64)))
                 }),
                 (Ty::Sym, Ty::Sym | Ty::Num | Ty::Flag | Ty::File)
                 | (Ty::Num | Ty::Flag | Ty::File, Ty::Sym) => {
                     let (left, right) = (cold_word::as_bytes(*ta), cold_word::as_bytes(*tb));
                     Box::new(move |_, run, cols, r| {
-                        let (x, y) = (cols[a][r as usize], cols[b][r as usize]);
+                        let (x, y) = (cols.get(a).at(r as usize), cols.get(b).at(r as usize));
                         x != NULL && y != NULL && accept(left(run, x).cmp(&right(run, y)))
                     })
                 }
                 _ => Box::new(move |_, _, cols, r| {
-                    let (x, y) = (cols[a][r as usize], cols[b][r as usize]);
+                    let (x, y) = (cols.get(a).at(r as usize), cols.get(b).at(r as usize));
                     x != NULL && y != NULL && accept(x.cmp(&y))
                 }),
             };
@@ -298,13 +299,13 @@ impl Program {
         let mut entered = 0;
         let mut attempts = 0;
         let rows = super::recycle::rows_with(|out| {
-            let (cols, skip): (&[Vec<u64>], _) = match &self.entry {
+            let (cols, skip): (Columns<'_>, _) = match &self.entry {
                 Entry::Text { slots, captured } => {
                     let start = phase_clock();
                     let indexed = super::cold_text::candidates(f, run, slots, out);
                     phase("text literal entry including postings", start);
                     entered = indexed + out.len();
-                    (&[], Some(*captured))
+                    (Columns::Owned(&[]), Some(*captured))
                 }
                 Entry::Fact {
                     family,
@@ -314,14 +315,14 @@ impl Program {
                     if super::fill_prof::counting() {
                         f.mark_read(*family);
                     }
-                    let Some(table) = &f.facts[usize::from(*family)] else {
+                    let Some(table) = f.fact(usize::from(*family)) else {
                         return;
                     };
-                    let cols = &table.cols[..];
+                    let cols = table.columns();
                     if let Some(key) = literal
-                        && table.tys[key.column] == Ty::Sym
+                        && table.ty(key.column) == Ty::Sym
                     {
-                        if key.words.is_empty() || table.n == 0 {
+                        if key.words.is_empty() || table.len() == 0 {
                             return;
                         }
                         if sw!("VEC_COLD_COUNT") {
@@ -329,7 +330,7 @@ impl Program {
                             fact_counts(|n| {
                                 n[0] += 1;
                                 if fresh {
-                                    n[1] += table.n as u64;
+                                    n[1] += table.len() as u64;
                                 }
                             });
                         }
@@ -357,34 +358,34 @@ impl Program {
                         }
                         (cols, key.captured)
                     } else {
-                        entered = table.n;
+                        entered = table.len();
                         if let Some((c, word)) = scalar {
                             let start = phase_clock();
-                            word.scan(run, &cols[*c], out);
+                            word.scan(run, cols.get(*c), out);
                             phase("fact column scan", start);
                             if sw!("VEC_COLD_COUNT") {
                                 fact_counts(|n| {
                                     n[3] += 1;
-                                    n[4] += table.n as u64;
+                                    n[4] += table.len() as u64;
                                 });
                             }
-                            attempts = table.n as u64;
+                            attempts = table.len() as u64;
                             return;
                         }
                         if let Some(Action::Fact(c, test)) = self.actions.first() {
                             let start = phase_clock();
-                            test.scan(run, &cols[*c], out);
+                            test.scan(run, cols.get(*c), out);
                             phase("fact column scan", start);
                             if sw!("VEC_COLD_COUNT") {
                                 fact_counts(|n| {
                                     n[3] += 1;
-                                    n[4] += table.n as u64;
+                                    n[4] += table.len() as u64;
                                 });
                             }
-                            attempts = table.n as u64;
+                            attempts = table.len() as u64;
                             (cols, Some(0))
                         } else {
-                            out.extend(0..table.n as u32);
+                            out.extend(0..table.len() as u32);
                             (cols, None)
                         }
                     }
@@ -413,12 +414,9 @@ impl Program {
             if rows.is_empty() {
                 return;
             }
-            &f.facts[usize::from(i)]
-                .as_ref()
-                .expect("entered fact rows")
-                .cols[..]
+            f.fact(usize::from(i)).expect("entered fact rows").columns()
         } else {
-            &[]
+            Columns::Owned(&[])
         };
         for action in &self.actions {
             if rows.is_empty() {

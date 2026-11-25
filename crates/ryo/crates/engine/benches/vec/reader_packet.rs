@@ -56,6 +56,42 @@ impl FileColumns<'_> {
     }
 }
 
+pub(crate) struct OperatorColumns<'file> {
+    file: FileColumns<'file>,
+    symbols: std::cell::OnceCell<Vec<u32>>,
+    absent: u32,
+}
+
+impl finish::fact_view::FileFacts for OperatorColumns<'_> {
+    fn bind(&self, relation: l::Relation, run: &mut finish::Run) -> Result<bool, String> {
+        let slot = catalog::number_of(relation).0;
+        if self.relation(relation).is_none() { return Ok(false); }
+        for (column, kind) in catalog::kinds(relation).iter().enumerate() {
+            if *kind == CellKind::Symbol {
+                self.symbols.get_or_init(|| (0..l::facts::words_end(self.file.words).0)
+                    .map(|id| run.sym(self.file.text(CellWord(id)).0.as_bytes())).collect());
+            }
+            if *kind == CellKind::Node && self.file.column(slot, column).unwrap_or_default().iter()
+                .any(|&value| self.file.position(value).is_err()) {
+                return Err(format!("node outside this file in {}", catalog::name(relation).0));
+            }
+        }
+        Ok(true)
+    }
+    fn relation(&self, relation: l::Relation) -> Option<finish::fact_view::Fact<'_>> {
+        let slot = catalog::number_of(relation).0;
+        let table = self.file.tables.get(slot)?.as_ref()?;
+        if !matches!(table.answer, l::FactAnswer::Answered(_)) || table.wanted != l::Wanted::Whole {
+            return None;
+        }
+        let kinds = catalog::kinds(relation);
+        Some(finish::fact_view::Fact::Lent {
+            rows: table.rows, kinds,
+            columns: finish::fact_view::Columns::Lent(&table.columns.0, kinds, self.symbols.get().map_or(&[], Vec::as_slice), self.absent),
+        })
+    }
+}
+
 fn widths() -> &'static [usize; RELATIONS] {
     static WIDTHS: std::sync::OnceLock<[usize; RELATIONS]> = std::sync::OnceLock::new();
     WIDTHS.get_or_init(|| {
@@ -135,6 +171,12 @@ impl Packet {
             supplier.fill(&structural, symbols, &mut self.rows).map_err(|e| e.to_string())?;
         }
         Ok(())
+    }
+    pub(crate) fn operator_columns<'a>(
+        &'a self, file: l::FileId, tree: &'a l::NodeTable, words: &'a FileWords, run: &mut finish::Run,
+    ) -> OperatorColumns<'a> {
+        let file = FileColumns { home: file, tree, words, tables: &self.local };
+        OperatorColumns { file, symbols: Default::default(), absent: run.absent_word.expect("reader dictionary") }
     }
     fn local(&self, slot: usize) -> Option<&LocalTable> {
         self.local.get(slot)?.as_ref()
@@ -272,7 +314,7 @@ impl Packet {
         true
     }
     pub(crate) fn view<'a, 'words>(
-        &'a mut self,
+        &'a self,
         parsed: &'a mut reader::ReaderFacts<'words>,
         symbols: &'a l::Symbols,
         bytes: &'a [u8],
@@ -326,7 +368,7 @@ impl FileSymbols {
 
 pub(crate) struct View<'a, 'words> {
     pub(crate) renderer: Option<&'a mut dyn FnMut(l::RenderRequest) -> Result<l::RenderOutcome, String>>,
-    packet: &'a mut Packet,
+    packet: &'a Packet,
     local_words: Option<&'a FileWords>,
     local_symbols: FxHashMap<u64, u32>,
     parsed: &'a mut reader::ReaderFacts<'words>,
@@ -428,11 +470,11 @@ impl View<'_, '_> {
         tys: finish::Tys,
     ) -> finish::Table {
         let slot = catalog::number_of(rel).0;
-        if let Some(t) = self.packet.local.get_mut(slot).and_then(Option::as_mut) {
+        if let Some(t) = self.packet.local(slot) {
             let mut table = finish::Table::retained(names, tys, 0);
             let words = self.local_words.expect("scoped file dictionary");
-            for ((dst, src), ty) in table.cols.iter_mut().zip(&mut t.columns.0).zip(table.tys.iter()) {
-                *dst = std::mem::take(&mut src.0).into_iter().map(|raw| match ty {
+            for ((dst, src), ty) in table.cols.iter_mut().zip(&t.columns.0).zip(table.tys.iter()) {
+                *dst = src.0.iter().map(|raw| match ty {
                     finish::Ty::Sym if raw.0 == u64::from(l::NO_SYMBOL.0) =>
                         u64::from(run.absent_word.expect("reader word table")),
                     finish::Ty::Sym => u64::from(*self.local_symbols.entry(raw.0).or_insert_with(

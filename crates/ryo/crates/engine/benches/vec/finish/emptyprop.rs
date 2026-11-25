@@ -174,7 +174,7 @@ impl Exec<'_> {
 
     fn ep_fact_ready(&self, f: &File<'_>, base: Native) -> bool {
         match base {
-            Native::Fact(i) => f.facts.get(usize::from(i)).is_some_and(Option::is_some),
+            Native::Fact(i) => f.fact(usize::from(i)).is_some(),
             _ => true,
         }
     }
@@ -183,8 +183,8 @@ impl Exec<'_> {
     fn ep_leaf(&mut self, f: &mut File<'_>, run: &mut Run, base: Native, conj: &[E], si: usize, map: &[usize]) -> usize {
         if let Native::Fact(i) = base {
             let rel = &run.fact_rels[usize::from(i)].0;
-            let filled = f.facts.get(usize::from(i)).and_then(Option::as_ref).or_else(|| f.filled(rel));
-            if filled.is_some_and(|t| t.n == 0) {
+            let filled = f.fact(usize::from(i)).map(|t| t.len()).or_else(|| f.filled(rel).map(|t| t.n));
+            if filled == Some(0) {
                 if sw!("VEC_EP_COUNT") {
                     C.with(|c| *c.borrow_mut().no_rows.entry(rel.clone()).or_default() += 1);
                 }
@@ -408,8 +408,8 @@ impl Exec<'_> {
             if loaded.is_err() {
                 continue;
             }
-            let Some(t) = f.facts.get(usize::from(lf.fact)).and_then(Option::as_ref) else { continue };
-            if lf.own && t.n == 0 {
+            let Some(t) = f.fact(usize::from(lf.fact)) else { continue };
+            if lf.own && t.len() == 0 {
                 return true;
             }
             if lf.lit {

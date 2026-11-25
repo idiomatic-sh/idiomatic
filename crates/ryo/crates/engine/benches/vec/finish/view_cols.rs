@@ -58,7 +58,7 @@ pub(super) fn cell(f: &File<'_>, run: &mut Run, base: Native, row: u32, col: usi
             if fill_counting() {
                 f.mark_read(i);
             }
-            f.facts[usize::from(i)].as_ref().map_or(NULL, |t| t.cols[col][row as usize])
+            f.fact(usize::from(i)).map_or(NULL, |t| t.columns().get(col).at(row as usize))
         }
         Native::Tree if col == 1 => u64::from(run.kind_sym[usize::from(f.kind[row as usize])]),
         Native::Tree | Native::Location if col == 0 => u64::from(row),
@@ -111,23 +111,23 @@ pub(super) fn retain_original(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &
             return;
         }
         if let Native::Fact(i) = v.base
-            && let Some(tab) = &f.facts[usize::from(i)]
+            && let Some(tab) = f.fact(usize::from(i))
         {
             match t {
                 Test::Eq(c, x) => {
-                    let col = &tab.cols[*c];
-                    rows.retain(|r| col[*r as usize] == *x);
+                    let col = tab.columns().get(*c);
+                    rows.retain(|r| col.at(*r as usize) == *x);
                     continue;
                 }
                 Test::Ne(c, x) => {
-                    let col = &tab.cols[*c];
-                    rows.retain(|r| col[*r as usize] != *x);
+                    let col = tab.columns().get(*c);
+                    rows.retain(|r| col.at(*r as usize) != *x);
                     continue;
                 }
                 Test::In(c, vs, neg) => {
-                    let col = &tab.cols[*c];
+                    let col = tab.columns().get(*c);
                     rows.retain(|r| {
-                        let x = col[*r as usize];
+                        let x = col.at(*r as usize);
                         (x != NULL && vs.contains(x)) != *neg
                     });
                     continue;
@@ -150,10 +150,10 @@ pub(super) fn gather_ids(f: &File<'_>, run: &mut Run, base: Native, bc: usize, r
             if fill_counting() {
                 mark(f, base);
             }
-            match &f.facts[usize::from(i)] {
+            match f.fact(usize::from(i)) {
                 Some(t) => {
-                    let col = &t.cols[bc];
-                    out.extend(rows.map(|r| col[r as usize]));
+                    let col = t.columns().get(bc);
+                    out.extend(rows.map(|r| col.at(r as usize)));
                 }
                 None => out.extend(rows.map(|_| NULL)),
             }

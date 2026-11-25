@@ -1365,6 +1365,7 @@ pub(crate) fn visit<L: FileSource>(
                 let [answer]: [l::RenderOutcome; 1] = answers.try_into().map_err(|_| "renderer returned the wrong number of answers")?;
                 Ok(answer)
             };
+            let loan = fact_words.as_deref().map(|words| packet.operator_columns(id, tree, words, &mut run));
             let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, fact_words.as_deref());
             facts_view.resolved = resolved_words;
             facts_view.renderer = Some(&mut render);
@@ -1474,7 +1475,7 @@ pub(crate) fn visit<L: FileSource>(
                 let version = version.get_or_init(|| {
                     finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text())
                 });
-                let make_frame = || finish::session::frame(version, &plan, &supplied, lines.iter().chain(&named_tables));
+                let make_frame = || finish::session::frame(version, &plan, &supplied, loan.as_ref().map(|l| l as &dyn finish::fact_view::FileFacts), lines.iter().chain(&named_tables));
                 let mut restricted;
                 let current = if local_coverage.is_empty() {
                     frame.get_or_insert_with(make_frame)

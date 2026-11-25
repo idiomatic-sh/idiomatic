@@ -193,11 +193,11 @@ fn pairs_where(
             if fill_prof::counting() {
                 f.mark_read(i);
             }
-            let table = f.facts[usize::from(i)].as_ref();
-            match table.map_or(0, |t| t.n) {
+            let table = f.fact(usize::from(i));
+            match table.map_or(0, |t| t.len()) {
                 0 => batch.drive(|_| None),
                 1 => {
-                    let only = table.expect("one fact row").cols[c][0];
+                    let only = table.expect("one fact row").columns().get(c).at(0);
                     batch.drive(|key| (key == only).then_some(0))
                 }
                 _ => {

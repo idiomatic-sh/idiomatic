@@ -5,7 +5,7 @@ pub(super) enum Key<'a> {
     Table(&'a [u64]),
     Position,
     Parent(&'a [u32]),
-    Fact(&'a [u64]),
+    Fact(crate::finish::fact_view::Column<'a>),
     Null,
     Cell(Native, usize),
 }
@@ -24,9 +24,8 @@ impl<'a> Key<'a> {
                 if fill_prof::counting() {
                     f.mark_read(i);
                 }
-                f.facts[usize::from(i)]
-                    .as_ref()
-                    .map_or(Self::Null, |t| Self::Fact(&t.cols[c]))
+                f.fact(usize::from(i))
+                    .map_or(Self::Null, |t| Self::Fact(t.columns().get(c)))
             }
             (native, c) => Self::Cell(native, c),
         }
@@ -41,7 +40,7 @@ impl<'a> Key<'a> {
         match self {
             Self::Position => u64::from(row),
             Self::Parent(keys) => u64::from(keys[row as usize]),
-            Self::Fact(keys) => keys[row as usize],
+            Self::Fact(keys) => keys.at(row as usize),
             Self::Cell(native, col) => view_cols::cell(f, run, *native, row, *col),
             Self::Null => super::NULL,
             Self::Table(_) => unreachable!(),

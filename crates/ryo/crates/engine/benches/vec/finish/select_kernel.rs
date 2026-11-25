@@ -535,7 +535,7 @@ impl Exec<'_> {
             }
             let Ok(Some(v)) = self.view(run, *s) else { continue };
             if let super::Native::Fact(x) = v.base
-                && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
+                && f.fact(usize::from(x)).is_none()
                 && !(f.owed_fills.get(usize::from(x)).copied().unwrap_or(false) && self.load_fact(f, run, p, v.base).is_ok())
             {
                 continue;

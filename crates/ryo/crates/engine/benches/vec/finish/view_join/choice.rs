@@ -32,7 +32,7 @@ fn smaller<'a>(f: &File<'a>, view: &ViewSpec, node: usize, limit: usize) -> Opti
     }
     let n = match view.base {
         Native::Tree | Native::Location => f.n,
-        Native::Fact(i) => f.facts.get(usize::from(i))?.as_ref()?.n,
+        Native::Fact(i) => f.fact(usize::from(i))?.len(),
         _ => return None,
     };
     (n < limit).then_some(Input::Range(n as u32))

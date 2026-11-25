@@ -149,7 +149,7 @@ impl Exec<'_> {
         if let Some(v) = self.view(run, node)? {
             // a view over a fill not read yet in this file: not read for a size
             if let super::Native::Fact(x) = v.base
-                && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
+                && f.fact(usize::from(x)).is_none()
                 && !make
             {
                 return Ok(usize::MAX);
@@ -169,7 +169,7 @@ impl Exec<'_> {
                     None => match v.base {
                         super::Native::Tree | super::Native::Location | super::Native::Child => f.n,
                         super::Native::Token => 3 * f.n,
-                        super::Native::Fact(i) => f.facts[usize::from(i)].as_ref().map_or(0, |t| t.n),
+                        super::Native::Fact(i) => f.fact(usize::from(i)).map_or(0, |t| t.len()),
                     },
                 },
             });

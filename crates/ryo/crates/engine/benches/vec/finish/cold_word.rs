@@ -23,12 +23,10 @@ impl Word {
             Self::Test(test) => test,
         }
     }
-    pub(super) fn scan(&self, run: &Run, column: &[u64], out: &mut Vec<u32>) {
-        fn emit(col: &[u64], out: &mut Vec<u32>, test: impl Fn(u64) -> bool) {
+    pub(super) fn scan(&self, run: &Run, column: super::fact_view::Column<'_>, out: &mut Vec<u32>) {
+        fn emit(col: super::fact_view::Column<'_>, out: &mut Vec<u32>, test: impl Fn(u64) -> bool) {
             out.extend(
-                col.iter()
-                    .enumerate()
-                    .filter_map(|(i, &w)| test(w).then_some(i as u32)),
+                (0..col.len()).filter_map(|i| test(col.at(i)).then_some(i as u32)),
             );
         }
         match self {
@@ -37,11 +35,11 @@ impl Word {
             Self::Test(test) => emit(column, out, |w| test(run, w)),
         }
     }
-    pub(super) fn retain(&self, run: &Run, column: &[u64], rows: &mut Vec<u32>) {
+    pub(super) fn retain(&self, run: &Run, column: super::fact_view::Column<'_>, rows: &mut Vec<u32>) {
         match self {
-            Self::Eq(x) => rows.retain(|r| column[*r as usize] == *x),
-            Self::Ne(x) => rows.retain(|r| column[*r as usize] != *x),
-            Self::Test(test) => rows.retain(|r| test(run, column[*r as usize])),
+            Self::Eq(x) => rows.retain(|r| column.at(*r as usize) == *x),
+            Self::Ne(x) => rows.retain(|r| column.at(*r as usize) != *x),
+            Self::Test(test) => rows.retain(|r| test(run, column.at(*r as usize))),
         }
     }
 }
