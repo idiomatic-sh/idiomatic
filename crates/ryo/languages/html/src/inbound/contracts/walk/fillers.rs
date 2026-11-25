@@ -243,8 +243,10 @@ impl<P: Send + Sync + 'static> Fillers for HtmlWalk<P> {
         FileCompleteness { syntax: wholeness, lexical: wholeness }
     }
 
-    fn fills_are_complete(file: &mut HtmlFile<'_>) -> bool {
-        Self::completeness(file).syntax == SyntaxCompleteness::Complete
+    /// Never: a relation filled on first use of a file the language read whole must answer in full, and the relations the language
+    /// does not read yet answer `NotYetRead`; each file is filled at load, where that is a partial answer, as today's route says it.
+    fn fills_are_complete(_file: &mut HtmlFile<'_>) -> bool {
+        false
     }
 
     fn notes(_file: &mut HtmlFile<'_>, _table: &NodeTable, _source: ByteSlice<'_>, _out: &mut Bytes) {}
