@@ -118,7 +118,7 @@ impl Projection {
         mask: &[bool],
         local_reader: bool,
         tests: Option<&Vec<(usize, u64)>>,
-        keys: Option<(usize, Keys)>,
+        reader_keys: Option<(usize, Keys)>,
     ) -> Option<Self> {
         let step = &exec.plan.nodes[node];
         if step.op() != "select" || step.semi().is_some() || step.counted() {
@@ -161,7 +161,7 @@ impl Projection {
             let Some(tests) = tests else {
                 // A view is read in place by position: with no literal test it is
                 // entered only at the nodes the reader can reach.
-                let (column, keys) = keys?;
+                let (column, keys) = reader_keys?;
                 let key = match keys {
                     Keys::Column { .. } => column,
                     Keys::Reach(_) => super::super::pos(&schema.names, "id").ok()?,
@@ -258,7 +258,7 @@ impl Projection {
             }
         }
         // Only the edges of the demanded parents can meet the other side.
-        let demand = keys.and_then(|(column, keys)| {
+        let demand = reader_keys.and_then(|(column, keys)| {
             let Keys::Column { .. } = keys else {
                 return None;
             };
