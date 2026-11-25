@@ -8,7 +8,7 @@ pub(super) enum Column<'a> {
     Owned(&'a [u64]),
     Numbers(&'a [CellWord]),
     Nodes(&'a [CellWord]),
-    Words(&'a [CellWord], &'a [u32], u32),
+    Words(&'a [CellWord], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>, u32),
 }
 
 impl Column<'_> {
@@ -21,9 +21,9 @@ impl Column<'_> {
                 let value = c[row].0;
                 if value == NULL { NULL } else { u64::from(value as u32) }
             }
-            Self::Words(c, words, absent) => {
+            Self::Words(c, words, public, absent) => {
                 let value = c[row].0;
-                u64::from(if value == u64::from(ryo::languages::NO_SYMBOL.0) { absent } else { words[value as usize] })
+                u64::from(words.get(value as usize).copied().or_else(|| u32::try_from(value).ok().and_then(|v| public.get(&v).copied())).unwrap_or(absent))
             }
         }
     }
@@ -31,7 +31,7 @@ impl Column<'_> {
     pub(super) fn len(self) -> usize {
         match self {
             Self::Owned(c) => c.len(),
-            Self::Numbers(c) | Self::Nodes(c) | Self::Words(c, _, _) => c.len(),
+            Self::Numbers(c) | Self::Nodes(c) | Self::Words(c, _, _, _) => c.len(),
         }
     }
 }
@@ -39,7 +39,7 @@ impl Column<'_> {
 #[derive(Clone, Copy)]
 pub(crate) enum Columns<'a> {
     Owned(&'a [Vec<u64>]),
-    Lent(&'a [FilledColumn], &'a [CellKind], &'a [u32], u32),
+    Lent(&'a [FilledColumn], &'a [CellKind], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>, u32),
 }
 
 impl<'a> Columns<'a> {
@@ -47,11 +47,11 @@ impl<'a> Columns<'a> {
     pub(super) fn get(self, column: usize) -> Column<'a> {
         match self {
             Self::Owned(c) => Column::Owned(&c[column]),
-            Self::Lent(cols, kinds, words, absent) => {
+            Self::Lent(cols, kinds, words, public, absent) => {
                 let cells = cols.get(column).map_or(&[][..], |c| c.0.as_slice());
                 match kinds[column] {
                     CellKind::Node => Column::Nodes(cells),
-                    CellKind::Symbol => Column::Words(cells, words, absent),
+                    CellKind::Symbol => Column::Words(cells, words, public, absent),
                     _ => Column::Numbers(cells),
                 }
             }
@@ -87,6 +87,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn reserved_cells_are_not_file_dictionary_offsets() {
+        use ryo_relations::domain::terms::{service::unknown_symbol, types::UnknownReason};
+        let reason = unknown_symbol(UnknownReason(23)).0;
+        let mut public = rustc_hash::FxHashMap::default();
+        public.insert(reason, 214);
+        let cells = [CellWord(u64::from(reason)), CellWord(u64::from(ryo::languages::NO_SYMBOL.0))];
+        let column = Column::Words(&cells, &[], &public, 12);
+        assert_eq!(column.at(0), 214);
+        assert_eq!(column.at(1), 12);
+    }
+
+    #[test]
     fn file_columns_match_owned_cells_in_the_executor_namespace() {
         let local = [
             FilledColumn(vec![CellWord((3 << 32) | 8), CellWord(NULL)]),
@@ -95,7 +107,8 @@ mod tests {
         ];
         let kinds = [CellKind::Node, CellKind::Symbol, CellKind::Number];
         let symbols = [33, 44];
-        let file = Columns::Lent(&local, &kinds, &symbols, 55);
+        let public = rustc_hash::FxHashMap::default();
+        let file = Columns::Lent(&local, &kinds, &symbols, &public, 55);
         let expected = [vec![8, NULL], vec![44, 55], vec![0, 42]];
         let owned = Columns::Owned(&expected);
         for col in 0..kinds.len() {

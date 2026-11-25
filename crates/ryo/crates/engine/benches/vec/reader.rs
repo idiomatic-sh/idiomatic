@@ -41,6 +41,11 @@ pub(super) fn public_words(run: &mut Run, reasons: &[l::UnknownName]) -> HashMap
         run.unresolved_words.push(number);
         unknown.insert(l::unknown_symbol(reason.reason).0, number);
     }
+    let mut public: rustc_hash::FxHashMap<_, _> = unknown.iter().map(|(&raw, &id)| (raw, id)).collect();
+    for (raw, text) in ryo_relations::domain::terms::service::declared_terms() {
+        public.insert(raw.0, run.sym(text.0.as_bytes()));
+    }
+    run.public_word_ids = std::rc::Rc::new(public);
     unknown
 }
 

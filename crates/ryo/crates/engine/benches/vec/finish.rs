@@ -393,6 +393,7 @@ pub(super) struct Run {
     pub(super) own_word_sym: Vec<u32>,
     /// redo-fills pass 2: the symbol of each closed-set word (`cell_text`'s blocks, by number from 0xFFFF_0000).
     pub(super) closed_word_sym: Vec<u32>,
+    pub(super) public_word_ids: Rc<FxHashMap<u32, u32>>,
 }
 
 impl Run {

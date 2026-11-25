@@ -38,7 +38,7 @@ impl FileColumns<'_> {
         Some((&table.answer, table.wanted))
     }
 
-    pub(crate) fn text(&self, word: CellWord) -> l::NameText<'_> {
+    pub(crate) fn text(&self, word: CellWord) -> Option<l::NameText<'_>> {
         local_word_text(self.words, word)
     }
 
@@ -56,15 +56,16 @@ impl FileColumns<'_> {
     }
 }
 
-fn local_word_text(words: &FileWords, word: CellWord) -> l::NameText<'_> {
+fn local_word_text(words: &FileWords, word: CellWord) -> Option<l::NameText<'_>> {
     u32::try_from(word.0).ok().and_then(|code| {
         ryo_relations::domain::terms::service::term_text(l::Symbol(code))
-    }).unwrap_or_else(|| l::facts::text(words, word))
+    }).or_else(|| (word < l::facts::words_end(words)).then(|| l::facts::text(words, word)))
 }
 
 pub(crate) struct OperatorColumns<'file> {
     file: FileColumns<'file>,
     symbols: std::cell::OnceCell<Vec<u32>>,
+    public: Rc<FxHashMap<u32,u32>>,
     absent: u32,
 }
 
@@ -80,7 +81,7 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_> {
         for (column, kind) in catalog::kinds(relation).iter().enumerate() {
             if *kind == CellKind::Symbol {
                 self.symbols.get_or_init(|| (0..l::facts::words_end(self.file.words).0)
-                    .map(|id| run.sym(self.file.text(CellWord(id)).0.as_bytes())).collect());
+                    .map(|id| run.sym(l::facts::text(self.file.words, CellWord(id)).0.as_bytes())).collect());
             }
             if *kind == CellKind::Node && self.file.column(slot, column).unwrap_or_default().iter()
                 .any(|&value| self.file.position(value).is_err()) {
@@ -90,7 +91,7 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_> {
         let kinds = catalog::kinds(relation);
         Ok(Some(finish::fact_view::Fact::Lent {
             rows: table.rows, kinds,
-            columns: finish::fact_view::Columns::Lent(&table.columns.0, kinds, self.symbols.get().map_or(&[], Vec::as_slice), self.absent),
+            columns: finish::fact_view::Columns::Lent(&table.columns.0, kinds, self.symbols.get().map_or(&[], Vec::as_slice), &self.public, self.absent),
         }))
     }
 }
@@ -179,7 +180,7 @@ impl Packet {
         &'a self, file: l::FileId, tree: &'a l::NodeTable, words: &'a FileWords, run: &mut finish::Run,
     ) -> OperatorColumns<'a> {
         let file = FileColumns { home: file, tree, words, tables: &self.local };
-        OperatorColumns { file, symbols: Default::default(), absent: run.absent_word.expect("reader dictionary") }
+        OperatorColumns { file, symbols: Default::default(), public: run.public_word_ids.clone(), absent: run.absent_word.expect("reader dictionary") }
     }
     fn local(&self, slot: usize) -> Option<&LocalTable> {
         self.local.get(slot)?.as_ref()
@@ -237,9 +238,7 @@ impl Packet {
         if let Some(table) = self.local(slot) {
             let words = local_words?;
             return Some(table.rows != 0 && table.columns.0[column].0.iter().any(|&raw| {
-                let text = (raw.0 != u64::from(l::NO_SYMBOL.0))
-                    .then(|| local_word_text(words, raw));
-                matches(text, l::NO_SYMBOL)
+                matches(local_word_text(words, raw), l::Symbol(raw.0 as u32))
             }));
         }
         Some(self.offsets[slot].iter().any(|&at| {
@@ -281,8 +280,10 @@ impl Packet {
                             Ok(Some(pos)) => CellWord(u64::from(pos.0)),
                             _ => return false,
                         },
-                        CellKind::Symbol if raw.0 != u64::from(l::NO_SYMBOL.0) => l::facts::intern(words, loan.text(raw)),
-                        CellKind::Symbol => return false,
+                        CellKind::Symbol => {
+                            let Some(text) = loan.text(raw) else { return false };
+                            l::facts::intern(words, text)
+                        }
                         _ => raw,
                     });
                 }
@@ -491,7 +492,10 @@ impl View<'_, '_> {
                     finish::Ty::Sym if raw.0 == u64::from(l::NO_SYMBOL.0) =>
                         u64::from(run.absent_word.expect("reader word table")),
                     finish::Ty::Sym => u64::from(*self.local_symbols.entry(raw.0).or_insert_with(
-                        || run.sym(local_word_text(words, *raw).0.as_bytes()))),
+                        || match local_word_text(words, *raw) {
+                            Some(text) => run.sym(text.0.as_bytes()),
+                            None => run.public_word_ids.get(&(raw.0 as u32)).copied().unwrap_or(run.absent_word.expect("reader dictionary")),
+                        })),
                     finish::Ty::Node => position(raw.0)?,
                     _ => raw.0,
                 })).collect::<Result<_, String>>()?;

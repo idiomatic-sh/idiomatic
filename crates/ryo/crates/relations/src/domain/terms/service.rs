@@ -104,6 +104,16 @@ pub fn words_of(block: WordBlock) -> Vec<NameText<'static>> {
         .collect()
 }
 
+/// The public symbol and spelling of each declared closed term. Unknown reasons
+/// are supplied by the reader and have no universal spelling.
+pub fn declared_terms() -> impl Iterator<Item = (Symbol, NameText<'static>)> {
+    use WordBlock::{Declaration, Parameter, Value, Mapping, Dependency, Origin};
+    [Declaration, Parameter, Value, Mapping, Dependency, Origin].into_iter().flat_map(|block| {
+        let first = start_of(block).0;
+        words_of(block).into_iter().enumerate().map(move |(i, text)| (Symbol(first + i as u32), text))
+    })
+}
+
 /// What the words of a closed set are the words of, as the catalog's listings name it: the relation whose column holds them.
 #[must_use]
 pub const fn owner_of(block: WordBlock) -> NameText<'static> {
