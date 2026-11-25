@@ -50,6 +50,7 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         Self: 'f;
 
     written! {
+        source_location: SourceLocation => crate::domain::relations::collections::relations::source_location::item::SourceLocationItem;
         defines: Defines => crate::domain::relations::collections::relations::defines::item::DefinesItem;
         reference: Reference => crate::domain::relations::collections::relations::reference::item::ReferenceItem;
         resolves: Resolves => crate::domain::relations::collections::relations::resolves::item::ResolvesItem;
@@ -122,7 +123,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         raw_format_field: RawFormatField => NoSuchConstruct;
         raw_format_segment: RawFormatSegment => NoSuchConstruct;
         sequence_element: SequenceElement => NoSuchConstruct;
-        source_location: SourceLocation => NotYetRead;
         source_dependency: SourceDependency => NotYetRead;
         standard_library_import: StandardLibraryImport => NoSuchConstruct;
         token_link: TokenLink => NoSuchConstruct;
