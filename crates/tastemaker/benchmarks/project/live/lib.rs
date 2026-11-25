@@ -45,7 +45,7 @@ use json_input::rule_context;
 #[path = "../bench.rs"]
 mod project_bench;
 
-pub use project_bench::{link_executor, measure_dispatch, configure_bench_check, configured_workers, HostPhase, host_snapshot, host_wall, capture, capture_then, capture_retained, capture_one, print_measurement};
+pub use project_bench::{link_executor, measure_dispatch, configure_bench_check, configured_workers, exit_process, HostPhase, host_snapshot, host_wall, capture, capture_then, capture_retained, capture_one, print_measurement};
 
 // A pair of private executable aliases selects the gate's receipt collection.
 // The check and the SDK have no runtime switch for their execution path.

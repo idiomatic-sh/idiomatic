@@ -14,12 +14,12 @@ use crate::linter::{
 type Reply = Result<LintReport, LintError>;
 type Execute = fn(usize, Vec<LintRequest>, &Languages, &Cache, NonZeroUsize) -> Vec<Reply>;
 
-static ENGINE: OnceLock<(Execute, fn(usize))> = OnceLock::new();
+static ENGINE: OnceLock<(Execute, fn(usize), fn(usize))> = OnceLock::new();
 static NEXT_SESSION: AtomicUsize = AtomicUsize::new(0);
 
-pub fn link(execute: Execute, close: fn(usize)) {
+pub fn link(execute: Execute, close: fn(usize), retire: fn(usize)) {
     assert!(
-        ENGINE.set((execute, close)).is_ok(),
+        ENGINE.set((execute, close, retire)).is_ok(),
         "one linked benchmark executor"
     );
 }
@@ -59,7 +59,7 @@ impl Linter {
                 })
                 .collect()
         };
-        let Some(&(execute, _)) = ENGINE.get() else {
+        let Some(&(execute, _, _)) = ENGINE.get() else {
             return fail("benchmark executor was not linked".into());
         };
         let mut requests = Some(requests);
@@ -87,9 +87,20 @@ impl std::fmt::Debug for Linter {
     }
 }
 
+impl Linter {
+    /// The command's last act: publish what the session must persist, then give up the session without
+    /// dropping its plans, tables and strings one by one. A caller that drops the linter still gets a clean drop.
+    pub fn retire(self) {
+        if let Some(&(_, _, retire)) = ENGINE.get() {
+            let _ = self.pool.clone().of().on_owner(&mut || retire(self.session));
+        }
+        std::mem::forget(self);
+    }
+}
+
 impl Drop for Linter {
     fn drop(&mut self) {
-        if let Some(&(_, close)) = ENGINE.get() {
+        if let Some(&(_, close, _)) = ENGINE.get() {
             let _ = self.pool.clone().of().on_owner(&mut || close(self.session));
         }
     }

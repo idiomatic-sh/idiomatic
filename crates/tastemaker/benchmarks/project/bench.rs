@@ -13,4 +13,4 @@ mod batch;
 
 
 #[cfg(feature = "product-session")]
-pub use batch::calls::{link_executor, measure_dispatch, configure_bench_check, configured_workers, HostPhase, host_snapshot, host_wall, capture, capture_then, capture_retained, capture_one, print_measurement};
+pub use batch::calls::{link_executor, measure_dispatch, configure_bench_check, configured_workers, exit_process, HostPhase, host_snapshot, host_wall, capture, capture_then, capture_retained, capture_one, print_measurement};
