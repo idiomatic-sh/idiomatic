@@ -141,14 +141,8 @@ pub(crate) fn number(
     value.0.clear();
     match &literal.value {
         Number::Int(integer) => {
-            if write!(value.0, "{integer}").is_err() {
-                return None;
-            }
-            let digits = value.0.as_str();
-            let canonical = !digits.is_empty()
-                && digits.bytes().all(|byte| byte.is_ascii_digit())
-                && (digits.len() == 1 || !digits.starts_with('0'));
-            canonical.then_some(NumberFacts {
+            crate::domain::numeric_literals::service::integer_text(integer, &mut value.0)?;
+            Some(NumberFacts {
                 kind: NameText(INTEGER_SCALAR),
                 exact: Flag::Raised,
             })

@@ -1845,6 +1845,7 @@ dependencies = [
  "indexmap",
  "memchr",
  "mimalloc",
+ "num-bigint 0.4.8",
  "object 0.37.3",
  "pep508_rs",
  "postcard",

@@ -14,6 +14,25 @@ use ryo::languages::{
     Symbols, Tree, WRITTEN_DIGITS_BYTES,
 };
 
+/// Write the canonical decimal value from Ruff's parsed integer. Ruff retains
+/// the radix-prefixed token as its payload when the integer exceeds u64.
+pub(crate) fn integer_text(integer: &ruff_python_ast::Int, out: &mut String) -> Option<()> {
+    use std::fmt::Write as _;
+    out.clear();
+    write!(out, "{integer}").ok()?;
+    if integer.as_u64().is_some() { return Some(()); }
+    out.retain(|ch| ch != '_');
+    let radix = match out.as_bytes().get(..2) {
+        Some(b"0x" | b"0X") => 16,
+        Some(b"0o" | b"0O") => 8,
+        Some(b"0b" | b"0B") => 2,
+        _ => return (canonical_integer(NameText(out)) == Flag::Raised).then_some(()),
+    };
+    let value = num_bigint::BigUint::parse_bytes(&out.as_bytes()[2..], radix)?;
+    out.clear();
+    write!(out, "{value}").ok()
+}
+
 /// Intern an occurrence without allocating temporary decimal text on each file read.
 pub(crate) fn intern_value(
     symbols: &mut Symbols,

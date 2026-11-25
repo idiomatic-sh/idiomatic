@@ -51,7 +51,7 @@ pub(super) fn integer_payloads_are_canonical_arbitrary_precision_and_exclude_oth
 -> String {
     let mut observed: Vec<String> = Vec::new();
     let values = literals(
-        "0x10\n0o20\n0b10000\n1_000\n9007199254740993\n18446744073709551616\n340282366920938463463374607431768211457\nTrue\nFalse\n1j\nNone\n'42'\nb'42'\n",
+        "0x10\n0o20\n0b10000\n1_000\n9007199254740993\n0x1_0000_0000_0000_0000\n340282366920938463463374607431768211457\nTrue\nFalse\n1j\nNone\n'42'\nb'42'\n",
     );
     observed.push(format!(
         "{:?}",

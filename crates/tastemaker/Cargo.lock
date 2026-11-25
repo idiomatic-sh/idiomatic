@@ -1418,6 +1418,7 @@ version = "0.2.0"
 dependencies = [
  "idiomatic-sh-ryo-sdk",
  "indexmap",
+ "num-bigint 0.4.8",
  "pep508_rs",
  "postcard",
  "pyproject-toml",

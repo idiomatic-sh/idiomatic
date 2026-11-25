@@ -352,7 +352,9 @@ fn scalar_properties(
         match &literal.value {
             Number::Int(value) => {
                 node_property(builder, SCALAR_KIND, NameText(INTEGER_SCALAR));
-                scalar_property(builder, scratch, SCALAR_VALUE, value);
+                if crate::domain::numeric_literals::service::integer_text(value, &mut scratch.0).is_some() {
+                    node_property(builder, SCALAR_VALUE, NameText(&scratch.0));
+                }
             }
             Number::Float(value) => {
                 node_property(builder, SCALAR_KIND, NameText(FLOAT_SCALAR));

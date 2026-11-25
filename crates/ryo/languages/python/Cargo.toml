@@ -18,6 +18,7 @@ name = "ryo_python"
 [dependencies]
 memchr = { workspace = true, optional = true }
 indexmap.workspace = true
+num-bigint.workspace = true
 strum.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, optional = true }
