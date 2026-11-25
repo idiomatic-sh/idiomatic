@@ -5,9 +5,9 @@ use std::{
     collections::BTreeMap,
     ffi::OsString,
     fs::{self, File},
-    io,
+    io::{self, BufRead, BufReader},
     path::{Path, PathBuf},
-    process::{Command, ExitStatus, Stdio},
+    process::{Child, ChildStdin, Command, ExitStatus, Stdio},
     time::{Duration, Instant},
 };
 
@@ -330,6 +330,47 @@ pub struct Profile {
     pub instructions: Observation,
 }
 
+struct ClockLease {
+    holder: Child,
+    release: Option<ChildStdin>,
+}
+
+impl Drop for ClockLease {
+    fn drop(&mut self) {
+        drop(self.release.take());
+        let _status = self.holder.wait();
+    }
+}
+
+fn acquire_clock_lease(launcher: &[OsString]) -> io::Result<(Vec<OsString>, Option<ClockLease>)> {
+    let Some((program, arguments)) = launcher.split_first() else {
+        return Ok((Vec::new(), None));
+    };
+    let mut holder = Command::new(program)
+        .args(arguments)
+        .args(["sh", "-c", "taskset -pc \"$$\" && exec cat >/dev/null"])
+        .env("LC_ALL", "C")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    let release = holder.stdin.take();
+    let ready = holder.stdout.take();
+    let lease = ClockLease { holder, release };
+    let mut ready =
+        BufReader::new(ready.ok_or_else(|| io::Error::other("no clock lease acknowledgement"))?);
+    let mut allocation = String::new();
+    ready.read_line(&mut allocation)?;
+    let (_, affinity) = allocation.trim_end().rsplit_once(": ").ok_or_else(|| {
+        io::Error::other(format!(
+            "clock lease did not identify its CPUs: {allocation}"
+        ))
+    })?;
+    Ok((
+        vec!["taskset".into(), "-c".into(), affinity.into()],
+        Some(lease),
+    ))
+}
+
 /// Collect one profile. The caller prepares the command and disposable input
 /// state for each pass. Optional clocked detail belongs in the final callback.
 /// The accepted exit code is supplied by the workload.
@@ -341,7 +382,7 @@ pub fn collect<T>(
     expected_exits: &[i32],
     instruction_budget: Duration,
     mut invoke: impl FnMut(Observer, &Path) -> io::Result<CommandLine>,
-    after_clocked: impl FnOnce() -> io::Result<T>,
+    after_clocked: impl FnOnce(&[OsString]) -> io::Result<T>,
 ) -> io::Result<(Profile, T)> {
     fs::create_dir_all(directory)?;
     let directory = directory.canonicalize()?;
@@ -354,8 +395,8 @@ pub fn collect<T>(
         Ok::<_, io::Error>((path, command))
     };
     let cores = available_cores();
-    let native = prepared(Observer::Native, "native", cores.first().copied())?;
-    let samples = prepared(Observer::Samples, "samples", cores.first().copied())?;
+    let mut native = prepared(Observer::Native, "native", cores.first().copied())?;
+    let mut samples = prepared(Observer::Samples, "samples", cores.first().copied())?;
     let heap = prepared(Observer::Heap, "heap", cores.get(1).copied())?;
     let instructions = prepared(
         Observer::Instructions,
@@ -396,10 +437,14 @@ pub fn collect<T>(
         Ok(run)
     };
     let clocks = || {
+        // Use the affinity assigned by the launcher for the entire clocked group.
+        let (pin, _lease) = acquire_clock_lease(&native.1.launcher)?;
+        native.1.launcher.clone_from(&pin);
+        samples.1.launcher.clone_from(&pin);
         Ok::<_, io::Error>((
             collect_one(Observer::Native, native)?,
             collect_one(Observer::Samples, samples)?,
-            after_clocked()?,
+            after_clocked(&pin)?,
         ))
     };
     let ((native, samples, detail), heap, instructions) = if cores.len() >= 3 {

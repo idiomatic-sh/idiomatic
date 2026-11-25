@@ -78,9 +78,12 @@ pub(crate) fn profile<T>(
                 }
                 Ok(command)
             },
-            || {
+            |pin| {
                 detail
-                    .map(|(command, _)| standard::observe(&command, Observer::Native, &detail_path))
+                    .map(|(mut command, _)| {
+                        command.launcher = pin.to_owned();
+                        standard::observe(&command, Observer::Native, &detail_path)
+                    })
                     .transpose()
             },
         )?;
