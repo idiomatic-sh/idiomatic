@@ -77,9 +77,8 @@ pub(crate) struct RowsContext<'file> {
     pub(crate) unknown: &'file std::collections::HashMap<u32, u32>,
 }
 
-/// The run's word for each provider symbol of one relation's rows.
+/// The run's word for each provider symbol of one relation's rows that lies beyond the file's symbol table.
 struct RowsTable {
-    ids: Vec<u32>,
     beyond: FxHashMap<u32, u32>,
 }
 
@@ -89,6 +88,8 @@ pub(crate) struct OperatorColumns<'file, 'd> {
     dictionary: Option<&'file Dictionary<'d>>,
     rows: Option<RowsContext<'file>>,
     row_tables: Vec<OnceCell<RowsTable>>,
+    /// The run's word for each provider symbol of the file, resolved the first time any relation's rows hold it.
+    row_ids: OnceCell<Vec<Cell<u32>>>,
     caches: Vec<OnceCell<finish::fact_view::ColumnCache>>,
     /// The run's word for each own word of the dictionary seen so far, in order.
     own: RefCell<Vec<u32>>,
@@ -169,32 +170,34 @@ impl OperatorColumns<'_, '_> {
                 _ => {}
             }
         }
+        let ids: &[Cell<u32>] = if symbols {
+            self.row_ids.get_or_init(|| (0..l::contract::name_count(context.symbols).0).map(|_| Cell::new(u32::MAX)).collect())
+        } else {
+            &[]
+        };
         let table = self.row_tables[slot].get_or_init(|| {
-            let mut table = RowsTable { ids: Vec::new(), beyond: FxHashMap::default() };
-            if !symbols {
-                return table;
-            }
-            let count = l::contract::name_count(context.symbols).0;
-            table.ids.resize(count, u32::MAX);
+            let mut table = RowsTable { beyond: FxHashMap::default() };
             for (column, kind) in kinds.iter().enumerate() {
                 if *kind != CellKind::Symbol {
                     continue;
                 }
                 for &at in offsets {
                     let raw = words[at + column] as u32;
-                    let word = l::Symbol(raw);
-                    let known = table.ids.get(raw as usize).copied().filter(|&id| id != u32::MAX)
-                        .or_else(|| table.beyond.get(&raw).copied());
-                    if known.is_some() {
+                    let known = match ids.get(raw as usize) {
+                        Some(id) => id.get() != u32::MAX,
+                        None => table.beyond.contains_key(&raw),
+                    };
+                    if known {
                         continue;
                     }
+                    let word = l::Symbol(raw);
                     let id = if word == l::NO_SYMBOL {
                         run.absent_word.expect("reader word table")
                     } else {
                         reader::symbol(run, context.unknown, context.symbols, context.bytes, word)
                     };
-                    match table.ids.get_mut(raw as usize) {
-                        Some(slot) => *slot = id,
+                    match ids.get(raw as usize) {
+                        Some(slot) => slot.set(id),
                         None => { table.beyond.insert(raw, id); }
                     }
                 }
@@ -203,7 +206,7 @@ impl OperatorColumns<'_, '_> {
         });
         Ok(Some(finish::fact_view::Fact::Lent {
             rows: offsets.len(), kinds,
-            columns: finish::fact_view::Columns::Rows(words, offsets, kinds, &table.ids, &table.beyond,
+            columns: finish::fact_view::Columns::Rows(words, offsets, kinds, ids, &table.beyond,
                 self.caches[slot].get_or_init(|| finish::fact_view::ColumnCache::new(kinds.len()))),
         }))
     }
@@ -347,7 +350,7 @@ impl Packet {
     ) -> OperatorColumns<'a, 'd> {
         let file = FileColumns { home: file, packet: self };
         OperatorColumns {
-            file, lazy, dictionary, rows, row_tables: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
+            file, lazy, dictionary, rows, row_tables: (0..RELATIONS).map(|_| OnceCell::new()).collect(), row_ids: OnceCell::new(),
             caches: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
             own: RefCell::new(Vec::new()),
             symbols: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
@@ -491,9 +494,17 @@ impl Packet {
             let cells = starts.iter().map(|&at| self.rows.words[at + index]);
             match kind {
                 CellKind::Node => {
-                    for raw in cells {
-                        let Ok(local) = file_node(id.0, raw) else { return false };
-                        column.0.push(CellWord(local));
+                    let home = u64::from(id.0);
+                    let mut foreign = false;
+                    column.0.extend(cells.map(|raw| {
+                        if raw == finish::NULL {
+                            return CellWord(raw);
+                        }
+                        foreign |= raw >> 32 != home;
+                        CellWord(u64::from(raw as u32))
+                    }));
+                    if foreign {
+                        return false;
                     }
                 }
                 CellKind::Symbol => {

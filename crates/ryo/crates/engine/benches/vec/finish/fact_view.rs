@@ -27,7 +27,7 @@ pub(super) enum Column<'a> {
     Row(&'a [u64], &'a [usize], usize),
     RowNodes(&'a [u64], &'a [usize], usize),
     /// Symbols of the packet by the run's word: by provider symbol, else by the map of the symbols beyond the table.
-    RowWords(&'a [u64], &'a [usize], usize, &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>),
+    RowWords(&'a [u64], &'a [usize], usize, &'a [Cell<u32>], &'a rustc_hash::FxHashMap<u32,u32>),
 }
 
 impl Column<'_> {
@@ -47,7 +47,7 @@ impl Column<'_> {
             }
             Self::RowWords(words, offsets, col, table, beyond) => {
                 let raw = words[offsets[row] + col] as u32;
-                u64::from(table.get(raw as usize).copied().filter(|&id| id != u32::MAX).unwrap_or_else(|| beyond[&raw]))
+                u64::from(table.get(raw as usize).map(Cell::get).filter(|&id| id != u32::MAX).unwrap_or_else(|| beyond[&raw]))
             }
             Self::Words(c, words, public, absent) => {
                 let value = c[row].0;
@@ -73,8 +73,8 @@ impl Column<'_> {
             })),
             Self::RowWords(words, offsets, col, table, beyond) => out.extend(offsets[..n].iter().map(|&at| {
                 let raw = words[at + col] as u32;
-                match table.get(raw as usize) {
-                    Some(&id) if id != u32::MAX => u64::from(id),
+                match table.get(raw as usize).map(Cell::get) {
+                    Some(id) if id != u32::MAX => u64::from(id),
                     _ => u64::from(beyond[&raw]),
                 }
             })),
@@ -102,7 +102,7 @@ pub(crate) enum Columns<'a> {
     Owned(&'a [Vec<u64>]),
     Lent(&'a [FilledColumn], &'a [CellKind], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>, u32, &'a ColumnCache),
     /// The provider's row-major packet read in place: words, row offsets, kinds, the symbol table and the symbols beyond it.
-    Rows(&'a [u64], &'a [usize], &'a [CellKind], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>, &'a ColumnCache),
+    Rows(&'a [u64], &'a [usize], &'a [CellKind], &'a [Cell<u32>], &'a rustc_hash::FxHashMap<u32,u32>, &'a ColumnCache),
 }
 
 impl<'a> Columns<'a> {

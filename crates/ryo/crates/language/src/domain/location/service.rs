@@ -55,6 +55,20 @@ fn lines_through(index: &SourceLineIndex, offset: SourceLineOffset) -> usize {
     through
 }
 
+/// The line and the column of an endpoint from one search of the line index.
+#[must_use]
+pub(crate) fn place(index: &SourceLineIndex, offset: SourceLineOffset) -> (SourceLineNumber, SourceByteColumn) {
+    let through = lines_through(index, offset);
+    let start = through
+        .checked_sub(1)
+        .and_then(|line| index.0.get(line))
+        .map_or(0, |start| start.0);
+    (
+        SourceLineNumber(i64::try_from(through).unwrap_or(i64::MAX)),
+        SourceByteColumn(i64::from(offset.0.saturating_sub(start))),
+    )
+}
+
 /// The zero-based UTF-8 byte column, including exclusive EOF endpoints.
 pub(crate) fn column(index: &SourceLineIndex, offset: SourceLineOffset) -> SourceByteColumn {
     let line = lines_through(index, offset);

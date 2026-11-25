@@ -230,7 +230,7 @@ impl<M>
     ) {
         use crate::domain::elements::service::{end_at, start_at};
         use crate::domain::location::{
-            service::{column, line},
+            service::place,
             types::SourceLineOffset,
         };
         let span = ryo_relations::domain::relations::types::Span {
@@ -243,16 +243,20 @@ impl<M>
             return;
         }
         let index = &crate::domain::elements::service::engine(tree.elements).line_starts;
+        let ((start_line, start_column), (end_line, end_column)) = (
+            place(index, SourceLineOffset(span.start.0)),
+            place(index, SourceLineOffset(span.end.0)),
+        );
         out.write(ryo_relations::domain::relations::collections::relations::source_location::item::SourceLocationRow {
             id: ryo_relations::domain::relations::service::node_id(tree.file, position),
             file: tree.file,
             span,
-            start_line: ryo_relations::domain::relations::types::Integer(line(index, SourceLineOffset(span.start.0)).0),
-            end_line: ryo_relations::domain::relations::types::Integer(line(index, SourceLineOffset(span.end.0)).0),
+            start_line: ryo_relations::domain::relations::types::Integer(start_line.0),
+            end_line: ryo_relations::domain::relations::types::Integer(end_line.0),
             start_byte: ryo_relations::domain::relations::types::Integer(i64::from(span.start.0)),
             end_byte: ryo_relations::domain::relations::types::Integer(i64::from(span.end.0)),
-            start_column: ryo_relations::domain::relations::types::Integer(column(index, SourceLineOffset(span.start.0)).0),
-            end_column: ryo_relations::domain::relations::types::Integer(column(index, SourceLineOffset(span.end.0)).0),
+            start_column: ryo_relations::domain::relations::types::Integer(start_column.0),
+            end_column: ryo_relations::domain::relations::types::Integer(end_column.0),
         });
     }
 }
