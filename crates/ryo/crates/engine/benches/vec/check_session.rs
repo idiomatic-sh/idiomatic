@@ -1332,6 +1332,7 @@ pub(crate) fn visit<L: FileSource>(
                     continue;
                 }
                 let mut local_coverage = BTreeMap::new();
+                let mut issue_bases = Vec::new();
                 let mut unknowns = if said.is_empty()
                     && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
                 {
@@ -1365,12 +1366,18 @@ pub(crate) fn visit<L: FileSource>(
                                 .insert((name.to_owned(), file));
                         }
                     }
+                    if cut_of[binding].is_some() {
+                        issue_bases.extend(partial.iter().filter(|p|
+                            contract.needs.reads.iter().any(|r| matters(r, p) == Bearing::Matters))
+                            .map(|p| relations::service::name(p.relation).0));
+                    }
                     contract.report(&partial, &source.path)
                 };
                 for schema in &b.named {
                     if let Some(reason) = named_partials.get(schema.name) {
                         local_coverage.insert(schema.name.to_owned(), vec![Some(id.0)]);
                         if cut_of[binding].is_some() {
+                            issue_bases.push(schema.name);
                             let origin = world.file(&source.path);
                             world.unavailable.entry(slot).or_default().insert((schema.name.to_owned(), origin));
                         }
@@ -1412,6 +1419,21 @@ pub(crate) fn visit<L: FileSource>(
                 if let Some(cut) = &cut_of[binding] {
                     let value = shared.contribute(b, &mut exec, current, &mut run, id.0, &mut facts_view, cut,
                         &local_coverage, world, &mut carried_symbols, reader_id, unknown, slot);
+                    if value.is_ok() && !unknowns.is_empty()
+                        && let Some(reachable) = finish::session::reachable_partials(
+                            &mut exec, current, &mut run, &mut facts_view, b.plan, &b.slots, &cut.file_steps,
+                            |name| (!named_partials.contains_key(name)).then(|| named_tables.iter()
+                                .find(|(n, _)| n == name).map(|(_, t)| t.n)).flatten(),
+                        )
+                    {
+                        debug_assert_eq!(unknowns.len(), issue_bases.len());
+                        unknowns = unknowns.into_iter().zip(issue_bases).filter_map(|(issue, base)|
+                            reachable.contains(base).then_some(issue)).collect();
+                        let origin = world.file(&source.path);
+                        if let Some(notes) = world.unavailable.get_mut(&slot) {
+                            notes.retain(|(name, file)| *file != origin || reachable.contains(name));
+                        }
+                    }
                     if value.is_err() { frame = None; exec.release_request(); }
                     let answer = value.map(|()| {
                         Reported::new(Vec::new(), unknowns, Vec::new())

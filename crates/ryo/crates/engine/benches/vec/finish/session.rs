@@ -424,9 +424,37 @@ pub(crate) fn covered_empty(
     exec: &mut Exec<'_>, frame: &mut File<'_>, run: &mut Run, facts: &mut dyn Provider,
     plan: &super::Plan, slots: &[usize], complete: impl Fn(&str) -> Option<usize>,
 ) -> bool {
+    proven_empty(exec, frame, run, facts, plan, slots, |_| true, complete).is_some_and(|empty|
+        !plan.emits.is_empty() && plan.emits.iter().all(|emit| empty[slots[emit.1]]))
+}
+
+/// Stop only at a separately certified file-local producer. A closed join may
+/// match an operand from another file even if this file contributes no rows.
+pub(crate) fn reachable_partials(
+    exec: &mut Exec<'_>, frame: &mut File<'_>, run: &mut Run, facts: &mut dyn Provider,
+    plan: &super::Plan, slots: &[usize], local: &[bool], complete: impl Fn(&str) -> Option<usize>,
+) -> Option<std::collections::BTreeSet<String>> {
+    let empty = proven_empty(exec, frame, run, facts, plan, slots, |i| local[i], complete)?;
+    let mut reached = vec![false; slots.len()];
+    for (_, root, _, _) in &plan.emits { reached[*root] = true; }
+    let mut bases = std::collections::BTreeSet::new();
+    for (i, step) in plan.nodes.iter().enumerate().rev() {
+        if !reached[i] || (local[i] && empty[slots[i]]) { continue; }
+        if let Some(base) = step.base() { bases.insert(base.to_owned()); }
+        for &input in &step.inputs { reached[input] = true; }
+    }
+    Some(bases)
+}
+
+fn proven_empty(
+    exec: &mut Exec<'_>, frame: &mut File<'_>, run: &mut Run, facts: &mut dyn Provider,
+    plan: &super::Plan, slots: &[usize], local: impl Fn(usize) -> bool,
+    complete: impl Fn(&str) -> Option<usize>,
+) -> Option<Vec<bool>> {
     let mut empty = vec![false; exec.plan.nodes.len()];
     let mut known = vec![false; empty.len()];
-    for (step, &slot) in plan.nodes.iter().zip(slots) {
+    for (i, (step, &slot)) in plan.nodes.iter().zip(slots).enumerate() {
+        if !local(i) { continue; }
         if let Some(name) = step.base() {
             if let Some(count) = complete(name) {
                 known[slot] = true;
@@ -455,12 +483,12 @@ pub(crate) fn covered_empty(
             if let Ok(table) = exec.eval(frame, run, facts, slot) {
                 empty[slot] = table.n == 0;
             } else {
-                return false;
+                return None;
             }
         }
         known[slot] |= empty[slot];
     }
-    !plan.emits.is_empty() && plan.emits.iter().all(|emit| empty[slots[emit.1]])
+    Some(empty)
 }
 
 /// Publish an emit identically whether its table came from evaluation or a complete
