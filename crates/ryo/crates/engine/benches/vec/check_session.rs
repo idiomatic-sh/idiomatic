@@ -91,6 +91,15 @@ impl Program {
     ) -> Result<Self> {
         let (plan, pack) = lower::query_parts(alias, &query.text, context, true, capture_separator, modules, &query.observations, literals)?;
         let typed = pack.typed.take().expect("prepared query");
+        Self::assemble(query, plan, typed)
+    }
+
+    /// A lowered query's plan with what admission reads from it.
+    pub(crate) fn assemble(
+        query: &Query,
+        plan: Plan,
+        typed: Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
+    ) -> Result<Self> {
         if typed.rules.is_empty() { return Err("missing query emit".into()); }
         let (bases, base_steps) = plan.nodes.iter().enumerate().filter_map(|(offset, step)| {
             step.base().map(|name| {
@@ -271,6 +280,39 @@ impl Schedule {
         self.named_disk_ids = HashMap::new();
         for source in &mut self.sources {
             source.known.clear();
+        }
+    }
+    /// Lower the queries of this round that share a module catalog together, once each, and
+    /// record them as prepared; whatever is not prepared here is prepared alone by `prepare`.
+    pub(crate) fn prepare_many(&mut self, items: Vec<(Query, Parameters)>) {
+        let mut groups: Vec<(Option<query::Modules>, Vec<(Query, Parameters)>)> = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for (query, parameters) in items {
+            if !query.observations.is_empty() || self.prepared.contains_key(&(query.clone(), parameters.clone())) {
+                continue;
+            }
+            if !seen.insert((query.clone(), parameters.clone())) { continue; }
+            match groups.iter_mut().find(|(key, _)| *key == query.modules) {
+                Some((_, group)) => group.push((query, parameters)),
+                None => groups.push((query.modules.clone(), vec![(query, parameters)])),
+            }
+        }
+        for (key, group) in groups {
+            if group.len() < 2 { continue; }
+            let modules = match key {
+                None => Ok(Default::default()),
+                Some(sources) => self.module_catalogs.entry(sources).or_insert_with(|| group[0].0.parse_modules()).clone(),
+            };
+            let queries: Vec<_> = group.iter().map(|(query, parameters)| (&*query.text, parameters)).collect();
+            let lowered = match modules {
+                Ok(modules) => lower::query_batch(&queries, "/", modules, &mut self.shared_plan_data),
+                Err(reason) => queries.iter().map(|_| Err(reason.clone())).collect(),
+            };
+            drop(queries);
+            for ((query, parameters), result) in group.into_iter().zip(lowered) {
+                self.programs.push(result.and_then(|(plan, typed)| Program::assemble(&query, plan, typed)));
+                self.prepared.insert((query, parameters), self.programs.len() - 1);
+            }
         }
     }
     pub(crate) fn prepare(

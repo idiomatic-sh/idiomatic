@@ -536,6 +536,14 @@ impl Live {
         let mut retained_rules = retained_rules.into_iter();
         let mut restored_unread=BTreeMap::<(String, String),usize>::new();
         let mut projects = std::collections::BTreeSet::new();
+        if self.store.is_none() {
+            // The request's rules are lowered together once; each admission below then finds its program prepared.
+            let items = req.rules.iter().filter_map(|(id, rule)| {
+                let query = sdk_request::query(&mut self.cache, rule, inputs.get(id));
+                Some((query, parameters(rule.parameters.clone()).ok()?))
+            }).collect();
+            self.batch.prepare_rules(items);
+        }
         let mut rules = req.rules.into_iter();
         let mut prepared = Vec::new();
         let workers = self.batch.workers.map_or(1, std::num::NonZeroUsize::get);

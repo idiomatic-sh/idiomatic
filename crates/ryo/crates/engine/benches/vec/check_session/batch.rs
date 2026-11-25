@@ -199,6 +199,11 @@ impl Admission {
 }
 
 impl Batch {
+    fn prepare_rules(&mut self, items: Vec<(Query, Parameters)>) {
+        let t = thread_cpu();
+        self.schedule.prepare_many(items);
+        self.clocks.prepare += thread_cpu() - t;
+    }
     fn prepared_rule(&mut self,query:Query,parameters:&Parameters)->usize{
         let t = thread_cpu();
         let rule = self

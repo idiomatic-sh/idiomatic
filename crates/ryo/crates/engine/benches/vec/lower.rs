@@ -268,6 +268,93 @@ pub(crate) fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep
     Ok((plan, pack))
 }
 
+/// The queries of one module catalog lowered together, once: their texts are parsed and expanded in one pack so
+/// fragments and shared steps exist once, then each query takes the steps its emit reads (a per-query step subset,
+/// renumbered), which is the plan it would have had alone. A query that does not lower answers with its own error.
+pub(crate) fn query_batch(
+    queries: &[(&str, &BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>)],
+    separator: &str,
+    modules: ParsedModules,
+    literals: &mut SharedPlanData,
+) -> Vec<Result<(super::finish::Plan, Arc<FinishPlan>), String>> {
+    use ryo_engine::domain::plan_lowering::shared::SharedSteps;
+    use ryo_values::domain::finish_plans::{
+        arguments::types::StepNumber,
+        service::inputs,
+        types::{PlanEmit, PlannedRule, RuleEmit},
+    };
+    let aliases: Vec<String> = (0..queries.len()).map(|i| format!("query {i}")).collect();
+    let mut context = RuleContext::default();
+    let mut texts = PackTexts { rules: Vec::new(), fragments: Vec::new() };
+    for (alias, (text, parameters)) in aliases.iter().zip(queries) {
+        texts.rules.push((alias.clone(), Some((*text).to_owned())));
+        context.parameters.insert(alias.as_str().into(), (*parameters).clone());
+    }
+    let mut programs = parsed(&texts, context);
+    programs.fragments = modules;
+    let mut plan = lowered(&programs, PlanningStage::Expanded);
+    drop(programs);
+    mark_through(&mut plan, PlanningStage::Axes);
+    {
+        use ryo_values::domain::{finish_plans::types::{FinishStep, RowCondition, SelectedColumns}, plan_parts::types::LiteralText};
+        for step in &mut plan.steps {
+            match step {
+                FinishStep::Capture(c) => { c.separator.get_or_insert_with(|| LiteralText(separator.into())); }
+                FinishStep::Rows(rows) => intern(&mut literals.rows, rows),
+                FinishStep::Select(select) => {
+                    if let RowCondition::Tested(term) = &mut select.condition {
+                        intern(&mut literals.conditions, term);
+                    }
+                    if let SelectedColumns::Items(items) = &mut select.columns {
+                        intern(&mut literals.projections, items);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut emits: std::collections::HashMap<&str, &PlanEmit> = std::collections::HashMap::new();
+    let mut unwritten = std::collections::HashSet::new();
+    for planned in &plan.rules {
+        match &planned.emit {
+            RuleEmit::Written(emit) => { emits.insert(planned.rule.0.as_ref(), emit); }
+            RuleEmit::Unwritten => { unwritten.insert(planned.rule.0.as_ref()); }
+        }
+    }
+    let reasons: std::collections::HashMap<&str, &str> =
+        plan.unplanned.iter().map(|u| (u.rule.0.as_ref(), u.reason.0.as_ref())).collect();
+    let mut seen = vec![false; plan.steps.len()];
+    let mut numbers = vec![usize::MAX; plan.steps.len()];
+    let mut reached = Vec::new();
+    aliases.iter().map(|alias| {
+        if let Some(reason) = reasons.get(alias.as_str()) {
+            return Err(format!("unplanned query {reason}"));
+        }
+        let Some(emit) = emits.get(alias.as_str()) else {
+            return Err(if unwritten.contains(alias.as_str()) { "missing query emit".into() } else { "unplanned query".to_owned() });
+        };
+        seen.iter_mut().for_each(|s| *s = false);
+        reached.clear();
+        let mut stack = vec![emit.step.0];
+        while let Some(at) = stack.pop() {
+            if std::mem::replace(&mut seen[at], true) { continue; }
+            reached.push(at);
+            stack.extend(inputs(&plan.steps[at]).into_iter().map(|input| input.0));
+        }
+        reached.sort_unstable();
+        let mut shared = SharedSteps::default();
+        for &at in &reached {
+            numbers[at] = shared.append(plan.steps[at].clone(), &numbers);
+        }
+        let planned = PlannedRule {
+            rule: RuleId("query".into()),
+            emit: RuleEmit::Written(PlanEmit { step: StepNumber(numbers[emit.step.0]), subject: emit.subject.clone(), key: emit.key.clone() }),
+        };
+        let typed = Arc::new(FinishPlan { steps: shared.finish(), rules: vec![planned], unplanned: Vec::new() });
+        Ok((super::finish::from_typed(typed.clone()), typed))
+    }).collect()
+}
+
 fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut SharedPlanData>) -> Result<super::finish::Plan, String> {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
