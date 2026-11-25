@@ -4,7 +4,7 @@
 
 use ryo::languages::{self, Tree};
 
-use super::types::{Kind, Leaf, Rootness, Spelled, Text};
+use super::types::{Kind, Leaf, Numbered, Output, Rootness, Roling, Spelled, Tabled, Text};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
@@ -180,4 +180,82 @@ pub(crate) fn diagnostic_span(diagnostic: &languages::Diagnostic<'_>) -> languag
         start: diagnostic.start,
         end: diagnostic.end,
     }
+}
+
+impl Output for Tabled<'_, '_> {
+    fn enter(&mut self, kind: Kind, start: languages::Offset) {
+        languages::enter_node(self.builder, kind_bits(kind), start);
+    }
+
+    fn token(&mut self, kind: Kind, start: languages::Offset, end: languages::Offset, decoded: Option<&str>) {
+        match decoded {
+            Some(text) => languages::decoded_token(self.builder, kind_bits(kind), start, end, languages::NameText(text)),
+            None => languages::token(self.builder, kind_bits(kind), start, end),
+        }
+    }
+
+    fn leave(&mut self, end: languages::Offset) {
+        languages::leave_node(self.builder, end);
+    }
+
+    fn diagnose(&mut self, message: &str, start: languages::Offset, end: languages::Offset) {
+        languages::diagnose(self.builder, languages::ReportText(message), start, end);
+    }
+}
+
+impl Numbered<'_, '_, '_> {
+    /// The role of the element about to be written.
+    fn role(&mut self) -> languages::FieldCode {
+        let role = self.roles.get(self.written).copied().unwrap_or(0);
+        self.written += 1;
+        languages::FieldCode(role)
+    }
+}
+
+impl Output for Numbered<'_, '_, '_> {
+    fn enter(&mut self, kind: Kind, start: languages::Offset) {
+        let role = self.role();
+        languages::node_table::enter_node(self.builder, kind_bits(kind), role, start);
+    }
+
+    fn token(&mut self, kind: Kind, start: languages::Offset, end: languages::Offset, decoded: Option<&str>) {
+        let role = self.role();
+        match decoded {
+            Some(text) => languages::node_table::decoded_token(
+                self.builder,
+                kind_bits(kind),
+                role,
+                start,
+                end,
+                languages::NameText(text),
+            ),
+            None => languages::node_table::token(self.builder, kind_bits(kind), role, start, end),
+        }
+    }
+
+    fn leave(&mut self, end: languages::Offset) {
+        languages::node_table::leave_node(self.builder, end);
+    }
+
+    fn diagnose(&mut self, message: &str, start: languages::Offset, end: languages::Offset) {
+        languages::node_table::diagnose(self.builder, start, end, languages::NameText(message));
+    }
+}
+
+/// Writes a file's syntax into the node table `builder` builds: `write` writes it through an `Output`, once to the old table, to read
+/// each element's role from, and once to the node table, with them. The elements are the same in both, in the same order.
+pub(crate) fn numbered(
+    roling: &mut Roling,
+    bytes: languages::ByteSlice<'_>,
+    builder: &mut languages::NodeTableBuilder<'_>,
+    mut write: impl FnMut(&mut dyn Output),
+) {
+    {
+        let mut old = languages::table_builder(&mut roling.elements, &mut roling.symbols, bytes);
+        write(&mut Tabled { builder: &mut old });
+    }
+    let tree = Tree { elements: &roling.elements, source: bytes, file: languages::FileId(0) };
+    roling.roles.clear();
+    roling.roles.extend(languages::positions(&roling.elements).map(|at| crate::domain::roles::service::role_of(&tree, at).0));
+    write(&mut Numbered { builder, roles: &roling.roles, written: 0 });
 }
