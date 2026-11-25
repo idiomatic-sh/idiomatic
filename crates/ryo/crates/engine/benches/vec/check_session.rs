@@ -1279,7 +1279,7 @@ pub(crate) fn visit<L: FileSource>(
                 let scanned = held.literals.get_mut().scanned();
                 let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                 screen.exclude(&positions, &mut active, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
-                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref_mut(), lazy.as_ref(), &mut witness_tables, &facts, &packet, unknown, cut_of, &said, &mut clocks.witnesses);
+                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref_mut(), lazy.as_ref(), &mut witness_tables, &facts, &packet, unknown, cut_of, &said, layouts.1, &mut clocks.witnesses);
                 for &(binding, slot, excluded) in active.iter() {
                         if excluded { continue; }
                         let (any, all) = screen.exact_roots[positions[binding]];
@@ -1639,4 +1639,8 @@ pub(crate) fn visit<L: FileSource>(
     parts.tree += tree_cpu;
     parts.facts += fact_cpu;
     if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }
+    if std::env::var_os("VEC_PATTERN_COUNTS").is_some() {
+        use std::sync::atomic::Ordering::Relaxed;
+        eprintln!("PATTERN_MATCHERS first_uses={} compiled={}", crate::pair_summary::regexes::INITIALIZED.load(Relaxed), crate::pair_summary::regexes::BUILT.load(Relaxed));
+    }
 }
