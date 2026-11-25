@@ -13,11 +13,13 @@
 
 use super::constants::{BYTE_ORDER_MARK, CHARSET, CUSTOM_PROPERTY, NOT_UTF8};
 use super::types::{Body, ByteIndex, Closing, Contents, CssText, Open, Scratch};
+use super::walk::Numbered;
+use super::writer::interface::Out;
 use super::writer::service::{Writer, body_of, contents, place};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::kind_bits;
-use crate::domain::syntax::types::Kind;
+use crate::domain::syntax::service::{field_bits, kind_bits};
+use crate::domain::syntax::types::{Field, Kind};
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 use cssparser::{
@@ -25,13 +27,13 @@ use cssparser::{
     ParserState, QualifiedRuleParser, RuleBodyItemParser,
 };
 use ryo::languages::SourcePath;
-use ryo::languages::{self, NameText, Offset};
+use ryo::languages::{self, NameText, Offset, node_table};
 
 /// The `cssparser` syntax adapter.
 #[derive(Debug)]
 pub(crate) struct SyntaxCssparserAdapter;
 
-impl<'i> QualifiedRuleParser<'i> for Writer<'_, '_, '_> {
+impl<'i, O: Out> QualifiedRuleParser<'i> for Writer<'_, O> {
     type Prelude = ();
     type QualifiedRule = ();
     type Error = ();
@@ -56,7 +58,7 @@ impl<'i> QualifiedRuleParser<'i> for Writer<'_, '_, '_> {
     }
 }
 
-impl<'i> AtRuleParser<'i> for Writer<'_, '_, '_> {
+impl<'i, O: Out> AtRuleParser<'i> for Writer<'_, O> {
     type Prelude = Body;
     type AtRule = ();
     type Error = ();
@@ -99,7 +101,7 @@ impl<'i> AtRuleParser<'i> for Writer<'_, '_, '_> {
     }
 }
 
-impl<'i> DeclarationParser<'i> for Writer<'_, '_, '_> {
+impl<'i, O: Out> DeclarationParser<'i> for Writer<'_, O> {
     type Declaration = ();
     type Error = ();
 
@@ -124,7 +126,7 @@ impl<'i> DeclarationParser<'i> for Writer<'_, '_, '_> {
     }
 }
 
-impl RuleBodyItemParser<'_, (), ()> for Writer<'_, '_, '_> {
+impl<O: Out> RuleBodyItemParser<'_, (), ()> for Writer<'_, O> {
     fn parse_declarations(&self) -> bool {
         true
     }
@@ -134,6 +136,48 @@ impl RuleBodyItemParser<'_, (), ()> for Writer<'_, '_, '_> {
     }
 }
 
+/// Reads `text` into `out`, which holds the stylesheet node open, and closes the stylesheet.
+fn sheet_into<O: Out>(out: O, text: SourceText<'_>, at: SourcePath<'_>) -> O {
+    // The language reads UTF-8: the library reads the text up to the first byte that is not, and the rest is text it could not read.
+    let readable = languages::readable_text(languages::ByteSlice(text.0)).0;
+    let (base, sheet) = match readable.strip_prefix(BYTE_ORDER_MARK) {
+        Some(rest) => (BYTE_ORDER_MARK.len_utf8(), rest),
+        None => (0, readable),
+    };
+    let length = Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));
+    let mut writer = Writer {
+        out,
+        text: CssText(sheet),
+        location: at,
+        base: ByteIndex(base),
+        written: ByteIndex(0),
+        content_end: ByteIndex(0),
+        open: vec![Open {
+            node: Node::Stylesheet,
+            closing: Closing::AtContent,
+        }],
+        scratch: Scratch::default(),
+    };
+    if base > 0 {
+        writer.out.token(
+            Kind::Extra(Extra::ByteOrderMark),
+            Offset(0),
+            Offset(u32::try_from(base).unwrap_or(u32::MAX)),
+            None,
+        );
+    }
+    let mut parser = Parser::new(sheet);
+    writer.stylesheet(&mut parser);
+    writer.advance(ByteIndex(sheet.len()));
+    let read = writer.offset(ByteIndex(sheet.len()));
+    if read < length {
+        writer.out.token(Kind::Extra(Extra::Error), read, length, None);
+        writer.out.diagnose(NOT_UTF8, read, length);
+    }
+    writer.out.leave(length);
+    writer.out
+}
+
 impl SyntaxPort for SyntaxCssparserAdapter {
     fn read(
         &self,
@@ -141,53 +185,55 @@ impl SyntaxPort for SyntaxCssparserAdapter {
         at: SourcePath<'_>,
         builder: &mut languages::TableBuilder<'_>,
     ) {
-        // The language reads UTF-8: the library reads the text up to the first byte that is not, and the rest is text it could not read.
-        let readable = languages::readable_text(languages::ByteSlice(text.0)).0;
-        let (base, sheet) = match readable.strip_prefix(BYTE_ORDER_MARK) {
-            Some(rest) => (BYTE_ORDER_MARK.len_utf8(), rest),
-            None => (0, readable),
-        };
-        let length = Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));
         languages::enter_node(builder, kind_bits(Kind::Node(Node::Stylesheet)), Offset(0));
-        if base > 0 {
-            languages::token(
-                builder,
-                kind_bits(Kind::Extra(Extra::ByteOrderMark)),
-                Offset(0),
-                Offset(u32::try_from(base).unwrap_or(u32::MAX)),
-            );
-        }
-        let mut writer = Writer {
+        let _ = sheet_into(Old(builder), text, at);
+    }
+
+    fn walk(
+        &self,
+        text: SourceText<'_>,
+        at: SourcePath<'_>,
+        builder: &mut languages::NodeTableBuilder<'_>,
+    ) {
+        node_table::enter_node(
             builder,
-            text: CssText(sheet),
-            location: at,
-            base: ByteIndex(base),
-            written: ByteIndex(0),
-            content_end: ByteIndex(0),
-            open: vec![Open {
-                node: Node::Stylesheet,
-                closing: Closing::AtContent,
-            }],
-            scratch: Scratch::default(),
-        };
-        let mut parser = Parser::new(sheet);
-        writer.stylesheet(&mut parser);
-        writer.advance(ByteIndex(sheet.len()));
-        let read = writer.offset(ByteIndex(sheet.len()));
-        if read < length {
-            languages::token(
-                writer.builder,
-                kind_bits(Kind::Extra(Extra::Error)),
-                read,
-                length,
-            );
-            languages::diagnose(
-                writer.builder,
-                languages::ReportText(NOT_UTF8),
-                read,
-                length,
-            );
+            kind_bits(Kind::Node(Node::Stylesheet)),
+            languages::FieldCode(field_bits(Field::None).0),
+            Offset(0),
+        );
+        let out = sheet_into(Numbered::new(builder, text.0), text, at);
+        let said = out.said;
+        node_table::set_syntax_acceptance(
+            out.builder,
+            if said == 0 {
+                languages::SyntaxAcceptance::Accepted
+            } else {
+                languages::SyntaxAcceptance::Rejected
+            },
+        );
+    }
+}
+
+/// The old element table's builder, which the writer writes through.
+struct Old<'b, 'w>(&'b mut languages::TableBuilder<'w>);
+
+impl Out for Old<'_, '_> {
+    fn enter(&mut self, kind: Kind, at: Offset) {
+        languages::enter_node(self.0, kind_bits(kind), at);
+    }
+
+    fn leave(&mut self, at: Offset) {
+        languages::leave_node(self.0, at);
+    }
+
+    fn token(&mut self, kind: Kind, from: Offset, to: Offset, decoded: Option<&str>) {
+        match decoded {
+            Some(text) => languages::decoded_token(self.0, kind_bits(kind), from, to, NameText(text)),
+            None => languages::token(self.0, kind_bits(kind), from, to),
         }
-        languages::leave_node(writer.builder, length);
+    }
+
+    fn diagnose(&mut self, message: &str, from: Offset, to: Offset) {
+        languages::diagnose(self.0, languages::ReportText(message), from, to);
     }
 }
