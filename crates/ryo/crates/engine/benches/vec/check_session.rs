@@ -753,6 +753,7 @@ fn versions<'s>(
 pub(crate) struct ReaderState {
     run: Run,
     screens: pairs::Retained,
+    fixed_fields_ready: bool,
     patterns: crate::pair_checks::SymbolMatches,
     requirements: HashMap<usize, (Rc<BoundRequirements>, usize)>,
     prerequisite_clauses: PrerequisiteClauses,
@@ -870,6 +871,7 @@ pub(crate) fn visit<L: FileSource>(
     let mut packet = reader_run::packet::Packet::new();
     let mut empty_named = named::EmptyTables::default();
     let scoped = parser.and_then(FileSource::scoped);
+    let fixed_fields = scoped.and_then(|supplier| supplier.fields());
     let mut numbered_reader = None;
     let mut numbered_symbols = l::Symbols::default();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
@@ -1108,8 +1110,10 @@ pub(crate) fn visit<L: FileSource>(
             provider.projects_words = projects_words;
             provider.projects_fields = projects_fields;
             if let Some(fields) = fields {
-                if projects_fields {
-                    run.field_sym = fields.0.iter().map(|name| run.sym(name.0.as_bytes())).collect();
+                if projects_fields && !state.fixed_fields_ready {
+                    let names = fixed_fields.unwrap_or(fields);
+                    run.field_sym = names.0.iter().map(|name| run.sym(name.0.as_bytes())).collect();
+                    state.fixed_fields_ready = fixed_fields.is_some();
                 }
                 if projects_words {
                     let dict = scoped_symbols.as_deref().expect("scoped dictionary");
