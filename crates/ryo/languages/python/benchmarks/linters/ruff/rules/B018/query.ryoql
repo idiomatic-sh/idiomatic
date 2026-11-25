@@ -27,7 +27,11 @@ let zero_argument_candidate_calls = antijoin(left=candidate_builtin_calls, right
 let call_candidates = select call as id,call,name,file from zero_argument_candidate_calls;
 let owner_call_roots = axis(from=expression_statements, relation="semantic-child", direction=descendant, domain=call_candidates);
 let owner_call_candidates = select l.id as owner, r.call as call, r.name as name, r.file as file from owner_call_roots as l join call_candidates as r on l.related = r.call;
-let value_events = select l.name as name,l.scope as scope,l."first-written" as first_at,l.file as file from "namespace-sites" as l join "binding-event" as r on l."first-mutation"=r.ordinal and l.file=r.file;
+let mutation_events = select occurrence, name, scope, ordinal, file from "binding-event" where kind = "bind" or kind = "delete" or kind = "cleanup";
+let first_mutations = group-min(from=mutation_events, keys=["scope","name","file"], order="ordinal");
+let mutation_starts = select l.name as name,l.scope as scope,l.file as file,r."start-byte" as start from mutation_events as l join "source-location" as r on l.occurrence=r.id and l.file=r.file;
+let first_written = group-min(from=mutation_starts, keys=["scope","name","file"], order="start");
+let value_events = select name,scope,start as first_at,file from first_written;
 let shadowable_names = select name,file from value_events;
 let shadowable_calls = select l.owner as owner,l.file as file from owner_call_candidates as l join shadowable_names as r on l.name=r.name and l.file=r.file;
 let call_owners = project(from=shadowable_calls,columns=[owner,file]);

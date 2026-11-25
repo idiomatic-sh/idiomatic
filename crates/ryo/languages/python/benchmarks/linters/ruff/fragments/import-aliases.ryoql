@@ -1,0 +1,16 @@
+output relation<alias: node, statement: node, form: symbol, rename: symbol, bound_name: symbol, target: symbol, root: symbol, last_segment: symbol, file: file>;
+let syntax = select id, kind, file, span from "semantic-syntax";
+let statements = select id, kind, file from syntax where kind = "import" or kind = "import-from";
+let alias_edges = select l.id as statement, l.kind as form, r.child as alias, l.file as file from statements as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "names";
+let aliased = select parent as alias, file from "semantic-child" where field = "asname";
+let imports = select occurrence as alias, target, binding as bound_name, file from "static-import";
+let with_names = select l.alias as alias, l.statement as statement, l.form as form, l.file as file, r.target as target, r.bound_name as bound_name from alias_edges as l join imports as r on l.alias = r.alias and l.file = r.file;
+let renamed_rows = select l.alias as id, l.statement as statement, l.form as form, l.bound_name as rename, l.bound_name as bound_name, l.target as target, l.file as file from with_names as l join aliased as r on l.alias = r.alias and l.file = r.file;
+let plain_rows = antijoin(left=with_names, right=aliased, left-on=[alias,file], right-on=[alias,file]);
+let plain_named = select alias, statement, form, concat("","") as rename, bound_name, target, target as root, target as last_segment, file from plain_rows;
+let renamed_spans = select l.id as id, l.statement as statement, l.form as form, l.rename as rename, l.bound_name as bound_name, l.target as target, l.file as file, r.span as alias_span from renamed_rows as l join syntax as r on l.id = r.id and l.file = r.file;
+let rooted = source-matches(from=renamed_spans, span="alias_span", pattern="(?s)^(?P<root>[^. \t\r\n\x5c]*)", output="root_match", capture-texts={root: "root"});
+let lasted = source-matches(from=rooted, span="alias_span", pattern="(?s)^[^ \t\r\n\x5c]*?(?P<last>[^. \t\r\n\x5c]*)(?:[ \t\r\n\x5c]+as[ \t\r\n\x5c]+[^ \t\r\n\x5c]*)?$", output="last_match", capture-texts={last: "last"});
+let renamed_named = select id as alias, statement, form, rename, bound_name, target, root, last as last_segment, file from lasted;
+let result = union(left=renamed_named, right=plain_named);
+return result;
