@@ -1014,7 +1014,7 @@ pub(crate) fn visit<L: FileSource>(
             let cached_ready = scoped.is_none_or(|visit| visit.projections().is_empty() && visit.fields().is_none())
                 && cached.as_ref().is_some_and(|(_, file)| file.recovery.is_some());
             let mut consume = |loan: Option<(l::NumberedFile<'_>, &mut l::Symbols)>| {
-                let (scoped_tree, mut scoped_facts, mut scoped_symbols, words, fields, coverage, notes) = match loan {
+                let (scoped_tree, mut scoped_facts, mut scoped_symbols, mut fact_words, words, fields, coverage, notes) = match loan {
                     Some((file, symbols)) => {
                         use ryo_execution_domain::domain::coverage::types::Recovery;
                         use l::SyntaxCompleteness::Incomplete;
@@ -1023,10 +1023,10 @@ pub(crate) fn visit<L: FileSource>(
                             (Incomplete, _) => Recovery::LexicallyCompleteSyntaxErrors,
                             _ => Recovery::Whole,
                         };
-                        (Some(file.tree), Some(file.facts), Some(symbols), file.words,
+                        (Some(file.tree), Some(file.facts), Some(symbols), Some(file.fact_words), file.words,
                             Some(file.fields), Some(coverage), Some(file.notes))
                     }
-                    None => (None, None, None, &[][..], None, None, None),
+                    None => (None, None, None, None, &[][..], None, None, None),
                 };
                 let keep = cached.is_some() && scoped_tree.is_none();
                 let held = cached.as_mut().map_or(&mut scratch, |(_,file)| file);
@@ -1194,7 +1194,7 @@ pub(crate) fn visit<L: FileSource>(
             {
                 let fact_start = thread_cpu();
                 let filled = if let Some(supplier) = scoped_facts.as_deref_mut() {
-                    supplier.fill(&missing, scoped_symbols.as_deref_mut().expect("scoped dictionary"), &mut packet.rows).map_err(|e| e.to_string())
+                    packet.fill_numbered(supplier, &missing, scoped_symbols.as_deref_mut().expect("scoped dictionary"), fact_words.as_deref_mut().expect("file word dictionary"))
                 } else { parser.fill(
                     &mut elements,
                     &mut symbols,
@@ -1265,7 +1265,7 @@ pub(crate) fn visit<L: FileSource>(
                 let mut evaluate = |scope, screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
                     let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                     screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
-                        &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &facts, &packet, unknown, cut_of, &said, &mut span_bounds, &mut clocks.witnesses);
+                        &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref(), &facts, &packet, unknown, cut_of, &said, &mut span_bounds, &mut clocks.witnesses);
                     for &(binding, slot, excluded) in jobs.iter() {
                             if excluded { continue; }
                             let (any, all) = screen.exact_roots[root(binding)];
@@ -1362,7 +1362,7 @@ pub(crate) fn visit<L: FileSource>(
                 let [answer]: [l::RenderOutcome; 1] = answers.try_into().map_err(|_| "renderer returned the wrong number of answers")?;
                 Ok(answer)
             };
-            let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes);
+            let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, fact_words.as_deref());
             facts_view.resolved = resolved_words;
             facts_view.renderer = Some(&mut render);
             let t = thread_cpu();

@@ -55,6 +55,8 @@ pub struct NumberedFile<'a> {
     pub tree: &'a crate::domain::node_table::types::NodeTable,
     /// Text symbols by position, if requested, in the visit's symbol dictionary.
     pub words: &'a [ryo_relations::domain::terms::types::Symbol],
+    /// Catalog cell words with the provider's fixed base and a fresh file-local tail.
+    pub fact_words: &'a mut crate::domain::facts::types::FileWords,
     /// Stable field names by the tree's physical field code.
     pub fields: &'a crate::domain::fillers::types::FieldNames,
     /// Whether the syntax and the lexical stream were read in full.

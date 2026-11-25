@@ -199,6 +199,7 @@ impl Checks {
         path: &str,
         id: FileId,
         symbols: &l::Symbols,
+        local_words: Option<&l::FileWords>,
         requested: &[l::Relation],
         packet: &reader_run::packet::Packet,
         unknown: &HashMap<u32, u32>,
@@ -261,8 +262,8 @@ impl Checks {
                 let FactSource::Catalog(rel) = source else { return None };
                 if partials.iter().any(|p| p.relation == rel) { return None; }
                 patterns.with_predicate(predicate, pattern, &run.texts, |test| {
-                    packet.any_symbol(rel, index, |word| {
-                        if let Some(text) = l::text_of(symbols, l::ByteSlice(bytes), word) {
+                    packet.any_symbol(rel, index, symbols, bytes, local_words, |text, word| {
+                        if let Some(text) = text {
                             let subject = text.0.as_bytes();
                             return match run.ids.get(subject) {
                                 Some(&id) => test(id),
@@ -297,7 +298,7 @@ impl Checks {
                     };
                     requested.contains(&rel)
                         && !partials.iter().any(|p| p.relation == rel)
-                        && packet.columns(rel, symbols, bytes, id, l::node_table::kind_codes(tree).len(), words, out)
+                        && packet.columns(rel, symbols, bytes, id, tree, local_words, words, out)
                 },
                 &mut self.live,
                 &self.known,

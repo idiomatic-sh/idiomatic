@@ -24,6 +24,7 @@ impl l::NumberedVisit for ParseContract {
             walker: ColumnWalk::with_settings(words(), self.settings),
             tree: l::NodeTable::default(),
             words: Vec::new(),
+            fact_words: words(),
         })
     }
 }
@@ -33,6 +34,7 @@ struct Reader<'a> {
     walker: ColumnWalk,
     tree: l::NodeTable,
     words: Vec<l::Symbol>,
+    fact_words: l::FileWords,
 }
 
 impl l::NumberedReader for Reader<'_> {
@@ -46,7 +48,8 @@ impl l::NumberedReader for Reader<'_> {
         consume: &mut dyn FnMut(l::NumberedFile<'_>, &mut l::Symbols),
     ) -> Result<(), l::ParseError> {
         let (fields, _) = walk_vocabulary();
-        let Self { provider, walker, tree, words } = self;
+        let Self { provider, walker, tree, words, fact_words } = self;
+        l::facts::clear_words(fact_words);
         walker
             .visit_file(
                 l::WalkRequest {
@@ -90,6 +93,7 @@ impl l::NumberedReader for Reader<'_> {
                         l::NumberedFile {
                             tree,
                             words,
+                            fact_words,
                             fields,
                             syntax: completeness.syntax,
                             lexical: completeness.lexical,
