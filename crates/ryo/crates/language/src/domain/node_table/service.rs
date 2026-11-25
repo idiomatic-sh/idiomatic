@@ -458,6 +458,7 @@ fn close_segment(state: &mut BuilderState<'_>) {
             host,
             root: state.segment_start,
             end: id_after(Count(columns.kind.len())),
+            tokens: id_after(Count(tokens_from)),
             mapping,
         });
     }
@@ -1513,6 +1514,43 @@ pub fn own_end(table: &NodeTable) -> Position {
         .embedded
         .first()
         .map_or_else(|| id_after(element_count(table)), |first| first.root)
+}
+
+/// Whether the element `id` is a token (written text of the source) and not a node: the nodes of the file's own tree come first,
+/// its tokens after them, and each embedded segment numbers its nodes from its root and its tokens after them. A token is a
+/// leaf of any kind; a node of the same kind is not one.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, enter_node, finished, is_token, leave_node, token};
+/// use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(2));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(1));
+/// token(&mut writer, KindBits(1), FieldCode(0), Offset(1), Offset(2));
+/// leave_node(&mut writer, Offset(2));
+/// let table = finished(&mut writer);
+/// // The same kind: two nodes, then one token.
+/// assert!(!is_token(table, Position(0)) && !is_token(table, Position(1)));
+/// assert!(is_token(table, Position(2)));
+/// ```
+#[must_use]
+pub fn is_token(table: &NodeTable, id: Position) -> bool {
+    let columns = &table.0;
+    let own = own_end(table);
+    if id < own {
+        return usize::from(id) >= columns.nodes.0;
+    }
+    let after = columns.embedded.partition_point(|segment| segment.root <= id);
+    after
+        .checked_sub(1)
+        .and_then(|within| columns.embedded.get(within))
+        .is_some_and(|segment| id >= segment.tokens)
 }
 
 /// The embedded segments of a table, in id order: each with its host, its root and the id after its last element.
