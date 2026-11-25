@@ -1,0 +1,126 @@
+//! The fillers of the `walk` contract: for every relation of ryo's catalog the engine fills, how Go fills it from a walked file
+//! (its `fills!` item), or that it is not in the language, with the cause; and the names Go states for the whole run: its kinds
+//! and its fields. Go's fillers write no fixed name.
+
+use crate::domain::file_view::types::{GoFile, GoWalk};
+use crate::domain::roles::service::{field_name, fields};
+use crate::domain::syntax::service::{kind_name, kinds};
+use ryo::languages::{
+    self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames,
+    RenderOutcome, RenderRequest, Rows, WalkKinds, WalkVocabulary, Wanted,
+};
+
+/// The filler of each relation Go does not fill, with the cause.
+macro_rules! absent {
+    ($( $module:ident: $relation:ident => $cause:ident; )*) => {
+        $(
+            fn $module(
+                _file: &mut GoFile<'_>,
+                _words: &mut FileWords,
+                _wanted: Wanted,
+                _rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
+            ) -> Fill {
+                Fill::Absent(AbsenceCause::$cause)
+            }
+        )*
+    };
+}
+
+impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
+    type File<'f>
+        = GoFile<'f>
+    where
+        Self: 'f;
+
+    absent! {
+        analyzed_source: AnalyzedSource => NotYetRead;
+        comment: Comment => NotYetRead;
+        entry: Entry => NotYetRead;
+        mapping: Mapping => NotYetRead;
+        string_literal: StringLiteral => NotYetRead;
+        syntax_error: SyntaxError => NotYetRead;
+        annotates: Annotates => NotYetRead;
+        assigns: Assigns => NotYetRead;
+        attribute_path: AttributePath => NoSuchConstruct;
+        binding_event: BindingEvent => NoSuchConstruct;
+        binding_read: BindingRead => NoSuchConstruct;
+        binding_resolution: BindingResolution => NoSuchConstruct;
+        binding_shadow: BindingShadow => NoSuchConstruct;
+        binding_use: BindingUse => NoSuchConstruct;
+        brace_format_field: BraceFormatField => NoSuchConstruct;
+        brace_format_parse: BraceFormatParse => NoSuchConstruct;
+        bytes_literal: BytesLiteral => NoSuchConstruct;
+        call_argument: CallArgument => NotYetRead;
+        compiler_feature: CompilerFeature => NoSuchConstruct;
+        constant_key: ConstantKey => NoSuchConstruct;
+        decorates: Decorates => NoSuchConstruct;
+        defines: Defines => NotYetRead;
+        directive: Directive => NotYetRead;
+        embedded_expression: EmbeddedExpression => NoSuchConstruct;
+        expression_shape: ExpressionShape => NoSuchConstruct;
+        expression_type: ExpressionType => NoSuchConstruct;
+        file_package: FilePackage => NotYetRead;
+        filesystem_executable: FilesystemExecutable => NotYetRead;
+        filesystem_file: FilesystemFile => NotYetRead;
+        filesystem_line_count: FilesystemLineCount => NotYetRead;
+        filesystem_read_failure: FilesystemReadFailure => NotYetRead;
+        flow_block: FlowBlock => NotYetRead;
+        flow_edge: FlowEdge => NotYetRead;
+        flow_member: FlowMember => NotYetRead;
+        flow_step: FlowStep => NotYetRead;
+        format_field: FormatField => NoSuchConstruct;
+        format_parse: FormatParse => NoSuchConstruct;
+        format_specification: FormatSpecification => NoSuchConstruct;
+        function: Function => NotYetRead;
+        function_terminal: FunctionTerminal => NoSuchConstruct;
+        identifier: Identifier => NoSuchConstruct;
+        implicit_symbol: ImplicitSymbol => NoSuchConstruct;
+        indent_region: IndentRegion => NoSuchConstruct;
+        inherits: Inherits => NotYetRead;
+        interpolated_string_literal: InterpolatedStringLiteral => NoSuchConstruct;
+        language_target: LanguageTarget => NoSuchConstruct;
+        literal_expression_parse: LiteralExpressionParse => NoSuchConstruct;
+        literal_properties: LiteralProperties => NoSuchConstruct;
+        lookup_scope: LookupScope => NoSuchConstruct;
+        manifest_diagnostic: ManifestDiagnostic => NotYetRead;
+        mention: Mention => NoSuchConstruct;
+        module_identity: ModuleIdentity => NotYetRead;
+        numeric_literal: NumericLiteral => NoSuchConstruct;
+        package_dependency: PackageDependency => NotYetRead;
+        parameter: Parameter => NotYetRead;
+        pattern_child: PatternChild => NotYetRead;
+        pattern_parse: PatternParse => NotYetRead;
+        pattern_syntax: PatternSyntax => NotYetRead;
+        project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
+        prose: Prose => NotADocument;
+        qualified_name: QualifiedName => NoSuchConstruct;
+        raw_format_field: RawFormatField => NoSuchConstruct;
+        raw_format_segment: RawFormatSegment => NoSuchConstruct;
+        reference: Reference => NotYetRead;
+        resolves: Resolves => NotYetRead;
+        scope: Scope => NotYetRead;
+        sequence_element: SequenceElement => NoSuchConstruct;
+        source_location: SourceLocation => NotYetRead;
+        source_dependency: SourceDependency => NotYetRead;
+        standard_library_import: StandardLibraryImport => NoSuchConstruct;
+        static_call: StaticCall => NotYetRead;
+        static_import: StaticImport => NotYetRead;
+        token_link: TokenLink => NoSuchConstruct;
+        visibility: Visibility => NoSuchConstruct;
+        workspace_member: WorkspaceMember => NotYetRead;
+    }
+
+    /// Go renders no expression: it has none.
+    fn render(_file: &mut GoFile<'_>, _request: RenderRequest) -> RenderOutcome {
+        RenderOutcome::NotApplicable
+    }
+
+    /// Go's names for the run: every kind at its code and every field at its code, as the walk writes them into the node table.
+    fn vocabulary() -> WalkVocabulary {
+        WalkVocabulary {
+            kinds: WalkKinds(kinds().map(kind_name).collect()),
+            fields: FieldNames(fields().map(field_name).collect()),
+            fixed: FixedNames(Vec::new()),
+        }
+    }
+}
