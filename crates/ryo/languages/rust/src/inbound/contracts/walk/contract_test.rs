@@ -123,3 +123,15 @@ fn the_kind_count_is_the_count_of_the_language_s_kinds() {
     }
     assert_eq!(count(&crate::walk()).0, crate::domain::syntax::service::kinds().count());
 }
+
+#[test]
+fn a_token_spells_its_text_and_an_error_element_does_not() {
+    use crate::domain::syntax::{service::kind_bits, types::Kind};
+    use crate::domain::tokens::types::Token;
+    fn spells<W: Walk + ryo::languages::Fillers>(_: &W, kind: l::KindBits) -> bool {
+        <W as ryo::languages::Fillers>::spells(kind)
+    }
+    let walk = crate::walk();
+    assert!(spells(&walk, kind_bits(Kind::Token(Token::Ident))));
+    assert!(!spells(&walk, kind_bits(Kind::Token(Token::Error))));
+}

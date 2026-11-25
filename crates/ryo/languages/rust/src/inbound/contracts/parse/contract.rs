@@ -40,13 +40,23 @@ pub(crate) struct ParseContract {
     revision: crate::domain::model::types::ProviderRevision,
     /// The store that keeps what a parse noted of a file for the project step to read.
     notes: Arc<dyn NotesPort>,
+    /// The walk, lent to the engine as numbered files: the one way the engine reads the language's files.
+    numbered: Option<languages::NumberedWalk<crate::domain::file_view::types::RustWalk<crate::inbound::contracts::walk::contract::WalkPorts>>>,
 }
 
 impl ParseContract {
     /// `parse` over the ports it calls, which the edge injects.
     #[must_use]
     pub(crate) fn new(syntax: Arc<dyn SyntaxPort>, notes: Arc<dyn NotesPort>) -> Self {
-        Self { syntax, notes, revision: Default::default() }
+        Self { syntax, notes, revision: Default::default(), numbered: None }
+    }
+
+    /// The contract handing out `walk` as the language's numbered visit.
+    pub(crate) fn with_walk(mut self, syntax: Arc<dyn crate::outbound::syntax::interface::SyntaxWalk>) -> Self {
+        self.numbered = Some(languages::NumberedWalk::new(crate::domain::file_view::types::RustWalk {
+            ports: crate::inbound::contracts::walk::contract::WalkPorts { syntax },
+        }));
+        self
     }
 
     pub(crate) fn with_revision(mut self, revision: crate::domain::model::types::ProviderRevision) -> Self {
@@ -57,6 +67,10 @@ impl ParseContract {
 
 impl Parse for ParseContract {
     type FileModel = ReadIndexes;
+
+    fn file_relations(&self) -> Option<&dyn languages::FileRelations> {
+        Some(self)
+    }
 
     fn native_reader(&self) -> Option<languages::NativeReader> {
         Some(languages::NativeReader {
@@ -277,5 +291,34 @@ impl Parse for ParseContract {
 
     fn sequence_element(&self) -> Support<Reader<languages::SequenceElement, ReadIndexes>> {
         languages::absent(AbsenceCause::NotAKeyedDocument)
+    }
+}
+
+impl languages::FileRelations for ParseContract {
+    fn numbered(&self) -> Option<&dyn languages::NumberedVisit> {
+        self.numbered.as_ref().map(|walk| walk as &dyn languages::NumberedVisit)
+    }
+
+    fn declarations(&self) -> &'static [languages::FileRelation] {
+        &[]
+    }
+
+    fn read(
+        &self,
+        schemas: &[&languages::FileRelation],
+        _: ParseRequest<'_>,
+        _: &Elements,
+        _: &languages::NodeTable,
+        _: &mut languages::Symbols,
+        _: Option<&dyn languages::FileProject>,
+    ) -> Vec<Result<Vec<languages::FactColumn>, languages::ParseError>> {
+        schemas
+            .iter()
+            .map(|_| {
+                Err(languages::ParseError::Library {
+                    reason: languages::ToolMessage("the language declares no file relation".into()),
+                })
+            })
+            .collect()
     }
 }
