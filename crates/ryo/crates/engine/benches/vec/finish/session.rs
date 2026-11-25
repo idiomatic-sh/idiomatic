@@ -129,7 +129,7 @@ pub(in super::super) fn evaluate_covered(
             // Class numbers are interned across the complete input. A local class
             // from one file has no meaning in another file's class dictionary.
             "subtree-class" | "order" if !uncertain.get(i).copied().unwrap_or(false) => {}
-            "as-of" | "rows" | "select" | "project" | "union" | "antijoin" | "group-count" | "words" | "axis" | "closure" | "cycles" | "rank" | "intersection" | "difference" | "group-digest" | "replace" | "span-bounds" | "span-between" => {}
+            "as-of" | "rows" | "select" | "project" | "union" | "antijoin" | "group-count" | "group-min" | "group-max" | "words" | "axis" | "closure" | "cycles" | "rank" | "intersection" | "difference" | "group-digest" | "replace" | "span-bounds" | "span-between" => {}
             "extend"
                 if step.args()["values"]
                     .as_object()
