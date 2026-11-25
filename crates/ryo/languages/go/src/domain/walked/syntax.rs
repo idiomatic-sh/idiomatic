@@ -164,3 +164,10 @@ pub(crate) fn span_of(tree: &Tree<'_>, at: Position) -> languages::Span {
     let span = node_table::span_of(tree.table, at);
     languages::Span { start: span.start, end: span.end }
 }
+
+/// Whether the element `first` comes before its sibling `second`: the tokens are numbered after the nodes, so two siblings are told
+/// by their places among the children of their parent.
+#[must_use]
+pub(crate) fn before(tree: &Tree<'_>, first: Position, second: Position) -> bool {
+    node_table::ordinal_of(tree.table, first).0 < node_table::ordinal_of(tree.table, second).0
+}

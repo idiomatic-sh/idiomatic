@@ -5,7 +5,7 @@ use ryo::languages::{self, Count, Position, Symbol};
 
 use crate::domain::specs::types::{Declares, Underlying};
 use crate::domain::nodes::types::Node;
-use crate::domain::walked::syntax::{kind, nodes, parent, token, tokens};
+use crate::domain::walked::syntax::{before, kind, nodes, parent, token, tokens};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
@@ -45,7 +45,7 @@ pub(crate) fn names<'a>(tree: &'a Tree<'_>, spec: Position) -> impl Iterator<Ite
 pub(crate) fn value_type(tree: &Tree<'_>, spec: Position) -> Option<Position> {
     let given = nodes(tree, spec).nth(name_count(tree, spec).0)?;
     match token(tree, spec, Token::Assign) {
-        Some(assign) if assign < given => None,
+        Some(assign) if before(tree, assign, given) => None,
         Some(_) | None => Some(given),
     }
 }

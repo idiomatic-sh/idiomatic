@@ -27,7 +27,7 @@ use crate::domain::walked::specs::{
     declares, import_name, name as spec_name, names as spec_names, underlying, value_type,
 };
 use crate::domain::specs::types::{Declares, Underlying};
-use crate::domain::walked::syntax::{ancestors, kind, nodes, parent, token};
+use crate::domain::walked::syntax::{ancestors, before, kind, nodes, parent, token};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 
@@ -311,7 +311,7 @@ pub(crate) fn assignments<'a>(
     let assign = token(tree, at, Token::Assign);
     let from_spec = (kind(tree, at) == Kind::Node(Node::ValueSpec)).then(|| {
         spec_names(tree, at)
-            .zip(nodes(tree, at).skip_while(move |each| assign.is_none_or(|assign| *each < assign)))
+            .zip(nodes(tree, at).skip_while(move |each| assign.is_none_or(|assign| before(tree, *each, assign))))
     });
     from_statement
         .into_iter()

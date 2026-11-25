@@ -50,6 +50,11 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         Self: 'f;
 
     written! {
+        parameter: Parameter => crate::domain::relations::collections::relations::parameter::item::ParameterItem;
+        inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
+        annotates: Annotates => crate::domain::relations::collections::relations::annotates::item::AnnotatesItem;
+        assigns: Assigns => crate::domain::relations::collections::relations::assigns::item::AssignsItem;
+        static_call: StaticCall => crate::domain::relations::collections::relations::static_call::item::StaticCallItem;
         call_argument: CallArgument => crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem;
         entry: Entry => crate::domain::relations::collections::relations::entry::item::EntryItem;
         function: Function => crate::domain::relations::collections::relations::function::item::FunctionItem;
@@ -64,8 +69,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
 
     absent! {
         analyzed_source: AnalyzedSource => NotYetRead;
-        annotates: Annotates => NotYetRead;
-        assigns: Assigns => NotYetRead;
         attribute_path: AttributePath => NoSuchConstruct;
         binding_event: BindingEvent => NoSuchConstruct;
         binding_read: BindingRead => NoSuchConstruct;
@@ -98,7 +101,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         identifier: Identifier => NoSuchConstruct;
         implicit_symbol: ImplicitSymbol => NoSuchConstruct;
         indent_region: IndentRegion => NoSuchConstruct;
-        inherits: Inherits => NotYetRead;
         interpolated_string_literal: InterpolatedStringLiteral => NoSuchConstruct;
         language_target: LanguageTarget => NoSuchConstruct;
         literal_expression_parse: LiteralExpressionParse => NoSuchConstruct;
@@ -109,7 +111,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         module_identity: ModuleIdentity => NotYetRead;
         numeric_literal: NumericLiteral => NoSuchConstruct;
         package_dependency: PackageDependency => NotYetRead;
-        parameter: Parameter => NotYetRead;
         pattern_child: PatternChild => NotYetRead;
         pattern_parse: PatternParse => NotYetRead;
         pattern_syntax: PatternSyntax => NotYetRead;
@@ -124,7 +125,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         source_location: SourceLocation => NotYetRead;
         source_dependency: SourceDependency => NotYetRead;
         standard_library_import: StandardLibraryImport => NoSuchConstruct;
-        static_call: StaticCall => NotYetRead;
         token_link: TokenLink => NoSuchConstruct;
         visibility: Visibility => NoSuchConstruct;
         workspace_member: WorkspaceMember => NotYetRead;
