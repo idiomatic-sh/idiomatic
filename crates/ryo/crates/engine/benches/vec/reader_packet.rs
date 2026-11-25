@@ -89,6 +89,7 @@ pub(crate) struct OperatorColumns<'file, 'd> {
     dictionary: Option<&'file Dictionary<'d>>,
     rows: Option<RowsContext<'file>>,
     row_tables: Vec<OnceCell<RowsTable>>,
+    caches: Vec<OnceCell<finish::fact_view::ColumnCache>>,
     /// The run's word for each own word of the dictionary seen so far, in order.
     own: RefCell<Vec<u32>>,
     /// One snapshot of the dictionary's words as run words for each relation bound.
@@ -138,7 +139,8 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
         let kinds = catalog::kinds(relation);
         Ok(Some(finish::fact_view::Fact::Lent {
             rows: table.rows, kinds,
-            columns: finish::fact_view::Columns::Lent(&table.columns.0, kinds, self.symbols[slot].get().map_or(&[], Vec::as_slice), &self.public, self.absent),
+            columns: finish::fact_view::Columns::Lent(&table.columns.0, kinds, self.symbols[slot].get().map_or(&[], Vec::as_slice), &self.public, self.absent,
+                self.caches[slot].get_or_init(|| finish::fact_view::ColumnCache::new(kinds.len()))),
         }))
     }
 }
@@ -201,7 +203,8 @@ impl OperatorColumns<'_, '_> {
         });
         Ok(Some(finish::fact_view::Fact::Lent {
             rows: offsets.len(), kinds,
-            columns: finish::fact_view::Columns::Rows(words, offsets, kinds, &table.ids, &table.beyond),
+            columns: finish::fact_view::Columns::Rows(words, offsets, kinds, &table.ids, &table.beyond,
+                self.caches[slot].get_or_init(|| finish::fact_view::ColumnCache::new(kinds.len()))),
         }))
     }
 }
@@ -345,6 +348,7 @@ impl Packet {
         let file = FileColumns { home: file, packet: self };
         OperatorColumns {
             file, lazy, dictionary, rows, row_tables: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
+            caches: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
             own: RefCell::new(Vec::new()),
             symbols: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
             public: run.public_word_ids.clone(), absent: run.absent_word.expect("reader dictionary"),
