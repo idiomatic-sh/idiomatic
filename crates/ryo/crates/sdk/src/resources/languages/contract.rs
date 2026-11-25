@@ -222,13 +222,34 @@ pub fn conformance_with(
 /// # Panics
 ///
 /// When the two routes differ on any relation of any sample, listing each with its first differing row.
+///
+/// With `RYO_ROUTES_CORPUS` set to directories (separated as `PATH` is), every file the language recognises under them is
+/// compared too, and the summary (files, relations, rows, files differing) is printed; the fixtures stay the default.
 pub fn routes_agree(linked: &super::Language, manifest_dir: ManifestDir) {
+    let (old, walk) = (linked.parse_engine(), linked.walk_engine());
     let differences = ryo_language::inbound::use_cases::parse::fixtures::routes::fixture_route_differences(
-        linked.parse_engine().as_ref(),
-        linked.walk_engine().as_ref(),
+        old.as_ref(),
+        walk.as_ref(),
         &Path::new(manifest_dir.0).join(FIXTURES),
     );
     assert!(differences.is_empty(), "{} differences between the old reader and the fillers:\n{}", differences.len(), differences.join("\n"));
+    // The whole corpus, when asked: `RYO_ROUTES_CORPUS` lists directories (separated as `PATH` is); every file the language
+    // recognises under them is compared, rows and recognition, old reader against filler.
+    if let Some(roots) = std::env::var_os("RYO_ROUTES_CORPUS") {
+        let roots: Vec<std::path::PathBuf> = std::env::split_paths(&roots).filter(|root| !root.as_os_str().is_empty()).collect();
+        let report = ryo_language::inbound::use_cases::parse::fixtures::routes::corpus_route_report(old.as_ref(), walk.as_ref(), &roots);
+        eprintln!(
+            "routes corpus: {} files, {} relations compared, {} rows filled, {} files differing, {} differences",
+            report.files, report.relations, report.rows, report.differing, report.differences.len()
+        );
+        assert!(
+            report.differences.is_empty(),
+            "the routes differ on {} of {} files; first differences:\n{}",
+            report.differing,
+            report.files,
+            report.differences.iter().take(20).cloned().collect::<Vec<_>>().join("\n")
+        );
+    }
 }
 
 /// Runs the allocation row against a linked language, with its fixtures under `tests/fixtures` of its directory `manifest_dir`: reading
