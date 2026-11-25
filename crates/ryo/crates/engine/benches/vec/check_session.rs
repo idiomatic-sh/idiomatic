@@ -1532,6 +1532,7 @@ pub(crate) fn visit<L: FileSource>(
                     &mut restricted
                 };
                 let _profile = super::finish::operators::scope(program_of[binding], "file");
+                if finish::make_count::on() { finish::make_count::program(program_of[binding]); }
                 if let Some(cut) = &cut_of[binding] {
                     let value = shared.as_mut().expect("project output was bound").contribute(b, &mut exec, current, &mut run, id.0, &mut facts_view, cut,
                         &local_coverage, world, &mut carried_symbols, reader_id, unknown, slot);

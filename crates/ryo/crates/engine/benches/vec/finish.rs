@@ -88,6 +88,8 @@ mod set_ops;
 pub(super) mod empty_why;
 #[path = "finish/empty_sel.rs"]
 pub(super) mod empty_sel;
+#[path = "finish/make_count.rs"]
+pub(super) mod make_count;
 #[path = "prefixes.rs"]
 mod prefixes;
 #[path = "finish/ordered_dfs.rs"]
@@ -1731,7 +1733,16 @@ impl<'p> Exec<'p> {
     /// A node made in this file and put in its slot (listed in `touched`, cleared at the file's end).
     #[inline(never)]
     fn make(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+        let counting = make_count::on();
+        if counting {
+            make_count::enter();
+        }
+        let t0 = if counting { super::thread_cpu() } else { 0.0 };
         let r = if cold_list::auditing() { self.cold_make(f, run, p, node)? } else { self.make_(f, run, p, node)? };
+        if counting {
+            let id = make_count::identity(self.plan, node);
+            make_count::leave(id, self.plan.nodes[node].op(), f.file, super::thread_cpu() - t0);
+        }
         f.remember(node, r.clone());
         Ok(r)
     }

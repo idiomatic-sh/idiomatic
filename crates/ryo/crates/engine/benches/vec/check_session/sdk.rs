@@ -326,6 +326,7 @@ impl Live {
         if let Err(error) = crate::finish::operators::flush() {
             eprintln!("operator ledger: {error}");
         }
+        crate::finish::make_count::print();
         let mut last = MEASURED
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
