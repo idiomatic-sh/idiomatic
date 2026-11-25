@@ -329,6 +329,11 @@ impl Table {
     }
 }
 
+/// Schema preparation can share compiled patterns across host declarations.
+/// Predicate answers still belong to the dictionary of the individual run.
+#[derive(Clone, Default)]
+pub(super) struct Patterns(Rc<RefCell<FxHashMap<String, Rc<regex::bytes::Regex>>>>);
+
 /// The run: texts, regexes, kind and field names, file paths.
 #[derive(Default)]
 pub(super) struct Run {
@@ -339,7 +344,8 @@ pub(super) struct Run {
     cold_text: cold_text::Plan,
     pub(super) texts: Vec<Rc<[u8]>>,
     pub(super) ids: FxHashMap<Rc<[u8]>, u32>,
-    regexes: FxHashMap<String, Rc<Bound<regex::bytes::Regex>>>,
+    regexes: FxHashMap<String, Rc<Bound<Rc<regex::bytes::Regex>>>>,
+    compiled_patterns: Option<Patterns>,
     glob_lists: FxHashMap<Vec<u32>, TextTest>,
     lower_symbols: FxHashMap<u32, u32>,
     symbol_sets: RefCell<FxHashMap<Box<[u64]>, Rc<symbol_predicate::SymbolSet>>>,
@@ -413,11 +419,28 @@ impl Run {
     pub(crate) fn text(&self, s: u32) -> &[u8] {
         &self.texts[s as usize]
     }
-    fn re(&mut self, p: &str) -> Result<Rc<Bound<regex::bytes::Regex>>, String> {
+    pub(super) fn schema_run(patterns: &Patterns) -> Self {
+        Self { compiled_patterns: Some(patterns.clone()), ..Self::default() }
+    }
+
+    fn re(&mut self, p: &str) -> Result<Rc<Bound<Rc<regex::bytes::Regex>>>, String> {
         if let Some(r) = self.regexes.get(p) {
             return Ok(r.clone());
         }
-        let r = Rc::new(Bound::new(regex::bytes::Regex::new(p).map_err(|e| format!("regex {p}: {e}"))?));
+        let compile = || regex::bytes::Regex::new(p).map(Rc::new).map_err(|e| format!("regex {p}: {e}"));
+        let pattern = if let Some(cache) = &self.compiled_patterns {
+            let mut patterns = cache.0.borrow_mut();
+            if let Some(pattern) = patterns.get(p) {
+                Rc::clone(pattern)
+            } else {
+                let pattern = compile()?;
+                patterns.insert(p.to_owned(), Rc::clone(&pattern));
+                pattern
+            }
+        } else {
+            compile()?
+        };
+        let r = Rc::new(Bound::new(pattern));
         self.regexes.insert(p.to_owned(), r.clone());
         Ok(r)
     }

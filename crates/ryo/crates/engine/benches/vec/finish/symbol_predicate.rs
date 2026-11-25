@@ -91,7 +91,7 @@ impl<T: fmt::Debug> fmt::Debug for Bound<T> {
 
 #[derive(Clone, Debug)]
 pub(super) enum TextTest {
-    Regex(Rc<Bound<Regex>>),
+    Regex(Rc<Bound<Rc<Regex>>>),
     Glob(Rc<PreparedGlob>),
     Any(Rc<Bound<Box<[TextTest]>>>),
     LowerEqual(Rc<Bound<Rc<[u8]>>>),

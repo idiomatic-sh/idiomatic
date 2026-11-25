@@ -54,6 +54,7 @@ struct Admission {
 
 #[derive(Default)]
 struct Batch {
+    patterns: finish::Patterns,
     file_catalog: session::named::Catalog,
     closed_reuse: [usize; 5],
     workers: Option<std::num::NonZeroUsize>,
@@ -98,7 +99,7 @@ struct Active<F: Default, D: Default> {
 }
 
 impl Admission {
-    fn prepare(id: usize, program: &Program, hosted: &[Hosted], catalog: &session::named::Catalog) -> Result<Self, String> {
+    fn prepare(id: usize, program: &Program, hosted: &[Hosted], catalog: &session::named::Catalog, patterns: &finish::Patterns) -> Result<Self, String> {
         let held: Vec<_> = program
             .bases
             .iter()
@@ -116,7 +117,7 @@ impl Admission {
         let numbered_host = hosted
             .iter()
             .any(|table| table.columns.iter().any(|(_, kind)| kind == "File"));
-        let mut run = finish::Run::default();
+        let mut run = finish::Run::schema_run(patterns);
         catalog.declare(&mut run);
         let declarations = hosted.iter().map(|h| Hosted {
             name: h.name.clone(), columns: h.columns.clone(), rows: Default::default(), partial: h.partial.clone(),
@@ -185,7 +186,7 @@ impl Batch {
         let class = match self.admissions.get(&schema_key) {
             Some(class) => class.clone(),
             None => {
-                let class = Rc::new(Admission::prepare(self.admissions.len(), program, &req.hosted, &self.file_catalog)?);
+                let class = Rc::new(Admission::prepare(self.admissions.len(), program, &req.hosted, &self.file_catalog, &self.patterns)?);
                 self.admissions.insert(schema_key, class.clone());
                 class
             }
