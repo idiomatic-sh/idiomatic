@@ -1,7 +1,95 @@
 //! A closed equality can get its node keys from a file-local posting. For an
 //! axis, every returned "related" node belongs to the axis's declared domain.
-use super::super::{E, Exec, Op, Run, Ty};
-use std::collections::{BTreeMap, BTreeSet};
+use super::super::{E, Exec, File, Native, Op, Position, Provider, R, Run, Table, Ty, node_table};
+use std::{collections::{BTreeMap, BTreeSet}, rc::Rc};
+
+/// An ancestor axis only reads edges below a node in its output domain.
+/// Keep the proof on the frontier, since the same edge can also have a full reader.
+pub(in super::super::super) fn ancestor_domains(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    local: &[bool],
+    reached: &[bool],
+    inputs: &BTreeSet<usize>,
+) -> BTreeMap<usize, usize> {
+    let mut domains = BTreeMap::new();
+    for &source in inputs {
+        if exec.plan.nodes[source].base().is_none()
+            || exec.plan.emits.iter().any(|e| e.1 == source)
+            || !exec.view(run, source).ok().flatten().is_some_and(|v| v.base == Native::Child)
+        {
+            continue;
+        }
+        let mut common = None;
+        let bounded = exec.plan.consumers(source).iter().copied()
+            .filter(|&reader| reached[reader] && !local[reader])
+            .all(|reader| {
+                let step = &exec.plan.nodes[reader];
+                if step.op() != "axis"
+                    || super::super::s(&step.args()["direction"]) != Ok("ancestor")
+                    || exec.arg_rel(reader, "relation") != Ok(source)
+                    || step.inputs.iter().filter(|&&i| i == source).count() != 1
+                {
+                    return false;
+                }
+                let Ok(domain) = exec.arg_rel(reader, "domain") else {
+                    return false;
+                };
+                local[domain]
+                    && exec.schema(run, domain).ok().is_some_and(|schema| {
+                        super::super::pos(&schema.names, "id")
+                            .is_ok_and(|id| schema.tys[id] == Ty::Node)
+                    })
+                    && *common.get_or_insert(domain) == domain
+            });
+        if bounded && let Some(domain) = common {
+            domains.insert(source, domain);
+        }
+    }
+    domains
+}
+
+pub(super) fn ancestor_edges(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    file: &mut File<'_>,
+    facts: &mut dyn Provider,
+    source: usize,
+    domain: usize,
+) -> R<Option<Rc<Table>>> {
+    // Binding can override the native child edge with a reader-supplied graph.
+    if !exec.view(run, source)?.is_some_and(|view| view.base == Native::Child) {
+        return Ok(None);
+    }
+    let domain = exec.eval(file, run, facts, domain)?;
+    let id = domain.col("id")?;
+    let schema = exec.schema(run, source)?;
+    let sample = super::super::operators::enter(source, domain.n);
+    let mut starts: Vec<_> = domain.cols[id].iter().copied()
+        .filter(|&node| node < file.n as u64)
+        .map(|node| node as u32)
+        .collect();
+    starts.sort_unstable();
+    let mut edges = Table::retained(schema.names.clone(), schema.tys.clone(), 0);
+    let mut end = 0;
+    for start in starts {
+        if start < end {
+            continue;
+        }
+        end = node_table::subtree_end_of(file.table, Position(start)).0;
+        for child in start + 1..end {
+            if file.has_parent(child) {
+                edges.cols[0].push(u64::from(file.parent[child as usize]));
+                edges.cols[1].push(u64::from(child));
+            }
+        }
+    }
+    edges.n = edges.cols[1].len();
+    if let Some(sample) = sample {
+        super::super::operators::leave(sample, "ancestor-frontier", edges.n, true);
+    }
+    Ok(Some(Rc::new(edges)))
+}
 
 pub(in super::super::super) fn domains(
     exec: &mut Exec<'_>,

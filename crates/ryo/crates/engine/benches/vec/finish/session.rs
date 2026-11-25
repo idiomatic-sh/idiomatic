@@ -516,6 +516,7 @@ pub(in super::super) fn gather(
     facts: &mut dyn Provider,
     slots: &[usize],
     cut: &[usize],
+    ancestor_domains: &BTreeMap<usize, usize>,
     projections: &BTreeMap<usize,contribution::Projection>,
     incomplete: &BTreeMap<String, Vec<Option<u32>>>,
 ) -> R<Vec<(usize, Rc<Table>, bool)>> {
@@ -532,7 +533,14 @@ pub(in super::super) fn gather(
     let mut result = Vec::with_capacity(cut.len());
     run.missing.clear();
     for &i in cut {
-        if incomplete.is_empty()
+        let edges = if incomplete.is_empty() && let Some(&domain) = ancestor_domains.get(&i) {
+            demand::ancestor_edges(exec, run, frame, facts, slots[i], slots[domain])?
+        } else {
+            None
+        };
+        if let Some(table) = edges {
+            result.push((i, table, true));
+        } else if incomplete.is_empty()
             && let Some(table) = contribution::gather(projections, i, slots, frame, run) {
             result.push((i, table, true));
         } else {

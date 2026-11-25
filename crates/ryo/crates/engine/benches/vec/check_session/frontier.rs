@@ -28,6 +28,9 @@ impl<'a> FileInputs<'a> {
             let b = bound[&binding].as_ref().expect("active binding");
             let plan = &programs[program_of[binding]].as_ref().unwrap().plan;
             for (&node, columns) in &cut.columns {
+                if cut.ancestor_domains.contains_key(&node) {
+                    continue;
+                }
                 let Some(name) = plan.nodes[node].base() else {
                     continue;
                 };
@@ -71,6 +74,9 @@ impl<'a> FileInputs<'a> {
         let nodes = &plan.nodes;
         let hosted = &b.hosted;
         let shared_base = |n: usize| {
+            if cut.ancestor_domains.contains_key(&n) {
+                return None;
+            }
             nodes[n]
                 .base()
                 .filter(|name| !hosted.iter().any(|(bound, _)| bound.as_str() == *name))
@@ -102,6 +108,7 @@ impl<'a> FileInputs<'a> {
                     facts_view,
                     &b.slots,
                     &missing,
+                    &cut.ancestor_domains,
                     &b.projections,
                     local_coverage,
                 )?;

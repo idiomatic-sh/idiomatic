@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 #[derive(Clone, Default)]
 pub(in super::super) struct Partition {
     pub domains: BTreeMap<usize, (usize, usize)>,
+    pub ancestor_domains: BTreeMap<usize, usize>,
     pub inputs: Vec<usize>,
     pub columns: BTreeMap<usize, Vec<bool>>,
     pub filters: BTreeMap<usize, Vec<(usize, Vec<u8>)>>,
@@ -164,11 +165,22 @@ pub(in super::super) fn partition(
     local: Vec<bool>,
 ) -> R<Partition> {
     let plan = exec.plan;
+    let mut reached = vec![false; plan.nodes.len()];
+    for &(_, output, _, _) in &plan.emits {
+        reached[output] = true;
+    }
+    for (i, step) in plan.nodes.iter().enumerate().rev() {
+        if reached[i] && !local[i] {
+            for &source in &step.inputs {
+                reached[source] = true;
+            }
+        }
+    }
     let input_set: BTreeSet<_> = plan
         .nodes
         .iter()
         .enumerate()
-        .filter(|(i, _)| !local[*i])
+        .filter(|(i, _)| reached[*i] && !local[*i])
         .flat_map(|(_, s)| s.inputs.iter().copied().filter(|i| local[*i]))
         .chain(plan.emits.iter().map(|e| e.1).filter(|i| local[*i]))
         .collect();
@@ -187,7 +199,7 @@ pub(in super::super) fn partition(
             .nodes
             .iter()
             .enumerate()
-            .filter(|(i, s)| !local[*i] && s.inputs.contains(&source))
+            .filter(|(i, s)| reached[*i] && !local[*i] && s.inputs.contains(&source))
         {
             match step.op() {
                 "select" => {
@@ -263,7 +275,7 @@ pub(in super::super) fn partition(
             .nodes
             .iter()
             .enumerate()
-            .filter(|(i, s)| !local[*i] && s.inputs.contains(&source))
+            .filter(|(i, s)| reached[*i] && !local[*i] && s.inputs.contains(&source))
         {
             if step.op() != "select" {
                 all_select = false;
@@ -309,8 +321,10 @@ pub(in super::super) fn partition(
         }
     }
     let domains = super::session::demand::domains(exec, run, &local, &input_set);
+    let ancestor_domains = super::session::demand::ancestor_domains(exec, run, &local, &reached, &input_set);
     Ok(Partition {
         domains,
+        ancestor_domains,
         columns,
         filters,
         inputs: input_set.into_iter().collect(),
