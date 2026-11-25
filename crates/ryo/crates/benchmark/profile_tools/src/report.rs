@@ -295,23 +295,13 @@ pub fn compare(
         "| Allocation-image bytes requested | {} | {} | {bytes_delta} |",
         old.bytes, new.bytes
     )?;
-    if [base.0, other.0]
-        .iter()
-        .all(|p| p.instructions.status.code() != Some(124))
-    {
-        let first = instructions(base.1)?;
-        let second = instructions(other.1)?;
-        writeln!(
-            output,
-            "| Ordinary-image instructions | {first} | {second} | {:+} |",
-            i128::from(second) - i128::from(first)
-        )?;
-    } else {
-        writeln!(
-            output,
-            "| Ordinary-image instructions | Cachegrind budget expired | · | · |"
-        )?;
-    }
+    let [first, second] = [base, other].map(|(profile, directory)| {
+        (profile.instructions.status.code() != Some(124))
+            .then(|| instructions(directory))
+            .transpose()
+    });
+    let counts = (first?, second?);
+    instruction_totals(output, counts)?;
     let diff = other.1.join("differences");
     fs::create_dir_all(&diff)?;
     let mut perf = Command::new("perf");
@@ -341,10 +331,7 @@ pub fn compare(
     }
     heap_sites(output, &heap)?;
     writeln!(output, "\nFull tool diff: `{}`.", allocations.display())?;
-    if [base.0, other.0]
-        .iter()
-        .all(|p| p.instructions.status.code() != Some(124))
-    {
+    if counts.0.zip(counts.1).is_some() {
         let mut cachegrind = Command::new("cg_annotate");
         cachegrind
             .args(["--diff", "--auto=no", "--show=Ir", "--no-show-percs"])
@@ -360,6 +347,43 @@ pub fn compare(
         )?;
         writeln!(output, "\nFull tool diff: `{}`.", instructions.display())?;
     }
+    Ok(())
+}
+
+fn instruction_totals(
+    output: &mut impl io::Write,
+    (first, second): (Option<u64>, Option<u64>),
+) -> io::Result<()> {
+    let display = |count: Option<u64>| {
+        count.map_or_else(
+            || "Cachegrind budget expired".into(),
+            |count| count.to_string(),
+        )
+    };
+    let delta = first.zip(second).map_or_else(
+        || "·".into(),
+        |(first, second)| format!("{:+}", i128::from(second) - i128::from(first)),
+    );
+    writeln!(
+        output,
+        "| Ordinary-image instructions | {} | {} | {delta} |",
+        display(first),
+        display(second)
+    )
+}
+
+#[test]
+fn instruction_totals_keep_the_completed_build() -> io::Result<()> {
+    let mut output = Vec::new();
+    instruction_totals(&mut output, (Some(42), None))?;
+    instruction_totals(&mut output, (None, Some(42)))?;
+    instruction_totals(&mut output, (Some(42), Some(43)))?;
+    assert_eq!(
+        String::from_utf8(output).unwrap(),
+        "| Ordinary-image instructions | 42 | Cachegrind budget expired | · |\n\
+          | Ordinary-image instructions | Cachegrind budget expired | 42 | · |\n\
+          | Ordinary-image instructions | 42 | 43 | +1 |\n"
+    );
     Ok(())
 }
 
