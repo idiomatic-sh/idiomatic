@@ -415,3 +415,130 @@ fn the_walk_and_its_fillers_write_what_todays_reading_writes() {
     println!("{report}");
     assert!(findings.is_empty(), "{report}\n{}", findings.lines().take(20).collect::<Vec<_>>().join("\n"));
 }
+
+/// Every relation the language's fillers name: those it fills and those it does not.
+const NAMED: [Relation; 75] = [
+    Relation::AnalyzedSource,
+    Relation::Annotates,
+    Relation::Assigns,
+    Relation::AttributePath,
+    Relation::BindingEvent,
+    Relation::BindingRead,
+    Relation::BindingResolution,
+    Relation::BindingShadow,
+    Relation::BindingUse,
+    Relation::BraceFormatField,
+    Relation::BraceFormatParse,
+    Relation::BytesLiteral,
+    Relation::CallArgument,
+    Relation::Comment,
+    Relation::CompilerFeature,
+    Relation::ConstantKey,
+    Relation::Decorates,
+    Relation::Defines,
+    Relation::Directive,
+    Relation::EmbeddedExpression,
+    Relation::Entry,
+    Relation::ExpressionShape,
+    Relation::ExpressionType,
+    Relation::FilePackage,
+    Relation::FilesystemExecutable,
+    Relation::FilesystemFile,
+    Relation::FilesystemLineCount,
+    Relation::FilesystemReadFailure,
+    Relation::FlowBlock,
+    Relation::FlowEdge,
+    Relation::FlowMember,
+    Relation::FlowStep,
+    Relation::FormatField,
+    Relation::FormatParse,
+    Relation::FormatSpecification,
+    Relation::Function,
+    Relation::FunctionTerminal,
+    Relation::Identifier,
+    Relation::ImplicitSymbol,
+    Relation::IndentRegion,
+    Relation::Inherits,
+    Relation::InterpolatedStringLiteral,
+    Relation::LanguageTarget,
+    Relation::LiteralExpressionParse,
+    Relation::LiteralProperties,
+    Relation::LookupScope,
+    Relation::ManifestDiagnostic,
+    Relation::Mapping,
+    Relation::Mention,
+    Relation::ModuleIdentity,
+    Relation::NumericLiteral,
+    Relation::PackageDependency,
+    Relation::Parameter,
+    Relation::PatternChild,
+    Relation::PatternParse,
+    Relation::PatternSyntax,
+    Relation::ProjectNamespaceMembership,
+    Relation::Prose,
+    Relation::QualifiedName,
+    Relation::RawFormatField,
+    Relation::RawFormatSegment,
+    Relation::Reference,
+    Relation::Resolves,
+    Relation::Scope,
+    Relation::SequenceElement,
+    Relation::SourceDependency,
+    Relation::SourceLocation,
+    Relation::StandardLibraryImport,
+    Relation::StaticCall,
+    Relation::StaticImport,
+    Relation::StringLiteral,
+    Relation::SyntaxError,
+    Relation::TokenLink,
+    Relation::Visibility,
+    Relation::WorkspaceMember,
+];
+
+/// The cause the walk gives a relation, asked of a file's fillers: nothing when it answers the relation.
+fn walked_cause(relation: Relation) -> Option<languages::AbsenceCause> {
+    let walk = GoWalk { ports: WalkPorts { syntax: Arc::new(tree_sitter_go()) } };
+    let mut table = NodeTable::default();
+    let mut found = None;
+    walk.walk(
+        WalkRequest { path: languages::SourcePath("a.go"), file: FileId(0), source: ByteSlice(b"package a\n") },
+        RelationNeeds(&[]),
+        &mut node_table::builder(&mut table, GoWalk::<WalkPorts>::KIND_COUNT),
+        &mut GoScratch::default(),
+        &mut Visit(&mut |mut lent: FileFacts<'_>| {
+            let mut words = facts::file_words(&facts::base_words(Default::default(), &[]));
+            found = match lent.facts.fill(relation, languages::Wanted::Whole, &mut words, &mut FilledColumns::default()) {
+                FactAnswer::Refused(cause) => Some(cause),
+                _ => None,
+            };
+        }),
+    )
+    .expect("the walk reads the source");
+    found
+}
+
+#[test]
+fn each_relation_the_walk_does_not_fill_has_the_cause_todays_contracts_give() {
+    let language = crate::linked();
+    let parse = language.parse_engine();
+    let project = language.project();
+    let mut report = String::new();
+    for relation in NAMED {
+        let Some(new) = walked_cause(relation) else { continue };
+        let old = parse.absence_of(relation).or_else(|| project.absence_of(relation)).or(
+            // the engine reads the file system itself; the language is never asked, and says so
+            matches!(
+                relation,
+                Relation::FilesystemExecutable | Relation::FilesystemFile | Relation::FilesystemLineCount | Relation::FilesystemReadFailure
+            )
+            .then_some(languages::AbsenceCause::NotYetRead),
+        );
+        // The project contract answers the relations a manifest and the notes of a file give (package, dependency, workspace); the
+        // walk reads neither, so it says they are not read in the walk.
+        let by_project = old.is_none() && new == languages::AbsenceCause::NotYetRead;
+        if old != Some(new) && !by_project {
+            let _ = writeln!(report, "{relation:?}: today {old:?}, walk {new:?}");
+        }
+    }
+    assert!(report.is_empty(), "{report}");
+}
