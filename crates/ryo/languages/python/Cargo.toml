@@ -83,6 +83,10 @@ harness = false
 name = "conformance"
 harness = false
 
+[[test]]
+name = "routes"
+harness = false
+
 [[bench]]
 name = "provider"
 path = "benchmarks/provider/bench.rs"
