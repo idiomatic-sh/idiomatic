@@ -185,3 +185,13 @@ fn the_walk_names_each_kind_and_each_field_at_its_code() {
         assert_eq!(names.fields.0.get(usize::from(field_bits(field).0)), Some(&field_name(field)));
     }
 }
+
+#[test]
+fn the_linked_provider_hands_the_engine_its_numbered_visit() {
+    let linked = crate::linked();
+    let parse = linked.parse_engine();
+    assert!(
+        parse.file_relations().and_then(|relations| relations.numbered()).is_some(),
+        "the engine reads html files through the walk"
+    );
+}
