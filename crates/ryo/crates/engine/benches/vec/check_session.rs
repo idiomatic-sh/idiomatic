@@ -834,6 +834,7 @@ pub(crate) fn visit<L: FileSource>(
     let mut demands = rustc_hash::FxHashMap::default();
     let mut requested = Vec::new();
     let mut facts = Vec::new();
+    let mut active_buffer: Vec<(usize, usize, bool)> = Vec::new();
     let mut distinct = std::cell::RefCell::new(crate::pair_checks::FileSymbols::default());
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
@@ -1090,7 +1091,9 @@ pub(crate) fn visit<L: FileSource>(
             let recovery = coverage.unwrap_or_else(|| L::recovery(&elements));
             let rejected = l::node_table::acceptance_of(tree) == l::SyntaxAcceptance::Rejected;
             distinct.get_mut().clear();
-            let mut active = Vec::new();
+            let mut active = std::mem::take(&mut active_buffer);
+            active.clear();
+            active.reserve(jobs.len());
             for (binding, slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
                 if programs[program_of[binding]].as_ref().is_ok_and(|p| p.accepted_only)
@@ -1343,7 +1346,7 @@ pub(crate) fn visit<L: FileSource>(
                 );
                 frontier::FileInputs::new(columns)
             });
-            for (binding, slot, excluded) in active {
+            for (binding, slot, excluded) in active.drain(..) {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
                 let contract = &contracts[binding];
                 let b = bound[&binding].as_mut().unwrap();
@@ -1497,6 +1500,7 @@ pub(crate) fn visit<L: FileSource>(
                     answers.set(slot, answer);
             }
             drop(frame);
+            active_buffer = active;
             clocks.evaluate += thread_cpu() - t;
             };
             let mut spent_in_visit = 0.;
