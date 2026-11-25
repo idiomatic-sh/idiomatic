@@ -84,14 +84,14 @@ impl Exec<'_> {
         }
         // made empty already (read live): any source of a select, every input of a union, the first input of the rest
         let made = |i: usize| matches!(&f.memo[i], Some(Res::Tab(t)) if t.n == 0);
-        match self.frames[node].op {
+        match self.plan.frame(node).op {
             super::frame::Op::Select => self.plan.nodes[node].inputs.iter().any(|i| made(*i)),
             super::frame::Op::Union => {
                 let ins = &self.plan.nodes[node].inputs;
                 !ins.is_empty() && ins.iter().all(|i| made(*i))
             }
             _ => {
-                let i = self.frames[node].first;
+                let i = self.plan.frame(node).first;
                 i < super::frame::MISSING && made(i as usize)
             }
         }

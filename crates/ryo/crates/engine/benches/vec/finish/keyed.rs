@@ -40,11 +40,11 @@ impl Exec<'_> {
     }
 
     fn keyed_form_(&mut self, run: &mut Run, node: usize) -> R<Form> {
-        if sw!("VEC_NO_KEYED_READ") || (self.consumers[node].len() != 1 && !sw!("VEC_KEYED_MULTI")) || self.emitted.contains(&node) || self.view(run, node)?.is_some() || self.is_constant(run, node) {
+        if sw!("VEC_NO_KEYED_READ") || (self.plan.consumers(node).len() != 1 && !sw!("VEC_KEYED_MULTI")) || self.emitted.contains(&node) || self.view(run, node)?.is_some() || self.is_constant(run, node) {
             return Ok(Form::Not);
         }
         let pn = &self.plan.nodes[node];
-        Ok(match self.frames[node].op {
+        Ok(match self.plan.frame(node).op {
             super::frame::Op::Antijoin => Form::Antijoin,
             super::frame::Op::Union => Form::Union,
             super::frame::Op::Select if !pn.counted() => {
@@ -201,7 +201,7 @@ impl Exec<'_> {
                 }
                 least
             }
-            Form::Antijoin => self.keyed_size(f, run, p, self.frames[node].first as usize, make)?,
+            Form::Antijoin => self.keyed_size(f, run, p, self.plan.frame(node).first as usize, make)?,
             Form::Union => {
                 let ins = self.plan.nodes[node].inputs.clone();
                 let mut sum = 0usize;

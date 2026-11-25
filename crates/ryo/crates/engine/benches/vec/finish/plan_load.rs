@@ -53,6 +53,8 @@ pub(crate) fn from_typed(plan: std::sync::Arc<FinishPlan>) -> Plan {
         .collect();
     emits.sort_unstable_by(|a, b| a.0.cmp(&b.0));
     Plan {
+        frames: Default::default(),
+        consumers: Default::default(),
         nodes,
         emits,
     }

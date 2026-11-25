@@ -575,9 +575,31 @@ pub(super) struct PNode {
 }
 
 pub(super) struct Plan {
+    frames: std::sync::OnceLock<Vec<frame::Frame>>,
+    consumers: std::sync::OnceLock<Vec<Vec<usize>>>,
     pub(super) nodes: Vec<PNode>,
     pub(super) emits: Vec<(String, usize, String, Vec<String>)>,
 
+}
+
+impl Plan {
+    fn frame(&self, node: usize) -> frame::Frame {
+        self.frames.get_or_init(|| frame::frames(self))[node]
+    }
+
+    fn consumers(&self, node: usize) -> &[usize] {
+        &self.consumers.get_or_init(|| {
+            let mut uses = vec![Vec::new(); self.nodes.len()];
+            for (index, step) in self.nodes.iter().enumerate() {
+                for &input in &step.inputs {
+                    if uses[input].last() != Some(&index) {
+                        uses[input].push(index);
+                    }
+                }
+            }
+            uses
+        })[node]
+    }
 }
 
 /// Visit typed extension values in their declared order.
@@ -1293,10 +1315,6 @@ pub(super) struct Exec<'p> {
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
     constant: Vec<Option<bool>>,
     run_memo: Vec<Option<Rc<Table>>>,
-    /// redo-union pass 2: per node, what the step bracket reads on every run (`frame`).
-    frames: Vec<frame::Frame>,
-    /// The steps that read each node.
-    pub(super) consumers: Vec<Vec<usize>>,
     emitted: rustc_hash::FxHashSet<usize>,
     pub(super) tally: band::Tally,
     /// 8: row-number buffers of the join (tuples a source), reused across executions; the join's key set, reused.
@@ -1353,18 +1371,6 @@ impl<'p> Exec<'p> {
             constant: vec![None; k],
             answer_layouts: FxHashMap::default(),
             run_memo: vec![None; k],
-            frames: frame::frames(plan),
-            consumers: {
-                let mut c = vec![Vec::new(); k];
-                for (i, n) in plan.nodes.iter().enumerate() {
-                    for x in &n.inputs {
-                        if c[*x].last() != Some(&i) {
-                            c[*x].push(i);
-                        }
-                    }
-                }
-                c
-            },
             emitted: plan.emits.iter().map(|e| e.1).collect(),
             tally: band::Tally::default(),
             u32_pool: Vec::new(),
@@ -1423,13 +1429,13 @@ impl<'p> Exec<'p> {
         let plan: &'p Plan = self.plan;
         let pn = &plan.nodes[node];
         let a = pn.args();
-        let op = pn.op.clone();
+        let op = pn.op.as_str();
         let from = |me: &mut Self, run: &mut Run, name: &str| -> R<Rc<Schema>> {
             let n = me.arg_rel(node, name)?;
             me.schema(run, n)
         };
         let mk = |names: Vec<String>, tys: Vec<Ty>| Rc::new(Schema { names: Rc::new(names), tys: Rc::new(tys) });
-        let sc = match op.as_str() {
+        let sc = match op {
             "base" => {
                 let rel = pn.base().ok_or("base relation")?;
                 if let Some(nat) = native_of(run, rel) {
@@ -1795,7 +1801,7 @@ impl<'p> Exec<'p> {
             return Ok(Res::Tab(self.empty_rc(run, node)?));
         }
         // 8: a step over an empty input answers its shared empty table before any set-up
-        let gate = self.frames[node].gate;
+        let gate = self.plan.frame(node).gate;
         if gate < frame::MISSING && match f.population(gate as usize) {
             Some(input) => input.n == 0,
             None => self.eval(f, run, p, gate as usize)?.n == 0,
@@ -1906,7 +1912,7 @@ impl<'p> Exec<'p> {
             self.scratch_rows = rows;
             return Ok(recycle::rc(out));
         }
-        if !f.after_last_file && self.frames[node].op == frame::Op::Closure
+        if !f.after_last_file && self.plan.frame(node).op == frame::Op::Closure
             && let Some(t) = self.closure_at(f, run, p, node, col, keys)?
         {
             return Ok(recycle::rc(t));
@@ -2046,7 +2052,7 @@ impl<'p> Exec<'p> {
     /// load), then the operator's body. redo-union pass 2: the answer is shared (`Rc`): a kernel's passed-through input
     /// and the step's empty answer are handed on, not copied.
     fn body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
-        let fr = self.frames[node];
+        let fr = self.plan.frame(node);
         match fr.op {
             frame::Op::Union if !sw!("VEC_OLD_UNION") => return union_kernel::whole(self, f, run, p, node),
             frame::Op::Antijoin if !sw!("VEC_OLD_ANTIJOIN") => return antijoin_kernel::whole(self, f, run, p, node),
@@ -2143,7 +2149,7 @@ impl<'p> Exec<'p> {
             }
             "antijoin" => self.antijoin(f, run, p, node, a),
             "extend" => {
-                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
+                let from = self.eval(f, run, p, (self.plan.frame(node).first as usize))?;
                 let mut out = from.copy();
                 extend_values(a, |_, v| {
                     let x = match v {
@@ -2161,7 +2167,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "project" => {
-                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
+                let from = self.eval(f, run, p, (self.plan.frame(node).first as usize))?;
                 let cols: Vec<usize> = strs(&a["columns"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let osc = self.schema(run, node)?;
                 let mut out = Table::with(osc.names.clone(), osc.tys.clone());
@@ -2180,7 +2186,7 @@ impl<'p> Exec<'p> {
             }
             "axis" => self.axis(f, run, p, node, a),
             "group-count" => {
-                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
+                let from = self.eval(f, run, p, (self.plan.frame(node).first as usize))?;
                 let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let distinct = match &a["distinct"] {
                     Param::Text(d) => Some(from.col(d)?),
@@ -2217,7 +2223,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "group-min" | "group-max" => {
-                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
+                let from = self.eval(f, run, p, (self.plan.frame(node).first as usize))?;
                 let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let oc = from.col(s(&a["order"])?)?;
                 let max = op == "group-max";
@@ -2324,7 +2330,7 @@ impl<'p> Exec<'p> {
             }
             "ordered-match" | "as-of" => self.ordered(f, run, p, node, a, op == "as-of", None),
             "span-between" => {
-                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
+                let from = self.eval(f, run, p, (self.plan.frame(node).first as usize))?;
                 let (sc, ec) = (from.col(s(&a["start"])?)?, from.col(s(&a["end"])?)?);
                 let mut out = from.copy();
                 let col: Vec<u64> = (0..from.n)
@@ -2339,7 +2345,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "span-bounds" => {
-                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
+                let from = self.eval(f, run, p, (self.plan.frame(node).first as usize))?;
                 let sc = from.col(s(&a["span"])?)?;
                 let mut out = from.copy();
                 out.cols.push(from.cols[sc].iter().map(|x| x >> 32).collect());
@@ -2357,7 +2363,7 @@ impl<'p> Exec<'p> {
             }
             "source-matches" => self.source_matches(f, run, p, node, a),
             "replace" => {
-                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
+                let from = self.eval(f, run, p, (self.plan.frame(node).first as usize))?;
                 let tc = from.col(s(&a["text"])?)?;
                 let re = run.re(s(&a["pattern"])?)?;
                 let rep = s(&a["replacement"])?.as_bytes().to_vec();
@@ -2375,7 +2381,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "capture" => {
-                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
+                let from = self.eval(f, run, p, (self.plan.frame(node).first as usize))?;
                 let pc = from.col(s(&a["path"])?)?;
                 let pattern = s(&a["pattern"])?;
                 let Param::CaptureColumns(at) = &a["capture-columns"] else {
@@ -2393,7 +2399,7 @@ impl<'p> Exec<'p> {
             }
             "group-ordinal" => {
                 // the distinct rows, each with how many distinct rows of its group have a strictly smaller order
-                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
+                let from = self.eval(f, run, p, (self.plan.frame(node).first as usize))?;
                 let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let oc = from.col(s(&a["order"])?)?;
                 let mut seen = rustc_hash::FxHashSet::default();
@@ -2423,7 +2429,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "render-syntax" => {
-                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
+                let from = self.eval(f, run, p, (self.plan.frame(node).first as usize))?;
                 let nc = from.col(s(&a["node"])?)?;
                 let ctx = s(&a["context"])?;
                 let mut out = self.empty(run, node)?;
@@ -2441,7 +2447,7 @@ impl<'p> Exec<'p> {
             "prefixes" => self.prefixes(f, run, p, node),
             "order" => self.order(f, run, p, node),
             "fits-rendered" => {
-                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
+                let from = self.eval(f, run, p, (self.plan.frame(node).first as usize))?;
                 let texts: Vec<usize> = strs(&a["texts"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let lits = strs(&a["literals"])?;
                 let sc = from.col(s(&a["span"])?)?;

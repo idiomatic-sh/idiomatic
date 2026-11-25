@@ -80,7 +80,7 @@ impl Projection {
         let mut plans = BTreeMap::new();
         if let Some(cut) = cut {
             for (&node, mask) in &cut.columns {
-                let local_reader = exec.consumers[node].iter().any(|&u| cut.file_steps[u]);
+                let local_reader = exec.plan.consumers(node).iter().any(|&u| cut.file_steps[u]);
                 if let Some(mut plan) =
                     Self::prepare(exec, run, node, mask, local_reader, tests.get(&node))
                 {

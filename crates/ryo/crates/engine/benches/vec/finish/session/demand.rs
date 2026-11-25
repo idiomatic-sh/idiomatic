@@ -14,9 +14,9 @@ pub(in super::super::super) fn domains(
         if exec.plan.emits.iter().any(|e| e.1 == source) {
             continue;
         }
-        let uses = exec.consumers[source].clone();
+        let uses = exec.plan.consumers(source);
         let mut binding = None;
-        let bounded = uses.into_iter().filter(|&u| !local[u]).all(|u| {
+        let bounded = uses.iter().copied().filter(|&u| !local[u]).all(|u| {
             if exec.plan.nodes[u].op != "select" {
                 return false;
             }

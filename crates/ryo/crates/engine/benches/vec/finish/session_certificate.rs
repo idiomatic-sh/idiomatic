@@ -178,7 +178,7 @@ pub(crate) fn certified_empty_left(
     let mut demanded = vec![false; plan.nodes.len()];
     let mut pending = Vec::new();
     for (_, output, _, _) in &plan.emits {
-        let frame = exec.frames[*output];
+        let frame = exec.plan.frame(*output);
         let left = exec.arg_rel(*output, "left")?;
         if frame.op != finish::frame::Op::Antijoin || frame.gate as usize != left {
             return Err("emit has no empty-left antijoin gate".into());

@@ -130,8 +130,8 @@ pub(super) fn required_equalities(
         return Vec::new();
     }
     let mut common: Option<Vec<(usize, usize)>> = None;
-    for index in 0..exec.consumers[node].len() {
-        let user = exec.consumers[node][index];
+    for index in 0..exec.plan.consumers(node).len() {
+        let user = exec.plan.consumers(node)[index];
         let step = &exec.plan.nodes[user];
         if step.op != "select" || step.inputs.as_slice() != [node] {
             return Vec::new();
