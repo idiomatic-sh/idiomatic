@@ -1379,7 +1379,7 @@ pub(crate) fn visit<L: FileSource>(
                 let [answer]: [l::RenderOutcome; 1] = answers.try_into().map_err(|_| "renderer returned the wrong number of answers")?;
                 Ok(answer)
             };
-            let loan = fact_words.as_deref().map(|words| packet.operator_columns(id, tree, words, &mut run));
+            let loan = fact_words.as_deref().map(|words| packet.operator_columns(id, words, &mut run));
             // The frame owns the reader's projected word buffer for this visit.
             let mut frame_words = provider.projects_words.then(|| std::mem::take(&mut provider.text));
             let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, fact_words.as_deref());

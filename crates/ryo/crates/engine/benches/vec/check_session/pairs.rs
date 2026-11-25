@@ -281,7 +281,7 @@ impl Checks {
                     };
                     requested.contains(&rel)
                         && !partials.iter().any(|p| p.relation == rel)
-                        && packet.columns(rel, symbols, bytes, id, tree, local_words, words, out)
+                        && packet.columns(rel, symbols, bytes, id, local_words, words, out)
                 },
                 &mut self.live,
                 &self.known,

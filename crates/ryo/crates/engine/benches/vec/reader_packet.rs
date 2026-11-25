@@ -19,7 +19,6 @@ pub(crate) struct LocalTable {
 /// Borrow the file's own IDs and buffers until the consumer finishes its visit.
 pub(crate) struct FileColumns<'f> {
     pub(crate) home: l::FileId,
-    pub(crate) tree: &'f l::NodeTable,
     pub(crate) words: &'f FileWords,
     pub(crate) tables: &'f [Option<LocalTable>],
 }
@@ -53,18 +52,7 @@ impl FileColumns<'_> {
         local_word_text(self.words, word)
     }
 
-    pub(crate) fn position(&self, word: CellWord) -> Result<Option<l::Position>, BadNode> {
-        if word.0 == finish::NULL {
-            return Ok(None);
-        }
-        let position = word.0 as u32;
-        if word.0 >> 32 != u64::from(self.home.0)
-            || position as usize >= l::node_table::element_count(self.tree).0
-        {
-            return Err(BadNode);
-        }
-        Ok(Some(l::Position(position)))
-    }
+
 }
 
 fn local_word_text(words: &FileWords, word: CellWord) -> Option<l::NameText<'_>> {
@@ -201,9 +189,9 @@ impl Packet {
         Ok(())
     }
     pub(crate) fn operator_columns<'a>(
-        &'a self, file: l::FileId, tree: &'a l::NodeTable, words: &'a FileWords, run: &mut finish::Run,
+        &'a self, file: l::FileId, words: &'a FileWords, run: &mut finish::Run,
     ) -> OperatorColumns<'a> {
-        let file = FileColumns { home: file, tree, words, tables: &self.local };
+        let file = FileColumns { home: file, words, tables: &self.local };
         OperatorColumns { file, symbols: Default::default(), public: run.public_word_ids.clone(), absent: run.absent_word.expect("reader dictionary") }
     }
     fn local(&self, slot: usize) -> Option<&LocalTable> {
@@ -273,12 +261,10 @@ impl Packet {
         symbols: &l::Symbols,
         bytes: &[u8],
         id: l::FileId,
-        tree: &l::NodeTable,
         local_words: Option<&FileWords>,
         words: &mut FileWords,
         out: &mut FilledColumns,
     ) -> bool {
-        let n = l::node_table::element_count(tree).0;
         if self.has_rows(relation).is_none()
             || self.rows.partials.iter().any(|(r, _, _)| *r == relation)
             || self.rows.partials_at.iter().any(|(r, _, _)| *r == relation)
@@ -290,16 +276,17 @@ impl Packet {
         out.0.resize_with(kinds.len(), Default::default);
         let slot = catalog::number_of(relation).0;
         if self.local(slot).is_some() {
-            let loan = FileColumns { home: id, tree, words: local_words.expect("file dictionary"), tables: &self.local };
+            let loan = FileColumns { home: id, words: local_words.expect("file dictionary"), tables: &self.local };
             if !matches!(loan.coverage(slot), Some((l::FactAnswer::Answered(_), l::Wanted::Whole))) {
                 return false;
             }
             for (index, (dst, kind)) in out.0.iter_mut().zip(kinds).enumerate() {
                 for &raw in loan.column(slot, index).unwrap_or(&[]) {
                     dst.0.push(match kind {
-                        CellKind::Node => match loan.position(raw) {
-                            Ok(Some(pos)) => CellWord(u64::from(pos.0)),
-                            _ => return false,
+                        // The witness validates the column it actually uses as a tree position.
+                        CellKind::Node => match file_node(id.0, raw.0) {
+                            Ok(local) => CellWord(local),
+                            Err(_) => return false,
                         },
                         CellKind::Symbol if raw.0 == u64::from(l::NO_SYMBOL.0) => raw,
                         CellKind::Symbol => {
@@ -318,10 +305,8 @@ impl Packet {
             match kind {
                 CellKind::Node => {
                     for raw in cells {
-                        if raw >> 32 != u64::from(id.0) || raw as u32 as usize >= n {
-                            return false;
-                        }
-                        column.0.push(CellWord(u64::from(raw as u32)));
+                        let Ok(local) = file_node(id.0, raw) else { return false };
+                        column.0.push(CellWord(local));
                     }
                 }
                 CellKind::Symbol => {
