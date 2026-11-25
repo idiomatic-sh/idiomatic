@@ -64,7 +64,42 @@ fn linked_revision(revision: domain::model::types::ProviderRevision) -> ryo::lan
             Arc::new(cargo_platform()),
             Arc::new(postcard()),
         )),
+        walk: Arc::new(walk_over(revision)),
     )
+}
+
+/// The Rust language's walk for the engine, composed over its parser: what an edge that runs the engine links to walk Rust files
+/// into the engine's node table and fill its relations.
+///
+/// # Examples
+///
+/// ```
+/// use ryo::languages::Walk;
+///
+/// fn kinds<W: Walk>(_: &W) -> ryo::languages::Count {
+///     W::KIND_COUNT
+/// }
+/// assert!(kinds(&ryo_rust::walk()).0 > 0);
+/// ```
+#[must_use]
+pub fn walk() -> impl ryo::languages::Walk {
+    walk_over(domain::model::types::ProviderRevision::Current)
+}
+
+fn walk_over(revision: domain::model::types::ProviderRevision) -> impl ryo::languages::Walk {
+    use std::sync::Arc;
+
+    use crate::domain::file_view::types::RustWalk;
+    use crate::domain::syntax::constants::OPAQUE_MACROS;
+    use crate::inbound::contracts::walk::contract::WalkPorts;
+    use crate::outbound::syntax::factory::ra_ap_syntax;
+    use crate::outbound::syntax::types::OpaqueMacros;
+
+    RustWalk {
+        ports: WalkPorts {
+            syntax: Arc::new(ra_ap_syntax(OpaqueMacros(&OPAQUE_MACROS)).with_revision(revision)),
+        },
+    }
 }
 
 #[cfg(any(test, feature = "fixtures"))]

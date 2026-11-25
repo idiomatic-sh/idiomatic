@@ -55,7 +55,7 @@
 //! The contract in `fixtures/contract.rs` holds every adapter to these with rows written by hand.
 
 use super::types::SourceText;
-use ryo::languages::TableBuilder;
+use ryo::languages::{self, NameText, Offset, TableBuilder};
 
 /// What every `syntax` adapter implements.
 pub(crate) trait SyntaxPort: Send + Sync {
@@ -64,4 +64,27 @@ pub(crate) trait SyntaxPort: Send + Sync {
     /// opaque. Each byte of `text` that is not part of a character is read as a character the lexer reports, so the rest keeps its tree,
     /// at the same offsets.
     fn read(&self, text: SourceText<'_>, builder: &mut TableBuilder<'_>);
+}
+
+/// What an adapter writes the steps of its walk into: the table's writer of a caller, which is told of each node entered and left,
+/// each token with the value it stands for, what the parser could not read, and the expansions of macro calls.
+pub(crate) trait Output {
+    fn string_values(&self) -> bool { true }
+    fn numeric_values(&self) -> bool { true }
+    fn enter(&mut self, kind: languages::KindBits, start: Offset);
+    fn leave(&mut self, end: Offset);
+    fn token(&mut self, kind: languages::KindBits, start: Offset, end: Offset, decoded: Option<NameText<'_>>);
+    fn property(&mut self, key: languages::PropertyId, value: NameText<'_>);
+    fn formatted(&mut self, key: languages::PropertyId, value: std::fmt::Arguments<'_>) -> std::fmt::Result;
+    fn diagnostic(&mut self, message: &str, start: Offset, end: Offset);
+    fn adopt(&mut self, host: languages::Position);
+    fn origin(&mut self, at: languages::Position, host: languages::Position, expansion: languages::ExpansionId);
+    fn release(&mut self);
+}
+
+
+/// What an adapter that can walk a file for the engine adds: the same steps, written into any `Output`.
+pub(crate) trait SyntaxWalk: SyntaxPort {
+    /// Walks Rust text into `out`, step by step, in pre-order; the arguments of each macro call are read again under the call.
+    fn walk(&self, text: SourceText<'_>, out: &mut dyn Output);
 }

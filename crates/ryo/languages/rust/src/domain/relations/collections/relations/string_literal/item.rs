@@ -10,12 +10,33 @@ use crate::domain::string_literals::service::string_token;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
+use crate::domain::file_view::macros::fills_rows;
 use ryo::languages;
 
 /// The reader the `ryo::reads!` below binds the `string_literal` relation's rows to.
 pub(crate) struct StringLiteralItem;
 
 ryo::reads! {
+    StringLiteralItem => languages::StringLiteral, model(ReadIndexes) |tree, model, at, symbols| {
+        kinds: [Kind::Node(Node::Literal), Kind::Token(Token::String)] as kind_bits,
+        expanded,
+        require model.revision == crate::domain::model::types::ProviderRevision::Current
+            || crate::domain::syntax::service::kind(tree, at) == Kind::Node(Node::Literal);
+        given string = string_token(tree, at)?;
+        given value = languages::intern_derived(symbols, tree.source, languages::decoded_at(tree.elements, string)?);
+        row {
+            occurrence: node(at),
+            owner: value(owner(tree, at)),
+            value: value(value),
+            file: file,
+            span: span(at),
+            import: value(specifier(tree, at)),
+        }
+    }
+}
+
+// The engine fills the relation from the walked file, by the same reader.
+fills_rows! {
     StringLiteralItem => languages::StringLiteral, model(ReadIndexes) |tree, model, at, symbols| {
         kinds: [Kind::Node(Node::Literal), Kind::Token(Token::String)] as kind_bits,
         expanded,

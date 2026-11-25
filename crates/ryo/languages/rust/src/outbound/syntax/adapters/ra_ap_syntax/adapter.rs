@@ -13,7 +13,8 @@ use super::types::{
     ArgumentGrammar, ArgumentList, Cursor, Expansion, HeldMacro, MacroArgument, MacroName,
     NodeChildren, Open, RustText, Step, Walker,
 };
-use super::writer::{emit, Output};
+use super::writer::emit;
+use crate::outbound::syntax::interface::{Output, SyntaxWalk};
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::{OpaqueMacros, SourceText};
 use ra_ap_parser::{LexedStr, PrefixEntryPoint, TopEntryPoint};
@@ -431,4 +432,31 @@ pub(super) fn index(offset: Offset) -> Count {
 /// The offset a text index stands for.
 pub(super) fn offset(index: Count) -> Offset {
     Offset(u32::try_from(index.0).unwrap_or(u32::MAX))
+}
+
+/// Hands each step to a caller's writer behind the port's trait object.
+struct Forward<'a>(&'a mut dyn Output);
+
+impl Output for Forward<'_> {
+    fn string_values(&self) -> bool { self.0.string_values() }
+    fn numeric_values(&self) -> bool { self.0.numeric_values() }
+    fn enter(&mut self, kind: languages::KindBits, start: Offset) { self.0.enter(kind, start); }
+    fn leave(&mut self, end: Offset) { self.0.leave(end); }
+    fn token(&mut self, kind: languages::KindBits, start: Offset, end: Offset, decoded: Option<languages::NameText<'_>>) {
+        self.0.token(kind, start, end, decoded);
+    }
+    fn property(&mut self, key: languages::PropertyId, value: languages::NameText<'_>) { self.0.property(key, value); }
+    fn formatted(&mut self, key: languages::PropertyId, value: std::fmt::Arguments<'_>) -> std::fmt::Result {
+        self.0.formatted(key, value)
+    }
+    fn diagnostic(&mut self, message: &str, start: Offset, end: Offset) { self.0.diagnostic(message, start, end); }
+    fn adopt(&mut self, host: Position) { self.0.adopt(host); }
+    fn origin(&mut self, at: Position, host: Position, expansion: languages::ExpansionId) { self.0.origin(at, host, expansion); }
+    fn release(&mut self) { self.0.release(); }
+}
+
+impl SyntaxWalk for SyntaxRaApSyntaxAdapter {
+    fn walk(&self, text: SourceText<'_>, out: &mut dyn Output) {
+        SyntaxRaApSyntaxAdapter::walk(self, text, &mut Forward(out));
+    }
 }

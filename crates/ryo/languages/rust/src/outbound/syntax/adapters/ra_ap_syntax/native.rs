@@ -1,6 +1,7 @@
 //! A Rust file in concrete preorder. Lexical leaves keep the same positions as their
 //! parser events. Parsed macro arguments follow the concrete prefix.
-use super::{adapter::SyntaxRaApSyntaxAdapter, writer::Output};
+use super::adapter::SyntaxRaApSyntaxAdapter;
+use crate::outbound::syntax::interface::Output;
 use crate::domain::fields::service::{NativeTree, field_bits, field_of};
 use crate::domain::syntax::{constants::OPAQUE_MACROS, service::kinds};
 use crate::outbound::syntax::types::{OpaqueMacros, SourceText};

@@ -5,12 +5,44 @@ use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{has_child, kind, kind_bits};
 use crate::domain::syntax::types::{Kind, Offspring};
+use crate::domain::file_view::macros::fills_rows;
 use ryo::languages;
 
 /// The reader the `ryo::reads!` below binds the `inherits` relation's rows to.
 pub(crate) struct InheritsItem;
 
 ryo::reads! {
+    InheritsItem => languages::Inherits, model(ReadIndexes) |tree, _model, at, symbols| {
+        kinds: [Kind::Node(Node::Trait), Kind::Node(Node::Impl)] as kind_bits,
+        when kind(tree, at) {
+            Kind::Node(Node::Trait) => {
+                require (has_child(tree, at, Kind::Node(Node::Name)) == Offspring::Has);
+                each (supertraits(tree, symbols, at)) as bound {
+                    row {
+                        occurrence: node(bound.contract),
+                        declaration: node(at),
+                        target: value(bound.target),
+                        file: file,
+                        span: span(bound.contract),
+                    }
+                }
+            }
+            _ => {
+                given implemented = implementation(tree, symbols, at)?;
+                row {
+                    occurrence: node(implemented.contract),
+                    declaration: node(implemented.declaration),
+                    target: value(implemented.target),
+                    file: file,
+                    span: span(implemented.contract),
+                }
+            }
+        }
+    }
+}
+
+// The engine fills the relation from the walked file, by the same reader.
+fills_rows! {
     InheritsItem => languages::Inherits, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: [Kind::Node(Node::Trait), Kind::Node(Node::Impl)] as kind_bits,
         when kind(tree, at) {

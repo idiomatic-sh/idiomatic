@@ -5,12 +5,34 @@ use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{end, kind_bits, start, written};
 use crate::domain::syntax::types::Kind;
+use crate::domain::file_view::macros::fills_rows;
 use ryo::languages;
 
 /// The reader the `ryo::reads!` below binds the `annotates` relation's rows to.
 pub(crate) struct AnnotatesItem;
 
 ryo::reads! {
+    AnnotatesItem => languages::Annotates, model(ReadIndexes) |tree, _model, at, symbols| {
+        kinds: [Kind::Node(Node::Fn), Kind::Node(Node::ClosureExpr), Kind::Node(Node::LetStmt), Kind::Node(Node::Const), Kind::Node(Node::Static)] as kind_bits,
+        each (annotations(tree, at)) as annotated {
+            row {
+                occurrence: node(annotated.annotation),
+                owner: node(annotated.owner),
+                annotation: value(written(
+                    tree,
+                    symbols,
+                    start(tree, annotated.annotation),
+                    end(tree, annotated.annotation),
+                )),
+                file: file,
+                span: span(annotated.annotation),
+            }
+        }
+    }
+}
+
+// The engine fills the relation from the walked file, by the same reader.
+fills_rows! {
     AnnotatesItem => languages::Annotates, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: [Kind::Node(Node::Fn), Kind::Node(Node::ClosureExpr), Kind::Node(Node::LetStmt), Kind::Node(Node::Const), Kind::Node(Node::Static)] as kind_bits,
         each (annotations(tree, at)) as annotated {
