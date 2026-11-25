@@ -1193,7 +1193,7 @@ pub(crate) fn visit<L: FileSource>(
                             clocks.exact_inputs[5] += usize::from(!b.named.is_empty());
                             clocks.exact_inputs[6] += usize::from(cut_of[binding].is_some());
                             clocks.exact_inputs[7] += usize::from(!said.is_empty());
-                            if !said.is_empty() || !provider.projects_words || cut_of[binding].is_some() || !b.named.is_empty() { continue; }
+                            if !said.is_empty() || !provider.projects_words || cut_of[binding].is_some() { continue; }
                             if let Some(tables) = screen.exact_locations(root(binding), tree, id) {
                                 let mut rows = Vec::new();
                                 let result = b.plan.emits.iter().zip(tables).enumerate().try_for_each(
@@ -1365,7 +1365,9 @@ pub(crate) fn visit<L: FileSource>(
                     clocks.skipped += 1;
                     continue;
                 }
-                if let Some(result) = certified.remove(&slot) {
+                // Named suppliers have now answered, including coverage. A partial
+                // population still goes through the scoped evaluator.
+                if unknowns.is_empty() && let Some(result) = certified.remove(&slot) {
                     let result = result.and_then(&mut locate);
                     clocks.certified += 1;
                     clocks.productive += usize::from(result.as_ref().is_ok_and(|r| !r.rows.is_empty()));
