@@ -126,7 +126,7 @@ impl EncodedBlock {
         Self(Some(Arc::new(data)))
     }
 }
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 enum BlockId {
     Empty(u32),
     Local(Key),
@@ -152,7 +152,7 @@ struct FileAnswers {
     locations: BTreeMap<Key, std::ops::Range<usize>>,
     mapped: Option<shards::MappedRecord>,
     blocks: Vec<BlockId>,
-    known_blocks: HashMap<Key, usize>,
+    known_blocks: HashMap<BlockId, usize>,
 }
 
 impl FileAnswers {
@@ -1288,8 +1288,10 @@ impl Store {
                 if let Some(parts) = world.frontier_parts(a) {
                     for (node, block) in parts {
                         let addr = (version, Rc::as_ptr(block));
-                        let index = *encoded.entry(addr).or_insert_with(|| {
-                            let (key, reference) = if block.n == 0 {
+                        // The encoded identity survives a reset of the file
+                        // record. Its row number belongs to the current record.
+                        let reference = *encoded.entry(addr).or_insert_with(|| {
+                            if block.n == 0 {
                                 *empty_blocks.entry(Rc::as_ptr(block)).or_insert_with(|| {
                                     let bytes = session::stored_block::encode(block, world);
                                     let k = *blake3::hash(&bytes).as_bytes();
@@ -1302,7 +1304,7 @@ impl Store {
                                     if self.blocks.get(&k).is_none() {
                                         *self.blocks.change(&k) = EncodedBlock::save(bytes);
                                     }
-                                    (k, BlockId::Empty(i))
+                                    BlockId::Empty(i)
                                 })
                             } else {
                                 let bytes = session::stored_block::encode(block, world);
@@ -1313,12 +1315,12 @@ impl Store {
                                 if self.blocks.get(&k).is_none() {
                                     *self.blocks.change(&k) = EncodedBlock::save(bytes);
                                 }
-                                (k, BlockId::Local(k))
-                            };
-                            *file.known_blocks.entry(key).or_insert_with(|| {
-                                file.blocks.push(reference);
-                                file.blocks.len() - 1
-                            })
+                                BlockId::Local(k)
+                            }
+                        });
+                        let index = *file.known_blocks.entry(reference).or_insert_with(|| {
+                            file.blocks.push(reference);
+                            file.blocks.len() - 1
                         });
                         frontier.push((*node, index));
                     }
