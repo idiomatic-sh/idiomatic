@@ -197,8 +197,8 @@ impl<P: Send + Sync + 'static> Fillers for MarkdownWalk<P> {
 
     /// A kind spells its text when its nodes of the table are leaves of the tree: the tokens, the markers and what the library gives as
     /// one event (text, code, math, breaks, rules, footnote marks, definitions). A section, and every construct that holds others, is
-    /// a node whose text is the text of its parts. Inline raw HTML is a leaf and a block of it is not: one kind names both, so it
-    /// is left unspelled.
+    /// a node whose text is the text of its parts. Raw HTML is spelled: inline HTML is a leaf, and one kind names a block of it too, whose
+    /// node is then spelled as well (the numbered adapter asks the kind, not the position: a limit to lift in the adapter).
     fn spells(kind: languages::KindBits) -> bool {
         matches!(
             kind_of(kind),
@@ -211,7 +211,7 @@ impl<P: Send + Sync + 'static> Fillers for MarkdownWalk<P> {
                         | Extra::Math
                         | Extra::Error
                 )
-                | Kind::Node(Node::Text | Node::InlineCode | Node::Definition | Node::Break | Node::ThematicBreak | Node::FootnoteReference)
+                | Kind::Node(Node::Text | Node::Html | Node::InlineCode | Node::Definition | Node::Break | Node::ThematicBreak | Node::FootnoteReference)
         )
     }
 
