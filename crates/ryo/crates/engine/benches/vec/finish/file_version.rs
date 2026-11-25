@@ -8,6 +8,8 @@ pub(crate) struct FileVersion<'a> {
     pub(crate) src: &'a [u8],
     pub(crate) file: u32,
     pub(crate) n: usize,
+    /// How many elements are the file's own tree: the table below `own_end`, the elements of a relation of extent `Own`.
+    pub(crate) own: usize,
     pub(crate) kind: &'a [u16],
     pub(crate) start: &'a [u32],
     pub(crate) end: &'a [u32],
@@ -32,7 +34,7 @@ impl<'a> FileVersion<'a> {
             assert_eq!(symbols.len(), kind.len());
         }
         Self {
-            table, src, file, n: kind.len(), kind,
+            table, src, file, n: kind.len(), own: usize::try_from(node_table::own_end(table).0).unwrap_or(usize::MAX).min(kind.len()), kind,
             start: node_table::starts(table),
             end: node_table::ends(table),
             parent: node_table::parent_ids(table),
@@ -42,6 +44,14 @@ impl<'a> FileVersion<'a> {
             by_start: Default::default(), by_end: Default::default(), by_line: Default::default(),
             attached: Default::default(), tokens: Default::default(), roots: Default::default(), lines: Default::default(),
             kinds: Default::default(),
+        }
+    }
+
+    /// How many elements of the table a node relation of `extent` covers.
+    pub(crate) fn limit(&self, extent: super::Extent) -> usize {
+        match extent {
+            super::Extent::Own => self.own,
+            super::Extent::Whole => self.n,
         }
     }
 

@@ -2,7 +2,7 @@
 //! their row functions during plan load and preserve Boolean short-circuit order.
 use super::fact_view::Columns;
 use super::cold_word::{self, Test, Word};
-use super::{E, File, NULL, Native, Op, Run, Ty, ViewSpec};
+use super::{E, Extent, File, NULL, Native, Op, Run, Ty, ViewSpec};
 
 type Row = Box<dyn Fn(&File<'_>, &mut Run, Columns<'_>, u32) -> bool>;
 enum Action {
@@ -85,7 +85,7 @@ fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
             (Native::Child(_), 3) if run.file_field_codes => {
                 let test = word.bind();
                 Action::Rows(Box::new(move |f, run, _, r| {
-                    let field = f.native_get(run, Native::Child(_), r, 3);
+                    let field = f.native_get(run, Native::Child(Extent::Whole), r, 3);
                     test(run, field)
                 }))
             }

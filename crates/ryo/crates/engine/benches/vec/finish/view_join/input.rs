@@ -1,7 +1,7 @@
 //! Consumers of an ordered row stream can read the provider columns in place.
 //! A later consumer can still request a full projection of the same logical result.
 use super::{
-    Exec, File, Native, Provider, R, Run, Schema, Table, ViewSpec, cold_bucket::Rows, leaf_scan,
+    Exec, Extent, File, Native, Provider, R, Run, Schema, Table, ViewSpec, cold_bucket::Rows, leaf_scan,
     pos, view_cols, view_rows_for,
 };
 use rustc_hash::FxHashMap;
@@ -37,7 +37,7 @@ impl Exec<'_> {
         };
         // Gathering a tree text column may assign fresh run symbols. Keep the
         // original column order wherever that side effect could be observable.
-        if (view.base == Native::Tree(_) && view.map.contains(&2)) || !accepts(&view) {
+        if (view.base.shape() == Native::Tree(Extent::Whole) && view.map.contains(&2)) || !accepts(&view) {
             return Ok(None);
         }
         if !matches!(self.res(f, run, p, node)?, super::Res::View(_)) {

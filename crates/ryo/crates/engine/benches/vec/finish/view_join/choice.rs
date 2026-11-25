@@ -1,6 +1,6 @@
 //! Reverse a native equality only when the other input has a known smaller
 //! cardinality. Preserve the original pair order for order-sensitive consumers.
-use super::{File, Native, Run, Src, ViewSpec, cold_bucket::Rows, view_probe};
+use super::{Extent, File, Native, Run, Src, ViewSpec, cold_bucket::Rows, view_probe};
 use super::select_kernel::Pushed;
 use ryo::languages::{Position, node_table};
 use view_probe::Ids;
@@ -78,7 +78,7 @@ pub(super) fn reverse(
     let hits = view_probe::filtered_pairs(f, run, sources, batch, old, key, pushed, |_, new_id, old_id| {
         pairs.push((old_id, new_id));
     })?;
-    if (new.base, new.map[columns[other]]) == (Native::Child(_), 0) {
+    if (new.base, new.map[columns[other]]) == (Native::Child(Extent::Whole), 0) {
         pairs
             .sort_unstable_by_key(|&(a, b)| (a, node_table::ordinal_of(f.table, Position(b)).0, b));
     } else {

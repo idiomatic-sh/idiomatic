@@ -1,5 +1,5 @@
 //! Compile a base-view field test once for the run's provider vocabulary.
-use super::{Exec, File, Native, Run, ViewSpec};
+use super::{Exec, Extent, File, Native, Run, ViewSpec};
 use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -60,7 +60,7 @@ impl Kernel {
 // Positive literals in the same column of a conjunction intersect. Provider codes
 // with the same symbol (and out-of-vocabulary fields) keep their original meaning.
 fn field_members(v: &ViewSpec) -> Option<Vec<u32>> {
-    if v.base != Native::Child(_) {
+    if v.base.shape() != Native::Child(Extent::Whole) {
         return None;
     }
     let mut exprs = v.filter.iter();

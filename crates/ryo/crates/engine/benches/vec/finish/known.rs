@@ -10,7 +10,7 @@
 //! static part (kinds and file tests, through the inputs) is kept a file; the made part is read live (a probe's
 //! substitution changes what is made, never what the file holds).
 
-use super::{E, Exec, File, Native, Provider, Res, Run, filter_order};
+use super::{E, Exec, Extent, File, Native, Provider, Res, Run, filter_order};
 
 /// What a step needs to return anything, prepared once a run (at its first ask).
 pub(super) struct Need {
@@ -239,7 +239,7 @@ impl Exec<'_> {
         let codes = |run: &Run, syms: &[u32]| -> Box<[u16]> { run.kind_sym.iter().enumerate().filter(|(_, s)| syms.contains(s)).map(|(c, _)| c as u16).collect() };
         let file_test = |conj: &[E]| conj.iter().any(|c| filter_order::file_const(c) && !matches!(c, E::Lit(_)));
         if let Ok(Some(v)) = self.view(run, node) {
-            if v.base == Native::Tree(_) {
+            if v.base.shape() == Native::Tree(Extent::Whole) {
                 n.kinds = v.filter.iter().filter_map(|c| super::kind_set(run, std::slice::from_ref(c), 0, v.base, &[])).map(|ks| codes(run, &ks)).collect();
             }
             n.file_test = file_test(&v.filter);
@@ -256,7 +256,7 @@ impl Exec<'_> {
                 let mut kinds = Vec::new();
                 for (i, s) in sp.srcs.iter().enumerate() {
                     if let Ok(Some(v)) = self.view(run, *s)
-                        && v.base == Native::Tree(_)
+                        && v.base.shape() == Native::Tree(Extent::Whole)
                     {
                         kinds.extend(sp.conj.iter().filter_map(|c| super::kind_set(run, std::slice::from_ref(c), i, v.base, &v.map)).map(|ks| codes(run, &ks)));
                     }

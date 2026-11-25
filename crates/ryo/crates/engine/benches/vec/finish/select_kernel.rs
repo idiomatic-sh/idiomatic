@@ -10,7 +10,7 @@
 //! runs the interpreter's `select` instead (the oracle). A node with a form the kernels do not cover goes to the
 //! interpreter's `select` too (`VEC_KSEL_LOG=<path>` lists each node's path once a run).
 
-use super::{E, Exec, File, Native, Op, TextTest, Provider, R, Run, Src, Table, Ty, V, NULL};
+use super::{E, Exec, Extent, File, Native, Op, TextTest, Provider, R, Run, Src, Table, Ty, V, NULL};
 use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, truthy, view_holds, view_rows};
 use rustc_hash::FxHashSet;
 
@@ -701,7 +701,7 @@ impl Exec<'_> {
                 continue;
             }
             if deferred.is_some_and(|d| d.0 == i) {
-                srcs.push(Src::Base(Native::Tree(_)));
+                srcs.push(Src::Base(Native::Tree(Extent::Whole)));
                 continue;
             }
             let src = match if i < 4 { self.lazy_view(f, run, *n, conj, i, kp.kinds[i].0.is_some() || kp.kinds[i].1.is_some())? } else { None } {

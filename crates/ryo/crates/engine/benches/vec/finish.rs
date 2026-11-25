@@ -602,10 +602,10 @@ pub(super) enum Extent {
 /// The relations of the tree read in place, by position.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(super) enum Native {
-    /// `syntax-tree` / `semantic-syntax`: a row an element.
-    Tree,
-    /// `semantic-child` / `syntax-child`: a row an element with a parent.
-    Child,
+    /// `syntax-tree` / `semantic-syntax`: a row an element, of the extent the catalog states for the relation.
+    Tree(Extent),
+    /// `semantic-child` / `syntax-child`: a row an element with a parent, of the extent the catalog states for the relation.
+    Child(Extent),
     /// `source-location`: a row an element.
     Location,
     /// `token-link`: a row a (source token, link kind), from the token order; row = source * 3 + kind.
@@ -614,6 +614,17 @@ pub(super) enum Native {
     /// that column's keyed list (made from the fill on the first ask in a file), and `col = literal` enters by its bucket.
     /// The number is the relation's place in `Run::fact_rels`.
     Fact(u16),
+}
+
+impl Native {
+    /// The relation's shape alone, its extent set aside: what two reads share when they read the same columns of the table.
+    pub(super) fn shape(self) -> Self {
+        match self {
+            Self::Tree(_) => Self::Tree(Extent::Whole),
+            Self::Child(_) => Self::Child(Extent::Whole),
+            other => other,
+        }
+    }
 }
 
 /// 6h: the rows of the keyed lists made from provider fills (one entry a fill row a column asked), for the report.
@@ -3090,7 +3101,7 @@ impl<'p> Exec<'p> {
 
     /// The hierarchy an axis walks: the tree, a view probed by its child and parent columns, or a made table indexed once.
     fn hier(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: usize) -> R<Hier> {
-        if !f.after_last_file && self.plan.nodes[rel].op() == "base" && native_of(run, self.plan.nodes[rel].base().unwrap_or("")) == Some(Native::Child(_)) {
+        if !f.after_last_file && self.plan.nodes[rel].op() == "base" && native_of(run, self.plan.nodes[rel].base().unwrap_or("")) == Some(Native::Child(Extent::Whole)) {
             return Ok(Hier::Tree);
         }
         let rsc = self.schema(run, rel)?;
@@ -3726,7 +3737,7 @@ fn lit_pick_for(conj: &[E], si: usize, map: &[usize], symbol_column: impl Fn(usi
 /// The kinds a conjunction requires of a tree source's `kind` column (a literal or an or of literals), if any. `map` takes a
 /// view's column to its base column (empty: the columns are the base's).
 fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
-    if base != Native::Tree(_) {
+    if base.shape() != Native::Tree(Extent::Whole) {
         return None;
     }
     let is_kind = |c: usize| if map.is_empty() { c == 1 } else { map.get(c) == Some(&1) };
