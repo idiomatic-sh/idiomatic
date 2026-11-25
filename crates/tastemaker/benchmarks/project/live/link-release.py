@@ -312,9 +312,9 @@ definition = definition.replace("        Self {\n            name,", "        Se
 language_type.write_text(definition)
 composition = cli / "languages.rs"
 edges = composition.read_text()
-for name in ("rust", "toml", "json", "markdown", "typescript", "python"):
+for name in ("rust", "toml", "json", "markdown", "typescript", "go", "python"):
     dependency(cli_manifest, "native_" + name, "idiomatic-sh-ryo-" + name, engine_tree / "languages" / name, ("fixtures",) if name == "python" else ())
-    if name in ("rust", "toml", "json", "markdown", "typescript"):
+    if name in ("rust", "toml", "json", "markdown", "typescript", "go"):
         factory = "linked"
         edges = edges.replace(f'ryo_{name}::linked(),', f'{{ let mut provider = ryo_{name}::linked(); provider.native_provider = Some(native_{name}::{factory}()); provider }},')
 composition.write_text(edges)
