@@ -3,6 +3,7 @@
 
 pub(crate) mod constants;
 mod holding;
+pub(crate) mod numbered;
 mod placing;
 pub(crate) mod service;
 pub(crate) mod types;

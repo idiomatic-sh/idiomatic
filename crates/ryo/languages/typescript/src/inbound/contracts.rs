@@ -2,3 +2,4 @@
 
 pub(crate) mod parse;
 pub(crate) mod project;
+pub(crate) mod walk;

@@ -5,6 +5,7 @@ mod constants;
 #[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod fixtures;
 mod flow;
+mod output;
 mod patterns;
 mod projection;
 mod schemas;

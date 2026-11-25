@@ -7,6 +7,7 @@ pub(crate) mod decorations;
 pub(crate) mod extras;
 pub(crate) mod fact_notes;
 pub(crate) mod fields;
+pub(crate) mod file_view;
 pub(crate) mod imports;
 pub(crate) mod language;
 pub(crate) mod links;

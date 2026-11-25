@@ -29,6 +29,26 @@ impl SyntaxPort for SyntaxFake {
         );
         languages::leave_node(builder, end);
     }
+
+    fn walk(
+        &self,
+        text: SourceText<'_>,
+        _dialect: Dialect,
+        builder: &mut languages::NodeTableBuilder<'_>,
+    ) {
+        use languages::{FieldCode, node_table};
+        let end = languages::Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));
+        let start = languages::Offset(0);
+        node_table::enter_node(builder, kind_bits(Kind::Node(Node::Program)), FieldCode(0), start);
+        node_table::token(
+            builder,
+            kind_bits(Kind::Token(Token::IdentifierToken)),
+            FieldCode(0),
+            start,
+            end,
+        );
+        node_table::leave_node(builder, end);
+    }
 }
 
 #[cfg(test)]

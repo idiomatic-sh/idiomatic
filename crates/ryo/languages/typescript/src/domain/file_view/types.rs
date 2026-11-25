@@ -1,0 +1,24 @@
+//! The types of the `file_view` concept: the language as the engine's walk names it, and the view of one walked file the fillers read.
+
+use ryo::languages::{ByteSlice, FileId, NodeTable};
+
+/// The typescript language as the engine walks it, over the ports `P` its walk calls. Its fillers call no port, so a `fills!` item
+/// names the language with none (`TypeScriptWalk`), and the same fillers serve the walk an edge composes over its ports.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct TypeScriptWalk<P = ()> {
+    /// The ports the walk calls.
+    pub(crate) ports: P,
+}
+
+/// One walked file as the fillers read it: its numbered node table and its text. The parse, the typed node of each id and the
+/// model each filler reads are added to this view as the relations are filled.
+#[derive(Debug)]
+#[cfg_attr(test, expect(dead_code, reason = "the fillers read the view's table, text and number as their relations are written"))]
+pub(crate) struct TypeScriptFile<'f> {
+    /// The file's node table, finished.
+    pub(crate) table: &'f NodeTable,
+    /// The file's bytes.
+    pub(crate) source: ByteSlice<'f>,
+    /// The file's number.
+    pub(crate) file: FileId,
+}

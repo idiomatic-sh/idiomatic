@@ -1,11 +1,12 @@
 //! Read TypeScript with Oxc and project its typed AST into TypeScript-ESTree nodes.
 
 use super::constants::{IMPORT_META, IMPORT_OPTIONS_KEY, NEW_TARGET, NOT_UTF8};
-use super::flow::service::{drafted_flow, written_flow};
-use super::patterns::service::{carried, constructed, written_patterns};
+use super::flow::service::drafted_flow;
+use super::output::{Elements, Numbered, Output};
+use super::patterns::service::{carried, constructed};
 use super::projection::service::{
     annotate, attach, expression_body, gap, insert, jsx_names, leaf, meta_words, node_properties,
-    normalized, parameter, write,
+    normalized, parameter,
 };
 use super::schemas::{node_kind, source_type_of, token_kind};
 use super::types::{
@@ -212,16 +213,32 @@ impl<'a> Visit<'a> for VisitorStack<'a> {
 }
 
 impl SyntaxPort for SyntaxOxcParserAdapter {
-    #[expect(
-        clippy::too_many_lines,
-        reason = "The parser result, tokens and diagnostics share one borrowed parse lifetime; this operation keeps their projection at that boundary"
-    )]
     fn read(
         &self,
         text: SourceText<'_>,
         dialect: Dialect,
         builder: &mut languages::TableBuilder<'_>,
     ) {
+        project(text, dialect, &mut Elements(builder));
+    }
+
+    fn walk(
+        &self,
+        text: SourceText<'_>,
+        dialect: Dialect,
+        builder: &mut languages::NodeTableBuilder<'_>,
+    ) {
+        project(text, dialect, &mut Numbered(builder));
+    }
+}
+
+/// Reads the text with Oxc and projects it into the standard tree, which `out` writes.
+#[expect(
+    clippy::too_many_lines,
+    reason = "The parser result, tokens and diagnostics share one borrowed parse lifetime; this operation keeps their projection at that boundary"
+)]
+fn project(text: SourceText<'_>, dialect: Dialect, out: &mut dyn Output) {
+    {
         let source = languages::readable_text(languages::ByteSlice(text.0)).0;
         let allocator = Allocator::default();
         let source_type = source_type_of(dialect);
@@ -234,10 +251,7 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
             .parse();
         // References and symbol cells are used by the syntax projection. Only
         // the four flow relations publish the graph and its node memberships.
-        let needs_flow = builder.reads_any(&[
-            languages::Relation::FlowBlock, languages::Relation::FlowEdge,
-            languages::Relation::FlowMember, languages::Relation::FlowStep,
-        ]);
+        let needs_flow = out.needs_flow();
         let semantic = oxc_semantic::SemanticBuilder::new()
             .with_check_syntax_error(true)
             .with_build_nodes(true)
@@ -278,11 +292,8 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
                 let mapped = match token_kind(token.kind()) {
                     Ok(token) => Kind::Token(token),
                     Err(unrecognized) => {
-                        languages::diagnose(
-                            builder,
-                            languages::ReportText(&format!(
-                                "unrecognized parser token: {unrecognized:?}"
-                            )),
+                        out.diagnose(
+                            &format!("unrecognized parser token: {unrecognized:?}"),
                             Offset(span.start),
                             Offset(span.end),
                         );
@@ -352,21 +363,19 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
             .as_mut()
             .map(|(_, positions)| positions.0.as_mut_slice())
             .unwrap_or_default();
-        write(&mut root, &mut projection.carriers, positions, builder);
+        out.tree(&mut root, &mut projection.carriers, positions, source);
         if let Some((flow, positions)) = flow {
-            written_flow(&flow, &positions, builder);
+            out.flow(&flow, &positions);
         }
-        written_patterns(
+        out.patterns(
             &allocator,
             languages::NameText(source),
             &projection.carriers,
             &projection.scoping,
-            builder,
         );
         // The parser accepts a file when neither it nor the semantic pass's syntax check reported an error and every byte was
         // readable: the files oxlint lints, where it reports only the error for any other.
-        languages::set_syntax_acceptance(
-            builder,
+        out.accept(
             if parsed.diagnostics.is_empty()
                 && semantic.diagnostics.is_empty()
                 && readable == length
@@ -384,20 +393,10 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
                 .map_or(Span::new(0, readable), |label| {
                     Span::new(label.offset(), label.offset().saturating_add(label.len()))
                 });
-            languages::diagnose(
-                builder,
-                languages::ReportText(&diagnostic.to_string()),
-                Offset(span.start),
-                Offset(span.end),
-            );
+            out.diagnose(&diagnostic.to_string(), Offset(span.start), Offset(span.end));
         }
         if readable < length {
-            languages::diagnose(
-                builder,
-                languages::ReportText(NOT_UTF8),
-                Offset(readable),
-                Offset(length),
-            );
+            out.diagnose(NOT_UTF8, Offset(readable), Offset(length));
         }
     }
 }
