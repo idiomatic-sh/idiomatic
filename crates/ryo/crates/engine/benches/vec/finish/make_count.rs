@@ -44,6 +44,7 @@ struct State {
     own: [f64; 4],
     dup: [f64; 2],
     dup_n: [u64; 2],
+    shown: u32,
 }
 
 thread_local! { static LOCAL: RefCell<Local> = RefCell::new(Local::default()); }
@@ -93,7 +94,7 @@ pub(super) fn enter() {
     LOCAL.with_borrow_mut(|s| s.stack.push(0.0));
 }
 
-pub(super) fn leave(id: u64, op: &str, file: u32, frame: u64, node: usize, total: f64, rows_in: usize, rows_out: usize) {
+pub(super) fn leave(plan: &super::Plan, id: u64, op: &str, file: u32, frame: u64, node: usize, total: f64, rows_in: usize, rows_out: usize) {
     let (children, program, binding) = LOCAL.with_borrow_mut(|l| {
         let children = l.stack.pop().unwrap_or(0.0);
         if let Some(parent) = l.stack.last_mut() {
@@ -125,6 +126,12 @@ pub(super) fn leave(id: u64, op: &str, file: u32, frame: u64, node: usize, total
             let same_node = entry.nodes.iter().any(|x| x.0 == frame && x.1 == node);
             let slot = usize::from(!same_node);
             s.dup[slot] += own;
+            if slot == 1 && s.shown < 3 {
+                if let Some(&(_, first)) = entry.nodes.iter().find(|x| x.0 == frame) {
+                    s.shown += 1;
+                    eprintln!("DUPSTEP\n  node {first}: {:?}\n  node {node}: {:?}", plan.nodes[first].step(), plan.nodes[node].step());
+                }
+            }
             s.dup_n[slot] += 1;
         }
         let entry = s.seen.get_mut(&(id, file)).expect("entry");
