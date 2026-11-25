@@ -823,14 +823,8 @@ pub(crate) fn visit<L: FileSource>(
             needed[binding] = true;
         }
     }
-    // Preparing a dense screen costs a pass over the binding index. Use it
-    // for an open visit when at least as many source versions share that cost.
-    // Smaller visits keep the retained per-program checks.
-    let bulk_screen = !keep || (selected.len() > 1 && selected.len() >= program_of.len());
-    let mut checks = bulk_screen.then(|| pairs::Checks::new(parser, programs, program_of, &needed, cut_of));
-    if keep && bulk_screen {
-        clocks.bulk_screen_files += selected.len();
-    }
+    let (scope, screen, positions) = state.screens.merged(parser, programs, program_of, &needed, cut_of);
+    clocks.bulk_screen_files += selected.len();
     let language = reader_declaration(parser);
     let mut local_requirements = HashMap::new();
     let mut local_ids = HashMap::new();
@@ -1273,41 +1267,30 @@ pub(crate) fn visit<L: FileSource>(
                 }
                 let scanned = held.literals.get_mut().scanned();
                 let mut span_bounds = HashMap::new();
-                let mut evaluate = |scope, screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
-                    let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
-                    screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
-                        &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref(), &facts, &packet, unknown, cut_of, &said, &mut span_bounds, &mut clocks.witnesses);
-                    for &(binding, slot, excluded) in jobs.iter() {
-                            if excluded { continue; }
-                            let (any, all) = screen.exact_roots[root(binding)];
-                            clocks.exact_inputs[0] += 1;
-                            clocks.exact_inputs[1] += usize::from(any);
-                            if !all { continue; }
-                            let b = bound[&binding].as_ref().unwrap();
-                            clocks.exact_inputs[2] += 1;
-                            clocks.exact_inputs[3] += usize::from(provider.projects_words);
-                            clocks.exact_inputs[4] += usize::from(said.iter().any(|part| b.facts.contains(&part.relation)));
-                            clocks.exact_inputs[5] += usize::from(!b.named.is_empty());
-                            clocks.exact_inputs[6] += usize::from(cut_of[binding].is_some());
-                            clocks.exact_inputs[7] += usize::from(!said.is_empty());
-                            if !said.is_empty() || !provider.projects_words || cut_of[binding].is_some() { continue; }
-                            if let Some(locations) = screen.exact_locations(root(binding)) {
-                                let mut rows = Vec::new();
-                                let result = b.plan.emits.iter().zip(locations).enumerate().try_for_each(
-                                    |(emit, ((rule, _, subject, keys), (columns, mask)))| finish::session::publish_locations(
-                                        &mut exec, &mut run, (binding, emit), rule, subject, keys, columns, mask, tree, id.0, &mut rows));
-                                certified.insert(slot, result.map(|()| Reported::from(rows)));
-                            }
-                    }
-                };
-                if let Some(screen) = &mut checks {
-                    evaluate(0, screen, &mut active, |binding| binding);
-                } else {
-                    let prepare = state.screens.groups(parser, programs, program_of, cut_of, &mut active,
-                        |index, screen, jobs| evaluate(index, screen, jobs, |_| 0));
-                    clocks.prepare += prepare;
-                    clocks.bound_proofs -= prepare;
-                    clocks.screen -= prepare;
+                let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
+                screen.exclude(&positions, &mut active, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
+                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref(), &facts, &packet, unknown, cut_of, &said, &mut span_bounds, &mut clocks.witnesses);
+                for &(binding, slot, excluded) in active.iter() {
+                        if excluded { continue; }
+                        let (any, all) = screen.exact_roots[positions[binding]];
+                        clocks.exact_inputs[0] += 1;
+                        clocks.exact_inputs[1] += usize::from(any);
+                        if !all { continue; }
+                        let b = bound[&binding].as_ref().unwrap();
+                        clocks.exact_inputs[2] += 1;
+                        clocks.exact_inputs[3] += usize::from(provider.projects_words);
+                        clocks.exact_inputs[4] += usize::from(said.iter().any(|part| b.facts.contains(&part.relation)));
+                        clocks.exact_inputs[5] += usize::from(!b.named.is_empty());
+                        clocks.exact_inputs[6] += usize::from(cut_of[binding].is_some());
+                        clocks.exact_inputs[7] += usize::from(!said.is_empty());
+                        if !said.is_empty() || !provider.projects_words || cut_of[binding].is_some() { continue; }
+                        if let Some(locations) = screen.exact_locations(positions[binding]) {
+                            let mut rows = Vec::new();
+                            let result = b.plan.emits.iter().zip(locations).enumerate().try_for_each(
+                                |(emit, ((rule, _, subject, keys), (columns, mask)))| finish::session::publish_locations(
+                                    &mut exec, &mut run, (binding, emit), rule, subject, keys, columns, mask, tree, id.0, &mut rows));
+                            certified.insert(slot, result.map(|()| Reported::from(rows)));
+                        }
                 }
                 clocks.literal_positions += held.literals.get_mut().scanned() - scanned;
             }

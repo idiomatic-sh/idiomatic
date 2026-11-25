@@ -33,23 +33,6 @@ fn vocabulary<L: FileSource>(parser: Option<&L>) -> crate::first::Vocab {
 }
 
 impl Checks {
-    pub(super) fn new<L: FileSource>(
-        parser: Option<&L>,
-        programs: &[Result<Program>],
-        program_of: &[usize],
-        needed: &[bool],
-        cuts: &[Option<Arc<crate::finish::partition::Partition>>],
-    ) -> Self {
-        let mut roots = vec![Vec::new(); program_of.len()];
-        let mut domains = vec![Vec::new(); program_of.len()];
-        for (binding, outputs) in roots.iter_mut().enumerate().filter(|(b, _)| needed[*b]) {
-            let id = program_of[binding];
-            let Ok(program) = &programs[id] else { continue };
-            domains[binding] = domain_steps(cuts[binding].as_deref());
-            *outputs = target_steps(program, cuts[binding].as_deref());
-        }
-        Self::from_roots(parser, &vocabulary(parser), programs, program_of, roots, domains)
-    }
     fn from_roots<L: FileSource>(
         parser: Option<&L>, vocab: &crate::first::Vocab, programs: &[Result<Program>], program_of: &[usize],
         mut roots: Vec<Vec<usize>>, mut domains: Vec<Vec<(usize, usize)>>,
@@ -185,7 +168,7 @@ impl Checks {
     }
     pub(super) fn exclude(
         &mut self,
-        root_for: impl Fn(usize) -> usize,
+        positions: &[usize],
         active: &mut [(usize, usize, bool)],
         bound: &mut super::Bindings<'_>,
         run: &mut Run,
@@ -216,7 +199,7 @@ impl Checks {
         let can_locate = text.is_some() && partials.is_empty();
         let mut locate = false;
         for &(binding, _, excluded) in active.iter() {
-            let index = root_for(binding);
+            let index = positions[binding];
             if !excluded && let Some(roots) = &self.roots[index] {
                 let b = bound[&binding].as_ref().expect("active binding");
                 let unpartitioned = cuts[binding].is_none();
@@ -312,7 +295,7 @@ impl Checks {
             if *excluded {
                 continue;
             }
-            let index = root_for(*binding);
+            let index = positions[*binding];
             let Some(roots) = &self.roots[index] else { continue };
             let cut = cuts[*binding].as_deref();
             // A complete output goes straight to delivery, as in the file
@@ -422,52 +405,63 @@ fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partit
     }
 }
 
-/// Open sessions receive more host bindings after each SDK call. A reader's
-/// vocabulary and a prepared program's output steps survive those boundaries.
+/// Each binding has immutable output steps. A visit prepares the union of the
+/// admitted shapes once, then uses the same roots in every file of that visit.
 #[derive(Default)]
 pub(super) struct Retained {
     vocabulary: Option<crate::first::Vocab>,
     shapes: HashMap<(usize, Vec<usize>, Vec<(usize, usize)>), usize>,
     bindings: Vec<Option<usize>>,
+    sets: HashMap<Vec<usize>, usize>,
     programs: Vec<Checks>,
     atoms: atoms::Atoms,
 }
+
 impl Retained {
-    pub(super) fn groups<L: FileSource>(
+    pub(super) fn merged<L: FileSource>(
         &mut self, parser: Option<&L>, programs: &[Result<Program>], program_of: &[usize],
-        cuts: &[Option<Arc<crate::finish::partition::Partition>>],
-        active: &mut [(usize, usize, bool)],
-        mut visit: impl FnMut(usize, &mut Checks, &mut [(usize, usize, bool)]),
-    ) -> f64 {
-        let mut prepare = 0.;
+        needed: &[bool], cuts: &[Option<Arc<crate::finish::partition::Partition>>],
+    ) -> (usize, &mut Checks, Vec<usize>) {
         self.bindings.resize(program_of.len(), None);
-        for &(binding, _, excluded) in active.iter() {
-            if excluded || self.bindings[binding].is_some() { continue; }
-            let id = program_of[binding];
-            let program = programs[id].as_ref().expect("active program");
-            let steps = target_steps(program, cuts[binding].as_deref());
-            let domains = domain_steps(cuts[binding].as_deref());
-            let index = *self.shapes.entry((id, steps, domains)).or_insert_with_key(|(_, steps, domains)| {
-                let start = super::thread_cpu();
-                let vocab = self.vocabulary.get_or_insert_with(|| vocabulary(parser));
-                let mut screen = Checks::from_roots(parser, vocab, std::slice::from_ref(&programs[id]),
-                    &[0], vec![steps.clone()], vec![domains.clone()]);
-                screen.atoms = self.atoms.bind(&screen.program);
-                let index = self.programs.len();
-                self.programs.push(screen);
-                prepare += super::thread_cpu() - start;
-                index
+        let mut members = std::collections::BTreeMap::new();
+        let mut positions = vec![usize::MAX; needed.len()];
+        for (binding, &admitted) in needed.iter().enumerate() {
+            if !admitted { continue; }
+            let program_id = program_of[binding];
+            let Ok(program) = &programs[program_id] else { continue };
+            let shape = *self.bindings[binding].get_or_insert_with(|| {
+                let cut = cuts[binding].as_deref();
+                let key = (program_id, target_steps(program, cut), domain_steps(cut));
+                let next = self.shapes.len();
+                *self.shapes.entry(key).or_insert(next)
             });
-            self.bindings[binding] = Some(index);
+            positions[binding] = shape;
+            members.insert(shape, binding);
         }
-        let group = |job: &(usize, usize, bool)| (!job.2).then(|| self.bindings[job.0]).flatten();
-        let sort = !active.is_sorted_by_key(group);
-        if sort { active.sort_unstable_by_key(group); }
-        for jobs in active.chunk_by_mut(|a, b| group(a) == group(b)) {
-            if let Some(index) = group(&jobs[0]) { visit(index, &mut self.programs[index], jobs); }
+        let key: Vec<_> = members.keys().copied().collect();
+        let index = *self.sets.entry(key).or_insert_with(|| {
+            let mut ids = Vec::with_capacity(members.len());
+            let mut roots = Vec::with_capacity(members.len());
+            let mut domains = Vec::with_capacity(members.len());
+            for &binding in members.values() {
+                let id = program_of[binding];
+                let program = programs[id].as_ref().expect("admitted program");
+                let cut = cuts[binding].as_deref();
+                ids.push(id);
+                roots.push(target_steps(program, cut));
+                domains.push(domain_steps(cut));
+            }
+            let vocab = self.vocabulary.get_or_insert_with(|| vocabulary(parser));
+            let mut screen = Checks::from_roots(parser, vocab, programs, &ids, roots, domains);
+            screen.atoms = self.atoms.bind(&screen.program);
+            let index = self.programs.len();
+            self.programs.push(screen);
+            index
+        });
+        for (pos, slot) in members.values_mut().enumerate() { *slot = pos; }
+        for shape in &mut positions {
+            if *shape != usize::MAX { *shape = members[shape]; }
         }
-        // FileInputs shares contributions in the schedule's original binding order.
-        if sort { active.sort_unstable_by_key(|job| job.0); }
-        prepare
+        (index, &mut self.programs[index], positions)
     }
 }
