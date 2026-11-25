@@ -105,8 +105,15 @@ fn import_of(tree: &Tree<'_>, alias: Position) -> Option<ImportNote> {
 
 /// The text from `start` to `end` as the file writes it, its whitespace left out.
 fn spelled(tree: &Tree<'_>, start: languages::Offset, end: languages::Offset) -> Spelling {
-    let text = tree
-        .source
+    source_spelling(tree.source, start, end)
+}
+
+fn source_spelling(
+    source: languages::ByteSlice<'_>,
+    start: languages::Offset,
+    end: languages::Offset,
+) -> Spelling {
+    let text = source
         .0
         .get(
             usize::try_from(start.0).unwrap_or(usize::MAX)
@@ -115,4 +122,38 @@ fn spelled(tree: &Tree<'_>, start: languages::Offset, end: languages::Offset) ->
         .map(String::from_utf8_lossy)
         .unwrap_or_default();
     Spelling(text.split_whitespace().collect::<String>().into())
+}
+
+/// Read the same project notes from the parser's lent numbering.
+#[cfg(feature = "fixtures")]
+pub(crate) fn noted_walk(
+    file: &crate::fixtures::columns::ColumnFile<'_, '_>,
+    source: languages::ByteSlice<'_>,
+) -> Note {
+    let mut imports = Vec::new();
+    file.visit_import_aliases(|alias| {
+        let span = languages::node_table::span_of(file.table, Position(alias.id));
+        let (form, path) = if alias.form == "import" {
+            (Form::Module, alias.written_name.to_owned())
+        } else {
+            let module = alias.written_module.trim_start_matches('.');
+            if alias.written_name == "*" {
+                (Form::Everything, module.to_owned())
+            } else if module.is_empty() {
+                (Form::Name, alias.written_name.to_owned())
+            } else {
+                (Form::Name, format!("{module}.{}", alias.written_name))
+            }
+        };
+        imports.push(ImportNote {
+            form,
+            level: Level(alias.dots.len().try_into().expect("relative import level")),
+            path: DottedPath(path.into()),
+            start: span.start,
+            end: span.end,
+            text: source_spelling(source, span.start, span.end),
+        });
+    });
+    imports.sort_by_key(|note| note.start.0);
+    Note { imports }
 }

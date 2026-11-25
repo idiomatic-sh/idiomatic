@@ -3,6 +3,8 @@
 pub(crate) mod constants;
 pub(crate) mod contract;
 pub(crate) mod readers;
+#[cfg(feature = "fixtures")]
+mod numbered;
 mod semantics;
 pub(crate) mod service;
 

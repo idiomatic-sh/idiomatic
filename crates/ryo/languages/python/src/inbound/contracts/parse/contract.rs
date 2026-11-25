@@ -279,9 +279,9 @@ impl Parse for ParseContract {
     }
 }
 
-
 #[cfg(feature = "fixtures")]
 impl languages::FileRelations for ParseContract {
+    fn numbered(&self) -> Option<&dyn languages::NumberedVisit> { Some(self) }
     fn uses_project(&self) -> bool { true }
     fn declarations(&self) -> &'static [languages::FileRelation] {
         crate::fixtures::columns::ColumnFile::named_schemas()
@@ -350,39 +350,10 @@ impl languages::FileRelations for ParseContract {
         }
         let mut result = None;
         let read = ColumnWalk::retained(self.settings, request, elements, &mut |file, positions| {
-            let lists = self.named.as_ref().map(|(_, lists)| lists);
-            let generic = |word: &[u8]| lists.is_some_and(|l| l.generic.contains(word));
-            let argument = |word: &[u8]| lists.is_some_and(|l| l.argument_forms.contains(word));
-            let modules = lists.map_or(&[][..], |l| l.modules.as_slice());
-            let uses_package = |s: &languages::FileRelation| match s.name {
-                "import-head" => file.import_statement_count() != 0,
-                "relative-import-target" => file.has_relative_imports(),
-                _ => false,
-            };
-            let needs_package: Vec<_> = projected.iter().map(|s| uses_package(s)).collect();
-            let package = project.filter(|_| needs_package.iter().any(|&needed| needed)).map(|project| crate::fixtures::import_environment::package(project, request.path.0)).transpose();
-            let observed_package = package.as_ref().ok().and_then(Option::as_ref)
-                .map(|(parent, root)| (parent.as_deref(), root.as_str()));
-            let mut failure = None;
-            let mut prefixes = |target: &str| {
-                match crate::fixtures::import_environment::prefixes(project.expect("declared roots"), target) {
-                    Ok(prefixes) => prefixes,
-                    Err(error) => { failure = Some(error); Default::default() }
-                }
-            };
-            let lookup = project.filter(|p| p.roots().is_some()).map(|_| &mut prefixes as &mut dyn FnMut(&str) -> (String, String, bool));
-            let mut answers = file.answer_named_facts_covered(&projected, request.file, request.path.0, request.bytes, symbols,
-                Some((&generic, &argument, modules)), observed_package, lookup);
-            for ((schema, answer), needed) in projected.iter().zip(&mut answers).zip(needs_package) {
-                if needed && let Err(error) = &package {
-                    *answer = Err(languages::ParseError::Library { reason: languages::ToolMessage(error.as_str().into()) });
-                    continue;
-                }
+            let mut answers = self.named_in(file, &projected, request, symbols, project);
+            for (schema, answer) in projected.iter().zip(&mut answers) {
                 if let Ok(rows) = answer && let Err(error) = crate::fixtures::columns::positions::publish(&mut rows.columns, schema, request.file, positions) {
                     *answer = Err(error);
-                }
-                if let Some(error) = failure.as_ref().filter(|_| schema.name == "import-head") {
-                    *answer = Err(languages::ParseError::Library { reason: languages::ToolMessage(error.as_str().into()) });
                 }
             }
             result = Some(answers);
@@ -396,5 +367,52 @@ impl languages::FileRelations for ParseContract {
         } else {
             answers.next().expect("requested projection")
         }).collect()
+    }
+}
+
+#[cfg(feature = "fixtures")]
+impl ParseContract {
+    /// Answer the named batch while its provider-owned file and model are live.
+    pub(super) fn named_in(
+        &self,
+        file: &mut crate::fixtures::columns::ColumnFile<'_, '_>,
+        projected: &[&languages::FileRelation],
+        request: languages::ParseRequest<'_>,
+        symbols: &mut languages::Symbols,
+        project: Option<&dyn languages::FileProject>,
+    ) -> Vec<Result<languages::FileRows, languages::ParseError>> {
+        let lists = self.named.as_ref().map(|(_, lists)| lists);
+        let generic = |word: &[u8]| lists.is_some_and(|l| l.generic.contains(word));
+        let argument = |word: &[u8]| lists.is_some_and(|l| l.argument_forms.contains(word));
+        let modules = lists.map_or(&[][..], |l| l.modules.as_slice());
+        let uses_package = |s: &languages::FileRelation| match s.name {
+            "import-head" => file.import_statement_count() != 0,
+            "relative-import-target" => file.has_relative_imports(),
+            _ => false,
+        };
+        let needs_package: Vec<_> = projected.iter().map(|s| uses_package(s)).collect();
+        let package = project.filter(|_| needs_package.iter().any(|&needed| needed)).map(|project| crate::fixtures::import_environment::package(project, request.path.0)).transpose();
+        let observed_package = package.as_ref().ok().and_then(Option::as_ref)
+            .map(|(parent, root)| (parent.as_deref(), root.as_str()));
+        let mut failure = None;
+        let mut prefixes = |target: &str| {
+            match crate::fixtures::import_environment::prefixes(project.expect("declared roots"), target) {
+                Ok(prefixes) => prefixes,
+                Err(error) => { failure = Some(error); Default::default() }
+            }
+        };
+        let lookup = project.filter(|p| p.roots().is_some()).map(|_| &mut prefixes as &mut dyn FnMut(&str) -> (String, String, bool));
+        let mut answers = file.answer_named_facts_covered(projected, request.file, request.path.0, request.bytes, symbols,
+            Some((&generic, &argument, modules)), observed_package, lookup);
+        for ((schema, answer), needed) in projected.iter().zip(&mut answers).zip(needs_package) {
+            if needed && let Err(error) = &package {
+                *answer = Err(languages::ParseError::Library { reason: languages::ToolMessage(error.as_str().into()) });
+                continue;
+            }
+            if let Some(error) = failure.as_ref().filter(|_| schema.name == "import-head") {
+                *answer = Err(languages::ParseError::Library { reason: languages::ToolMessage(error.as_str().into()) });
+            }
+        }
+        answers
     }
 }

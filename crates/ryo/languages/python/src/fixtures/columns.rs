@@ -291,11 +291,11 @@ pub struct Region {
 pub struct ColumnFile<'a, 'f> {
     /// The node table.
     pub table: &'a NodeTable,
-    file: &'a mut PythonFile<'f>,
+    pub(crate) file: &'a mut PythonFile<'f>,
     relative_froms: &'a [Position],
     import_presence: crate::domain::node::types::ImportPresence,
     memo: &'a mut TextMemo,
-    words: &'a mut FileWords,
+    pub(crate) words: &'a mut FileWords,
 }
 
 /// The catalog place of a column of a relation.

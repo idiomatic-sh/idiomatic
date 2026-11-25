@@ -34,6 +34,7 @@ ruff_python_ast = "=0.0.18"
 ruff_text_size = "=0.0.18"
 unicode-properties = { version = "=0.1.4", default-features = false, features = ["general-category"] }
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.2.0" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/relations", optional = true }
 # THROWAWAY (ryo-fmx3.1): the `vec` bench's Arrow kernels, behind `vec-arrow`.
 arrow-array = { version = "=60.0.0", optional = true }
 arrow-buffer = { version = "=60.0.0", optional = true }
@@ -62,7 +63,6 @@ cpu-time = "1"
 aho-corasick = "1"
 rustc-hash = "2"
 foldhash = "0.2"
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/relations" }
 # 8 (ryo-fmx3.1): the executor's kernels live in the engine crate; the bench calls them.
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../crates/engine" }
 regex = "1"
@@ -104,7 +104,7 @@ vec-glibc = []
 vec-mimalloc = ["dep:mimalloc"]
 vec-dhat = []
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
-fixtures = ["ryo/fixtures", "dep:serde_json", "dep:memchr"]
+fixtures = ["ryo/fixtures", "dep:serde_json", "dep:memchr", "dep:ryo_relations"]
 
 [lints]
 workspace = true
