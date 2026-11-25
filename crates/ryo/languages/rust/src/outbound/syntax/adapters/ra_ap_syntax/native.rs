@@ -107,18 +107,7 @@ pub(crate) fn read(
     columns: l::NativeColumns,
     access: l::NodeAccess<'_>,
 ) {
-    read_with(bytes, table, origins, flags, columns, access, crate::domain::model::types::ProviderRevision::Current);
-}
-
-pub(crate) fn read_released(
-    bytes: &[u8],
-    table: &mut l::NodeTable,
-    origins: &mut Vec<l::ExpandedPosition>,
-    flags: &mut Vec<l::Flags>,
-    columns: l::NativeColumns,
-    access: l::NodeAccess<'_>,
-) {
-    read_with(bytes, table, origins, flags, columns, access, crate::domain::model::types::ProviderRevision::Released014);
+    read_with(bytes, table, origins, flags, columns, access);
 }
 
 fn read_with(
@@ -128,12 +117,11 @@ fn read_with(
     flags: &mut Vec<l::Flags>,
     columns: l::NativeColumns,
     access: l::NodeAccess<'_>,
-    revision: crate::domain::model::types::ProviderRevision,
 ) {
     origins.clear();
     flags.clear();
     let mut builder = t::builder(table, l::Count(kinds().count()));
-    SyntaxRaApSyntaxAdapter::new(OpaqueMacros(&OPAQUE_MACROS)).with_revision(revision).walk(
+    SyntaxRaApSyntaxAdapter::new(OpaqueMacros(&OPAQUE_MACROS)).walk(
         SourceText(bytes),
         &mut Writer {
             table: &mut builder,

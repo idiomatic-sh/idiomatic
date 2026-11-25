@@ -25,18 +25,12 @@ use ryo::languages::{self, Count, Flag, Offset, Position};
 pub(crate) struct SyntaxRaApSyntaxAdapter {
     /// The built-in macros whose arguments are never read again.
     opaque: OpaqueMacros<'static>,
-    revision: crate::domain::model::types::ProviderRevision,
 }
 
 impl SyntaxRaApSyntaxAdapter {
     /// The adapter, reading again the arguments of every macro call but those of the macros `opaque` names.
     pub(crate) const fn new(opaque: OpaqueMacros<'static>) -> Self {
-        Self { opaque, revision: crate::domain::model::types::ProviderRevision::Current }
-    }
-
-    pub(crate) fn with_revision(mut self, revision: crate::domain::model::types::ProviderRevision) -> Self {
-        self.revision = revision;
-        self
+        Self { opaque }
     }
 }
 
@@ -68,7 +62,6 @@ impl SyntaxRaApSyntaxAdapter {
         };
         let mut walker = Walker {
             opaque: self.opaque,
-            revision: self.revision,
             name_from: Offset(0),
             name_to: Offset(0),
             armed: Flag::Lowered,
@@ -76,7 +69,6 @@ impl SyntaxRaApSyntaxAdapter {
             held: None,
             found: Vec::new(),
             buffer: ArgumentList::default(),
-            fragment_steps: Vec::new(),
         };
         // The library answers whether the walk reached the end of the text, which a whole file's walk always does.
         let _: bool = lexed.intersperse_trivia(&output, &mut |step| {
@@ -99,10 +91,7 @@ impl SyntaxRaApSyntaxAdapter {
                     if matches!(step, Step::Enter(_) | Step::Token(..)) {
                         builder.origin(cursor.next, expansion.host, made);
                     }
-                    match self.revision {
-                        crate::domain::model::types::ProviderRevision::Released014 => emit(builder, whole, &step, &mut cursor),
-                        crate::domain::model::types::ProviderRevision::Current => feed(&mut walker, builder, whole, step, &mut cursor),
-                    }
+                    feed(&mut walker, builder, whole, step, &mut cursor);
                 }
             }
             builder.release();
@@ -139,16 +128,12 @@ pub(super) fn feed(
             }
             Step::Exit => each.depth.0 -= 1,
         }
-        if walker.revision == crate::domain::model::types::ProviderRevision::Released014 {
-            walker.fragment_steps.push(step);
-        }
         if each.depth.0 == 0
             && let Some(done) = walker.held.take()
         {
             walker.open.truncate(walker.open.len().saturating_sub(1));
             if let Some(arguments) = called(&done, walker, text, cursor.position)
-                && (!arguments.is_empty()
-                    || walker.revision == crate::domain::model::types::ProviderRevision::Released014)
+                && !arguments.is_empty()
             {
                 walker.found.push(Expansion {
                     host: done.host,
@@ -169,12 +154,7 @@ pub(super) fn feed(
                 .open
                 .last()
                 .is_some_and(|each| each.kind == SyntaxKind::MACRO_CALL);
-            let expands = match walker.revision {
-                crate::domain::model::types::ProviderRevision::Current => call,
-                crate::domain::model::types::ProviderRevision::Released014 => text.0
-                    .get(index(walker.name_from).0..index(walker.name_to).0)
-                    .is_some_and(|name| crate::domain::syntax::constants::EXPANDED_MACROS.contains(&name)),
-            };
+            let expands = call;
             walker.armed = if expands { Flag::Raised } else { Flag::Lowered };
         }
         Step::Token(SyntaxKind::WHITESPACE | SyntaxKind::COMMENT, _) | Step::Exit => {}
@@ -183,10 +163,6 @@ pub(super) fn feed(
             let name = text
                 .0
                 .get(index(walker.name_from).0..index(walker.name_to).0);
-            if walker.revision == crate::domain::model::types::ProviderRevision::Released014 {
-                walker.fragment_steps.clear();
-                walker.fragment_steps.push(Step::Enter(SyntaxKind::TOKEN_TREE));
-            }
             walker.held = Some(HeldMacro {
                 name: MacroName(name.unwrap_or_default().into()),
                 host: walker.open.last().map_or(Position(0), |each| each.at),
@@ -223,9 +199,6 @@ fn called(
     text: RustText<'_>,
     end: Offset,
 ) -> Option<Vec<MacroArgument>> {
-    if walker.revision == crate::domain::model::types::ProviderRevision::Released014 {
-        return super::fragments::expanded(&done.name, text, done.start, &walker.fragment_steps);
-    }
     let closed = matches!(
         (done.opening?, done.closing?),
         (SyntaxKind::L_PAREN, SyntaxKind::R_PAREN)

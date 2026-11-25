@@ -37,7 +37,6 @@ use crate::outbound::syntax::interface::SyntaxPort;
 pub(crate) struct ParseContract {
     /// The parser that turns a file's text into its tree.
     syntax: Arc<dyn SyntaxPort>,
-    revision: crate::domain::model::types::ProviderRevision,
     /// The store that keeps what a parse noted of a file for the project step to read.
     notes: Arc<dyn NotesPort>,
     /// The walk, lent to the engine as numbered files: the one way the engine reads the language's files.
@@ -48,7 +47,7 @@ impl ParseContract {
     /// `parse` over the ports it calls, which the edge injects.
     #[must_use]
     pub(crate) fn new(syntax: Arc<dyn SyntaxPort>, notes: Arc<dyn NotesPort>) -> Self {
-        Self { syntax, notes, revision: Default::default(), numbered: None }
+        Self { syntax, notes, numbered: None }
     }
 
     /// The contract handing out `walk` as the language's numbered visit.
@@ -56,11 +55,6 @@ impl ParseContract {
         self.numbered = Some(languages::NumberedWalk::new(crate::domain::file_view::types::RustWalk {
             ports: crate::inbound::contracts::walk::contract::WalkPorts { syntax },
         }));
-        self
-    }
-
-    pub(crate) fn with_revision(mut self, revision: crate::domain::model::types::ProviderRevision) -> Self {
-        self.revision = revision;
         self
     }
 }
@@ -74,10 +68,7 @@ impl Parse for ParseContract {
 
     fn native_reader(&self) -> Option<languages::NativeReader> {
         Some(languages::NativeReader {
-            read: match self.revision {
-                crate::domain::model::types::ProviderRevision::Released014 => crate::outbound::syntax::adapters::ra_ap_syntax::native::read_released,
-                crate::domain::model::types::ProviderRevision::Current => crate::outbound::syntax::adapters::ra_ap_syntax::native::read,
-            },
+            read: crate::outbound::syntax::adapters::ra_ap_syntax::native::read,
         })
     }
 
@@ -102,15 +93,11 @@ impl Parse for ParseContract {
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        languages::ParseConfigurationIdentity(match self.revision {
-            crate::domain::model::types::ProviderRevision::Current => NO_CONFIGURATION,
-            crate::domain::model::types::ProviderRevision::Released014 => "rust-provider-0.1.4",
-        })
+        languages::ParseConfigurationIdentity(NO_CONFIGURATION)
     }
 
     fn file_model(&self, _tree: &Tree<'_>, model: &mut ReadIndexes) {
         clear(model);
-        model.revision = self.revision;
     }
 
     fn recognizes(&self, request: &ParseRequest<'_>) -> Recognition {
