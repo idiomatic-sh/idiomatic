@@ -141,7 +141,9 @@ impl Source for Linked {
     fn words(&self) -> Vec<l::UnknownName> {
         self.parser.unknown_reasons().to_vec()
     }
-    fn fields(&self) -> l::FieldNames { self.parser.stable_fields() }
+    fn fields(&self) -> l::FieldNames {
+        self.scoped().and_then(l::NumberedVisit::fields).cloned().unwrap_or_else(|| self.parser.stable_fields())
+    }
     fn kinds(&self) -> Vec<&'static str> {
         self.parser
             .kind_names()

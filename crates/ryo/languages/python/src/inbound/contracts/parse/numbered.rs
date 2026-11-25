@@ -11,6 +11,8 @@ use ryo_relations::domain::relations::types::RowWriter;
 use std::sync::OnceLock;
 
 impl l::NumberedVisit for ParseContract {
+    fn fields(&self) -> Option<&l::FieldNames> { Some(&walk_vocabulary().0) }
+
     fn projections(&self) -> &'static [l::Relation] {
         &[l::Relation::SemanticSyntax, l::Relation::SemanticChild]
     }

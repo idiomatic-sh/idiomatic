@@ -123,6 +123,10 @@ pub trait FileRelations: Send + Sync {
 
 /// A provider that lends its own numbered tree until its consumer finishes.
 pub trait NumberedVisit: Send + Sync {
+    /// Field codes shared by every file lent by this visit. Without this
+    /// declaration the consumer can inspect each file's actual field names.
+    fn fields(&self) -> Option<&crate::domain::fillers::types::FieldNames> { None }
+
     /// Catalog relations whose complete rows are exactly the standard projection
     /// of the lent node table, its field names and its requested token words.
     /// A consumer may use this declaration only during this visit and subject
