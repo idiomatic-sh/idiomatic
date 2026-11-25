@@ -815,8 +815,11 @@ pub(crate) fn visit<L: FileSource>(
     debug_assert_eq!(run.paths.len(), sources.len());
     let t = thread_cpu();
     let mut needed = vec![false; program_of.len()];
+    let mut seen_selections = rustc_hash::FxHashSet::default();
     for &index in selected {
-        for (binding, _) in sources[index].bindings.iter() {
+        let bindings = &sources[index].bindings;
+        if bindings.common_id().is_some_and(|id| !seen_selections.insert(id)) { continue; }
+        for (binding, _) in bindings.iter() {
             needed[binding] = true;
         }
     }
@@ -842,6 +845,17 @@ pub(crate) fn visit<L: FileSource>(
     clocks.prepare += thread_cpu() - t;
     let mut bound = Bindings { index: vec![usize::MAX; program_of.len()], entries: Vec::new() };
     let mut registry = finish::session::contribution::Registry::default();
+    #[derive(Default)]
+    struct FileDemand {
+        facts: FactMask,
+        executable: bool,
+        native: bool,
+        words: bool,
+        fields: bool,
+        has_plan: bool,
+        refused: Vec<(usize, String)>,
+    }
+    let mut demands = rustc_hash::FxHashMap::default();
     let mut requested = Vec::new();
     let mut facts = Vec::new();
     let mut distinct = std::cell::RefCell::new(crate::pair_checks::FileSymbols::default());
@@ -918,27 +932,40 @@ pub(crate) fn visit<L: FileSource>(
             let t = thread_cpu();
             let start = keep.then(|| retention.clock()).flatten();
             let mut cached = start.and_then(|_| retention.take(index));
-            let mut required = FactMask::default();
-            let mut have_plan = false;
-            let mut unknown_permission = false;
-            let mut needs_native = false;
-            let mut projects_words = cached.is_some();
-            let mut projects_fields = cached.is_some();
-            for (binding, slot) in jobs.iter() {
-                match &bound[&binding] {
-                    Ok(b) => {
-                        have_plan = true;
-                        unknown_permission |= source.provided.is_some()
-                            && source.permission == Permission::Unknown
-                            && b.executable;
-                        needs_native |= !b.named.is_empty() || programs[program_of[binding]].as_ref().is_ok_and(|p| p.renders);
-                        for (word, bits) in required.iter_mut().zip(b.fact_mask) { *word |= bits; }
-                        projects_words |= b.projects_words;
-                        projects_fields |= b.reads_fields;
+            let demand = || {
+                let mut demand = FileDemand::default();
+                for (binding, _) in jobs.iter() {
+                    match &bound[&binding] {
+                        Ok(b) => {
+                            demand.has_plan = true;
+                            demand.executable |= b.executable;
+                            demand.native |= !b.named.is_empty() || programs[program_of[binding]].as_ref().is_ok_and(|p| p.renders);
+                            for (word, bits) in demand.facts.iter_mut().zip(b.fact_mask) { *word |= bits; }
+                            demand.words |= b.projects_words;
+                            demand.fields |= b.reads_fields;
+                        }
+                        Err(reason) => demand.refused.push((binding, reason.clone())),
                     }
-                    Err(reason) => answers.set(slot, Err(reason.clone())),
                 }
+                demand
+            };
+            let temporary;
+            let demand = if let Some(key) = jobs.common_id() {
+                &*demands.entry(key).or_insert_with(demand)
+            } else {
+                temporary = demand();
+                &temporary
+            };
+            for (binding, reason) in &demand.refused {
+                answers.set(jobs.lookup(*binding).expect("admitted binding"), Err(reason.clone()));
             }
+            let have_plan = demand.has_plan;
+            let required = demand.facts;
+            let unknown_permission = demand.executable && source.provided.is_some()
+                && source.permission == Permission::Unknown;
+            let needs_native = demand.native;
+            let projects_words = cached.is_some() || demand.words;
+            let projects_fields = cached.is_some() || demand.fields;
             clocks.prepare += thread_cpu() - t;
             requested_facts(required, &mut requested);
             if project_slots.is_empty() && !have_plan {

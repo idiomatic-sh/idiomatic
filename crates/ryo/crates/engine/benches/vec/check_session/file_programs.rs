@@ -19,6 +19,12 @@ pub(crate) struct FilePrograms {
 }
 
 impl FilePrograms {
+    /// Shared program order regardless of the file's ordinal. The source retains
+    /// the Arc for the entire visit; irregular overlaps have no shared identity.
+    pub(super) fn common_id(&self) -> Option<usize> {
+        self.common.as_ref().filter(|_| self.individual.is_empty()).map(|s| s.bases.as_ptr() as usize)
+    }
+
     pub(crate) fn len(&self) -> usize {
         self.common.as_ref().map_or(0, |s| s.bases.len()) + self.individual.len()
     }
