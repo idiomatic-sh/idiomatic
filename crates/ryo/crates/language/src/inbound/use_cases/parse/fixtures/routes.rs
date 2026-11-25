@@ -23,7 +23,7 @@ use crate::domain::elements::service::{end_at, end_of, kind_at, start_at};
 use crate::domain::node_table::service::{kind_codes, span_of};
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Position, Relation};
-use ryo_relations::domain::terms::service::unknown_reason;
+use ryo_relations::domain::terms::service::{term_text, unknown_reason};
 use ryo_relations::domain::terms::types::{NameText, Symbol};
 use std::path::Path;
 
@@ -208,7 +208,7 @@ fn old_reading(
 /// reason, no symbol) is kept as it is.
 fn symbol_bits(words: &FileWords, symbols: &mut Symbols, source: ByteSlice<'_>, bits: u64) -> u64 {
     let symbol = Symbol(u32::try_from(bits).unwrap_or(u32::MAX));
-    if bits >= u64::from(u32::MAX) || unknown_reason(symbol).is_some() {
+    if bits >= u64::from(u32::MAX) || term_text(symbol).is_some() || unknown_reason(symbol).is_some() {
         return bits;
     }
     let NameText(spelled) = text(words, CellWord(bits));
