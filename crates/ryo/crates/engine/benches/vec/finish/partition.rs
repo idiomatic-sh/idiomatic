@@ -20,6 +20,7 @@ pub(in super::super) fn file_steps(
     exec: &mut Exec<'_>,
     run: &mut Run,
     wide: impl Fn(&str) -> bool,
+    empty_binding: impl Fn(&str) -> bool,
 ) -> R<Vec<bool>> {
     exec.closed_inputs();
     // All operands here are already local. A span names a place in that source.
@@ -49,9 +50,9 @@ pub(in super::super) fn file_steps(
         let op = step.op.as_str();
         let constant_base = step.base().is_some_and(|name| {
             matches!(run.supplier(name), super::Supplier::Host)
-                && run.catalog(name).is_some_and(|(_, _, types)| {
+                && (empty_binding(name) || run.catalog(name).is_some_and(|(_, _, types)| {
                     types.iter().all(|&ty| !anchor(ty))
-                })
+                }))
         });
         let constant = op == "rows" || constant_base || (!step.inputs.is_empty()
             && step.inputs.iter().all(|&source| literal[source])
