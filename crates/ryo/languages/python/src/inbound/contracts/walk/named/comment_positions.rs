@@ -17,7 +17,7 @@ const SCHEMA: l::FileRelation = l::FileRelation {
 };
 
 /// Byte offsets of physical line starts. A CRLF is a single terminator.
-pub fn starts(src: &[u8]) -> Vec<u32> {
+pub(crate) fn starts(src: &[u8]) -> Vec<u32> {
     let mut offsets = vec![0];
     for i in memchr::memchr2_iter(b'\r', b'\n', src) {
         if src[i] == b'\n' || src.get(i + 1) != Some(&b'\n') {
@@ -28,7 +28,7 @@ pub fn starts(src: &[u8]) -> Vec<u32> {
 }
 
 /// The first physical line may start with a BOM before its lexical whitespace.
-pub fn position(src: &[u8], starts: &[u32], offset: u32) -> (u64, u64) {
+pub(crate) fn position(src: &[u8], starts: &[u32], offset: u32) -> (u64, u64) {
     let line = starts.partition_point(|at| *at <= offset);
     let prefix = &src[starts[line - 1] as usize..offset as usize];
     let prefix = if line == 1 {
@@ -43,7 +43,7 @@ pub fn position(src: &[u8], starts: &[u32], offset: u32) -> (u64, u64) {
 }
 
 /// Complete physical comment positions in query column order.
-pub const SCHEMAS: &[l::FileRelation] = &[SCHEMA];
+pub(crate) const SCHEMAS: &[l::FileRelation] = &[SCHEMA];
 
 pub(crate) fn columns(
     schema: &l::FileRelation,

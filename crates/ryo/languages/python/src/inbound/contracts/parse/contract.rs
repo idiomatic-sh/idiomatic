@@ -30,8 +30,7 @@ pub(crate) struct ParseContract {
     pub(super) syntax: Arc<dyn SyntaxPort>,
     pub(super) notes: Arc<dyn NotesPort>,
     /// The walk, lent to the engine as numbered files.
-    #[cfg(feature = "fixtures")]
-    pub(super) numbered: languages::NumberedWalk<crate::domain::file_view::types::PythonWalk<crate::inbound::contracts::walk::contract::WalkPorts>>,
+        pub(super) numbered: languages::NumberedWalk<crate::domain::file_view::types::PythonWalk<crate::inbound::contracts::walk::contract::WalkPorts>>,
     #[cfg(test)]
     pub(super) model_preparations: std::sync::atomic::AtomicUsize,
 }
@@ -46,8 +45,7 @@ impl ParseContract {
     ) -> Self {
         Self {
             settings,
-            #[cfg(feature = "fixtures")]
-            numbered: languages::NumberedWalk::new(crate::domain::file_view::types::PythonWalk {
+                        numbered: languages::NumberedWalk::new(crate::domain::file_view::types::PythonWalk {
                 ports: crate::inbound::contracts::walk::contract::WalkPorts { settings, syntax: syntax.clone() },
             }),
             syntax,
@@ -59,16 +57,14 @@ impl ParseContract {
 }
 
 impl Parse for ParseContract {
-    #[cfg(feature = "fixtures")]
-    fn file_relations(&self) -> Option<&dyn languages::FileRelations> {
+        fn file_relations(&self) -> Option<&dyn languages::FileRelations> {
         Some(self)
     }
 
-    #[cfg(feature = "fixtures")]
-    fn source_words(&self) -> Option<ryo::languages::SourceWords> {
+        fn source_words(&self) -> Option<ryo::languages::SourceWords> {
         // Semantic identifiers are normalized and embedded expressions can be decoded.
         // A missing physical token is insufficient to disprove these fact columns.
-        Some(ryo::languages::SourceWords { identifier: crate::fixtures::columns::is_identifier, columns: &[] })
+        Some(ryo::languages::SourceWords { identifier: crate::inbound::contracts::walk::named::is_identifier, columns: &[] })
     }
 
     type FileModel = Declarations;
@@ -282,12 +278,11 @@ impl Parse for ParseContract {
     }
 }
 
-#[cfg(feature = "fixtures")]
 impl languages::FileRelations for ParseContract {
     fn numbered(&self) -> Option<&dyn languages::NumberedVisit> { Some(&self.numbered) }
     fn uses_project(&self) -> bool { true }
     fn declarations(&self) -> &'static [languages::FileRelation] {
-        crate::fixtures::columns::ColumnFile::named_schemas()
+        crate::inbound::contracts::walk::named::NamedFile::named_schemas()
     }
 
     fn read(&self, schemas: &[&languages::FileRelation], _: languages::ParseRequest<'_>,
