@@ -717,7 +717,9 @@ impl Store {
             }
             for &slot in pairs {
                 needed[slot] = true;
-                self.local_rows[slot] |= !closed || scope.is_some();
+                // A closed input consumes its frontier and issues. Only a
+                // local receipt reads the emitted rows directly.
+                self.local_rows[slot] |= !closed;
                 frontier[slot] |= closed;
                 if closed && let Some((source, _)) = self.pairs[slot] {
                     frontier_sources[source] = true;
