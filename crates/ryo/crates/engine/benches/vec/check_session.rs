@@ -1387,6 +1387,20 @@ pub(crate) fn visit<L: FileSource>(
                     clocks.refused += 1;
                     continue;
                 }
+                let complete_base = |name: &str| {
+                    use finish::session::CompleteBase;
+                    if let Some((_, rows)) = named_tables.iter().find(|(n, _)| n == name) {
+                        return (!named_partials.contains_key(name)).then_some(CompleteBase::Count(rows.n));
+                    }
+                    let rel = relations::service::relation_named(NameRef(name))?;
+                    let reader = parser?;
+                    if !reader.available(rel) || reader.expands(rel)
+                        || ryo_relations::domain::catalog::service::node_extent(rel)
+                            != Some(ryo_relations::domain::relations::types::NodeExtent::Own)
+                        || partial_of(&said, recovery, &[rel]).iter().any(|p| p.relation == rel)
+                    { return None; }
+                    Some(CompleteBase::InFrame)
+                };
                 let mut local_coverage = BTreeMap::new();
                 let mut issue_bases = Vec::new();
                 let mut unknowns = if said.is_empty()
@@ -1475,8 +1489,7 @@ pub(crate) fn visit<L: FileSource>(
                     if value.is_ok() && !unknowns.is_empty()
                         && let Some(reachable) = finish::session::reachable_partials(
                             &mut exec, current, &mut run, &mut facts_view, b.plan, &b.slots, &cut.file_steps,
-                            |name| (!named_partials.contains_key(name)).then(|| named_tables.iter()
-                                .find(|(n, _)| n == name).map(|(_, t)| t.n)).flatten(),
+                            &complete_base,
                         )
                     {
                         debug_assert_eq!(unknowns.len(), issue_bases.len());
@@ -1500,9 +1513,7 @@ pub(crate) fn visit<L: FileSource>(
                 }
                 let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, binding, &b.slots, &local_coverage);
                 if !unknowns.is_empty() && value.as_ref().is_ok_and(|rows| rows.is_empty())
-                    && finish::session::covered_empty(&mut exec, current, &mut run, &mut facts_view, b.plan, &b.slots, |name| {
-                        (!named_partials.contains_key(name)).then(|| named_tables.iter().find(|(n, _)| n == name).map(|(_, t)| t.n)).flatten()
-                    })
+                    && finish::session::covered_empty(&mut exec, current, &mut run, &mut facts_view, b.plan, &b.slots, &complete_base)
                 {
                     unknowns.clear();
                 }

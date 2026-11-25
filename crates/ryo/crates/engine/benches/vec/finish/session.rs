@@ -410,9 +410,14 @@ pub(in super::super) fn pair(
 /// Once the pair has run successfully, an incomplete input is immaterial if
 /// every emit requires a row from an independently complete, empty input.
 /// Consume the same necessary-input edges used by the execution frame.
+pub(crate) enum CompleteBase {
+    Count(usize),
+    InFrame,
+}
+
 pub(crate) fn covered_empty(
     exec: &mut Exec<'_>, frame: &mut File<'_>, run: &mut Run, facts: &mut dyn Provider,
-    plan: &super::Plan, slots: &[usize], complete: impl Fn(&str) -> Option<usize>,
+    plan: &super::Plan, slots: &[usize], complete: impl Fn(&str) -> Option<CompleteBase>,
 ) -> bool {
     proven_empty(exec, frame, run, facts, plan, slots, |_| true, complete).is_some_and(|empty|
         !plan.emits.is_empty() && plan.emits.iter().all(|emit| empty[slots[emit.1]]))
@@ -422,7 +427,7 @@ pub(crate) fn covered_empty(
 /// match an operand from another file even if this file contributes no rows.
 pub(crate) fn reachable_partials(
     exec: &mut Exec<'_>, frame: &mut File<'_>, run: &mut Run, facts: &mut dyn Provider,
-    plan: &super::Plan, slots: &[usize], local: &[bool], complete: impl Fn(&str) -> Option<usize>,
+    plan: &super::Plan, slots: &[usize], local: &[bool], complete: impl Fn(&str) -> Option<CompleteBase>,
 ) -> Option<std::collections::BTreeSet<String>> {
     let empty = proven_empty(exec, frame, run, facts, plan, slots, |i| local[i], complete)?;
     let mut reached = vec![false; slots.len()];
@@ -439,16 +444,19 @@ pub(crate) fn reachable_partials(
 fn proven_empty(
     exec: &mut Exec<'_>, frame: &mut File<'_>, run: &mut Run, facts: &mut dyn Provider,
     plan: &super::Plan, slots: &[usize], local: impl Fn(usize) -> bool,
-    complete: impl Fn(&str) -> Option<usize>,
+    complete: impl Fn(&str) -> Option<CompleteBase>,
 ) -> Option<Vec<bool>> {
     let mut empty = vec![false; exec.plan.nodes.len()];
     let mut known = vec![false; empty.len()];
     for (i, (step, &slot)) in plan.nodes.iter().zip(slots).enumerate() {
         if !local(i) { continue; }
         if let Some(name) = step.base() {
-            if let Some(count) = complete(name) {
+            if let Some(base) = complete(name) {
+                empty[slot] = match base {
+                    CompleteBase::Count(n) => n == 0,
+                    CompleteBase::InFrame => exec.eval(frame, run, facts, slot).ok()?.n == 0,
+                };
                 known[slot] = true;
-                empty[slot] = count == 0;
             }
             continue;
         }
