@@ -1,8 +1,8 @@
 //! The `siblings` service: free functions named by verb that say where an element stands among the children of its parent, comments
 //! and white space left out: how many of a kind come before it, whether it is the first or the last, and what is right before it.
 
-use crate::domain::file_view::types::{Syntax as Tree, Words};
-use ryo::languages::{self, Count, Position};
+use crate::domain::file_view::types::Syntax as Tree;
+use ryo::languages::{Count, Position};
 
 use crate::domain::siblings::types::{Match, Standing, Triviality, WantedSibling};
 use crate::domain::walked::syntax::{children, is_token, kind, parent};
