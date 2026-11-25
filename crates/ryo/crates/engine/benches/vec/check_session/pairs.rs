@@ -111,6 +111,7 @@ impl Checks {
                 supplied.push(name.to_owned());
                 if parser.is_none_or(|p| p.available(rel)) {
                     language.facts.push(name.to_owned());
+                    language.file_sets.push(name.to_owned());
                 }
             }
         }
