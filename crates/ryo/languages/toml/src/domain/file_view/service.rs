@@ -50,7 +50,9 @@ pub(crate) fn written<'f>(syntax: &Syntax<'f>, at: Position) -> &'f str {
 /// What the library decoded of the token `at`; nothing for a token it did not decode, or refused.
 #[must_use]
 pub(crate) fn decoded<'f>(syntax: &Syntax<'f>, at: Position) -> Option<&'f str> {
-    node_table::decoded_of(syntax.table, at).map(|text| text.0)
+    let span = node_table::span_of(syntax.table, at);
+    let (from, to) = *syntax.decodings.places.get(&(span.start.0, span.end.0))?;
+    syntax.decodings.text.get(from..to)
 }
 
 /// Where an element is, as a row's span.
@@ -82,4 +84,11 @@ pub(crate) fn modelled<'a>(file: &'a mut TomlFile<'_>) -> (&'a Model, Syntax<'a>
         file.modelled = super::types::Modelled::Done;
     }
     (&*file.model, syntax)
+}
+
+/// Keeps what the library decoded of the token over `start..end`.
+pub(crate) fn record(decodings: &mut super::types::Decodings, start: Offset, end: Offset, text: &str) {
+    let from = decodings.text.len();
+    decodings.text.push_str(text);
+    let _ = decodings.places.insert((start.0, end.0), (from, decodings.text.len()));
 }
