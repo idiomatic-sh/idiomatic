@@ -447,6 +447,10 @@ pub(crate) fn covered_empty(
         if !empty[slot] && matches!(step.op.as_str(), "select" | "project")
             && !step.inputs.is_empty() && step.inputs.iter().all(|&i| known[slots[i]])
         {
+            if step.op == "select" && !exec.sel(run, slot).is_ok_and(|select|
+                select.conj.iter().chain(select.items.iter().map(|(_, expr)| expr)).all(certificate::total)) {
+                continue;
+            }
             known[slot] = true;
             if let Ok(table) = exec.eval(frame, run, facts, slot) {
                 empty[slot] = table.n == 0;
