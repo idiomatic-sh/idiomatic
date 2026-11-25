@@ -221,6 +221,7 @@ pub(crate) fn collect<L: super::FileSource>(
     if inventory.len() != contributions.len() {
         return Err("incomplete project inputs".into());
     }
+    let stage = finish::operators::enter(usize::MAX - 20, 0);
     let files: Vec<_> = inventory
         .iter()
         .map(|s| l::FilePath(s.as_str().into()))
@@ -251,6 +252,10 @@ pub(crate) fn collect<L: super::FileSource>(
         given_inventory: Default::default(),
         observed_entries: Default::default(),
     };
+    if let Some(start) = stage {
+        finish::operators::leave(start, "collect-files", request.files.len(), true);
+    }
+    let stage = finish::operators::enter(usize::MAX - 21, 0);
     let mut entries = ProjectEntries::default();
     let notes = |index| {
         contributions
@@ -270,6 +275,10 @@ pub(crate) fn collect<L: super::FileSource>(
     }
     entries.0.sort_unstable();
     entries.0.dedup();
+    if let Some(start) = stage {
+        finish::operators::leave(start, "collect-entries", entries.0.len(), true);
+    }
+    let stage = finish::operators::enter(usize::MAX - 22, 0);
     request.observed_entries = observed(
         entries
             .0
@@ -282,6 +291,10 @@ pub(crate) fn collect<L: super::FileSource>(
             })
             .collect(),
     );
+    if let Some(start) = stage {
+        finish::operators::leave(start, "collect-observe", 0, true);
+    }
+    let stage = finish::operators::enter(usize::MAX - 23, 0);
     let mut tables = BTreeMap::new();
     for &rel in wanted {
         let n = name(rel).0;
@@ -296,6 +309,10 @@ pub(crate) fn collect<L: super::FileSource>(
     let mut refused = Vec::new();
     let mut consulted = BTreeSet::new();
     let mut partials = Vec::new();
+    if let Some(start) = stage {
+        finish::operators::leave(start, "collect-numbers", file_numbers.len(), true);
+    }
+    let stage = finish::operators::enter(usize::MAX - 24, 0);
     let mut symbols = l::Symbols::default();
     for (i, lang) in readers.iter().enumerate() {
         request.notes = notes(i);
@@ -363,6 +380,9 @@ pub(crate) fn collect<L: super::FileSource>(
                 cause: PartialCause(reason.into()),
             });
         }
+    }
+    if let Some(start) = stage {
+        finish::operators::leave(start, "collect-provider", 0, true);
     }
     partials.sort();
     partials.dedup();
