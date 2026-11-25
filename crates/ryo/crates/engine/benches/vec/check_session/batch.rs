@@ -51,6 +51,10 @@ impl FromIterator<usize> for PairSlots {
     }
 }
 
+impl session::ReportSelection for PairSlots {
+    fn assigned(first: std::ops::Range<usize>) -> Self { Self { first, rest: Vec::new() } }
+}
+
 impl Work {
     fn pair_slots(&self) -> impl Iterator<Item = usize> + Clone + '_ {
         let (first, rest): (_, &[usize]) = match self {
@@ -109,7 +113,7 @@ struct Batch {
     bound_contracts: Vec<Arc<session::completeness::Contract>>,
     reused_binding_entries: usize,
     host_binding_counts: [usize; 2],
-    last_sources: Option<(Arc<str>, usize, Vec<usize>)>,
+    last_sources: Option<(Arc<str>, usize, Arc<session::SelectedFiles>)>,
     source_lookups_removed: usize,
     slot_lookups_removed: usize,
     clocks: Clock,
@@ -275,12 +279,13 @@ impl Batch {
             {
                 return Ok(Work::Project(Rc::new(Ok(session::Reported::skipped(&inventory)))));
             }
+            let existing = self.bindings.len();
             let binding = self.binding(rule, &class, req.hosted, sdk.map(|_| host_ids.as_slice()));
             let pairs = if class.cut.is_some() {
                 // Caller rows are consumed only after closure. Sources with the same
                 // prepared program and caller schema produce identical local outputs.
                 let local = *self.local_bindings.entry(class.id).or_insert(binding);
-                self.admit(&req.root, &req.files, local, false, sdk)?
+                self.admit(&req.root, &req.files, local, local < existing, sdk)?
             } else {
                 Vec::new()
             };
@@ -303,7 +308,7 @@ impl Batch {
         Ok(Work::Pairs(pairs))
     }
 
-    fn admit<T: FromIterator<usize>>(
+    fn admit<T: session::ReportSelection>(
         &mut self,
         root: &str,
         files: &[String],
@@ -312,7 +317,8 @@ impl Batch {
         sdk: Option<LiveAdmission<'_>>,
     ) -> Result<T, String> {
         let Some(LiveAdmission { version, selection, .. }) = sdk else {
-            return self.schedule.admit_paths(&Arc::from(root), files, binding, true, |_| {});
+            let sources = self.schedule.select_files(&Arc::from(root), files)?;
+            return Ok(self.schedule.admit_ids(&sources, binding, known_binding));
         };
         // Slot histories precede this binding. A fresh ID cannot be in any of them.
         if !known_binding {
@@ -324,8 +330,8 @@ impl Batch {
             self.source_lookups_removed += sources.len();
             return Ok(self.schedule.admit_ids(sources, binding, known_binding));
         }
-        let mut sources = Vec::with_capacity(files.len());
-        let pairs = self.schedule.admit_paths(version, files, binding, known_binding, |src| sources.push(src))?;
+        let sources = self.schedule.select_files(version, files)?;
+        let pairs = self.schedule.admit_ids(&sources, binding, known_binding);
         self.last_sources = Some((version.clone(), selection, sources));
         Ok(pairs)
     }
@@ -393,6 +399,7 @@ impl Batch {
         state: &mut Active<L::File, L::Dictionary>,
         mut store:Option<&mut stored::Store>,
     ) {
+        self.schedule.finish_selection();
         self.schedule.finish_preparation();
         if state.world.run.texts.is_empty() {
             state.world.declare_words(languages);
@@ -486,7 +493,7 @@ impl Batch {
                 (Some((index, _)), None) => groups[index].push(i),
                 (None, None) => groups[unclaimed].push(i),
                 _ => {
-                    for &(_, slot) in &src.bindings {
+                    for (_, slot) in src.bindings.iter() {
                         answers.set(slot, Err(format!("multiple source readers for {}", src.path)));
                     }
                 }

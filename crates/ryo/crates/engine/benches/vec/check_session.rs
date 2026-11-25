@@ -18,6 +18,9 @@ pub(crate) mod completeness;
 mod pairs;
 #[path = "check_session/jobs.rs"]
 pub(crate) mod jobs;
+#[path = "check_session/file_programs.rs"]
+mod file_programs;
+use file_programs::FilePrograms;
 #[path = "check_session/project.rs"]
 pub(crate) mod project;
 
@@ -156,6 +159,7 @@ pub(crate) struct Clock {
     pub files: usize,
     pub reads: usize,
     pub unique_pairs: usize,
+    pending_programs: Option<(Arc<SelectedFiles>, Vec<(usize, usize)>)>,
     pub pairs: usize,
     pub skipped: usize,
     pub evaluated: usize,
@@ -183,8 +187,8 @@ pub(crate) struct Source {
     pub root: Arc<str>,
     pub path: String,
     pub reader: Option<Arc<str>>,
-    pub bindings: Vec<(usize, usize)>,
-    known: Vec<(usize, usize)>,
+    pub bindings: FilePrograms,
+    known: FilePrograms,
     pub(crate) project: bool,
     pub(crate) provided: Option<Arc<[u8]>>,
 }
@@ -193,6 +197,22 @@ pub(crate) struct Source {
 
 pub(crate) use ryo_values::domain::files::types::ExecutablePermission as Permission;
 type PathIds = HashMap<Rc<str>, usize>;
+
+pub(crate) trait ReportSelection: FromIterator<usize> {
+    fn assigned(slots: std::ops::Range<usize>) -> Self;
+}
+impl ReportSelection for Vec<usize> {
+    fn assigned(slots: std::ops::Range<usize>) -> Self { slots.collect() }
+}
+
+/// One immutable input to all programs that select the same ordered files.
+pub(crate) struct SelectedFiles {
+    ids: Vec<usize>,
+    distinct: bool,
+}
+impl SelectedFiles {
+    pub(crate) fn len(&self) -> usize { self.ids.len() }
+}
 
 /// Per-check program identities and the inverse admission index. The caller binds
 /// external relations and hands the index a stable identity for each binding.
@@ -212,15 +232,12 @@ pub(crate) struct Schedule {
 
 impl Schedule {
     pub(crate) fn delivered(&mut self, ids: &[usize], keep: bool, reusable: impl Fn(usize) -> bool) {
+        let mut retained = HashMap::new();
         for &i in ids {
             let source = &mut self.sources[i];
-            if keep { source.bindings.retain(|&(binding, _)| reusable(binding)); }
-            if keep && source.known.is_empty() {
-                source.known = std::mem::take(&mut source.bindings);
-            } else if keep {
-                let ordered = source.bindings.first().is_none_or(|first| source.known.last().unwrap().0 < first.0);
+            if keep {
+                source.bindings.keep_programs(&reusable, &mut retained);
                 source.known.append(&mut source.bindings);
-                if !ordered { source.known.sort_unstable_by_key(|p| p.0); }
             } else {
                 source.bindings.clear();
             }
@@ -300,8 +317,8 @@ impl Schedule {
             environment: None,
             path: path.to_owned(),
             reader: None,
-            bindings: Vec::new(),
-            known: Vec::new(),
+            bindings: Default::default(),
+            known: Default::default(),
             project: false,
             provided: None,
             permission: Permission::Unknown,
@@ -374,25 +391,42 @@ impl Schedule {
             })
             .collect()
     }
-    pub(crate) fn admit_paths<T: FromIterator<usize>>(
-        &mut self,
-        root: &Arc<str>,
-        files: &[String],
-        binding: usize,
-        known_binding: bool,
-        mut resolved: impl FnMut(usize),
-    ) -> Result<T> {
-        let ids = self.source_ids.entry(root.clone()).or_default();
-        files.iter().map(|path| {
-            let src = Self::source_in(&mut self.sources, ids, root, path)?;
-            resolved(src);
-            Ok(Self::slot(&mut self.sources[src], src, binding, known_binding, &mut self.pairs, &mut self.pending))
-        }).collect()
+    pub(crate) fn select_files(&mut self, root: &Arc<str>, files: &[String]) -> Result<Arc<SelectedFiles>> {
+        let paths = self.source_ids.entry(root.clone()).or_default();
+        let ids = files.iter().map(|path| Self::source_in(&mut self.sources, paths, root, path))
+            .collect::<Result<Vec<_>>>()?;
+        let distinct = ids.windows(2).all(|pair| pair[0] < pair[1])
+            || ids.iter().collect::<std::collections::HashSet<_>>().len() == ids.len();
+        Ok(Arc::new(SelectedFiles { ids, distinct }))
     }
 
-    pub(crate) fn admit_ids<T: FromIterator<usize>>(&mut self, sources: &[usize], binding: usize, known_binding: bool) -> T {
-        sources.iter().map(|&src| {
-            Self::slot(&mut self.sources[src], src, binding, known_binding, &mut self.pairs, &mut self.pending)
+    pub(crate) fn finish_selection(&mut self) {
+        let Some((files, programs)) = self.pending_programs.take() else { return; };
+        let programs: Arc<[_]> = programs.into();
+        for (ordinal, &id) in files.ids.iter().enumerate() {
+            let source = &mut self.sources[id];
+            if source.bindings.is_empty() { self.pending.insert(id); }
+            source.bindings.share(&programs, ordinal);
+        }
+    }
+
+    pub(crate) fn admit_ids<T: ReportSelection>(
+        &mut self, files: &Arc<SelectedFiles>, binding: usize, known_binding: bool,
+    ) -> T {
+        if self.pending_programs.as_ref().is_some_and(|(prior, _)| !Arc::ptr_eq(prior, files)) {
+            self.finish_selection();
+        }
+        if !known_binding && files.distinct {
+            let (_, programs) = self.pending_programs.get_or_insert_with(|| (files.clone(), Vec::new()));
+            let start = self.pairs;
+            self.pairs += files.len();
+            programs.push((binding, start));
+            return T::assigned(start..self.pairs);
+        }
+        // Repeated files or an existing binding can reuse an earlier address.
+        self.finish_selection();
+        files.ids.iter().map(|&id| {
+            Self::slot(&mut self.sources[id], id, binding, known_binding, &mut self.pairs, &mut self.pending)
         }).collect()
     }
 
@@ -404,11 +438,11 @@ impl Schedule {
         pairs: &mut usize,
         pending: &mut BTreeSet<usize>,
     ) -> usize {
-        if known_binding && let Ok(i) = source.known.binary_search_by_key(&binding, |p| p.0) {
-            return source.known[i].1;
+        if known_binding && let Some(slot) = source.known.lookup(binding) {
+            return slot;
         }
         let first = source.bindings.is_empty();
-        admitted_slot(&mut source.bindings, binding, || {
+        source.bindings.admit(binding, || {
             let slot = *pairs;
             *pairs += 1;
             if first {
@@ -587,7 +621,7 @@ struct Version<'s> {
     origin: usize,
     project_slots: Vec<usize>,
     data: Arc<[u8]>,
-    jobs: std::borrow::Cow<'s, [(usize, usize)]>,
+    jobs: std::borrow::Cow<'s, FilePrograms>,
 }
 
 /// A relative path in two overlaid roots has the same local answers exactly when
@@ -629,7 +663,7 @@ fn versions<'s>(
                 jobs: std::borrow::Cow::Borrowed(&src.bindings),
             }],
             Err(error) => {
-                for &(_, slot) in &src.bindings {
+                for (_, slot) in src.bindings.iter() {
                     answers.set(slot, Err(format!("{}: {error}", src.path)));
                 }
                 Vec::new()
@@ -674,7 +708,7 @@ fn versions<'s>(
                     origin: idx,
                     project_slots: Vec::new(),
                     data,
-                    jobs: std::borrow::Cow::Owned(Vec::new()),
+                    jobs: std::borrow::Cow::Owned(FilePrograms::default()),
                 });
                 i
             });
@@ -688,15 +722,15 @@ fn versions<'s>(
                 if src.project {
                     files[i].project_slots.push(idx);
                 }
-                for &(binding, slot) in &src.bindings {
-                    let origin = admitted_slot(files[i].jobs.to_mut(), binding, || slot);
+                for (binding, slot) in src.bindings.iter() {
+                    let origin = files[i].jobs.to_mut().admit(binding, || slot);
                     if origin != slot {
                         aliases.set(slot, origin);
                     }
                 }
             }
             Err(e) => {
-                for &(_, slot) in &src.bindings {
+                for (_, slot) in src.bindings.iter() {
                     answers.set(slot, Err(format!("{}: {e}", src.path)));
                 }
             }
@@ -782,7 +816,7 @@ pub(crate) fn visit<L: FileSource>(
     let t = thread_cpu();
     let mut needed = vec![false; program_of.len()];
     for &index in selected {
-        for &(binding, _) in &sources[index].bindings {
+        for (binding, _) in sources[index].bindings.iter() {
             needed[binding] = true;
         }
     }
@@ -890,7 +924,7 @@ pub(crate) fn visit<L: FileSource>(
             let mut needs_native = false;
             let mut projects_words = cached.is_some();
             let mut projects_fields = cached.is_some();
-            for &(binding, slot) in jobs.iter() {
+            for (binding, slot) in jobs.iter() {
                 match &bound[&binding] {
                     Ok(b) => {
                         have_plan = true;
@@ -943,7 +977,7 @@ pub(crate) fn visit<L: FileSource>(
             if projects_words { requested.push(l::Relation::SyntaxTree); }
             let scoped = parser.and_then(FileSource::scoped);
             let named_demand = scoped.map(|_| {
-                jobs.iter().filter_map(|(binding, _)| bound[binding].as_ref().ok())
+                jobs.iter().filter_map(|(binding, _)| bound[&binding].as_ref().ok())
                     .flat_map(|binding| binding.named.iter().copied().map(|s| (s.name, s)))
                     .collect::<BTreeMap<_,_>>().into_values().collect::<Vec<_>>()
             });
@@ -993,7 +1027,7 @@ pub(crate) fn visit<L: FileSource>(
                 Ok(())
             };
             if let Err(reason) = result {
-                for &(_, slot) in jobs.iter() {
+                for (_, slot) in jobs.iter() {
                     answers.set(slot, Err(reason.clone()));
                 }
                 clocks.read_parse += thread_cpu() - t;
@@ -1012,7 +1046,7 @@ pub(crate) fn visit<L: FileSource>(
                 for &slot in &project_slots {
                     contributions.set(slot, Some(c.clone()));
                 }
-                if !session_open && jobs.iter().all(|(b, _)| bound[b].is_err()) {
+                if !session_open && jobs.iter().all(|(b, _)| bound[&b].is_err()) {
                     clocks.read_parse += thread_cpu() - t;
                     return;
                 }
@@ -1057,7 +1091,7 @@ pub(crate) fn visit<L: FileSource>(
             use ryo_execution_domain::domain::coverage::service::partial_of;
             let recovery = coverage.or(held.recovery).unwrap_or_else(|| L::recovery(&elements));
             let mut active = Vec::new();
-            for &(binding, slot) in jobs.iter() {
+            for (binding, slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
                 if programs[program_of[binding]].as_ref().is_ok_and(|p| p.accepted_only)
                     && l::node_table::acceptance_of(tree) == l::SyntaxAcceptance::Rejected
@@ -1139,7 +1173,7 @@ pub(crate) fn visit<L: FileSource>(
                 ) };
                 fact_cpu += thread_cpu() - fact_start;
                 if let Err(reason) = filled {
-                    for &(_, slot) in jobs.iter() {
+                    for (_, slot) in jobs.iter() {
                         answers.set(slot, Err(reason.clone()));
                     }
                     if keep {
@@ -1492,7 +1526,7 @@ pub(crate) fn visit<L: FileSource>(
                 result => {
                     let reason = result.and_then(|result| result.err()).map_or_else(
                         || "provider did not deliver exactly one numbered file".to_owned(), |e| e.to_string());
-                    for &(_, slot) in jobs.iter() { answers.set(slot, Err(reason.clone())); }
+                    for (_, slot) in jobs.iter() { answers.set(slot, Err(reason.clone())); }
                 }
             }
             if let Some(before_visit) = before_visit {

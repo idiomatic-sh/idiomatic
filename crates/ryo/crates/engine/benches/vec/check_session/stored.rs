@@ -802,7 +802,7 @@ impl Store {
         );
         self.pairs.resize(b.schedule.pairs, None);
         for (i, src) in b.schedule.sources.iter().enumerate() {
-            for &(binding, slot) in &src.bindings {
+            for (binding, slot) in src.bindings.iter() {
                 self.pairs[slot] = Some((i, binding));
             }
         }
@@ -1080,7 +1080,7 @@ impl Store {
                     self.reuse_context(src.environment.as_deref(), proof)
                 });
             }
-            if frontier_sources[i] || src.bindings.iter().any(|&(_, slot)| self.keep_pairs[slot]) {
+            if frontier_sources[i] || src.bindings.iter().any(|(_, slot)| self.keep_pairs[slot]) {
                 self.files.open_mapped(&self.dir, &version, FileAnswers::mapped);
                 let context = self.files.get(&version).map(|file| file.context);
                 self.files_valid[i] = context.is_some_and(|proof| {
@@ -1174,7 +1174,7 @@ impl Store {
                 }));
                 src.project = false;
             }
-            src.bindings.retain(|&(binding, slot)| {
+            src.bindings.keep(|(binding, slot)| {
                 if !needed[slot] {
                     return false;
                 }
@@ -1257,7 +1257,7 @@ impl Store {
                     },
                 );
             }
-            if !src.bindings.iter().any(|&(_, s)| self.keep_pairs[s]) {
+            if !src.bindings.iter().any(|(_, s)| self.keep_pairs[s]) {
                 continue;
             }
             let file = self.files.change(&version);
@@ -1266,7 +1266,7 @@ impl Store {
                 self.files_valid[i] = true;
             }
             file.context = context;
-            for &(_, slot) in &src.bindings {
+            for (_, slot) in src.bindings.iter() {
                 if !self.keep_pairs[slot] {
                     continue;
                 }
