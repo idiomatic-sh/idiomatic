@@ -54,9 +54,8 @@ pub(crate) fn on() -> bool {
 static FRAMES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 /// A file's executor frame is created: its makes belong to one evaluation.
-pub(super) fn frame_start() {
-    let id = FRAMES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    LOCAL.with_borrow_mut(|l| l.frame = id);
+pub(super) fn frame_start() -> u64 {
+    FRAMES.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
 }
 
 pub(crate) fn program(binding: usize, id: usize) {
@@ -91,13 +90,13 @@ pub(super) fn enter() {
     LOCAL.with_borrow_mut(|s| s.stack.push(0.0));
 }
 
-pub(super) fn leave(id: u64, op: &str, file: u32, total: f64, rows_in: usize, rows_out: usize) {
-    let (children, program, binding, frame) = LOCAL.with_borrow_mut(|l| {
+pub(super) fn leave(id: u64, op: &str, file: u32, frame: u64, total: f64, rows_in: usize, rows_out: usize) {
+    let (children, program, binding) = LOCAL.with_borrow_mut(|l| {
         let children = l.stack.pop().unwrap_or(0.0);
         if let Some(parent) = l.stack.last_mut() {
             *parent += total;
         }
-        (children, l.program, l.binding, l.frame)
+        (children, l.program, l.binding)
     });
     let own = (total - children).max(0.0);
     let mut guard = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
