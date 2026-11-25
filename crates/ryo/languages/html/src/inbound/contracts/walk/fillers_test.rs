@@ -385,3 +385,134 @@ fn the_fillers_write_the_rows_todays_readers_write() {
     println!("{report}");
     assert!(findings.is_empty(), "{report}\n{}", findings.lines().take(20).collect::<Vec<_>>().join("\n"));
 }
+
+
+/// Every relation the fillers answer for: filled or absent.
+const FILLERS: [Relation; 75] = [
+    Relation::Comment,
+    Relation::Defines,
+    Relation::Prose,
+    Relation::Reference,
+    Relation::Scope,
+    Relation::SourceLocation,
+    Relation::StringLiteral,
+    Relation::SyntaxError,
+    Relation::BindingEvent,
+    Relation::BindingResolution,
+    Relation::BindingUse,
+    Relation::BraceFormatField,
+    Relation::BraceFormatParse,
+    Relation::BytesLiteral,
+    Relation::CallArgument,
+    Relation::CompilerFeature,
+    Relation::Decorates,
+    Relation::EmbeddedExpression,
+    Relation::FormatField,
+    Relation::FormatParse,
+    Relation::FormatSpecification,
+    Relation::FunctionTerminal,
+    Relation::Identifier,
+    Relation::ImplicitSymbol,
+    Relation::IndentRegion,
+    Relation::InterpolatedStringLiteral,
+    Relation::LanguageTarget,
+    Relation::LiteralExpressionParse,
+    Relation::LiteralProperties,
+    Relation::NumericLiteral,
+    Relation::Parameter,
+    Relation::QualifiedName,
+    Relation::RawFormatField,
+    Relation::StandardLibraryImport,
+    Relation::StaticImport,
+    Relation::BindingRead,
+    Relation::BindingShadow,
+    Relation::ConstantKey,
+    Relation::ExpressionShape,
+    Relation::ExpressionType,
+    Relation::Function,
+    Relation::Inherits,
+    Relation::LookupScope,
+    Relation::RawFormatSegment,
+    Relation::Resolves,
+    Relation::TokenLink,
+    Relation::AnalyzedSource,
+    Relation::Annotates,
+    Relation::Assigns,
+    Relation::AttributePath,
+    Relation::Directive,
+    Relation::Entry,
+    Relation::FilePackage,
+    Relation::FilesystemExecutable,
+    Relation::FilesystemFile,
+    Relation::FilesystemLineCount,
+    Relation::FilesystemReadFailure,
+    Relation::FlowBlock,
+    Relation::FlowEdge,
+    Relation::FlowMember,
+    Relation::FlowStep,
+    Relation::ManifestDiagnostic,
+    Relation::Mapping,
+    Relation::Mention,
+    Relation::ModuleIdentity,
+    Relation::PackageDependency,
+    Relation::PatternChild,
+    Relation::PatternParse,
+    Relation::PatternSyntax,
+    Relation::ProjectNamespaceMembership,
+    Relation::SequenceElement,
+    Relation::SourceDependency,
+    Relation::StaticCall,
+    Relation::Visibility,
+    Relation::WorkspaceMember,
+];
+
+/// The cause the walk gives each relation the language does not fill, which is the cause today's contracts give it.
+fn causes(walk_cause: &mut dyn FnMut(Relation) -> Option<languages::AbsenceCause>) -> String {
+    let language = crate::linked();
+    let parse = language.parse_engine();
+    let project = language.project();
+    let mut report = String::new();
+    for relation in FILLERS {
+        let old = parse.absence_of(relation).or_else(|| project.absence_of(relation)).or(
+            // the engine reads the file system itself; the language is never asked, and says so
+            matches!(
+                relation,
+                Relation::FilesystemExecutable | Relation::FilesystemFile | Relation::FilesystemLineCount | Relation::FilesystemReadFailure
+            )
+            .then_some(languages::AbsenceCause::NotYetRead),
+        );
+        let new = walk_cause(relation);
+        if old != new {
+            let _ = writeln!(report, "{relation:?}: today {old:?}, walk {new:?}");
+        }
+    }
+    report
+}
+
+/// The walk's cause for a relation, asked of a file's fillers: nothing when it fills the relation.
+fn walked_cause(relation: Relation) -> Option<languages::AbsenceCause> {
+    let walk = HtmlWalk { ports: WalkPorts { syntax: Arc::new(swc_html_parser()) } };
+    let mut table = NodeTable::default();
+    let mut found = None;
+    walk.walk(
+        WalkRequest { path: languages::SourcePath("a.html"), file: FileId(0), source: ByteSlice(b"<p>a</p>") },
+        RelationNeeds(&[]),
+        &mut node_table::builder(&mut table, <HtmlWalk<WalkPorts> as Walk>::KIND_COUNT),
+        &mut (),
+        &mut Visit(&mut |mut lent: FileFacts<'_>| {
+            let mut words = facts::file_words(&facts::base_words(Default::default(), &[]));
+            found = match lent.facts.fill(relation, languages::Wanted::Whole, &mut words, &mut FilledColumns::default()) {
+                FactAnswer::Refused(cause) => Some(cause),
+                _ => None,
+            };
+        }),
+    )
+    .expect("the walk reads the source");
+    found
+}
+
+#[test]
+fn each_relation_the_walk_does_not_fill_has_the_cause_todays_contracts_give() {
+    let report = causes(&mut walked_cause);
+    assert!(report.is_empty(), "{report}");
+}
