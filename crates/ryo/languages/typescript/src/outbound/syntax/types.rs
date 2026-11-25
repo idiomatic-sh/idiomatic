@@ -12,6 +12,8 @@ pub(crate) struct Walked {
     pub(crate) flow: Option<crate::domain::file_view::types::FlowFacts>,
     /// What the library made of each written carrier's pattern.
     pub(crate) patterns: Vec<crate::domain::file_view::types::CarrierFacts>,
+    /// The values the parser decoded for tokens.
+    pub(crate) decoded: crate::domain::file_view::types::Decoded,
 }
 
 /// What a walk keeps for the fillers besides the table.

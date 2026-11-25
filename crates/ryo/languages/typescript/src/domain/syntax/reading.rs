@@ -192,7 +192,11 @@ impl Syntax for TypeScriptFile<'_> {
         node_table::span_of(self.table, at).end
     }
     fn decoded_of(&self, at: Position) -> Option<NameText<'_>> {
-        node_table::decoded_of(self.table, at)
+        // The tokens follow the nodes in the table, in the order they were written.
+        let token = usize::from(at).checked_sub(node_table::node_count(self.table).0)?;
+        let found = self.decoded.places.binary_search_by_key(&u32::try_from(token).ok()?, |place| place.0).ok()?;
+        let (_, from, to) = *self.decoded.places.get(found)?;
+        self.decoded.texts.get(usize::try_from(from).ok()?..usize::try_from(to).ok()?).map(NameText)
     }
     fn property_of(&self, at: Position, property: languages::PropertyId) -> Option<NameText<'_>> {
         node_table::property_of(self.table, at, property)

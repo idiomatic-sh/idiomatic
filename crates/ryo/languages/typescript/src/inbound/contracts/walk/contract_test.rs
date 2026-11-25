@@ -212,3 +212,47 @@ fn javascript_sources_are_walked_as_javascript() {
     assert_ne!(walked("input.js", typed), walked("input.ts", typed), "a .js is not walked as typescript");
     assert_eq!(walked("input.js", typed), today("input.js", typed));
 }
+
+/// A visit that counts the tokens of the lent table the parser decoded a value for.
+struct Decoded<'a>(&'a mut usize);
+
+impl FileVisit for Decoded<'_> {
+    fn visit(&mut self, file: FileFacts<'_>) {
+        let table = file.table;
+        for index in 0..node_table::element_count(table).0 {
+            let at = Position(u32::try_from(index).unwrap_or(u32::MAX));
+            if node_table::decoded_of(table, at).is_some() {
+                *self.0 += 1;
+            }
+        }
+    }
+}
+
+#[test]
+fn a_tokens_word_is_its_spelling_not_what_the_parser_decoded() {
+    // The tables's decoded text is what the numbered words are made of when it is there: a string's characters (`\8`, empty)
+    // are kept beside the table, so the word of the token is `"\8"` and `''` as the source spells them.
+    let mut decoded = 0;
+    walk()
+        .walk(
+            WalkRequest { path: languages::SourcePath("input.ts"), file: FileId(0), source: ByteSlice(b"const s = \"\\8\"; const t = '';\n") },
+            RelationNeeds(&[]),
+            &mut node_table::builder(&mut NodeTable::default(), <TypeScriptWalk<WalkPorts> as Walk>::KIND_COUNT),
+            &mut (),
+            &mut Decoded(&mut decoded),
+        )
+        .expect("the walk reads the source");
+    assert_eq!(decoded, 0, "no token carries a decoded text in the table");
+}
+
+#[test]
+fn every_leaf_kind_spells_its_source_text() {
+    use crate::domain::extras::types::Extra;
+    use crate::domain::syntax::types::Kind;
+    use crate::domain::tokens::types::Token;
+    // The old reading's text of a token is its spelling, white space included: a rule asks a gap between tokens by its text.
+    for kind in [Kind::Token(Token::Boolean), Kind::Extra(Extra::Whitespace), Kind::Extra(Extra::Hashbang), Kind::Extra(Extra::Error)] {
+        assert!(<TypeScriptWalk<WalkPorts> as Fillers>::spells(kind_bits(kind)), "{kind:?} spells its text");
+    }
+    assert!(!<TypeScriptWalk<WalkPorts> as Fillers>::spells(kind_bits(Kind::Node(crate::domain::nodes::types::Node::Program))));
+}

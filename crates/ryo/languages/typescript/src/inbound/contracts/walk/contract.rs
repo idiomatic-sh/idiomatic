@@ -123,7 +123,7 @@ impl Walk for TypeScriptWalk<WalkPorts> {
             Scripting::Script(script, dialect) => self.ports.syntax.walk(SourceText(&script.0), dialect, builder, wants),
         };
         let table = node_table::finished(builder);
-        let mut file = TypeScriptFile { table, source: request.source, file: request.file, model: ReadIndexes::default(), flow: walked.flow, patterns: walked.patterns };
+        let mut file = TypeScriptFile { table, source: request.source, file: request.file, model: ReadIndexes::default(), flow: walked.flow, patterns: walked.patterns, decoded: walked.decoded };
         let mut source = fillers::file_source::<TypeScriptWalk<WalkPorts>>(&mut file);
         visit.visit(FileFacts {
             table,
