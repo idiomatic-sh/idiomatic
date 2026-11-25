@@ -81,8 +81,10 @@ pub(crate) const IDENTIFIERS_INCOMPLETE: &str = "identifiers require a complete 
 
 /// Literal category preserved from the parser's typed scalar payload.
 pub(crate) const SCALAR_KIND: ryo::languages::PropertyId = ryo::languages::PropertyId(2);
-/// Canonical scalar payload, independent of its source spelling.
+/// Parser-owned scalar payload used by structural equality.
 pub(crate) const SCALAR_VALUE: ryo::languages::PropertyId = ryo::languages::PropertyId(3);
+/// Decimal value when the parser represents a large integer by a nondecimal token.
+pub(crate) const INTEGER_DECIMAL: ryo::languages::PropertyId = ryo::languages::PropertyId(11);
 /// The imaginary component of a complex scalar, as IEEE bits.
 pub(crate) const SCALAR_IMAGINARY: ryo::languages::PropertyId = ryo::languages::PropertyId(4);
 /// Meaningful debug text retained by a formatted/template interpolation.

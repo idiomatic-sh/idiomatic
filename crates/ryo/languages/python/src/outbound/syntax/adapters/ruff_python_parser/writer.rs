@@ -343,7 +343,7 @@ fn scalar_properties(
 ) {
     use crate::domain::syntax::constants::{
         BOOLEAN_SCALAR, BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, FLOAT_SCALAR,
-        INTEGER_SCALAR, INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, NONE_SCALAR,
+        INTEGER_DECIMAL, INTEGER_SCALAR, INTERPOLATION_CONVERSION, INTERPOLATION_DEBUG, NONE_SCALAR,
         SCALAR_IMAGINARY, SCALAR_KIND, SCALAR_VALUE,
     };
     use ruff_python_ast::Number;
@@ -352,8 +352,12 @@ fn scalar_properties(
         match &literal.value {
             Number::Int(value) => {
                 node_property(builder, SCALAR_KIND, NameText(INTEGER_SCALAR));
-                if crate::domain::numeric_literals::service::integer_text(value, &mut scratch.0).is_some() {
-                    node_property(builder, SCALAR_VALUE, NameText(&scratch.0));
+                scalar_property(builder, scratch, SCALAR_VALUE, value);
+                if value.as_u64().is_none()
+                    && !scratch.0.bytes().all(|b| b.is_ascii_digit())
+                    && crate::domain::numeric_literals::service::integer_text(value, &mut scratch.0).is_some()
+                {
+                    node_property(builder, INTEGER_DECIMAL, NameText(&scratch.0));
                 }
             }
             Number::Float(value) => {

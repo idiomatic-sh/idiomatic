@@ -4,7 +4,7 @@ use super::types::{NumericClassification, NumericLiteral, NumericValue};
 use crate::domain::{
     nodes::types::Node,
     syntax::{
-        constants::{COMPLEX_SCALAR, FLOAT_SCALAR, INTEGER_SCALAR, SCALAR_KIND, SCALAR_VALUE},
+        constants::{COMPLEX_SCALAR, FLOAT_SCALAR, INTEGER_DECIMAL, INTEGER_SCALAR, SCALAR_KIND, SCALAR_VALUE},
         service::{kind, literal, written},
         types::{Kind, Literal},
     },
@@ -101,7 +101,9 @@ pub(crate) fn classify<'a>(tree: &'a Tree<'_>, at: Position) -> NumericClassific
     let value = languages::property_at(tree.elements, at, SCALAR_VALUE);
     match scalar_kind.map(|each| each.0) {
         Some(INTEGER_SCALAR) => {
-            match value.filter(|value| canonical_integer(*value) == Flag::Raised) {
+            match value.filter(|value| canonical_integer(*value) == Flag::Raised)
+                .or_else(|| languages::property_at(tree.elements, at, INTEGER_DECIMAL))
+            {
                 Some(value) => NumericClassification::Known(NumericLiteral {
                     kind: NameText(INTEGER_SCALAR),
                     value: NumericValue::Integer(value),
