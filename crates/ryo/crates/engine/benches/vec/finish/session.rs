@@ -235,27 +235,15 @@ pub(in super::super) fn evaluate_covered(
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        let layout = exec.answer_layout(run, (0, emit), rule, &t, subject, keys)?;
-        let mut seen = BTreeMap::new();
-        for i in 0..t.n {
-            let subject = layout.identity[0];
-            if matches!(t.tys[subject], Ty::File | Ty::Node) {
-                let cell = t.cols[subject][i];
-                if cell == super::NULL { continue; }
-                let id = if t.tys[subject] == Ty::Node {
-                    cell >> 32
-                } else {
-                    cell
-                };
-                let file = u32::try_from(id).map_err(|e| e.to_string())?;
-                if !admit_file_subject(file) {
-                    continue;
-                }
+        publish_table(exec, run, (0, emit), rule, subject, keys, &t, None, &mut rows, |column, row| {
+            let cell = t.cols[column][row];
+            match t.tys[column] {
+                Ty::Node | Ty::File if cell == super::NULL => Ok(false),
+                Ty::Node => Ok(admit_file_subject((cell >> 32) as u32)),
+                Ty::File => Ok(admit_file_subject(u32::try_from(cell).map_err(|e| e.to_string())?)),
+                _ => Ok(true),
             }
-            let row = answer::typed(run, &t, i, None, &layout)?;
-            if t.n == 1 { rows.push(row); } else { keep_finding(&mut seen, row); }
-        }
-        rows.extend(seen.into_values());
+        })?;
     }
     if let Some((memo, scope)) = memo {
         memo.remember(&deps, scope, &frame.memo);
@@ -412,7 +400,7 @@ pub(in super::super) fn pair(
         if !run.missing.is_empty() {
             return Err(format!("unimplemented functions {:?}", run.missing));
         }
-        publish_table(exec, run, (binding, emit), rule, subject, keys, &t, frame.file as usize, &mut rows)?;
+        publish_table(exec, run, (binding, emit), rule, subject, keys, &t, Some(frame.file as usize), &mut rows, |_, _| Ok(true))?;
     }
     Ok(rows)
 }
@@ -495,12 +483,14 @@ fn proven_empty(
 /// location proof. Deduplication is confined to that emit in that file.
 pub(in super::super) fn publish_table(
     exec: &mut Exec<'_>, run: &mut Run, slot: (usize, usize),
-    rule: &str, subject: &str, keys: &[String], table: &Table, file: usize, rows: &mut Vec<answer::Row>,
+    rule: &str, subject: &str, keys: &[String], table: &Table, file: Option<usize>, rows: &mut Vec<answer::Row>,
+    admit: impl Fn(usize, usize) -> R<bool>,
 ) -> R<()> {
     let layout = exec.answer_layout(run, slot, rule, table, subject, keys)?;
     let mut seen = BTreeMap::new();
     for r in 0..table.n {
-        let row = answer::typed(run, table, r, Some(file), &layout)?;
+        if !admit(layout.identity[0], r)? { continue; }
+        let row = answer::typed(run, table, r, file, &layout)?;
         if table.n == 1 { rows.push(row); } else { keep_finding(&mut seen, row); }
     }
     rows.extend(seen.into_values());

@@ -847,6 +847,8 @@ pub(crate) fn visit<L: FileSource>(
     let mut registry = finish::session::contribution::Registry::default();
     #[derive(Default)]
     struct FileDemand {
+        named: Vec<&'static source::FileRelation>,
+        closed: bool,
         facts: FactMask,
         executable: bool,
         native: bool,
@@ -937,10 +939,15 @@ pub(crate) fn visit<L: FileSource>(
             let mut cached = start.and_then(|_| retention.take(index));
             let demand = || {
                 let mut demand = FileDemand::default();
+                let mut named = BTreeMap::new();
                 for (binding, _) in jobs.iter() {
                     match &bound[&binding] {
                         Ok(b) => {
                             demand.has_plan = true;
+                            demand.closed |= cut_of[binding].is_some();
+                            if scoped.is_some() {
+                                for &schema in &b.named { named.insert(schema.name, schema); }
+                            }
                             demand.executable |= b.executable;
                             demand.native |= !b.named.is_empty() || programs[program_of[binding]].as_ref().is_ok_and(|p| p.renders);
                             for (word, bits) in demand.facts.iter_mut().zip(b.fact_mask) { *word |= bits; }
@@ -950,6 +957,7 @@ pub(crate) fn visit<L: FileSource>(
                         Err(reason) => demand.refused.push((binding, reason.clone())),
                     }
                 }
+                demand.named = named.into_values().collect();
                 demand
             };
             let temporary;
@@ -1005,11 +1013,6 @@ pub(crate) fn visit<L: FileSource>(
                 },
             };
             if projects_words { requested.push(l::Relation::SyntaxTree); }
-            let named_demand = scoped.map(|_| {
-                jobs.iter().filter_map(|(binding, _)| bound[&binding].as_ref().ok())
-                    .flat_map(|binding| binding.named.iter().copied().map(|s| (s.name, s)))
-                    .collect::<BTreeMap<_,_>>().into_values().collect::<Vec<_>>()
-            });
             // A retained parse is not a loan of the provider's declared projection.
             let cached_ready = scoped.is_none_or(|visit| visit.projections().is_empty() && visit.fields().is_none())
                 && cached.as_ref().is_some_and(|(_, file)| file.recovery.is_some());
@@ -1388,7 +1391,7 @@ pub(crate) fn visit<L: FileSource>(
                 Ok(report)
             };
             let mut frame = None;
-            let mut shared = frontier::FileInputs::new(&active,&bound,programs,program_of,cut_of);
+            let mut shared = demand.closed.then(|| frontier::FileInputs::new(&active, &bound, programs, program_of, cut_of));
             for (binding, slot, excluded) in active {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
                 let contract = &contracts[binding];
@@ -1481,7 +1484,7 @@ pub(crate) fn visit<L: FileSource>(
                 };
                 let _profile = super::finish::operators::scope(program_of[binding], "file");
                 if let Some(cut) = &cut_of[binding] {
-                    let value = shared.contribute(b, &mut exec, current, &mut run, id.0, &mut facts_view, cut,
+                    let value = shared.as_mut().expect("project output was bound").contribute(b, &mut exec, current, &mut run, id.0, &mut facts_view, cut,
                         &local_coverage, world, &mut carried_symbols, reader_id, unknown, slot);
                     if value.is_ok() && !unknowns.is_empty()
                         && let Some(reachable) = finish::session::reachable_partials(
@@ -1547,7 +1550,7 @@ pub(crate) fn visit<L: FileSource>(
                     numbered_reader.get_or_insert_with(|| supplier.open()).visit(
                         request,
                         &requested,
-                        named_demand.as_deref().unwrap_or_default(),
+                        &demand.named,
                         source.environment.as_deref().map(|e| e as &dyn l::FileProject),
                         &mut numbered_symbols,
                         &mut |file, dictionary| {
