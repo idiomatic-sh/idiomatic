@@ -291,6 +291,10 @@ impl<'a> FactSymbols<'a> {
     }
 
     fn id(&mut self, cell: CellWord) -> Option<Id> {
+        // Missing text renders as empty bytes, but has a distinct symbol identity.
+        if cell.0 == u64::from(languages::NO_SYMBOL.0) {
+            return None;
+        }
         let Some(symbol) = usize::try_from(cell.0).ok().and_then(|word| self.ids.get_mut(word)) else {
             // Out-of-range handles decode as the empty spelling.
             return self.empty;

@@ -301,6 +301,7 @@ impl Packet {
                             Ok(Some(pos)) => CellWord(u64::from(pos.0)),
                             _ => return false,
                         },
+                        CellKind::Symbol if raw.0 == u64::from(l::NO_SYMBOL.0) => raw,
                         CellKind::Symbol => {
                             let Some(text) = loan.text(raw) else { return false };
                             l::facts::intern(words, text)
@@ -325,6 +326,10 @@ impl Packet {
                 }
                 CellKind::Symbol => {
                     for raw in cells {
+                        if raw == u64::from(l::NO_SYMBOL.0) {
+                            column.0.push(CellWord(raw));
+                            continue;
+                        }
                         let Some(text) =
                             l::text_of(symbols, ByteSlice(bytes), l::Symbol(raw as u32))
                         else {
