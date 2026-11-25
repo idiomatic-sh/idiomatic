@@ -144,6 +144,9 @@ pub(crate) struct Packet {
     indexed: Vec<usize>,
     /// The file fills its numbered relations when a step first loads them: a relation not yet filled has no row count.
     pub(crate) lazy_fills: bool,
+    /// The screen's word for each provider symbol of this file already spelled into its dictionary, and the end of
+    /// that dictionary when the memo was last used (a smaller end means the dictionary was cleared since).
+    symbol_memo: RefCell<(u64, Vec<u64>)>,
     pub(crate) ready: bool,
 }
 impl Packet {
@@ -156,6 +159,7 @@ impl Packet {
             requested: vec![false; RELATIONS],
             indexed: Vec::new(),
             lazy_fills: false,
+            symbol_memo: Default::default(),
             ready: false,
         }
     }
@@ -179,6 +183,7 @@ impl Packet {
         }
         self.ready = false;
         self.lazy_fills = false;
+        *self.symbol_memo.get_mut() = Default::default();
     }
     /// The structural projection has its own provider contract. Every filled
     /// catalog relation is published directly in columns, once for this file.
@@ -404,9 +409,25 @@ impl Packet {
                     }
                 }
                 CellKind::Symbol => {
+                    // A provider symbol is spelled into the screen's dictionary once for the file, not once a cell.
+                    let mut memo = self.symbol_memo.borrow_mut();
+                    let end = l::facts::words_end(words).0;
+                    if end < memo.0 {
+                        memo.1.clear();
+                    }
+                    memo.0 = end;
+                    let names = l::contract::name_count(symbols).0;
+                    if memo.1.len() < names {
+                        memo.1.resize(names, u64::MAX);
+                    }
                     for raw in cells {
                         if reserved(raw) {
                             column.0.push(CellWord(raw));
+                            continue;
+                        }
+                        let known = memo.1.get(raw as usize).copied().filter(|&word| word != u64::MAX);
+                        if let Some(word) = known {
+                            column.0.push(CellWord(word));
                             continue;
                         }
                         let Some(text) =
@@ -414,8 +435,13 @@ impl Packet {
                         else {
                             return false;
                         };
-                        column.0.push(l::facts::intern(words, text));
+                        let word = l::facts::intern(words, text);
+                        if let Some(slot) = memo.1.get_mut(raw as usize) {
+                            *slot = word.0;
+                        }
+                        column.0.push(word);
                     }
+                    memo.0 = l::facts::words_end(words).0;
                 }
                 _ => column.0.extend(cells.map(CellWord)),
             }
