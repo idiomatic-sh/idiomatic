@@ -11,4 +11,7 @@ pub(crate) trait SyntaxPort: Send + Sync {
     /// and what a `url()` points at is written on its first token as the path of the run it names, resolved against `at`, the file's
     /// own path.
     fn read(&self, text: SourceText<'_>, at: SourcePath<'_>, builder: &mut TableBuilder<'_>);
+
+    /// Reads CSS text into the node table `builder` builds, numbered as the walk numbers it; `at` is the file's own path.
+    fn walk(&self, text: SourceText<'_>, at: SourcePath<'_>, builder: &mut ryo::languages::NodeTableBuilder<'_>);
 }

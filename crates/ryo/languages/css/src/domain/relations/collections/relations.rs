@@ -3,6 +3,7 @@
 pub(crate) mod comment;
 pub(crate) mod reference;
 pub(crate) mod static_import;
+pub(crate) mod source_location;
 pub(crate) mod string_literal;
 pub(crate) mod syntax_child;
 pub(crate) mod syntax_error;

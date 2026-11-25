@@ -1,13 +1,13 @@
 //! The writer of the adapter: place, contents, body_of, target and more.
 
 use super::super::constants::{IMPORT, RULE_BODIES, URL};
+use super::interface::Out;
 use super::super::schemas::{decoded_text, error_message, met, pieces, token_kind};
 use super::super::types::{
     Body, ByteIndex, Closing, Contents, CssText, Met, Open, Pieces, Recovered, Scratch,
 };
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::service::mirror;
 use cssparser::{ParseError, Parser, RuleBodyParser, StyleSheetParser, Token};
@@ -98,9 +98,9 @@ pub(in super::super) fn closer(token: Kind) -> Option<Kind> {
 }
 
 /// The writer of the table: the library's callbacks, and the tokens between them.
-pub(in super::super) struct Writer<'b, 'w, 't> {
-    /// The builder of the file's element table, which every node and token is written through.
-    pub(in super::super) builder: &'b mut languages::TableBuilder<'w>,
+pub(in super::super) struct Writer<'t, O: Out> {
+    /// The tree, which every node and token is written through.
+    pub(in super::super) out: O,
     /// The text the parser reads: the file after its byte order mark, up to its first byte that is not UTF-8.
     pub(in super::super) text: CssText<'t>,
     /// Where the file is, from the root of the run: what its urls are resolved against.
@@ -117,7 +117,7 @@ pub(in super::super) struct Writer<'b, 'w, 't> {
     pub(in super::super) scratch: Scratch,
 }
 
-impl Writer<'_, '_, '_> {
+impl<O: Out> Writer<'_, O> {
     /// The offset in the file of a place of `text`.
     pub(in super::super) fn offset(&self, at: ByteIndex) -> Offset {
         Offset(u32::try_from(self.base.0 + at.0).unwrap_or(u32::MAX))
@@ -132,10 +132,7 @@ impl Writer<'_, '_, '_> {
         decoded: Option<NameText<'_>>,
     ) {
         let (from, to) = (self.offset(start), self.offset(end));
-        match decoded {
-            Some(text) => languages::decoded_token(self.builder, kind_bits(kind), from, to, text),
-            None => languages::token(self.builder, kind_bits(kind), from, to),
-        }
+        self.out.token(kind, from, to, decoded.map(|text| text.0));
     }
 
     /// Writes every token the library's tokenizer reads of the text `parser` reads, `shift` bytes into `text`, those inside the
@@ -229,7 +226,8 @@ impl Writer<'_, '_, '_> {
     /// Opens a node at `at`, after writing the tokens before it.
     pub(in super::super) fn enter(&mut self, node: Node, at: ByteIndex) {
         self.advance(at);
-        languages::enter_node(self.builder, kind_bits(Kind::Node(node)), self.offset(at));
+        let at_offset = self.offset(at);
+        self.out.enter(Kind::Node(node), at_offset);
         self.open.push(Open {
             node,
             closing: Closing::AtContent,
@@ -240,7 +238,8 @@ impl Writer<'_, '_, '_> {
     pub(in super::super) fn leave(&mut self, at: ByteIndex) {
         let at = at.max(self.written);
         self.advance(at);
-        languages::leave_node(self.builder, self.offset(at));
+        let at_offset = self.offset(at);
+        self.out.leave(at_offset);
         let _: Option<Open> = self.open.pop();
     }
 
@@ -269,12 +268,7 @@ impl Writer<'_, '_, '_> {
             self.offset(ByteIndex(start)),
             self.offset(ByteIndex(start + slice.0.len())),
         );
-        languages::diagnose(
-            self.builder,
-            languages::ReportText(&self.scratch.0),
-            from,
-            to,
-        );
+        self.out.diagnose(&self.scratch.0, from, to);
     }
 
     /// Records what the language says of the token from `start` to `end`, which the library calls a parse error.
@@ -285,7 +279,7 @@ impl Writer<'_, '_, '_> {
         end: ByteIndex,
     ) {
         let (from, to) = (self.offset(start), self.offset(end));
-        languages::diagnose(self.builder, message, from, to);
+        self.out.diagnose(message.0, from, to);
     }
 
     /// Marks the rule open at the top as one whose body the parser has just entered: it ends after its `}`.
@@ -317,12 +311,7 @@ impl Writer<'_, '_, '_> {
                     if let Err(error) = nested {
                         error_message(&error.kind, &mut self.scratch);
                         let (from, to) = (self.offset(start), self.offset(after));
-                        languages::diagnose(
-                            self.builder,
-                            languages::ReportText(&self.scratch.0),
-                            from,
-                            to,
-                        );
+                        self.out.diagnose(&self.scratch.0, from, to);
                     }
                     self.leave(after);
                     self.content_end = after;

@@ -63,3 +63,14 @@ pub(crate) enum Field {
     /// The keyword of a declaration's `!important`.
     Important,
 }
+
+/// A word of a declaration: a part of it that is no white space and no comment.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Word<'a> {
+    /// What it is.
+    pub kind: Kind,
+    /// The text of it as it is written; none for a node.
+    pub spelled: &'a str,
+    /// What the library decoded of it.
+    pub decoded: Option<&'a str>,
+}

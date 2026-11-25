@@ -1,6 +1,7 @@
 //! The `syntax_error` relation of the language: every error the parser recovered from, and every token its tokenizer could not
 //! read, kept beside the recovered tree.
 
+use crate::domain::file_view::types::CssWalk;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::{INCOMPLETE_IMPACT, PARSE_PHASE, UNSPECIFIED_CODE};
 use crate::domain::syntax::service::{
@@ -27,5 +28,12 @@ ryo::reads! {
                 span: value(diagnostic_span(&diagnostic)),
             }
         }
+    }
+}
+
+// The engine fills `syntax_error` from the walked file: what the parser said, in the order it said it.
+ryo::fills! {
+    SyntaxErrorItem => languages::SyntaxError, walk(CssWalk) |file, words, rows| {
+        languages::facts::syntax_error_rows(file.syntax.table, file.syntax.file, words, rows);
     }
 }

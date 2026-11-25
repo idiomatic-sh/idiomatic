@@ -5,7 +5,7 @@
 use ryo::languages::{self, Tree};
 
 use super::constants::{BANG, IMPORTANT};
-use super::types::{Field, Kind, Leaf, Rootness};
+use super::types::{Field, Kind, Leaf, Rootness, Word};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::tokens::types::Token;
@@ -201,6 +201,41 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
 }
 
 /// The role of the element at `at`, as the number the element table holds.
+/// The role of each word of a declaration, in order: the name, the parts of the value, and the keyword of its `!important`.
+/// A word is a part of the declaration that is no white space and no comment.
+#[must_use]
+pub(crate) fn declaration_fields(words: &[Word<'_>]) -> Vec<Field> {
+    let important = matches!(
+        words,
+        [.., bang, word]
+            if bang.kind == Kind::Token(Token::Delim)
+                && bang.spelled == BANG
+                && word.kind == Kind::Token(Token::Ident)
+                && word.decoded.unwrap_or(word.spelled).eq_ignore_ascii_case(IMPORTANT)
+    );
+    let value_end = if important {
+        words.len().saturating_sub(2)
+    } else {
+        words.len()
+    };
+    (0..words.len())
+        .map(|place| {
+            if place == 0 && words.first().is_some_and(|word| word.kind == Kind::Token(Token::Ident)) {
+                Field::Name
+            } else if important && place + 1 == words.len() {
+                Field::Important
+            } else if place >= 2
+                && place < value_end
+                && words.get(1).is_some_and(|colon| colon.kind == Kind::Token(Token::Colon))
+            {
+                Field::Value
+            } else {
+                Field::None
+            }
+        })
+        .collect()
+}
+
 #[must_use]
 pub(crate) fn role_of(tree: &Tree<'_>, at: languages::Position) -> languages::FieldId {
     field_bits(field_of(tree, at))
