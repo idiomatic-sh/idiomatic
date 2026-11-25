@@ -569,7 +569,7 @@ mod tests {
             }
         }));
         assert!(file.excludes(0, &bound, |_| panic!("repeated verdict")));
-        assert_eq!(file.exclusion(0, &bound), Some("kind"));
+        assert!(file.excludes(0, &bound, |_| panic!("cached decision requested a projection")));
     }
 
     #[test]
@@ -593,7 +593,7 @@ mod tests {
             fields: true,
             words: false
         }));
-        assert_eq!(file.exclusion(0, &bound), Some("kind-or-field"));
+        assert!(file.excludes(0, &bound, |_| panic!("cached decision requested a projection")));
     }
 
     #[test]
