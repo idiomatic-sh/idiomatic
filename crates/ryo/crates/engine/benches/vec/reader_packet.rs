@@ -78,9 +78,20 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_> {
             return Ok(None);
         }
         for (column, kind) in catalog::kinds(relation).iter().enumerate() {
-            if *kind == CellKind::Symbol {
-                self.symbols.get_or_init(|| (0..l::facts::words_end(self.file.words).0)
-                    .map(|id| run.sym(l::facts::text(self.file.words, CellWord(id)).0.as_bytes())).collect());
+            if *kind == CellKind::Symbol && table.rows != 0 {
+                self.symbols.get_or_init(|| {
+                    let words = self.file.words;
+                    let base = l::facts::base_count(words).0;
+                    if l::facts::base_changed(words, &mut run.fact_word_base) {
+                        run.base_word_sym = (0..base)
+                            .map(|id| run.sym(l::facts::text(words, CellWord(id)).0.as_bytes()))
+                            .collect();
+                    }
+                    let mut ids = run.base_word_sym.clone();
+                    ids.extend((base..l::facts::words_end(words).0)
+                        .map(|id| run.sym(l::facts::text(words, CellWord(id)).0.as_bytes())));
+                    ids
+                });
             }
             if *kind == CellKind::Node && self.file.column(slot, column).unwrap_or_default().iter()
                 .any(|&value| file_node(self.file.home.0, value.0).is_err()) {

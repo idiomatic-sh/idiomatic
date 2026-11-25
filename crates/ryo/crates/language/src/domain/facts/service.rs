@@ -176,6 +176,16 @@ pub fn base_count(words: &FileWords) -> CellWord {
     CellWord(u64::try_from(words.0.base.0.words.texts.len()).unwrap_or(u64::MAX))
 }
 
+/// Remember the immutable base dictionary of this file. A change invalidates
+/// positions translated from the previous base, including a base of the same length.
+pub fn base_changed(words: &FileWords, previous: &mut Option<BaseWords>) -> bool {
+    if previous.as_ref().is_some_and(|base| Arc::ptr_eq(&base.0, &words.0.base.0)) {
+        return false;
+    }
+    *previous = Some(words.0.base.clone());
+    true
+}
+
 /// The code after the file's last word: a cell below it is a word (of the run, or one this file interned so far), and a
 /// cell from it on is no word at all, whatever else it is. It grows as the file interns texts.
 ///
