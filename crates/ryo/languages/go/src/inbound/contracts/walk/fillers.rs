@@ -7,8 +7,25 @@ use crate::domain::roles::service::{field_name, fields};
 use crate::domain::syntax::service::{kind_name, kinds};
 use ryo::languages::{
     self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames,
-    RenderOutcome, RenderRequest, Rows, WalkKinds, WalkVocabulary, Wanted,
+    RenderOutcome, RenderRequest, Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
 };
+
+/// The filler of each relation whose `fills!` item writes it whole alone: the item's run. Asked for a key, it writes the whole
+/// relation and says so; `fillers::filled` is the one place that answer is written.
+macro_rules! written {
+    ($( $module:ident: $relation:ident => $item:path; )*) => {
+        $(
+            fn $module(
+                file: &mut GoFile<'_>,
+                words: &mut FileWords,
+                wanted: Wanted,
+                rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
+            ) -> Fill {
+                fillers::filled::<$item>(file, words, wanted, rows)
+            }
+        )*
+    };
+}
 
 /// The filler of each relation Go does not fill, with the cause.
 macro_rules! absent {
@@ -32,13 +49,18 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
     where
         Self: 'f;
 
+    written! {
+        comment: Comment => crate::domain::relations::collections::relations::comment::item::CommentItem;
+        directive: Directive => crate::domain::relations::collections::relations::directive::item::DirectiveItem;
+        static_import: StaticImport => crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
+        string_literal: StringLiteral => crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
+        syntax_error: SyntaxError => crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
+    }
+
     absent! {
         analyzed_source: AnalyzedSource => NotYetRead;
-        comment: Comment => NotYetRead;
         entry: Entry => NotYetRead;
         mapping: Mapping => NotYetRead;
-        string_literal: StringLiteral => NotYetRead;
-        syntax_error: SyntaxError => NotYetRead;
         annotates: Annotates => NotYetRead;
         assigns: Assigns => NotYetRead;
         attribute_path: AttributePath => NoSuchConstruct;
@@ -55,7 +77,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         constant_key: ConstantKey => NoSuchConstruct;
         decorates: Decorates => NoSuchConstruct;
         defines: Defines => NotYetRead;
-        directive: Directive => NotYetRead;
         embedded_expression: EmbeddedExpression => NoSuchConstruct;
         expression_shape: ExpressionShape => NoSuchConstruct;
         expression_type: ExpressionType => NoSuchConstruct;
@@ -104,7 +125,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         source_dependency: SourceDependency => NotYetRead;
         standard_library_import: StandardLibraryImport => NoSuchConstruct;
         static_call: StaticCall => NotYetRead;
-        static_import: StaticImport => NotYetRead;
         token_link: TokenLink => NoSuchConstruct;
         visibility: Visibility => NoSuchConstruct;
         workspace_member: WorkspaceMember => NotYetRead;

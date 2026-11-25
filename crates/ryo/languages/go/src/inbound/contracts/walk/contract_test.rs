@@ -50,11 +50,22 @@ struct Placement {
 }
 
 /// The relations the language fills, and compares.
-const FILLED: [Relation; 0] = [];
+const FILLED: [Relation; 5] = [
+    Relation::Comment,
+    Relation::Directive,
+    Relation::StaticImport,
+    Relation::StringLiteral,
+    Relation::SyntaxError,
+];
 
 /// The kinds of the columns of each relation compared.
 fn column_kinds(relation: Relation) -> &'static [CellKind] {
     match relation {
+        Relation::Comment => <languages::Comment as CatalogRelation>::kinds(),
+        Relation::Directive => <languages::Directive as CatalogRelation>::kinds(),
+        Relation::StaticImport => <languages::StaticImport as CatalogRelation>::kinds(),
+        Relation::StringLiteral => <languages::StringLiteral as CatalogRelation>::kinds(),
+        Relation::SyntaxError => <languages::SyntaxError as CatalogRelation>::kinds(),
         _ => &[],
     }
 }
@@ -150,6 +161,9 @@ fn special(word: u64) -> Option<Seen> {
     let symbol = languages::Symbol(u32::try_from(word).unwrap_or(u32::MAX));
     if symbol == languages::NO_SYMBOL {
         return Some(Seen::NoText);
+    }
+    if let Some(reason) = (0..=u8::MAX).find(|reason| languages::unknown_symbol(languages::UnknownReason(*reason)) == symbol) {
+        return Some(Seen::Text(format!("unknown {reason}")));
     }
     ValueKind::iter()
         .find(|kind| languages::term_symbol(*kind) == symbol)

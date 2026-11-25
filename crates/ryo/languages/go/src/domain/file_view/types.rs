@@ -14,7 +14,6 @@ pub(crate) struct GoWalk<P = ()> {
 
 /// A walked file's syntax: its node table in place, and its bytes.
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(test, expect(dead_code, reason = "the fillers read the view's table, text and number as their relations are written"))]
 pub(crate) struct Syntax<'f> {
     /// The node table, finished.
     pub(crate) table: &'f NodeTable,
@@ -26,7 +25,6 @@ pub(crate) struct Syntax<'f> {
 
 /// One walked file as the fillers read it: its syntax in place.
 #[derive(Debug)]
-#[cfg_attr(test, expect(dead_code, reason = "the fillers read the view as their relations are written"))]
 pub(crate) struct GoFile<'f> {
     /// The node table and the text.
     pub(crate) syntax: Syntax<'f>,
@@ -38,3 +36,7 @@ pub(crate) struct GoScratch {
     /// What gives each element of the walk its role.
     pub(crate) roling: Roling,
 }
+
+/// The names of a walked file: a text becomes a word of the file, the cell a row holds. Shared, so a lazy answer that holds the file's
+/// names does not stop another from naming a text.
+pub(crate) struct Words<'w>(pub(crate) std::cell::RefCell<&'w mut ryo::languages::FileWords>);

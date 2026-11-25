@@ -31,3 +31,4 @@ pub(crate) mod specs;
 pub(crate) mod statements;
 pub(crate) mod syntax;
 pub(crate) mod tokens;
+pub(crate) mod walked;
