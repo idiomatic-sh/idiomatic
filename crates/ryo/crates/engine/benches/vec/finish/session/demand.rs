@@ -13,6 +13,26 @@ pub(in super::super::super) fn local_class(
     origin: usize,
 ) -> R<bool> {
     let plan = exec.plan;
+    // Class walks use raw node IDs as map keys. Typed catalogue node IDs
+    // identify actual nodes, while open provider columns can carry NULL.
+    // A null endpoint shared by files would make the walk cross a partition.
+    let mut reached = vec![false; origin + 1];
+    reached[origin] = true;
+    for (node, step) in plan.nodes[..=origin].iter().enumerate().rev() {
+        if !reached[node] {
+            continue;
+        }
+        if let Some(name) = step.base()
+            && ryo_relations::domain::relations::service::relation_named(
+                ryo_relations::domain::labels::types::NameRef(name),
+            ).is_none()
+        {
+            return Ok(false);
+        }
+        for &source in &step.inputs {
+            reached[source] = true;
+        }
+    }
     let mut classes = vec![Vec::new(); plan.nodes.len()];
     classes[origin].push(exec.schema(run, origin)?.names.len() - 1);
     for (node, step) in plan.nodes.iter().enumerate().skip(origin + 1) {
