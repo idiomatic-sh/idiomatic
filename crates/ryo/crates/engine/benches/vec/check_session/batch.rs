@@ -170,18 +170,19 @@ impl Admission {
         }, |name| hosted.iter().any(|t| t.name == name && has_files(t)))?;
         // A caller table keyed by File that every reader binds to its own file is
         // read in the visit, so it need not wait for the numbered inventory.
-        let unsliced_host = program.plan.nodes.iter().enumerate().any(|(at, step)| {
+        let unsliced = |local: &[bool]| program.plan.nodes.iter().enumerate().any(|(at, step)| {
             !local[at] && step.base().is_some_and(|name| hosted.iter().any(|t| t.name == name && has_files(t)))
         });
+        let unsliced_host = unsliced(&local);
         let contract = Arc::new(session::completeness::describe(program, &local)?);
         let wide = contract.cross || unsliced_host;
-        let layout = if !scope_only && !unsliced_host
+        let layout = if !scope_only
             && let [relation] = held.as_slice() && project::layout_relation(*relation)
         {
             let name = relations::service::name(*relation).0;
             finish::partition::with_file_slice(&mut exec, &mut run, name, |base| {
                 hosted.iter().any(|table| table.name == base)
-            }, |base| hosted.iter().any(|t| t.name == base && has_files(t)))?.map(|local| session::completeness::describe(program, &local)
+            }, |base| hosted.iter().any(|t| t.name == base && has_files(t)))?.filter(|local| !unsliced(local)).map(|local| session::completeness::describe(program, &local)
                 .map(|contract| (*relation, Arc::new(contract)))).transpose()?
         } else {
             None
