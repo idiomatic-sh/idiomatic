@@ -135,7 +135,7 @@ pub(crate) struct Clock {
     pub literal_positions: usize,
     pub witnesses: [usize; 4],
     pub exact_inputs: [usize; 8],
-    pub named_counts: [usize; 3],
+    pub named_counts: [usize; 4],
     pub named_cpu: f64,
     pub requirement_programs: usize,
     pub requirement_bindings: usize,
@@ -868,6 +868,7 @@ pub(crate) fn visit<L: FileSource>(
     let mut distinct = std::cell::RefCell::new(crate::pair_checks::FileSymbols::default());
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
+    let mut empty_named = named::EmptyTables::default();
     let scoped = parser.and_then(FileSource::scoped);
     let mut numbered_reader = None;
     let mut numbered_symbols = l::Symbols::default();
@@ -1337,13 +1338,14 @@ pub(crate) fn visit<L: FileSource>(
                                 if let Some(reason) = rows.partial {
                                     named_partials.insert(schema.name, reason.0);
                                 }
-                                named::table(rows.columns, schema, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, &mut run, unknown, &mut resolved_words)
+                                named::table(&mut empty_named, rows.columns, schema, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, &mut run, unknown, &mut resolved_words)
                             });
                             match table {
                                 Ok(table) => {
                                     clocks.named_counts[1] += 1;
                                     clocks.named_counts[2] += table.n;
-                                    named_tables.push((schema.name.to_owned(), Rc::new(table)));
+                                    clocks.named_counts[3] += usize::from(table.n == 0);
+                                    named_tables.push((schema.name.to_owned(), table));
                                 }
                                 Err(error) => { named_errors.insert(schema.name, error); }
                             }

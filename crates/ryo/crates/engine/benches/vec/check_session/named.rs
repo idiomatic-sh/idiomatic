@@ -1,7 +1,7 @@
 //! Resolve file-scoped declarations against the linked providers before preparing the
 //! program. The selected reader must still supply the table on each admitted file.
 use super::{FileId, FileSource, Result, Run, Table, finish, l, reader_run::packet::FileSymbols, source::FileRelation};
-use std::collections::{BTreeMap, HashMap};
+use std::{collections::{BTreeMap, HashMap}, rc::Rc};
 
 #[derive(Default)]
 pub(crate) struct Catalog(BTreeMap<&'static str, &'static FileRelation>);
@@ -45,7 +45,13 @@ pub(super) fn declare(run: &mut Run, schema: &FileRelation) {
     run.declare(schema.name, &columns, finish::Supplier::Provider);
 }
 
+/// Empty rows have no file-local cells. Share their immutable table across
+/// visits in this reader run after validating each supplier response.
+#[derive(Default)]
+pub(super) struct EmptyTables(rustc_hash::FxHashMap<&'static str, Rc<Table>>);
+
 pub(super) fn table(
+    empty: &mut EmptyTables,
     mut columns: super::source::Columns,
     schema: &FileRelation,
     id: FileId,
@@ -54,13 +60,16 @@ pub(super) fn table(
     run: &mut Run,
     unknown: &HashMap<u32, u32>,
     resolved: &mut FileSymbols,
-) -> Result<Table> {
+) -> Result<Rc<Table>> {
     let n = columns.first().map_or(0, |c| c.0.len());
     if columns.len() != schema.columns.len() || columns.iter().any(|c| c.0.len() != n) {
         return Err(format!(
             "provider returned invalid dimensions for {}",
             schema.name
         ));
+    }
+    if n == 0 && let Some(table) = empty.0.get(schema.name) {
+        return Ok(table.clone());
     }
     let (_, names, kinds) = run
         .catalog(schema.name)
@@ -86,5 +95,9 @@ pub(super) fn table(
             _ => {}
         }
     }
-    Ok(Table { names, tys: kinds, cols: columns.into_iter().map(|column| column.0).collect(), n })
+    let table = Rc::new(Table { names, tys: kinds, cols: columns.into_iter().map(|column| column.0).collect(), n });
+    if n == 0 {
+        empty.0.insert(schema.name, table.clone());
+    }
+    Ok(table)
 }
