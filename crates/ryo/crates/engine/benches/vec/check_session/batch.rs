@@ -359,24 +359,11 @@ impl Batch {
         mut store:Option<&mut stored::Store>,
     ) {
         self.schedule.finish_preparation();
-        let Active {
-            paths,
-            keep,
-            manifests,
-            retention,
-            readers: reader_states,
-            world,
-            answers,
-            aliases,
-            contributions,
-            populations,
-            project_unread,
-        } = state;
-        if world.run.texts.is_empty() {
-            world.declare_words(languages);
+        if state.world.run.texts.is_empty() {
+            state.world.declare_words(languages);
         }
-        answers.grow(self.schedule.pairs);
-        contributions.resize_with(self.schedule.sources.len(), || None);
+        state.answers.grow(self.schedule.pairs);
+        state.contributions.resize_with(self.schedule.sources.len(), || None);
         // A later round may need notes that were released after a project closed.
         let needed_projects: BTreeSet<_> = self.work.iter().filter_map(|work| match work {
             Work::Closed { project, .. } => *project,
@@ -384,26 +371,69 @@ impl Batch {
         }).collect();
         for project in needed_projects {
             for &id in &self.projects[project].slots {
-                if contributions[id].is_none() {
+                if state.contributions[id].is_none() {
                     self.schedule.sources[id].project = true;
                     self.schedule.pending.insert(id);
                 }
             }
         }
-        if let Some(s)=store.as_deref_mut() {
+        let mut probe = Vec::new();
+        if let Some(store) = store.as_deref_mut() {
             let started = thread_cpu();
-            s.admit(self,world,answers,contributions);
-            eprintln!("store_admit_cpu={:.6}", thread_cpu()-started);
-            if !*keep {self.release_admission();}
+            store.prepare(self);
+            let (files, candidates) = store.probe(self);
+            probe = files;
+            if !probe.is_empty() {
+                self.read_pending(languages, state, &probe, false);
+                store.local(self, &state.world, &state.answers, &state.aliases, &state.contributions, &probe);
+                store.reuse_closed(self, candidates);
+            }
+            store.admit(self, &mut state.world, &mut state.answers, &mut state.contributions, &probe);
+            eprintln!("store_admit_cpu={:.6}", thread_cpu() - started);
+            if !state.keep {
+                self.release_admission();
+            }
         }
-        let pending: Vec<_> = std::mem::take(&mut self.schedule.pending)
-            .into_iter()
-            .collect();
+        let pending: Vec<_> = std::mem::take(&mut self.schedule.pending).into_iter().collect();
+        self.read_pending(languages, state, &pending, store.is_none());
+        let Active { keep, readers: reader_states, world, answers, aliases, contributions, populations, project_unread, .. } = state;
+        if let Some(store) = store.as_deref_mut() {
+            let started = thread_cpu();
+            store.local(self, world, answers, aliases, contributions, &pending);
+            eprintln!("store_local_cpu={:.6}", thread_cpu() - started);
+        }
+        if !*keep {
+            reader_states.clear();
+        }
+        if !aliases.is_empty() {
+            for work in &mut self.work {
+                if let Work::Pairs(pairs) | Work::Closed { pairs, .. } = work {
+                    for slot in pairs { *slot = aliases.lookup(*slot); }
+                }
+            }
+        }
+        if !*keep {
+            *aliases=Default::default();
+        }
+        self.schedule.delivered(&probe, *keep, |id| self.cut_of[id].is_none());
+        self.schedule.delivered(&pending, *keep, |id| self.cut_of[id].is_none());
+        self.finish_projects(languages, reader_states, contributions, world, answers, populations, project_unread, *keep,store.as_deref_mut());
+
+    }
+
+    fn read_pending<L: session::source::Source>(
+        &mut self,
+        languages: &[L],
+        state: &mut Active<L::File, L::Dictionary>,
+        pending: &[usize],
+        release_files: bool,
+    ) {
+        let Active { paths, keep, manifests, retention, readers: reader_states, world, answers, aliases, contributions, .. } = state;
         if pending.is_empty() { self.empty_reader_epochs += 1; }
         let unclaimed = languages.len();
         reader_states.resize_with(unclaimed + 1, Default::default);
         let mut groups = vec![Vec::new(); unclaimed + 1];
-        for &i in &pending {
+        for &i in pending {
             let src = &self.schedule.sources[i];
             if src.bindings.is_empty() && contributions[i].is_some() {
                 continue;
@@ -426,7 +456,7 @@ impl Batch {
             self.reused_binding_entries += self.cut_of.len() + self.bound_contracts.len() + self.bindings.len();
             self.clocks.omitted_file_bindings += self.bindings.len();
             let hosted = &self.bindings;
-            let file_workers = if store.is_some() && *keep { Some(std::num::NonZeroUsize::MIN) } else { self.workers };
+            let file_workers = if !release_files && *keep { Some(std::num::NonZeroUsize::MIN) } else { self.workers };
             let start = paths.len();
             if start < self.schedule.sources.len() {
                 Arc::make_mut(paths).extend(self.schedule.sources[start..].iter().map(|s| s.path.clone()));
@@ -464,7 +494,7 @@ impl Batch {
                     },
                     &mut self.clocks,
                 );
-                if !*keep && store.is_none() {
+                if !*keep && release_files {
                     // Other readers have disjoint files. Answers and project contributions
                     // already own everything the closed phase will read from this group.
                     self.schedule.delivered(&files, *keep, |id| self.cut_of[id].is_none());
@@ -477,27 +507,16 @@ impl Batch {
             self.clocks.empty_file_epochs += 1;
             self.clocks.omitted_file_bindings += self.bindings.len();
         }
-        if let Some(s)=store.as_deref_mut() {
-            let started = thread_cpu();
-            s.local(self,world,answers,aliases,contributions);
-            eprintln!("store_local_cpu={:.6}", thread_cpu()-started);
-        }
-        if !*keep {
-            reader_states.clear();
-        }
-        if !aliases.is_empty() {
-            for work in &mut self.work {
-                if let Work::Pairs(pairs) | Work::Closed { pairs, .. } = work {
-                    for slot in pairs { *slot = aliases.lookup(*slot); }
-                }
-            }
-        }
-        if !*keep {
-            *aliases=Default::default();
-        }
-        self.schedule.delivered(&pending, *keep, |id| self.cut_of[id].is_none());
-        self.finish_projects(languages, reader_states, contributions, world, answers, populations, project_unread, *keep,store.as_deref_mut());
+    }
 
+    fn add_work(&mut self, work: Work, retained: Option<(&mut stored::Store, stored::Key)>) -> usize {
+        let index = self.work.len();
+        if let Some((store, key)) = retained
+            && matches!(&work, Work::Pairs(_) | Work::Closed { .. } | Work::Project(_)) {
+            store.offer(index, key);
+        }
+        self.work.push(work);
+        index
     }
 
     fn finish_projects<L: session::source::Source>(

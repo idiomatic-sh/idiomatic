@@ -291,8 +291,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
                         }
                         Ok(work)
                     }).unwrap_or_else(Work::Refused);
-                let idx = session.work.len();
-                session.work.push(result);
+                let idx = session.add_work(result, store.as_mut().zip(contract));
                 if store.is_none() {
                     return idx;
                 }

@@ -662,8 +662,8 @@ impl Live {
             if let (Some(store), Some((proof, _))) = (&mut self.store, scope) {
                 store.bind_work(self.batch.work.len(), proof);
             }
-            ids.push((id,Err((self.batch.work.len(),contract))));
-            self.batch.work.push(work);
+            let index = self.batch.add_work(work, self.store.as_mut().zip(contract));
+            ids.push((id,Err((index,contract))));
         }
         self.batch.last_sources = None;
         let memo = memo.zip(prepared_root).map(|(mut key, version)| {
