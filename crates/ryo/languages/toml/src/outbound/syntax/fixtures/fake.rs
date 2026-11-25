@@ -32,7 +32,7 @@ impl SyntaxPort for SyntaxFake {
         languages::leave_node(builder, end);
     }
 
-    fn walk(&self, text: SourceText<'_>, _values: bool, builder: &mut languages::NodeTableBuilder<'_>) {
+    fn walk(&self, text: SourceText<'_>, _values: bool, _decodings: &mut crate::domain::file_view::types::Decodings, builder: &mut languages::NodeTableBuilder<'_>) {
         use languages::{FieldCode, node_table};
         let end = languages::Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));
         let start = languages::Offset(0);
