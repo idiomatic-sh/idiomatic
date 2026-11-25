@@ -124,7 +124,6 @@ pub(super) struct CallCache {
     by_hash: HashMap<(usize, u64), Vec<usize>>,
     tables: HashMap<(usize, Vec<usize>), (usize, Hosted, std::cell::OnceCell<stored::Key>)>,
     path_digests: HashMap<*const Vec<String>, stored::Key>,
-    program_digests: HashMap<usize, stored::Key>,
     pub(super) pattern_visits: [usize; 4],
 }
 
@@ -235,18 +234,6 @@ impl CallCache {
             .path_digests
             .entry(Rc::as_ptr(paths))
             .or_insert_with(|| stored::key(paths))
-    }
-
-    pub(super) fn program_digest(
-        &mut self,
-        id: usize,
-        query: &crate::check_session::query::Query,
-        parameters: &Parameters,
-    ) -> stored::Key {
-        *self
-            .program_digests
-            .entry(id)
-            .or_insert_with(|| stored::key((query, parameters)))
     }
 
     pub(super) fn table(

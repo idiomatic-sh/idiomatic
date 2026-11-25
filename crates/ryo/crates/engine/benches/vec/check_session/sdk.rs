@@ -517,10 +517,9 @@ impl Live {
                     .map(|(k, v)| Ok((k.0.clone(), parameter(v.clone())?)))
                     .collect::<Result<Parameters, String>>().map_err(execution)?;
                 let query = sdk_request::query(&mut self.cache, rule, inputs.get(id));
-                let program = self.batch.prepared_rule(query.clone(), &parameters);
-                let digest = self.cache.program_digest(program, &query, &parameters);
+                let digest = super::stored::key((&query, &parameters));
                 peers.push(super::stored::key((id.as_ref(), digest, &rule.include, &rule.exclude)));
-                retained_rules.push((query, parameters, program, digest));
+                retained_rules.push((query, parameters, digest));
             }
             let shape = hosted.iter().map(|h| (&h.name, &h.columns)).collect::<Vec<_>>();
             let supplied: BTreeMap<_, _> = key.1.iter().map(|(path, (bytes, permission))| {
@@ -568,12 +567,19 @@ impl Live {
                 &exc.1,
             );
             let (query, parameters, contract) = if let Some((_, scope)) = scope {
-                let (query, parameters, program, digest) =
+                let (query, parameters, digest) =
                     retained_rules.next().expect("retained rule identity");
-                let plan = self.batch.schedule.programs[program].as_ref().ok();
-                let consumed: Vec<_> = hosted.iter().enumerate()
-                    .filter(|(_, table)| plan.is_some_and(|p| p.bases.contains(&table.name)))
-                    .map(|(i, _)| host_keys.as_ref().unwrap()[i])
+                let store = self.store.as_mut().expect("retained request");
+                if !hosted.is_empty() && store.program_inputs(digest).is_none() {
+                    let program = self.batch.prepared_rule(query.clone(), &parameters);
+                    if let Ok(plan) = &self.batch.schedule.programs[program] {
+                        store.remember_program_inputs(digest, &plan.bases);
+                    }
+                }
+                let inputs = store.program_inputs(digest).unwrap_or_default();
+                let consumed: Vec<_> = hosted.iter().zip(host_keys.as_ref().unwrap())
+                    .filter(|(table, _)| inputs.contains(&table.name))
+                    .map(|(_, key)| *key)
                     .collect();
                 let identity = super::stored::key((
                     scope, digest, self.cache.path_digest(&files), consumed,
