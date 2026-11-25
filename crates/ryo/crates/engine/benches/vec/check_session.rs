@@ -947,7 +947,7 @@ pub(crate) fn visit<L: FileSource>(
     let (plan, supplied) = merged.finish();
     let mut exec = Exec::new(&plan);
     clocks.prepare += thread_cpu() - start;
-    let mut carried_symbols = HashMap::new();
+    let mut carried_symbols = rustc_hash::FxHashMap::<u32, u32>::default();
     if let Some(dictionary) = reader_id.and_then(|id| world.project_words.get(id)) {
         carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
     }
@@ -1370,7 +1370,8 @@ pub(crate) fn visit<L: FileSource>(
                 let [answer]: [l::RenderOutcome; 1] = answers.try_into().map_err(|_| "renderer returned the wrong number of answers")?;
                 Ok(answer)
             };
-            let loan = dictionary.as_ref().map(|dictionary| packet.operator_columns(id, dictionary, lazy.as_ref(), &mut run));
+            let loan = Some(packet.operator_columns(id, dictionary.as_ref(), lazy.as_ref(),
+                Some(reader_run::packet::RowsContext { symbols: scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), bytes: &bytes, unknown }), &mut run));
             // The frame owns the reader's projected word buffer for this visit.
             let mut frame_words = provider.projects_words.then(|| std::mem::take(&mut provider.text));
             let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, dictionary.as_ref(), lazy.as_ref());

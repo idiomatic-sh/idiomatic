@@ -67,7 +67,7 @@ impl<'a> FileInputs<'a> {
         cut: &Partition,
         local_coverage: &BTreeMap<String, Vec<Option<u32>>>,
         world: &mut World,
-        carried_symbols: &mut HashMap<u32, u32>,
+        carried_symbols: &mut rustc_hash::FxHashMap<u32, u32>,
         reader: Option<usize>,
         words: &HashMap<u32, u32>,
         slot: usize,
@@ -305,7 +305,7 @@ impl World {
         home: u32,
         t: &Table,
         needed: &[bool],
-        syms: &mut HashMap<u32, u32>,
+        syms: &mut rustc_hash::FxHashMap<u32, u32>,
         reader: Option<usize>,
         words: &HashMap<u32, u32>,
     ) -> Result<Rc<finish::population::Block>> {

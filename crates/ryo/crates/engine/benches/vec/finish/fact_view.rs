@@ -2,6 +2,20 @@
 //! positions and words remain in their file's namespace until that read.
 use super::{NULL, Table, Ty};
 use ryo::languages::{CellKind, CellWord, FilledColumn};
+use std::cell::{Cell, OnceCell};
+
+/// The executor's words of a lent relation's columns, translated once for the columns a consumer reads often.
+/// A column read about as often as it has rows stops paying a translation per cell.
+pub(crate) struct ColumnCache {
+    cells: Vec<OnceCell<Vec<u64>>>,
+    reads: Vec<Cell<u32>>,
+}
+
+impl ColumnCache {
+    pub(crate) fn new(columns: usize) -> Self {
+        Self { cells: (0..columns).map(|_| OnceCell::new()).collect(), reads: (0..columns).map(|_| Cell::new(0)).collect() }
+    }
+}
 
 #[derive(Clone, Copy)]
 pub(super) enum Column<'a> {
@@ -9,6 +23,11 @@ pub(super) enum Column<'a> {
     Numbers(&'a [CellWord]),
     Nodes(&'a [CellWord]),
     Words(&'a [CellWord], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>, u32),
+    /// A column of the provider's row-major packet: its words, the offset of each row and the column's place in a row.
+    Row(&'a [u64], &'a [usize], usize),
+    RowNodes(&'a [u64], &'a [usize], usize),
+    /// Symbols of the packet by the run's word: by provider symbol, else by the map of the symbols beyond the table.
+    RowWords(&'a [u64], &'a [usize], usize, &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>),
 }
 
 impl Column<'_> {
@@ -20,6 +39,15 @@ impl Column<'_> {
             Self::Nodes(c) => {
                 let value = c[row].0;
                 if value == NULL { NULL } else { u64::from(value as u32) }
+            }
+            Self::Row(words, offsets, col) => words[offsets[row] + col],
+            Self::RowNodes(words, offsets, col) => {
+                let value = words[offsets[row] + col];
+                if value == NULL { NULL } else { u64::from(value as u32) }
+            }
+            Self::RowWords(words, offsets, col, table, beyond) => {
+                let raw = words[offsets[row] + col] as u32;
+                u64::from(table.get(raw as usize).copied().filter(|&id| id != u32::MAX).unwrap_or_else(|| beyond[&raw]))
             }
             Self::Words(c, words, public, absent) => {
                 let value = c[row].0;
@@ -38,6 +66,7 @@ impl Column<'_> {
                 let value = cell.0;
                 u64::from(words.get(value as usize).copied().or_else(|| u32::try_from(value).ok().and_then(|v| public.get(&v).copied())).unwrap_or(absent))
             })),
+            Self::Row(..) | Self::RowNodes(..) | Self::RowWords(..) => out.extend((0..n).map(|row| self.at(row))),
         }
     }
 
@@ -45,6 +74,7 @@ impl Column<'_> {
         match self {
             Self::Owned(c) => c.len(),
             Self::Numbers(c) | Self::Nodes(c) | Self::Words(c, _, _, _) => c.len(),
+            Self::Row(_, offsets, _) | Self::RowNodes(_, offsets, _) | Self::RowWords(_, offsets, _, _, _) => offsets.len(),
         }
     }
 }
@@ -52,7 +82,9 @@ impl Column<'_> {
 #[derive(Clone, Copy)]
 pub(crate) enum Columns<'a> {
     Owned(&'a [Vec<u64>]),
-    Lent(&'a [FilledColumn], &'a [CellKind], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>, u32),
+    Lent(&'a [FilledColumn], &'a [CellKind], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>, u32, &'a ColumnCache),
+    /// The provider's row-major packet read in place: words, row offsets, kinds, the symbol table and the symbols beyond it.
+    Rows(&'a [u64], &'a [usize], &'a [CellKind], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>, &'a ColumnCache),
 }
 
 impl<'a> Columns<'a> {
@@ -60,16 +92,38 @@ impl<'a> Columns<'a> {
     pub(super) fn get(self, column: usize) -> Column<'a> {
         match self {
             Self::Owned(c) => Column::Owned(&c[column]),
-            Self::Lent(cols, kinds, words, public, absent) => {
+            Self::Rows(words, offsets, kinds, table, beyond, cache) => cached(cache, column, match kinds[column] {
+                CellKind::Node => Column::RowNodes(words, offsets, column),
+                CellKind::Symbol => Column::RowWords(words, offsets, column, table, beyond),
+                _ => Column::Row(words, offsets, column),
+            }),
+            Self::Lent(cols, kinds, words, public, absent, cache) => {
                 let cells = cols.get(column).map_or(&[][..], |c| c.0.as_slice());
-                match kinds[column] {
+                cached(cache, column, match kinds[column] {
                     CellKind::Node => Column::Nodes(cells),
                     CellKind::Symbol => Column::Words(cells, words, public, absent),
                     _ => Column::Numbers(cells),
-                }
+                })
             }
         }
     }
+}
+
+/// The column itself, or its translation once it has been asked for about as often as it has rows.
+fn cached<'a>(cache: &'a ColumnCache, column: usize, lent: Column<'a>) -> Column<'a> {
+    if !matches!(lent, Column::Nodes(_) | Column::Words(..) | Column::RowNodes(..) | Column::RowWords(..)) {
+        return lent;
+    }
+    if let Some(cells) = cache.cells[column].get() {
+        return Column::Owned(cells);
+    }
+    let asked = cache.reads[column].get().saturating_add(1);
+    cache.reads[column].set(asked);
+    let rows = lent.len();
+    if (asked as usize).saturating_mul(4) < rows {
+        return lent;
+    }
+    Column::Owned(cache.cells[column].get_or_init(|| (0..rows).map(|row| lent.at(row)).collect()))
 }
 
 #[derive(Clone, Copy)]
@@ -121,7 +175,7 @@ mod tests {
         let kinds = [CellKind::Node, CellKind::Symbol, CellKind::Number];
         let symbols = [33, 44];
         let public = rustc_hash::FxHashMap::default();
-        let file = Columns::Lent(&local, &kinds, &symbols, &public, 55);
+        let file = Columns::Lent(&local, &kinds, &symbols, &public, 55, &ColumnCache::new(3));
         let expected = [vec![8, NULL], vec![44, 55], vec![0, 42]];
         let owned = Columns::Owned(&expected);
         for col in 0..kinds.len() {
