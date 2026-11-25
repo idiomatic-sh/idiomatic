@@ -1,7 +1,7 @@
 //! Schedule all consumers of a source before walking it. Keep the emitted rows per
 //! bound program and source version. Parser scratch is released after its last consumer.
 use super::{finish, first, lower, reader, reader_run, thread_cpu};
-use finish::{Exec, Plan, Provider, Run, Table};
+use finish::{Exec, Plan, Run, Table};
 use super::pair_skip::{BoundSummary as BoundRequirements, Demand, FileSummary, PrerequisiteClauses};
 use ryo::languages::{self as l, ByteSlice, FileId, SourcePath};
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
@@ -1579,10 +1579,10 @@ pub(crate) fn visit<L: FileSource>(
             drop(frame);
             if keep {
                 held.recovery = Some(recovery);
-                held.lent = native;
-                held.native = L::File::default();
                 held.text = version.into_inner().map(finish::FileVersion::into_text)
                     .or(frame_words).unwrap_or_default();
+                held.lent = native;
+                held.native = L::File::default();
                 packet.rows.partials = partials;
                 packet.rows.partials_at = partials_at;
                 std::mem::swap(&mut held.facts, &mut packet.rows);
