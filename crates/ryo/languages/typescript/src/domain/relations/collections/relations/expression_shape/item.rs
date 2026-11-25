@@ -2,6 +2,7 @@
 //! file's shapes. The root is the file, which no other node equals.
 use crate::domain::file_view::service::{node_cell, span_at};
 use crate::domain::file_view::types::TypeScriptWalk;
+use crate::domain::shapes::service::Numbered;
 use crate::domain::syntax::reading::{Syntax as _, WordSink};
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
@@ -51,24 +52,12 @@ ryo::fills! {
             if file.is_leaf(at) {
                 continue;
             }
-            let mut built = Vec::new();
-            let classes = &index;
-            let found = crate::domain::shapes::service::words(
-                file,
-                at,
-                &mut words,
-                &mut |word| built.push(word),
-                &|child| classes.classes.get(usize::from(child)).copied().flatten(),
-            );
-            if found.is_none() {
+            index.scratch.clear();
+            let mut sink = Numbered { index: &mut index, whole: true };
+            let found = crate::domain::shapes::service::words(file, at, &mut words, &mut sink);
+            if found.is_none() || !sink.whole {
                 whole = false;
                 continue;
-            }
-            index.scratch.clear();
-            for word in built {
-                if languages::push_key_word(&mut index, word).is_none() {
-                    whole = false;
-                }
             }
             let class = languages::intern_key(&mut index, at);
             if let Some(slot) = index.classes.get_mut(raw) {
