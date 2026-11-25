@@ -293,6 +293,10 @@ impl Source for Pinned {
             .ok()
             .is_some_and(|r| self.parser.absence_of(r) != Some(old::AbsenceCause::NotYetRead))
     }
+    fn absent(&self, r: l::Relation) -> bool {
+        if let Some(parser) = &self.native { return parser.absent(r); }
+        relation(r).ok().is_some_and(|r| self.parser.absence_of(r).is_some())
+    }
     fn build(
         &self,
         req: l::ParseRequest<'_>,
