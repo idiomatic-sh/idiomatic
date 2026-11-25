@@ -204,14 +204,10 @@ pub(crate) fn fields() -> impl Iterator<Item = Field> {
     Field::iter()
 }
 
-/// The role of the element at `at` under its parent, by the element of `toml.abnf` it is in its parent's rule.
+/// The role of an element of `element` kind under a parent of `parent` kind, by the element of `toml.abnf` it is in its parent's rule.
 #[must_use]
-pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
-    if is_root(tree, at) == Rootness::Root {
-        return Field::None;
-    }
-    let element = kind(tree, at);
-    match kind(tree, parent(tree, at)) {
+pub(crate) fn field_between(parent: Kind, element: Kind) -> Field {
+    match parent {
         Kind::Node(Node::Keyval) if element == Kind::Node(Node::Key) => Field::Key,
         Kind::Node(Node::Keyval | Node::Array) if value_kind(element).is_some() => Field::Val,
         Kind::Node(Node::StdTable | Node::ArrayTable) if element == Kind::Node(Node::Key) => {
@@ -227,6 +223,15 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
         }
         Kind::Node(_) | Kind::Token(_) | Kind::Extra(_) => Field::None,
     }
+}
+
+/// The role of the element at `at` under its parent.
+#[must_use]
+pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
+    if is_root(tree, at) == Rootness::Root {
+        return Field::None;
+    }
+    field_between(kind(tree, parent(tree, at)), kind(tree, at))
 }
 
 /// The role of the element at `at`, as the number the element table holds.

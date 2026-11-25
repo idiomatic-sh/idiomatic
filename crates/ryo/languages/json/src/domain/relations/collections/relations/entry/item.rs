@@ -1,6 +1,10 @@
 //! The `entry` relation of the language: every member of an object, with what its value is. The key is the name of the member, decoded;
 //! the owner is the mapping the object is. A member whose value is `null` has an entry of kind `null`.
 
+use crate::domain::file_view::service::{modelled, node_cell, parent as walked_parent, span_at};
+use crate::domain::file_view::types::JsonWalk;
+use crate::domain::walked_values::service as walked;
+use ryo::languages::node_table;
 use crate::domain::model::service::{float, place, radix};
 use crate::domain::model::types::Model;
 use crate::domain::syntax::service::{
@@ -41,6 +45,39 @@ ryo::reads! {
             // RFC 8259 has no date-time value.
             datetime: value(languages::NO_SYMBOL),
             radix: value(radix(tree, value)),
+        }
+    }
+}
+
+// The engine fills `entry` from the walked file: the name of every member, with what its value is.
+ryo::fills! {
+    EntryItem => languages::Entry, walk(JsonWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::Entry as languages::CatalogRelation>::Row;
+        let (model, syntax) = modelled(file);
+        for &at in node_table::ids_of_kind(syntax.table, kind_bits(Kind::Token(Token::String))) {
+            if walked::keyness(&syntax, at) != Keyness::Key {
+                continue;
+            }
+            let member = walked_parent(&syntax, at);
+            let Some(value) = walked::value_of(&syntax, member) else { continue };
+            let Some(kind) = walked::value_kind(&syntax, value) else { continue };
+            rows.write(Row {
+                decoded: walked::said(&syntax, words, value),
+                key: walked::decoded_name(&syntax, words, at),
+                kind,
+                occurrence: node_cell(&syntax, at),
+                ordinal: walked::place(model, member),
+                owner: node_cell(&syntax, walked::mapping_id(&syntax, walked_parent(&syntax, member))),
+                file: syntax.file,
+                span: span_at(&syntax, at),
+                text: walked::spanned(&syntax, words, value),
+                boolean: walked::boolean(&syntax, value),
+                integer: walked::integer(&syntax, value),
+                float: walked::float(&syntax, words, value),
+                datetime: languages::NO_SYMBOL,
+                radix: walked::radix(&syntax, value),
+            });
         }
     }
 }

@@ -1,5 +1,6 @@
 //! The `syntax_error` relation of the language: every diagnostic of the parser, kept beside the recovered tree.
 
+use crate::domain::file_view::types::JsonWalk;
 use crate::domain::model::types::Model;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::{INCOMPLETE_IMPACT, PARSE_PHASE, UNSPECIFIED_CODE};
@@ -27,5 +28,12 @@ ryo::reads! {
                 span: value(diagnostic_span(&diagnostic)),
             }
         }
+    }
+}
+
+// The engine fills `syntax_error` from the walked file: what the parser said, in the order it said it.
+ryo::fills! {
+    SyntaxErrorItem => languages::SyntaxError, walk(JsonWalk) |file, words, rows| {
+        languages::facts::syntax_error_rows(file.syntax.table, file.syntax.file, words, rows);
     }
 }

@@ -12,11 +12,14 @@
 
 use super::constants::NOT_UTF8;
 use super::schemas::{event_kind, reports, string_kind};
-use super::types::{Decoding, Opened, Part, Scratch, TableReadPhase, TomlText};
-use super::writer::service::{Writer, offset, start_of, unread};
+use super::types::{Decoding, Opened, Part, Report, Scratch, TableReadPhase, TomlText};
+use super::walk::Numbered;
+use super::writer::interface::Sink;
+use super::writer::service::{Writer, offset, start_of};
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
-use crate::domain::syntax::service::kind_bits;
+use crate::domain::syntax::service::{field_bits, kind_bits};
+use crate::domain::syntax::types::Field;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort;
@@ -30,7 +33,7 @@ use toml_parser::{ErrorSink, ParseError, Source, Span};
 #[derive(Debug)]
 pub(crate) struct SyntaxTomlParserAdapter;
 
-impl EventReceiver for Writer<'_, '_, '_> {
+impl<T: Sink> EventReceiver for Writer<'_, T> {
     fn std_table_open(&mut self, span: Span, _error: &mut dyn ErrorSink) {
         self.header(
             Kind::Node(Node::StdTable),
@@ -158,53 +161,102 @@ impl EventReceiver for Writer<'_, '_, '_> {
     }
 }
 
+/// What reading the events of a document into a tree leaves besides the tree.
+pub(super) struct Events<T> {
+    /// The tree, written whole.
+    pub tree: T,
+    /// How many bytes of the text are UTF-8, which the library reads.
+    pub readable: Count,
+    /// What the library said is wrong with the document.
+    pub reports: Vec<Report>,
+}
+
+/// Reads the events of `text` into `tree`, which already holds the document node, and closes the document.
+pub(super) fn events<T: Sink>(tree: T, text: &[u8], values: bool) -> Events<T> {
+    // TOML is UTF-8: the library reads the text up to the first byte that is not, and the rest is text it could not read.
+    let content = TomlText(languages::readable_text(languages::ByteSlice(text)).0);
+    let source = Source::new(content.0);
+    let tokens = source.lex().into_vec();
+    let mut writer = Writer {
+        values,
+        tree,
+        source,
+        open: vec![Kind::Node(Node::Toml)],
+        held: Vec::new(),
+        reading: TableReadPhase::Entries,
+        empty: None,
+        depth: Count(0),
+        refused: Count(0),
+        scratch: Scratch(String::new()),
+        refusals: Vec::new(),
+    };
+    // The event pass builds the tree; what it reports, the recoverable parse below reports too, with what it means.
+    parse_document(&tokens, &mut writer, &mut |_: ParseError| {});
+    writer.close_all();
+    writer.flush();
+    writer.tree.finish(offset(Count(text.len())));
+    let reports = reports(content.0, &writer.refusals);
+    Events {
+        tree: writer.tree,
+        readable: Count(content.0.len()),
+        reports,
+    }
+}
+
 impl SyntaxPort for SyntaxTomlParserAdapter {
     fn read(&self, text: SourceText<'_>, builder: &mut languages::TableBuilder<'_>) {
-        // TOML is UTF-8: the library reads the text up to the first byte that is not, and the rest is text it could not read.
-        let content = TomlText(languages::readable_text(languages::ByteSlice(text.0)).0);
-        let source = Source::new(content.0);
-        let tokens = source.lex().into_vec();
         languages::enter_node(builder, kind_bits(Kind::Node(Node::Toml)), Offset(0));
         // These relations expose decoded scalar values or depend on decoded keys.
         let values = builder.decode_for(&[
             languages::Relation::StringLiteral, languages::Relation::Mapping,
             languages::Relation::Entry, languages::Relation::SequenceElement,
         ]);
-        let mut writer = Writer {
-            values,
-            tree: languages::lossless(builder, Offset(0)),
-            source,
-            open: vec![Kind::Node(Node::Toml)],
-            held: Vec::new(),
-            reading: TableReadPhase::Entries,
-            empty: None,
-            depth: Count(0),
-            refused: Count(0),
-            scratch: Scratch(String::new()),
-            refusals: Vec::new(),
-        };
-        // The event pass builds the tree; what it reports, the recoverable parse below reports too, with what it means.
-        parse_document(&tokens, &mut writer, &mut |_: ParseError| {});
-        writer.close_all();
-        writer.flush();
         let length = offset(Count(text.0.len()));
-        languages::fill_to(&mut writer.tree, length, &mut unread);
-        languages::leave_node(writer.tree.builder, length);
-        if content.0.len() < text.0.len() {
-            languages::diagnose(
-                writer.tree.builder,
-                languages::ReportText(NOT_UTF8),
-                offset(Count(content.0.len())),
-                length,
-            );
+        let Events { tree, readable, reports } =
+            events(languages::lossless(builder, Offset(0)), text.0, values);
+        let builder = tree.builder;
+        if readable.0 < text.0.len() {
+            languages::diagnose(builder, languages::ReportText(NOT_UTF8), offset(readable), length);
         }
-        for report in reports(content.0, &writer.refusals) {
+        for report in reports {
             languages::diagnose(
-                writer.tree.builder,
+                builder,
                 languages::ReportText(&report.message.0),
                 offset(report.start),
                 offset(report.end),
             );
         }
+    }
+
+    fn walk(&self, text: SourceText<'_>, values: bool, builder: &mut languages::NodeTableBuilder<'_>) {
+        let length = offset(Count(text.0.len()));
+        languages::node_table::enter_node(
+            builder,
+            kind_bits(Kind::Node(Node::Toml)),
+            languages::FieldCode(field_bits(Field::None).0),
+            Offset(0),
+        );
+        let Events { tree, readable, reports } = events(Numbered::new(builder), text.0, values);
+        let builder = tree.builder;
+        let accepted = reports.is_empty() && readable.0 == text.0.len();
+        if readable.0 < text.0.len() {
+            languages::node_table::diagnose(builder, offset(readable), length, languages::NameText(NOT_UTF8));
+        }
+        for report in reports {
+            languages::node_table::diagnose(
+                builder,
+                offset(report.start),
+                offset(report.end),
+                languages::NameText(&report.message.0),
+            );
+        }
+        languages::node_table::set_syntax_acceptance(
+            builder,
+            if accepted {
+                languages::SyntaxAcceptance::Accepted
+            } else {
+                languages::SyntaxAcceptance::Rejected
+            },
+        );
     }
 }

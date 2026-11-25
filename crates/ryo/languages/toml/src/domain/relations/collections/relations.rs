@@ -4,6 +4,7 @@ pub(crate) mod comment;
 pub(crate) mod entry;
 pub(crate) mod mapping;
 pub(crate) mod sequence_element;
+pub(crate) mod source_location;
 pub(crate) mod string_literal;
 pub(crate) mod syntax_child;
 pub(crate) mod syntax_error;

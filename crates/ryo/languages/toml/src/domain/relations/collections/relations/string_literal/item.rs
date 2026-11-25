@@ -1,6 +1,10 @@
 //! The `string_literal` relation of the language: every string value, as the library decoded it, in its place. A quoted key is a key,
 //! not a string literal: `entry` reads it. A string whose escapes the library refuses has no value, and the relation says so.
 
+use crate::domain::file_view::service::{node_cell, parent as walked_parent, span_at, word};
+use crate::domain::file_view::types::TomlWalk;
+use crate::domain::walked_values::service::stringness as walked_stringness;
+use ryo::languages::node_table;
 use crate::domain::model::service::decoded;
 use crate::domain::model::service::stringness;
 use crate::domain::model::types::Model;
@@ -36,6 +40,33 @@ ryo::reads! {
             }
             None => {
                 partial UNDECODED => languages::Missing::Any;
+            }
+        }
+    }
+}
+
+// The engine fills `string_literal` from the walked file: every string value the library decoded.
+ryo::fills! {
+    StringLiteralItem => languages::StringLiteral, walk(TomlWalk) |file, words, rows| {
+        /// One row of the relation.
+        type Row = <languages::StringLiteral as languages::CatalogRelation>::Row;
+        let syntax = file.syntax;
+        for kind in [Token::BasicString, Token::LiteralString, Token::MlBasicString, Token::MlLiteralString] {
+            for &id in node_table::ids_of_kind(syntax.table, kind_bits(Kind::Token(kind))) {
+                if walked_stringness(&syntax, id) != Stringness::Value {
+                    continue;
+                }
+                match node_table::decoded_of(syntax.table, id) {
+                    Some(value) => rows.write(Row {
+                        occurrence: node_cell(&syntax, id),
+                        owner: node_cell(&syntax, walked_parent(&syntax, id)),
+                        value: word(words, value.0),
+                        file: syntax.file,
+                        span: span_at(&syntax, id),
+                        import: languages::Flag::Lowered,
+                    }),
+                    None => rows.partial(languages::ReportText(&UNDECODED), languages::Missing::Any),
+                }
             }
         }
     }
