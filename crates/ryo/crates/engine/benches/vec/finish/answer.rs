@@ -186,7 +186,7 @@ impl Row {
             let span = match self.layout.types[column] {
                 Ty::Span => self.byte_span(&self.layout.names[column])?,
                 Ty::Node => {
-                    let Some(tree) = tree else { return Ok(()); };
+                    let Some(tree) = tree else { continue; };
                     let position = Position(word as u32);
                     if words.paths.get((word >> 32) as usize).is_none_or(|p| p.as_ref() != path)
                         || position >= node_table::own_end(tree)
