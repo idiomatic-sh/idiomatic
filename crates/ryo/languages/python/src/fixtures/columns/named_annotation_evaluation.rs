@@ -134,7 +134,7 @@ pub(super) fn rows(
     let start = |p: u32| node_table::span_of(table, Position(p)).start.0;
     let subtree = |x: u32| x..node_table::subtree_end_of(table, Position(x)).0.max(x + 1);
     // root classes: bit 0 eager, 1 postponed, 2 deferred, 3 unevaluated lazy, 4 unevaluated eager
-    let mut class: std::collections::HashMap<u32, u8> = std::collections::HashMap::default();
+    let mut class: Vec<Option<u8>> = vec![None; n as usize];
     let mut bodies: Vec<u32> = Vec::new();
     for p in 0..n {
         let k = kind(words, p);
@@ -167,7 +167,9 @@ pub(super) fn rows(
                     if target.disabled && target.native {
                         bits |= 4;
                     }
-                    *class.entry(c).or_default() |= bits;
+                    if let Some(slot) = class.get_mut(c as usize) {
+                        *slot.get_or_insert(0) |= bits;
+                    }
                 }
             }
         } else if k == k_ann_assign {
@@ -213,7 +215,9 @@ pub(super) fn rows(
                     }
                 }
                 // a root with no class still holds its members (they take no row)
-                *class.entry(c).or_default() |= bits;
+                if let Some(slot) = class.get_mut(c as usize) {
+                        *slot.get_or_insert(0) |= bits;
+                    }
             }
         } else if k == k_lambda {
             bodies.extend(children(p).filter(|c| field(words, *c) == f_body));
@@ -234,7 +238,7 @@ pub(super) fn rows(
     }
     let e_root = col(embedded, "root")?;
     bodies.extend((0..embedded.n).map(|r| embedded.cols[e_root][r] as u32));
-    if class.values().all(|b| *b == 0) {
+    if class.iter().flatten().all(|b| *b == 0) {
         return Ok(out);
     }
     let mut excluded = vec![false; n as usize];
@@ -268,7 +272,7 @@ pub(super) fn rows(
         let mut at = parent(x);
         let found = loop {
             let Some(a) = at else { break u32::MAX };
-            if class.contains_key(&a) {
+            if class.get(a as usize).is_some_and(Option::is_some) {
                 break a;
             }
             if done[a as usize] {
@@ -287,9 +291,9 @@ pub(super) fn rows(
             continue;
         }
         if found != u32::MAX {
-            emit(&mut out, x, found, class[&found]);
+            emit(&mut out, x, found, class[found as usize].unwrap_or(0));
         }
-        if let Some(bits) = class.get(&x) {
+        if let Some(bits) = class.get(x as usize).and_then(Option::as_ref) {
             emit(&mut out, x, x, *bits);
         }
     }
