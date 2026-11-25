@@ -50,9 +50,14 @@ struct Placement {
 }
 
 /// The relations the language fills, and compares.
-const FILLED: [Relation; 5] = [
+const FILLED: [Relation; 10] = [
+    Relation::CallArgument,
     Relation::Comment,
     Relation::Directive,
+    Relation::Entry,
+    Relation::Function,
+    Relation::Mapping,
+    Relation::Scope,
     Relation::StaticImport,
     Relation::StringLiteral,
     Relation::SyntaxError,
@@ -61,7 +66,12 @@ const FILLED: [Relation; 5] = [
 /// The kinds of the columns of each relation compared.
 fn column_kinds(relation: Relation) -> &'static [CellKind] {
     match relation {
+        Relation::CallArgument => <languages::CallArgument as CatalogRelation>::kinds(),
         Relation::Comment => <languages::Comment as CatalogRelation>::kinds(),
+        Relation::Entry => <languages::Entry as CatalogRelation>::kinds(),
+        Relation::Function => <languages::Function as CatalogRelation>::kinds(),
+        Relation::Mapping => <languages::Mapping as CatalogRelation>::kinds(),
+        Relation::Scope => <languages::Scope as CatalogRelation>::kinds(),
         Relation::Directive => <languages::Directive as CatalogRelation>::kinds(),
         Relation::StaticImport => <languages::StaticImport as CatalogRelation>::kinds(),
         Relation::StringLiteral => <languages::StringLiteral as CatalogRelation>::kinds(),

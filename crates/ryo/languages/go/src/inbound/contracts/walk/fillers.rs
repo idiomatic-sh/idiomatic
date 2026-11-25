@@ -50,6 +50,11 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         Self: 'f;
 
     written! {
+        call_argument: CallArgument => crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem;
+        entry: Entry => crate::domain::relations::collections::relations::entry::item::EntryItem;
+        function: Function => crate::domain::relations::collections::relations::function::item::FunctionItem;
+        mapping: Mapping => crate::domain::relations::collections::relations::mapping::item::MappingItem;
+        scope: Scope => crate::domain::relations::collections::relations::scope::item::ScopeItem;
         comment: Comment => crate::domain::relations::collections::relations::comment::item::CommentItem;
         directive: Directive => crate::domain::relations::collections::relations::directive::item::DirectiveItem;
         static_import: StaticImport => crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
@@ -59,8 +64,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
 
     absent! {
         analyzed_source: AnalyzedSource => NotYetRead;
-        entry: Entry => NotYetRead;
-        mapping: Mapping => NotYetRead;
         annotates: Annotates => NotYetRead;
         assigns: Assigns => NotYetRead;
         attribute_path: AttributePath => NoSuchConstruct;
@@ -72,7 +75,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         brace_format_field: BraceFormatField => NoSuchConstruct;
         brace_format_parse: BraceFormatParse => NoSuchConstruct;
         bytes_literal: BytesLiteral => NoSuchConstruct;
-        call_argument: CallArgument => NotYetRead;
         compiler_feature: CompilerFeature => NoSuchConstruct;
         constant_key: ConstantKey => NoSuchConstruct;
         decorates: Decorates => NoSuchConstruct;
@@ -92,7 +94,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         format_field: FormatField => NoSuchConstruct;
         format_parse: FormatParse => NoSuchConstruct;
         format_specification: FormatSpecification => NoSuchConstruct;
-        function: Function => NotYetRead;
         function_terminal: FunctionTerminal => NoSuchConstruct;
         identifier: Identifier => NoSuchConstruct;
         implicit_symbol: ImplicitSymbol => NoSuchConstruct;
@@ -119,7 +120,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         raw_format_segment: RawFormatSegment => NoSuchConstruct;
         reference: Reference => NotYetRead;
         resolves: Resolves => NotYetRead;
-        scope: Scope => NotYetRead;
         sequence_element: SequenceElement => NoSuchConstruct;
         source_location: SourceLocation => NotYetRead;
         source_dependency: SourceDependency => NotYetRead;
