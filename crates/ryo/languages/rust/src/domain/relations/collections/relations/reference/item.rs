@@ -7,12 +7,30 @@ use crate::domain::references::types::Usage;
 use crate::domain::scopes::service::owner;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
+use crate::domain::file_view::macros::fills_rows;
 use ryo::languages;
 
 /// The reader the `ryo::reads!` below binds the `reference` relation's rows to.
 pub(crate) struct ReferenceItem;
 
 ryo::reads! {
+    ReferenceItem => languages::Reference, model(ReadIndexes) |tree, _model, at, symbols| {
+        kinds: [Kind::Node(Node::Path)] as kind_bits,
+        expanded,
+        require is_written_use(tree, at) == Usage::Written;
+        given target = name(tree, symbols, at)?;
+        row {
+            occurrence: node(at),
+            owner: value(owner(tree, at)),
+            target: value(target),
+            file: file,
+            span: span(at),
+        }
+    }
+}
+
+// The engine fills the relation from the walked file, by the same reader.
+fills_rows! {
     ReferenceItem => languages::Reference, model(ReadIndexes) |tree, _model, at, symbols| {
         kinds: [Kind::Node(Node::Path)] as kind_bits,
         expanded,

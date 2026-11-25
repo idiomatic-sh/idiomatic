@@ -3,6 +3,7 @@
 //! the kind, value and suffix the language reads from its token.
 
 use super::constants::{CRLF, LF};
+use crate::outbound::syntax::interface::Output;
 use super::schemas::kind_of;
 use super::types::{Cursor, DecodedString, RustText, Step, StringLiteral};
 use crate::domain::numeric_literals::constants::{
@@ -14,20 +15,6 @@ use crate::domain::syntax::types::TokenText;
 use ra_ap_syntax::SyntaxKind;
 use rustc_literal_escaper::unescape_str;
 use ryo::languages::{self, Flag, NameText, Offset};
-
-pub(crate) trait Output {
-    fn string_values(&self) -> bool { true }
-    fn numeric_values(&self) -> bool { true }
-    fn enter(&mut self, kind: languages::KindBits, start: Offset);
-    fn leave(&mut self, end: Offset);
-    fn token(&mut self, kind: languages::KindBits, start: Offset, end: Offset, decoded: Option<NameText<'_>>);
-    fn property(&mut self, key: languages::PropertyId, value: NameText<'_>);
-    fn formatted(&mut self, key: languages::PropertyId, value: std::fmt::Arguments<'_>) -> std::fmt::Result;
-    fn diagnostic(&mut self, message: &str, start: Offset, end: Offset);
-    fn adopt(&mut self, host: languages::Position);
-    fn origin(&mut self, at: languages::Position, host: languages::Position, expansion: languages::ExpansionId);
-    fn release(&mut self);
-}
 
 impl Output for languages::TableBuilder<'_> {
     fn enter(&mut self, kind: languages::KindBits, start: Offset) { languages::enter_node(self, kind, start); }
