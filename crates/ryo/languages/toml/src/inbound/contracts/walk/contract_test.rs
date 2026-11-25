@@ -349,6 +349,11 @@ fn compared() -> (String, String) {
                 for relation in FILLED {
                     let before = old_rows(&by_relation, &old, &bytes, &old_key_list, relation);
                     let (after, answer) = new_rows(&mut lent, &keys, relation, &mut words);
+                    if matches!(answer, FactAnswer::Partial(_))
+                        && node_table::acceptance_of(lent.table) == languages::SyntaxAcceptance::Accepted
+                    {
+                        let _ = writeln!(findings, "{named}: {relation:?} answers in part in a file the parser accepted");
+                    }
                     let total = totals.entry(format!("{relation:?}")).or_default();
                     total.0 += before.len();
                     total.1 += after.len();
