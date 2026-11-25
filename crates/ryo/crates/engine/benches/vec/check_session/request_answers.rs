@@ -568,6 +568,41 @@ mod tests {
     }
 
     #[test]
+    fn prior_leaf_proves_only_one_physical_change_in_the_same_scope() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = dir.path().join("a");
+        let b = dir.path().join("b");
+        fs::write(&a, b"old a").unwrap();
+        fs::write(&b, b"old b").unwrap();
+        let names = ["a".into(), "b".into(), PathBuf::new()];
+        let inputs = vec![(0, Probe::Effective), (1, Probe::Effective), (2, Probe::Inventory)];
+        let id = key(&inputs);
+        let inventory = key("inventory");
+        let peers = key("peers");
+        let mut before = Observations::new(dir.path().to_owned(), Default::default());
+        let scope = before.request_inputs(dir.path(), inventory, peers, BTreeMap::new());
+        let expected = before.group(id, &inputs, &names, Some(scope)).unwrap();
+        let old_a = before.observe(&a, Probe::Source).unwrap();
+
+        fs::write(&a, b"new a").unwrap();
+        let mut after = Observations::new(dir.path().to_owned(), Default::default());
+        after.prior_sources.insert(a.clone(), old_a);
+        let scope = after.request_inputs(dir.path(), inventory, peers, BTreeMap::new());
+        assert_eq!(after.prior_leaf(&inputs, &names, Some(scope), expected), Some((a, old_a)));
+
+        let other = after.request_inputs(dir.path(), key("different inventory"), peers, BTreeMap::new());
+        assert_eq!(after.prior_leaf(&inputs, &names, Some(other), expected), None);
+        let shadowed = after.request_inputs(
+            dir.path(), inventory, peers, BTreeMap::from([("a".into(), key("supplied"))]),
+        );
+        assert_eq!(after.prior_leaf(&inputs, &names, Some(shadowed), expected), None);
+
+        let old_b = before.observe(&b, Probe::Source).unwrap();
+        after.prior_sources.insert(b, old_b);
+        assert_eq!(after.prior_leaf(&inputs, &names, Some(scope), expected), None);
+    }
+
+    #[test]
     fn both_timestamps_must_precede_the_snapshot_tick() {
         let mut stamp = Stamp {
             device: 1,
