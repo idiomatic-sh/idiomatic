@@ -62,6 +62,22 @@ def check(executor, shipping):
             rules = pack / "rules/query"
             rules.mkdir(parents=True, exist_ok=True)
             (rules / "query.ryoql").write_text(query)
+            shipping_pack = pack
+            if name in ("least-across-files", "greatest-across-files"):
+                # The pinned release reports an unread step on a project group extremum.
+                # Ask it for the equivalent rows with no strictly better group member.
+                comparison = ">" if name == "least-across-files" else "<"
+                shipping_pack = root / (name + "-reference")
+                oracle_rule = shipping_pack / "rules/query/query.ryoql"
+                oracle_rule.parent.mkdir(parents=True)
+                oracle_rule.write_text(
+                    'let dominated = select a."dst" as "dst", a."stamp" as "stamp" '
+                    'from "ctx.stamps" as a join "ctx.stamps" as b on a."dst" = b."dst" '
+                    f'where a."stamp" {comparison} b."stamp"; '
+                    'let kept = antijoin(left="ctx.stamps",right=dominated,'
+                    'left-on=["dst","stamp"],right-on=["dst","stamp"]); '
+                    'emit kept subject "dst" key("stamp");'
+                )
             for order, stride in (("forward", 1), ("reverse", -1)):
                 admission = (inventory or [])[::stride]
                 include = []
@@ -78,7 +94,7 @@ def check(executor, shipping):
                 request.write_text(json.dumps(inputs))
                 if isinstance(reference, int):
                     output = root / "shipping.jsonl"
-                    subprocess.run([shipping, "--shipping", pack, request, output], check=True,
+                    subprocess.run([shipping, "--shipping", shipping_pack, request, output], check=True,
                                    stdout=subprocess.DEVNULL)
                     buf = output.read_bytes()
                     assert len(buf.splitlines()) - int(buf == b"\n") == reference, (name, buf)
