@@ -212,21 +212,28 @@ impl Checks {
         self.locatable.fill(0);
         self.exact.clear();
         let mut any = false;
-        let mut local = false;
+        let can_locate = text.is_some() && partials.is_empty();
+        let mut locate = false;
         for &(binding, _, excluded) in active.iter() {
             let index = root_for(binding);
             if !excluded && let Some(roots) = &self.roots[index] {
                 let b = bound[&binding].as_ref().expect("active binding");
                 let unpartitioned = cuts[binding].is_none();
-                if !matches!(b.screenable, Some(Err(_))) {
+                let screenable = !matches!(b.screenable, Some(Err(_)));
+                // Refusal to certify a necessary witness does not invalidate an
+                // exact location proof, which has its own inputs and guard.
+                let exact = can_locate && unpartitioned && self.exact_roots[index].1;
+                if screenable || exact {
                     any |= !roots.is_empty();
-                    local |= unpartitioned && !roots.is_empty();
+                    locate |= can_locate && unpartitioned && !roots.is_empty();
                     for &root in roots {
                         if unpartitioned {
                             self.locatable[root / 64] |= 1 << (root % 64);
                         }
                         self.selected[root / 64] |= 1 << (root % 64);
                     }
+                }
+                if screenable {
                     for &(_, root) in &self.domains[index] {
                         self.selected[root / 64] |= 1 << (root % 64);
                     }
@@ -296,7 +303,7 @@ impl Checks {
                 &self.known,
                 &self.selected,
                 atoms,
-                (local && text.is_some() && partials.is_empty()).then_some(&mut self.exact),
+                locate.then_some(&mut self.exact),
             );
             self.exact.retain(|(root, _)| self.locatable[root / 64] & (1 << (root % 64)) != 0);
             for (root, nodes) in &self.exact {
