@@ -43,7 +43,7 @@ impl ModelView for FixtureView<'_> {
     fn semantics(&mut self, part: ModelPart) -> ModelRead<'_> {
         self.asked = Count(self.asked.0.saturating_add(1));
         built(self.model, &mut self.built, part, self.tree);
-        ModelRead { model: self.model, table: self.table, tree: self.tree, file: self.file }
+        ModelRead { model: self.model, table: self.table, tree: self.tree, file: self.file, syntax: ryo::languages::SyntaxCompleteness::Complete }
     }
 }
 

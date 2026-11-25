@@ -53,6 +53,7 @@ impl ModelView for PythonFile<'_> {
             table: self.syntax.table,
             tree,
             file: self.syntax.file,
+            syntax: self.syntax.completeness.syntax,
         }
     }
 }

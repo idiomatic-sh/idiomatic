@@ -333,6 +333,10 @@ pub(crate) fn qualified_name_rows<V: ModelView>(
     rows: &mut dyn Rows<QualifiedNameRow>,
 ) {
     let read = file.semantics(ModelPart::Resolution);
+    if read.syntax == ryo::languages::SyntaxCompleteness::Incomplete {
+        rows.partial(ryo::languages::ReportText(crate::domain::qualification::constants::INCOMPLETE), ryo::languages::Missing::Any);
+        return;
+    }
     let mut path = QualifiedPath::default();
     let labels = {
         let held = &mut read.model.words.borrow_mut().fixed;

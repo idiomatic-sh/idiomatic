@@ -48,6 +48,8 @@ pub(crate) struct ModelRead<'v> {
     pub tree: TypedTree<'v, 'v>,
     /// The file's number in the run.
     pub file: FileId,
+    /// Whether the syntax was read in full: a file whose syntax is not whole gives no complete answer from its model.
+    pub syntax: ryo::languages::SyntaxCompleteness,
 }
 
 /// The model of one file: per-worker buffers, cleared and refilled per file, never reallocated.
