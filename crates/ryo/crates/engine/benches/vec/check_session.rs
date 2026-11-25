@@ -37,10 +37,6 @@ pub(crate) use frontier::SharedFrontier;
 #[path = "check_session/shared.rs"]
 mod shared;
 
-#[path = "check_session/retention.rs"]
-mod retention;
-pub(crate) use retention::Retention;
-
 #[path="check_session/stored_block.rs"]
 pub(crate) mod stored_block;
 
@@ -187,7 +183,6 @@ pub(crate) struct Source {
     pub path: String,
     pub reader: Option<Arc<str>>,
     pub bindings: FilePrograms,
-    known: FilePrograms,
     pub(crate) project: bool,
     pub(crate) provided: Option<Arc<[u8]>>,
 }
@@ -231,16 +226,11 @@ pub(crate) struct Schedule {
 }
 
 impl Schedule {
-    pub(crate) fn delivered(&mut self, ids: &[usize], keep: bool, reusable: impl Fn(usize) -> bool) {
-        let mut retained = HashMap::new();
+    /// A delivered source keeps nothing: its bindings and project flag are released.
+    pub(crate) fn delivered(&mut self, ids: &[usize]) {
         for &i in ids {
             let source = &mut self.sources[i];
-            if keep {
-                source.bindings.keep_programs(&reusable, &mut retained);
-                source.known.append(&mut source.bindings);
-            } else {
-                source.bindings.clear();
-            }
+            source.bindings.clear();
             source.project = false;
         }
     }
@@ -260,7 +250,7 @@ impl Schedule {
             let Some(path) = row.span_file() else { continue; };
             let Some(&id) = self.source_ids.get(root).and_then(|files| files.get(path.as_ref())) else { continue; };
             let bytes = self.sources[id].provided.as_ref()
-                .or_else(|| readers.iter().find_map(|state| state.bytes.get(&id).map(|(bytes, _)| bytes)));
+                .or_else(|| readers.iter().find_map(|state| state.bytes.get(&id)));
             if let Some(bytes) = bytes {
                 row.locate(&path, None, bytes, coordinates.entry(id).or_default())?;
             }
@@ -275,9 +265,6 @@ impl Schedule {
         self.source_ids = HashMap::new();
         self.supplied_ids = HashMap::new();
         self.named_disk_ids = HashMap::new();
-        for source in &mut self.sources {
-            source.known.clear();
-        }
     }
     pub(crate) fn prepare(
         &mut self,
@@ -318,7 +305,6 @@ impl Schedule {
             path: path.to_owned(),
             reader: None,
             bindings: Default::default(),
-            known: Default::default(),
             project: false,
             provided: None,
             permission: Permission::Unknown,
@@ -338,7 +324,11 @@ impl Schedule {
     ) -> Result<(usize, Arc<[u8]>)> {
         let key = (Rc::from(path), bytes.clone(), permission, reader.clone(), environment.as_ref().map(|e| e.id.clone()));
         let (id, canonical) = match self.supplied_ids.get_key_value(&key) {
-            Some(((_, held, _, _, _), &id)) => (id, held.clone()),
+            Some(((_, held, _, _, _), &id)) => {
+                // Delivery released the bytes of an earlier call on this version.
+                self.sources[id].provided.get_or_insert_with(|| held.clone());
+                (id, held.clone())
+            }
             None => {
                 let ids = self.source_ids.entry(root.clone()).or_default();
                 let id = Self::source_in(&mut self.sources, ids, root, path)?;
@@ -352,6 +342,16 @@ impl Schedule {
         };
         self.alias_source(root, path, id)?;
         Ok((id, canonical))
+    }
+
+    /// A source whose bytes were released at delivery receives them again when a later
+    /// call names the same immutable version.
+    pub(crate) fn reprovide(&mut self, root: &Arc<str>, path: &str, bytes: &Arc<[u8]>) {
+        if let Some(&id) = self.source_ids.get(root).and_then(|ids| ids.get(path))
+            && self.sources[id].provided.is_none()
+        {
+            self.sources[id].provided = Some(bytes.clone());
+        }
     }
 
     pub(crate) fn listed(&mut self, root: &Arc<str>, directory: &Arc<str>, path: &str, reader: &Option<Arc<str>>, environment: &Option<Arc<project::Environment>>) -> Result<()> {
@@ -426,7 +426,7 @@ impl Schedule {
         // Repeated files or an existing binding can reuse an earlier address.
         self.finish_selection();
         files.ids.iter().map(|&id| {
-            Self::slot(&mut self.sources[id], id, binding, known_binding, &mut self.pairs, &mut self.pending)
+            Self::slot(&mut self.sources[id], id, binding, &mut self.pairs, &mut self.pending)
         }).collect()
     }
 
@@ -434,13 +434,9 @@ impl Schedule {
         source: &mut Source,
         src: usize,
         binding: usize,
-        known_binding: bool,
         pairs: &mut usize,
         pending: &mut BTreeSet<usize>,
     ) -> usize {
-        if known_binding && let Some(slot) = source.known.lookup(binding) {
-            return slot;
-        }
         let first = source.bindings.is_empty();
         source.bindings.admit(binding, || {
             let slot = *pairs;
@@ -642,24 +638,22 @@ fn versions<'s>(
     answers: &mut (impl Slots<Answer> + ?Sized),
     aliases: &mut (impl Slots<usize> + ?Sized),
     reads: &mut usize,
-    retained: &mut HashMap<usize, (Arc<[u8]>, u32)>,
-    keep: bool,
+    retained: &mut HashMap<usize, Arc<[u8]>>,
+    needed_later: impl Fn(&Source) -> bool,
 ) -> Vec<Version<'s>> {
     use std::os::unix::fs::MetadataExt;
     if let [idx] = *group {
         let src = &sources[idx];
         let data = if let Some(bytes) = &src.provided {
             Ok(Arc::clone(bytes))
-        } else if let Some((bytes, _)) = retained.get(&idx) {
-            Ok(Arc::clone(bytes))
         } else {
             let path = Path::new(&*src.root).join(&src.path);
             (|| -> std::io::Result<Arc<[u8]>> {
-                let mode = if keep { Some(std::fs::metadata(&path)?.mode() & 0o111) } else { None };
                 *reads += 1;
                 let bytes: Arc<[u8]> = std::fs::read(path)?.into();
-                if let Some(mode) = mode {
-                    retained.insert(idx, (bytes.clone(), mode));
+                // Only a pending closed reader reads these bytes again, to place its rows.
+                if needed_later(src) {
+                    retained.insert(idx, bytes.clone());
                 }
                 Ok(bytes)
             })()
@@ -688,8 +682,6 @@ fn versions<'s>(
         let found = (|| -> std::io::Result<usize> {
             let (data, inode, perm) = if let Some(bytes) = src.provided.as_ref() {
                 (Arc::clone(bytes), None, None)
-            } else if let Some((bytes, mode)) = retained.get(&idx) {
-                (Arc::clone(bytes), None, Some(*mode))
             } else {
                 let meta = std::fs::metadata(&path)?;
                 let inode = (meta.dev(), meta.ino(), src.environment.as_ref().map(|e| &e.id));
@@ -703,10 +695,8 @@ fn versions<'s>(
                     Some(meta.mode() & 0o111),
                 )
             };
-            if let Some(mode) = perm.filter(|_| keep) {
-                retained
-                    .entry(idx)
-                    .or_insert_with(|| (Arc::clone(&data), mode));
+            if src.provided.is_none() && needed_later(src) {
+                retained.entry(idx).or_insert_with(|| Arc::clone(&data));
             }
             // Length and executable mode usually decide before the byte comparison.
             // The ordered key also handles different files of equal length exactly.
@@ -748,36 +738,23 @@ fn versions<'s>(
     files
 }
 
-/// The host may add requests after consuming the previous answers. Source and symbol
-/// identities then live across admissions. A closed batch can recycle one parser scratch.
+/// One epoch's reader scratch. Only the bytes a pending closed reader still needs
+/// outlive the file visit that read them.
 #[derive(Default)]
 pub(crate) struct ReaderState {
     run: Run,
     screens: pairs::Retained,
-    fixed_fields_ready: bool,
-    patterns: crate::pair_checks::SymbolMatches,
-    requirements: HashMap<usize, (Rc<BoundRequirements>, usize)>,
-    prerequisite_clauses: PrerequisiteClauses,
-    requirement_ids: HashMap<Rc<BoundRequirements>, usize>,
-    previous_plan: Option<shared::PreviousPlan>,
-    unknown: Option<HashMap<u32, u32>>,
-    bytes: HashMap<usize, (Arc<[u8]>, u32)>,
+    bytes: HashMap<usize, Arc<[u8]>>,
 }
 
 #[derive(Default)]
 struct HeldFile<F: Default, D: Default> {
     symbols: D,
     native: F,
-    lent: Option<std::sync::Arc<l::NodeTable>>,
     tree: l::NodeTable,
-    fields: Vec<u32>,
-    text: Vec<u32>,
-    recovery: Option<ryo_execution_domain::domain::coverage::types::Recovery>,
     contents: FileSummary,
     literals: std::cell::RefCell<crate::pair_checks::LiteralPositions>,
     proof_atoms: crate::pair_checks::AtomAnswers,
-    known: BTreeSet<l::Relation>,
-    facts: l::contract::Collect,
 }
 
 /// Each binding gets its own prepared column positions for this reader and host
@@ -789,8 +766,6 @@ use worker::Slots;
 
 pub(crate) fn visit<L: FileSource>(
     state: &mut ReaderState,
-    retention: &mut Retention<L::File, L::Dictionary>,
-    keep: bool,
     parser: Option<&L>,
     reader_id: Option<usize>,
     manifests: &BTreeSet<&str>,
@@ -812,7 +787,7 @@ pub(crate) fn visit<L: FileSource>(
     let mut tree_cpu = 0.;
     let mut fact_cpu = 0.;
     let mut run = std::mem::take(&mut state.run);
-    let unknown = state.unknown.get_or_insert_with(|| {
+    let unknown = &{
         run.file_field_codes = true;
         run.empty = run.sym(b"");
         run.links();
@@ -822,7 +797,8 @@ pub(crate) fn visit<L: FileSource>(
             run.kind_sym = p.kinds().iter().map(|k| run.sym(k.as_bytes())).collect();
         }
         public
-    });
+    };
+    let mut fixed_fields_ready = false;
     debug_assert_eq!(run.paths.len(), sources.len());
     let t = thread_cpu();
     let mut needed = vec![false; program_of.len()];
@@ -837,16 +813,10 @@ pub(crate) fn visit<L: FileSource>(
     let (scope, screen, positions) = state.screens.merged(parser, programs, program_of, &needed, cut_of);
     clocks.bulk_screen_files += selected.len();
     let language = reader_declaration(parser);
-    let mut local_requirements = HashMap::new();
-    let mut local_ids = HashMap::new();
-    let mut local_clauses = PrerequisiteClauses::default();
-    let (reader_requirements, requirement_ids, prerequisite_clauses) = if keep {
-        (&mut state.requirements, &mut state.requirement_ids, &mut state.prerequisite_clauses)
-    } else {
-        (&mut local_requirements, &mut local_ids, &mut local_clauses)
-    };
-    let local_patterns = crate::pair_checks::SymbolMatches::default();
-    let pattern_cache = if keep { &state.patterns } else { &local_patterns };
+    let mut reader_requirements: HashMap<usize, (Rc<BoundRequirements>, usize)> = HashMap::new();
+    let mut requirement_ids: HashMap<Rc<BoundRequirements>, usize> = HashMap::new();
+    let mut prerequisite_clauses = PrerequisiteClauses::default();
+    let pattern_cache = &crate::pair_checks::SymbolMatches::default();
     clocks.prepare += thread_cpu() - t;
     let mut bound = Bindings { index: vec![usize::MAX; program_of.len()], entries: Vec::new() };
     let mut registry = finish::session::contribution::Registry::default();
@@ -867,6 +837,7 @@ pub(crate) fn visit<L: FileSource>(
     let mut demands = rustc_hash::FxHashMap::default();
     let mut requested = Vec::new();
     let mut facts = Vec::new();
+    let mut active_buffer: Vec<(usize, usize, bool)> = Vec::new();
     let mut distinct = std::cell::RefCell::new(crate::pair_checks::FileSymbols::default());
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
@@ -894,7 +865,7 @@ pub(crate) fn visit<L: FileSource>(
                     clocks.requirement_programs += 1;
                     let (_, clauses) = reader_run::file_requirements(&program.typed, &language)
                         .pop().expect("prepared program has an emit");
-                    let requirements = Rc::new(BoundRequirements::bind(&clauses, prerequisite_clauses, |word| run.sym(word)));
+                    let requirements = Rc::new(BoundRequirements::bind(&clauses, &mut prerequisite_clauses, |word| run.sym(word)));
                     if let Some((known, &id)) = requirement_ids.get_key_value(&requirements) {
                         return (known.clone(), id);
                     }
@@ -911,7 +882,7 @@ pub(crate) fn visit<L: FileSource>(
             });
             let mut b = bind(&mut registry, program, parser, &mut run, tables,
                 cut_of[binding].as_deref(), layout, requirements)?;
-            merged.add(&mut b, &mut run, program_id, keep);
+            merged.add(&mut b, &mut run);
             Ok(b)
         })();
         bound.index[binding] = bound.entries.len();
@@ -919,7 +890,7 @@ pub(crate) fn visit<L: FileSource>(
     }
     drop(language);
     let has_layout = bound.entries.iter().flatten().any(|bound| bound.layout.is_some());
-    let (plan, supplied) = merged.finish(keep.then_some(&mut state.previous_plan), &mut bound);
+    let (plan, supplied) = merged.finish();
     let mut exec = Exec::new(&plan);
     clocks.prepare += thread_cpu() - start;
     let mut carried_symbols = HashMap::new();
@@ -936,7 +907,7 @@ pub(crate) fn visit<L: FileSource>(
             aliases,
             &mut clocks.reads,
             &mut state.bytes,
-            keep,
+            |src| src.project || src.bindings.iter().any(|(binding, _)| cut_of[binding].is_some()),
         );
         let elapsed = thread_cpu() - t;
         clocks.read_versions += elapsed;
@@ -952,8 +923,6 @@ pub(crate) fn visit<L: FileSource>(
             let source = &sources[index];
             let id = FileId(index.try_into().expect("file ID"));
             let t = thread_cpu();
-            let start = keep.then(|| retention.clock()).flatten();
-            let mut cached = start.and_then(|_| retention.take(index));
             let demand = || {
                 let mut demand = FileDemand::default();
                 let mut named = BTreeMap::new();
@@ -996,8 +965,8 @@ pub(crate) fn visit<L: FileSource>(
             let unknown_permission = demand.executable && source.provided.is_some()
                 && source.permission == Permission::Unknown;
             let needs_native = demand.native;
-            let projects_words = cached.is_some() || demand.words;
-            let projects_fields = cached.is_some() || demand.fields;
+            let projects_words = demand.words;
+            let projects_fields = demand.fields;
             clocks.prepare += thread_cpu() - t;
             requested_facts(required, &mut requested);
             if project_slots.is_empty() && !have_plan {
@@ -1007,21 +976,11 @@ pub(crate) fn visit<L: FileSource>(
             run.supplied_permission = source.provided.as_ref().map(|_| (id.0, source.permission));
             run.root_dir.clear();
             run.root_dir.push_str(&source.root);
-            let session_open = keep;
             let needs_notes = !project_slots.is_empty() && contributions.previous(index).and_then(Option::as_ref).is_none();
-            // An opaque provider dictionary and its projected rows are one version.
-            // Rebuild them together if a later binding asks for additional facts.
-            if let Some((credit, file)) = cached.as_mut()
-                && (needs_native || needs_notes || !requested.iter().all(|rel| file.known.contains(rel)))
-            {
-                *file = HeldFile::default();
-                *credit = 0;
-            }
             let request = l::ParseRequest {
                 file: id,
                 path: SourcePath(&source.path),
                 bytes: ByteSlice(&bytes),
-                // Later calls can widen the relations asked of a retained file.
                 fields: if projects_fields {
                     l::FieldRequest::Wanted
                 } else {
@@ -1034,9 +993,6 @@ pub(crate) fn visit<L: FileSource>(
                 },
             };
             if projects_words { requested.push(l::Relation::SyntaxTree); }
-            // A retained parse is not a loan of the provider's declared projection.
-            let cached_ready = scoped.is_none_or(|visit| visit.projections().is_empty() && visit.fields().is_none())
-                && cached.as_ref().is_some_and(|(_, file)| file.recovery.is_some());
             let mut consume = |loan: Option<(l::NumberedFile<'_>, &mut l::Symbols)>| {
                 let (scoped_tree, mut scoped_facts, mut scoped_symbols, mut fact_words, words, fields, coverage, notes) = match loan {
                     Some((file, symbols)) => {
@@ -1052,16 +1008,12 @@ pub(crate) fn visit<L: FileSource>(
                     }
                     None => (None, None, None, None, &[][..], None, None, None),
                 };
-                let keep = cached.is_some() && scoped_tree.is_none();
-                let held = cached.as_mut().map_or(&mut scratch, |(_,file)| file);
+                let held = &mut scratch;
                 let mut symbols = &mut held.symbols;
-                let reused = keep && held.recovery.is_some();
                 let mut elements = &mut held.native;
                 let mut tree = &mut held.tree;
             let result = if scoped_tree.is_some() {
                 clocks.files += 1;
-                Ok(())
-            } else if reused {
                 Ok(())
             } else if let Some(parser) = &parser {
                 clocks.files += 1;
@@ -1093,13 +1045,10 @@ pub(crate) fn visit<L: FileSource>(
                         .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
                     Rc::new(project::Contribution { reader: reader_id, notes: notes.cloned().unwrap_or_else(|| L::notes(&elements)), manifest })
                 });
-                if session_open {
-                    contributions.set(index, Some(c.clone()));
-                }
                 for &slot in &project_slots {
                     contributions.set(slot, Some(c.clone()));
                 }
-                if !session_open && jobs.iter().all(|(b, _)| bound[&b].is_err()) {
+                if jobs.iter().all(|(b, _)| bound[&b].is_err()) {
                     clocks.read_parse += thread_cpu() - t;
                     return;
                 }
@@ -1109,10 +1058,10 @@ pub(crate) fn visit<L: FileSource>(
             provider.projects_words = projects_words;
             provider.projects_fields = projects_fields;
             if let Some(fields) = fields {
-                if projects_fields && !state.fixed_fields_ready {
+                if projects_fields && !fixed_fields_ready {
                     let names = fixed_fields.unwrap_or(fields);
                     run.field_sym = names.0.iter().map(|name| run.sym(name.0.as_bytes())).collect();
-                    state.fixed_fields_ready = fixed_fields.is_some();
+                    fixed_fields_ready = fixed_fields.is_some();
                 }
                 if projects_words {
                     let dict = scoped_symbols.as_deref().expect("scoped dictionary");
@@ -1120,9 +1069,6 @@ pub(crate) fn visit<L: FileSource>(
                         resolved_words.resolve(&mut run, unknown, dict, &bytes, word)
                     }));
                 }
-            } else if reused {
-                run.field_sym.clone_from(&held.fields);
-                provider.text = std::mem::take(&mut held.text);
             } else {
                 let tree_start = thread_cpu();
                 L::tree(
@@ -1134,23 +1080,20 @@ pub(crate) fn visit<L: FileSource>(
                     &mut provider,
                 );
                 tree_cpu += thread_cpu() - tree_start;
-                if keep {
-                    held.fields.clone_from(&run.field_sym);
-                }
             }
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
-            let native = if reused { held.lent.take() } else { L::lent(elements) };
+            let native = L::lent(elements);
             let tree = scoped_tree.or(native.as_deref()).unwrap_or(tree);
             let contents = &mut held.contents;
-            if !reused {
-                contents.reset();
-            }
+            contents.reset();
             use ryo_execution_domain::domain::coverage::service::partial_of;
-            let recovery = coverage.or(held.recovery).unwrap_or_else(|| L::recovery(&elements));
+            let recovery = coverage.unwrap_or_else(|| L::recovery(&elements));
             let rejected = l::node_table::acceptance_of(tree) == l::SyntaxAcceptance::Rejected;
             distinct.get_mut().clear();
-            let mut active = Vec::new();
+            let mut active = std::mem::take(&mut active_buffer);
+            active.clear();
+            active.reserve(jobs.len());
             for (binding, slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
                 if programs[program_of[binding]].as_ref().is_ok_and(|p| p.accepted_only)
@@ -1207,17 +1150,10 @@ pub(crate) fn visit<L: FileSource>(
             // Syntax acceptance selects the remaining dependency set for this admission.
             requested_facts(if rejected { demand.rejected_facts } else { demand.facts }, &mut facts);
             packet.clear();
-            if keep {
-                std::mem::swap(&mut held.facts, &mut packet.rows);
-            }
-            let missing: Vec<_> = facts
-                .iter()
-                .filter(|rel| !keep || !held.known.contains(rel))
-                .copied()
-                .collect();
+            let missing = &facts;
             // A file's own columns are filled in two steps: the relations the pair screen can read before it
-            // runs, and the rest only for the programs that survive it. A retained file fills everything.
-            let split = !keep && scoped_facts.is_some()
+            // runs, and the rest only for the programs that survive it.
+            let split = scoped_facts.is_some()
                 && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
             let screen_reads: Vec<l::Relation> = if split { screen.relations().collect() } else { Vec::new() };
             let (first, rest): (Vec<_>, Vec<_>) = if split {
@@ -1243,10 +1179,6 @@ pub(crate) fn visit<L: FileSource>(
                 if let Err(reason) = filled {
                     for (_, slot) in jobs.iter() {
                         answers.set(slot, Err(reason.clone()));
-                    }
-                    if keep {
-                        held.known.clear();
-                        held.facts.clear();
                     }
                     return;
                 }
@@ -1279,10 +1211,7 @@ pub(crate) fn visit<L: FileSource>(
                     at: PartialScope::OneFile(PartialAt(id.0)),
                 });
             }
-            if keep {
-                held.known.extend(facts.iter().copied());
-                packet.index(&held.known.iter().copied().collect::<Vec<_>>());
-            } else if split {
+            if split {
                 packet.index(&first);
             } else {
                 packet.index(&facts);
@@ -1293,10 +1222,8 @@ pub(crate) fn visit<L: FileSource>(
             let t = thread_cpu();
             if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
             {
-                if !reused {
-                    held.literals.get_mut().clear();
-                    held.proof_atoms.clear();
-                }
+                held.literals.get_mut().clear();
+                held.proof_atoms.clear();
                 let scanned = held.literals.get_mut().scanned();
                 let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                 screen.exclude(&positions, &mut active, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
@@ -1480,7 +1407,7 @@ pub(crate) fn visit<L: FileSource>(
                 );
                 frontier::FileInputs::new(columns)
             });
-            for (binding, slot, excluded) in active {
+            for (binding, slot, excluded) in active.drain(..) {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
                 let contract = &contracts[binding];
                 let b = bound[&binding].as_mut().unwrap();
@@ -1634,22 +1561,13 @@ pub(crate) fn visit<L: FileSource>(
                     answers.set(slot, answer);
             }
             drop(frame);
-            if keep {
-                held.recovery = Some(recovery);
-                held.text = version.into_inner().map(finish::FileVersion::into_text)
-                    .or(frame_words).unwrap_or_default();
-                held.lent = native;
-                held.native = L::File::default();
-                packet.rows.partials = partials;
-                packet.rows.partials_at = partials_at;
-                std::mem::swap(&mut held.facts, &mut packet.rows);
-            }
+            active_buffer = active;
             clocks.evaluate += thread_cpu() - t;
             };
             let mut spent_in_visit = 0.;
-            let before_visit = scoped.filter(|_| !cached_ready).map(|_| thread_cpu());
+            let before_visit = scoped.map(|_| thread_cpu());
             let mut called = false;
-            let result = if cached_ready { None } else {
+            let result = {
                 scoped.map(|supplier| {
                     ryo_language::domain::symbols::service::clear_symbols(&mut numbered_symbols);
                     numbered_reader.get_or_insert_with(|| supplier.open()).visit(
@@ -1682,12 +1600,6 @@ pub(crate) fn visit<L: FileSource>(
                 // visit has already charged its inspection and execution.
                 clocks.build_file += (thread_cpu() - before_visit - spent_in_visit).max(0.);
             }
-            if !called && let Some((previous, file)) = cached
-                && let (Some(start), Some(end)) = (start, retention.clock()) {
-                // All allocations on this worker during the visit conservatively bound
-                // the new storage, including provider-owned opaque parser allocations.
-                retention.put(index, previous.saturating_add(end.wrapping_sub(start)), file);
-            }
         }
         if let Some(start) = file_start {
             let elapsed = start.elapsed().as_secs_f64();
@@ -1708,7 +1620,4 @@ pub(crate) fn visit<L: FileSource>(
     parts.tree += tree_cpu;
     parts.facts += fact_cpu;
     if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }
-    if keep {
-        state.run = run;
-    }
 }

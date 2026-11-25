@@ -128,11 +128,9 @@ struct Batch {
 }
 
 #[derive(Default)]
-struct Active<F: Default, D: Default> {
+struct Active {
     paths: Arc<Vec<String>>,
-    keep: bool,
     manifests: Option<BTreeSet<&'static str>>,
-    retention: session::Retention<F,D>,
     readers: Vec<session::ReaderState>,
     world: session::World,
     answers: ReportSlots,
@@ -435,13 +433,13 @@ impl Batch {
         self.binding_ids.clear();
     }
 
-    fn epoch<L: session::source::Source>(&mut self,languages:&[L],state:&mut Active<L::File,L::Dictionary>) {
+    fn epoch<L: session::source::Source>(&mut self,languages:&[L],state:&mut Active) {
         self.epoch_with_store(languages,state,None)
     }
     fn epoch_with_store<L: session::source::Source>(
         &mut self,
         languages: &[L],
-        state: &mut Active<L::File, L::Dictionary>,
+        state: &mut Active,
         mut store:Option<&mut stored::Store>,
     ) {
         self.schedule.finish_selection();
@@ -477,20 +475,14 @@ impl Batch {
             }
             store.admit(self, &mut state.world, &mut state.answers, &mut state.contributions, &probe);
             eprintln!("store_admit_cpu={:.6}", thread_cpu() - started);
-            if !state.keep {
-                self.release_admission();
-            }
         }
         let pending: Vec<_> = std::mem::take(&mut self.schedule.pending).into_iter().collect();
         self.read_pending(languages, state, &pending, store.is_none());
-        let Active { keep, readers: reader_states, world, answers, aliases, contributions, populations, project_unread, .. } = state;
+        let Active { readers: reader_states, world, answers, aliases, contributions, populations, project_unread, .. } = state;
         if let Some(store) = store.as_deref_mut() {
             let started = thread_cpu();
             store.local(self, world, answers, aliases, contributions, &pending);
             eprintln!("store_local_cpu={:.6}", thread_cpu() - started);
-        }
-        if !*keep {
-            reader_states.clear();
         }
         if !aliases.is_empty() {
             for work in &mut self.work {
@@ -506,12 +498,12 @@ impl Batch {
                 }
             }
         }
-        if !*keep {
-            *aliases=Default::default();
-        }
-        self.schedule.delivered(&probe, *keep, |id| self.cut_of[id].is_none());
-        self.schedule.delivered(&pending, *keep, |id| self.cut_of[id].is_none());
-        self.finish_projects(languages, reader_states, contributions, world, answers, populations, project_unread, *keep,store.as_deref_mut());
+        *aliases = Default::default();
+        self.schedule.delivered(&probe);
+        self.schedule.delivered(&pending);
+        self.finish_projects(languages, reader_states, contributions, world, answers, populations, project_unread, store.as_deref_mut());
+        // The closed readers above placed their rows with the bytes held here.
+        reader_states.clear();
         for layout in self.layout_ids.drain().filter_map(|(_, id)| id) {
             self.layouts[layout] = None;
         }
@@ -521,11 +513,11 @@ impl Batch {
     fn read_pending<L: session::source::Source>(
         &mut self,
         languages: &[L],
-        state: &mut Active<L::File, L::Dictionary>,
+        state: &mut Active,
         pending: &[usize],
         release_files: bool,
     ) {
-        let Active { paths, keep, manifests, retention, readers: reader_states, world, answers, aliases, contributions, .. } = state;
+        let Active { paths, manifests, readers: reader_states, world, answers, aliases, contributions, .. } = state;
         if pending.is_empty() { self.empty_reader_epochs += 1; }
         let unclaimed = languages.len();
         reader_states.resize_with(unclaimed + 1, Default::default);
@@ -553,7 +545,7 @@ impl Batch {
             self.reused_binding_entries += self.cut_of.len() + self.bound_contracts.len() + self.bindings.len();
             self.clocks.omitted_file_bindings += self.bindings.len();
             let hosted = &self.bindings;
-            let file_workers = if !release_files && *keep { Some(std::num::NonZeroUsize::MIN) } else { self.workers };
+            let file_workers = self.workers;
             let start = paths.len();
             if start < self.schedule.sources.len() {
                 Arc::make_mut(paths).extend(self.schedule.sources[start..].iter().map(|s| s.path.clone()));
@@ -568,8 +560,6 @@ impl Batch {
                     languages,
                     paths,
                     &mut reader_states[reader_id],
-                    retention,
-                    *keep,
                     language,
                     (reader_id != unclaimed).then_some(reader_id),
                     manifests,
@@ -592,10 +582,10 @@ impl Batch {
                     },
                     &mut self.clocks,
                 );
-                if !*keep && release_files {
+                if release_files {
                     // Other readers have disjoint files. Answers and project contributions
                     // already own everything the closed phase will read from this group.
-                    self.schedule.delivered(&files, *keep, |id| self.cut_of[id].is_none());
+                    self.schedule.delivered(&files);
                     for i in files {
                         self.schedule.sources[i].provided = None;
                     }
@@ -626,7 +616,6 @@ impl Batch {
         answers: &mut ReportSlots,
         populations: &mut HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
         project_unread: &mut HashMap<usize, Vec<l::Refused>>,
-        keep: bool,
         mut store:Option<&mut stored::Store>,
     ) {
         let wall = std::time::Instant::now();
@@ -708,7 +697,7 @@ impl Batch {
         #[cfg(feature = "product-session")]
         // Small SDK validation cohorts use the same closed reader without
         // reconstructing a word table and posting caches on each worker.
-        if keep && store.is_none() && workers > 1 && self.work.len() >= 128 && groups.len() > 1 {
+        if store.is_none() && workers > 1 && self.work.len() >= 128 && groups.len() > 1 {
             let groups: Vec<_> = groups.into_values().collect();
             self.clocks.project_shards += workers.min(groups.len());
             let worker_cpu = closed_workers::run(
