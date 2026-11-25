@@ -2,6 +2,7 @@
 
 pub(crate) mod bases;
 pub(crate) mod extras;
+pub(crate) mod file_view;
 pub(crate) mod language;
 pub(crate) mod nodes;
 pub(crate) mod relations;

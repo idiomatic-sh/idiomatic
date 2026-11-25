@@ -336,7 +336,13 @@ pub(crate) fn fields() -> impl Iterator<Item = Field> {
 /// `attribute` under its element, and every other element has none.
 #[must_use]
 pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
-    match kind(tree, at) {
+    field_of_kind(kind(tree, at))
+}
+
+/// The role an element of `kind` has under its parent: the role is the kind's alone.
+#[must_use]
+pub(crate) fn field_of_kind(kind: Kind) -> Field {
+    match kind {
         Kind::Node(Node::Name) => Field::Name,
         Kind::Node(Node::Namespace) => Field::Namespace,
         Kind::Node(Node::Prefix) => Field::Prefix,
