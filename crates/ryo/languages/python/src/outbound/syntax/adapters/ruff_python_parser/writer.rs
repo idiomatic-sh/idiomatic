@@ -210,7 +210,9 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, 'a> {
         };
         self.write_before(start);
         self.fill(start);
-        if self.annotation != AnnotationContext::Runtime
+        // Only a string in an annotation is parsed as a type here; a string under a call or an annotated assignment is parsed when
+        // the model has classified it (`completion_hosts`), as the walk does: the walk is the contract.
+        if self.annotation == AnnotationContext::Annotation
             && let AnyNodeRef::ExprStringLiteral(literal) = node
         {
             self.annotations.push(AnnotationCandidate {
