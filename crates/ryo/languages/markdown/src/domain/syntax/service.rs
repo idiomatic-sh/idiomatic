@@ -242,7 +242,13 @@ pub(crate) fn field_of(tree: &Tree<'_>, at: languages::Position) -> Field {
     if is_root(tree, at) == Rootness::Root {
         return Field::None;
     }
-    match (kind(tree, parent(tree, at)), kind(tree, at)) {
+    field_between(kind(tree, parent(tree, at)), kind(tree, at))
+}
+
+/// The role of an element of `element` kind under a parent of `parent` kind, by the property of mdast's node that holds it.
+#[must_use]
+pub(crate) fn field_between(parent: Kind, element: Kind) -> Field {
+    match (parent, element) {
         (Kind::Node(Node::Code), Kind::Token(Token::CodeFlowValue))
         | (Kind::Node(Node::Html), Kind::Token(Token::HtmlFlowData)) => Field::Value,
         (Kind::Node(Node::ListItem), Kind::Extra(Extra::TaskChecked | Extra::TaskUnchecked)) => {

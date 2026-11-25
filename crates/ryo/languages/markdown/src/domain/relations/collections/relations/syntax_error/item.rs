@@ -1,6 +1,7 @@
 //! The `syntax_error` relation of the language: every diagnostic of the reading, kept beside the tree. `CommonMark` reads every text
 //! as a document, so the one error is bytes that are not UTF-8 text.
 
+use crate::domain::file_view::types::MarkdownWalk;
 use crate::domain::model::types::Sections;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::constants::{INCOMPLETE_IMPACT, PARSE_PHASE, UNSPECIFIED_CODE};
@@ -28,5 +29,12 @@ ryo::reads! {
                 span: value(diagnostic_span(&diagnostic)),
             }
         }
+    }
+}
+
+// The engine fills `syntax_error` from the walked file: what the parser said, in the order it said it.
+ryo::fills! {
+    SyntaxErrorItem => languages::SyntaxError, walk(MarkdownWalk) |file, words, rows| {
+        languages::facts::syntax_error_rows(file.syntax.table, file.syntax.file, words, rows);
     }
 }

@@ -27,12 +27,15 @@ pub fn linked() -> ryo::languages::Language {
 
     use crate::inbound::contracts::parse::contract::ParseContract;
     use crate::inbound::contracts::project::contract::ProjectContract;
+    use crate::inbound::contracts::walk::contract::WalkPorts;
+    use crate::domain::file_view::types::MarkdownWalk;
     use crate::outbound::syntax::factory::pulldown_cmark;
 
     ryo::link!(
         domain::language::constants::NAME,
         parse: Arc::new(ParseContract::new(Arc::new(pulldown_cmark()))),
         project: Arc::new(ProjectContract::new()),
+        walk: Arc::new(MarkdownWalk { ports: WalkPorts { syntax: Arc::new(pulldown_cmark()) } }),
     )
 }
 
