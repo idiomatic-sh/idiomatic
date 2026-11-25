@@ -854,7 +854,6 @@ pub(crate) fn visit<L: FileSource>(
     struct FileDemand<'a> {
         closure_columns: [std::cell::OnceCell<frontier::ColumnDemand<'a>>; 2],
         named: Vec<&'static source::FileRelation>,
-        rejected_named: Vec<&'static source::FileRelation>,
         rejected_facts: FactMask,
         closed: bool,
         facts: FactMask,
@@ -958,7 +957,6 @@ pub(crate) fn visit<L: FileSource>(
             let demand = || {
                 let mut demand = FileDemand::default();
                 let mut named = BTreeMap::new();
-                let mut rejected_named = BTreeMap::new();
                 for (binding, _) in jobs.iter() {
                     match &bound[&binding] {
                         Ok(b) => {
@@ -967,7 +965,6 @@ pub(crate) fn visit<L: FileSource>(
                             let accepted_only = programs[program_of[binding]].as_ref().is_ok_and(|p| p.accepted_only);
                             for &schema in &b.named {
                                 named.insert(schema.name, schema);
-                                if !accepted_only { rejected_named.insert(schema.name, schema); }
                             }
                             if !accepted_only {
                                 for (word, bits) in demand.rejected_facts.iter_mut().zip(b.fact_mask) { *word |= bits; }
@@ -982,7 +979,6 @@ pub(crate) fn visit<L: FileSource>(
                     }
                 }
                 demand.named = named.into_values().collect();
-                demand.rejected_named = rejected_named.into_values().collect();
                 demand
             };
             let temporary;
@@ -1324,7 +1320,15 @@ pub(crate) fn visit<L: FileSource>(
             let mut named_errors = BTreeMap::new();
             let mut named_partials = BTreeMap::new();
             if needs_native && let Some(parser) = parser {
-                let schemas = if rejected { &demand.rejected_named } else { &demand.named };
+                // Only a program that survived the screen reads its named tables.
+                let mut surviving = BTreeMap::new();
+                for &(binding, _, excluded) in &active {
+                    if let (false, Ok(b)) = (excluded, &bound[&binding]) {
+                        surviving.extend(b.named.iter().map(|&schema| (schema.name, schema)));
+                    }
+                }
+                let schemas: Vec<_> = surviving.into_values().collect();
+                let schemas = &schemas;
                 if !schemas.is_empty() {
                     let named_start = thread_cpu();
                     clocks.named_counts[0] += 1;
