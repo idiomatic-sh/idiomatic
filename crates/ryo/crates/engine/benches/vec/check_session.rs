@@ -63,7 +63,12 @@ pub(crate) struct Program {
     pub bases: Vec<String>,
     base_steps: Vec<(usize, Option<l::Relation>)>,
     renders: bool,
+    /// The program's file requirements for each reader that has asked: they depend on the
+    /// program and the reader's declaration only, so they are made once per prepared program.
+    requirements: std::sync::Mutex<Vec<(Option<usize>, std::sync::Arc<Requirements>)>>,
 }
+
+type Requirements = (bool, Vec<Vec<String>>, Vec<Vec<String>>);
 
 fn reader_declaration<L: FileSource>(parser: Option<&L>) -> first::Language {
     let mut language = first::declaration();
@@ -115,7 +120,18 @@ impl Program {
             typed,
             bases,
             base_steps,
+            requirements: Default::default(),
         })
+    }
+
+    fn requirements(&self, reader: Option<usize>, make: impl FnOnce() -> Requirements) -> (std::sync::Arc<Requirements>, bool) {
+        let mut held = self.requirements.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some((_, found)) = held.iter().find(|(id, _)| *id == reader) {
+            return (found.clone(), false);
+        }
+        let made = std::sync::Arc::new(make());
+        held.push((reader, made.clone()));
+        (made, true)
     }
 }
 
@@ -916,9 +932,11 @@ pub(crate) fn visit<L: FileSource>(
             clocks.requirement_bindings += 1;
             let requirements = reader_requirements.entry(program_id)
                 .or_insert_with(|| {
-                    clocks.requirement_programs += 1;
-                    let (_, clauses) = reader_run::file_requirements(&program.typed, &language)
-                        .pop().expect("prepared program has an emit");
+                    let (clauses, computed) = program.requirements(reader_id, || {
+                        reader_run::file_requirements(&program.typed, &language)
+                            .pop().expect("prepared program has an emit").1
+                    });
+                    clocks.requirement_programs += usize::from(computed);
                     let requirements = Rc::new(BoundRequirements::bind(&clauses, &mut prerequisite_clauses, |word| run.sym(word)));
                     if let Some((known, &id)) = requirement_ids.get_key_value(&requirements) {
                         return (known.clone(), id);
@@ -1191,7 +1209,7 @@ pub(crate) fn visit<L: FileSource>(
                             .map(|r| r.relation()).collect();
                         partial_of(&[], recovery, &rels).is_empty()
                     } {
-                        answers.set(slot, Ok(Reported::default()));
+                        answers.set_empty(slot, || Ok(Reported::default()));
                         clocks.skipped += 1;
                         continue;
                     }
@@ -1499,7 +1517,7 @@ pub(crate) fn visit<L: FileSource>(
                     if let Some(cut) = &cut_of[binding] {
                         world.insert_empty(slot, &source.path, b, &mut run, cut);
                     }
-                    answers.set(slot, Ok(Reported::default()));
+                    answers.set_empty(slot, || Ok(Reported::default()));
                     clocks.skipped += 1;
                     continue;
                 }
