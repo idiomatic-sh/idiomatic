@@ -1106,11 +1106,7 @@ impl File<'_> {
             }
             (Native::Child, 0) => {
                 if ok {
-                    for c in node_table::children_of(self.table, Position(v as u32)) {
-                        if self.parent[c.0 as usize] == v as u32 && c.0 != 0 {
-                            out.push(c.0);
-                        }
-                    }
+                    out.extend(self.child_rows(v));
                 }
             }
             (Native::Location, 5) | (Native::Location, 6) => {
@@ -3285,9 +3281,7 @@ impl<'p> Exec<'p> {
                         && (dir == "child" || node_table::node_count(f.table).0 == f.n)
                     {
                         if dir == "child" {
-                            for c in node_table::children_of(f.table, Position(x as u32)) {
-                                all.push((i, u64::from(c.0)));
-                            }
+                            all.extend(f.child_rows(x).map(|child| (i, u64::from(child))));
                         } else {
                             let end = node_table::subtree_end_of(f.table, Position(x as u32)).0;
                             all.extend((x as u32 + 1..end).map(|q| (i, u64::from(q))));
@@ -3544,7 +3538,7 @@ fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &mut 
                         out.push(u64::from(f.parent[x as usize]));
                     }
                 } else {
-                    out.extend(node_table::children_of(f.table, Position(x as u32)).iter().map(|c| u64::from(c.0)));
+                    out.extend(f.child_rows(x).map(u64::from));
                 }
             }
         }

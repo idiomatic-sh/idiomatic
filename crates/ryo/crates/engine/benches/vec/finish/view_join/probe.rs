@@ -2,7 +2,6 @@
 //! select retains its driver order, residual predicates, touched count and projection.
 use super::{File, Native, Run, Src, ViewSpec, fill_prof, view_cols};
 use super::select_kernel::Pushed;
-use ryo::languages::{Position, node_table};
 
 #[derive(Clone, Copy)]
 pub(super) enum Ids<'a> {
@@ -176,16 +175,7 @@ fn pairs_where(
         (Native::Child, 1) => {
             batch.drive(|key| (key < n && f.has_parent(key as u32)).then_some(key as u32))
         }
-        (Native::Child, 0) => batch.drive(|key| {
-            let children = if key < n {
-                node_table::children_of(f.table, Position(key as u32))
-            } else {
-                &[]
-            };
-            children.iter().filter_map(move |child| {
-                (child.0 != 0 && u64::from(f.parent[child.0 as usize]) == key).then_some(child.0)
-            })
-        }),
+        (Native::Child, 0) => batch.drive(|key| f.child_rows(key)),
         (Native::Fact(i), c) => {
             if batch.driver.rows.len() == 0 {
                 return Some(0);
