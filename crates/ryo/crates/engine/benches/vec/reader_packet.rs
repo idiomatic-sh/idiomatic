@@ -172,7 +172,7 @@ impl Packet {
             self.local[slot] = Some(LocalTable { rows, columns, answer, wanted });
         }
         if !structural.is_empty() {
-            supplier.fill(&structural, symbols, &mut self.rows).map_err(|e| e.to_string())?;
+            supplier.project_structure(&structural, symbols, &mut self.rows).map_err(|e| e.to_string())?;
         }
         Ok(())
     }

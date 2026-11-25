@@ -77,8 +77,9 @@ pub trait NumberedFacts {
         wanted: crate::domain::facts::types::Wanted, words: &mut crate::domain::facts::types::FileWords,
         columns: &mut crate::domain::facts::types::FilledColumns) -> crate::domain::facts::types::FactAnswer;
 
-    /// Append catalog rows and their coverage into the consumer's writer.
-    fn fill(&mut self, relations: &[ryo_relations::domain::relations::types::Relation],
+    /// Append requested structural projections that extend the lent physical tree.
+    /// Filled relations are supplied through their file columns.
+    fn project_structure(&mut self, relations: &[ryo_relations::domain::relations::types::Relation],
         symbols: &mut Symbols, out: &mut dyn ryo_relations::domain::relations::types::RowWriter)
         -> Result<(), super::errors::ParseError>;
     /// Supply the named tables in request order.

@@ -143,7 +143,7 @@ impl l::NumberedFacts for Facts<'_, '_, '_> {
         self.file.fill(relation, wanted, words, columns)
     }
 
-    fn fill(
+    fn project_structure(
         &mut self,
         relations: &[l::Relation],
         symbols: &mut l::Symbols,
@@ -155,16 +155,7 @@ impl l::NumberedFacts for Facts<'_, '_, '_> {
                 l::Relation::SemanticSyntax | l::Relation::SemanticChild
             ) {
                 self.semantic_rows(relation, symbols, out);
-                continue;
             }
-            write_relation(
-                relation,
-                self.file.file,
-                self.file.words,
-                self.request.bytes,
-                symbols,
-                out,
-            );
         }
         Ok(())
     }
@@ -261,98 +252,3 @@ impl Facts<'_, '_, '_> {
         }
     }
 }
-
-// The typed catalog filler writes its existing rows. Translate its file-word handles
-// once at the RowWriter boundary, without projecting another syntax table.
-macro_rules! translated {
-    ($symbol:expr, $words:ident, $bytes:expr, $symbols:ident, Symbol) => {
-        if $symbol.0 != l::NO_SYMBOL.0 {
-            $symbol = l::intern_derived(
-                $symbols,
-                $bytes,
-                l::facts::text($words, l::CellWord(u64::from($symbol.0))),
-            );
-        }
-    };
-    ($symbol:expr, $words:ident, $bytes:expr, $symbols:ident, $kind:ident $(($convert:path))?) => {};
-}
-
-struct CatalogRows<'a, 'o> {
-    out: &'a mut (dyn RowWriter + 'o),
-    symbols: &'a mut l::Symbols,
-    bytes: l::ByteSlice<'a>,
-}
-
-macro_rules! uses_words {
-    (Symbol) => { true };
-    ($other:ident $(($convert:path))?) => { false };
-}
-
-macro_rules! catalog_writer {
-    ($module:ident, $relation:ident, $file:ident, $words:ident, $sink:ident
-     item $item:ident, row { $(#[$doc:meta])* $row:ident }, column $column:tt, expected $expected:tt,
-     class $class:ident, scope $scope:ident, notes $notes:ident, form NodeTable $nodes:tt, columns $columns:tt) => {};
-    ($module:ident, $relation:ident, $file:ident, $words:ident, $sink:ident
-     item $item:ident, row { $(#[$doc:meta])* $row:ident }, column $column:tt, expected $expected:tt,
-     class $class:ident, scope $scope:ident, notes $notes:ident, form Filled $key:tt, size $size:ident, keys $keys:tt,
-     columns { $( $(#[$column_doc:meta])* $field:ident $variant:ident : $ty:ty => $kind:ident $(($convert:path))? ; )* }) => {
-        if $relation == l::Relation::$item {
-            if !(false $(|| uses_words!($kind $(($convert))?))*) {
-                let fill = <PythonWalk<WalkPorts> as l::Fillers>::$module($file, $words, l::Wanted::Whole, $sink.out);
-                if matches!(fill, l::Fill::Absent(l::AbsenceCause::NotYetRead)) {
-                    l::Rows::<l::$row>::partial($sink.out,
-                        l::ReportText("catalog relation has no numbered filler"), l::Missing::Any);
-                }
-                return;
-            }
-            // The filler needs a mutable word pool and may add a word just before
-            // writing each row. Queue typed rows until that borrow has ended.
-            #[derive(Default)]
-            struct Buffer {
-                rows: Vec<l::$row>,
-                partial: Option<(String, l::Missing)>,
-            }
-            impl l::Rows<l::$row> for Buffer {
-                fn write(&mut self, row: l::$row) { self.rows.push(row); }
-                fn partial(&mut self, cause: l::ReportText<'_>, missing: l::Missing) {
-                    self.partial.get_or_insert_with(|| (cause.0.to_owned(), missing));
-                }
-                fn partial_at(&mut self, _: l::FileId, cause: l::ReportText<'_>, missing: l::Missing) {
-                    self.partial(cause, missing);
-                }
-            }
-            let mut buffer = Buffer::default();
-            let fill = <PythonWalk<WalkPorts> as l::Fillers>::$module($file, $words, l::Wanted::Whole, &mut buffer);
-            if let l::Fill::Absent(cause) = fill {
-                if cause == l::AbsenceCause::NotYetRead {
-                    l::Rows::<l::$row>::partial(
-                        $sink.out, l::ReportText("catalog relation has no numbered filler"), l::Missing::Any
-                    );
-                }
-                return;
-            }
-            let CatalogRows { out, bytes, symbols } = &mut $sink;
-            #[allow(unused_mut, reason = "only rows with symbol columns are rewritten")]
-            for mut row in buffer.rows {
-                $( translated!(row.$field, $words, *bytes, symbols, $kind $(($convert))?); )*
-                l::Rows::<l::$row>::write(*out, row);
-            }
-            if let Some((cause, missing)) = buffer.partial {
-                l::Rows::<l::$row>::partial(*out, l::ReportText(&cause), missing);
-            }
-            return;
-        }
-    };
-}
-
-macro_rules! catalog_dispatch {
-    ($( $group:ident { $( $item:ident $module:ident $row:ident $column:ident $( $qualifier:ident )* ; )* } )*) => {
-        fn write_relation(relation: l::Relation, file: &mut crate::domain::file_view::types::PythonFile<'_>,
-            words: &mut l::FileWords, bytes: l::ByteSlice<'_>, symbols: &mut l::Symbols, out: &mut dyn RowWriter) {
-            let mut sink = CatalogRows { out, symbols, bytes };
-            $( $( ryo_relations::$module!(catalog_writer, $module, relation, file, words, sink); )* )*
-        }
-    };
-}
-
-ryo_relations::each_relation!(catalog_dispatch);
