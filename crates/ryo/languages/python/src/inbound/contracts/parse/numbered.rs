@@ -251,6 +251,11 @@ struct CatalogRows<'a, 'o> {
     bytes: l::ByteSlice<'a>,
 }
 
+macro_rules! uses_words {
+    (Symbol) => { true };
+    ($other:ident $(($convert:path))?) => { false };
+}
+
 macro_rules! catalog_writer {
     ($module:ident, $relation:ident, $file:ident, $words:ident, $sink:ident
      item $item:ident, row { $(#[$doc:meta])* $row:ident }, column $column:tt, expected $expected:tt,
@@ -260,6 +265,14 @@ macro_rules! catalog_writer {
      class $class:ident, scope $scope:ident, notes $notes:ident, form Filled $key:tt, size $size:ident, keys $keys:tt,
      columns { $( $(#[$column_doc:meta])* $field:ident $variant:ident : $ty:ty => $kind:ident $(($convert:path))? ; )* }) => {
         if $relation == l::Relation::$item {
+            if !(false $(|| uses_words!($kind $(($convert))?))*) {
+                let fill = <PythonWalk<WalkPorts> as l::Fillers>::$module($file, $words, l::Wanted::Whole, $sink.out);
+                if matches!(fill, l::Fill::Absent(l::AbsenceCause::NotYetRead)) {
+                    l::Rows::<l::$row>::partial($sink.out,
+                        l::ReportText("catalog relation has no numbered filler"), l::Missing::Any);
+                }
+                return;
+            }
             // The filler needs a mutable word pool and may add a word just before
             // writing each row. Queue typed rows until that borrow has ended.
             #[derive(Default)]
