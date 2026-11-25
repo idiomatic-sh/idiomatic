@@ -32,19 +32,6 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Deserialize)]
-pub(crate) struct Input {
-    root: String,
-    #[serde(deserialize_with = "read_paths")]
-    files: Rc<Vec<String>>,
-    #[serde(default, deserialize_with = "read_inventory")]
-    inventory: Option<Rc<Vec<String>>>,
-    repository: Option<Authority>,
-    hosted: Vec<Hosted>,
-    #[serde(deserialize_with = "read_parameters")]
-    parameters: Parameters,
-}
-
 fn read_paths<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Rc<Vec<String>>, D::Error> {
     Vec::<String>::deserialize(input).map(Rc::new)
 }

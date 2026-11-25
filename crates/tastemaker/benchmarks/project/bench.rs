@@ -8,14 +8,6 @@ use std::io::{self, BufRead as _, Write as _};
 
 include!("../../../ryo/crates/engine/benches/vec/check_session/hosted.rs");
 
-fn path_id(run: &Run, path: &str) -> Result<u32, String> {
-    let at = run
-        .paths
-        .binary_search_by(|p| p.as_str().cmp(path))
-        .map_err(|_| format!("undeclared path {path}"))?;
-    u32::try_from(at).map_err(|e| e.to_string())
-}
-
 fn execute(req: Request, plan: &Plan) -> Result<Vec<finish::answer::Row>, String> {
     let mut run = Run::default();
     run.empty = run.sym(b"");

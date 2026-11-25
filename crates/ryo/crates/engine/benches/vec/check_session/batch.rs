@@ -1,3 +1,17 @@
+#[derive(Deserialize)]
+pub(crate) struct Input {
+    root: String,
+    #[serde(deserialize_with = "read_paths")]
+    files: Rc<Vec<String>>,
+    #[serde(default, deserialize_with = "read_inventory")]
+    inventory: Option<Rc<Vec<String>>>,
+    repository: Option<Authority>,
+    hosted: Vec<Hosted>,
+    #[serde(deserialize_with = "read_parameters")]
+    parameters: Parameters,
+}
+
+
 enum Work {
     Project(Rc<Answer>),
     Closed {
