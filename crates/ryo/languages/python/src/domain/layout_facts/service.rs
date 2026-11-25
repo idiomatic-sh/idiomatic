@@ -254,14 +254,12 @@ pub(crate) fn indent_regions(
 pub(crate) fn line_starts(file: &SyntaxFile<'_>, lines: &mut FileLines) {
     lines.0.clear();
     lines.0.push(Offset(0));
-    lines.0.extend(
-        file.text
-            .0
-            .bytes()
-            .enumerate()
-            .filter(|(_, byte)| *byte == b'\n')
-            .map(|(at, _)| Offset(u32::try_from(at + 1).unwrap_or(u32::MAX))),
-    );
+    let bytes = file.text.0.as_bytes();
+    lines.0.extend(bytes.iter().enumerate().filter_map(|(at, &byte)| {
+        let next = at + 1;
+        let newline = byte == b'\n' || (byte == b'\r' && bytes.get(next) != Some(&b'\n'));
+        newline.then(|| Offset(u32::try_from(next).unwrap_or(u32::MAX)))
+    }));
 }
 
 /// The line and the column of an offset of the file.
