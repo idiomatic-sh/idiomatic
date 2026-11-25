@@ -158,7 +158,6 @@ impl Exec<'_> {
         } else if projection.ident {
             input
         } else {
-            self.stats.touched[node] += count as u64;
             recycle::rc(projection.gather(&input, selected.then_some(work.kept.as_slice())))
         };
         if let Some(a) = &mut self.col.audit {
@@ -179,9 +178,7 @@ impl Exec<'_> {
             }
             if a.check {
                 // The same immutable source is already memoized. Compare every cell in physical order.
-                let touched = self.stats.touched[node];
                 let old = self.select_entry(f, run, p, node)?;
-                self.stats.touched[node] = touched;
                 assert!(
                     old.n == output.n
                         && old.names == output.names

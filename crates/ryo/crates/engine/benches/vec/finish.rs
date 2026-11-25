@@ -1130,46 +1130,12 @@ impl File<'_> {
     }
 }
 
-/// Counters a run keeps: per node, own time, calls, rows out and rows touched.
+/// Aggregate step counts printed by the session. Detailed operator measurements
+/// belong to the shared operator observer.
 #[derive(Default)]
 pub(super) struct Stats {
     pub(super) total_runs: u64,
     pub(super) total_rows: u64,
-    pub(super) time: Vec<f64>,
-    pub(super) rows: Vec<u64>,
-    pub(super) calls: Vec<u64>,
-    pub(super) touched: Vec<u64>,
-    pub(super) empty: Vec<u64>,
-    /// redo-union pass 2: runs (whole or by key) answered empty before the bracket (`known`), and the seconds of the
-    /// bracketed runs that returned nothing.
-    pub(super) known: Vec<u64>,
-    pub(super) empty_time: Vec<f64>,
-    /// pass 2 (`VEC_STEP_TIME`): seconds deciding the per-file static part (`known::static_empty_`, outermost calls).
-    pub(super) static_time: f64,
-    pub(super) static_depth: u32,
-    pub(super) static_visits: u64,
-    /// redo-whole pass 2: visits of steps with no leaf of their own (decided by their inputs alone).
-    pub(super) static_pass: u64,
-    pub(super) static_file_tests: u64,
-    pub(super) rec_time: f64,
-    pub(super) rec_busy: bool,
-    /// redo-whole pass 2 (keyed.rs): runs by key of a step read in place of made whole, those that returned nothing, and
-    /// the rows of tables a step builds (a table handed on from an input counts 0).
-    pub(super) keyed: Vec<u64>,
-    pub(super) keyed_empty: Vec<u64>,
-    pub(super) built: Vec<u64>,
-}
-
-impl Stats {
-    fn ran(&mut self, node: usize) {
-        self.calls[node] += 1;
-        self.total_runs += 1;
-    }
-
-    fn produced(&mut self, node: usize, rows: usize) {
-        self.rows[node] += rows as u64;
-        self.total_rows += rows as u64;
-    }
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
@@ -1329,7 +1295,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
+            stats: Stats::default(),
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -1786,7 +1752,6 @@ impl<'p> Exec<'p> {
             return Ok(Res::Tab(t.clone()));
         }
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
-            self.stats.known[node] += 1;
             self.skipped(f, node);
             return Ok(Res::Tab(self.empty_rc(run, node)?));
         }
@@ -1796,8 +1761,7 @@ impl<'p> Exec<'p> {
             Some(input) => input.n == 0,
             None => self.eval(f, run, p, gate as usize)?.n == 0,
         } {
-            self.stats.ran(node);
-            self.stats.empty[node] += 1;
+            self.stats.total_runs += 1;
             let e = self.empty_rc(run, node)?;
             if self.is_constant(run, node) {
                 self.run_memo[node] = Some(e.clone());
@@ -1806,12 +1770,8 @@ impl<'p> Exec<'p> {
         }
         let out = if self.timing { self.timed_body(f, run, p, node)? } else { self.body(f, run, p, node)? };
         emptyprop::ran();
-        self.stats.ran(node);
-        self.stats.produced(node, out.n);
-        keyed::built(self, f, node, &out);
-        if out.n == 0 {
-            self.stats.empty[node] += 1;
-        }
+        self.stats.total_runs += 1;
+        self.stats.total_rows += out.n as u64;
         if self.is_constant(run, node) {
             self.run_memo[node] = Some(out.clone());
         }
@@ -1829,11 +1789,9 @@ impl<'p> Exec<'p> {
         let out = self.body(f, run, p, node);
         let dt = step_clock() - t0;
         let own = dt - self.inner;
-        self.stats.time[node] += own;
         self.inner = saved + dt;
         let out = out?;
         if out.n == 0 {
-            self.stats.empty_time[node] += own;
             emptyprop::empty_run(node, false, own);
         }
         if let Some(c) = ew {
@@ -1898,7 +1856,6 @@ impl<'p> Exec<'p> {
                 view_cols::gather(f, run, v.base, v.map[c], &rows, &mut out.cols[c]);
             }
             out.n = rows.len();
-            self.stats.touched[node] += rows.len() as u64;
             self.scratch_rows = rows;
             return Ok(recycle::rc(out));
         }
@@ -1970,15 +1927,13 @@ impl<'p> Exec<'p> {
                 };
                 f.vmat.insert(node, rc.clone());
                 let dt = leaf_scan::table_clock() - t0;
-                self.stats.time[node] += dt;
                 if self.timing || !sw!("VEC_LEAF_CLOCK") {
                     self.inner += dt;
                 }
                 // A row-stream reader may already have produced this logical result.
                 if !f.cursor_views.remove(&node) {
-                    self.stats.built[node] += rc.n as u64;
-                    self.stats.ran(node);
-                    self.stats.produced(node, rc.n);
+                    self.stats.total_runs += 1;
+                    self.stats.total_rows += rc.n as u64;
                 }
                 Ok(rc)
             }
@@ -2032,7 +1987,6 @@ impl<'p> Exec<'p> {
         let sc = self.schema(run, node)?;
         let l = Rc::new(Lazy { keys, adj, radj, node, names: sc.names.clone(), tys: sc.tys.clone(), cache: RefCell::new(FxHashMap::default()), rcache: RefCell::new(FxHashMap::default()) });
         let dt = step_clock() - t0;
-        self.stats.time[node] += dt;
         self.inner += dt;
         f.lazies.insert(node, l.clone());
         Ok(l)
@@ -2076,7 +2030,7 @@ impl<'p> Exec<'p> {
             let fnode = self.arg_rel(node, "from")?;
             let pb = plan.nodes[fnode].semi().ok_or("count without semi")?;
             if let Some((from, counts)) = self.band_rows(f, run, p, fnode, pb, true)? {
-                self.stats.produced(fnode, from.n);
+                self.stats.total_rows += from.n as u64;
                 let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let mut groups: FxHashMap<inline_key::Key, u64> = FxHashMap::default();
                 let mut order: Vec<inline_key::Key> = Vec::new();
@@ -2590,7 +2544,6 @@ impl<'p> Exec<'p> {
                 let knocked = hits.iter().any(|h| {
                     view_holds(f, run, &v, *h) && (0..rk.len()).all(|k| view_cols::cell(f, run, v.base, *h, v.map[rk[k]]) == l.cols[lk[k]][i] || rsc.tys[rk[k]] == Ty::File)
                 });
-                self.stats.touched[node] += hits.len() as u64;
                 if !knocked {
                     l.row(i, &mut row);
                     out.push_row(&row);
@@ -2602,7 +2555,6 @@ impl<'p> Exec<'p> {
         if r.n == 0 {
             return Ok(l.copy());
         }
-        self.stats.touched[node] += r.n as u64;
         if rk.len() == 1 {
             let set: rustc_hash::FxHashSet<u64> = r.cols[rk[0]].iter().copied().collect();
             for i in 0..l.n {
@@ -2733,7 +2685,6 @@ impl<'p> Exec<'p> {
             Src::Tab(t, _) => {
                 // 8: a made table drives by position: its own tests run over its columns, no row list made
                 let n = t.n;
-                self.stats.touched[node] += n as u64;
                 let mut kept = self.take_u32();
                 if own.is_empty() {
                     kept.extend(0..n as u32);
@@ -2767,7 +2718,6 @@ impl<'p> Exec<'p> {
             }
             _ => return Err("a select starts from no table or view".to_owned()),
         };
-        self.stats.touched[node] += first.len() as u64;
         for &r in first.iter() {
             cur[driver] = r;
             if own.iter().all(|c| truthy(eval(run, f, &srcs, &cur, &conj[*c]))) {
@@ -2897,7 +2847,6 @@ impl<'p> Exec<'p> {
                                 }
                             }
                         }
-                        self.stats.touched[node] += t.n as u64;
                         srcs[si] = Src::Tab(recycle::rc(t), usize::MAX - si);
                         }
                     }
@@ -2985,7 +2934,6 @@ impl<'p> Exec<'p> {
                             }
                             _ => unreachable!(),
                         }
-                        self.stats.touched[node] += hits.len() as u64;
                         any_hit |= !hits.is_empty();
                         for h in &hits {
                             cur[si] = *h;
@@ -3021,7 +2969,6 @@ impl<'p> Exec<'p> {
                     };
                     for ti in 0..count {
                         fill_cur(&mut cur, &tuples, ti, bound);
-                        self.stats.touched[node] += rows.len() as u64;
                         for r in rows.iter() {
                             cur[si] = *r;
                             if checks.iter().all(|c| truthy(eval(run, f, &srcs, &cur, &conj[*c]))) {
@@ -3189,7 +3136,6 @@ impl<'p> Exec<'p> {
                         next.push((*i, *q));
                     }
                 }
-                self.stats.touched[node] += next.len() as u64;
                 let qs: Vec<u64> = next.iter().map(|x| x.1).collect();
                 let ok = self.admit(f, run, p, &dom, &qs)?;
                 frontier.clear();
@@ -3283,7 +3229,6 @@ impl<'p> Exec<'p> {
                 other => return Err(format!("axis direction {other}")),
             }
         }
-        self.stats.touched[node] += all.len() as u64;
         let qs: Vec<u64> = all.iter().map(|x| x.1).collect();
         let ok = self.admit(f, run, p, &dom, &qs)?;
         for (i, q) in all {

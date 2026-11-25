@@ -63,24 +63,20 @@ pub(super) fn run(
     out.left.clear();
     out.right.clear();
     let pushed = out.pushed.filter(|test| matches!(sources[test.source], Src::View(..)));
-    let (driven, hits) = if let Some(counts) = super::view_choice::reverse(
+    if super::view_choice::reverse(
         f, run, sources, driver, columns, rows, pushed, out.left, out.right,
-    ) {
-        counts
-    } else {
+    ).is_none() {
         let batch = view_probe::Driver {
             rows,
             source: driver,
             column: columns[driver],
         };
-        let hits = view_probe::filtered_pairs(f, run, sources, batch, target, key, pushed, |_, left, right| {
+        view_probe::filtered_pairs(f, run, sources, batch, target, key, pushed, |_, left, right| {
             out.left.push(left);
             out.right.push(right);
         })
         .expect("validated native view key");
-        (n, hits)
-    };
-    ex.stats.touched[node] += driven as u64 + hits;
+    }
     if out.left.is_empty() {
         return ex.empty_rc(run, node).map(Some);
     }

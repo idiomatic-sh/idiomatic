@@ -107,7 +107,6 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
         && let Res::View(v) = ex.res(f, run, p, pr.right)?
     {
         let (lk, rk) = (&pr.lk, &pr.rk);
-        let mut touched = 0u64;
         let out = WORK.with(|w| {
             let w = &mut *w.borrow_mut();
             w.keep.clear();
@@ -116,7 +115,6 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
             for i in 0..l.n {
                 w.hits.clear();
                 f.native_probe(run, v.base, probe_col, lcol[i], &mut w.hits);
-                touched += w.hits.len() as u64;
                 let knocked = w.hits.iter().any(|h| view_holds(f, run, &v, *h) && (0..rk.len()).all(|k| pr.rfile[k] || super::view_cols::cell(f, run, v.base, *h, v.map[rk[k]]) == l.cols[lk[k]][i]));
                 if !knocked {
                     w.keep.push(i as u32);
@@ -124,7 +122,6 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
             }
             gather(pr, l, &w.keep)
         });
-        ex.stats.touched[node] += touched;
         return Ok(out);
     }
     // redo-whole pass 2 (keyed.rs): a right side whose one consumer is this antijoin is read by the left's keys (a left
@@ -143,7 +140,6 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
     if r.n == 0 {
         return Ok(l.clone());
     }
-    ex.stats.touched[node] += r.n as u64;
     Ok(WORK.with(|w| {
         let w = &mut *w.borrow_mut();
         knock(pr, l, &r, w);

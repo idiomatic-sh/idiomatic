@@ -97,40 +97,30 @@ impl Exec<'_> {
             }
         }
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
-            self.stats.known[node] += 1;
             self.skipped(f, node);
             return Ok(Some(self.empty_rc(run, node)?));
         }
-        let (out, handed) = match self.keyed_form(run, node)? {
+        let out = match self.keyed_form(run, node)? {
             Form::Not => return Ok(None),
             Form::Antijoin => {
                 let l = super::antijoin_kernel::keyed_left(self, f, run, p, node, col, keys)?;
                 match l {
-                    None => (self.empty_rc(run, node)?, true),
-                    Some((l, out)) => {
-                        let h = Rc::ptr_eq(&l, &out);
-                        (out, h)
-                    }
+                    None => self.empty_rc(run, node)?,
+                    Some((_, out)) => out,
                 }
             }
-            Form::Union => super::union_kernel::keyed(self, f, run, p, node, col, keys)?,
+            Form::Union => super::union_kernel::keyed(self, f, run, p, node, col, keys)?.0,
             Form::Select(cols) => {
                 let Some((si, c)) = cols[col] else { return Ok(None) };
                 match self.select_keyed(f, run, p, node, si, c, keys)? {
-                    Some(x) => x,
+                    Some((out, _)) => out,
                     None => return Ok(None),
                 }
             }
         };
         super::emptyprop::ran();
-        self.stats.keyed[node] += 1;
         self.stats.total_runs += 1;
-        self.stats.produced(node, out.n);
-        if out.n == 0 {
-            self.stats.keyed_empty[node] += 1;
-        } else if !handed {
-            self.stats.built[node] += out.n as u64;
-        }
+        self.stats.total_rows += out.n as u64;
         Ok(Some(out))
     }
 }
@@ -215,16 +205,5 @@ impl Exec<'_> {
             f.keyed_sizes.insert(node, n);
         }
         Ok(n)
-    }
-}
-
-/// The rows a whole run of `node` built: its answer's, unless that is an input's answer handed on (or the empty one).
-pub(super) fn built(ex: &mut Exec<'_>, f: &File<'_>, node: usize, out: &Rc<Table>) {
-    if out.n == 0 {
-        return;
-    }
-    let handed = ex.plan.nodes[node].inputs.iter().any(|i| matches!(&f.memo[*i], Some(Res::Tab(t)) if Rc::ptr_eq(t, out)) || f.vmat.get(i).is_some_and(|t| Rc::ptr_eq(t, out)));
-    if !handed {
-        ex.stats.built[node] += out.n as u64;
     }
 }

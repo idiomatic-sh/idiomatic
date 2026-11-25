@@ -795,7 +795,6 @@ impl Exec<'_> {
         sel.clear();
         match &srcs[driver] {
             Src::Tab(t, _) => {
-                self.stats.touched[node] += t.n as u64;
                 super::empty_sel::with(|m| m.d0 = t.n as u32);
                 sel.extend(0..t.n as u32);
             }
@@ -830,7 +829,6 @@ impl Exec<'_> {
                         _ => view_rows(f, run, v, *vn),
                     },
                 };
-                self.stats.touched[node] += first.len() as u64;
                 super::empty_sel::with(|m| m.d0 = first.len() as u32);
                 first.extend_into(sel);
             }
@@ -1112,7 +1110,6 @@ impl Exec<'_> {
                     }
                     _ => return Err("a join side that is no table or view".to_owned()),
                 }
-                self.stats.touched[node] += touched;
                 super::empty_sel::at(if touched > 0 { super::empty_sel::stage::RESIDUAL } else { super::empty_sel::stage::KEYS_MISS });
                 for c in checks {
                     used |= 1 << c;
@@ -1137,7 +1134,6 @@ impl Exec<'_> {
                 };
                 for r in sel.iter() {
                     cur[driver] = *r;
-                    self.stats.touched[node] += rows.len() as u64;
                     for h in rows.iter() {
                         cur[other] = *h;
                         if checks.iter().all(|c| holds(run, f, &srcs, &cur, &kp.preds[*c])) {

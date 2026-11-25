@@ -48,11 +48,9 @@ impl Exec<'_> {
         let rows = view_rows_for(f, run, &view, node, true);
         let cursor = Cursor { view, rows, schema };
         if f.cursor_views.insert(node) {
-            self.stats.ran(node);
-            self.stats.produced(node, cursor.rows.len());
-            self.stats.built[node] += cursor.rows.len() as u64;
+            self.stats.total_runs += 1;
+            self.stats.total_rows += cursor.rows.len() as u64;
             let dt = leaf_scan::table_clock() - t0;
-            self.stats.time[node] += dt;
             if self.timing || !sw!("VEC_LEAF_CLOCK") {
                 self.inner += dt;
             }
@@ -94,7 +92,6 @@ impl Exec<'_> {
         else {
             return Ok(None);
         };
-        self.stats.touched[node] += cursor.rows.len() as u64;
         if cursor.rows.is_empty() {
             return Ok(Some(left.clone()));
         }

@@ -110,24 +110,12 @@ impl Exec<'_> {
 
     #[inline(never)]
     fn static_empty_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
-        if sw!("VEC_STEP_TIME") && self.stats.static_depth == 0 {
-            self.stats.static_depth = 1;
-            let t0 = super::step_clock();
-            let e = self.static_empty_(f, run, p, node);
-            self.stats.static_time += super::step_clock() - t0;
-            self.stats.static_depth = 0;
-            return e;
-        }
         let r = self.rec(run, node);
         if r.flags & CAN == 0 {
             f.known[node] = NO;
             return false;
         }
         f.known[node] = BUSY;
-        self.stats.static_visits += 1;
-        if r.n_kinds == 0 && r.flags & (FILE_TEST | EP_LEAF) == 0 {
-            self.stats.static_pass += 1;
-        }
         let mut e = false;
         // a kind set none of whose kinds the file has
         let (mut at, end) = (r.kinds as usize, r.kinds as usize + usize::from(r.n_kinds));
@@ -138,7 +126,6 @@ impl Exec<'_> {
             at += 1 + n;
         }
         if !e && r.flags & FILE_TEST != 0 {
-            self.stats.static_file_tests += 1;
             e = self.file_fails_of(f, run, node);
         }
         let mut ep = false;
@@ -182,14 +169,6 @@ impl Exec<'_> {
 
     #[inline(never)]
     fn rec_of(&mut self, run: &mut Run, node: usize) -> Rec {
-        if sw!("VEC_STEP_TIME") && !self.stats.rec_busy {
-            self.stats.rec_busy = true;
-            let t0 = super::step_clock();
-            let r = self.rec_of(run, node);
-            self.stats.rec_time += super::step_clock() - t0;
-            self.stats.rec_busy = false;
-            return r;
-        }
         // a cycle is impossible (a plan is a DAG); mark ready first all the same
         self.flat.recs[node] = Rec { flags: READY | NEVER, ..Rec::default() };
         let need = self.need(run, node);
