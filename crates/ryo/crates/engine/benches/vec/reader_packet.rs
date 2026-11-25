@@ -115,6 +115,8 @@ pub(crate) struct Packet {
     spare: FxHashMap<usize, FilledColumns>,
     requested: Vec<bool>,
     indexed: Vec<usize>,
+    indexed_rows: usize,
+    indexed_at: usize,
     pub(crate) ready: bool,
 }
 impl Packet {
@@ -126,6 +128,8 @@ impl Packet {
             spare: Default::default(),
             requested: vec![false; RELATIONS],
             indexed: Vec::new(),
+            indexed_rows: 0,
+            indexed_at: 0,
             ready: false,
         }
     }
@@ -145,6 +149,8 @@ impl Packet {
             }
             self.requested[slot] = false;
         }
+        self.indexed_rows = 0;
+        self.indexed_at = 0;
         self.ready = false;
     }
     /// The structural projection has its own provider contract. Every filled
@@ -203,20 +209,21 @@ impl Packet {
         self.local(slot).map_or_else(|| self.offsets[slot].len(), |t| t.rows)
     }
     pub(crate) fn index(&mut self, wanted: &[l::Relation]) {
-        debug_assert!(!self.ready);
         for &rel in wanted {
             let slot = catalog::number_of(rel).0;
             self.touch(slot);
         }
         let widths = widths();
-        let mut at = 0;
-        for &rel in &self.rows.relations {
+        let mut at = self.indexed_at;
+        for &rel in &self.rows.relations[self.indexed_rows..] {
             let i = catalog::number_of(rel).0;
             debug_assert!(self.requested[i]);
             self.offsets[i].push(at);
             at += widths[i];
         }
         debug_assert_eq!(at, self.rows.words.len());
+        self.indexed_rows = self.rows.relations.len();
+        self.indexed_at = at;
         self.ready = true;
     }
     /// An indexed, requested relation already has an exact row count. The
@@ -272,23 +279,48 @@ impl Packet {
             if !matches!(table.answer, l::FactAnswer::Answered(_)) || table.wanted != l::Wanted::Whole {
                 return false;
             }
+            let home = u64::from(id.0);
             for (index, (dst, kind)) in out.0.iter_mut().zip(kinds).enumerate() {
                 let Some(cells) = table.columns.0.get(index) else { continue };
                 dst.0.reserve(table.rows);
-                for &raw in &cells.0 {
-                    dst.0.push(match kind {
-                        CellKind::Node => match file_node(id.0, raw.0) {
-                            Ok(local) => CellWord(local),
-                            Err(_) => return false,
-                        },
-                        CellKind::Symbol if raw >= end && !reserved(raw.0) => {
-                            let Some(term) = u32::try_from(raw.0).ok().and_then(|code|
-                                ryo_relations::domain::terms::service::term_text(l::Symbol(code)))
-                            else { return false };
-                            l::facts::intern(words, term)
+                match kind {
+                    CellKind::Node => {
+                        // A node cell is this file's own identity or null; one test per cell, one verdict per column.
+                        let mut foreign = false;
+                        dst.0.extend(cells.0.iter().map(|&cell| {
+                            if cell.0 == finish::NULL {
+                                return cell;
+                            }
+                            foreign |= cell.0 >> 32 != home;
+                            CellWord(u64::from(cell.0 as u32))
+                        }));
+                        if foreign {
+                            return false;
                         }
-                        _ => raw,
-                    });
+                    }
+                    CellKind::Symbol => {
+                        // Words of the file's own dictionary pass as they are; a closed term outside it is interned.
+                        let before = dst.0.len();
+                        let mut beyond = false;
+                        dst.0.extend(cells.0.iter().map(|&cell| {
+                            beyond |= cell >= end;
+                            cell
+                        }));
+                        if beyond {
+                            dst.0.truncate(before);
+                            for &raw in &cells.0 {
+                                dst.0.push(if raw >= end && !reserved(raw.0) {
+                                    let Some(term) = u32::try_from(raw.0).ok().and_then(|code|
+                                        ryo_relations::domain::terms::service::term_text(l::Symbol(code)))
+                                    else { return false };
+                                    l::facts::intern(words, term)
+                                } else {
+                                    raw
+                                });
+                            }
+                        }
+                    }
+                    _ => dst.0.extend_from_slice(&cells.0),
                 }
             }
             return true;
