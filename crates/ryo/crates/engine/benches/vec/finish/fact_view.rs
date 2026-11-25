@@ -28,6 +28,19 @@ impl Column<'_> {
         }
     }
 
+    /// The first `n` cells as words, the representation matched once for the whole column.
+    pub(super) fn extend_into(self, out: &mut Vec<u64>, n: usize) {
+        match self {
+            Self::Owned(c) => out.extend_from_slice(&c[..n]),
+            Self::Numbers(c) => out.extend(c[..n].iter().map(|cell| cell.0)),
+            Self::Nodes(c) => out.extend(c[..n].iter().map(|cell| if cell.0 == NULL { NULL } else { u64::from(cell.0 as u32) })),
+            Self::Words(c, words, public, absent) => out.extend(c[..n].iter().map(|cell| {
+                let value = cell.0;
+                u64::from(words.get(value as usize).copied().or_else(|| u32::try_from(value).ok().and_then(|v| public.get(&v).copied())).unwrap_or(absent))
+            })),
+        }
+    }
+
     pub(super) fn len(self) -> usize {
         match self {
             Self::Owned(c) => c.len(),

@@ -73,7 +73,7 @@ pub(crate) struct LiteralParseIndex {
     /// Budgeted previous-source grammar results; no source-node identities.
     pub memo: crate::domain::grammar_cache::types::GrammarMemo<LiteralParseOutcome>,
     /// Reusable current-source lookup of already parsed embedded carriers.
-    pub embedded: std::collections::HashSet<Position>,
+    pub embedded: std::collections::HashSet<Position, std::hash::BuildHasherDefault<crate::domain::model::names::types::KeyHasher>>,
     /// Complete quoted/prefixed token spelling, with token boundaries and dialect preserved.
     pub by_carrier: IndexMap<CarrierKey, LiteralParseOutcome>,
     /// Current source identities, independent of cache-key sharing.

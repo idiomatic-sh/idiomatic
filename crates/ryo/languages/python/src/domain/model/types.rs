@@ -353,7 +353,7 @@ pub(crate) struct BindingAnalysisIndex {
     /// Sparse branch and phase environments.
     pub environments: BindingEnvironments,
     /// Completed or active phase environments, keyed by real syntax boundary.
-    pub phases: std::collections::HashMap<Position, BindingFrameId>,
+    pub phases: std::collections::HashMap<Position, BindingFrameId, std::hash::BuildHasherDefault<crate::domain::model::names::types::KeyHasher>>,
     /// Nested branch entry frames.
     pub branches: Vec<BindingBranch>,
     /// Completed alternatives, reused by nested joins.
