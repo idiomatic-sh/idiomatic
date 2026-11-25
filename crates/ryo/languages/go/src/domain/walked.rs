@@ -12,3 +12,6 @@ pub(crate) mod scopes;
 pub(crate) mod signatures;
 pub(crate) mod slots;
 pub(crate) mod specs;
+pub(crate) mod roles;
+pub(crate) mod siblings;
+pub(crate) mod fact_notes;

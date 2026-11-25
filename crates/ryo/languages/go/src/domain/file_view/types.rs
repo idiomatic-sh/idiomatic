@@ -1,7 +1,6 @@
 //! The types of the `file_view` concept: the go language as the engine's walk and its fillers name it, the view of one walked file the
 //! fillers read, and the buffers a worker keeps from file to file.
 
-use crate::domain::syntax::types::Roling;
 use ryo::languages::{ByteSlice, FileId, NodeTable};
 
 /// The go language as the engine walks it, over the ports `P` its walk calls. Its fillers call no port, so a `fills!` item names the
@@ -28,13 +27,8 @@ pub(crate) struct Syntax<'f> {
 pub(crate) struct GoFile<'f> {
     /// The node table and the text.
     pub(crate) syntax: Syntax<'f>,
-}
-
-/// The buffers a worker keeps from file to file: refilled for each file, never reallocated.
-#[derive(Default)]
-pub(crate) struct GoScratch {
-    /// What gives each element of the walk its role.
-    pub(crate) roling: Roling,
+    /// Whether the file is a module's `go.mod`, which has no imports.
+    pub(crate) module: bool,
 }
 
 /// The names of a walked file: a text becomes a word of the file, the cell a row holds. Shared, so a lazy answer that holds the file's

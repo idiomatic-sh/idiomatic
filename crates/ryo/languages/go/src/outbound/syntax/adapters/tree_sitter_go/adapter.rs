@@ -18,8 +18,7 @@ use crate::domain::nodes::types::Node;
 use crate::domain::pieces::service::{arrange, value_of};
 use crate::domain::pieces::types::Pieces;
 use crate::domain::shapes::service::find;
-use crate::domain::syntax::service::numbered;
-use crate::domain::syntax::types::{Kind, Output, Roling, Tabled};
+use crate::domain::syntax::types::{Kind, Numbered, Output, Tabled};
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
@@ -374,13 +373,7 @@ impl SyntaxPort for SyntaxTreeSitterGoAdapter {
         write(&read_once(text), &mut Tabled { builder });
     }
 
-    fn walk(
-        &self,
-        text: SourceText<'_>,
-        roling: &mut Roling,
-        builder: &mut languages::NodeTableBuilder<'_>,
-    ) {
-        let read = read_once(text);
-        numbered(roling, ByteSlice(text.0), builder, |out| write(&read, out));
+    fn walk(&self, text: SourceText<'_>, builder: &mut languages::NodeTableBuilder<'_>) {
+        write(&read_once(text), &mut Numbered { builder });
     }
 }
