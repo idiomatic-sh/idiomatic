@@ -564,10 +564,15 @@ pub(in super::super) fn gather(
         } else {
             None
         };
-        if let Some(table) = edges {
-            result.push((i, table, true));
-        } else if incomplete.is_empty()
-            && let Some(table) = contribution::gather(projections, i, slots, frame, run) {
+        let carried = match edges {
+            Some(table) => Some(table),
+            None if incomplete.is_empty() => {
+                let keys = contribution::demanded(projections, i, slots, exec, frame, run, facts)?;
+                contribution::gather(projections, i, slots, frame, run, keys.as_deref())
+            }
+            None => None,
+        };
+        if let Some(table) = carried {
             result.push((i, table, true));
         } else {
             result.push((i, exec.eval(frame, run, facts, slots[i])?, false));
@@ -575,6 +580,11 @@ pub(in super::super) fn gather(
     }
     if !run.missing.is_empty() {
         return Err(format!("unimplemented functions {:?}", run.missing));
+    }
+    for (i, table, _) in &result {
+        if let Some(start) = super::operators::enter(*i, 0) {
+            super::operators::leave(start, &format!("carried-{i}-{}", exec.plan.nodes[slots[*i]].op()), table.n, true);
+        }
     }
     Ok(result)
 }

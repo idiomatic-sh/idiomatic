@@ -205,7 +205,7 @@ impl Checks {
                 let unpartitioned = cuts[binding].is_none();
                 // A project layout has no slot in the packet proof, so only its
                 // exact-location proof may use the screen.
-                let screenable = b.layout.is_none();
+                let screenable = b.layout.is_empty();
                 let exact = can_locate && unpartitioned && self.exact_roots[index].1;
                 if screenable || exact {
                     any |= !roots.is_empty();
@@ -312,7 +312,7 @@ impl Checks {
                 continue;
             }
             let b = bound[binding].as_mut().unwrap();
-            if b.layout.is_some() {
+            if !b.layout.is_empty() {
                 continue;
             }
             let full_absent = roots.iter().any(|&r| !self.live[r])
@@ -375,8 +375,15 @@ impl Checks {
 }
 
 fn domain_steps(cut: Option<&crate::finish::partition::Partition>) -> Vec<(usize, usize)> {
+    // A source with one file-local origin step is absent where that step is.
     cut.into_iter().flat_map(|c| c.inputs.iter().enumerate()
-        .filter_map(|(i, n)| c.domains.get(n).map(|&(_, d)| (i, d)))).collect()
+        .filter_map(|(i, n)| {
+            let nodes = c.domains.get(n).map(|(_, nodes)| nodes).or_else(|| c.reach.get(n))?;
+            let mut steps = Vec::new();
+            nodes.steps(&mut steps);
+            steps.dedup();
+            (steps.len() == 1).then(|| (i, steps[0]))
+        })).collect()
 }
 fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partition>) -> Vec<usize> {
     match cut {
