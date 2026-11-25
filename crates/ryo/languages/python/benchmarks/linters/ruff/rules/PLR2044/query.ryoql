@@ -19,10 +19,8 @@ let nonempty_own_comments = antijoin(left=own_line_comments, right=empty_comment
 let comments_in_nonempty_blocks = select l.source as id, l.file as file from comment_block_paths as l join nonempty_own_comments as r on l.destination = r.id and l.file = r.file;
 let reportable = antijoin(left=empty_comments, right=comments_in_nonempty_blocks, left-on=["id", "file"], right-on=["id", "file"]);
 let candidate_locations = line_located(candidates=reportable);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLR2044)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PLR2044"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="PLR2044");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","PLR2044") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

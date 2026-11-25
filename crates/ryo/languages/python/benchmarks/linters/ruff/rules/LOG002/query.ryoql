@@ -45,14 +45,13 @@ let current_class = select l.id as id, r.related as lookup_scope, l.file as file
 let visible_current_class = select l.call as call, l.id as id, l.name as name, l.file as file, l.span as span, l.lookup_scope as lookup_scope, l.phase as phase, l.ordinal as ordinal from class_ancestors as l join current_class as r on l.id = r.id and l.file = r.file and l.lookup_scope = r.lookup_scope;
 let nonclass_scopes = antijoin(left=visible_scopes, right=class_scopes, left-on=["lookup_scope", "file"], right-on=["id", "file"]);
 let lookup_scopes = union(left=nonclass_scopes, right=visible_current_class);
-let prior_events = select name, scope, ordinal, file from "binding-event" where kind = "bind" or kind = "delete" or kind = "cleanup";
+let prior_events = select l.name as name,l.scope as scope,r.ordinal as ordinal,l.file as file from "namespace-sites" as l join "binding-event" as r on l."first-mutation"=r.ordinal and l.file=r.file;
 let shadowed = select l.call as call, l.id as id from lookup_scopes as l join prior_events as r on l.name = r.name and l.lookup_scope = r.scope and l.file = r.file where r.ordinal < l.ordinal;
 let unshadowed = antijoin(left=candidates, right=shadowed, left-on=["call", "id"], right-on=["call", "id"]);
 let reportable = select id, file, span from unshadowed;
 let candidate_locations = line_located(candidates=reportable);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:LOG002)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let violations_matches = observation_matches(candidates=candidate_locations, code="LOG002");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
 let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "LOG002"});
 observe ruf100_used as noqa_matches;

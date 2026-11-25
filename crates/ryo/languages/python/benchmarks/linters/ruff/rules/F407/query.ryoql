@@ -34,10 +34,8 @@ let relative_union = union(left=unknown_relative_locations,right=future_wildcard
 let typed_candidate_ids = select id, file from typed_future_candidates;
 let relative_candidates = antijoin(left=relative_union,right=typed_candidate_ids,left-on=["id","file"],right-on=["id","file"]);
 let candidate_locations = union(left=relative_candidates,right=typed_future_candidates);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F407)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "F407"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="F407");
+let violations = antijoin(left=candidate_locations, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","F407") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

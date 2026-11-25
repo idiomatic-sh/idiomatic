@@ -86,10 +86,9 @@ let translated_ancestors = axis(from=call_ids, relation="semantic-child", direct
 let in_translation = select id, file from translated_ancestors;
 let selected = antijoin(left=calls3, right=in_translation, left-on=[call,file], right-on=[id,file]);
 let locations = select l.call as id, l.file as file, l.span as span, r."start-line" as line from selected as l join "source-location" as r on l.call = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=locations, codes="^(?:UP032)$");
-let violations_rows = select id, file, span from locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "UP032"});
+let violations_matches = observation_matches(candidates=locations, code="UP032");
+let emit_identity = select call as id,file,span from selected;
+let violations = antijoin(left=emit_identity, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","UP032") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

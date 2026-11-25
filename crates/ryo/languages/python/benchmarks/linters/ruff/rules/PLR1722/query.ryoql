@@ -8,10 +8,8 @@ let qualified = select id from qualified_names where (path = "builtins.exit" or 
 let matching_calls = select l.child as function from functions as l join qualified as r on l.child = r.id;
 let reportable = select l.id as id, l.file as file, l.span as span from "semantic-syntax" as l join matching_calls as r on l.id = r.function;
 let candidate_locations = line_located(candidates=reportable);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLR1722)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PLR1722"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="PLR1722");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","PLR1722") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

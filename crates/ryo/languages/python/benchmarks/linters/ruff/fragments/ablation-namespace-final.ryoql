@@ -1,0 +1,6 @@
+output relation<namespace: node, name: symbol, event: node, kind: symbol, ordinal: number, file: file>;
+let events = select scope as namespace, name, occurrence as event, kind, ordinal, file from "binding-event" where kind != "read" and kind != "wildcard";
+let redirects = select lexical as namespace, name, occurrence as event, kind, ordinal, file from "binding-event" where (kind = "global" or kind = "nonlocal") and lexical != scope;
+let candidates = union(left=events, right=redirects);
+let latest = group-max(from=candidates, keys=[namespace,name,file], order="ordinal");
+return latest;

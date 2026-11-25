@@ -45,10 +45,8 @@ let formatted_matches = select l.call as id, l.file as file from explicit_receiv
 let all_matches = union(left=plain_matches, right=formatted_matches);
 let unique_matches = group-count(from=all_matches, keys=["id","file"], count="count");
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from unique_matches as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidates, codes="^(?:U012|UP012)$");
-let violations_rows = select id, file, span from candidates;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "UP012"});
+let violations_matches = observation_matches(candidates=candidates, code="UP012");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","UP012") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

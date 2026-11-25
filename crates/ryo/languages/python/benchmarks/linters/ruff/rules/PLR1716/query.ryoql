@@ -36,10 +36,8 @@ let left_locations = select l.id as id, l.file as file, l.right_compare as right
 let bounds = select l.id as id, l.file as file, l.line as line, l.start_span as start_span, r.span as end_span from left_locations as l join comparisons as r on l.right_compare = r.id and l.file = r.file;
 let composed = span-between(from=bounds, start="start_span", end="end_span", output="span");
 let candidates = select id, file, span, line from composed;
-let violations_matches = observation_matches(candidates=candidates, codes="^(?:PLR1716)$");
-let violations_rows = select id, file, span from candidates;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PLR1716"});
+let violations_matches = observation_matches(candidates=candidates, code="PLR1716");
+let violations = antijoin(left=composed, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","PLR1716") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(span,id);

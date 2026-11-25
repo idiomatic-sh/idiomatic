@@ -1,0 +1,5 @@
+import stepped_uses from "python/ruff/scoped-ordinary-read-uses-stepped";
+input reads: relation<reference: node, file: file>;
+output relation<reference: node, binding: node, kind: symbol, file: file>;
+let results = stepped_uses(reads=reads);
+return results;

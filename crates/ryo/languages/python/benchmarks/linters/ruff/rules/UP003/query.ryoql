@@ -42,7 +42,7 @@ let current_class = select l.reference as reference, r.related as lookup_scope, 
 let visible_current_class = select l.call as call, l.reference as reference, l.file as file, l.span as span, l.lookup_scope as lookup_scope, l.phase as phase, l.ordinal as ordinal from class_ancestors as l join current_class as r on l.reference = r.reference and l.file = r.file and l.lookup_scope = r.lookup_scope;
 let nonclass_scopes = antijoin(left=visible_scopes,right=class_scopes,left-on=["lookup_scope","file"],right-on=["id","file"]);
 let lookup_scopes = union(left=nonclass_scopes,right=visible_current_class);
-let prior_events = select name, scope, ordinal, file from "binding-event" where kind = "bind" or kind = "delete" or kind = "cleanup";
+let prior_events = select l.name as name,l.scope as scope,r.ordinal as ordinal,l.file as file from "namespace-sites" as l join "binding-event" as r on l."first-mutation"=r.ordinal and l.file=r.file;
 let shadowed = select l.call as call, l.reference as reference from lookup_scopes as l join prior_events as r on l.lookup_scope = r.scope and l.file = r.file where r.name = "type" and r.ordinal < l.ordinal;
 let unshadowed = antijoin(left=candidates,right=shadowed,left-on=["call","reference"],right-on=["call","reference"]);
 let qualified_with_spans = select l.call as call, l.reference as reference, l.file as file, r.span as span from qualified_typed_calls as l join calls as r on l.call = r.id and l.file = r.file;
@@ -50,10 +50,9 @@ let qualified_reportable = antijoin(left=qualified_with_spans,right=unshadowed,l
 let direct_reportable = select call, reference, file, span from unshadowed;
 let reportable = union(left=direct_reportable,right=qualified_reportable);
 let candidate_locations = select l.call as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.call = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:U003|UP003)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "UP003"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="UP003");
+let emit_identity = select call as id,file,span from reportable;
+let violations = antijoin(left=emit_identity, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","UP003") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

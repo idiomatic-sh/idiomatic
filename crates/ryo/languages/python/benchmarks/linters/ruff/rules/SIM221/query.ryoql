@@ -6,7 +6,6 @@ let selected_operators = select l.parent as id from operators as l join and_toke
 let owners = select l.id as id, l.file as file, l.span as span from bool_ops as l join selected_operators as r on l.id = r.id;
 let value_fields = select parent, child, ordinal from "semantic-child" where field = "values";
 let values = select l.id as owner, r.child as id, r.ordinal as ordinal, l.file as file from owners as l join value_fields as r on l.id = r.parent;
-let name_nodes = select id from "semantic-syntax" where kind = "name";
 let semantic_token_nodes = select id from "semantic-syntax" where kind = "name-token";
 let semantic_identifier_children = select r.child as id, l.name as text from "identifier" as l join "semantic-child" as r on l.id = r.parent;
 let semantic_identifiers = select l.id as id, l.text as text from semantic_identifier_children as l join semantic_token_nodes as r on l.id = r.id;
@@ -59,7 +58,7 @@ let check_read_events = select l.owner as owner, r.phase as phase, r.ordinal as 
 let first_check_read_events = group-min(from=check_read_events, keys=["owner"], order="ordinal");
 let owner_check_anchors = select l.owner as owner, l.phase as phase, l.ordinal as ordinal, r.scope as scope, l.file as file from first_check_read_events as l join nearest_owner_scopes as r on l.owner = r.owner and l.file = r.file;
 let owner_scope_calls = select l.owner as owner, l.call as call, l.name as name, l.file as file, r.scope as scope, r.phase as phase, r.ordinal as ordinal from owner_call_candidates as l join owner_check_anchors as r on l.owner = r.owner and l.file = r.file;
-let lookup_events = select name, scope, kind, phase, ordinal, file from "binding-event" where kind = "bind" or kind = "delete" or kind = "cleanup";
+let lookup_events = select l.name as name,l.scope as scope,r.ordinal as ordinal,l.file as file from "namespace-sites" as l join "binding-event" as r on l."first-mutation"=r.ordinal and l.file=r.file;
 let visible_owner_lookup_scopes = select l.owner as owner, l.call as call, l.name as name, l.file as file, l.ordinal as ordinal, r.scope as scope from owner_scope_calls as l join visible_owner_scopes as r on l.owner = r.owner and l.file = r.file;
 let prior_scope_events = select l.owner as owner, l.call as call from visible_owner_lookup_scopes as l join lookup_events as r on l.name = r.name and l.scope = r.scope and l.file = r.file where r.ordinal < l.ordinal;
 let shadowed_owner_calls = select owner, call from prior_scope_events;
@@ -88,13 +87,12 @@ let effect_free = antijoin(left=potential,right=owners_with_effects,left-on=["id
 let reportable = select id, file, span, unary, negated_name, positive_name from effect_free;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, l.unary as unary, l.negated_name as negated_name, l.positive_name as positive_name, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id;
 let suppression_candidates = select id, file, span, line from candidate_locations;
-let visible_candidates_matches = observation_matches(candidates=suppression_candidates, codes="^(?:SIM221)$");
+let visible_candidates_matches = observation_matches(candidates=suppression_candidates, code="SIM221");
 let visible_candidates_rows = select id, file, span from suppression_candidates;
 let visible_candidates = antijoin(left=visible_candidates_rows, right=visible_candidates_matches, left-on=[id, span], right-on=[id, span]);
 let hidden_candidates = antijoin(left=suppression_candidates, right=visible_candidates, left-on=["id"], right-on=["id"]);
 let kept_candidates = antijoin(left=candidate_locations, right=hidden_candidates, left-on=["id"], right-on=["id"]);
 let violations = select id, file, span, unary, negated_name, positive_name from kept_candidates;
-let ruf100_directives = select directive, file from visible_candidates_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "SIM221"});
+let ruf100_used = select directive,file,concat("","SIM221") as code from visible_candidates_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id, unary, negated_name, positive_name);

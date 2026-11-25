@@ -1,0 +1,8 @@
+input candidates: relation<id: node,file: file,span: span,line: number>;
+input windows: relation<directive: node,file: file,scope: number,code: symbol,first: number,final: number,begin: number,last: number,bound: number,excluded: number>;
+param code: string;
+output relation<id: node,file: file,span: span,directive: node,scope: number>;
+let applicable = select directive,file,scope,first,final,begin,last,bound,excluded from windows where code=$code or code="";
+let bounds = span-bounds(from=candidates,span="span",start-output="start",end-output="end");
+let matches = select l.id as id,l.file as file,l.span as span,r.directive as directive,r.scope as scope from applicable as r join bounds as l on l.file=r.file where l.line>=r.first and l.line<=r.final and (r.scope!=2 or l.start>=r.begin and l.start<=r.last and l.end<=r.bound and l.start!=r.excluded);
+return matches;

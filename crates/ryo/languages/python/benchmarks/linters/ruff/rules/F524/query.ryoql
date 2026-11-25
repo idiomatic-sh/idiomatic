@@ -48,10 +48,9 @@ let static_missing_calls = antijoin(left=missing_calls_a, right=dynamic_calls, l
 let missing_call_counts = group-count(from=static_missing_calls, keys=["call", "file"], count="missing_count", distinct="call");
 let candidates = select l.call as call, l.file as file, r.span as span from missing_call_counts as l join parsed_calls as r on l.call = r.call and l.file = r.file where r.outcome = "parsed";
 let candidate_locations = select l.call as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.call = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F524)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "F524"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="F524");
+let emit_identity = select call as id,file,span from candidates;
+let violations = antijoin(left=emit_identity, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","F524") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

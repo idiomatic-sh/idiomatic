@@ -75,10 +75,8 @@ let not_last = select l.id as id, l.file as file from base_locations as l join a
 let invalid_last = antijoin(left=known_invalid, right=not_last, left-on=["id","file"], right-on=["id","file"]);
 let reportable = antijoin(left=first_generics, right=invalid_last, left-on=["id","file"], right-on=["id","file"]);
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidates, codes="^(?:UP046)$");
-let violations_rows = select id, file, span from candidates;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "UP046"});
+let violations_matches = observation_matches(candidates=candidates, code="UP046");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","UP046") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

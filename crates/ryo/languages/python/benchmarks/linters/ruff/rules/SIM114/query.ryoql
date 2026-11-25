@@ -31,7 +31,11 @@ let same_bodies = antijoin(left=equal_lengths, right=missing_statements, left-on
 let last_body_members = group-max(from=body_members, keys=["branch", "file"], order="ordinal");
 let body_ends = select l.branch as branch, r."end-line" as end_line, r.span as end_span, l.file as file from last_body_members as l join locations as r on l.statement = r.id and l.file = r.file;
 let test_ends = select l.branch as branch, r."end-line" as start_line, l.file as file from tests as l join locations as r on l.test = r.id and l.file = r.file;
-let body_ranges = select l.branch as branch, l.end_line as end_line, r.start_line as start_line, l.file as file from body_ends as l join test_ends as r on l.branch = r.branch and l.file = r.file;
+let same_left_branches = select left_branch as branch, file from same_bodies;
+let same_right_branches = select right_branch as branch, file from same_bodies;
+let same_branches = union(left=same_left_branches, right=same_right_branches);
+let compared_ends = select l.branch as branch, l.end_line as end_line, l.file as file from body_ends as l join same_branches as r on l.branch = r.branch and l.file = r.file;
+let body_ranges = select l.branch as branch, l.end_line as end_line, r.start_line as start_line, l.file as file from compared_ends as l join test_ends as r on l.branch = r.branch and l.file = r.file;
 let comment_positions = select l.id as comment, l.text as text, r."start-line" as line, r."start-byte" as position, l.file as file from "comment" as l join locations as r on l.id = r.id and l.file = r.file;
 let body_comments = select l.branch as branch, r.comment as comment, r.text as text, r.position as position, l.file as file from body_ranges as l join comment_positions as r on l.file = r.file where r.line > l.start_line and r.line <= l.end_line;
 let comment_predecessors = select l.branch as branch, l.comment as comment, r.comment as earlier, l.file as file from body_comments as l join body_comments as r on l.branch = r.branch and l.file = r.file where r.position < l.position;
@@ -57,10 +61,8 @@ let bounds0 = select l.left_branch as id, l.right_branch as right_branch, r.span
 let bounds = select l.id as id, l.start_span as start_span, r.end_span as end_span, l.line as line, l.file as file from bounds0 as l join body_ends as r on l.right_branch = r.branch and l.file = r.file;
 let composed = span-between(from=bounds, start="start_span", end="end_span", output="span");
 let candidates = select id, file, span, line from composed;
-let violations_matches = observation_matches(candidates=candidates, codes="^(?:SIM114)$");
-let violations_rows = select id, file, span from candidates;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "SIM114"});
+let violations_matches = observation_matches(candidates=candidates, code="SIM114");
+let violations = antijoin(left=composed, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","SIM114") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

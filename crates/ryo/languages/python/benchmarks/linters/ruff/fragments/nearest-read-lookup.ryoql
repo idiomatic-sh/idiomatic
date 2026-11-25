@@ -1,0 +1,17 @@
+output relation<reference: node, event: node, kind: symbol, namespace: symbol, file: file>;
+let eligible = select reference, event, kind, scope, lexical, depth, file from "binding-resolution" where context != "deletion" or depth = 0;
+let nearest = group-min(from=eligible, keys=[reference,file], order="depth");
+let owned_events = select reference, event, kind, file from nearest where scope = lexical;
+let own_tag = extend(from=owned_events, values={namespace:"own"});
+let own = select reference, event, kind, namespace, file from own_tag;
+let redirected_events = select reference, event, kind, file from nearest where scope != lexical;
+let routed_tag = extend(from=redirected_events, values={namespace:"routed"});
+let routed = select reference, event, kind, namespace, file from routed_tag;
+let covered = union(left=own,right=routed);
+let reads = select reference,file from "binding-read";
+let missing = antijoin(left=reads,right=nearest,left-on=[reference,file],right-on=[reference,file]);
+let missing_events = select reference,reference as event,file from missing;
+let missing_tag = extend(from=missing_events, values={kind:"none",namespace:"none"});
+let absent = select reference,event,kind,namespace,file from missing_tag;
+let result = union(left=covered,right=absent);
+return result;

@@ -1,0 +1,7 @@
+import source_string_tokens from "python/ruff/source-string-tokens";
+output relation<id: node, file: file, span: span, line: number, text: symbol>;
+let strings = source_string_tokens();
+let token_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as base_line from strings as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let occurrences = source-matches(from=token_locations, span="span", base-line="base_line", pattern="(?P<c>[\x08\x1a\x1b\x00\x{200B}])", output="occurrence", line-output="line", capture="c", capture-output="char_span", capture-text-output="text");
+let result = select id, file, occurrence as span, line, text from occurrences;
+return result;

@@ -33,10 +33,8 @@ let left_matches = select l.comparison as comparison, l.left as left, l.comparat
 let reported_lefts = select l.left as id, l.file as file from left_matches as l join integer_literals as r on l.comparator = r.id and l.file = r.file;
 let reportable = select l.id as id, l.file as file, r.span as span from reported_lefts as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
 let candidate_locations = line_located(candidates=reportable);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:YTT203)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "YTT203"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="YTT203");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","YTT203") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

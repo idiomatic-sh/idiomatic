@@ -1,0 +1,10 @@
+import nearest_read_lookup from "python/ruff/nearest-read-lookup";
+input reads: relation<id: node,name: symbol,file: file>;
+output relation<id: node,file: file>;
+let read_lookup = nearest_read_lookup();
+let empty_paths = select reference,file from read_lookup where kind = "none";
+let missing = select l.id as id,l.name as name,l.file as file from reads as l join empty_paths as r on l.id = r.reference and l.file = r.file;
+let local_slots = select l.id as id,l.name as name,l.file as file,r.definition as binding from missing as l join "resolves" as r on l.id = r.occurrence and l.file = r.file;
+let available = select name,file from "implicit-symbol" as i where i.kind = "builtin" and (i."since-major" < 3 or i."since-major" = 3 and i."since-minor" <= 10);
+let counted = select l.id as id,l.file as file from local_slots as l join available as r on l.name = r.name and l.file = r.file;
+return counted;

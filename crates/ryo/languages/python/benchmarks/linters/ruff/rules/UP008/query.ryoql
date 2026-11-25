@@ -147,11 +147,10 @@ let argument_ranges = select l.id as id, l.file as file, r.wrapper as wrapper fr
 let candidate_locations = select l.id as id, l.file as file, r.span as span, r."start-line" as line from argument_ranges as l join "source-location" as r on l.wrapper = r.id and l.file = r.file;
 let call_spans = select l.id as id, l.file as file, r.span as span from called_super as l join calls as r on l.id = r.id and l.file = r.file;
 let call_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from call_spans as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let unsuppressed_calls_matches = observation_matches(candidates=call_locations, codes="^(?:U008|UP008)$");
+let unsuppressed_calls_matches = observation_matches(candidates=call_locations, code="UP008");
 let unsuppressed_calls_rows = select id, file, span from call_locations;
 let unsuppressed_calls = antijoin(left=unsuppressed_calls_rows, right=unsuppressed_calls_matches, left-on=[id, span], right-on=[id, span]);
 let violations = select l.id as id, l.file as file, r.span as span from unsuppressed_calls as l join candidate_locations as r on l.id = r.id and l.file = r.file;
-let ruf100_directives = select directive, file from unsuppressed_calls_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "UP008"});
+let ruf100_used = select directive,file,concat("","UP008") as code from unsuppressed_calls_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

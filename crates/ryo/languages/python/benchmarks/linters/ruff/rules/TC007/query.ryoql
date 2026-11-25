@@ -10,8 +10,8 @@ let guarded_ifs = select l.owner as id, l.file as file from tests as l join type
 let guarded_bodies = select r.child as id, l.file as file from guarded_ifs as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "body";
 let definition_rows = select id, owner, name, file from "defines";
 let definition_nodes = select id, file from definition_rows;
-let guarded_definition_axes = axis(from=definition_nodes, relation="semantic-child", direction=ancestor, domain=guarded_bodies);
-let guarded_definition_nested = select id, file from guarded_definition_axes;
+let guarded_definition_axes = axis(from=guarded_bodies, relation="semantic-child", direction=descendant, domain=definition_nodes);
+let guarded_definition_nested = select related as id, file from guarded_definition_axes;
 let guarded_definition_self = select l.id as id, l.file as file from definition_nodes as l join guarded_bodies as r on l.id = r.id and l.file = r.file;
 let guarded_definition_ids = union(left=guarded_definition_nested, right=guarded_definition_self);
 let guarded_definitions = select l.id as id, l.owner as owner, l.name as name, l.file as file from definition_rows as l join guarded_definition_ids as r on l.id = r.id and l.file = r.file;
@@ -87,7 +87,8 @@ let guarded_event_self = select l.id as id, l.file as file from event_nodes as l
 let guarded_event_ids = union(left=guarded_event_nested, right=guarded_event_self);
 let runtime_events = antijoin(left=value_events, right=guarded_event_ids, left-on=["id","file"], right-on=["id","file"]);
 let preceding_options = select l.id as id, l.file as file, r.id as event, r.ordinal as ordinal, r.kind as kind from candidate_reads as l join runtime_events as r on l.owner = r.scope and l.name = r.name and l.file = r.file where r.ordinal < l.point or r.phase != l.phase;
-let superseded_options = select l.id as id, l.file as file, l.event as event from preceding_options as l join preceding_options as r on l.id = r.id and l.file = r.file where l.ordinal < r.ordinal;
+let superseded_options_max = group-max(from=preceding_options, keys=[id,file], order="ordinal");
+let superseded_options = select l.id as id, l.file as file, l.event as event from preceding_options as l join superseded_options_max as r on l.id = r.id and l.file = r.file where l.ordinal < r.ordinal;
 let terminal_options = antijoin(left=preceding_options, right=superseded_options, left-on=["id","file","event"], right-on=["id","file","event"]);
 let available_same_namespace = select id, file from terminal_options where kind = "bind";
 let other_uses = antijoin(left=read_uses, right=guarded_definition_ids, left-on=["binding","file"], right-on=["id","file"]);
@@ -103,10 +104,8 @@ let available0 = union(left=available_same_namespace, right=available_other_name
 let available = union(left=available0, right=available_builtins);
 let missing = antijoin(left=candidate_reads, right=available, left-on=["id","file"], right-on=["id","file"]);
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from missing as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidates, codes="^(?:TC007)$");
-let violations_rows = select id, file, span from candidates;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "TC007"});
+let violations_matches = observation_matches(candidates=candidates, code="TC007");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","TC007") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

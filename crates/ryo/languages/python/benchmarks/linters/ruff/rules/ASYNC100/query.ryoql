@@ -52,10 +52,8 @@ let applicable_statements = group-count(from=applicable_timeout_items, keys=["st
 let reportable_statements = antijoin(left=applicable_statements, right=yield_and_scope_checkpoints, left-on=["statement"], right-on=["statement"]);
 let reportable = select l.statement as id, r.file as file, r.span as span from reportable_statements as l join with_statements as r on l.statement = r.id;
 let candidate_locations = line_located(candidates=reportable);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:ASYNC100|TRIO100)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "ASYNC100"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="ASYNC100");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","ASYNC100") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

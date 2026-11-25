@@ -41,10 +41,8 @@ let candidate_dicts = union(left=valid_key_dictionaries, right=exact_nested_spre
 let candidate_keywords = select l.keyword as keyword, l.file as file from keyword_values as l join candidate_dicts as r on l.value = r.id and l.file = r.file;
 let candidates = select l.keyword as id, l.file as file, r.span as span from candidate_keywords as l join keyword_nodes as r on l.keyword = r.id and l.file = r.file;
 let candidate_locations = line_located(candidates=candidates);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PIE804)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PIE804"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="PIE804");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","PIE804") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

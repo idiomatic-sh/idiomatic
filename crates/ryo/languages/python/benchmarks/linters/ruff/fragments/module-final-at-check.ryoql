@@ -1,0 +1,10 @@
+import ablation_final from "python/ruff/ablation-namespace-final";
+input contexts: relation<context: node, initial_scope: node, point: number, header_point: number, stage: number, file: file>;
+output relation<context: node, expression: node, occurrence: node, scope: node, kind: symbol, file: file>;
+let namespace_final = ablation_final();
+let modules = select id, file from "semantic-syntax" where kind = "module";
+let in_module = select l.context as id, l.initial_scope as scope,l.point as point,l.file as file from contexts as l join modules as r on l.initial_scope = r.id and l.file = r.file;
+let named = select l.id as id,l.scope as scope,l.point as point,r.name as name,l.file as file from in_module as l join "binding-read" as r on l.id = r.reference and l.file = r.file;
+let finals = select l.id as id,l.scope as scope,r.event as occurrence,r.kind as kind,r.ordinal as ordinal,l.file as file from named as l join namespace_final as r on l.scope = r.namespace and l.name = r.name and l.file = r.file where r.kind = "bind" and r.ordinal <= l.point;
+let own = select l.id as context,l.id as expression,l.occurrence as occurrence,l.scope as scope,l.kind as kind,l.file as file from finals as l join "binding-event" as r on l.occurrence = r.occurrence and l.ordinal = r.ordinal and l.scope = r.lexical and l.file = r.file;
+return own;

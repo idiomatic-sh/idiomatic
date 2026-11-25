@@ -14,8 +14,8 @@ let receivers0 = select l.call as call, r.child as receiver, l.file as file from
 let receivers = select l.call as call, r.receiver as receiver, l.file as file from strip_names as l join receivers0 as r on l.call = r.call and l.file = r.file;
 let reference_nodes = select id, file from "semantic-syntax" where kind = "name";
 let receiver_references = select r.id as reference, r.file as file from receivers as l join reference_nodes as r on l.receiver = r.id and l.file = r.file;
-let string_references = binding_type(references=receiver_references, builtin="builtins.str", typing="typing.Text", atom="string");
-let byte_references = binding_type(references=receiver_references, builtin="builtins.bytes", typing="__no_typing_bytes_alias__", atom="bytes");
+let string_references = binding_type(references=receiver_references, builtin="builtins.str", typing="typing.Text", atom="string", bindings="only");
+let byte_references = binding_type(references=receiver_references, builtin="builtins.bytes", typing="__no_typing_bytes_alias__", atom="bytes", bindings="only");
 let string_constants = select id, file from "literal-properties" where kind = "string";
 let literal_strings = select l.occurrence as reference, l.file as file from "string-literal" as l join string_constants as r on l.occurrence = r.id and l.file = r.file;
 let literal_bytes = select occurrence as reference, file from "bytes-literal";
@@ -44,10 +44,8 @@ let byte_reports = select l.argument as id, l.file as file from typed_byte_argum
 let reportable = union(left=string_reports, right=byte_reports);
 let locations = select id, span, "start-line", file from "source-location";
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join locations as r on l.id = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidates, codes="^(?:PLE1310)$");
-let violations_rows = select id, file, span from candidates;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PLE1310"});
+let violations_matches = observation_matches(candidates=candidates, code="PLE1310");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","PLE1310") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

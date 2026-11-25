@@ -1,0 +1,5 @@
+output relation<file: file>;
+let seeds=select file from "comment" where matches(text,"(?:^|#)[^\S\r\n]*(?:(?:(?:ruff|flake8)[^\S\r\n]*:[^\S\r\n]*)?(?i:noqa)(?:$|#|\s+(?:$|[^:\s])|\s*:\s*[\s,]*[A-Z]+[0-9]+)|ruff\s*:\s*(?:disable|enable|ignore|file-ignore)\s*\[)");
+let files=group-count(from=seeds,keys=[file],count="seeds");
+let needed=select file from files;
+return needed;

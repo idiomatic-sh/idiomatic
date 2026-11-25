@@ -15,10 +15,8 @@ let non_class_methods = antijoin(left=functions,right=methods,left-on=["id","fil
 let non_methods = select id, file from non_class_methods;
 let function_decorators = select l.decorator as id, l.file as file, l.span as span from target_functions as l join non_methods as r on l.function = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from function_decorators as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLE1520)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PLE1520"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="PLE1520");
+let violations = antijoin(left=function_decorators, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","PLE1520") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

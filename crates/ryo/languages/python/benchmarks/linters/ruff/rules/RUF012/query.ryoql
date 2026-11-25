@@ -1,5 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
-import annotation_origins from "python/ruff/annotation-origins";
+import updated_annotation_origins from "python/ruff/origins-at-annotation";
 import immutable_annotation from "python/ruff/immutable-annotation";
 import dataclass_decorators from "python/ruff/dataclass-decorators";
 import call_syntax from "python/ruff/calls";
@@ -18,7 +18,7 @@ let annotated_values = select l.class as class, l.statement as statement, l.valu
 let annotation_roots = select annotation as id, file from annotated_values;
 let immutable = immutable_annotation(expressions=annotation_roots);
 let immutable_statements = select l.statement as statement, l.file as file from annotated_values as l join immutable as r on l.annotation = r.id and l.file = r.file;
-let origins = annotation_origins(expressions=annotation_roots);
+let origins = updated_annotation_origins(expressions=annotation_roots);
 let direct_annotation_origins = select l.statement as statement, r.path as path, l.file as file from annotated_values as l join origins as r on l.annotation = r.id and l.file = r.file;
 let subscripts = select id, file from nodes where kind = "subscript";
 let annotation_subscripts = select l.statement as statement, l.annotation as annotation, l.file as file from annotated_values as l join subscripts as r on l.annotation = r.id and l.file = r.file;
@@ -47,8 +47,12 @@ let active_targets = antijoin(left=assignment_targets, right=excluded_targets, l
 let active_statements = select statement, file from active_targets;
 
 let inherits = select declaration as class, occurrence as base, file from "inherits";
-let base_origins = select l.class as class, r.path as path, l.file as file from inherits as l join "qualified-name" as r on l.base = r.id and l.file = r.file;
-let copy_classes = select class, file from base_origins where path in ["pydantic.BaseModel", "pydantic.v1.BaseModel", "pydantic.BaseSettings", "pydantic_settings.BaseSettings", "pydantic.BaseConfig", "pydantic.v1.generics.GenericModel", "msgspec.Struct", "sqlmodel.SQLModel"];
+let subscript_nodes = select id, file from "semantic-syntax" where kind = "subscript";
+let subscript_class_bases = select l.class as class, l.base as base, l.file as file from inherits as l join subscript_nodes as r on l.base = r.id and l.file = r.file;
+let subscript_class_base_values = select l.class as class, r.child as base, l.file as file from subscript_class_bases as l join "semantic-child" as r on l.base = r.parent and l.file = r.file where r.field = "value";
+let base_expressions = union(left=inherits, right=subscript_class_base_values);
+let base_origins = select l.class as class, r.path as path, l.file as file from base_expressions as l join "qualified-name" as r on l.base = r.id and l.file = r.file;
+let copy_classes = select class, file from base_origins where path in ["pydantic.BaseModel", "pydantic.RootModel", "pydantic.BaseSettings", "pydantic.BaseConfig", "pydantic.generics.GenericModel", "pydantic.v1.BaseModel", "pydantic.v1.BaseSettings", "pydantic.v1.BaseConfig", "pydantic.v1.generics.GenericModel", "pydantic_settings.BaseSettings", "msgspec.Struct", "sqlmodel.SQLModel"];
 let class_definitions = select id as class, name, owner, file from "defines" where kind = "class";
 let base_names = select l.class as child, r.name as name, l.file as file from inherits as l join "identifier" as r on l.base = r.id and l.file = r.file;
 let module_nodes = select id, file from "semantic-syntax" where kind = "module";
@@ -85,10 +89,8 @@ let mutable_assignments = select l.statement as statement, l.value as id, l.file
 let eligible_0 = antijoin(left=mutable_assignments, right=all_exclusions, left-on=["statement", "file"], right-on=["statement", "file"]);
 let eligible = select l.statement as statement, l.id as id, l.file as file from eligible_0 as l join active_statements as r on l.statement = r.statement and l.file = r.file;
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from eligible as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidates, codes="^(?:RUF012)$");
-let violations_rows = select id, file, span from candidates;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "RUF012"});
+let violations_matches = observation_matches(candidates=candidates, code="RUF012");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","RUF012") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);
