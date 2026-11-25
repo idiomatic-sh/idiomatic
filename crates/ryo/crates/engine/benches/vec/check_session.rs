@@ -131,6 +131,7 @@ pub(crate) struct Clock {
     pub bound_proofs: f64,
     pub literal_positions: usize,
     pub witnesses: [usize; 4],
+    pub exact_inputs: [usize; 8],
     pub named_counts: [usize; 3],
     pub named_cpu: f64,
     pub requirement_programs: usize,
@@ -1179,11 +1180,20 @@ pub(crate) fn visit<L: FileSource>(
                     let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                     screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
                         &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &facts, &packet, unknown, cut_of, &said, &mut span_bounds, &mut clocks.witnesses);
-                    if said.is_empty() && provider.projects_words {
-                        for &(binding, slot, excluded) in jobs.iter() {
-                            if excluded || cut_of[binding].is_some() { continue; }
+                    for &(binding, slot, excluded) in jobs.iter() {
+                            if excluded { continue; }
+                            let (any, all) = screen.exact_roots[root(binding)];
+                            clocks.exact_inputs[0] += 1;
+                            clocks.exact_inputs[1] += usize::from(any);
+                            if !all { continue; }
                             let b = bound[&binding].as_ref().unwrap();
-                            if !b.named.is_empty() { continue; }
+                            clocks.exact_inputs[2] += 1;
+                            clocks.exact_inputs[3] += usize::from(provider.projects_words);
+                            clocks.exact_inputs[4] += usize::from(said.iter().any(|part| b.facts.contains(&part.relation)));
+                            clocks.exact_inputs[5] += usize::from(!b.named.is_empty());
+                            clocks.exact_inputs[6] += usize::from(cut_of[binding].is_some());
+                            clocks.exact_inputs[7] += usize::from(!said.is_empty());
+                            if !said.is_empty() || !provider.projects_words || cut_of[binding].is_some() || !b.named.is_empty() { continue; }
                             if let Some(tables) = screen.exact_locations(root(binding), tree, id) {
                                 let mut rows = Vec::new();
                                 let result = b.plan.emits.iter().zip(tables).enumerate().try_for_each(
@@ -1191,9 +1201,7 @@ pub(crate) fn visit<L: FileSource>(
                                         &mut exec, &mut run, (binding, emit), rule, subject, keys, &table, id.0 as usize, &mut rows));
                                 certified.insert(slot, result.map(|()| Reported::from(rows)));
                             }
-                        }
                     }
-
                 };
                 if let Some(screen) = &mut checks {
                     evaluate(0, screen, &mut active, |binding| binding);

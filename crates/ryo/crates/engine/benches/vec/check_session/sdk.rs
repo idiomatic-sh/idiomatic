@@ -347,6 +347,7 @@ impl Live {
         last.literal_positions = c.literal_positions;
         last.witnesses = c.witnesses;
         last.named_counts = c.named_counts;
+        last.exact_inputs = c.exact_inputs;
         last.named_cpu = c.named_cpu;
         last.certified = c.certified;
         last.empty = c.empty;

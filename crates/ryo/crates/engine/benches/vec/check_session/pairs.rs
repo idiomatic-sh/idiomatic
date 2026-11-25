@@ -15,6 +15,7 @@ pub(super) struct Checks {
     program: pair_summary::Program,
     roots: Vec<Option<Vec<usize>>>,
     lefts: Vec<Vec<usize>>,
+    pub(super) exact_roots: Vec<(bool, bool)>,
     domains: Vec<Vec<(usize, usize)>>,
     live: Vec<bool>,
     selected: Vec<u64>,
@@ -135,9 +136,12 @@ impl Checks {
                 left.clear();
             }
         }
+        let exact_roots: Vec<_> = roots.iter().map(|outputs| {
+            let count = outputs.iter().filter(|root| program.exact.binary_search_by_key(*root, |(index, _)| *index).is_ok()).count();
+            (count != 0, count != 0 && count == outputs.len())
+        }).collect();
         let roots = roots.into_iter().enumerate().map(|(binding, outputs)| {
-            let exact = outputs.iter().all(|root|
-                program.exact.binary_search_by_key(root, |(index, _)| *index).is_ok());
+            let exact = exact_roots[binding].1;
             (!outputs.iter().any(unconditional) || exact || outputs.len() > 1
                 || !domains[binding].is_empty() || !lefts[binding].is_empty())
                 .then_some(outputs)
@@ -163,6 +167,7 @@ impl Checks {
         Self {
             program,
             roots,
+            exact_roots,
             lefts,
             domains,
             row_guards,

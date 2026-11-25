@@ -250,6 +250,7 @@ pub(crate) fn dispatch<L: FileSource>(
             clocks.bound_proofs += time.bound_proofs;
             clocks.named_cpu += time.named_cpu;
             for (sum, value) in clocks.named_counts.iter_mut().zip(time.named_counts) { *sum += value; }
+            for (sum, value) in clocks.exact_inputs.iter_mut().zip(time.exact_inputs) { *sum += value; }
             for (sum, value) in clocks.witnesses.iter_mut().zip(time.witnesses) { *sum += value; }
             clocks.literal_positions += time.literal_positions;
             clocks.requirement_programs += time.requirement_programs;

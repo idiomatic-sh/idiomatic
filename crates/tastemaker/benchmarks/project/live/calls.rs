@@ -166,6 +166,7 @@ struct Measurement {
     literal_positions: usize,
     witnesses: [usize; 4],
     named_counts: [usize; 3],
+    exact_inputs: [usize; 8],
     named_cpu: f64,
     certified: usize,
     empty: usize,
@@ -210,6 +211,7 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     literal_positions: 0,
     witnesses: [0; 4],
     named_counts: [0; 3],
+    exact_inputs: [0; 8],
     named_cpu: 0.,
     certified: 0,
     empty: 0,
@@ -313,6 +315,8 @@ pub fn print_measurement() {
         "PROJECT_POPULATIONS sessions={} inventories={inventories} builds={builds} relations={relations} repeated_relations={repeated}",
         m.sessions,
     );
+    let [pairs, any, all, projected, partial, named, closed, any_partial] = m.exact_inputs;
+    eprintln!("EXACT_INPUTS pairs={pairs} any_root={any} all_roots={all} projected={projected} relevant_partial={partial} named={named} closed={closed} any_partial={any_partial}");
     eprintln!("PAIR_WITNESSES unchecked={} absent={} partial={} unverified={} named_batches={} named_relations={} named_rows={} named_cpu={:.6}", m.witnesses[0], m.witnesses[1], m.witnesses[2], m.witnesses[3], m.named_counts[0], m.named_counts[1], m.named_counts[2], m.named_cpu);
     eprintln!(
         "CHECK_SESSION live calls={} requests={} failed_calls={} programs={plans} bindings={bindings} sources={sources} reads={reads} parses={parses} distinct_pairs={pairs} skipped={skips} evaluated={eval} productive={productive} empty={empty} refused={refused} prep={prepare:.6} read_parse={read:.6} first={first:.6} second={second:.6} project={project:.6} assembly={assembly:.6} admission={:.6} bound_proofs={:.6} literal_positions={} certified_pairs={} requirement_programs={} requirement_bindings={}",
