@@ -1247,6 +1247,9 @@ impl Store {
                 && let Some(notes) = &contributions[i]
                 && !self.notes_valid[i]
             {
+                // The changed-file probe can finish before regular admission
+                // has opened this version's shard.
+                self.notes.open(&self.dir, &version);
                 self.notes.insert(
                     version,
                     Notes {
