@@ -1,5 +1,5 @@
 //! The Python provider's additional file-scope schemas and batched answers.
-use super::{ColumnFile, qualify_cells};
+use super::{NamedFile, qualify_cells};
 use ryo::languages::{self as l, CellKind, FileRelation};
 use std::sync::OnceLock;
 
@@ -19,13 +19,13 @@ fn complete(columns: Vec<l::FactColumn>) -> l::FileRows {
     }
 }
 
-impl ColumnFile<'_, '_> {
+impl NamedFile<'_, '_> {
     /// File-scope schemas for the named Python tables.
-    pub fn named_schemas() -> &'static [FileRelation] {
+    pub(crate) fn named_schemas() -> &'static [FileRelation] {
         static SCHEMAS: OnceLock<Vec<FileRelation>> = OnceLock::new();
         SCHEMAS.get_or_init(|| {
             let mut schemas = Vec::new();
-            schemas.extend_from_slice(crate::fixtures::comment_positions::SCHEMAS);
+            schemas.extend_from_slice(crate::inbound::contracts::walk::named::comment_positions::SCHEMAS);
             schemas.extend_from_slice(Self::EXPRESSION_SCHEMAS);
             schemas.extend_from_slice(Self::IMPORT_SCHEMAS);
             schemas.extend_from_slice(Self::TYPING_SCHEMAS);
@@ -34,7 +34,7 @@ impl ColumnFile<'_, '_> {
     }
 
     /// Report an uncovered source extent for a declared relation before publishing rows.
-    pub fn named_uncovered(
+    pub(crate) fn named_uncovered(
         schema: &FileRelation,
         syntax: l::SyntaxCompleteness,
         lexical: l::SyntaxCompleteness,
@@ -42,7 +42,7 @@ impl ColumnFile<'_, '_> {
         if syntax == l::SyntaxCompleteness::Complete && lexical == l::SyntaxCompleteness::Complete {
             return None;
         }
-        let lexical_only = crate::fixtures::comment_positions::SCHEMAS.contains(schema);
+        let lexical_only = crate::inbound::contracts::walk::named::comment_positions::SCHEMAS.contains(schema);
         let extent = if lexical == l::SyntaxCompleteness::Incomplete
             && (lexical_only || Self::named_import_requires_tokens(schema))
         {
@@ -68,7 +68,7 @@ impl ColumnFile<'_, '_> {
     /// The optional package root is the enclosing regular package's root name. An
     /// absent root means the project was not observed. The prefix callback reports
     /// module, package and namespace observations under the host's declared search roots.
-    pub fn answer_named_facts_covered(
+    pub(crate) fn answer_named_facts_covered(
         &mut self,
         schemas: &[&FileRelation],
         file: l::FileId,
@@ -99,8 +99,8 @@ impl ColumnFile<'_, '_> {
                 answers.push(Err(l::ParseError::Unsupported));
                 continue;
             }
-            let answer = if crate::fixtures::comment_positions::SCHEMAS.contains(schema) {
-                crate::fixtures::comment_positions::columns(schema, file, self.table, bytes)
+            let answer = if crate::inbound::contracts::walk::named::comment_positions::SCHEMAS.contains(schema) {
+                crate::inbound::contracts::walk::named::comment_positions::columns(schema, file, self.table, bytes)
             } else if Self::IMPORT_SCHEMAS.contains(schema) {
                 self.named_import(
                     schema,
@@ -144,7 +144,7 @@ impl ColumnFile<'_, '_> {
     }
 }
 
-impl<'a, 'f> ColumnFile<'a, 'f> {
+impl<'a, 'f> NamedFile<'a, 'f> {
     /// Answers the named batch of a walked file while its view is live: the language's private relations, which the
     /// walk's `named` item hands to here.
     pub(crate) fn named(
@@ -153,17 +153,16 @@ impl<'a, 'f> ColumnFile<'a, 'f> {
     ) -> Vec<Result<l::FileRows, l::ParseError>> {
         let l::NamedRequest { table, relations: projected, request, project, words, symbols } = request;
         let import_presence = file.import_presence;
-        let mut memo = super::TextMemo::default();
-        let mut file = ColumnFile { table, file, import_presence, memo: &mut memo, words };
+        let mut file = NamedFile { table, file, import_presence, words };
         let uses_package = |s: &l::FileRelation| s.name == "import-head" && file.import_statement_count() != 0;
         let needs_package: Vec<_> = projected.iter().map(|s| uses_package(s)).collect();
         let package = project
             .filter(|_| needs_package.iter().any(|&needed| needed))
-            .map(|project| crate::fixtures::import_environment::package(project, request.path.0))
+            .map(|project| crate::inbound::contracts::walk::named::import_environment::package(project, request.path.0))
             .transpose();
         let observed_package = package.as_ref().ok().and_then(Option::as_ref).map(|(_, root)| root.as_str());
         let mut failure = None;
-        let mut prefixes = |target: &str| match crate::fixtures::import_environment::prefixes(project.expect("declared roots"), target) {
+        let mut prefixes = |target: &str| match crate::inbound::contracts::walk::named::import_environment::prefixes(project.expect("declared roots"), target) {
             Ok(prefixes) => prefixes,
             Err(error) => {
                 failure = Some(error);

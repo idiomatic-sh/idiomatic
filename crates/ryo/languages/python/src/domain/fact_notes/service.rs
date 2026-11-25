@@ -125,9 +125,8 @@ fn source_spelling(
 }
 
 /// Read the same project notes from the parser's lent numbering.
-#[cfg(feature = "fixtures")]
 pub(crate) fn noted_walk(
-    file: &crate::fixtures::columns::ColumnFile<'_, '_>,
+    file: &crate::inbound::contracts::walk::named::NamedFile<'_, '_>,
     source: languages::ByteSlice<'_>,
 ) -> Note {
     let mut imports = Vec::new();

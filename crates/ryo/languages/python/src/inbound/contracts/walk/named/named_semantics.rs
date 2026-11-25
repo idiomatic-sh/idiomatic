@@ -1,5 +1,5 @@
 //! File-scoped semantic projections of the numbered Python walk.
-use super::ColumnFile;
+use super::NamedFile;
 use crate::domain::{
     labels::service::{field_name, fields},
     syntax::service::{kind_name, kinds},
@@ -66,7 +66,7 @@ impl InputTable {
     }
 
     fn read<R: CatalogRelation>(
-        file: &mut ColumnFile<'_, '_>,
+        file: &mut NamedFile<'_, '_>,
         words: &mut l::FileWords,
         projection: &[(&'static str, R::Column)],
     ) -> Result<Self, String>
@@ -129,12 +129,12 @@ const ANNOTATION: FileRelation = FileRelation {
         ("file", CellKind::File),
     ],
 };
-impl ColumnFile<'_, '_> {
+impl NamedFile<'_, '_> {
     /// Complete file-local typing relations.
-    pub const TYPING_SCHEMAS: &'static [FileRelation] = &[ANNOTATION];
+    pub(crate) const TYPING_SCHEMAS: &'static [FileRelation] = &[ANNOTATION];
 
     /// Answer the requested local semantic projections and reuse dependencies within the request.
-    pub fn visit_typing_relations(
+    pub(crate) fn visit_typing_relations(
         &mut self,
         schemas: &[FileRelation],
         file: l::FileId,
@@ -183,7 +183,7 @@ impl ColumnFile<'_, '_> {
 }
 
 struct Semantics<'a, 'p, 'f> {
-    file: &'a mut ColumnFile<'p, 'f>,
+    file: &'a mut NamedFile<'p, 'f>,
     number: u64,
     words: Vocabulary,
     inputs: HashMap<&'static str, InputTable>,

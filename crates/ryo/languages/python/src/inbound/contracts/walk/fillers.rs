@@ -213,7 +213,7 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         out: &mut languages::Bytes,
     ) {
         use crate::outbound::notes::interface::NotesPort as _;
-        let note = crate::fixtures::columns::ColumnFile::noted(file, table, source);
+        let note = crate::inbound::contracts::walk::named::NamedFile::noted(file, table, source);
         crate::outbound::notes::factory::postcard().write(&note, out);
     }
 
@@ -229,7 +229,7 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         file: &mut PythonFile<'_>,
         request: languages::NamedRequest<'_, '_>,
     ) -> Vec<Result<languages::FileRows, languages::ParseError>> {
-        crate::fixtures::columns::ColumnFile::named(file, request)
+        crate::inbound::contracts::walk::named::NamedFile::named(file, request)
     }
 
     fn vocabulary() -> WalkVocabulary {
