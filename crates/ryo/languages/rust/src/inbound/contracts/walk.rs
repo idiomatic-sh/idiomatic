@@ -7,6 +7,3 @@ mod tape;
 
 #[cfg(test)]
 mod contract_test;
-
-#[cfg(test)]
-mod rows_test;

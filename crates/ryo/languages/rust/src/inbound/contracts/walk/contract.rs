@@ -29,6 +29,42 @@ impl Walk for RustWalk<WalkPorts> {
 
     const KIND_COUNT: Count = Count(Node::COUNT + Token::COUNT + Extra::COUNT);
 
+    /// Today's contract declines a path the caller names explicitly: only the extension says a file is Rust.
+    fn recognizes(&self, path: languages::SourcePath<'_>, explicit: bool) -> languages::Recognition {
+        if explicit { languages::Recognition::Declines } else { reads(path) }
+    }
+
+    fn skips(&self) -> &'static [languages::SkippedDirectory] {
+        crate::domain::language::constants::SKIPS
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity(crate::domain::syntax::constants::NO_CONFIGURATION)
+    }
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn unknown_reasons(&self) -> &'static [languages::UnknownName] {
+        &[]
+    }
+
+    fn source_words(&self) -> Option<languages::SourceWords> {
+        Some(languages::SourceWords {
+            identifier: |word| ra_ap_syntax::utils::is_identifier(word, ra_ap_parser::Edition::CURRENT),
+            columns: &[],
+        })
+    }
+
+    fn includes_expansions(&self, relation: languages::Relation) -> bool {
+        use languages::Relation as R;
+        matches!(
+            relation,
+            R::NumericLiteral | R::Reference | R::SemanticChild | R::SemanticSyntax | R::SourceLocation | R::StringLiteral
+        )
+    }
+
     fn walk(
         &self,
         request: WalkRequest<'_>,
