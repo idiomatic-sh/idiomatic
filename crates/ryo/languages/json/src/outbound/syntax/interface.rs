@@ -12,5 +12,5 @@ pub(crate) trait SyntaxPort: Send + Sync {
     fn read(&self, text: SourceText<'_>, dialect: Dialect, builder: &mut TableBuilder<'_>);
 
     /// Reads json text into the node table `builder` builds, numbered as the walk numbers it.
-    fn walk(&self, text: SourceText<'_>, dialect: Dialect, builder: &mut ryo::languages::NodeTableBuilder<'_>);
+    fn walk(&self, text: SourceText<'_>, dialect: Dialect, decodings: &mut crate::domain::file_view::types::Decodings, builder: &mut ryo::languages::NodeTableBuilder<'_>);
 }

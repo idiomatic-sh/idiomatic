@@ -13,5 +13,5 @@ pub(crate) trait SyntaxPort: Send + Sync {
 
     /// Reads TOML text into the node table `builder` builds, numbered as the walk numbers it. `values` says whether a relation reads
     /// the decoded keys and scalars, which the tree then carries.
-    fn walk(&self, text: SourceText<'_>, values: bool, builder: &mut ryo::languages::NodeTableBuilder<'_>);
+    fn walk(&self, text: SourceText<'_>, values: bool, decodings: &mut crate::domain::file_view::types::Decodings, builder: &mut ryo::languages::NodeTableBuilder<'_>);
 }
