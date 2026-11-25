@@ -9,7 +9,7 @@ use crate::domain::file_view::types::Syntax as Tree;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::walked::names::string_token;
 use crate::domain::nodes::types::Node;
-use crate::domain::walked::syntax::{decoded_at, end_at, kind, nodes, start_at};
+use crate::domain::walked::syntax::{decoded_at, end_at, nodes, start_at};
 use crate::domain::syntax::types::Kind;
 
 /// The notes of the file whose tree is `tree`: each package it imports, one for each spec of its `import` declarations, in source

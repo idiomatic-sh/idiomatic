@@ -14,7 +14,7 @@ use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 use ryo::languages::{
-    self, ByteSlice, Count, FileFacts, FileVisit, NodeTableBuilder, RelationNeeds, Walk, WalkError, WalkRequest, fillers,
+    self, Count, FileFacts, FileVisit, NodeTableBuilder, RelationNeeds, Walk, WalkError, WalkRequest, fillers,
     node_table,
 };
 use std::sync::Arc;

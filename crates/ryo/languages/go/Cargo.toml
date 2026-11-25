@@ -44,6 +44,10 @@ name = "conformance"
 harness = false
 
 [[test]]
+name = "numbered"
+harness = false
+
+[[test]]
 name = "routes"
 harness = false
 
