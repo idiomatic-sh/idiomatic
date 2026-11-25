@@ -104,9 +104,6 @@ fn title_words(file: &HtmlFile<'_>, at: Position, name: &mut String, any: &mut W
         match kind(file, child) {
             Kind::Node(Node::Text) => {
                 for word in property(file, child, Property::Value).split_whitespace() {
-                    if *any == Wording::Words {
-                        name.push_str(WORD_SPACE.0);
-                    }
                     name.push_str(word);
                     *any = Wording::Words;
                 }
