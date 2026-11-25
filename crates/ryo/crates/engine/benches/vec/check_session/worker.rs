@@ -80,7 +80,10 @@ pub(crate) fn dispatch<L: FileSource>(
     // Reuse the open reader for small SDK calls and when a finite cache budget
     // requires a single global admission order.
     let parallel_open = keep && selected.len() >= 128 && !retention.has_limit();
-    if (keep && !parallel_open) || count <= 1 {
+    if (keep && !parallel_open)
+        || count <= 1
+        || selected[1..].iter().all(|&id| sources[id].path == sources[selected[0]].path)
+    {
         let previous_paths = std::mem::replace(&mut state.run.paths, Arc::clone(paths));
         visit(
             state,
@@ -206,7 +209,6 @@ pub(crate) fn dispatch<L: FileSource>(
         let (results, children) = jobs::run(&shards, |shard| work(shard));
         clocks.file_workers_cpu += children;
         let mut transfers = Vec::with_capacity(shards.len());
-        let mut bytes = Vec::new();
         let mut longest = 0.0_f64;
         for (a, links, slots, notes, part, time, snapshots, worker_wall) in results {
             longest = longest.max(worker_wall);
@@ -230,7 +232,7 @@ pub(crate) fn dispatch<L: FileSource>(
                 }
             }
             transfers.push(part);
-            bytes.push(snapshots);
+            state.bytes.extend(snapshots);
             clocks.join += thread_cpu() - start;
             clocks.join_wall += merge_wall.elapsed().as_secs_f64();
             clocks.read_versions += time.read_versions;
@@ -255,6 +257,7 @@ pub(crate) fn dispatch<L: FileSource>(
             clocks.literal_positions += time.literal_positions;
             clocks.requirement_programs += time.requirement_programs;
             clocks.requirement_bindings += time.requirement_bindings;
+            clocks.bulk_screen_files += time.bulk_screen_files;
             clocks.evaluate += time.evaluate;
             clocks.files += time.files;
             clocks.reads += time.reads;
@@ -272,6 +275,5 @@ pub(crate) fn dispatch<L: FileSource>(
         world.receive(transfers, sources);
         clocks.join += thread_cpu() - start;
         clocks.join_wall += merge_wall.elapsed().as_secs_f64();
-        bytes
-    }.into_iter().for_each(|snapshots| state.bytes.extend(snapshots));
+    }
 }
