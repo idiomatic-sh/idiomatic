@@ -1746,7 +1746,7 @@ impl<'p> Exec<'p> {
             let id = make_count::identity(self.plan, node);
             let rows_in: usize = self.plan.nodes[node].inputs.iter().map(|&i| match &f.memo[i] { Some(Res::Tab(t)) => t.n, _ => 0 }).sum();
             let rows_out = match &r { Res::Tab(t) => t.n, _ => 0 };
-            make_count::leave(id, self.plan.nodes[node].op(), f.file, f.diag_frame, super::thread_cpu() - t0, rows_in, rows_out);
+            make_count::leave(id, self.plan.nodes[node].op(), f.file, f.diag_frame, node, super::thread_cpu() - t0, rows_in, rows_out);
         }
         f.remember(node, r.clone());
         Ok(r)
