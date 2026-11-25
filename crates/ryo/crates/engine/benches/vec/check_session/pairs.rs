@@ -95,6 +95,7 @@ impl Checks {
         }
         let mut language = super::reader_declaration(parser);
         language.fact_family = reader_run::fact_family;
+        let numbered: &[l::Relation] = parser.map_or(&[], FileSource::numbered_projections);
         let mut supplied = Vec::new();
         for name in bases {
             let Some(rel) = relations::service::relation_named(NameRef(name)) else {
@@ -102,6 +103,7 @@ impl Checks {
             };
             if catalog::service::scope_of(rel) != catalog::types::RowScope::File
                 || relations::service::class_of(rel) == relations::types::Class::Engine
+                || numbered.contains(&rel)
             {
                 continue;
             }
@@ -111,6 +113,7 @@ impl Checks {
                 supplied.push(name.to_owned());
                 if parser.is_none_or(|p| p.available(rel)) {
                     language.facts.push(name.to_owned());
+                    language.file_sets.push(name.to_owned());
                 }
             }
         }
