@@ -12,7 +12,6 @@ pub(crate) struct HtmlWalk<P = ()> {
 
 /// One walked file as the fillers read it: its numbered node table and its text.
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(test, expect(dead_code, reason = "the fillers read the view's table, text and number as their relations are written"))]
 pub(crate) struct HtmlFile<'f> {
     /// The file's node table, finished.
     pub(crate) table: &'f NodeTable,

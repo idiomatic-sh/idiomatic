@@ -6,6 +6,7 @@ use crate::domain::syntax::service::{
     diagnostic_id, diagnostic_message, diagnostic_span, is_root, kind_bits,
 };
 use crate::domain::syntax::types::{Kind, Rootness};
+use crate::domain::file_view::types::HtmlWalk;
 use ryo::languages;
 
 /// The reader the `parse` contract hands the `syntax_error` relation to, which reads its rows from a file's tree.
@@ -26,6 +27,13 @@ ryo::reads! {
                 span: value(diagnostic_span(&diagnostic)),
             }
         }
+    }
+}
+
+// The engine fills `syntax_error` from the walked file: what the parser said, in the order it said it.
+ryo::fills! {
+    SyntaxErrorItem => languages::SyntaxError, walk(HtmlWalk) |file, words, rows| {
+        languages::facts::syntax_error_rows(file.table, file.file, words, rows);
     }
 }
 
