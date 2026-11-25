@@ -760,14 +760,20 @@ impl Batch {
                     unreachable!()
                 };
                 let population = project.map(|p| populations[&p].1.as_ref()).transpose();
+                let _profile = finish::operators::scope(rule, "closed");
                 let scope = readers.scope(i);
                 let answer = if let Some(prior)=readers.duplicate[i] {
                     let Work::Project(value)=&self.work[prior] else {unreachable!("same binding evaluated in request order")};
                     value.clone()
                 } else {Rc::new(population.map_err(Clone::clone).and_then(|p| {
+                    let delivering = finish::operators::enter(usize::MAX, 0);
                     let inputs = closed_workers::inputs(&world.run, &self.bound_contracts[*binding],
                         &world.unavailable, pairs, inventory, files, self.cut_of[*binding].as_deref(), p, answers,
-                        |steps| readers.inputs(i, || world.joined(pairs, steps)))?;
+                        |steps| readers.inputs(i, || world.joined(pairs, steps)));
+                    if let Some(start) = delivering {
+                        finish::operators::leave(start, "closed-deliver", 0, true);
+                    }
+                    let inputs = inputs?;
                     let (carried, incomplete, unknowns, skipped) = match inputs {
                         closed_workers::Inputs::Withheld(answer) => return Ok(answer),
                         closed_workers::Inputs::Ready { carried, incomplete, unknowns, skipped } => (carried, incomplete, unknowns, skipped),
@@ -777,6 +783,7 @@ impl Batch {
                         return Ok(answer);
                     }
                     let numbers = readers.numbers(i, inventory, world);
+                    let evaluating = finish::operators::enter(usize::MAX - 1, 0);
                     let rows = execute_ids(
                         &mut exec,
                         &mut world.run,
@@ -788,7 +795,11 @@ impl Batch {
                         p,
                         &incomplete,
                         skipped.is_empty().then_some((&mut operators, scope)),
-                    )?;
+                    );
+                    if let Some(start) = evaluating {
+                        finish::operators::leave(start, "closed-execute", rows.as_ref().map_or(0, Vec::len), true);
+                    }
+                    let rows = rows?;
                     let reported = session::Reported::new(rows, unknowns, skipped);
                     if reusable { evaluated.remember(scope, p, &carried, &reported); }
                     Ok(reported)
