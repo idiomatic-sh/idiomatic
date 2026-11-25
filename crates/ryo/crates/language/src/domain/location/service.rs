@@ -25,6 +25,7 @@ pub(crate) fn index(index: &mut SourceLineIndex, source: SourceLineBytes<'_>) {
 }
 
 /// The one-based line of an endpoint, found in logarithmic time without rescanning the source.
+#[cfg(test)]
 #[must_use]
 pub(crate) fn line(index: &SourceLineIndex, offset: SourceLineOffset) -> SourceLineNumber {
     SourceLineNumber(i64::try_from(lines_through(index, offset)).unwrap_or(i64::MAX))
@@ -70,6 +71,7 @@ pub(crate) fn place(index: &SourceLineIndex, offset: SourceLineOffset) -> (Sourc
 }
 
 /// The zero-based UTF-8 byte column, including exclusive EOF endpoints.
+#[cfg(test)]
 pub(crate) fn column(index: &SourceLineIndex, offset: SourceLineOffset) -> SourceByteColumn {
     let line = lines_through(index, offset);
     let start = line
