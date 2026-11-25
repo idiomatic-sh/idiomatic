@@ -376,7 +376,9 @@ impl Checks {
 
 fn domain_steps(cut: Option<&crate::finish::partition::Partition>) -> Vec<(usize, usize)> {
     cut.into_iter().flat_map(|c| c.inputs.iter().enumerate()
-        .filter_map(|(i, n)| c.domains.get(n).map(|&(_, d)| (i, d)))).collect()
+        .filter_map(|(i, n)| {
+            c.domains.get(n).map(|&(_, d, _)| (i, d)).or_else(|| c.reach.get(n).map(|r| (i, r.domain)))
+        })).collect()
 }
 fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partition>) -> Vec<usize> {
     match cut {

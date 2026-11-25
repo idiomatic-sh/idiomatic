@@ -134,6 +134,92 @@ pub(in super::super::super) fn ancestor_domains(
     domains
 }
 
+/// The start rows of an axis along the native hierarchy: which side of the
+/// file-local domain they can lie on. A start row that no domain node can
+/// reach gives the axis no output row.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(in super::super::super) struct Reach {
+    pub domain: usize,
+    pub below: bool,
+}
+
+/// A source read only as the start rows of such axes needs only the nodes
+/// that can reach their domain: below it for ancestor walks, above it for descendant walks.
+pub(in super::super::super) fn reach_domains(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    local: &[bool],
+    reached: &[bool],
+    inputs: &BTreeSet<usize>,
+) -> BTreeMap<usize, Reach> {
+    let mut found = BTreeMap::new();
+    for &source in inputs {
+        if exec.plan.emits.iter().any(|e| e.1 == source) {
+            continue;
+        }
+        let mut common = None;
+        let bounded = exec.plan.consumers(source).iter().copied()
+            .filter(|&reader| reached[reader] && !local[reader])
+            .all(|reader| {
+                let step = &exec.plan.nodes[reader];
+                if step.op() != "axis"
+                    || exec.arg_rel(reader, "from") != Ok(source)
+                    || step.inputs.iter().filter(|&&i| i == source).count() != 1
+                {
+                    return false;
+                }
+                let below = match super::super::s(&step.args()["direction"]) {
+                    Ok("ancestor" | "nearest-ancestor" | "parent") => true,
+                    Ok("descendant" | "child") => false,
+                    _ => return false,
+                };
+                let (Ok(domain), Ok(relation)) =
+                    (exec.arg_rel(reader, "domain"), exec.arg_rel(reader, "relation"))
+                else {
+                    return false;
+                };
+                local[domain]
+                    && native_child(exec, run, relation)
+                    && exec.schema(run, domain).ok().is_some_and(|schema| {
+                        super::super::pos(&schema.names, "id")
+                            .is_ok_and(|id| schema.tys[id] == Ty::Node)
+                    })
+                    && *common.get_or_insert(Reach { domain, below }) == (Reach { domain, below })
+            });
+        if bounded && let Some(reach) = common {
+            found.insert(source, reach);
+        }
+    }
+    found
+}
+
+/// The file's nodes on the demanded side of the domain nodes, ascending.
+pub(super) fn reach_nodes(
+    run: &Run,
+    file: &mut File<'_>,
+    domain: &[u32],
+    below: bool,
+) -> Vec<u32> {
+    let mut seen = rustc_hash::FxHashSet::default();
+    let mut pending: Vec<u32> = domain.to_vec();
+    let mut children = Vec::new();
+    while let Some(node) = pending.pop() {
+        if below {
+            children.clear();
+            file.native_probe(run, Native::Child, 0, u64::from(node), &mut children);
+            pending.extend(children.iter().copied().filter(|&child| seen.insert(child)));
+        } else if file.has_parent(node) {
+            let parent = file.parent[node as usize];
+            if seen.insert(parent) {
+                pending.push(parent);
+            }
+        }
+    }
+    let mut nodes: Vec<_> = seen.into_iter().collect();
+    nodes.sort_unstable();
+    nodes
+}
+
 fn native_child(exec: &Exec<'_>, run: &Run, source: usize) -> bool {
     exec.plan.nodes[source].base().is_some_and(|name| {
         matches!(run.supplier(name), Supplier::Provider)
@@ -184,12 +270,14 @@ pub(super) fn ancestor_edges(
     Ok(Some(Rc::new(edges)))
 }
 
+/// A closed equality reads a source only at keys its file-local driver holds:
+/// the source column carrying the key, the driver step and the driver's column.
 pub(in super::super::super) fn domains(
     exec: &mut Exec<'_>,
     run: &mut Run,
     local: &[bool],
     inputs: &BTreeSet<usize>,
-) -> BTreeMap<usize, (usize, usize)> {
+) -> BTreeMap<usize, (usize, usize, usize)> {
     let mut found = BTreeMap::new();
     for &source in inputs {
         if exec.plan.emits.iter().any(|e| e.1 == source) {
@@ -228,20 +316,22 @@ pub(in super::super::super) fn domains(
                 }
                 let (col, driver) = if *x == side { (*i, *j) } else { (*j, *i) };
                 let schema = exec.schema(run, other).ok()?;
-                let domain = if local[other] && schema.names[driver] == "id" {
-                    other
+                let (domain, held) = if local[other] && schema.tys[driver] == Ty::Node {
+                    (other, driver)
                 } else if exec.plan.nodes[other].op() == "axis"
                     && driver + 1 == schema.names.len()
                     && schema.names[driver] == "related"
                 {
-                    exec.arg_rel(other, "domain").ok()?
+                    let domain = exec.arg_rel(other, "domain").ok()?;
+                    let held = super::super::pos(&exec.schema(run, domain).ok()?.names, "id").ok()?;
+                    (domain, held)
                 } else {
                     return None;
                 };
-                if !local[domain] {
+                if !local[domain] || exec.schema(run, domain).ok()?.tys[held] != Ty::Node {
                     return None;
                 }
-                Some((col, domain))
+                Some((col, domain, held))
             });
             key.is_some_and(|k| *binding.get_or_insert(k) == k)
         });
