@@ -1,6 +1,7 @@
 //! The Python parse contract's scoped loan over the existing column walk.
 
 use super::contract::ParseContract;
+use crate::domain::extras::types::Extra;
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::syntax::{service::kind_of, types::Kind};
 use crate::fixtures::columns::{ColumnFile, ColumnWalk};
@@ -155,7 +156,10 @@ fn token_word(
     at: l::Position,
     kind: l::KindBits,
 ) -> l::Symbol {
-    if !matches!(kind_of(kind), Kind::Token(_)) {
+    if !matches!(
+        kind_of(kind),
+        Kind::Token(_) | Kind::Extra(Extra::Whitespace)
+    ) {
         return l::NO_SYMBOL;
     }
     let span = node_table::span_of(tree, at);
