@@ -272,23 +272,48 @@ impl Packet {
             if !matches!(table.answer, l::FactAnswer::Answered(_)) || table.wanted != l::Wanted::Whole {
                 return false;
             }
+            let home = u64::from(id.0);
             for (index, (dst, kind)) in out.0.iter_mut().zip(kinds).enumerate() {
                 let Some(cells) = table.columns.0.get(index) else { continue };
                 dst.0.reserve(table.rows);
-                for &raw in &cells.0 {
-                    dst.0.push(match kind {
-                        CellKind::Node => match file_node(id.0, raw.0) {
-                            Ok(local) => CellWord(local),
-                            Err(_) => return false,
-                        },
-                        CellKind::Symbol if raw >= end && !reserved(raw.0) => {
-                            let Some(term) = u32::try_from(raw.0).ok().and_then(|code|
-                                ryo_relations::domain::terms::service::term_text(l::Symbol(code)))
-                            else { return false };
-                            l::facts::intern(words, term)
+                match kind {
+                    CellKind::Node => {
+                        // A node cell is this file's own identity or null; one test per cell, one verdict per column.
+                        let mut foreign = false;
+                        dst.0.extend(cells.0.iter().map(|&cell| {
+                            if cell.0 == finish::NULL {
+                                return cell;
+                            }
+                            foreign |= cell.0 >> 32 != home;
+                            CellWord(u64::from(cell.0 as u32))
+                        }));
+                        if foreign {
+                            return false;
                         }
-                        _ => raw,
-                    });
+                    }
+                    CellKind::Symbol => {
+                        // Words of the file's own dictionary pass as they are; a closed term outside it is interned.
+                        let before = dst.0.len();
+                        let mut beyond = false;
+                        dst.0.extend(cells.0.iter().map(|&cell| {
+                            beyond |= cell >= end;
+                            cell
+                        }));
+                        if beyond {
+                            dst.0.truncate(before);
+                            for &raw in &cells.0 {
+                                dst.0.push(if raw >= end && !reserved(raw.0) {
+                                    let Some(term) = u32::try_from(raw.0).ok().and_then(|code|
+                                        ryo_relations::domain::terms::service::term_text(l::Symbol(code)))
+                                    else { return false };
+                                    l::facts::intern(words, term)
+                                } else {
+                                    raw
+                                });
+                            }
+                        }
+                    }
+                    _ => dst.0.extend_from_slice(&cells.0),
                 }
             }
             return true;
