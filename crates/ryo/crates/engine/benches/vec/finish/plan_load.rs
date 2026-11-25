@@ -18,9 +18,10 @@ pub(crate) fn from_typed(plan: std::sync::Arc<FinishPlan>) -> Plan {
         .iter()
         .enumerate()
         .map(|(id, step)| {
-            let (op, mut rels) = slots(step);
+            let mut rels = Vec::new();
+            let op = visit_slots(step, |name, source| rels.push((name, source)));
             // The original slot reader requests named operator inputs in field-name order.
-            rels.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+            rels.sort_unstable_by(|a, b| a.0.cmp(b.0));
             let inputs = if let FinishStep::Select(s) = step {
                 s.sources.iter().map(|s| s.step.0).collect()
             } else {
@@ -29,7 +30,6 @@ pub(crate) fn from_typed(plan: std::sync::Arc<FinishPlan>) -> Plan {
             PNode {
                 op: op.to_owned(),
                 inputs,
-                rels,
                 source: plan.clone(),
                 slot: id,
                 args: Default::default(),
@@ -57,78 +57,133 @@ pub(crate) fn from_typed(plan: std::sync::Arc<FinishPlan>) -> Plan {
         emits,
     }
 }
-fn slots(step: &FinishStep) -> (&str, Vec<(String, usize)>) {
+/// Read dependency names from the immutable graph shared with lowering.
+fn visit_slots<'a>(step: &'a FinishStep, mut visit: impl FnMut(&'a str, usize)) -> &'a str {
     use FinishStep::*;
     match step {
-        Base(_) => ("base", vec![]),
-        Select(_) => ("select", vec![]),
-        Union(a) => (
-            "union",
-            vec![("left".into(), a.left.0), ("right".into(), a.right.0)],
-        ),
-        Antijoin(a) => (
-            "antijoin",
-            vec![("left".into(), a.left.0), ("right".into(), a.right.0)],
-        ),
-        AsOf(a) => (
-            "as-of",
-            vec![("left".into(), a.left.0), ("right".into(), a.right.0)],
-        ),
-        OrderedMatch(a) => (
-            "ordered-match",
-            vec![("left".into(), a.left.0), ("right".into(), a.right.0)],
-        ),
-        Axis(a) => (
-            "axis",
-            vec![
-                ("from".into(), a.arguments.from.0),
-                ("relation".into(), a.arguments.relation.0),
-                ("domain".into(), a.arguments.domain.0),
-            ],
-        ),
-        Closure(a) => ("closure", vec![("edges".into(), a.edges.0)]),
-        Follow(a) => ("follow", vec![("edges".into(), a.edges.0)]),
-        OrderedDfs(a) => (
-            "ordered-dfs",
-            vec![("from".into(), a.from.0), ("edges".into(), a.edges.0)],
-        ),
-        GroupCount(a) => ("group-count", vec![("from".into(), a.from.0)]),
-        GroupMin(a) => ("group-min", vec![("from".into(), a.from.0)]),
-        GroupMax(a) => ("group-max", vec![("from".into(), a.from.0)]),
-        GroupOrdinal(a) => ("group-ordinal", vec![("from".into(), a.from.0)]),
-        Project(a) => ("project", vec![("from".into(), a.from.0)]),
-        Extend(a) => ("extend", vec![("from".into(), a.from.0)]),
-        SpanBounds(a) => ("span-bounds", vec![("from".into(), a.from.0)]),
-        SpanBetween(a) => ("span-between", vec![("from".into(), a.from.0)]),
-        Replace(a) => ("replace", vec![("from".into(), a.from.0)]),
-        SourceMatches(a) => ("source-matches", vec![("from".into(), a.from.0)]),
-        Capture(a) => ("capture", vec![("from".into(), a.from.0)]),
-        FitsRendered(a) => ("fits-rendered", vec![("from".into(), a.from.0)]),
-        RenderSyntax(a) => ("render-syntax", vec![("from".into(), a.from.0)]),
-        Rows(_) => ("rows", vec![]),
-        Prefixes(a) => ("prefixes", vec![("from".into(), a.from.0)]),
-        SubtreeClass(a) => (
-            "subtree-class",
-            vec![
-                ("from".into(), a.from.0),
-                ("relation".into(), a.relation.0),
-                ("labels".into(), a.labels.0),
-                ("leaves".into(), a.leaves.0),
-            ],
-        ),
-        Unlisted(a) => (
-            &a.operator.0,
-            a.arguments
-                .iter()
-                .filter_map(|arg| match &arg.value {
-                    ArgumentValue::Step(i) => Some((arg.name.0.to_string(), i.0)),
-                    _ => None,
-                })
-                .collect(),
-        ),
+        Base(_) => "base",
+        Select(_) => "select",
+        Union(a) => {
+            visit("left", a.left.0);
+            visit("right", a.right.0);
+            "union"
+        }
+        Antijoin(a) => {
+            visit("left", a.left.0);
+            visit("right", a.right.0);
+            "antijoin"
+        }
+        AsOf(a) => {
+            visit("left", a.left.0);
+            visit("right", a.right.0);
+            "as-of"
+        }
+        OrderedMatch(a) => {
+            visit("left", a.left.0);
+            visit("right", a.right.0);
+            "ordered-match"
+        }
+        Axis(a) => {
+            visit("from", a.arguments.from.0);
+            visit("relation", a.arguments.relation.0);
+            visit("domain", a.arguments.domain.0);
+            "axis"
+        }
+        Closure(a) => {
+            visit("edges", a.edges.0);
+            "closure"
+        }
+        Follow(a) => {
+            visit("edges", a.edges.0);
+            "follow"
+        }
+        OrderedDfs(a) => {
+            visit("from", a.from.0);
+            visit("edges", a.edges.0);
+            "ordered-dfs"
+        }
+        GroupCount(a) => {
+            visit("from", a.from.0);
+            "group-count"
+        }
+        GroupMin(a) => {
+            visit("from", a.from.0);
+            "group-min"
+        }
+        GroupMax(a) => {
+            visit("from", a.from.0);
+            "group-max"
+        }
+        GroupOrdinal(a) => {
+            visit("from", a.from.0);
+            "group-ordinal"
+        }
+        Project(a) => {
+            visit("from", a.from.0);
+            "project"
+        }
+        Extend(a) => {
+            visit("from", a.from.0);
+            "extend"
+        }
+        SpanBounds(a) => {
+            visit("from", a.from.0);
+            "span-bounds"
+        }
+        SpanBetween(a) => {
+            visit("from", a.from.0);
+            "span-between"
+        }
+        Replace(a) => {
+            visit("from", a.from.0);
+            "replace"
+        }
+        SourceMatches(a) => {
+            visit("from", a.from.0);
+            "source-matches"
+        }
+        Capture(a) => {
+            visit("from", a.from.0);
+            "capture"
+        }
+        FitsRendered(a) => {
+            visit("from", a.from.0);
+            "fits-rendered"
+        }
+        RenderSyntax(a) => {
+            visit("from", a.from.0);
+            "render-syntax"
+        }
+        Rows(_) => "rows",
+        Prefixes(a) => {
+            visit("from", a.from.0);
+            "prefixes"
+        }
+        SubtreeClass(a) => {
+            visit("from", a.from.0);
+            visit("relation", a.relation.0);
+            visit("labels", a.labels.0);
+            visit("leaves", a.leaves.0);
+            "subtree-class"
+        }
+        Unlisted(a) => {
+            for arg in &a.arguments {
+                if let ArgumentValue::Step(i) = &arg.value {
+                    visit(&arg.name.0, i.0);
+                }
+            }
+            &a.operator.0
+        }
     }
 }
 impl PNode {
+    pub(crate) fn relation_input(&self, name: &str) -> Option<usize> {
+        let mut input = None;
+        visit_slots(self.step(), |key, source| {
+            if key == name && input.is_none() { input = Some(source); }
+        });
+        input
+    }
     pub(super) fn summary_text(&self) -> String {
         super::json_output::step(self.step())
     }

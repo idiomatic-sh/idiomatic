@@ -35,9 +35,9 @@ pub(crate) fn describe(program: &Program, local: &[bool]) -> Result<Contract> {
     for (i, step) in plan.nodes.iter().enumerate().rev() {
         if !reached[i] { continue; }
         let sensitive = super::finish::session::absence_input(step).and_then(|(name, _)| {
-            step.rels.iter().find_map(|(key, source)| (key == name).then_some(source))
+            step.relation_input(name)
         });
-        if let Some(&source) = sensitive {
+        if let Some(source) = sensitive {
             if local[i] { negative_file[source] = true; } else { negative_project[source] = true; }
         }
         for &operand in &step.inputs {

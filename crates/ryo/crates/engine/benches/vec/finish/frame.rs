@@ -52,7 +52,7 @@ pub(super) fn frames(plan: &Plan) -> Vec<Frame> {
                 "group-count" => Op::GroupCount,
                 _ => Op::Other,
             };
-            let rel = |name: &str| pn.rels.iter().find(|(n, _)| n == name).map_or(MISSING, |x| x.1 as u32);
+            let rel = |name: &str| pn.relation_input(name).map_or(MISSING, |slot| slot as u32);
             let first = match pn.op.as_str() {
                 "union" | "antijoin" | "intersection" | "difference" | "ordered-match" | "as-of" => rel("left"),
                 "cycles" | "closure" | "follow" => rel("edges"),

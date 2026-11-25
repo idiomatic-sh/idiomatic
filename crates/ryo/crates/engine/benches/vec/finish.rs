@@ -572,8 +572,6 @@ pub(super) struct PNode {
     slot: usize,
     args: std::sync::OnceLock<Args>,
     pub(super) inputs: Vec<usize>,
-    /// 7: the relation arguments (`args.<name>.rel`), by name.
-    pub(super) rels: Vec<(String, usize)>,
 }
 
 pub(super) struct Plan {
@@ -1413,7 +1411,7 @@ impl<'p> Exec<'p> {
 
     fn arg_rel(&self, node: usize, name: &str) -> R<usize> {
         // 7: the step's relation arguments, read from the plan once (`PNode::rels`)
-        self.plan.nodes[node].rels.iter().find(|(n, _)| n == name).map(|x| x.1).ok_or_else(|| format!("no relation argument {name}"))
+        self.plan.nodes[node].relation_input(name).ok_or_else(|| format!("no relation argument {name}"))
     }
 
     // -------------------------------------------------------------------------------------------- static: schemas, views
