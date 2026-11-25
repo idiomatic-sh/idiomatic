@@ -179,6 +179,26 @@ struct Table {
     cells: FilledColumns,
     index: Map<usize, Map<Id, Vec<u32>>>,
 }
+/// Reuse column storage within the visit, dropping all indexes and answers at each file boundary.
+#[derive(Default)]
+pub(super) struct WitnessTables(Vec<Table>);
+
+impl WitnessTables {
+    fn begin_file(&mut self, count: usize) -> &mut [Table] {
+        self.0.resize_with(count, Table::default);
+        for table in self.0.iter_mut().filter(|table| table.read) {
+            table.read = false;
+            table.answered = false;
+            table.complete = false;
+            table.index.clear();
+            for column in &mut table.cells.0 {
+                column.0.clear();
+            }
+        }
+        &mut self.0
+    }
+}
+
 /// File-local positions for reader-interned symbols, built on first demand
 /// for node positions.
 #[derive(Default)]
@@ -348,7 +368,7 @@ struct File<'a, const PROFILE: bool> {
     path: Option<&'a [u8]>,
     read: &'a mut Reader<'a>,
     words: &'a mut FileWords,
-    facts: Vec<Table>,
+    facts: &'a mut [Table],
     sets: &'a mut [Option<Nodes>],
     needs: &'a mut Answers,
     atoms: Option<SharedAtoms<'a>>,
@@ -1172,6 +1192,7 @@ impl Program {
         path: &[u8],
         syntax_text: Option<SyntaxText<'_>>,
         reserved: ReservedWords<'_>,
+        tables: &mut WitnessTables,
         words: &mut FileWords,
         read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
@@ -1188,9 +1209,9 @@ impl Program {
         }
         #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            return self.evaluate::<true>(t, src, Some(path), syntax_text, reserved, words, read, alive, exact, known, selected, atoms);
+            return self.evaluate::<true>(t, src, Some(path), syntax_text, reserved, tables, words, read, alive, exact, known, selected, atoms);
         }
-        self.evaluate::<false>(t, src, Some(path), syntax_text, reserved, words, read, alive, exact, known, selected, atoms)
+        self.evaluate::<false>(t, src, Some(path), syntax_text, reserved, tables, words, read, alive, exact, known, selected, atoms)
     }
 
     fn evaluate<const PROFILE: bool>(
@@ -1200,6 +1221,7 @@ impl Program {
         path: Option<&[u8]>,
         syntax_text: Option<SyntaxText<'_>>,
         reserved: ReservedWords<'_>,
+        tables: &mut WitnessTables,
         words: &mut FileWords,
         mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
@@ -1259,7 +1281,7 @@ impl Program {
             path,
             read: &mut observe,
             words,
-            facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
+            facts: tables.begin_file(self.facts.len()),
             sets: &mut buffers.sets,
             needs: &mut buffers.needs,
             atoms,
@@ -1297,7 +1319,7 @@ impl Program {
                 a.cross += b.cross;
                 a.ns += b.ns;
             }
-            for (n, t) in meter.loads.borrow_mut().iter_mut().zip(&f.facts) {
+            for (n, t) in meter.loads.borrow_mut().iter_mut().zip(f.facts.iter()) {
                 *n += u64::from(t.read);
             }
         }

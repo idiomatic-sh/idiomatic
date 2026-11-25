@@ -183,6 +183,7 @@ impl Checks {
         id: FileId,
         symbols: &l::Symbols,
         local_words: Option<&mut l::FileWords>,
+        tables: &mut crate::pair_checks::WitnessTables,
         requested: &[l::Relation],
         packet: &reader_run::packet::Packet,
         unknown: &HashMap<u32, u32>,
@@ -282,6 +283,7 @@ impl Checks {
                     column: Some(&column),
                 }),
                 crate::pair_checks::ReservedWords { names: unknown, texts: &run.texts },
+                tables,
                 words,
                 |source, words, out| {
                     let FactSource::Catalog(rel) = source else {
