@@ -10,7 +10,7 @@ use crate::domain::facts::types::{
 use crate::domain::fillers::types::{FieldNames, WalkKinds, WalkVocabulary};
 use crate::domain::fixed_names::service::checked;
 use crate::domain::node_table::service::{
-    builder, decoded_of, field_of, kind_codes, ordinal_of, parent_of, span_of,
+    builder, decoded_of, field_of, is_token, kind_codes, ordinal_of, parent_of, span_of,
 };
 use crate::domain::node_table::types::NodeTable;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
@@ -284,7 +284,8 @@ fn token_word<W: WalkUseCase>(
     at: Position,
     kind: KindBits,
 ) -> Symbol {
-    if !W::spells(kind) {
+    // Only an element the table marks as a token has text, whatever its kind says: a node of a spelled kind has none.
+    if !is_token(table, at) || !W::spells(kind) {
         return NO_SYMBOL;
     }
     let span = span_of(table, at);
@@ -298,5 +299,33 @@ fn token_word<W: WalkUseCase>(
 impl<W: WalkUseCase> std::fmt::Debug for NumberedWalk<W> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.debug_struct(std::any::type_name::<Self>()).finish_non_exhaustive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::fillers::fixtures::Walking;
+    use crate::domain::node_table::service::{enter_node, finished, leave_node, token};
+    use crate::domain::node_table::types::FieldCode;
+    use ryo_relations::domain::relations::types::{Count, Offset};
+
+    /// A node and a token of the same, spelled kind: only the token has text.
+    #[test]
+    fn only_a_token_has_text_whatever_the_kind() {
+        let mut table = NodeTable::default();
+        let mut writer = builder(&mut table, Count(4));
+        // Kind 2 is the fixture's spelled kind.
+        enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+        enter_node(&mut writer, KindBits(2), FieldCode(0), Offset(0));
+        leave_node(&mut writer, Offset(3));
+        token(&mut writer, KindBits(2), FieldCode(0), Offset(0), Offset(3));
+        leave_node(&mut writer, Offset(3));
+        let table = finished(&mut writer);
+        let (source, mut symbols) = (ByteSlice(b"one"), Symbols::default());
+        let node = token_word::<Walking>(table, source, &mut symbols, Position(1), KindBits(2));
+        let spelled = token_word::<Walking>(table, source, &mut symbols, Position(2), KindBits(2));
+        assert_eq!(node, NO_SYMBOL, "a node of a spelled kind has no text");
+        assert_ne!(spelled, NO_SYMBOL, "a token of the same kind has its written text");
     }
 }

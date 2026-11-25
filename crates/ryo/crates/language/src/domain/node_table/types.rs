@@ -149,6 +149,8 @@ pub(crate) struct EmbeddedSegment {
     pub(crate) root: Position,
     /// The id after the segment's last element.
     pub(crate) end: Position,
+    /// Where the segment's tokens start: its nodes are numbered from `root`, its tokens after them.
+    pub(crate) tokens: Position,
     /// How the segment's logical offsets map to the file's bytes.
     pub(crate) mapping: EmbeddedMapping,
 }
