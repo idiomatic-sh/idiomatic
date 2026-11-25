@@ -255,7 +255,16 @@ pub(super) struct Scratch {
     sets: Vec<Option<Nodes>>,
     needs: Answers,
     literal_ids: Map<Id, Option<u32>>,
+    fact_symbols: Vec<FactSymbol>,
     touched: Vec<Id>,
+}
+
+#[derive(Clone, Copy, Default)]
+enum FactSymbol {
+    #[default]
+    Unmapped,
+    Other,
+    Program(Id),
 }
 
 struct File<'a, const PROFILE: bool> {
@@ -279,6 +288,7 @@ struct File<'a, const PROFILE: bool> {
     needs: &'a mut Answers,
     atoms: Option<SharedAtoms<'a>>,
     literal_ids: &'a mut Map<Id, Option<u32>>,
+    fact_symbols: &'a mut Vec<FactSymbol>,
     touched: &'a mut Vec<Id>,
     texts: Option<Map<&'a [u8], Vec<u32>>>,
     steps: u64,
@@ -828,14 +838,29 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     if filter.is_some() && values.is_none_or(|(c, _)| c.0.len() != keys.0.len()) {
                         None
                     } else {
+                        let words = &*self.words;
+                        let program_symbols = &self.p.symbols;
+                        let fact_symbols = &mut *self.fact_symbols;
+                        let mut matches = values.filter(|(column, _)| !column.0.is_empty())
+                            .map(move |(column, ids)| {
+                                let end = languages::facts::words_end(words).0 as usize;
+                                fact_symbols.resize(end, FactSymbol::Unmapped);
+                                let empty = program_symbols.get("").is_some_and(|id| ids.binary_search(id).is_ok());
+                                (column, ids, &mut fact_symbols[..], empty)
+                            });
                         let mut valid = true;
                         let nodes = bits(keys.0.iter().enumerate().filter_map(|(i, k)| {
-                            let keep = values.is_none_or(|(c, ids)| {
-                                let text = languages::facts::text(self.words, c.0[i]).0;
-                                self.p
-                                    .symbols
-                                    .get(text)
-                                    .is_some_and(|id| ids.binary_search(id).is_ok())
+                            let keep = matches.as_mut().is_none_or(|(c, ids, symbols, empty)| {
+                                let raw = c.0[i];
+                                let Some(symbol) = usize::try_from(raw.0).ok().and_then(|word| symbols.get_mut(word)) else {
+                                    // Out-of-range handles decode as the empty spelling.
+                                    return *empty;
+                                };
+                                if matches!(*symbol, FactSymbol::Unmapped) {
+                                    let text = languages::facts::text(words, raw).0;
+                                    *symbol = program_symbols.get(text).copied().map_or(FactSymbol::Other, FactSymbol::Program);
+                                }
+                                matches!(*symbol, FactSymbol::Program(id) if ids.binary_search(&id).is_ok())
                             });
                             if keep && k.0 >= u64::from(n) {
                                 valid = false;
@@ -1186,6 +1211,7 @@ impl Program {
         buffers.sets.resize(self.domains.len(), None);
         buffers.needs.reset(self.needs.len());
         buffers.literal_ids.clear();
+        buffers.fact_symbols.clear();
         let mut f = File::<PROFILE> {
             reader_class: &reader_class,
             owner: 0,
@@ -1215,6 +1241,7 @@ impl Program {
             needs: &mut buffers.needs,
             atoms,
             literal_ids: &mut buffers.literal_ids,
+            fact_symbols: &mut buffers.fact_symbols,
             touched: &mut buffers.touched,
             texts: None,
             steps: 0,
