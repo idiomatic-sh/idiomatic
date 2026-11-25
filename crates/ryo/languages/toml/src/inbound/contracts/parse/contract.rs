@@ -30,18 +30,29 @@ use crate::outbound::syntax::types::SourceText;
 pub(crate) struct ParseContract {
     /// The syntax port the contract reads each file's tree through.
     syntax: Arc<dyn SyntaxPort>,
+    /// The walk, lent to the engine as numbered files: the one way the engine reads the language's files.
+    numbered: languages::NumberedWalk<crate::domain::file_view::types::TomlWalk<crate::inbound::contracts::walk::contract::WalkPorts>>,
 }
 
 impl ParseContract {
     /// `parse` over the ports it calls, which the edge injects.
     #[must_use]
     pub(crate) fn new(syntax: Arc<dyn SyntaxPort>) -> Self {
-        Self { syntax }
+        Self {
+            numbered: languages::NumberedWalk::new(crate::domain::file_view::types::TomlWalk {
+                ports: crate::inbound::contracts::walk::contract::WalkPorts { syntax: syntax.clone() },
+            }),
+            syntax,
+        }
     }
 }
 
 impl Parse for ParseContract {
     type FileModel = Model;
+
+    fn file_relations(&self) -> Option<&dyn languages::FileRelations> {
+        Some(self)
+    }
 
     fn begin_semantics(&self, _: &ParseRequest<'_>, _: &Elements, _: &mut SemanticSlot) {}
 
@@ -230,5 +241,34 @@ impl Parse for ParseContract {
 
     fn static_import(&self) -> Support<Reader<languages::StaticImport, Model>> {
         languages::absent(AbsenceCause::NotCode)
+    }
+}
+
+impl languages::FileRelations for ParseContract {
+    fn numbered(&self) -> Option<&dyn languages::NumberedVisit> {
+        Some(&self.numbered)
+    }
+
+    fn declarations(&self) -> &'static [languages::FileRelation] {
+        &[]
+    }
+
+    fn read(
+        &self,
+        schemas: &[&languages::FileRelation],
+        _: ParseRequest<'_>,
+        _: &Elements,
+        _: &languages::NodeTable,
+        _: &mut languages::Symbols,
+        _: Option<&dyn languages::FileProject>,
+    ) -> Vec<Result<Vec<languages::FactColumn>, languages::ParseError>> {
+        schemas
+            .iter()
+            .map(|_| {
+                Err(languages::ParseError::Library {
+                    reason: languages::ToolMessage("the language declares no file relation".into()),
+                })
+            })
+            .collect()
     }
 }
