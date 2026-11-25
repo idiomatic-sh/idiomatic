@@ -185,3 +185,90 @@ fn the_walk_names_each_kind_and_each_field_at_its_code() {
         assert_eq!(names.fields.0.get(usize::from(field_bits(field).0)), Some(&field_name(field)));
     }
 }
+
+#[test]
+fn the_linked_provider_hands_the_engine_its_numbered_visit() {
+    let linked = crate::linked();
+    let parse = linked.parse_engine();
+    assert!(
+        parse.file_relations().and_then(|relations| relations.numbered()).is_some(),
+        "the engine reads html files through the walk"
+    );
+}
+
+/// Today's completeness of one source, syntax then lexical, as the old table says it.
+fn old_completeness(bytes: &[u8]) -> (languages::SyntaxCompleteness, languages::SyntaxCompleteness) {
+    let linked = crate::linked();
+    let mut elements = languages::Elements::default();
+    let mut symbols = languages::Symbols::default();
+    let mut out = contract::Collect::default();
+    contract::read(
+        linked.parse_engine().as_ref(),
+        languages::ParseRequest {
+            path: languages::SourcePath("input.html"),
+            file: FileId(0),
+            bytes: ByteSlice(bytes),
+            notes: languages::NoteRequest::Unwanted,
+            fields: languages::FieldRequest::Wanted,
+        },
+        &mut elements,
+        &mut symbols,
+        &[],
+        &mut out,
+    )
+    .expect("today's reading reads the source");
+    (languages::has_incomplete_syntax(&elements), languages::has_incomplete_lexical_stream(&elements))
+}
+
+/// The completeness the walk's fillers state for one source, syntax then lexical.
+fn walked_completeness(bytes: &[u8]) -> (languages::SyntaxCompleteness, languages::SyntaxCompleteness) {
+    let walk = walk();
+    let mut table = NodeTable::default();
+    let mut found = None;
+    walk.walk(
+        WalkRequest { path: languages::SourcePath("input.html"), file: FileId(0), source: ByteSlice(bytes) },
+        RelationNeeds(&[]),
+        &mut node_table::builder(&mut table, <HtmlWalk<WalkPorts> as Walk>::KIND_COUNT),
+        &mut (),
+        &mut CompletenessOf(&mut found),
+    )
+    .expect("the walk reads the source");
+    found.expect("the walk lends the file")
+}
+
+/// The visit that reads the completeness of the lent file.
+struct CompletenessOf<'a>(&'a mut Option<(languages::SyntaxCompleteness, languages::SyntaxCompleteness)>);
+
+impl FileVisit for CompletenessOf<'_> {
+    fn visit(&mut self, file: FileFacts<'_>) {
+        let view = crate::domain::file_view::types::HtmlFile { table: file.table, source: file.source, file: file.file };
+        let completeness = <HtmlWalk<WalkPorts> as Fillers>::completeness(&view);
+        *self.0 = Some((completeness.syntax, completeness.lexical));
+    }
+}
+
+#[test]
+fn the_walk_states_the_completeness_todays_reading_states() {
+    let mut sources: Vec<Vec<u8>> = vec![
+        Vec::new(),
+        b" \n\t ".to_vec(),
+        b"<!doctype html><title>t</title><p>a</p>".to_vec(),
+        b"<p>a".to_vec(),
+        b"<div><span></div>".to_vec(),
+        b"<p>\xff\xfe</p>".to_vec(),
+    ];
+    sources.extend(sources_of_fixtures());
+    for bytes in sources {
+        assert_eq!(
+            walked_completeness(&bytes),
+            old_completeness(&bytes),
+            "completeness (syntax, lexical) of {:?}",
+            String::from_utf8_lossy(bytes.get(..40.min(bytes.len())).unwrap_or_default())
+        );
+    }
+}
+
+/// Every html file of the language's fixtures.
+fn sources_of_fixtures() -> Vec<Vec<u8>> {
+    sources().into_iter().map(|(_, bytes)| bytes).collect()
+}
