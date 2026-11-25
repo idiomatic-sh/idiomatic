@@ -100,6 +100,7 @@ pub(super) struct Observations {
     pub hash_bytes: usize,
     pub open_cpu: f64,
     files: HashMap<PathBuf, FileObservation>,
+    prior_sources: HashMap<PathBuf, Key>,
     kinds: HashMap<PathBuf, Option<u8>>,
     buffer: Vec<u8>,
     pub path_hits: usize,
@@ -134,6 +135,7 @@ impl Observations {
             hash_bytes: 0,
             open_cpu: 0.0,
             files: HashMap::new(),
+            prior_sources: HashMap::new(),
             kinds: HashMap::new(),
             buffer: Vec::new(),
             path_hits: 0,
@@ -268,6 +270,10 @@ impl Observations {
             self.inodes.insert(stamp, digest);
             digest
         };
+        let executable = stamp.mode & 0o111;
+        if let Some(saved) = saved.filter(|s| s.bytes != bytes || s.stamp.mode & 0o111 != executable) {
+            self.prior_sources.insert(p.to_owned(), key((saved.bytes, saved.stamp.mode & 0o111)));
+        }
         // A young observation can support the current answer by its content
         // hash, but it cannot vouch for a later process. Stale entries cannot
         // match its new stamp and are replaced on the next eligible miss.
@@ -278,7 +284,7 @@ impl Observations {
         }
         let mut file = FileObservation {
             bytes,
-            executable: stamp.mode & 0o111,
+            executable,
             source: None,
             stamp,
         };
@@ -303,6 +309,59 @@ impl Observations {
         self.groups.len()
     }
 
+    fn leaf(&mut self, i: u32, mode: Probe, names: &[PathBuf], scope: Option<InputScope>) -> Option<Key> {
+        if mode == Probe::Inventory {
+            return scope.map(|scope| self.inventories[scope.inventory]);
+        }
+        let overlay = if mode == Probe::Effective { Some(scope?.overlay) } else { None };
+        let binding = (i, mode, overlay);
+        if let Some(digest) = self.values.get(&binding) {
+            return *digest;
+        }
+        let digest = self.observe_in(names.get(i as usize)?, mode, overlay);
+        self.values.insert(binding, digest);
+        digest
+    }
+
+    pub fn has_prior_sources(&self) -> bool {
+        !self.prior_sources.is_empty()
+    }
+
+    /// A saved stamp is a candidate old leaf. Reconstructing the saved root
+    /// proves that the cached receipt differs at precisely this physical input.
+    pub fn prior_leaf(
+        &mut self, group: &Group, names: &[PathBuf], scope: Option<InputScope>, expected: Key,
+    ) -> Option<(PathBuf, Key)> {
+        let mut hash = super::Digest::default();
+        group.len().hash(&mut hash);
+        let mut changed = None;
+        for &(i, mode) in group {
+            let mut digest = self.leaf(i, mode, names, scope)?;
+            let path = names.get(i as usize)?;
+            let prior = match mode {
+                Probe::Source => self.prior_sources.get_key_value(path),
+                Probe::Effective => {
+                    let input = self.scopes.get(scope?.overlay)?;
+                    if input.supplied.contains_key(path.to_str()?) {
+                        None
+                    } else {
+                        self.prior_sources.get_key_value(&input.root.join(path))
+                    }
+                }
+                _ => None,
+            };
+            if let Some((path, &prior)) = prior {
+                if changed.is_some() {
+                    return None;
+                }
+                changed = Some((path.clone(), prior));
+                digest = prior;
+            }
+            digest.hash(&mut hash);
+        }
+        (*hash.0.finalize().as_bytes() == expected).then_some(changed).flatten()
+    }
+
     pub fn group(&mut self, id: Key, paths: &Group, names: &[PathBuf], scope: Option<InputScope>) -> Option<Key> {
         let (effective, closed) = *self.group_inputs.entry(id).or_insert_with(|| {
             (paths.iter().any(|&(_, mode)| mode == Probe::Effective),
@@ -318,18 +377,7 @@ impl Observations {
         let mut hash = super::Digest::default();
         paths.len().hash(&mut hash);
         let result = paths.iter().try_for_each(|&(i, mode)| {
-            let digest = if mode == Probe::Inventory {
-                inventory.map(|index| self.inventories[index])
-            } else {
-                let binding = (i, mode, overlay.filter(|_| mode == Probe::Effective));
-                if let Some(digest) = self.values.get(&binding) {
-                    *digest
-                } else {
-                    let digest = self.observe_in(names.get(i as usize)?, mode, binding.2);
-                    self.values.insert(binding, digest);
-                    digest
-                }
-            }?;
+            let digest = self.leaf(i, mode, names, scope)?;
             digest.hash(&mut hash);
             Some(())
         }).map(|()| *hash.0.finalize().as_bytes());

@@ -51,7 +51,7 @@ struct Report {
     issues: Option<Box<ReportIssues>>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct ReportIssues {
     rejected_syntax: Vec<String>,
     unknowns: Vec<(String, String)>,
@@ -92,7 +92,7 @@ impl Report {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 struct Notes {
     context: Option<Proof>,
     reader: Option<usize>,
@@ -258,6 +258,13 @@ struct Snapshot {
     request_layers: Vec<Key>,
     program_inputs: BTreeMap<Key, Vec<String>>,
 }
+pub(super) struct PriorClosed {
+    work: usize,
+    source: usize,
+    version: Key,
+    record: Record,
+}
+
 struct RequestPlan {
     proof: Vec<Proof>,
     unread: Vec<(String, String)>,
@@ -282,6 +289,9 @@ pub(super) struct Store {
     packets: Packets<Packet>,
     observed: Observations,
     work_inputs: HashMap<usize, InputScope>,
+    pending_requests: Vec<(usize, Key)>,
+    updated_proofs: HashMap<usize, Record>,
+    prior_groups: HashMap<(Key, Key, Option<InputScope>), Option<(PathBuf, Key)>>,
     supplied_versions: HashMap<usize, Key>,
     versions: Vec<Option<Key>>,
     files_valid: Vec<bool>,
@@ -390,6 +400,9 @@ impl Store {
             packets: Packets::new("answers", snapshot.packets, snapshot.packet_layers),
             observed: Observations::new(dir, snapshot.stamps),
             work_inputs: HashMap::new(),
+            pending_requests: Vec::new(),
+            updated_proofs: HashMap::new(),
+            prior_groups: HashMap::new(),
             supplied_versions: HashMap::new(),
             versions: vec![],
             files_valid: vec![],
@@ -595,7 +608,12 @@ impl Store {
         self.work_inputs.insert(work, scope);
     }
 
+    pub(super) fn offer(&mut self, work: usize, id: Key) {
+        self.pending_requests.push((work, id));
+    }
+
     pub(super) fn truncate_work(&mut self, len: usize) {
+        self.pending_requests.retain(|&(work, _)| work < len);
         self.work_inputs.retain(|&work, _| work < len);
     }
 
@@ -643,6 +661,11 @@ impl Store {
         self.packets.get(id).expect("verified packet")
     }
     pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
+        if let Some(record) = self.updated_proofs.remove(&idx) {
+            let packet = record.packet;
+            self.requests.insert(id, record);
+            return Some(packet);
+        }
         let RequestPlan { mut proof, unread, environments } = self.plans.get_mut(idx)?.take()?;
         for environment in environments {
             proof.push(self.environment_proof(environment)?);
@@ -728,13 +751,7 @@ impl Store {
         }
         Some((id, expected))
     }
-    pub(super) fn admit(
-        &mut self,
-        b: &mut Batch,
-        world: &mut session::World,
-        answers: &mut super::ReportSlots,
-        contributions: &mut [Option<Rc<project::Contribution>>],
-    ) {
+    pub(super) fn prepare(&mut self, b: &Batch) {
         self.project_proofs.clear();
         self.environment_proofs.clear();
         self.reused_context.clear();
@@ -789,6 +806,166 @@ impl Store {
                 self.pairs[slot] = Some((i, binding));
             }
         }
+    }
+
+    fn changed_record(&mut self, id: Key, scope: Option<InputScope>) -> Option<((PathBuf, Key), Record)> {
+        self.requests.open(&self.dir, &id);
+        let mut record = self.requests.get(&id)?.clone();
+        // The previous result must not hide a changed or transient read failure.
+        if !record.unread.is_empty() {
+            return None;
+        }
+        let mut changed = None;
+        for (group, expected) in &mut record.proof {
+            self.groups.open(&self.dir, group);
+            let paths = self.groups.get(group)?;
+            let current = self.observed.group(*group, paths, &self.names, scope)?;
+            if current == *expected {
+                continue;
+            }
+            let old = self.prior_groups.entry((*group, *expected, scope)).or_insert_with(|| {
+                self.observed.prior_leaf(paths, &self.names, scope, *expected)
+            }).as_ref()?;
+            if changed.as_ref().is_some_and(|other| other != old) {
+                return None;
+            }
+            changed = Some(old.clone());
+            *expected = current;
+        }
+        Some((changed?, record))
+    }
+
+    /// Prove the unchanged inputs before opening their saved contributions.
+    pub(super) fn probe(&mut self, b: &Batch) -> (Vec<usize>, Vec<PriorClosed>) {
+        self.updated_proofs.clear();
+        self.prior_groups.clear();
+        let pending = std::mem::take(&mut self.pending_requests);
+        if pending.is_empty() || !self.observed.has_prior_sources() {
+            return (vec![], vec![]);
+        }
+        let mut sources = HashMap::<_, Option<usize>>::new();
+        for &i in &b.schedule.pending {
+            let source = &b.schedule.sources[i];
+            if source.provided.is_none() {
+                sources.entry(Path::new(&*source.root).join(&source.path))
+                    .and_modify(|prior| *prior = None).or_insert(Some(i));
+            }
+        }
+        let mut files = BTreeSet::new();
+        let mut candidates = Vec::new();
+        for (work, id) in pending {
+            let Work::Closed { pairs, project, .. } = &b.work[work] else { continue };
+            let scope = self.work_inputs.get(&work).copied();
+            let Some(((path, digest), record)) = self.changed_record(id, scope) else { continue };
+            let Some(source) = sources.get(&path).copied().flatten() else { continue };
+            if !(pairs.iter().any(|&slot| self.pairs[slot].is_some_and(|(i, _)| i == source))
+                || project.is_some_and(|p| b.projects[p].slots.contains(&source))) {
+                continue;
+            }
+            let src = &b.schedule.sources[source];
+            let Some(version) = src.version_key(key((&src.path, &src.reader, src.permission, digest))) else { continue };
+            files.insert(source);
+            candidates.push(PriorClosed { work, source, version, record });
+        }
+        if !files.is_empty() {
+            self.keep_pairs = vec![false; self.pairs.len()];
+            self.local_rows = vec![false; self.pairs.len()];
+            for work in &b.work {
+                let (pairs, closed) = match work {
+                    Work::Pairs(pairs) => (pairs, false),
+                    Work::Closed { pairs, .. } => (pairs, true),
+                    _ => continue,
+                };
+                for &slot in pairs {
+                    self.keep_pairs[slot] |= closed || pairs.len() > 1;
+                    self.local_rows[slot] |= !closed;
+                }
+            }
+            self.files_valid.resize(self.versions.len(), false);
+            self.notes_valid.resize(self.versions.len(), false);
+            for &i in &files {
+                self.files_valid[i] = false;
+                self.notes_valid[i] = false;
+                self.evaluated_pairs += b.schedule.sources[i].bindings.len();
+            }
+        }
+        (files.into_iter().collect(), candidates)
+    }
+
+    pub(super) fn reuse_closed(&mut self, b: &mut Batch, candidates: Vec<PriorClosed>) {
+        for prior in candidates {
+            let Work::Closed { pairs, project, .. } = &b.work[prior.work] else { continue };
+            let Some(current) = self.versions[prior.source] else { continue };
+            let source = &b.schedule.sources[prior.source];
+            if project.is_some_and(|p| b.projects[p].slots.contains(&prior.source)) {
+                self.notes.open(&self.dir, &prior.version);
+                if self.notes.get(&prior.version).is_none()
+                    || self.notes.get(&prior.version) != self.notes.get(&current) {
+                    continue;
+                }
+            }
+            let pairs_match = pairs.iter().all(|&slot| {
+                let Some((index, binding)) = self.pairs[slot] else { return false };
+                index != prior.source || self.same_frontier(prior.version, current, self.binding_keys[binding])
+            });
+            if !pairs_match {
+                continue;
+            }
+            self.packets.open(&self.dir, &prior.record.packet);
+            let Some(packet) = self.packets.get(&prior.record.packet) else { continue };
+            if packet.refusal.is_some() {
+                continue;
+            }
+            let report = packet.report();
+            // The closed delivery locates spans against source bytes. A matching
+            // relational projection alone cannot prove a changed line layout.
+            if report.rows.iter().any(|row| row.span_file().is_some_and(|path| path.as_ref() == source.path)) {
+                continue;
+            }
+            b.work[prior.work] = Work::Project(Rc::new(Ok(report)));
+            self.updated_proofs.insert(prior.work, prior.record);
+            self.closed_hits += 1;
+        }
+    }
+
+    fn same_frontier(&mut self, before: Key, after: Key, binding: Key) -> bool {
+        self.files.open_mapped(&self.dir, &before, FileAnswers::mapped);
+        let (Some(old), Some(new)) = (self.files.get(&before), self.files.get(&after)) else {
+            return false;
+        };
+        let (Some(left), Some(right)) = (old.read(&binding), new.read(&binding)) else {
+            return false;
+        };
+        if old.context != new.context || left.report.issues != right.report.issues
+            || left.unavailable != right.unavailable || left.frontier.len() != right.frontier.len()
+        {
+            return false;
+        }
+        let fingerprint = |file: &FileAnswers, index: usize| match *file.blocks.get(index)? {
+            BlockId::Empty(i) => Some((false, *self.empty_schemas.get(i as usize)?)),
+            BlockId::Local(mut key) => {
+                // The first byte locates its segment. The rest identify the
+                // typed column bytes independently of the file version.
+                key[0] = 0;
+                Some((true, key))
+            }
+        };
+        left.frontier.iter().zip(&right.frontier).all(|(&(node, a), &(other, b))| {
+            node == other && fingerprint(old, a).is_some_and(|k| Some(k) == fingerprint(new, b))
+        })
+    }
+
+    pub(super) fn admit(
+        &mut self,
+        b: &mut Batch,
+        world: &mut session::World,
+        answers: &mut super::ReportSlots,
+        contributions: &mut [Option<Rc<project::Contribution>>],
+        pre_read: &[usize],
+    ) {
+        // The probe may have already recorded evidence for the edited file.
+        // Later requests can add observations when their contributions replay.
+        self.environment_proofs.clear();
         let mut needed = vec![false; self.pairs.len()];
         let mut frontier = vec![false; self.pairs.len()];
         let mut frontier_sources = vec![false; b.schedule.sources.len()];
@@ -972,6 +1149,9 @@ impl Store {
         self.restored_blocks += restored.len();
         self.frontier_cpu += crate::thread_cpu() - restore_start;
         for (i, src) in b.schedule.sources.iter_mut().enumerate() {
+            if pre_read.binary_search(&i).is_ok() {
+                continue;
+            }
             if !projects.contains(&i) {
                 src.project = false;
             }
@@ -1016,6 +1196,9 @@ impl Store {
             });
         }
         b.schedule.pending.retain(|i| {
+            if pre_read.binary_search(i).is_ok() {
+                return false;
+            }
             let src = &b.schedule.sources[*i];
             self.evaluated_pairs += src.bindings.len();
             src.project || !src.bindings.is_empty()
@@ -1029,11 +1212,13 @@ impl Store {
         answers: &super::ReportSlots,
         aliases: &session::worker::PairAliases,
         contributions: &[Option<Rc<project::Contribution>>],
+        pending: &[usize],
     ) {
         let mut encoded = HashMap::new();
         let mut empty_blocks = HashMap::new();
         let mut observed_environments = BTreeSet::new();
-        for (i, src) in b.schedule.sources.iter().enumerate() {
+        for &i in pending {
+            let src = &b.schedule.sources[i];
             if let Some(environment) = &src.environment
                 && observed_environments.insert(&environment.id)
             {
