@@ -182,6 +182,13 @@ impl Admission {
         } else {
             None
         };
+        if !scope_only && wide && std::env::var_os("DIAG_PLAN").is_some() {
+            eprintln!("DIAG_PROGRAM\t{id}");
+            for (i, n) in program.plan.nodes.iter().enumerate() {
+                eprintln!("DIAG_STEP\t{id}\t{i}\t{}\t{}\t{:?}\t{}", local[i], n.op(), n.inputs.iter().collect::<Vec<_>>(), n.summary_text().chars().take(700).collect::<String>());
+            }
+            for e in &program.plan.emits { eprintln!("DIAG_EMIT\t{id}\t{}\t{}", e.0, e.1); }
+        }
         let cut = if !scope_only && wide {
             Some(Arc::new(finish::partition::partition(&mut exec, &mut run, local)?))
         } else { None };
