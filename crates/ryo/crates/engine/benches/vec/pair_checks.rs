@@ -2,7 +2,7 @@
 use super::pair_summary::cost::{self, Sample};
 use super::pair_summary::{Domain, Id, Need, Program, Source};
 use rustc_hash::FxHashMap as Map;
-use ryo::languages::{self, FileWords, FilledColumns, NodeTable, Position, node_table};
+use ryo::languages::{self, CellWord, FileWords, FilledColumns, NodeTable, Position, node_table};
 use std::rc::Rc;
 
 #[path = "pair_counts.rs"]
@@ -265,6 +265,40 @@ enum FactSymbol {
     Unmapped,
     Other,
     Program(Id),
+}
+
+/// Translate each word into the plan's symbol space once per file.
+struct FactSymbols<'a> {
+    words: &'a FileWords,
+    program: &'a Map<String, Id>,
+    ids: &'a mut [FactSymbol],
+    empty: Option<Id>,
+}
+
+impl<'a> FactSymbols<'a> {
+    fn new(
+        words: &'a FileWords,
+        program: &'a Map<String, Id>,
+        ids: &'a mut Vec<FactSymbol>,
+    ) -> Self {
+        ids.resize(languages::facts::words_end(words).0 as usize, FactSymbol::Unmapped);
+        Self { words, program, ids, empty: program.get("").copied() }
+    }
+
+    fn id(&mut self, cell: CellWord) -> Option<Id> {
+        let Some(symbol) = usize::try_from(cell.0).ok().and_then(|word| self.ids.get_mut(word)) else {
+            // Out-of-range handles decode as the empty spelling.
+            return self.empty;
+        };
+        if matches!(*symbol, FactSymbol::Unmapped) {
+            let text = languages::facts::text(self.words, cell).0;
+            *symbol = self.program.get(text).copied().map_or(FactSymbol::Other, FactSymbol::Program);
+        }
+        match *symbol {
+            FactSymbol::Program(id) => Some(id),
+            _ => None,
+        }
+    }
 }
 
 struct File<'a, const PROFILE: bool> {
@@ -838,29 +872,17 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     if filter.is_some() && values.is_none_or(|(c, _)| c.0.len() != keys.0.len()) {
                         None
                     } else {
-                        let words = &*self.words;
-                        let program_symbols = &self.p.symbols;
-                        let fact_symbols = &mut *self.fact_symbols;
-                        let mut matches = values.filter(|(column, _)| !column.0.is_empty())
-                            .map(move |(column, ids)| {
-                                let end = languages::facts::words_end(words).0 as usize;
-                                fact_symbols.resize(end, FactSymbol::Unmapped);
-                                let empty = program_symbols.get("").is_some_and(|id| ids.binary_search(id).is_ok());
-                                (column, ids, &mut fact_symbols[..], empty)
-                            });
+                        let mut matches = values.filter(|(column, _)| !column.0.is_empty()).map(
+                            |(column, ids)| {
+                                let symbols =
+                                    FactSymbols::new(self.words, &self.p.symbols, self.fact_symbols);
+                                (column, ids, symbols)
+                            },
+                        );
                         let mut valid = true;
                         let nodes = bits(keys.0.iter().enumerate().filter_map(|(i, k)| {
-                            let keep = matches.as_mut().is_none_or(|(c, ids, symbols, empty)| {
-                                let raw = c.0[i];
-                                let Some(symbol) = usize::try_from(raw.0).ok().and_then(|word| symbols.get_mut(word)) else {
-                                    // Out-of-range handles decode as the empty spelling.
-                                    return *empty;
-                                };
-                                if matches!(*symbol, FactSymbol::Unmapped) {
-                                    let text = languages::facts::text(words, raw).0;
-                                    *symbol = program_symbols.get(text).copied().map_or(FactSymbol::Other, FactSymbol::Program);
-                                }
-                                matches!(*symbol, FactSymbol::Program(id) if ids.binary_search(&id).is_ok())
+                            let keep = matches.as_mut().is_none_or(|(c, ids, symbols)| {
+                                symbols.id(c.0[i]).is_some_and(|id| ids.binary_search(&id).is_ok())
                             });
                             if keep && k.0 >= u64::from(n) {
                                 valid = false;
@@ -911,16 +933,18 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
                     let len = table.cells.0.first().map_or(0, |c| c.0.len());
+                    let reads_symbols = tests.iter().any(|test| matches!(test, CellTest::Symbols(..)));
+                    let mut symbols = (len != 0 && reads_symbols)
+                        .then(|| FactSymbols::new(self.words, &self.p.symbols, self.fact_symbols));
                     Some(bits((0..len).filter_map(|row| {
                         let matched = tests.iter().all(|test| match test {
                             CellTest::Symbols(c, values) => {
                                 let cell = table.cells.0[*c].0[row];
                                 cell.0 != super::finish::NULL
-                                    && self
-                                        .p
-                                        .symbols
-                                        .get(languages::facts::text(self.words, cell).0)
-                                        .is_some_and(|id| values.binary_search(id).is_ok())
+                                    && symbols
+                                        .as_mut()
+                                        .and_then(|symbols| symbols.id(cell))
+                                        .is_some_and(|id| values.binary_search(&id).is_ok())
                             }
                             CellTest::Numeric(c, op, literal) => {
                                 counts::compare(table.cells.0[*c].0[row].0 as i64, *op, *literal)
@@ -938,23 +962,16 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     None
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
-                    Some(bits(
-                        table
-                            .cells
-                            .0
-                            .get(*col)
-                            .into_iter()
-                            .flat_map(|c| c.0.iter())
-                            .enumerate()
-                            .filter_map(|(i, cell)| {
-                                let text = languages::facts::text(self.words, *cell).0;
-                                self.p
-                                    .symbols
-                                    .get(text)
-                                    .is_none_or(|id| excluded.binary_search(id).is_err())
-                                    .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
-                            }),
-                    ))
+                    if let Some(column) = table.cells.0.get(*col).filter(|c| !c.0.is_empty()) {
+                        let mut symbols =
+                            FactSymbols::new(self.words, &self.p.symbols, self.fact_symbols);
+                        Some(bits(column.0.iter().enumerate().filter_map(|(i, &cell)| {
+                            symbols.id(cell).is_none_or(|id| excluded.binary_search(&id).is_err())
+                                .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
+                        })))
+                    } else {
+                        Some(Rc::default())
+                    }
                 }
             }
             Domain::CapturedSuffix(slot, col, delimiter, re) => {
@@ -1068,10 +1085,11 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     if let Some((col, values)) = test {
                         let idx = table.index.entry(*col).or_insert_with(|| {
                             let mut m = Map::<Id, Vec<u32>>::default();
-                            if let Some(column) = table.cells.0.get(*col) {
+                            if let Some(column) = table.cells.0.get(*col).filter(|c| !c.0.is_empty()) {
+                                let mut symbols =
+                                    FactSymbols::new(self.words, &self.p.symbols, self.fact_symbols);
                                 for (r, &cell) in column.0.iter().enumerate() {
-                                    let text = languages::facts::text(self.words, cell);
-                                    if let Some(&id) = self.p.symbols.get(text.0) {
+                                    if let Some(id) = symbols.id(cell) {
                                         m.entry(id).or_default().push(node(r));
                                     }
                                 }
