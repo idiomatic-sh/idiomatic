@@ -1380,6 +1380,8 @@ pub(crate) fn visit<L: FileSource>(
                 Ok(answer)
             };
             let loan = fact_words.as_deref().map(|words| packet.operator_columns(id, tree, words, &mut run));
+            // The frame owns the reader's projected word buffer for this visit.
+            let mut frame_words = provider.projects_words.then(|| std::mem::take(&mut provider.text));
             let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, fact_words.as_deref());
             facts_view.resolved = resolved_words;
             facts_view.renderer = Some(&mut render);
@@ -1515,7 +1517,7 @@ pub(crate) fn visit<L: FileSource>(
                 }
                 clocks.evaluated += 1;
                 let version = version.get_or_init(|| {
-                    finish::FileVersion::new(&tree, &bytes, id.0, facts_view.syntax_text())
+                    finish::FileVersion::new(&tree, &bytes, id.0, frame_words.take())
                 });
                 let make_frame = || finish::session::frame(
                     version,
@@ -1575,12 +1577,12 @@ pub(crate) fn visit<L: FileSource>(
                     answers.set(slot, answer);
             }
             drop(frame);
-            drop(version);
             if keep {
                 held.recovery = Some(recovery);
                 held.lent = native;
                 held.native = L::File::default();
-                held.text = provider.text;
+                held.text = version.into_inner().map(finish::FileVersion::into_text)
+                    .or(frame_words).unwrap_or_default();
                 packet.rows.partials = partials;
                 packet.rows.partials_at = partials_at;
                 std::mem::swap(&mut held.facts, &mut packet.rows);

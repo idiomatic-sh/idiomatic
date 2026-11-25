@@ -25,9 +25,9 @@ pub(crate) struct FileVersion<'a> {
 }
 
 impl<'a> FileVersion<'a> {
-    pub(crate) fn new(table: &'a NodeTable, src: &'a [u8], file: u32, text: Option<&[u32]>) -> Self {
+    pub(crate) fn new(table: &'a NodeTable, src: &'a [u8], file: u32, text: Option<Vec<u32>>) -> Self {
         let kind = node_table::kind_codes(table);
-        if let Some(symbols) = text {
+        if let Some(symbols) = &text {
             assert_eq!(symbols.len(), kind.len());
         }
         Self {
@@ -36,12 +36,16 @@ impl<'a> FileVersion<'a> {
             end: node_table::ends(table),
             parent: node_table::parent_ids(table),
             field: node_table::field_codes(table),
-            text_memo: RefCell::new(text.unwrap_or_default().to_vec()),
+            text_memo: RefCell::new(text.unwrap_or_default()),
             present_fields: Default::default(),
             by_start: Default::default(), by_end: Default::default(), by_line: Default::default(),
             tokens: Default::default(), roots: Default::default(), lines: Default::default(),
             kinds: Default::default(),
         }
+    }
+
+    pub(crate) fn into_text(self) -> Vec<u32> {
+        self.text_memo.into_inner()
     }
 
     pub(super) fn extra_roots(&self) -> &Vec<(u16, u32)> {

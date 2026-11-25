@@ -393,9 +393,6 @@ pub(crate) struct View<'a, 'words> {
     materialized: FxHashMap<l::Relation, Rc<finish::Table>>,
 }
 impl finish::Provider for View<'_, '_> {
-    fn syntax_text(&self) -> Option<&[u32]> {
-        self.parsed.projects_words.then_some(self.parsed.text.as_slice())
-    }
     fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
         let role = match context {
             "assignment-target" => l::RenderContext::AssignmentTarget,

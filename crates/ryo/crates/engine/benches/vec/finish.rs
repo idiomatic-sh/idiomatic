@@ -832,9 +832,6 @@ pub(super) enum Scope<'s> {
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
 pub(super) trait Provider {
-    /// Parser-supplied text symbols in node-position order, when the parse carries them directly.
-    fn syntax_text(&self) -> Option<&[u32]> { None }
-
     /// Every row of `rel` in `scope`, each cell as the run names it (a file cell is the run's number of the file it names).
     fn fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Table, String>;
     fn shared_fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Rc<Table>, String> {
