@@ -9,6 +9,11 @@ pub(super) enum Column<'a> {
     Numbers(&'a [CellWord]),
     Nodes(&'a [CellWord]),
     Words(&'a [CellWord], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>, u32),
+    /// A column of the provider's row-major packet: its words, the offset of each row and the column's place in a row.
+    Row(&'a [u64], &'a [usize], usize),
+    RowNodes(&'a [u64], &'a [usize], usize),
+    /// Symbols of the packet by the run's word: by provider symbol, else by the map of the symbols beyond the table.
+    RowWords(&'a [u64], &'a [usize], usize, &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>),
 }
 
 impl Column<'_> {
@@ -20,6 +25,15 @@ impl Column<'_> {
             Self::Nodes(c) => {
                 let value = c[row].0;
                 if value == NULL { NULL } else { u64::from(value as u32) }
+            }
+            Self::Row(words, offsets, col) => words[offsets[row] + col],
+            Self::RowNodes(words, offsets, col) => {
+                let value = words[offsets[row] + col];
+                if value == NULL { NULL } else { u64::from(value as u32) }
+            }
+            Self::RowWords(words, offsets, col, table, beyond) => {
+                let raw = words[offsets[row] + col] as u32;
+                u64::from(table.get(raw as usize).copied().filter(|&id| id != u32::MAX).unwrap_or_else(|| beyond[&raw]))
             }
             Self::Words(c, words, public, absent) => {
                 let value = c[row].0;
@@ -38,6 +52,7 @@ impl Column<'_> {
                 let value = cell.0;
                 u64::from(words.get(value as usize).copied().or_else(|| u32::try_from(value).ok().and_then(|v| public.get(&v).copied())).unwrap_or(absent))
             })),
+            Self::Row(..) | Self::RowNodes(..) | Self::RowWords(..) => out.extend((0..n).map(|row| self.at(row))),
         }
     }
 
@@ -45,6 +60,7 @@ impl Column<'_> {
         match self {
             Self::Owned(c) => c.len(),
             Self::Numbers(c) | Self::Nodes(c) | Self::Words(c, _, _, _) => c.len(),
+            Self::Row(_, offsets, _) | Self::RowNodes(_, offsets, _) | Self::RowWords(_, offsets, _, _, _) => offsets.len(),
         }
     }
 }
@@ -53,6 +69,8 @@ impl Column<'_> {
 pub(crate) enum Columns<'a> {
     Owned(&'a [Vec<u64>]),
     Lent(&'a [FilledColumn], &'a [CellKind], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>, u32),
+    /// The provider's row-major packet read in place: words, row offsets, kinds, the symbol table and the symbols beyond it.
+    Rows(&'a [u64], &'a [usize], &'a [CellKind], &'a [u32], &'a rustc_hash::FxHashMap<u32,u32>),
 }
 
 impl<'a> Columns<'a> {
@@ -60,6 +78,11 @@ impl<'a> Columns<'a> {
     pub(super) fn get(self, column: usize) -> Column<'a> {
         match self {
             Self::Owned(c) => Column::Owned(&c[column]),
+            Self::Rows(words, offsets, kinds, table, beyond) => match kinds[column] {
+                CellKind::Node => Column::RowNodes(words, offsets, column),
+                CellKind::Symbol => Column::RowWords(words, offsets, column, table, beyond),
+                _ => Column::Row(words, offsets, column),
+            },
             Self::Lent(cols, kinds, words, public, absent) => {
                 let cells = cols.get(column).map_or(&[][..], |c| c.0.as_slice());
                 match kinds[column] {

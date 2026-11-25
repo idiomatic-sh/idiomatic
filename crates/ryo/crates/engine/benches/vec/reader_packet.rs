@@ -70,10 +70,25 @@ fn local_word_text(words: &FileWords, word: CellWord, end: CellWord) -> Option<l
     }).or_else(|| (word < end).then(|| l::facts::text(words, word)))
 }
 
+/// What the provider's rows need to be read in place: its symbols and the run's reader words.
+pub(crate) struct RowsContext<'file> {
+    pub(crate) symbols: &'file l::Symbols,
+    pub(crate) bytes: &'file [u8],
+    pub(crate) unknown: &'file std::collections::HashMap<u32, u32>,
+}
+
+/// The run's word for each provider symbol of one relation's rows.
+struct RowsTable {
+    ids: Vec<u32>,
+    beyond: FxHashMap<u32, u32>,
+}
+
 pub(crate) struct OperatorColumns<'file, 'd> {
     file: FileColumns<'file>,
     lazy: Option<&'file Lazy<'file, 'd>>,
-    dictionary: &'file Dictionary<'d>,
+    dictionary: Option<&'file Dictionary<'d>>,
+    rows: Option<RowsContext<'file>>,
+    row_tables: Vec<OnceCell<RowsTable>>,
     /// The run's word for each own word of the dictionary seen so far, in order.
     own: RefCell<Vec<u32>>,
     /// One snapshot of the dictionary's words as run words for each relation bound.
@@ -85,8 +100,12 @@ pub(crate) struct OperatorColumns<'file, 'd> {
 impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
     fn bind(&self, relation: l::Relation, run: &mut finish::Run) -> Result<Option<finish::fact_view::Fact<'_>>, String> {
         let slot = catalog::number_of(relation).0;
-        let Some(table) = self.file.packet.table(relation, &mut self.dictionary.borrow_mut(), self.lazy) else {
-            return Ok(None);
+        let table = match self.dictionary {
+            Some(dictionary) => self.file.packet.table(relation, &mut dictionary.borrow_mut(), self.lazy),
+            None => self.file.packet.local(slot),
+        };
+        let Some(table) = table else {
+            return self.rows_arm(relation, slot, run);
         };
         if !matches!(table.answer, l::FactAnswer::Answered(_)) || table.wanted != l::Wanted::Whole {
             return Ok(None);
@@ -94,7 +113,7 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
         for (column, kind) in catalog::kinds(relation).iter().enumerate() {
             if *kind == CellKind::Symbol && table.rows != 0 {
                 self.symbols[slot].get_or_init(|| {
-                    let dictionary = self.dictionary.borrow();
+                    let dictionary = self.dictionary.expect("a numbered table has its dictionary").borrow();
                     let words: &FileWords = &dictionary;
                     let base = l::facts::base_count(words).0;
                     if l::facts::base_changed(words, &mut run.fact_word_base) {
@@ -120,6 +139,69 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
         Ok(Some(finish::fact_view::Fact::Lent {
             rows: table.rows, kinds,
             columns: finish::fact_view::Columns::Lent(&table.columns.0, kinds, self.symbols[slot].get().map_or(&[], Vec::as_slice), &self.public, self.absent),
+        }))
+    }
+}
+
+impl OperatorColumns<'_, '_> {
+    /// A relation the provider wrote as rows is read in place: nothing is copied into a table of the executor.
+    fn rows_arm(&self, relation: l::Relation, slot: usize, run: &mut finish::Run) -> Result<Option<finish::fact_view::Fact<'_>>, String> {
+        let Some(context) = &self.rows else { return Ok(None) };
+        let packet = self.file.packet;
+        if !packet.ready || !packet.requested[slot] || packet.partial(relation).is_some() || packet.local(slot).is_some() {
+            return Ok(None);
+        }
+        let offsets = &packet.offsets[slot];
+        let words = &packet.rows.words;
+        let kinds = catalog::kinds(relation);
+        let home = self.file.home.0;
+        let mut symbols = false;
+        for (column, kind) in kinds.iter().enumerate() {
+            match kind {
+                CellKind::Node => {
+                    if offsets.iter().any(|&at| file_node(home, words[at + column]).is_err()) {
+                        return Err(format!("foreign node in file-scoped {}", catalog::name(relation).0));
+                    }
+                }
+                CellKind::Symbol => symbols = true,
+                _ => {}
+            }
+        }
+        let table = self.row_tables[slot].get_or_init(|| {
+            let mut table = RowsTable { ids: Vec::new(), beyond: FxHashMap::default() };
+            if !symbols {
+                return table;
+            }
+            let count = l::contract::name_count(context.symbols).0;
+            table.ids.resize(count, u32::MAX);
+            for (column, kind) in kinds.iter().enumerate() {
+                if *kind != CellKind::Symbol {
+                    continue;
+                }
+                for &at in offsets {
+                    let raw = words[at + column] as u32;
+                    let word = l::Symbol(raw);
+                    let known = table.ids.get(raw as usize).copied().filter(|&id| id != u32::MAX)
+                        .or_else(|| table.beyond.get(&raw).copied());
+                    if known.is_some() {
+                        continue;
+                    }
+                    let id = if word == l::NO_SYMBOL {
+                        run.absent_word.expect("reader word table")
+                    } else {
+                        reader::symbol(run, context.unknown, context.symbols, context.bytes, word)
+                    };
+                    match table.ids.get_mut(raw as usize) {
+                        Some(slot) => *slot = id,
+                        None => { table.beyond.insert(raw, id); }
+                    }
+                }
+            }
+            table
+        });
+        Ok(Some(finish::fact_view::Fact::Lent {
+            rows: offsets.len(), kinds,
+            columns: finish::fact_view::Columns::Rows(words, offsets, kinds, &table.ids, &table.beyond),
         }))
     }
 }
@@ -257,11 +339,13 @@ impl Packet {
         self.local[slot].get()
     }
     pub(crate) fn operator_columns<'a, 'd>(
-        &'a self, file: l::FileId, dictionary: &'a Dictionary<'d>, lazy: Option<&'a Lazy<'a, 'd>>, run: &mut finish::Run,
+        &'a self, file: l::FileId, dictionary: Option<&'a Dictionary<'d>>, lazy: Option<&'a Lazy<'a, 'd>>,
+        rows: Option<RowsContext<'a>>, run: &mut finish::Run,
     ) -> OperatorColumns<'a, 'd> {
         let file = FileColumns { home: file, packet: self };
         OperatorColumns {
-            file, lazy, dictionary, own: RefCell::new(Vec::new()),
+            file, lazy, dictionary, rows, row_tables: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
+            own: RefCell::new(Vec::new()),
             symbols: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
             public: run.public_word_ids.clone(), absent: run.absent_word.expect("reader dictionary"),
         }
