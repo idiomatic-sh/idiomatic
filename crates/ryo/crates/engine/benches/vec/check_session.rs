@@ -159,7 +159,6 @@ pub(crate) struct Clock {
     pub files: usize,
     pub reads: usize,
     pub unique_pairs: usize,
-    pending_programs: Option<(Arc<SelectedFiles>, Vec<(usize, usize)>)>,
     pub pairs: usize,
     pub skipped: usize,
     pub evaluated: usize,
@@ -227,6 +226,7 @@ pub(crate) struct Schedule {
     pub(crate) prepared: HashMap<(Query, Parameters), usize>,
     shared_plan_data: lower::SharedPlanData,
     module_catalogs: HashMap<query::Modules, Result<ryo_values::domain::program::types::ParsedModules>>,
+    pending_programs: Option<(Arc<SelectedFiles>, Vec<(usize, usize)>)>,
     pub pairs: usize,
 }
 

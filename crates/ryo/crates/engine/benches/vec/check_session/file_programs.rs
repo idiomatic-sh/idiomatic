@@ -13,18 +13,18 @@ struct Selection {
 /// Most inventories admit one program set. Only scopes with irregular overlap
 /// or store hits need individually addressed jobs.
 #[derive(Clone, Default)]
-pub(super) struct FilePrograms {
+pub(crate) struct FilePrograms {
     common: Option<Selection>,
     individual: Vec<Job>,
 }
 
 impl FilePrograms {
-    pub(super) fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.common.as_ref().map_or(0, |s| s.bases.len()) + self.individual.len()
     }
-    pub(super) fn is_empty(&self) -> bool { self.len() == 0 }
+    pub(crate) fn is_empty(&self) -> bool { self.len() == 0 }
 
-    pub(super) fn iter(&self) -> impl Iterator<Item = Job> + Clone + '_ {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = Job> + Clone + '_ {
         self.common.iter().flat_map(|s|
             s.bases.iter().map(|&(binding, base)| (binding, base + s.ordinal))
         ).chain(self.individual.iter().copied())
@@ -68,7 +68,7 @@ impl FilePrograms {
         self.individual.clear();
     }
 
-    pub(super) fn keep(&mut self, mut f: impl FnMut(Job) -> bool) {
+    pub(crate) fn keep(&mut self, mut f: impl FnMut(Job) -> bool) {
         self.materialize().retain(|job| f(*job));
     }
 
