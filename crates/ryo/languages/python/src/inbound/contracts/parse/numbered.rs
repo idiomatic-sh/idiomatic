@@ -169,6 +169,10 @@ impl l::NumberedFacts for Facts<'_, '_, '_> {
             .named_in(self.file, relations, self.request, symbols, self.project)
     }
 
+    fn fills_are_complete(&mut self) -> bool {
+        self.file.fills_are_complete()
+    }
+
     fn render(&mut self, request: l::RenderRequest) -> Result<l::RenderOutcome, l::ParseError> {
         Ok(self.file.render(request))
     }

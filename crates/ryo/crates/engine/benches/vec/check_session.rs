@@ -1162,7 +1162,16 @@ pub(crate) fn visit<L: FileSource>(
             // Syntax acceptance selects the remaining dependency set for this admission.
             requested_facts(if rejected { demand.rejected_facts } else { demand.facts }, &mut facts);
             packet.clear();
-            let missing = &facts;
+            // A file whose every relation is a complete answer fills a relation the first time a step loads it,
+            // except the node-table relations and the ones the screen asks about before it loads a column.
+            let lazy_fills = scoped_facts.as_deref_mut().is_some_and(|supplier| supplier.fills_are_complete());
+            let missing: Vec<_> = if lazy_fills {
+                let asked = screen.asked_first();
+                facts.iter().copied().filter(|&rel| asked.contains(&rel)
+                    || ryo_relations::domain::catalog::service::fact_form(rel) == ryo_relations::domain::relations::types::FactForm::NodeTable).collect()
+            } else {
+                facts.clone()
+            };
             if let Some(parser) = &parser
                 && !missing.is_empty()
             {
@@ -1205,6 +1214,8 @@ pub(crate) fn visit<L: FileSource>(
                     at: PartialScope::OneFile(PartialAt(file.0)),
                 }))
                 .collect();
+            let supplier_cell = scoped_facts.take().map(std::cell::RefCell::new);
+            let lazy = supplier_cell.as_ref().filter(|_| lazy_fills).map(reader_run::packet::Lazy::new);
             if unknown_permission {
                 said.push(ReadInPart {
                     relation: l::Relation::FilesystemExecutable,
@@ -1225,7 +1236,7 @@ pub(crate) fn visit<L: FileSource>(
                 let scanned = held.literals.get_mut().scanned();
                 let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                 screen.exclude(&positions, &mut active, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
-                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref_mut(), &mut witness_tables, &facts, &packet, unknown, cut_of, &said, &mut clocks.witnesses);
+                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref_mut(), lazy.as_ref(), &mut witness_tables, &facts, &packet, unknown, cut_of, &said, &mut clocks.witnesses);
                 for &(binding, slot, excluded) in active.iter() {
                         if excluded { continue; }
                         let (any, all) = screen.exact_roots[positions[binding]];
@@ -1269,8 +1280,8 @@ pub(crate) fn visit<L: FileSource>(
                 if !schemas.is_empty() {
                     let named_start = thread_cpu();
                     clocks.named_counts[0] += 1;
-                    let answers = if let Some(supplier) = scoped_facts.as_deref_mut() {
-                        supplier.named(schemas, scoped_symbols.as_deref_mut().expect("scoped dictionary"))
+                    let answers = if let Some(supplier) = &supplier_cell {
+                        supplier.borrow_mut().named(schemas, scoped_symbols.as_deref_mut().expect("scoped dictionary"))
                             .into_iter().map(|result| result.map_err(|e| e.to_string())).collect()
                     } else {
                         parser.named_rows(schemas, request, elements, tree, symbols, source.environment.as_deref().map(|e| e as &dyn l::FileProject))
@@ -1303,9 +1314,10 @@ pub(crate) fn visit<L: FileSource>(
                     clocks.read_parse += elapsed;
                 }
             }
+            let dictionary = fact_words.map(std::cell::RefCell::new);
             let mut semantics = None;
             let mut render = |request: l::RenderRequest| {
-                if let Some(supplier) = scoped_facts.as_deref_mut() { return supplier.render(request).map_err(|e| e.to_string()); }
+                if let Some(supplier) = &supplier_cell { return supplier.borrow_mut().render(request).map_err(|e| e.to_string()); }
                 let slot = semantics.get_or_insert_with(|| parser.map_or(l::SemanticSlot::Empty, |reader| reader.begin_render(
                     l::ParseRequest { file: id, path: SourcePath(&source.path), bytes: ByteSlice(&bytes), notes: l::NoteRequest::Unwanted, fields: l::FieldRequest::Unwanted },
                     elements,
@@ -1315,10 +1327,10 @@ pub(crate) fn visit<L: FileSource>(
                 let [answer]: [l::RenderOutcome; 1] = answers.try_into().map_err(|_| "renderer returned the wrong number of answers")?;
                 Ok(answer)
             };
-            let loan = fact_words.as_deref().map(|words| packet.operator_columns(id, words, &mut run));
+            let loan = dictionary.as_ref().map(|dictionary| packet.operator_columns(id, dictionary, lazy.as_ref(), &mut run));
             // The frame owns the reader's projected word buffer for this visit.
             let mut frame_words = provider.projects_words.then(|| std::mem::take(&mut provider.text));
-            let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, fact_words.as_deref());
+            let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, dictionary.as_ref(), lazy.as_ref());
             facts_view.resolved = resolved_words;
             facts_view.renderer = Some(&mut render);
             let t = thread_cpu();
@@ -1520,6 +1532,11 @@ pub(crate) fn visit<L: FileSource>(
                     answers.set(slot, answer);
             }
             drop(frame);
+            if lazy.as_ref().is_some_and(|lazy| lazy.failed.get()) {
+                for (_, slot) in jobs.iter() {
+                    answers.set(slot, Err("a relation filled on first use was not a complete answer".to_owned()));
+                }
+            }
             active_buffer = active;
             clocks.evaluate += thread_cpu() - t;
             };

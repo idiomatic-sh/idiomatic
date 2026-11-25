@@ -183,6 +183,7 @@ impl Checks {
         id: FileId,
         symbols: &l::Symbols,
         local_words: Option<&mut l::FileWords>,
+        lazy: Option<&reader_run::packet::Lazy<'_, '_>>,
         tables: &mut crate::pair_checks::WitnessTables,
         requested: &[l::Relation],
         packet: &reader_run::packet::Packet,
@@ -290,7 +291,7 @@ impl Checks {
                     };
                     requested.contains(&rel)
                         && !partials.iter().any(|p| p.relation == rel)
-                        && packet.columns(rel, symbols, bytes, id, numbered_end, unknown, words, out)
+                        && packet.columns(rel, symbols, bytes, id, numbered_end, unknown, words, lazy, out)
                 },
                 &mut self.live,
                 &self.known,
@@ -350,6 +351,25 @@ impl Checks {
                 *excluded = absent.iter().all(|&v| v);
             }
         }
+    }
+
+    /// The catalog relations this screen asks about before it loads any column: the row guards and the symbol
+    /// predicates. Every other relation it reads is loaded, and so filled, only when a witness needs it.
+    pub(super) fn asked_first(&self) -> Vec<l::Relation> {
+        let mut asked: Vec<_> = self.row_guards.iter().map(|&(_, relation)| relation).collect();
+        for domain in &self.program.domains {
+            if let pair_summary::Domain::Matching(slot, column, _) = domain {
+                let fact = &self.program.facts[*slot];
+                if let FactSource::Catalog(relation) = fact.source
+                    && fact.kinds[*column] == l::CellKind::Symbol
+                {
+                    asked.push(relation);
+                }
+            }
+        }
+        asked.sort_by_key(|relation| relations::service::number_of(*relation).0);
+        asked.dedup();
+        asked
     }
 
     /// Borrow the proof mask and the declared output shape for every emit.

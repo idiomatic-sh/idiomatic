@@ -291,6 +291,15 @@ impl ColumnFile<'_, '_> {
         source.fill(relation, wanted, words, out)
     }
 
+    /// Whether every relation of this file is a complete answer: the syntax was read whole, the flow of the model could be
+    /// interpreted and the standard library of the target release is known, the three causes of a partly read relation.
+    pub fn fills_are_complete(&mut self) -> bool {
+        use crate::domain::standard_library::{service::contains, types::{ModulePath, StandardLibraryMembership}};
+        self.file.syntax.completeness.syntax == languages::SyntaxCompleteness::Complete
+            && contains(self.file.target, ModulePath("os")) != StandardLibraryMembership::UnverifiedRelease
+            && self.file.semantics(ModelPart::Flow).model.flow.state != FlowState::Incomplete
+    }
+
     /// Spike (ryo-fmx3.1, 6f probe): the provider's render, as the reader's file source answers it.
     pub fn render(&mut self, request: languages::RenderRequest) -> languages::RenderOutcome {
         let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);

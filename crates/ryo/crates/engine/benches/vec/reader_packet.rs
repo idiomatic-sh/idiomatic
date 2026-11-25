@@ -4,6 +4,7 @@ use super::super::{finish, reader};
 use rustc_hash::FxHashMap;
 use ryo::languages::{self as l, ByteSlice, CellKind, CellWord, FileWords, FilledColumns};
 use ryo_relations::domain::relations::service as catalog;
+use std::cell::{Cell, OnceCell, RefCell};
 use std::rc::Rc;
 
 const RELATIONS: usize = catalog::ALL.len();
@@ -19,8 +20,25 @@ pub(crate) struct LocalTable {
 /// Borrow the file's own IDs and buffers until the consumer finishes its visit.
 pub(crate) struct FileColumns<'f> {
     pub(crate) home: l::FileId,
-    pub(crate) words: &'f FileWords,
-    pub(crate) tables: &'f [Option<LocalTable>],
+    pub(crate) packet: &'f Packet,
+}
+
+/// The file's word dictionary. A relation filled the first time a step reads it can grow it, so everything that
+/// reads it borrows it only for the moment it reads.
+pub(crate) type Dictionary<'d> = RefCell<&'d mut FileWords>;
+
+/// The provider that fills a relation of this file the first time a step loads it. Only a file whose every relation is a
+/// complete answer has one.
+pub(crate) struct Lazy<'a, 'd> {
+    supplier: &'a RefCell<&'d mut dyn l::NumberedFacts>,
+    /// A late fill that was not a complete answer: the provider said the file was complete and it was not.
+    pub(crate) failed: Cell<bool>,
+}
+
+impl<'a, 'd> Lazy<'a, 'd> {
+    pub(crate) fn new(supplier: &'a RefCell<&'d mut dyn l::NumberedFacts>) -> Self {
+        Self { supplier, failed: Cell::new(false) }
+    }
 }
 
 #[derive(Debug)]
@@ -39,7 +57,7 @@ fn file_node(home: u32, raw: u64) -> Result<u64, BadNode> {
 
 impl FileColumns<'_> {
     pub(crate) fn column(&self, relation: usize, column: usize) -> Option<&[CellWord]> {
-        let table = self.tables.get(relation)?.as_ref()?;
+        let table = self.packet.local(relation)?;
         table.columns.0.get(column)?.0.get(..table.rows)
     }
 
@@ -52,17 +70,22 @@ fn local_word_text(words: &FileWords, word: CellWord, end: CellWord) -> Option<l
     }).or_else(|| (word < end).then(|| l::facts::text(words, word)))
 }
 
-pub(crate) struct OperatorColumns<'file> {
+pub(crate) struct OperatorColumns<'file, 'd> {
     file: FileColumns<'file>,
-    symbols: std::cell::OnceCell<Vec<u32>>,
+    lazy: Option<&'file Lazy<'file, 'd>>,
+    dictionary: &'file Dictionary<'d>,
+    /// The run's word for each own word of the dictionary seen so far, in order.
+    own: RefCell<Vec<u32>>,
+    /// One snapshot of the dictionary's words as run words for each relation bound.
+    symbols: Vec<OnceCell<Vec<u32>>>,
     public: Rc<FxHashMap<u32,u32>>,
     absent: u32,
 }
 
-impl finish::fact_view::FileFacts for OperatorColumns<'_> {
+impl finish::fact_view::FileFacts for OperatorColumns<'_, '_> {
     fn bind(&self, relation: l::Relation, run: &mut finish::Run) -> Result<Option<finish::fact_view::Fact<'_>>, String> {
         let slot = catalog::number_of(relation).0;
-        let Some(table) = self.file.tables.get(slot).and_then(Option::as_ref) else {
+        let Some(table) = self.file.packet.table(relation, &mut self.dictionary.borrow_mut(), self.lazy) else {
             return Ok(None);
         };
         if !matches!(table.answer, l::FactAnswer::Answered(_)) || table.wanted != l::Wanted::Whole {
@@ -70,17 +93,21 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_> {
         }
         for (column, kind) in catalog::kinds(relation).iter().enumerate() {
             if *kind == CellKind::Symbol && table.rows != 0 {
-                self.symbols.get_or_init(|| {
-                    let words = self.file.words;
+                self.symbols[slot].get_or_init(|| {
+                    let dictionary = self.dictionary.borrow();
+                    let words: &FileWords = &dictionary;
                     let base = l::facts::base_count(words).0;
                     if l::facts::base_changed(words, &mut run.fact_word_base) {
                         run.base_word_sym = (0..base)
                             .map(|id| run.sym(l::facts::text(words, CellWord(id)).0.as_bytes()))
                             .collect();
                     }
+                    let mut own = self.own.borrow_mut();
+                    let end = l::facts::words_end(words).0;
+                    let next = base + own.len() as u64;
+                    own.extend((next..end).map(|id| run.sym(l::facts::text(words, CellWord(id)).0.as_bytes())));
                     let mut ids = run.base_word_sym.clone();
-                    ids.extend((base..l::facts::words_end(words).0)
-                        .map(|id| run.sym(l::facts::text(words, CellWord(id)).0.as_bytes())));
+                    ids.extend_from_slice(&own);
                     ids
                 });
             }
@@ -92,7 +119,7 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_> {
         let kinds = catalog::kinds(relation);
         Ok(Some(finish::fact_view::Fact::Lent {
             rows: table.rows, kinds,
-            columns: finish::fact_view::Columns::Lent(&table.columns.0, kinds, self.symbols.get().map_or(&[], Vec::as_slice), &self.public, self.absent),
+            columns: finish::fact_view::Columns::Lent(&table.columns.0, kinds, self.symbols[slot].get().map_or(&[], Vec::as_slice), &self.public, self.absent),
         }))
     }
 }
@@ -111,8 +138,8 @@ fn widths() -> &'static [usize; RELATIONS] {
 pub(crate) struct Packet {
     pub(crate) rows: l::contract::Collect,
     offsets: Vec<Vec<usize>>,
-    local: Vec<Option<LocalTable>>,
-    spare: FxHashMap<usize, FilledColumns>,
+    local: Vec<OnceCell<LocalTable>>,
+    spare: RefCell<FxHashMap<usize, FilledColumns>>,
     requested: Vec<bool>,
     indexed: Vec<usize>,
     pub(crate) ready: bool,
@@ -122,7 +149,7 @@ impl Packet {
         Self {
             rows: Default::default(),
             offsets: vec![Vec::new(); RELATIONS],
-            local: Vec::new(),
+            local: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
             spare: Default::default(),
             requested: vec![false; RELATIONS],
             indexed: Vec::new(),
@@ -140,10 +167,12 @@ impl Packet {
         self.rows.clear();
         for slot in self.indexed.drain(..) {
             self.offsets[slot].clear();
-            if let Some(table) = self.local.get_mut(slot).and_then(Option::take) {
-                self.spare.insert(slot, table.columns);
-            }
             self.requested[slot] = false;
+        }
+        for (slot, cell) in self.local.iter_mut().enumerate() {
+            if let Some(table) = cell.take() {
+                self.spare.get_mut().insert(slot, table.columns);
+            }
         }
         self.ready = false;
     }
@@ -155,49 +184,81 @@ impl Packet {
     ) -> Result<(), String> {
         use ryo_relations::domain::{catalog::service::fact_form, relations::types::FactForm};
         let mut structural = Vec::new();
-        self.local.resize_with(RELATIONS, || None);
         for &relation in relations {
             if fact_form(relation) == FactForm::NodeTable {
                 structural.push(relation);
                 continue;
             }
             let slot = catalog::number_of(relation).0;
-            let mut columns = self.spare.remove(&slot).unwrap_or_default();
-            for column in &mut columns.0 { column.0.clear(); }
-            let wanted = l::Wanted::Whole;
-            let answer = supplier.fill_columns(relation, wanted, words, &mut columns);
-            match &answer {
+            let table = self.fill_into(relation, slot, words, |relation, words, columns| {
+                supplier.fill_columns(relation, l::Wanted::Whole, words, columns)
+            })?;
+            match &table.answer {
                 l::FactAnswer::Partial(part) => self.rows.partials.push((relation, part.cause.0.to_string(), part.missing)),
                 l::FactAnswer::Refused(l::AbsenceCause::NotYetRead) => {
                     self.rows.partials.push((relation, "catalog relation has no numbered filler".into(), l::Missing::Any));
                 }
                 _ => {}
             }
-            let rows = columns.0.first().map_or(0, |column| column.0.len());
-            if rows > 0 && columns.0.len() != widths()[slot] {
-                return Err(format!("invalid column count in {}", catalog::name(relation).0));
-            }
-            if columns.0.iter().any(|column| column.0.len() != rows) {
-                return Err(format!("unequal column lengths in {}", catalog::name(relation).0));
-            }
             // A later fill may refuse before index(). The next visit must still
             // reclaim every population already written for this one.
             self.touch(slot);
-            self.local[slot] = Some(LocalTable { rows, columns, answer, wanted });
+            assert!(self.local[slot].set(table).is_ok(), "a relation is filled once for a file");
         }
         if !structural.is_empty() {
             supplier.project_structure(&structural, symbols, &mut self.rows).map_err(|e| e.to_string())?;
         }
         Ok(())
     }
-    pub(crate) fn operator_columns<'a>(
-        &'a self, file: l::FileId, words: &'a FileWords, run: &mut finish::Run,
-    ) -> OperatorColumns<'a> {
-        let file = FileColumns { home: file, words, tables: &self.local };
-        OperatorColumns { file, symbols: Default::default(), public: run.public_word_ids.clone(), absent: run.absent_word.expect("reader dictionary") }
+    /// Fill one relation into reusable columns and check their shape.
+    fn fill_into(
+        &self, relation: l::Relation, slot: usize, words: &mut FileWords,
+        fill: impl FnOnce(l::Relation, &mut FileWords, &mut FilledColumns) -> l::FactAnswer,
+    ) -> Result<LocalTable, String> {
+        let mut columns = self.spare.borrow_mut().remove(&slot).unwrap_or_default();
+        for column in &mut columns.0 { column.0.clear(); }
+        let answer = fill(relation, words, &mut columns);
+        let rows = columns.0.first().map_or(0, |column| column.0.len());
+        if rows > 0 && columns.0.len() != widths()[slot] {
+            return Err(format!("invalid column count in {}", catalog::name(relation).0));
+        }
+        if columns.0.iter().any(|column| column.0.len() != rows) {
+            return Err(format!("unequal column lengths in {}", catalog::name(relation).0));
+        }
+        Ok(LocalTable { rows, columns, answer, wanted: l::Wanted::Whole })
+    }
+    /// The relation's numbered table: the one filled up front, or the one filled now because a step loads it first.
+    pub(crate) fn table(&self, relation: l::Relation, words: &mut FileWords, lazy: Option<&Lazy<'_, '_>>) -> Option<&LocalTable> {
+        let slot = catalog::number_of(relation).0;
+        if let Some(table) = self.local[slot].get() {
+            return Some(table);
+        }
+        let lazy = lazy?;
+        let table = self.fill_into(relation, slot, words, |relation, words, columns| {
+            lazy.supplier.borrow_mut().fill_columns(relation, l::Wanted::Whole, words, columns)
+        });
+        let Ok(table) = table else {
+            lazy.failed.set(true);
+            return None;
+        };
+        if !matches!(table.answer, l::FactAnswer::Answered(_)) {
+            lazy.failed.set(true);
+        }
+        let _ = self.local[slot].set(table);
+        self.local[slot].get()
+    }
+    pub(crate) fn operator_columns<'a, 'd>(
+        &'a self, file: l::FileId, dictionary: &'a Dictionary<'d>, lazy: Option<&'a Lazy<'a, 'd>>, run: &mut finish::Run,
+    ) -> OperatorColumns<'a, 'd> {
+        let file = FileColumns { home: file, packet: self };
+        OperatorColumns {
+            file, lazy, dictionary, own: RefCell::new(Vec::new()),
+            symbols: (0..RELATIONS).map(|_| OnceCell::new()).collect(),
+            public: run.public_word_ids.clone(), absent: run.absent_word.expect("reader dictionary"),
+        }
     }
     fn local(&self, slot: usize) -> Option<&LocalTable> {
-        self.local.get(slot)?.as_ref()
+        self.local[slot].get()
     }
     fn count(&self, slot: usize) -> usize {
         self.local(slot).map_or_else(|| self.offsets[slot].len(), |t| t.rows)
@@ -253,8 +314,13 @@ impl Packet {
         numbered_end: Option<CellWord>,
         unknown: &std::collections::HashMap<u32, u32>,
         words: &mut FileWords,
+        lazy: Option<&Lazy<'_, '_>>,
         out: &mut FilledColumns,
     ) -> bool {
+        if numbered_end.is_some() {
+            let _ = self.table(relation, words, lazy);
+        }
+        let numbered_end = numbered_end.map(|_| l::facts::words_end(words));
         if self.has_rows(relation).is_none()
             || self.rows.partials.iter().any(|(r, _, _)| *r == relation)
             || self.rows.partials_at.iter().any(|(r, _, _)| *r == relation)
@@ -347,13 +413,14 @@ impl Packet {
         }
         true
     }
-    pub(crate) fn view<'a, 'words>(
+    pub(crate) fn view<'a, 'words, 'd>(
         &'a self,
         parsed: &'a mut reader::ReaderFacts<'words>,
         symbols: &'a l::Symbols,
         bytes: &'a [u8],
-        local_words: Option<&'a FileWords>,
-    ) -> View<'a, 'words> {
+        local_words: Option<&'a Dictionary<'d>>,
+        lazy: Option<&'a Lazy<'a, 'd>>,
+    ) -> View<'a, 'words, 'd> {
         View {
             packet: self,
             parsed,
@@ -362,6 +429,7 @@ impl Packet {
             resolved: FileSymbols::default(),
             materialized: FxHashMap::default(),
             local_words,
+            lazy,
             local_symbols: FxHashMap::default(),
             renderer: None,
         }
@@ -417,10 +485,11 @@ impl FileSymbols {
     }
 }
 
-pub(crate) struct View<'a, 'words> {
+pub(crate) struct View<'a, 'words, 'd> {
     pub(crate) renderer: Option<&'a mut dyn FnMut(l::RenderRequest) -> Result<l::RenderOutcome, String>>,
     packet: &'a Packet,
-    local_words: Option<&'a FileWords>,
+    local_words: Option<&'a Dictionary<'d>>,
+    lazy: Option<&'a Lazy<'a, 'd>>,
     local_symbols: FxHashMap<u64, u32>,
     parsed: &'a mut reader::ReaderFacts<'words>,
     symbols: &'a l::Symbols,
@@ -428,7 +497,7 @@ pub(crate) struct View<'a, 'words> {
     pub(crate) resolved: FileSymbols,
     materialized: FxHashMap<l::Relation, Rc<finish::Table>>,
 }
-impl finish::Provider for View<'_, '_> {
+impl finish::Provider for View<'_, '_, '_> {
     fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
         let role = match context {
             "assignment-target" => l::RenderContext::AssignmentTarget,
@@ -455,6 +524,9 @@ impl finish::Provider for View<'_, '_> {
         }
         let rel = run.catalog(name)?.0?;
         let i = catalog::number_of(rel).0;
+        if let Some(words) = self.local_words {
+            let _ = self.packet.table(rel, &mut words.borrow_mut(), self.lazy);
+        }
         (self.packet.requested[i] && self.packet.partial(rel).is_none())
             .then(|| self.packet.count(i))
     }
@@ -483,7 +555,7 @@ impl finish::Provider for View<'_, '_> {
     }
 }
 
-impl View<'_, '_> {
+impl View<'_, '_, '_> {
     fn layout(
         &self,
         run: &mut finish::Run,
@@ -522,9 +594,13 @@ impl View<'_, '_> {
             file_node(home, raw).map_err(|_| format!("foreign node in file-scoped {}", catalog::name(rel).0))
         };
         let slot = catalog::number_of(rel).0;
+        if let Some(words) = self.local_words {
+            let _ = self.packet.table(rel, &mut words.borrow_mut(), self.lazy);
+        }
         if let Some(t) = self.packet.local(slot) {
             let mut table = finish::Table::retained(names, tys, 0);
-            let words = self.local_words.expect("scoped file dictionary");
+            let dictionary = self.local_words.expect("scoped file dictionary").borrow();
+            let words: &FileWords = &dictionary;
             for ((dst, src), ty) in table.cols.iter_mut().zip(&t.columns.0).zip(table.tys.iter()) {
                 *dst = src.0.iter().map(|raw| Ok(match ty {
                     finish::Ty::Sym if raw.0 == u64::from(l::NO_SYMBOL.0) =>
@@ -615,7 +691,7 @@ mod file_node_tests {
         packet.clear();
         assert!(packet.local(id).is_none());
         assert!(!packet.requested[id]);
-        assert!(packet.spare.contains_key(&id));
+        assert!(packet.spare.borrow().contains_key(&id));
     }
 
     #[test]
