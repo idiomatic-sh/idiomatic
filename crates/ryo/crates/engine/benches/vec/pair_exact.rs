@@ -714,7 +714,7 @@ pub(super) fn prepare<'a>(
     b: &mut Builder<'_>,
     plan: &'a FinishPlan,
     live: &[bool],
-    targets: Option<&[usize]>,
+    targets: &[usize],
 ) -> Vec<(usize, Exclusion<'a>)> {
     // Only a retained proof needs its matcher validated. Carry this obligation
     // even when the row's node expression folds away the matching instruction.
@@ -728,7 +728,7 @@ pub(super) fn prepare<'a>(
     for rule in &plan.rules {
         if let RuleEmit::Written(e) = &rule.emit
             && &*e.subject.0 == "file"
-            && targets.is_none_or(|steps| steps.contains(&e.step.0))
+            && targets.contains(&e.step.0)
         {
             live[e.step.0] = true;
         }
@@ -923,15 +923,11 @@ pub(super) fn prepare<'a>(
     let mut certificates = plan
         .rules
         .iter()
-        .enumerate()
-        .filter_map(|(ri, r)| {
+        .filter_map(|r| {
             let RuleEmit::Written(e) = &r.emit else {
                 return None;
             };
-            let root = match targets {
-                Some(steps) => steps.iter().position(|&step| step == e.step.0)?,
-                None => ri,
-            };
+            let root = targets.iter().position(|&step| step == e.step.0)?;
             let row = rows[e.step.0].as_ref()?;
             if row.nodes == ANY
                 || &*e.subject.0 != "file"

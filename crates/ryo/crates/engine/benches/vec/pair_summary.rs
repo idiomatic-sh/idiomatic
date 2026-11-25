@@ -124,7 +124,6 @@ pub(super) struct Program {
     pub needs: Vec<Need>,
     pub exact: Vec<(usize, exact::Certificate)>,
     pub roots: Vec<(String, Id)>,
-    pub skips: Vec<(bool, Vec<Vec<String>>, Vec<Vec<String>>)>,
     pub regexes: Vec<regexes::Pattern>,
     pub path_globs: Vec<String>,
     pub text_kinds: Vec<u16>,
@@ -1710,7 +1709,7 @@ fn terms<'a>(e: &'a PlanExpression, out: &mut Conjuncts<'a>) {
 /// Prepared texts share one set of file and node tests without renumbering their executor steps.
 pub(super) fn prepare_plans(
     plans: &[&FinishPlan],
-    targets: Option<&[Vec<usize>]>,
+    targets: &[Vec<usize>],
     vocab: &Vocab,
     language: &Language,
     reader_rows: &[String],
@@ -1756,7 +1755,6 @@ pub(super) fn prepare_plans(
             facts: vec![],
             exact: vec![],
             roots: vec![],
-            skips: vec![],
             capped: 0,
         },
         ds: Map::with_capacity_and_hasher(steps / 2, Default::default()),
@@ -1773,13 +1771,9 @@ pub(super) fn prepare_plans(
     b.need(Need::Any);
     b.need(Need::Empty);
     let omit = cost::omitted();
-    for (i, plan) in plans.iter().enumerate() {
-        prepare_roots(&mut b, plan, targets.map(|ts| ts[i].as_slice()), omit, &mut phase);
+    for (plan, targets) in plans.iter().zip(targets) {
+        prepare_roots(&mut b, plan, targets, omit, &mut phase);
     }
-    // The separate raw-word index has no proof that every provider value has
-    // a raw spelling (for example, a normalized or resolved identifier).
-    // Certify the whole first half only when that independent skip is vacuous.
-    b.out.exact.retain(|(ri, _)| b.out.skips[*ri].2.is_empty());
     precheck::schedule(&mut b);
     phase("roots");
     cost::arrange(&mut b.out, omit);
@@ -1805,21 +1799,13 @@ pub(super) fn prepare_plans(
     b.out
 }
 
-fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: Option<&[usize]>, omit: u16, phase: &mut impl FnMut(&str)) {
+fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: &[usize], omit: u16, phase: &mut impl FnMut(&str)) {
     b.counts.clear();
     b.positive = false;
     b.early_omit = 0;
     let language = b.language;
     let mut live = vec![false; plan.steps.len()];
-    if let Some(steps) = targets {
-        for &step in steps { live[step] = true; }
-    } else {
-        for r in &plan.rules {
-            if let RuleEmit::Written(e) = &r.emit {
-                live[e.step.0] = true;
-            }
-        }
-    }
+    for &step in targets { live[step] = true; }
     for (i, s) in plan.steps.iter().enumerate().rev() {
         if live[i] {
             use FinishStep::*;
@@ -1848,6 +1834,8 @@ fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: Option<&[usize
         }
     }
     phase("live");
+    let first_root = b.out.roots.len();
+    let first_exact = b.out.exact.len();
     let mut exclusions = exact::prepare(b, plan, &live, targets).into_iter().peekable();
     b.positive = true;
     // Proofs are complete before this point. Widen only positive witnesses.
@@ -1856,16 +1844,20 @@ fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: Option<&[usize
     let columns = bumpalo::Bump::new();
     let mut scratch = Vec::new();
     let mut rows = Vec::with_capacity(plan.steps.len());
-    let mut skips = Vec::with_capacity(plan.steps.len());
+    let mut skips = (b.out.exact.len() != first_exact)
+        .then(|| Vec::with_capacity(plan.steps.len()));
     for (i, s) in plan.steps.iter().enumerate() {
-        let (mut row, skip) = if live[i] {
+        let mut row = if live[i] {
             let conjuncts = conjuncts(s);
-            (
-                b.step(s, &rows, &plan.steps, &conjuncts, &mut scratch),
-                super::pair_skip::Skip::with_terms(s, &skips, language, &conjuncts),
-            )
+            if let Some(skips) = &mut skips {
+                skips.push(super::pair_skip::Skip::with_terms(s, skips, language, &conjuncts));
+            }
+            b.step(s, &rows, &plan.steps, &conjuncts, &mut scratch)
         } else {
-            (Summary::default(), super::pair_skip::Skip::default())
+            if let Some(skips) = &mut skips {
+                skips.push(super::pair_skip::Skip::default());
+            }
+            Summary::default()
         };
         if let Some((_, exclusion)) = exclusions.next_if(|(step, _)| *step == i) {
             exclusion.apply(b, &mut row);
@@ -1879,7 +1871,15 @@ fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: Option<&[usize
         }
         row.freeze(&columns, &mut scratch);
         rows.push(row);
-        skips.push(skip);
+    }
+    if let Some(skips) = skips {
+        // A reconstructed output must also survive the independent raw-word
+        // screen. Check its clause only for roots with a location certificate.
+        let exact = b.out.exact.split_off(first_exact);
+        b.out.exact.extend(exact.into_iter().filter(|(root, _)| {
+            let step = targets[*root - first_root];
+            skips[step].root().2.is_empty()
+        }));
     }
     phase("rows-and-skips");
     #[cfg(feature = "pair-diagnostics")]
@@ -1888,28 +1888,14 @@ fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: Option<&[usize
             println!("WITNESS\t{step}\t{}\t{:?}", row.need, row.domains);
         }
     }
-    let mut push = |name, step: Option<usize>| {
-        let (need, skip) = step.map_or_else(|| (ANY, Default::default()), |i| {
-            (rows[i].need, skips[i].root())
-        });
+    for &step in targets {
+        let need = rows[step].need;
         let early = b.file_guard(need);
         let root = if early == ANY || early == need {
             need
         } else {
             b.need(Need::Both(early, need))
         };
-        b.out.roots.push((name, root));
-        b.out.skips.push(skip);
-    };
-    if let Some(steps) = targets {
-        for &step in steps { push(String::new(), Some(step)); }
-    } else {
-        for rule in &plan.rules {
-            let step = match &rule.emit {
-                RuleEmit::Written(e) => Some(e.step.0),
-                RuleEmit::Unwritten => None,
-            };
-            push(rule.rule.0.to_string(), step);
-        }
+        b.out.roots.push((String::new(), root));
     }
 }

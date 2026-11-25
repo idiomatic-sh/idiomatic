@@ -122,7 +122,7 @@ impl Checks {
             .collect();
         let program = pair_summary::prepare_plans(
             &plans,
-            Some(&targets),
+            &targets,
             vocab,
             &language,
             &supplied,
@@ -307,11 +307,6 @@ impl Checks {
                 locate.then_some(&mut self.exact),
             );
             self.exact.retain(|(root, _)| self.locatable[root / 64] & (1 << (root % 64)) != 0);
-            for (root, nodes) in &self.exact {
-                if nodes.iter().all(|&word| word == 0) {
-                    self.live[*root] = false;
-                }
-            }
         }
         for (binding, _, excluded) in active {
             if *excluded {
@@ -320,6 +315,12 @@ impl Checks {
             let index = root_for(*binding);
             let Some(roots) = &self.roots[index] else { continue };
             let cut = cuts[*binding].as_deref();
+            // A complete output goes straight to delivery, as in the file
+            // visitor's original exact handoff. Only the remaining emits
+            // need the executor's empty-result certificate.
+            if cut.is_none() && self.exact_roots[index].1 && self.exact_locations(index).is_some() {
+                continue;
+            }
             let b = bound[binding].as_mut().unwrap();
             let full_available = !matches!(b.screenable, Some(Err(_)));
             let full_absent = full_available && (roots.iter().any(|&r| !self.live[r])
