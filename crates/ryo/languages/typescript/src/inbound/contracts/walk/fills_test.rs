@@ -365,3 +365,8 @@ fn inherits_fills_equal_reads() {
 fn syntax_error_fills_equal_reads() {
     equal::<languages::SyntaxError>(Relation::SyntaxError);
 }
+
+#[test]
+fn expression_shape_fills_equal_reads() {
+    equal::<languages::ExpressionShape>(Relation::ExpressionShape);
+}

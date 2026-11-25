@@ -5,6 +5,7 @@ use crate::domain::fields::constants::PARENTHESES;
 use crate::domain::model::types::ReadIndexes;
 use crate::domain::names::service::text;
 use crate::domain::syntax::constants::{NUMERIC_KIND, NUMERIC_VALUE};
+use crate::domain::syntax::reading::{Interner, Syntax};
 use crate::domain::syntax::service::{is_token, kind};
 use crate::domain::syntax::types::{Kind, Leaf};
 use crate::domain::tokens::types::Token;
@@ -16,9 +17,9 @@ use ryo::languages::{
 /// The word a token adds to its node's key; none for a comment, a gap, a parenthesis, or the digits of a numeric literal whose
 /// value the node already holds.
 fn token_word(
-    tree: &Tree<'_>,
+    tree: &impl Syntax,
     at: Position,
-    symbols: &mut Symbols,
+    symbols: &mut impl Interner,
     numeric: Option<languages::NameText<'_>>,
 ) -> Option<ShapeWord> {
     match kind(tree, at) {
@@ -35,10 +36,10 @@ fn token_word(
             None
         }
         Kind::Token(_) => Some(ShapeWord::Token(
-            languages::kind_at(tree.elements, at),
-            match languages::decoded_at(tree.elements, at) {
-                Some(decoded) => languages::intern_derived(symbols, tree.source, decoded),
-                None => languages::text_at(tree.elements, at),
+            tree.kind_bits(at),
+            match tree.decoded_of(at) {
+                Some(decoded) => symbols.derived(tree.bytes(), decoded),
+                None => tree.spelling(symbols, at),
             },
         )),
     }
@@ -46,24 +47,40 @@ fn token_word(
 
 /// Builds the key of the node at `at` from its children's classes, already interned. A child's role is not part of it: the
 /// children's order and the significant tokens between them say it, and reading a role scans the siblings of every child.
-fn key(tree: &Tree<'_>, at: Position, symbols: &mut Symbols, key: &mut ShapeKey<'_>) -> Option<()> {
-    push_shape_word(key, ShapeWord::Kind(languages::kind_at(tree.elements, at)));
+fn key(tree: &impl Syntax, at: Position, symbols: &mut impl Interner, key: &mut ShapeKey<'_>) -> Option<()> {
+    let mut built = Vec::new();
+    words(tree, at, symbols, &mut |word| built.push(word), &|child| child_class(key, child))?;
+    for word in built {
+        push_shape_word(key, word);
+    }
+    Some(())
+}
+
+/// The words of the key of the node at `at`, each handed to `push`; `class` answers the class a child already has.
+pub(crate) fn words(
+    tree: &impl Syntax,
+    at: Position,
+    symbols: &mut impl Interner,
+    push: &mut dyn FnMut(ShapeWord),
+    class: &dyn Fn(Position) -> Option<Position>,
+) -> Option<()> {
+    push(ShapeWord::Kind(tree.kind_bits(at)));
     for property in [NUMERIC_KIND, NUMERIC_VALUE] {
-        if let Some(value) = languages::property_at(tree.elements, at, property) {
-            let value = languages::intern_derived(symbols, tree.source, value);
-            push_shape_word(key, ShapeWord::Property(property, value));
+        if let Some(value) = tree.property_of(at, property) {
+            let value = symbols.derived(tree.bytes(), value);
+            push(ShapeWord::Property(property, value));
         }
     }
-    let numeric = languages::property_at(tree.elements, at, NUMERIC_VALUE);
-    for child in languages::children(tree.elements, at) {
+    let numeric = tree.property_of(at, NUMERIC_VALUE);
+    for child in tree.children_of(at) {
         let word = match is_token(tree, child) {
-            Leaf::Node => ShapeWord::Child(NO_FIELD, child_class(key, child)?),
+            Leaf::Node => ShapeWord::Child(NO_FIELD, class(child)?),
             Leaf::Token => match token_word(tree, child, symbols, numeric) {
                 Some(word) => word,
                 None => continue,
             },
         };
-        push_shape_word(key, word);
+        push(word);
     }
     Some(())
 }

@@ -72,6 +72,7 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         visibility: Visibility => crate::domain::relations::collections::relations::visibility::item::VisibilityItem;
         inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
         syntax_error: SyntaxError => crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
+        expression_shape: ExpressionShape => crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem;
     }
 
     absent! {
@@ -98,7 +99,6 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         standard_library_import: StandardLibraryImport => NotYetRead;
         binding_shadow: BindingShadow => NotYetRead;
         constant_key: ConstantKey => NotYetRead;
-        expression_shape: ExpressionShape => NotYetRead;
         expression_type: ExpressionType => NotYetRead;
         lookup_scope: LookupScope => NotYetRead;
         raw_format_segment: RawFormatSegment => NotYetRead;
