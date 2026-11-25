@@ -749,6 +749,9 @@ pub(super) struct File<'a> {
     touched: Vec<u32>,
     /// redo-fills (`VEC_FILL_COUNT`): per fact slot, whether a step read the fill's rows (not only its size).
     fact_read: Vec<std::cell::Cell<bool>>,
+    /// Whether a per-file test list fails in this file, by the plan node it belongs to: decided once
+    /// a file, and dropped with it (a worker's next file, or the next visit's plan, never reads it).
+    file_tests: RefCell<FxHashMap<(usize, filter_order::List), bool>>,
 }
 
 thread_local! {
@@ -768,6 +771,7 @@ struct FileBufs {
     lazies: FxHashMap<usize, Rc<Lazy>>,
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
+    file_tests: FxHashMap<(usize, filter_order::List), bool>,
 }
 
 /// A map's tables given back (recycle.rs) and the map emptied, its room kept.
@@ -821,6 +825,7 @@ impl Drop for File<'_> {
             lazies: std::mem::take(&mut self.lazies),
             facts: std::mem::take(&mut self.facts),
             fact_ix: std::mem::take(self.fact_ix.get_mut()),
+            file_tests: std::mem::take(self.file_tests.get_mut()),
         };
         for (_, r) in b.vrows.drain() {
             r.recycle();
@@ -836,6 +841,7 @@ impl Drop for File<'_> {
             recycle::recycle(t);
         }
         b.fact_ix.clear();
+        b.file_tests.clear();
         // a map grown far past a usual file is not kept (its room would stay with the worker)
         if b.vrows.capacity() > 1 << 12 || b.index.capacity() > 1 << 12 || b.fact_ix.capacity() > 1 << 12 {
             return;
@@ -912,6 +918,7 @@ impl File<'_> {
             lazies: b.lazies,
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
+            file_tests: RefCell::new(b.file_tests),
             known: Vec::new(),
             touched: Vec::new(),
             fact_read: Vec::new(),
@@ -2661,7 +2668,7 @@ impl<'p> Exec<'p> {
     fn select(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         {
             let sp = self.sel(run, node)?;
-            if filter_order::file_fails(run, f, &sp.conj) {
+            if filter_order::file_fails(run, f, node, filter_order::List::Select, &sp.conj) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
                 empty_sel::at(empty_sel::stage::FILE_TEST);
                 return self.empty(run, node);
@@ -3565,7 +3572,7 @@ fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize,
     let start = if sw!("VEC_LEAF_PROFILE") { step_clock() } else { 0.0 };
     let mut entered = 0;
     let mut tests = 0;
-    let slot = if v.cold_file_test && filter_order::file_fails(run, f, &v.filter) {
+    let slot = if v.cold_file_test && filter_order::file_fails(run, f, node, filter_order::List::View, &v.filter) {
         cold_bucket::Slot::Empty
     } else if let Some(bucket) = v.cold_bucket.get() {
         let slot = bucket.select(f);
