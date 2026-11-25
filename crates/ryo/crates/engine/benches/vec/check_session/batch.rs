@@ -502,7 +502,7 @@ impl Batch {
         languages: &[L],
         contributions: &mut Vec<Option<Rc<project::Contribution>>>,
         world: &mut session::World,
-        answers: &ReportSlots,
+        answers: &mut ReportSlots,
         populations: &mut HashMap<usize, (BTreeSet<l::Relation>, Result<Population, String>)>,
         project_unread: &mut HashMap<usize, Vec<l::Refused>>,
         keep: bool,
@@ -593,7 +593,10 @@ impl Batch {
             let worker_cpu = closed_workers::run(
                 workers, self, world, populations, answers, groups.into_iter(), &mut readers,
             );
-            readers.release_finished(world, |id| { populations.remove(&id); });
+            readers.release_finished(|slot| {
+                world.release(slot);
+                answers.release(slot);
+            }, |id| { populations.remove(&id); });
             self.clocks.project_workers_cpu += worker_cpu;
             self.clocks.project_number_wall += readers.number_wall;
             self.clocks.project_numbered += readers.numbered;
@@ -657,7 +660,12 @@ impl Batch {
                     let pop=project.and_then(|id| populations[&id].1.as_ref().ok());
                     s.closed(i,&answer,pop,project.map(|id| (id, &self.projects[id].authority)));
                 }
-                if let Some(finished)=readers.release(i,pairs,*project,world) {
+                // Closed slots are never re-admitted via Source::known.
+                // Store::local and Store::closed have already consumed their evidence.
+                if let Some(finished)=readers.release(i,pairs,*project,|slot| {
+                    world.release(slot);
+                    answers.release(slot);
+                }) {
                     populations.remove(&finished);
                 }
                 self.work[i] = Work::Project(answer);

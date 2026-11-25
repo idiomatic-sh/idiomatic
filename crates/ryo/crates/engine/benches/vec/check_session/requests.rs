@@ -160,7 +160,7 @@ impl Closed {
         i: usize,
         pairs: &[usize],
         project: Option<usize>,
-        world: &mut session::World,
+        mut release_pair: impl FnMut(usize),
     ) -> Option<usize> {
         if let Some(id) = self.reads[i] {
             self.remaining[id] -= 1;
@@ -172,7 +172,7 @@ impl Closed {
                 *n -= 1;
                 if *n == 0 {
                     self.last.remove(slot);
-                    world.release(*slot);
+                    release_pair(*slot);
                 }
             }
         }
@@ -193,12 +193,12 @@ impl Closed {
     /// The worker scope has joined and no borrowed frontier remains.
     pub(super) fn release_finished(
         &mut self,
-        world: &mut session::World,
+        mut release_pair: impl FnMut(usize),
         mut release_population: impl FnMut(usize),
     ) {
         self.shared.clear();
         for (slot, _) in self.last.drain() {
-            world.release(slot);
+            release_pair(slot);
         }
         for (project, _) in self.providers.drain() {
             release_population(project);
@@ -228,13 +228,13 @@ mod tests {
             world.restore_frontier(slot, Vec::new());
         }
 
-        assert_eq!(readers.release(0, &[0, 1, 1], Some(7), &mut world), None);
+        assert_eq!(readers.release(0, &[0, 1, 1], Some(7), |slot| world.release(slot)), None);
         assert!(world.frontier_parts(0).is_some());
         assert!(world.frontier_parts(1).is_none());
         assert!(world.frontier_parts(2).is_some());
 
         let mut populations = Vec::new();
-        readers.release_finished(&mut world, |id| populations.push(id));
+        readers.release_finished(|slot| world.release(slot), |id| populations.push(id));
         assert_eq!(populations, vec![7]);
         assert!(world.frontier_parts(0).is_none());
         assert!(world.frontier_parts(2).is_none());
