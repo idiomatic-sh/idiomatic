@@ -144,7 +144,8 @@ impl<'t> Walker<'_, '_, 't> {
     /// in the order their fields were read, so the next field is tried first.
     fn field_of(&mut self, node: AnyNodeRef<'t>) -> Field {
         let Some(open) = self.open.last_mut() else {
-            return Field::None;
+            // The root of an expression read in a string is the `value` of the string that holds it: the host's role for embedded content.
+            return if self.host.is_some() { Field::Value } else { Field::None };
         };
         let own = self.fields.get(open.from.0..).unwrap_or_default();
         let next = open.next.0.saturating_sub(open.from.0);
