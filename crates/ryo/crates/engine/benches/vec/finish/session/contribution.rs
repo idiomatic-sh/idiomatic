@@ -1,6 +1,6 @@
 //! A local projection read after closure can use the provider's ordinal as a join key.
 //! Each child edge has exactly one row with that child ID, in node order.
-use super::super::{E, Exec, File, Native, Op, Run, Schema, Table, Ty, ViewSpec, view_cols};
+use super::super::{E, Exec, File, Native, Op, Run, Schema, Supplier, Table, Ty, ViewSpec, view_cols};
 use std::{
     collections::{BTreeMap, HashMap},
     rc::Rc,
@@ -18,8 +18,8 @@ pub(in super::super::super) struct Projection {
 
 #[derive(Clone, Hash, PartialEq, Eq)]
 enum Rows {
-    // The visible projection preserves the native row ordinal.
-    Unfiltered(Native),
+    // Evaluate once with the usual provider, then share the carried block.
+    ProviderProjection,
     // All consumers require at least one of these kind or text literals.
     Literals {
         kinds: Vec<u32>,
@@ -132,21 +132,18 @@ impl Projection {
         let schema = exec.schema(run, node).ok()?;
         let read = |c: usize| mask.get(c) != Some(&false);
         if let Some(tree) = exec.view(run, node).ok()? {
-            let ordinal = match tree.base {
-                Native::Tree | Native::Location => Some(0),
-                Native::Child => Some(1),
-                _ => None,
-            };
             if tests.is_none()
                 && tree.filter.is_empty()
-                && ordinal.is_some_and(|ordinal| tree.map.contains(&ordinal))
+                && let Native::Fact(fact) = tree.base
+                && matches!(run.supplier(&run.fact_rels[usize::from(fact)].0), Supplier::Provider)
             {
                 let base = tree.base;
+                // Keep the full map in the identity. Even columns omitted by the
+                // closed reader can affect duplicate elimination in the producer.
                 let columns = tree
                     .map
                     .iter()
                     .enumerate()
-                    .filter(|(column, _)| read(*column))
                     .map(|(out, &source)| (out, base, source))
                     .collect();
                 return Some(Self {
@@ -155,7 +152,7 @@ impl Projection {
                     tree,
                     schema,
                     columns,
-                    rows: Rows::Unfiltered(base),
+                    rows: Rows::ProviderProjection,
                     share_with_local_reader: false,
                 });
             }
@@ -248,9 +245,9 @@ impl Projection {
         })
     }
 
-    fn gather(&self, slots: &[usize], file: &mut File<'_>, run: &mut Run) -> Table {
+    fn gather(&self, slots: &[usize], file: &mut File<'_>, run: &mut Run) -> Option<Table> {
         let rows = match &self.rows {
-            Rows::Unfiltered(base) => file.native_rows(run, *base),
+            Rows::ProviderProjection => return None,
             Rows::Literals { kinds, text_slots } => {
                 let mut rows = super::super::bucket(file, run, kinds);
                 if !text_slots.is_empty() {
@@ -291,7 +288,7 @@ impl Projection {
             view_cols::gather(file, run, base, column, &rows, &mut table.cols[dst]);
         }
         table.n = rows.len();
-        table
+        Some(table)
     }
 }
 
@@ -308,7 +305,7 @@ pub(super) fn gather(
     {
         return Some(t.clone());
     }
-    let table = Rc::new(plan.gather(slots, file, run));
+    let table = Rc::new(plan.gather(slots, file, run)?);
     if plan.share_with_local_reader {
         file.remember(slots[node], super::super::Res::Tab(table.clone()));
     }
