@@ -33,13 +33,7 @@ struct ProjectSpec {
     wanted: BTreeSet<l::Relation>,
 }
 
-type HostSchema = Vec<(String, Vec<(String, String)>, bool)>;
-
-/// An empty, complete binding has no file IDs to translate to the inventory.
-/// Include this fact in the admission key: later bindings may supply rows.
-fn empty_file_table(table: &Hosted) -> bool {
-    table.rows.is_empty() && table.partial.is_none() && table.columns.iter().any(|(_, kind)| kind == "File")
-}
+type HostSchema = Vec<(String, Vec<(String, String)>)>;
 
 #[derive(Clone, Copy)]
 struct LiveAdmission<'a> {
@@ -122,7 +116,7 @@ impl Admission {
         // cells at the join once the inventory is numbered.
         let numbered_host = hosted
             .iter()
-            .any(|table| !empty_file_table(table) && table.columns.iter().any(|(_, kind)| kind == "File"));
+            .any(|table| table.columns.iter().any(|(_, kind)| kind == "File"));
         let mut run = finish::Run::schema_run(patterns);
         catalog.declare(&mut run);
         let declarations = hosted.iter().map(|h| Hosted {
@@ -132,7 +126,7 @@ impl Admission {
         let mut exec = finish::Exec::new(&program.plan);
         let local = finish::partition::file_steps(&mut exec, &mut run, |name| {
             held.iter().any(|r| relations::service::name(*r).0 == name) || hosted.iter().any(|t| t.name == name)
-        }, |name| hosted.iter().any(|table| table.name == name && empty_file_table(table)))?;
+        })?;
         let contract = Arc::new(session::completeness::describe(program, &local)?);
         let wide = contract.cross || numbered_host;
         let cut = if !scope_only && wide {
@@ -186,7 +180,7 @@ impl Batch {
         let shape: Vec<_> = req
             .hosted
             .iter()
-            .map(|t| (t.name.clone(), t.columns.clone(), empty_file_table(t)))
+            .map(|t| (t.name.clone(), t.columns.clone()))
             .collect();
         let schema_key = (rule, shape);
         let class = match self.admissions.get(&schema_key) {
