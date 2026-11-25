@@ -133,7 +133,7 @@ pub(crate) struct Clock {
     pub screen: f64,
     pub bound_proofs: f64,
     pub literal_positions: usize,
-    pub witnesses: [usize; 4],
+    pub witnesses: [usize; 2],
     pub exact_inputs: [usize; 8],
     pub named_counts: [usize; 4],
     pub named_cpu: f64,
@@ -506,8 +506,6 @@ struct Bound<'p> {
     requirements: Rc<BoundRequirements>,
     projects_words: bool,
     reads_fields: bool,
-    screenable: finish::session::certificate::Checked,
-    screenable_left: finish::session::certificate::Checked,
     empty_frontier: Option<frontier::EmptyFrontier>,
     plan: &'p Plan,
     slots: Rc<Vec<usize>>,
@@ -609,10 +607,6 @@ fn bind<'p, L: FileSource>(
         requirements,
         reads_fields,
         projects_words,
-        // The packet proof has no slot for project layouts. The ordinary
-        // syntax prerequisites can still screen these file programs.
-        screenable: layout.is_some().then_some(Err(())),
-        screenable_left: layout.is_some().then_some(Err(())),
         absent: None,
         empty_frontier: None,
         outputs,
@@ -1295,10 +1289,9 @@ pub(crate) fn visit<L: FileSource>(
                     held.proof_atoms.clear();
                 }
                 let scanned = held.literals.get_mut().scanned();
-                let mut span_bounds = HashMap::new();
                 let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                 screen.exclude(&positions, &mut active, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
-                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref_mut(), &mut witness_tables, &facts, &packet, unknown, cut_of, &said, &mut span_bounds, &mut clocks.witnesses);
+                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref_mut(), &mut witness_tables, &facts, &packet, unknown, cut_of, &said, &mut clocks.witnesses);
                 for &(binding, slot, excluded) in active.iter() {
                         if excluded { continue; }
                         let (any, all) = screen.exact_roots[positions[binding]];
