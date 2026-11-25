@@ -85,7 +85,7 @@ pub(in super::super) fn evaluate_covered(
         if !demanded[i] || carried.contains_key(&i) {
             continue;
         }
-        match step.op.as_str() {
+        match step.op() {
             "base" => {
                 let rel = step.base().ok_or("missing base relation")?;
                 let table = match bases.get(rel) {
@@ -156,7 +156,7 @@ pub(in super::super) fn evaluate_covered(
             continue;
         }
         let _schema = exec.schema(run, i)?;
-        match step.op.as_str() {
+        match step.op() {
             "select" => {
                 let select = exec.sel(run, i)?;
                 for expr in select
@@ -195,7 +195,7 @@ pub(in super::super) fn evaluate_covered(
                     None => step.inputs.iter().fold(0, |mask, &j| mask | (deps[j] & !reuse::RESTORED)),
                 };
                 deps[i] = mask;
-                if step.op != "base" && !zero[i]
+                if step.op() != "base" && !zero[i]
                     && let Some((memo, scope)) = memo.as_mut()
                     && let Some(table) = memo.get(i, mask, *scope)
                 {
@@ -283,7 +283,7 @@ fn keep_finding(
 
 /// The input whose absence can invalidate a produced row and the output file keys.
 pub(in super::super) fn absence_input(step: &super::PNode) -> Option<(&'static str, &'static str)> {
-    match step.op.as_str() {
+    match step.op() {
         "group-count" | "group-digest" => Some(("from", "keys")),
         "difference" => Some(("right", "")),
         "antijoin" | "as-of" => Some(("right", "left-on")),
@@ -319,7 +319,7 @@ fn restrict_uncertain(
                     affected.push(here);
                     continue;
                 }
-                if step.op == "as-of" {
+                if step.op() == "as-of" {
                     // Exclude uncertain partitions before choosing the nearest row.
                     // The projection may discard or rename its partition key.
                     let file_local_right = frame.project_inputs.is_some_and(|xs| xs.contains_key(&source));
@@ -472,10 +472,10 @@ fn proven_empty(
         }
         // These relational operators depend only on their inputs. Use their
         // actual evaluated rows, including filters over a complete named base.
-        if !empty[slot] && matches!(step.op.as_str(), "select" | "project")
+        if !empty[slot] && matches!(step.op(), "select" | "project")
             && !step.inputs.is_empty() && step.inputs.iter().all(|&i| known[slots[i]])
         {
-            if step.op == "select" && !exec.sel(run, slot).is_ok_and(|select|
+            if step.op() == "select" && !exec.sel(run, slot).is_ok_and(|select|
                 select.conj.iter().chain(select.items.iter().map(|(_, expr)| expr)).all(certificate::total)) {
                 continue;
             }

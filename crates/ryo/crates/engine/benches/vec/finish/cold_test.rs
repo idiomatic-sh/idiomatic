@@ -135,7 +135,7 @@ impl Exec<'_> {
             return;
         }
         for (node, pn) in self.plan.nodes.iter().enumerate() {
-            if pn.op == "select" && pn.inputs.len() == 1 {
+            if pn.op() == "select" && pn.inputs.len() == 1 {
                 let _ = self.view(run, node);
             }
         }

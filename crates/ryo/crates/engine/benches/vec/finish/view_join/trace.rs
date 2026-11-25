@@ -67,7 +67,7 @@ pub(crate) fn load(exec: &mut Exec<'_>, run: &mut Run) {
     for i in 0..exec.plan.nodes.len() {
         let pn = &exec.plan.nodes[i];
         let shape =
-            if pn.op != "select" {
+            if pn.op() != "select" {
                 String::new()
             } else if exec.view(run, i).ok().flatten().is_some() {
                 "view materialisation".to_owned()

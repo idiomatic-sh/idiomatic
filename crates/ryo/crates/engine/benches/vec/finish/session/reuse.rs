@@ -46,7 +46,7 @@ impl Reuse {
 
 pub(super) fn empty(step: &PNode, zero: &[bool]) -> bool {
     let input = |arg| step.relation_input(arg).is_some_and(|i| zero[i]);
-    match step.op.as_str() {
+    match step.op() {
         "union" => !step.inputs.is_empty() && step.inputs.iter().all(|&i| zero[i]),
         "antijoin" | "difference" => input("left"),
         "axis" => input("from"),

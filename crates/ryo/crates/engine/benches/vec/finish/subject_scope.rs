@@ -40,7 +40,7 @@ fn input_columns(
     if step.inputs.is_empty() {
         return Ok(out);
     }
-    if step.op == "select" {
+    if step.op() == "select" {
         let planned = exec.sel(run, node)?;
         if let E::Col(slot, c, Ty::File) = planned.items[col].1 {
             out[slot] = Some(c);
@@ -57,7 +57,7 @@ fn input_columns(
                 .position(|n| n == &name)
                 .filter(|&i| schema.tys[i] == Ty::File)
         };
-        out[slot] = match step.op.as_str() {
+        out[slot] = match step.op() {
             "union" | "project" => inherited(),
             "capture" | "extend" | "span-bounds" | "words" => {
                 (schema.tys.get(col) == Some(&Ty::File)).then_some(col)

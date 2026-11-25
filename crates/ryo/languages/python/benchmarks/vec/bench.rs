@@ -1387,7 +1387,7 @@ fn kernel_floor(walk: &impl Walk, list: &str) {
 /// Finite, nonempty literal alternatives in the plan's source-matching expressions.
 fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
     let mut out: Vec<Vec<u8>> = Vec::new();
-    for n in plan.nodes.iter().filter(|n| n.op == "source-matches") {
+    for n in plan.nodes.iter().filter(|n| n.op() == "source-matches") {
         let Some(p) = n.args()["pattern"].as_str() else { continue };
         let Ok(hir) = regex_syntax::ParserBuilder::new().utf8(false).build().parse(p) else { continue };
         let seq = regex_syntax::hir::literal::Extractor::new().extract(&hir);

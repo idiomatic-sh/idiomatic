@@ -411,7 +411,7 @@ impl Exec<'_> {
         if k == 2 && !KERNEL2 {
             return Ok(Prep::Old("two sources (kernel 2 not on)"));
         }
-        if sp.srcs.iter().any(|n| self.plan.nodes[*n].op == "closure") {
+        if sp.srcs.iter().any(|n| self.plan.nodes[*n].op() == "closure") {
             return Ok(Prep::Old("a closure source"));
         }
         let mut items = Vec::with_capacity(sp.items.len());

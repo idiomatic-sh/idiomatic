@@ -261,7 +261,7 @@ impl<'p> Finisher<'p> {
             let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
             for (i, pn) in self.plan.nodes.iter().enumerate() {
                 if exec.stats.calls[i] > 0 || exec.stats.touched[i] > 0 || exec.stats.rows[i] > 0 || exec.stats.time[i] > 0.0 || exec.stats.known[i] > 0 || exec.stats.keyed[i] > 0 {
-                    lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.keyed[i], -1, "", exec.stats.known[i], exec.stats.empty_time[i], exec.stats.keyed_empty[i], exec.stats.built[i]));
+                    lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}", pn.op(), exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.keyed[i], -1, "", exec.stats.known[i], exec.stats.empty_time[i], exec.stats.keyed_empty[i], exec.stats.built[i]));
                 }
             }
             for (k, v) in &self.by_rel {
@@ -295,13 +295,13 @@ impl<'p> Finisher<'p> {
         finish::empty_sel::print();
         finish::emptyprop::print();
         let plan = self.plan;
-        exec.print_skipped(&|n| plan.nodes[n].op.clone());
+        exec.print_skipped(&|n| plan.nodes[n].op().to_owned());
         {
             // redo-union pass 2: per step kind: runs (whole, by key, known empty), runs that returned nothing (known before
             // the bracket, bracketed whole, bracketed by key) and the seconds in the bracketed ones (`VEC_STEP_TIME`)
             let mut by: std::collections::BTreeMap<&str, [f64; 8]> = std::collections::BTreeMap::new();
             for (i, pn) in self.plan.nodes.iter().enumerate() {
-                let e = by.entry(pn.op.as_str()).or_default();
+                let e = by.entry(pn.op()).or_default();
                 let st = &exec.stats;
                 for (k, v) in [st.calls[i] as f64, st.keyed[i] as f64, st.known[i] as f64, st.empty[i] as f64, st.keyed_empty[i] as f64, st.empty_time[i], st.time[i], 0.0].into_iter().enumerate() {
                     e[k] += v;

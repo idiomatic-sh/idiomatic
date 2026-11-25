@@ -92,7 +92,7 @@ pub(crate) fn file_end(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &m
             let b = &mut c.by[k];
             if probe { b.1 += 1 } else { b.0 += 1 }
             b.2 += own;
-            let e = c.by_op.entry((k, ex.plan.nodes[node as usize].op.clone())).or_default();
+            let e = c.by_op.entry((k, ex.plan.nodes[node as usize].op().to_owned())).or_default();
             e.0 += 1;
             e.1 += own;
         });
@@ -153,7 +153,7 @@ impl Exec<'_> {
             }
             return best;
         }
-        if self.plan.nodes[node].op == "select"
+        if self.plan.nodes[node].op() == "select"
             && let Ok(sp) = self.sel(run, node)
         {
             for (i, s) in sp.srcs.iter().enumerate() {
@@ -354,7 +354,7 @@ impl Exec<'_> {
             if fact != NO_FACT || !fields.is_empty() || rows {
                 out.push(Leaf { src: 0, fact, own: fact != NO_FACT, lit, fields: fields.into(), rows });
             }
-        } else if self.plan.nodes[node].op == "select"
+        } else if self.plan.nodes[node].op() == "select"
             && let Ok(sp) = self.sel(run, node)
         {
             for (i, s) in sp.srcs.iter().enumerate() {

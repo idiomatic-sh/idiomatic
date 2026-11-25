@@ -126,7 +126,7 @@ impl Projection {
         tests: Option<&Vec<(usize, u64)>>,
     ) -> Option<Self> {
         let step = &exec.plan.nodes[node];
-        if step.op != "select" || step.semi().is_some() || step.counted() {
+        if step.op() != "select" || step.semi().is_some() || step.counted() {
             return None;
         }
         let schema = exec.schema(run, node).ok()?;

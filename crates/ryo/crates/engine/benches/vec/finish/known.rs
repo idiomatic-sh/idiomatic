@@ -268,7 +268,7 @@ impl Exec<'_> {
         }
         let plan = self.plan;
         let pn = &plan.nodes[node];
-        let first = match pn.op.as_str() {
+        let first = match pn.op() {
             "select" => {
                 let Ok(sp) = self.sel(run, node) else {
                     n.never = true;

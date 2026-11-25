@@ -21,7 +21,7 @@ impl Coverage {
             let column = catalog::column_name(column).0;
             let name = catalog::name(relation).0;
             plan.nodes.iter().enumerate().any(|(base, node)| {
-                node.op == "base"
+                node.op() == "base"
                     && node.base() == Some(name)
                     && (plan.emits.iter().any(|emit| emit.1 == base)
                         || plan
@@ -29,7 +29,7 @@ impl Coverage {
                             .iter()
                             .filter(|n| n.inputs.contains(&base))
                             .any(|n| {
-                                n.op != "select"
+                                n.op() != "select"
                                     || n.inputs.len() != 1
                                     || !excludes_kind(n, column, kind.0)
                             }))

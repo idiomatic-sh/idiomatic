@@ -59,7 +59,7 @@ pub(super) fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>>
     while let Some(u) = todo.pop() {
         for side in ["left", "right"] {
             let x = ex.arg_rel(u, side)?;
-            if plan.nodes[x].op == "union" && ex.plan.consumers(x) == [u] && !ex.emitted.contains(&x) && !tree.contains(&x) {
+            if plan.nodes[x].op() == "union" && ex.plan.consumers(x) == [u] && !ex.emitted.contains(&x) && !tree.contains(&x) {
                 tree.push(x);
                 todo.push(x);
             }

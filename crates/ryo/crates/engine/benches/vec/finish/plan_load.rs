@@ -19,7 +19,7 @@ pub(crate) fn from_typed(plan: std::sync::Arc<FinishPlan>) -> Plan {
         .enumerate()
         .map(|(id, step)| {
             let mut rels = Vec::new();
-            let op = visit_slots(step, |name, source| rels.push((name, source)));
+            visit_slots(step, |name, source| rels.push((name, source)));
             // The original slot reader requests named operator inputs in field-name order.
             rels.sort_unstable_by(|a, b| a.0.cmp(b.0));
             let inputs = if let FinishStep::Select(s) = step {
@@ -28,7 +28,6 @@ pub(crate) fn from_typed(plan: std::sync::Arc<FinishPlan>) -> Plan {
                 rels.iter().map(|x| x.1).collect()
             };
             PNode {
-                op: op.to_owned(),
                 inputs,
                 source: plan.clone(),
                 slot: id,
@@ -179,6 +178,10 @@ fn visit_slots<'a>(step: &'a FinishStep, mut visit: impl FnMut(&'a str, usize)) 
     }
 }
 impl PNode {
+    pub(crate) fn op(&self) -> &str {
+        visit_slots(self.step(), |_, _| {})
+    }
+
     pub(crate) fn relation_input(&self, name: &str) -> Option<usize> {
         let mut input = None;
         visit_slots(self.step(), |key, source| {

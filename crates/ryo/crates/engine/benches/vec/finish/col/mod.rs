@@ -71,7 +71,7 @@ impl Exec<'_> {
         self.col.by_node[node] = 0;
         let plan = self.plan;
         let pn = &plan.nodes[node];
-        if pn.op != "select" || pn.tested() || pn.counted() || pn.semi().is_some() {
+        if pn.op() != "select" || pn.tested() || pn.counted() || pn.semi().is_some() {
             return;
         }
         let &[source] = pn.inputs.as_slice() else {
@@ -80,7 +80,7 @@ impl Exec<'_> {
         let Some(input) = plan.nodes.get(source) else {
             return;
         };
-        if matches!(input.op.as_str(), "closure" | "base" | "rows")
+        if matches!(input.op(), "closure" | "base" | "rows")
             || !matches!(self.view(run, source), Ok(None))
         {
             return;

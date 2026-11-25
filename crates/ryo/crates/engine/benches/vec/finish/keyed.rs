@@ -49,7 +49,7 @@ impl Exec<'_> {
             super::frame::Op::Union => Form::Union,
             super::frame::Op::Select if !pn.counted() => {
                 let sp = self.sel(run, node)?;
-                let closure = sp.srcs.iter().any(|s| self.plan.nodes[*s].op == "closure");
+                let closure = sp.srcs.iter().any(|s| self.plan.nodes[*s].op() == "closure");
                 if sp.srcs.is_empty() || sp.srcs.len() > 2 || closure || (sp.srcs.len() == 2 && sp.srcs[0] == sp.srcs[1]) || !self.ksel_covers(run, node)? {
                     Form::Not
                 } else {
@@ -203,9 +203,9 @@ impl Exec<'_> {
             }
             Form::Antijoin => self.keyed_size(f, run, p, self.plan.frame(node).first as usize, make)?,
             Form::Union => {
-                let ins = self.plan.nodes[node].inputs.clone();
+                let ins = &self.plan.nodes[node].inputs;
                 let mut sum = 0usize;
-                for i in ins {
+                for &i in ins {
                     sum = sum.saturating_add(self.keyed_size(f, run, p, i, make)?);
                 }
                 sum

@@ -567,7 +567,6 @@ pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &
 
 /// A plan node, as lowered.
 pub(super) struct PNode {
-    pub(super) op: String,
     source: std::sync::Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
     slot: usize,
     args: std::sync::OnceLock<Args>,
@@ -1400,14 +1399,13 @@ impl<'p> Exec<'p> {
             return c;
         }
         let pn = &self.plan.nodes[node];
-        let c = match pn.op.as_str() {
+        let c = match pn.op() {
             // redo-binding c32 (filesystem.file per file) through redo-fills' catalog: it is declared a host relation of the
             // file (fact_catalog.rs), so only a RunFiles relation is constant, and none is declared now
             "base" => pn.base().is_some_and(|r| matches!(run.supplier(r), Supplier::RunFiles)),
             "rows" => true,
             "select" | "union" | "antijoin" | "extend" | "project" | "group-count" | "group-min" | "group-max" | "capture" | "replace" => {
-                let ins = pn.inputs.clone();
-                !ins.is_empty() && ins.iter().all(|i| self.is_constant(run, *i))
+                !pn.inputs.is_empty() && pn.inputs.iter().all(|i| self.is_constant(run, *i))
             }
             _ => false,
         };
@@ -1428,7 +1426,7 @@ impl<'p> Exec<'p> {
         }
         let plan: &'p Plan = self.plan;
         let pn = &plan.nodes[node];
-        let op = pn.op.as_str();
+        let op = pn.op();
         let from = |me: &mut Self, run: &mut Run, name: &str| -> R<Rc<Schema>> {
             let n = me.arg_rel(node, name)?;
             me.schema(run, n)
@@ -1717,7 +1715,7 @@ impl<'p> Exec<'p> {
     #[inline(never)]
     fn view_slow(&mut self, run: &mut Run, node: usize) -> R<Option<Rc<ViewSpec>>> {
         let pn = &self.plan.nodes[node];
-        let v = match pn.op.as_str() {
+        let v = match pn.op() {
             "base" => {
                 let rel = pn.base().unwrap_or("").to_owned();
                 match native_of(run, &rel) {
@@ -1763,7 +1761,7 @@ impl<'p> Exec<'p> {
         if let Some(start) = operators::enter(node, 0) {
             let fresh = f.memo[node].is_none() && self.run_memo[node].is_none();
             let out = self.res_body(f, run, p, node);
-            operators::leave(start, &self.plan.nodes[node].op, match &out { Ok(Res::Tab(t)) => t.n, _ => 0 }, fresh && matches!(&out, Ok(Res::Tab(_))));
+            operators::leave(start, self.plan.nodes[node].op(), match &out { Ok(Res::Tab(t)) => t.n, _ => 0 }, fresh && matches!(&out, Ok(Res::Tab(_))));
             return out;
         }
         self.res_body(f, run, p, node)
@@ -1877,7 +1875,7 @@ impl<'p> Exec<'p> {
         if let Some(start) = operators::enter(node, keys.len()) {
             let fresh = true;
             let out = self.probe_body(f, run, p, node, col, keys);
-            operators::leave(start, &self.plan.nodes[node].op, out.as_ref().map_or(0, |t| t.n), fresh && out.is_ok());
+            operators::leave(start, self.plan.nodes[node].op(), out.as_ref().map_or(0, |t| t.n), fresh && out.is_ok());
             return out;
         }
         self.probe_body(f, run, p, node, col, keys)
@@ -1969,7 +1967,7 @@ impl<'p> Exec<'p> {
         if let Some(start) = operators::enter(node, 0) {
             let fresh = !matches!(&f.memo[node], Some(Res::Tab(_))) && !f.vmat.contains_key(&node) && self.run_memo[node].is_none();
             let out = self.eval_body(f, run, p, node);
-            operators::leave(start, &self.plan.nodes[node].op, out.as_ref().map_or(0, |t| t.n), fresh && out.is_ok());
+            operators::leave(start, self.plan.nodes[node].op(), out.as_ref().map_or(0, |t| t.n), fresh && out.is_ok());
             return out;
         }
         self.eval_body(f, run, p, node)
@@ -2082,7 +2080,7 @@ impl<'p> Exec<'p> {
             return Ok(recycle::rc(t));
         }
         if fr.first == frame::MISSING {
-            return Err(format!("no relation argument of {}", self.plan.nodes[node].op));
+            return Err(format!("no relation argument of {}", self.plan.nodes[node].op()));
         }
         // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
         // dispatch point (by the frame's code)
@@ -2138,7 +2136,7 @@ impl<'p> Exec<'p> {
     fn step(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         let plan: &'p Plan = self.plan;
         let pn = &plan.nodes[node];
-        let op = pn.op.as_str();
+        let op = pn.op();
         let a = pn.args();
         match op {
             "base" => self.base(f, run, p, pn.base().ok_or("base relation")?),
@@ -2546,8 +2544,8 @@ impl<'p> Exec<'p> {
             if sw!("VEC_ASKER_PLAN") && by != u32::MAX && fill_prof::first_asker(by) {
                 eprintln!("ASKER-SITE {by} {} {}", fill_prof::SITE.with(std::cell::Cell::get), std::backtrace::Backtrace::force_capture().to_string().lines().filter(|l| l.contains("Exec") || l.contains("kernel") || l.contains("finish")).take(12).map(str::trim).collect::<Vec<_>>().join(" < "));
                 let pn = &self.plan.nodes[by as usize];
-                let ins: Vec<String> = pn.inputs.iter().map(|x| format!("{x}:{}:{}", self.plan.nodes[*x].op, self.plan.nodes[*x].summary_text().chars().take(160).collect::<String>())).collect();
-                eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.summary_text().chars().take(900).collect::<String>(), ins.join(" | "));
+                let ins: Vec<String> = pn.inputs.iter().map(|x| format!("{x}:{}:{}", self.plan.nodes[*x].op(), self.plan.nodes[*x].summary_text().chars().take(160).collect::<String>())).collect();
+                eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op(), pn.summary_text().chars().take(900).collect::<String>(), ins.join(" | "));
             }
         }
         if !f.fills.contains_key(&rel) {
@@ -2647,7 +2645,7 @@ impl<'p> Exec<'p> {
     }
 
     fn src_of(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Src> {
-        if self.plan.nodes[node].op == "closure" && f.population(node).is_none() {
+        if self.plan.nodes[node].op() == "closure" && f.population(node).is_none() {
             // a closure made whole is read as its table, else through its adjacency
             if let Some(Res::Tab(t)) = &f.memo[node] {
                 return Ok(Src::Tab(t.clone(), node));
@@ -3120,7 +3118,7 @@ impl<'p> Exec<'p> {
 
     /// The hierarchy an axis walks: the tree, a view probed by its child and parent columns, or a made table indexed once.
     fn hier(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: usize) -> R<Hier> {
-        if !f.after_last_file && self.plan.nodes[rel].op == "base" && native_of(run, self.plan.nodes[rel].base().unwrap_or("")) == Some(Native::Child) {
+        if !f.after_last_file && self.plan.nodes[rel].op() == "base" && native_of(run, self.plan.nodes[rel].base().unwrap_or("")) == Some(Native::Child) {
             return Ok(Hier::Tree);
         }
         let rsc = self.schema(run, rel)?;

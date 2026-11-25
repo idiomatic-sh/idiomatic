@@ -176,7 +176,7 @@ pub(super) fn evaluate_files<const QUERY_ROWS:bool>(
     let bases: BTreeSet<_> = plan
         .nodes
         .iter()
-        .filter(|n| n.op == "base")
+        .filter(|n| n.op() == "base")
         .map(|n| n.base().expect("base name"))
         .collect();
     let mut run = finish::Run::default();

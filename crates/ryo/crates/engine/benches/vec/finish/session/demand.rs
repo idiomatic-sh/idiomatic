@@ -17,7 +17,7 @@ pub(in super::super::super) fn domains(
         let uses = exec.plan.consumers(source);
         let mut binding = None;
         let bounded = uses.iter().copied().filter(|&u| !local[u]).all(|u| {
-            if exec.plan.nodes[u].op != "select" {
+            if exec.plan.nodes[u].op() != "select" {
                 return false;
             }
             let Ok(sel) = exec.sel(run, u) else {
@@ -49,7 +49,7 @@ pub(in super::super::super) fn domains(
                 let schema = exec.schema(run, other).ok()?;
                 let domain = if local[other] && schema.names[driver] == "id" {
                     other
-                } else if exec.plan.nodes[other].op == "axis"
+                } else if exec.plan.nodes[other].op() == "axis"
                     && driver + 1 == schema.names.len()
                     && schema.names[driver] == "related"
                 {

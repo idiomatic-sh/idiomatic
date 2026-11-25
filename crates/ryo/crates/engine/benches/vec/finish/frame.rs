@@ -40,7 +40,7 @@ pub(super) fn frames(plan: &Plan) -> Vec<Frame> {
     plan.nodes
         .iter()
         .map(|pn| {
-            let op = match pn.op.as_str() {
+            let op = match pn.op() {
                 "select" => Op::Select,
                 "union" => Op::Union,
                 "antijoin" => Op::Antijoin,
@@ -53,7 +53,7 @@ pub(super) fn frames(plan: &Plan) -> Vec<Frame> {
                 _ => Op::Other,
             };
             let rel = |name: &str| pn.relation_input(name).map_or(MISSING, |slot| slot as u32);
-            let first = match pn.op.as_str() {
+            let first = match pn.op() {
                 "union" | "antijoin" | "intersection" | "difference" | "ordered-match" | "as-of" => rel("left"),
                 "cycles" | "closure" | "follow" => rel("edges"),
                 // A worklist validates even the unused lattice and edges of an empty root set.

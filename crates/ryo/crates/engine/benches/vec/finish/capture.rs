@@ -133,7 +133,7 @@ pub(super) fn required_equalities(
     for index in 0..exec.plan.consumers(node).len() {
         let user = exec.plan.consumers(node)[index];
         let step = &exec.plan.nodes[user];
-        if step.op != "select" || step.inputs.as_slice() != [node] {
+        if step.op() != "select" || step.inputs.as_slice() != [node] {
             return Vec::new();
         }
         let Ok(plan) = exec.sel(run, user) else { return Vec::new() };

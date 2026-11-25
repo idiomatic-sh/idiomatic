@@ -48,14 +48,14 @@ fn offset_origin(
     let mut edge = edge;
     loop {
         let step = &exec.plan.nodes[node];
-        if !matches!(step.op.as_str(), "span-bounds" | "source-matches") {
+        if !matches!(step.op(), "span-bounds" | "source-matches") {
             return Some((operand, node, column, edge?));
         }
         let source = exec.arg_rel(node, "from").ok()?;
         let input = exec.schema(run, source).ok()?;
         if column >= input.tys.len() {
             let output = column - input.tys.len();
-            edge = Some(match (step.op.as_str(), output, edge) {
+            edge = Some(match (step.op(), output, edge) {
                 ("span-bounds", 0, None) => Edge::Start,
                 ("span-bounds", 1, None) => Edge::End,
                 ("source-matches", 0, Some(_)) => match step.args()["pattern"].as_str()? {
@@ -75,7 +75,7 @@ fn offset_origin(
 /// producing the pair proves their endpoints are in ascending order.
 fn ordered_span(exec: &mut Exec<'_>, run: &mut Run, node: usize, start: usize, end: usize) -> R<bool> {
     if start == end { return Ok(true); }
-    if exec.plan.nodes[node].op != "select" { return Ok(false); }
+    if exec.plan.nodes[node].op() != "select" { return Ok(false); }
     let select = exec.sel(run, node)?;
     let Some(lo) = offset_origin(exec, run, node, &select.items[start].1, Some(Edge::Start)) else { return Ok(false) };
     let Some(hi) = offset_origin(exec, run, node, &select.items[end].1, Some(Edge::End)) else { return Ok(false) };
@@ -114,7 +114,7 @@ fn span_inputs(
             if !inputs.contains(&input) { inputs.push(input); }
             continue;
         }
-        match step.op.as_str() {
+        match step.op() {
             "select" => {
                 let select = exec.sel(run, node)?;
                 let E::Col(source, index, Ty::Span) = select.items[column].1 else {
@@ -141,10 +141,10 @@ fn span_inputs(
                 let incoming = exec.schema(run, source)?;
                 if column < incoming.tys.len() {
                     pending.push((source, column));
-                } else if step.op == "source-matches" {
+                } else if step.op() == "source-matches" {
                     let index = finish::pos(&incoming.names, finish::s(&step.args()["span"])?)?;
                     pending.push((source, index));
-                } else if step.op == "span-between" {
+                } else if step.op() == "span-between" {
                     let start = finish::pos(&incoming.names, finish::s(&step.args()["start"])?)?;
                     let end = finish::pos(&incoming.names, finish::s(&step.args()["end"])?)?;
                     if !ordered_span(exec, run, source, start, end)? { return Err("unordered span endpoints".into()); }
@@ -227,7 +227,7 @@ fn verify(
                 let source = ex.arg_rel(i, input)?;
                 finish::pos(&ex.schema(run, source)?.names, name).map(|_| ())
             };
-            match step.op.as_str() {
+            match step.op() {
                 "base" => {
                     let name = step.base().ok_or("base name")?;
                     if matches!(run.supplier(name), finish::Supplier::Host)
@@ -318,13 +318,13 @@ fn verify(
                     let _ = finish::union_kernel::prep(exec, run, i)?;
                 }
                 "capture" | "span-bounds" => {
-                    let name = if step.op == "capture" { "path" } else { "span" };
+                    let name = if step.op() == "capture" { "path" } else { "span" };
                     let input = exec.arg_rel(i, "from")?;
                     let columns = exec.schema(run, input)?;
                     let column =
                         finish::pos(&columns.names, step.args()[name].as_str().ok_or("column")?)?;
-                    if step.op == "capture" && !matches!(columns.tys[column], Ty::Sym | Ty::File)
-                        || step.op == "span-bounds" && columns.tys[column] != Ty::Span
+                    if step.op() == "capture" && !matches!(columns.tys[column], Ty::Sym | Ty::File)
+                        || step.op() == "span-bounds" && columns.tys[column] != Ty::Span
                     {
                         return Err("unverified input column".into());
                     }
@@ -346,7 +346,7 @@ fn verify(
     };
     let result = check(exec, run);
     if exec.timing && let Err(reason) = &result && let Some(i) = at {
-        eprintln!("PAIR_CERTIFICATE_REFUSAL\t{i}\t{}\t{reason}", exec.plan.nodes[i].op);
+        eprintln!("PAIR_CERTIFICATE_REFUSAL\t{i}\t{}\t{reason}", exec.plan.nodes[i].op());
     }
     result.map(|()| spans.into_boxed_slice())
 }

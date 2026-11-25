@@ -45,7 +45,7 @@ pub(in super::super) fn file_steps(
             }
             Ok(false)
         };
-        let op = step.op.as_str();
+        let op = step.op();
         let constant_base = step.base().is_some_and(|name| {
             matches!(run.supplier(name), super::Supplier::Host)
                 && run.catalog(name).is_some_and(|(_, _, types)| {
@@ -66,7 +66,7 @@ pub(in super::super) fn file_steps(
         let here = if constant || !(local_inputs || with_literals) {
             false
         } else {
-            match step.op.as_str() {
+            match step.op() {
                 "base" => !wide(step.base().ok_or("base relation")?),
                 "rows" => false,
                 "select" => {
@@ -135,7 +135,7 @@ pub(in super::super) fn file_steps(
                     let edges = exec.schema(run, source)?;
                     let source = super::pos(&edges.names, super::s(&step.args()["source"])?)?;
                     anchor(edges.tys[source])
-                        || (step.op.as_str() != "cycles" && keys_hold(exec, run, "edges", "keys")?)
+                        || (step.op() != "cycles" && keys_hold(exec, run, "edges", "keys")?)
                 }
                 "ordered-dfs" | "worklist" => {
                     // The partition key or the graph vertex must identify the
@@ -189,7 +189,7 @@ pub(in super::super) fn partition(
             .enumerate()
             .filter(|(i, s)| !local[*i] && s.inputs.contains(&source))
         {
-            match step.op.as_str() {
+            match step.op() {
                 "select" => {
                     let Ok(select) = exec.sel(run, i) else {
                         used.fill(true);
@@ -254,7 +254,7 @@ pub(in super::super) fn partition(
     // a literal equality. Multiple aliases of one source are independent readers.
     let mut filters = BTreeMap::new();
     for &source in &input_set {
-        if plan.nodes[source].op == "base" || plan.emits.iter().any(|e| e.1 == source) {
+        if plan.nodes[source].op() == "base" || plan.emits.iter().any(|e| e.1 == source) {
             continue;
         }
         let mut alternatives = BTreeSet::new();
@@ -265,7 +265,7 @@ pub(in super::super) fn partition(
             .enumerate()
             .filter(|(i, s)| !local[*i] && s.inputs.contains(&source))
         {
-            if step.op != "select" {
+            if step.op() != "select" {
                 all_select = false;
                 break;
             }

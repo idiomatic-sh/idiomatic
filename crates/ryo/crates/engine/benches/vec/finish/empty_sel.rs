@@ -215,7 +215,7 @@ impl super::Exec<'_> {
         let secs = super::step_clock() - t0 - (self.inner - i0);
         let empty = matches!(&out, Ok(t) if t.n == 0);
         let plan = self.plan;
-        end(saved, empty, secs, |n| plan.nodes[n as usize].op.clone());
+        end(saved, empty, secs, |n| plan.nodes[n as usize].op().to_owned());
         out
     }
 
