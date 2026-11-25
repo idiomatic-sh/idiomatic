@@ -19,7 +19,7 @@ use crate::domain::syntax::constants::{LOWERED_FLAG, RAISED_FLAG, TYPESCRIPT_SYN
 use crate::domain::syntax::types::{Dialect, Kind};
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort;
-use crate::outbound::syntax::types::SourceText;
+use crate::outbound::syntax::types::{SourceText, Walked};
 use oxc_allocator::Allocator;
 use oxc_ast::{
     AstKind,
@@ -227,8 +227,11 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
         text: SourceText<'_>,
         dialect: Dialect,
         builder: &mut languages::NodeTableBuilder<'_>,
-    ) {
-        project(text, dialect, &mut Numbered(builder));
+        flow: bool,
+    ) -> Walked {
+        let mut out = Numbered::new(builder, flow);
+        project(text, dialect, &mut out);
+        Walked { flow: out.flow }
     }
 }
 

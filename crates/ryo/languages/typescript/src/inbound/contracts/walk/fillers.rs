@@ -73,6 +73,10 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
         syntax_error: SyntaxError => crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
         expression_shape: ExpressionShape => crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem;
+        flow_block: FlowBlock => crate::domain::relations::collections::relations::flow_block::item::FlowBlockItem;
+        flow_edge: FlowEdge => crate::domain::relations::collections::relations::flow_edge::item::FlowEdgeItem;
+        flow_member: FlowMember => crate::domain::relations::collections::relations::flow_member::item::FlowMemberItem;
+        flow_step: FlowStep => crate::domain::relations::collections::relations::flow_step::item::FlowStepItem;
     }
 
     absent! {
@@ -111,10 +115,6 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         filesystem_file: FilesystemFile => NotYetRead;
         filesystem_line_count: FilesystemLineCount => NotYetRead;
         filesystem_read_failure: FilesystemReadFailure => NotYetRead;
-        flow_block: FlowBlock => NotYetRead;
-        flow_edge: FlowEdge => NotYetRead;
-        flow_member: FlowMember => NotYetRead;
-        flow_step: FlowStep => NotYetRead;
         manifest_diagnostic: ManifestDiagnostic => NotYetRead;
         mapping: Mapping => NotYetRead;
         mention: Mention => NotYetRead;

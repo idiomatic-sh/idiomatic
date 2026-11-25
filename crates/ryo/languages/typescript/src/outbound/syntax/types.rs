@@ -4,3 +4,10 @@
 /// part of the file the parser could not read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SourceText<'a>(pub &'a [u8]);
+
+/// What a walk of a file leaves besides the numbered table: what the fillers of the language read from the parse.
+#[derive(Debug, Default)]
+pub(crate) struct Walked {
+    /// The control-flow facts, when the walk was asked for them.
+    pub(crate) flow: Option<crate::domain::file_view::types::FlowFacts>,
+}

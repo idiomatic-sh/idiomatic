@@ -14,7 +14,8 @@ use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use oxc_allocator::Allocator;
 use oxc_semantic::Scoping;
-use ryo::languages::{self, FieldCode, NodeTableBuilder, Offset, Position, TableBuilder, node_table};
+use crate::domain::file_view::types::FlowFacts;
+use ryo::languages::{self, FieldCode, FlowMemberFact, FlowStepFact, NodeTableBuilder, Offset, Position, TableBuilder, node_table};
 
 /// What the adapter's reading ends in.
 pub(super) trait Output {
@@ -85,27 +86,55 @@ impl Output for Elements<'_, '_> {
     }
 }
 
-/// The numbered node table of the walk contract. Its flow facts and pattern trees are not written into it: the per-file view holds
-/// what a filler of those relations reads.
-pub(super) struct Numbered<'b, 't>(pub &'b mut NodeTableBuilder<'t>);
+/// The numbered node table of the walk contract. Its pattern trees are not written into it: the per-file view holds what a filler of
+/// those relations reads. Its flow facts are kept for the fillers, each node as its id in the table.
+pub(super) struct Numbered<'b, 't> {
+    /// The table written.
+    builder: &'b mut NodeTableBuilder<'t>,
+    /// Whether the control-flow facts are wanted.
+    wants_flow: bool,
+    /// The control-flow facts, once written.
+    pub(super) flow: Option<FlowFacts>,
+}
+
+impl<'b, 't> Numbered<'b, 't> {
+    /// An output over the table `builder` writes, with the control-flow facts wanted or not.
+    pub(super) fn new(builder: &'b mut NodeTableBuilder<'t>, wants_flow: bool) -> Self {
+        Self { builder, wants_flow, flow: None }
+    }
+}
 
 impl Output for Numbered<'_, '_> {
     fn needs_flow(&self) -> bool {
-        false
+        self.wants_flow
     }
     fn diagnose(&mut self, message: &str, start: Offset, end: Offset) {
-        node_table::diagnose(self.0, start, end, languages::NameText(message));
+        node_table::diagnose(self.builder, start, end, languages::NameText(message));
     }
     fn tree(
         &mut self,
         root: &mut Piece,
         _carriers: &mut [Carrier<'_>],
-        _positions: &mut [Option<Position>],
+        positions: &mut [Option<Position>],
         source: &str,
     ) {
-        write_numbered(root, FieldCode(0), source, self.0);
+        let mut nodes = 0_u32;
+        write_numbered(root, FieldCode(0), source, positions, &mut nodes, self.builder);
     }
-    fn flow(&mut self, _flow: &FlowDraft, _positions: &NodePositions) {}
+    fn flow(&mut self, flow: &FlowDraft, positions: &NodePositions) {
+        let mut facts = FlowFacts { blocks: flow.blocks.clone(), edges: flow.edges.clone(), ..FlowFacts::default() };
+        for drafted in &flow.steps {
+            if let Some(node) = positions.0.get(drafted.node.index()).copied().flatten() {
+                facts.steps.push(FlowStepFact { node, ..drafted.step });
+            }
+        }
+        for (position, block) in positions.0.iter().zip(&flow.members) {
+            if let Some(node) = *position {
+                facts.members.push(FlowMemberFact { node, block: *block });
+            }
+        }
+        self.flow = Some(facts);
+    }
     fn patterns(
         &mut self,
         _allocator: &Allocator,
@@ -115,7 +144,7 @@ impl Output for Numbered<'_, '_> {
     ) {
     }
     fn accept(&mut self, acceptance: languages::SyntaxAcceptance) {
-        node_table::set_syntax_acceptance(self.0, acceptance);
+        node_table::set_syntax_acceptance(self.builder, acceptance);
     }
 }
 
@@ -124,13 +153,23 @@ fn write_numbered(
     node: &mut Piece,
     field: FieldCode,
     source: &str,
+    positions: &mut [Option<Position>],
+    nodes: &mut u32,
     builder: &mut NodeTableBuilder<'_>,
 ) {
+    if let Some(id) = node.node
+        && let Some(position) = positions.get_mut(id.index())
+        && matches!(node.kind, Kind::Node(_))
+    {
+        // The nodes of the numbered table come first, in pre-order: a node's id is how many nodes were entered before it.
+        *position = Some(Position(*nodes));
+    }
     node.children
         .sort_by_key(|child| (child.span.start, std::cmp::Reverse(child.span.end)));
     let (start, end) = (Offset(node.span.start), Offset(node.span.end));
     match node.kind {
         Kind::Node(holder) => {
+            *nodes += 1;
             node_table::enter_node(builder, kind_bits(node.kind), field, start);
             for property in &node.properties {
                 node_table::node_property(builder, property.id, languages::NameText(&property.value.0));
@@ -141,7 +180,7 @@ fn write_numbered(
             let family = Family { holder, kinds: &kinds, starts: &starts, ends: &ends, source };
             for (at, child) in node.children.iter_mut().enumerate() {
                 let role = field_bits(field_of_child(&family, at));
-                write_numbered(child, FieldCode(role.0), source, builder);
+                write_numbered(child, FieldCode(role.0), source, positions, nodes, builder);
             }
             node_table::leave_node(builder, end);
         }

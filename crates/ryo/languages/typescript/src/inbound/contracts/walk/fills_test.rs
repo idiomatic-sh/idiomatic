@@ -214,7 +214,7 @@ fn new_rows<R: CatalogRelation>(relation: Relation, path: &str, bytes: &[u8]) ->
     let mut visit = Fill::<R> { relation, rows: &mut rows, kind: std::marker::PhantomData };
     walk.walk(
         WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(bytes) },
-        RelationNeeds(&[]),
+        RelationNeeds(&[Relation::FlowBlock, Relation::FlowEdge, Relation::FlowMember, Relation::FlowStep]),
         &mut node_table::builder(&mut table, <TypeScriptWalk<WalkPorts> as Walk>::KIND_COUNT),
         &mut (),
         &mut visit,
@@ -369,4 +369,24 @@ fn syntax_error_fills_equal_reads() {
 #[test]
 fn expression_shape_fills_equal_reads() {
     equal::<languages::ExpressionShape>(Relation::ExpressionShape);
+}
+
+#[test]
+fn flow_block_fills_equal_reads() {
+    equal::<languages::FlowBlock>(Relation::FlowBlock);
+}
+
+#[test]
+fn flow_edge_fills_equal_reads() {
+    equal::<languages::FlowEdge>(Relation::FlowEdge);
+}
+
+#[test]
+fn flow_member_fills_equal_reads() {
+    equal::<languages::FlowMember>(Relation::FlowMember);
+}
+
+#[test]
+fn flow_step_fills_equal_reads() {
+    equal::<languages::FlowStep>(Relation::FlowStep);
 }

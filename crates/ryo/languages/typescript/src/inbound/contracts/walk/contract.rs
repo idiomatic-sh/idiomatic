@@ -13,7 +13,7 @@ use crate::outbound::embedded::types::{BlockLanguage, Markup};
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 use ryo::languages::{
-    ByteSlice, Count, FileFacts, FileVisit, NodeTableBuilder, Recognition, RelationNeeds, Walk, WalkError, WalkRequest,
+    ByteSlice, Count, FileFacts, FileVisit, NodeTableBuilder, Recognition, Relation, RelationNeeds, Walk, WalkError, WalkRequest,
     fillers, node_table,
 };
 use std::sync::Arc;
@@ -62,7 +62,7 @@ impl Walk for TypeScriptWalk<WalkPorts> {
     fn walk(
         &self,
         request: WalkRequest<'_>,
-        _needs: RelationNeeds<'_>,
+        needs: RelationNeeds<'_>,
         builder: &mut NodeTableBuilder<'_>,
         _scratch: &mut (),
         visit: &mut dyn FileVisit,
@@ -73,12 +73,15 @@ impl Walk for TypeScriptWalk<WalkPorts> {
             return Err(WalkError::Unsupported);
         }
         let bytes = ByteSlice(request.source.0);
-        match reading_of(request.path, bytes, stretches.as_deref()) {
-            Scripting::Own(dialect) => self.ports.syntax.walk(SourceText(bytes.0), dialect, builder),
-            Scripting::Script(script, dialect) => self.ports.syntax.walk(SourceText(&script.0), dialect, builder),
-        }
+        let flow = [Relation::FlowBlock, Relation::FlowEdge, Relation::FlowMember, Relation::FlowStep]
+            .iter()
+            .any(|relation| needs.0.contains(relation));
+        let walked = match reading_of(request.path, bytes, stretches.as_deref()) {
+            Scripting::Own(dialect) => self.ports.syntax.walk(SourceText(bytes.0), dialect, builder, flow),
+            Scripting::Script(script, dialect) => self.ports.syntax.walk(SourceText(&script.0), dialect, builder, flow),
+        };
         let table = node_table::finished(builder);
-        let mut file = TypeScriptFile { table, source: request.source, file: request.file, model: ReadIndexes::default() };
+        let mut file = TypeScriptFile { table, source: request.source, file: request.file, model: ReadIndexes::default(), flow: walked.flow };
         let mut source = fillers::file_source::<TypeScriptWalk<WalkPorts>>(&mut file);
         visit.visit(FileFacts {
             table,
