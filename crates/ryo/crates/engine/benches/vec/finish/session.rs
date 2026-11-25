@@ -507,6 +507,32 @@ pub(in super::super) fn publish_table(
     Ok(())
 }
 
+/// A certified mask already carries the source positions. Emit directly from
+/// the tree while it is lent, preserving the ordinary finding identity and ties.
+pub(in super::super) fn publish_locations(
+    exec: &mut Exec<'_>, run: &mut Run, slot: (usize, usize),
+    rule: &str, subject: &str, keys: &[String], columns: &[crate::pair_summary::LocationColumn],
+    mask: &[u64], tree: &ryo::languages::NodeTable, file: u32, rows: &mut Vec<answer::Row>,
+) -> R<()> {
+    use crate::pair_summary::LocationColumn;
+    if mask.iter().all(|&word| word == 0) { return Ok(()); }
+    let (layout, origin) = answer::location_layout(exec, run, slot, rule, subject, keys, columns, file)?;
+    let starts = ryo::languages::node_table::starts(tree);
+    let ends = ryo::languages::node_table::ends(tree);
+    let mut seen = BTreeMap::new();
+    crate::pair_checks::each(mask, |node| {
+        let index = node as usize;
+        let cells = columns.iter().map(|column| match column {
+            LocationColumn::File => u64::from(origin),
+            LocationColumn::Span => u64::from(starts[index]) << 32 | u64::from(ends[index]),
+            LocationColumn::Node => u64::from(origin) << 32 | u64::from(node),
+        }).collect();
+        keep_finding(&mut seen, answer::Row::resolved(&layout, cells));
+    });
+    rows.extend(seen.into_values());
+    Ok(())
+}
+
 /// Evaluate just the local outputs consumed by a wider step. Their types and
 /// multiplicities are identical to the producer's ordinary result.
 pub(in super::super) fn gather(

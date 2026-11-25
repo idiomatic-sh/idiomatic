@@ -1278,11 +1278,11 @@ pub(crate) fn visit<L: FileSource>(
                             clocks.exact_inputs[6] += usize::from(cut_of[binding].is_some());
                             clocks.exact_inputs[7] += usize::from(!said.is_empty());
                             if !said.is_empty() || !provider.projects_words || cut_of[binding].is_some() { continue; }
-                            if let Some(tables) = screen.exact_locations(root(binding), tree, id) {
+                            if let Some(locations) = screen.exact_locations(root(binding)) {
                                 let mut rows = Vec::new();
-                                let result = b.plan.emits.iter().zip(tables).enumerate().try_for_each(
-                                    |(emit, ((rule, _, subject, keys), table))| finish::session::publish_table(
-                                        &mut exec, &mut run, (binding, emit), rule, subject, keys, &table, id.0 as usize, &mut rows));
+                                let result = b.plan.emits.iter().zip(locations).enumerate().try_for_each(
+                                    |(emit, ((rule, _, subject, keys), (columns, mask)))| finish::session::publish_locations(
+                                        &mut exec, &mut run, (binding, emit), rule, subject, keys, columns, mask, tree, id.0, &mut rows));
                                 certified.insert(slot, result.map(|()| Reported::from(rows)));
                             }
                     }

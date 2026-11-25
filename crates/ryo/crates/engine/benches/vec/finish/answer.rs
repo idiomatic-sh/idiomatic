@@ -34,19 +34,21 @@ impl Layout {
     fn new(
         run: &mut Run,
         rule: &str,
-        table: &Table,
+        names: &[String],
+        types: &[Ty],
         subject: &str,
         keys: &[String],
     ) -> Result<Arc<Self>, String> {
         let identity = std::iter::once(subject)
             .chain(keys.iter().map(String::as_str))
-            .map(|name| table.col(name))
+            .map(|name| names.iter().position(|column| column == name)
+                 .ok_or_else(|| format!("no column {name} in {names:?}")))
             .collect::<Result<_, _>>()?;
         Ok(Arc::new(Self {
             rule: rule.into(),
-            names: table.names.as_slice().into(),
+            names: names.into(),
             identity,
-            types: table.tys.as_slice().into(),
+            types: types.into(),
             words: run
                 .answer_words
                 .get_or_insert_with(Default::default)
@@ -68,10 +70,31 @@ impl Exec<'_> {
         Ok(match self.answer_layouts.entry(emit) {
             Entry::Occupied(slot) => slot.get().clone(),
             Entry::Vacant(slot) => slot
-                .insert(Layout::new(run, rule, table, subject, keys)?)
+                .insert(Layout::new(run, rule, &table.names, &table.tys, subject, keys)?)
                 .clone(),
         })
     }
+}
+
+pub(super) fn location_layout(
+    exec: &mut Exec<'_>, run: &mut Run, emit: (usize, usize), rule: &str, subject: &str,
+    keys: &[String], columns: &[crate::pair_summary::LocationColumn], file: u32,
+) -> Result<(Arc<Layout>, u32), String> {
+    let layout = match exec.answer_layouts.entry(emit) {
+        Entry::Occupied(slot) => slot.get().clone(),
+        Entry::Vacant(slot) => {
+            use crate::pair_summary::LocationColumn;
+            let (names, types): (Vec<String>, Vec<Ty>) = columns.iter().map(|column| match column {
+                LocationColumn::File => ("file".into(), Ty::File),
+                LocationColumn::Span => ("span".into(), Ty::Span),
+                LocationColumn::Node => ("id".into(), Ty::Node),
+            }).unzip();
+            slot.insert(Layout::new(run, rule, &names, &types, subject, keys)?).clone()
+        }
+    };
+    let path = run.paths.get(file as usize).ok_or("finding has no source origin")?;
+    let origin = layout.words.write().expect("answer words").path(path)?;
+    Ok((layout, origin))
 }
 
 /// The schema gives each word its type. Node words retain their file and position.
@@ -115,6 +138,10 @@ impl RestoredRows {
 }
 
 impl Row {
+    pub(super) fn resolved(layout: &Arc<Layout>, words: Box<[u64]>) -> Self {
+        Self { layout: layout.clone(), words, place: (0, 0) }
+    }
+
     fn decode<T: From<String> + From<&'static str>, D: std::ops::Deref<Target = Words>>(
         &self,
         index: usize,

@@ -387,15 +387,10 @@ impl Checks {
         }
     }
 
-    /// Tables in emit order for a local binding whose every output has a proof.
-    /// The caller establishes binding completeness and uses the shared row writer.
-    #[allow(dead_code, reason = "row delivery plugs into the shared visit")]
-    pub(super) fn exact_locations<'a>(
-        &'a self,
-        binding: usize,
-        tree: &'a l::NodeTable,
-        file: FileId,
-    ) -> Option<impl Iterator<Item = super::Table> + 'a> {
+    /// Borrow the proof mask and the declared output shape for every emit.
+    pub(super) fn exact_locations(
+        &self, binding: usize,
+    ) -> Option<impl Iterator<Item = (&[LocationColumn], &[u64])>> {
         let roots = self.roots[binding].as_deref()?;
         let lookup = |root: &usize| {
             self.exact.binary_search_by_key(root, |(index, _)| *index)
@@ -408,40 +403,10 @@ impl Checks {
         Some(roots.iter().map(move |root| {
             let certificate = self.program.exact.binary_search_by_key(root, |(index, _)| *index)
                 .expect("exact mask has a certificate");
-            location_table(tree, file, &self.program.exact[certificate].1.columns,
-                lookup(root).expect("all outputs have masks"))
+            (self.program.exact[certificate].1.columns.as_ref(),
+             lookup(root).expect("all outputs have masks").as_slice())
         }))
     }
-}
-
-fn location_table(
-    tree: &l::NodeTable,
-    file: FileId,
-    columns: &[LocationColumn],
-    mask: &[u64],
-) -> super::Table {
-    use crate::finish::Ty;
-    let (names, types): (Vec<String>, Vec<Ty>) = columns.iter().map(|col| match col {
-        LocationColumn::File => ("file".to_owned(), Ty::File),
-        LocationColumn::Span => ("span".to_owned(), Ty::Span),
-        LocationColumn::Node => ("id".to_owned(), Ty::Node),
-    }).unzip();
-    let rows = mask.iter().map(|word| word.count_ones() as usize).sum();
-    let mut out = super::Table::retained(names.into(), types.into(), rows);
-    let starts = l::node_table::starts(tree);
-    let ends = l::node_table::ends(tree);
-    crate::pair_checks::each(mask, |node| {
-        let n = node as usize;
-        for (dst, col) in out.cols.iter_mut().zip(columns) {
-            dst.push(match col {
-                LocationColumn::File => u64::from(file.0),
-                LocationColumn::Span => (u64::from(starts[n]) << 32) | u64::from(ends[n]),
-                LocationColumn::Node => u64::from(node),
-            });
-        }
-    });
-    out.n = rows;
-    out
 }
 
 fn domain_steps(cut: Option<&crate::finish::partition::Partition>) -> Vec<(usize, usize)> {
