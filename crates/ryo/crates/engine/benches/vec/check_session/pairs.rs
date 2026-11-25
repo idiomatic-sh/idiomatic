@@ -286,8 +286,10 @@ impl Checks {
                         return !partials.iter().any(|p| p.relation == rel) && host_executable(run, id, out);
                     }
                     // The project layout answers for its own file, as the former loop's `identity` did.
-                    if let Some(layout) = layouts.iter().flatten().find(|layout| layout.relation == rel) {
-                        return layout.witness_columns(path, id, words, out);
+                    if let Some((layout, part)) = layouts.iter().flatten()
+                        .find_map(|layout| layout.relations.iter().position(|r| *r == rel).map(|part| (layout, part)))
+                    {
+                        return layout.witness_columns(part, path, id, words, out);
                     }
                     requested.contains(&rel)
                         && !partials.iter().any(|p| p.relation == rel)
