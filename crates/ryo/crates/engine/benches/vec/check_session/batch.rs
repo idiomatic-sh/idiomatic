@@ -89,7 +89,7 @@ struct Admission {
     closed: bool,
     file_cells: bool,
     file_inventory: bool,
-    layout: Option<(l::Relation, Arc<session::completeness::Contract>)>,
+    layout: Option<(Vec<l::Relation>, Arc<session::completeness::Contract>)>,
     cut: Option<Arc<finish::partition::Partition>>,
 }
 
@@ -107,7 +107,7 @@ struct Batch {
     binding_ids: HashMap<(usize, Option<usize>, Vec<(usize, Option<String>)>), usize>,
     layout_of: Vec<Option<usize>>,
     layouts: Vec<Option<project::Layout>>,
-    layout_ids: HashMap<(String, Authority, Rc<Vec<String>>, l::Relation), Option<usize>>,
+    layout_ids: HashMap<(String, Authority, Rc<Vec<String>>, Vec<l::Relation>), Option<usize>>,
     work: Vec<Work>,
     projects: Vec<ProjectSpec>,
     cut_of: Vec<Option<Arc<finish::partition::Partition>>>,
@@ -177,18 +177,18 @@ impl Admission {
         let contract = Arc::new(session::completeness::describe(program, &local)?);
         let wide = contract.cross || unsliced_host;
         let layout = if !scope_only
-            && let [relation] = held.as_slice()
+            && !held.is_empty()
             // One File cell per row and no node or span cell: the rows are the file's own.
-            && run.catalog(relations::service::name(*relation).0).is_some_and(|(_, _, types)| {
+            && held.iter().all(|relation| run.catalog(relations::service::name(*relation).0).is_some_and(|(_, _, types)| {
                 types.iter().filter(|ty| **ty == finish::Ty::File).count() == 1
                     && !types.iter().any(|ty| matches!(ty, finish::Ty::Node | finish::Ty::Span))
-            })
+            }))
         {
-            let name = relations::service::name(*relation).0;
-            finish::partition::with_file_slice(&mut exec, &mut run, name, |base| {
+            let names: Vec<&str> = held.iter().map(|relation| relations::service::name(*relation).0).collect();
+            finish::partition::with_file_slice(&mut exec, &mut run, &names, |base| {
                 hosted.iter().any(|table| table.name == base)
             }, |base| hosted.iter().any(|t| t.name == base && has_files(t)))?.filter(|local| !unsliced(local)).map(|local| session::completeness::describe(program, &local)
-                .map(|contract| (*relation, Arc::new(contract)))).transpose()?
+                .map(|contract| (held.clone(), Arc::new(contract)))).transpose()?
         } else {
             None
         };
@@ -264,7 +264,7 @@ impl Batch {
                 class
             }
         };
-        if let (Some((relation, _)), Some((readers, environment)), Some(inventory), Some(authority)) =
+        if let (Some((relations, _)), Some((readers, environment)), Some(inventory), Some(authority)) =
             (&class.layout, layouts, &req.inventory, &req.repository)
             && !req.files.is_empty()
             && req.files.iter().all(|path| inventory.binary_search(path).is_ok())
@@ -272,9 +272,9 @@ impl Batch {
                 || req.files.windows(2).all(|pair| pair[0] > pair[1])
                 || req.files.iter().collect::<BTreeSet<_>>().len() == req.files.len())
         {
-            let key = (req.root.clone(), authority.clone(), inventory.clone(), *relation);
+            let key = (req.root.clone(), authority.clone(), inventory.clone(), relations.clone());
             let layout = *self.layout_ids.entry(key).or_insert_with(|| {
-                let table = project::layout(readers, authority, inventory, environment, *relation)?;
+                let table = project::layout(readers, authority, inventory, environment, relations)?;
                 let id = self.layouts.len();
                 self.layouts.push(Some(table));
                 Some(id)

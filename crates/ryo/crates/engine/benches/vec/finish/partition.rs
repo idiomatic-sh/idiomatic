@@ -8,11 +8,11 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(in super::super) fn with_file_slice(
     exec: &mut Exec<'_>,
     run: &mut Run,
-    relation: &str,
+    relations: &[&str],
     wide: impl Fn(&str) -> bool,
     sliced: impl Fn(&str) -> bool,
 ) -> R<Option<Vec<bool>>> {
-    let exact = local_steps(exec, run, |name| name != relation && wide(name), sliced, |ty| {
+    let exact = local_steps(exec, run, |name| !relations.contains(&name) && wide(name), sliced, |ty| {
         matches!(ty, Ty::Node | Ty::File)
     })?;
     if !exec.plan.emits.iter().all(|emit| exact[emit.1] && emit.2 == "file") {
@@ -22,7 +22,7 @@ pub(in super::super) fn with_file_slice(
     // cannot make its ordinal invariant under slicing.
     let mut reads_slice = Vec::with_capacity(exact.len());
     for step in &exec.plan.nodes {
-        let reads = step.base() == Some(relation)
+        let reads = step.base().is_some_and(|name| relations.contains(&name))
             || step.inputs.iter().any(|&input| reads_slice[input]);
         if reads && step.op() == "rank" {
             return Ok(None);
