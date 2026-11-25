@@ -373,7 +373,7 @@ impl Packet {
 }
 /// Run-wide IDs for the words of the current file's symbol dictionary.
 #[derive(Default)]
-pub(crate) struct FileSymbols(FxHashMap<u32, u32>);
+pub(crate) struct FileSymbols(Vec<u32>);
 
 impl FileSymbols {
     pub(crate) fn resolve(
@@ -384,7 +384,24 @@ impl FileSymbols {
         bytes: &[u8],
         word: l::Symbol,
     ) -> u32 {
-        *self.0.entry(word.0).or_insert_with(|| reader::symbol(run, unknown, symbols, bytes, word))
+        if word == l::NO_SYMBOL {
+            return run.absent_word.expect("reader word table");
+        }
+        let index = word.0 as usize;
+        if index >= self.0.len() {
+            let count = l::contract::name_count(symbols).0;
+            if index >= count {
+                // Published terms and unknowns have their own namespace. A
+                // reserved code must never size the file dictionary.
+                return reader::symbol(run, unknown, symbols, bytes, word);
+            }
+            self.0.resize(count, u32::MAX);
+        }
+        let cell = &mut self.0[index];
+        if *cell == u32::MAX {
+            *cell = reader::symbol(run, unknown, symbols, bytes, word);
+        }
+        *cell
     }
 }
 
@@ -539,6 +556,23 @@ impl View<'_, '_> {
 #[cfg(test)]
 mod file_node_tests {
     use super::*;
+    #[test]
+    fn resolving_published_terms_leaves_room_only_for_file_symbols() {
+        let mut run = finish::Run::default();
+        let unknown = reader::public_words(&mut run, &[]);
+        let mut symbols = l::Symbols::default();
+        let mut lookup = FileSymbols::default();
+        let reserved = ryo_relations::domain::terms::service::declared_terms().next().unwrap().0;
+        assert_eq!(lookup.resolve(&mut run, &unknown, &symbols, b"", reserved),
+            reader::symbol(&mut run, &unknown, &symbols, b"", reserved));
+        assert!(lookup.0.is_empty());
+        for text in ["one", "two"] {
+            let id = l::intern_derived(&mut symbols, ByteSlice(b""), l::NameText(text));
+            assert_eq!(lookup.resolve(&mut run, &unknown, &symbols, b"", id), run.sym(text.as_bytes()));
+        }
+        assert_eq!(lookup.0.len(), 2);
+        assert_eq!(lookup.resolve(&mut run, &unknown, &symbols, b"", l::NO_SYMBOL), run.absent_word.unwrap());
+    }
     #[test]
     fn reset_reclaims_a_local_population_even_if_the_visit_failed_before_index() {
         struct RefusesStructure;
