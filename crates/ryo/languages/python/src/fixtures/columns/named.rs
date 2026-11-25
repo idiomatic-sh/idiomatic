@@ -143,3 +143,47 @@ impl ColumnFile<'_, '_> {
         answers
     }
 }
+
+impl<'a, 'f> ColumnFile<'a, 'f> {
+    /// Answers the named batch of a walked file while its view is live: the language's private relations, which the
+    /// walk's `named` item hands to here.
+    pub(crate) fn named(
+        file: &'a mut crate::domain::file_view::types::PythonFile<'f>,
+        request: l::NamedRequest<'_, '_>,
+    ) -> Vec<Result<l::FileRows, l::ParseError>> {
+        let l::NamedRequest { table, relations: projected, request, project, words, symbols } = request;
+        let import_presence = file.import_presence;
+        let mut memo = super::TextMemo::default();
+        let mut file = ColumnFile { table, file, import_presence, memo: &mut memo, words };
+        let uses_package = |s: &l::FileRelation| s.name == "import-head" && file.import_statement_count() != 0;
+        let needs_package: Vec<_> = projected.iter().map(|s| uses_package(s)).collect();
+        let package = project
+            .filter(|_| needs_package.iter().any(|&needed| needed))
+            .map(|project| crate::fixtures::import_environment::package(project, request.path.0))
+            .transpose();
+        let observed_package = package.as_ref().ok().and_then(Option::as_ref).map(|(_, root)| root.as_str());
+        let mut failure = None;
+        let mut prefixes = |target: &str| match crate::fixtures::import_environment::prefixes(project.expect("declared roots"), target) {
+            Ok(prefixes) => prefixes,
+            Err(error) => {
+                failure = Some(error);
+                Default::default()
+            }
+        };
+        let lookup = project
+            .filter(|p| p.roots().is_some())
+            .map(|_| &mut prefixes as &mut dyn FnMut(&str) -> (String, String, bool));
+        let mut answers =
+            file.answer_named_facts_covered(projected, request.file, request.bytes, symbols, observed_package, lookup);
+        for ((schema, answer), needed) in projected.iter().zip(&mut answers).zip(needs_package) {
+            if needed && let Err(error) = &package {
+                *answer = Err(failed(error.as_str().into()));
+                continue;
+            }
+            if let Some(error) = failure.as_ref().filter(|_| schema.name == "import-head") {
+                *answer = Err(failed(error.as_str().into()));
+            }
+        }
+        answers
+    }
+}

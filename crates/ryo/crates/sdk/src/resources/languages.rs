@@ -23,11 +23,13 @@ pub use ryo_language::inbound::use_cases::parse::interface::ParseUseCase as Pars
 /// Open on purpose: the walk contract a language implements for the engine, beside `Parse` until the swap deletes `Parse`.
 pub use ryo_language::inbound::use_cases::walk::interface::WalkUseCase as Walk;
 pub use ryo_language::inbound::use_cases::walk::errors::WalkError;
+/// The one adapter from a language's walk to the numbered visit.
+pub use ryo_language::inbound::use_cases::walk::numbered::NumberedWalk;
 pub use ryo_language::inbound::use_cases::walk::types::{FileVisit, RelationNeeds, WalkRequest};
 /// Open on purpose: a language implements it, through `ryo::fills!` items, and nothing else does.
 pub use ryo_language::domain::fillers::types::Fillers;
 pub use ryo_language::domain::fillers::types::{FieldNames, Fill, FillItem, KeyedFillItem, WalkKinds, WalkVocabulary};
-pub use ryo_language::domain::facts::types::{CellWord, FactAnswer, FactSource, FileFacts, FileWords, FillExtent, FilledColumn, FilledColumns, FillerSentence, PartialRows, Wanted};
+pub use ryo_language::domain::facts::types::{CellWord, FactAnswer, FactSource, FileCompleteness, FileFacts, FileWords, NamedRequest, FillExtent, FilledColumn, FilledColumns, FillerSentence, PartialRows, Wanted};
 pub use ryo_language::domain::fixed_names::{errors::FixedNamesError, types::{CheckedNames, FixedNames, FixedWord}};
 pub use ryo_language::domain::node_table::types::{
     ByteSpan, ElementSets, EmbeddedRoot, EmbeddedSpan, EmbeddedText, FieldCode, KindSet, KindsPresent, NodeTable, NodeTableBuilder,
