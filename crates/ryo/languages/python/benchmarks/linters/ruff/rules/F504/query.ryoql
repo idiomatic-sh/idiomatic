@@ -8,7 +8,8 @@ let binop_rights = select l.id as binop, l.file as file, r.child as right from b
 let left_locations = select l.binop as binop, l.left as left, l.file as file, r."end-byte" as left_end from binop_lefts as l join "source-location" as r on l.left = r.id and l.file = r.file;
 let right_locations = select l.binop as binop, l.right as right, l.file as file, r."start-byte" as right_start from binop_rights as l join "source-location" as r on l.right = r.id and l.file = r.file;
 let ordered_binops = select l.binop as binop, l.left as left, r.right as right, l.file as file, l.left_end as left_end, r.right_start as right_start from left_locations as l join right_locations as r on l.binop = r.binop and l.file = r.file;
-let percent_tokens = select l.id as token, r.file as file, r."start-byte" as start, r."end-byte" as end from "syntax-tree" as l join "source-location" as r on l.id = r.id where l.text = "%";
+let percent_tokens0 = select id, text, file from "syntax-tree" where text = "%";
+let percent_tokens = select l.id as token, r.file as file, r."start-byte" as start, r."end-byte" as end from percent_tokens0 as l join "source-location" as r on l.id = r.id;
 let modulo_candidates = select l.binop as binop, l.left as left, l.right as right, l.file as file from ordered_binops as l join percent_tokens as r on l.file = r.file where r.start >= l.left_end and r.end <= l.right_start;
 let format_literals = select l.occurrence as format_id, l.value as value, l.file as file from "string-literal" as l;
 let literal_binops = select l.binop as binop, l.left as left, l.right as right, l.file as file, r.format_id as format_id, r.value as format_value from modulo_candidates as l join format_literals as r on l.left = r.format_id and l.file = r.file;
@@ -39,10 +40,8 @@ let extra_dictionary_keys = antijoin(left=expression_dictionary_keys, right=used
 let extra_name_counts = group-count(from=extra_dictionary_keys, keys=["binop", "file"], count="count", distinct="value");
 let candidates = select l.binop as id, l.file as file, r.span as span from extra_name_counts as l join binops as r on l.binop = r.id and l.file = r.file where l.count > 0;
 let candidate_locations = line_located(candidates=candidates);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F504)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "F504"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="F504");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","F504") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

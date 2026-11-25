@@ -45,10 +45,8 @@ let indirect_owners = antijoin(left=ancestor_owners, right=direct_owners, left-o
 let evaluated_owners = union(left=direct_owners, right=indirect_owners);
 let candidates = select l.id as id, l.file as file, l.span as span from evaluated_owners as l join init_methods as r on l.function = r.function and l.file = r.file;
 let candidate_locations = line_located(candidates=candidates);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLE0101)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PLE0101"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="PLE0101");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","PLE0101") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

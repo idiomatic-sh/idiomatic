@@ -50,10 +50,8 @@ let version_roots = union(left=named_version_roots, right=attributed_version_roo
 let version_maps = select l.call as call, l.file as file from version_receivers as l join version_roots as r on l.receiver = r.id and l.file = r.file;
 let candidates = select l.call as id, l.file as file, r.span as span from version_maps as l join calls as r on l.call = r.id and l.file = r.file;
 let candidate_locations = line_located(candidates=candidates);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:RUF048)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "RUF048"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="RUF048");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","RUF048") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

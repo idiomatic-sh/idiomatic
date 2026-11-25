@@ -23,10 +23,8 @@ let short_strings = select occurrence as id, file from "string-literal" where ma
 let matches = select l.comparison as comparison, l.left as left, l.file as file from relational_comparisons as l join short_strings as r on l.comparator = r.id and l.file = r.file;
 let reportable = select l.left as id, l.file as file, r.span as span from matches as l join "semantic-syntax" as r on l.left = r.id and l.file = r.file;
 let candidate_locations = line_located(candidates=reportable);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:YTT302)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "YTT302"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="YTT302");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","YTT302") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

@@ -43,9 +43,8 @@ let starts = antijoin(left=equal_pairs, right=continued_runs, left-on=["first"],
 let reportable = select l.first as id, r.id as location, r.file as file, r.span as span from starts as l join owners as r on l.owner = r.id;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.location = r.id;
 let suppression_candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.location = r.id;
-let suppression_found = observation_matches(candidates=suppression_candidates, codes="^(?:PLR1701|SIM101)$");
-let candidate_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=candidate_rows, right=suppression_found, left-on=[id], right-on=[id]);
+let suppression_found = observation_matches(candidates=suppression_candidates, code="SIM101");
+let violations = antijoin(left=candidate_locations, right=suppression_found, left-on=[id], right-on=[id]);
 let ruf100_directives = select directive, file from suppression_found where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "SIM101"});
 observe ruf100_used as noqa_matches;

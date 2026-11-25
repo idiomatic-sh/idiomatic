@@ -7,10 +7,8 @@ let class_arguments = select r.id as id, r.file as file, r.span as span from cla
 let supplied = select parent from "semantic-child" where field = "bases" or field = "keywords";
 let reportable = antijoin(left=class_arguments, right=supplied, left-on=["id"], right-on=["parent"]);
 let candidate_locations = line_located(candidates=reportable);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:UP039)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "UP039"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="UP039");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","UP039") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

@@ -43,10 +43,8 @@ let named_targets = select l.assignment as assignment, l.file as file, r.name as
 let assigned_typing_calls = select l.call as call, l.file as file, l.call_span as call_span, r.name as variable from all_typing_calls as l join named_targets as r on l.assignment = r.assignment and l.file = r.file;
 let candidates = select l.call as id, l.file as file, l.call_span as span from assigned_typing_calls as l join declared_names as r on l.call = r.call and l.file = r.file where l.variable != r.name;
 let candidate_locations = line_located(candidates=candidates);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLC0132)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PLC0132"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="PLC0132");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","PLC0132") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

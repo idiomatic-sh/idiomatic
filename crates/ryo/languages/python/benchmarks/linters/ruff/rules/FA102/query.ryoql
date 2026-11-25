@@ -6,8 +6,8 @@ let values = select parent, child, file from "semantic-child" where field = "val
 let generic_origins = select id, file from "qualified-name" where matches(path, "^(?:builtins[.](?:dict|frozenset|list|set|tuple|type)|collections[.](?:deque|defaultdict|ChainMap|Counter|OrderedDict)|asyncio[.](?:Future|Task)|contextlib[.](?:AbstractAsyncContextManager|AbstractContextManager)|dataclasses[.]Field|functools[.](?:cached_property|partialmethod)|os[.]PathLike|queue[.](?:LifoQueue|PriorityQueue|Queue|SimpleQueue)|re[.](?:Match|Pattern)|shelve[.](?:BsdDbShelf|DbfilenameShelf|Shelf)|types[.]MappingProxyType|weakref[.](?:WeakKeyDictionary|WeakMethod|WeakSet|WeakValueDictionary)|collections[.]abc[.](?:AsyncGenerator|AsyncIterable|AsyncIterator|Awaitable|ByteString|Callable|Collection|Container|Coroutine|Generator|ItemsView|Iterable|Iterator|KeysView|Mapping|MappingView|MutableMapping|MutableSequence|MutableSet|Reversible|Sequence|Set|ValuesView))$");
 let subscript_values = select l.id as id, r.child as value, l.file as file from subscripts as l join values as r on l.id = r.parent and l.file = r.file;
 let pep585 = select l.id as id, l.file as file from subscript_values as l join generic_origins as r on l.value = r.id and l.file = r.file;
-let pipe_tokens = select id, file from nodes where text = "|";
-let pep604 = select l.parent as id, l.file as file from "semantic-child" as l join pipe_tokens as r on l.child = r.id and l.file = r.file where l.field = "op";
+let pipe_tokens = select id, file from "semantic-syntax" where text = "|";
+let pep604 = select r.parent as id, l.file as file from pipe_tokens as l join "semantic-child" as r on l.id = r.child and l.file = r.file where r.field = "op";
 let old_generic_files = select file from "language-target" where major = 3 and minor >= 7 and minor < 9;
 let old_union_files = select file from "language-target" where major = 3 and minor >= 7 and minor < 10;
 let generic_candidates = select l.id as id, l.file as file from pep585 as l join old_generic_files as r on l.file = r.file;
@@ -28,10 +28,8 @@ let runtime = antijoin(left=eager, right=tc_members, left-on=["id","file"], righ
 let selected = select id, file from runtime where matches(file, "[.]py$");
 let candidates = select l.id as id, l.file as file, r.span as span from selected as l join nodes as r on l.id = r.id and l.file = r.file;
 let located = select l.id as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=located, codes="^(?:FA102)$");
-let violations_rows = select id, file, span from located;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "FA102"});
+let violations_matches = observation_matches(candidates=located, code="FA102");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","FA102") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

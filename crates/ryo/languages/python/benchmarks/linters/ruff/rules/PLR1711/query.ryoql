@@ -33,9 +33,8 @@ let doc_and_return = select l.parent as parent from doc_bodies as l join two_sta
 let eligible = antijoin(left=one_return, right=doc_and_return, left-on=["function"], right-on=["parent"]);
 let reportable = select id, file, span from eligible;
 let candidate_locations = line_located(candidates=reportable);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLR1711)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let violations_matches = observation_matches(candidates=candidate_locations, code="PLR1711");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
 let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PLR1711"});
 observe ruf100_used as noqa_matches;

@@ -1,0 +1,10 @@
+import nearest_read_lookup from "python/ruff/nearest-read-lookup";
+import type_root_binds from "python/ruff/type-root-binds";
+input deferred: relation<reference: node, file: file>;
+output relation<reference: node, binding: node, file: file>;
+let read_lookup = nearest_read_lookup();
+let fast = select reference, event as binding, file from read_lookup where kind = "bind" and namespace = "own";
+let headers = type_root_binds();
+let own = antijoin(left=fast, right=headers, left-on=[binding,file], right-on=[id,file]);
+let direct = antijoin(left=own, right=deferred, left-on=[reference,file], right-on=[reference,file]);
+return direct;

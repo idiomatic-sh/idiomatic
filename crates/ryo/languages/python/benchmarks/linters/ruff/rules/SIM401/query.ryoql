@@ -59,7 +59,7 @@ let with_dicts = select l.id as id, l.file as file, l.body as body, l.alternativ
 let statement_dicts = select l.id as id, l.file as file, l.body as body, l.alternative as alternative, l.op as op, l.key as key, l.dictionary as dictionary from with_dicts as l join ifs as r on l.id = r.id and l.file = r.file;
 let expression_dicts = select l.id as id, l.file as file, l.body as body, l.alternative as alternative, l.op as op, l.key as key, l.dictionary as dictionary from with_dicts as l join if_expressions as r on l.id = r.id and l.file = r.file;
 let dict_references = select dictionary as reference, file from statement_dicts;
-let dict_types = binding_type(references=dict_references, builtin="builtins.dict", typing="Dict", atom="dict");
+let dict_types = binding_type(references=dict_references, builtin="builtins.dict", typing="Dict", atom="dict", bindings="only");
 let known_statement_dicts = select l.id as id, l.file as file, l.body as body, l.alternative as alternative, l.op as op, l.key as key, l.dictionary as dictionary from statement_dicts as l join dict_types as r on l.dictionary = r.reference and l.file = r.file;
 let known_dicts = union(left=known_statement_dicts, right=expression_dicts);
 let positive = select id, file, body as expected, alternative as fallback, key, dictionary from known_dicts where op = "in";
@@ -103,10 +103,8 @@ let expression_candidates = select l.id as id, l.file as file, r.span as span fr
 let located_statements = select l.id as id, l.file as file, l.span as span, r."start-line" as line from fitting as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let located_expressions = select l.id as id, l.file as file, l.span as span, r."start-line" as line from expression_candidates as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let located = union(left=located_statements, right=located_expressions);
-let violations_matches = observation_matches(candidates=located, codes="^(?:SIM401)$");
-let violations_rows = select id, file, span from located;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "SIM401"});
+let violations_matches = observation_matches(candidates=located, code="SIM401");
+let violations = antijoin(left=located, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","SIM401") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

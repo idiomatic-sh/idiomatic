@@ -94,10 +94,8 @@ let accepted_branches = select l.owner as owner, l.raise as raise, l.file as fil
 let accepted_ifs = select l.owner as if_node, l.raise as raise, l.file as file from accepted_branches as l join eligible_ifs as r on l.owner = r.if_node and l.file = r.file;
 let reportable = select l.raise as id, r.span as span, l.file as file from accepted_ifs as l join raise_nodes as r on l.raise = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:TRY004)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "TRY004"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="TRY004");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","TRY004") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

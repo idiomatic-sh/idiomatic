@@ -25,10 +25,8 @@ let conditionals = select id, file, span from "semantic-syntax" where kind = "if
 let matched_branches = select l.id as id from branches as l join tested_shapes as r on l.id = r.id and l.file = r.file where l.body = r.left and l.other = r.right or l.body = r.right and l.other = r.left;
 let candidates = select l.id as id, l.file as file, l.span as span from conditionals as l join matched_branches as r on l.id = r.id;
 let candidate_locations = line_located(candidates=candidates);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:FURB136)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "FURB136"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="FURB136");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","FURB136") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

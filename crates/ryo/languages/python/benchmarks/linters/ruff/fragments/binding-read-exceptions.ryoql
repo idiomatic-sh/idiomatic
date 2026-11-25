@@ -1,0 +1,9 @@
+import nearest_read_lookup from "python/ruff/nearest-read-lookup";
+import type_root_binds from "python/ruff/type-root-binds";
+output relation<reference: node, file: file>;
+let read_lookup = nearest_read_lookup();
+let exceptional = select reference, file from read_lookup where kind != "none" and (kind != "bind" or namespace = "routed");
+let headers = type_root_binds();
+let header_reads = select r.reference as reference, r.file as file from headers as l join read_lookup as r on l.id = r.event and l.file = r.file;
+let reads = union(left=exceptional, right=header_reads);
+return reads;

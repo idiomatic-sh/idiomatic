@@ -1,5 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
-import assigned_values from "python/ruff/assigned-values";
+import assigned_values from "python/ruff/site-assigned-values";
 import line_located from "python/ruff/candidate-locations";
 let p_binops = select id, file, span from "semantic-syntax" where kind = "bin-op";
 let p_left_fields = select parent, child from "semantic-child" where field = "left";
@@ -9,7 +9,8 @@ let p_binop_rights = select l.id as binop, l.file as file, r.child as right from
 let p_left_locations = select l.binop as binop, l.left as left, l.file as file, r."end-byte" as left_end from p_binop_lefts as l join "source-location" as r on l.left = r.id and l.file = r.file;
 let p_right_locations = select l.binop as binop, l.right as right, l.file as file, r."start-byte" as right_start from p_binop_rights as l join "source-location" as r on l.right = r.id and l.file = r.file;
 let p_ordered_binops = select l.binop as binop, l.left as left, r.right as right, l.file as file, l.left_end as left_end, r.right_start as right_start from p_left_locations as l join p_right_locations as r on l.binop = r.binop and l.file = r.file;
-let p_percent_tokens = select l.id as token, r.file as file, r."start-byte" as start, r."end-byte" as end from "syntax-tree" as l join "source-location" as r on l.id = r.id where l.text = "%";
+let p_percent_tokens0 = select id, text, file from "syntax-tree" where text = "%";
+let p_percent_tokens = select l.id as token, r.file as file, r."start-byte" as start, r."end-byte" as end from p_percent_tokens0 as l join "source-location" as r on l.id = r.id;
 let p_modulo_candidates = select l.binop as binop, l.left as left, l.right as right, l.file as file from p_ordered_binops as l join p_percent_tokens as r on l.file = r.file where r.start >= l.left_end and r.end <= l.right_start;
 let p_format_literals = select l.occurrence as format_id, l.value as value, l.file as file from "string-literal" as l;
 let p_literal_binops = select l.binop as binop, l.left as left, l.right as right, l.file as file, r.format_id as format_id, r.value as format_value from p_modulo_candidates as l join p_format_literals as r on l.left = r.format_id and l.file = r.file;
@@ -31,8 +32,6 @@ let b_format_attributes = select l.attribute as attribute, l.file as file from b
 let b_format_calls = select l.call as call, l.function as function, l.file as file, l.span as span from b_call_functions as l join b_format_attributes as r on l.function = r.attribute and l.file = r.file;
 let b_argument_nodes = select id from "semantic-syntax" where kind = "call-arguments";
 let b_argument_owners = select l.parent as call, l.child as wrapper, l.file as file from "semantic-child" as l join b_argument_nodes as r on l.child = r.id;
-let b_positional_fields = select parent, child from "semantic-child" where field = "args";
-let b_positional_arguments = select l.call as call, r.child as argument, l.file as file from b_argument_owners as l join b_positional_fields as r on l.wrapper = r.parent;
 let b_format_calls_with_literal = select l.call as call, l.file as file, l.span as span, r.receiver as format_id from b_format_calls as l join b_literal_receivers as r on l.function = r.attribute and l.file = r.file;
 let percent_reports0 = select l.binop as id, l.file as file, r.span as span from p_format_expressions as l join p_binops as r on l.binop = r.id and l.file = r.file where l.outcome = "malformed" and l.error_category = "unsupported-format-character";
 let percent_reports = extend(from=percent_reports0, values={ordinal: 0});
@@ -74,8 +73,8 @@ let records = union(left=percent_reports, right=brace_reports);
 let unique_candidates = group-count(from=records, keys=["id", "file", "span"], count="specs");
 let candidates = select id, file, span from unique_candidates;
 let candidate_locations = line_located(candidates=candidates);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PLE1300)$");
-let violations_rows = select id, file, span from candidate_locations;
+let violations_matches = observation_matches(candidates=candidate_locations, code="PLE1300");
+let violations_rows = select id, file, span from candidates;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
 let reports = select l.id as id, l.file as file, l.span as span, l.ordinal as ordinal from records as l join violations as r on l.id = r.id and l.file = r.file and l.span = r.span;
 let ruf100_directives = select directive, file from violations_matches where scope < 2;

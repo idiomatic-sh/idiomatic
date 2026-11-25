@@ -1,0 +1,18 @@
+input expressions: relation<id: node, file: file>;
+output relation<id: node, file: file>;
+let skipping_names = select id, path, file from "qualified-name" where matches(path, "^(?:(?:typing|typing_extensions|_typeshed)[.](?:cast|NewType|TypeAliasType)|builtins[.]bool)$");
+let skipping_calls = select r.parent as call, l.path as path, l.file as file from skipping_names as l join "semantic-child" as r on l.id = r.child and l.file = r.file where r.field = "func";
+let call_children = select l.path as path, r.child as holder, l.file as file from skipping_calls as l join "semantic-child" as r on l.call = r.parent and l.file = r.file;
+let call_keywords = select l.path as path, r.child as keyword, l.file as file from call_children as l join "semantic-child" as r on l.holder = r.parent and l.file = r.file where r.field = "keywords";
+let keyword_values = select l.path as path, l.keyword as keyword, r.child as value, l.file as file from call_keywords as l join "semantic-child" as r on l.keyword = r.parent and l.file = r.file where r.field = "value";
+let keyword_args = select l.keyword as keyword, r.child as identifier, l.file as file from keyword_values as l join "semantic-child" as r on l.keyword = r.parent and l.file = r.file where r.field = "arg";
+let named_keywords = select l.keyword as keyword, l.file as file from keyword_args as l join "identifier" as r on l.identifier = r.id and l.file = r.file;
+let unpacked_values = antijoin(left=keyword_values, right=named_keywords, left-on=["keyword", "file"], right-on=["keyword", "file"]);
+let skipped_unpacked = select value as id, file from unpacked_values where path != "builtins.bool";
+let skipped_bool = select value as id, file from keyword_values where path = "builtins.bool";
+let skipped_roots = union(left=skipped_unpacked, right=skipped_bool);
+let skipped_descendants = axis(from=skipped_roots, relation="semantic-child", direction=descendant, domain=expressions);
+let skipped_nested = select related as id, file from skipped_descendants;
+let skipped_nodes = union(left=skipped_nested, right=skipped_roots);
+let unvisited = select r.id as id, r.file as file from skipped_nodes as l join expressions as r on l.id = r.id and l.file = r.file;
+return unvisited;

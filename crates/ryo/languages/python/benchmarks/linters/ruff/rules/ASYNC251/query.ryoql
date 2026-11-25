@@ -14,10 +14,8 @@ let call_nearest_scopes = select l.call as call, l.function as function, r.relat
 let calls_in_async_scopes = select l.call as call, l.function as function from call_nearest_scopes as l join async_scopes as r on l.scope = r.id;
 let reportable = select l.function as id, r.file as file, r.span as span from calls_in_async_scopes as l join "semantic-syntax" as r on l.function = r.id;
 let candidate_locations = line_located(candidates=reportable);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:ASYNC251)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "ASYNC251"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="ASYNC251");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","ASYNC251") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

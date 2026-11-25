@@ -10,10 +10,8 @@ let builtin_print = select id, file from "qualified-name" where path = "builtins
 let invalid_prints = select l.left as id, l.file as file from left_names as l join builtin_print as r on l.left = r.id and l.file = r.file;
 let print_syntax_nodes = select l.id as id, l.file as file, r.span as span from invalid_prints as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from print_syntax_nodes as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F633)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "F633"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="F633");
+let violations = antijoin(left=print_syntax_nodes, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","F633") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

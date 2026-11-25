@@ -21,10 +21,9 @@ let parse_rows = select p.id as id, p.file as file, p.outcome as outcome, p."err
 let parsed_calls = select l.call as call, l.file as file, l.span as span, l.format_id as format_id, r.outcome as outcome, r.error_category as error_category, r.automatic_count as automatic_count, r.indexed_count as indexed_count, r.keyword_count as keyword_count, r.nested_field_count as nested_field_count from format_calls_with_literal as l join parse_rows as r on l.format_id = r.id and l.file = r.file;
 let candidates = select call as call, file as file, span as span from parsed_calls where outcome = "parsed" and automatic_count > 0 and indexed_count > 0;
 let candidate_locations = select l.call as id, l.file as file, l.span as span, r."start-line" as line from candidates as l join "source-location" as r on l.call = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F525)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "F525"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="F525");
+let emit_identity = select call as id,file,span from candidates;
+let violations = antijoin(left=emit_identity, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","F525") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

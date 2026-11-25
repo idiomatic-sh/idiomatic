@@ -10,10 +10,8 @@ let matched_functions = select l.function as id from call_functions as l join py
 let functions = select id, file, span from "semantic-syntax";
 let reportable = select l.id as id, r.file as file, r.span as span from matched_functions as l join functions as r on l.id = r.id;
 let candidate_locations = line_located(candidates=reportable);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PTH124)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PTH124"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="PTH124");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","PTH124") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

@@ -19,7 +19,7 @@ let register_receivers = select l.function as function, r.child as receiver, l.f
 let register_context_scopes = select l.function as context, r.parent as initial_scope, l.file as file from register_receivers as l join "scope" as r on l.function = r.child and l.file = r.file;
 let bind_events = select occurrence, ordinal, file from "binding-event" where kind = "bind";
 let register_contexts = select l.context as context, l.initial_scope as initial_scope, r.ordinal as point, l.file as file from register_context_scopes as l join bind_events as r on l.context = r.occurrence and l.file = r.file;
-let receiver_expressions = select receiver as id, file from register_receivers;
+let receiver_expressions = select function as context, receiver as id, file from register_receivers;
 let receiver_definitions = lookup_attribute(ordered_contexts=register_contexts, expressions=receiver_expressions);
 let resolved_registers = select l.function as function, r.definition as interface, l.file as file from register_receivers as l join receiver_definitions as r on l.function = r.context and l.receiver = r.expression and l.file = r.file;
 let dispatch_implementations = select l.function as function, l.file as file from resolved_registers as l join dispatch_interfaces as r on l.interface = r.function and l.file = r.file;
@@ -34,10 +34,8 @@ let numeric_counts = group-count(from=numeric_members, keys=["annotation", "file
 let reportable = select annotation as id, file from numeric_counts where count >= 2;
 let locations = select id, span, "start-line", file from "source-location";
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join locations as r on l.id = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidates, codes="^(?:PYI041)$");
-let violations_rows = select id, file, span from candidates;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PYI041"});
+let violations_matches = observation_matches(candidates=candidates, code="PYI041");
+let violations = antijoin(left=candidates, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","PYI041") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

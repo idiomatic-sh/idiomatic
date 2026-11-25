@@ -26,9 +26,8 @@ let nested_sorted = select l.call as id from first_args as l join sorted_calls a
 let invalid = select l.id as id from outer_calls as l join nested_sorted as r on l.id = r.id;
 let reportable = select l.id as id, l.file as file, l.span as span from calls as l join invalid as r on l.id = r.id;
 let candidate_locations = line_located(candidates=reportable);
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:C413)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let violations_matches = observation_matches(candidates=candidate_locations, code="C413");
+let violations = antijoin(left=reportable, right=violations_matches, left-on=[id, span], right-on=[id, span]);
 let ruf100_directives = select directive, file from violations_matches where scope < 2;
 let ruf100_used = extend(from=ruf100_directives, values={code: "C413"});
 observe ruf100_used as noqa_matches;

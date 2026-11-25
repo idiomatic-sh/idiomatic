@@ -1,0 +1,3 @@
+output relation<id: node,file: file,span: span,text: symbol>;
+let seeds = select id,file,span,text from "comment" where matches(text,"(?:^|#)[^\S\r\n]*(?:(?i:noqa)|(?:ruff|flake8)[^\S\r\n]*:[^\S\r\n]*(?i:noqa)|ruff\s*:\s*(?:disable|enable|ignore|file-ignore)\s*\[)");
+return seeds;

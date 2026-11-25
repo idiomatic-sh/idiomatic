@@ -20,10 +20,8 @@ let usefixtures_decorators = select l.decorator as decorator, l.declaration as d
 let reportable = select l.decorator as id from usefixtures_decorators as l join fixture_declarations as r on l.declaration = r.declaration;
 let reportable_rows = select l.id as id, r.file as file, r.span as span from reportable as l join decorators as r on l.id = r.id;
 let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from reportable_rows as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:PT025)$");
-let violations_rows = select id, file, span from candidate_locations;
-let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
-let ruf100_used = extend(from=ruf100_directives, values={code: "PT025"});
+let violations_matches = observation_matches(candidates=candidate_locations, code="PT025");
+let violations = antijoin(left=reportable_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
+let ruf100_used = select directive,file,concat("","PT025") as code from violations_matches where scope<2;
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

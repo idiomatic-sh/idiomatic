@@ -30,7 +30,7 @@ let number_values = union(left=named_numbers, right=unnamed_numbers);
 let numbers = select l.call as call, l.expression as expression, l.file as file from number_values as l join valid_calls as r on l.call = r.id and l.file = r.file;
 let name_nodes = select id, file from nodes where kind = "name";
 let number_names = select l.expression as reference, l.file as file from numbers as l join name_nodes as r on l.expression = r.id and l.file = r.file;
-let typed_int_names = binding_type(references=number_names, builtin="builtins.int", typing="__not_a_typing_alias__", atom="integer");
+let typed_int_names = binding_type(references=number_names, builtin="builtins.int", typing="__not_a_typing_alias__", atom="integer", bindings="only");
 let atoms = select id, file from "expression-type" where resolution = "atom" and type = "integer";
 let typed_number_ids = select reference as id, file from typed_int_names;
 let all_integer_values = union(left=atoms, right=typed_number_ids);
