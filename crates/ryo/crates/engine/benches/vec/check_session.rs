@@ -504,7 +504,7 @@ impl Schedule {
         pairs: &mut usize,
         pending: &mut BTreeSet<usize>,
     ) -> usize {
-        if known_binding && let Some(slot) = source.known.lookup(binding) {
+        if known_binding && !{ static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("pair-record")) } && let Some(slot) = source.known.lookup(binding) {
             return slot;
         }
         let first = source.bindings.is_empty();
@@ -930,6 +930,7 @@ pub(crate) fn visit<L: FileSource>(
             let program = programs[program_id].as_ref().map_err(Clone::clone)?;
             let tables = host(binding, &mut run)?;
             clocks.requirement_bindings += 1;
+            if { static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("requirements")) } { reader_requirements.remove(&program_id); }
             let requirements = reader_requirements.entry(program_id)
                 .or_insert_with(|| {
                     let (clauses, computed) = program.requirements(reader_id, || {
@@ -1180,6 +1181,7 @@ pub(crate) fn visit<L: FileSource>(
                 let numbered_complete = parser.is_some()
                     && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
                 let excluded = cut_of[binding].is_none()
+                    && !{ static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("pair-skip")) }
                     && contents.excludes(b.test, &b.requirements, |out| {
                         out.populate(
                             tree,
@@ -1301,7 +1303,7 @@ pub(crate) fn visit<L: FileSource>(
                         let (any, all) = screen.exact_roots[positions[binding]];
                         clocks.exact_inputs[0] += 1;
                         clocks.exact_inputs[1] += usize::from(any);
-                        if !all { continue; }
+                        if !all || { static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("exact")) } { continue; }
                         let b = bound[&binding].as_ref().unwrap();
                         clocks.exact_inputs[2] += 1;
                         clocks.exact_inputs[3] += usize::from(provider.projects_words);

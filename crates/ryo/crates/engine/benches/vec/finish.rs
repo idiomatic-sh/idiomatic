@@ -33,6 +33,13 @@ macro_rules! sw {
     }};
 }
 
+/// DIAGNOSTIC (local, never pushed): `VEC_OFF=a,b,c` names mechanisms to switch off; `all` switches every one off.
+pub(crate) fn off_name(name: &str) -> bool {
+    static SET: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+    SET.get_or_init(|| std::env::var("VEC_OFF").unwrap_or_default().split(',').map(str::to_owned).collect())
+        .iter().any(|n| n == name || n == "all")
+}
+
 /// 8: the per-step thread clock (a system call each read) only under `VEC_STEP_TIME`; else 0 (the stats' time column empty).
 /// redo-int: one definition for engine-vec's and redo-union pass 2's step clock (the same switch in both).
 #[inline]
@@ -326,7 +333,7 @@ impl Table {
             let (p, cells) = &mut *p.borrow_mut();
             for mut c in self.cols.drain(..) {
                 let cap = c.capacity();
-                if cap == 0 || cap > POOL_CELLS / 16 || *cells + cap > POOL_LIMIT.with(std::cell::Cell::get) {
+                if { static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("pool")) } || cap == 0 || cap > POOL_CELLS / 16 || *cells + cap > POOL_LIMIT.with(std::cell::Cell::get) {
                     continue;
                 }
                 c.clear();
@@ -1756,7 +1763,7 @@ impl<'p> Exec<'p> {
     #[inline(never)]
     fn make(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         let r = if cold_list::auditing() { self.cold_make(f, run, p, node)? } else { self.make_(f, run, p, node)? };
-        f.remember(node, r.clone());
+        if !{ static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("file-memo")) } { f.remember(node, r.clone()); }
         Ok(r)
     }
 
@@ -1775,6 +1782,7 @@ impl<'p> Exec<'p> {
         if let Some(t) = &self.run_memo[node] {
             return Ok(Res::Tab(t.clone()));
         }
+        let no_run_memo = { static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("run-memo")) };
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.skipped(f, node);
             return Ok(Res::Tab(self.empty_rc(run, node)?));
@@ -1787,7 +1795,7 @@ impl<'p> Exec<'p> {
         } {
             self.stats.total_runs += 1;
             let e = self.empty_rc(run, node)?;
-            if self.is_constant(run, node) {
+            if !no_run_memo && self.is_constant(run, node) {
                 self.run_memo[node] = Some(e.clone());
             }
             return Ok(Res::Tab(e));
@@ -1796,7 +1804,7 @@ impl<'p> Exec<'p> {
         emptyprop::ran();
         self.stats.total_runs += 1;
         self.stats.total_rows += out.n as u64;
-        if self.is_constant(run, node) {
+        if !no_run_memo && self.is_constant(run, node) {
             self.run_memo[node] = Some(out.clone());
         }
         Ok(Res::Tab(out))

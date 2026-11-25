@@ -22,7 +22,7 @@ impl Reuse {
         Self { enabled: requests > 1, ..Self::default() }
     }
     pub(super) fn get(&mut self, node: usize, deps: u8, mut scope: [usize; 3]) -> Option<Rc<Table>> {
-        if deps & VARIABLE != 0 { return None; }
+        if deps & VARIABLE != 0 || { static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("closed-memo")) } { return None; }
         if deps & HOST == 0 { scope[0] = 0; }
         if deps == 0 { scope = [0; 3]; }
         self.rows.get(&(node, deps, scope)).cloned()
@@ -30,7 +30,7 @@ impl Reuse {
 
     pub(super) fn remember(&mut self, deps: &[u8], scope: [usize; 3], tables: &[Option<Res>]) {
         self.restored += deps.iter().zip(tables).filter(|(d,t)| **d & RESTORED != 0 && t.is_some()).count();
-        if self.rows.len() >= 512 { return; }
+        if self.rows.len() >= 512 || { static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("closed-memo")) } { return; }
         for (node, (&deps, table)) in deps.iter().zip(tables).enumerate() {
             if deps & (VARIABLE | RESTORED) != 0 { continue; }
             let Some(Res::Tab(table)) = table else { continue };

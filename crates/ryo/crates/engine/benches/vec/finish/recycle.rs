@@ -87,7 +87,7 @@ pub(super) fn take_cols(k: usize) -> Vec<Vec<u64>> {
 /// An emptied list of columns kept for the next table.
 #[inline]
 pub(super) fn give_cols(v: Vec<Vec<u64>>) {
-    if v.capacity() == 0 || v.capacity() > 64 {
+    if { static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("pool")) } || v.capacity() == 0 || v.capacity() > 64 {
         return;
     }
     debug_assert!(v.is_empty());

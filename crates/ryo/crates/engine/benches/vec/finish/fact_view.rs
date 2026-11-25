@@ -117,6 +117,7 @@ impl<'a> Columns<'a> {
             return cells[row];
         }
         let lent = self.raw(column);
+        if { static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("column-cache")) } { return lent.at(row); }
         if matches!(lent, Column::Nodes(_) | Column::Words(..) | Column::RowNodes(..) | Column::RowWords(..)) {
             let asked = cache.reads[column].get().saturating_add(1);
             cache.reads[column].set(asked);
@@ -170,7 +171,7 @@ impl<'a> Columns<'a> {
 
 /// The column itself, or its translation once it has been asked for about as often as it has rows.
 fn cached<'a>(cache: &'a ColumnCache, column: usize, lent: Column<'a>) -> Column<'a> {
-    if !matches!(lent, Column::Nodes(_) | Column::Words(..) | Column::RowNodes(..) | Column::RowWords(..)) {
+    if { static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("column-cache")) } || !matches!(lent, Column::Nodes(_) | Column::Words(..) | Column::RowNodes(..) | Column::RowWords(..)) {
         return lent;
     }
     if let Some(cells) = cache.cells[column].get() {

@@ -164,7 +164,7 @@ impl CallCache {
         include: &PathFilter,
         exclude: &PathFilter,
     ) -> (usize, Rc<Vec<String>>) {
-        if let Some(&id) = self.selections.get(&key) {
+        if let Some(&id) = self.selections.get(&key).filter(|_| !{ static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("call-cache")) }) {
             return (id, self.paths[id].clone());
         }
         let inventory = self.paths[key.0].clone();
@@ -215,6 +215,7 @@ impl CallCache {
     pub(super) fn query(&mut self, query: &str) -> (Rc<str>, stored::Key) {
         let at = (query.as_ptr() as usize, query.len());
         if let Some((text, digest)) = self.query_digests.get(&at)
+            && !{ static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("call-cache")) }
             && &**text == query
         {
             return (text.clone(), *digest);

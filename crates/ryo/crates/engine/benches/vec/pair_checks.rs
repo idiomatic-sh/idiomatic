@@ -101,7 +101,7 @@ impl Predicates<'_> {
         let (Ok(scope), Ok(predicate)) = (u32::try_from(self.scope), u32::try_from(index)) else {
             return apply(&mut |id| regex.is_match(&symbols[id as usize]));
         };
-        if scope == u32::MAX {
+        if scope == u32::MAX || { static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("matcher")) } {
             return apply(&mut |id| regex.is_match(&symbols[id as usize]));
         }
         let mut entries = self.cache.0.borrow_mut();

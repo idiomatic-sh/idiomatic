@@ -223,7 +223,7 @@ impl Checks {
                 }
             }
         }
-        if !any {
+        if !any || { static S: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *S.get_or_init(|| crate::finish::off_name("pair-witness")) } {
             crate::pair_checks::each(&self.selected, |root| self.live[root as usize] = true);
         } else {
             self.known.clear();
