@@ -26,8 +26,6 @@ use std::sync::Arc;
 
 /// `parse`, implementing `ryo::languages::Parse`.
 pub(crate) struct ParseContract {
-    #[cfg(feature = "fixtures")]
-    pub(crate) named: Option<(String, crate::fixtures::named_inputs::Lists)>,
     pub(super) settings: PythonParserSettings,
     pub(super) syntax: Arc<dyn SyntaxPort>,
     pub(super) notes: Arc<dyn NotesPort>,
@@ -44,8 +42,6 @@ impl ParseContract {
         notes: Arc<dyn NotesPort>,
     ) -> Self {
         Self {
-            #[cfg(feature = "fixtures")]
-            named: None,
             settings,
             syntax,
             notes,
@@ -88,8 +84,6 @@ impl Parse for ParseContract {
     }
 
     fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
-        #[cfg(feature = "fixtures")]
-        if let Some((identity, _)) = &self.named { return languages::ParseConfigurationIdentity(identity); }
         self.settings.identity()
     }
 
@@ -309,19 +303,13 @@ impl ParseContract {
         symbols: &mut languages::Symbols,
         project: Option<&dyn languages::FileProject>,
     ) -> Vec<Result<languages::FileRows, languages::ParseError>> {
-        let lists = self.named.as_ref().map(|(_, lists)| lists);
-        let generic = |word: &[u8]| lists.is_some_and(|l| l.generic.contains(word));
-        let argument = |word: &[u8]| lists.is_some_and(|l| l.argument_forms.contains(word));
-        let modules = lists.map_or(&[][..], |l| l.modules.as_slice());
-        let uses_package = |s: &languages::FileRelation| match s.name {
-            "import-head" => file.import_statement_count() != 0,
-            "relative-import-target" => file.has_relative_imports(),
-            _ => false,
+        let uses_package = |s: &languages::FileRelation| {
+            s.name == "import-head" && file.import_statement_count() != 0
         };
         let needs_package: Vec<_> = projected.iter().map(|s| uses_package(s)).collect();
         let package = project.filter(|_| needs_package.iter().any(|&needed| needed)).map(|project| crate::fixtures::import_environment::package(project, request.path.0)).transpose();
         let observed_package = package.as_ref().ok().and_then(Option::as_ref)
-            .map(|(parent, root)| (parent.as_deref(), root.as_str()));
+            .map(|(_, root)| root.as_str());
         let mut failure = None;
         let mut prefixes = |target: &str| {
             match crate::fixtures::import_environment::prefixes(project.expect("declared roots"), target) {
@@ -330,8 +318,8 @@ impl ParseContract {
             }
         };
         let lookup = project.filter(|p| p.roots().is_some()).map(|_| &mut prefixes as &mut dyn FnMut(&str) -> (String, String, bool));
-        let mut answers = file.answer_named_facts_covered(projected, request.file, request.path.0, request.bytes, symbols,
-            Some((&generic, &argument, modules)), observed_package, lookup);
+        let mut answers = file.answer_named_facts_covered(projected, request.file, request.bytes, symbols,
+            observed_package, lookup);
         for ((schema, answer), needed) in projected.iter().zip(&mut answers).zip(needs_package) {
             if needed && let Err(error) = &package {
                 *answer = Err(languages::ParseError::Library { reason: languages::ToolMessage(error.as_str().into()) });

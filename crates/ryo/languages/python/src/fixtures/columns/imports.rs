@@ -4,7 +4,7 @@ use crate::domain::node::service::id_of;
 use ruff_python_ast::AnyNodeRef;
 use ruff_text_size::Ranged;
 use ryo::languages::{self as l, Position, node_table};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// The parser's import names and their original spelling at one alias.
 #[derive(Debug)]
@@ -119,52 +119,33 @@ impl ColumnFile<'_, '_> {
         }
     }
 
-    /// Each statement occupies one ordered position in the suite denoted by its parent and field.
-    pub fn visit_statement_suites(
-        &self,
-        containing_import: bool,
-        mut visit: impl FnMut(&[Position]),
-    ) {
-        if containing_import {
-            let mut seen = HashSet::new();
-            let mut suite = Vec::new();
-            for Numbered { id, .. } in self.import_statements() {
-                let parent = node_table::parent_of(self.table, id);
-                let field = node_table::field_of(self.table, id);
-                if seen.insert((parent.0, field.0)) {
-                    suite.clear();
-                    suite.extend(
-                        node_table::children_of(self.table, parent)
-                            .iter()
-                            .copied()
-                            .filter(|p| {
-                                node_table::field_of(self.table, *p) == field
-                                    && self
-                                        .file
-                                        .syntax
-                                        .nodes
-                                        .get(usize::from(*p))
-                                        .is_some_and(|n| n.is_statement())
-                            }),
-                    );
-                    if !suite.is_empty() {
-                        visit(&suite);
-                    }
+    /// Each import statement occupies one ordered position in the suite denoted by its parent and field.
+    fn visit_import_suites(&self, mut visit: impl FnMut(&[Position])) {
+        let mut seen = HashSet::new();
+        let mut suite = Vec::new();
+        for Numbered { id, .. } in self.import_statements() {
+            let parent = node_table::parent_of(self.table, id);
+            let field = node_table::field_of(self.table, id);
+            if seen.insert((parent.0, field.0)) {
+                suite.clear();
+                suite.extend(
+                    node_table::children_of(self.table, parent)
+                        .iter()
+                        .copied()
+                        .filter(|p| {
+                            node_table::field_of(self.table, *p) == field
+                                && self
+                                    .file
+                                    .syntax
+                                    .nodes
+                                    .get(usize::from(*p))
+                                    .is_some_and(|n| n.is_statement())
+                        }),
+                );
+                if !suite.is_empty() {
+                    visit(&suite);
                 }
             }
-            return;
-        }
-        let mut suites = HashMap::<(u32, u16), Vec<Position>>::new();
-        for (i, node) in self.file.syntax.nodes.iter().enumerate() {
-            if node.is_statement() {
-                let id = Position(i as u32);
-                let parent = node_table::parent_of(self.table, id);
-                let field = node_table::field_of(self.table, id);
-                suites.entry((parent.0, field.0)).or_default().push(id);
-            }
-        }
-        for suite in suites.values() {
-            visit(suite);
         }
     }
 
@@ -290,7 +271,6 @@ impl ColumnFile<'_, '_> {
     }
 }
 
-const NEIGHBORS: &str = "statement-neighbors";
 const STATEMENTS: &str = "import-statement";
 const HEADS: &str = "import-head";
 const ALIASES: &str = "import-alias-parts";
@@ -433,10 +413,6 @@ impl ColumnFile<'_, '_> {
     /// Schemas whose rows follow from the import syntax and its project context.
     pub const IMPORT_SCHEMAS: &'static [l::FileRelation] = &[
         l::FileRelation {
-            name: NEIGHBORS,
-            columns: NEIGHBOR_COLUMNS,
-        },
-        l::FileRelation {
             name: STATEMENTS,
             columns: &STATEMENT_COLUMNS,
         },
@@ -534,7 +510,7 @@ impl ColumnFile<'_, '_> {
         let table = self.table;
         const NEIGHBOR_COLUMNS: usize = 18;
         const LAYOUT_COLUMNS: usize = NEIGHBOR_COLUMNS + 6;
-        if matches!(rel, NEIGHBORS | STATEMENTS | HEADS) {
+        if matches!(rel, STATEMENTS | HEADS) {
             let kind = |context: &mut W, id: Position| {
                 word(
                     context,
@@ -547,7 +523,7 @@ impl ColumnFile<'_, '_> {
             };
             let import = |id| self.is_import_statement(id);
             // Source order in each suite fixes both neighbors. A run contains consecutive import statements regardless of intervening trivia.
-            self.visit_statement_suites(rel != NEIGHBORS, |suite| {
+            self.visit_import_suites(|suite| {
                 let first = suite[0];
                 let last = suite[suite.len() - 1];
                 let suite_span = span(bounds(table, first).0, bounds(table, last).1);
@@ -566,7 +542,7 @@ impl ColumnFile<'_, '_> {
                 while start < suite.len() {
                     let mut end = start + 1;
                     let starts_import = import(suite[start]);
-                    if rel != NEIGHBORS && !starts_import {
+                    if !starts_import {
                         start = end;
                         continue;
                     }
@@ -606,7 +582,7 @@ impl ColumnFile<'_, '_> {
                                 f,
                             ],
                         );
-                        if rel != NEIGHBORS {
+                        {
                             let mut spelling = |lo: u32, hi: u32| {
                                 u64::from(word(
                                     context,
@@ -868,31 +844,6 @@ impl ColumnFile<'_, '_> {
         Ok((t.n, t.cols))
     }
 
-    /// Write absolute spellings of relative imports given the containing module's package.
-    pub fn visit_relative_import_targets(
-        &self,
-        package: Option<&str>,
-        mut visit: impl FnMut(u32, &str),
-    ) {
-        let Some(package) = package else { return };
-        let mut path = String::new();
-        for (node, level, module, member) in self.relative_imports() {
-            let mut prefixes = std::iter::successors(Some(package), |part| {
-                part.rsplit_once('.').map(|(prefix, _)| prefix)
-            });
-            let Some(base) = prefixes.nth(level.saturating_sub(1) as usize) else {
-                continue;
-            };
-            path.clear();
-            path.push_str(base);
-            for part in [module, member].into_iter().flatten() {
-                path.push('.');
-                path.push_str(part);
-            }
-            visit(node, &path);
-        }
-    }
-
     /// Project the observed context of an import using the same dictionary as its syntax.
     pub fn import_context<W>(
         &self,
@@ -1003,7 +954,7 @@ impl ColumnFile<'_, '_> {
                 )
             },
         )?;
-        Ok(super::resolution::qualify_cells(schema, file, columns))
+        Ok(super::qualify_cells(schema, file, columns))
     }
 }
 

@@ -3,21 +3,7 @@ use super::{ColumnFile, qualify_cells};
 use ryo::languages::{self as l, CellKind, FileRelation};
 use std::sync::OnceLock;
 
-const RELATIVE_IMPORT: FileRelation = FileRelation {
-    name: "relative-import-target",
-    columns: &[
-        ("occurrence", CellKind::Node),
-        ("path", CellKind::Symbol),
-        ("file", CellKind::File),
-    ],
-};
-
 type Covered = Result<l::FileRows, l::ParseError>;
-type TypingInputs<'a> = (
-    &'a dyn Fn(&[u8]) -> bool,
-    &'a dyn Fn(&[u8]) -> bool,
-    &'a [Vec<u8>],
-);
 type ImportPrefixes<'a> = &'a mut dyn FnMut(&str) -> (String, String, bool);
 
 fn failed(reason: String) -> l::ParseError {
@@ -44,7 +30,6 @@ impl ColumnFile<'_, '_> {
             schemas.extend_from_slice(Self::IMPORT_SCHEMAS);
             schemas.extend_from_slice(Self::SITE_SCHEMAS);
             schemas.extend_from_slice(Self::TYPING_SCHEMAS);
-            schemas.push(RELATIVE_IMPORT);
             schemas
         })
     }
@@ -58,12 +43,9 @@ impl ColumnFile<'_, '_> {
         if syntax == l::SyntaxCompleteness::Complete && lexical == l::SyntaxCompleteness::Complete {
             return None;
         }
-        let lexical_only = crate::fixtures::comment_positions::SCHEMAS.contains(schema)
-            || Self::named_expression_is_lexical(schema);
+        let lexical_only = crate::fixtures::comment_positions::SCHEMAS.contains(schema);
         let extent = if lexical == l::SyntaxCompleteness::Incomplete
-            && (lexical_only
-                || Self::named_expression_requires_tokens(schema)
-                || Self::named_import_requires_tokens(schema))
+            && (lexical_only || Self::named_import_requires_tokens(schema))
         {
             "lexical stream"
         } else if syntax == l::SyntaxCompleteness::Incomplete
@@ -84,19 +66,16 @@ impl ColumnFile<'_, '_> {
 
     /// Answer named tables from the numbered Python file. The result follows request order.
     ///
-    /// The optional package pair is the enclosing dotted package, if any, and the
-    /// enclosing regular package's root name. An absent pair means the project was
-    /// not observed. The prefix callback reports module, package and namespace
-    /// observations under the host's declared search roots.
+    /// The optional package root is the enclosing regular package's root name. An
+    /// absent root means the project was not observed. The prefix callback reports
+    /// module, package and namespace observations under the host's declared search roots.
     pub fn answer_named_facts_covered(
         &mut self,
         schemas: &[&FileRelation],
         file: l::FileId,
-        path: &str,
         bytes: l::ByteSlice<'_>,
         symbols: &mut l::Symbols,
-        typing: Option<TypingInputs<'_>>,
-        package: Option<(Option<&str>, &str)>,
+        package_root: Option<&str>,
         mut prefixes: Option<ImportPrefixes<'_>>,
     ) -> Vec<Covered> {
         let mut comments = None;
@@ -112,10 +91,7 @@ impl ColumnFile<'_, '_> {
                 continue;
             }
             if Self::EXPRESSION_SCHEMAS.contains(schema) {
-                answers.push(
-                    self.named_expression(schema, file, bytes.0, symbols)
-                        .map_err(failed),
-                );
+                answers.push(Ok(self.named_expression(schema, file, bytes, symbols)));
                 continue;
             }
             if Self::TYPING_SCHEMAS.contains(schema) {
@@ -125,9 +101,7 @@ impl ColumnFile<'_, '_> {
                 continue;
             }
             let answer = if crate::fixtures::comment_positions::SCHEMAS.contains(schema) {
-                crate::fixtures::comment_positions::columns(
-                    schema, file, self.table, bytes, symbols,
-                )
+                crate::fixtures::comment_positions::columns(schema, file, self.table, bytes)
             } else if Self::IMPORT_SCHEMAS.contains(schema) {
                 self.named_import(
                     schema,
@@ -135,15 +109,12 @@ impl ColumnFile<'_, '_> {
                     bytes.0,
                     symbols,
                     &mut comments,
-                    package.map(|p| p.1),
+                    package_root,
                     &mut prefixes,
                 )
                 .map_err(failed)
             } else if Self::SITE_SCHEMAS.contains(schema) {
                 self.named_site(schema, file, bytes.0, symbols)
-                    .map_err(failed)
-            } else if *schema == RELATIVE_IMPORT {
-                self.named_relative_imports(file, bytes, symbols, package)
                     .map_err(failed)
             } else {
                 Err(l::ParseError::Unsupported)
@@ -152,62 +123,27 @@ impl ColumnFile<'_, '_> {
         }
 
         if !semantic.is_empty() {
-            let default = |_: &[u8]| false;
-            let (generic, argument_forms, modules) = typing.unwrap_or((&default, &default, &[]));
             let mut slots = semantic_order.into_iter();
-            self.visit_typing_relations(
-                &semantic,
-                file,
-                path.ends_with(".pyi"),
-                generic,
-                argument_forms,
-                modules,
-                |schema, result, words| {
-                    let slot = slots.next().expect("requested semantic relation");
-                    answers[slot] = result
-                        .map(|mut columns| {
-                            for (cells, (_, kind)) in columns.iter_mut().zip(schema.columns) {
-                                if *kind == CellKind::Symbol {
-                                    for cell in cells {
-                                        let word = l::facts::text(words, l::CellWord(*cell));
-                                        *cell = u64::from(
-                                            l::intern_derived(symbols, bytes, l::NameText(word.0))
-                                                .0,
-                                        );
-                                    }
+            self.visit_typing_relations(&semantic, file, |schema, result, words| {
+                let slot = slots.next().expect("requested semantic relation");
+                answers[slot] = result
+                    .map(|mut columns| {
+                        for (cells, (_, kind)) in columns.iter_mut().zip(schema.columns) {
+                            if *kind == CellKind::Symbol {
+                                for cell in cells {
+                                    let word = l::facts::text(words, l::CellWord(*cell));
+                                    *cell = u64::from(
+                                        l::intern_derived(symbols, bytes, l::NameText(word.0)).0,
+                                    );
                                 }
                             }
-                            complete(qualify_cells(schema, file, columns))
-                        })
-                        .map_err(failed);
-                },
-            );
+                        }
+                        complete(qualify_cells(schema, file, columns))
+                    })
+                    .map_err(failed);
+            });
         }
 
         answers
-    }
-
-    fn named_relative_imports(
-        &self,
-        file: l::FileId,
-        bytes: l::ByteSlice<'_>,
-        symbols: &mut l::Symbols,
-        package: Option<(Option<&str>, &str)>,
-    ) -> Result<Vec<l::FactColumn>, String> {
-        let mut columns = vec![Vec::new(); RELATIVE_IMPORT.columns.len()];
-        if self.has_relative_imports() {
-            let package =
-                package.ok_or("relative-import-target needs the containing package observation")?;
-            self.visit_relative_import_targets(package.0, |id, path| {
-                columns[0].push(id.into());
-                columns[1].push(
-                    l::intern_derived(symbols, bytes, l::NameText(path))
-                        .0
-                        .into(),
-                );
-                columns[2].push(file.0.into());
-            });
-        }
-        Ok(qualify_cells(&RELATIVE_IMPORT, file, columns))
     }
 }

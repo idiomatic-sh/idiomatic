@@ -43,8 +43,6 @@ pub(crate) struct WalkedTree<'t> {
     pub(crate) import_presence: ImportPresence,
     /// The imported names the walk met: the places of the aliases of the file's import statements.
     pub(crate) imports: Vec<Position>,
-    /// From-imports with at least one leading dot, in source order.
-    pub(crate) relative_froms: Vec<Position>,
     /// The embedded segments written so far, in the order they were written.
     pub(crate) segments: Vec<EmbeddedSite>,
     /// The text the parser read: the file's own bytes when they are UTF-8.

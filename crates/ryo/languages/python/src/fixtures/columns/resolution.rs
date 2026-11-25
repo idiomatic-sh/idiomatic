@@ -1,37 +1,11 @@
 //! Language resolution supplied by the file's flow model.
-use super::ColumnFile;
-use crate::domain::model::declarations::service::redirected;
-use crate::domain::model::flow::types::{FlowEventKind, FlowRead, FlowState};
-use crate::domain::model::lexical::constants::MODULE;
-use crate::domain::model::lexical::service::{entry, scope_at, scope_form};
-use crate::domain::model::lexical::types::{NamespaceKey, ScopeForm};
-use crate::domain::model::reaching::types::FlowReadState;
-use crate::domain::model::types::{BindingAction, BindingPhaseKind, BindingStep};
-use crate::domain::model::view::types::{ModelPart, ModelView, SemanticModel};
+use super::{ColumnFile, qualify_cells};
+use crate::domain::model::flow::types::{FlowEventKind, FlowState};
+use crate::domain::model::types::{BindingAction, BindingStep};
+use crate::domain::model::view::types::{ModelPart, ModelView};
 use crate::domain::node::service::table_id;
 use ryo::languages::Position;
-use std::collections::{HashMap, HashSet};
-
-/// Find the slot of a read with no reaching binding. A class encloses its own body only.
-fn declared_slot(model: &SemanticModel, read: &FlowRead) -> NamespaceKey {
-    let lexical = &model.lexical;
-    let mut scope = redirected(lexical, read.scope, read.name);
-    loop {
-        let key = NamespaceKey {
-            scope,
-            name: read.name,
-        };
-        if scope == MODULE
-            || ((scope == read.scope
-                || scope_form(entry(&lexical.class, scope)) != Some(ScopeForm::Class))
-                && (model.definitions.index.contains_key(&key)
-                    || model.flow.reach.mutations.contains_key(&key)))
-        {
-            return key;
-        }
-        scope = redirected(lexical, scope_at(lexical, scope), read.name);
-    }
-}
+use std::collections::HashMap;
 
 /// Mutations of the same name in one namespace and execution phase, with the statement containing the binding.
 #[derive(Clone, Copy, Debug)]
@@ -85,190 +59,6 @@ impl SiteSequence {
 }
 
 impl ColumnFile<'_, '_> {
-    /// A read has each reaching binding or absence of the flow. An open invocation or inspection also sees
-    /// the source writes to its captured slot, and an unknown outcome for dynamically supplied or removed values.
-    pub fn visit_read_outcomes(
-        &mut self,
-        mut visit: impl FnMut(u32, Option<u32>, &'static str, &'static str),
-    ) -> bool {
-        let model = self.file.semantics(ModelPart::Flow);
-        let flow = &model.model.flow;
-        if flow.state == FlowState::Incomplete {
-            return false;
-        }
-        let segments = model.tree.segments;
-        let target = model.model.target;
-        let writes: HashSet<_> = flow
-            .events
-            .iter()
-            .filter(|event| {
-                event.scope != event.lexical
-                    && matches!(
-                        event.kind,
-                        FlowEventKind::Bind | FlowEventKind::Delete | FlowEventKind::Cleanup
-                    )
-            })
-            .map(|event| NamespaceKey {
-                scope: event.scope,
-                name: event.name,
-            })
-            .collect();
-        let late_types: HashSet<_> = model
-            .model
-            .schedule
-            .phases
-            .iter()
-            .filter(|phase| phase.kind == BindingPhaseKind::Type)
-            .map(|phase| phase.root)
-            .collect();
-        // A module wildcard can replace a builtin or earlier module binding with an unknown export.
-        let mut star_at_read = HashMap::new();
-        let mut module_stores = HashMap::new();
-        if flow
-            .events
-            .iter()
-            .any(|e| e.kind == FlowEventKind::Wildcard && e.scope == MODULE)
-        {
-            let mut star = None;
-            for e in flow.events.iter().filter(|e| e.phase == MODULE) {
-                match e.kind {
-                    FlowEventKind::Wildcard if e.scope == MODULE => star = Some(e.ordinal.0),
-                    FlowEventKind::Bind if e.scope == MODULE => {
-                        let _ = module_stores.insert(e.at, e.ordinal.0);
-                    }
-                    FlowEventKind::Read | FlowEventKind::Delete => {
-                        if let Some(point) = star {
-                            let _ = star_at_read.insert(e.at, point);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-        let mut edges = flow.uses.iter().peekable();
-        let mut bindings = Vec::new();
-        let mut scopes = Vec::new();
-        for read in &flow.reads {
-            let id = table_id(segments, read.at).0;
-            bindings.clear();
-            scopes.clear();
-            while let Some(edge) = edges.next_if(|edge| edge.at == read.at) {
-                if !bindings.contains(&edge.binding) {
-                    bindings.push(edge.binding);
-                    visit(
-                        id,
-                        Some(table_id(segments, edge.binding).0),
-                        "binding",
-                        "flow",
-                    );
-                }
-                if scopes.last() != Some(&edge.scope) {
-                    scopes.push(edge.scope);
-                }
-            }
-            let fallback = match read.state {
-                FlowReadState::Unbound | FlowReadState::PossiblyUnbound => Some("unbound"),
-                FlowReadState::Builtin(since) | FlowReadState::DeclarationOrBuiltin(since) => Some(
-                    if (target.major.0, target.minor.0) >= (since.major.0, since.minor.0) {
-                        "builtin"
-                    } else {
-                        "unbound"
-                    },
-                ),
-                FlowReadState::Uncertain => Some("unknown"),
-                FlowReadState::Unique | FlowReadState::Alternatives => None,
-            };
-            if let Some(outcome) = fallback {
-                visit(id, None, outcome, "flow");
-            }
-            if scopes.is_empty() {
-                scopes.push(declared_slot(model.model, read).scope);
-            }
-            let late_type = late_types.contains(&read.phase);
-            let wildcard_lookup = scopes.contains(&MODULE) || fallback == Some("builtin");
-            let mut open = late_type
-                || (wildcard_lookup
-                    && star_at_read.get(&read.at).is_some_and(|star| {
-                        fallback.is_some()
-                            || bindings.iter().any(|binding| {
-                                module_stores.get(binding).is_some_and(|at| at < star)
-                            })
-                    }));
-            for &scope in &scopes {
-                let key = NamespaceKey {
-                    scope,
-                    name: read.name,
-                };
-                let other_invocation = read.phase != MODULE && scope != read.phase;
-                let redirected_write = writes.contains(&key);
-                if !(other_invocation || redirected_write || late_type) {
-                    continue;
-                }
-                open = true;
-                if let Some(index) = flow.reach.mutations.get(&key) {
-                    for step in &flow.reach.mutation_lists[usize::from(*index)] {
-                        // A handler or another invocation may update the cell. The enclosing invocation's
-                        // ordinary stores already have reaching edges. They must not mask an early local.
-                        if step.action != BindingAction::Bind
-                            || (!other_invocation && !late_type && step.phase == read.phase)
-                        {
-                            continue;
-                        }
-                        if !bindings.contains(&step.occurrence) {
-                            bindings.push(step.occurrence);
-                            visit(
-                                id,
-                                Some(table_id(segments, step.occurrence).0),
-                                "binding",
-                                "namespace",
-                            );
-                        }
-                    }
-                }
-            }
-            if open && fallback != Some("unknown") {
-                visit(id, None, "unknown", "open");
-            }
-        }
-        edges.next().is_none()
-    }
-
-    /// Each reachable binding has its lowest syntax-node read for flow and for additional open-namespace outcomes.
-    pub fn visit_binding_read_witnesses(
-        &mut self,
-        mut visit: impl FnMut(u32, Option<u32>, Option<u32>),
-    ) -> bool {
-        let mut reads = std::collections::BTreeMap::<u32, [Option<u32>; 2]>::new();
-        let complete = self.visit_read_outcomes(|reference, binding, _, basis| {
-            if let Some(binding) = binding {
-                let slot =
-                    &mut reads.entry(binding).or_default()[usize::from(basis == "namespace")];
-                *slot = Some(slot.map_or(reference, |old| old.min(reference)));
-            }
-        });
-        if complete {
-            for (binding, [flow, namespace]) in reads {
-                visit(binding, flow, namespace);
-            }
-        }
-        complete
-    }
-
-    /// The last event in the static evaluation schedule is the largest ordinal of a binding event.
-    pub fn binding_schedule_end(&mut self) -> Result<Option<u64>, &'static str> {
-        let view = self.file.semantics(ModelPart::Flow);
-        if view.model.flow.state == FlowState::Incomplete {
-            return Err("incomplete binding schedule");
-        }
-        Ok(view
-            .model
-            .flow
-            .events
-            .iter()
-            .map(|event| event.ordinal.0 as u64)
-            .max())
-    }
-
     /// Count the store and unbinding sites of a name in its routed namespace and evaluation phase.
     /// Later sites count mutations after this binding in schedule order, including the cleanup of the same handler target.
     pub fn visit_binding_sites(&mut self, mut visit: impl FnMut(BindingSite)) -> bool {
@@ -417,41 +207,6 @@ impl ColumnFile<'_, '_> {
 }
 
 impl ColumnFile<'_, '_> {
-    /// Targets and values of source assignments.
-    pub const ASSIGNMENT_SOURCE_SCHEMA: ryo::languages::FileRelation = {
-        use ryo::languages::{
-            CellKind::{File, Node, Symbol},
-            FileRelation,
-        };
-        FileRelation {
-            name: "assignment-source",
-            columns: &[
-                ("target", Node),
-                ("value", Node),
-                ("operation", Symbol),
-                ("association", Symbol),
-                ("file", File),
-            ],
-        }
-    };
-
-    /// First read witnesses for each reachable binding.
-    pub const BINDING_READ_SCHEMA: ryo::languages::FileRelation = {
-        use ryo::languages::{
-            CellKind::{File, Node},
-            FileRelation,
-        };
-        FileRelation {
-            name: "binding-read-summary",
-            columns: &[
-                ("binding", Node),
-                ("flow-read", Node),
-                ("namespace-read", Node),
-                ("file", File),
-            ],
-        }
-    };
-
     /// Scheduled mutations around each binding.
     pub const BINDING_SITES_SCHEMA: ryo::languages::FileRelation = {
         use ryo::languages::{
@@ -495,12 +250,10 @@ impl ColumnFile<'_, '_> {
     /// Schemas for rows over the parsed file's syntax and binding schedule.
     pub const SITE_SCHEMAS: &'static [ryo::languages::FileRelation] = {
         use ryo::languages::{
-            CellKind::{File, Node, Number, Symbol},
+            CellKind::{File, Node, Number},
             FileRelation,
         };
         &[
-            Self::ASSIGNMENT_SOURCE_SCHEMA,
-            Self::BINDING_READ_SCHEMA,
             Self::BINDING_SITES_SCHEMA,
             Self::NAMESPACE_SITES_SCHEMA,
             FileRelation {
@@ -513,25 +266,10 @@ impl ColumnFile<'_, '_> {
                     ("file", File),
                 ],
             },
-            FileRelation {
-                name: "type-region",
-                columns: &[("id", Node), ("file", File)],
-            },
-            FileRelation {
-                name: "namespace-final",
-                columns: &[
-                    ("namespace", Node),
-                    ("name", Symbol),
-                    ("event", Node),
-                    ("kind", Symbol),
-                    ("ordinal", Number),
-                    ("file", File),
-                ],
-            },
         ]
     };
 
-    /// Complete binding, assignment and type-region columns in the syntax dictionary.
+    /// Complete binding-site columns in the syntax dictionary.
     pub fn named_site(
         &mut self,
         schema: &ryo::languages::FileRelation,
@@ -571,28 +309,6 @@ impl ColumnFile<'_, '_> {
     ) -> Result<(), String> {
         const NULL: u64 = u64::MAX;
         let complete = match relation {
-            "assignment-source" => {
-                self.visit_assignment_sources(|at, value, operation, association| {
-                    row(&[
-                        at.into(),
-                        value.into(),
-                        word(operation),
-                        word(association),
-                        file,
-                    ]);
-                });
-                true
-            }
-            "binding-read-summary" => {
-                self.visit_binding_read_witnesses(|binding, flow, namespace| {
-                    row(&[
-                        binding.into(),
-                        flow.map_or(NULL, u64::from),
-                        namespace.map_or(NULL, u64::from),
-                        file,
-                    ]);
-                })
-            }
             "binding-sites" => self.visit_binding_sites(|site| {
                 row(&[
                     site.binding.into(),
@@ -622,25 +338,6 @@ impl ColumnFile<'_, '_> {
                     row(&[at.into(), scope.into(), phase.into(), ordinal, file]);
                 })
             }
-            "type-region" => {
-                let ids = self.type_regions().ok_or("type-region: incomplete model")?;
-                for id in ids {
-                    row(&[id.into(), file]);
-                }
-                true
-            }
-            "namespace-final" => {
-                self.visit_namespace_final(|scope, name, occurrence, kind, ordinal| {
-                    row(&[
-                        scope.into(),
-                        word(name),
-                        occurrence.into(),
-                        word(kind),
-                        ordinal,
-                        file,
-                    ]);
-                })
-            }
             _ => return Err(format!("no site relation {relation}")),
         };
         if !complete {
@@ -648,69 +345,4 @@ impl ColumnFile<'_, '_> {
         }
         Ok(())
     }
-
-    fn visit_namespace_final(
-        &mut self,
-        mut row: impl FnMut(u32, &str, u32, &'static str, u64),
-    ) -> bool {
-        use crate::domain::binding_facts::service::event_word;
-        use crate::domain::model::names::service::text_of;
-        let view = self.file.semantics(ModelPart::Flow);
-        if view.model.flow.state == FlowState::Incomplete {
-            return false;
-        }
-        let segments = view.tree.segments;
-        let mut latest = HashMap::new();
-        let mut events: Vec<_> = view.model.flow.events.iter().collect();
-        events.sort_by_key(|event| event.ordinal);
-        for event in events {
-            match event.kind {
-                FlowEventKind::Read | FlowEventKind::Wildcard => continue,
-                FlowEventKind::Global | FlowEventKind::Nonlocal if event.lexical != event.scope => {
-                    let _ = latest.insert((event.lexical, event.name), event);
-                }
-                _ => {}
-            }
-            let _ = latest.insert((event.scope, event.name), event);
-        }
-        let mut ordered: Vec<_> = latest.into_iter().collect();
-        ordered.sort_unstable_by_key(|((scope, name), _)| (table_id(segments, *scope).0, *name));
-        for ((scope, name), event) in ordered {
-            row(
-                table_id(segments, scope).0,
-                text_of(&view.model.names, name).map_or("", |text| text.0),
-                table_id(segments, event.at).0,
-                event_word(event.kind).0,
-                event.ordinal.0 as u64,
-            );
-        }
-        true
-    }
-}
-
-#[path = "named_semantics.rs"]
-mod named_semantics;
-
-#[path = "named.rs"]
-mod named;
-
-pub(super) fn qualify_cells(
-    schema: &ryo::languages::FileRelation,
-    file: ryo::languages::FileId,
-    columns: Vec<Vec<u64>>,
-) -> Vec<ryo::languages::FactColumn> {
-    columns
-        .into_iter()
-        .zip(schema.columns)
-        .map(|(mut cells, (_, kind))| {
-            if *kind == ryo::languages::CellKind::Node {
-                for cell in &mut cells {
-                    if *cell != u64::MAX {
-                        *cell |= u64::from(file.0) << 32;
-                    }
-                }
-            }
-            ryo::languages::FactColumn(cells)
-        })
-        .collect()
 }

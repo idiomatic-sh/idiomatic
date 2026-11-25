@@ -152,7 +152,6 @@ pub(crate) fn visit_parsed(
         imports: Vec::new(),
         import_presence: Default::default(),
         last_import_end: None,
-        relative_froms: Vec::new(),
         names,
         text: if utf8 { source } else { "" },
     };
@@ -166,7 +165,6 @@ pub(crate) fn visit_parsed(
         literals,
         imports,
         import_presence,
-        relative_froms,
         names,
         ..
     } = walker;
@@ -275,7 +273,6 @@ pub(crate) fn visit_parsed(
         strings: literals,
         imports,
         import_presence,
-        relative_froms,
         segments: Vec::new(),
         text: NameText(source),
         completeness: Wholeness { syntax, lexical },

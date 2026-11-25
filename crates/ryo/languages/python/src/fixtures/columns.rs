@@ -196,7 +196,6 @@ impl ColumnWalk {
                 visit(&mut ColumnFile {
                     table,
                     file: &mut file,
-                    relative_froms: &tree.relative_froms,
                     import_presence: tree.import_presence,
                     memo,
                     words,
@@ -225,7 +224,6 @@ pub struct ColumnFile<'a, 'f> {
     /// The node table.
     pub table: &'a NodeTable,
     pub(crate) file: &'a mut PythonFile<'f>,
-    relative_froms: &'a [Position],
     import_presence: crate::domain::node::types::ImportPresence,
     memo: &'a mut TextMemo,
     pub(crate) words: &'a mut FileWords,
@@ -247,36 +245,35 @@ fn flag(value: Flag) -> u32 {
 
 mod forward_reads;
 mod expression_parts;
-pub use expression_parts::CallSite;
-mod assignment;
 mod imports;
-pub(crate) mod lexical_lines;
 pub use imports::ImportAlias;
+mod named;
+mod named_semantics;
 mod resolution;
 pub use resolution::BindingSite;
 
+fn qualify_cells(
+    schema: &ryo::languages::FileRelation,
+    file: ryo::languages::FileId,
+    columns: Vec<Vec<u64>>,
+) -> Vec<ryo::languages::FactColumn> {
+    columns
+        .into_iter()
+        .zip(schema.columns)
+        .map(|(mut cells, (_, kind))| {
+            if *kind == ryo::languages::CellKind::Node {
+                for cell in &mut cells {
+                    if *cell != u64::MAX {
+                        *cell |= u64::from(file.0) << 32;
+                    }
+                }
+            }
+            ryo::languages::FactColumn(cells)
+        })
+        .collect()
+}
+
 impl ColumnFile<'_, '_> {
-    /// A source file without a relative from-import requests no package-relative alias.
-    pub fn has_relative_imports(&self) -> bool {
-        !self.relative_froms.is_empty()
-    }
-
-    /// Each relative import alias names a member (or, for a wildcard, just its source module).
-    pub fn relative_imports(&self) -> impl Iterator<Item = (u32, u32, Option<&str>, Option<&str>)> {
-        self.relative_froms.iter()
-            .filter_map(|index| match self.file.syntax.nodes.get(usize::from(*index)) {
-                Some(AnyNodeRef::StmtImportFrom(statement)) => Some(*statement),
-                _ => None,
-            })
-            .flat_map(|statement| {
-                statement.names.iter().filter_map(move |alias| {
-                    let id = crate::domain::node::service::id_of(alias)?;
-                    let name = alias.name.as_str();
-                    Some((id.0, statement.level, statement.module.as_ref().map(|m| m.as_str()), (name != "*").then_some(name)))
-                })
-            })
-    }
-
     /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
     /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in
     /// every file of the run. Empty when the file's bytes were not text.
@@ -396,69 +393,6 @@ impl ColumnFile<'_, '_> {
             }
         }
         Some((schedule.annotations == BindingAnnotationTiming::Deferred, out))
-    }
-
-    /// Spike (redo-binding pass 4): the elements evaluated in a deferred type phase (the model's schedule: a phase of kind
-    /// `Type`), as `evaluation_region` assigns regions, without the rest of its rows; tokens and identifiers the model does
-    /// not number are where their parent is. `None` where the model is incomplete.
-    pub fn type_regions(&mut self) -> Option<Vec<u32>> {
-        use crate::domain::model::lexical::service::parent_of;
-        use crate::domain::model::types::BindingPhaseKind;
-        let read = self.file.semantics(ModelPart::Flow);
-        if read.model.flow.state == FlowState::Incomplete {
-            return None;
-        }
-        let schedule = &read.model.schedule;
-        let segments = read.tree.segments;
-        let n = read.model.lexical.class.len();
-        let types: std::collections::HashSet<u32> =
-            schedule.phases.iter().filter(|phase| matches!(phase.kind, BindingPhaseKind::Type)).map(|phase| phase.root.0).collect();
-        if types.is_empty() {
-            return Some(Vec::new());
-        }
-        let mut region = vec![0u32; n];
-        let elements = node_table::element_count(self.table).0 as usize;
-        let mut typed = vec![false; elements];
-        let mut out = Vec::new();
-        for p in 0..n {
-            let r = schedule.region.get(p).copied().unwrap_or(ryo::languages::Position(u32::MAX));
-            region[p] = if r.0 != u32::MAX {
-                r.0
-            } else if p == 0 {
-                0
-            } else {
-                let parent = parent_of(read.tree, ryo::languages::Position(p as u32)).0 as usize;
-                if parent < p { region[parent] } else { 0 }
-            };
-            if types.contains(&region[p]) {
-                let id = table_id(segments, ryo::languages::Position(p as u32)).0;
-                if let Some(slot) = typed.get_mut(id as usize) {
-                    *slot = true;
-                }
-                out.push(id);
-            }
-        }
-        let mut numbered = vec![false; elements];
-        for p in 0..n {
-            let id = table_id(segments, ryo::languages::Position(p as u32)).0 as usize;
-            if let Some(slot) = numbered.get_mut(id) {
-                *slot = true;
-            }
-        }
-        for id in 0..elements {
-            if numbered[id] {
-                continue;
-            }
-            let parent = node_table::parent_of(self.table, ryo::languages::Position(id as u32)).0 as usize;
-            if parent < id && numbered[parent] && typed[parent] {
-                typed[id] = true;
-                numbered[id] = true;
-                out.push(id as u32);
-            } else if parent < id && numbered[parent] {
-                numbered[id] = true;
-            }
-        }
-        Some(out)
     }
 
     /// Builds the parts of the semantic model the asks need, and no more (a file whose asks need none builds none): timed

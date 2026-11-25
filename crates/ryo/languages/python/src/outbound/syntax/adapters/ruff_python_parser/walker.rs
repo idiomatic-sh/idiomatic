@@ -238,9 +238,6 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             if !self.import_presence.line_comment {
                 self.last_import_end = Some(placed(self.origin, node.end()));
             }
-            if matches!(node, AnyNodeRef::StmtImportFrom(stmt) if stmt.level != 0) {
-                self.relative_froms.push(at);
-            }
         } else if matches!(node, AnyNodeRef::Alias(_)) {
             self.imports.push(at);
         } else {
