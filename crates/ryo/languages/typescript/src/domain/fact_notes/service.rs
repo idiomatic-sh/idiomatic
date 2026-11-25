@@ -1,6 +1,7 @@
 //! The `fact_notes` service: free functions named by verb over the domain's types, with no IO and no ports. It notes the modules a file
 //! imports when the parse reads it, for the project of the same run to read.
 
+use crate::domain::syntax::reading::Syntax;
 use ryo::languages::{self, Position, Tree};
 
 use super::types::{ImportNote, ImportSpelling, Note, Specifier};
@@ -21,10 +22,10 @@ pub(crate) fn noted(tree: &Tree<'_>) -> Note {
 }
 
 /// The decoded value of the string literal at `at`, if it is one.
-fn string_at<'a>(tree: &'a Tree<'_>, at: Position) -> Option<languages::NameText<'a>> {
-    let token = languages::children(tree.elements, at)
+fn string_at<'a>(tree: &'a impl Syntax, at: Position) -> Option<languages::NameText<'a>> {
+    let token = tree.children_of(at)
         .find(|child| kind(tree, *child) == Kind::Token(Token::String))?;
-    languages::decoded_at(tree.elements, token)
+    tree.decoded_of(token)
 }
 
 /// The module the element at `at` imports, when it is a declaration or an expression that imports one by a string: the first string
@@ -33,7 +34,7 @@ fn string_at<'a>(tree: &'a Tree<'_>, at: Position) -> Option<languages::NameText
     clippy::wildcard_enum_match_arm,
     reason = "five kinds of node import a module by a string; every other kind imports none"
 )]
-fn import_of(tree: &Tree<'_>, at: Position) -> Option<ImportNote> {
+fn import_of(tree: &impl Syntax, at: Position) -> Option<ImportNote> {
     let holder = match kind(tree, at) {
         Kind::Node(
             Node::ImportDeclaration
@@ -47,8 +48,8 @@ fn import_of(tree: &Tree<'_>, at: Position) -> Option<ImportNote> {
     };
     let specifier = nodes(tree, holder).find_map(|each| string_at(tree, each))?;
     let (start, end) = (
-        languages::start_at(tree.elements, at),
-        languages::end_at(tree.elements, at),
+        tree.start_of(at),
+        tree.end_of(at),
     );
     Some(ImportNote {
         specifier: Specifier(specifier.0.into()),
@@ -59,9 +60,9 @@ fn import_of(tree: &Tree<'_>, at: Position) -> Option<ImportNote> {
 }
 
 /// The text from `start` to `end` as the file writes it, its whitespace left out.
-fn spelled(tree: &Tree<'_>, start: languages::Offset, end: languages::Offset) -> ImportSpelling {
+fn spelled(tree: &impl Syntax, start: languages::Offset, end: languages::Offset) -> ImportSpelling {
     let text = tree
-        .source
+        .bytes()
         .0
         .get(
             usize::try_from(start.0).unwrap_or(usize::MAX)
@@ -78,7 +79,7 @@ fn spelled(tree: &Tree<'_>, start: languages::Offset, end: languages::Offset) ->
     clippy::wildcard_enum_match_arm,
     reason = "six kinds of node hold the string an import names its module by; every other kind holds none"
 )]
-pub(crate) fn specifier(tree: &Tree<'_>, at: Position) -> languages::Flag {
+pub(crate) fn specifier(tree: &impl Syntax, at: Position) -> languages::Flag {
     let enclosing = parent(tree, at);
     let imports = match kind(tree, enclosing) {
         Kind::Node(

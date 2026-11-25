@@ -7,8 +7,25 @@ use crate::domain::file_view::types::{TypeScriptFile, TypeScriptWalk};
 use crate::domain::syntax::service::{kind_name, kinds};
 use ryo::languages::{
     self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames, NameText, RenderOutcome, RenderRequest,
-    Rows, WalkKinds, WalkVocabulary, Wanted,
+    Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
 };
+
+/// The filler of each relation whose `fills!` item writes it whole alone: the item's run. Asked for a key, it writes the whole
+/// relation and says so; `fillers::filled` is the one place that answer is written.
+macro_rules! written {
+    ($( $module:ident: $relation:ident => $item:path; )*) => {
+        $(
+            fn $module(
+                file: &mut TypeScriptFile<'_>,
+                words: &mut FileWords,
+                wanted: Wanted,
+                rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
+            ) -> Fill {
+                fillers::filled::<$item>(file, words, wanted, rows)
+            }
+        )*
+    };
+}
 
 /// The filler of each relation the language does not fill yet, with the cause.
 macro_rules! absent {
@@ -32,6 +49,14 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
     where
         Self: 'f;
 
+    written! {
+        comment: Comment => crate::domain::relations::collections::relations::comment::item::CommentItem;
+        numeric_literal: NumericLiteral => crate::domain::relations::collections::relations::numeric_literal::item::NumericLiteralItem;
+        string_literal: StringLiteral => crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
+        parameter: Parameter => crate::domain::relations::collections::relations::parameter::item::ParameterItem;
+        call_argument: CallArgument => crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem;
+    }
+
     absent! {
         binding_event: BindingEvent => NotYetRead;
         binding_resolution: BindingResolution => NotYetRead;
@@ -39,8 +64,6 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         brace_format_field: BraceFormatField => NotYetRead;
         brace_format_parse: BraceFormatParse => NotYetRead;
         bytes_literal: BytesLiteral => NotYetRead;
-        call_argument: CallArgument => NotYetRead;
-        comment: Comment => NotYetRead;
         compiler_feature: CompilerFeature => NotYetRead;
         decorates: Decorates => NotYetRead;
         defines: Defines => NotYetRead;
@@ -56,14 +79,11 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         language_target: LanguageTarget => NotYetRead;
         literal_expression_parse: LiteralExpressionParse => NotYetRead;
         literal_properties: LiteralProperties => NotYetRead;
-        numeric_literal: NumericLiteral => NotYetRead;
-        parameter: Parameter => NotYetRead;
         qualified_name: QualifiedName => NotYetRead;
         raw_format_field: RawFormatField => NotYetRead;
         source_location: SourceLocation => NotYetRead;
         standard_library_import: StandardLibraryImport => NotYetRead;
         static_import: StaticImport => NotYetRead;
-        string_literal: StringLiteral => NotYetRead;
         syntax_error: SyntaxError => NotYetRead;
         binding_read: BindingRead => NotYetRead;
         binding_shadow: BindingShadow => NotYetRead;

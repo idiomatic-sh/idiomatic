@@ -18,37 +18,38 @@ use crate::domain::syntax::{
     types::Kind,
 };
 use crate::domain::tokens::types::Token;
-use ryo::languages::{self, Position, Symbol, Symbols, Tree};
+use crate::domain::syntax::reading::{Interner, Syntax};
+use ryo::languages::{self, Position, Symbol};
 
 /// Direct AST children, excluding source tokens and gaps.
-pub(crate) fn nodes<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Position> + 'a {
-    languages::children(tree.elements, at)
+pub(crate) fn nodes<'a>(tree: &'a impl Syntax, at: Position) -> impl Iterator<Item = Position> + 'a {
+    tree.children_of(at)
         .filter(|child| matches!(kind(tree, *child), Kind::Node(_)))
 }
 /// Exact spelling of an element.
-pub(crate) fn text<'a>(tree: &'a Tree<'_>, at: Position) -> Spelling<'a> {
-    let start = usize::try_from(languages::start_at(tree.elements, at).0).unwrap_or(usize::MAX);
-    let end = usize::try_from(languages::end_at(tree.elements, at).0).unwrap_or(usize::MAX);
+pub(crate) fn text<'a>(tree: &'a impl Syntax, at: Position) -> Spelling<'a> {
+    let start = usize::try_from(tree.start_of(at).0).unwrap_or(usize::MAX);
+    let end = usize::try_from(tree.end_of(at).0).unwrap_or(usize::MAX);
     Spelling(
-        std::str::from_utf8(tree.source.0.get(start..end).unwrap_or_default()).unwrap_or_default(),
+        std::str::from_utf8(tree.bytes().0.get(start..end).unwrap_or_default()).unwrap_or_default(),
     )
 }
 /// Intern the source range of an expression.
-pub(crate) fn written(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
-    languages::intern_derived(symbols, tree.source, languages::NameText(text(tree, at).0))
+pub(crate) fn written(tree: &impl Syntax, symbols: &mut impl Interner, at: Position) -> Symbol {
+    symbols.derived(tree.bytes(), languages::NameText(text(tree, at).0))
 }
 /// A named value unavailable without evaluation or an anonymous binding.
 pub(crate) fn unknown() -> Symbol {
     languages::unknown_symbol(languages::UnknownReason(0))
 }
 /// The spelling/value of an identifier's direct token.
-pub(crate) fn identifier(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
+pub(crate) fn identifier(tree: &impl Syntax, symbols: &mut impl Interner, at: Position) -> Symbol {
     if kind(tree, at) == Kind::Node(Node::Literal)
         && let Some(value) = string(tree, symbols, at)
     {
         return value;
     }
-    let token = languages::children(tree.elements, at).find(|child| {
+    let token = tree.children_of(at).find(|child| {
         matches!(
             kind(tree, *child),
             Kind::Token(Token::IdentifierToken | Token::PrivateIdentifierToken | Token::Keyword)
@@ -56,70 +57,72 @@ pub(crate) fn identifier(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -
     });
     match token {
         None => written(tree, symbols, at),
-        Some(token) => languages::decoded_at(tree.elements, token).map_or_else(
-            || languages::text_at(tree.elements, token),
-            |value| languages::intern_derived(symbols, tree.source, value),
-        ),
+        Some(token) => match tree.decoded_of(token) {
+            None => tree.spelling(symbols, token),
+            Some(value) => symbols.derived(tree.bytes(), value),
+        },
     }
 }
 /// The value of a string literal, decoded by the parser rather than inferred from its quotes.
-pub(crate) fn string(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Option<Symbol> {
+pub(crate) fn string(tree: &impl Syntax, symbols: &mut impl Interner, at: Position) -> Option<Symbol> {
     if kind(tree, at) == Kind::Node(Node::TemplateLiteral) {
         return template(tree, symbols, at);
     }
-    let token = languages::children(tree.elements, at).find(|child| {
+    let token = tree.children_of(at).find(|child| {
         matches!(
             kind(tree, *child),
             Kind::Token(Token::String | Token::JSXTextToken)
         )
     })?;
     Some(
-        languages::decoded_at(tree.elements, token).map_or_else(unknown, |value| {
-            languages::intern_derived(symbols, tree.source, value)
+        tree.decoded_of(token).map_or_else(unknown, |value| {
+            symbols.derived(tree.bytes(), value)
         }),
     )
 }
 /// A no-substitution template's cooked value, which the parser decoded on its token; none with an expression, or tagged.
-fn template(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Option<Symbol> {
+fn template(tree: &impl Syntax, symbols: &mut impl Interner, at: Position) -> Option<Symbol> {
     let mut parts = nodes(tree, at);
     let quasi = parts.next().filter(|_| parts.next().is_none())?;
-    let token = languages::children(tree.elements, quasi)
+    let token = tree.children_of(quasi)
         .find(|child| kind(tree, *child) == Kind::Token(Token::Template))?;
-    languages::decoded_at(tree.elements, token)
-        .map(|value| languages::intern_derived(symbols, tree.source, value))
+    tree.decoded_of(token)
+        .map(|value| symbols.derived(tree.bytes(), value))
 }
 /// A comment's content without delimiters.
-pub(crate) fn comment(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
-    let raw = text(tree, at).0;
-    let content = raw
-        .strip_prefix(LINE_COMMENT)
+pub(crate) fn comment(tree: &impl Syntax, symbols: &mut impl Interner, at: Position) -> Symbol {
+    let content = comment_content(text(tree, at).0);
+    symbols.derived(tree.bytes(), languages::NameText(content))
+}
+/// The content of a comment written as `raw`, without its delimiters.
+pub(crate) fn comment_content(raw: &str) -> &str {
+    raw.strip_prefix(LINE_COMMENT)
         .or_else(|| {
             let rest = raw.strip_prefix(BLOCK_COMMENT)?;
             rest.strip_suffix(BLOCK_END)
         })
-        .unwrap_or(raw);
-    languages::intern_derived(symbols, tree.source, languages::NameText(content))
+        .unwrap_or(raw)
 }
 /// Find a direct delimiter without reading tokens nested inside a child expression.
-pub(crate) fn token(tree: &Tree<'_>, at: Position, spelling: Spelling<'_>) -> Option<Position> {
-    languages::children(tree.elements, at).find(|child| text(tree, *child).0 == spelling.0)
+pub(crate) fn token(tree: &impl Syntax, at: Position, spelling: Spelling<'_>) -> Option<Position> {
+    tree.children_of(at).find(|child| text(tree, *child).0 == spelling.0)
 }
 /// A declaration name precedes its parameters or base clause.
 pub(crate) fn name_before(
-    tree: &Tree<'_>,
+    tree: &impl Syntax,
     at: Position,
     before: Option<Position>,
 ) -> Option<Position> {
     nodes(tree, at).find(|child| {
         kind(tree, *child) == Kind::Node(Node::Identifier)
             && before.is_none_or(|before| {
-                languages::start_at(tree.elements, *child)
-                    < languages::start_at(tree.elements, before)
+                tree.start_of(*child)
+                    < tree.start_of(before)
             })
     })
 }
 /// A static dotted name; computed selections and other runtime expressions remain unknown.
-pub(crate) fn target(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
+pub(crate) fn target(tree: &impl Syntax, symbols: &mut impl Interner, at: Position) -> Symbol {
     match kind(tree, at) {
         Kind::Node(Node::Identifier | Node::PrivateIdentifier) => identifier(tree, symbols, at),
         Kind::Node(Node::ThisExpression | Node::Super) => written(tree, symbols, at),
@@ -139,11 +142,11 @@ pub(crate) fn target(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Sy
             if left == unknown() || right == unknown() {
                 return unknown();
             }
-            let mark = languages::begin_name(symbols);
-            languages::push_name(symbols, tree.source, left);
-            languages::push_text(symbols, languages::NameText(SELECTION));
-            languages::push_name(symbols, tree.source, right);
-            languages::end_name(symbols, tree.source, mark)
+            let mark = symbols.begin_name();
+            symbols.push_name(tree.bytes(), left);
+            symbols.push_text(languages::NameText(SELECTION));
+            symbols.push_name(tree.bytes(), right);
+            symbols.end_name(tree.bytes(), mark)
         }
         Kind::Node(
             Node::CallExpression
@@ -160,7 +163,7 @@ pub(crate) fn target(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Sy
 }
 /// Parameter AST nodes between the callable's parameter delimiters.
 pub(crate) fn parameters<'a>(
-    tree: &'a Tree<'_>,
+    tree: &'a impl Syntax,
     at: Position,
 ) -> impl Iterator<Item = Position> + 'a {
     let callable = matches!(
@@ -180,21 +183,21 @@ pub(crate) fn parameters<'a>(
     );
     callable.then_some(at).into_iter().flat_map(move |at| {
         let open = token(tree, at, Spelling(OPEN_PARAMETERS))
-            .map(|child| languages::end_at(tree.elements, child));
+            .map(|child| tree.end_of(child));
         let mut depth = 0_i32;
-        let close = languages::children(tree.elements, at)
+        let close = tree.children_of(at)
             .filter(|child| [OPEN_PARAMETERS, CLOSE_PARAMETERS].contains(&text(tree, *child).0))
             .find(|child| {
                 let opening = text(tree, *child).0 == OPEN_PARAMETERS;
                 depth += if opening { 1_i32 } else { -1_i32 };
                 depth == 0_i32
             })
-            .map(|child| languages::start_at(tree.elements, child));
+            .map(|child| tree.start_of(child));
         let first = nodes(tree, at).next();
         nodes(tree, at).filter(move |child| match (open, close) {
             (Some(open), Some(close)) => {
-                languages::start_at(tree.elements, *child) >= open
-                    && languages::end_at(tree.elements, *child) <= close
+                tree.start_of(*child) >= open
+                    && tree.end_of(*child) <= close
             }
             _ => {
                 kind(tree, at) == Kind::Node(Node::ArrowFunctionExpression) && Some(*child) == first
@@ -203,7 +206,7 @@ pub(crate) fn parameters<'a>(
     })
 }
 /// The name of a simple parameter; destructuring has no single binding.
-pub(crate) fn parameter_name(tree: &Tree<'_>, symbols: &mut Symbols, at: Position) -> Symbol {
+pub(crate) fn parameter_name(tree: &impl Syntax, symbols: &mut impl Interner, at: Position) -> Symbol {
     match kind(tree, at) {
         Kind::Node(Node::Identifier) => identifier(tree, symbols, at),
         Kind::Node(Node::RestElement | Node::AssignmentPattern | Node::TSParameterProperty) => {
@@ -216,7 +219,7 @@ pub(crate) fn parameter_name(tree: &Tree<'_>, symbols: &mut Symbols, at: Positio
 }
 /// The binding positions in a pattern, without property keys or default expressions.
 pub(crate) fn bindings<'a>(
-    tree: &'a Tree<'_>,
+    tree: &'a impl Syntax,
     at: Position,
 ) -> impl Iterator<Item = Position> + 'a {
     (at.0..=last(tree, at).0)
@@ -249,7 +252,7 @@ pub(crate) fn bindings<'a>(
 }
 /// Names owned by one declaration.
 pub(crate) fn declared<'a>(
-    tree: &'a Tree<'_>,
+    tree: &'a impl Syntax,
     at: Position,
 ) -> impl Iterator<Item = Position> + 'a {
     let mut children =
@@ -276,7 +279,7 @@ pub(crate) fn declared<'a>(
         .flat_map(move |child| bindings(tree, child))
 }
 /// The common category of a TypeScript declaration.
-pub(crate) fn declaration_kind(tree: &Tree<'_>, at: Position) -> languages::DeclarationKind {
+pub(crate) fn declaration_kind(tree: &impl Syntax, at: Position) -> languages::DeclarationKind {
     use languages::DeclarationKind as Declaration;
     match kind(tree, at) {
         Kind::Node(
@@ -298,7 +301,7 @@ pub(crate) fn declaration_kind(tree: &Tree<'_>, at: Position) -> languages::Decl
             Node::PropertyDefinition | Node::AccessorProperty | Node::TSPropertySignature,
         ) => Declaration::Property,
         Kind::Node(Node::VariableDeclarator)
-            if languages::children(tree.elements, parent(tree, at)).any(|child| {
+            if tree.children_of(parent(tree, at)).any(|child| {
                 (kind(tree, child) == Kind::Token(Token::Keyword)
                     && text(tree, child).0 == CONSTANT)
                     || (kind(tree, child) == Kind::Token(Token::IdentifierToken)
@@ -311,7 +314,7 @@ pub(crate) fn declaration_kind(tree: &Tree<'_>, at: Position) -> languages::Decl
     }
 }
 /// A reference excludes binding names and static property keys, but includes value expressions.
-pub(crate) fn referenced(tree: &Tree<'_>, at: Position) -> Reference {
+pub(crate) fn referenced(tree: &impl Syntax, at: Position) -> Reference {
     let enclosing = parent(tree, at);
     let parent_kind = kind(tree, enclosing);
     if matches!(
@@ -372,25 +375,25 @@ pub(crate) fn referenced(tree: &Tree<'_>, at: Position) -> Reference {
     Reference::Use
 }
 /// Direct string assignment pairs.
-pub(crate) fn assignment(tree: &Tree<'_>, at: Position) -> Option<Assignment> {
+pub(crate) fn assignment(tree: &impl Syntax, at: Position) -> Option<Assignment> {
     let mut children = nodes(tree, at);
     let binding = children.next()?;
     let value = children.last()?;
-    let token = languages::children(tree.elements, value)
+    let token = tree.children_of(value)
         .any(|child| kind(tree, child) == Kind::Token(Token::String));
     token.then_some(Assignment { binding, value })
 }
 /// The explicit bases of a class or interface.
-pub(crate) fn bases<'a>(tree: &'a Tree<'_>, at: Position) -> impl Iterator<Item = Position> + 'a {
+pub(crate) fn bases<'a>(tree: &'a impl Syntax, at: Position) -> impl Iterator<Item = Position> + 'a {
     let interface = kind(tree, at) == Kind::Node(Node::TSInterfaceDeclaration);
     let extends =
-        token(tree, at, Spelling(EXTENDS)).map(|child| languages::end_at(tree.elements, child));
+        token(tree, at, Spelling(EXTENDS)).map(|child| tree.end_of(child));
     nodes(tree, at).filter(move |child| {
         if interface {
             return kind(tree, *child) == Kind::Node(Node::TSInterfaceHeritage);
         }
         matches!(kind(tree, *child), Kind::Node(Node::TSClassImplements))
-            || (extends.is_some_and(|from| languages::start_at(tree.elements, *child) >= from)
+            || (extends.is_some_and(|from| tree.start_of(*child) >= from)
                 && !matches!(
                     kind(tree, *child),
                     Kind::Node(Node::ClassBody | Node::TSTypeParameterInstantiation)

@@ -8,7 +8,8 @@ use crate::domain::syntax::{
     service::{kind, parent},
     types::Kind,
 };
-use ryo::languages::{self, Position, Tree};
+use crate::domain::syntax::reading::{Interner, Syntax};
+use ryo::languages::{self, Position};
 /// Whether a node introduces a lexical environment.
 pub(crate) fn opens(kind: Kind) -> Scope {
     if matches!(
@@ -38,7 +39,7 @@ pub(crate) fn opens(kind: Kind) -> Scope {
     }
 }
 /// Nearest enclosing environment; the file owns itself.
-pub(crate) fn enclosing(tree: &Tree<'_>, at: Position) -> Position {
+pub(crate) fn enclosing(tree: &impl Syntax, at: Position) -> Position {
     let mut above = parent(tree, at);
     while above != parent(tree, above) && opens(kind(tree, above)) == Scope::Continues {
         above = parent(tree, above);
@@ -46,13 +47,13 @@ pub(crate) fn enclosing(tree: &Tree<'_>, at: Position) -> Position {
     above
 }
 /// The file-qualified owner of an occurrence.
-pub(crate) fn owner(tree: &Tree<'_>, at: Position) -> languages::NodeId {
-    languages::node_id(tree.file, enclosing(tree, at))
+pub(crate) fn owner(tree: &impl Syntax, at: Position) -> languages::NodeId {
+    languages::node_id(tree.file_number(), enclosing(tree, at))
 }
 /// Whether the function at `at` is declared: a function declaration (`declare function` included), the body of a class method (an
 /// abstract one or an overload included), or the body of an object's method, getter or setter (a property with no `:` between its key
 /// and its value); every other function is an expression.
-pub(crate) fn function_form(tree: &Tree<'_>, at: Position) -> Declaredness {
+pub(crate) fn function_form(tree: &impl Syntax, at: Position) -> Declaredness {
     match kind(tree, at) {
         Kind::Node(Node::FunctionDeclaration | Node::TSDeclareFunction) => Declaredness::Function,
         Kind::Node(Node::FunctionExpression | Node::TSEmptyBodyFunctionExpression) => {
@@ -83,8 +84,8 @@ pub(crate) fn function_form(tree: &Tree<'_>, at: Position) -> Declaredness {
 }
 /// An explicit callable name: a declaration's own, or a method's key; anonymous functions and arrows remain unknown.
 pub(crate) fn function_name(
-    tree: &Tree<'_>,
-    symbols: &mut languages::Symbols,
+    tree: &impl Syntax,
+    symbols: &mut impl Interner,
     at: Position,
 ) -> languages::Symbol {
     match function_form(tree, at) {

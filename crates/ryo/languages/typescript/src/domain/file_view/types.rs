@@ -13,7 +13,6 @@ pub(crate) struct TypeScriptWalk<P = ()> {
 /// One walked file as the fillers read it: its numbered node table and its text. The parse, the typed node of each id and the
 /// model each filler reads are added to this view as the relations are filled.
 #[derive(Debug)]
-#[cfg_attr(test, expect(dead_code, reason = "the fillers read the view's table, text and number as their relations are written"))]
 pub(crate) struct TypeScriptFile<'f> {
     /// The file's node table, finished.
     pub(crate) table: &'f NodeTable,
