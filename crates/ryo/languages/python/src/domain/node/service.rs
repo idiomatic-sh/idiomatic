@@ -242,3 +242,21 @@ pub(crate) fn token_field(parent: AnyNodeRef<'_>, kind: TokenKind, named: Token)
         _ => Field::None,
     }
 }
+
+/// The expressions that are children of the node `id`, in the order the table lists them: the first is what `nth(.., 0)` named
+/// in the element table.
+pub(crate) fn expressions_of<'f>(file: &SyntaxFile<'f>, id: Position) -> impl Iterator<Item = Position> + use<'f> {
+    let table = file.table;
+    node_table::children_of(table, id).iter().copied().filter(move |&child| {
+        crate::domain::syntax::service::category_of(crate::domain::syntax::service::kind_of(node_table::kind_of(table, child)))
+            == crate::domain::nodes::types::Category::Expression
+    })
+}
+
+/// The scope the node `id` is evaluated in, as a table id: the model's `scope_of` over the place the id numbers, the module when
+/// the model holds none.
+pub(crate) fn scope_id(file: &SyntaxFile<'_>, scope_of: &[Position], id: Position) -> Position {
+    crate::domain::node::service::place_of_id(file.tree, id)
+        .and_then(|place| scope_of.get(usize::from(place)))
+        .map_or(Position(0), |&place| table_id(file.tree.segments, place))
+}

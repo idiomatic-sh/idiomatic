@@ -39,6 +39,7 @@ const NUMBER: &str = "{n}";
 const STATEMENTS: &str = "import os.path as path_{n}
 from collections import OrderedDict as ordered_{n}
 value_{n} = {n} + 1.5  # number {n}
+text_{n} = \"string {n}\"
 value_{n} = [value_{n}, b\"bytes\", \"text %s and %5.2f\" % (value_{n}, {n}), \"{0} or {name:>4}\".format({n}, name=value_{n})]
 label_{n}: \"list[int]\" = [f\"value {value_{n}!r:>8} told\", path_{n}.join(\"a\", \"b\"), len(value_{n}), {1: \"one\", 1.0: \"uno\", (1, 2): None}]
 @staticmethod
@@ -94,7 +95,7 @@ const fn written(shape: GrownShape) -> Written {
             start: "",
             piece: STATEMENTS,
             end: "",
-            elements: 320,
+            elements: 330,
         },
         GrownShape::Scopes => Written {
             start: "",
