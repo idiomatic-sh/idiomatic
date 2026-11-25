@@ -249,12 +249,17 @@ fn placed(state: &mut BuilderState<'_>, id: Position) -> ChildPlace {
                 ordinal,
             }
         }
-        None => ChildPlace {
-            parent: match state.segment {
-                BuilderSegment::File => id,
-                BuilderSegment::Embedded(host, _) => host,
-            },
-            ordinal: ChildOrdinal(0),
+        None => match state.segment {
+            BuilderSegment::File => ChildPlace { parent: id, ordinal: ChildOrdinal(0) },
+            // An embedded root is a child of its host: its place is after the host's own children, and after the roots already
+            // embedded under the same host (a host may hold several segments, in the order they were embedded).
+            BuilderSegment::Embedded(host, _) => {
+                let earlier = state.table.0.embedded.iter().filter(|segment| segment.host == host).count();
+                ChildPlace {
+                    parent: host,
+                    ordinal: ChildOrdinal(u32::try_from(children_of(state.table, host).len() + earlier).unwrap_or(u32::MAX)),
+                }
+            }
         },
     }
 }
@@ -780,6 +785,33 @@ pub fn set_syntax_acceptance(builder: &mut NodeTableBuilder<'_>, acceptance: Syn
 /// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
 /// leave_node(&mut writer, Offset(1));
 /// assert_eq!(parent_of(finished(&mut writer), Position(2)), Position(0));
+/// ```
+///
+/// A host may hold several embedded roots. An embedded root is a child of its host: its ordinal is its place after the host's own
+/// children, then after any roots already embedded under that host (the contract for every language with embedded content).
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, embed, enter_node, finished, leave_node, ordinal_of, token};
+/// use ryo_language::domain::node_table::types::{EmbeddedText, FieldCode, NodeTable};
+/// use ryo_relations::domain::elements::types::EmbeddedMapping;
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+/// use ryo_relations::domain::terms::types::{ChildOrdinal, NameText};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(3));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// token(&mut writer, KindBits(2), FieldCode(0), Offset(0), Offset(3));
+/// leave_node(&mut writer, Offset(3));
+/// let (first, second) = (embed(&mut writer, Position(0), EmbeddedText { text: NameText("x"), mapping: EmbeddedMapping::Exact(Offset(1)) }), ());
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(1));
+/// let _ = second;
+/// let other = embed(&mut writer, Position(0), EmbeddedText { text: NameText("y"), mapping: EmbeddedMapping::Exact(Offset(2)) });
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(1));
+/// let table = finished(&mut writer);
+/// assert_eq!(ordinal_of(table, first.0), ChildOrdinal(1));
+/// assert_eq!(ordinal_of(table, other.0), ChildOrdinal(2));
 /// ```
 pub fn embed(
     builder: &mut NodeTableBuilder<'_>,
