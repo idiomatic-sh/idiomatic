@@ -1254,6 +1254,8 @@ pub(super) struct Exec<'p> {
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
     constant: Vec<Option<bool>>,
     run_memo: Vec<Option<Rc<Table>>>,
+    /// The carried steps for which every closed check of the plan has passed, and the steps they demand.
+    closed_checked: Option<(Vec<usize>, Vec<bool>)>,
     emitted: rustc_hash::FxHashSet<usize>,
     pub(super) tally: band::Tally,
     /// 8: row-number buffers of the join (tuples a source), reused across executions; the join's key set, reused.
@@ -1310,6 +1312,7 @@ impl<'p> Exec<'p> {
             constant: vec![None; k],
             answer_layouts: FxHashMap::default(),
             run_memo: vec![None; k],
+            closed_checked: None,
             emitted: plan.emits.iter().map(|e| e.1).collect(),
             tally: band::Tally::default(),
             u32_pool: Vec::new(),
