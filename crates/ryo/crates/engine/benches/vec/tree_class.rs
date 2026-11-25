@@ -50,13 +50,11 @@ impl Exec<'_> {
         let mut frontier: Vec<u64> = from.cols[ic].clone();
         frontier.sort_unstable();
         frontier.dedup();
-        let mut visited = 0u64;
         while !frontier.is_empty() {
             frontier.retain(|x| !info.contains_key(x));
             if frontier.is_empty() {
                 break;
             }
-            visited += frontier.len() as u64;
             let mut leaf_rows: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
             if let Some(sn) = sn {
                 let t = self.probe(f, run, p, sn, sic, &frontier)?;
@@ -94,7 +92,6 @@ impl Exec<'_> {
             next.dedup();
             frontier = next;
         }
-        self.stats.touched[node] += visited;
         // Classes bottom-up, children before their parent (an explicit post-order: a root may lie under another root).
         let mut intern: FxHashMap<Vec<u64>, u64> = FxHashMap::default();
         let mut class: FxHashMap<u64, Option<u64>> = FxHashMap::default();

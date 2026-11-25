@@ -134,7 +134,6 @@ impl Exec<'_> {
             _ => unreachable!(),
         };
         srcs[ka] = sa;
-        self.stats.touched[node] += arows.len() as u64;
         let mut cur = vec![0u32; 2];
         let arows: Vec<u32> = arows
             .into_iter()
@@ -201,7 +200,6 @@ impl Exec<'_> {
             _ => unreachable!(),
         };
         srcs[pb] = sb;
-        self.stats.touched[node] += brows.len() as u64;
         // the layout: probed rows that pass their own tests, sorted by (key, band value); runs by key
         let bc = sh.band.as_ref().map(|b| b.0);
         let mut lay: Vec<(u64, i64, u32)> = Vec::with_capacity(brows.len());
@@ -242,7 +240,6 @@ impl Exec<'_> {
         };
         let mut keep: Vec<u32> = Vec::new();
         let mut counts: Vec<u64> = Vec::new();
-        let mut scanned = 0u64;
         for &r in &arows {
             cur[ka] = r;
             let key = key_of(sh.eqs.iter().map(|(_, e)| eval(run, f, &srcs, &cur, e).1));
@@ -288,12 +285,10 @@ impl Exec<'_> {
                     keep.push(r);
                     counts.push(run_rows.len() as u64);
                 }
-                scanned += 1;
                 continue;
             }
             let mut m = 0u64;
             for t in run_rows {
-                scanned += 1;
                 cur[pb] = t.2;
                 if recheck.iter().chain(&band_terms).chain(&sh.rest).all(|c| truthy(eval(run, f, &srcs, &cur, c))) {
                     m += 1;
@@ -307,7 +302,6 @@ impl Exec<'_> {
                 counts.push(m);
             }
         }
-        self.stats.touched[node] += scanned;
         let mut out = self.empty(run, node)?;
         for (c, (_, e)) in sp.items.iter().enumerate() {
             out.cols[c] = keep

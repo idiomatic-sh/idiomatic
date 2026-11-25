@@ -73,14 +73,12 @@ impl Exec<'_> {
                 up[i] = stack.last().copied().unwrap_or(u32::MAX);
                 stack.push(i as u32);
             }
-            self.stats.touched[node] += d.len() as u64;
             for r in 0..from.n {
                 let x = from.cols[ic][r];
                 if x == NULL || x as usize >= f.n {
                     continue;
                 }
                 let x = x as u32;
-                self.stats.touched[node] += 1;
                 if dir == "descendant" {
                     let xe = node_table::subtree_end_of(f.table, Position(x)).0;
                     let lo = d.partition_point(|v| *v <= x);
@@ -134,7 +132,6 @@ impl Exec<'_> {
                     hier_step(f, run, &hier, *x, true, &mut nbrs);
                     next.extend(nbrs.iter().map(|q| (*i, *q)));
                 }
-                self.stats.touched[node] += next.len() as u64;
                 let qs: Vec<u64> = next.iter().map(|x| x.1).collect();
                 let ok = self.admit(f, run, p, &dom, &qs)?;
                 frontier.clear();
@@ -171,7 +168,6 @@ impl Exec<'_> {
             }
             let xe = node_table::subtree_end_of(f.table, Position(x as u32)).0;
             for q in x as u32 + 1..xe {
-                self.stats.touched[node] += 1;
                 if !self.admit(f, run, p, &dom, &[u64::from(q)])?.is_empty() {
                     from.row(r, &mut row);
                     row.push(u64::from(q));

@@ -36,7 +36,6 @@ impl Exec<'_> {
                 out.push_row(&row);
             }
         }
-        self.stats.touched[node] += from.n as u64;
         Ok(out)
     }
 }
