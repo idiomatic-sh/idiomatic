@@ -52,7 +52,7 @@ pub(crate) fn kept_source(select: &SelectStep, tested: bool) -> Option<usize> {
         return None;
     }
     let mut read: HashSet<ReadAlias> = HashSet::new();
-    for item in items {
+    for item in items.iter() {
         read.extend(aliases_read(&item.value));
     }
     if tested {

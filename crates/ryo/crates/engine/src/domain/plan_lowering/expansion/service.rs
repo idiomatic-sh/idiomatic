@@ -265,7 +265,7 @@ fn selected(
                     }
                 });
             }
-            SelectedColumns::Items(items)
+            SelectedColumns::Items(items.into())
         }
     };
     let mut sources = vec![source_step(expansion, scope, &select.from)?];

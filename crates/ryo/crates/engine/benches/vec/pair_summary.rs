@@ -1107,7 +1107,7 @@ impl Builder<'_> {
                 self.require(&mut out, d);
             }
             if let SelectedColumns::Items(items) = &s.columns {
-                for item in items {
+                for item in items.iter() {
                     if let PlanExpression::Column(c) = &item.value
                         && (c.alias == SourceAlias::Unwritten || c.alias == src.alias)
                         && let Some(col) = input.column(&c.column.0)
@@ -1280,7 +1280,7 @@ impl Builder<'_> {
         }
         match &s.columns {
             SelectedColumns::Items(items) => {
-                for item in items {
+                for item in items.iter() {
                     if let PlanExpression::Column(c) = &item.value
                         && let Some(col) = lookup(c)
                     {

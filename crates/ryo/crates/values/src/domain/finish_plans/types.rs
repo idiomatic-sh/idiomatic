@@ -266,14 +266,14 @@ pub struct SelectSource {
 /// ```
 /// use ryo_values::domain::finish_plans::types::SelectedColumns;
 ///
-/// assert_ne!(SelectedColumns::Items(Vec::new()), SelectedColumns::All);
+/// assert_ne!(SelectedColumns::Items([].into()), SelectedColumns::All);
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SelectedColumns {
     /// `*`.
     All,
     /// These items, in order.
-    Items(Vec<SelectItem>),
+    Items(std::sync::Arc<[SelectItem]>),
 }
 
 /// One item of a select: a column kept under a name, computed from the sources' columns.

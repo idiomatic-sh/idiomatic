@@ -226,9 +226,21 @@ pub(crate) struct Observation {
     pub producers: Vec<Producer>,
 }
 
-pub(crate) type LiteralTables = std::collections::HashSet<Arc<ryo_values::domain::finish_plans::arguments::literals::types::RowsArguments>>;
+#[derive(Default)]
+pub(crate) struct SharedPlanData {
+    rows: rustc_hash::FxHashSet<Arc<ryo_values::domain::finish_plans::arguments::literals::types::RowsArguments>>,
+    projections: rustc_hash::FxHashSet<Arc<[ryo_values::domain::finish_plans::types::SelectItem]>>,
+}
 
-pub(crate) fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool, separator: Option<&str>, modules: ParsedModules, observations: &[Observation], literals: &mut LiteralTables) -> Result<(super::finish::Plan, ReadPack), String> {
+fn intern<T: ?Sized + Eq + std::hash::Hash>(set: &mut rustc_hash::FxHashSet<Arc<T>>, value: &mut Arc<T>) {
+    if let Some(previous) = set.get(value) {
+        value.clone_from(previous);
+    } else {
+        set.insert(value.clone());
+    }
+}
+
+pub(crate) fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep: bool, separator: Option<&str>, modules: ParsedModules, observations: &[Observation], literals: &mut SharedPlanData) -> Result<(super::finish::Plan, ReadPack), String> {
     use ryo_engine::domain::plan_lowering::types::{ContextObservation, ObservationProducer};
     use ryo_values::domain::{descriptions::types::ColumnName, observations::types::ObservationName};
     let mut texts = PackTexts { rules: vec![(rule.into(), Some(text.into()))], fragments: Vec::new() };
@@ -255,7 +267,7 @@ pub(crate) fn query_parts(rule: &str, text: &str, mut context: RuleContext, keep
     Ok((plan, pack))
 }
 
-fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut LiteralTables>) -> Result<super::finish::Plan, String> {
+fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>, emit: Option<&str>, literals: Option<&mut SharedPlanData>) -> Result<super::finish::Plan, String> {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
     let t1 = super::thread_cpu();
@@ -277,12 +289,15 @@ fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Opti
     }
     if let Some(tables) = literals {
         for step in &mut plan.steps {
-            if let ryo_values::domain::finish_plans::types::FinishStep::Rows(rows) = step {
-                if let Some(existing) = tables.get(rows) {
-                    rows.clone_from(existing);
-                } else {
-                    tables.insert(rows.clone());
+            use ryo_values::domain::finish_plans::types::{FinishStep, SelectedColumns};
+            match step {
+                FinishStep::Rows(rows) => intern(&mut tables.rows, rows),
+                FinishStep::Select(select) => {
+                    if let SelectedColumns::Items(items) = &mut select.columns {
+                        intern(&mut tables.projections, items);
+                    }
                 }
+                _ => {}
             }
         }
     }

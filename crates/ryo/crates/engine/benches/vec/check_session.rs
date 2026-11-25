@@ -88,7 +88,7 @@ impl Program {
         context: ryo_engine::domain::plan_lowering::types::RuleContext,
         capture_separator: Option<&str>,
         modules: ryo_values::domain::program::types::ParsedModules,
-        literals: &mut lower::LiteralTables,
+        literals: &mut lower::SharedPlanData,
     ) -> Result<Self> {
         let (plan, pack) = lower::query_parts(alias, &query.text, context, true, capture_separator, modules, &query.observations, literals)?;
         let typed = pack.typed.take().expect("prepared query");
@@ -205,7 +205,7 @@ pub(crate) struct Schedule {
     pub pending: BTreeSet<usize>,
     pub programs: Vec<Result<Program>>,
     pub(crate) prepared: HashMap<(Query, Parameters), usize>,
-    literal_tables: lower::LiteralTables,
+    shared_plan_data: lower::SharedPlanData,
     module_catalogs: HashMap<query::Modules, Result<ryo_values::domain::program::types::ParsedModules>>,
     pub pairs: usize,
 }
@@ -252,7 +252,7 @@ impl Schedule {
     }
 
     pub(crate) fn close(&mut self) {
-        self.literal_tables.clear();
+        self.shared_plan_data = Default::default();
         self.prepared = HashMap::new();
         self.finish_preparation();
         self.source_ids = HashMap::new();
@@ -266,7 +266,7 @@ impl Schedule {
         &mut self,
         text: Query,
         parameters: Parameters,
-        make: impl FnOnce(ryo_values::domain::program::types::ParsedModules, &mut lower::LiteralTables) -> Result<Program>,
+        make: impl FnOnce(ryo_values::domain::program::types::ParsedModules, &mut lower::SharedPlanData) -> Result<Program>,
     ) -> usize {
         let catalog = text.modules.clone();
         *self.prepared.entry((text, parameters)).or_insert_with_key(|(query, _)| {
@@ -274,7 +274,7 @@ impl Schedule {
                 None => Ok(Default::default()),
                 Some(sources) => self.module_catalogs.entry(sources).or_insert_with(|| query.parse_modules()).clone(),
             };
-            self.programs.push(modules.and_then(|modules| make(modules, &mut self.literal_tables)));
+            self.programs.push(modules.and_then(|modules| make(modules, &mut self.shared_plan_data)));
             self.programs.len() - 1
         })
     }

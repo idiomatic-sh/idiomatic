@@ -136,7 +136,7 @@ fn fact_projection<'a>(
     };
     let mut cols = Vec::new();
     let mut derived = false;
-    for item in items {
+    for item in items.iter() {
         let PlanExpression::Column(c) = &item.value else {
             return None;
         };
