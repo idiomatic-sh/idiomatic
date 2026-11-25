@@ -1326,4 +1326,23 @@ mod word_tests {
         assert_eq!(symbols.id(empty), Some(3));
         assert_eq!(symbols.id(CellWord(u64::from(languages::NO_SYMBOL.0))), None);
     }
+
+    #[test]
+    fn reserved_reason_has_a_spelling_but_does_not_equal_a_literal_with_that_spelling() {
+        use ryo_relations::domain::terms::{service::unknown_symbol, types::UnknownReason};
+        let raw = unknown_symbol(UnknownReason(6)).0;
+        let names = [(raw, 0)].into_iter().collect();
+        let texts = [Rc::<[u8]>::from(&b"unknown: unresolved"[..])];
+        let reserved = ReservedWords { names: &names, texts: &texts };
+        let mut words = languages::facts::file_words(&languages::facts::base_words(Default::default(), &[]));
+        let literal = languages::facts::intern(&mut words, languages::NameText("unknown: unresolved"));
+        let reason = CellWord(u64::from(raw));
+        assert_eq!(reserved.text(&words, reason), reserved.text(&words, literal));
+        let program = [("unknown: unresolved".to_owned(), 1)].into_iter().collect();
+        let mut cache = Vec::new();
+        let mut ids = FactSymbols::new(&words, &program, &mut cache);
+        assert_eq!(ids.id(reason), None);
+        assert_eq!(ids.id(literal), Some(1));
+    }
+
 }
