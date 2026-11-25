@@ -3,6 +3,67 @@
 use super::super::{E, Exec, File, Native, Op, Position, Provider, R, Run, Table, Ty, node_table};
 use std::{collections::{BTreeMap, BTreeSet}, rc::Rc};
 
+/// Class numbers describe an equivalence within one invocation. Splitting the
+/// invocation preserves comparisons within a file, but can renumber the cells.
+/// Follow every use until the class column is dropped.
+pub(in super::super::super) fn local_class(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    local: &[bool],
+    origin: usize,
+) -> R<bool> {
+    let plan = exec.plan;
+    let mut classes = vec![Vec::new(); plan.nodes.len()];
+    classes[origin].push(exec.schema(run, origin)?.names.len() - 1);
+    for (node, step) in plan.nodes.iter().enumerate().skip(origin + 1) {
+        if !step.inputs.iter().any(|&input| !classes[input].is_empty()) {
+            continue;
+        }
+        if !local[node] || step.op() != "select" || step.semi().is_some() || step.counted() {
+            return Ok(false);
+        }
+        let select = exec.sel(run, node)?;
+        let class_column = |expr: &E| matches!(
+            expr,
+            E::Col(side, col, _) if classes[select.srcs[*side]].contains(col)
+        );
+        let reads_class = |expr: &E| {
+            let mut pending = vec![expr];
+            while let Some(expr) = pending.pop() {
+                if class_column(expr) {
+                    return true;
+                }
+                match expr {
+                    E::List(items) | E::Call(_, items) => pending.extend(items),
+                    E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) | E::In(a, b, _) => {
+                        pending.extend([&**a, &**b]);
+                    }
+                    E::Not(a) | E::TextTest(a, _) => pending.push(a),
+                    E::Lit(_) | E::Num(_) | E::Text(_) | E::Col(..) => {}
+                }
+            }
+            false
+        };
+        for expr in &select.conj {
+            if reads_class(expr)
+                && !matches!(expr, E::Cmp(Op::Eq, a, b) if class_column(a) && class_column(b))
+            {
+                return Ok(false);
+            }
+        }
+        let mut carried = Vec::new();
+        for (column, (_, expr)) in select.items.iter().enumerate() {
+            if class_column(expr) {
+                carried.push(column);
+            } else if reads_class(expr) {
+                return Ok(false);
+            }
+        }
+        classes[node] = carried;
+    }
+    Ok(plan.emits.iter().all(|emit| classes[emit.1].is_empty()))
+}
+
 /// An ancestor axis only reads edges below a node in its output domain.
 /// Keep the proof on the frontier, since the same edge can also have a full reader.
 pub(in super::super::super) fn ancestor_domains(

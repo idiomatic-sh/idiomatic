@@ -22,6 +22,25 @@ pub(in super::super) fn file_steps(
     run: &mut Run,
     wide: impl Fn(&str) -> bool,
 ) -> R<Vec<bool>> {
+    let classes: Vec<_> = exec.plan.nodes.iter().enumerate()
+        .filter_map(|(i, step)| (step.op() == "subtree-class").then_some(i))
+        .take(2)
+        .collect();
+    if let [class] = classes.as_slice() {
+        let local = classify(exec, run, &wide, Some(*class))?;
+        if local[*class] && super::session::demand::local_class(exec, run, &local, *class)? {
+            return Ok(local);
+        }
+    }
+    classify(exec, run, &wide, None)
+}
+
+fn classify(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    wide: &impl Fn(&str) -> bool,
+    local_class: Option<usize>,
+) -> R<Vec<bool>> {
     exec.closed_inputs();
     // All operands here are already local. A span names a place in that source.
     fn anchor(ty: Ty) -> bool {
@@ -151,6 +170,25 @@ pub(in super::super) fn file_steps(
                     held
                 }
                 "axis" => true,
+                "subtree-class" if local_class == Some(i) => {
+                    let id = super::s(&step.args()["id"])?;
+                    let mut node_keys = true;
+                    for input in ["from", "labels", "leaves", "relation"] {
+                        let Ok(source) = exec.arg_rel(i, input) else {
+                            node_keys &= input == "leaves";
+                            continue;
+                        };
+                        let sc = exec.schema(run, source)?;
+                        if input == "relation" {
+                            for arg in ["parent", "child"] {
+                                node_keys &= sc.tys[super::pos(&sc.names, super::s(&step.args()[arg])?)?] == Ty::Node;
+                            }
+                        } else {
+                            node_keys &= sc.tys[super::pos(&sc.names, id)?] == Ty::Node;
+                        }
+                    }
+                    node_keys
+                }
                 _ => false,
             }
         };
