@@ -153,11 +153,12 @@ impl Exec<'_> {
                 return Ok(r.len());
             }
             return Ok(match super::kind_set(run, &v.filter, 0, v.base, &[]) {
-                Some(ks) => super::bucket_len(f, run, &ks),
+                Some(ks) => super::bucket_len(f, run, &ks, v.base.extent()),
                 None => match super::select_kernel::lit_file(f, super::select_kernel::LIT_FILTER | node, &v.filter, 0, v.base, &[]) {
                     Some(r) => r.len(),
                     None => match v.base {
-                        super::Native::Tree(_) | super::Native::Location | super::Native::Child(_) => f.n,
+                        super::Native::Tree(e) | super::Native::Child(e) => f.limit(e),
+                        super::Native::Location => f.n,
                         super::Native::Token => 3 * f.n,
                         super::Native::Fact(i) => f.fact(usize::from(i)).map_or(0, |t| t.len()),
                     },

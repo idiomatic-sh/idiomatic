@@ -617,6 +617,14 @@ pub(super) enum Native {
 }
 
 impl Native {
+    /// The extent of the elements the relation covers.
+    pub(super) fn extent(self) -> Extent {
+        match self {
+            Self::Tree(e) | Self::Child(e) => e,
+            _ => Extent::Whole,
+        }
+    }
+
     /// The relation's shape alone, its extent set aside: what two reads share when they read the same columns of the table.
     pub(super) fn shape(self) -> Self {
         match self {
@@ -1036,8 +1044,9 @@ impl File<'_> {
     /// redo-alloc: `native_rows` into `out` (empty).
     fn native_rows_into(&self, run: &Run, nat: Native, out: &mut Vec<u32>) {
         match nat {
-            Native::Tree(_) | Native::Location => out.extend(0..self.n as u32),
-            Native::Child(_) => out.extend((0..self.n as u32).filter(|p| self.has_parent(*p))),
+            Native::Tree(e) => out.extend(0..self.limit(e) as u32),
+            Native::Location => out.extend(0..self.n as u32),
+            Native::Child(e) => out.extend((0..self.limit(e) as u32).filter(|p| self.has_parent(*p))),
             Native::Token => {
                 let t = self.toks(run);
                 for &p in &t.order {
@@ -1054,8 +1063,9 @@ impl File<'_> {
     fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
         fill_prof::read(5);
         match nat {
-            Native::Tree(_) | Native::Location => (0..self.n as u32).collect(),
-            Native::Child(_) => (0..self.n as u32).filter(|p| self.has_parent(*p)).collect(),
+            Native::Tree(e) => (0..self.limit(e) as u32).collect(),
+            Native::Location => (0..self.n as u32).collect(),
+            Native::Child(e) => (0..self.limit(e) as u32).filter(|p| self.has_parent(*p)).collect(),
             Native::Token => {
                 let t = self.toks(run);
                 let mut out = Vec::new();
@@ -1105,7 +1115,7 @@ impl File<'_> {
     fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
         fill_prof::read(4);
         if sw!("VEC_COLD_COUNT") { run.cold.probe(self, None); }
-        let ok = v < self.n as u64;
+        let ok = v < self.limit(nat.extent()) as u64;
         match (nat, col) {
             (Native::Tree(_), 0) | (Native::Location, 0) => {
                 if ok {
@@ -1117,9 +1127,10 @@ impl File<'_> {
                     out.push(v as u32);
                 }
             }
-            (Native::Child(_), 0) => {
+            (Native::Child(e), 0) => {
                 if ok {
-                    out.extend(self.child_rows(v));
+                    let lim = self.limit(e) as u32;
+                    out.extend(self.child_rows(v).filter(|c| *c < lim));
                 }
             }
             (Native::Location, 5) | (Native::Location, 6) => {
@@ -2691,7 +2702,7 @@ impl<'p> Exec<'p> {
                 Src::Tab(t, _) => Some(t.n),
                 Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[])
                     .or_else(|| kind_set(run, conj, i, v.base, &v.map))
-                    .map(|ks| bucket_len(f, run, &ks))
+                    .map(|ks| bucket_len(f, run, &ks, v.base.extent()))
                     .or_else(|| lit_len(f, &v.filter, 0, v.base, &[]).or_else(|| lit_len(f, conj, i, v.base, &v.map))),
                 _ => None,
             };
@@ -2757,7 +2768,7 @@ impl<'p> Exec<'p> {
                 // the select's own kind tests narrow the view's entry too
                 match kind_set(run, conj, driver, v.base, &v.map) {
                     Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => {
-                        let mut rows = bucket(f, run, &ks);
+                        let mut rows = bucket(f, run, &ks, v.base.extent());
                         view_cols::retain(f, run, v, &mut rows);
                         Rc::new(rows).into()
                     },
@@ -3101,8 +3112,10 @@ impl<'p> Exec<'p> {
 
     /// The hierarchy an axis walks: the tree, a view probed by its child and parent columns, or a made table indexed once.
     fn hier(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: usize) -> R<Hier> {
-        if !f.after_last_file && self.plan.nodes[rel].op() == "base" && native_of(run, self.plan.nodes[rel].base().unwrap_or("")) == Some(Native::Child(Extent::Whole)) {
-            return Ok(Hier::Tree);
+        if !f.after_last_file && self.plan.nodes[rel].op() == "base"
+            && let Some(Native::Child(extent)) = native_of(run, self.plan.nodes[rel].base().unwrap_or(""))
+        {
+            return Ok(Hier::Tree(extent));
         }
         let rsc = self.schema(run, rel)?;
         let (pc, cc) = (pos(&rsc.names, "parent")?, pos(&rsc.names, "child")?);
@@ -3239,13 +3252,14 @@ impl<'p> Exec<'p> {
                     }
                 }
                 "descendant" | "child" => {
-                    if matches!(hier, Hier::Tree) && (x as usize) < f.n
-                        && (dir == "child" || node_table::node_count(f.table).0 == f.n)
+                    if let Hier::Tree(extent) = hier && (x as usize) < f.limit(extent)
+                        && (dir == "child" || extent == Extent::Own || node_table::node_count(f.table).0 == f.n)
                     {
+                        let limit = f.limit(extent) as u32;
                         if dir == "child" {
-                            all.extend(f.child_rows(x).map(|child| (i, u64::from(child))));
+                            all.extend(f.child_rows(x).filter(|child| *child < limit).map(|child| (i, u64::from(child))));
                         } else {
-                            let end = node_table::subtree_end_of(f.table, Position(x as u32)).0;
+                            let end = node_table::subtree_end_of(f.table, Position(x as u32)).0.min(limit);
                             all.extend((x as u32 + 1..end).map(|q| (i, u64::from(q))));
                         }
                     } else {
@@ -3267,10 +3281,10 @@ impl<'p> Exec<'p> {
                     }
                 }
                 "next-sibling" | "previous-sibling" => {
-                    if !matches!(hier, Hier::Tree) {
+                    let Hier::Tree(extent) = hier else {
                         return Err("sibling axis requires the concrete ordered children".into());
-                    }
-                    if (x as usize) < f.n && f.has_parent(x as u32) {
+                    };
+                    if (x as usize) < f.limit(extent) && f.has_parent(x as u32) {
                         let sibs = node_table::children_of(f.table, Position(f.parent[x as usize]));
                         if let Some(at) = sibs.iter().position(|c| u64::from(c.0) == x) {
                             let offset = if dir == "next-sibling" { 1 } else { -1 };
@@ -3475,7 +3489,7 @@ impl<'p> Exec<'p> {
 
 /// The hierarchy an axis walks.
 pub(super) enum Hier {
-    Tree,
+    Tree(Extent),
     View(Rc<ViewSpec>, usize, usize),
     Maps(FxHashMap<u64, Vec<u64>>, FxHashMap<u64, Vec<u64>>),
     Population(Rc<population::Population>,usize,usize),
@@ -3492,14 +3506,15 @@ pub(super) enum Dom {
 fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &mut Vec<u64>) {
     out.clear();
     match h {
-        Hier::Tree => {
-            if (x as usize) < f.n {
+        Hier::Tree(extent) => {
+            let limit = f.limit(*extent) as u32;
+            if (x as usize) < limit as usize {
                 if up {
                     if f.has_parent(x as u32) {
                         out.push(u64::from(f.parent[x as usize]));
                     }
                 } else {
-                    out.extend(f.child_rows(x).map(u64::from));
+                    out.extend(f.child_rows(x).filter(|child| *child < limit).map(u64::from));
                 }
             }
         }
@@ -3561,7 +3576,7 @@ fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize,
         let slot = bucket.select(f);
         if sw!("VEC_COLD_COUNT") {
             let mut original = match kind_set(run, &v.filter, 0, v.base, &[]) {
-                Some(ks) => self::bucket(f, run, &ks),
+                Some(ks) => self::bucket(f, run, &ks, v.base.extent()),
                 None => f.native_rows(run, v.base),
             };
             view_cols::retain_original(f, run, v, &mut original);
@@ -3576,7 +3591,7 @@ fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize,
         recycle::rows_with(|out| {
             let before = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
             match kind_set(run, &v.filter, 0, v.base, &[]) {
-                Some(ks) => bucket_into(f, run, &ks, out),
+                Some(ks) => bucket_into(f, run, &ks, v.base.extent(), out),
                 None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
                     Some(r) => out.extend_from_slice(&r),
                     None => f.native_rows_into(run, v.base, out),
@@ -3600,10 +3615,10 @@ fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize,
 }
 
 /// How many elements some kinds have.
-fn bucket_len(f: &File<'_>, run: &Run, ks: &[u32]) -> usize {
+fn bucket_len(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent) -> usize {
     // engine-vec 8: many kinds by one scan of the kind table
     if ks.len() > 16 {
-        return run.kind_sym.iter().enumerate().filter(|(_, s)| ks.contains(s)).map(|(c, _)| node_table::ids_of_kind(f.table, KindBits(c as u16)).len()).sum();
+        return run.kind_sym.iter().enumerate().filter(|(_, s)| ks.contains(s)).map(|(c, _)| f.cut(node_table::ids_of_kind(f.table, KindBits(c as u16)), extent).len()).sum();
     }
     // pass 2: by the kinds' codes (not a scan of every kind a call); each code once, as the scan counted it
     let codes = kind_codes(run);
@@ -3613,7 +3628,7 @@ fn bucket_len(f: &File<'_>, run: &Run, ks: &[u32]) -> usize {
             continue;
         }
         for c in codes.get(s).map_or(&[][..], |b| &b[..]) {
-            n += node_table::ids_of_kind(f.table, KindBits(*c)).len();
+            n += f.cut(node_table::ids_of_kind(f.table, KindBits(*c)), extent).len();
         }
     }
     n
@@ -3631,21 +3646,21 @@ fn kind_codes(run: &Run) -> &FxHashMap<u32, Box<[u16]>> {
 }
 
 /// The elements of some kinds, in position order.
-fn bucket(f: &File<'_>, run: &Run, ks: &[u32]) -> Vec<u32> {
+fn bucket(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent) -> Vec<u32> {
     let mut rows = Vec::new();
-    bucket_into(f, run, ks, &mut rows);
+    bucket_into(f, run, ks, extent, &mut rows);
     rows
 }
 
 /// redo-alloc: `bucket` into `rows` (empty).
-fn bucket_into(f: &File<'_>, run: &Run, ks: &[u32], rows: &mut Vec<u32>) {
+fn bucket_into(f: &File<'_>, run: &Run, ks: &[u32], extent: Extent, rows: &mut Vec<u32>) {
     let codes = kind_codes(run);
     for (i, s) in ks.iter().enumerate() {
         if ks[..i].contains(s) {
             continue;
         }
         for c in codes.get(s).map_or(&[][..], |b| &b[..]) {
-            rows.extend(node_table::ids_of_kind(f.table, KindBits(*c)).iter().map(|p| p.0));
+            rows.extend(f.cut(node_table::ids_of_kind(f.table, KindBits(*c)), extent).iter().map(|p| p.0));
         }
     }
     rows.sort_unstable();

@@ -210,7 +210,7 @@ pub(super) fn column_rows(
     let (rows, entered, tests) = program.rows(f, run)?;
     if sw!("VEC_COLD_COUNT") {
         let mut original = match super::kind_set(run, &v.filter, 0, v.base, &[]) {
-            Some(ks) => super::bucket(f, run, &ks),
+            Some(ks) => super::bucket(f, run, &ks, v.base.extent()),
             None => super::lit_rows(f, &v.filter, 0, v.base, &[])
                 .unwrap_or_else(|| f.native_rows(run, v.base)),
         };

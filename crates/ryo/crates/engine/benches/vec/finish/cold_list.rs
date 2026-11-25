@@ -468,6 +468,7 @@ impl Exec<'_> {
 pub(super) struct Handoff {
     fields: bool,
     codes: Vec<u16>,
+    extent: super::Extent,
 }
 impl Handoff {
     pub(super) fn compile(run: &Run, v: &ViewSpec) -> Option<Self> {
@@ -493,13 +494,13 @@ impl Handoff {
             .filter(|(_, s)| requirements.iter().all(|xs| xs.contains(s)))
             .filter_map(|(i, _)| u16::try_from(i).ok())
             .collect();
-        Some(Self { fields, codes })
+        Some(Self { fields, codes, extent: v.base.extent() })
     }
     pub(super) fn codes(&self) -> &[u16] {
         &self.codes
     }
     pub(super) fn select(&self, f: &File<'_>) -> super::cold_bucket::Slot {
-        super::cold_bucket::select(f, self.fields, &self.codes)
+        super::cold_bucket::select(f, self.fields, &self.codes, self.extent)
     }
 
     fn check(&self, f: &File<'_>, rows: &[u32]) -> &'static str {
@@ -508,11 +509,11 @@ impl Handoff {
             .codes
             .iter()
             .map(|c| {
-                if self.fields {
+                f.cut(if self.fields {
                     node_table::ids_of_field(f.table, FieldCode(*c))
                 } else {
                     node_table::ids_of_kind(f.table, KindBits(*c))
-                }
+                }, self.extent)
             })
             .filter(|s| !s.is_empty());
         let Some(first) = live.next() else {

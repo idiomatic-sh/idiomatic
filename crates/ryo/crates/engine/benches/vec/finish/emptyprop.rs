@@ -441,7 +441,7 @@ impl Exec<'_> {
             return false;
         }
         let entry = match super::kind_set(run, &v.filter, 0, v.base, &[]) {
-            Some(ks) => super::bucket_len(f, run, &ks),
+            Some(ks) => super::bucket_len(f, run, &ks, v.base.extent()),
             None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
                 Some(r) => r.len(),
                 None => return false,

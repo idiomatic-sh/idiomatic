@@ -541,7 +541,7 @@ impl Exec<'_> {
                 continue;
             }
             let size = match &kp.kinds[i] {
-                (Some(ks), _) | (None, Some(ks)) => Some(bucket_len(f, run, ks)),
+                (Some(ks), _) | (None, Some(ks)) => Some(bucket_len(f, run, ks, v.base.extent())),
                 (None, None) => lit_file(f, LIT_FILTER | *s, &v.filter, 0, v.base, &[]).or_else(|| lit_file(f, LIT_CONJ | (node << 1) | i, &sp.conj, i, v.base, &v.map)).map(|r| r.len()),
             };
             if size == Some(0) {
@@ -805,7 +805,7 @@ impl Exec<'_> {
                         Some(r) => r.clone().into(),
                         None => {
                             let rc: Rc<Vec<u32>> = {
-                                let mut rows = bucket(f, run, ks);
+                                let mut rows = bucket(f, run, ks, v.base.extent());
                                 super::view_cols::retain(f, run, v, &mut rows);
                                 Rc::new(rows)
                             };

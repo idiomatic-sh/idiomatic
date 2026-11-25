@@ -229,7 +229,7 @@ impl Audit {
                 .sum();
         } else {
             let mut rows = if ns == KIND_ENTRY {
-                bucket(f, run, &d.kinds)
+                bucket(f, run, &d.kinds, d.view.as_ref().map_or(super::Extent::Whole, |v| v.base.extent()))
             } else {
                 f.vrows.data[&((2 << SHIFT) | (key & MASK))]
                     .owned().as_ref()

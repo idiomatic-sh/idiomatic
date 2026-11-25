@@ -174,7 +174,7 @@ impl Rows<'_> {
     }
 }
 
-pub(super) fn select(f: &File<'_>, fields: bool, codes: &[u16]) -> Slot {
+pub(super) fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::Extent) -> Slot {
     let mut first = None;
     let mut more = Vec::new();
     let mut len = 0;
@@ -196,7 +196,7 @@ pub(super) fn select(f: &File<'_>, fields: bool, codes: &[u16]) -> Slot {
         } else {
             Bucket::Kind(code)
         };
-        let ids = bucket.rows(f.table);
+        let ids = f.cut(bucket.rows(f.table), extent);
         let mut lo = 0;
         if fields && !ids.is_empty() {
             // Extra roots are in position order.
@@ -207,7 +207,7 @@ pub(super) fn select(f: &File<'_>, fields: bool, codes: &[u16]) -> Slot {
                 .into_iter()
                 .chain(f.extra_roots().iter().copied())
             {
-                if root_code == code {
+                if root_code == code && (root as usize) < f.limit(extent) {
                     let i = ids
                         .binary_search(&Position(root))
                         .expect("root in its field bucket");

@@ -5,7 +5,7 @@ use ryo::languages::{KindBits, node_table};
 
 pub(super) enum Entry {
     Unknown,
-    Kinds(Box<[u16]>),
+    Kinds(Box<[u16]>, super::super::Extent),
     Literal {
         fact: u16,
         column: usize,
@@ -28,6 +28,7 @@ impl Entry {
                     .enumerate()
                     .filter_map(|(code, sym)| kinds.contains(sym).then_some(code as u16))
                     .collect(),
+                view.base.extent(),
             );
         }
         let Native::Fact(fact) = view.base else {
@@ -56,10 +57,10 @@ impl Entry {
     pub(super) fn len(&self, f: &File<'_>) -> Option<usize> {
         match self {
             Self::Unknown => None,
-            Self::Kinds(codes) => Some(
+            Self::Kinds(codes, extent) => Some(
                 codes
                     .iter()
-                    .map(|c| node_table::ids_of_kind(f.table, KindBits(*c)).len())
+                    .map(|c| f.cut(node_table::ids_of_kind(f.table, KindBits(*c)), *extent).len())
                     .sum(),
             ),
             Self::Literal {
