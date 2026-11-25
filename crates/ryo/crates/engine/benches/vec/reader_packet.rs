@@ -509,13 +509,21 @@ impl Packet {
                         memo.1.resize(names, u64::MAX);
                     }
                     for raw in cells {
-                        if reserved(raw) {
+                        // MAX: not seen yet; MAX - 1: a reserved cell, which keeps its code.
+                        let seen = memo.1.get(raw as usize).copied().unwrap_or(u64::MAX);
+                        if seen < u64::MAX - 1 {
+                            column.0.push(CellWord(seen));
+                            continue;
+                        }
+                        if seen == u64::MAX - 1 {
                             column.0.push(CellWord(raw));
                             continue;
                         }
-                        let known = memo.1.get(raw as usize).copied().filter(|&word| word != u64::MAX);
-                        if let Some(word) = known {
-                            column.0.push(CellWord(word));
+                        if reserved(raw) {
+                            if let Some(slot) = memo.1.get_mut(raw as usize) {
+                                *slot = u64::MAX - 1;
+                            }
+                            column.0.push(CellWord(raw));
                             continue;
                         }
                         let Some(text) =
