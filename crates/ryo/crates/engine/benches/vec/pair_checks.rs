@@ -1286,3 +1286,19 @@ impl Program {
         steps
     }
 }
+
+#[cfg(test)]
+mod word_tests {
+    use super::*;
+
+    #[test]
+    fn absent_symbol_and_empty_literal_have_different_witnesses() {
+        let mut words = languages::facts::file_words(&languages::facts::base_words(Default::default(), &[]));
+        let empty = languages::facts::intern(&mut words, languages::NameText(""));
+        let program = [("".to_owned(), 3)].into_iter().collect();
+        let mut cache = Vec::new();
+        let mut symbols = FactSymbols::new(&words, &program, &mut cache);
+        assert_eq!(symbols.id(empty), Some(3));
+        assert_eq!(symbols.id(CellWord(u64::from(languages::NO_SYMBOL.0))), None);
+    }
+}
