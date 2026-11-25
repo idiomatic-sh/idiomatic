@@ -77,6 +77,34 @@ impl FilePrograms {
     pub(crate) fn keep(&mut self, mut f: impl FnMut(Job) -> bool) {
         self.materialize().retain(|job| f(*job));
     }
+
+    pub(super) fn keep_programs(
+        &mut self, eligible: &impl Fn(usize) -> bool,
+        cache: &mut std::collections::HashMap<usize, (Arc<[Job]>, Arc<[Job]>)>,
+    ) {
+        if let Some(common) = &mut self.common {
+            let key = common.bases.as_ptr() as usize;
+            let (_, filtered) = cache.entry(key).or_insert_with(|| {
+                let bases = &common.bases;
+                let kept = if bases.iter().all(|&(b, _)| eligible(b)) { bases.clone() }
+                    else { bases.iter().copied().filter(|&(b, _)| eligible(b)).collect() };
+                (bases.clone(), kept)
+            });
+            common.bases = filtered.clone();
+        }
+        self.individual.retain(|&(b, _)| eligible(b));
+    }
+
+    pub(super) fn append(&mut self, incoming: &mut Self) {
+        if self.is_empty() {
+            std::mem::swap(self, incoming);
+        } else if !incoming.is_empty() {
+            let jobs = self.materialize();
+            jobs.extend(incoming.iter());
+            jobs.sort_unstable_by_key(|j| j.0);
+            incoming.clear();
+        }
+    }
 }
 
 #[cfg(test)]
@@ -99,8 +127,8 @@ mod tests {
         assert!(b.iter().eq([(0, 1), (1, 3)]));
         let overlap = Arc::new(SelectedFiles { ids: vec![1, 0, 1], distinct: false });
         assert_eq!(schedule.admit_ids::<Vec<_>>(&overlap, 1, true), [3, 2, 3]);
-        schedule.delivered(&[0, 1]);
-        assert_eq!(schedule.admit_ids::<Vec<_>>(&overlap, 1, true), [4, 5, 4]);
-        assert_eq!(schedule.admit_ids::<Vec<_>>(&overlap, 0, true), [6, 7, 6]);
+        schedule.delivered(&[0, 1], |id| id == 1);
+        assert_eq!(schedule.admit_ids::<Vec<_>>(&overlap, 1, true), [3, 2, 3]);
+        assert_eq!(schedule.admit_ids::<Vec<_>>(&overlap, 0, true), [4, 5, 4]);
     }
 }
