@@ -118,6 +118,8 @@ pub(super) struct CallCache {
     path_hashes: HashMap<u64, Vec<usize>>,
     selections: HashMap<Selection, usize>,
     queries: HashMap<stored::Key, Rc<str>>,
+    // A caller repeats one allocation per rule: its digest is known by address, and a hit is confirmed by content.
+    query_digests: rustc_hash::FxHashMap<(usize, usize), (Rc<str>, stored::Key)>,
     catalogs: HashMap<usize, (release_sdk::linked_sdk::ModuleSources, crate::check_session::query::Modules)>,
     schemas: HashMap<(String, Vec<(String, String)>), usize>,
     rows: Vec<std::sync::Arc<[HostCell]>>,
@@ -211,8 +213,15 @@ impl CallCache {
     }
 
     pub(super) fn query(&mut self, query: &str) -> (Rc<str>, stored::Key) {
+        let at = (query.as_ptr() as usize, query.len());
+        if let Some((text, digest)) = self.query_digests.get(&at)
+            && &**text == query
+        {
+            return (text.clone(), *digest);
+        }
         let digest = *blake3::hash(query.as_bytes()).as_bytes();
         let text = self.queries.entry(digest).or_insert_with(|| Rc::from(query)).clone();
+        self.query_digests.insert(at, (text.clone(), digest));
         (text, digest)
     }
 
