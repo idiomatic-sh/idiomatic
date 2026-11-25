@@ -37,7 +37,7 @@ impl Exec<'_> {
         };
         // Gathering a tree text column may assign fresh run symbols. Keep the
         // original column order wherever that side effect could be observable.
-        if (view.base == Native::Tree && view.map.contains(&2)) || !accepts(&view) {
+        if (view.base == Native::Tree(_) && view.map.contains(&2)) || !accepts(&view) {
             return Ok(None);
         }
         if !matches!(self.res(f, run, p, node)?, super::Res::View(_)) {
@@ -86,7 +86,7 @@ impl Exec<'_> {
         let Some(cursor) = self.cursor(f, run, p, input, |v| {
             matches!(
                 (v.base, v.map[*rc]),
-                (Native::Tree, 3) | (Native::Child, 4) | (Native::Location, 1) | (Native::Token, 3)
+                (Native::Tree(_), 3) | (Native::Child(_), 4) | (Native::Location, 1) | (Native::Token, 3)
             )
         })?
         else {

@@ -227,10 +227,10 @@ pub(super) fn form(v: &ViewSpec) -> &'static str {
         return "unfiltered";
     }
     match v.base {
-        Native::Child if v.filter.iter().all(|e| members(e, 3).is_some()) => "child-field",
-        Native::Child if v.filter.iter().any(|e| uses(e, 3)) => "mixed-field",
-        Native::Tree if v.filter.iter().any(|e| uses(e, 2)) => "text",
-        Native::Tree if v.filter.iter().any(|e| uses(e, 1)) => "kind",
+        Native::Child(_) if v.filter.iter().all(|e| members(e, 3).is_some()) => "child-field",
+        Native::Child(_) if v.filter.iter().any(|e| uses(e, 3)) => "mixed-field",
+        Native::Tree(_) if v.filter.iter().any(|e| uses(e, 2)) => "text",
+        Native::Tree(_) if v.filter.iter().any(|e| uses(e, 1)) => "kind",
         Native::Fact(_) => "fact-column",
         _ => "other",
     }
@@ -472,8 +472,8 @@ pub(super) struct Handoff {
 impl Handoff {
     pub(super) fn compile(run: &Run, v: &ViewSpec) -> Option<Self> {
         let (col, fields, vocab) = match v.base {
-            Native::Tree => (1, false, &run.kind_sym),
-            Native::Child if !run.file_field_codes => (3, true, &run.field_sym),
+            Native::Tree(_) => (1, false, &run.kind_sym),
+            Native::Child(_) if !run.file_field_codes => (3, true, &run.field_sym),
             _ => return None,
         };
         if v.filter.is_empty() {

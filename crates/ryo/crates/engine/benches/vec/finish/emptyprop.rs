@@ -201,7 +201,7 @@ impl Exec<'_> {
             for c in 0..ncols {
                 let b = bc(c);
                 let want = match (base, b) {
-                    (Native::Tree, 2) | (Native::Child, 3) => b,
+                    (Native::Tree(_), 2) | (Native::Child(_), 3) => b,
                     _ => continue,
                 };
                 let Some(vals) = kinds_required(e, si, c) else { continue };
@@ -292,7 +292,7 @@ fn tests(conj: &[E], si: usize, base: Native, map: &[usize]) -> (bool, Vec<u32>)
             let bc = if map.is_empty() { c } else { map.get(c).copied().unwrap_or(usize::MAX) };
             match base {
                 Native::Fact(_) => lit = true,
-                Native::Child if bc == 3 && fields.is_empty() => fields = vals,
+                Native::Child(_) if bc == 3 && fields.is_empty() => fields = vals,
                 _ => {}
             }
         }

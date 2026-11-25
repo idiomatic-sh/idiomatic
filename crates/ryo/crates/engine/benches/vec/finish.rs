@@ -589,6 +589,16 @@ fn extend_values(args: &Args, mut visit: impl FnMut(&str, &Param) -> R<()>) -> R
     Ok(())
 }
 
+/// Which elements of the numbered table a node relation covers: the catalog states it for each relation (`Own`: the file's own
+/// tree; `Embedded`: its embedded segments too), and the read below honours it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub(super) enum Extent {
+    /// The elements below `own_end`.
+    Own,
+    /// Every element of the table.
+    Whole,
+}
+
 /// The relations of the tree read in place, by position.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(super) enum Native {
@@ -624,11 +634,20 @@ const LOC_COLS: [(&str, Ty); 9] = [
 ];
 const TOKEN_COLS: [(&str, Ty); 5] = [("source", Ty::Node), ("target", Ty::Node), ("link-kind", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
 
+/// The extent the catalog states for the node relation `rel`: the one decision, in the engine crate.
+fn extent_of(rel: &str) -> Extent {
+    use ryo_relations::domain::relations::service::relation_named;
+    match relation_named(NameRef(rel)) {
+        Some(relation) if ryo_engine::domain::encoding::matches::service::covers_own_tree_only(relation) => Extent::Own,
+        _ => Extent::Whole,
+    }
+}
+
 fn native_of(run: &Run, rel: &str) -> Option<Native> {
     if run.reader_tables.contains(rel) { return None; }
     match rel {
-        "syntax-tree" | "semantic-syntax" => Some(Native::Tree),
-        "semantic-child" | "syntax-child" => Some(Native::Child),
+        "syntax-tree" | "semantic-syntax" => Some(Native::Tree(extent_of(rel))),
+        "semantic-child" | "syntax-child" => Some(Native::Child(extent_of(rel))),
         "source-location" => Some(Native::Location),
         "token-link" if run.tokens.is_some() => Some(Native::Token),
         _ => None,
@@ -642,8 +661,8 @@ pub(super) fn reads_numbered(run: &Run, relation: &str) -> bool {
 
 fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
     match n {
-        Native::Tree => &TREE_COLS,
-        Native::Child => &CHILD_COLS,
+        Native::Tree(_) => &TREE_COLS,
+        Native::Child(_) => &CHILD_COLS,
         Native::Location => &LOC_COLS,
         Native::Token => &TOKEN_COLS,
         Native::Fact(_) => &[],
@@ -948,18 +967,18 @@ impl File<'_> {
     /// A native relation's cell.
     fn native_get(&self, run: &mut Run, nat: Native, row: u32, col: usize) -> u64 {
         fill_prof::read(0);
-        fill_prof::read_at(match nat { Native::Tree => 0, Native::Child => 1, Native::Location => 2, Native::Token => 3, Native::Fact(_) => 4 }, col);
+        fill_prof::read_at(match nat { Native::Tree(_) => 0, Native::Child(_) => 1, Native::Location => 2, Native::Token => 3, Native::Fact(_) => 4 }, col);
         let r = row as usize;
         match (nat, col) {
-            (Native::Tree, 0) | (Native::Location, 0) => u64::from(row),
-            (Native::Tree, 1) => u64::from(run.kind_sym[usize::from(self.kind[r])]),
-            (Native::Tree, 2) => u64::from(self.elem_text(run, row)),
-            (Native::Tree, 3) | (Native::Location, 1) | (Native::Child, 4) | (Native::Token, 3) => u64::from(self.file),
-            (Native::Tree, 4) | (Native::Location, 2) => (u64::from(self.start[r]) << 32) | u64::from(self.end[r]),
-            (Native::Child, 0) => u64::from(self.parent[r]),
-            (Native::Child, 1) => u64::from(row),
-            (Native::Child, 2) => u64::from(node_table::ordinal_of(self.table, Position(row)).0),
-            (Native::Child, 3) => {
+            (Native::Tree(_), 0) | (Native::Location, 0) => u64::from(row),
+            (Native::Tree(_), 1) => u64::from(run.kind_sym[usize::from(self.kind[r])]),
+            (Native::Tree(_), 2) => u64::from(self.elem_text(run, row)),
+            (Native::Tree(_), 3) | (Native::Location, 1) | (Native::Child(_), 4) | (Native::Token, 3) => u64::from(self.file),
+            (Native::Tree(_), 4) | (Native::Location, 2) => (u64::from(self.start[r]) << 32) | u64::from(self.end[r]),
+            (Native::Child(_), 0) => u64::from(self.parent[r]),
+            (Native::Child(_), 1) => u64::from(row),
+            (Native::Child(_), 2) => u64::from(node_table::ordinal_of(self.table, Position(row)).0),
+            (Native::Child(_), 3) => {
                 let f = usize::from(node_table::field_of(self.table, Position(row)).0);
                 u64::from(run.field_sym.get(f).copied().unwrap_or(run.empty))
             }
@@ -1006,8 +1025,8 @@ impl File<'_> {
     /// redo-alloc: `native_rows` into `out` (empty).
     fn native_rows_into(&self, run: &Run, nat: Native, out: &mut Vec<u32>) {
         match nat {
-            Native::Tree | Native::Location => out.extend(0..self.n as u32),
-            Native::Child => out.extend((0..self.n as u32).filter(|p| self.has_parent(*p))),
+            Native::Tree(_) | Native::Location => out.extend(0..self.n as u32),
+            Native::Child(_) => out.extend((0..self.n as u32).filter(|p| self.has_parent(*p))),
             Native::Token => {
                 let t = self.toks(run);
                 for &p in &t.order {
@@ -1024,8 +1043,8 @@ impl File<'_> {
     fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
         fill_prof::read(5);
         match nat {
-            Native::Tree | Native::Location => (0..self.n as u32).collect(),
-            Native::Child => (0..self.n as u32).filter(|p| self.has_parent(*p)).collect(),
+            Native::Tree(_) | Native::Location => (0..self.n as u32).collect(),
+            Native::Child(_) => (0..self.n as u32).filter(|p| self.has_parent(*p)).collect(),
             Native::Token => {
                 let t = self.toks(run);
                 let mut out = Vec::new();
@@ -1069,7 +1088,7 @@ impl File<'_> {
     }
     /// Whether a native relation is probed in place on a column.
     fn probes(nat: Native, col: usize) -> bool {
-        matches!((nat, col), (Native::Tree | Native::Location, 0) | (Native::Child, 0 | 1) | (Native::Location, 3..=6) | (Native::Token, 0 | 1) | (Native::Fact(_), _))
+        matches!((nat, col), (Native::Tree(_) | Native::Location, 0) | (Native::Child(_), 0 | 1) | (Native::Location, 3..=6) | (Native::Token, 0 | 1) | (Native::Fact(_), _))
     }
     /// Rows of a native relation whose column holds `v`.
     fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
@@ -1077,17 +1096,17 @@ impl File<'_> {
         if sw!("VEC_COLD_COUNT") { run.cold.probe(self, None); }
         let ok = v < self.n as u64;
         match (nat, col) {
-            (Native::Tree, 0) | (Native::Location, 0) => {
+            (Native::Tree(_), 0) | (Native::Location, 0) => {
                 if ok {
                     out.push(v as u32);
                 }
             }
-            (Native::Child, 1) => {
+            (Native::Child(_), 1) => {
                 if ok && self.has_parent(v as u32) {
                     out.push(v as u32);
                 }
             }
-            (Native::Child, 0) => {
+            (Native::Child(_), 0) => {
                 if ok {
                     out.extend(self.child_rows(v));
                 }
@@ -3071,7 +3090,7 @@ impl<'p> Exec<'p> {
 
     /// The hierarchy an axis walks: the tree, a view probed by its child and parent columns, or a made table indexed once.
     fn hier(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: usize) -> R<Hier> {
-        if !f.after_last_file && self.plan.nodes[rel].op() == "base" && native_of(run, self.plan.nodes[rel].base().unwrap_or("")) == Some(Native::Child) {
+        if !f.after_last_file && self.plan.nodes[rel].op() == "base" && native_of(run, self.plan.nodes[rel].base().unwrap_or("")) == Some(Native::Child(_)) {
             return Ok(Hier::Tree);
         }
         let rsc = self.schema(run, rel)?;
@@ -3707,7 +3726,7 @@ fn lit_pick_for(conj: &[E], si: usize, map: &[usize], symbol_column: impl Fn(usi
 /// The kinds a conjunction requires of a tree source's `kind` column (a literal or an or of literals), if any. `map` takes a
 /// view's column to its base column (empty: the columns are the base's).
 fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
-    if base != Native::Tree {
+    if base != Native::Tree(_) {
         return None;
     }
     let is_kind = |c: usize| if map.is_empty() { c == 1 } else { map.get(c) == Some(&1) };

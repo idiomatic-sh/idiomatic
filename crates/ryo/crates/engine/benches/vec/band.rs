@@ -114,7 +114,7 @@ impl Exec<'_> {
             *self.tally.back.entry((node, "no band")).or_default() += 1;
             return Ok(None);
         }
-        let mut srcs: Vec<Src> = vec![Src::Base(super::Native::Tree), Src::Base(super::Native::Tree)];
+        let mut srcs: Vec<Src> = vec![Src::Base(super::Native::Tree(_)), Src::Base(super::Native::Tree(_))];
         let sa = self.src_of(f, run, p, an)?;
         match &sa {
             Src::Tab(t, _) if t.n == 0 => return Ok(Some((self.empty(run, node)?, Vec::new()))),

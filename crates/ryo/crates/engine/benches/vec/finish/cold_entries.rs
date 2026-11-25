@@ -141,7 +141,7 @@ fn identity(base: Native, mut entry: Option<(usize, Vec<u32>)>, tests: &[super::
 
 pub(super) fn view_key(run: &mut Run, v: &ViewSpec) -> Key {
     let entry = match v.base {
-        Native::Tree => kind_set(run, &v.filter, 0, v.base, &[]).map(|xs| (1, xs)),
+        Native::Tree(_) => kind_set(run, &v.filter, 0, v.base, &[]).map(|xs| (1, xs)),
         Native::Fact(i) => {
             super::leaf_scan::fact_entry(run, i, &v.filter).map(|(c, _, xs)| (c, xs))
         }

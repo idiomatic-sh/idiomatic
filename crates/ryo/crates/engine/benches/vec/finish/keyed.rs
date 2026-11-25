@@ -157,7 +157,7 @@ impl Exec<'_> {
                 None => match super::select_kernel::lit_file(f, super::select_kernel::LIT_FILTER | node, &v.filter, 0, v.base, &[]) {
                     Some(r) => r.len(),
                     None => match v.base {
-                        super::Native::Tree | super::Native::Location | super::Native::Child => f.n,
+                        super::Native::Tree(_) | super::Native::Location | super::Native::Child(_) => f.n,
                         super::Native::Token => 3 * f.n,
                         super::Native::Fact(i) => f.fact(usize::from(i)).map_or(0, |t| t.len()),
                     },
