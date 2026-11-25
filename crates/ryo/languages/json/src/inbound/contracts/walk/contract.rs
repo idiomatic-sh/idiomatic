@@ -38,15 +38,18 @@ impl Walk for JsonWalk<WalkPorts> {
         if reads(request.path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
+        scratch.decodings.places.clear();
+        scratch.decodings.text.clear();
         self.ports
             .syntax
-            .walk(SourceText(request.source.0), dialect(request.path), builder);
+            .walk(SourceText(request.source.0), dialect(request.path), &mut scratch.decodings, builder);
         let table = node_table::finished(builder);
         let mut file = JsonFile {
             syntax: Syntax {
                 table,
                 text: request.source.0,
                 file: request.file,
+                decodings: &scratch.decodings,
             },
             model: &mut scratch.model,
             modelled: Modelled::Waiting,
