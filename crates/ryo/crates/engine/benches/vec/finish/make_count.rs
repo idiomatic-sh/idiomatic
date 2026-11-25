@@ -8,7 +8,7 @@ use std::hash::{Hash, Hasher};
 #[derive(Default)]
 struct Entry {
     makes: u32,
-    seen: Vec<(usize, usize)>,
+    seen: Vec<(usize, usize, u64)>,
 }
 
 #[derive(Default)]
@@ -30,6 +30,7 @@ struct Step {
 struct Local {
     program: usize,
     binding: usize,
+    frame: u64,
     ids: HashMap<(usize, usize), u64>,
     stack: Vec<f64>,
 }
@@ -48,6 +49,14 @@ static GLOBAL: std::sync::Mutex<Option<State>> = std::sync::Mutex::new(None);
 #[inline]
 pub(crate) fn on() -> bool {
     sw!("VEC_MAKE_COUNT")
+}
+
+static FRAMES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+/// A file's executor frame is created: its makes belong to one evaluation.
+pub(super) fn frame_start() {
+    let id = FRAMES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    LOCAL.with_borrow_mut(|l| l.frame = id);
 }
 
 pub(crate) fn program(binding: usize, id: usize) {
@@ -83,12 +92,12 @@ pub(super) fn enter() {
 }
 
 pub(super) fn leave(id: u64, op: &str, file: u32, total: f64, rows_in: usize, rows_out: usize) {
-    let (children, program, binding) = LOCAL.with_borrow_mut(|l| {
+    let (children, program, binding, frame) = LOCAL.with_borrow_mut(|l| {
         let children = l.stack.pop().unwrap_or(0.0);
         if let Some(parent) = l.stack.last_mut() {
             *parent += total;
         }
-        (children, l.program, l.binding)
+        (children, l.program, l.binding, l.frame)
     });
     let own = (total - children).max(0.0);
     let mut guard = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -99,16 +108,17 @@ pub(super) fn leave(id: u64, op: &str, file: u32, total: f64, rows_in: usize, ro
         entry.makes += 1;
         let kind = if entry.makes == 1 {
             0
-        } else if entry.seen.iter().any(|x| x.0 == binding) {
+        } else if entry.seen.iter().any(|x| x.2 == frame) {
             1
-        } else if entry.seen.iter().any(|x| x.1 == program) {
+        } else if entry.seen.iter().any(|x| x.0 == binding) {
             2
         } else {
             3
         };
-        if !entry.seen.iter().any(|x| x.0 == binding) {
-            entry.seen.push((binding, program));
+        if !entry.seen.iter().any(|x| x.0 == binding && x.2 == frame) {
+            entry.seen.push((binding, program, frame));
         }
+
         s.own[kind] += own;
         let step = s.steps.entry(id).or_default();
         if step.op.is_empty() {
@@ -140,7 +150,7 @@ pub(crate) fn print() {
     {
         let distinct = s.seen.len() as f64;
         eprintln!("MAKES\ttotal {}\tdistinct_step_file {}\tratio {:.3}", s.total, s.seen.len(), s.total as f64 / distinct.max(1.0));
-        eprintln!("MAKECPU\tfirst_ms {:.1}\trepeat_same_request_ms {:.1}\trepeat_other_request_same_program_ms {:.1}\trepeat_other_program_ms {:.1}", s.own[0] * 1e3, s.own[1] * 1e3, s.own[2] * 1e3, s.own[3] * 1e3);
+        eprintln!("MAKECPU\tfirst_ms {:.1}\trepeat_same_evaluation_ms {:.1}\trepeat_other_evaluation_same_binding_ms {:.1}\trepeat_other_evaluation_other_binding_ms {:.1}", s.own[0] * 1e3, s.own[1] * 1e3, s.own[2] * 1e3, s.own[3] * 1e3);
         let mut rows: Vec<_> = s.steps.iter().collect();
         rows.sort_by(|a, b| (b.1.within + b.1.across + b.1.cross_program).total_cmp(&(a.1.within + a.1.across + a.1.cross_program)));
         for (id, st) in rows.iter().take(20) {

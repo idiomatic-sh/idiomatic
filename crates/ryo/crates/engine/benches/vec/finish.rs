@@ -833,6 +833,9 @@ impl File<'_> {
     }
 
     pub(super) fn new<'a>(version: &'a FileVersion<'a>, nodes: usize) -> File<'a> {
+        if make_count::on() {
+            make_count::frame_start();
+        }
         let b = SPARE_BUFS.with(|s| s.borrow_mut().take()).unwrap_or_default();
         let mut f = File {
             version,
