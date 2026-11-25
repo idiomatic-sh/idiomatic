@@ -27,6 +27,7 @@ use crate::domain::relations::collections::relations::{
 use crate::domain::roles::service::{field_bits, field_name, fields, role_of};
 use crate::domain::syntax::constants::NO_CONFIGURATION;
 use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
+use crate::domain::syntax::types::Tabled;
 use crate::outbound::notes::interface::NotesPort;
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
@@ -103,7 +104,7 @@ impl Parse for ParseContract {
     ) -> Result<(), languages::ParseError> {
         // A `go.mod` is no go source: the language reads it itself, as `golang.org/x/mod/modfile` does.
         match file_of(request.path) {
-            GoFile::Module => modfile::read(request.bytes, builder),
+            GoFile::Module => modfile::read(request.bytes, &mut Tabled { builder }),
             GoFile::Source | GoFile::Other => {
                 self.syntax.read(SourceText(request.bytes.0), builder);
             }

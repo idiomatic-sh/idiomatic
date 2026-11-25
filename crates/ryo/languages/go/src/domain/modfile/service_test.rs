@@ -68,7 +68,7 @@ fn outline(text: &'static str) -> Value {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder =
         languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-    read(ByteSlice(text.as_bytes()), &mut builder);
+    read(ByteSlice(text.as_bytes()), &mut crate::domain::syntax::types::Tabled { builder: &mut builder });
     let mut shown = String::new();
     for at in languages::positions(&elements) {
         if languages::flags_at(&elements, at).0 & languages::TOKEN.0 != 0 {
@@ -101,7 +101,7 @@ fn spelled(text: &'static str) -> Value {
     let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
     let mut builder =
         languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes()));
-    read(ByteSlice(text.as_bytes()), &mut builder);
+    read(ByteSlice(text.as_bytes()), &mut crate::domain::syntax::types::Tabled { builder: &mut builder });
     let joined: String = languages::positions(&elements)
         .filter(|at| languages::flags_at(&elements, *at).0 & languages::TOKEN.0 != 0)
         .map(|at| {

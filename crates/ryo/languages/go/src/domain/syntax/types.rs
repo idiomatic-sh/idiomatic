@@ -47,3 +47,51 @@ pub(crate) struct Spelled {
     /// Which token it is.
     pub token: Token,
 }
+
+/// Where a file's syntax is written as its elements come: the table of the old reading, or the node table of the walk. What writes a
+/// tree writes it once, through this, and both tables hold the same elements in the same order.
+pub(crate) trait Output {
+    /// Opens a node of `kind` at `start`.
+    fn enter(&mut self, kind: Kind, start: ryo::languages::Offset);
+    /// Writes a token of `kind` from `start` to `end`, with the text its library decoded from it when it has one.
+    fn token(
+        &mut self,
+        kind: Kind,
+        start: ryo::languages::Offset,
+        end: ryo::languages::Offset,
+        decoded: Option<&str>,
+    );
+    /// Closes the innermost node at `end`.
+    fn leave(&mut self, end: ryo::languages::Offset);
+    /// Records what is said of the file at a place.
+    fn diagnose(&mut self, message: &str, start: ryo::languages::Offset, end: ryo::languages::Offset);
+}
+
+/// The old reading's table, written through `Output`.
+pub(crate) struct Tabled<'b, 'w> {
+    /// What it is written through.
+    pub builder: &'b mut ryo::languages::TableBuilder<'w>,
+}
+
+/// The walk's node table, written through `Output`: each element with its role, the field of `go/ast` that holds it, which the old
+/// reading works out of its finished table and the walk's writer is given by element number.
+pub(crate) struct Numbered<'b, 'w, 'r> {
+    /// What it is written through.
+    pub builder: &'b mut ryo::languages::NodeTableBuilder<'w>,
+    /// The role of each element, by its place in the file's order.
+    pub roles: &'r [u16],
+    /// How many elements have been written.
+    pub written: usize,
+}
+
+/// The buffers a worker keeps from file to file to give the walk's elements their roles: the old table the roles are read from, and
+/// the roles.
+#[derive(Default)]
+pub(crate) struct Roling {
+    /// The elements of the file, written once to be read.
+    pub elements: ryo::languages::Elements,
+    /// The names the table interns.
+    pub symbols: ryo::languages::Symbols,
+    /// The role of each element, by its place.
+    pub roles: Vec<u16>,
+}

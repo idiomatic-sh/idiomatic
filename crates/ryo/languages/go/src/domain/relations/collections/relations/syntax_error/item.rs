@@ -10,6 +10,8 @@ use crate::domain::syntax::service::{
 use crate::domain::syntax::types::{Kind, Rootness};
 use ryo::languages;
 
+use crate::domain::file_view::types::GoWalk;
+
 /// The reader the `parse` contract hands the `syntax_error` relation to, which reads its rows from a file's tree.
 pub(crate) struct SyntaxErrorItem;
 
@@ -28,5 +30,12 @@ ryo::reads! {
                 span: value(diagnostic_span(&diagnostic)),
             }
         }
+    }
+}
+
+// The engine fills `syntax_error` from the walked file: what the parser said, in the order it said it.
+ryo::fills! {
+    SyntaxErrorItem => languages::SyntaxError, walk(GoWalk) |file, words, rows| {
+        languages::facts::syntax_error_rows(file.syntax.table, file.syntax.file, words, rows);
     }
 }

@@ -29,12 +29,15 @@ pub fn linked() -> ryo::languages::Language {
     use crate::inbound::contracts::project::contract::ProjectContract;
     use crate::outbound::manifest_reading::factory::gomod;
     use crate::outbound::notes::factory::postcard;
+    use crate::domain::file_view::types::GoWalk;
+    use crate::inbound::contracts::walk::contract::WalkPorts;
     use crate::outbound::syntax::factory::tree_sitter_go;
 
     ryo::link!(
         domain::language::constants::NAME,
         parse: Arc::new(ParseContract::new(Arc::new(tree_sitter_go()), Arc::new(postcard()))),
         project: Arc::new(ProjectContract::new(Arc::new(gomod()), Arc::new(postcard()))),
+        walk: Arc::new(GoWalk { ports: WalkPorts { syntax: Arc::new(tree_sitter_go()) } }),
     )
 }
 

@@ -8,14 +8,13 @@ use super::constants::{COMMENT_OPEN, UNCLOSED};
 use super::types::{Opened, Piece, PieceKind};
 use crate::domain::extras::types::Extra;
 use crate::domain::grammar::types::ByteIndex;
-use crate::domain::syntax::service::kind_bits;
-use crate::domain::syntax::types::Kind;
+use crate::domain::syntax::types::{Kind, Output};
 
-/// Reads the `go.mod` file `text` into the table.
-pub(crate) fn read(text: languages::ByteSlice<'_>, builder: &mut languages::TableBuilder<'_>) {
+/// Reads the `go.mod` file `text` into the tree `out` writes.
+pub(crate) fn read(text: languages::ByteSlice<'_>, out: &mut dyn Output) {
     let bytes = text.0;
     let end = offset(ByteIndex(bytes.len()));
-    languages::enter_node(builder, extra(Extra::ModFile), Offset(0));
+    out.enter(extra(Extra::ModFile), Offset(0));
     let mut opened = Opened::Closed;
     let mut start = 0;
     while start < bytes.len() {
@@ -24,7 +23,7 @@ pub(crate) fn read(text: languages::ByteSlice<'_>, builder: &mut languages::Tabl
             .and_then(|rest| rest.iter().position(|byte| *byte == b'\n'))
             .map_or(bytes.len(), |at| start + at + 1);
         opened = line(
-            builder,
+            out,
             &pieces(
                 languages::ByteSlice(bytes.get(start..stop).unwrap_or_default()),
                 offset(ByteIndex(start)),
@@ -35,15 +34,15 @@ pub(crate) fn read(text: languages::ByteSlice<'_>, builder: &mut languages::Tabl
     }
     // A block the file leaves open is closed with the file, and is an error, as `modfile` refuses it.
     if let Opened::Open(opened_at) = opened {
-        languages::leave_node(builder, end);
-        languages::diagnose(builder, languages::ReportText(UNCLOSED), opened_at, end);
+        out.leave(end);
+        out.diagnose(UNCLOSED, opened_at, end);
     }
-    languages::leave_node(builder, end);
+    out.leave(end);
 }
 
-/// The table's number of an extra.
-fn extra(kind: Extra) -> languages::KindBits {
-    kind_bits(Kind::Extra(kind))
+/// The kind of an extra.
+const fn extra(kind: Extra) -> Kind {
+    Kind::Extra(kind)
 }
 
 /// A byte's place in the file, as an offset of the table.
@@ -114,7 +113,7 @@ fn pieces(text: languages::ByteSlice<'_>, base: Offset) -> Vec<Piece> {
 }
 
 /// Writes one line's pieces into the table, opening or closing a block where the line does, and says whether a block is open after it.
-fn line(builder: &mut languages::TableBuilder<'_>, pieces: &[Piece], opened: Opened) -> Opened {
+fn line(out: &mut dyn Output, pieces: &[Piece], opened: Opened) -> Opened {
     let content = |piece: &&Piece| {
         matches!(
             piece.kind,
@@ -125,7 +124,7 @@ fn line(builder: &mut languages::TableBuilder<'_>, pieces: &[Piece], opened: Ope
         pieces.iter().position(|piece| content(&piece)),
         pieces.iter().rposition(|piece| content(&piece)),
     ) else {
-        tokens(builder, pieces);
+        tokens(out, pieces);
         return opened;
     };
     let (before, rest) = pieces.split_at(first);
@@ -135,32 +134,32 @@ fn line(builder: &mut languages::TableBuilder<'_>, pieces: &[Piece], opened: Ope
         within.len() == 1 && within.first().map(|piece| piece.kind) == Some(PieceKind::Close);
     let from = within.first().map_or(Offset(0), |piece| piece.start);
     let to = within.last().map_or(Offset(0), |piece| piece.end);
-    tokens(builder, before);
+    tokens(out, before);
     match (opened, closing, opening) {
         (Opened::Open(_), true, _) => {
-            tokens(builder, within);
-            languages::leave_node(builder, to);
-            tokens(builder, after);
+            tokens(out, within);
+            out.leave(to);
+            tokens(out, after);
             Opened::Closed
         }
         (Opened::Closed, _, true) => {
-            languages::enter_node(builder, extra(Extra::ModLineBlock), from);
-            tokens(builder, within);
-            tokens(builder, after);
+            out.enter(extra(Extra::ModLineBlock), from);
+            tokens(out, within);
+            tokens(out, after);
             Opened::Open(from)
         }
         (Opened::Open(_) | Opened::Closed, _, _) => {
-            languages::enter_node(builder, extra(Extra::ModLine), from);
-            tokens(builder, within);
-            languages::leave_node(builder, to);
-            tokens(builder, after);
+            out.enter(extra(Extra::ModLine), from);
+            tokens(out, within);
+            out.leave(to);
+            tokens(out, after);
             opened
         }
     }
 }
 
 /// Writes each piece as a token of its kind.
-fn tokens(builder: &mut languages::TableBuilder<'_>, pieces: &[Piece]) {
+fn tokens(out: &mut dyn Output, pieces: &[Piece]) {
     for piece in pieces {
         let kind = match piece.kind {
             PieceKind::Space => Extra::Whitespace,
@@ -169,6 +168,6 @@ fn tokens(builder: &mut languages::TableBuilder<'_>, pieces: &[Piece]) {
             PieceKind::Close => Extra::ModRParen,
             PieceKind::Comment => Extra::ModComment,
         };
-        languages::token(builder, extra(kind), piece.start, piece.end);
+        out.token(extra(kind), piece.start, piece.end, None);
     }
 }

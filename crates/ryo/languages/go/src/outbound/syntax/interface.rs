@@ -2,11 +2,16 @@
 //! out.
 
 use super::types::SourceText;
-use ryo::languages::TableBuilder;
+use crate::domain::syntax::types::Roling;
+use ryo::languages::{NodeTableBuilder, TableBuilder};
 
 /// What every `syntax` adapter implements.
 pub(crate) trait SyntaxPort: Send + Sync {
     /// Reads go text into the table `builder` builds, a pre-order table of its nodes and tokens, each token's text interned. A file
     /// with errors still gives the elements that could be read, and what the library said of the rest: reading never fails.
     fn read(&self, text: SourceText<'_>, builder: &mut TableBuilder<'_>);
+
+    /// Reads go text into the node table `builder` builds, numbered as the walk numbers it: the same elements as `read`, each with its
+    /// role. `roling` holds the buffers the roles are read through.
+    fn walk(&self, text: SourceText<'_>, roling: &mut Roling, builder: &mut NodeTableBuilder<'_>);
 }
