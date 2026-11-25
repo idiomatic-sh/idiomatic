@@ -1052,6 +1052,7 @@ pub(crate) fn visit<L: FileSource>(
                 }
             }
             let mut provider = reader::ReaderFacts::new(id.0, &unknown);
+            let mut resolved_words = reader_run::packet::FileSymbols::default();
             provider.projects_words = projects_words;
             provider.projects_fields = projects_fields;
             if let Some(fields) = fields {
@@ -1060,7 +1061,9 @@ pub(crate) fn visit<L: FileSource>(
                 }
                 if projects_words {
                     let dict = scoped_symbols.as_deref().expect("scoped dictionary");
-                    provider.text.extend(words.iter().map(|&word| reader::symbol(&mut run, unknown, dict, &bytes, word)));
+                    provider.text.extend(words.iter().map(|&word| {
+                        resolved_words.resolve(&mut run, unknown, dict, &bytes, word)
+                    }));
                 }
             } else if reused {
                 run.field_sym.clone_from(&held.fields);
@@ -1301,7 +1304,7 @@ pub(crate) fn visit<L: FileSource>(
                                 if let Some(reason) = rows.partial {
                                     named_partials.insert(schema.name, reason.0);
                                 }
-                                named::table(rows.columns, schema, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, &mut run, unknown)
+                                named::table(rows.columns, schema, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes, &mut run, unknown, &mut resolved_words)
                             });
                             match table {
                                 Ok(table) => {
@@ -1331,6 +1334,7 @@ pub(crate) fn visit<L: FileSource>(
                 Ok(answer)
             };
             let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &bytes);
+            facts_view.resolved = resolved_words;
             facts_view.renderer = Some(&mut render);
             let t = thread_cpu();
             let lines = active

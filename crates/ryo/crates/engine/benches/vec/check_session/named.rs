@@ -1,6 +1,6 @@
 //! Resolve file-scoped declarations against the linked providers before preparing the
 //! program. The selected reader must still supply the table on each admitted file.
-use super::{FileId, FileSource, Result, Run, Table, finish, l, reader, source::FileRelation};
+use super::{FileId, FileSource, Result, Run, Table, finish, l, reader_run::packet::FileSymbols, source::FileRelation};
 use std::collections::{BTreeMap, HashMap};
 
 #[derive(Default)]
@@ -46,13 +46,14 @@ pub(super) fn declare(run: &mut Run, schema: &FileRelation) {
 }
 
 pub(super) fn table(
-    columns: super::source::Columns,
+    mut columns: super::source::Columns,
     schema: &FileRelation,
     id: FileId,
     symbols: &l::Symbols,
     bytes: &[u8],
     run: &mut Run,
     unknown: &HashMap<u32, u32>,
+    resolved: &mut FileSymbols,
 ) -> Result<Table> {
     let n = columns.first().map_or(0, |c| c.0.len());
     if columns.len() != schema.columns.len() || columns.iter().any(|c| c.0.len() != n) {
@@ -64,27 +65,26 @@ pub(super) fn table(
     let (_, names, kinds) = run
         .catalog(schema.name)
         .ok_or_else(|| format!("missing schema {}", schema.name))?;
-    let mut result = Table::with_rows(names, kinds, n);
-    for ((out, column), (_, kind)) in result.cols.iter_mut().zip(columns).zip(schema.columns) {
-        for raw in column.0 {
-            let value = match kind {
-                _ if raw == finish::NULL => raw,
-                l::CellKind::Symbol => u64::from(reader::symbol(
-                    run,
-                    unknown,
-                    symbols,
-                    bytes,
-                    l::Symbol(raw.try_into().map_err(|_| "invalid symbol id")?),
-                )),
-                l::CellKind::Node if raw >> 32 == u64::from(id.0) => u64::from(raw as u32),
-                l::CellKind::Node => {
-                    return Err(format!("foreign node in file relation {}", schema.name));
+    // The supplier already transferred its columns to this file visit.
+    // Normalize the qualified cells in the same buffers.
+    for (column, (_, kind)) in columns.iter_mut().zip(schema.columns) {
+        match kind {
+            l::CellKind::Symbol => {
+                for word in column.0.iter_mut().filter(|word| **word != finish::NULL) {
+                    let symbol = l::Symbol((*word).try_into().map_err(|_| "invalid symbol id")?);
+                    *word = u64::from(resolved.resolve(run, unknown, symbols, bytes, symbol));
                 }
-                _ => raw,
-            };
-            out.push(value);
+            }
+            l::CellKind::Node => {
+                for node in column.0.iter_mut().filter(|node| **node != finish::NULL) {
+                    if *node >> 32 != u64::from(id.0) {
+                        return Err(format!("foreign node in file relation {}", schema.name));
+                    }
+                    *node = u64::from(*node as u32);
+                }
+            }
+            _ => {}
         }
     }
-    result.n = n;
-    Ok(result)
+    Ok(Table { names, tys: kinds, cols: columns.into_iter().map(|column| column.0).collect(), n })
 }

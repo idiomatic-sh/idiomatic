@@ -148,7 +148,7 @@ impl Packet {
             parsed,
             symbols,
             bytes,
-            resolved: FxHashMap::default(),
+            resolved: FileSymbols::default(),
             materialized: FxHashMap::default(),
             renderer: None,
         }
@@ -170,13 +170,30 @@ impl Packet {
             })
     }
 }
+/// Run-wide IDs for the words of the current file's symbol dictionary.
+#[derive(Default)]
+pub(crate) struct FileSymbols(FxHashMap<u32, u32>);
+
+impl FileSymbols {
+    pub(crate) fn resolve(
+        &mut self,
+        run: &mut finish::Run,
+        unknown: &std::collections::HashMap<u32, u32>,
+        symbols: &l::Symbols,
+        bytes: &[u8],
+        word: l::Symbol,
+    ) -> u32 {
+        *self.0.entry(word.0).or_insert_with(|| reader::symbol(run, unknown, symbols, bytes, word))
+    }
+}
+
 pub(crate) struct View<'a, 'words> {
     pub(crate) renderer: Option<&'a mut dyn FnMut(l::RenderRequest) -> Result<l::RenderOutcome, String>>,
     packet: &'a Packet,
     parsed: &'a mut reader::ReaderFacts<'words>,
     symbols: &'a l::Symbols,
     bytes: &'a [u8],
-    resolved: FxHashMap<u32, u32>,
+    pub(crate) resolved: FileSymbols,
     materialized: FxHashMap<l::Relation, Rc<finish::Table>>,
 }
 impl finish::Provider for View<'_, '_> {
@@ -282,10 +299,9 @@ impl View<'_, '_> {
             let cells = offsets.iter().map(|&at| words[at + index]);
             match ty {
                 finish::Ty::Sym => column.extend(cells.map(|raw| {
-                    let id = raw as u32;
-                    u64::from(*self.resolved.entry(id).or_insert_with(|| {
-                        reader::symbol(run, self.parsed.unknown, self.symbols, self.bytes, l::Symbol(id))
-                    }))
+                    u64::from(self.resolved.resolve(
+                        run, self.parsed.unknown, self.symbols, self.bytes, l::Symbol(raw as u32),
+                    ))
                 })),
                 finish::Ty::Node => column.extend(cells.map(|raw| {
                     assert_eq!(raw >> 32, u64::from(self.parsed.file),
