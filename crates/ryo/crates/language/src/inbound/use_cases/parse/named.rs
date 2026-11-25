@@ -69,7 +69,8 @@ pub struct NumberedFile<'a> {
     pub facts: &'a mut dyn NumberedFacts,
 }
 
-/// Operations on a single borrowed file. A node cell must address its lent table.
+/// Operations on a single borrowed file. Node identities belong to the file.
+/// Syntax positions index the lent tree and diagnostic identities use a disjoint range.
 pub trait NumberedFacts {
     /// Fill the existing catalog relation directly into reusable columns.
     /// The cell words belong to the supplied file dictionary.
