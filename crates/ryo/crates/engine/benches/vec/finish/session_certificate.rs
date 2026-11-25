@@ -23,21 +23,97 @@ pub(in super::super) fn total(expr: &E) -> bool {
     }
 }
 
+/// Physical span columns whose bounds must be checked on this file before
+/// an absence proof can replace execution. Never reuse a file's bounds test
+/// on the next version.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum SpanInput {
+    Tree,
+    Packet(ryo::languages::Relation, usize),
+}
+
+pub(crate) type Checked = Option<Result<Box<[SpanInput]>, ()>>;
+
+/// Trace a span through the same prepared projections used by the operator.
+/// A newly composed span needs a separate ordering proof, even when both
+/// endpoint spans were valid on their own.
+fn span_inputs(
+    exec: &mut Exec<'_>, run: &mut Run, node: usize, column: usize, inputs: &mut Vec<SpanInput>, tables: &[(String, Rc<Table>)],
+) -> R<()> {
+    use ryo_relations::domain::{labels::types::NameRef, relations::service};
+    let mut pending = vec![(node, column)];
+    let mut visited = std::collections::HashSet::new();
+    while let Some((node, column)) = pending.pop() {
+        if !visited.insert((node, column)) { continue; }
+        let step = &exec.plan.nodes[node];
+        let schema = exec.schema(run, node)?;
+        if schema.tys.get(column) != Some(&Ty::Span) { return Err("source needs a span".into()); }
+        if let Some(name) = step.base() {
+            if tables.iter().any(|(hosted, _)| hosted == name) || !matches!(run.supplier(name), finish::Supplier::Provider) {
+                return Err("source span has no file reader".into());
+            }
+            let input = match finish::native_of(run, name) {
+                Some(finish::Native::Tree | finish::Native::Location | finish::Native::Token) => SpanInput::Tree,
+                _ => SpanInput::Packet(service::relation_named(NameRef(name)).ok_or("undeclared source span")?, column),
+            };
+            if !inputs.contains(&input) { inputs.push(input); }
+            continue;
+        }
+        match step.op.as_str() {
+            "select" => {
+                let select = exec.sel(run, node)?;
+                let E::Col(source, index, Ty::Span) = select.items[column].1 else {
+                    return Err("computed source span".into());
+                };
+                pending.push((step.inputs[source], index));
+            }
+            "union" => {
+                let left = exec.arg_rel(node, "left")?;
+                let right = exec.arg_rel(node, "right")?;
+                let left_index = finish::pos(&exec.schema(run, left)?.names, &schema.names[column])?;
+                let right_index = finish::pos(&exec.schema(run, right)?.names, &schema.names[column])?;
+                pending.extend([(left, left_index), (right, right_index)]);
+            }
+            "antijoin" => pending.push((exec.arg_rel(node, "left")?, column)),
+            "group-min" | "group-max" => pending.push((exec.arg_rel(node, "from")?, column)),
+            "project" => {
+                let source = exec.arg_rel(node, "from")?;
+                let index = finish::pos(&exec.schema(run, source)?.names, &schema.names[column])?;
+                pending.push((source, index));
+            }
+            "source-matches" | "span-bounds" | "span-between" | "replace" | "capture" => {
+                let source = exec.arg_rel(node, "from")?;
+                let incoming = exec.schema(run, source)?;
+                if column < incoming.tys.len() {
+                    pending.push((source, column));
+                } else if step.op == "source-matches" {
+                    let index = finish::pos(&incoming.names, finish::s(&step.args()["span"])?)?;
+                    pending.push((source, index));
+                } else {
+                    return Err("new span without ordered endpoints".into());
+                }
+            }
+            _ => return Err("unverified source span".into()),
+        }
+    }
+    Ok(())
+}
+
 /// A missing witness can skip evaluation once the binding has passed these checks.
 pub(crate) fn certified_empty(
     exec: &mut Exec<'_>,
     run: &mut Run,
     tables: &[(String, Rc<Table>)],
     frontier: Option<&finish::partition::Partition>,
-) -> bool {
-    verify(exec, run, tables, frontier, None).is_ok()
+) -> R<Box<[SpanInput]>> {
+    verify(exec, run, tables, frontier, None)
 }
 
 /// Applies only when every emit is an antijoin and its *left input* is proven
 /// empty for this file. A different output may independently demand its right.
 pub(crate) fn certified_empty_left(
     exec: &mut Exec<'_>, run: &mut Run, tables: &[(String, Rc<Table>)],
-) -> R<()> {
+) -> R<Box<[SpanInput]>> {
     let plan = exec.plan;
     let mut demanded = vec![false; plan.nodes.len()];
     let mut pending = Vec::new();
@@ -61,7 +137,8 @@ pub(crate) fn certified_empty_left(
 fn verify(
     exec: &mut Exec<'_>, run: &mut Run, tables: &[(String, Rc<Table>)],
     frontier: Option<&finish::partition::Partition>, demanded: Option<&[bool]>,
-) -> R<()> {
+) -> R<Box<[SpanInput]>> {
+    let mut spans = Vec::new();
     for (name, table) in tables {
         if run
             .catalog(name)
@@ -119,6 +196,16 @@ fn verify(
                         arg_column(exec, run, "from", name)?;
                     }
                     arg_column(exec, run, "from", finish::s(&step.args()["order"])?)?;
+                }
+                "source-matches" => {
+                    let source = exec.arg_rel(i, "from")?;
+                    let schema = exec.schema(run, source)?;
+                    let span = finish::pos(&schema.names, finish::s(&step.args()["span"])?)?;
+                    if step.args().get("base-line").is_some() {
+                        return Err("source match needs line arithmetic".into());
+                    }
+                    let _ = run.re(finish::s(&step.args()["pattern"])?)?;
+                    span_inputs(exec, run, source, span, &mut spans, tables)?;
                 }
                 "replace" => {
                     let source = exec.arg_rel(i, "from")?;
@@ -201,7 +288,7 @@ fn verify(
     if exec.timing && let Err(reason) = &result && let Some(i) = at {
         eprintln!("PAIR_CERTIFICATE_REFUSAL\t{i}\t{}\t{reason}", exec.plan.nodes[i].op);
     }
-    result
+    result.map(|()| spans.into_boxed_slice())
 }
 
 /// Preserve the frontier schema even when no output can contain any rows.

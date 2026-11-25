@@ -70,6 +70,16 @@ impl Packet {
         let slot = catalog::number_of(relation).0;
         (self.ready && self.requested[slot]).then(|| !self.offsets[slot].is_empty())
     }
+    /// A span may be absent. Every supplied interval must otherwise be an
+    /// ordered slice of the admitted bytes.
+    pub(crate) fn bounded_spans(&self, relation: l::Relation, column: usize, len: usize) -> bool {
+        self.has_rows(relation).is_some()
+            && catalog::kinds(relation).get(column) == Some(&CellKind::Span)
+            && self.offsets[catalog::number_of(relation).0].iter().all(|&row| {
+                let span = self.rows.words[row + column];
+                span == finish::NULL || ((span >> 32) <= u64::from(span as u32) && span as u32 as usize <= len)
+            })
+    }
     /// Visit a complete symbol column without interpreting unrelated node IDs.
     pub(crate) fn any_symbol(
         &self, relation: l::Relation, column: usize, mut matches: impl FnMut(l::Symbol) -> bool,

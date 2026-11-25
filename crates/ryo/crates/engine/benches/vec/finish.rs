@@ -3368,7 +3368,7 @@ impl<'p> Exec<'p> {
                 continue;
             }
             let (st, en) = ((sp >> 32) as usize, (sp & 0xffff_ffff) as usize);
-            let text = &f.src[st..en];
+            let text = f.src.get(st..en).ok_or("source match span outside file")?;
             let line0 = base_line.map(|b| from.cols[b][i] as i64);
             // 7: the newlines before `off`, counted on from the last offset asked (matches come in order), not from the start
             let counted = std::cell::Cell::new((0usize, 0i64));

@@ -196,6 +196,7 @@ impl Checks {
         unknown: &HashMap<u32, u32>,
         cuts: &[Option<Arc<crate::finish::partition::Partition>>],
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
+        span_bounds: &mut HashMap<crate::finish::session::certificate::SpanInput, bool>,
         witnesses: &mut [usize; 4],
     ) {
         self.live.fill(false);
@@ -209,7 +210,7 @@ impl Checks {
             if !excluded && let Some(roots) = &self.roots[index] {
                 let b = bound[&binding].as_ref().expect("active binding");
                 let unpartitioned = cuts[binding].is_none();
-                if b.screenable != Some(false) {
+                if !matches!(b.screenable, Some(Err(_))) {
                     any |= !roots.is_empty();
                     local |= unpartitioned && !roots.is_empty();
                     for &root in roots {
@@ -222,7 +223,7 @@ impl Checks {
                         self.selected[root / 64] |= 1 << (root % 64);
                     }
                 }
-                if unpartitioned && b.screenable_left != Some(false) {
+                if unpartitioned && !matches!(b.screenable_left, Some(Err(_))) {
                     any |= !self.lefts[index].is_empty();
                     for &root in &self.lefts[index] {
                         self.selected[root / 64] |= 1 << (root % 64);
@@ -304,11 +305,11 @@ impl Checks {
             let Some(roots) = &self.roots[index] else { continue };
             let cut = cuts[*binding].as_deref();
             let b = bound[binding].as_mut().unwrap();
-            let full_available = b.screenable != Some(false);
+            let full_available = !matches!(b.screenable, Some(Err(_)));
             let full_absent = full_available && (roots.iter().any(|&r| !self.live[r])
                 || self.domains[index].iter().any(|&(_, d)| !self.live[d]));
             let left = &self.lefts[index];
-            let left_available = cut.is_none() && !left.is_empty() && b.screenable_left != Some(false);
+            let left_available = cut.is_none() && !left.is_empty() && !matches!(b.screenable_left, Some(Err(_)));
             if !full_available && !left_available {
                 witnesses[0] += 1;
                 continue;
@@ -322,22 +323,32 @@ impl Checks {
                 witnesses[2] += 1;
                 continue;
             }
-            if left_absent && *b.screenable_left.get_or_insert_with(|| {
+            let mut verified = |proof: &std::result::Result<Box<[crate::finish::session::certificate::SpanInput]>, ()>| {
+                use crate::finish::session::certificate::SpanInput;
+                proof.as_ref().is_ok_and(|inputs| inputs.iter().all(|&input| {
+                    *span_bounds.entry(input).or_insert_with(|| match input {
+                        SpanInput::Tree => l::node_table::starts(tree).iter().zip(l::node_table::ends(tree))
+                            .all(|(&start, &end)| start <= end && end as usize <= bytes.len()),
+                        SpanInput::Packet(relation, column) => packet.bounded_spans(relation, column, bytes.len()),
+                    })
+                }))
+            };
+            if left_absent && verified(b.screenable_left.get_or_insert_with(|| {
                 crate::finish::session::certificate::certified_empty_left(
                     &mut crate::finish::Exec::new(b.plan), run, &b.hosted,
-                ).is_ok()
-            }) {
+                ).map_err(|_| ())
+            })) {
                 *excluded = true;
                 continue;
             }
-            if !full_absent || !*b.screenable.get_or_insert_with(|| {
+            if !full_absent || !verified(b.screenable.get_or_insert_with(|| {
                 crate::finish::session::certificate::certified_empty(
                     &mut crate::finish::Exec::new(b.plan),
                     run,
                     &b.hosted,
                     cut,
-                )
-            }) {
+                ).map_err(|_| ())
+            })) {
                 witnesses[3] += 1;
                 continue;
             }

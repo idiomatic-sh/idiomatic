@@ -453,8 +453,8 @@ struct Bound<'p> {
     requirements: Rc<BoundRequirements>,
     projects_words: bool,
     reads_fields: bool,
-    screenable: Option<bool>,
-    screenable_left: Option<bool>,
+    screenable: finish::session::certificate::Checked,
+    screenable_left: finish::session::certificate::Checked,
     empty_frontier: Option<frontier::EmptyFrontier>,
     plan: &'p Plan,
     slots: Rc<Vec<usize>>,
@@ -1174,10 +1174,11 @@ pub(crate) fn visit<L: FileSource>(
                     held.proof_atoms.clear();
                 }
                 let scanned = held.literals.get_mut().scanned();
+                let mut span_bounds = HashMap::new();
                 let mut evaluate = |scope, screen: &mut pairs::Checks, jobs: &mut [(usize, usize, bool)], root: fn(usize) -> usize| {
                     let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                     screen.exclude(root, jobs, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
-                        &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &facts, &packet, unknown, cut_of, &said, &mut clocks.witnesses);
+                        &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), &facts, &packet, unknown, cut_of, &said, &mut span_bounds, &mut clocks.witnesses);
                     if said.is_empty() && provider.projects_words {
                         for &(binding, slot, excluded) in jobs.iter() {
                             if excluded || cut_of[binding].is_some() { continue; }
