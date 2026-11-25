@@ -83,6 +83,20 @@ pub(super) fn identity(plan: &super::Plan, node: usize) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     step.op().hash(&mut h);
     step.base().hash(&mut h);
+    // The whole typed step (conditions and column lists included), its input numbers replaced by the inputs' identities.
+    let text = format!("{:?}", step.step());
+    let mut out = String::new();
+    let mut rest = text.as_str();
+    while let Some(at) = rest.find("StepNumber(") {
+        out.push_str(&rest[..at]);
+        let tail = &rest[at + "StepNumber(".len()..];
+        let end = tail.find(')').unwrap_or(0);
+        let number: usize = tail[..end].parse().unwrap_or(usize::MAX);
+        out.push_str(&format!("#{:x}", if number < plan.nodes.len() { identity(plan, number) } else { 0 }));
+        rest = &tail[end + 1..];
+    }
+    out.push_str(rest);
+    out.hash(&mut h);
     format!("{:?}", step.args()).hash(&mut h);
     inputs.hash(&mut h);
     let id = h.finish();
