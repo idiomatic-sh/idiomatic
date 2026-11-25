@@ -233,12 +233,13 @@ pub(crate) fn constant(
         ArgumentValue::Word(word) => Ok(PlanConstant::Text(LiteralText(word.0.clone()))),
         ArgumentValue::Step(step) => Ok(PlanConstant::Text(LiteralText(step.0.0.clone()))),
         ArgumentValue::Parameter(name) => parameter(&name.0, parameters),
-        ArgumentValue::List(items) => Ok(PlanConstant::List(
-            items
-                .iter()
-                .map(|item| constant(item, parameters))
-                .collect::<Result<_, _>>()?,
-        )),
+        ArgumentValue::List(items) => {
+            let mut values = Vec::with_capacity(items.len());
+            for item in items {
+                values.push(constant(item, parameters)?);
+            }
+            Ok(PlanConstant::List(values))
+        }
         ArgumentValue::Map(arguments) => {
             let mut entries: Vec<ConstantEntry> = Vec::new();
             for argument in arguments {
