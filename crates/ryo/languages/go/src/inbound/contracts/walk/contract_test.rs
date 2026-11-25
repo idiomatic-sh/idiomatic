@@ -4,19 +4,17 @@
 //! pre-order and the walk's numbers the nodes first, so an element is compared by what it is and where it is: its kind, its span,
 //! and its place among the elements that share both.
 
-use crate::domain::file_view::types::{GoScratch, GoWalk};
+use crate::domain::file_view::types::GoWalk;
 use crate::inbound::contracts::walk::contract::WalkPorts;
 use crate::outbound::syntax::factory::tree_sitter_go;
 use ryo::languages::{
-    self, ByteSlice, CatalogRelation, CellKind, CellWord, FactAnswer, FileFacts, FileId, FileVisit,
-    FilledColumns, KindBits, MappingKind, NodeTable, Offset, Position, Relation, RelationNeeds, Term as _,
-    DeclarationKind, ParameterKind, ValueKind, Walk, WalkRequest, contract, facts, node_table,
+    self, ByteSlice, FileFacts, FileId, FileVisit, KindBits, NodeTable, Offset, Position, RelationNeeds, Walk, WalkRequest, contract,
+    node_table,
 };
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use strum::IntoEnumIterator as _;
 
 /// An element by what it is and where: its kind, its span, and its place among the elements of the file that share both.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -27,19 +25,6 @@ struct Key {
     nth: u32,
 }
 
-/// One cell of a row, in a form two readings of a file can be compared in.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum Seen {
-    Element(Key),
-    Other(u64),
-    Text(String),
-    NoText,
-    File,
-    Span(Offset, Offset),
-    Number(i64),
-    Flag(bool),
-}
-
 /// One element of a tree where it stands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct Placement {
@@ -47,55 +32,6 @@ struct Placement {
     parent: Key,
     ordinal: u32,
     field: u16,
-}
-
-/// The relations the language fills, and compares.
-const FILLED: [Relation; 19] = [
-    Relation::Annotates,
-    Relation::Assigns,
-    Relation::CallArgument,
-    Relation::Comment,
-    Relation::Defines,
-    Relation::Directive,
-    Relation::Entry,
-    Relation::Function,
-    Relation::Inherits,
-    Relation::Mapping,
-    Relation::Parameter,
-    Relation::Reference,
-    Relation::Resolves,
-    Relation::Scope,
-    Relation::SourceLocation,
-    Relation::StaticCall,
-    Relation::StaticImport,
-    Relation::StringLiteral,
-    Relation::SyntaxError,
-];
-
-/// The kinds of the columns of each relation compared.
-fn column_kinds(relation: Relation) -> &'static [CellKind] {
-    match relation {
-        Relation::Annotates => <languages::Annotates as CatalogRelation>::kinds(),
-        Relation::SourceLocation => <languages::SourceLocation as CatalogRelation>::kinds(),
-        Relation::Defines => <languages::Defines as CatalogRelation>::kinds(),
-        Relation::Reference => <languages::Reference as CatalogRelation>::kinds(),
-        Relation::Resolves => <languages::Resolves as CatalogRelation>::kinds(),
-        Relation::Assigns => <languages::Assigns as CatalogRelation>::kinds(),
-        Relation::Inherits => <languages::Inherits as CatalogRelation>::kinds(),
-        Relation::Parameter => <languages::Parameter as CatalogRelation>::kinds(),
-        Relation::StaticCall => <languages::StaticCall as CatalogRelation>::kinds(),
-        Relation::CallArgument => <languages::CallArgument as CatalogRelation>::kinds(),
-        Relation::Comment => <languages::Comment as CatalogRelation>::kinds(),
-        Relation::Entry => <languages::Entry as CatalogRelation>::kinds(),
-        Relation::Function => <languages::Function as CatalogRelation>::kinds(),
-        Relation::Mapping => <languages::Mapping as CatalogRelation>::kinds(),
-        Relation::Scope => <languages::Scope as CatalogRelation>::kinds(),
-        Relation::Directive => <languages::Directive as CatalogRelation>::kinds(),
-        Relation::StaticImport => <languages::StaticImport as CatalogRelation>::kinds(),
-        Relation::StringLiteral => <languages::StringLiteral as CatalogRelation>::kinds(),
-        Relation::SyntaxError => <languages::SyntaxError as CatalogRelation>::kinds(),
-        _ => &[],
-    }
 }
 
 fn keyed(elements: impl Iterator<Item = (KindBits, Offset, Offset)>) -> Vec<Key> {
@@ -165,116 +101,6 @@ fn new_placements(table: &NodeTable, keys: &[Key]) -> Vec<Placement> {
     placements
 }
 
-fn plain(kind: CellKind, word: u64) -> Seen {
-    match kind {
-        CellKind::Node => Seen::Other(word),
-        CellKind::Symbol => Seen::NoText,
-        CellKind::File => Seen::File,
-        CellKind::Span => Seen::Span(
-            Offset(u32::try_from(word >> 32).unwrap_or(u32::MAX)),
-            Offset(u32::try_from(word & 0xffff_ffff).unwrap_or(u32::MAX)),
-        ),
-        CellKind::Number => Seen::Number(word.cast_signed()),
-        CellKind::Flag => Seen::Flag(word != 0),
-    }
-}
-
-fn element(keys: &[Key], word: u64) -> Seen {
-    let position = usize::try_from(word & 0xffff_ffff).unwrap_or(usize::MAX);
-    keys.get(position).map_or(Seen::Other(word & 0xffff_ffff), |key| Seen::Element(*key))
-}
-
-/// A word that is no text of the file: no text, or a word of a closed vocabulary (a value's kind, a mapping's).
-fn special(word: u64) -> Option<Seen> {
-    let symbol = languages::Symbol(u32::try_from(word).unwrap_or(u32::MAX));
-    if symbol == languages::NO_SYMBOL {
-        return Some(Seen::NoText);
-    }
-    if let Some(reason) = (0..=u8::MAX).find(|reason| languages::unknown_symbol(languages::UnknownReason(*reason)) == symbol) {
-        return Some(Seen::Text(format!("unknown {reason}")));
-    }
-    ValueKind::iter()
-        .find(|kind| languages::term_symbol(*kind) == symbol)
-        .map(|kind| kind.text())
-        .or_else(|| MappingKind::iter().find(|kind| languages::term_symbol(*kind) == symbol).map(|kind| kind.text()))
-        .or_else(|| DeclarationKind::iter().find(|kind| languages::term_symbol(*kind) == symbol).map(|kind| kind.text()))
-        .or_else(|| ParameterKind::iter().find(|kind| languages::term_symbol(*kind) == symbol).map(|kind| kind.text()))
-        .map(|text| Seen::Text(format!("term {}", text.0)))
-}
-
-fn old_rows(
-    rows: &HashMap<Relation, Vec<Vec<u64>>>,
-    read: &Old,
-    bytes: &[u8],
-    keys: &[Key],
-    relation: Relation,
-) -> Vec<Vec<Seen>> {
-    let kinds = column_kinds(relation);
-    let mut seen: Vec<Vec<Seen>> = rows
-        .get(&relation)
-        .map(Vec::as_slice)
-        .unwrap_or_default()
-        .iter()
-        .map(|words| {
-            kinds
-                .iter()
-                .zip(words)
-                .map(|(kind, word)| match kind {
-                    CellKind::Node => element(keys, *word),
-                    CellKind::Symbol => special(*word).unwrap_or_else(|| {
-                        let symbol = languages::Symbol(u32::try_from(*word).unwrap_or(u32::MAX));
-                        Seen::Text(
-                            languages::text_of(&read.symbols, ByteSlice(bytes), symbol).unwrap_or_default().0.to_owned(),
-                        )
-                    }),
-                    CellKind::File | CellKind::Span | CellKind::Number | CellKind::Flag => plain(*kind, *word),
-                })
-                .collect()
-        })
-        .collect();
-    seen.sort_unstable();
-    seen
-}
-
-fn new_rows(
-    file: &mut FileFacts<'_>,
-    keys: &[Key],
-    relation: Relation,
-    words: &mut languages::FileWords,
-) -> (Vec<Vec<Seen>>, FactAnswer) {
-    let mut columns = FilledColumns::default();
-    let answer = file.facts.fill(relation, languages::Wanted::Whole, words, &mut columns);
-    let kinds = column_kinds(relation);
-    let count = columns.0.first().map_or(0, |column| column.0.len());
-    let mut rows: Vec<Vec<Seen>> = (0..count)
-        .map(|row| {
-            kinds
-                .iter()
-                .zip(&columns.0)
-                .map(|(kind, column)| {
-                    let word = column.0.get(row).copied().unwrap_or(CellWord(0)).0;
-                    match kind {
-                        CellKind::Node => element(keys, word),
-                        CellKind::Symbol => special(word)
-                            .unwrap_or_else(|| Seen::Text(facts::text(words, CellWord(word)).0.to_owned())),
-                        CellKind::File | CellKind::Span | CellKind::Number | CellKind::Flag => plain(*kind, word),
-                    }
-                })
-                .collect()
-        })
-        .collect();
-    rows.sort_unstable();
-    (rows, answer)
-}
-
-/// Today's reading of one file: its table, its names and every row it wrote.
-#[derive(Default)]
-struct Old {
-    elements: languages::Elements,
-    symbols: languages::Symbols,
-    rows: contract::Collect,
-}
-
 /// A visit of a lent file by a function.
 struct Visit<'v>(&'v mut dyn FnMut(FileFacts<'_>));
 
@@ -308,24 +134,22 @@ fn sources() -> Vec<PathBuf> {
     found
 }
 
-/// What the walk and today's reading differ in over every source, one line for each finding, and the table of rows by relation.
-fn compared() -> (String, String) {
+/// What the walked tree and today's reading differ in over every source, one line for each finding.
+fn compared() -> (String, usize) {
     let language = crate::linked();
     let engine = language.parse_engine();
     let walk = GoWalk { ports: WalkPorts { syntax: Arc::new(tree_sitter_go()) } };
     let mut findings = String::new();
-    let mut totals: HashMap<String, (usize, usize, usize, usize)> = HashMap::new();
     let mut files = 0_usize;
     let mut table = NodeTable::default();
-    let mut scratch = GoScratch::default();
-    let mut old = Old::default();
-    let names = <GoWalk<WalkPorts> as languages::Fillers>::vocabulary().fixed;
+    let mut elements = languages::Elements::default();
+    let mut symbols = languages::Symbols::default();
+    let mut rows = contract::Collect::default();
     for path in sources() {
         let Ok(bytes) = std::fs::read(&path) else { continue };
         let shown = path.display().to_string();
         let named = shown.rsplit("../../").next().unwrap_or(&shown).to_owned();
         let source_path = path.file_name().map_or_else(String::new, |name| name.to_string_lossy().into_owned());
-        old.rows.clear();
         let read = contract::read(
             &*engine,
             languages::ParseRequest {
@@ -335,31 +159,24 @@ fn compared() -> (String, String) {
                 notes: languages::NoteRequest::Unwanted,
                 fields: languages::FieldRequest::Wanted,
             },
-            &mut old.elements,
-            &mut old.symbols,
-            &FILLED,
-            &mut old.rows,
+            &mut elements,
+            &mut symbols,
+            &[],
+            &mut rows,
         );
         if read.is_err() {
             continue;
         }
         files += 1;
-        let by_relation = {
-            let mut by: HashMap<Relation, Vec<Vec<u64>>> = HashMap::new();
-            for (relation, words) in old.rows.rows() {
-                by.entry(relation).or_default().push(words);
-            }
-            by
-        };
-        let old_key_list = old_keys(&old.elements);
-        let old_places = old_placements(&old.elements, &old_key_list);
+        let old_key_list = old_keys(&elements);
+        let old_places = old_placements(&elements, &old_key_list);
         let mut builder = node_table::builder(&mut table, GoWalk::<WalkPorts>::KIND_COUNT);
         let walked = walk.walk(
             WalkRequest { path: languages::SourcePath(&source_path), file: FileId(0), source: ByteSlice(&bytes) },
-            RelationNeeds(&FILLED),
+            RelationNeeds(&[]),
             &mut builder,
-            &mut scratch,
-            &mut Visit(&mut |mut lent: FileFacts<'_>| {
+            &mut (),
+            &mut Visit(&mut |lent: FileFacts<'_>| {
                 let keys = new_keys(lent.table);
                 let places = new_placements(lent.table, &keys);
                 if places != old_places {
@@ -371,174 +188,18 @@ fn compared() -> (String, String) {
                         old_places.len()
                     );
                 }
-                let mut words = facts::file_words(&facts::base_words(
-                    languages::fixed_names::checked(&names.0).unwrap_or_default(),
-                    &[],
-                ));
-                for relation in FILLED {
-                    let before = old_rows(&by_relation, &old, &bytes, &old_key_list, relation);
-                    let (after, answer) = new_rows(&mut lent, &keys, relation, &mut words);
-                    let total = totals.entry(format!("{relation:?}")).or_default();
-                    total.0 += before.len();
-                    total.1 += after.len();
-                    if before == after {
-                        total.2 += 1;
-                    } else {
-                        total.3 += 1;
-                        let only_old = before.iter().find(|row| !after.contains(row));
-                        let only_new = after.iter().find(|row| !before.contains(row));
-                        let _ = writeln!(
-                            findings,
-                            "{named}: {} differs ({answer:?}): only today: {only_old:?}; only walked: {only_new:?}",
-                            format!("{relation:?}")
-                        );
-                    }
-                }
             }),
         );
         if let Err(error) = walked {
             let _ = writeln!(findings, "{named}: walk refused: {error:?}");
         }
     }
-    let mut report = format!("{files} files\nrelation | rows old | rows filled | files equal | files differing\n");
-    let mut names: Vec<_> = totals.into_iter().collect();
-    names.sort();
-    for (name, (old_rows, new_rows, equal, differing)) in names {
-        let _ = writeln!(report, "{name} | {old_rows} | {new_rows} | {equal} | {differing}");
-    }
-    (findings, report)
+    (findings, files)
 }
 
 #[test]
-fn the_walk_and_its_fillers_write_what_todays_reading_writes() {
-    let (findings, report) = compared();
-    println!("{report}");
-    assert!(findings.is_empty(), "{report}\n{}", findings.lines().take(20).collect::<Vec<_>>().join("\n"));
-}
-
-/// Every relation the language's fillers name: those it fills and those it does not.
-const NAMED: [Relation; 75] = [
-    Relation::AnalyzedSource,
-    Relation::Annotates,
-    Relation::Assigns,
-    Relation::AttributePath,
-    Relation::BindingEvent,
-    Relation::BindingRead,
-    Relation::BindingResolution,
-    Relation::BindingShadow,
-    Relation::BindingUse,
-    Relation::BraceFormatField,
-    Relation::BraceFormatParse,
-    Relation::BytesLiteral,
-    Relation::CallArgument,
-    Relation::Comment,
-    Relation::CompilerFeature,
-    Relation::ConstantKey,
-    Relation::Decorates,
-    Relation::Defines,
-    Relation::Directive,
-    Relation::EmbeddedExpression,
-    Relation::Entry,
-    Relation::ExpressionShape,
-    Relation::ExpressionType,
-    Relation::FilePackage,
-    Relation::FilesystemExecutable,
-    Relation::FilesystemFile,
-    Relation::FilesystemLineCount,
-    Relation::FilesystemReadFailure,
-    Relation::FlowBlock,
-    Relation::FlowEdge,
-    Relation::FlowMember,
-    Relation::FlowStep,
-    Relation::FormatField,
-    Relation::FormatParse,
-    Relation::FormatSpecification,
-    Relation::Function,
-    Relation::FunctionTerminal,
-    Relation::Identifier,
-    Relation::ImplicitSymbol,
-    Relation::IndentRegion,
-    Relation::Inherits,
-    Relation::InterpolatedStringLiteral,
-    Relation::LanguageTarget,
-    Relation::LiteralExpressionParse,
-    Relation::LiteralProperties,
-    Relation::LookupScope,
-    Relation::ManifestDiagnostic,
-    Relation::Mapping,
-    Relation::Mention,
-    Relation::ModuleIdentity,
-    Relation::NumericLiteral,
-    Relation::PackageDependency,
-    Relation::Parameter,
-    Relation::PatternChild,
-    Relation::PatternParse,
-    Relation::PatternSyntax,
-    Relation::ProjectNamespaceMembership,
-    Relation::Prose,
-    Relation::QualifiedName,
-    Relation::RawFormatField,
-    Relation::RawFormatSegment,
-    Relation::Reference,
-    Relation::Resolves,
-    Relation::Scope,
-    Relation::SequenceElement,
-    Relation::SourceDependency,
-    Relation::SourceLocation,
-    Relation::StandardLibraryImport,
-    Relation::StaticCall,
-    Relation::StaticImport,
-    Relation::StringLiteral,
-    Relation::SyntaxError,
-    Relation::TokenLink,
-    Relation::Visibility,
-    Relation::WorkspaceMember,
-];
-
-/// The cause the walk gives a relation, asked of a file's fillers: nothing when it answers the relation.
-fn walked_cause(relation: Relation) -> Option<languages::AbsenceCause> {
-    let walk = GoWalk { ports: WalkPorts { syntax: Arc::new(tree_sitter_go()) } };
-    let mut table = NodeTable::default();
-    let mut found = None;
-    walk.walk(
-        WalkRequest { path: languages::SourcePath("a.go"), file: FileId(0), source: ByteSlice(b"package a\n") },
-        RelationNeeds(&[]),
-        &mut node_table::builder(&mut table, GoWalk::<WalkPorts>::KIND_COUNT),
-        &mut GoScratch::default(),
-        &mut Visit(&mut |mut lent: FileFacts<'_>| {
-            let mut words = facts::file_words(&facts::base_words(Default::default(), &[]));
-            found = match lent.facts.fill(relation, languages::Wanted::Whole, &mut words, &mut FilledColumns::default()) {
-                FactAnswer::Refused(cause) => Some(cause),
-                _ => None,
-            };
-        }),
-    )
-    .expect("the walk reads the source");
-    found
-}
-
-#[test]
-fn each_relation_the_walk_does_not_fill_has_the_cause_todays_contracts_give() {
-    let language = crate::linked();
-    let parse = language.parse_engine();
-    let project = language.project();
-    let mut report = String::new();
-    for relation in NAMED {
-        let Some(new) = walked_cause(relation) else { continue };
-        let old = parse.absence_of(relation).or_else(|| project.absence_of(relation)).or(
-            // the engine reads the file system itself; the language is never asked, and says so
-            matches!(
-                relation,
-                Relation::FilesystemExecutable | Relation::FilesystemFile | Relation::FilesystemLineCount | Relation::FilesystemReadFailure
-            )
-            .then_some(languages::AbsenceCause::NotYetRead),
-        );
-        // The project contract answers the relations a manifest and the notes of a file give (package, dependency, workspace); the
-        // walk reads neither, so it says they are not read in the walk.
-        let by_project = old.is_none() && new == languages::AbsenceCause::NotYetRead;
-        if old != Some(new) && !by_project {
-            let _ = writeln!(report, "{relation:?}: today {old:?}, walk {new:?}");
-        }
-    }
-    assert!(report.is_empty(), "{report}");
+fn the_walked_tree_is_the_tree_todays_reading_writes() {
+    let (findings, files) = compared();
+    assert!(files > 400, "the corpus is the fixtures and the workspace: {files} files");
+    assert!(findings.is_empty(), "{}", findings.lines().take(20).collect::<Vec<_>>().join("\n"));
 }
