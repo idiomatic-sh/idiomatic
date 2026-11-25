@@ -1215,18 +1215,28 @@ pub(crate) fn visit<L: FileSource>(
                 .filter(|rel| !keep || !held.known.contains(rel))
                 .copied()
                 .collect();
+            // A file's own columns are filled in two steps: the relations the pair screen can read before it
+            // runs, and the rest only for the programs that survive it. A retained file fills everything.
+            let split = !keep && scoped_facts.is_some()
+                && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole;
+            let screen_reads: Vec<l::Relation> = if split { screen.relations().collect() } else { Vec::new() };
+            let (first, rest): (Vec<_>, Vec<_>) = if split {
+                missing.iter().copied().partition(|rel| screen_reads.contains(rel))
+            } else {
+                (missing.clone(), Vec::new())
+            };
             if let Some(parser) = &parser
-                && !missing.is_empty()
+                && !first.is_empty()
             {
                 let fact_start = thread_cpu();
                 let filled = if let Some(supplier) = scoped_facts.as_deref_mut() {
-                    packet.fill_numbered(supplier, &missing, scoped_symbols.as_deref_mut().expect("scoped dictionary"), fact_words.as_deref_mut().expect("file word dictionary"))
+                    packet.fill_numbered(supplier, &first, scoped_symbols.as_deref_mut().expect("scoped dictionary"), fact_words.as_deref_mut().expect("file word dictionary"))
                 } else { parser.fill(
                     &mut elements,
                     &mut symbols,
                     &bytes,
                     id,
-                    &missing,
+                    &first,
                     &mut packet.rows,
                 ) };
                 fact_cpu += thread_cpu() - fact_start;
@@ -1241,8 +1251,8 @@ pub(crate) fn visit<L: FileSource>(
                     return;
                 }
             }
-            let partials = std::mem::take(&mut packet.rows.partials);
-            let partials_at = std::mem::take(&mut packet.rows.partials_at);
+            let mut partials = std::mem::take(&mut packet.rows.partials);
+            let mut partials_at = std::mem::take(&mut packet.rows.partials_at);
             use ryo_values::domain::stored_facts::types::{
                 PartialAt, PartialCause, PartialScope, ReadInPart,
             };
@@ -1272,6 +1282,8 @@ pub(crate) fn visit<L: FileSource>(
             if keep {
                 held.known.extend(facts.iter().copied());
                 packet.index(&held.known.iter().copied().collect::<Vec<_>>());
+            } else if split {
+                packet.index(&first);
             } else {
                 packet.index(&facts);
             }
@@ -1288,7 +1300,46 @@ pub(crate) fn visit<L: FileSource>(
                 let scanned = held.literals.get_mut().scanned();
                 let patterns = crate::pair_checks::Predicates { cache: pattern_cache, scope };
                 screen.exclude(&positions, &mut active, &mut bound, &mut run, tree, provider.projects_words.then_some(provider.text.as_slice()), &distinct, &held.literals, patterns, &mut held.proof_atoms,
-                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref_mut(), &mut witness_tables, &facts, &packet, unknown, cut_of, &said, &mut clocks.witnesses);
+                    &bytes, &source.path, id, scoped_symbols.as_deref().unwrap_or_else(|| L::symbols(symbols)), fact_words.as_deref_mut(), &mut witness_tables, if split { &first } else { &facts }, &packet, unknown, cut_of, &said, &mut clocks.witnesses);
+                if split && !rest.is_empty() {
+                    let mut mask = FactMask::default();
+                    for &(binding, _, excluded) in active.iter() {
+                        if excluded { continue; }
+                        for (word, bits) in mask.iter_mut().zip(bound[&binding].as_ref().unwrap().fact_mask) { *word |= bits; }
+                    }
+                    let mut later = Vec::new();
+                    requested_facts(mask, &mut later);
+                    later.retain(|rel| rest.contains(rel));
+                    if !later.is_empty() {
+                        let fact_start = thread_cpu();
+                        let filled = packet.fill_numbered(scoped_facts.as_deref_mut().expect("scoped file"), &later,
+                            scoped_symbols.as_deref_mut().expect("scoped dictionary"), fact_words.as_deref_mut().expect("file word dictionary"));
+                        fact_cpu += thread_cpu() - fact_start;
+                        if let Err(reason) = filled {
+                            for (_, slot) in jobs.iter() {
+                                answers.set(slot, Err(reason.clone()));
+                            }
+                            return;
+                        }
+                        let more = std::mem::take(&mut packet.rows.partials);
+                        let more_at = std::mem::take(&mut packet.rows.partials_at);
+                        said.extend(more.iter().map(|(relation, why, lacking)| ReadInPart {
+                            relation: *relation,
+                            cause: PartialCause(why.as_str().into()),
+                            lacking: *lacking,
+                            at: PartialScope::OneFile(PartialAt(id.0)),
+                        }));
+                        said.extend(more_at.iter().map(|(relation, file, why)| ReadInPart {
+                            relation: *relation,
+                            cause: PartialCause(why.as_str().into()),
+                            lacking: ryo_relations::domain::relations::types::Missing::Any,
+                            at: PartialScope::OneFile(PartialAt(file.0)),
+                        }));
+                        partials.extend(more);
+                        partials_at.extend(more_at);
+                        packet.index(&later);
+                    }
+                }
                 for &(binding, slot, excluded) in active.iter() {
                         if excluded { continue; }
                         let (any, all) = screen.exact_roots[positions[binding]];
