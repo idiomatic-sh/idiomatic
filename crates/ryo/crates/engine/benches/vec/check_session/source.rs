@@ -38,6 +38,8 @@ pub(crate) trait Source: Clone + Sync {
     fn fields(&self) -> l::FieldNames { l::FieldNames(Vec::new()) }
     fn expands(&self, rel: l::Relation) -> bool;
     fn available(&self, rel: l::Relation) -> bool;
+    /// Whether the language never answers `rel`, for whatever cause: static, so known before any step runs.
+    fn absent(&self, rel: l::Relation) -> bool;
     fn build(
         &self,
         req: l::ParseRequest<'_>,
@@ -157,6 +159,9 @@ impl Source for Linked {
     }
     fn available(&self, rel: l::Relation) -> bool {
         self.parser.absence_of(rel) != Some(l::AbsenceCause::NotYetRead)
+    }
+    fn absent(&self, rel: l::Relation) -> bool {
+        self.parser.absence_of(rel).is_some()
     }
     fn build(
         &self,

@@ -19,6 +19,7 @@ use crate::domain::node_table::service::{
 };
 use crate::domain::node_table::types::NodeTable;
 use crate::domain::symbols::types::ByteSlice;
+use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::{Count, FileId, Position, Relation};
 
 /// What a row walks.
@@ -42,6 +43,9 @@ enum Scenario {
     Field(&'static str),
     /// A file of words, for where its own tree ends and its embedded segments are.
     Embedded(&'static str),
+    /// Why the fixture language and the language that reads nothing never answer the `scope` relation, held behind `WalkEngine`:
+    /// the static answer the engine records before any step runs.
+    Absence,
 }
 
 /// What the visit saw of the lent file.
@@ -72,6 +76,8 @@ enum Answer {
     /// The id after the file's own tree, the table's elements and how many embedded segments it has; then the first segment's
     /// host, root and end (zeros when it has none).
     Embedded([usize; 3], [u32; 3]),
+    /// The cause the fixture language never answers `scope` for, then the cause the language that reads nothing gives.
+    Absence([Option<AbsenceCause>; 2]),
 }
 
 /// The visit of the cases: fills `syntax-error` once and keeps what it saw.
@@ -176,6 +182,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Answer::Names([0, 0, 0, 0], ["", "", ""])),
     },
     Case {
+        name: CaseName("a_relation_a_language_never_answers_has_its_cause_before_any_file_is_walked"),
+        word: Word::Succeeds,
+        input: || Scenario::Absence,
+        expect: Expect::Value(Answer::Absence([None, Some(AbsenceCause::NoSuchConstruct)])),
+    },
+    Case {
         name: CaseName("a_fields_code_is_the_place_of_its_name"),
         word: Word::Succeeds,
         input: || Scenario::Field("name: one"),
@@ -226,7 +238,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         | Scenario::Field(text)
         | Scenario::Embedded(text) => (text.as_bytes(), "words.walk"),
         Scenario::Failing => (FAILING, "broken.walk"),
-        Scenario::Nothing | Scenario::HeldNothing | Scenario::Names | Scenario::NamesOfNothing => {
+        Scenario::Nothing
+        | Scenario::HeldNothing
+        | Scenario::Names
+        | Scenario::NamesOfNothing
+        | Scenario::Absence => {
             (b"", "src/lib.rs")
         }
     };
@@ -239,6 +255,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let mut writer = builder(&mut table, Count(4));
     let mut seeing = Seeing::default();
     match scenario {
+        Scenario::Absence => {
+            let (walking, nothing): (&dyn WalkEngine, &dyn WalkEngine) = (&Walking, &WalkUseCaseImpl);
+            return Ok(Answer::Absence([walking.absence_of(Relation::Scope), nothing.absence_of(Relation::Scope)]));
+        }
         Scenario::Names | Scenario::NamesOfNothing => {
             let language: &dyn WalkEngine = match scenario {
                 Scenario::Names => &Walking,
