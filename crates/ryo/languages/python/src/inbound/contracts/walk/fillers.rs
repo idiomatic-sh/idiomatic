@@ -78,6 +78,9 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         Self: 'f;
 
     written! {
+        annotates: Annotates => crate::domain::relations::collections::relations::annotates::item::AnnotatesItem;
+        assigns: Assigns => crate::domain::relations::collections::relations::assigns::item::AssignsItem;
+        static_call: StaticCall => crate::domain::relations::collections::relations::static_call::item::StaticCallItem;
         binding_event: BindingEvent => crate::domain::relations::collections::relations::binding_event::item::BindingEventItem;
         binding_resolution: BindingResolution => crate::domain::relations::collections::relations::binding_resolution::item::BindingResolutionItem;
         binding_use: BindingUse => crate::domain::relations::collections::relations::binding_use::item::BindingUseItem;
@@ -130,8 +133,6 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
 
     absent! {
         analyzed_source: AnalyzedSource => NotYetRead;
-        annotates: Annotates => NotYetRead;
-        assigns: Assigns => NotYetRead;
         attribute_path: AttributePath => NoSuchConstruct;
         directive: Directive => NoSuchConstruct;
         entry: Entry => NotAKeyedDocument;
@@ -156,7 +157,6 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         prose: Prose => NotADocument;
         sequence_element: SequenceElement => NotAKeyedDocument;
         source_dependency: SourceDependency => NotYetRead;
-        static_call: StaticCall => NotYetRead;
         visibility: Visibility => NoSuchConstruct;
         workspace_member: WorkspaceMember => NotYetRead;
     }

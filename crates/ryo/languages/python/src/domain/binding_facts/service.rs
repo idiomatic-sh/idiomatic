@@ -68,7 +68,7 @@ pub(crate) fn flow_read<'v, V: ModelView, Row>(
     rows: &mut dyn Rows<Row>,
 ) -> Option<ModelRead<'v>> {
     let read = file.semantics(part);
-    if read.model.flow.state == FlowState::Incomplete {
+    if read.model.flow.state == FlowState::Incomplete || read.syntax == ryo::languages::SyntaxCompleteness::Incomplete {
         rows.partial(ReportText(vocabulary::INCOMPLETE), Missing::Any);
         return None;
     }
