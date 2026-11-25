@@ -62,7 +62,7 @@ pub(crate) fn describe(program: &Program, local: &[bool]) -> Result<Contract> {
 }
 
 impl Contract {
-    pub(crate) fn report(&self, partials: &[Partial], path: &str) -> Vec<(String, String)> {
+    pub(crate) fn report(&self, partials: &[Partial], path: &str, mut observe: impl FnMut(&'static str)) -> Vec<(String, String)> {
         let source = FilePath(path.into());
         partials
             .iter()
@@ -73,6 +73,7 @@ impl Contract {
                     .any(|r| matters(r, p) == Bearing::Matters)
             })
             .map(|p| {
+                observe(super::relations::service::name(p.relation).0);
                 (
                     path.to_owned(),
                     unknown_message(p, CoverageScope::File(&source))

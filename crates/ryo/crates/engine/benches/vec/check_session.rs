@@ -1366,12 +1366,9 @@ pub(crate) fn visit<L: FileSource>(
                                 .insert((name.to_owned(), file));
                         }
                     }
-                    if cut_of[binding].is_some() {
-                        issue_bases.extend(partial.iter().filter(|p|
-                            contract.needs.reads.iter().any(|r| matters(r, p) == Bearing::Matters))
-                            .map(|p| relations::service::name(p.relation).0));
-                    }
-                    contract.report(&partial, &source.path)
+                    contract.report(&partial, &source.path, |base| {
+                        if cut_of[binding].is_some() { issue_bases.push(base); }
+                    })
                 };
                 for schema in &b.named {
                     if let Some(reason) = named_partials.get(schema.name) {
