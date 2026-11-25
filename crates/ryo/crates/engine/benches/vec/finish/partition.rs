@@ -3,6 +3,34 @@
 use super::{E, Exec, Op, R, Run, Ty};
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Reclassify a prepared program after an independent project answer becomes
+/// available by File. Every emitted branch must then be file-local.
+pub(in super::super) fn with_file_slice(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    relation: &str,
+    wide: impl Fn(&str) -> bool,
+) -> R<Option<Vec<bool>>> {
+    let exact = file_steps_by(exec, run, |name| name != relation && wide(name), |ty| {
+        matches!(ty, Ty::Node | Ty::File)
+    })?;
+    if !exec.plan.emits.iter().all(|emit| exact[emit.1] && emit.2 == "file") {
+        return Ok(None);
+    }
+    // Rank is an invocation-wide order. A File key elsewhere in the graph
+    // cannot make its ordinal invariant under slicing.
+    let mut reads_slice = Vec::with_capacity(exact.len());
+    for step in &exec.plan.nodes {
+        let reads = step.base() == Some(relation)
+            || step.inputs.iter().any(|&input| reads_slice[input]);
+        if reads && step.op() == "rank" {
+            return Ok(None);
+        }
+        reads_slice.push(reads);
+    }
+    Ok(Some(exact))
+}
+
 #[derive(Clone, Default)]
 pub(in super::super) struct Partition {
     pub domains: BTreeMap<usize, (usize, usize)>,
@@ -22,30 +50,36 @@ pub(in super::super) fn file_steps(
     run: &mut Run,
     wide: impl Fn(&str) -> bool,
 ) -> R<Vec<bool>> {
+    file_steps_by(exec, run, wide, |ty| matches!(ty, Ty::Node | Ty::File | Ty::Span))
+}
+
+fn file_steps_by(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    wide: impl Fn(&str) -> bool,
+    anchor: impl Fn(Ty) -> bool,
+) -> R<Vec<bool>> {
     let classes: Vec<_> = exec.plan.nodes.iter().enumerate()
         .filter_map(|(i, step)| (step.op() == "subtree-class").then_some(i))
         .take(2)
         .collect();
     if let [class] = classes.as_slice() {
-        let local = classify(exec, run, &wide, Some(*class))?;
+        let local = classify(exec, run, &wide, &anchor, Some(*class))?;
         if local[*class] && super::session::demand::local_class(exec, run, &local, *class)? {
             return Ok(local);
         }
     }
-    classify(exec, run, &wide, None)
+    classify(exec, run, &wide, &anchor, None)
 }
 
 fn classify(
     exec: &mut Exec<'_>,
     run: &mut Run,
     wide: &impl Fn(&str) -> bool,
+    anchor: &impl Fn(Ty) -> bool,
     local_class: Option<usize>,
 ) -> R<Vec<bool>> {
     exec.closed_inputs();
-    // All operands here are already local. A span names a place in that source.
-    fn anchor(ty: Ty) -> bool {
-        matches!(ty, Ty::Node | Ty::File | Ty::Span)
-    }
     let plan = exec.plan;
     let mut local = Vec::with_capacity(plan.nodes.len());
     // Source-independent literal relations can be read in a file join or after
