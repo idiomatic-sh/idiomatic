@@ -6,24 +6,28 @@ use super::interface::{Ops, Tree};
 use super::types::Gap;
 use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
+use crate::domain::file_view::service::record;
 use crate::domain::syntax::service::{field_between, field_bits, kind_bits};
 use crate::domain::syntax::types::Kind;
-use ryo::languages::{FieldCode, NameText, NodeTableBuilder, Offset, node_table};
+use ryo::languages::{FieldCode, NodeTableBuilder, Offset, node_table};
 
 /// The tree written into the builder of a file's node table, and where its last token ends.
-pub(super) struct Numbered<'b, 'w> {
+pub(super) struct Numbered<'b, 'w, 'd> {
     /// What the tree is written through.
     pub builder: &'b mut NodeTableBuilder<'w>,
     /// Where the last token written ends.
     pub end: Offset,
     /// The nodes open, the document first.
     open: Vec<Kind>,
+    /// What the library decoded of the tokens, kept beside the table.
+    decodings: &'d mut crate::domain::file_view::types::Decodings,
 }
 
-impl<'b, 'w> Numbered<'b, 'w> {
+impl<'b, 'w, 'd> Numbered<'b, 'w, 'd> {
     /// A tree written through `builder`, whose document node is open.
-    pub(super) fn new(builder: &'b mut NodeTableBuilder<'w>) -> Self {
+    pub(super) fn new(builder: &'b mut NodeTableBuilder<'w>, decodings: &'d mut crate::domain::file_view::types::Decodings) -> Self {
         Self {
+            decodings,
             builder,
             end: Offset(0),
             open: vec![Kind::Node(Node::Root)],
@@ -40,7 +44,7 @@ impl<'b, 'w> Numbered<'b, 'w> {
     }
 }
 
-impl Ops for Numbered<'_, '_> {
+impl Ops for Numbered<'_, '_, '_> {
     fn token(&mut self, kind: Kind, from: Offset, to: Offset) {
         let field = self.field(kind);
         node_table::token(self.builder, kind_bits(kind), field, from, to);
@@ -48,11 +52,12 @@ impl Ops for Numbered<'_, '_> {
 
     fn decoded(&mut self, kind: Kind, from: Offset, to: Offset, text: &str) {
         let field = self.field(kind);
-        node_table::decoded_token(self.builder, kind_bits(kind), field, from, to, NameText(text));
+        node_table::token(self.builder, kind_bits(kind), field, from, to);
+        record(self.decodings, from, to, text);
     }
 }
 
-impl Tree for Numbered<'_, '_> {
+impl Tree for Numbered<'_, '_, '_> {
     fn enter(&mut self, kind: Kind, start: Offset, gap: &mut Gap<'_>) {
         self.fill_to(start, gap);
         let field = self.field(kind);
