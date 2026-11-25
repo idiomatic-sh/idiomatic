@@ -86,6 +86,9 @@ pub trait NumberedFacts {
     /// Supply the named tables in request order.
     fn named(&mut self, relations: &[&FileRelation], symbols: &mut Symbols)
         -> Vec<Result<FileRows, super::errors::ParseError>>;
+    /// Whether no relation of this file can answer in part, so each may be filled the first time a step reads it
+    /// and a late fill never changes what the file's earlier answers said. A provider that cannot tell says no.
+    fn fills_are_complete(&mut self) -> bool { false }
     /// Render the queried position before releasing the parse.
     fn render(&mut self, request: crate::domain::semantics::types::RenderRequest)
         -> Result<crate::domain::semantics::types::RenderOutcome, super::errors::ParseError>;

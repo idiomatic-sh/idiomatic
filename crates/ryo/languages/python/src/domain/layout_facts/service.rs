@@ -262,6 +262,33 @@ pub(crate) fn line_starts(file: &SyntaxFile<'_>, lines: &mut FileLines) {
     }));
 }
 
+/// The line and the column of an offset the caller expects at or after line `near` (a 1-based line it already holds):
+/// the search starts there and doubles its step, so the nearer the offset, the fewer starts it compares. The answer is the
+/// same as `line_place` for any `near`.
+#[must_use]
+pub(crate) fn line_place_near(lines: &FileLines, offset: Offset, near: usize) -> LinePlace {
+    let starts = &lines.0;
+    let from = near.saturating_sub(1).min(starts.len().saturating_sub(1));
+    let line = if starts.get(from).is_some_and(|start| *start <= offset) {
+        let mut low = from;
+        let mut step = 1;
+        while starts.get(low + step).is_some_and(|start| *start <= offset) {
+            low += step;
+            step *= 2;
+        }
+        let high = (low + step).min(starts.len());
+        low + 1 + starts[low + 1..high].partition_point(|start| *start <= offset)
+    } else {
+        starts.partition_point(|start| *start <= offset)
+    }
+    .max(1);
+    let start = starts.get(line - 1).copied().unwrap_or(Offset(0));
+    LinePlace {
+        line: Integer(i64::try_from(line).unwrap_or(i64::MAX)),
+        column: Integer(i64::from(offset.0.saturating_sub(start.0))),
+    }
+}
+
 /// The line and the column of an offset of the file.
 #[must_use]
 pub(crate) fn line_place(lines: &FileLines, offset: Offset) -> LinePlace {
