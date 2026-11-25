@@ -8,7 +8,10 @@ use crate::domain::fillers::types::{Fillers, WalkVocabulary};
 use crate::domain::node_table::service::builder;
 use crate::domain::node_table::types::{NodeTable, NodeTableBuilder};
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
-use ryo_relations::domain::relations::types::Count;
+use crate::domain::diagnostics::types::SyntaxCompleteness;
+use crate::domain::facts::types::FileCompleteness;
+use crate::domain::symbols::types::ByteSlice;
+use ryo_relations::domain::relations::types::{Bytes, Count, KindBits};
 
 /// A language that walks no file.
 ///
@@ -61,6 +64,20 @@ impl Fillers for WalkUseCaseImpl {
 
     fn render(_file: &mut (), _request: RenderRequest) -> RenderOutcome {
         RenderOutcome::NotApplicable
+    }
+
+    fn completeness(_file: &()) -> FileCompleteness {
+        FileCompleteness { syntax: SyntaxCompleteness::Complete, lexical: SyntaxCompleteness::Complete }
+    }
+
+    fn fills_are_complete(_file: &mut ()) -> bool {
+        false
+    }
+
+    fn notes(_file: &mut (), _table: &NodeTable, _source: ByteSlice<'_>, _out: &mut Bytes) {}
+
+    fn spells(_kind: KindBits) -> bool {
+        false
     }
 }
 

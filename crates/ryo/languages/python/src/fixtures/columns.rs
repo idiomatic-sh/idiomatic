@@ -271,6 +271,19 @@ fn qualify_cells(
 }
 
 impl ColumnFile<'_, '_> {
+    /// The project notes of a walked file: its imports, read in source order.
+    pub(crate) fn noted(file: &mut PythonFile<'_>, table: &NodeTable, source: languages::ByteSlice<'_>) -> crate::domain::fact_notes::types::Note {
+        let import_presence = file.import_presence;
+        let walked = ColumnFile {
+            table,
+            file,
+            import_presence,
+            memo: &mut TextMemo::default(),
+            words: &mut FileWords::default(),
+        };
+        crate::domain::fact_notes::service::noted_walk(&walked, source)
+    }
+
     /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
     /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in
     /// every file of the run. Empty when the file's bytes were not text.
