@@ -577,7 +577,7 @@ impl Live {
                     }
                 }
                 let inputs = store.program_inputs(digest).unwrap_or_default();
-                let consumed: Vec<_> = hosted.iter().zip(host_keys.as_ref().unwrap())
+                let consumed: Vec<_> = hosted.iter().zip(host_keys.as_deref().unwrap_or_default())
                     .filter(|(table, _)| inputs.contains(&table.name))
                     .map(|(_, key)| *key)
                     .collect();
