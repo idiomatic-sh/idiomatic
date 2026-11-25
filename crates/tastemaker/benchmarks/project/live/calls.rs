@@ -6,12 +6,10 @@ use crate::thread_cpu;
 mod pinned;
 #[path = "../../../../ryo/crates/engine/benches/vec/check_session/call_cache.rs"]
 mod call_cache;
-#[path = "../../../../ryo/crates/engine/benches/vec/check_session/allocated.rs"]
-mod allocated;
 #[path = "../../../../ryo/crates/engine/benches/lint_image/sdk_request.rs"]
 mod sdk_request;
 use call_cache::{CallCache, PathFilter};
-use pinned::{Dictionary, Pinned};
+use pinned::Pinned;
 use release_sdk::linter as sdk;
 use ryo_values::domain::finish_plans::expressions::types::{
     ConstantEntry, ConstantEntryKey, PlanConstant, PlanNumber,
@@ -111,19 +109,6 @@ pub fn check_options() -> LiveOptions {
     CHECK_OPTIONS.get().copied().unwrap_or_default()
 }
 
-// A test override for the session's own projection retention. The public SDK
-// does not take a budget and the host's memory setting does not reach here.
-fn retention_limit() -> u64 {
-    const RETAINED_FILE_BYTES: u64 = 1024 * 1024 * 1024;
-    static LIMIT: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
-    *LIMIT.get_or_init(|| {
-        std::env::var_os("TM_BENCH_MEMORY_BYTES").map_or(RETAINED_FILE_BYTES, |value| {
-            value.to_str().and_then(|s| s.parse::<std::num::NonZeroU64>().ok())
-                .expect("TM_BENCH_MEMORY_BYTES must be a positive byte count").get()
-        })
-    })
-}
-
 /// Replay a closed capture with exactly the parsers linked into this release.
 pub fn capture(linked: sdk::Languages, manifest: &str, output: &str, workers: Option<std::num::NonZeroUsize>) {
     capture_then(linked, manifest, output, workers, || {});
@@ -179,7 +164,6 @@ struct Measurement {
     requirement_programs: usize,
     requirement_bindings: usize,
     counts: [usize; 10],
-    retained: [u64; 4],
     reused_binding_entries: usize,
     pattern_visits: [usize; 4],
     registration: [usize; 10],
@@ -224,7 +208,6 @@ static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::new(Measureme
     requirement_programs: 0,
     requirement_bindings: 0,
     counts: [0; 10],
-    retained: [0; 4],
     reused_binding_entries: 0,
     pattern_visits: [0; 4],
     registration: [0; 10],
@@ -293,8 +276,6 @@ pub fn print_measurement() {
         eprintln!("TM_ROUND_COUNTS epochs={} max_width={} closed_only={} bulk_screen_files={}",
             m.rounds.len(), m.rounds.iter().max().unwrap(), m.empty_reader_epochs, m.bulk_screen_files);
     }
-    let [versions,hits,evictions,peak_charge]=m.retained;
-    eprintln!("FILE_CACHE versions={versions} hits={hits} evictions={evictions} peak_charge={peak_charge}");
     eprintln!(
         "LIVE_PROJECT_WALL provider={:.6} numbering={:.6} numbered={} empty_epochs={}",
         m.project_provider_wall, m.project_number_wall, m.project_numbered, m.empty_project_epochs

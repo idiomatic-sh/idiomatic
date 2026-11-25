@@ -55,8 +55,6 @@ pub(crate) fn dispatch<L: FileSource>(
     languages: &[L],
     paths: &Arc<Vec<String>>,
     state: &mut ReaderState,
-    retention: &mut Retention<L::File, L::Dictionary>,
-    keep: bool,
     parser: Option<&L>,
     reader_id: Option<usize>,
     manifests: &BTreeSet<&str>,
@@ -78,18 +76,12 @@ pub(crate) fn dispatch<L: FileSource>(
         .or_else(|| std::thread::available_parallelism().ok())
         .map_or(1, NonZeroUsize::get)
         .min(selected.len());
-    // Reuse the open reader for small SDK calls and when a finite cache budget
-    // requires a single global admission order.
-    let parallel_open = keep && selected.len() >= 128 && !retention.has_limit();
-    if (keep && !parallel_open)
-        || count <= 1
+    if count <= 1
         || selected[1..].iter().all(|&id| sources[id].path == sources[selected[0]].path)
     {
         let previous_paths = std::mem::replace(&mut state.run.paths, Arc::clone(paths));
         visit(
             state,
-            retention,
-            keep,
             parser,
             reader_id,
             manifests,
@@ -145,7 +137,6 @@ pub(crate) fn dispatch<L: FileSource>(
     clocks.inventory += thread_cpu() - inventory_start;
     clocks.inventory_wall += inventory_wall.elapsed().as_secs_f64();
     clocks.file_shards += shards.len();
-    let snapshots = &state.bytes;
     let work = |files: &[usize]| {
         let wall = std::time::Instant::now();
         let mut part = World::default();
@@ -158,15 +149,8 @@ pub(crate) fn dispatch<L: FileSource>(
         let mut time = Clock { measure_file_wall: true, ..Default::default() };
         let mut local = ReaderState::default();
         local.run.paths = Arc::clone(paths);
-        if parallel_open {
-            local.bytes.extend(files.iter().filter_map(|id| {
-                snapshots.get(id).map(|value| (*id, value.clone()))
-            }));
-        }
         visit(
             &mut local,
-            &mut Retention::default(),
-            parallel_open,
             parser,
             reader_id,
             manifests,

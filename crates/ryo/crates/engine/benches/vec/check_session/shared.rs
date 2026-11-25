@@ -1,29 +1,20 @@
 //! Rebind a program's supplied relations and step numbers into the reader's plan.
-use super::{Bindings, Bound, Plan, Run, Table, finish};
+use super::{Bound, Plan, Run, Table, finish};
 use ryo_engine::domain::plan_lowering::shared::SharedSteps;
 use ryo_values::domain::finish_plans::types::{FinishPlan, FinishStep};
 use std::{collections::HashMap, rc::Rc};
 
 type Aliases = HashMap<String, String>;
 
-/// A program's lowered steps depend on its host aliases. The values supplied
-/// under those aliases and the frame are bound anew on every SDK call.
-pub(super) struct PreviousPlan {
-    inputs: Vec<(usize, Aliases)>,
-    plan: Rc<Plan>,
-    slots: Vec<Rc<Vec<usize>>>,
-}
-
 #[derive(Default)]
 pub(super) struct ReaderPlan {
     steps: SharedSteps,
-    inputs: Vec<(usize, Aliases)>,
     hosts: HashMap<Rc<Table>, String>,
     outputs: Vec<(String, usize, String, Vec<String>)>,
 }
 
 impl ReaderPlan {
-    pub(super) fn add(&mut self, b: &mut Bound<'_>, run: &mut Run, program: usize, retain: bool) {
+    pub(super) fn add(&mut self, b: &mut Bound<'_>, run: &mut Run) {
         let mut given = Aliases::with_capacity(b.hosted.len());
         for (name, table) in &b.hosted {
             let next = self.hosts.len();
@@ -45,11 +36,7 @@ impl ReaderPlan {
             let name = ryo_relations::domain::relations::service::name(*relation).0;
             given.insert(name.to_owned(), alias.clone());
         }
-        if retain {
-            self.inputs.push((program, given));
-        } else {
-            self.append(b, &given);
-        }
+        self.append(b, &given);
     }
 
     fn append(&mut self, b: &mut Bound<'_>, given: &Aliases) {
@@ -85,33 +72,8 @@ impl ReaderPlan {
         Rc::new(plan)
     }
 
-    pub(super) fn finish(
-        mut self,
-        previous: Option<&mut Option<PreviousPlan>>,
-        bound: &mut Bindings<'_>,
-    ) -> (Rc<Plan>, rustc_hash::FxHashMap<String, Rc<Table>>) {
-        let plan = if let Some(last) = previous {
-            let bindings = bound.entries.iter_mut().filter_map(|entry| entry.as_mut().ok());
-            if let Some(hit) = last.as_ref().filter(|p| p.inputs == self.inputs) {
-                for (binding, slots) in bindings.zip(&hit.slots) {
-                    binding.slots.clone_from(slots);
-                }
-                hit.plan.clone()
-            } else {
-                // Release the old graph before allocating its replacement.
-                *last = None;
-                let inputs = std::mem::take(&mut self.inputs);
-                let slots = bindings.zip(&inputs).map(|(binding, (_, aliases))| {
-                    self.append(binding, aliases);
-                    binding.slots.clone()
-                }).collect();
-                let plan = self.plan();
-                *last = Some(PreviousPlan { inputs, plan: plan.clone(), slots });
-                plan
-            }
-        } else {
-            self.plan()
-        };
+    pub(super) fn finish(mut self) -> (Rc<Plan>, rustc_hash::FxHashMap<String, Rc<Table>>) {
+        let plan = self.plan();
         let tables = self
             .hosts
             .into_iter()

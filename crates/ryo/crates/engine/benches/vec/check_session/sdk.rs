@@ -66,7 +66,7 @@ struct Live {
     batch: Batch,
     store:Option<super::stored::Store>,
     directory:Option<std::path::PathBuf>,
-    state: Active<pinned::File, Dictionary>,
+    state: Active,
     languages: Vec<Pinned>,
     filters: HashMap<Vec<sdk::Glob>, (usize, Rc<PathFilter>)>,
     cache: CallCache,
@@ -104,11 +104,7 @@ impl Default for Live {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .sessions += 1;
-        let mut state: Active<pinned::File, Dictionary> = Active {
-            keep: true,
-            ..Default::default()
-        };
-        state.retention.configure(Some(retention_limit()), allocated::bytes);
+        let state: Active = Active::default();
         Self {
             batch: Batch::default(),
             admission_wall: 0.0,
@@ -381,7 +377,6 @@ impl Live {
             c.project_wall,
             self.delivery_wall,
         ];
-        last.retained = self.state.retention.counts();
         last.reused_binding_entries = self.batch.reused_binding_entries;
         last.pattern_visits = self.cache.pattern_visits;
         last.overlay = [self.shared_overlay_files, self.shared_overlay_bytes];
@@ -599,8 +594,11 @@ impl Live {
                 continue
             }
             if prepared_root.is_none(){
-        let root = if let Some(id) = self.versions.get(&key) {
-            id.clone()
+        let root = if let Some(id) = self.versions.get(&key).cloned() {
+            for (path, (bytes, _)) in &key.1 {
+                self.batch.schedule.reprovide(&id, path, bytes);
+            }
+            id
         } else {
             let id: Arc<str> = Arc::from(format!("check-input:{}", self.versions.len()));
             use crate::check_session::source::Source as _;

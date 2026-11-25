@@ -48,7 +48,7 @@ pub fn run(
     let [pack, input, output] = args else {
         return Err("expected [--retain-findings] PACK REQUEST OUTPUT".into());
     };
-    let mut request: Input = serde_json::from_reader(fs::File::open(input)?)?;
+    let mut request: Input = serde_json::from_slice(&fs::read(input)?)?;
     let pack = std::path::Path::new(pack);
     let languages = sdk::Languages(vec![configured_provider(
         request.parser_configuration.as_deref(), pack,
