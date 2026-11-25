@@ -3,7 +3,7 @@
 use super::super::{Parameters, stored};
 use super::{HostCell, Hosted, sdk};
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::rc::Rc;
 
@@ -117,7 +117,7 @@ pub(super) struct CallCache {
     paths: Vec<Rc<Vec<String>>>,
     path_hashes: HashMap<u64, Vec<usize>>,
     selections: HashMap<Selection, usize>,
-    queries: HashSet<Rc<str>>,
+    queries: HashMap<stored::Key, Rc<str>>,
     catalogs: HashMap<usize, (release_sdk::linked_sdk::ModuleSources, crate::check_session::query::Modules)>,
     schemas: HashMap<(String, Vec<(String, String)>), usize>,
     rows: Vec<std::sync::Arc<[HostCell]>>,
@@ -210,13 +210,10 @@ impl CallCache {
         (id, self.paths[id].clone())
     }
 
-    pub(super) fn query(&mut self, query: &str) -> Rc<str> {
-        if let Some(found) = self.queries.get(query) {
-            return found.clone();
-        }
-        let owned: Rc<str> = Rc::from(query);
-        self.queries.insert(owned.clone());
-        owned
+    pub(super) fn query(&mut self, query: &str) -> (Rc<str>, stored::Key) {
+        let digest = *blake3::hash(query.as_bytes()).as_bytes();
+        let text = self.queries.entry(digest).or_insert_with(|| Rc::from(query)).clone();
+        (text, digest)
     }
 
     pub(super) fn modules(&mut self, query: &release_sdk::query::RyoQlQuery) -> Option<crate::check_session::query::Modules> {

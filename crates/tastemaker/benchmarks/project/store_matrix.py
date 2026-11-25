@@ -91,6 +91,12 @@ def typed_packets(cache):
     layers()  # empty schemas
     if manifest.at < len(manifest.data):
         requests.extend(layers())
+    for _ in range(manifest.uint()):  # program inputs: program digest, then consumed relation names
+        manifest.take(32)
+        for _ in range(manifest.uint()):
+            manifest.string()
+    for _ in range(manifest.uint()):  # binding table: file records name their empty pairs by number
+        manifest.take(32)
     assert manifest.at == len(manifest.data)
 
     packets={}
