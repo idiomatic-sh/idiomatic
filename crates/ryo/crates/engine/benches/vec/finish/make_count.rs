@@ -128,16 +128,16 @@ pub(crate) fn print() {
     }
     STATE.with_borrow(|s| {
         let distinct = s.seen.len() as f64;
-        println!("MAKES\ttotal {}\tdistinct_step_file {}\tratio {:.3}", s.total, s.seen.len(), s.total as f64 / distinct.max(1.0));
-        println!("MAKECPU\tfirst_ms {:.1}\trepeat_same_request_ms {:.1}\trepeat_other_request_same_program_ms {:.1}\trepeat_other_program_ms {:.1}", s.own[0] * 1e3, s.own[1] * 1e3, s.own[2] * 1e3, s.own[3] * 1e3);
+        eprintln!("MAKES\ttotal {}\tdistinct_step_file {}\tratio {:.3}", s.total, s.seen.len(), s.total as f64 / distinct.max(1.0));
+        eprintln!("MAKECPU\tfirst_ms {:.1}\trepeat_same_request_ms {:.1}\trepeat_other_request_same_program_ms {:.1}\trepeat_other_program_ms {:.1}", s.own[0] * 1e3, s.own[1] * 1e3, s.own[2] * 1e3, s.own[3] * 1e3);
         let mut rows: Vec<_> = s.steps.iter().collect();
         rows.sort_by(|a, b| (b.1.within + b.1.across + b.1.cross_program).total_cmp(&(a.1.within + a.1.across + a.1.cross_program)));
         for (id, st) in rows.iter().take(20) {
-            println!("REPEATSTEP\t{id:x}\t{}\tmakes {}\tprograms {}\trequests {}\tfirst_ms {:.1}\tsame_ms {:.1}\tother_request_ms {:.1}\tother_program_ms {:.1}", st.op, st.makes, st.programs.len(), st.bindings.len(), st.first * 1e3, st.within * 1e3, st.across * 1e3, st.cross_program * 1e3);
+            eprintln!("REPEATSTEP\t{id:x}\t{}\tmakes {}\tprograms {}\trequests {}\tfirst_ms {:.1}\tsame_ms {:.1}\tother_request_ms {:.1}\tother_program_ms {:.1}", st.op, st.makes, st.programs.len(), st.bindings.len(), st.first * 1e3, st.within * 1e3, st.across * 1e3, st.cross_program * 1e3);
         }
         rows.sort_by(|a, b| b.1.first.total_cmp(&a.1.first));
         for (id, st) in rows.iter().take(20) {
-            println!("FIRSTSTEP\t{id:x}\t{}\trows_in {}\trows_out {}\tfiles {}\tfirst_ms {:.1}", st.op, st.rows_in, st.rows_out, st.files.len(), st.first * 1e3);
+            eprintln!("FIRSTSTEP\t{id:x}\t{}\trows_in {}\trows_out {}\tfiles {}\tfirst_ms {:.1}", st.op, st.rows_in, st.rows_out, st.files.len(), st.first * 1e3);
         }
         let mut byop: HashMap<&str, [f64; 4]> = HashMap::new();
         for st in s.steps.values() {
@@ -145,7 +145,7 @@ pub(crate) fn print() {
             e[0] += st.first; e[1] += st.within; e[2] += st.across; e[3] += st.cross_program;
         }
         for (op, e) in byop {
-            println!("MAKEOP\t{op}\tfirst_ms {:.1}\tsame_ms {:.1}\tother_request_ms {:.1}\tother_program_ms {:.1}", e[0] * 1e3, e[1] * 1e3, e[2] * 1e3, e[3] * 1e3);
+            eprintln!("MAKEOP\t{op}\tfirst_ms {:.1}\tsame_ms {:.1}\tother_request_ms {:.1}\tother_program_ms {:.1}", e[0] * 1e3, e[1] * 1e3, e[2] * 1e3, e[3] * 1e3);
         }
     });
 }
