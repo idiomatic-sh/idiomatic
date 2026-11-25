@@ -170,8 +170,8 @@ impl Admission {
         }, |name| hosted.iter().any(|t| t.name == name && has_files(t)))?;
         // A caller table keyed by File that every reader binds to its own file is
         // read in the visit, so it need not wait for the numbered inventory.
-        let unsliced_host = program.bases.iter().zip(&program.base_steps).any(|(name, (at, _))| {
-            !local[*at] && hosted.iter().any(|t| &t.name == name && has_files(t))
+        let unsliced_host = program.plan.nodes.iter().enumerate().any(|(at, step)| {
+            !local[at] && step.base().is_some_and(|name| hosted.iter().any(|t| t.name == name && has_files(t)))
         });
         let contract = Arc::new(session::completeness::describe(program, &local)?);
         let wide = contract.cross || unsliced_host;

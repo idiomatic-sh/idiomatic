@@ -134,74 +134,233 @@ pub(in super::super::super) fn ancestor_domains(
     domains
 }
 
-/// The start rows of an axis along the native hierarchy: which side of the
-/// file-local domain they can lie on. A start row that no domain node can
-/// reach gives the axis no output row.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(in super::super::super) struct Reach {
-    pub domain: usize,
-    pub below: bool,
+/// The nodes of one file a closed reader can need from a source, as an
+/// over-approximation built from file-local columns alone.
+#[derive(Clone, PartialEq, Eq)]
+pub(in super::super::super) enum Nodes {
+    /// The node values of a file-local step's column, for rows passing literal tests.
+    Column { step: usize, column: usize, tests: Vec<(usize, Vec<u8>)> },
+    Children(Box<Nodes>),
+    Below(Box<Nodes>),
+    Above(Box<Nodes>),
+    Union(Vec<Nodes>),
 }
 
-/// A source read only as the start rows of such axes needs only the nodes
-/// that can reach their domain: below it for ancestor walks, above it for descendant walks.
+fn union(mut parts: Vec<Nodes>) -> Nodes {
+    let mut seen: Vec<Nodes> = Vec::new();
+    for part in parts.drain(..) {
+        match part {
+            Nodes::Union(inner) => {
+                for each in inner {
+                    if !seen.contains(&each) {
+                        seen.push(each);
+                    }
+                }
+            }
+            other => {
+                if !seen.contains(&other) {
+                    seen.push(other);
+                }
+            }
+        }
+    }
+    if seen.len() == 1 { seen.pop().unwrap() } else { Nodes::Union(seen) }
+}
+
+impl Nodes {
+    /// The file-local steps whose rows this set is read from.
+    pub(in super::super::super) fn steps(&self, out: &mut Vec<usize>) {
+        match self {
+            Self::Column { step, .. } => out.push(*step),
+            Self::Children(inner) | Self::Below(inner) | Self::Above(inner) => inner.steps(out),
+            Self::Union(parts) => parts.iter().for_each(|part| part.steps(out)),
+        }
+    }
+}
+
+fn ancestor_direction(direction: &str) -> Option<bool> {
+    match direction {
+        "ancestor" | "nearest-ancestor" | "parent" => Some(true),
+        "descendant" | "child" => Some(false),
+        _ => None,
+    }
+}
+
+/// A superset of the node values a closed step's column can hold, read from
+/// file-local steps: every output cell is copied or looked up from one of them.
+fn origin(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    local: &[bool],
+    step: usize,
+    col: usize,
+    depth: usize,
+) -> Option<Nodes> {
+    if depth == 0 || exec.schema(run, step).ok()?.tys.get(col) != Some(&Ty::Node) {
+        return None;
+    }
+    if local[step] {
+        return Some(Nodes::Column { step, column: col, tests: Vec::new() });
+    }
+    let plan = exec.plan;
+    let node = &plan.nodes[step];
+    match node.op() {
+        "select" => {
+            let sel = exec.sel(run, step).ok()?;
+            let E::Col(side, c, Ty::Node) = &sel.items.get(col)?.1 else {
+                return None;
+            };
+            let (side, c) = (*side, *c);
+            let src = sel.srcs[side];
+            if !local[src] {
+                return origin(exec, run, local, src, c, depth - 1);
+            }
+            if native_child(exec, run, src) {
+                // A child looked up by an equality on its parent.
+                if c != 1 {
+                    return None;
+                }
+                for term in &sel.conj {
+                    let E::Cmp(Op::Eq, a, b) = term else { continue };
+                    let (E::Col(x, px, Ty::Node), E::Col(y, k, Ty::Node)) = (&**a, &**b) else { continue };
+                    let (other, key) = if *x == side && *px == 0 && *y != side {
+                        (*y, *k)
+                    } else if *y == side && *k == 0 && *x != side {
+                        (*x, *px)
+                    } else {
+                        continue;
+                    };
+                    let inner = origin(exec, run, local, sel.srcs[other], key, depth - 1)?;
+                    return Some(Nodes::Children(Box::new(inner)));
+                }
+                return None;
+            }
+            let mut tests = Vec::new();
+            for term in &sel.conj {
+                let E::Cmp(Op::Eq, a, b) = term else { continue };
+                match (&**a, &**b) {
+                    (E::Col(x, tc, Ty::Sym), E::Text(l)) | (E::Text(l), E::Col(x, tc, Ty::Sym)) if *x == side => {
+                        tests.push((*tc, run.texts[*l as usize].to_vec()));
+                    }
+                    _ => {}
+                }
+            }
+            Some(Nodes::Column { step: src, column: c, tests })
+        }
+        "union" => {
+            let (left, right) = (exec.arg_rel(step, "left").ok()?, exec.arg_rel(step, "right").ok()?);
+            if exec.schema(run, left).ok()?.names != exec.schema(run, right).ok()?.names {
+                return None;
+            }
+            Some(union(vec![
+                origin(exec, run, local, left, col, depth - 1)?,
+                origin(exec, run, local, right, col, depth - 1)?,
+            ]))
+        }
+        "antijoin" => {
+            let left = exec.arg_rel(step, "left").ok()?;
+            origin(exec, run, local, left, col, depth - 1)
+        }
+        "project" => {
+            let from = exec.arg_rel(step, "from").ok()?;
+            let name = super::super::strs(&node.args()["columns"]).ok()?.nth(col)?;
+            let at = super::super::pos(&exec.schema(run, from).ok()?.names, name).ok()?;
+            origin(exec, run, local, from, at, depth - 1)
+        }
+        "extend" => {
+            let from = exec.arg_rel(step, "from").ok()?;
+            if col >= exec.schema(run, from).ok()?.names.len() {
+                return None;
+            }
+            origin(exec, run, local, from, col, depth - 1)
+        }
+        "axis" => {
+            let from = exec.arg_rel(step, "from").ok()?;
+            if col < exec.schema(run, from).ok()?.names.len() {
+                return origin(exec, run, local, from, col, depth - 1);
+            }
+            let relation = exec.arg_rel(step, "relation").ok()?;
+            let id = super::super::pos(&exec.schema(run, from).ok()?.names, "id").ok()?;
+            let reach = origin(exec, run, local, from, id, depth - 1)?;
+            if !native_child(exec, run, relation) {
+                return None;
+            }
+            Some(if ancestor_direction(super::super::s(&node.args()["direction"]).ok()?)? {
+                Nodes::Above(Box::new(reach))
+            } else {
+                Nodes::Below(Box::new(reach))
+            })
+        }
+        _ => None,
+    }
+}
+
+/// A source read only as the start rows or the domain of axes along the
+/// native hierarchy needs only the nodes on the reachable side of the
+/// other operand: a row no such node can relate gives the axis no output row.
 pub(in super::super::super) fn reach_domains(
     exec: &mut Exec<'_>,
     run: &mut Run,
     local: &[bool],
     reached: &[bool],
     inputs: &BTreeSet<usize>,
-) -> BTreeMap<usize, Reach> {
+) -> BTreeMap<usize, Nodes> {
     let mut found = BTreeMap::new();
     for &source in inputs {
         if exec.plan.emits.iter().any(|e| e.1 == source) {
             continue;
         }
-        let mut common = None;
+        let mut parts = Vec::new();
         let bounded = exec.plan.consumers(source).iter().copied()
             .filter(|&reader| reached[reader] && !local[reader])
             .all(|reader| {
                 let step = &exec.plan.nodes[reader];
-                if step.op() != "axis"
-                    || exec.arg_rel(reader, "from") != Ok(source)
-                    || step.inputs.iter().filter(|&&i| i == source).count() != 1
-                {
+                if step.op() != "axis" || step.inputs.iter().filter(|&&i| i == source).count() != 1 {
                     return false;
                 }
-                let below = match super::super::s(&step.args()["direction"]) {
-                    Ok("ancestor" | "nearest-ancestor" | "parent") => true,
-                    Ok("descendant" | "child") => false,
-                    _ => return false,
+                let (Ok(from), Ok(domain), Ok(relation)) = (
+                    exec.arg_rel(reader, "from"),
+                    exec.arg_rel(reader, "domain"),
+                    exec.arg_rel(reader, "relation"),
+                ) else {
+                    return false;
                 };
-                let (Ok(domain), Ok(relation)) =
-                    (exec.arg_rel(reader, "domain"), exec.arg_rel(reader, "relation"))
+                let Some(ancestors) = super::super::s(&step.args()["direction"]).ok().and_then(ancestor_direction)
                 else {
                     return false;
                 };
-                local[domain]
-                    && native_child(exec, run, relation)
-                    && exec.schema(run, domain).ok().is_some_and(|schema| {
-                        super::super::pos(&schema.names, "id")
-                            .is_ok_and(|id| schema.tys[id] == Ty::Node)
-                    })
-                    && *common.get_or_insert(Reach { domain, below }) == (Reach { domain, below })
+                if !native_child(exec, run, relation) || (from != source && domain != source) {
+                    return false;
+                }
+                let start = from == source;
+                let other = if start { domain } else { from };
+                let Some(id) = exec.schema(run, other).ok()
+                    .and_then(|schema| super::super::pos(&schema.names, "id").ok())
+                else {
+                    return false;
+                };
+                let Some(base) = origin(exec, run, local, other, id, 32) else {
+                    return false;
+                };
+                parts.push(if start == ancestors { Nodes::Below(Box::new(base)) } else { Nodes::Above(Box::new(base)) });
+                true
             });
-        if bounded && let Some(reach) = common {
-            found.insert(source, reach);
+        if bounded && !parts.is_empty() {
+            found.insert(source, union(parts));
         }
     }
     found
 }
 
-/// The file's nodes on the demanded side of the domain nodes, ascending.
+/// The file's nodes on one side of the given nodes, strictly, ascending.
 pub(super) fn reach_nodes(
     run: &Run,
     file: &mut File<'_>,
-    domain: &[u32],
+    from: &[u32],
     below: bool,
 ) -> Vec<u32> {
     let mut seen = rustc_hash::FxHashSet::default();
-    let mut pending: Vec<u32> = domain.to_vec();
+    let mut pending: Vec<u32> = from.to_vec();
     let mut children = Vec::new();
     while let Some(node) = pending.pop() {
         if below {
@@ -218,6 +377,55 @@ pub(super) fn reach_nodes(
     let mut nodes: Vec<_> = seen.into_iter().collect();
     nodes.sort_unstable();
     nodes
+}
+
+/// Evaluate a demanded node set in this file: ascending and distinct.
+pub(super) fn nodes_of(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    file: &mut File<'_>,
+    facts: &mut dyn Provider,
+    slots: &[usize],
+    nodes: &Nodes,
+) -> R<Vec<u32>> {
+    let mut out: Vec<u32> = match nodes {
+        Nodes::Column { step, column, tests } => {
+            let table = exec.eval(file, run, facts, slots[*step])?;
+            let words: Vec<(usize, u64)> = tests.iter().map(|(c, text)| (*c, u64::from(run.sym(text)))).collect();
+            (0..table.n)
+                .filter(|&r| words.iter().all(|&(c, w)| table.cols[c][r] == w))
+                .map(|r| table.cols[*column][r])
+                .filter(|&node| node < file.n as u64)
+                .map(|node| node as u32)
+                .collect()
+        }
+        Nodes::Children(inner) => {
+            let parents = nodes_of(exec, run, file, facts, slots, inner)?;
+            let mut rows = Vec::new();
+            for parent in parents {
+                file.native_probe(run, Native::Child, 0, u64::from(parent), &mut rows);
+            }
+            rows
+        }
+        Nodes::Below(inner) => {
+            let from = nodes_of(exec, run, file, facts, slots, inner)?;
+            reach_nodes(run, file, &from, true)
+        }
+        Nodes::Above(inner) => {
+            let from = nodes_of(exec, run, file, facts, slots, inner)?;
+            reach_nodes(run, file, &from, false)
+        }
+        Nodes::Union(parts) => {
+            let mut all = Vec::new();
+            for part in parts {
+                all.extend(nodes_of(exec, run, file, facts, slots, part)?);
+            }
+            all
+        }
+    };
+    out.sort_unstable();
+    out.dedup();
+    Ok(out)
 }
 
 fn native_child(exec: &Exec<'_>, run: &Run, source: usize) -> bool {
@@ -270,21 +478,22 @@ pub(super) fn ancestor_edges(
     Ok(Some(Rc::new(edges)))
 }
 
-/// A closed equality reads a source only at keys its file-local driver holds:
-/// the source column carrying the key, the driver step and the driver's column.
+/// A closed equality reads a source only at keys its file-local drivers can
+/// hold: the source column carrying the key and the nodes those keys come from.
 pub(in super::super::super) fn domains(
     exec: &mut Exec<'_>,
     run: &mut Run,
     local: &[bool],
     inputs: &BTreeSet<usize>,
-) -> BTreeMap<usize, (usize, usize, usize)> {
+) -> BTreeMap<usize, (usize, Nodes)> {
     let mut found = BTreeMap::new();
     for &source in inputs {
         if exec.plan.emits.iter().any(|e| e.1 == source) {
             continue;
         }
         let uses = exec.plan.consumers(source);
-        let mut binding = None;
+        let mut binding: Option<usize> = None;
+        let mut parts = Vec::new();
         let bounded = uses.iter().copied().filter(|&u| !local[u]).all(|u| {
             if exec.plan.nodes[u].op() != "select" {
                 return false;
@@ -315,28 +524,16 @@ pub(in super::super::super) fn domains(
                     return None;
                 }
                 let (col, driver) = if *x == side { (*i, *j) } else { (*j, *i) };
-                let schema = exec.schema(run, other).ok()?;
-                let (domain, held) = if local[other] && schema.tys[driver] == Ty::Node {
-                    (other, driver)
-                } else if exec.plan.nodes[other].op() == "axis"
-                    && driver + 1 == schema.names.len()
-                    && schema.names[driver] == "related"
-                {
-                    let domain = exec.arg_rel(other, "domain").ok()?;
-                    let held = super::super::pos(&exec.schema(run, domain).ok()?.names, "id").ok()?;
-                    (domain, held)
-                } else {
-                    return None;
-                };
-                if !local[domain] || exec.schema(run, domain).ok()?.tys[held] != Ty::Node {
-                    return None;
-                }
-                Some((col, domain, held))
+                Some((col, origin(exec, run, local, other, driver, 32)?))
             });
-            key.is_some_and(|k| *binding.get_or_insert(k) == k)
+            let Some((col, nodes)) = key else {
+                return false;
+            };
+            parts.push(nodes);
+            *binding.get_or_insert(col) == col
         });
-        if bounded && let Some(key) = binding {
-            found.insert(source, key);
+        if bounded && let Some(col) = binding {
+            found.insert(source, (col, union(parts)));
         }
     }
     found

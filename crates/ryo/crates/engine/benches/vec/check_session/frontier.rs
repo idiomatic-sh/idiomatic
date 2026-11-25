@@ -34,7 +34,9 @@ impl<'a> FileInputs<'a> {
             let b = bound[&binding].as_ref().expect("active binding");
             let plan = &programs[program_of[binding]].as_ref().unwrap().plan;
             for (&node, columns) in &cut.columns {
-                if cut.ancestor_domains.contains_key(&node) {
+                if cut.ancestor_domains.contains_key(&node)
+                    || b.projections.get(&node).is_some_and(|p| p.needs_domain())
+                {
                     continue;
                 }
                 let Some(name) = plan.nodes[node].base() else {
@@ -76,7 +78,9 @@ impl<'a> FileInputs<'a> {
         let nodes = &plan.nodes;
         let hosted = &b.hosted;
         let shared_base = |n: usize| {
-            if cut.ancestor_domains.contains_key(&n) {
+            if cut.ancestor_domains.contains_key(&n)
+                || b.projections.get(&n).is_some_and(|p| p.needs_domain())
+            {
                 return None;
             }
             nodes[n]
