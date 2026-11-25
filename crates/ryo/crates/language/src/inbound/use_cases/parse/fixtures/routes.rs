@@ -215,15 +215,31 @@ fn symbol_bits(words: &FileWords, symbols: &mut Symbols, source: ByteSlice<'_>, 
     u64::from(intern_derived(symbols, source, NameText(spelled)).0)
 }
 
+/// The rows only one route wrote, up to three of each, and the counts.
 fn first_difference(old: &[&[Want]], new: &[&[Want]]) -> Option<String> {
-    for (at, (a, b)) in old.iter().zip(new).enumerate() {
-        if a != b {
-            return Some(format!("row {at} differs: old {a:?}, fill {b:?} ({} old rows, {} filled)", old.len(), new.len()));
+    let mut held: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    for row in old {
+        *held.entry(format!("{row:?}")).or_default() += 1;
+    }
+    let mut only_new = Vec::new();
+    for row in new {
+        let shown = format!("{row:?}");
+        match held.get_mut(&shown) {
+            Some(count) if *count > 0 => *count -= 1,
+            _ => only_new.push(shown),
         }
     }
-    match old.len().cmp(&new.len()) {
-        std::cmp::Ordering::Equal => None,
-        std::cmp::Ordering::Less => Some(format!("{} old rows, {} filled; first extra fill row {:?}", old.len(), new.len(), new[old.len()])),
-        std::cmp::Ordering::Greater => Some(format!("{} old rows, {} filled; first missing fill row {:?}", old.len(), new.len(), old[new.len()])),
+    let only_old: Vec<_> = held.into_iter().flat_map(|(row, count)| std::iter::repeat_n(row, usize::try_from(count).unwrap_or(0))).collect();
+    if only_old.is_empty() && only_new.is_empty() {
+        return None;
     }
+    Some(format!(
+        "{} old rows, {} filled; {} only in old, e.g. {:?}; {} only in fill, e.g. {:?}",
+        old.len(),
+        new.len(),
+        only_old.len(),
+        &only_old[..only_old.len().min(3)],
+        only_new.len(),
+        &only_new[..only_new.len().min(3)]
+    ))
 }
