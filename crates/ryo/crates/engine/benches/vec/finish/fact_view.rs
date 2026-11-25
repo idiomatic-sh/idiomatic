@@ -113,6 +113,7 @@ impl<'a> Columns<'a> {
             Self::Owned(c) => return c[column][row],
             Self::Lent(_, _, _, _, _, cache) | Self::Rows(_, _, _, _, _, cache) => cache,
         };
+        if crate::ablation::off("COLUMN_CACHE") { return self.raw(column).at(row); }
         if let Some(cells) = cache.cells[column].get() {
             return cells[row];
         }
@@ -170,7 +171,7 @@ impl<'a> Columns<'a> {
 
 /// The column itself, or its translation once it has been asked for about as often as it has rows.
 fn cached<'a>(cache: &'a ColumnCache, column: usize, lent: Column<'a>) -> Column<'a> {
-    if !matches!(lent, Column::Nodes(_) | Column::Words(..) | Column::RowNodes(..) | Column::RowWords(..)) {
+    if crate::ablation::off("COLUMN_CACHE") || !matches!(lent, Column::Nodes(_) | Column::Words(..) | Column::RowNodes(..) | Column::RowWords(..)) {
         return lent;
     }
     if let Some(cells) = cache.cells[column].get() {

@@ -110,7 +110,7 @@ impl Pattern {
             .get_or_init(|| {
                 INITIALIZED.fetch_add(1, Ordering::Relaxed);
                 let key = (self.globs.is_some(), self.text.clone());
-                if let Some(known) = PREPARED.with(|prepared| prepared.borrow().get(&key).cloned()) {
+                if !crate::ablation::off("MATCHER_CACHE") && let Some(known) = PREPARED.with(|prepared| prepared.borrow().get(&key).cloned()) {
                     return known;
                 }
                 BUILT.fetch_add(1, Ordering::Relaxed);

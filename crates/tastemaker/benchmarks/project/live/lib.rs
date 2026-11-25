@@ -4,6 +4,8 @@
     reason = "shared benchmark modules also expose separate diagnostic entry points"
 )]
 extern crate ryo_sdk as ryo;
+#[path = "../../../../ryo/crates/engine/benches/vec/ablation.rs"]
+mod ablation;
 #[path = "../../../../ryo/crates/engine/benches/vec/alloc_count.rs"]
 mod alloc_count;
 #[path = "../../../../ryo/crates/engine/benches/vec/finish.rs"]

@@ -197,8 +197,9 @@ impl Checks {
         self.selected.fill(0);
         self.locatable.fill(0);
         self.exact.clear();
+        if crate::ablation::off("SCREEN_ALL") { return; }
         let mut any = false;
-        let can_locate = text.is_some() && partials.is_empty();
+        let can_locate = text.is_some() && partials.is_empty() && !crate::ablation::off("EXACT_MASKS");
         let mut locate = false;
         for &(binding, _, excluded) in active.iter() {
             let index = positions[binding];

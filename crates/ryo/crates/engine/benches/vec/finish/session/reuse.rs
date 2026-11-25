@@ -19,7 +19,7 @@ pub(crate) struct Reuse {
 
 impl Reuse {
     pub(crate) fn new(requests: usize) -> Self {
-        Self { enabled: requests > 1, ..Self::default() }
+        Self { enabled: requests > 1 && !crate::ablation::off("CLOSED_STEP_MEMO"), ..Self::default() }
     }
     pub(super) fn get(&mut self, node: usize, deps: u8, mut scope: [usize; 3]) -> Option<Rc<Table>> {
         if deps & VARIABLE != 0 { return None; }
