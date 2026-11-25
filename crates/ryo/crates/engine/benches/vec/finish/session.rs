@@ -45,6 +45,7 @@ pub(in super::super) fn evaluate_covered(
     mut memo: Option<(&mut reuse::Reuse, [usize; 3])>,
 ) -> R<Vec<answer::Row>> {
     let plan = exec.plan;
+    let setting_up = super::operators::enter(usize::MAX - 10, 0);
     // A supplied step has a consumer outside this operator chain. Optimizations
     // may read its materialization, but cannot substitute the inputs beneath it.
     if carried.keys().any(|node| !exec.emitted.contains(node)) {
@@ -228,6 +229,10 @@ pub(in super::super) fn evaluate_covered(
         exec.closed_checked = Some((carried_steps, demanded.clone()));
     }
     super::subject_scope::restrict(exec,run,carried,&admit_file_subject)?;
+    if let Some(start) = setting_up {
+        super::operators::leave(start, "cover-setup", 0, true);
+    }
+    let framing = super::operators::enter(usize::MAX - 11, 0);
     let scratch = NodeTable::default();
     let version = FileVersion::new(&scratch, &[], u32::MAX, None);
     let mut frame = File::new(&version, plan.nodes.len());
@@ -245,6 +250,10 @@ pub(in super::super) fn evaluate_covered(
     if !incomplete.is_empty() {
         restrict_uncertain(exec, run, provider, &mut frame, &demanded, incomplete)?;
     }
+    if let Some(start) = framing {
+        super::operators::leave(start, "cover-frame", 0, true);
+    }
+    let publishing = super::operators::enter(usize::MAX - 12, 0);
     let mut rows = Vec::new();
     for (emit, (rule, node, subject, keys)) in plan.emits.iter().enumerate() {
         let t = if complete && zero[*node] && frame.memo[*node].is_none() {
@@ -265,6 +274,9 @@ pub(in super::super) fn evaluate_covered(
                 _ => Ok(true),
             }
         })?;
+    }
+    if let Some(start) = publishing {
+        super::operators::leave(start, "cover-publish", rows.len(), true);
     }
     if let Some((memo, scope)) = memo {
         memo.remember(&deps, scope, &frame.memo);

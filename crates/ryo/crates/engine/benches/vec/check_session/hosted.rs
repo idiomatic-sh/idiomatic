@@ -147,7 +147,12 @@ fn execute_ids(
     if subject_files.len() != admitted.len() {
         return Err("duplicate admitted path".into());
     }
-    let tables = bind_tables(hosted, run, number)?;
+    let binding = finish::operators::enter(usize::MAX - 13, 0);
+    let tables = bind_tables(hosted, run, number);
+    if let Some(start) = binding {
+        finish::operators::leave(start, "ids-bind-tables", 0, true);
+    }
+    let tables = tables?;
     let mut snapshot = Snapshot {
         tables,
         project,
