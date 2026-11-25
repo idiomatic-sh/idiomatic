@@ -242,9 +242,12 @@ impl<P: Send + Sync + 'static> Fillers for RustWalk<P> {
         crate::outbound::notes::factory::postcard().write(&crate::domain::fact_extraction::service::note_of(&tree), out);
     }
 
-    /// A token carries its text as its word.
+    /// A token carries its text as its word, as the old table's text column holds it: an `error` element is a node the parser wraps
+    /// around what it could not read, and the old table gives it no text.
     fn spells(kind: languages::KindBits) -> bool {
-        matches!(crate::domain::syntax::service::kind_of(kind), crate::domain::syntax::types::Kind::Token(_))
+        use crate::domain::syntax::types::Kind;
+        use crate::domain::tokens::types::Token;
+        matches!(crate::domain::syntax::service::kind_of(kind), Kind::Token(token) if token != Token::Error)
     }
 
     /// Rust renders no node: the language answers every request with what it cannot prove.
