@@ -24,6 +24,12 @@ def check(executor, shipping):
             'emit ok subject "dst" key("origin");')
     count = ('let c = group-count(from="ctx.edges",keys=["dst"],count="n",distinct="src"); '
              'emit c subject "dst" key("dst");')
+    stamps = table("ctx.stamps", [["dst", "File"], ["stamp", "Number"]],
+                   [[file(paths[2]), 5], [file(paths[2]), 2], [file(paths[0]), 9]])
+    least = ('let m = group-min(from="ctx.stamps",keys=["dst"],order="stamp"); '
+             'emit m subject "dst" key("stamp");')
+    greatest = ('let m = group-max(from="ctx.stamps",keys=["dst"],order="stamp"); '
+                'emit m subject "dst" key("stamp");')
     host = 'let x = select * from "ctx.number"; emit x subject "id" key("id");'
     files = 'let x = select * from "filesystem.file" where glob_any(path, "*.toml"); emit x subject "path" key("path");'
     empty = table("ctx.block", block["columns"], [])
@@ -33,6 +39,8 @@ def check(executor, shipping):
         ("excluded-subject", join, paths, [edges, block], 0),
         ("excluded-nonsubject", 'let a = select * from "ctx.edges"; emit a subject "src" key("src");', paths, [edges], 1),
         ("per-row-file-filter", files, paths, [], 1),
+        ("least-across-files", least, paths, [stamps], 2),
+        ("greatest-across-files", greatest, paths, [stamps], 2),
         ("out-of-inventory", count, paths[:2], [edges], 0),
         ("zero-file-positive", host, [], [table("ctx.number", [["id", "Number"]], [[7]])], 1),
         ("same-text-changed-schema", host, [], [table("ctx.number", [["tag", "Text"], ["id", "Number"]], [["example", 7]])], 1),
