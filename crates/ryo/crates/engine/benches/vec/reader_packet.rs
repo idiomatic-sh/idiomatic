@@ -338,7 +338,11 @@ impl Packet {
             lazy.failed.set(true);
             return None;
         };
-        if !matches!(table.answer, l::FactAnswer::Answered(_)) {
+        // The same outcome as the fill up front (`fill_numbered`): a relation the language does not have, answered `Refused` with its
+        // cause, is the relation's absence (the table keeps its answer and `bind` finds no facts); only an answer the late fill
+        // cannot report (a partial one, or a relation with no filler at all) fails the request, for the file's partial coverage is
+        // taken before any step runs.
+        if matches!(table.answer, l::FactAnswer::Partial(_) | l::FactAnswer::Refused(l::AbsenceCause::NotYetRead)) {
             lazy.failed.set(true);
         }
         let _ = self.local[slot].set(table);
