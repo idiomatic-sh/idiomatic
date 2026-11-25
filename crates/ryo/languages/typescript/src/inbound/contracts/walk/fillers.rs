@@ -227,7 +227,7 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
     }
 
     fn spells(kind: KindBits) -> bool {
-        matches!(crate::domain::syntax::service::kind_of(kind), crate::domain::syntax::types::Kind::Token(_))
+        matches!(crate::domain::syntax::service::kind_of(kind), crate::domain::syntax::types::Kind::Token(_) | crate::domain::syntax::types::Kind::Extra(_))
     }
 
 
