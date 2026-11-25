@@ -148,9 +148,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map_err(|_| "one request requires one answer")?;
     tm_project_session::print_measurement();
     let report = answer?;
-    if !report.unknowns.is_empty() || !report.unread.is_empty() {
-        return Err(format!("unknowns {:?}, unread {:?}", report.unknowns, report.unread).into());
-    }
     let mut findings = Vec::new();
     for row in report.findings {
         let get = |name: &str| {
@@ -187,5 +184,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         writer.write_all(b"\n")?;
     }
     writer.flush()?;
+    // A partial report still contains established findings. Preserve them for
+    // the stream comparison while returning a failure to the receipt gate.
+    if !report.unknowns.is_empty() || !report.unread.is_empty() {
+        return Err(format!("{} unknowns {:?}, {} unread {:?}",
+            report.unknowns.len(), report.unknowns, report.unread.len(), report.unread).into());
+    }
     Ok(())
 }
