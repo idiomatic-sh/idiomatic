@@ -3253,7 +3253,7 @@ impl<'p> Exec<'p> {
                 }
                 "descendant" | "child" => {
                     if let Hier::Tree(extent) = hier && (x as usize) < f.limit(extent)
-                        && (dir == "child" || extent == Extent::Own || node_table::node_count(f.table).0 == f.n)
+                        && (dir == "child" || node_table::node_count(f.table).0 == f.n)
                     {
                         let limit = f.limit(extent) as u32;
                         if dir == "child" {
