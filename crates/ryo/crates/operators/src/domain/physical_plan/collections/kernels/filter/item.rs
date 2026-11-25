@@ -153,7 +153,7 @@ fn holds_from(
 /// # Errors
 ///
 /// As `keep`.
-#[expect(clippy::too_many_arguments, reason = "spike (ryo-fmx3): keep's arguments plus the columns and the row")]
+#[expect(clippy::too_many_arguments, reason = "spike: keep's arguments plus the columns and the row")]
 pub(crate) fn keep_facts(
     filter: FilterKernel<'_>,
     matcher: PatternMatcher<'_>,
