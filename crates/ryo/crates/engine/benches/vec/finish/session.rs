@@ -417,6 +417,48 @@ pub(in super::super) fn pair(
     Ok(rows)
 }
 
+/// Once the pair has run successfully, an incomplete input is immaterial if
+/// every emit requires a row from an independently complete, empty input.
+/// Consume the same necessary-input edges used by the execution frame.
+pub(crate) fn covered_empty(
+    exec: &mut Exec<'_>, frame: &mut File<'_>, run: &mut Run, facts: &mut dyn Provider,
+    plan: &super::Plan, slots: &[usize], complete: impl Fn(&str) -> Option<usize>,
+) -> bool {
+    let mut empty = vec![false; exec.plan.nodes.len()];
+    let mut known = vec![false; empty.len()];
+    for (step, &slot) in plan.nodes.iter().zip(slots) {
+        if let Some(name) = step.base() {
+            if let Some(count) = complete(name) {
+                known[slot] = true;
+                empty[slot] = count == 0;
+            }
+            continue;
+        }
+        let need = exec.need(run, slot);
+        if !need.never && !need.inputs.is_empty() {
+            empty[slot] = if need.all {
+                need.inputs.iter().all(|&i| empty[i])
+            } else {
+                need.inputs.iter().any(|&i| empty[i])
+            };
+        }
+        // These relational operators depend only on their inputs. Use their
+        // actual evaluated rows, including filters over a complete named base.
+        if !empty[slot] && matches!(step.op.as_str(), "select" | "project")
+            && !step.inputs.is_empty() && step.inputs.iter().all(|&i| known[slots[i]])
+        {
+            known[slot] = true;
+            if let Ok(table) = exec.eval(frame, run, facts, slot) {
+                empty[slot] = table.n == 0;
+            } else {
+                return false;
+            }
+        }
+        known[slot] |= empty[slot];
+    }
+    !plan.emits.is_empty() && plan.emits.iter().all(|emit| empty[slots[emit.1]])
+}
+
 /// Publish an emit identically whether its table came from evaluation or a complete
 /// location proof. Deduplication is confined to that emit in that file.
 pub(in super::super) fn publish_table(

@@ -1422,6 +1422,13 @@ pub(crate) fn visit<L: FileSource>(
                     continue;
                 }
                 let value = finish::session::pair(&mut exec, current, &mut run, &mut facts_view, b.plan, binding, &b.slots, &local_coverage);
+                if !unknowns.is_empty() && value.as_ref().is_ok_and(|rows| rows.is_empty())
+                    && finish::session::covered_empty(&mut exec, current, &mut run, &mut facts_view, b.plan, &b.slots, |name| {
+                        (!named_partials.contains_key(name)).then(|| named_tables.iter().find(|(n, _)| n == name).map(|(_, t)| t.n)).flatten()
+                    })
+                {
+                    unknowns.clear();
+                }
                 if value.is_err() { frame = None; exec.release_request(); }
                 let answer = value
                 .map(|rows| Reported::new(rows, unknowns, Vec::new())).and_then(&mut locate);
