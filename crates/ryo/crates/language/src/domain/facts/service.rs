@@ -178,6 +178,18 @@ pub fn base_count(words: &FileWords) -> CellWord {
 
 /// Remember the immutable base dictionary of this file. A change invalidates
 /// positions translated from the previous base, including a base of the same length.
+///
+/// ```
+/// use ryo_language::domain::facts::service::{base_changed, base_words, file_words};
+/// use ryo_relations::domain::terms::types::NameText;
+///
+/// let a = base_words(Default::default(), &[NameText("a")]);
+/// let b = base_words(Default::default(), &[NameText("b")]);
+/// let mut previous = None;
+/// assert!(base_changed(&file_words(&a), &mut previous));
+/// assert!(!base_changed(&file_words(&a), &mut previous));
+/// assert!(base_changed(&file_words(&b), &mut previous));
+/// ```
 pub fn base_changed(words: &FileWords, previous: &mut Option<BaseWords>) -> bool {
     if previous.as_ref().is_some_and(|base| Arc::ptr_eq(&base.0, &words.0.base.0)) {
         return false;
