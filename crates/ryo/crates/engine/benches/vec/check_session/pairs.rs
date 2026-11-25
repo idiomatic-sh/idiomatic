@@ -274,6 +274,7 @@ impl Checks {
                     patterns: Some(patterns),
                     column: Some(&column),
                 }),
+                crate::pair_checks::ReservedWords { names: unknown, texts: &run.texts },
                 &mut self.words,
                 |source, words, out| {
                     let FactSource::Catalog(rel) = source else {
@@ -281,7 +282,7 @@ impl Checks {
                     };
                     requested.contains(&rel)
                         && !partials.iter().any(|p| p.relation == rel)
-                        && packet.columns(rel, symbols, bytes, id, local_words, words, out)
+                        && packet.columns(rel, symbols, bytes, id, local_words, unknown, words, out)
                 },
                 &mut self.live,
                 &self.known,

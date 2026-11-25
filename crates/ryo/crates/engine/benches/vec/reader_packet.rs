@@ -273,6 +273,7 @@ impl Packet {
         bytes: &[u8],
         id: l::FileId,
         local_words: Option<&FileWords>,
+        unknown: &std::collections::HashMap<u32, u32>,
         words: &mut FileWords,
         out: &mut FilledColumns,
     ) -> bool {
@@ -282,6 +283,8 @@ impl Packet {
         {
             return false;
         }
+        let reserved = |raw: u64| raw == u64::from(l::NO_SYMBOL.0)
+            || u32::try_from(raw).is_ok_and(|code| unknown.contains_key(&code));
         let starts = &self.offsets[catalog::number_of(relation).0];
         let kinds = catalog::kinds(relation);
         out.0.resize_with(kinds.len(), Default::default);
@@ -299,7 +302,7 @@ impl Packet {
                             Ok(local) => CellWord(local),
                             Err(_) => return false,
                         },
-                        CellKind::Symbol if raw.0 == u64::from(l::NO_SYMBOL.0) => raw,
+                        CellKind::Symbol if reserved(raw.0) => raw,
                         CellKind::Symbol => {
                             let Some(text) = loan.text(raw) else { return false };
                             l::facts::intern(words, text)
@@ -322,7 +325,7 @@ impl Packet {
                 }
                 CellKind::Symbol => {
                     for raw in cells {
-                        if raw == u64::from(l::NO_SYMBOL.0) {
+                        if reserved(raw) {
                             column.0.push(CellWord(raw));
                             continue;
                         }

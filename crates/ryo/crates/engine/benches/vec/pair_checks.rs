@@ -150,6 +150,25 @@ impl<'a> SyntaxText<'a> {
         &self.symbols[self.ids[index] as usize]
     }
 }
+/// Reserved values have an identity distinct from query literals. Text operations
+/// use the same declared spelling that the evaluator presents for those values.
+#[derive(Clone, Copy)]
+pub(super) struct ReservedWords<'a> {
+    pub names: &'a std::collections::HashMap<u32, u32>,
+    pub texts: &'a [Rc<[u8]>],
+}
+
+impl ReservedWords<'_> {
+    fn text<'a>(&'a self, words: &'a FileWords, value: CellWord) -> &'a [u8] {
+        if let Ok(raw) = u32::try_from(value.0)
+            && let Some(&id) = self.names.get(&raw)
+        {
+            return &self.texts[id as usize];
+        }
+        languages::facts::text(words, value).0.as_bytes()
+    }
+}
+
 type Reader<'a> = dyn FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool + 'a;
 
 #[derive(Default)]
@@ -292,7 +311,9 @@ impl<'a> FactSymbols<'a> {
 
     fn id(&mut self, cell: CellWord) -> Option<Id> {
         // Missing text renders as empty bytes, but has a distinct symbol identity.
-        if cell.0 == u64::from(languages::NO_SYMBOL.0) {
+        if cell.0 == u64::from(languages::NO_SYMBOL.0)
+            || u32::try_from(cell.0).ok().and_then(|raw| ryo_relations::domain::terms::service::unknown_reason(languages::Symbol(raw))).is_some()
+        {
             return None;
         }
         let Some(symbol) = usize::try_from(cell.0).ok().and_then(|word| self.ids.get_mut(word)) else {
@@ -323,6 +344,7 @@ struct File<'a, const PROFILE: bool> {
     t: &'a NodeTable,
     src: &'a [u8],
     syntax_text: Option<SyntaxText<'a>>,
+    reserved: ReservedWords<'a>,
     path: Option<&'a [u8]>,
     read: &'a mut Reader<'a>,
     words: &'a mut FileWords,
@@ -1001,7 +1023,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                             .flat_map(|c| c.0.iter())
                             .enumerate()
                             .filter_map(|(i, cell)| {
-                                let text = languages::facts::text(self.words, *cell).0.as_bytes();
+                                let text = self.reserved.text(self.words, *cell);
                                 text.windows(delimiter.len())
                                     .enumerate()
                                     .any(|(p, w)| {
@@ -1072,7 +1094,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                     self.src.get(span).is_some_and(|text| regex.is_match(text))
                                 } else {
                                     regex.is_match(
-                                        languages::facts::text(self.words, *cell).0.as_bytes(),
+                                        self.reserved.text(self.words, *cell),
                                     )
                                 };
                                 (yes != negative)
@@ -1149,6 +1171,7 @@ impl Program {
         src: &[u8],
         path: &[u8],
         syntax_text: Option<SyntaxText<'_>>,
+        reserved: ReservedWords<'_>,
         words: &mut FileWords,
         read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
@@ -1165,9 +1188,9 @@ impl Program {
         }
         #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            return self.evaluate::<true>(t, src, Some(path), syntax_text, words, read, alive, exact, known, selected, atoms);
+            return self.evaluate::<true>(t, src, Some(path), syntax_text, reserved, words, read, alive, exact, known, selected, atoms);
         }
-        self.evaluate::<false>(t, src, Some(path), syntax_text, words, read, alive, exact, known, selected, atoms)
+        self.evaluate::<false>(t, src, Some(path), syntax_text, reserved, words, read, alive, exact, known, selected, atoms)
     }
 
     fn evaluate<const PROFILE: bool>(
@@ -1176,6 +1199,7 @@ impl Program {
         src: &[u8],
         path: Option<&[u8]>,
         syntax_text: Option<SyntaxText<'_>>,
+        reserved: ReservedWords<'_>,
         words: &mut FileWords,
         mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
@@ -1232,6 +1256,7 @@ impl Program {
             t,
             src,
             syntax_text,
+            reserved,
             path,
             read: &mut observe,
             words,
