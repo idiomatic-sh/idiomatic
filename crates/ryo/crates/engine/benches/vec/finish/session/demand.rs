@@ -1,6 +1,8 @@
 //! A closed equality can get its node keys from a file-local posting. For an
 //! axis, every returned "related" node belongs to the axis's declared domain.
-use super::super::{E, Exec, File, Native, Op, Position, Provider, R, Run, Table, Ty, node_table};
+use super::super::{
+    E, Exec, File, Native, Op, Position, Provider, R, Run, Supplier, Table, Ty, native_of, node_table,
+};
 use std::{collections::{BTreeMap, BTreeSet}, rc::Rc};
 
 /// Class numbers describe an equivalence within one invocation. Splitting the
@@ -97,9 +99,9 @@ pub(in super::super::super) fn ancestor_domains(
 ) -> BTreeMap<usize, usize> {
     let mut domains = BTreeMap::new();
     for &source in inputs {
-        if exec.plan.nodes[source].base().is_none()
-            || exec.plan.emits.iter().any(|e| e.1 == source)
-            || !exec.view(run, source).ok().flatten().is_some_and(|v| v.base == Native::Child)
+        // The preparation executor has disabled all its views so that File
+        // equalities survive. Discover the native base without a view lookup.
+        if !native_child(exec, run, source) || exec.plan.emits.iter().any(|e| e.1 == source)
         {
             continue;
         }
@@ -132,6 +134,13 @@ pub(in super::super::super) fn ancestor_domains(
     domains
 }
 
+fn native_child(exec: &Exec<'_>, run: &Run, source: usize) -> bool {
+    exec.plan.nodes[source].base().is_some_and(|name| {
+        matches!(run.supplier(name), Supplier::Provider)
+            && native_of(run, name) == Some(Native::Child)
+    })
+}
+
 pub(super) fn ancestor_edges(
     exec: &mut Exec<'_>,
     run: &mut Run,
@@ -141,7 +150,7 @@ pub(super) fn ancestor_edges(
     domain: usize,
 ) -> R<Option<Rc<Table>>> {
     // Binding can override the native child edge with a reader-supplied graph.
-    if !exec.view(run, source)?.is_some_and(|view| view.base == Native::Child) {
+    if !native_child(exec, run, source) {
         return Ok(None);
     }
     let domain = exec.eval(file, run, facts, domain)?;
