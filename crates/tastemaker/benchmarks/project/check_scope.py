@@ -45,12 +45,12 @@ def check(executor, shipping):
         ("zero-file-positive", host, [], [table("ctx.number", [["id", "Number"]], [[7]])], 1),
         ("same-text-changed-schema", host, [], [table("ctx.number", [["tag", "Text"], ["id", "Number"]], [["example", 7]])], 1),
         ("zero-file-empty", join, [], [edges, empty], 0),
-        ("unverified-capture", 'let c = capture(from="filesystem.file", path="path", pattern="{x}", captures=["x"]); emit c subject "path" key("x");', [], [], "separator"),
-        ("ordered-extend", 'let a = extend(from="filesystem.file",values={"z":0,"a":1}); emit a subject "path" key("z");', [], [], "declaration order"),
+        ("path-separator-capture", 'let c = capture(from="filesystem.file", path="path", pattern="{x}", captures=["x"]); emit c subject "path" key("x");', paths, [], 3),
+        ("ordered-extend", 'let a = extend(from="filesystem.file",values={"z":0,"a":1}); emit a subject "path" key("z");', paths, [], 3),
         ("missing-negative-input", join, [], [edges], "ctx.block"),
         ("partial-negative-input", join, [], [edges, dict(empty, partial="upstream failed")], "upstream failed"),
-        ("all-partitions-skipped", files, paths, [], "partitions excluded"),
-        ("unclosed-inventory", files, None, [], "incomplete project inventory"),
+        ("all-partitions-skipped", files, paths, [], 0),
+        ("unclosed-inventory", join, None, [edges, block], "incomplete project inventory"),
     ]
     entries = []
     with tempfile.TemporaryDirectory() as scratch:
@@ -104,8 +104,8 @@ def check(executor, shipping):
                 entries.append((identity, pack, request, wanted, isinstance(reference, int)))
 
         manifest = root / "manifest.tsv"
-        manifest.write_text("".join(f"{key}\t{pack}\t{request}\t-\n"
-                                    for key, pack, request, _, _ in entries))
+        manifest.write_text("".join(f"{key}\t{pack}\t{request}\t{wanted if answered else '-'}\n"
+                                    for key, pack, request, wanted, answered in entries))
         results = root / "receipts.tsv"
         subprocess.run([executor, "--tm-batch", manifest, results, "--workers", "1"], check=True)
         for entry, line in zip(entries, results.read_text().splitlines(), strict=True):
@@ -113,7 +113,7 @@ def check(executor, shipping):
             identity, status, digest, *unknowns = line.split("\t")
             assert identity == key and not unknowns, (key, line)
             if answered:
-                assert status != "refused" and digest == wanted, (key, wanted, line)
+                assert status == "exact" and digest == wanted, (key, wanted, line)
             else:
                 assert status == "refused", (key, wanted, line)
                 # Batch receipts omit the refusal sentence. Read it through the
