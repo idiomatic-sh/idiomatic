@@ -25,6 +25,32 @@ impl Walk for HtmlWalk<WalkPorts> {
 
     const KIND_COUNT: Count = Count(Node::COUNT + Token::COUNT + Extra::COUNT);
 
+    fn recognizes(&self, path: languages::SourcePath<'_>, explicit: bool) -> languages::Recognition {
+        // today's reading declines a path named explicitly and reads one by its extension
+        if explicit { languages::Recognition::Declines } else { reads(path) }
+    }
+
+    fn skips(&self) -> &'static [languages::SkippedDirectory] {
+        crate::domain::language::constants::SKIPS
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        languages::ParseConfigurationIdentity(crate::domain::syntax::constants::NO_CONFIGURATION)
+    }
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        &[]
+    }
+
+    fn includes_expansions(&self, relation: languages::Relation) -> bool {
+        // the engine's own location reader covers the elements of embedded sources too
+        relation == languages::Relation::SourceLocation
+    }
+
+    fn unknown_reasons(&self) -> &'static [languages::UnknownName] {
+        &[]
+    }
+
     fn walk(
         &self,
         request: WalkRequest<'_>,
