@@ -139,6 +139,13 @@ impl Packet {
             ready: false,
         }
     }
+    fn touch(&mut self, slot: usize) {
+        if !self.requested[slot] {
+            self.requested[slot] = true;
+            self.indexed.push(slot);
+        }
+    }
+
     pub(crate) fn clear(&mut self) {
         self.rows.clear();
         for slot in self.indexed.drain(..) {
@@ -177,9 +184,15 @@ impl Packet {
                 _ => {}
             }
             let rows = columns.0.first().map_or(0, |column| column.0.len());
+            if rows > 0 && columns.0.len() != widths()[slot] {
+                return Err(format!("invalid column count in {}", catalog::name(relation).0));
+            }
             if columns.0.iter().any(|column| column.0.len() != rows) {
                 return Err(format!("unequal column lengths in {}", catalog::name(relation).0));
             }
+            // A later fill may refuse before index(). The next visit must still
+            // reclaim every population already written for this one.
+            self.touch(slot);
             self.local[slot] = Some(LocalTable { rows, columns, answer, wanted });
         }
         if !structural.is_empty() {
@@ -203,10 +216,7 @@ impl Packet {
         debug_assert!(!self.ready);
         for &rel in wanted {
             let slot = catalog::number_of(rel).0;
-            if !self.requested[slot] {
-                self.requested[slot] = true;
-                self.indexed.push(slot);
-            }
+            self.touch(slot);
         }
         let widths = widths();
         let mut at = 0;
@@ -532,6 +542,39 @@ impl View<'_, '_> {
 #[cfg(test)]
 mod file_node_tests {
     use super::*;
+    #[test]
+    fn reset_reclaims_a_local_population_even_if_the_visit_failed_before_index() {
+        struct RefusesStructure;
+        impl l::NumberedFacts for RefusesStructure {
+            fn fill_columns(&mut self, _: l::Relation, _: l::Wanted, _: &mut FileWords,
+                _: &mut FilledColumns) -> l::FactAnswer {
+                l::FactAnswer::Answered(l::FillExtent::Asked)
+            }
+            fn project_structure(&mut self, _: &[l::Relation], _: &mut l::Symbols,
+                _: &mut dyn ryo_relations::domain::relations::types::RowWriter) -> Result<(), l::ParseError> {
+                Err(l::ParseError::Unsupported)
+            }
+            fn named(&mut self, _: &[&l::FileRelation], _: &mut l::Symbols) -> Vec<Result<l::FileRows, l::ParseError>> {
+                unreachable!()
+            }
+            fn render(&mut self, _: l::RenderRequest) -> Result<l::RenderOutcome, l::ParseError> {
+                unreachable!()
+            }
+        }
+        let mut packet = Packet::new();
+        let id = catalog::number_of(l::Relation::SyntaxError).0;
+        let result = packet.fill_numbered(&mut RefusesStructure,
+            &[l::Relation::SyntaxError, l::Relation::SyntaxTree],
+            &mut l::Symbols::default(), &mut FileWords::default());
+        assert!(result.is_err());
+        assert!(packet.local(id).is_some());
+        assert!(!packet.ready);
+        packet.clear();
+        assert!(packet.local(id).is_none());
+        assert!(!packet.requested[id]);
+        assert!(packet.spare.contains_key(&id));
+    }
+
     #[test]
     fn a_diagnostic_identity_is_local_to_its_file_without_a_tree_position() {
         let diagnostic = catalog::diagnostic_id(l::FileId(19), l::ChildOrdinal(7));
