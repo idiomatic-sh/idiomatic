@@ -352,14 +352,6 @@ impl Checks {
         }
     }
 
-    /// The catalog relations this screen can read from a file's columns.
-    pub(super) fn relations(&self) -> impl Iterator<Item = l::Relation> + '_ {
-        self.program.facts.iter().filter_map(|fact| match fact.source {
-            FactSource::Catalog(relation) => Some(relation),
-            FactSource::Walk(_) => None,
-        })
-    }
-
     /// Borrow the proof mask and the declared output shape for every emit.
     pub(super) fn exact_locations(
         &self, binding: usize,
