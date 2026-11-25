@@ -13,7 +13,7 @@ use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use oxc_allocator::Allocator;
 use oxc_semantic::Scoping;
-use crate::domain::file_view::types::{CarrierFacts, FlowFacts};
+use crate::domain::file_view::types::{CarrierFacts, Decoded, FlowFacts};
 use crate::outbound::syntax::types::Wants;
 use ryo::languages::{self, FieldCode, FlowMemberFact, FlowStepFact, NodeTableBuilder, Offset, Position, TableBuilder, node_table};
 
@@ -97,12 +97,14 @@ pub(super) struct Numbered<'b, 't> {
     pub(super) flow: Option<FlowFacts>,
     /// What the library made of each written carrier's pattern.
     pub(super) patterns: Vec<CarrierFacts>,
+    /// The values the parser decoded for tokens.
+    pub(super) decoded: Decoded,
 }
 
 impl<'b, 't> Numbered<'b, 't> {
     /// An output over the table `builder` writes, with the control-flow facts wanted or not.
     pub(super) fn new(builder: &'b mut NodeTableBuilder<'t>, wants: Wants) -> Self {
-        Self { builder, wants, flow: None, patterns: Vec::new() }
+        Self { builder, wants, flow: None, patterns: Vec::new(), decoded: Decoded::default() }
     }
 }
 
@@ -121,7 +123,8 @@ impl Output for Numbered<'_, '_> {
         source: &str,
     ) {
         let mut nodes = 0_u32;
-        write_numbered(root, FieldCode(0), source, positions, carriers, &mut nodes, self.builder);
+        let mut tokens = 0_u32;
+        write_numbered(root, FieldCode(0), source, positions, carriers, &mut nodes, (&mut tokens, &mut self.decoded), self.builder);
     }
     fn flow(&mut self, flow: &FlowDraft, positions: &NodePositions) {
         let mut facts = FlowFacts { blocks: flow.blocks.clone(), edges: flow.edges.clone(), ..FlowFacts::default() };
@@ -161,8 +164,10 @@ fn write_numbered(
     positions: &mut [Option<Position>],
     carriers: &mut [Carrier<'_>],
     nodes: &mut u32,
+    tokens: (&mut u32, &mut Decoded),
     builder: &mut NodeTableBuilder<'_>,
 ) {
+    let (token_count, decoded) = tokens;
     if let Some(id) = node.node
         && let Some(position) = positions.get_mut(id.index())
         && matches!(node.kind, Kind::Node(_))
@@ -191,20 +196,23 @@ fn write_numbered(
             let family = Family { holder, kinds: &kinds, starts: &starts, ends: &ends, source };
             for (at, child) in node.children.iter_mut().enumerate() {
                 let role = field_bits(field_of_child(&family, at));
-                write_numbered(child, FieldCode(role.0), source, positions, carriers, nodes, builder);
+                write_numbered(child, FieldCode(role.0), source, positions, carriers, nodes, (&mut *token_count, &mut *decoded), builder);
             }
             node_table::leave_node(builder, end);
         }
         Kind::Token(_) | Kind::Extra(_) | Kind::Pattern(_) => match &node.text {
-            Text::Source => node_table::token(builder, kind_bits(node.kind), field, start, end),
-            Text::Decoded(text) => node_table::decoded_token(
-                builder,
-                kind_bits(node.kind),
-                field,
-                start,
-                end,
-                languages::NameText(&text.0),
-            ),
+            // The token's word is its spelling; what the parser decoded of it is kept beside the table.
+            Text::Source => {
+                *token_count += 1;
+                node_table::token(builder, kind_bits(node.kind), field, start, end);
+            }
+            Text::Decoded(text) => {
+                let from = u32::try_from(decoded.texts.len()).unwrap_or(u32::MAX);
+                decoded.texts.push_str(&text.0);
+                decoded.places.push((*token_count, from, u32::try_from(decoded.texts.len()).unwrap_or(u32::MAX)));
+                *token_count += 1;
+                node_table::token(builder, kind_bits(node.kind), field, start, end);
+            }
         },
     }
 }

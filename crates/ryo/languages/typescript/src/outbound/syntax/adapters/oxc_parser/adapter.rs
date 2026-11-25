@@ -231,7 +231,7 @@ impl SyntaxPort for SyntaxOxcParserAdapter {
     ) -> Walked {
         let mut out = Numbered::new(builder, wants);
         project(text, dialect, &mut out);
-        Walked { flow: out.flow, patterns: out.patterns }
+        Walked { flow: out.flow, patterns: out.patterns, decoded: out.decoded }
     }
 }
 

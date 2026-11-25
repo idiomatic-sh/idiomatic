@@ -24,6 +24,16 @@ pub(crate) struct FlowFacts {
     pub(crate) members: Vec<languages::FlowMemberFact>,
 }
 
+/// The values the parser decoded for tokens (a string's characters, a name with escapes), kept beside the table: the table's own
+/// word of a token is its spelling in the source, as the old reading's text of a token is.
+#[derive(Debug, Default)]
+pub(crate) struct Decoded {
+    /// The decoded values, one after another.
+    pub(crate) texts: String,
+    /// Where each is: the token's place among the file's tokens, and the bounds of its value in `texts`; in token order.
+    pub(crate) places: Vec<(u32, u32, u32)>,
+}
+
 /// What the library made of one carrier's pattern, as the walk wrote it: the pattern's elements are in the table under the carrier.
 #[derive(Debug)]
 pub(crate) struct CarrierFacts {
@@ -55,4 +65,6 @@ pub(crate) struct TypeScriptFile<'f> {
     pub(crate) flow: Option<FlowFacts>,
     /// What the library made of each carrier's pattern, when the walk was asked for patterns.
     pub(crate) patterns: Vec<CarrierFacts>,
+    /// The values the parser decoded for tokens.
+    pub(crate) decoded: Decoded,
 }
