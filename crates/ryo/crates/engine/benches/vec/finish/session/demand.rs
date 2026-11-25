@@ -1,7 +1,7 @@
 //! A closed equality can get its node keys from a file-local posting. For an
 //! axis, every returned "related" node belongs to the axis's declared domain.
 use super::super::{
-    E, Exec, File, Native, Op, Position, Provider, R, Run, Supplier, Table, Ty, native_of, node_table,
+    E, Exec, File, Native, Op, Provider, R, Run, Supplier, Table, Ty, native_of,
 };
 use std::{collections::{BTreeMap, BTreeSet}, rc::Rc};
 
@@ -157,24 +157,25 @@ pub(super) fn ancestor_edges(
     let id = domain.col("id")?;
     let schema = exec.schema(run, source)?;
     let sample = super::super::operators::enter(source, domain.n);
-    let mut starts: Vec<_> = domain.cols[id].iter().copied()
+    let mut pending: Vec<_> = domain.cols[id].iter().copied()
         .filter(|&node| node < file.n as u64)
         .map(|node| node as u32)
         .collect();
-    starts.sort_unstable();
-    let mut edges = Table::retained(schema.names.clone(), schema.tys.clone(), 0);
-    let mut end = 0;
-    for start in starts {
-        if start < end {
-            continue;
-        }
-        end = node_table::subtree_end_of(file.table, Position(start)).0;
-        for child in start + 1..end {
-            if file.has_parent(child) {
-                edges.cols[0].push(u64::from(file.parent[child as usize]));
-                edges.cols[1].push(u64::from(child));
-            }
-        }
+    // A provider can lend physical tokens after the AST positions. Follow
+    // the same child postings as the native relation, then restore row order.
+    let mut seen = rustc_hash::FxHashSet::default();
+    let mut children = Vec::new();
+    while let Some(parent) = pending.pop() {
+        children.clear();
+        file.native_probe(run, Native::Child, 0, u64::from(parent), &mut children);
+        pending.extend(children.iter().copied().filter(|child| seen.insert(*child)));
+    }
+    let mut children: Vec<_> = seen.into_iter().collect();
+    children.sort_unstable();
+    let mut edges = Table::retained(schema.names.clone(), schema.tys.clone(), children.len());
+    for child in children {
+        edges.cols[0].push(u64::from(file.parent[child as usize]));
+        edges.cols[1].push(u64::from(child));
     }
     edges.n = edges.cols[1].len();
     if let Some(sample) = sample {
