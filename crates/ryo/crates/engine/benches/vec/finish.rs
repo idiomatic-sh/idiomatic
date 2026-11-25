@@ -88,6 +88,8 @@ mod set_ops;
 pub(super) mod empty_why;
 #[path = "finish/empty_sel.rs"]
 pub(super) mod empty_sel;
+#[path = "finish/source_waste.rs"]
+pub(super) mod source_waste;
 #[path = "prefixes.rs"]
 mod prefixes;
 #[path = "finish/ordered_dfs.rs"]

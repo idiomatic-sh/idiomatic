@@ -327,6 +327,7 @@ impl Live {
             eprintln!("operator ledger: {error}");
         }
         crate::finish::empty_sel::print();
+        crate::finish::source_waste::print();
         let mut last = MEASURED
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);

@@ -132,6 +132,17 @@ impl Exec<'_> {
     /// with `make` (the caller reads the step either way: whole, or by key, which makes those inputs too); else it is
     /// unknown (`usize::MAX`). 0 only when the step is empty.
     pub(super) fn keyed_size(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, make: bool) -> R<usize> {
+        if !super::source_waste::on() {
+            return self.keyed_size_(f, run, p, node, make);
+        }
+        let t0 = super::super::thread_cpu();
+        let size = self.keyed_size_(f, run, p, node, make);
+        let outcome = match &size { Ok(0) => "empty", Ok(usize::MAX) => "unknown", Ok(_) => "rows", Err(_) => "error" };
+        super::source_waste::sized(node, f.file, make, outcome, super::super::thread_cpu() - t0);
+        size
+    }
+
+    fn keyed_size_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, make: bool) -> R<usize> {
         if let Some(input)=f.population(node) { return Ok(input.n); }
         if let Some(Res::Tab(t)) = &f.memo[node] {
             return Ok(t.n);

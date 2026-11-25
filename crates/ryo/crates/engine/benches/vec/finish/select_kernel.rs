@@ -629,7 +629,14 @@ impl Exec<'_> {
         let mut srcs = std::mem::take(&mut b.srcs);
         srcs.clear();
         let mut jc = std::mem::take(&mut b.join_cols);
+        let waste = super::source_waste::on();
+        if waste {
+            super::source_waste::enter();
+        }
         let out = self.ksel_run_(f, run, p, node, kp, b, &mut srcs, &mut jc, keyed);
+        if waste {
+            super::source_waste::leave(out.as_ref().map_or(1, |t| t.n));
+        }
         for s in srcs.drain(..) {
             if let Src::Tab(t, _) = s {
                 super::recycle::recycle(t);
@@ -704,6 +711,7 @@ impl Exec<'_> {
                 srcs.push(Src::Base(Native::Tree));
                 continue;
             }
+            let waste_clock = if super::source_waste::on() { super::super::thread_cpu() } else { 0.0 };
             let src = match if i < 4 { self.lazy_view(f, run, *n, conj, i, kp.kinds[i].0.is_some() || kp.kinds[i].1.is_some())? } else { None } {
                 Some(v) => {
                     late[i] = Some(v.base);
@@ -711,9 +719,15 @@ impl Exec<'_> {
                 }
                 None => self.src_of(f, run, p, *n)?,
             };
+            if super::source_waste::on() {
+                super::source_waste::source(i, super::super::thread_cpu() - waste_clock);
+            }
             if let Src::Tab(t, _) = &src
                 && t.n == 0
             {
+                if super::source_waste::on() {
+                    super::source_waste::prove(i);
+                }
                 super::empty_sel::with(|m| {
                     m.stage = super::empty_sel::stage::SOURCE_EMPTY;
                     m.src = i as u8;
