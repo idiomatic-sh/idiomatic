@@ -74,7 +74,7 @@ impl Exec<'_> {
         if pn.op() != "select" || pn.tested() || pn.counted() || pn.semi().is_some() {
             return;
         }
-        let &[source] = pn.inputs.as_slice() else {
+        let &[source] = &*pn.inputs else {
             return;
         };
         let Some(input) = plan.nodes.get(source) else {

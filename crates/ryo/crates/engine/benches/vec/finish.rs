@@ -567,10 +567,8 @@ pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &
 
 /// A plan node, as lowered.
 pub(super) struct PNode {
-    source: std::sync::Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
-    slot: usize,
     args: std::sync::OnceLock<Args>,
-    pub(super) inputs: Vec<usize>,
+    pub(super) inputs: plan_load::StepInputs,
 }
 
 pub(super) struct Plan {
@@ -1263,7 +1261,7 @@ pub(super) enum Res {
 
 /// A select compiled once a run.
 struct SelPlan {
-    srcs: Vec<usize>,
+    srcs: plan_load::StepInputs,
     conj: Vec<E>,
     refs: Vec<u64>,
     items: Vec<(String, E)>,

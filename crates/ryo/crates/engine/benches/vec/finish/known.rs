@@ -284,11 +284,11 @@ impl Exec<'_> {
                 }
                 n.kinds = kinds.into();
                 n.file_test = file_test(&sp.conj);
-                n.inputs = sp.srcs.clone().into();
+                n.inputs = Box::from(&*sp.srcs);
                 return n;
             }
             "union" => {
-                n.inputs = pn.inputs.clone().into();
+                n.inputs = Box::from(&*pn.inputs);
                 n.all = true;
                 return n;
             }

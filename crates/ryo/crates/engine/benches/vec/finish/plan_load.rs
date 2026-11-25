@@ -12,29 +12,62 @@ use ryo_values::domain::finish_plans::{
 };
 use ryo_values::domain::plan_parts::types::Side;
 use std::collections::BTreeMap;
-pub(crate) fn from_typed(plan: std::sync::Arc<FinishPlan>) -> Plan {
-    let nodes = plan
-        .steps
-        .iter()
-        .enumerate()
-        .map(|(id, step)| {
-            let mut rels = Vec::new();
+use std::sync::Arc;
+
+/// Each operand list occupies one range in the immutable plan. Select kernels
+/// keep the same range as the numbered step that produced them.
+struct IndexedSteps {
+    plan: Arc<FinishPlan>,
+    offsets: Vec<usize>,
+    operands: Vec<usize>,
+}
+
+#[derive(Clone)]
+pub(crate) struct StepInputs {
+    graph: Arc<IndexedSteps>,
+    slot: usize,
+}
+
+impl std::ops::Deref for StepInputs {
+    type Target = [usize];
+    fn deref(&self) -> &[usize] {
+        let offsets = &self.graph.offsets;
+        &self.graph.operands[offsets[self.slot]..offsets[self.slot + 1]]
+    }
+}
+
+impl std::fmt::Debug for StepInputs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&**self, f)
+    }
+}
+
+impl<'a> IntoIterator for &'a StepInputs {
+    type Item = &'a usize;
+    type IntoIter = std::slice::Iter<'a, usize>;
+    fn into_iter(self) -> Self::IntoIter { self.iter() }
+}
+
+pub(crate) fn from_typed(plan: Arc<FinishPlan>) -> Plan {
+    let mut offsets = Vec::with_capacity(plan.steps.len() + 1);
+    let mut operands = Vec::with_capacity(plan.steps.len());
+    let mut rels = Vec::new();
+    for step in &plan.steps {
+        offsets.push(operands.len());
+        if let FinishStep::Select(select) = step {
+            operands.extend(select.sources.iter().map(|s| s.step.0));
+        } else {
             visit_slots(step, |name, source| rels.push((name, source)));
-            // The original slot reader requests named operator inputs in field-name order.
             rels.sort_unstable_by(|a, b| a.0.cmp(b.0));
-            let inputs = if let FinishStep::Select(s) = step {
-                s.sources.iter().map(|s| s.step.0).collect()
-            } else {
-                rels.iter().map(|x| x.1).collect()
-            };
-            PNode {
-                inputs,
-                source: plan.clone(),
-                slot: id,
-                args: Default::default(),
-            }
-        })
-        .collect();
+            operands.extend(rels.drain(..).map(|(_, source)| source));
+        }
+    }
+    offsets.push(operands.len());
+    let graph = Arc::new(IndexedSteps { plan: plan.clone(), offsets, operands });
+    let nodes = (0..plan.steps.len()).map(|slot| PNode {
+        inputs: StepInputs { graph: graph.clone(), slot },
+        args: Default::default(),
+    }).collect();
     let mut emits: Vec<_> = plan
         .rules
         .iter()
@@ -193,7 +226,7 @@ impl PNode {
         super::json_output::step(self.step())
     }
     pub(crate) fn step(&self) -> &FinishStep {
-        &self.source.steps[self.slot]
+        &self.inputs.graph.plan.steps[self.inputs.slot]
     }
     pub(crate) fn base(&self) -> Option<&str> {
         match self.step() {
