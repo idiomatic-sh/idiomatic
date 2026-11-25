@@ -374,14 +374,14 @@ impl Schedule {
             })
             .collect()
     }
-    pub(crate) fn admit_paths(
+    pub(crate) fn admit_paths<T: FromIterator<usize>>(
         &mut self,
         root: &Arc<str>,
         files: &[String],
         binding: usize,
         known_binding: bool,
         mut resolved: impl FnMut(usize),
-    ) -> Result<Vec<usize>> {
+    ) -> Result<T> {
         let ids = self.source_ids.entry(root.clone()).or_default();
         files.iter().map(|path| {
             let src = Self::source_in(&mut self.sources, ids, root, path)?;
@@ -390,7 +390,7 @@ impl Schedule {
         }).collect()
     }
 
-    pub(crate) fn admit_ids(&mut self, sources: &[usize], binding: usize, known_binding: bool) -> Vec<usize> {
+    pub(crate) fn admit_ids<T: FromIterator<usize>>(&mut self, sources: &[usize], binding: usize, known_binding: bool) -> T {
         sources.iter().map(|&src| {
             Self::slot(&mut self.sources[src], src, binding, known_binding, &mut self.pairs, &mut self.pending)
         }).collect()

@@ -871,13 +871,11 @@ impl Store {
             self.keep_pairs = vec![false; self.pairs.len()];
             self.local_rows = vec![false; self.pairs.len()];
             for work in &b.work {
-                let (pairs, closed) = match work {
-                    Work::Pairs(pairs) => (pairs, false),
-                    Work::Closed { pairs, .. } => (pairs, true),
-                    _ => continue,
-                };
-                for &slot in pairs {
-                    self.keep_pairs[slot] |= closed || pairs.len() > 1;
+                let closed = matches!(work, Work::Closed { .. });
+                let slots = work.pair_slots();
+                let shared = slots.clone().count() > 1;
+                for slot in slots {
+                    self.keep_pairs[slot] |= closed || shared;
                     self.local_rows[slot] |= !closed;
                 }
             }
@@ -985,10 +983,9 @@ impl Store {
         self.plans.clear();
         for (index, work) in b.work.iter().enumerate() {
             let scope = work_inputs.get(&index).copied();
-            let (pairs, project, closed) = match work {
-                Work::Pairs(p) => (p.as_slice(), None, false),
-                Work::Closed { pairs, project, .. } => (pairs.as_slice(), *project, true),
-                Work::Project(_) => ([].as_slice(), None, false),
+            let (project, closed) = match work {
+                Work::Pairs(_) | Work::Project(_) => (None, false),
+                Work::Closed { project, .. } => (*project, true),
                 Work::Refused(_) | Work::Invalid(_) => {
                     self.plans.push(None);
                     continue;
@@ -997,7 +994,9 @@ impl Store {
             if closed {
                 self.evaluated_closed += 1;
             }
-            for &slot in pairs {
+            let pairs = work.pair_slots();
+            let shared = pairs.clone().count() > 1;
+            for slot in pairs.clone() {
                 needed[slot] = true;
                 // A closed input consumes its frontier and issues. Only a
                 // local receipt reads the emitted rows directly.
@@ -1006,11 +1005,10 @@ impl Store {
                 if closed && let Some((source, _)) = self.pairs[slot] {
                     frontier_sources[source] = true;
                 }
-                self.keep_pairs[slot] |= closed || pairs.len() > 1;
+                self.keep_pairs[slot] |= closed || shared;
             }
             let local = pairs
-                .iter()
-                .map(|&slot| self.pairs[slot].map(|(source, _)| source))
+                .map(|slot| self.pairs[slot].map(|(source, _)| source))
                 .collect::<Option<Vec<_>>>();
             let mut proof = Some(Vec::new());
             let mut environments = BTreeSet::new();

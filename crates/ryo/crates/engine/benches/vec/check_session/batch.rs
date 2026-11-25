@@ -22,9 +22,44 @@ enum Work {
         inventory: Rc<Vec<String>>,
         files: Rc<Vec<String>>,
     },
-    Pairs(Vec<usize>),
+    Pairs(PairSlots),
     Refused(String),
     Invalid(String),
+}
+
+/// New pairs receive consecutive scheduler slots. Preserve an irregular suffix
+/// verbatim when a request reuses old slots, including repeated admissions.
+#[derive(Default)]
+struct PairSlots {
+    first: std::ops::Range<usize>,
+    rest: Vec<usize>,
+}
+
+impl FromIterator<usize> for PairSlots {
+    fn from_iter<I: IntoIterator<Item = usize>>(source: I) -> Self {
+        let mut slots = source.into_iter();
+        let Some(first) = slots.next() else { return Self::default(); };
+        let mut end = first + 1;
+        while let Some(slot) = slots.next() {
+            if slot != end {
+                let rest = std::iter::once(slot).chain(slots).collect();
+                return Self { first: first..end, rest };
+            }
+            end += 1;
+        }
+        Self { first: first..end, rest: Vec::new() }
+    }
+}
+
+impl Work {
+    fn pair_slots(&self) -> impl Iterator<Item = usize> + Clone + '_ {
+        let (first, rest): (_, &[usize]) = match self {
+            Self::Pairs(slots) => (slots.first.clone(), &slots.rest),
+            Self::Closed { pairs, .. } => (0..0, pairs),
+            _ => (0..0, &[]),
+        };
+        first.chain(rest.iter().copied())
+    }
 }
 
 struct ProjectSpec {
@@ -196,7 +231,7 @@ impl Batch {
         let held = &class.project_bases;
         let contract = &class.contract;
         if req.files.is_empty() && !contract.cross {
-            return Ok(Work::Pairs(Vec::new()));
+            return Ok(Work::Pairs(PairSlots::default()));
         }
         if class.closed {
             let t = thread_cpu();
@@ -268,14 +303,14 @@ impl Batch {
         Ok(Work::Pairs(pairs))
     }
 
-    fn admit(
+    fn admit<T: FromIterator<usize>>(
         &mut self,
         root: &str,
         files: &[String],
         binding: usize,
         known_binding: bool,
         sdk: Option<LiveAdmission<'_>>,
-    ) -> Result<Vec<usize>, String> {
+    ) -> Result<T, String> {
         let Some(LiveAdmission { version, selection, .. }) = sdk else {
             return self.schedule.admit_paths(&Arc::from(root), files, binding, true, |_| {});
         };
@@ -407,8 +442,15 @@ impl Batch {
         }
         if !aliases.is_empty() {
             for work in &mut self.work {
-                if let Work::Pairs(pairs) | Work::Closed { pairs, .. } = work {
-                    for slot in pairs { *slot = aliases.lookup(*slot); }
+                match work {
+                    Work::Pairs(slots) => {
+                        *slots = slots.first.clone().chain(slots.rest.iter().copied())
+                            .map(|slot| aliases.lookup(slot)).collect();
+                    }
+                    Work::Closed { pairs, .. } => {
+                        for slot in pairs { *slot = aliases.lookup(*slot); }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -719,8 +761,8 @@ impl Batch {
             Work::Project(result) => receipt.append(result)?,
             Work::Closed { .. } => return Err("project inputs still open"),
             Work::Refused(reason) | Work::Invalid(reason) => return Err(reason),
-            Work::Pairs(slots) => {
-                for &slot in slots {
+            Work::Pairs(_) => {
+                for slot in work.pair_slots() {
                     receipt.append(&answers[slot])?;
                 }
             }
