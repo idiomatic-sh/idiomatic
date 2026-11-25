@@ -19,6 +19,8 @@ pub(super) struct Shards<T> {
     pub index: Index,
     opened: BTreeMap<u8, BTreeMap<Key, T>>,
     changed: BTreeSet<u8>,
+    // Key bits dropped when choosing a shard: a table every run reads whole keeps few files.
+    shift: u8,
 }
 impl<T: Serialize + DeserializeOwned> Shards<T> {
     pub fn new(name: &'static str, index: Index) -> Self {
@@ -30,11 +32,21 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
             index,
             opened: BTreeMap::new(),
             changed: BTreeSet::new(),
+            shift: 0,
         }
     }
+    /// Keep `256 >> shift` shards. Small rows that an unchanged run reads together share their files.
+    pub fn coarse(mut self, shift: u8) -> Self {
+        self.shift = shift;
+        self
+    }
+    fn shard(&self, key: &Key) -> u8 {
+        key[0] >> self.shift
+    }
     pub fn open(&mut self, dir: &Path, key: &Key) {
-        self.opened.entry(key[0]).or_insert_with(|| {
-            if let Some(d) = self.index.get(&key[0]).copied() {
+        let shard = self.shard(key);
+        self.opened.entry(shard).or_insert_with(|| {
+            if let Some(d) = self.index.get(&shard).copied() {
                 let path = table(dir, self.name, d);
                 let start = crate::thread_cpu();
                 let rows = load(&path, d);
@@ -43,18 +55,19 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
                     self.read_bytes += fs::metadata(path).map_or(0, |m| m.len() as usize);
                     return rows;
                 }
-                self.index.remove(&key[0]);
+                self.index.remove(&shard);
             }
             BTreeMap::new()
         });
     }
     pub fn get(&self, key: &Key) -> Option<&T> {
-        self.opened.get(&key[0])?.get(key)
+        self.opened.get(&self.shard(key))?.get(key)
     }
     pub fn insert(&mut self, key: Key, value: T) {
-        self.changed.insert(key[0]);
+        let shard = self.shard(&key);
+        self.changed.insert(shard);
         self.opened
-            .get_mut(&key[0])
+            .get_mut(&shard)
             .expect("open before updating")
             .insert(key, value);
     }
@@ -62,9 +75,10 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
     where
         T: Default,
     {
-        self.changed.insert(key[0]);
+        let shard = self.shard(key);
+        self.changed.insert(shard);
         self.opened
-            .get_mut(&key[0])
+            .get_mut(&shard)
             .expect("open before updating")
             .entry(*key)
             .or_default()
@@ -122,6 +136,11 @@ impl<T: Serialize + DeserializeOwned> Packets<T> {
             read_cpu: 0.0,
             write_bytes: 0,
         }
+    }
+
+    pub fn coarse(mut self, shift: u8) -> Self {
+        self.base = self.base.coarse(shift);
+        self
     }
 
     pub fn open(&mut self, dir: &Path, key: &Key) {

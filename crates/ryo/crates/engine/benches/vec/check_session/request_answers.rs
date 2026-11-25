@@ -126,7 +126,7 @@ impl Observations {
                 .ok()
                 .and_then(|t| i64::try_from(t.as_secs()).ok())
                 .unwrap_or(i64::MIN),
-            stamps: Shards::new("stamps", index),
+            stamps: Shards::new("stamps", index).coarse(6),
             stats: 0,
             stamp_hits: 0,
             young: 0,
