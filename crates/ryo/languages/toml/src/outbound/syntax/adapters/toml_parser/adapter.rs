@@ -228,7 +228,7 @@ impl SyntaxPort for SyntaxTomlParserAdapter {
         }
     }
 
-    fn walk(&self, text: SourceText<'_>, values: bool, builder: &mut languages::NodeTableBuilder<'_>) {
+    fn walk(&self, text: SourceText<'_>, values: bool, decodings: &mut crate::domain::file_view::types::Decodings, builder: &mut languages::NodeTableBuilder<'_>) {
         let length = offset(Count(text.0.len()));
         languages::node_table::enter_node(
             builder,
@@ -236,7 +236,7 @@ impl SyntaxPort for SyntaxTomlParserAdapter {
             languages::FieldCode(field_bits(Field::None).0),
             Offset(0),
         );
-        let Events { tree, readable, reports } = events(Numbered::new(builder), text.0, values);
+        let Events { tree, readable, reports } = events(Numbered::new(builder, decodings), text.0, values);
         let builder = tree.builder;
         let accepted = reports.is_empty() && readable.0 == text.0.len();
         if readable.0 < text.0.len() {

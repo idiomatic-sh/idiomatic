@@ -56,11 +56,11 @@ ryo::fills! {
                 if walked_stringness(&syntax, id) != Stringness::Value {
                     continue;
                 }
-                match node_table::decoded_of(syntax.table, id) {
+                match crate::domain::file_view::service::decoded(&syntax, id) {
                     Some(value) => rows.write(Row {
                         occurrence: node_cell(&syntax, id),
                         owner: node_cell(&syntax, walked_parent(&syntax, id)),
-                        value: word(words, value.0),
+                        value: word(words, value),
                         file: syntax.file,
                         span: span_at(&syntax, id),
                         import: languages::Flag::Lowered,

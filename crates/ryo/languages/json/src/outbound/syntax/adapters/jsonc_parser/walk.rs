@@ -4,6 +4,7 @@
 use super::interface::Sink;
 use super::schemas::{piece_kind, token_piece};
 use super::types::{JsoncText, Piece, Reporting};
+use crate::domain::file_view::service::record;
 use crate::domain::syntax::service::{field_bits, is_value, kind_bits};
 use crate::domain::syntax::types::{Field, Kind, Valueness};
 use crate::domain::tokens::types::Token;
@@ -20,7 +21,7 @@ struct Open {
 }
 
 /// The tree written into the builder of a file's node table, and where its last token ends.
-pub(super) struct Numbered<'b, 'w, 't> {
+pub(super) struct Numbered<'b, 'w, 't, 'd> {
     /// What the tree is written through.
     pub builder: &'b mut NodeTableBuilder<'w>,
     /// Where the last token written ends.
@@ -33,16 +34,20 @@ pub(super) struct Numbered<'b, 'w, 't> {
     reporting: Reporting,
     /// How many things have been said of the file.
     pub said: usize,
+    /// What the library decoded of the tokens, kept beside the table.
+    decodings: &'d mut crate::domain::file_view::types::Decodings,
 }
 
-impl<'b, 'w, 't> Numbered<'b, 'w, 't> {
+impl<'b, 'w, 't, 'd> Numbered<'b, 'w, 't, 'd> {
     /// A tree written through `builder`, whose file node is open.
     pub(super) fn new(
         builder: &'b mut NodeTableBuilder<'w>,
+        decodings: &'d mut crate::domain::file_view::types::Decodings,
         text: JsoncText<'t>,
         reporting: Reporting,
     ) -> Self {
         Self {
+            decodings,
             builder,
             end: Offset(0),
             open: vec![Open {
@@ -113,7 +118,7 @@ impl<'b, 'w, 't> Numbered<'b, 'w, 't> {
     }
 }
 
-impl Sink for Numbered<'_, '_, '_> {
+impl Sink for Numbered<'_, '_, '_, '_> {
     fn enter(&mut self, piece: Piece, start: Offset) {
         self.fill_to(start);
         let kind = piece_kind(piece);
@@ -138,7 +143,8 @@ impl Sink for Numbered<'_, '_, '_> {
         let field = self.field(kind);
         match &scanned.token {
             Scanned::String(decoded) => {
-                node_table::decoded_token(self.builder, kind_bits(kind), field, start, end, NameText(decoded));
+                node_table::token(self.builder, kind_bits(kind), field, start, end);
+                record(self.decodings, start, end, decoded);
             }
             Scanned::OpenBrace
             | Scanned::CloseBrace

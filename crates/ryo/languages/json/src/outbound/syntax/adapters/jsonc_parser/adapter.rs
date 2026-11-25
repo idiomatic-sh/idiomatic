@@ -375,6 +375,7 @@ impl SyntaxPort for SyntaxJsoncParserAdapter {
         &self,
         text: SourceText<'_>,
         dialect: Dialect,
+        decodings: &mut crate::domain::file_view::types::Decodings,
         builder: &mut languages::NodeTableBuilder<'_>,
     ) {
         let content = languages::readable_text(ByteSlice(text.0)).0;
@@ -385,7 +386,7 @@ impl SyntaxPort for SyntaxJsoncParserAdapter {
             Offset(0),
         );
         let outcome = parsed(content);
-        let mut writer = Numbered::new(builder, JsoncText(content), reporting_of(&outcome));
+        let mut writer = Numbered::new(builder, decodings, JsoncText(content), reporting_of(&outcome));
         write(&mut writer, &outcome, content, text.0.len(), dialect);
         node_table::set_syntax_acceptance(
             writer.builder,

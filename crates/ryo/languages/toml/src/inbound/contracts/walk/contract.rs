@@ -45,15 +45,18 @@ impl Walk for TomlWalk<WalkPorts> {
                 Relation::StringLiteral | Relation::Mapping | Relation::Entry | Relation::SequenceElement
             )
         });
+        scratch.decodings.places.clear();
+        scratch.decodings.text.clear();
         self.ports
             .syntax
-            .walk(SourceText(request.source.0), values, builder);
+            .walk(SourceText(request.source.0), values, &mut scratch.decodings, builder);
         let table = node_table::finished(builder);
         let mut file = TomlFile {
             syntax: Syntax {
                 table,
                 text: request.source.0,
                 file: request.file,
+                decodings: &scratch.decodings,
             },
             model: &mut scratch.model,
             modelled: Modelled::Waiting,
