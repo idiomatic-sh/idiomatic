@@ -499,8 +499,8 @@ impl Batch {
             }
         }
         *aliases = Default::default();
-        self.schedule.delivered(&probe);
-        self.schedule.delivered(&pending);
+        self.schedule.delivered(&probe, |id| self.cut_of[id].is_none());
+        self.schedule.delivered(&pending, |id| self.cut_of[id].is_none());
         self.finish_projects(languages, reader_states, contributions, world, answers, populations, project_unread, store.as_deref_mut());
         // The closed readers above placed their rows with the bytes held here.
         reader_states.clear();
@@ -585,7 +585,7 @@ impl Batch {
                 if release_files {
                     // Other readers have disjoint files. Answers and project contributions
                     // already own everything the closed phase will read from this group.
-                    self.schedule.delivered(&files);
+                    self.schedule.delivered(&files, |id| self.cut_of[id].is_none());
                     for i in files {
                         self.schedule.sources[i].provided = None;
                     }

@@ -183,6 +183,7 @@ pub(crate) struct Source {
     pub path: String,
     pub reader: Option<Arc<str>>,
     pub bindings: FilePrograms,
+    known: FilePrograms,
     pub(crate) project: bool,
     pub(crate) provided: Option<Arc<[u8]>>,
 }
@@ -226,11 +227,14 @@ pub(crate) struct Schedule {
 }
 
 impl Schedule {
-    /// A delivered source keeps nothing: its bindings and project flag are released.
-    pub(crate) fn delivered(&mut self, ids: &[usize]) {
+    /// A delivered source releases its project flag. Its answered open-file pairs stay
+    /// addressable as the one record of completed work; closed pairs are consumed once.
+    pub(crate) fn delivered(&mut self, ids: &[usize], reusable: impl Fn(usize) -> bool) {
+        let mut retained = HashMap::new();
         for &i in ids {
             let source = &mut self.sources[i];
-            source.bindings.clear();
+            source.bindings.keep_programs(&reusable, &mut retained);
+            source.known.append(&mut source.bindings);
             source.project = false;
         }
     }
@@ -265,6 +269,9 @@ impl Schedule {
         self.source_ids = HashMap::new();
         self.supplied_ids = HashMap::new();
         self.named_disk_ids = HashMap::new();
+        for source in &mut self.sources {
+            source.known.clear();
+        }
     }
     pub(crate) fn prepare(
         &mut self,
@@ -305,6 +312,7 @@ impl Schedule {
             path: path.to_owned(),
             reader: None,
             bindings: Default::default(),
+            known: Default::default(),
             project: false,
             provided: None,
             permission: Permission::Unknown,
@@ -426,7 +434,7 @@ impl Schedule {
         // Repeated files or an existing binding can reuse an earlier address.
         self.finish_selection();
         files.ids.iter().map(|&id| {
-            Self::slot(&mut self.sources[id], id, binding, &mut self.pairs, &mut self.pending)
+            Self::slot(&mut self.sources[id], id, binding, known_binding, &mut self.pairs, &mut self.pending)
         }).collect()
     }
 
@@ -434,9 +442,13 @@ impl Schedule {
         source: &mut Source,
         src: usize,
         binding: usize,
+        known_binding: bool,
         pairs: &mut usize,
         pending: &mut BTreeSet<usize>,
     ) -> usize {
+        if known_binding && let Some(slot) = source.known.lookup(binding) {
+            return slot;
+        }
         let first = source.bindings.is_empty();
         source.bindings.admit(binding, || {
             let slot = *pairs;
