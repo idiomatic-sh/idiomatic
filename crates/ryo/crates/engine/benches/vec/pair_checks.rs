@@ -329,12 +329,13 @@ impl<'a> FactSymbols<'a> {
         Self { words, program, ids, empty: program.get("").copied() }
     }
 
-    fn id(&mut self, cell: CellWord) -> Option<Id> {
-        // Missing text renders as empty bytes, but has a distinct symbol identity.
+    /// Empty literal comparisons admit absent and unresolved symbols, just as
+    /// the executor's membership expression does. The emitted cell keeps its ID.
+    fn literal_id(&mut self, cell: CellWord) -> Option<Id> {
         if cell.0 == u64::from(languages::NO_SYMBOL.0)
             || u32::try_from(cell.0).ok().and_then(|raw| ryo_relations::domain::terms::service::unknown_reason(languages::Symbol(raw))).is_some()
         {
-            return None;
+            return self.empty;
         }
         let Some(symbol) = usize::try_from(cell.0).ok().and_then(|word| self.ids.get_mut(word)) else {
             // Out-of-range handles decode as the empty spelling.
@@ -933,7 +934,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                         let mut valid = true;
                         let nodes = bits(keys.0.iter().enumerate().filter_map(|(i, k)| {
                             let keep = matches.as_mut().is_none_or(|(c, ids, symbols)| {
-                                symbols.id(c.0[i]).is_some_and(|id| ids.binary_search(&id).is_ok())
+                                symbols.literal_id(c.0[i]).is_some_and(|id| ids.binary_search(&id).is_ok())
                             });
                             if keep && k.0 >= u64::from(n) {
                                 valid = false;
@@ -994,7 +995,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                 cell.0 != super::finish::NULL
                                     && symbols
                                         .as_mut()
-                                        .and_then(|symbols| symbols.id(cell))
+                                        .and_then(|symbols| symbols.literal_id(cell))
                                         .is_some_and(|id| values.binary_search(&id).is_ok())
                             }
                             CellTest::Numeric(c, op, literal) => {
@@ -1017,7 +1018,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                         let mut symbols =
                             FactSymbols::new(self.words, &self.p.symbols, self.fact_symbols);
                         Some(bits(column.0.iter().enumerate().filter_map(|(i, &cell)| {
-                            symbols.id(cell).is_none_or(|id| excluded.binary_search(&id).is_err())
+                            symbols.literal_id(cell).is_none_or(|id| excluded.binary_search(&id).is_err())
                                 .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
                         })))
                     } else {
@@ -1140,7 +1141,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                 let mut symbols =
                                     FactSymbols::new(self.words, &self.p.symbols, self.fact_symbols);
                                 for (r, &cell) in column.0.iter().enumerate() {
-                                    if let Some(id) = symbols.id(cell) {
+                                    if let Some(id) = symbols.literal_id(cell) {
                                         m.entry(id).or_default().push(node(r));
                                     }
                                 }
@@ -1350,14 +1351,16 @@ mod word_tests {
     }
 
     #[test]
-    fn absent_symbol_and_empty_literal_have_different_witnesses() {
+    fn absent_symbol_matches_the_empty_literal_and_keeps_its_identity() {
         let mut words = languages::facts::file_words(&languages::facts::base_words(Default::default(), &[]));
         let empty = languages::facts::intern(&mut words, languages::NameText(""));
         let program = [("".to_owned(), 3)].into_iter().collect();
         let mut cache = Vec::new();
         let mut symbols = FactSymbols::new(&words, &program, &mut cache);
-        assert_eq!(symbols.id(empty), Some(3));
-        assert_eq!(symbols.id(CellWord(u64::from(languages::NO_SYMBOL.0))), None);
+        assert_eq!(symbols.literal_id(empty), Some(3));
+        let absent = CellWord(u64::from(languages::NO_SYMBOL.0));
+        assert_ne!(absent, empty);
+        assert_eq!(symbols.literal_id(absent), Some(3));
     }
 
     #[test]
@@ -1371,11 +1374,11 @@ mod word_tests {
         let literal = languages::facts::intern(&mut words, languages::NameText("unknown: unresolved"));
         let reason = CellWord(u64::from(raw));
         assert_eq!(reserved.text(&words, reason), reserved.text(&words, literal));
-        let program = [("unknown: unresolved".to_owned(), 1)].into_iter().collect();
+        let program = [("unknown: unresolved".to_owned(), 1), (String::new(), 2)].into_iter().collect();
         let mut cache = Vec::new();
         let mut ids = FactSymbols::new(&words, &program, &mut cache);
-        assert_eq!(ids.id(reason), None);
-        assert_eq!(ids.id(literal), Some(1));
+        assert_eq!(ids.literal_id(reason), Some(2));
+        assert_eq!(ids.literal_id(literal), Some(1));
     }
 
 }
