@@ -190,6 +190,7 @@ impl Checks {
         unknown: &HashMap<u32, u32>,
         cuts: &[Option<Arc<crate::finish::partition::Partition>>],
         partials: &[ryo_values::domain::stored_facts::types::ReadInPart],
+        layouts: &[Option<super::project::Layout>],
         witnesses: &mut [usize; 4],
     ) {
         self.live.fill(false);
@@ -202,31 +203,22 @@ impl Checks {
         for &(binding, _, excluded) in active.iter() {
             let index = positions[binding];
             if !excluded && let Some(roots) = &self.roots[index] {
-                let b = bound[&binding].as_ref().expect("active binding");
                 let unpartitioned = cuts[binding].is_none();
-                // A project layout has no slot in the packet proof, so only its
-                // exact-location proof may use the screen.
-                let screenable = b.layout.is_none();
-                let exact = can_locate && unpartitioned && self.exact_roots[index].1;
-                if screenable || exact {
-                    any |= !roots.is_empty();
-                    locate |= can_locate && unpartitioned && !roots.is_empty();
-                    for &root in roots {
-                        if unpartitioned {
-                            self.locatable[root / 64] |= 1 << (root % 64);
-                        }
-                        self.selected[root / 64] |= 1 << (root % 64);
-                    }
-                }
-                if screenable {
-                    for &(_, root) in &self.domains[index] {
-                        self.selected[root / 64] |= 1 << (root % 64);
-                    }
+                any |= !roots.is_empty();
+                locate |= can_locate && unpartitioned && !roots.is_empty();
+                for &root in roots {
                     if unpartitioned {
-                        any |= !self.lefts[index].is_empty();
-                        for &root in &self.lefts[index] {
-                            self.selected[root / 64] |= 1 << (root % 64);
-                        }
+                        self.locatable[root / 64] |= 1 << (root % 64);
+                    }
+                    self.selected[root / 64] |= 1 << (root % 64);
+                }
+                for &(_, root) in &self.domains[index] {
+                    self.selected[root / 64] |= 1 << (root % 64);
+                }
+                if unpartitioned {
+                    any |= !self.lefts[index].is_empty();
+                    for &root in &self.lefts[index] {
+                        self.selected[root / 64] |= 1 << (root % 64);
                     }
                 }
             }
@@ -289,6 +281,14 @@ impl Checks {
                     let FactSource::Catalog(rel) = source else {
                         return false;
                     };
+                    // The file's own host relation, as the former loop's `host_columns::fill`.
+                    if rel == l::Relation::FilesystemExecutable {
+                        return !partials.iter().any(|p| p.relation == rel) && host_executable(run, id, out);
+                    }
+                    // The project layout answers for its own file, as the former loop's `identity` did.
+                    if let Some(layout) = layouts.iter().flatten().find(|layout| layout.relation == rel) {
+                        return layout.witness_columns(path, id, words, out);
+                    }
                     requested.contains(&rel)
                         && !partials.iter().any(|p| p.relation == rel)
                         && packet.columns(rel, symbols, bytes, id, numbered_end, unknown, words, lazy, out)
@@ -313,9 +313,6 @@ impl Checks {
                 continue;
             }
             let b = bound[binding].as_mut().unwrap();
-            if b.layout.is_some() {
-                continue;
-            }
             let full_absent = roots.iter().any(|&r| !self.live[r])
                 || self.domains[index].iter().any(|&(_, d)| !self.live[d]);
             let left = &self.lefts[index];
@@ -392,6 +389,20 @@ impl Checks {
              lookup(root).expect("all outputs have masks").as_slice())
         }))
     }
+}
+
+/// The executable-permission row of this file: the input edge's supplied permission, else the file system's.
+fn host_executable(run: &Run, id: FileId, out: &mut l::FilledColumns) -> bool {
+    use ryo_values::domain::files::types::ExecutablePermission::{PosixExecutable, PosixNotExecutable};
+    if let Some((file, permission)) = run.supplied_permission.filter(|&(file, _)| file == id.0) {
+        if !matches!(permission, PosixExecutable | PosixNotExecutable) { return false; }
+        out.0 = vec![
+            l::FilledColumn(vec![l::CellWord(u64::from(file))]),
+            l::FilledColumn(vec![l::CellWord(u64::from(permission == PosixExecutable))]),
+        ];
+        return true;
+    }
+    crate::host_columns::fill(l::Relation::FilesystemExecutable, Some(run), id.0 as usize, out).unwrap_or(false)
 }
 
 fn domain_steps(cut: Option<&crate::finish::partition::Partition>) -> Vec<(usize, usize)> {

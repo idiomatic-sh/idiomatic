@@ -77,6 +77,26 @@ impl Layout {
         run.declare(alias, &columns, finish::Supplier::Provider);
     }
 
+    /// This file's rows as screening columns, with symbols interned in the file's own word table.
+    pub(crate) fn witness_columns(&self, path: &str, file: l::FileId, words: &mut l::FileWords, out: &mut l::FilledColumns) -> bool {
+        let cells = self.rows.get(path).map_or(&[][..], Vec::as_slice);
+        out.0 = (0..self.columns.len()).map(|_| l::FilledColumn(Vec::new())).collect();
+        for row in cells.chunks_exact(self.columns.len()) {
+            for ((column, (_, ty)), &cell) in out.0.iter_mut().zip(&self.columns).zip(row) {
+                column.0.push(match ty {
+                    finish::Ty::File => l::CellWord(u64::from(file.0)),
+                    finish::Ty::Sym if cell == finish::NULL => l::CellWord(u64::from(l::NO_SYMBOL.0)),
+                    finish::Ty::Sym => match std::str::from_utf8(&self.words[cell as usize]) {
+                        Ok(text) => l::facts::intern(words, l::NameText(text)),
+                        Err(_) => return false,
+                    },
+                    _ => l::CellWord(cell),
+                });
+            }
+        }
+        true
+    }
+
     pub(crate) fn slice(&self, run: &mut finish::Run, alias: &str, path: &str, file: l::FileId) -> Rc<Table> {
         let (_, names, types) = run.catalog(alias).expect("bound project layout");
         let cells = self.rows.get(path).map_or(&[][..], Vec::as_slice);
