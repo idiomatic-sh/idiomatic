@@ -39,7 +39,9 @@ pub(in super::super::super) fn local_class(
         if !step.inputs.iter().any(|&input| !classes[input].is_empty()) {
             continue;
         }
-        if !local[node] || step.op() != "select" || step.semi().is_some() || step.counted() {
+        // The same equality matches the same rows if the right side is
+        // read only for existence. Counted rewrites have additional readers.
+        if !local[node] || step.op() != "select" || step.counted() {
             return Ok(false);
         }
         let select = exec.sel(run, node)?;
