@@ -317,3 +317,19 @@ pub(crate) fn typed(
         place: (0, 0),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn closed_span_after_an_unlocated_node_places_the_finding() {
+        let mut restored = RestoredRows::new(vec!["source".into()], 1);
+        let mut row = restored.row(0, "rule", &["file".into(), "id".into(), "span".into()],
+            &[0, 1, 2], [(Ty::File, 0), (Ty::Node, 1), (Ty::Span, (11 << 32) | 17)].into_iter());
+        assert_eq!(row.span_file().as_deref(), Some("source"));
+        row.locate("source", None, b"0123456789abcdefg", &mut Default::default()).unwrap();
+        assert_eq!(row.place, (1, 12));
+        assert_eq!(row.byte_span("span").unwrap(), Some(Span { start: Offset(11), end: Offset(17) }));
+    }
+}
