@@ -947,7 +947,7 @@ pub(crate) fn visit<L: FileSource>(
     let (plan, supplied) = merged.finish();
     let mut exec = Exec::new(&plan);
     clocks.prepare += thread_cpu() - start;
-    let mut carried_symbols = HashMap::new();
+    let mut carried_symbols = rustc_hash::FxHashMap::<u32, u32>::default();
     if let Some(dictionary) = reader_id.and_then(|id| world.project_words.get(id)) {
         carried_symbols.extend(unknown.iter().map(|(reason, &word)| (word, dictionary[reason])));
     }
