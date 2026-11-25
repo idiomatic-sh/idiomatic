@@ -354,12 +354,13 @@ impl languages::FileRelations for ParseContract {
             let generic = |word: &[u8]| lists.is_some_and(|l| l.generic.contains(word));
             let argument = |word: &[u8]| lists.is_some_and(|l| l.argument_forms.contains(word));
             let modules = lists.map_or(&[][..], |l| l.modules.as_slice());
-            let uses_package = schemas.iter().any(|s| match s.name {
+            let uses_package = |s: &languages::FileRelation| match s.name {
                 "import-head" => file.import_statement_count() != 0,
                 "relative-import-target" => file.has_relative_imports(),
                 _ => false,
-            });
-            let package = project.filter(|_| uses_package).map(|project| crate::fixtures::import_environment::package(project, request.path.0)).transpose();
+            };
+            let needs_package: Vec<_> = projected.iter().map(|s| uses_package(s)).collect();
+            let package = project.filter(|_| needs_package.iter().any(|&needed| needed)).map(|project| crate::fixtures::import_environment::package(project, request.path.0)).transpose();
             let observed_package = package.as_ref().ok().and_then(Option::as_ref)
                 .map(|(parent, root)| (parent.as_deref(), root.as_str()));
             let mut failure = None;
@@ -372,7 +373,11 @@ impl languages::FileRelations for ParseContract {
             let lookup = project.filter(|p| p.roots().is_some()).map(|_| &mut prefixes as &mut dyn FnMut(&str) -> (String, String, bool));
             let mut answers = file.answer_named_facts_covered(&projected, request.file, request.path.0, request.bytes, symbols,
                 Some((&generic, &argument, modules)), observed_package, lookup);
-            for (schema, answer) in projected.iter().zip(&mut answers) {
+            for ((schema, answer), needed) in projected.iter().zip(&mut answers).zip(needs_package) {
+                if needed && let Err(error) = &package {
+                    *answer = Err(languages::ParseError::Library { reason: languages::ToolMessage(error.as_str().into()) });
+                    continue;
+                }
                 if let Ok(rows) = answer && let Err(error) = crate::fixtures::columns::positions::publish(&mut rows.columns, schema, request.file, positions) {
                     *answer = Err(error);
                 }
