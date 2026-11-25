@@ -28,7 +28,7 @@ struct State {
     context: Option<(usize, &'static str)>,
     queries: BTreeMap<usize, String>,
     stack: Vec<Frame>,
-    metrics: HashMap<(usize, &'static str, String), [u64; 12]>,
+    metrics: HashMap<(usize, &'static str, String), [u64; 14]>,
 }
 
 struct Frame {
@@ -128,6 +128,9 @@ pub fn leave(start: ThreadTime, kind: &str, rows: usize, ran: bool) {
         let bucket = match frame.input { 0 => 0, 1..=8 => 1, 9..=64 => 2, _ => 3 };
         metrics[4 + bucket] += u64::from(ran);
         metrics[8 + bucket] += own;
+        // Runs that answered no row, whatever they read: their count and CPU.
+        metrics[12] += u64::from(ran && rows == 0);
+        metrics[13] += if ran && rows == 0 { own } else { 0 };
         if let Some(parent) = state.stack.last_mut() {
             parent.input += rows as u64;
             parent.children += elapsed(start);
@@ -154,10 +157,10 @@ pub fn flush() -> std::io::Result<()> {
             }
             writeln!(out)?;
         }
-        for ((query, phase, kind), [runs, input, output, ns, r0, r1, r2, r3, n0, n1, n2, n3]) in state.metrics.drain() {
+        for ((query, phase, kind), [runs, input, output, ns, r0, r1, r2, r3, n0, n1, n2, n3, z, zn]) in state.metrics.drain() {
             writeln!(
                 out,
-                "operator\t{query}\t{phase}\t{kind}\t{runs}\t{input}\t{output}\t{ns}\t{r0}\t{r1}\t{r2}\t{r3}\t{n0}\t{n1}\t{n2}\t{n3}"
+                "operator\t{query}\t{phase}\t{kind}\t{runs}\t{input}\t{output}\t{ns}\t{r0}\t{r1}\t{r2}\t{r3}\t{n0}\t{n1}\t{n2}\t{n3}\t{z}\t{zn}"
             )?;
         }
         out.flush()
