@@ -1,5 +1,5 @@
 //! Convert the frozen benchmark request's host inputs to public SDK values.
-use crate::sdk;
+use super::sdk;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 

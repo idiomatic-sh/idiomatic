@@ -35,15 +35,13 @@ fn engine_source(path: &Path) -> bool {
     if path.extension().is_none_or(|e| e != "rs") {
         return false;
     }
-    // Classify by the six actual entry files, not by where an implementation
+    // Classify by the four actual image mains, not by where an implementation
     // was put. A new private module in the host or an external crate must fail.
     ![
         "crates/tastemaker/cli/src/main.rs",
         "crates/tastemaker/cli/src/bin/vec.rs",
         "crates/tastemaker/cli/src/bin/vec_ts.rs",
         "crates/tastemaker/cli/src/bin/vec_rust.rs",
-        "crates/ryo/crates/engine/benches/lint_image/main.rs",
-        "crates/ryo/crates/engine/benches/lint_image/request.rs",
     ].iter().any(|file| path.ends_with(file))
 }
 

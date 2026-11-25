@@ -27,8 +27,9 @@ fn constant(value: &Value) -> PlanConstant {
 }
 
 pub(super) fn rule_context(request: Option<&str>) -> RuleContext {
-    let mut context = super::reader_cli::rule_context(request);
+    let mut context = RuleContext::default();
     if let Some(path) = request {
+        super::finish::json_input::check_context(path);
         let input: Value =
             serde_json::from_slice(&std::fs::read(path).expect("read request")).expect("request");
         if let Some(tables) = input["hosted"].as_array() {

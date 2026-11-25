@@ -55,18 +55,6 @@ fn subject(begun: Input) -> Result<Value, Failure> {
         PythonSourceKind::Python,
         &mut languages::table_builder(&mut elements, &mut symbols, ByteSlice(source)),
     );
-    #[cfg(feature = "fixtures")]
-    {
-        let request = languages::ParseRequest {
-            file: languages::FileId(3), path: languages::SourcePath("retained.py"),
-            bytes: ByteSlice(source), notes: languages::NoteRequest::Unwanted,
-            fields: languages::FieldRequest::Wanted,
-        };
-        let mut lent = false;
-        crate::fixtures::columns::ColumnWalk::retained(adapter.settings, request, &elements, &mut |_, _| lent = true)
-            .map_err(|_| ())?;
-        if !lent { return Err(()); }
-    }
     let retained = match begun {
         Begun::FromTheRead => languages::take_semantics(&mut elements),
         Begun::FromNothing => languages::SemanticSlot::Empty,

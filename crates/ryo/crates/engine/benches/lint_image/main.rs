@@ -36,7 +36,10 @@ struct Finding {
     end: u32,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(
+    configured_provider: fn(Option<&str>, &std::path::Path) -> Result<ryo::languages::Language, String>,
+    distinct_locations: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     let (retain, args) = match args.split_first() {
         Some((mode, rest)) if mode == "--retain-findings" => (true, rest),
@@ -172,7 +175,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })?);
     }
     findings.sort_unstable();
-    if DISTINCT_LOCATIONS {
+    if distinct_locations {
         findings.dedup();
     }
     let mut writer = BufWriter::new(fs::File::create(output)?);

@@ -73,11 +73,6 @@ name = "provider"
 path = "benchmarks/provider/bench.rs"
 harness = false
 
-[[bench]]
-name = "vec-ts"
-path = "benchmarks/vec/bench.rs"
-harness = false
-
 [features]
 # Instruments and widens the benchmark pair program for cost measurements.
 pair-diagnostics = []

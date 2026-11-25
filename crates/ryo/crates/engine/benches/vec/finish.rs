@@ -100,8 +100,7 @@ mod lazy_view;
 pub(super) mod fill_len;
 #[path = "finish/host.rs"]
 pub(super) mod host;
-#[path = "finish/project.rs"]
-pub(super) mod project;
+
 #[path = "finish/capture.rs"]
 mod capture;
 #[path = "finish/fill_prof.rs"]
@@ -377,7 +376,6 @@ pub(super) struct Run {
     /// Supplied files carry the caller's observation instead of a disk path to stat.
     pub(super) supplied_permission: Option<(u32, ryo_values::domain::files::types::ExecutablePermission)>,
     /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
-    pub(super) project: FxHashMap<String, project::Answered>,
     /// Exact refusal returned by the current provider call on bound inputs.
     pub(super) provider_refusal: Option<String>,
     /// Functions a step asked that are not in the step set (the rule is refused).
@@ -519,9 +517,6 @@ pub(super) enum Supplier {
     /// The host, for the run: the files of the run (one row a file, the same in every file).
     #[allow(dead_code, reason = "redo-int round 33: no relation is declared RunFiles since filesystem.file is the file's row (redo-binding c32); kept as redo-fills' run-scoped supplier")]
     RunFiles,
-    /// redo-general: the provider, for a project (`Scope::Files`): rows relating the run's files to each other or to the
-    /// project's entries, asked as the provider declares (`project::ProjectAsk`).
-    Project(project::ProjectAsk),
 }
 
 /// A declared relation.
@@ -667,7 +662,7 @@ fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
 /// 6h: a provider relation's place among the facts read in place (`VEC_NO_FACTVIEW` turns this off): every catalog
 /// relation the provider or the host fills per file; never the run's file list or a relation a step makes.
 fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
-    if sw!("VEC_NO_FACTVIEW") || native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles | Supplier::Project(_)) {
+    if sw!("VEC_NO_FACTVIEW") || native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles) {
         return None;
     }
     let (_, names, _) = run.catalog(rel)?;
@@ -808,7 +803,6 @@ impl Drop for File<'_> {
 #[derive(Clone, Copy, Debug)]
 pub(super) enum Scope<'s> {
     File(u32),
-    /// redo-general: asked by `project.rs` for the relations the provider answers for a project.
     Files(&'s [u32]),
 }
 
@@ -2571,7 +2565,6 @@ impl<'p> Exec<'p> {
                 }
                 return Ok(out);
             }
-            Supplier::Project(ask) => return project::rows(f, run, p, rel, ask),
             Supplier::Provider | Supplier::Host => {}
         }
         if let Some(t) = f.fills.get(rel) {

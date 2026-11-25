@@ -83,8 +83,6 @@ impl Walk for PythonWalk<WalkPorts> {
             needs,
             builder,
             scratch,
-            #[cfg(any(test, feature = "fixtures"))]
-            None,
             &mut |table, tree, view, built| {
                 let mut file = file_view(table, tree, request.file, view, built);
                 let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(&mut file);
@@ -112,9 +110,6 @@ pub(crate) fn visit_numbered(
     needs: RelationNeeds<'_>,
     builder: &mut NodeTableBuilder<'_>,
     scratch: &mut PythonWalkScratch,
-    #[cfg(any(test, feature = "fixtures"))] parsed: Option<
-        &ruff_python_parser::Parsed<ruff_python_ast::Mod>,
-    >,
     visit: &mut dyn FnMut(&ryo::languages::NodeTable, &WalkedTree<'_>, &mut PythonScratch, Built),
 ) {
     let reported = if needs.0.contains(&languages::Relation::SyntaxError) {
@@ -141,22 +136,6 @@ pub(crate) fn visit_numbered(
     };
     let source = SourceText(request.source.0);
     let kind = source_kind(request.path);
-    #[cfg(any(test, feature = "fixtures"))]
-    if let Some(parsed) = parsed {
-        let text = crate::outbound::syntax::adapters::walk_text(source);
-        crate::outbound::syntax::adapters::visit_parsed(
-            &provider.ports.settings,
-            source,
-            kind,
-            reported,
-            builder,
-            names,
-            &mut consume,
-            &text,
-            parsed,
-        );
-        return;
-    }
     provider
         .ports
         .syntax

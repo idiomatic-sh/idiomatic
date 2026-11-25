@@ -1134,38 +1134,6 @@ impl SharedAtoms<'_> {
 }
 
 impl Program {
-    pub(super) fn file(
-        &self,
-        t: &NodeTable,
-        src: &[u8],
-        path: Option<&[u8]>,
-        words: &mut FileWords,
-        read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
-        alive: &mut [bool],
-        exact: Option<&mut Vec<(usize, Bits)>>,
-    ) -> u64 {
-        self.file_columns(t, src, path, None, words, read, alive, exact, &[])
-    }
-    pub(super) fn file_columns(
-        &self,
-        t: &NodeTable,
-        src: &[u8],
-        path: Option<&[u8]>,
-        syntax_text: Option<SyntaxText<'_>>,
-        words: &mut FileWords,
-        read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
-        alive: &mut [bool],
-        exact: Option<&mut Vec<(usize, Bits)>>,
-        known: &[(Id, bool)],
-    ) -> u64 {
-        #[cfg(feature = "pair-diagnostics")]
-        if self.meter.is_some() {
-            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact, known, None, None);
-        }
-        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact, known, None, None)
-    }
-
-    #[allow(dead_code, reason = "Session roots are selected by active bindings")]
     pub(super) fn selected_columns(
         &self,
         t: &NodeTable,
@@ -1186,7 +1154,11 @@ impl Program {
         if !want_exact && atoms.as_ref().is_some_and(|a| a.cached_roots(&self.roots, selected, alive)) {
             return 0;
         }
-        self.evaluate::<false>(t, src, Some(path), syntax_text, words, read, alive, exact, known, Some(selected), atoms)
+        #[cfg(feature = "pair-diagnostics")]
+        if self.meter.is_some() {
+            return self.evaluate::<true>(t, src, Some(path), syntax_text, words, read, alive, exact, known, selected, atoms);
+        }
+        self.evaluate::<false>(t, src, Some(path), syntax_text, words, read, alive, exact, known, selected, atoms)
     }
 
     fn evaluate<const PROFILE: bool>(
@@ -1200,7 +1172,7 @@ impl Program {
         alive: &mut [bool],
         mut exact: Option<&mut Vec<(usize, Bits)>>,
         known: &[(Id, bool)],
-        selected: Option<&[u64]>,
+        selected: &[u64],
         atoms: Option<SharedAtoms<'_>>,
     ) -> u64 {
         languages::facts::clear_words(words);
@@ -1265,25 +1237,16 @@ impl Program {
             steps: 0,
         };
         for &(need, value) in known { f.needs.set(need, value); }
-        let mut root = |index: usize| {
+        each(selected, |index| {
+            let index = index as usize;
             f.owner = index;
             alive[index] = f.pass(self.roots[index].1);
-        };
-        if let Some(selected) = selected {
-            each(selected, |index| root(index as usize));
-        } else {
-            for (index, (active, (_, proof))) in alive.iter_mut().zip(&self.roots).enumerate() {
-                if *active {
-                    f.owner = index;
-                    *active = f.pass(*proof);
-                }
-            }
-        }
+        });
         if let Some(out) = exact.as_mut() {
             for (rule, cert) in &self.exact {
                 let rule = *rule;
                 f.owner = rule;
-                if selected.is_some_and(|mask| mask[rule / 64] & (1 << (rule % 64)) == 0) {
+                if selected[rule / 64] & (1 << (rule % 64)) == 0 {
                     continue;
                 }
                 if alive[rule] && !f.pass(cert.guard) && f.complete(&cert.facts)

@@ -6,12 +6,8 @@
 extern crate ryo_sdk as ryo;
 #[path = "../../../../ryo/crates/engine/benches/vec/alloc_count.rs"]
 mod alloc_count;
-#[path = "../../../../ryo/crates/engine/benches/vec/file_skip.rs"]
-mod file_skip;
 #[path = "../../../../ryo/crates/engine/benches/vec/finish.rs"]
 mod finish;
-#[path = "../../../../ryo/crates/engine/benches/vec/finisher.rs"]
-mod finisher;
 #[path = "../../../../ryo/crates/engine/benches/vec/first.rs"]
 mod first;
 use first::{Vocab, span_bytes};
@@ -34,12 +30,10 @@ mod pair_summary;
 mod reader;
 #[path = "../../../../ryo/crates/engine/benches/vec/reader_run.rs"]
 mod reader_run;
-#[path = "../../../../ryo/crates/engine/benches/vec/spec.rs"]
-mod spec;
 
-#[path = "../../../../ryo/crates/engine/benches/vec/reader_cli.rs"]
-mod reader_cli;
-use reader_cli::{alloc_counts, flag, thread_cpu};
+#[path = "../../../../ryo/crates/engine/benches/vec/bench_support.rs"]
+mod bench_support;
+use bench_support::thread_cpu;
 #[path = "../../../../ryo/cli/benches/readers/json_input.rs"]
 mod json_input;
 #[path = "../../../../ryo/cli/benches/readers/json_output.rs"]

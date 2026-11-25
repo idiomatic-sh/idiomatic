@@ -139,90 +139,6 @@ pub(super) fn digest(rows: &[&finish::answer::Row]) -> String {
     format!("{:x}", hash.finalize())
 }
 
-/// The committed benchmark passes the numbered inventory on stdin and source
-/// roots in its adjacent manifest. Both streams describe inputs to one session.
-pub(crate) fn packets(
-    languages: Vec<Language>,
-    manifest: &str,
-    output: &str,
-) -> Result<(), String> {
-    #[derive(Deserialize)]
-    struct Entry {
-        id: String,
-        pack: String,
-        request: PathBuf,
-    }
-    #[derive(Deserialize)]
-    struct Inventory {
-        id: String,
-        inventory: Vec<String>,
-        repository: Option<Authority>,
-    }
-    let readers: Vec<_> = languages.into_iter().map(session::source::Linked::from).collect();
-    let mut session = Batch { file_catalog: session::named::Catalog::from_readers(&readers)?, ..Default::default() };
-    let mut inputs = ReplayInputs { authorities: Authorities::from_input()?, ..Default::default() };
-    let mut ids = Vec::new();
-    let source = std::fs::File::open(manifest).map_err(|e| e.to_string())?;
-    let stdin = std::io::stdin();
-    let mut projects = stdin.lock().lines();
-    for line in std::io::BufReader::new(source).lines() {
-        let item: Entry =
-            json_input::decode_line(&line.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
-        let mapped = projects
-            .next()
-            .ok_or("missing closed inventory")?
-            .map_err(|e| e.to_string())?;
-        let project: Inventory = json_input::decode_line(&mapped).map_err(|e| e.to_string())?;
-        if project.id != item.id {
-            return Err("inventory and admitted request differ".into());
-        }
-        let bytes = std::fs::read(item.request).map_err(|e| e.to_string())?;
-        let mut input: Input = json_input::decode(&bytes).map_err(|e| e.to_string())?;
-        input.inventory = Some(canonical_inventory(project.inventory));
-        input.repository = project.repository;
-        let work = inputs.register(&mut session, &item.pack, input, None)
-            .unwrap_or_else(Work::Refused);
-        session.work.push(work);
-        ids.push(item.id);
-    }
-    if projects.next().is_some() {
-        return Err("extra closed inventory".into());
-    }
-    drop(inputs);
-    let answers = session.run_sources(&readers);
-    let mut out =
-        std::io::BufWriter::new(std::fs::File::create(output).map_err(|e| e.to_string())?);
-    for (id, work) in ids.into_iter().zip(&session.work) {
-        let result = match Batch::answer(work, &answers) {
-            Ok(r) => {
-                json_output::packet_receipt(&id, Ok((r.rows.len(), digest(&r.rows), r.unknowns)))
-            }
-            Err(reason) => json_output::packet_receipt(&id, Err(reason)),
-        };
-        writeln!(out, "{result}").map_err(|e| e.to_string())?;
-    }
-    out.flush().map_err(|e| e.to_string())
-}
-
-pub(crate) fn batch(languages: Vec<Language>, manifest: &str, output: &str) {
-    let readers: Vec<_> = languages
-        .into_iter()
-        .map(session::source::Linked::from)
-        .collect();
-    batch_with_sources(&readers, manifest, output);
-}
-
-fn batch_with_sources<L: session::source::Source>(readers: &[L], manifest: &str, output: &str) {
-    batch_with_workers(readers, manifest, output, None);
-}
-fn batch_with_workers<L: session::source::Source>(
-    readers: &[L],
-    manifest: &str,
-    output: &str,
-    workers: Option<std::num::NonZeroUsize>,
-) {
-    batch_mode_with_workers(readers, manifest, output, None, workers, || {})
-}
 fn write_receipt<U: serde::Serialize>(out: &mut impl Write, id: &str, expected: &str, digest: &str, unknowns: &[U]) {
     let status = if expected == digest && unknowns.is_empty() { "exact" } else { "different" };
     write!(out, "{id}\t{status}\t{digest}").unwrap();
@@ -413,20 +329,6 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
         c.requirement_bindings,
     );
     completed();
-}
-
-/// Standalone scenario entry, using the same scheduler and full typed output.
-pub(crate) fn one(
-    languages: Vec<Language>,
-    pack: &str,
-    input: Input,
-    output: &str,
-) -> Result<(), String> {
-    let readers: Vec<_> = languages
-        .into_iter()
-        .map(session::source::Linked::from)
-        .collect();
-    one_source(&readers, pack, input, output)
 }
 
 fn one_source<L: session::source::Source>(

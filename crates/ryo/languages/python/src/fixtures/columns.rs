@@ -161,24 +161,6 @@ impl ColumnWalk {
         self.structure = Some(enclosing);
     }
 
-    /// Walks one file into `table` and lends it to `visit`.
-    ///
-    /// # Errors
-    ///
-    /// When the file is not Python.
-    pub fn walked(&mut self, path: &str, bytes: &[u8], table: &mut NodeTable, visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>)) -> Result<(), WalkError> {
-        self.visit_file(
-            languages::WalkRequest {
-                path: languages::SourcePath(path),
-                file: FileId(0),
-                source: languages::ByteSlice(bytes),
-            },
-            languages::RelationNeeds(&[]),
-            table,
-            visit,
-        )
-    }
-
     /// Lends catalog and named columns on the one tree numbered by the parser walk.
     ///
     /// # Errors
@@ -191,55 +173,7 @@ impl ColumnWalk {
         table: &mut NodeTable,
         visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
     ) -> Result<(), WalkError> {
-        self.visit_parse(request, needs, table, None, visit)
-    }
-
-    /// Lend a column file from the module retained by this numbered parse. The
-    /// provider can fill every requested relation before this borrow ends.
-    pub fn retained(
-        settings: PythonParserSettings,
-        request: languages::ParseRequest<'_>,
-        elements: &languages::Elements,
-        visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>, &[Position]),
-    ) -> Result<(), String> {
-        let parsed = languages::retained_parse::<ruff_python_parser::Parsed<ruff_python_ast::Mod>>(elements)
-            .ok_or("parser did not retain this module")?;
-        let walk = PythonWalk { ports: WalkPorts { settings, syntax: Arc::new(ruff_python_parser(settings)) } };
-        let words = super::walking::walk_words(&walk).map_err(|error| format!("{error:?}"))?;
-        let mut reader = Self::with_settings(words, settings);
-        let mut identity = Err("provider walk produced no numbered tree".to_owned());
-        reader.visit_parse(
-            languages::WalkRequest {
-                path: request.path,
-                file: request.file,
-                source: request.bytes,
-            },
-            languages::RelationNeeds(&[]),
-            &mut NodeTable::default(),
-            Some(parsed),
-            &mut |file| {
-                identity = match positions::numbered(file.table, elements) {
-                    Ok(numbered) => {
-                        visit(file, &numbered);
-                        Ok(())
-                    }
-                    Err(error) => Err(format!("{}: {error}", request.path.0)),
-                };
-            },
-        )
-        .map_err(|error| error.to_string())?;
-        identity
-    }
-
-    fn visit_parse(
-        &mut self,
-        request: languages::WalkRequest<'_>,
-        needs: languages::RelationNeeds<'_>,
-        table: &mut NodeTable,
-        parsed: Option<&ruff_python_parser::Parsed<ruff_python_ast::Mod>>,
-        visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
-    ) -> Result<(), WalkError> {
-        if parsed.is_none() && reads(request.path) != languages::Recognition::Reads {
+        if reads(request.path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
         let kinds = <PythonWalk<WalkPorts> as languages::Walk>::KIND_COUNT;
@@ -257,7 +191,6 @@ impl ColumnWalk {
             needs,
             &mut builder,
             &mut self.scratch,
-            parsed,
             &mut |table, tree, scratch, built| {
                 let mut file = file_view(table, tree, request.file, scratch, built);
                 visit(&mut ColumnFile {
@@ -957,5 +890,3 @@ impl ColumnFile<'_, '_> {
         table.finish(elements);
     }
 }
-
-pub(crate) mod positions;

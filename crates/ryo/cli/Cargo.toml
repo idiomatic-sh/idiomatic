@@ -85,12 +85,6 @@ snapbox.workspace = true
 shlex = "=2.0.1"
 
 [[bench]]
-name = "vec-readers"
-path = "benches/readers/bench.rs"
-required-features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
-harness = false
-
-[[bench]]
 name = "commands"
 path = "benches/performance/main.rs"
 harness = false

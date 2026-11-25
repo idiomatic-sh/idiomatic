@@ -264,6 +264,9 @@ runpy.run_path(str(library / "link-rounds.py"))["link_rounds"](core, library)
 # Build all three pack harnesses in this workspace so the SDK crate identity,
 # linked executor and profile match the real check.
 image = image_sources / "main.rs"
+with lib.open("a") as library_file:
+    library_file.write(f'\n#[path = {json.dumps(str(image))}]\npub mod native_image;\n')
+
 cli_manifest = cli.parent / "Cargo.toml"
 cli_manifest.write_text(cli_manifest.read_text().replace("[dependencies]\n", "[dependencies]\ncpu-time.workspace = true\ntoml.workspace = true\nglobset = \"0.4\"\n", 1))
 with cli_manifest.open("a") as manifest:
@@ -287,7 +290,7 @@ with cli_manifest.open("a") as manifest:
         path.write_text(f"use ryo_{language} as provider;\n"
             f"const DISTINCT_LOCATIONS: bool = {str(language == 'python').lower()};\n"
             f"fn configured_provider(settings: Option<&str>, _pack: &std::path::Path) -> Result<ryo::languages::Language, String> {{{configure}\n}}\n"
-            f"include!({json.dumps(str(image))});\n")
+            "fn main() -> Result<(), Box<dyn std::error::Error>> { tastemaker_cli::native_image::run(configured_provider, DISTINCT_LOCATIONS) }\n")
         manifest.write(f'\n[[bin]]\nname = "{binary}"\npath = "src/bin/{binary}.rs"\n')
 
 # The linked SDK has two crate identities. Pair the concrete libraries at the

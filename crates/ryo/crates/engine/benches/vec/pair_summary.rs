@@ -1707,15 +1707,6 @@ fn terms<'a>(e: &'a PlanExpression, out: &mut Conjuncts<'a>) {
     }
 }
 
-pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> Program {
-    prepare_with_reader_rows(plan, vocab, language, &[], false)
-}
-
-/// Relations supplied as rows may have a different population from the tree.
-pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, language: &Language, reader_rows: &[String], syntax_symbols: bool) -> Program {
-    prepare_plans(&[plan], None, vocab, language, reader_rows, None, syntax_symbols)
-}
-
 /// Prepared texts share one set of file and node tests without renumbering their executor steps.
 pub(super) fn prepare_plans(
     plans: &[&FinishPlan],
