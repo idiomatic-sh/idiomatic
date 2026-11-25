@@ -179,6 +179,8 @@ impl Admission {
         let layout = if !scope_only
             && !held.is_empty()
             // One File cell per row and no node or span cell: the rows are the file's own.
+            // The answer must not depend on any file's parsed notes, which the slice cannot carry.
+            && held.iter().all(|relation| catalog::service::needs_notes(*relation) == catalog::types::RelationNotes::Unneeded)
             && held.iter().all(|relation| run.catalog(relations::service::name(*relation).0).is_some_and(|(_, _, types)| {
                 types.iter().filter(|ty| **ty == finish::Ty::File).count() == 1
                     && !types.iter().any(|ty| matches!(ty, finish::Ty::Node | finish::Ty::Span))

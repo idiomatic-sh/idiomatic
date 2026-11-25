@@ -486,7 +486,10 @@ pub(in super::super) fn partition(
             filters.insert(source, alternatives.into_iter().collect());
         }
     }
-    let domains = super::session::demand::domains(exec, run, &local, &input_set);
+    let mut domains = super::session::demand::domains(exec, run, &local, &input_set);
+    for (source, keyed) in super::session::demand::walk_domains(exec, run, &local, &reached, &input_set) {
+        domains.entry(source).or_insert(keyed);
+    }
     let ancestor_domains = super::session::demand::ancestor_domains(exec, run, &local, &reached, &input_set);
     let reach = super::session::demand::reach_domains(exec, run, &local, &reached, &input_set);
     Ok(Partition {

@@ -352,6 +352,54 @@ pub(in super::super::super) fn reach_domains(
     found
 }
 
+/// A native edge relation read only as the hierarchy of descendant walks needs
+/// only the edges whose parent is a start node or lies below one.
+pub(in super::super::super) fn walk_domains(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    local: &[bool],
+    reached: &[bool],
+    inputs: &BTreeSet<usize>,
+) -> BTreeMap<usize, (usize, Nodes)> {
+    let mut found = BTreeMap::new();
+    for &source in inputs {
+        if exec.plan.emits.iter().any(|e| e.1 == source) || !native_child(exec, run, source) {
+            continue;
+        }
+        let mut parts = Vec::new();
+        let bounded = exec.plan.consumers(source).iter().copied()
+            .filter(|&reader| reached[reader] && !local[reader])
+            .all(|reader| {
+                let step = &exec.plan.nodes[reader];
+                if step.op() != "axis"
+                    || step.inputs.iter().filter(|&&i| i == source).count() != 1
+                    || exec.arg_rel(reader, "relation") != Ok(source)
+                    || !matches!(super::super::s(&step.args()["direction"]), Ok("descendant" | "child"))
+                {
+                    return false;
+                }
+                let Ok(from) = exec.arg_rel(reader, "from") else {
+                    return false;
+                };
+                let Some(id) = exec.schema(run, from).ok()
+                    .and_then(|schema| super::super::pos(&schema.names, "id").ok())
+                else {
+                    return false;
+                };
+                let Some(start) = origin(exec, run, local, from, id, 32) else {
+                    return false;
+                };
+                parts.push(union(vec![start.clone(), Nodes::Below(Box::new(start))]));
+                true
+            });
+        if bounded && !parts.is_empty() {
+            // The edges are keyed by their parent column.
+            found.insert(source, (0, union(parts)));
+        }
+    }
+    found
+}
+
 /// The file's nodes on one side of the given nodes, strictly, ascending.
 pub(super) fn reach_nodes(
     run: &Run,
