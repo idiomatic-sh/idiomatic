@@ -27,18 +27,23 @@ struct Step {
 }
 
 #[derive(Default)]
-struct State {
+struct Local {
     program: usize,
     binding: usize,
     ids: HashMap<(usize, usize), u64>,
     stack: Vec<f64>,
+}
+
+#[derive(Default)]
+struct State {
     seen: HashMap<(u64, u32), Entry>,
     steps: HashMap<u64, Step>,
     total: u64,
     own: [f64; 4],
 }
 
-thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
+thread_local! { static LOCAL: RefCell<Local> = RefCell::new(Local::default()); }
+static GLOBAL: std::sync::Mutex<Option<State>> = std::sync::Mutex::new(None);
 
 #[inline]
 pub(crate) fn on() -> bool {
@@ -46,7 +51,7 @@ pub(crate) fn on() -> bool {
 }
 
 pub(crate) fn program(binding: usize, id: usize) {
-    STATE.with_borrow_mut(|s| {
+    LOCAL.with_borrow_mut(|s| {
         s.program = id;
         s.binding = binding;
     });
@@ -55,7 +60,7 @@ pub(crate) fn program(binding: usize, id: usize) {
 /// The step's identity: operator, arguments, the identities of its inputs.
 pub(super) fn identity(plan: &super::Plan, node: usize) -> u64 {
     let key = (std::ptr::from_ref(plan) as usize, node);
-    if let Some(id) = STATE.with_borrow(|s| s.ids.get(&key).copied()) {
+    if let Some(id) = LOCAL.with_borrow(|s| s.ids.get(&key).copied()) {
         return id;
     }
     let step = &plan.nodes[node];
@@ -69,23 +74,27 @@ pub(super) fn identity(plan: &super::Plan, node: usize) -> u64 {
     format!("{:?}", step.args()).hash(&mut h);
     inputs.hash(&mut h);
     let id = h.finish();
-    STATE.with_borrow_mut(|s| s.ids.insert(key, id));
+    LOCAL.with_borrow_mut(|s| s.ids.insert(key, id));
     id
 }
 
 pub(super) fn enter() {
-    STATE.with_borrow_mut(|s| s.stack.push(0.0));
+    LOCAL.with_borrow_mut(|s| s.stack.push(0.0));
 }
 
 pub(super) fn leave(id: u64, op: &str, file: u32, total: f64, rows_in: usize, rows_out: usize) {
-    STATE.with_borrow_mut(|s| {
-        let children = s.stack.pop().unwrap_or(0.0);
-        let own = (total - children).max(0.0);
-        if let Some(parent) = s.stack.last_mut() {
+    let (children, program, binding) = LOCAL.with_borrow_mut(|l| {
+        let children = l.stack.pop().unwrap_or(0.0);
+        if let Some(parent) = l.stack.last_mut() {
             *parent += total;
         }
+        (children, l.program, l.binding)
+    });
+    let own = (total - children).max(0.0);
+    let mut guard = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let s = guard.get_or_insert_with(State::default);
+    {
         s.total += 1;
-        let (program, binding) = (s.program, s.binding);
         let entry = s.seen.entry((id, file)).or_default();
         entry.makes += 1;
         let kind = if entry.makes == 1 {
@@ -119,14 +128,16 @@ pub(super) fn leave(id: u64, op: &str, file: u32, total: f64, rows_in: usize, ro
             2 => step.across += own,
             _ => step.cross_program += own,
         }
-    });
+    }
 }
 
 pub(crate) fn print() {
     if !on() {
         return;
     }
-    STATE.with_borrow(|s| {
+    let guard = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(s) = guard.as_ref() else { return };
+    {
         let distinct = s.seen.len() as f64;
         eprintln!("MAKES\ttotal {}\tdistinct_step_file {}\tratio {:.3}", s.total, s.seen.len(), s.total as f64 / distinct.max(1.0));
         eprintln!("MAKECPU\tfirst_ms {:.1}\trepeat_same_request_ms {:.1}\trepeat_other_request_same_program_ms {:.1}\trepeat_other_program_ms {:.1}", s.own[0] * 1e3, s.own[1] * 1e3, s.own[2] * 1e3, s.own[3] * 1e3);
@@ -147,5 +158,5 @@ pub(crate) fn print() {
         for (op, e) in byop {
             eprintln!("MAKEOP\t{op}\tfirst_ms {:.1}\tsame_ms {:.1}\tother_request_ms {:.1}\tother_program_ms {:.1}", e[0] * 1e3, e[1] * 1e3, e[2] * 1e3, e[3] * 1e3);
         }
-    });
+    }
 }
