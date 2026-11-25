@@ -183,7 +183,7 @@ impl Exec<'_> {
     fn ep_leaf(&mut self, f: &mut File<'_>, run: &mut Run, base: Native, conj: &[E], si: usize, map: &[usize]) -> usize {
         if let Native::Fact(i) = base {
             let rel = &run.fact_rels[usize::from(i)].0;
-            let filled = f.facts.get(usize::from(i)).and_then(Option::as_ref).or_else(|| f.fills.get(rel));
+            let filled = f.facts.get(usize::from(i)).and_then(Option::as_ref).or_else(|| f.filled(rel));
             if filled.is_some_and(|t| t.n == 0) {
                 if sw!("VEC_EP_COUNT") {
                     C.with(|c| *c.borrow_mut().no_rows.entry(rel.clone()).or_default() += 1);

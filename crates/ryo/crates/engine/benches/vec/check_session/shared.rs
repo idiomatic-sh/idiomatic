@@ -1,5 +1,5 @@
 //! Rebind a program's supplied relations and step numbers into the reader's plan.
-use super::{Bindings, Bound, Plan, Run, Table, Tables, finish};
+use super::{Bindings, Bound, Plan, Run, Table, finish};
 use ryo_engine::domain::plan_lowering::shared::SharedSteps;
 use ryo_values::domain::finish_plans::types::{FinishPlan, FinishStep};
 use std::{collections::HashMap, rc::Rc};
@@ -85,7 +85,7 @@ impl ReaderPlan {
         mut self,
         previous: Option<&mut Option<PreviousPlan>>,
         bound: &mut Bindings<'_>,
-    ) -> (Rc<Plan>, Tables) {
+    ) -> (Rc<Plan>, rustc_hash::FxHashMap<String, Rc<Table>>) {
         let plan = if let Some(last) = previous {
             let bindings = bound.entries.iter_mut().filter_map(|entry| entry.as_mut().ok());
             if let Some(hit) = last.as_ref().filter(|p| p.inputs == self.inputs) {

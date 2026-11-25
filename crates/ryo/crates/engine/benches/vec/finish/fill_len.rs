@@ -35,7 +35,7 @@ impl Exec<'_> {
     /// rows, else the fill made (and kept, as `load_fact`/`base` keep it).
     #[expect(dead_code, reason = "the emptiness leaves' entry (claude/redo-empty), joined by the merge builder")]
     pub(super) fn fill_len(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<usize> {
-        if let Some(t) = f.fills.get(rel) {
+        if let Some(t) = f.filled(rel) {
             return Ok(t.n);
         }
         if let Supplier::Host = run.supplier(rel)

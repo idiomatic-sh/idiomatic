@@ -699,6 +699,7 @@ pub(super) struct File<'a> {
     cold_text: cold_text::Dictionary,
     after_last_file: bool,
     project_inputs: Option<&'a population::Inputs>,
+    bound_inputs: Option<&'a FxHashMap<String, Rc<Table>>>,
     memo: Vec<Option<Res>>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
@@ -741,6 +742,12 @@ struct FileBufs {
 fn give_tables<K>(m: &mut FxHashMap<K, Rc<Table>>) {
     for (_, t) in m.drain() {
         recycle::recycle(t);
+    }
+}
+
+impl File<'_> {
+    fn filled(&self, relation: &str) -> Option<&Rc<Table>> {
+        self.fills.get(relation).or_else(|| self.bound_inputs?.get(relation))
     }
 }
 
@@ -863,6 +870,7 @@ impl File<'_> {
             cursor_views: Default::default(),
             index: b.index,
             fills: b.fills,
+            bound_inputs: None,
             lazies: b.lazies,
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
@@ -2540,7 +2548,7 @@ impl<'p> Exec<'p> {
                 eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op(), pn.summary_text().chars().take(900).collect::<String>(), ins.join(" | "));
             }
         }
-        if !f.fills.contains_key(&rel) {
+        if f.filled(&rel).is_none() {
             let t = fill_len::fill_or_empty(run, p, &rel, f.file)?;
             f.fills.insert(rel.clone(), t);
         }
@@ -2550,7 +2558,7 @@ impl<'p> Exec<'p> {
         if f.fact_read.len() <= i {
             f.fact_read.resize_with(i + 1, Default::default);
         }
-        f.facts[i] = f.fills.get(&rel).cloned();
+        f.facts[i] = f.filled(&rel).cloned();
         Ok(())
     }
 
@@ -2567,7 +2575,7 @@ impl<'p> Exec<'p> {
             }
             Supplier::Provider | Supplier::Host => {}
         }
-        if let Some(t) = f.fills.get(rel) {
+        if let Some(t) = f.filled(rel) {
             return Ok(t.copy());
         }
         let was = fill_prof::site("base");

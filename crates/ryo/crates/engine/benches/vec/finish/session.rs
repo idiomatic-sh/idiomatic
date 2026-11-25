@@ -381,11 +381,11 @@ fn restrict_uncertain(
 pub(in super::super) fn frame<'a, 't>(
     version: &'a FileVersion<'a>,
     plan: &super::Plan,
-    supplied: &[(String, Rc<Table>)],
+    supplied: &'a super::FxHashMap<String, Rc<Table>>,
     local: impl IntoIterator<Item = &'t (String, Rc<Table>)>,
 ) -> File<'a> {
     let mut frame = File::new(version, plan.nodes.len());
-    frame.fills.extend(supplied.iter().cloned());
+    frame.bound_inputs = Some(supplied);
     frame.fills.extend(local.into_iter().cloned());
     frame
 }
