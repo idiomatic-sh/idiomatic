@@ -3,8 +3,7 @@
 //! and its fields. JSON's fillers write no fixed name.
 
 use crate::domain::file_view::types::{JsonFile, JsonWalk};
-use crate::domain::extras::types::Extra;
-use crate::domain::syntax::service::{field_name, fields, kind_bits, kind_name, kind_of, kinds};
+use crate::domain::syntax::service::{field_name, fields, kind_name, kind_of, kinds};
 use crate::domain::syntax::types::Kind;
 use ryo::languages::{
     self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames,
@@ -164,22 +163,18 @@ impl<P: Send + Sync + 'static> Fillers for JsonWalk<P> {
         each_absent!(absent_arms, relation)
     }
 
-    /// Whether the parser read the file whole: its syntax when it accepted the file, its lexical stream when no text is left it could
-    /// not read.
+    /// Whether the parser read the file whole: both the syntax and the lexical stream are whole when the parser said nothing of the
+    /// file, as the old contract derives them from the diagnostics it kept (every diagnostic of this language is a recovery of the
+    /// tree and of the tokens).
     fn completeness(file: &JsonFile<'_>) -> FileCompleteness {
-        let table = file.syntax.table;
-        let whole = |held: bool| {
-            if held {
-                languages::SyntaxCompleteness::Complete
-            } else {
-                languages::SyntaxCompleteness::Incomplete
-            }
+        let whole = if node_table::syntax_error_count(file.syntax.table).0 == 0 {
+            languages::SyntaxCompleteness::Complete
+        } else {
+            languages::SyntaxCompleteness::Incomplete
         };
         FileCompleteness {
-            syntax: whole(node_table::acceptance_of(table) == languages::SyntaxAcceptance::Accepted),
-            lexical: whole(
-                node_table::ids_of_kind(table, kind_bits(Kind::Extra(Extra::Error))).is_empty(),
-            ),
+            syntax: whole,
+            lexical: whole,
         }
     }
 
