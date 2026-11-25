@@ -19,6 +19,7 @@ struct State {
     sizes: BTreeMap<(bool, &'static str), [f64; 2]>,
     seen: HashSet<(usize, u32)>,
     repeats: f64,
+    repeat_secs: f64,
     sized_calls: f64,
 }
 
@@ -54,6 +55,7 @@ pub(super) fn sized(node: usize, file: u32, make: bool, outcome: &'static str, s
         s.sized_calls += 1.0;
         if !s.seen.insert((node, file)) {
             s.repeats += 1.0;
+            s.repeat_secs += secs;
         }
         let e = s.sizes.entry((make, outcome)).or_default();
         e[0] += 1.0;
@@ -97,6 +99,6 @@ pub(crate) fn print() {
         for ((make, outcome), v) in &s.sizes {
             println!("SIZED\tmake {make}\t{outcome}\tcalls {}\tms {:.1}", v[0], v[1] * 1e3);
         }
-        println!("SIZEDTOTAL\tcalls {}\trepeats_same_step_file {}", s.sized_calls, s.repeats);
+        println!("SIZEDTOTAL\tcalls {}\trepeats_same_step_file {}\trepeat_ms {:.1}", s.sized_calls, s.repeats, s.repeat_secs * 1e3);
     });
 }
