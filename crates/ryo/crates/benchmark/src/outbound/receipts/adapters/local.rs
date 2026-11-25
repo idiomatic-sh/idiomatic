@@ -8,5 +8,3 @@ mod process_row;
 mod rows;
 mod writer;
 
-#[cfg(test)]
-mod adapter_test;

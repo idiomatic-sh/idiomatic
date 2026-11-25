@@ -6,46 +6,13 @@ use ryo_language::domain::symbols::types::QuerySymbols;
 use ryo_relations::domain::relations::types::{CellKind, FileId, Value};
 use ryo_relations::domain::terms::types::NameText;
 
-#[cfg(test)]
-use super::constants::tab;
 use super::types::NumberedFiles;
-#[cfg(test)]
-use ryo_values::domain::plan_parts::types::LiteralText as HostedText;
 use {ryo_values::domain::rows::service::push_row, ryo_values::domain::rows::service::reset};
 
 use ryo_values::domain::hosted::service::kind_of;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::row_texts::types::Cell;
 
-/// Historical readable presentation, retained to prove the typed identity is independent of its delimiters.
-#[cfg(test)]
-#[must_use]
-pub(crate) fn lines(relations: &[HostRelation]) -> Vec<HostedText> {
-    let mut lines = Vec::new();
-    for relation in relations {
-        let columns: Vec<String> = relation
-            .columns
-            .iter()
-            .map(|column| format!("{}:{:?}", column.name.0, column.kind))
-            .collect();
-        let head = [relation.name.0.to_string(), columns.join(tab())];
-        lines.push(HostedText(head.join(tab()).into()));
-        for row in &relation.rows {
-            let cells: Vec<String> = row
-                .0
-                .iter()
-                .map(|cell| match cell {
-                    Cell::File(path) => format!("file:{path}"),
-                    Cell::Text(text) => format!("text:{text}"),
-                    Cell::Number(number) => format!("number:{}", number.0),
-                    Cell::Span(span) => format!("span:{}:{}", span.start.0, span.end.0),
-                })
-                .collect();
-            lines.push(HostedText(cells.join(tab()).into()));
-        }
-    }
-    lines
-}
 
 /// Materialize a declared request source in the query's derived-name pool.
 /// Source-name interning remains unavailable to semantic operators.

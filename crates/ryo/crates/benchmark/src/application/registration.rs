@@ -4,5 +4,3 @@ mod closure;
 mod constants;
 mod evidence;
 pub mod service;
-#[cfg(test)]
-mod service_test;

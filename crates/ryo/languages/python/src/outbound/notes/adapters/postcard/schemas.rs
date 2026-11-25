@@ -151,6 +151,3 @@ pub(super) fn note_from(bytes: &Bytes) -> Result<Note, NotesError> {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

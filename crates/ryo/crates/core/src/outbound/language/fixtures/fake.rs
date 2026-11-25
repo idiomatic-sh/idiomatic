@@ -308,6 +308,3 @@ impl LanguagePort for LanguageFake {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

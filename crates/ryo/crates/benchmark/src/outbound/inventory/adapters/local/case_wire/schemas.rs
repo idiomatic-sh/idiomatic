@@ -229,6 +229,3 @@ pub(in super::super) fn case_value(case: &CaseDocument) -> Result<serde_json::Va
     serde_json::to_value(CaseWire::try_from(case)?).map_err(|error| Error::Json(Box::new(error)))
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

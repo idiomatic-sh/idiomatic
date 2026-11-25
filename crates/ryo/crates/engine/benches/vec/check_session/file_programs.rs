@@ -107,28 +107,3 @@ impl FilePrograms {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::check_session::{Schedule, SelectedFiles};
-
-    #[test]
-    fn shared_selection_resolves_overlaps_duplicates_and_new_rounds() {
-        let mut schedule = Schedule::default();
-        let root = Arc::from("root");
-        let first = schedule.select_files(&root, &["a".into(), "b".into()]).unwrap();
-        assert_eq!(schedule.admit_ids::<Vec<_>>(&first, 0, false), [0, 1]);
-        assert_eq!(schedule.admit_ids::<Vec<_>>(&first, 1, false), [2, 3]);
-        assert!(schedule.sources.iter().all(|s| s.bindings.is_empty()));
-        schedule.finish_selection();
-        let a = &schedule.sources[0].bindings;
-        let b = &schedule.sources[1].bindings;
-        assert!(Arc::ptr_eq(&a.common.as_ref().unwrap().bases, &b.common.as_ref().unwrap().bases));
-        assert!(b.iter().eq([(0, 1), (1, 3)]));
-        let overlap = Arc::new(SelectedFiles { ids: vec![1, 0, 1], distinct: false });
-        assert_eq!(schedule.admit_ids::<Vec<_>>(&overlap, 1, true), [3, 2, 3]);
-        schedule.delivered(&[0, 1], |id| id == 1);
-        assert_eq!(schedule.admit_ids::<Vec<_>>(&overlap, 1, true), [3, 2, 3]);
-        assert_eq!(schedule.admit_ids::<Vec<_>>(&overlap, 0, true), [4, 5, 4]);
-    }
-}

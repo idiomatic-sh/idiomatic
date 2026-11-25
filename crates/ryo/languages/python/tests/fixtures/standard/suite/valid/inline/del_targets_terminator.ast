@@ -1,1 +1,0 @@
-Module(body=[Delete(targets=[Name(id='a', ctx=Del()), Name(id='b', ctx=Del())]), Expr(value=Tuple(elts=[Name(id='c'), Name(id='d')])), Delete(targets=[Name(id='a', ctx=Del()), Name(id='b', ctx=Del())]), Expr(value=Tuple(elts=[Name(id='c'), Name(id='d')]))])

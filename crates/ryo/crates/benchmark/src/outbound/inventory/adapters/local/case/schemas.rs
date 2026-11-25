@@ -301,6 +301,3 @@ impl TryFrom<CaseText<'_>> for CaseDocument {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

@@ -4,5 +4,4 @@
 pub mod application;
 pub mod outbound;
 
-#[cfg(any(test, feature = "fixtures"))]
 pub mod cases;

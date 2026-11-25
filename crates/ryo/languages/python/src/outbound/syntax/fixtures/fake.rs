@@ -92,6 +92,3 @@ impl SyntaxPort for SyntaxFake {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

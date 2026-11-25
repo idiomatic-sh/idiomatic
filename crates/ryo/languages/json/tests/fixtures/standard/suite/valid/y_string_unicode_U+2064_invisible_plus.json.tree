@@ -1,7 +1,0 @@
-json-text 0-10
- value 0-10
-  array 0-10
-   begin-array 0-1
-   value 1-9
-    string 1-9
-   end-array 9-10

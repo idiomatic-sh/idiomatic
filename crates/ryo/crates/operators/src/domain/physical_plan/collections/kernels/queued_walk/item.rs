@@ -4,12 +4,8 @@
 //! queue again when its state changes; every edge followed is one row, with the destination's state after the join.
 
 use super::super::distinct::item::counted;
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{canonical_cells, cell_of, count_of, kinds_of};
 use crate::domain::contract::types::PortableOperatorFault;
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::row_set::value::RowSet;
 use crate::domain::physical_plan::types::visited_set::value::value_hash;
 use crate::domain::physical_plan::types::{CellStart, InputRows};
@@ -23,37 +19,7 @@ use ryo_values::domain::plan_parts::types::{ColumnIndex, RepeatedRows};
 use ryo_values::domain::rows::types::{RowIndex, Table};
 use std::cmp::Ordering;
 
-/// `queued_walk`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct QueuedWalkItem;
 
-#[cfg(test)]
-impl KernelsItem for QueuedWalkItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = match lowering {
-            Lowering::Worklist { .. } => true,
-            Lowering::Filter { .. }
-            | Lowering::Lookup { .. }
-            | Lowering::Project { .. }
-            | Lowering::Extend { .. }
-            | Lowering::Probe { .. }
-            | Lowering::Distinct { .. }
-            | Lowering::Group { .. }
-            | Lowering::Reach { .. }
-            | Lowering::SeededReach { .. }
-            | Lowering::Axis { .. }
-            | Lowering::OrderedWalk { .. }
-            | Lowering::Components { .. }
-            | Lowering::TextMap { .. }
-            | Lowering::PointerChase { .. }
-            | Lowering::OrderedMatch { .. }
-            | Lowering::Render { .. }
-            | Lowering::ScanBound { .. }
-            | Lowering::Unlowered => false,
-        };
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// The three inputs of a worklist: its root rows, its edge rows and its lattice rows.
 #[derive(Clone, Copy, Debug)]

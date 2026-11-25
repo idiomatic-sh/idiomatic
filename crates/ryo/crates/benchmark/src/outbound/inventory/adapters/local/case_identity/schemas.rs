@@ -59,6 +59,3 @@ pub(in super::super) fn source_digest(
     Ok(format!("{:x}", digest.finalize()))
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

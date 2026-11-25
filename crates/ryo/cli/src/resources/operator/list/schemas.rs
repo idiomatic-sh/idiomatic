@@ -50,9 +50,6 @@ pub(super) fn answer(report: ListOperatorsReport) -> AnswerSchema {
     AnswerSchema::from(report)
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 impl crate::output::Encoded for AnswerSchema {
     fn json(

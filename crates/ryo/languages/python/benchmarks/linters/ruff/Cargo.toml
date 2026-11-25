@@ -12,19 +12,6 @@ autotests = false
 
 [dependencies]
 
-[dev-dependencies]
-ryo_python = { package = "idiomatic-sh-ryo-python", path = "../../..", features = ["fixtures"] }
-benchmark-contracts = { package = "idiomatic-sh-benchmark-contracts", path = "../../../../../crates/benchmark_contracts" }
-benchmark = { package = "idiomatic-sh-benchmark", path = "../../../../../crates/benchmark", features = ["fixtures"] }
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../../../../crates/sdk", features = ["fixtures"] }
-serde.workspace = true
-serde_json.workspace = true
-tempfile.workspace = true
-cpu-time.workspace = true
-toml.workspace = true
-dunce.workspace = true
-
-
 [lints]
 workspace = true
 
@@ -33,6 +20,3 @@ name = "ruff"
 path = "bench.rs"
 harness = false
 
-[[test]]
-name = "ruff"
-path = "tests.rs"

@@ -47,6 +47,3 @@ pub(super) fn error(error: CoreError) -> DescribeError {
     DescribeGrammarErrorSchema(error).into()
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

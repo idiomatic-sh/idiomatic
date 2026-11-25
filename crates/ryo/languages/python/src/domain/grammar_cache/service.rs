@@ -7,12 +7,6 @@ use super::types::{
     Reservation, Scratch, Taken,
 };
 
-/// How many entries the memo holds.
-#[cfg(test)]
-#[must_use]
-pub(crate) fn len<V>(memo: &GrammarMemo<V>) -> super::types::EntryCount {
-    super::types::EntryCount(memo.entries.len())
-}
 
 /// Discard unmatched previous-source contents; retain only a bounded empty table and scratch.
 pub(crate) fn empty<V>(memo: &mut GrammarMemo<V>) {

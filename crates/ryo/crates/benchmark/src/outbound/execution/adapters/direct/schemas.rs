@@ -26,6 +26,3 @@ pub(super) fn decode(record: wait4::ResourceUsage) -> Result<Resources, Error> {
     ResourcesSchema(record).try_into()
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

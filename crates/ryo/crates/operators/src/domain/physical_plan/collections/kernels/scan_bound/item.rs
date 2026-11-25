@@ -2,17 +2,11 @@
 //! bound observation, the host's rows) and the rows a `list<table>` parameter's bound value holds; a withheld input is the
 //! `Withheld` fault with the engine's token, never empty rows.
 
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::errors::ContractError;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::KernelRun;
-#[cfg(test)]
-use crate::domain::physical_plan::types::RowSource;
 use crate::domain::physical_plan::types::held_rows::value::HeldRows;
 use crate::domain::physical_plan::types::lowering::value::BoundScan;
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::table_rows::types::{RowTexts, TableRowOutput};
 use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -20,20 +14,7 @@ use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::types::Table;
 use ryo_values::domain::written_rows::types::RowsSource;
 
-/// `scan_bound`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct ScanBoundItem;
 
-#[cfg(test)]
-impl KernelsItem for ScanBoundItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = matches!(lowering, Lowering::ScanBound { .. })
-            || lowering
-                .sources()
-                .any(|source| matches!(source, RowSource::Frontier(_) | RowSource::Observation(_)));
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// The rows held, or the fault naming the engine's token.
 ///

@@ -8,5 +8,4 @@ pub mod outbound;
 pub mod profile;
 pub mod spike;
 
-#[cfg(any(test, feature = "fixtures"))]
 pub mod cases;

@@ -96,22 +96,4 @@ impl crate::domain::kept_room::types::KeptRoom for CycleScratch {
         self.leaving.kept();
     }
 
-    #[cfg(test)]
-    fn room(&self) -> crate::domain::kept_room::types::Room {
-        [
-            self.order.room(),
-            self.low.room(),
-            self.open.room(),
-            self.found.room(),
-            self.stack.room(),
-            self.component.room(),
-            self.walk.room(),
-            self.ordered.room(),
-            self.starts.room(),
-            self.leaving.room(),
-        ]
-        .into_iter()
-        .max()
-        .unwrap_or_default()
-    }
 }

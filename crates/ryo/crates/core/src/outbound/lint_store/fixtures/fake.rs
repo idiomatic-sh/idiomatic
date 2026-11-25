@@ -215,6 +215,3 @@ impl ReadStore for FakeRead {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

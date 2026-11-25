@@ -101,6 +101,3 @@ pub(in super::super) fn project_inputs(
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

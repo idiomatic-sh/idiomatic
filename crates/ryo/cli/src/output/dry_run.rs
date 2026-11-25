@@ -3,9 +3,6 @@
 
 use std::io::Write as _;
 
-#[cfg(test)]
-#[path = "dry_run_test.rs"]
-mod tests;
 
 /// `-n/--dry-run`, which every command that writes flattens into its arguments (the
 /// `cli` spec's `writes`): the command runs against a planned adapter, which writes

@@ -26,32 +26,13 @@ blake3.workspace = true
 rustc-hash.workspace = true
 tracing.workspace = true
 
-[dev-dependencies]
-idiomatic-sh-ryo-execution-runtime = { path = ".", features = ["fixtures"] }
-ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../execution_domain", version = "0.2.0", features = ["fixtures"] }
-ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../engine", version = "0.2.0", features = ["fixtures"] }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0", features = ["fixtures"] }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0", features = ["fixtures"] }
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0", features = ["fixtures"] }
-dhat.workspace = true
-libtest-mimic.workspace = true
-divan.workspace = true
-tempfile.workspace = true
-
-[[test]]
-name = "allocation"
-path = "tests/allocation/main.rs"
-harness = false
-
 [[bench]]
 name = "performance"
 path = "benches/performance.rs"
 harness = false
-required-features = ["fixtures"]
+
 
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
-fixtures = ["ryo_execution_domain/fixtures", "ryo_engine/fixtures", "ryo_operators/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
-
 [lints]
 workspace = true

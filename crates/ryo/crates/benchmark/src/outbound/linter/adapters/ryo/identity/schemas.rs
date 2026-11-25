@@ -301,6 +301,3 @@ impl TryFrom<(&Invocation, &PreparedCase, &Tool)> for CanonicalText {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

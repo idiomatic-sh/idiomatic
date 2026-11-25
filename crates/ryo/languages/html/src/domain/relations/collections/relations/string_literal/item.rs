@@ -36,6 +36,3 @@ ryo::fills! {
     }
 }
 
-#[cfg(test)]
-#[path = "item_test.rs"]
-mod tests;

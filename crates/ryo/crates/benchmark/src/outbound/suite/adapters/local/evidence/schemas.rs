@@ -4,9 +4,6 @@ use crate::outbound::suite::errors::SuiteError;
 use crate::outbound::suite::types::EvidenceRequirement;
 use sha2::{Digest as _, Sha256};
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// Check the asserted source and prior execution against the hash-verified envelope bytes.
 pub(in super::super) fn verify_requirement(

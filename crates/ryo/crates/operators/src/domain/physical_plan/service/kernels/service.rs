@@ -128,9 +128,7 @@ pub(crate) fn kernels(
             let scratch = ReachScratch {
                 index: KeyedAccess {
                     storage,
-                    #[cfg(test)]
-                    builds: &mut buffers.builds,
-                },
+},
                 walk: &mut buffers.walk,
                 probe: ProbeScratch {
                     index: &mut buffers.second,
@@ -181,9 +179,7 @@ pub(crate) fn kernels(
             let tables = AxisTables {
                 edges: KeyedAccess {
                     storage,
-                    #[cfg(test)]
-                    builds: &mut buffers.builds,
-                },
+},
                 domain,
                 decisions,
             };

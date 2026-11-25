@@ -6,10 +6,6 @@ use ryo_matching::inbound::use_cases::matching::{
     use_case::MatchingUseCaseImpl,
 };
 
-#[cfg(test)]
-pub(crate) mod facts;
-#[cfg(test)]
-pub(crate) mod requests;
 
 /// The real operators capability, as the engine composes it.
 #[must_use]

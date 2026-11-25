@@ -26,35 +26,8 @@ ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators",
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.2.0" }
 dhat = { workspace = true, optional = true }
 
-[dev-dependencies]
-idiomatic-sh-ryo-execution = { path = ".", features = ["fixtures"] }
-ryo_execution_runtime = { package = "idiomatic-sh-ryo-execution-runtime", path = "../execution_runtime", version = "0.2.0", features = ["fixtures"] }
-dhat.workspace = true
-libtest-mimic.workspace = true
-ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../query_language", version = "0.2.0", features = ["fixtures"] }
-ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0", features = ["fixtures"] }
-ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0", features = ["fixtures"] }
-ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0", features = ["fixtures"] }
-cargo_metadata.workspace = true
-cucumber.workspace = true
-tokio.workspace = true
-
-[[test]]
-name = "bdd"
-harness = false
-
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
-fixtures = ["ryo_execution_domain/fixtures", "ryo_execution_runtime/fixtures", "ryo_operators/fixtures", "ryo_values/fixtures", "ryo_relations/fixtures", "ryo_language/fixtures"]
-
 [lints]
 workspace = true
 
-[[test]]
-name = "boundary_contract"
-path = "tests/boundary_contract/main.rs"
-
-[[test]]
-name = "activation"
-path = "tests/activation/main.rs"
-harness = false

@@ -19,16 +19,5 @@ thiserror.workspace = true
 
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
-fixtures = []
-
-[dev-dependencies]
-cargo_metadata.workspace = true
-cucumber.workspace = true
-tokio.workspace = true
-
-[[test]]
-name = "bdd"
-harness = false
-
 [lints]
 workspace = true

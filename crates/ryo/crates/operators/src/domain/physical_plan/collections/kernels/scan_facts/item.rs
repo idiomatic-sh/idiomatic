@@ -1,8 +1,6 @@
 //! The `scan_facts` item of the `kernels` collection: a relation's rows read in place, as the facts lend them, never decoded
 //! into a table; and the reading of rows in place, a relation's or a table's, one cell, one row or one chunk at a time.
 
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_roots::item::{tree_cell, tree_count, tree_kinds, tree_row};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::fact_rows::value::FactRows;
@@ -10,8 +8,6 @@ use crate::domain::physical_plan::types::stream_scratch::value::{
     CellBound, ChunkRead, ChunkStop, RowChunk,
 };
 use crate::domain::physical_plan::types::{InputRows, PlanInputs};
-#[cfg(test)]
-use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
 use crate::domain::table_texts::service::canonical_cell;
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::service::from_bits;
@@ -21,22 +17,7 @@ use ryo_relations::domain::relations::types::{
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `scan_facts`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct ScanFactsItem;
 
-#[cfg(test)]
-impl KernelsItem for ScanFactsItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = {
-            matches!(lowering, Lowering::Lookup { .. })
-                || lowering
-                    .sources()
-                    .any(|source| matches!(source, RowSource::Facts(_)))
-        };
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// A relation's rows as the facts lend them: every relation's columns enter the executor here, and only whole.
 ///

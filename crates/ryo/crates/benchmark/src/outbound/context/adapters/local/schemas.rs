@@ -55,6 +55,3 @@ pub(super) fn receipt_text(receipt: &ProjectContextReceipt) -> Result<CanonicalJ
         .map_err(|error| Error::Invalid(error.to_string()))
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

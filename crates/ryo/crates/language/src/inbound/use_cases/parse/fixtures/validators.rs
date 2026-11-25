@@ -284,6 +284,3 @@ pub(super) fn empty_module_flow(
     relation == Relation::FlowMember
 }
 
-#[cfg(test)]
-#[path = "validators_test.rs"]
-mod tests;

@@ -2,8 +2,6 @@
 //! pairs each left row with the earliest right row after it in an equal-key group, first in, first out. A relation's rows
 //! are copied into the kernel's own table first: a blocking kernel may materialize what it reads.
 
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::distinct::item::counted;
 use super::super::scan_facts::item::{count_of, kinds_of, row_of};
 use crate::domain::ordered_match::types::Band;
@@ -19,27 +17,12 @@ use crate::domain::ordered_groups::types::GroupOrders;
 use crate::domain::ordered_match::service::{paired, unrepeated};
 use crate::domain::ordered_match::types::OrderedParts;
 use crate::domain::physical_plan::types::InputRows;
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::table_texts::types::Texts;
 use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `ordered_match`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct OrderedMatchItem;
 
-#[cfg(test)]
-impl KernelsItem for OrderedMatchItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        if matches!(lowering, Lowering::OrderedMatch { .. }) {
-            Reach::Runs
-        } else {
-            Reach::Skips
-        }
-    }
-}
 
 /// Orders `left` and `right` by `ordered`'s keys and orders, and writes into `output` each pair's output columns, first in,
 /// first out within each key; a band match (`ordered.band`) writes each left row with a right row in its band instead.

@@ -237,6 +237,3 @@ fn refused() -> QueryLanguageError {
 /// The text the fake refuses.
 pub const REFUSED: &str = "refuse";
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

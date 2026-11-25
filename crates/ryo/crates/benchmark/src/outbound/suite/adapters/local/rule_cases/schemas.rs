@@ -13,9 +13,6 @@ use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -1,6 +1,0 @@
-root[1]
-└─0 paragraph[1]
-    └─0 link[1]
-        │ title: null
-        │ url: "irc://foo.bar:2233/baz"
-        └─0 text "irc://foo.bar:2233/baz"

@@ -1,7 +1,0 @@
-`tokenization.html` and `css-parsing-results.html` are the HTML of §4 (its opening, up to §4.1) and §5.2 of CSS Syntax Module Level 3,
-W3C Candidate Recommendation Draft 1 October 2026 (https://www.w3.org/TR/2026/CRD-css-syntax-3-20261001/), copied from the dated
-document with the white space at the end of each line removed. Copyright © 2026 World Wide Web Consortium. W3C® liability, trademark
-and permissive document license rules apply: the W3C Software and Document License (https://www.w3.org/copyright/software-license/).
-
-The `.tree` files are printed by tinycss2 1.5.1 (https://github.com/Kozea/tinycss2, BSD 3-Clause, Copyright (c) 2013-2020 Simon Sapin and
-contributors) for the inputs beside them; they hold its output only, none of its code.

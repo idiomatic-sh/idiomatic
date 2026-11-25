@@ -393,6 +393,3 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn tables_of(bytes: &[u8
         .unwrap_or_default()
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

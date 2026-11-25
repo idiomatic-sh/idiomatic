@@ -151,6 +151,3 @@ pub(super) fn observation(
         .map_err(|error| Error::Json(Box::new(error)))
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

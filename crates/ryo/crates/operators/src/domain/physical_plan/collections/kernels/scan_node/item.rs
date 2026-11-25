@@ -1,31 +1,15 @@
 //! The `scan_node` item of the `kernels` collection: an earlier node's materialized rows, taken out of the buffers while its
 //! reader reads them and given back after, with the fault it raised after its rows.
 
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::kept_room::constants::POOL_TABLES;
 use crate::domain::kept_room::types::PoolSize;
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{NodeFed, NodeReaders, PlanNodeId, TakenRows};
-#[cfg(test)]
-use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
 use ryo_values::domain::rows::types::Table;
 
-/// `scan_node`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct ScanNodeItem;
 
-#[cfg(test)]
-impl KernelsItem for ScanNodeItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = lowering
-            .sources()
-            .any(|source| matches!(source, RowSource::Node(_)));
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// Takes `read`'s rows out of the buffers for its reader.
 ///
@@ -71,8 +55,6 @@ pub(crate) fn give_back(
         if crate::spike::memstats() {
             crate::spike::tables_held(-((taken.rows.cells.capacity() * size_of::<ryo_relations::domain::relations::types::Value>()) as i64));
         }
-        #[cfg(test)]
-        buffers.meter.dropped(taken.rows.count);
         buffers.pool.pooled(taken.rows, PoolSize(POOL_TABLES));
     }
 }
@@ -121,8 +103,6 @@ pub(crate) fn hold(
             let gone = held.as_ref().map_or(0, |old| old.cells.capacity());
             crate::spike::tables_held(((rows.cells.capacity() as i64) - (gone as i64)) * (size_of::<ryo_relations::domain::relations::types::Value>() as i64));
         }
-        #[cfg(test)]
-        buffers.meter.formed(rows.count);
         *held = Some(rows);
         buffers.touched.touched(node);
     }

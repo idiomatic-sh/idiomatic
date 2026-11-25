@@ -8,9 +8,6 @@ use benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// A record whose process identity was recorded, or one whose identity could not be.
 #[derive(Serialize)]

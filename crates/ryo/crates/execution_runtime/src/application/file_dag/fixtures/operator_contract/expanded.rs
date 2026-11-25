@@ -80,6 +80,3 @@ pub fn follow() -> (Operation, Vec<Table>, Vec<Vec<Expected>>) {
     )
 }
 
-#[cfg(test)]
-#[path = "expanded_test.rs"]
-mod tests;

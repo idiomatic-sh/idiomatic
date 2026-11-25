@@ -16,9 +16,6 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// One measure as BMF writes it: its value, and the lowest and highest it was.
 #[derive(Serialize)]

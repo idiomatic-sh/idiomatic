@@ -230,6 +230,3 @@ pub(super) fn declared(
     .into())
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

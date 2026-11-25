@@ -20,6 +20,3 @@ impl NotesPort for NotesFake {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

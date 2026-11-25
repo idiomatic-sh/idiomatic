@@ -390,6 +390,3 @@ pub(super) fn repaired(source: SourceText<'_>) -> Repaired<'_> {
     Repaired(Cow::Owned(text))
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

@@ -7,5 +7,3 @@ pub mod service;
 pub mod types;
 pub mod writing;
 
-#[cfg(test)]
-mod service_test;

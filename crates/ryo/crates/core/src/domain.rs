@@ -1,12 +1,10 @@
 //! The `core` domain's rules, one module per concept.
 
 pub(crate) mod admission;
-#[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod allocation_verdict;
 pub(crate) mod answering;
 pub(crate) mod budget;
 pub(crate) mod choosing;
-#[cfg(any(test, feature = "fixtures"))]
 pub(crate) mod corpus_copies;
 pub(crate) mod crossing;
 pub(crate) mod finish;

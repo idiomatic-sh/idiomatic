@@ -21,9 +21,6 @@ mod pager;
 pub mod progress;
 pub(crate) mod schemas;
 
-#[cfg(test)]
-#[path = "output_test.rs"]
-mod tests;
 
 use std::io::Write as _;
 

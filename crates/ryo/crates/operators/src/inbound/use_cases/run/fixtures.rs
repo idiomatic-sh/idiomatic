@@ -35,17 +35,11 @@ use ryo_values::domain::rows::types::Table;
 use std::cell::Cell;
 
 pub mod allocating;
-#[cfg(test)]
-pub(crate) mod cases;
 pub mod counting;
 pub mod demands;
-#[cfg(test)]
-pub(crate) mod edges;
 pub mod graph_workloads;
 pub mod held;
 mod kernel_programs;
-#[cfg(test)]
-pub(crate) mod relational;
 pub(crate) mod stream_programs;
 pub(crate) mod streams;
 pub mod texts;

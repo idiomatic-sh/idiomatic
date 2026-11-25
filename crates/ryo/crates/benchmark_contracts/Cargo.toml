@@ -20,13 +20,7 @@ thiserror.workspace = true
 sha2.workspace = true
 toml.workspace = true
 
-[dev-dependencies]
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.2.0", features = ["fixtures"] }
-serde_json.workspace = true
-
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
-fixtures = []
-
 [lints]
 workspace = true

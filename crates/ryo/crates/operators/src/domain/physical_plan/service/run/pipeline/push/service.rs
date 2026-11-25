@@ -250,10 +250,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_chunk(
     };
     let count = count_of(input);
     // A stage after the head is handed a chunk of its reader's rows: the most rows one handoff carried.
-    #[cfg(test)]
-    if !head_stage {
-        push.buffers.chains.handed = push.buffers.chains.handed.max(count);
-    }
     stage.read = RowCount(stage.read.0.saturating_add(count.0));
     if stage.fault.is_some() {
         return Ok(());
@@ -277,14 +273,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_chunk(
         } else {
             &mut stage.out
         };
-        #[cfg(test)]
-        {
-            push.buffers.chains.calls.0 += 1;
-            if out.cells.len() >= bound.0 {
-                push.buffers.chunks =
-                    crate::domain::physical_plan::types::worker_meters::value::ChunkMeter::Over;
-            }
-        }
         let read = stage_chunk(
             push.run,
             push.buffers,
@@ -305,11 +293,6 @@ pub(in crate::domain::physical_plan::service::run::pipeline) fn pushed_chunk(
         match read.stop {
             ChunkStop::Ended => {
                 // A stage that read every row below its bound left its chunk below it.
-                #[cfg(test)]
-                if !tail && stage.out.cells.len() >= bound.0 {
-                    push.buffers.chunks =
-                        crate::domain::physical_plan::types::worker_meters::value::ChunkMeter::Over;
-                }
                 return Ok(());
             }
             ChunkStop::Full => {

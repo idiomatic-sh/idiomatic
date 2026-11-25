@@ -364,17 +364,6 @@ fn shaped(
     }
 }
 
-/// A rule as the lowering reads it: every step its emit reaches has a shape, and holds the rows of the file being scanned or
-/// the same rows for every file (`observing::service::local_of`). Refused, naming the first step its emit reaches, in the
-/// order the steps are read, that cannot be evaluated (an operation not lowered, a step that holds rows of several files at
-/// once, a step out of order), or the columns of a step when they are past the width a table's columns are counted in; and
-/// refused at its emit when the emitted rows are the same for every file. A plan may hand rows over to another rule's steps
-/// (its `frontier`, an output another rule observes): the steps only that output reaches are shaped when a rule that binds
-/// the output is accepted (`observing::service::resolved`), and the rule is judged by the steps its own emit reaches alone.
-#[cfg(test)]
-pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, LoadRefusal> {
-    admitted_in(rule, LoadGiven::default())
-}
 
 /// `admitted`, with what the host declares beside the plans.
 pub(crate) fn admitted_in<'a>(

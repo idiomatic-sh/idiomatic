@@ -1,6 +1,0 @@
-root[1]
-└─0 paragraph[1]
-    └─0 link[1]
-        │ title: null
-        │ url: "a+b+c:d"
-        └─0 text "a+b+c:d"

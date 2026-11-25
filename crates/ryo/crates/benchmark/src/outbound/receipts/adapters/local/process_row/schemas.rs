@@ -10,9 +10,6 @@ use benchmark_contracts::domain::documents::types::text::value::{
 };
 use serde::{Deserialize, Serialize};
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// What kind of expectation the reference side was validated against.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]

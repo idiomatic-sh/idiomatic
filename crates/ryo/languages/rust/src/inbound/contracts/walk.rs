@@ -5,5 +5,3 @@ mod fillers;
 mod source_location;
 mod tape;
 
-#[cfg(test)]
-mod contract_test;

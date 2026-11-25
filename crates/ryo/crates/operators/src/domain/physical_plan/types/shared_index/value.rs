@@ -142,15 +142,6 @@ impl IndexRows {
 }
 
 impl IndexRows {
-    /// The room it keeps, of its kind.
-    #[cfg(test)]
-    pub(crate) fn room(&self) -> crate::domain::kept_room::types::Room {
-        use crate::domain::kept_room::types::KeptRoom as _;
-        match self {
-            Self::Keyed(rows) => rows.room(),
-            Self::Rows(set) => set.room(),
-        }
-    }
 }
 
 impl SharedIndex {
@@ -231,9 +222,6 @@ pub(crate) enum KeyedStorage<'a> {
 pub(crate) struct KeyedAccess<'a> {
     /// Where the key's ordered row links live.
     pub(crate) storage: KeyedStorage<'a>,
-    /// Counts actual index construction in the executable contract.
-    #[cfg(test)]
-    pub(crate) builds: &'a mut super::super::worker_meters::value::IndexBuilds,
 }
 
 impl<'b> KeyedAccess<'b> {
@@ -270,10 +258,6 @@ impl<'b> KeyedAccess<'b> {
                 rows
             }
         };
-        #[cfg(test)]
-        {
-            self.builds.0 += 1;
-        }
         if let Err(fault) = build(rows) {
             rows.cleared();
             return Err(fault);

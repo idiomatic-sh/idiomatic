@@ -1,1 +1,0 @@
-Module(body=[With(items=[withitem(context_expr=Tuple(elts=[Name(id='foo'), Name(id='bar'), Name(id='baz')]), optional_vars=Name(id='tup', ctx=Store()))], body=[Expr(value=Constant(value=Ellipsis))])])

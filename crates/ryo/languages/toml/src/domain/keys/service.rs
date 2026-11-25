@@ -42,8 +42,6 @@ pub(crate) fn hashed(how: KeyHash, text: KeyText<'_>) -> KeyId {
             text.hash(&mut hasher);
             KeyId(hasher.finish())
         }
-        #[cfg(test)]
-        KeyHash::Same => KeyId(0),
     }
 }
 

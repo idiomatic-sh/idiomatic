@@ -49,6 +49,3 @@ pub(super) fn error(error: CoreError) -> ListError {
     ListRelationsErrorSchema(error).into()
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

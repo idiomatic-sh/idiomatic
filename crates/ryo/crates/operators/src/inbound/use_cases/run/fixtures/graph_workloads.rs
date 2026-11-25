@@ -303,8 +303,6 @@ fn graph_kernels_once(
         repeats,
         found,
         worklist: worklist_scratch,
-        #[cfg(test)]
-        builds,
         ..
     } = buffers;
     let (mut kept, mut left_on, mut right_on) = (Table::default(), Vec::new(), Vec::new());
@@ -322,9 +320,7 @@ fn graph_kernels_once(
                     // Spike (ryo-fmx3): the reach reads keyed edges through an access, its own here.
                     index: crate::domain::physical_plan::types::shared_index::value::KeyedAccess {
                         storage: crate::domain::physical_plan::types::shared_index::value::KeyedStorage::Own(&mut *index),
-                        #[cfg(test)]
-                        builds: &mut *builds,
-                    },
+},
                     walk: &mut *walk,
                     probe: ProbeScratch {
                         index: &mut *second,

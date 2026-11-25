@@ -1,7 +1,0 @@
-@charset "UTF-8";
-@import url("base.css") layer(base);
-:root { --gap: 1rem; }
-.card, #hero > a:hover { color: rgb(0 0 0 / 50%) !important; background: url(img/a.png); }
-@media (min-width: 40em) { .card { padding: var(--gap); & .title { font: 700 1.5em/1.2 "Open Sans", sans-serif; } } }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-/* the end */

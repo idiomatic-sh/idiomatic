@@ -257,6 +257,3 @@ fn validation_error(text: &str, phase: Phase, error: &toml::de::Error) -> Valida
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

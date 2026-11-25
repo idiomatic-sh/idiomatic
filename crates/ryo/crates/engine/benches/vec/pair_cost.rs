@@ -235,27 +235,10 @@ pub(super) fn omit_positive(d: &Domain, facts: &[super::Fact], omit: u16) -> boo
     let class = family(d, facts);
     matches!(class, Child | Schedule | Count) && omit & class.bit() != 0
 }
-#[cfg(not(feature = "pair-diagnostics"))]
 pub(super) fn omitted() -> u16 {
     Child.bit() | Schedule.bit() | Count.bit()
 }
 
-#[cfg(feature = "pair-diagnostics")]
-pub(super) fn omitted() -> u16 {
-    if std::env::var_os("VEC_PAIR_FULL").is_some() {
-        return 0;
-    }
-    std::env::var("VEC_PAIR_OMIT").map_or(Child.bit() | Schedule.bit() | Count.bit(), |s| {
-        s.split(',').fold(0, |m, n| {
-            let f = FAMILIES
-                .iter()
-                .copied()
-                .find(|f| f.name() == n && *f != Logic)
-                .expect("known test family");
-            m | f.bit()
-        })
-    })
-}
 #[derive(Default, Clone, Copy)]
 pub(crate) struct Sample {
     pub calls: u64,
@@ -270,21 +253,6 @@ pub(crate) struct Meter {
     pub fills: RefCell<Vec<[(u64, u64, f64); 13]>>,
 }
 impl Meter {
-    #[cfg(feature = "pair-diagnostics")]
-    pub(super) fn new(slots: usize) -> Self {
-        let total = (0..1000)
-            .map(|_| {
-                let t = super::super::thread_cpu();
-                super::super::thread_cpu() - t
-            })
-            .sum::<f64>();
-        Self {
-            rows: Default::default(),
-            loads: RefCell::new(vec![0; slots]),
-            fills: RefCell::new(vec![[(0, 0, 0.); 13]; slots]),
-            overhead: total / 1000.,
-        }
-    }
     pub(crate) fn report(&self, p: &Program) {
         println!(
             "PAYREGEX finish {} {}",

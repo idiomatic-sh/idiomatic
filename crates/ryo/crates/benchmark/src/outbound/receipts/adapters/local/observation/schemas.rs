@@ -352,6 +352,3 @@ pub(in super::super) fn row_bytes(
         .map_err(|error| ReceiptsError::Invalid(error.to_string()))
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

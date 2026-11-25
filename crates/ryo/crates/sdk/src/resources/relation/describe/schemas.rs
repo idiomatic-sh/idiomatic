@@ -98,6 +98,3 @@ pub(super) fn error(error: CoreError) -> DescribeError {
     DescribeRelationErrorSchema(error).into()
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

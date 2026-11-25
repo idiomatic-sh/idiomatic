@@ -1,19 +1,7 @@
 #![cfg_attr(doc, doc = include_str!("../README.md"))]
 #![cfg_attr(not(doc), doc = env!("CARGO_PKG_DESCRIPTION"))]
-#![cfg_attr(
-    test,
-    expect(
-        dead_code_pub_in_binary,
-        reason = "the unit-test build is the one binary that compiles this language's public items with no dependent: the command line crate links the language and calls its contracts and fixtures, and the language's own unit tests do not"
-    )
-)]
-#![cfg_attr(
-    all(feature = "fixtures", not(test)),
-    allow(
-        dead_code,
-        reason = "the ports' own fixtures are used by the tests of the crate; outside tests the feature surface is `fixtures` at the root"
-    )
-)]
+
+
 
 pub(crate) mod inbound;
 pub(crate) mod outbound;
@@ -102,8 +90,4 @@ fn walk_over(revision: domain::model::types::ProviderRevision) -> impl ryo::lang
     }
 }
 
-#[cfg(any(test, feature = "fixtures"))]
-pub mod cases;
 
-#[cfg(any(test, feature = "fixtures"))]
-pub mod fixtures;

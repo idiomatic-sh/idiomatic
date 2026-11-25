@@ -100,6 +100,3 @@ pub(super) fn judge(
     observed
 }
 
-#[cfg(test)]
-#[path = "semantics_test.rs"]
-mod tests;

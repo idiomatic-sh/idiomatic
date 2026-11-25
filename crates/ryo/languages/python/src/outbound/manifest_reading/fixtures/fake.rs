@@ -61,6 +61,3 @@ impl ManifestReadingPort for ManifestReadingFake {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

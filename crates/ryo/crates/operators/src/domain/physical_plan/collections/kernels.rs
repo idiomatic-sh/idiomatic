@@ -7,8 +7,6 @@ pub(crate) mod extend;
 pub(crate) mod filter;
 pub(crate) mod group;
 pub(crate) mod hash_index;
-#[cfg(test)]
-pub(crate) mod interface;
 pub(crate) mod lookup;
 pub(crate) mod ordered_match;
 pub(crate) mod ordered_walk;

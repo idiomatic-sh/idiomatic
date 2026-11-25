@@ -1,3 +1,0 @@
-root[1]
-└─0 paragraph[1]
-    └─0 text "*not emphasized*\n<br/> not a tag\n[not a link](/foo)\n`not code`\n1. not a list\n* not a list\n# not a heading\n[foo]: /url \"not a reference\"\n&ouml; not a character entity"

@@ -313,6 +313,3 @@ pub(super) fn report(report: CoreReport) -> ValidateReport {
     ValidateReportSchema(report).into()
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

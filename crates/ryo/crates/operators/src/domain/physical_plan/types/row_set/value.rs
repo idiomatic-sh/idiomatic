@@ -172,20 +172,7 @@ impl RowSet {
         RowCount(self.kept.len())
     }
 
-    /// A set of no row with `room` for rows: what the room cases give a stage or a pool.
-    #[cfg(test)]
-    pub(crate) fn with_room(room: crate::domain::kept_room::types::Room) -> Self {
-        Self {
-            kept: hashbrown::HashTable::with_capacity(room.0),
-            words: KeyWords::Cells,
-        }
-    }
 
-    /// The room it keeps.
-    #[cfg(test)]
-    pub(crate) fn room(&self) -> crate::domain::kept_room::types::Room {
-        crate::domain::kept_room::types::Room(self.kept.capacity())
-    }
 
     /// Spike (ryo-fmx3): room for `rows` more rows.
     pub(crate) fn reserved(&mut self, rows: usize) {

@@ -1,1 +1,0 @@
-Module(body=[ImportFrom(module='module', names=[alias(name='*')], level=0, is_lazy=0)])

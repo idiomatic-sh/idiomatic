@@ -112,17 +112,3 @@ pub(super) fn set_scene(scene: &str) -> Option<Plan> {
     })
 }
 
-/// What the parameters of a set scene's rule are bound to: the list of the two kinds for the scenes that name a list,
-/// nothing for every other scene.
-#[cfg(test)]
-pub(super) fn set_bindings(
-    scene: &str,
-) -> Vec<ryo_values::domain::query_bindings::types::ParameterBinding> {
-    match scene {
-        "the elements of two kinds, by a list" | "the elements of two texts, by a list" => {
-            let kinds = ["sentence", "word"].map(|kind| LiteralText(kind.into()));
-            vec![ryo_values::domain::query_bindings::types::ParameterBinding::Texts(kinds.into())]
-        }
-        _ => Vec::new(),
-    }
-}

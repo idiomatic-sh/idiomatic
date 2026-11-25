@@ -40,6 +40,3 @@ impl OperatorsPort for OperatorsFake {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

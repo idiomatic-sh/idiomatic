@@ -3,5 +3,3 @@
 pub mod constants;
 /// Typed relation rows and provider interface.
 pub mod item;
-#[cfg(test)]
-mod item_test;

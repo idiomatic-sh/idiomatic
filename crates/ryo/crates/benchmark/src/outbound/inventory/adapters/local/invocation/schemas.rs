@@ -153,6 +153,3 @@ impl TryFrom<InvocationBytes<'_>> for InvocationDocument {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

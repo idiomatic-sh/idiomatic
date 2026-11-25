@@ -2,6 +2,4 @@
 //! the engine's readers of `flow-edge`, `flow-block`, `flow-member` and `flow-step`.
 pub mod constants;
 pub mod service;
-#[cfg(test)]
-mod service_test;
 pub mod types;

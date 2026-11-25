@@ -11,12 +11,6 @@ use crate::domain::scopes::service::{enclosing, redirected};
 use crate::domain::syntax::service::{kind, last, parent};
 use crate::domain::syntax::types::Kind;
 
-/// Builds the declarations and the binding index now, as a reader's first lookup would: what the tests of the index read.
-#[cfg(test)]
-pub(crate) fn index(tree: &Tree<'_>, model: &mut Declarations) {
-    model.bindings_state.set(QualificationState::Fresh);
-    bound(tree, model);
-}
 
 /// Index only newly appended definitions; native declarations and qualification remain unchanged. Indexes not built yet are
 /// left for the first lookup, which builds them over every element then present.

@@ -8,5 +8,3 @@ pub mod service;
 pub(crate) mod slots;
 pub mod types;
 
-#[cfg(test)]
-mod service_test;

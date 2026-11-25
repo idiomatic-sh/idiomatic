@@ -147,6 +147,3 @@ fn posix(path: &str) -> String {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

@@ -59,9 +59,6 @@ pub(crate) enum KeyHash {
     /// By the standard hasher.
     #[default]
     Standard,
-    /// So that every key has the same hash, for the test that two keys of one hash and two texts are two keys.
-    #[cfg(test)]
-    Same,
 }
 
 /// A key's number in one file, the hash of its text: the same text, the same number.

@@ -755,28 +755,6 @@ impl Batch {
         }
         self.file_catalog.declare(&mut world.run);
         let mut readers=readers::Closed::new(&self.work,&self.cut_of);
-        #[cfg(feature = "product-session")]
-        let workers = self.workers.map_or(1, std::num::NonZeroUsize::get);
-        #[cfg(feature = "product-session")]
-        // Small SDK validation cohorts use the same closed reader without
-        // reconstructing a word table and posting caches on each worker.
-        if store.is_none() && workers > 1 && self.work.len() >= 128 && groups.len() > 1 {
-            let groups: Vec<_> = groups.into_values().collect();
-            self.clocks.project_shards += workers.min(groups.len());
-            let worker_cpu = closed_workers::run(
-                workers, self, world, populations, answers, groups.into_iter(), &mut readers, reader_states,
-            );
-            readers.release_finished(|slot| {
-                world.release(slot);
-                answers.release(slot);
-            }, |id| { populations.remove(&id); });
-            self.clocks.project_workers_cpu += worker_cpu;
-            self.clocks.project_number_wall += readers.number_wall;
-            self.clocks.project_numbered += readers.numbered;
-            self.clocks.project += thread_cpu() - t;
-            self.clocks.project_wall += wall.elapsed().as_secs_f64();
-            return;
-        }
         let mut coordinates = HashMap::new();
         let mut reused = [0; 3];
         for ((rule, _), requests) in groups {
@@ -926,22 +904,3 @@ impl<'a> Receipt<'a> {
     }
 }
 
-#[cfg(test)]
-mod slot_tests {
-    use super::{PairSlots, Work};
-
-    #[test]
-    fn compact_slots_preserve_report_order_and_duplicates() {
-        for (input, suffix) in [
-            (&[][..], &[][..]),
-            (&[4][..], &[][..]),
-            (&[4, 5, 6][..], &[][..]),
-            (&[4, 5, 5, 1, 4, 7][..], &[5, 1, 4, 7][..]),
-        ] {
-            let slots: PairSlots = input.iter().copied().collect();
-            assert_eq!(slots.rest, suffix);
-            let work = Work::Pairs(slots);
-            assert!(work.pair_slots().eq(input.iter().copied()));
-        }
-    }
-}

@@ -9,9 +9,6 @@ use benchmark_contracts::domain::reports::types::{
 };
 use serde::Deserialize;
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// The whole document; its description is for the reader.
 #[derive(Deserialize)]

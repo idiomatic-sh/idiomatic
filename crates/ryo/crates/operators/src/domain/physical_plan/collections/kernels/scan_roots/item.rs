@@ -1,12 +1,8 @@
 //! The `scan_roots` item of the `kernels` collection: a tree relation's rows read in place from the open file's elements, at
 //! the tree nodes the engine names for the reading node, in tree order; one cell at a time, never decoded into columns.
 
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexedRow, NO_ROW};
 use crate::domain::physical_plan::types::{PlanInputs, PlanNodeId, TreeRead, TreeRoots};
-#[cfg(test)]
-use crate::domain::physical_plan::types::{RowSource, lowering::value::Lowering};
 use crate::domain::tree_cells::service::{native_form, tree_table, tree_value, with_rows};
 use crate::domain::tree_cells::types::{TreeForm, TreeRows};
 use ryo_language::domain::elements::service::{children, element_count};
@@ -16,19 +12,7 @@ use ryo_relations::domain::relations::types::{CellKind, NodeId, Relation, Value}
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `scan_roots`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct ScanRootsItem;
 
-#[cfg(test)]
-impl KernelsItem for ScanRootsItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = lowering
-            .sources()
-            .any(|source| matches!(source, RowSource::Tree(_)));
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// The tree nodes whose rows of tree relation `relation` `node` reads: the nodes the engine names for the node, in tree
 /// order. The root has no edge, so the edges' rows skip it.

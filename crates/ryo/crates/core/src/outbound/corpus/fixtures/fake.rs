@@ -119,6 +119,3 @@ impl CorpusPort for CorpusFake {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

@@ -26,12 +26,3 @@ pub(crate) enum Extra {
     Error,
 }
 
-#[cfg(any(test, feature = "fixtures"))]
-/// What an extra is to the readers: text a relation reads (a comment), or bytes it only keeps.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Content {
-    /// Text a relation reads.
-    Read,
-    /// Bytes the tree keeps so that its tokens spell the file.
-    Kept,
-}

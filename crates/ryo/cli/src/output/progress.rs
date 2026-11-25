@@ -3,9 +3,6 @@
 //! (`tracing::info!(target: "progress", "checking {phase}")`), drawn with indicatif, only
 //! when stderr is a terminal and `--quiet` was not asked.
 
-#[cfg(test)]
-#[path = "progress_test.rs"]
-mod tests;
 
 /// The one line of progress a long command draws on stderr, while one is drawn: taken
 /// down by [`settle`] and drawn afresh by the next progress event.

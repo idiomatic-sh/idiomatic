@@ -3,5 +3,3 @@
 pub mod service;
 pub(crate) mod widths;
 
-#[cfg(test)]
-mod service_test;

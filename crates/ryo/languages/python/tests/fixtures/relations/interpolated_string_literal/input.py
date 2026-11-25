@@ -1,2 +1,0 @@
-'text' f''
-"plain string"

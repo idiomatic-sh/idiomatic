@@ -121,21 +121,7 @@ pub(crate) enum ProbeWork {
     Done,
 }
 
-/// The work a worker's chains did: how many times they called a stage (each call a run of rows), and the most rows they
-/// handed from a stage to its reader in one chunk.
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ChainWork {
-    /// The stage calls.
-    pub(crate) calls: StageCalls,
-    /// The most rows of one chunk handed on.
-    pub(crate) handed: RowCount,
-}
 
-/// How many times a worker's chains called a stage.
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct StageCalls(pub(crate) usize);
 
 /// A stage's place in its chain, the head stage's first.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -159,27 +145,6 @@ impl crate::domain::kept_room::types::KeptRoom for StreamScratch {
         }
     }
 
-    #[cfg(test)]
-    fn room(&self) -> crate::domain::kept_room::types::Room {
-        self.levels
-            .iter()
-            .flat_map(|level| {
-                [level.head.cells.room(), level.head.kinds.room()]
-                    .into_iter()
-                    .chain(level.stages.iter().flat_map(|stage| {
-                        [
-                            stage.out.cells.room(),
-                            stage.out.kinds.room(),
-                            stage.own.kept.cells.room(),
-                            stage.own.kept.kinds.room(),
-                            stage.own.repeats.room(),
-                            stage.own.index.room(),
-                        ]
-                    }))
-            })
-            .max()
-            .unwrap_or_default()
-    }
 }
 
 impl StreamScratch {

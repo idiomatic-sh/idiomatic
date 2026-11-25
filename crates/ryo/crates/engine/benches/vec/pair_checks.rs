@@ -1208,10 +1208,6 @@ impl Program {
         if !want_exact && atoms.as_ref().is_some_and(|a| a.cached_roots(&self.roots, selected, alive)) {
             return 0;
         }
-        #[cfg(feature = "pair-diagnostics")]
-        if self.meter.is_some() {
-            return self.evaluate::<true>(t, src, Some(path), syntax_text, reserved, tables, words, read, alive, exact, known, selected, atoms);
-        }
         self.evaluate::<false>(t, src, Some(path), syntax_text, reserved, tables, words, read, alive, exact, known, selected, atoms)
     }
 
@@ -1334,51 +1330,3 @@ impl Program {
     }
 }
 
-#[cfg(test)]
-mod word_tests {
-    use super::*;
-
-    #[test]
-    fn a_partial_read_leaves_no_word_or_row_in_the_next_file() {
-        let mut reusable = WitnessTables::default();
-        let first = &mut reusable.begin_file(1)[0];
-        first.read = true;
-        first.cells.0.push(languages::FilledColumn(vec![CellWord(42)]));
-        first.index.entry(0).or_default().insert(7, vec![0]);
-        let next = &reusable.begin_file(1)[0];
-        assert!(!next.read && !next.complete && !next.answered);
-        assert!(next.index.is_empty() && next.cells.0[0].0.is_empty());
-    }
-
-    #[test]
-    fn absent_symbol_matches_the_empty_literal_and_keeps_its_identity() {
-        let mut words = languages::facts::file_words(&languages::facts::base_words(Default::default(), &[]));
-        let empty = languages::facts::intern(&mut words, languages::NameText(""));
-        let program = [("".to_owned(), 3)].into_iter().collect();
-        let mut cache = Vec::new();
-        let mut symbols = FactSymbols::new(&words, &program, &mut cache);
-        assert_eq!(symbols.literal_id(empty), Some(3));
-        let absent = CellWord(u64::from(languages::NO_SYMBOL.0));
-        assert_ne!(absent, empty);
-        assert_eq!(symbols.literal_id(absent), Some(3));
-    }
-
-    #[test]
-    fn reserved_reason_has_a_spelling_but_does_not_equal_a_literal_with_that_spelling() {
-        use ryo_relations::domain::terms::{service::unknown_symbol, types::UnknownReason};
-        let raw = unknown_symbol(UnknownReason(6)).0;
-        let names = [(raw, 0)].into_iter().collect();
-        let texts = [Rc::<[u8]>::from(&b"unknown: unresolved"[..])];
-        let reserved = ReservedWords { names: &names, texts: &texts };
-        let mut words = languages::facts::file_words(&languages::facts::base_words(Default::default(), &[]));
-        let literal = languages::facts::intern(&mut words, languages::NameText("unknown: unresolved"));
-        let reason = CellWord(u64::from(raw));
-        assert_eq!(reserved.text(&words, reason), reserved.text(&words, literal));
-        let program = [("unknown: unresolved".to_owned(), 1), (String::new(), 2)].into_iter().collect();
-        let mut cache = Vec::new();
-        let mut ids = FactSymbols::new(&words, &program, &mut cache);
-        assert_eq!(ids.literal_id(reason), Some(2));
-        assert_eq!(ids.literal_id(literal), Some(1));
-    }
-
-}

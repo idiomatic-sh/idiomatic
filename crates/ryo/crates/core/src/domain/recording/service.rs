@@ -165,21 +165,6 @@ pub(crate) fn clean_moved(
     Some(made)
 }
 
-/// What the file handed to one rule, apart: the buckets of the rule's frontier with their words, one after the other. An edit that
-/// changes only what one rule reads leaves the others' steps as they were.
-#[cfg(test)]
-pub(crate) fn frontier_flat(
-    moved: &[BucketWords],
-    observations: Option<
-        ryo_values::domain::observations::types::validated_frontiers::value::ValidatedFrontiers<'_>,
-    >,
-    slots: &[ryo_execution::inbound::use_cases::execution::interface::ObservedFrontierRoot],
-    setting: &VisitSetting<'_>,
-    rule: RuleIndex,
-    flat: &mut Flat,
-) {
-    frontier_flat_in(moved, false, observations, slots, setting, rule, flat);
-}
 
 /// Spike (ryo-fmx3): whether `moved` holds its buckets in strictly ascending order, which lets each rule's buckets be found
 /// by search instead of by a pass over every bucket of the file.

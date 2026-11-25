@@ -1,1 +1,0 @@
-Module(body=[Expr(value=Subscript(value=Name(id='lst'), slice=NamedExpr(target=Name(id='x', ctx=Store()), value=Constant(value=1))))])

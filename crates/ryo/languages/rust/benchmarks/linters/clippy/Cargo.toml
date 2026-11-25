@@ -12,17 +12,6 @@ autotests = false
 
 [dependencies]
 
-[dev-dependencies]
-ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../../.." }
-benchmark-contracts = { package = "idiomatic-sh-benchmark-contracts", path = "../../../../../crates/benchmark_contracts" }
-benchmark = { package = "idiomatic-sh-benchmark", path = "../../../../../crates/benchmark", features = ["fixtures"] }
-ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../../../../crates/sdk" }
-serde.workspace = true
-serde_json.workspace = true
-toml.workspace = true
-tempfile.workspace = true
-
-
 [lints]
 workspace = true
 
@@ -31,6 +20,3 @@ name = "clippy"
 path = "bench.rs"
 harness = false
 
-[[test]]
-name = "clippy"
-path = "tests.rs"

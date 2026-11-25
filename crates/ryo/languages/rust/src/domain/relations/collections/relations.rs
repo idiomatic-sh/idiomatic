@@ -24,5 +24,3 @@ pub(crate) mod syntax_error;
 pub(crate) mod syntax_tree;
 pub(crate) mod visibility;
 
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) mod fixtures;

@@ -54,26 +54,6 @@ pub(super) fn check_input_identity(
     false
 }
 
-/// Read each input with its own symbols and local node IDs, preserving the explicit file cells.
-#[cfg(test)]
-pub(super) fn rows_of_inputs(
-    parse: &dyn ParseEngine,
-    inputs: &[PathBuf],
-    relation: Relation,
-    folder: &str,
-    findings: &mut Findings,
-) -> Option<Vec<Vec<Cell>>> {
-    rows_of_inputs_with(
-        &Selection {
-            default: parse,
-            configure: &|_| Ok(None),
-        },
-        inputs,
-        relation,
-        folder,
-        findings,
-    )
-}
 
 /// Read every independent input with its own validated parser configuration.
 pub(super) fn rows_of_inputs_with(

@@ -24,12 +24,6 @@ pub(crate) fn index(index: &mut SourceLineIndex, source: SourceLineBytes<'_>) {
     }
 }
 
-/// The one-based line of an endpoint, found in logarithmic time without rescanning the source.
-#[cfg(test)]
-#[must_use]
-pub(crate) fn line(index: &SourceLineIndex, offset: SourceLineOffset) -> SourceLineNumber {
-    SourceLineNumber(i64::try_from(lines_through(index, offset)).unwrap_or(i64::MAX))
-}
 
 /// Spike (ryo-fmx3, host3): how many lines start at or before `offset`, as `partition_point` answers it, tried first at the
 /// line of this thread's last answer and the one after it: readers ask in source order, so the answer is mostly one of those.
@@ -70,13 +64,3 @@ pub(crate) fn place(index: &SourceLineIndex, offset: SourceLineOffset) -> (Sourc
     )
 }
 
-/// The zero-based UTF-8 byte column, including exclusive EOF endpoints.
-#[cfg(test)]
-pub(crate) fn column(index: &SourceLineIndex, offset: SourceLineOffset) -> SourceByteColumn {
-    let line = lines_through(index, offset);
-    let start = line
-        .checked_sub(1)
-        .and_then(|line| index.0.get(line))
-        .map_or(0, |start| start.0);
-    SourceByteColumn(i64::from(offset.0.saturating_sub(start)))
-}

@@ -31,8 +31,6 @@ pub(crate) struct ParseContract {
     pub(super) notes: Arc<dyn NotesPort>,
     /// The walk, lent to the engine as numbered files.
         pub(super) numbered: languages::NumberedWalk<crate::domain::file_view::types::PythonWalk<crate::inbound::contracts::walk::contract::WalkPorts>>,
-    #[cfg(test)]
-    pub(super) model_preparations: std::sync::atomic::AtomicUsize,
 }
 
 impl ParseContract {
@@ -50,8 +48,6 @@ impl ParseContract {
             }),
             syntax,
             notes,
-            #[cfg(test)]
-            model_preparations: std::sync::atomic::AtomicUsize::new(0),
         }
     }
 }
@@ -104,10 +100,6 @@ impl Parse for ParseContract {
     }
 
     fn file_model(&self, _tree: &languages::Tree<'_>, model: &mut Declarations) {
-        #[cfg(test)]
-        let _previous = self
-            .model_preparations
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         prepare_model(&self.settings, model);
     }
 

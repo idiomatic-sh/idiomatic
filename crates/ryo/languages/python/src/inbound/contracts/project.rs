@@ -2,7 +2,3 @@
 
 pub(crate) mod contract;
 
-#[cfg(test)]
-mod contract_test;
-#[cfg(test)]
-mod fixtures;

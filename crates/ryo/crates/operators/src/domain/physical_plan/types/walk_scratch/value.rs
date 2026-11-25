@@ -80,21 +80,4 @@ impl crate::domain::kept_room::types::KeptRoom for WalkScratch {
         self.written.kept();
     }
 
-    #[cfg(test)]
-    fn room(&self) -> crate::domain::kept_room::types::Room {
-        [
-            self.visited.room(),
-            self.frontier.room(),
-            self.reached.room(),
-            self.runs.room(),
-            self.starts.room(),
-            self.rows.cells.room(),
-            self.entities.room(),
-            self.next.room(),
-            self.written.room(),
-        ]
-        .into_iter()
-        .max()
-        .unwrap_or_default()
-    }
 }

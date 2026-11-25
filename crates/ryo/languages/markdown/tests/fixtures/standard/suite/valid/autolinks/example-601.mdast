@@ -1,6 +1,0 @@
-root[1]
-└─0 paragraph[1]
-    └─0 link[1]
-        │ title: null
-        │ url: "localhost:5001/foo"
-        └─0 text "localhost:5001/foo"

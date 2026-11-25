@@ -6,38 +6,8 @@ use ryo_values::domain::stored_facts::types::ArenaBytes;
 
 use ryo_language::domain::names::service::{derived_of, places_of};
 use ryo_language::domain::symbols::service::place_of;
-#[cfg(test)]
-use ryo_relations::domain::relations::types::Value;
 use ryo_relations::domain::relations::types::{CROSS_FILE, Origin, TextHash};
 
-/// Checks that the names the files handed over are the same entity exactly when they are spelled the same: the cross-file steps
-/// compare names by their hash, so two spellings with one hash would join as one.
-///
-/// # Errors
-///
-/// `EntityInTwoSources` when two names with one hash are spelled differently.
-#[cfg(test)]
-pub(crate) fn check_spellings<'a>(
-    tables: impl IntoIterator<Item = &'a Table>,
-    symbols: &Symbols,
-    arenas: &[ArenaBytes],
-) -> Result<(), SpellingError> {
-    check_name_spellings(
-        tables.into_iter().flat_map(|table| {
-            table.cells.iter().filter_map(|value| match value {
-                Value::Name(name) => Some(*name),
-                Value::Node(_)
-                | Value::Symbol(_)
-                | Value::File(_)
-                | Value::Span(_)
-                | Value::Number(_)
-                | Value::Flag(_) => None,
-            })
-        }),
-        symbols,
-        arenas,
-    )
-}
 
 /// The same spelling invariant over compact admission's names; no row table is required.
 ///
@@ -83,5 +53,3 @@ pub fn check_name_spellings(
     Ok(())
 }
 
-#[cfg(test)]
-use ryo_values::domain::rows::types::Table;

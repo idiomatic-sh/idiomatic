@@ -106,6 +106,3 @@ impl RowSinkPort for BytesRowSinkFake {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

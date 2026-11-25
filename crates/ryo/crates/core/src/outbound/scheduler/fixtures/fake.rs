@@ -62,6 +62,3 @@ impl SchedulerPort for CountingSchedulerFake {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

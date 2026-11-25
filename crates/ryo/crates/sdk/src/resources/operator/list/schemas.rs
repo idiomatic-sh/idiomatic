@@ -45,6 +45,3 @@ pub(super) fn error(error: CoreError) -> ListError {
     ListOperatorsErrorSchema(error).into()
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

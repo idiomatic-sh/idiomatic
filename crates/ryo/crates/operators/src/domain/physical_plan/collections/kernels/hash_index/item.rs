@@ -1,8 +1,6 @@
 //! The `hash_index` item of the `kernels` collection: rows keyed into the worker's one keyed-row table, with no allocation per
 //! row and no key copied out, by one name column's text or by the cells of key columns.
 
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, rows_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::contract::types::PredicateOutcome;
@@ -10,8 +8,6 @@ use crate::domain::physical_plan::types::keyed_rows::value::{
     IndexKeyHash, IndexedRow, KeyWords, KeyedRows, KeyedRun, NO_ROW, NO_SLOT, hash_of_cells,
     key_words, same_cells, word_hash,
 };
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::walk_scratch::value::WalkScratch;
 use crate::domain::physical_plan::types::{KeyedRowAt, KeyedSide};
 use crate::domain::table_scratch::types::SetMembership;
@@ -22,30 +18,7 @@ use ryo_relations::domain::relations::types::{Bits, CellKind, ColumnsView, Value
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction};
 use ryo_values::domain::rows::types::{RowCount, RowIndex};
 
-/// `hash_index`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct HashIndexItem;
 
-#[cfg(test)]
-impl KernelsItem for HashIndexItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = {
-            matches!(
-                lowering,
-                Lowering::Lookup { .. }
-                    | Lowering::Probe { .. }
-                    | Lowering::Group { .. }
-                    | Lowering::Reach { .. }
-                    | Lowering::SeededReach { .. }
-                    | Lowering::Axis { .. }
-                    | Lowering::OrderedWalk { .. }
-                    | Lowering::Worklist { .. }
-                    | Lowering::Components { .. }
-            )
-        };
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// Empties `rows` for the rows of `count`, keeping its capacity.
 fn cleared(rows: &mut KeyedRows, count: RowCount) {

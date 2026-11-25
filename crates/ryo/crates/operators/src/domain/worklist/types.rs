@@ -164,19 +164,4 @@ impl crate::domain::kept_room::types::KeptRoom for WorklistScratch {
         self.fresh.kept();
     }
 
-    #[cfg(test)]
-    fn room(&self) -> crate::domain::kept_room::types::Room {
-        [
-            self.held.room(),
-            self.queue.room(),
-            self.edges.room(),
-            self.roots.room(),
-            self.cells.room(),
-            self.root_cells.room(),
-            self.fresh.room(),
-        ]
-        .into_iter()
-        .max()
-        .unwrap_or_default()
-    }
 }

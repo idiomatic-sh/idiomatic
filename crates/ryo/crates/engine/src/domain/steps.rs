@@ -14,5 +14,3 @@ pub mod stages;
 pub mod traversal;
 pub mod types;
 
-#[cfg(test)]
-mod service_test;

@@ -1,4 +1,0 @@
-root[2]
-├─0 paragraph[1]
-│   └─0 text "Foo"
-└─1 html "<div>\nbar\n</div>"

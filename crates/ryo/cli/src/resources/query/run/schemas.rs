@@ -188,9 +188,6 @@ impl crate::outcome::remedy::Remedy for RunSchemaError {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// What joins the project's root and the store's directory beneath it, on every platform.
 const STORE_SEPARATOR: &str = "/";

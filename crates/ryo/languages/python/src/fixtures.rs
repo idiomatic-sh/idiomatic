@@ -7,16 +7,8 @@ pub mod grown;
 #[cfg(not(bless))]
 mod invalid_project;
 pub(crate) mod kinds;
-#[cfg(test)]
-pub(crate) mod model_rows;
-#[cfg(test)]
-pub(crate) mod projects;
-#[cfg(test)]
-pub(crate) mod reading;
 #[cfg(not(bless))]
 mod relations;
-#[cfg(test)]
-pub(crate) mod syntax_files;
 pub mod table_laws;
 pub mod today;
 pub mod walking;

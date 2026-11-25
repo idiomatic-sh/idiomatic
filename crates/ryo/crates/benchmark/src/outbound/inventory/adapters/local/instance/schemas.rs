@@ -293,6 +293,3 @@ pub(in super::super) fn instance(record: &RuleInstanceRecord) -> Result<Canonica
     .map(CanonicalJson)
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

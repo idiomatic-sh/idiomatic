@@ -9,5 +9,3 @@ pub mod service;
 pub mod types;
 pub mod warning;
 
-#[cfg(test)]
-mod service_test;

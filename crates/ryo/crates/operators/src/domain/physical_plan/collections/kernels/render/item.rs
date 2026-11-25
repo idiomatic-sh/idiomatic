@@ -2,12 +2,8 @@
 //! row's node, each in the operation's role, and keeps each row whose node has a known rendering, with it appended; one
 //! unsupported answer refuses the batch before any row.
 
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{count_of, kinds_of, row_of};
 use crate::domain::contract::types::PortableOperatorFault;
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{InputRows, RenderRequests, Resources};
 use crate::domain::render_batch::types::RenderParts;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
@@ -15,20 +11,7 @@ use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `render`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct RenderItem;
 
-#[cfg(test)]
-impl KernelsItem for RenderItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        if matches!(lowering, Lowering::Render { .. }) {
-            Reach::Runs
-        } else {
-            Reach::Skips
-        }
-    }
-}
 
 /// Reads every row's node, asks `resources` once for their renderings in `render`'s role, and writes into `output` each row
 /// whose node has a known rendering, with its text minted and appended, in row order. No row asks nothing.

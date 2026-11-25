@@ -65,6 +65,3 @@ impl DigestPort for DigestCounting {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

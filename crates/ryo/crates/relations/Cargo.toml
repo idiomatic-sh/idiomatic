@@ -17,12 +17,7 @@ name = "ryo_relations"
 [dependencies]
 strum.workspace = true
 
-[dev-dependencies]
-idiomatic-sh-ryo-relations = { path = ".", features = ["fixtures"] }
-
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
-fixtures = []
-
 [lints]
 workspace = true

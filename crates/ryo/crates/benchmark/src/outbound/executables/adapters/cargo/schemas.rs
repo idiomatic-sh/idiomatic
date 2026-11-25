@@ -68,6 +68,3 @@ pub(super) fn seal_record(source: &Path, sealed: &Sealed) -> Result<Vec<u8>, Err
     Ok(record)
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

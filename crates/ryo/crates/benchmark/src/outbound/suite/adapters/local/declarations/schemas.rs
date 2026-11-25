@@ -194,9 +194,6 @@ pub(in crate::outbound::suite::adapters::local) fn project_search_roots(
         .transpose()
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]

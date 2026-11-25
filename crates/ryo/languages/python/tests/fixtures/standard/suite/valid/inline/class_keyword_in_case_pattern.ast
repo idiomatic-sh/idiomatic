@@ -1,1 +1,0 @@
-Module(body=[Match(subject=Constant(value=2), cases=[match_case(pattern=MatchClass(cls=Name(id='Class'), kwd_attrs=['x'], kwd_patterns=[MatchAs(name='x')]), body=[Expr(value=Constant(value=Ellipsis))])])])

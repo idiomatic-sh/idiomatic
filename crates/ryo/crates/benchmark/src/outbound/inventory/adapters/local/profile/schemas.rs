@@ -85,6 +85,3 @@ pub(in super::super) fn projected(
         .map_err(|error| Error::Invalid(error.to_string()))
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

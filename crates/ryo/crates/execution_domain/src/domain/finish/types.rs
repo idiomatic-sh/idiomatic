@@ -69,9 +69,6 @@ pub struct Leaving<'a> {
 pub enum Leaves {
     /// The text is moved to the worker's own, so steps that read the text after the files were read can.
     WithText,
-    /// The text stays in the file; only the tests of `escape` leave a name so, a run always takes the text.
-    #[cfg(test)]
-    WithoutText,
 }
 
 /// Where the text and the places of the names that left are kept: the worker's own text, and the places of one table.

@@ -1,1 +1,0 @@
-Module(body=[Import(names=[alias(name='a'), alias(name='b')], is_lazy=0), Import(names=[alias(name='c'), alias(name='d')], is_lazy=0), Import(names=[alias(name='a'), alias(name='b')], is_lazy=0), Expr(value=Tuple(elts=[Name(id='c'), Name(id='d')]))])

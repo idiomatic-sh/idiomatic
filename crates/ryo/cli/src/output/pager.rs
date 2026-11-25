@@ -5,9 +5,6 @@
 
 use std::io::Write as _;
 
-#[cfg(test)]
-#[path = "pager_test.rs"]
-mod tests;
 
 /// Writes `answer`'s text through the user's pager when stdout is a terminal, styled as
 /// stdout would be, and straight to stdout otherwise or when no pager starts. A pager

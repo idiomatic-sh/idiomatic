@@ -6,8 +6,6 @@
 use super::super::distinct::item::counted;
 use super::super::filter::item::kept_nodes;
 use super::super::hash_index::item::{find_cells, indexed, next_of};
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::probe_right::item::{
     LeftRows, ProbeReads, ProbeScratch, number_at, probe_prepared, probe_reads, walked_tree,
 };
@@ -19,8 +17,6 @@ use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::service::answer_kinds;
 use crate::domain::equality_join::types::{Existence, PartitionExtremum, ProbeMode, ProbeParts};
 use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, KeyedRun, NO_ROW};
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::row_set::value::RowSet;
 use crate::domain::physical_plan::types::shared_index::value::IndexRows;
 use crate::domain::physical_plan::types::stream_scratch::value::{
@@ -34,17 +30,7 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Side};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `probe`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct ProbeItem;
 
-#[cfg(test)]
-impl KernelsItem for ProbeItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = { matches!(lowering, Lowering::Probe { .. }) };
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// The right rows one left row matches: a key's run of the index, whether a row set holds the row, or the tree rows its walk
 /// found.

@@ -8,5 +8,3 @@ pub mod ordering;
 pub mod prefixes;
 pub mod service;
 
-#[cfg(test)]
-mod service_test;

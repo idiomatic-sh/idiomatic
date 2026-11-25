@@ -9,7 +9,6 @@ use ryo_matching::inbound::use_cases::matching::types::{
 };
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Operation;
-#[cfg(any(test, feature = "fixtures"))]
 use ryo_values::domain::query_plans::types::Plan;
 use std::sync::OnceLock;
 
@@ -19,8 +18,7 @@ pub struct PreparedMatchers {
     /// Exact test and literal bytes distinguish matcher families and glob polarity.
     slots: hashbrown::HashMap<Test, hashbrown::HashMap<RegexPattern, PreparedPattern>>,
     /// Actual first compilation events, absent from production.
-    #[cfg(any(test, feature = "fixtures"))]
-    pub builds: std::sync::atomic::AtomicUsize,
+        pub builds: std::sync::atomic::AtomicUsize,
 }
 
 /// Compiled once: a source search's pattern by the presence fold, when the program is compiled; any other pattern when
@@ -35,8 +33,7 @@ enum PreparedPattern {
 
 impl PreparedMatchers {
     /// Declare only authored literal keys from these plans, without interpreting their contents.
-    #[cfg(any(test, feature = "fixtures"))]
-    pub fn new<'a>(plans: impl IntoIterator<Item = &'a Plan>) -> Self {
+        pub fn new<'a>(plans: impl IntoIterator<Item = &'a Plan>) -> Self {
         Self::from_operations(
             plans
                 .into_iter()
@@ -110,8 +107,7 @@ impl PreparedMatchers {
         };
         Some(
             slot.get_or_init(|| {
-                #[cfg(any(test, feature = "fixtures"))]
-                let _previous = self
+                                let _previous = self
                     .builds
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 compile_regex(pattern, matcher)
@@ -132,8 +128,7 @@ impl PreparedMatchers {
             return None;
         };
         Some(slot.get_or_init(|| {
-            #[cfg(any(test, feature = "fixtures"))]
-            let _previous = self
+                        let _previous = self
                 .builds
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             matcher.0.compile_text_globs(&[GlobPattern(pattern.0)])

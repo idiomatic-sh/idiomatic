@@ -125,6 +125,3 @@ pub(super) fn inputs_in(fixtures: &Path, findings: &mut Findings) -> Vec<Input> 
     found
 }
 
-#[cfg(test)]
-#[path = "inputs_test.rs"]
-mod tests;

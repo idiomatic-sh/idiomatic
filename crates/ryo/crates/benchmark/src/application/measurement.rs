@@ -1,9 +1,5 @@
 //! Measured run preparation, execution and decoding.
 mod constants;
-#[cfg(test)]
-mod fixtures;
 pub(crate) mod phases;
 pub mod service;
-#[cfg(test)]
-mod service_test;
 pub(crate) mod types;

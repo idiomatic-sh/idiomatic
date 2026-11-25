@@ -1,8 +1,5 @@
 //! The scope of specialized readers beside the structural syntax relation.
 
-/// Grammar kinds without a specialized semantic row remain visible through `syntax_tree`.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const UNREAD_GRAMMAR: &str = "This grammar child has no standalone semantic reader dispatch; readers reach it through its owner, and syntax_tree preserves its structure";
 
 /// What opens a documentation comment, as `JSDoc` and TypeScript read it.
 pub(crate) const DOC_OPEN: &str = "/**";

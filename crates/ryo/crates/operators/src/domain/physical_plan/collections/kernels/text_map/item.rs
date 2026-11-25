@@ -2,8 +2,6 @@
 //! meaning, in row order, stopping at the first row that faults; the kind's checks, its pure function and its cell reads
 //! are its concept's, the row loop and the engine's resources are the kernel's.
 
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use crate::domain::capture::service::slot_count;
 use crate::domain::capture::types::{CaptureSlots, SlotPattern, SlotPlaces, SlotSubject};
 use crate::domain::contract::types::{
@@ -12,8 +10,6 @@ use crate::domain::contract::types::{
 use crate::domain::fits_rendered::types::Fit;
 use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{Resources, RowMap};
 use crate::domain::rank::types::RankLayers;
 use crate::domain::replace::types::{ReplacedText, ReplacementText};
@@ -30,20 +26,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::{RowCount, Table};
 
-/// `text_map`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct TextMapItem;
 
-#[cfg(test)]
-impl KernelsItem for TextMapItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        if matches!(lowering, Lowering::TextMap { .. }) {
-            Reach::Runs
-        } else {
-            Reach::Skips
-        }
-    }
-}
 
 /// What one `text_map` stage borrows for a file: the engine's resources, the matching semantics, the node's compiled
 /// patterns, the text scratch of the worker and the table it writes.

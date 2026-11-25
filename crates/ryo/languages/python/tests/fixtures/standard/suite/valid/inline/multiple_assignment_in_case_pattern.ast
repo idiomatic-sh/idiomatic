@@ -1,1 +1,0 @@
-Module(body=[Match(subject=Constant(value=2), cases=[match_case(pattern=MatchOr(patterns=[MatchClass(cls=Name(id='Class'), patterns=[MatchAs(name='x')]), MatchSequence(patterns=[MatchAs(name='x')]), MatchAs(name='x')]), body=[Expr(value=Constant(value=Ellipsis))])])])

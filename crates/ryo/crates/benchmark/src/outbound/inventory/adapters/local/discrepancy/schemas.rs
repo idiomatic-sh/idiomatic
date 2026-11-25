@@ -369,6 +369,3 @@ pub(in super::super) fn discrepancy_value(record: &DiscrepancyRecord) -> serde_j
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

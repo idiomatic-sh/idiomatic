@@ -37,6 +37,3 @@ impl TryFrom<&str> for Matcher {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

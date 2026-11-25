@@ -1,1 +1,0 @@
-Module(body=[Import(names=[alias(name='os')], is_lazy=0), Expr(value=Call(func=Name(id='print'), args=[Attribute(value=Name(id='os'), attr='sep')]))])

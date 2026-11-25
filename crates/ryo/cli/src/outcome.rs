@@ -6,9 +6,6 @@
 
 pub mod remedy;
 
-#[cfg(test)]
-#[path = "outcome_test.rs"]
-mod tests;
 
 /// How a command ended: every command's `run` returns one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

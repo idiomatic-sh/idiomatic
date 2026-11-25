@@ -1,4 +1,0 @@
-root[1]
-└─0 code "def foo(x)\n  return 3\nend"
-      lang: "ruby"
-      meta: "startline=3 $%@#$"

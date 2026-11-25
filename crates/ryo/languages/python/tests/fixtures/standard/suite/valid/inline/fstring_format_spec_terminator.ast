@@ -1,1 +1,0 @@
-Module(body=[Expr(value=JoinedStr(values=[Constant(value='hello '), FormattedValue(value=Name(id='x'), conversion=-1, format_spec=JoinedStr()), Constant(value=' world')])), Expr(value=JoinedStr(values=[Constant(value='hello '), FormattedValue(value=Name(id='x'), conversion=-1, format_spec=JoinedStr(values=[Constant(value='.3f')])), Constant(value=' world')]))])

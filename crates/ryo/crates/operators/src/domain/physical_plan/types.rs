@@ -20,8 +20,6 @@ pub(crate) mod stream_scratch;
 pub(crate) mod touched_nodes;
 pub(crate) mod visited_set;
 pub(crate) mod walk_scratch;
-#[cfg(test)]
-pub(crate) mod worker_meters;
 
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::table_texts::types::Texts;

@@ -32,8 +32,6 @@ pub(crate) mod named;
 #[path = "check_session/frontier.rs"]
 mod frontier;
 pub(crate) use frontier::World;
-#[cfg(feature = "product-session")]
-pub(crate) use frontier::SharedFrontier;
 #[path = "check_session/shared.rs"]
 mod shared;
 

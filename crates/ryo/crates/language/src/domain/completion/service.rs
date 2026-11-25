@@ -51,38 +51,7 @@ pub(crate) fn intern_decoded_from(
     // Source tokens have all been interned; derived node values must follow them.
     let count = engine(elements).decoded.len();
     for at in from.0..count {
-        #[cfg(test)]
-        {
-            engine_mut(elements).decoded_intern_visits.0 += 1;
-        }
-        let table = engine(elements);
-        let Some(decoded) = table.decoded.get(at).copied() else {
-            break;
-        };
-        if decoded.property.0 != 0
-            || crate::domain::elements::service::flags_at(elements, decoded.element).0
-                & ryo_relations::domain::relations::constants::TOKEN.0
-                != 0
-        {
-            continue;
-        }
-        let from = usize::try_from(decoded.from.0).unwrap_or(usize::MAX);
-        let to = usize::try_from(decoded.to.0).unwrap_or(usize::MAX);
-        let symbol = table
-            .decoded_text
-            .0
-            .get(from..to)
-            // The bytes are cut from text at the places the text was written: a cut that is no text has no text, which the caller reads as no value.
-            .and_then(|bytes| match std::str::from_utf8(bytes) {
-                Ok(text) => Some(text),
-                Err(_) => None,
-            })
-            .map(|value| intern_derived(symbols, source, NameText(value)));
-        if let Some(symbol) = symbol {
-            *crate::domain::elements::service::number_mut(&mut elements.text, decoded.element) =
-                symbol;
-        }
-    }
+}
 }
 
 /// Names the kind numbered `kind` for the file, once the whole table is built (a name that is not in

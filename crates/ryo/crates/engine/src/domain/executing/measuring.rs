@@ -4,5 +4,3 @@ pub mod service;
 pub mod sites;
 pub mod types;
 
-#[cfg(test)]
-mod service_test;

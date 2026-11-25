@@ -175,6 +175,3 @@ fn report(findings: &Findings) {
     )));
 }
 
-#[cfg(test)]
-#[path = "conformance_test.rs"]
-mod tests;

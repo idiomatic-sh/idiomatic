@@ -1,6 +1,0 @@
-root[1]
-└─0 heading[2]
-    │ depth: 1
-    ├─0 text "Foo "
-    └─1 emphasis[1]
-        └─0 text "bar\nbaz"

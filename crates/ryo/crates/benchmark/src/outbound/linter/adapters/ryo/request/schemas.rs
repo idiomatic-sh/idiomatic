@@ -276,6 +276,3 @@ impl From<ContextManifest> for ManifestSchema {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

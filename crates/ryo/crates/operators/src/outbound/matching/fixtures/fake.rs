@@ -40,6 +40,3 @@ impl MatchingPort for MatchingFake {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

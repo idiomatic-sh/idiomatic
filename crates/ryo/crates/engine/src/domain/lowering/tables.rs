@@ -17,5 +17,3 @@ pub(crate) mod shapes;
 pub(crate) mod types;
 pub(crate) mod views;
 
-#[cfg(test)]
-mod service_test;

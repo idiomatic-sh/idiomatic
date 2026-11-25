@@ -27,46 +27,14 @@ pub(crate) const OPAQUE_MACROS: [&str; 20] = [
     "log_syntax",
 ];
 
-/// A keyword.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const KEYWORD: &str =
-    "a keyword: it introduces a construct, and the relations read the construct's own node";
 
-/// An operator or a piece of punctuation.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const PUNCTUATION: &str =
-    "an operator or a piece of punctuation: syntax between the things the relations read";
 
-/// A token of the lexer.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const LEXICAL: &str = "a token of the lexer (delimiter, number, string, trivia) that the relations read through the node that holds it";
 
-/// A node that is an expression.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const EXPRESSION: &str = "an expression: the relations read the references, calls and literals inside it, never the expression itself";
 
-/// A node that is a pattern.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const PATTERN: &str =
-    "a pattern: the relations read the names it binds as `defines`, never the pattern itself";
 
-/// A node that is a type.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const TYPE: &str = "a type: the relations read the paths in it as references and the annotation as written, never the type itself";
 
-/// A node that groups others of one kind.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const LIST: &str =
-    "a list that only groups its elements, which the relations read themselves";
 
-/// A node of inline assembly.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const ASSEMBLY: &str = "inline assembly, which no relation models";
 
-/// A node that is a part of a construct.
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) const PART: &str =
-    "a part of a construct, which the relations read through the construct's own node";
 
 /// Four slashes start an ordinary line comment.
 pub(crate) const PLAIN_LINE_PREFIX: &str = "////";

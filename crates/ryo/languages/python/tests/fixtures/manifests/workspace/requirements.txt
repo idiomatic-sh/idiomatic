@@ -1,2 +1,0 @@
-git+https://example.com/tool.git@main
--e ./packages/lib_one

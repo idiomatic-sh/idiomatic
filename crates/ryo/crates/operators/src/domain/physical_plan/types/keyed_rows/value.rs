@@ -88,19 +88,6 @@ pub(crate) fn same_cells(
 }
 
 impl KeyedRows {
-    /// A table of no row with `room` for rows' links: what the room cases give a stage or a pool.
-    #[cfg(test)]
-    pub(crate) fn with_room(room: crate::domain::kept_room::types::Room) -> Self {
-        Self {
-            keys: hashbrown::HashTable::new(),
-            next: Vec::with_capacity(room.0),
-            census: 0,
-            words: KeyWords::Cells,
-            slots: Vec::new(),
-            runs: Vec::new(),
-            base: 0,
-        }
-    }
 
     /// Empties the table for its next rows, keeping its room.
     pub(crate) fn cleared(&mut self) {
@@ -142,10 +129,6 @@ impl crate::domain::kept_room::types::KeptRoom for KeyedRows {
         self.runs.kept();
     }
 
-    #[cfg(test)]
-    fn room(&self) -> crate::domain::kept_room::types::Room {
-        self.keys.room().max(self.next.room())
-    }
 }
 
 /// A keyed-row table a worker's pool keeps: within the room any scratch keeps past a file.

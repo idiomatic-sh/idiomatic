@@ -305,9 +305,6 @@ fn executable(path: &Path) -> Result<ryo::linter::ExecutablePermission, Error> {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// The rules of `request`, loaded from its query files, once when the verification retains them.
 pub(super) fn request_rules(

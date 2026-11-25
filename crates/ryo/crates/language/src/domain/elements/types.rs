@@ -191,9 +191,6 @@ pub(crate) struct ElementsEngine {
     /// The text a token stands for, as its language's library decoded it (a string's value with its escapes resolved), for the tokens it
     /// decoded one of, in the order of their positions.
     pub decoded: Vec<DecodedProperty>,
-    /// Actual decoded-entry visits by the interning algorithm, observed only in tests.
-    #[cfg(test)]
-    pub decoded_intern_visits: Count,
     /// The bytes of the decoded texts.
     pub decoded_text: Bytes,
     /// The elements a macro expansion produced, in the order of their positions; none for a file no expansion touched.

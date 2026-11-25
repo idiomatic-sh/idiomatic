@@ -4,6 +4,4 @@ pub mod errors;
 pub(crate) mod identity;
 mod observing;
 pub mod service;
-#[cfg(test)]
-mod service_test;
 pub mod types;

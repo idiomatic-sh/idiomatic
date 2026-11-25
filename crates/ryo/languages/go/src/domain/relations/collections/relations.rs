@@ -24,5 +24,3 @@ pub(crate) mod call_argument;
 
 pub(crate) mod resolves;
 
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) mod fixtures;

@@ -1,1 +1,0 @@
-Module(body=[Try(body=[Expr(value=Constant(value=Ellipsis))], handlers=[ExceptHandler(type=Name(id='Exception'), name='match', body=[Expr(value=Constant(value=Ellipsis))]), ExceptHandler(type=Name(id='Exception'), name='case', body=[Expr(value=Constant(value=Ellipsis))]), ExceptHandler(type=Name(id='Exception'), name='type', body=[Expr(value=Constant(value=Ellipsis))])])])

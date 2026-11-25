@@ -773,15 +773,6 @@ pub(super) fn prepare<'a>(
             _ => {}
         }
     }
-    #[cfg(feature = "pair-diagnostics")]
-    if std::env::var_os("VEC_PAY_PREP").is_some() {
-        println!(
-            "PAYPROOF steps {} possible {} demanded {}",
-            plan.steps.len(),
-            possible.iter().filter(|v| **v).count(),
-            live.iter().filter(|v| **v).count()
-        );
-    }
     let mut rows: Vec<Option<Row<'_>>> = Vec::with_capacity(plan.steps.len());
     for (i, s) in plan.steps.iter().enumerate() {
         let capped = b.out.capped;
@@ -895,30 +886,6 @@ pub(super) fn prepare<'a>(
         rows.push(row);
     }
     b.proof_validation = None;
-    #[cfg(feature = "pair-diagnostics")]
-    if std::env::var_os("VEC_PAIR_TRACE").is_some() {
-        for (i, row) in rows.iter().enumerate() {
-            if row.is_some() {
-                println!("PROVEN\t{i}");
-            }
-        }
-    }
-    #[cfg(feature = "pair-diagnostics")]
-    if std::env::var_os("VEC_EXACT_DIAG").is_some() {
-        for r in &plan.rules {
-            if let RuleEmit::Written(e) = &r.emit
-                && let FinishStep::Antijoin(j) = &plan.steps[e.step.0]
-            {
-                println!(
-                    "PROOF\t{}\tleft {}\tright {}\troot {}",
-                    r.rule.0,
-                    rows[j.left.0].is_some(),
-                    guards[j.right.0],
-                    rows[e.step.0].is_some()
-                );
-            }
-        }
-    }
     let base = b.out.roots.len();
     let mut certificates = plan
         .rules

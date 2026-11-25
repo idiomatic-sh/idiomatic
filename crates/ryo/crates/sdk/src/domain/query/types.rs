@@ -41,17 +41,7 @@ impl QueryModuleSource {
         }
     }
 
-    /// The stable logical module id.
-    #[cfg(test)]
-    pub(crate) fn id(&self) -> &QuerySourceId {
-        &self.id
-    }
 
-    /// The exact source text.
-    #[cfg(test)]
-    pub(crate) fn text(&self) -> &QuerySourceText {
-        &self.text
-    }
 }
 
 /// One checked immutable module catalog, reusable by any number of root queries.

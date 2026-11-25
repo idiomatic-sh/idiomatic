@@ -1,5 +1,0 @@
-// leading
-{
-  /* block */ "a": 1, // trailing
-  "b": [1, 2,],
-}

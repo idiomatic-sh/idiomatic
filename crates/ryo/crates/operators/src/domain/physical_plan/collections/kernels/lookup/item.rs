@@ -3,8 +3,6 @@
 
 use super::super::filter::item::{filter, keep, kept_kinds, readied};
 use super::super::hash_index::item::{find_text, next_of, texts};
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{decode, facts, rows_of};
 use super::super::scan_node::item::hold;
 use crate::domain::contract::types::PortableOperatorFault;
@@ -17,17 +15,7 @@ use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::{IndexKey, IndexPlace, KernelRun, NodeFed, RowSource};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `lookup`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct LookupItem;
 
-#[cfg(test)]
-impl KernelsItem for LookupItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = { matches!(lowering, Lowering::Lookup { .. }) };
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// Builds the shared index `index` from one read of its relation and answers every lookup of it: each the rows whose key is
 /// its constant, in source row order, kept by all its comparisons.

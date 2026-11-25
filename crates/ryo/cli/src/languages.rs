@@ -26,20 +26,6 @@ pub(crate) fn linked() -> impl LanguagePort {
     ryo_core::outbound::language::factory::use_case(connections())
 }
 
-/// The handles of the languages this build links, as `ryo lint` links them: test support for a suite that composes the lint
-/// itself, so it reads the command's languages and keeps no list of its own.
-///
-/// # Examples
-///
-/// ```
-/// let linked = ryo_cli::linked_connections();
-/// assert!(!linked.is_empty(), "a build links at least one language");
-/// ```
-#[cfg(feature = "fixtures")]
-#[must_use]
-pub fn linked_connections() -> Vec<LanguageConnection> {
-    connections()
-}
 
 /// The handles of the languages this build links, in the order of the directories of `languages/`: one for each enabled
 /// feature. The one list of them, which `linked` composes.

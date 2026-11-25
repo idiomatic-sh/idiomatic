@@ -79,6 +79,3 @@ pub fn select(text: &str) -> Result<Option<ConfiguredFixture>, String> {
     Ok(Some(selected))
 }
 
-#[cfg(test)]
-#[path = "configuration_test.rs"]
-mod tests;

@@ -9,10 +9,6 @@ use crate::domain::kept_room::types::kept_pool::value::KeptPool;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
 use crate::domain::physical_plan::types::physical_plan::value::PhysicalPlan;
 use crate::domain::physical_plan::types::shared_index::value::IndexRows;
-#[cfg(test)]
-use crate::domain::physical_plan::types::worker_meters::value::{
-    ChunkMeter, EndWork, IndexBuilds, TableMeter,
-};
 use crate::domain::physical_plan::types::{EngineUses, NodeFed, NodeReaders, NodeRows, PlanNodeId};
 use crate::domain::table_scratch::types::{LazyScratch, MemoTable, SelectScratch};
 use ryo_relations::domain::relations::types::{NodeId, Value};
@@ -88,21 +84,6 @@ pub struct FileBuffers {
     /// What each node did over the files, when counting is on; off, nothing is counted or timed.
     pub(crate) counters:
         Option<crate::domain::physical_plan::types::node_counters::value::NodeCounters>,
-    /// How many times a probe built an index, its own or a shared one: what the sharing cases count.
-    #[cfg(test)]
-    pub(crate) builds: IndexBuilds,
-    /// Whether a stage of a chain handed on a chunk past its bound: what the cell-bound case reads.
-    #[cfg(test)]
-    pub(crate) chunks: ChunkMeter,
-    /// The node tables held: how many were formed, and the rows they held at once.
-    #[cfg(test)]
-    pub(crate) meter: TableMeter,
-    /// The work the chains did: what the chunk-linearity and whole-row cases read.
-    #[cfg(test)]
-    pub(crate) chains: crate::domain::physical_plan::types::stream_scratch::value::ChainWork,
-    /// The work the ends of files did: what the release-cost case reads.
-    #[cfg(test)]
-    pub(crate) ending: EndWork,
     /// Spike (ryo-fmx3): by node, the file (by `generation`) in which it was last made with no row and no pending fault.
     pub(crate) known_empty: Vec<u32>,
     /// Spike (ryo-fmx3): by node, the file in which it was last made holding a row or a pending fault.
@@ -240,11 +221,6 @@ impl FileBuffers {
             }
         }
         table.cells.truncate(written);
-        #[cfg(test)]
-        self.meter
-            .dropped(ryo_values::domain::rows::types::RowCount(
-                table.count.0 - kept,
-            ));
         table.count = ryo_values::domain::rows::types::RowCount(kept);
     }
 
@@ -338,10 +314,6 @@ impl FileBuffers {
     /// assert!(matches!(buffers.rows(PlanNodeId(0)), NodeRows::Absent));
     /// ```
     pub fn release(&mut self, node: PlanNodeId) {
-        #[cfg(test)]
-        {
-            self.ending.0 += 1;
-        }
         self.shared.released(node, &mut self.pools);
         if let Ok(at) = usize::try_from(node.0)
             && let Some(held) = self.nodes.get_mut(at)
@@ -350,8 +322,6 @@ impl FileBuffers {
                 if crate::spike::memstats() {
                     crate::spike::tables_held(-((table.cells.capacity() * size_of::<Value>()) as i64));
                 }
-                #[cfg(test)]
-                self.meter.dropped(table.count);
                 self.pool.pooled(table, PoolSize(POOL_TABLES));
             }
             if let Some(pending) = self.pending.get_mut(at) {
@@ -477,10 +447,6 @@ impl FileBuffers {
         }
         self.turn = 0;
         self.done.file_ended();
-        #[cfg(test)]
-        {
-            self.ending.0 += self.shared.opened.len();
-        }
         self.shared.ended(&mut self.pools);
         self.pools
             .keyed

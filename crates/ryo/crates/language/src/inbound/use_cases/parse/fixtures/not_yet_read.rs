@@ -127,6 +127,3 @@ fn duplicates(promises: &[OptionalCapability]) -> usize {
         .count()
 }
 
-#[cfg(test)]
-#[path = "not_yet_read_test.rs"]
-mod tests;

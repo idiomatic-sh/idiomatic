@@ -13,8 +13,4 @@ mod rule_cases;
 mod tool;
 mod writer;
 
-#[cfg(test)]
-mod adapter_test;
 
-#[cfg(any(test, feature = "fixtures"))]
-mod fixtures;

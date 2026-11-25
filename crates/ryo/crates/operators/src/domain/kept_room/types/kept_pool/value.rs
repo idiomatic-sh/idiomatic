@@ -35,25 +35,5 @@ impl<T: Poolable> KeptPool<T> {
         }
     }
 
-    /// How many buffers the pool keeps.
-    #[cfg(test)]
-    pub(crate) fn len(&self) -> PoolSize {
-        PoolSize(self.kept.len())
-    }
 
-    /// Whether every buffer the pool keeps is empty, as `empty` answers, and within the caps.
-    #[cfg(test)]
-    pub(crate) fn within_caps(
-        &self,
-        empty: impl Fn(&T) -> crate::domain::contract::types::PredicateOutcome,
-    ) -> crate::domain::contract::types::PredicateOutcome {
-        if self.kept.iter().all(|item| {
-            empty(item) == crate::domain::contract::types::PredicateOutcome::Holds
-                && item.fits() == RoomFit::Fits
-        }) {
-            crate::domain::contract::types::PredicateOutcome::Holds
-        } else {
-            crate::domain::contract::types::PredicateOutcome::Fails
-        }
-    }
 }

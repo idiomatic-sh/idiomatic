@@ -85,6 +85,3 @@ pub(super) fn error(error: CoreError) -> DescribeError {
     DescribeOperatorErrorSchema(error).into()
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

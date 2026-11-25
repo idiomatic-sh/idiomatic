@@ -5,9 +5,6 @@
 //! given its next step.
 #![deny(clippy::wildcard_enum_match_arm)]
 
-#[cfg(test)]
-#[path = "remedy_test.rs"]
-mod tests;
 
 /// What the user does next about an error, printed as `help:` under it.
 #[derive(Clone, Debug, PartialEq, Eq)]

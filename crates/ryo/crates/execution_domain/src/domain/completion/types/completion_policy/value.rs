@@ -39,8 +39,7 @@ pub struct CompletionPolicy {
 }
 impl CompletionPolicy {
     /// The completion policy of one rule over one file, with its partials.
-    #[cfg(any(test, feature = "fixtures"))]
-    pub fn file(rule: RuleIndex, file: FileId, partials: &[Partial]) -> Self {
+        pub fn file(rule: RuleIndex, file: FileId, partials: &[Partial]) -> Self {
         Self::file_inputs(rule, file, partials, partials)
     }
     /// The policy of one rule over one file: evaluation and publication are blocked before running while their inputs are partial.

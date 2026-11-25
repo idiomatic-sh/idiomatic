@@ -395,6 +395,3 @@ fn seeded_join() -> Step {
     )
 }
 
-/// The ordered existence programs the rewrite and the run cases share.
-#[cfg(test)]
-pub(crate) mod ordered;

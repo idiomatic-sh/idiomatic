@@ -1,14 +1,11 @@
 //! The `nodes` service: free functions named by verb over the domain's types, with no IO and no ports. It says a node's name and
 //! its category, the ASDL type it is a constructor of.
 
-#[cfg(any(test, feature = "fixtures"))]
 use super::constants::STANDARD;
 use super::types::{Category, Node};
-#[cfg(any(test, feature = "fixtures"))]
 use ryo::languages::NameText;
 
 /// The standard the node names come from, and its version.
-#[cfg(any(test, feature = "fixtures"))]
 #[must_use]
 pub(crate) fn standard() -> NameText<'static> {
     NameText(STANDARD)

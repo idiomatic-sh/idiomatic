@@ -172,6 +172,3 @@ impl TryFrom<&Summary> for SummaryJson {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

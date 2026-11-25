@@ -2,8 +2,6 @@
 //! text). Each is the smallest plan of its shape; the lowering's track makes each faithful to the shape it names. The plan of
 //! each operation's growth case is in `growth`.
 
-#[cfg(test)]
-pub(crate) mod described;
 mod flags;
 pub mod growth;
 mod observed;
@@ -315,13 +313,6 @@ fn operation_scene(scene: &str) -> Option<Plan> {
     })
 }
 
-/// What the parameters of a scene's rule are bound to: nothing, but for the scenes that name a list.
-#[cfg(test)]
-pub(crate) fn bound(
-    scene: &str,
-) -> Vec<ryo_values::domain::query_bindings::types::ParameterBinding> {
-    sets::set_bindings(scene)
-}
 
 /// The plan a seam scenario names; an unknown name is the one tree rule.
 #[must_use]

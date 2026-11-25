@@ -4,8 +4,6 @@
 
 use super::super::filter::item::{FilterKernel, filter, keep, readied};
 use super::super::hash_index::item::indexed;
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::{
@@ -14,8 +12,6 @@ use crate::domain::equality_join::types::{
 use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::row_set::value::RowSet;
 use crate::domain::physical_plan::types::row_set::value::columns;
 use crate::domain::physical_plan::types::shared_index::value::IndexRows;
@@ -24,20 +20,7 @@ use ryo_relations::domain::relations::types::{CellKind, NodeId, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `probe_right`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct ProbeRightItem;
 
-#[cfg(test)]
-impl KernelsItem for ProbeRightItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = matches!(
-            lowering,
-            Lowering::Probe { .. } | Lowering::SeededReach { .. }
-        );
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// Whether a probe builds the index it reads, reads one a probe of the same right rows and key built in this file, or reads
 /// none: the tree it walks is its index.

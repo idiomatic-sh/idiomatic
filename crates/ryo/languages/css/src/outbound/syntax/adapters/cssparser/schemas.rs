@@ -190,6 +190,3 @@ pub(super) fn error_message(kind: &ParseErrorKind<()>, text: &mut Scratch) {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

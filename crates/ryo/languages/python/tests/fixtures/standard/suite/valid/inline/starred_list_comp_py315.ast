@@ -1,1 +1,0 @@
-Module(body=[Expr(value=ListComp(elt=Starred(value=Name(id='x')), generators=[comprehension(target=Name(id='x', ctx=Store()), iter=Name(id='y'), is_async=0)])), Expr(value=ListComp(elt=Starred(value=Attribute(value=Name(id='factor'), attr='dims')), generators=[comprehension(target=Name(id='factor', ctx=Store()), iter=Name(id='bases'), is_async=0)]))])

@@ -2,13 +2,9 @@
 pub(crate) mod completion;
 pub(crate) mod constants;
 pub(crate) mod errors;
-#[cfg(test)]
-mod fixtures;
 pub(crate) mod ordinary;
 pub(crate) mod phase;
 pub(crate) mod publication;
 pub(crate) mod rendering;
 pub mod service;
-#[cfg(test)]
-mod service_test;
 pub(crate) mod types;

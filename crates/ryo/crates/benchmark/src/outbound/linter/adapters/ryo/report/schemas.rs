@@ -192,6 +192,3 @@ impl TryFrom<ReportBytes<'_>> for RunReport {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

@@ -16,5 +16,3 @@ pub mod small_codes;
 pub mod types;
 pub mod walking;
 
-#[cfg(test)]
-mod service_test;

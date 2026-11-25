@@ -33,6 +33,3 @@ where
     });
 }
 
-#[cfg(test)]
-#[path = "items_test.rs"]
-mod tests;

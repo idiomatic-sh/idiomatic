@@ -36,15 +36,6 @@ use ryo_values::domain::query_tokens::types::StepName;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-/// Expands every imported-fragment call into fresh, identity-linked AST definitions.
-#[cfg(test)]
-pub(crate) fn link(
-    bundle: &QueryBundle,
-    root: WrittenProgram,
-    fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
-) -> Result<WrittenProgram, LinkingError> {
-    link_with_observations(bundle, root, fragments, &[])
-}
 
 /// Bind declared external input names before expanding calls; no local definition is synthesized.
 pub(crate) fn link_with_observations(

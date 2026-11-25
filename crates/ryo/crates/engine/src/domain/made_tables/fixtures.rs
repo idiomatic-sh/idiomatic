@@ -14,8 +14,6 @@ use ryo_language::domain::facts::service::{base_words, file_words};
 use ryo_language::domain::facts::types::{
     CellWord, FactAnswer, FactSource, FileWords, FillExtent, FilledColumn, FilledColumns, Wanted,
 };
-#[cfg(test)]
-use ryo_language::domain::facts::types::{FillerSentence, PartialRows};
 use ryo_language::domain::fixed_names::service::checked;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
@@ -24,14 +22,10 @@ use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::Relation;
-#[cfg(test)]
-use ryo_relations::domain::relations::types::{Count, Missing};
 use ryo_relations::domain::terms::types::NameText;
 
 pub mod benches;
 pub mod packs;
-#[cfg(test)]
-pub mod reads;
 pub(crate) mod sites;
 
 /// How the world's language answers a key.
@@ -39,15 +33,6 @@ pub(crate) mod sites;
 pub(crate) enum Telling {
     /// A key's rows alone.
     Keyed,
-    /// Every row, saying so.
-    #[cfg(test)]
-    WholeToAKey,
-    /// A refusal, to every ask.
-    #[cfg(test)]
-    Refusing,
-    /// Rows in part, to every ask.
-    #[cfg(test)]
-    Partial,
 }
 
 /// A language of one relation that counts what it is asked.
@@ -73,23 +58,10 @@ impl FactSource for Told {
         if relation != TOLD {
             return FactAnswer::Refused(AbsenceCause::NotYetRead);
         }
-        #[cfg(test)]
-        match self.telling {
-            Telling::Refusing => return FactAnswer::Refused(AbsenceCause::NotYetRead),
-            Telling::Partial => {
-                return FactAnswer::Partial(PartialRows {
-                    cause: FillerSentence("an unread stretch".into()),
-                    missing: Missing::Any,
-                });
-            }
-            Telling::Keyed | Telling::WholeToAKey => {}
-        }
         if out.0.len() < 5 {
             out.0.resize_with(5, FilledColumn::default);
         }
         let (wanted, extent) = match (wanted, self.telling) {
-            #[cfg(test)]
-            (Wanted::Key(..), Telling::WholeToAKey) => (Wanted::Whole, FillExtent::Whole),
             (Wanted::Key(..) | Wanted::Whole, _) => (wanted, FillExtent::Asked),
         };
         for [first, second] in &self.rows {
@@ -222,20 +194,6 @@ pub(crate) struct World {
     pub(crate) looped: Looped,
 }
 
-#[cfg(test)]
-/// The world of a pack of the tables, whose language holds `rows` and answers a key as `telling` says.
-///
-/// # Errors
-///
-/// The encoding refuses the pack.
-pub(crate) fn world_with(
-    tables: Vec<MadeTable>,
-    definitions: Vec<PackDefinition>,
-    rows: &[[u64; 2]],
-    telling: Telling,
-) -> Result<World, FilledError> {
-    world_of(tables, definitions, rows.to_vec(), packs::nodes(), telling)
-}
 
 /// The world of a pack of the tables over a file of the nodes given, whose language holds `rows`.
 ///
@@ -318,85 +276,6 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
     )
 }
 
-#[cfg(test)]
-/// The cells of a made table's row as a reader of each of its columns is handed them through the store: the file's own
-/// column too, of which the table keeps no cell.
-fn row_cells(store: &FillStore, table: MadeTableId, columns: Count, row: Count) -> Vec<CellWord> {
-    (0..columns.0)
-        .map(|column| {
-            crate::domain::indexes::reading::service::cell_at(
-                crate::domain::made_tables::reading::service::view_of(
-                    store,
-                    crate::domain::made_tables::types::ReadSource::Made(table),
-                    crate::domain::code::types::Short(u16::try_from(column).unwrap_or(u16::MAX)),
-                ),
-                row,
-            )
-        })
-        .collect()
-}
 
-#[cfg(test)]
-/// A table's rows as text: each row's cells, rows separated by `;`.
-pub(crate) fn shown(store: &FillStore, table: MadeTableId) -> String {
-    let Some(slot) = crate::domain::made_tables::sources::service::table_of(store, table) else {
-        return "unmade".to_owned();
-    };
-    let rows: Vec<String> = (0..slot.rows.count.0)
-        .map(|row| {
-            row_cells(store, table, Count(slot.rows.places.len()), Count(row))
-                .iter()
-                .map(|cell| cell.0.to_string())
-                .collect::<Vec<_>>()
-                .join(" ")
-        })
-        .collect();
-    rows.join("; ")
-}
 
-#[cfg(test)]
-/// How a column of a table is shown by `shown_as`.
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum Shown {
-    /// The cell's number.
-    Number,
-    /// The text of the word the cell is, in quotes.
-    Text,
-    /// A span, as `start..end`.
-    Span,
-    /// A node, as `n` and its place in the file's table.
-    Node,
-}
 
-#[cfg(test)]
-/// A table's rows as text, each column shown as `columns` says: rows separated by `;`.
-pub(crate) fn shown_as(world: &World, table: MadeTableId, columns: &[Shown]) -> String {
-    let Some(slot) = crate::domain::made_tables::sources::service::table_of(&world.store, table)
-    else {
-        return "unmade".to_owned();
-    };
-    let rows: Vec<String> = (0..slot.rows.count.0)
-        .map(|row| {
-            row_cells(
-                &world.store,
-                table,
-                Count(slot.rows.places.len()),
-                Count(row),
-            )
-            .iter()
-            .zip(columns)
-            .map(|(cell, shown)| match shown {
-                Shown::Number => cell.0.to_string(),
-                Shown::Text => format!(
-                    "{:?}",
-                    ryo_language::domain::facts::service::text(&world.words, *cell).0
-                ),
-                Shown::Span => format!("{}..{}", cell.0 >> 32, cell.0 & 0xffff_ffff),
-                Shown::Node => format!("n{}", cell.0 & 0xffff_ffff),
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
-        })
-        .collect();
-    rows.join("; ")
-}

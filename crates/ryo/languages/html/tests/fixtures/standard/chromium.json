@@ -1,9 +1,0 @@
-{
-  "version": "Chromium 140.0.7339.16",
-  "reason": "parse5 8.0.1 predates customizable select parsing",
-  "sources": [
-    "<select><b><option><select><option></b></select>X",
-    "<!DOCTYPE html>A<option>B<optgroup>C<select>D</option>E",
-    "<select><b><option><select><option></b></select>"
-  ]
-}

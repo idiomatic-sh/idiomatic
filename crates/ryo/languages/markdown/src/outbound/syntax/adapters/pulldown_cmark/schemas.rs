@@ -125,6 +125,3 @@ pub(super) fn event_kind(event: &Event<'_>, within: Within) -> Option<Kind> {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

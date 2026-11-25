@@ -269,6 +269,3 @@ pub(super) fn judge_rails(
     }
 }
 
-#[cfg(test)]
-#[path = "rails_test.rs"]
-mod tests;

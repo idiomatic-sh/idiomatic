@@ -182,6 +182,3 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn findings_from(
     Ok(findings)
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

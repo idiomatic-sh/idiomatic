@@ -16,8 +16,5 @@ pub(crate) mod sharing;
 pub(crate) mod tables;
 pub mod types;
 
-#[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
 
-#[cfg(test)]
-mod service_test;

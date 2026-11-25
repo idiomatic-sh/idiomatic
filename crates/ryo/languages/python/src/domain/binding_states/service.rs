@@ -128,29 +128,6 @@ pub(crate) fn delete(state: &mut BindingEnvironments, frame: BindingFrameId, key
     );
 }
 
-/// Preserve a known uncertainty without inventing a binding candidate.
-#[cfg(test)]
-pub(crate) fn uncertain(state: &mut BindingEnvironments, frame: BindingFrameId, key: BindingKey) {
-    let value = lookup(state, frame, key)
-        .cloned()
-        .unwrap_or(BindingAlternatives {
-            candidates: CandidateRange {
-                start: CandidateIndex(state.candidates.len()),
-                end: CandidateIndex(state.candidates.len()),
-            },
-            absence: BindingAbsence::Possible,
-            knowledge: BindingKnowledge::Known,
-        });
-    store(
-        state,
-        frame,
-        key,
-        BindingAlternatives {
-            knowledge: BindingKnowledge::Uncertain,
-            ..value
-        },
-    );
-}
 
 /// Merge mutually exclusive alternatives. Include the entry frame explicitly for a missing
 /// else arm or a zero-iteration loop path. A deleted branch and two bound branches differ.

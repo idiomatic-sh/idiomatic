@@ -1,1 +1,0 @@
-Module(body=[FunctionDef(name='foo', args=arguments(), body=[Expr(value=Constant(value=Ellipsis))], returns=Tuple(elts=[Name(id='int')])), FunctionDef(name='foo', args=arguments(), body=[Expr(value=Constant(value=Ellipsis))], returns=Tuple(elts=[Name(id='int'), Name(id='str')]))])

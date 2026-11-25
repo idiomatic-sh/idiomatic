@@ -70,7 +70,6 @@ pub(crate) struct AbsenceInputs(pub u8);
 /// use ryo_execution_domain::domain::trust::types::SetSharing;
 /// assert_ne!(SetSharing::Shared, SetSharing::Copied);
 /// ```
-#[cfg(any(test, feature = "fixtures"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SetSharing {
     /// One stored set.
@@ -87,7 +86,6 @@ pub enum SetSharing {
 /// use ryo_execution_domain::domain::trust::types::StoredSets;
 /// assert_eq!(StoredSets(2).0, 2);
 /// ```
-#[cfg(any(test, feature = "fixtures"))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StoredSets(pub usize);
 

@@ -1,1 +1,0 @@
-Module(body=[FunctionDef(name='_', args=arguments(), body=[Nonlocal(names=['x'])])])

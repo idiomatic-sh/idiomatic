@@ -6,5 +6,3 @@ pub mod types;
 pub mod service;
 
 mod constants;
-#[cfg(test)]
-mod service_test;

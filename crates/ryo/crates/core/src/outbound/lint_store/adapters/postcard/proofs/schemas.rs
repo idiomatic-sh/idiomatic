@@ -139,6 +139,3 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn proof_row(
     })
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

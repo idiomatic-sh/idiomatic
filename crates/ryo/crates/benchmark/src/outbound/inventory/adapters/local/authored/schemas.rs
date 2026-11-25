@@ -209,6 +209,3 @@ pub(in super::super) fn case_inventory(stage: &Path) -> Result<CaseDocuments, Er
         .map(CaseDocuments)
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

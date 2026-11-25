@@ -9,68 +9,9 @@ use crate::domain::module_tree::types::{
 use crate::domain::paths::types::Section;
 use crate::domain::targets::types::WrittenPath;
 use ryo::languages::Offset;
-#[cfg(test)]
-use std::borrow::Cow;
 
-#[cfg(test)]
-use super::types::{DeclaredNote, NoteFlag, NoteOffset, StepNote, WrittenNote};
 use super::types::{Naming, Note, NoteName, NotePath};
 
-/// The facts of a file as notes.
-#[cfg(test)]
-#[must_use]
-pub(crate) fn note_of(facts: &Facts) -> Note<'_> {
-    let path = |path: &Section<WrittenPath>| match path {
-        Section::Present(path) => Some(NotePath(path.0.to_string())),
-        Section::Absent => None,
-    };
-    Note {
-        clean: NoteFlag(facts.clean == Cleanliness::Clean),
-        declared: facts
-            .declared
-            .iter()
-            .map(|declared| DeclaredNote {
-                around: declared
-                    .around
-                    .iter()
-                    .map(|step| StepNote {
-                        name: NoteName(Cow::Borrowed(&step.name)),
-                        path: path(&step.path),
-                    })
-                    .collect(),
-                name: NoteName(Cow::Borrowed(&declared.name)),
-                inline: NoteFlag(declared.body == Body::Inline),
-                path: path(&declared.path),
-                test_only: NoteFlag(declared.gate == Gate::Test),
-                exported: NoteFlag(declared.reach == Exposure::Dependents),
-            })
-            .collect(),
-        written: facts
-            .written
-            .iter()
-            .map(|written| WrittenNote {
-                segments: written
-                    .segments
-                    .iter()
-                    .map(|each| NoteName(Cow::Borrowed(each)))
-                    .collect(),
-                enclosing: written
-                    .enclosing
-                    .iter()
-                    .map(|each| NoteName(Cow::Borrowed(each)))
-                    .collect(),
-                start: NoteOffset(written.start.0),
-                end: NoteOffset(written.end.0),
-                text: NoteName(Cow::Borrowed(&written.text.0)),
-                bound: written
-                    .bound
-                    .as_ref()
-                    .map(|each| NoteName(Cow::Borrowed(each))),
-                scope: written.scope,
-            })
-            .collect(),
-    }
-}
 
 /// The facts a note holds, with the paths written that start with a name `names` does not hold left out: a path that starts with
 /// a name no module of the repository bears, and no `crate`, `self` or `super`, names nothing of it.

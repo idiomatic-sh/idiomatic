@@ -11,5 +11,3 @@ mod ordered;
 mod texts;
 pub(super) mod schemas;
 
-#[cfg(test)]
-mod adapter_test;

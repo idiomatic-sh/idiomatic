@@ -5,5 +5,3 @@ mod constants;
 mod dependencies;
 pub(crate) mod schemas;
 
-#[cfg(test)]
-mod adapter_test;

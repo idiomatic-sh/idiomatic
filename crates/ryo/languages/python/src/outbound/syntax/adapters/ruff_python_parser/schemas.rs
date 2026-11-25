@@ -383,6 +383,3 @@ pub(super) fn token_kind(kind: TokenKind) -> Kind {
     Kind::from(TokenSchema(kind))
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

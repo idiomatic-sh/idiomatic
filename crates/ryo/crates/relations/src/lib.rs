@@ -4,5 +4,4 @@
 #[macro_use]
 pub mod domain;
 
-#[cfg(any(test, feature = "fixtures"))]
 pub mod cases;

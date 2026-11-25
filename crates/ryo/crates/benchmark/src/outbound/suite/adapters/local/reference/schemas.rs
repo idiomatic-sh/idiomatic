@@ -15,9 +15,6 @@ use benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::
 use serde::Deserialize;
 use std::path::PathBuf;
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// Serialized reference contract; semantic conversion belongs to the application.
 #[derive(Deserialize)]

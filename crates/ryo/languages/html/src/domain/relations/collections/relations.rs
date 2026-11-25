@@ -2,8 +2,6 @@
 
 pub(crate) mod syntax_tree;
 
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) mod fixtures;
 
 pub(crate) mod comment;
 pub(crate) mod defines;

@@ -5,19 +5,12 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 
 pub(crate) mod kept_pool;
 
-/// The room a buffer keeps, in items.
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct Room(pub(crate) usize);
 
 /// A worker's scratch buffer at the end of a file: emptied, and its room dropped when it is past `KEPT_ROOM`.
 pub(crate) trait KeptRoom {
     /// Empties the buffer, keeping its room only when it is within `KEPT_ROOM`.
     fn kept(&mut self);
 
-    /// The room it keeps.
-    #[cfg(test)]
-    fn room(&self) -> Room;
 }
 
 impl<T> KeptRoom for Vec<T> {
@@ -25,10 +18,6 @@ impl<T> KeptRoom for Vec<T> {
         kept_list(self);
     }
 
-    #[cfg(test)]
-    fn room(&self) -> Room {
-        Room(self.capacity())
-    }
 }
 
 impl<T> KeptRoom for hashbrown::HashTable<T> {
@@ -36,10 +25,6 @@ impl<T> KeptRoom for hashbrown::HashTable<T> {
         kept_table(self);
     }
 
-    #[cfg(test)]
-    fn room(&self) -> Room {
-        Room(self.capacity())
-    }
 }
 
 impl<T> KeptRoom for std::collections::VecDeque<T> {
@@ -47,10 +32,6 @@ impl<T> KeptRoom for std::collections::VecDeque<T> {
         kept_queue(self);
     }
 
-    #[cfg(test)]
-    fn room(&self) -> Room {
-        Room(self.capacity())
-    }
 }
 
 /// Whether an emptied buffer's room is within the caps a pool keeps.

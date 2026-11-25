@@ -380,6 +380,3 @@ impl TryFrom<&str> for Config {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

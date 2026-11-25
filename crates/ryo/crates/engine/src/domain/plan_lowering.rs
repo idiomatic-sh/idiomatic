@@ -9,8 +9,6 @@ pub(crate) mod counts;
 pub mod errors;
 pub(crate) mod expansion;
 pub(crate) mod filters;
-#[cfg(test)]
-pub(crate) mod fixtures;
 pub(crate) mod given;
 pub(crate) mod joins;
 pub(crate) mod numbering;

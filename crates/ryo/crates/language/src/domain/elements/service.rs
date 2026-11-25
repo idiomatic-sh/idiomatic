@@ -68,10 +68,6 @@ pub fn clear_elements(elements: &mut Elements) {
     engine.expanded.clear();
     engine.embedded.clear();
     engine.decoded.clear();
-    #[cfg(test)]
-    {
-        engine.decoded_intern_visits = Count(0);
-    }
     engine.decoded_text.0.clear();
     engine.names.clear();
     engine.vocabulary = KindSum(0);

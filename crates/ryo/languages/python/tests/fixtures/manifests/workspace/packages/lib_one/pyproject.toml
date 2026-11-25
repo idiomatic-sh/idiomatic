@@ -1,3 +1,0 @@
-[project]
-name = "lib-one"
-dependencies = ["numpy==2.1.0"]

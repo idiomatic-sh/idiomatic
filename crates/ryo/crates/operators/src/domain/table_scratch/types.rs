@@ -209,8 +209,4 @@ impl crate::domain::kept_room::types::KeptRoom for MemoTable {
         self.written.kept();
     }
 
-    #[cfg(test)]
-    fn room(&self) -> crate::domain::kept_room::types::Room {
-        self.decided.room()
-    }
 }

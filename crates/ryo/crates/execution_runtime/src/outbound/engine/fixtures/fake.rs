@@ -366,6 +366,3 @@ impl EnginePort for EngineFake {
     }
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

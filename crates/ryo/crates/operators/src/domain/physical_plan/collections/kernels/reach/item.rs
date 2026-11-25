@@ -4,8 +4,6 @@
 //! walked once per file and its run kept for the rows that bind it again.
 
 use super::super::hash_index::item::{cells, find_cells, hash_of, indexed, next_of};
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::probe::item::probed;
 use super::super::probe_right::item::ProbeScratch;
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
@@ -13,8 +11,6 @@ use crate::domain::closure::types::ReachParts;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::equality_join::types::SeededJoin;
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexedRow, KeyedRows, NO_ROW};
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::shared_index::value::KeyedAccess;
 use crate::domain::physical_plan::types::visited_set::value::VisitedSet;
 use crate::domain::physical_plan::types::walk_scratch::value::{
@@ -26,36 +22,7 @@ use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `reach`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct ReachItem;
 
-#[cfg(test)]
-impl KernelsItem for ReachItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = match lowering {
-            Lowering::Reach { .. } | Lowering::SeededReach { .. } => true,
-            Lowering::Filter { .. }
-            | Lowering::Lookup { .. }
-            | Lowering::Project { .. }
-            | Lowering::Extend { .. }
-            | Lowering::Probe { .. }
-            | Lowering::Distinct { .. }
-            | Lowering::Group { .. }
-            | Lowering::Axis { .. }
-            | Lowering::OrderedWalk { .. }
-            | Lowering::Worklist { .. }
-            | Lowering::Components { .. }
-            | Lowering::TextMap { .. }
-            | Lowering::PointerChase { .. }
-            | Lowering::OrderedMatch { .. }
-            | Lowering::Render { .. }
-            | Lowering::ScanBound { .. }
-            | Lowering::Unlowered => false,
-        };
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// The rows a reach walks from: every source of its edges, or the left rows of the join it was fused into.
 #[derive(Clone, Copy, Debug)]

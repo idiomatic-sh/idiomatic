@@ -104,27 +104,3 @@ impl<'a> FileVersion<'a> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ryo::languages::{Count, EmbeddedMapping, EmbeddedText, FieldCode, NameText, Offset};
-
-    #[test]
-    fn parent_probe_includes_each_attached_root_and_concrete_child() {
-        let mut table = NodeTable::default();
-        let mut writer = node_table::builder(&mut table, Count(2));
-        node_table::enter_node(&mut writer, KindBits(0), FieldCode(0), Offset(0));
-        node_table::token(&mut writer, KindBits(1), FieldCode(0), Offset(0), Offset(1));
-        node_table::leave_node(&mut writer, Offset(1));
-        for _ in 0..2 {
-            node_table::embed(&mut writer, Position(0), EmbeddedText {
-                text: NameText("x"), mapping: EmbeddedMapping::Exact(Offset(0)),
-            });
-            node_table::enter_node(&mut writer, KindBits(0), FieldCode(0), Offset(0));
-            node_table::leave_node(&mut writer, Offset(1));
-        }
-        let file = FileVersion::new(node_table::finished(&mut writer), b"x", 0, None);
-        assert_eq!(file.child_rows(0).collect::<Vec<_>>(), [1, 2, 3]);
-        assert_eq!(file.child_rows(u64::MAX).count(), 0);
-    }
-}

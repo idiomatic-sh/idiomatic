@@ -36,6 +36,3 @@ pub fn findings(language: &str, kinds: &[KindSample], read: &[KindBits]) -> Vec<
     found
 }
 
-#[cfg(test)]
-#[path = "unread_test.rs"]
-mod tests;

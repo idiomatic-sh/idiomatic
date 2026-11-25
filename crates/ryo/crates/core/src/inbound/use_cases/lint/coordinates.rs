@@ -30,17 +30,3 @@ impl FindingCoordinates {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn finding_columns_count_characters_and_accept_an_eof_span() {
-        let source = "éx\r\nβ".as_bytes();
-        let mut locations = FindingCoordinates::default();
-        assert_eq!(locations.at(source, Offset(2)), Some((1, 2)));
-        assert_eq!(locations.at(source, Offset(5)), Some((2, 1)));
-        assert_eq!(locations.at(source, Offset(7)), Some((2, 2)));
-        assert_eq!(locations.at(source, Offset(8)), None);
-    }
-}

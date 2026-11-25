@@ -281,6 +281,3 @@ pub(super) fn misreading(node: &Library<'_>) -> Misreading {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

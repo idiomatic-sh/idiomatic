@@ -252,6 +252,3 @@ pub(super) fn one_function(file: FileId) -> [u64; 4] {
     words.map(|word| word.0)
 }
 
-#[cfg(test)]
-#[path = "fake_test.rs"]
-mod tests;

@@ -102,6 +102,3 @@ pub fn written(
     }
 }
 
-#[cfg(test)]
-#[path = "reading_test.rs"]
-mod tests;

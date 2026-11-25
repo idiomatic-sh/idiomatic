@@ -29,19 +29,6 @@ use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_tokens::types::QuerySpelling;
 
-/// Lowers a program that validation accepted.
-///
-/// # Errors
-///
-/// The first name that resolves to nothing, or comparison of unlike types, with its place.
-#[cfg(test)]
-pub(crate) fn lower(
-    program: &syntax::WrittenProgram,
-    catalog: &[Relation],
-    hosted: &[hosted::HostedRelation],
-) -> Result<ryo_values::domain::query_plans::types::Plan, LoweringError> {
-    lower_with_observations(program, catalog, hosted, &[])
-}
 
 /// Resolve every declared producer source through the same typed lowering pass.
 pub(crate) fn lower_with_observations(

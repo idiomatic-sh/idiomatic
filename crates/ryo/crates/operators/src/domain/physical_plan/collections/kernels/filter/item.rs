@@ -1,8 +1,6 @@
 //! The `filter` item of the `kernels` collection: the rows a select's compiled comparisons, the moved ones unchanged, hold for,
 //! with its kept columns.
 
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_roots::item::tree_row;
 use super::super::scan_facts::item::{decode, facts_cell_at};
 use crate::domain::comparing::service::{FastComparison, fast_holds, fast_of, holds_bound_from};
@@ -13,8 +11,6 @@ use crate::domain::contract::types::{PortableOperatorFault, PredicateOutcome};
 use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::physical_plan::types::TreeRead;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::select::types::SelectParts;
 use crate::domain::table_scratch::service::forgotten;
 use crate::domain::table_texts::types::Texts;
@@ -22,38 +18,7 @@ use ryo_relations::domain::relations::types::{CellKind, NodeId, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `filter`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct FilterItem;
 
-#[cfg(test)]
-impl KernelsItem for FilterItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = {
-            match lowering {
-                Lowering::Filter { .. } | Lowering::Lookup { .. } => true,
-                Lowering::Probe { probe, .. } => !probe.filter.comparisons.is_empty(),
-                Lowering::SeededReach { join, .. } => !join.probe.filter.comparisons.is_empty(),
-                Lowering::Axis { axis, .. } => !axis.domain.comparisons.is_empty(),
-                Lowering::Project { .. }
-                | Lowering::Extend { .. }
-                | Lowering::Distinct { .. }
-                | Lowering::Group { .. }
-                | Lowering::TextMap { .. }
-                | Lowering::PointerChase { .. }
-                | Lowering::OrderedMatch { .. }
-                | Lowering::Render { .. }
-                | Lowering::Reach { .. }
-                | Lowering::OrderedWalk { .. }
-                | Lowering::Worklist { .. }
-                | Lowering::Components { .. }
-                | Lowering::ScanBound { .. }
-                | Lowering::Unlowered => false,
-            }
-        };
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// One filter's comparisons over rows of one shape, against the open file's texts.
 #[derive(Clone, Copy, Debug)]

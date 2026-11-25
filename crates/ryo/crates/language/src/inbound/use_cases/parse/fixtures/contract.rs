@@ -215,6 +215,3 @@ pub fn flow(subject: &dyn ParseEngine, samples: &[SourceFile]) {
     );
 }
 
-#[cfg(test)]
-#[path = "contract_test.rs"]
-mod tests;

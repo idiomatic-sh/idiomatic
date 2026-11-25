@@ -1,6 +1,5 @@
 //! `languages`: what a language author and a program that links languages use.
 
-#[cfg(feature = "fixtures")]
 pub mod contract;
 
 mod macros;

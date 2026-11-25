@@ -1,1 +1,0 @@
-Module(body=[With(items=[withitem(context_expr=Call(func=Name(id='open'), args=[Constant(value='foo.txt')]), optional_vars=Name(id='foo', ctx=Store()))], body=[Expr(value=Constant(value=Ellipsis))]), With(items=[withitem(context_expr=Call(func=Name(id='open'), args=[Constant(value='foo.txt')]))], body=[Expr(value=Constant(value=Ellipsis))])])

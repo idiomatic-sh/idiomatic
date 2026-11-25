@@ -1,6 +1,0 @@
-root[3]
-├─0 html "<del>"
-├─1 paragraph[1]
-│   └─0 emphasis[1]
-│       └─0 text "foo"
-└─2 html "</del>"

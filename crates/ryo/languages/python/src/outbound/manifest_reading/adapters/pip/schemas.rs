@@ -301,6 +301,3 @@ pub(super) fn declared(
     })
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

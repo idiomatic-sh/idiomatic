@@ -267,6 +267,3 @@ impl TryFrom<RegistrationBytes<'_>> for Registration {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

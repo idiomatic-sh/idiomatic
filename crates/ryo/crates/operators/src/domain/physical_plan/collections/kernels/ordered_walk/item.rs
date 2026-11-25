@@ -4,16 +4,12 @@
 //! run, found by binary search.
 
 use super::super::hash_index::item::indexed;
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{canonical_cells, cell_of, count_of, kinds_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_dfs::types::DfsParts;
 use crate::domain::physical_plan::types::InputRows;
 use crate::domain::physical_plan::types::Resources;
 use crate::domain::physical_plan::types::keyed_rows::value::{IndexedRow, hash_of_cells};
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::visited_set::value::VisitedSet;
 use crate::domain::physical_plan::types::walk_scratch::value::WalkScratch;
 use crate::domain::table_scratch::types::SetMembership;
@@ -25,37 +21,7 @@ use ryo_values::domain::row_texts::types::CellText;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 use std::cmp::Ordering;
 
-/// `ordered_walk`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct OrderedWalkItem;
 
-#[cfg(test)]
-impl KernelsItem for OrderedWalkItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = match lowering {
-            Lowering::OrderedWalk { .. } => true,
-            Lowering::Filter { .. }
-            | Lowering::Lookup { .. }
-            | Lowering::Project { .. }
-            | Lowering::Extend { .. }
-            | Lowering::Probe { .. }
-            | Lowering::Distinct { .. }
-            | Lowering::Group { .. }
-            | Lowering::Reach { .. }
-            | Lowering::SeededReach { .. }
-            | Lowering::Axis { .. }
-            | Lowering::Components { .. }
-            | Lowering::TextMap { .. }
-            | Lowering::PointerChase { .. }
-            | Lowering::OrderedMatch { .. }
-            | Lowering::Render { .. }
-            | Lowering::ScanBound { .. }
-            | Lowering::Worklist { .. }
-            | Lowering::Unlowered => false,
-        };
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// Writes into `output` each visit's row: the root's keys and root, the edge's source, destination and edge, and the ordinal
 /// of the visit among its root's, from 0. A root is visited once per distinct partition and root, in their sorted order; a

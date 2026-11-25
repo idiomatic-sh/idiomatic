@@ -1,1 +1,0 @@
-Module(body=[Expr(value=TemplateStr(values=[Interpolation(value=Name(id='hey'), str='hey', conversion=-1)])), Expr(value=TemplateStr(values=[Interpolation(value=Name(id='there'), str='there', conversion=-1)])), Expr(value=TemplateStr(values=[Constant(value="what's\nhappening?")]))])

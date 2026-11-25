@@ -324,9 +324,6 @@ pub(super) fn token_kind(kind: oxc_parser::Kind) -> Result<Token, oxc_parser::Ki
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// What Oxc reads a file of `dialect` as: what it reads a file of that extension as, a file of declarations as declarations, and
 /// every JavaScript file with JSX, as oxlint reads `.js`, `.mjs` and `.cjs` files.

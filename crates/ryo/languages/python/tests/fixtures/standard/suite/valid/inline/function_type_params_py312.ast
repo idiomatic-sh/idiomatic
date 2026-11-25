@@ -1,1 +1,0 @@
-Module(body=[FunctionDef(name='foo', args=arguments(), body=[Expr(value=Constant(value=Ellipsis))], type_params=[TypeVar(name='T')])])

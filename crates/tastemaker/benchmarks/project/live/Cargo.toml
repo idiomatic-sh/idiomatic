@@ -35,7 +35,7 @@ ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../../../ry
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../../../../ryo/crates/query_language" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../../../ryo/crates/relations" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../../../../ryo/crates/values" }
-ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../../../../ryo/crates/sdk", features = ["fixtures"] }
+ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../../../../ryo/crates/sdk" }
 
 release_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", version = "=0.1.4" }
 release_language = { package = "idiomatic-sh-ryo-language", version = "=0.1.4" }

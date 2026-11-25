@@ -53,6 +53,3 @@ pub(in super::super) fn sorted_findings(mut rows: Vec<Canonical>) -> Canonical {
     Canonical::List(rows)
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

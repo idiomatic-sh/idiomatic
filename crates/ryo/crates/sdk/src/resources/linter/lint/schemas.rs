@@ -415,9 +415,6 @@ pub(super) const fn workers(workers: super::types::Workers) -> WorkersAsked {
     WorkersAsked(workers.0.get())
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// Translate edge-validated rule identities without changing producer selection.
 fn observation_bindings(

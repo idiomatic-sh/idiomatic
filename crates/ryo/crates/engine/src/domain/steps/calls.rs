@@ -4,5 +4,3 @@
 pub mod service;
 pub mod types;
 
-#[cfg(test)]
-pub mod fixtures;

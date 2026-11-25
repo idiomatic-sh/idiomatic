@@ -50,6 +50,3 @@ pub(super) fn published(values: &[PropertyValue<'_>]) -> Published {
     )
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

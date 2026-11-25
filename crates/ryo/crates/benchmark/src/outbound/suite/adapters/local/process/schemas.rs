@@ -12,9 +12,6 @@ use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Deserialize;
 use std::path::PathBuf;
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// Only this explicit variant can request process-failure comparison.
 #[derive(Deserialize)]

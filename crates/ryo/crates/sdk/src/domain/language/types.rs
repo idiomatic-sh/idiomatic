@@ -136,8 +136,7 @@ impl Language {
 
     /// Reads one file through the interface the engine calls: what a language's own tests and benches drive its parse through. Only
     /// with the `fixtures` feature, which only tests switch on: an edge hands a language to the engine through the SDK's edges.
-    #[cfg(feature = "fixtures")]
-    #[must_use]
+        #[must_use]
     pub fn parse_engine(&self) -> Arc<dyn ParseEngine> {
         self.parse_use_case()
     }
@@ -156,15 +155,13 @@ impl Language {
     ///     language.walk_engine().kind_count().0 > 0
     /// }
     /// ```
-    #[cfg(feature = "fixtures")]
-    #[must_use]
+        #[must_use]
     pub fn walk_engine(&self) -> Arc<dyn WalkEngine> {
         self.walk_use_case()
     }
 
     /// Reads the repository's manifests: what a language's own tests drive its project through. Only with the `fixtures` feature.
-    #[cfg(feature = "fixtures")]
-    #[must_use]
+        #[must_use]
     pub fn project(&self) -> Arc<dyn ProjectEngine> {
         self.project_use_case()
     }

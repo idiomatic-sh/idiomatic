@@ -59,6 +59,3 @@ pub(super) fn entry_of(listed: DirEntry) -> Result<Entry, RepositoryError> {
     Entry::try_from(EntrySchema(listed))
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

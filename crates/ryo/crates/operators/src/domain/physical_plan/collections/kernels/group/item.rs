@@ -2,14 +2,10 @@
 //! its first row, formatted by the aggregation's one meaning with how many rows, or distinct values of a column, it holds.
 
 use super::super::hash_index::item::{cells, find_cells, indexed, next_of};
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of, row_of};
 use crate::domain::aggregate::types::GroupMeasure;
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{InputRows, KeyedRowAt, KeyedSide};
 use crate::domain::reduction::service::{folded, hash_of};
 use crate::domain::reduction::types::DigestDatum;
@@ -18,17 +14,7 @@ use ryo_relations::domain::relations::types::{CellKind, Count, Integer, Value};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `group`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct GroupItem;
 
-#[cfg(test)]
-impl KernelsItem for GroupItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = { matches!(lowering, Lowering::Group { .. }) };
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// The scratch a grouping writes through: the keyed-row table, the row read, the distinct values and the row written.
 pub(crate) struct GroupScratch<'s> {

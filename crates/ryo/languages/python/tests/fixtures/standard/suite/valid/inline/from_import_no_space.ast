@@ -1,1 +1,0 @@
-Module(body=[ImportFrom(names=[alias(name='x')], level=1, is_lazy=0), ImportFrom(names=[alias(name='x')], level=3, is_lazy=0)])

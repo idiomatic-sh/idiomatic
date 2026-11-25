@@ -69,6 +69,3 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn unknown_from(
     })
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

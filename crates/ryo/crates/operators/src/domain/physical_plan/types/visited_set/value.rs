@@ -13,9 +13,6 @@ pub(crate) struct VisitedSet {
     table: hashbrown::HashTable<Value>,
     /// The entities met, in the order met, so a reset removes only these.
     met: Vec<Value>,
-    /// The table slots every reset so far has emptied.
-    #[cfg(test)]
-    work: ResetWork,
     /// Spike (ryo-jenl): the walk that last met each node of `file`, by the node's place in the file: a node is a dense id,
     /// so it is met by position, never hashed.
     stamps: Vec<u32>,
@@ -30,10 +27,6 @@ pub(crate) struct VisitedSet {
 /// Spike (ryo-jenl): the most places a visited set addresses by position.
 const MOST_PLACES: u64 = 1 << 20;
 
-/// How many table slots the resets of a visited set have emptied.
-#[cfg(test)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ResetWork(pub(crate) usize);
 
 impl VisitedSet {
     /// Marks `entity` met, and answers whether it was met already in this walk.
@@ -84,16 +77,8 @@ impl VisitedSet {
             self.placed = false;
         }
         if self.met.len().saturating_mul(8) >= self.table.capacity() {
-            #[cfg(test)]
-            {
-                self.work.0 += self.table.capacity();
-            }
             self.table.clear();
         } else {
-            #[cfg(test)]
-            {
-                self.work.0 += self.met.len();
-            }
             for entity in self.met.iter().copied() {
                 if let Ok(held) = self
                     .table
@@ -106,21 +91,7 @@ impl VisitedSet {
         self.met.clear();
     }
 
-    /// Whether no entity is met.
-    #[cfg(test)]
-    pub(crate) fn is_empty(&self) -> crate::domain::contract::types::PredicateOutcome {
-        if self.table.is_empty() && self.met.is_empty() && !self.placed {
-            crate::domain::contract::types::PredicateOutcome::Holds
-        } else {
-            crate::domain::contract::types::PredicateOutcome::Fails
-        }
-    }
 
-    /// The table slots every reset so far has emptied.
-    #[cfg(test)]
-    pub(crate) fn reset_work(&self) -> ResetWork {
-        self.work
-    }
 }
 
 /// The hash a walk keeps an entity it met under.
@@ -139,10 +110,6 @@ impl crate::domain::kept_room::types::KeptRoom for VisitedSet {
         self.placed = false;
     }
 
-    #[cfg(test)]
-    fn room(&self) -> crate::domain::kept_room::types::Room {
-        self.table.room().max(self.met.room())
-    }
 }
 
 impl Default for VisitedSet {
@@ -150,8 +117,6 @@ impl Default for VisitedSet {
         Self {
             table: hashbrown::HashTable::new(),
             met: Vec::new(),
-            #[cfg(test)]
-            work: ResetWork::default(),
             stamps: Vec::new(),
             walks: 0,
             file: u64::MAX,

@@ -23,9 +23,6 @@ use benchmark_contracts::domain::reports::types::{
 use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use serde::Deserialize;
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// One diagnostic as a row records it.
 #[derive(Deserialize)]

@@ -15,7 +15,6 @@ pub fn process() -> impl super::interface::ExecutionPort {
     clippy::cfg_not_test,
     reason = "the collector integration target tests this boundary with the real Cargo-built helper executable"
 )]
-#[cfg(not(test))]
 pub fn timed(
     executable: std::path::PathBuf,
     digest: benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,

@@ -23,12 +23,6 @@ use std::borrow::Cow;
 pub(crate) struct SyntaxRuffPythonParserAdapter {
     /// The settings the factory injects: the target version the parser reads under.
     pub(crate) settings: PythonParserSettings,
-    /// Actual new carrier parse attempts, observed per adapter only in tests.
-    #[cfg(test)]
-    pub(crate) expansion_parses: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-    /// Actual whole-file parses, by `read` and by a semantic session, observed per adapter only in tests.
-    #[cfg(test)]
-    pub(crate) file_parses: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl SyntaxPort for SyntaxRuffPythonParserAdapter {
@@ -54,8 +48,6 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             source_kind,
             self.settings,
             parsed,
-            #[cfg(test)]
-            std::sync::Arc::clone(&self.file_parses),
         )))
     }
 
@@ -78,24 +70,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             let Some(text) = source.get(start..end) else {
                 continue;
             };
-            #[cfg(test)]
-            let _previous = self
-                .expansion_parses
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            let Ok(parsed) = ruff_python_parser::parse_expression(text) else {
-                continue;
-            };
-            let ruff_python_ast::Expr::StringLiteral(literal) = parsed.expr() else {
-                continue;
-            };
-            append_literal(
-                builder,
-                carrier.host,
-                literal,
-                languages::NameText(text),
-                languages::EmbeddedMapping::Exact(carrier.start),
-            );
-        }
+}
     }
 
     fn read(
@@ -105,10 +80,6 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         builder: &mut languages::TableBuilder<'_>,
     ) {
         let Readable(source) = readable(text);
-        #[cfg(test)]
-        let _previous = self
-            .file_parses
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let parsed = parse_unchecked(&source, options(source_kind, &self.settings));
         languages::set_syntax_acceptance(
             builder,
@@ -205,10 +176,6 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             crate::domain::node::types::Walked<'_, '_, '_>,
         ) -> Vec<languages::Position>,
     ) {
-        #[cfg(test)]
-        let _previous = self
-            .file_parses
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         super::walk::walked(&self.settings, text, source_kind, reported, builder, names, read);
     }
 }

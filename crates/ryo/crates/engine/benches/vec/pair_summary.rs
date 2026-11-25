@@ -1777,10 +1777,6 @@ pub(super) fn prepare_plans(
     precheck::schedule(&mut b);
     phase("roots");
     cost::arrange(&mut b.out, omit);
-    #[cfg(feature = "pair-diagnostics")]
-    if std::env::var_os("VEC_PAIR_METER").is_some() {
-        b.out.meter = Some(cost::Meter::new(b.out.facts.len()));
-    }
     (b.out.paths, b.out.file_only) = paths::compile(&b.out);
     phase("arrange");
     if clock || b.out.meter.is_some() {
@@ -1882,12 +1878,6 @@ fn prepare_roots(b: &mut Builder<'_>, plan: &FinishPlan, targets: &[usize], omit
         }));
     }
     phase("rows-and-skips");
-    #[cfg(feature = "pair-diagnostics")]
-    if std::env::var_os("VEC_PAIR_TRACE").is_some() {
-        for (step, row) in rows.iter().enumerate() {
-            println!("WITNESS\t{step}\t{}\t{:?}", row.need, row.domains);
-        }
-    }
     for &step in targets {
         let need = rows[step].need;
         let early = b.file_guard(need);

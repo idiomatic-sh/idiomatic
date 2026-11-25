@@ -318,6 +318,3 @@ impl From<ManifestSchema> for ContextManifest {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

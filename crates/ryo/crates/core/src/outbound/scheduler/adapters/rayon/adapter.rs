@@ -39,11 +39,6 @@ impl SchedulerRayonAdapter {
         }
     }
 
-    /// An adapter over the pool the system refused to build.
-    #[cfg(test)]
-    pub(crate) const fn refused(error: SchedulerError) -> Self {
-        Self { pool: Err(error) }
-    }
 }
 
 impl SchedulerPort for SchedulerRayonAdapter {

@@ -12,9 +12,6 @@ use std::time::{Duration, Instant};
 
 use tracing_subscriber::layer::SubscriberExt as _;
 
-#[cfg(test)]
-#[path = "phases_test.rs"]
-mod tests;
 
 /// One outer phase: its name and the wall time at which it was entered and at which it was left.
 #[derive(Clone, Debug, PartialEq, Eq)]

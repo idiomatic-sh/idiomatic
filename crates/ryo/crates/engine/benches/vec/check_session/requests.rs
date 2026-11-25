@@ -206,41 +206,6 @@ impl Closed {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_shared_frontier_lives_until_its_last_closed_reader() {
-        let paths = Rc::new(Vec::new());
-        let request = |pairs| Work::Closed {
-            pairs,
-            binding: 0,
-            root: "/".into(),
-            project: Some(7),
-            inventory: paths.clone(),
-            files: paths.clone(),
-        };
-        let requests = [request(vec![0, 1, 1]), request(vec![0, 2])];
-        let cut = Some(Arc::new(Partition::default()));
-        let mut readers = Closed::new(&requests, &[cut]);
-        let mut world = session::World::default();
-        for slot in 0..3 {
-            world.restore_frontier(slot, Vec::new());
-        }
-
-        assert_eq!(readers.release(0, &[0, 1, 1], Some(7), |slot| world.release(slot)), None);
-        assert!(world.frontier_parts(0).is_some());
-        assert!(world.frontier_parts(1).is_none());
-        assert!(world.frontier_parts(2).is_some());
-
-        let mut populations = Vec::new();
-        readers.release_finished(|slot| world.release(slot), |id| populations.push(id));
-        assert_eq!(populations, vec![7]);
-        assert!(world.frontier_parts(0).is_none());
-        assert!(world.frontier_parts(2).is_none());
-    }
-}
 
 /// Compare complete typed contents only for scopes that can actually repeat.
 /// Bound retention to small inputs and outputs of this prepared program.

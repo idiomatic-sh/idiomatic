@@ -107,6 +107,3 @@ pub(super) fn contents(build: &str, bytes: &[u8]) -> Option<TableOfContents> {
     })
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

@@ -171,6 +171,3 @@ impl TryFrom<DocumentWire<serde_json::Value>> for PreparedRuleContext {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

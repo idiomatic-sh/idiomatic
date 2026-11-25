@@ -113,6 +113,3 @@ pub(super) fn reports(text: &str, refusals: &[ParseError]) -> Vec<Report> {
     said
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

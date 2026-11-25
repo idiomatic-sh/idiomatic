@@ -5,8 +5,6 @@
 //! attributions, not CPU measurements. Rows sum separate spans, so parallel and
 //! nested rows may exceed the command region's wall time. The external distribution
 //! runner measures whole-process wall and CPU, including startup and shutdown.
-#[cfg(all(feature = "phase-diagnostic", target_os = "linux"))]
-mod phases;
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -14,9 +12,6 @@ use std::time::{Duration, Instant};
 
 use tracing_subscriber::layer::{Layer as _, SubscriberExt as _};
 
-#[cfg(test)]
-#[path = "timings_test.rs"]
-mod tests;
 
 /// How `--timings` reports.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
@@ -28,9 +23,6 @@ pub enum Timings {
     Tree,
     /// A Chrome trace file in the temporary directory, its path said on stderr, for drilling into a run.
     Chrome,
-    /// The outer phases of the command and when each began and ended, on stderr: a diagnostic build only.
-    #[cfg(all(feature = "phase-diagnostic", target_os = "linux"))]
-    Phases,
 }
 
 /// The global `--timings[=tree|chrome]` argument.
@@ -50,9 +42,6 @@ pub enum TimingsGuard {
     Tree(TimingsTree, Instant),
     /// The trace writer's guard, which flushes it when dropped; held only to be dropped.
     Chrome(Box<dyn std::any::Any + Send>),
-    /// The phase table printer, which prints when it is dropped.
-    #[cfg(all(feature = "phase-diagnostic", target_os = "linux"))]
-    Phases(Box<dyn std::any::Any + Send>),
 }
 
 impl Drop for TimingsGuard {
@@ -122,8 +111,6 @@ pub fn install_with_events(
             )?;
             Ok(TimingsGuard::Chrome(Box::new(guard)))
         }
-        #[cfg(all(feature = "phase-diagnostic", target_os = "linux"))]
-        Timings::Phases => phases::install().map(TimingsGuard::Phases),
     }
 }
 

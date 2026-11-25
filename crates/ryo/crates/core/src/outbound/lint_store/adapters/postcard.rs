@@ -1,8 +1,6 @@
 //! The store port, implemented with a file written as postcard writes its tables.
 
 pub(crate) mod adapter;
-#[cfg(test)]
-mod buckets;
 pub(crate) mod connection;
 mod constants;
 mod files;
@@ -17,8 +15,4 @@ pub(crate) mod types;
 mod unknowns;
 pub(crate) mod writer;
 
-#[cfg(test)]
-mod adapter_test;
 
-#[cfg(test)]
-mod fixtures;

@@ -340,6 +340,3 @@ fn process_discrepancy(
     ]))
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

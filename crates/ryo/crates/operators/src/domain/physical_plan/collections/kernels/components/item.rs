@@ -3,8 +3,6 @@
 //! edges are keyed by source through `hash_index`'s table.
 
 use super::super::hash_index::item::{cells, indexed, next_of};
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::cycles::types::{
@@ -12,44 +10,12 @@ use crate::domain::cycles::types::{
     WalkStep,
 };
 use crate::domain::physical_plan::types::keyed_rows::value::{KeyedRows, NO_ROW};
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::{InputRows, KeyedSide};
 use ryo_relations::domain::relations::types::Value;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `components`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct ComponentsItem;
 
-#[cfg(test)]
-impl KernelsItem for ComponentsItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = match lowering {
-            Lowering::Components { .. } => true,
-            Lowering::Filter { .. }
-            | Lowering::Lookup { .. }
-            | Lowering::Project { .. }
-            | Lowering::Extend { .. }
-            | Lowering::Probe { .. }
-            | Lowering::Distinct { .. }
-            | Lowering::Group { .. }
-            | Lowering::Reach { .. }
-            | Lowering::SeededReach { .. }
-            | Lowering::Axis { .. }
-            | Lowering::OrderedWalk { .. }
-            | Lowering::TextMap { .. }
-            | Lowering::PointerChase { .. }
-            | Lowering::OrderedMatch { .. }
-            | Lowering::Render { .. }
-            | Lowering::ScanBound { .. }
-            | Lowering::Worklist { .. }
-            | Lowering::Unlowered => false,
-        };
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// Writes into `output` one row per entity on a cycle, ascending, the entity as both its source and its destination, and
 /// answers the fault of the first row that raised one.

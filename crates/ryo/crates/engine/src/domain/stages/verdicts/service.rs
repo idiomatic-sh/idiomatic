@@ -165,8 +165,3 @@ pub(crate) fn remembered(
     }
 }
 
-/// How many words of bits a test keeps, of the run's words and of the file's own: what a case holds to the bound.
-#[cfg(test)]
-pub(crate) fn kept_bits(test: &WordVerdicts) -> [Count; 2] {
-    [Count(test.base.len()), Count(test.own.len())]
-}

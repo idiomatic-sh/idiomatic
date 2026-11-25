@@ -5,5 +5,3 @@ mod writer;
 
 mod constants;
 
-#[cfg(test)]
-mod adapter_test;

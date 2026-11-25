@@ -25,26 +25,4 @@ pub(crate) fn oracle_for<const MINOR: u8>() -> Oracle {
     crate::outbound::syntax::adapters::ruff_python_parser::fixtures::oracle::oracle_target::<MINOR>
 }
 
-/// The adapter observed: it counts the actual carrier parses it makes into the counter the caller holds, which is no process-global
-/// counter, and reads under `settings`.
-#[cfg(test)]
-pub(crate) fn observed(
-    settings: crate::settings::PythonParserSettings,
-    count: std::sync::Arc<std::sync::atomic::AtomicUsize>,
-) -> impl crate::outbound::syntax::interface::SyntaxPort {
-    crate::outbound::syntax::adapters::ruff_python_parser::adapter::SyntaxRuffPythonParserAdapter {
-        settings,
-        expansion_parses: count,
-        ..Default::default()
-    }
-}
 
-/// Every Python source the language's fixtures pin, with its path under them: what the walk is held to today's reading over.
-///
-/// # Errors
-///
-/// When a fixture folder or file cannot be read.
-#[cfg(test)]
-pub(crate) fn fixture_sources() -> std::io::Result<Vec<(String, Vec<u8>)>> {
-    crate::outbound::syntax::adapters::ruff_python_parser::fixtures::sources::fixture_sources()
-}

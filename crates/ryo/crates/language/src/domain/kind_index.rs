@@ -2,8 +2,5 @@
 
 pub mod service;
 
-#[cfg(test)]
-mod service_test;
 
-#[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;

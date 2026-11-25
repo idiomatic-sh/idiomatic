@@ -1,4 +1,0 @@
-Module(
-  body=[
-    Expr(
-      value=Name(id='exec'))])

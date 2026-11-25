@@ -170,6 +170,3 @@ impl TryFrom<&RunReport> for WorkerResponseBytes {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

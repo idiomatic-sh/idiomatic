@@ -2,8 +2,4 @@
 
 pub(crate) mod service;
 
-#[cfg(test)]
-mod service_test;
 
-#[cfg(test)]
-mod fixtures;

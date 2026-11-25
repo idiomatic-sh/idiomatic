@@ -6,5 +6,3 @@ pub(crate) mod readers;
 mod semantics;
 pub(crate) mod service;
 
-#[cfg(test)]
-mod contract_test;

@@ -4,16 +4,12 @@
 
 use super::super::filter::item::{filter, keep, readied};
 use super::super::hash_index::item::{cells, find_value, indexed, keyed_walk};
-#[cfg(test)]
-use super::super::interface::{KernelsItem, Reach};
 use super::super::scan_facts::item::{cell_of, count_of, kinds_of};
 use crate::domain::axis::service::keyed_columns;
 use crate::domain::axis::types::{AxisParts, KeyedColumns};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::physical_plan::types::file_buffers::value::NodeDecisions;
 use crate::domain::physical_plan::types::keyed_rows::value::KeyedRows;
-#[cfg(test)]
-use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::physical_plan::types::shared_index::value::KeyedAccess;
 use crate::domain::physical_plan::types::walk_scratch::value::WalkScratch;
 use crate::domain::physical_plan::types::{InputRows, KernelRun, KeyedSide, TreeRead};
@@ -27,37 +23,7 @@ use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Side};
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
-/// `directed_walk`, one item of the `kernels` collection.
-#[cfg(test)]
-pub(crate) struct DirectedWalkItem;
 
-#[cfg(test)]
-impl KernelsItem for DirectedWalkItem {
-    fn reached_by(&self, lowering: &Lowering) -> Reach {
-        let runs = match lowering {
-            Lowering::Axis { .. } => true,
-            Lowering::Filter { .. }
-            | Lowering::Lookup { .. }
-            | Lowering::Project { .. }
-            | Lowering::Extend { .. }
-            | Lowering::Probe { .. }
-            | Lowering::Distinct { .. }
-            | Lowering::Group { .. }
-            | Lowering::Reach { .. }
-            | Lowering::SeededReach { .. }
-            | Lowering::OrderedWalk { .. }
-            | Lowering::Worklist { .. }
-            | Lowering::Components { .. }
-            | Lowering::TextMap { .. }
-            | Lowering::PointerChase { .. }
-            | Lowering::OrderedMatch { .. }
-            | Lowering::Render { .. }
-            | Lowering::ScanBound { .. }
-            | Lowering::Unlowered => false,
-        };
-        if runs { Reach::Runs } else { Reach::Skips }
-    }
-}
 
 /// The three inputs of an axis: its start rows, its edge rows and its domain rows.
 #[derive(Clone, Copy, Debug)]

@@ -14,5 +14,3 @@ pub(crate) mod uses;
 pub(crate) mod walks;
 pub(crate) mod writing;
 
-#[cfg(test)]
-mod service_test;

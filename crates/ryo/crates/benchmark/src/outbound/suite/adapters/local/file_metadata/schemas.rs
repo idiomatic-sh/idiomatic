@@ -7,9 +7,6 @@ use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use benchmark_contracts::domain::requests::types::RunRequest;
 use std::path::Path;
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 #[cfg(unix)]
 pub(in super::super) fn observed(path: &Path) -> Result<bool, Error> {

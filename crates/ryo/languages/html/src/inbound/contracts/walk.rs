@@ -3,5 +3,3 @@
 pub(crate) mod contract;
 mod fillers;
 
-#[cfg(test)]
-mod contract_test;

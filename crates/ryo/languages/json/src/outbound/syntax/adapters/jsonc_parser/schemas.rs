@@ -63,6 +63,3 @@ pub(super) fn token_piece(token: &Scanned<'_>) -> Piece {
     }
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;

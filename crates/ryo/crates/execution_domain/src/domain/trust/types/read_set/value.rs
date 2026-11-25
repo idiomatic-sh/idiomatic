@@ -1,6 +1,5 @@
 //! The `ReadSet` value: the reads of the relations one step rests on, stored once per program and shared by every step that
 //! rests on the same reads. Only a program's `ReadSets` makes one that is not empty.
-#[cfg(any(test, feature = "fixtures"))]
 use super::super::SetSharing;
 use super::super::relation_read::value::RelationRead;
 use std::sync::Arc;
@@ -40,8 +39,7 @@ impl ReadSet {
     /// );
     /// ```
     #[must_use]
-    #[cfg(any(test, feature = "fixtures"))]
-    pub fn sharing(&self, other: &Self) -> SetSharing {
+        pub fn sharing(&self, other: &Self) -> SetSharing {
         if Arc::ptr_eq(&self.0, &other.0) {
             SetSharing::Shared
         } else {

@@ -103,9 +103,6 @@ pub(super) fn answer(report: DescribeOperatorReport) -> AnswerSchema {
     AnswerSchema::from(report)
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// What the user does next about a refusal of the arguments.
 impl crate::outcome::remedy::Remedy for DescribeSchemaError {

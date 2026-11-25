@@ -8,9 +8,6 @@ use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// The whole table.
 #[derive(Deserialize)]

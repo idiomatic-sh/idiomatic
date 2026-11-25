@@ -1,9 +1,0 @@
-root[1]
-└─0 paragraph[1]
-    └─0 strong[2]
-        ├─0 text "foo "
-        └─1 link[1]
-            │ title: null
-            │ url: "/url"
-            └─0 emphasis[1]
-                └─0 text "bar"

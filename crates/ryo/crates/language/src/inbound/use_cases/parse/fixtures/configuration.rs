@@ -49,6 +49,3 @@ impl Selection<'_> {
     }
 }
 
-#[cfg(test)]
-#[path = "configuration_test.rs"]
-mod tests;

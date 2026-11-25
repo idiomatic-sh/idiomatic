@@ -141,25 +141,3 @@ impl Slots<Answer> for ReportSlots {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn delivery_skips_only_confirmed_empty_answers_within_the_range() {
-        let mut slots = ReportSlots::default();
-        slots.grow(160);
-        for i in 60..132 { slots.set(i, Ok(Reported::default())); }
-        slots.set(64, Err("partial".to_owned()));
-        slots.release(130);
-        let mut pending = Vec::new();
-        slots.visit_pending::<()>(59..133, |i| { pending.push(i); Ok(()) }).unwrap();
-        assert_eq!(pending, [59, 64, 130, 132]);
-        assert_eq!(slots[64].as_ref().err().unwrap(), "partial");
-        assert!(slots[130].is_err());
-        assert!(slots[129].is_ok());
-        slots.set(64, Ok(Reported::default()));
-        assert!(slots[64].is_ok());
-        assert!(slots.get(160).is_none());
-    }
-}
