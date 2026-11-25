@@ -616,7 +616,8 @@ fn guards(b: &mut Builder<'_>, plan: &FinishPlan) -> Vec<Id> {
                 }
                 if let [src] = s.sources.as_slice()
                     && let Some(&(name, slot, col, delimiter)) = suffixes.get(&src.step.0)
-                    && let RowCondition::Tested(PlanExpression::Call(f)) = &s.condition
+                    && let RowCondition::Tested(term) = &s.condition
+                    && let PlanExpression::Call(f) = term.as_ref()
                     && &*f.function.0 == "matches"
                     && let [
                         PlanExpression::Column(c),

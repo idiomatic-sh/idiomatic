@@ -61,7 +61,7 @@ pub(crate) fn joined(call: &JoinCall<'_>) -> Result<FinishStep, PlanLoweringErro
     Ok(FinishStep::Select(SelectStep {
         sources: vec![source(call.left, LEFT_ALIAS), source(call.right, RIGHT_ALIAS)],
         columns: SelectedColumns::Items(items.into()),
-        condition: condition.map_or(RowCondition::Every, RowCondition::Tested),
+        condition: condition.map_or(RowCondition::Every, |term| RowCondition::Tested(term.into())),
         probe: ProbeMark::Unmarked,
         count: CountMark::Unmarked,
     }))

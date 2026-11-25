@@ -304,14 +304,14 @@ pub struct SelectItem {
 /// use ryo_values::domain::finish_plans::expressions::types::{PlanConstant, PlanExpression};
 /// use ryo_values::domain::finish_plans::types::RowCondition;
 ///
-/// assert_ne!(RowCondition::Tested(PlanExpression::Literal(PlanConstant::Absent)), RowCondition::Every);
+/// assert_ne!(RowCondition::Tested(PlanExpression::Literal(PlanConstant::Absent).into()), RowCondition::Every);
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RowCondition {
     /// No test: every row of the sources is kept.
     Every,
     /// This condition.
-    Tested(PlanExpression),
+    Tested(std::sync::Arc<PlanExpression>),
 }
 
 /// The planner's semijoin mark on a two-source select: none, or the source probed (its place among the sources).

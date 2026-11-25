@@ -62,7 +62,7 @@ fn necessary(join: &SelectStep, filter: &SelectStep) -> Option<Expr> {
         comparator: Comparator::Equal,
         left: a,
         right: b,
-    }) = keys
+    }) = keys.as_ref()
     else {
         return None;
     };

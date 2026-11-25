@@ -45,7 +45,7 @@ pub(crate) fn select_condition(
     Ok(
         match folded(keys.into_iter().chain(filters), PlanExpression::And) {
             None => RowCondition::Every,
-            Some(condition) => RowCondition::Tested(condition),
+            Some(condition) => RowCondition::Tested(condition.into()),
         },
     )
 }

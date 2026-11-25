@@ -87,7 +87,8 @@ impl Builder<'_> {
             // The same left row supplies every right key if its file passes.
             return Some(self.need(Need::PathMatches(re, !positive)));
         }
-        let RowCondition::Tested(PlanExpression::Call(f)) = &q.condition else {
+        let RowCondition::Tested(term) = &q.condition else { return None; };
+        let PlanExpression::Call(f) = term.as_ref() else {
             return None;
         };
         if &*f.function.0 != "matches" {

@@ -275,7 +275,7 @@ impl From<&FinishStep> for NodeSchema {
                 },
                 cond: match &select.condition {
                     RowCondition::Every => None,
-                    RowCondition::Tested(condition) => Some(condition.into()),
+                    RowCondition::Tested(condition) => Some(condition.as_ref().into()),
                 },
                 pushed: match &select.probe {
                     ProbeMark::Filtered(test) => Some(ExpressionSchema::from(test.as_ref())),
@@ -382,7 +382,7 @@ impl From<NodeSchema> for FinishStep {
                             .collect(),
                     )
                 }),
-                condition: cond.map_or(RowCondition::Every, |condition| RowCondition::Tested(condition.into())),
+                condition: cond.map_or(RowCondition::Every, |condition| RowCondition::Tested(std::sync::Arc::new(condition.into()))),
                 probe: if let Some(place) = semi {
                     ProbeMark::Probed(SourceOrdinal(place))
                 } else if let Some(test) = pushed {

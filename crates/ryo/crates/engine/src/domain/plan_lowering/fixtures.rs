@@ -56,7 +56,7 @@ fn select(sources: &[(usize, Option<&str>)], items: &[(&str, &str, Option<&str>)
                 .map(|(kept, read, from)| SelectItem { name: name(kept), value: column(read, *from) })
                 .collect(),
         ),
-        condition: condition.map_or(RowCondition::Every, RowCondition::Tested),
+        condition: condition.map_or(RowCondition::Every, |term| RowCondition::Tested(term.into())),
         probe: ProbeMark::Unmarked,
         count: CountMark::Unmarked,
     })

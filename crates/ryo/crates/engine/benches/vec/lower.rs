@@ -229,6 +229,7 @@ pub(crate) struct Observation {
 #[derive(Default)]
 pub(crate) struct SharedPlanData {
     rows: rustc_hash::FxHashSet<Arc<ryo_values::domain::finish_plans::arguments::literals::types::RowsArguments>>,
+    conditions: rustc_hash::FxHashSet<Arc<ryo_values::domain::finish_plans::expressions::types::PlanExpression>>,
     projections: rustc_hash::FxHashSet<Arc<[ryo_values::domain::finish_plans::types::SelectItem]>>,
 }
 
@@ -289,10 +290,13 @@ fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Opti
     }
     if let Some(tables) = literals {
         for step in &mut plan.steps {
-            use ryo_values::domain::finish_plans::types::{FinishStep, SelectedColumns};
+            use ryo_values::domain::finish_plans::types::{FinishStep, RowCondition, SelectedColumns};
             match step {
                 FinishStep::Rows(rows) => intern(&mut tables.rows, rows),
                 FinishStep::Select(select) => {
+                    if let RowCondition::Tested(term) = &mut select.condition {
+                        intern(&mut tables.conditions, term);
+                    }
                     if let SelectedColumns::Items(items) = &mut select.columns {
                         intern(&mut tables.projections, items);
                     }
