@@ -7,19 +7,25 @@ use std::{
     sync::Arc,
 };
 
+pub(super) type ColumnDemand<'a> = BTreeMap<&'a str, Vec<bool>>;
+
 pub(super) struct FileInputs<'a> {
-    columns: BTreeMap<&'a str, Vec<bool>>,
+    columns: &'a ColumnDemand<'a>,
     carried_bases: HashMap<String, Rc<Block>>,
     produced: HashMap<usize, Rc<Block>>,
 }
 impl<'a> FileInputs<'a> {
-    pub(super) fn new(
+    pub(super) fn new(columns: &'a ColumnDemand<'a>) -> Self {
+        Self { columns, carried_bases: HashMap::new(), produced: HashMap::new() }
+    }
+
+    pub(super) fn column_demand(
         active: &[(usize, usize, bool)],
         bound: &super::Bindings<'_>,
         programs: &'a [Result<Program>],
         program_of: &[usize],
         cut_of: &[Option<Arc<Partition>>],
-    ) -> Self {
+    ) -> ColumnDemand<'a> {
         let mut shared_columns = BTreeMap::<&str, Vec<bool>>::new();
         for &(binding, _, _) in active {
             let Some(cut) = &cut_of[binding] else {
@@ -48,11 +54,7 @@ impl<'a> FileInputs<'a> {
                 }
             }
         }
-        Self {
-            columns: shared_columns,
-            carried_bases: HashMap::new(),
-            produced: HashMap::new(),
-        }
+        shared_columns
     }
     pub(super) fn contribute(
         &mut self,

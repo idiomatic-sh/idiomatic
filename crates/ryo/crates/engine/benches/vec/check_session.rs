@@ -851,7 +851,8 @@ pub(crate) fn visit<L: FileSource>(
     let mut bound = Bindings { index: vec![usize::MAX; program_of.len()], entries: Vec::new() };
     let mut registry = finish::session::contribution::Registry::default();
     #[derive(Default)]
-    struct FileDemand {
+    struct FileDemand<'a> {
+        closure_columns: [std::cell::OnceCell<frontier::ColumnDemand<'a>>; 2],
         named: Vec<&'static source::FileRelation>,
         rejected_named: Vec<&'static source::FileRelation>,
         rejected_facts: FactMask,
@@ -1416,7 +1417,14 @@ pub(crate) fn visit<L: FileSource>(
                 Ok(report)
             };
             let mut frame = None;
-            let mut shared = demand.closed.then(|| frontier::FileInputs::new(&active, &bound, programs, program_of, cut_of));
+            let mut shared = demand.closed.then(|| {
+                // Syntax rejection can remove closed programs that require an accepted tree.
+                // The other screens retain their slots for closure, even for zero rows.
+                let columns = demand.closure_columns[usize::from(rejected)].get_or_init(||
+                    frontier::FileInputs::column_demand(&active, &bound, programs, program_of, cut_of)
+                );
+                frontier::FileInputs::new(columns)
+            });
             for (binding, slot, excluded) in active {
                 use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
                 let contract = &contracts[binding];
