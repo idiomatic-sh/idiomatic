@@ -1281,12 +1281,14 @@ impl Store {
                 if !needed[slot] {
                     return false;
                 }
-                // The pair table maps this slot to (this source, this binding).
+                let Some((_, bind)) = self.pairs[slot] else {
+                    return true;
+                };
                 let Some(file) = held else {
                     self.absent_file += 1;
                     return true;
                 };
-                let bound = self.bindings[binding];
+                let bound = self.bindings[bind];
                 if file.complete_empty(bound) {
                     answers.set(slot, Ok(session::Reported::default()));
                     self.file_hits += 1;
