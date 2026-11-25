@@ -485,7 +485,7 @@ impl View<'_, '_> {
                     finish::Ty::Sym if raw.0 == u64::from(l::NO_SYMBOL.0) =>
                         u64::from(run.absent_word.expect("reader word table")),
                     finish::Ty::Sym => u64::from(*self.local_symbols.entry(raw.0).or_insert_with(
-                        || run.sym(l::facts::text(words, raw).0.as_bytes()))),
+                        || run.sym(l::facts::text(words, *raw).0.as_bytes()))),
                     finish::Ty::Node => position(raw.0)?,
                     _ => raw.0,
                 })).collect::<Result<_, String>>()?;
