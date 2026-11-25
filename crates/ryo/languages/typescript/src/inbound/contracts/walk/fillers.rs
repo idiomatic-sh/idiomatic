@@ -1,6 +1,6 @@
 //! The fillers of the `walk` contract: for every relation of ryo's catalog the engine fills, how the language fills it from a walked
-//! file. The relations are answered one group at a time as their fillers are written; each one not yet written says it is not read
-//! yet, and the names the language states for the whole run are its kinds and its fields.
+//! file. Each relation the language reads is filled; each one it does not answers with the cause today's contracts give it, and
+//! the names the language states for the whole run are its kinds and its fields.
 
 use crate::domain::fields::service::{field_name, fields};
 use crate::domain::file_view::types::{TypeScriptFile, TypeScriptWalk};
@@ -80,6 +80,7 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         pattern_syntax: PatternSyntax => crate::domain::relations::collections::relations::pattern_syntax::item::PatternSyntaxItem;
         pattern_child: PatternChild => crate::domain::relations::collections::relations::pattern_child::item::PatternChildItem;
         pattern_parse: PatternParse => crate::domain::relations::collections::relations::pattern_parse::item::PatternParseItem;
+        source_location: SourceLocation => super::source_location::SourceLocationItem;
     }
 
     absent! {
@@ -95,14 +96,13 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         function_terminal: FunctionTerminal => NotYetRead;
         identifier: Identifier => NotYetRead;
         implicit_symbol: ImplicitSymbol => NotYetRead;
-        indent_region: IndentRegion => NotYetRead;
+        indent_region: IndentRegion => NoSuchConstruct;
         interpolated_string_literal: InterpolatedStringLiteral => NotYetRead;
         language_target: LanguageTarget => NotYetRead;
         literal_expression_parse: LiteralExpressionParse => NotYetRead;
         literal_properties: LiteralProperties => NotYetRead;
         qualified_name: QualifiedName => NotYetRead;
         raw_format_field: RawFormatField => NotYetRead;
-        source_location: SourceLocation => NotYetRead;
         standard_library_import: StandardLibraryImport => NotYetRead;
         binding_shadow: BindingShadow => NotYetRead;
         constant_key: ConstantKey => NotYetRead;
@@ -111,21 +111,21 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         raw_format_segment: RawFormatSegment => NotYetRead;
         token_link: TokenLink => NotYetRead;
         analyzed_source: AnalyzedSource => NotYetRead;
-        attribute_path: AttributePath => NotYetRead;
-        entry: Entry => NotYetRead;
+        attribute_path: AttributePath => NoSuchConstruct;
+        entry: Entry => NotAKeyedDocument;
         file_package: FilePackage => NotYetRead;
         filesystem_executable: FilesystemExecutable => NotYetRead;
         filesystem_file: FilesystemFile => NotYetRead;
         filesystem_line_count: FilesystemLineCount => NotYetRead;
         filesystem_read_failure: FilesystemReadFailure => NotYetRead;
         manifest_diagnostic: ManifestDiagnostic => NotYetRead;
-        mapping: Mapping => NotYetRead;
-        mention: Mention => NotYetRead;
+        mapping: Mapping => NotAKeyedDocument;
+        mention: Mention => NoSuchConstruct;
         module_identity: ModuleIdentity => NotYetRead;
         package_dependency: PackageDependency => NotYetRead;
         project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
-        prose: Prose => NotYetRead;
-        sequence_element: SequenceElement => NotYetRead;
+        prose: Prose => NotADocument;
+        sequence_element: SequenceElement => NotAKeyedDocument;
         source_dependency: SourceDependency => NotYetRead;
         workspace_member: WorkspaceMember => NotYetRead;
     }

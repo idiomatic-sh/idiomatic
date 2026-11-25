@@ -194,3 +194,21 @@ fn the_walk_names_each_kind_and_each_field_at_its_code() {
         assert_eq!(names.fields.0.get(usize::from(field_bits(field).0)), Some(&field_name(field)));
     }
 }
+
+#[test]
+fn javascript_sources_are_walked_as_javascript() {
+    let jsx = b"export const view = () => <div className=\"a\">{1 + 2}</div>;\n";
+    let module = b"import { a } from './a.js';\nexport default async function main() { for await (const x of a()) { await x; } }\n";
+    let plain = b"function f(a, b) { return a ?? b; }\nmodule.exports = { f };\n";
+    for (name, bytes) in [("input.js", &plain[..]), ("input.jsx", &jsx[..]), ("input.mjs", &module[..])] {
+        let (old, new) = (today(name, bytes), walked(name, bytes));
+        assert!(!new.is_empty(), "{name}: the walk writes elements");
+        assert_eq!(old, new, "{name}: the walk writes the tree today's reading writes");
+        let count = <TypeScriptWalk<WalkPorts> as Walk>::KIND_COUNT.0;
+        assert!(new.iter().all(|(element, ..)| usize::from(element.0) < count), "{name}: every kind is inside the walk's KIND_COUNT {count}");
+    }
+    // Type syntax is a JavaScript syntax error, so a `.js` of it is read differently from a `.ts` of it: the extension decides the dialect.
+    let typed = b"let x: number = 1;\nfunction f(a: string): void {}\n";
+    assert_ne!(walked("input.js", typed), walked("input.ts", typed), "a .js is not walked as typescript");
+    assert_eq!(walked("input.js", typed), today("input.js", typed));
+}

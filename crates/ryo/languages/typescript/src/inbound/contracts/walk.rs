@@ -4,6 +4,7 @@
 
 pub(crate) mod contract;
 mod fillers;
+mod source_location;
 
 #[cfg(test)]
 mod contract_test;
