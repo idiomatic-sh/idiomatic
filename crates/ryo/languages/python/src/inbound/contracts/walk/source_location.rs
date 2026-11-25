@@ -3,7 +3,7 @@
 //! language fills it here, beside its walk.
 
 use crate::domain::file_view::types::PythonWalk;
-use crate::domain::layout_facts::service::{line_place, line_starts};
+use crate::domain::layout_facts::service::{line_place_near, line_starts};
 use crate::domain::node::service::{node_cell, span_at};
 use ryo::languages::{self, Integer, Position, node_table};
 
@@ -17,9 +17,13 @@ ryo::fills! {
         let lines = &mut file.buffers.lines;
         line_starts(&file.syntax, lines);
         let count = u32::try_from(node_table::element_count(file.syntax.table).0).unwrap_or(u32::MAX);
+        // Elements come in tree order, so each starts at or after the line the last one did.
+        let mut near = 1;
         for id in (0..count).map(Position) {
             let span = span_at(&file.syntax, id);
-            let (start, end) = (line_place(lines, span.start), line_place(lines, span.end));
+            let start = line_place_near(lines, span.start, near);
+            near = usize::try_from(start.line.0).unwrap_or(1);
+            let end = line_place_near(lines, span.end, near);
             rows.write(Row {
                 id: node_cell(&file.syntax, id),
                 file: file.syntax.file,
