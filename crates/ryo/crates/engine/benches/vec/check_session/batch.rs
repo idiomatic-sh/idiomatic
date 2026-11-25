@@ -275,7 +275,7 @@ impl Batch {
                 let reason = table.partial.as_deref().unwrap_or_default();
                 return Ok(Work::Refused(format!("partial {}: {reason}", table.name)));
             }
-            if !class.closed && req.inventory.is_none() && inventory_for.take().ok_or("inventory reader")?(&req.root)?.is_none() {
+            if (!class.closed || (req.files.is_empty() && !class.contract.cross)) && req.inventory.is_none() && inventory_for.take().ok_or("inventory reader")?(&req.root)?.is_none() {
                 return Err("incomplete project inventory".into());
             }
         }
