@@ -33,6 +33,9 @@ name = "allocation"
 harness = false
 
 [[test]]
+name = "numbered"
+
+[[test]]
 name = "routes"
 harness = false
 
