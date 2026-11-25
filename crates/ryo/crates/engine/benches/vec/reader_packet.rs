@@ -429,7 +429,7 @@ impl finish::Provider for View<'_, '_> {
         if let Some(table) = self.materialized.get(&rel) {
             return Ok(Rc::clone(table));
         }
-        let table = Rc::new(self.transpose(run, rel, names, tys));
+        let table = Rc::new(self.transpose(run, rel, names, tys)?);
         self.materialized.insert(rel, Rc::clone(&table));
         Ok(table)
     }
@@ -468,27 +468,34 @@ impl View<'_, '_> {
         rel: l::Relation,
         names: finish::Names,
         tys: finish::Tys,
-    ) -> finish::Table {
+    ) -> Result<finish::Table, String> {
+        let home = self.parsed.file;
+        let position = |raw: u64| -> Result<u64, String> {
+            if raw == finish::NULL {
+                Ok(raw)
+            } else if raw >> 32 == u64::from(home) {
+                Ok(u64::from(raw as u32))
+            } else {
+                Err(format!("foreign node in file-scoped {}", catalog::name(rel).0))
+            }
+        };
         let slot = catalog::number_of(rel).0;
         if let Some(t) = self.packet.local(slot) {
             let mut table = finish::Table::retained(names, tys, 0);
             let words = self.local_words.expect("scoped file dictionary");
             for ((dst, src), ty) in table.cols.iter_mut().zip(&t.columns.0).zip(table.tys.iter()) {
-                *dst = src.0.iter().map(|raw| match ty {
+                *dst = src.0.iter().map(|raw| Ok(match ty {
                     finish::Ty::Sym if raw.0 == u64::from(l::NO_SYMBOL.0) =>
                         u64::from(run.absent_word.expect("reader word table")),
                     finish::Ty::Sym => u64::from(*self.local_symbols.entry(raw.0).or_insert_with(
                         || run.sym(l::facts::text(words, raw).0.as_bytes()))),
-                    finish::Ty::Node if raw.0 != finish::NULL => {
-                        assert_eq!(raw.0 >> 32, u64::from(self.parsed.file), "foreign node in file-scoped answer");
-                        u64::from(raw.0 as u32)
-                    }
+                    finish::Ty::Node => position(raw.0)?,
                     _ => raw.0,
-                }).collect();
+                })).collect::<Result<_, String>>()?;
             }
             table.n = t.rows;
             self.parsed.fills_made += 1;
-            return table;
+            return Ok(table);
         }
         let offsets = &self.packet.offsets[catalog::number_of(rel).0];
         let words = &self.packet.rows.words;
@@ -501,16 +508,14 @@ impl View<'_, '_> {
                         run, self.parsed.unknown, self.symbols, self.bytes, l::Symbol(raw as u32),
                     ))
                 })),
-                finish::Ty::Node => column.extend(cells.map(|raw| {
-                    assert_eq!(raw >> 32, u64::from(self.parsed.file),
-                               "foreign node in file-scoped answer");
-                    u64::from(raw as u32)
-                })),
+                finish::Ty::Node => {
+                    for raw in cells { column.push(position(raw)?); }
+                }
                 _ => column.extend(cells),
             }
         }
         table.n = offsets.len();
         self.parsed.fills_made += 1;
-        table
+        Ok(table)
     }
 }
