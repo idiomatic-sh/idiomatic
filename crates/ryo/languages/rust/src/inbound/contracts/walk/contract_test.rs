@@ -49,7 +49,16 @@ fn native(bytes: &[u8]) -> Shown {
         NativeColumns { fields: true, notes: false },
         NodeAccess::Inspect(&[]),
     );
-    shown(&table)
+    let mut own = shown(&table);
+    let end = own.own_end;
+    own.kinds.truncate(end);
+    own.fields.truncate(end);
+    own.parents.truncate(end);
+    own.starts.truncate(end);
+    own.ends.truncate(end);
+    own.decoded.truncate(end);
+    own.segments.clear();
+    own
 }
 
 /// Keeps what the walk lent.

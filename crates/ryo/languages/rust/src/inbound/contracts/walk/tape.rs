@@ -86,7 +86,12 @@ pub(super) fn replay(tape: &Tape, builder: &mut l::NodeTableBuilder<'_>, field: 
         t::enter_node(builder, kind, l::FieldCode(field(place)), start);
         place += 1;
     };
+    // The numbered table holds the file's own tree, as the table the linter read did: what a macro call's arguments expand to is read
+    // through the fillers' view, which keeps it.
     for step in &tape.steps {
+        if host.is_some() && !matches!(step, Written::Release | Written::Adopt(_)) {
+            continue;
+        }
         match *step {
             Written::Enter(kind, start) => {
                 open(builder, depth, host, kind, start);
