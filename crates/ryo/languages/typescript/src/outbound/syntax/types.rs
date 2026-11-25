@@ -10,4 +10,15 @@ pub(crate) struct SourceText<'a>(pub &'a [u8]);
 pub(crate) struct Walked {
     /// The control-flow facts, when the walk was asked for them.
     pub(crate) flow: Option<crate::domain::file_view::types::FlowFacts>,
+    /// What the library made of each written carrier's pattern.
+    pub(crate) patterns: Vec<crate::domain::file_view::types::CarrierFacts>,
+}
+
+/// What a walk keeps for the fillers besides the table.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct Wants {
+    /// The control-flow facts.
+    pub(crate) flow: bool,
+    /// The patterns, written under their carriers.
+    pub(crate) patterns: bool,
 }

@@ -24,6 +24,21 @@ pub(crate) struct FlowFacts {
     pub(crate) members: Vec<languages::FlowMemberFact>,
 }
 
+/// What the library made of one carrier's pattern, as the walk wrote it: the pattern's elements are in the table under the carrier.
+#[derive(Debug)]
+pub(crate) struct CarrierFacts {
+    /// The carrier's element.
+    pub(crate) host: languages::Position,
+    /// The flags the pattern was read with.
+    pub(crate) flags: String,
+    /// The library's message when it refused the pattern or the flags.
+    pub(crate) refusal: Option<String>,
+    /// Whether the message is about the flags.
+    pub(crate) flags_refused: bool,
+    /// Where the library refused, when it said.
+    pub(crate) place: Option<(languages::Offset, languages::Offset)>,
+}
+
 /// One walked file as the fillers read it: its numbered node table and its text. The parse, the typed node of each id and the
 /// model each filler reads are added to this view as the relations are filled.
 #[derive(Debug)]
@@ -38,4 +53,6 @@ pub(crate) struct TypeScriptFile<'f> {
     pub(crate) model: ReadIndexes,
     /// The control-flow facts, when the walk was asked for them.
     pub(crate) flow: Option<FlowFacts>,
+    /// What the library made of each carrier's pattern, when the walk was asked for patterns.
+    pub(crate) patterns: Vec<CarrierFacts>,
 }

@@ -77,6 +77,9 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         flow_edge: FlowEdge => crate::domain::relations::collections::relations::flow_edge::item::FlowEdgeItem;
         flow_member: FlowMember => crate::domain::relations::collections::relations::flow_member::item::FlowMemberItem;
         flow_step: FlowStep => crate::domain::relations::collections::relations::flow_step::item::FlowStepItem;
+        pattern_syntax: PatternSyntax => crate::domain::relations::collections::relations::pattern_syntax::item::PatternSyntaxItem;
+        pattern_child: PatternChild => crate::domain::relations::collections::relations::pattern_child::item::PatternChildItem;
+        pattern_parse: PatternParse => crate::domain::relations::collections::relations::pattern_parse::item::PatternParseItem;
     }
 
     absent! {
@@ -120,9 +123,6 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         mention: Mention => NotYetRead;
         module_identity: ModuleIdentity => NotYetRead;
         package_dependency: PackageDependency => NotYetRead;
-        pattern_child: PatternChild => NotYetRead;
-        pattern_parse: PatternParse => NotYetRead;
-        pattern_syntax: PatternSyntax => NotYetRead;
         project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
         prose: Prose => NotYetRead;
         sequence_element: SequenceElement => NotYetRead;

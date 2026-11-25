@@ -24,6 +24,8 @@ pub(crate) trait Syntax {
     fn is_leaf(&self, at: Position) -> bool;
     /// The last element below the element at `at`, in pre-order; `at` itself when it has none.
     fn last_of(&self, at: Position) -> Position;
+    /// The place of the element at `at` among its parent's children.
+    fn ordinal_of(&self, at: Position) -> languages::ChildOrdinal;
     /// Every element of the file.
     fn positions(&self) -> impl Iterator<Item = Position> + '_;
     /// The bytes of the file.
@@ -156,6 +158,9 @@ impl Syntax for Tree<'_> {
     fn last_of(&self, at: Position) -> Position {
         languages::last_at(self.elements, at)
     }
+    fn ordinal_of(&self, at: Position) -> languages::ChildOrdinal {
+        languages::ordinal_at(self.elements, at)
+    }
     fn positions(&self) -> impl Iterator<Item = Position> + '_ {
         languages::positions(self.elements)
     }
@@ -197,6 +202,9 @@ impl Syntax for TypeScriptFile<'_> {
     }
     fn last_of(&self, at: Position) -> Position {
         Position(node_table::subtree_end_of(self.table, at).0.saturating_sub(1).max(at.0))
+    }
+    fn ordinal_of(&self, at: Position) -> languages::ChildOrdinal {
+        node_table::ordinal_of(self.table, at)
     }
     fn positions(&self) -> impl Iterator<Item = Position> + '_ {
         (0..node_table::element_count(self.table).0).map(|index| Position(u32::try_from(index).unwrap_or(u32::MAX)))

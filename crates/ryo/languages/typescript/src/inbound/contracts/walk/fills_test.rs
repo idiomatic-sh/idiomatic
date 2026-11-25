@@ -138,7 +138,7 @@ fn old_rows<R: CatalogRelation>(relation: Relation, path: &str, bytes: &[u8]) ->
         &mut out,
     )
     .expect("today's reading reads the source");
-    let own = if languages::end_of(&elements).0 == 0 { 0 } else { usize::from(languages::last_at(&elements, Position(0))) + 1 };
+    let own = usize::try_from(languages::end_of(&elements).0).unwrap_or(0);
     let keys = keyed((0..own).map(|at| {
         let at = Position(u32::try_from(at).unwrap_or(u32::MAX));
         (languages::kind_at(&elements, at).0, languages::start_at(&elements, at).0, languages::end_at(&elements, at).0)
@@ -214,7 +214,7 @@ fn new_rows<R: CatalogRelation>(relation: Relation, path: &str, bytes: &[u8]) ->
     let mut visit = Fill::<R> { relation, rows: &mut rows, kind: std::marker::PhantomData };
     walk.walk(
         WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(bytes) },
-        RelationNeeds(&[Relation::FlowBlock, Relation::FlowEdge, Relation::FlowMember, Relation::FlowStep]),
+        RelationNeeds(&[Relation::FlowBlock, Relation::FlowEdge, Relation::FlowMember, Relation::FlowStep, Relation::PatternSyntax, Relation::PatternChild, Relation::PatternParse]),
         &mut node_table::builder(&mut table, <TypeScriptWalk<WalkPorts> as Walk>::KIND_COUNT),
         &mut (),
         &mut visit,
@@ -389,4 +389,19 @@ fn flow_member_fills_equal_reads() {
 #[test]
 fn flow_step_fills_equal_reads() {
     equal::<languages::FlowStep>(Relation::FlowStep);
+}
+
+#[test]
+fn pattern_syntax_fills_equal_reads() {
+    equal::<languages::PatternSyntax>(Relation::PatternSyntax);
+}
+
+#[test]
+fn pattern_child_fills_equal_reads() {
+    equal::<languages::PatternChild>(Relation::PatternChild);
+}
+
+#[test]
+fn pattern_parse_fills_equal_reads() {
+    equal::<languages::PatternParse>(Relation::PatternParse);
 }

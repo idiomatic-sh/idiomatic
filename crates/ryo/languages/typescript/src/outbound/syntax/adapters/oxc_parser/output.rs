@@ -5,16 +5,17 @@
 #![cfg_attr(not(test), allow(dead_code, reason = "the walk is linked when step 0 of the ports lands; its tests read it until then"))]
 
 use super::flow::service::written_flow;
-use super::patterns::service::written_patterns;
+use super::patterns::service::{written_numbered_patterns, written_patterns};
 use super::projection::service::write;
-use super::types::{Carrier, FlowDraft, NodePositions, Piece, Text};
+use super::types::{Carrier, Carries, FlowDraft, Hosting, NodePositions, Piece, Text};
 use crate::domain::fields::numbered::{Family, field_of_child};
 use crate::domain::fields::service::field_bits;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use oxc_allocator::Allocator;
 use oxc_semantic::Scoping;
-use crate::domain::file_view::types::FlowFacts;
+use crate::domain::file_view::types::{CarrierFacts, FlowFacts};
+use crate::outbound::syntax::types::Wants;
 use ryo::languages::{self, FieldCode, FlowMemberFact, FlowStepFact, NodeTableBuilder, Offset, Position, TableBuilder, node_table};
 
 /// What the adapter's reading ends in.
@@ -91,22 +92,24 @@ impl Output for Elements<'_, '_> {
 pub(super) struct Numbered<'b, 't> {
     /// The table written.
     builder: &'b mut NodeTableBuilder<'t>,
-    /// Whether the control-flow facts are wanted.
-    wants_flow: bool,
+    /// What the fillers want kept.
+    wants: Wants,
     /// The control-flow facts, once written.
     pub(super) flow: Option<FlowFacts>,
+    /// What the library made of each written carrier's pattern.
+    pub(super) patterns: Vec<CarrierFacts>,
 }
 
 impl<'b, 't> Numbered<'b, 't> {
     /// An output over the table `builder` writes, with the control-flow facts wanted or not.
-    pub(super) fn new(builder: &'b mut NodeTableBuilder<'t>, wants_flow: bool) -> Self {
-        Self { builder, wants_flow, flow: None }
+    pub(super) fn new(builder: &'b mut NodeTableBuilder<'t>, wants: Wants) -> Self {
+        Self { builder, wants, flow: None, patterns: Vec::new() }
     }
 }
 
 impl Output for Numbered<'_, '_> {
     fn needs_flow(&self) -> bool {
-        self.wants_flow
+        self.wants.flow
     }
     fn diagnose(&mut self, message: &str, start: Offset, end: Offset) {
         node_table::diagnose(self.builder, start, end, languages::NameText(message));
@@ -114,12 +117,12 @@ impl Output for Numbered<'_, '_> {
     fn tree(
         &mut self,
         root: &mut Piece,
-        _carriers: &mut [Carrier<'_>],
+        carriers: &mut [Carrier<'_>],
         positions: &mut [Option<Position>],
         source: &str,
     ) {
         let mut nodes = 0_u32;
-        write_numbered(root, FieldCode(0), source, positions, &mut nodes, self.builder);
+        write_numbered(root, FieldCode(0), source, positions, carriers, &mut nodes, self.builder);
     }
     fn flow(&mut self, flow: &FlowDraft, positions: &NodePositions) {
         let mut facts = FlowFacts { blocks: flow.blocks.clone(), edges: flow.edges.clone(), ..FlowFacts::default() };
@@ -137,11 +140,14 @@ impl Output for Numbered<'_, '_> {
     }
     fn patterns(
         &mut self,
-        _allocator: &Allocator,
-        _source: languages::NameText<'_>,
-        _carriers: &[Carrier<'_>],
-        _scoping: &Scoping,
+        allocator: &Allocator,
+        source: languages::NameText<'_>,
+        carriers: &[Carrier<'_>],
+        scoping: &Scoping,
     ) {
+        if self.wants.patterns {
+            self.patterns = written_numbered_patterns(allocator, source, carriers, scoping, self.builder);
+        }
     }
     fn accept(&mut self, acceptance: languages::SyntaxAcceptance) {
         node_table::set_syntax_acceptance(self.builder, acceptance);
@@ -154,6 +160,7 @@ fn write_numbered(
     field: FieldCode,
     source: &str,
     positions: &mut [Option<Position>],
+    carriers: &mut [Carrier<'_>],
     nodes: &mut u32,
     builder: &mut NodeTableBuilder<'_>,
 ) {
@@ -169,6 +176,11 @@ fn write_numbered(
     let (start, end) = (Offset(node.span.start), Offset(node.span.end));
     match node.kind {
         Kind::Node(holder) => {
+            if let Carries::Pattern(index) = node.carries
+                && let Some(carrier) = carriers.get_mut(index.0)
+            {
+                carrier.host = Hosting::At(Position(*nodes));
+            }
             *nodes += 1;
             node_table::enter_node(builder, kind_bits(node.kind), field, start);
             for property in &node.properties {
@@ -180,7 +192,7 @@ fn write_numbered(
             let family = Family { holder, kinds: &kinds, starts: &starts, ends: &ends, source };
             for (at, child) in node.children.iter_mut().enumerate() {
                 let role = field_bits(field_of_child(&family, at));
-                write_numbered(child, FieldCode(role.0), source, positions, nodes, builder);
+                write_numbered(child, FieldCode(role.0), source, positions, carriers, nodes, builder);
             }
             node_table::leave_node(builder, end);
         }
