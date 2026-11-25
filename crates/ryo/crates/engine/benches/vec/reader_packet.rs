@@ -39,7 +39,7 @@ impl FileColumns<'_> {
     }
 
     pub(crate) fn text(&self, word: CellWord) -> l::NameText<'_> {
-        l::facts::text(self.words, word)
+        local_word_text(self.words, word)
     }
 
     pub(crate) fn position(&self, word: CellWord) -> Result<Option<l::Position>, BadNode> {
@@ -54,6 +54,12 @@ impl FileColumns<'_> {
         }
         Ok(Some(l::Position(position)))
     }
+}
+
+fn local_word_text(words: &FileWords, word: CellWord) -> l::NameText<'_> {
+    u32::try_from(word.0).ok().and_then(|code| {
+        ryo_relations::domain::terms::service::term_text(l::Symbol(code))
+    }).unwrap_or_else(|| l::facts::text(words, word))
 }
 
 pub(crate) struct OperatorColumns<'file> {
@@ -232,7 +238,7 @@ impl Packet {
             let words = local_words?;
             return Some(table.rows != 0 && table.columns.0[column].0.iter().any(|&raw| {
                 let text = (raw.0 != u64::from(l::NO_SYMBOL.0))
-                    .then(|| l::facts::text(words, raw));
+                    .then(|| local_word_text(words, raw));
                 matches(text, l::NO_SYMBOL)
             }));
         }
@@ -485,7 +491,7 @@ impl View<'_, '_> {
                     finish::Ty::Sym if raw.0 == u64::from(l::NO_SYMBOL.0) =>
                         u64::from(run.absent_word.expect("reader word table")),
                     finish::Ty::Sym => u64::from(*self.local_symbols.entry(raw.0).or_insert_with(
-                        || run.sym(l::facts::text(words, *raw).0.as_bytes()))),
+                        || run.sym(local_word_text(words, *raw).0.as_bytes()))),
                     finish::Ty::Node => position(raw.0)?,
                     _ => raw.0,
                 })).collect::<Result<_, String>>()?;
