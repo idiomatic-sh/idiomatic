@@ -16,12 +16,6 @@ use std::{
     rc::Rc,
 };
 
-/// The existing project answer is independent of parsed notes and manifests.
-/// Its typed File cell identifies the file that owns the row.
-pub(crate) fn layout_relation(relation: l::Relation) -> bool {
-    matches!(relation, l::Relation::ModuleIdentity)
-}
-
 /// Compact project input indexed by file. Evaluator tables are made only
 /// inside the file visit so they use its file IDs and symbol dictionary.
 pub(crate) struct Layout {

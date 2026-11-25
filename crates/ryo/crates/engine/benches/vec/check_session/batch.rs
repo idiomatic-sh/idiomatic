@@ -177,7 +177,12 @@ impl Admission {
         let contract = Arc::new(session::completeness::describe(program, &local)?);
         let wide = contract.cross || unsliced_host;
         let layout = if !scope_only
-            && let [relation] = held.as_slice() && project::layout_relation(*relation)
+            && let [relation] = held.as_slice()
+            // One File cell per row and no node or span cell: the rows are the file's own.
+            && run.catalog(relations::service::name(*relation).0).is_some_and(|(_, _, types)| {
+                types.iter().filter(|ty| **ty == finish::Ty::File).count() == 1
+                    && !types.iter().any(|ty| matches!(ty, finish::Ty::Node | finish::Ty::Span))
+            })
         {
             let name = relations::service::name(*relation).0;
             finish::partition::with_file_slice(&mut exec, &mut run, name, |base| {
