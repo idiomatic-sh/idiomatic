@@ -280,3 +280,23 @@ fn parameter_fills_equal_reads() {
 fn call_argument_fills_equal_reads() {
     equal::<languages::CallArgument>(Relation::CallArgument);
 }
+
+#[test]
+fn function_fills_equal_reads() {
+    equal::<languages::Function>(Relation::Function);
+}
+
+#[test]
+fn compiler_feature_fills_equal_reads() {
+    equal::<languages::CompilerFeature>(Relation::CompilerFeature);
+}
+
+#[test]
+fn decorates_fills_equal_reads() {
+    equal::<languages::Decorates>(Relation::Decorates);
+}
+
+#[test]
+fn static_import_fills_equal_reads() {
+    equal::<languages::StaticImport>(Relation::StaticImport);
+}

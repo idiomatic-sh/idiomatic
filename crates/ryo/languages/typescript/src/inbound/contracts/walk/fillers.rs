@@ -55,6 +55,10 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         string_literal: StringLiteral => crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
         parameter: Parameter => crate::domain::relations::collections::relations::parameter::item::ParameterItem;
         call_argument: CallArgument => crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem;
+        function: Function => crate::domain::relations::collections::relations::function::item::FunctionItem;
+        compiler_feature: CompilerFeature => crate::domain::relations::collections::relations::compiler_feature::item::CompilerFeatureItem;
+        decorates: Decorates => crate::domain::relations::collections::relations::decorates::item::DecoratesItem;
+        static_import: StaticImport => crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
     }
 
     absent! {
@@ -64,8 +68,6 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         brace_format_field: BraceFormatField => NotYetRead;
         brace_format_parse: BraceFormatParse => NotYetRead;
         bytes_literal: BytesLiteral => NotYetRead;
-        compiler_feature: CompilerFeature => NotYetRead;
-        decorates: Decorates => NotYetRead;
         defines: Defines => NotYetRead;
         embedded_expression: EmbeddedExpression => NotYetRead;
         format_field: FormatField => NotYetRead;
@@ -83,14 +85,12 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         raw_format_field: RawFormatField => NotYetRead;
         source_location: SourceLocation => NotYetRead;
         standard_library_import: StandardLibraryImport => NotYetRead;
-        static_import: StaticImport => NotYetRead;
         syntax_error: SyntaxError => NotYetRead;
         binding_read: BindingRead => NotYetRead;
         binding_shadow: BindingShadow => NotYetRead;
         constant_key: ConstantKey => NotYetRead;
         expression_shape: ExpressionShape => NotYetRead;
         expression_type: ExpressionType => NotYetRead;
-        function: Function => NotYetRead;
         inherits: Inherits => NotYetRead;
         lookup_scope: LookupScope => NotYetRead;
         raw_format_segment: RawFormatSegment => NotYetRead;

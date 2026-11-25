@@ -42,6 +42,8 @@ pub(crate) trait Interner {
     fn begin_name(&mut self) -> usize;
     /// Adds a text to the name being made.
     fn push_text(&mut self, text: NameText<'_>);
+    /// Adds the bytes `start..end` of the file to the name being made.
+    fn push_span(&mut self, source: ByteSlice<'_>, start: Offset, end: Offset);
     /// Adds the text of a cell to the name being made.
     fn push_name(&mut self, source: ByteSlice<'_>, symbol: Symbol);
     /// The cell of the name made from the parts since `from`.
@@ -60,6 +62,9 @@ impl Interner for Symbols {
     }
     fn push_text(&mut self, text: NameText<'_>) {
         languages::push_text(self, text);
+    }
+    fn push_span(&mut self, source: ByteSlice<'_>, start: Offset, end: Offset) {
+        languages::push_span(self, source, start, end);
     }
     fn push_name(&mut self, source: ByteSlice<'_>, symbol: Symbol) {
         languages::push_name(self, source, symbol);
@@ -97,6 +102,11 @@ impl Interner for WordSink<'_> {
     }
     fn push_text(&mut self, text: NameText<'_>) {
         self.built.push_str(text.0);
+    }
+    fn push_span(&mut self, source: ByteSlice<'_>, start: Offset, end: Offset) {
+        let from = usize::try_from(start.0).unwrap_or(usize::MAX);
+        let to = usize::try_from(end.0).unwrap_or(usize::MAX);
+        self.built.push_str(source.0.get(from..to).map(|bytes| std::str::from_utf8(bytes).unwrap_or_default()).unwrap_or_default());
     }
     fn push_name(&mut self, _source: ByteSlice<'_>, symbol: Symbol) {
         let text = languages::facts::text(self.words, languages::CellWord(u64::from(symbol.0)));
