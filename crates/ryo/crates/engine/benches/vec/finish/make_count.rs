@@ -25,6 +25,8 @@ struct Step {
     files: HashSet<u32>,
     rows_in: u64,
     rows_out: u64,
+    text: String,
+    first_program: usize,
 }
 
 #[derive(Default)]
@@ -156,6 +158,8 @@ pub(super) fn leave(plan: &super::Plan, id: u64, op: &str, file: u32, frame: u64
         let step = s.steps.entry(id).or_default();
         if step.op.is_empty() {
             step.op = op.to_owned();
+            step.first_program = program;
+            step.text = format!("{:?}", plan.nodes[node].step()).chars().take(700).collect();
         }
         step.makes += 1;
         step.programs.insert(program);
@@ -192,7 +196,7 @@ pub(crate) fn print() {
         }
         rows.sort_by(|a, b| b.1.first.total_cmp(&a.1.first));
         for (id, st) in rows.iter().take(20) {
-            eprintln!("FIRSTSTEP\t{id:x}\t{}\trows_in {}\trows_out {}\tfiles {}\tfirst_ms {:.1}", st.op, st.rows_in, st.rows_out, st.files.len(), st.first * 1e3);
+            eprintln!("FIRSTSTEP\t{id:x}\t{}\trows_in {}\trows_out {}\tfiles {}\tfirst_ms {:.1}\tprogram {}\tprograms {}\t{}", st.op, st.rows_in, st.rows_out, st.files.len(), st.first * 1e3, st.first_program, st.programs.len(), st.text);
         }
         let mut byop: HashMap<&str, [f64; 4]> = HashMap::new();
         for st in s.steps.values() {
