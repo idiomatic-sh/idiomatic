@@ -33,8 +33,9 @@ pub(in super::super) fn with_file_slice(
 
 #[derive(Clone, Default)]
 pub(in super::super) struct Partition {
-    pub domains: BTreeMap<usize, (usize, usize)>,
+    pub domains: BTreeMap<usize, (usize, usize, usize)>,
     pub ancestor_domains: BTreeMap<usize, usize>,
+    pub reach: BTreeMap<usize, super::session::demand::Reach>,
     pub inputs: Vec<usize>,
     pub columns: BTreeMap<usize, Vec<bool>>,
     pub filters: BTreeMap<usize, Vec<(usize, Vec<u8>)>>,
@@ -385,9 +386,11 @@ pub(in super::super) fn partition(
     }
     let domains = super::session::demand::domains(exec, run, &local, &input_set);
     let ancestor_domains = super::session::demand::ancestor_domains(exec, run, &local, &reached, &input_set);
+    let reach = super::session::demand::reach_domains(exec, run, &local, &reached, &input_set);
     Ok(Partition {
         domains,
         ancestor_domains,
+        reach,
         columns,
         filters,
         inputs: input_set.into_iter().collect(),

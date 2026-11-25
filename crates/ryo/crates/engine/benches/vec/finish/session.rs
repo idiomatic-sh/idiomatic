@@ -564,10 +564,15 @@ pub(in super::super) fn gather(
         } else {
             None
         };
-        if let Some(table) = edges {
-            result.push((i, table, true));
-        } else if incomplete.is_empty()
-            && let Some(table) = contribution::gather(projections, i, slots, frame, run) {
+        let carried = match edges {
+            Some(table) => Some(table),
+            None if incomplete.is_empty() => {
+                let keys = contribution::demanded(projections, i, slots, exec, frame, run, facts)?;
+                contribution::gather(projections, i, slots, frame, run, keys.as_deref())
+            }
+            None => None,
+        };
+        if let Some(table) = carried {
             result.push((i, table, true));
         } else {
             result.push((i, exec.eval(frame, run, facts, slots[i])?, false));
