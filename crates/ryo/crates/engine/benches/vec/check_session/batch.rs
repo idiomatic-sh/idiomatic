@@ -156,9 +156,8 @@ impl Admission {
         // File-valued caller cells use the admitted request's file dictionary.
         // The same partition can consume its source subtree locally and bind those
         // cells at the join once the inventory is numbered.
-        let numbered_host = hosted
-            .iter()
-            .any(|table| table.columns.iter().any(|(_, kind)| kind == "File"));
+        let has_files = |table: &Hosted| table.columns.iter().any(|(_, kind)| kind == "File");
+        let numbered_host = hosted.iter().any(has_files);
         let mut run = finish::Run::schema_run(patterns);
         catalog.declare_bases(&mut run, &program.bases);
         let declarations = hosted.iter().map(|h| Hosted {
@@ -168,16 +167,21 @@ impl Admission {
         let mut exec = finish::Exec::new(&program.plan);
         let local = finish::partition::file_steps(&mut exec, &mut run, |name| {
             held.iter().any(|r| relations::service::name(*r).0 == name) || hosted.iter().any(|t| t.name == name)
-        })?;
+        }, |name| hosted.iter().any(|t| t.name == name && has_files(t)))?;
+        // A caller table keyed by File that every reader binds to its own file is
+        // read in the visit, so it need not wait for the numbered inventory.
+        let unsliced_host = program.bases.iter().zip(&program.base_steps).any(|(name, (at, _))| {
+            !local[*at] && hosted.iter().any(|t| &t.name == name && has_files(t))
+        });
         let contract = Arc::new(session::completeness::describe(program, &local)?);
-        let wide = contract.cross || numbered_host;
-        let layout = if !scope_only && !numbered_host
+        let wide = contract.cross || unsliced_host;
+        let layout = if !scope_only && !unsliced_host
             && let [relation] = held.as_slice() && project::layout_relation(*relation)
         {
             let name = relations::service::name(*relation).0;
             finish::partition::with_file_slice(&mut exec, &mut run, name, |base| {
                 hosted.iter().any(|table| table.name == base)
-            })?.map(|local| session::completeness::describe(program, &local)
+            }, |base| hosted.iter().any(|t| t.name == base && has_files(t)))?.map(|local| session::completeness::describe(program, &local)
                 .map(|contract| (*relation, Arc::new(contract)))).transpose()?
         } else {
             None
@@ -587,7 +591,17 @@ impl Batch {
                     aliases,
                     answers,
                     |binding, run| {
-                        Ok(bind_tables(&hosted[binding], run, |_| None)?
+                        // A file program reads a caller table keyed by File here, through the
+                        // visit's numbering. A closed program reads it only after closure.
+                        let keyed = self.cut_of[binding].is_none()
+                            && hosted[binding].iter().any(|t| t.columns.iter().any(|(_, kind)| kind == "File"));
+                        let paths = run.paths.clone();
+                        let numbers: HashMap<&str, u32> = if keyed {
+                            paths.iter().zip(0..).map(|(path, number)| (path.as_str(), number)).collect()
+                        } else {
+                            HashMap::new()
+                        };
+                        Ok(bind_tables(&hosted[binding], run, |path| numbers.get(path).copied())?
                             .into_iter()
                             .map(|(n, t)| (n, Rc::new(t)))
                             .collect())

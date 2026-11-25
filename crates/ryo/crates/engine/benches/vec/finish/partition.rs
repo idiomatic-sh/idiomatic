@@ -10,8 +10,9 @@ pub(in super::super) fn with_file_slice(
     run: &mut Run,
     relation: &str,
     wide: impl Fn(&str) -> bool,
+    sliced: impl Fn(&str) -> bool,
 ) -> R<Option<Vec<bool>>> {
-    let exact = file_steps_by(exec, run, |name| name != relation && wide(name), |ty| {
+    let exact = local_steps(exec, run, |name| name != relation && wide(name), sliced, |ty| {
         matches!(ty, Ty::Node | Ty::File)
     })?;
     if !exec.plan.emits.iter().all(|emit| exact[emit.1] && emit.2 == "file") {
@@ -46,31 +47,128 @@ pub(in super::super) struct Partition {
 /// A multidirectional join stays local only if its equality edges connect every
 /// source with file-local keys. Closed sources without file-domain columns can
 /// be used as binding constants when a file-local input drives the step.
+///
+/// A caller table with File cells is read in every file through its own rows.
+/// It is file-local only while each of its readers binds it by File to a
+/// file-local input, so no row of another file can reach a result.
 pub(in super::super) fn file_steps(
     exec: &mut Exec<'_>,
     run: &mut Run,
     wide: impl Fn(&str) -> bool,
+    sliced: impl Fn(&str) -> bool,
 ) -> R<Vec<bool>> {
-    file_steps_by(exec, run, wide, |ty| matches!(ty, Ty::Node | Ty::File | Ty::Span))
+    local_steps(exec, run, wide, sliced, |ty| matches!(ty, Ty::Node | Ty::File | Ty::Span))
+}
+
+fn local_steps(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    wide: impl Fn(&str) -> bool,
+    sliced: impl Fn(&str) -> bool,
+    anchor: impl Fn(Ty) -> bool,
+) -> R<Vec<bool>> {
+    let mut excluded = BTreeSet::new();
+    loop {
+        let local = file_steps_by(
+            exec,
+            run,
+            &wide,
+            &anchor,
+            &|at, name| sliced(name) && !excluded.contains(&at),
+        )?;
+        let mut loose = Vec::new();
+        for at in 0..local.len() {
+            if local[at]
+                && let Some(name) = exec.plan.nodes[at].base()
+                && wide(name)
+                && sliced(name)
+                && !slice_readers_bind_file(exec, run, at, &local)?
+            {
+                loose.push(at);
+            }
+        }
+        if loose.is_empty() {
+            return Ok(local);
+        }
+        excluded.extend(loose);
+    }
+}
+
+/// Every reader of a caller table keeps it to the rows of its own file: an antijoin
+/// that removes rows from a file-local side, or a join through an equality of File cells.
+fn slice_readers_bind_file(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    base: usize,
+    local: &[bool],
+) -> R<bool> {
+    let plan = exec.plan;
+    if plan.emits.iter().any(|emit| emit.1 == base) {
+        return Ok(false);
+    }
+    for &reader in plan.consumers(base) {
+        if !local[reader] {
+            return Ok(false);
+        }
+        let step = &plan.nodes[reader];
+        match step.op() {
+            "antijoin" => {
+                if exec.arg_rel(reader, "right") != Ok(base)
+                    || exec.arg_rel(reader, "left") == Ok(base)
+                {
+                    return Ok(false);
+                }
+                let schema = exec.schema(run, base)?;
+                let mut keyed = false;
+                for name in super::strs(&step.args()["right-on"])? {
+                    keyed |= schema.tys[super::pos(&schema.names, name)?] == Ty::File;
+                }
+                if !keyed {
+                    return Ok(false);
+                }
+            }
+            "select" => {
+                let select = exec.sel(run, reader)?;
+                let bound = |alias: usize| {
+                    select.conj.iter().any(|term| match term {
+                        E::Cmp(Op::Eq, a, b) => matches!(
+                            (&**a, &**b),
+                            (E::Col(x, _, Ty::File), E::Col(y, _, Ty::File))
+                                if x != y && (*x == alias || *y == alias)
+                        ),
+                        _ => false,
+                    })
+                };
+                if select.srcs.len() < 2
+                    || !select.srcs.iter().enumerate().all(|(alias, &src)| src != base || bound(alias))
+                {
+                    return Ok(false);
+                }
+            }
+            _ => return Ok(false),
+        }
+    }
+    Ok(true)
 }
 
 fn file_steps_by(
     exec: &mut Exec<'_>,
     run: &mut Run,
-    wide: impl Fn(&str) -> bool,
-    anchor: impl Fn(Ty) -> bool,
+    wide: &impl Fn(&str) -> bool,
+    anchor: &impl Fn(Ty) -> bool,
+    sliced: &impl Fn(usize, &str) -> bool,
 ) -> R<Vec<bool>> {
     let classes: Vec<_> = exec.plan.nodes.iter().enumerate()
         .filter_map(|(i, step)| (step.op() == "subtree-class").then_some(i))
         .take(2)
         .collect();
     if let [class] = classes.as_slice() {
-        let local = classify(exec, run, &wide, &anchor, Some(*class))?;
+        let local = classify(exec, run, wide, anchor, sliced, Some(*class))?;
         if local[*class] && super::session::demand::local_class(exec, run, &local, *class)? {
             return Ok(local);
         }
     }
-    classify(exec, run, &wide, &anchor, None)
+    classify(exec, run, wide, anchor, sliced, None)
 }
 
 fn classify(
@@ -78,6 +176,7 @@ fn classify(
     run: &mut Run,
     wide: &impl Fn(&str) -> bool,
     anchor: &impl Fn(Ty) -> bool,
+    sliced: &impl Fn(usize, &str) -> bool,
     local_class: Option<usize>,
 ) -> R<Vec<bool>> {
     exec.closed_inputs();
@@ -122,7 +221,10 @@ fn classify(
             false
         } else {
             match step.op() {
-                "base" => !wide(step.base().ok_or("base relation")?),
+                "base" => {
+                    let name = step.base().ok_or("base relation")?;
+                    !wide(name) || sliced(i, name)
+                }
                 "rows" => false,
                 "select" => {
                     if step.inputs.len() < 2 {
