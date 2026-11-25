@@ -173,6 +173,7 @@ struct Snapshot {
     stamps: Index,
     empty_schemas: Vec<Key>,
     request_layers: Vec<Key>,
+    program_inputs: BTreeMap<Key, Vec<String>>,
 }
 struct RequestPlan {
     proof: Vec<Proof>,
@@ -204,6 +205,7 @@ pub(super) struct Store {
     notes_valid: Vec<bool>,
     pairs: Vec<Option<(usize, usize)>>,
     program_keys: Vec<Key>,
+    program_inputs: BTreeMap<Key, Vec<String>>,
     binding_keys: Vec<Key>,
     plans: Vec<Option<RequestPlan>>,
     observed_entries: HashMap<Arc<str>, BTreeMap<PathBuf, Option<u8>>>,
@@ -311,6 +313,7 @@ impl Store {
             notes_valid: vec![],
             pairs: vec![],
             program_keys: vec![],
+            program_inputs: snapshot.program_inputs,
             binding_keys: vec![],
             plans: vec![],
             observed_entries: HashMap::new(),
@@ -402,6 +405,7 @@ impl Store {
             stamps: self.observed.stamps.index.clone(),
             empty_schemas: self.empty_schemas.clone(),
             request_layers: self.requests.layers.clone(),
+            program_inputs: self.program_inputs.clone(),
         })
         .map_err(io::Error::other)?;
         if bytes != self.previous {
@@ -484,6 +488,16 @@ impl Store {
             self.packets.write_bytes
         );
     }
+    /// Recover which inputs a previously prepared program reads. This is
+    /// independent of the values the current request binds to those inputs.
+    pub(super) fn program_inputs(&self, program: Key) -> Option<&[String]> {
+        self.program_inputs.get(&program).map(Vec::as_slice)
+    }
+
+    pub(super) fn remember_program_inputs(&mut self, program: Key, names: &[String]) {
+        self.program_inputs.entry(program).or_insert_with(|| names.to_vec());
+    }
+
     pub(super) fn request_inputs(
         &mut self,
         root: &Path,
@@ -1247,6 +1261,9 @@ mod tests {
             store.request_inputs(root.path(), inventory, peers, supplied(body))
         };
         let mut store = open();
+        let program = key("bound program");
+        let inputs = vec!["left".to_owned(), "right".to_owned()];
+        store.remember_program_inputs(program, &inputs);
         for (request, body) in [("first", "old bytes"), ("second", "new bytes")] {
             let input = scope(&mut store, body);
             let evidence = store.group(
@@ -1258,6 +1275,8 @@ mod tests {
         assert!(store.publish().unwrap() > 0);
 
         let mut store = open();
+        assert_eq!(store.program_inputs(program), Some(inputs.as_slice()));
+        assert!(store.program_inputs(key("different program")).is_none());
         let new = scope(&mut store, "new bytes");
         let old = scope(&mut store, "old bytes");
         for (input, request) in [(new, "second"), (old, "first"), (new, "second")] {
