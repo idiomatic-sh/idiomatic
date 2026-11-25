@@ -6,6 +6,7 @@ mod constants;
 pub(crate) mod fixtures;
 mod schemas;
 pub(crate) mod types;
+mod walk;
 mod writer;
 
 #[cfg(test)]

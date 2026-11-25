@@ -10,4 +10,8 @@ pub(crate) trait SyntaxPort: Send + Sync {
     /// text interned. A file with errors still gives the elements that could be read, and what the library said of the rest: reading
     /// never fails.
     fn read(&self, text: SourceText<'_>, builder: &mut TableBuilder<'_>);
+
+    /// Reads TOML text into the node table `builder` builds, numbered as the walk numbers it. `values` says whether a relation reads
+    /// the decoded keys and scalars, which the tree then carries.
+    fn walk(&self, text: SourceText<'_>, values: bool, builder: &mut ryo::languages::NodeTableBuilder<'_>);
 }

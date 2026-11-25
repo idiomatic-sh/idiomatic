@@ -2,6 +2,7 @@
 
 pub(crate) mod documents;
 pub(crate) mod extras;
+pub(crate) mod file_view;
 pub(crate) mod keys;
 pub(crate) mod language;
 pub(crate) mod model;
@@ -9,3 +10,5 @@ pub(crate) mod nodes;
 pub(crate) mod relations;
 pub(crate) mod syntax;
 pub(crate) mod tokens;
+pub(crate) mod walked_documents;
+pub(crate) mod walked_values;

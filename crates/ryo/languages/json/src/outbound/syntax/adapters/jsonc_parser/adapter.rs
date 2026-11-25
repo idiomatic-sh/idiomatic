@@ -16,10 +16,10 @@ use jsonc_parser::{
     CollectOptions, CommentCollectionStrategy, ParseOptions, ParseResult, Scanner, ScannerOptions,
     parse_to_ast,
 };
-use ryo::languages::{self, ByteSlice, Count, NameText, Offset};
+use ryo::languages::{self, ByteSlice, Count, NameText, Offset, node_table};
 
-use crate::domain::syntax::service::kind_bits;
-use crate::domain::syntax::types::Dialect;
+use crate::domain::syntax::service::{field_bits, kind_bits};
+use crate::domain::syntax::types::{Dialect, Field};
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 
@@ -27,7 +27,9 @@ use super::constants::{
     COMMENT_IN_JSON, CONTROL_IN_STRING, NO_VALUE, NOT_UTF8, TRAILING_COMMA_IN_JSON, UNREAD_TEXT,
 };
 use super::schemas::{piece_kind, token_piece};
+use super::interface::Sink;
 use super::types::{JsoncText, Piece, Reporting, Writing};
+use super::walk::Numbered;
 
 /// The `jsonc_parser` syntax adapter.
 #[derive(Debug)]
@@ -110,7 +112,7 @@ fn unread(
 }
 
 /// Opens a node of `piece` at `start`, after the gap before it.
-fn enter(writing: &mut Writing<'_, '_, '_>, piece: Piece, start: Offset) {
+fn enter_old(writing: &mut Writing<'_, '_, '_>, piece: Piece, start: Offset) {
     let (text, reporting) = (writing.text, writing.reporting);
     languages::lossless_enter(
         &mut writing.tree,
@@ -123,7 +125,7 @@ fn enter(writing: &mut Writing<'_, '_, '_>, piece: Piece, start: Offset) {
 }
 
 /// Closes the innermost node at `end`.
-fn leave(writing: &mut Writing<'_, '_, '_>, end: Offset) {
+fn leave_old(writing: &mut Writing<'_, '_, '_>, end: Offset) {
     let (text, reporting) = (writing.text, writing.reporting);
     languages::lossless_leave(
         &mut writing.tree,
@@ -135,7 +137,7 @@ fn leave(writing: &mut Writing<'_, '_, '_>, end: Offset) {
 }
 
 /// Writes a token the library scanned, a string with the text the library decoded from it.
-fn token(writing: &mut Writing<'_, '_, '_>, scanned: &TokenAndRange<'_>) {
+fn token_old(writing: &mut Writing<'_, '_, '_>, scanned: &TokenAndRange<'_>) {
     let (text, reporting) = (writing.text, writing.reporting);
     let (kind, start, end) = (
         kind_bits(piece_kind(token_piece(&scanned.token))),
@@ -174,7 +176,7 @@ fn token(writing: &mut Writing<'_, '_, '_>, scanned: &TokenAndRange<'_>) {
 }
 
 /// Writes the gap to the end of the text.
-fn finish(writing: &mut Writing<'_, '_, '_>, length: Offset) {
+fn finish_old(writing: &mut Writing<'_, '_, '_>, length: Offset) {
     let (text, reporting) = (writing.text, writing.reporting);
     languages::fill_to(
         &mut writing.tree,
@@ -187,7 +189,7 @@ fn finish(writing: &mut Writing<'_, '_, '_>, length: Offset) {
 
 /// Writes the tokens that start before `before`, in the order of the file: the ones between the constructs.
 fn drain(
-    writing: &mut Writing<'_, '_, '_>,
+    writing: &mut impl Sink,
     tokens: &[TokenAndRange<'_>],
     next: &mut Count,
     before: Offset,
@@ -196,7 +198,7 @@ fn drain(
         .get(next.0)
         .filter(|each| start_of(each.range) < before)
     {
-        token(writing, scanned);
+        writing.token(scanned);
         next.0 += 1;
     }
 }
@@ -204,7 +206,7 @@ fn drain(
 /// Writes `value` of the library's tree: each object, member and array is opened where it starts and closed where it ends, and the
 /// tokens the library scanned are written between.
 fn walk(
-    writing: &mut Writing<'_, '_, '_>,
+    writing: &mut impl Sink,
     value: &Value<'_>,
     tokens: &[TokenAndRange<'_>],
     next: &mut Count,
@@ -212,25 +214,25 @@ fn walk(
     match value {
         Value::Object(object) => {
             drain(writing, tokens, next, start_of(object.range));
-            enter(writing, Piece::Object, start_of(object.range));
+            writing.enter(Piece::Object, start_of(object.range));
             for property in &object.properties {
                 drain(writing, tokens, next, start_of(property.range));
-                enter(writing, Piece::Member, start_of(property.range));
+                writing.enter(Piece::Member, start_of(property.range));
                 walk(writing, &property.value, tokens, next);
                 drain(writing, tokens, next, end_of(property.range));
-                leave(writing, end_of(property.range));
+                writing.leave(end_of(property.range));
             }
             drain(writing, tokens, next, end_of(object.range));
-            leave(writing, end_of(object.range));
+            writing.leave(end_of(object.range));
         }
         Value::Array(array) => {
             drain(writing, tokens, next, start_of(array.range));
-            enter(writing, Piece::Array, start_of(array.range));
+            writing.enter(Piece::Array, start_of(array.range));
             for element in &array.elements {
                 walk(writing, element, tokens, next);
             }
             drain(writing, tokens, next, end_of(array.range));
-            leave(writing, end_of(array.range));
+            writing.leave(end_of(array.range));
         }
         Value::StringLit(_)
         | Value::NumberLit(_)
@@ -240,7 +242,7 @@ fn walk(
 }
 
 /// Writes the tokens of a file the library read, opening each construct where it starts and closing it where it ends.
-fn structured(writing: &mut Writing<'_, '_, '_>, parsed: &ParseResult<'_>) {
+fn structured(writing: &mut impl Sink, parsed: &ParseResult<'_>) {
     let tokens = parsed.tokens.as_deref().unwrap_or_default();
     let mut next = Count(0);
     if let Some(value) = &parsed.value {
@@ -250,45 +252,33 @@ fn structured(writing: &mut Writing<'_, '_, '_>, parsed: &ParseResult<'_>) {
 }
 
 /// Writes the tokens the library scans before it fails, flat under the root.
-fn flat(writer: &mut Writing<'_, '_, '_>) {
-    let mut scanner = Scanner::new(writer.text.0, &scanning());
+fn flat(writer: &mut impl Sink, text: JsoncText<'_>) {
+    let mut scanner = Scanner::new(text.0, &scanning());
     while let Ok(Some(found)) = scanner.scan() {
         let piece = TokenAndRange {
             range: Range::new(scanner.token_start(), scanner.token_end()),
             token: found,
         };
-        token(writer, &piece);
+        writer.token(&piece);
     }
 }
 
 /// What a file read as json as the standard defines it has that json with comments has not, as diagnostics: a comment, a comma
 /// before a closing brace or bracket, and no value.
-fn strictness(parsed: &ParseResult<'_>, builder: &mut languages::TableBuilder<'_>) {
+fn strictness(parsed: &ParseResult<'_>, builder: &mut impl Sink) {
     if parsed.value.is_none() {
-        languages::diagnose(
-            builder,
-            languages::ReportText(NO_VALUE),
-            Offset(0),
-            Offset(0),
+        builder.diagnose(NO_VALUE, Offset(0), Offset(0),
         );
     }
     let mut comma: Option<Range> = None;
     for scanned in parsed.tokens.iter().flatten() {
         match scanned.token {
-            Scanned::CommentLine(_) | Scanned::CommentBlock(_) => languages::diagnose(
-                builder,
-                languages::ReportText(COMMENT_IN_JSON),
-                start_of(scanned.range),
-                end_of(scanned.range),
+            Scanned::CommentLine(_) | Scanned::CommentBlock(_) => builder.diagnose(COMMENT_IN_JSON, start_of(scanned.range), end_of(scanned.range),
             ),
             Scanned::Comma => comma = Some(scanned.range),
             Scanned::CloseBrace | Scanned::CloseBracket => {
                 if let Some(trailing) = comma.take() {
-                    languages::diagnose(
-                        builder,
-                        languages::ReportText(TRAILING_COMMA_IN_JSON),
-                        start_of(trailing),
-                        end_of(trailing),
+                    builder.diagnose(TRAILING_COMMA_IN_JSON, start_of(trailing), end_of(trailing),
                     );
                 }
             }
@@ -309,7 +299,7 @@ fn strictness(parsed: &ParseResult<'_>, builder: &mut languages::TableBuilder<'_
 fn controls(
     parsed: &ParseResult<'_>,
     text: JsoncText<'_>,
-    builder: &mut languages::TableBuilder<'_>,
+    builder: &mut impl Sink,
 ) {
     for scanned in parsed.tokens.iter().flatten() {
         if !matches!(scanned.token, Scanned::String(_)) {
@@ -321,26 +311,41 @@ fn controls(
             .unwrap_or_default();
         if let Some(found) = inside.bytes().position(|byte| byte < b' ') {
             let at = offset(Count(scanned.range.start + found));
-            languages::diagnose(
-                builder,
-                languages::ReportText(CONTROL_IN_STRING),
-                at,
-                offset(Count(scanned.range.start + found + 1)),
+            builder.diagnose(CONTROL_IN_STRING, at, offset(Count(scanned.range.start + found + 1)),
             );
         }
     }
 }
 
 /// What the library said of a file it could not read, as a diagnostic.
-fn refusal(error: &ParseError, builder: &mut languages::TableBuilder<'_>) {
+fn refusal(error: &ParseError, builder: &mut impl Sink) {
     let message = error.to_string();
     let range = error.range();
-    languages::diagnose(
-        builder,
-        languages::ReportText(&message),
-        start_of(range),
-        end_of(range),
+    builder.diagnose(&message, start_of(range), end_of(range),
     );
+}
+
+impl Sink for Writing<'_, '_, '_> {
+    fn enter(&mut self, piece: Piece, start: Offset) {
+        enter_old(self, piece, start);
+    }
+
+    fn leave(&mut self, end: Offset) {
+        leave_old(self, end);
+    }
+
+    fn token(&mut self, scanned: &TokenAndRange<'_>) {
+        token_old(self, scanned);
+    }
+
+    fn close(&mut self, length: Offset) {
+        finish_old(self, length);
+        languages::leave_node(self.tree.builder, length);
+    }
+
+    fn diagnose(&mut self, message: &str, start: Offset, end: Offset) {
+        languages::diagnose(self.tree.builder, languages::ReportText(message), start, end);
+    }
 }
 
 impl SyntaxPort for SyntaxJsoncParserAdapter {
@@ -352,13 +357,8 @@ impl SyntaxPort for SyntaxJsoncParserAdapter {
     ) {
         // JSON is UTF-8: the library reads the text up to the first byte that is not, and the rest is text it could not read.
         let content = languages::readable_text(ByteSlice(text.0)).0;
-        let length = offset(Count(text.0.len()));
         languages::enter_node(builder, kind_bits(piece_kind(Piece::File)), Offset(0));
-        let collect = CollectOptions {
-            comments: CommentCollectionStrategy::AsTokens,
-            tokens: true,
-        };
-        let outcome = parse_to_ast(content, &collect, &grammar());
+        let outcome = parsed(content);
         let _ = builder.decode_for(&[
             languages::Relation::StringLiteral, languages::Relation::Mapping,
             languages::Relation::Entry, languages::Relation::SequenceElement,
@@ -366,34 +366,82 @@ impl SyntaxPort for SyntaxJsoncParserAdapter {
         let mut writer = Writing {
             tree: languages::lossless(builder, Offset(0)),
             text: JsoncText(content),
-            reporting: if outcome.is_ok() {
-                Reporting::Told
-            } else {
-                Reporting::Silent
-            },
+            reporting: reporting_of(&outcome),
         };
-        match &outcome {
-            Ok(parsed) => structured(&mut writer, parsed),
-            Err(_) => flat(&mut writer),
-        }
-        finish(&mut writer, length);
-        languages::leave_node(writer.tree.builder, length);
-        if content.len() < text.0.len() {
-            languages::diagnose(
-                writer.tree.builder,
-                languages::ReportText(NOT_UTF8),
-                offset(Count(content.len())),
-                length,
-            );
-        }
-        match &outcome {
-            Ok(parsed) => {
-                controls(parsed, writer.text, writer.tree.builder);
-                if dialect == Dialect::Strict {
-                    strictness(parsed, writer.tree.builder);
-                }
+        write(&mut writer, &outcome, content, text.0.len(), dialect);
+    }
+
+    fn walk(
+        &self,
+        text: SourceText<'_>,
+        dialect: Dialect,
+        builder: &mut languages::NodeTableBuilder<'_>,
+    ) {
+        let content = languages::readable_text(ByteSlice(text.0)).0;
+        node_table::enter_node(
+            builder,
+            kind_bits(piece_kind(Piece::File)),
+            languages::FieldCode(field_bits(Field::None).0),
+            Offset(0),
+        );
+        let outcome = parsed(content);
+        let mut writer = Numbered::new(builder, JsoncText(content), reporting_of(&outcome));
+        write(&mut writer, &outcome, content, text.0.len(), dialect);
+        node_table::set_syntax_acceptance(
+            writer.builder,
+            // the file is accepted when nothing was said of it
+            if writer.said == 0 {
+                languages::SyntaxAcceptance::Accepted
+            } else {
+                languages::SyntaxAcceptance::Rejected
+            },
+        );
+    }
+}
+
+/// What the library makes of `content`.
+fn parsed(content: &str) -> Result<ParseResult<'_>, ParseError> {
+    let collect = CollectOptions {
+        comments: CommentCollectionStrategy::AsTokens,
+        tokens: true,
+    };
+    parse_to_ast(content, &collect, &grammar())
+}
+
+/// Whether text no token spans is told: when the library read the file it said nothing of it, and when it did not, it said what it
+/// could.
+fn reporting_of(outcome: &Result<ParseResult<'_>, ParseError>) -> Reporting {
+    if outcome.is_ok() {
+        Reporting::Told
+    } else {
+        Reporting::Silent
+    }
+}
+
+/// Writes what the library read of a file into `writer`, which holds the file node open, then what was said of the file.
+fn write<S: Sink>(
+    writer: &mut S,
+    outcome: &Result<ParseResult<'_>, ParseError>,
+    content: &str,
+    whole: usize,
+    dialect: Dialect,
+) {
+    let length = offset(Count(whole));
+    match outcome {
+        Ok(parsed) => structured(writer, parsed),
+        Err(_) => flat(writer, JsoncText(content)),
+    }
+    writer.close(length);
+    if content.len() < whole {
+        writer.diagnose(NOT_UTF8, offset(Count(content.len())), length);
+    }
+    match outcome {
+        Ok(parsed) => {
+            controls(parsed, JsoncText(content), writer);
+            if dialect == Dialect::Strict {
+                strictness(parsed, writer);
             }
-            Err(error) => refusal(error, writer.tree.builder),
         }
+        Err(error) => refusal(error, writer),
     }
 }

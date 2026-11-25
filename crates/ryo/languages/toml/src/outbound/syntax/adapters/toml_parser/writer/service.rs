@@ -7,7 +7,8 @@ use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
-use ryo::languages::{self, Count, NameText, Offset};
+use super::interface::Sink;
+use ryo::languages::{self, Count, Offset};
 use toml_parser::decoder::{Encoding, ScalarKind};
 use toml_parser::{ParseError, Raw, Source, Span};
 
@@ -37,11 +38,11 @@ pub(in super::super) fn unread(
 }
 
 /// The receiver of the parser's events: it writes them into the table as nodes and tokens.
-pub(in super::super) struct Writer<'b, 'w, 's> {
+pub(in super::super) struct Writer<'s, T: Sink> {
     /// The admitted relations read decoded keys or scalar values.
     pub(in super::super) values: bool,
     /// The tree, and where its last token ends.
-    pub(in super::super) tree: languages::Lossless<'b, 'w>,
+    pub(in super::super) tree: T,
     /// The text parsed, which an unquoted scalar's bytes are read from to decode it.
     pub(in super::super) source: Source<'s>,
     /// The constructs open, the document first.
@@ -62,7 +63,7 @@ pub(in super::super) struct Writer<'b, 'w, 's> {
     pub(in super::super) refusals: Vec<ParseError>,
 }
 
-impl Writer<'_, '_, '_> {
+impl<T: Sink> Writer<'_, T> {
     /// The kind of the innermost construct open: the document when none other is.
     pub(in super::super) fn top(&self) -> Kind {
         self.open.last().copied().unwrap_or(Kind::Node(Node::Toml))
@@ -70,7 +71,7 @@ impl Writer<'_, '_, '_> {
 
     /// Opens a construct at `at`, after any text before it the parser gave no event for: that text is not the construct's.
     pub(in super::super) fn enter(&mut self, kind: Kind, at: Offset) {
-        languages::lossless_enter(&mut self.tree, kind_bits(kind), at, &mut unread);
+        self.tree.enter(kind, at);
         self.open.push(kind);
     }
 
@@ -79,8 +80,7 @@ impl Writer<'_, '_, '_> {
         self.flush();
         if self.open.len() > 1 {
             let _: Option<Kind> = self.open.pop();
-            let end = self.tree.end;
-            languages::lossless_leave(&mut self.tree, end, &mut unread);
+            self.tree.leave();
         }
     }
 
@@ -113,7 +113,7 @@ impl Writer<'_, '_, '_> {
     /// Writes the empty token that waits, where the tree has got to.
     pub(in super::super) fn flush(&mut self) {
         if let Some(mut empty) = self.empty.take() {
-            empty.start = empty.start.max(self.tree.end);
+            empty.start = empty.start.max(self.tree.end());
             empty.end = empty.start;
             self.put(empty);
         }
@@ -121,13 +121,7 @@ impl Writer<'_, '_, '_> {
 
     /// Writes a token, and before it any text the parser gave no event for.
     pub(in super::super) fn put(&mut self, token: HeldSpace) {
-        languages::lossless_token(
-            &mut self.tree,
-            kind_bits(token.kind),
-            token.start,
-            token.end,
-            &mut unread,
-        );
+        self.tree.token(token.kind, token.start, token.end);
     }
 
     /// Writes the white space and comments held after a part of a key.
@@ -265,14 +259,7 @@ impl Writer<'_, '_, '_> {
         {
             self.flush();
         }
-        languages::lossless_decoded_token(
-            &mut self.tree,
-            kind_bits(kind),
-            start,
-            end,
-            NameText(&self.scratch.0),
-            &mut unread,
-        );
+        self.tree.decoded(kind, start, end, &self.scratch.0);
     }
 
     /// Writes an unquoted scalar: a boolean, an integer, a float or a date-time the decoder read cleanly with the value it decoded,
@@ -330,5 +317,40 @@ impl Writer<'_, '_, '_> {
             }
             Some(_) | None => self.token(kind, span),
         }
+    }
+}
+
+impl Sink for languages::Lossless<'_, '_> {
+    fn end(&self) -> Offset {
+        self.end
+    }
+
+    fn enter(&mut self, kind: Kind, at: Offset) {
+        languages::lossless_enter(self, kind_bits(kind), at, &mut unread);
+    }
+
+    fn finish(&mut self, length: Offset) {
+        languages::fill_to(self, length, &mut unread);
+        languages::leave_node(self.builder, length);
+    }
+
+    fn leave(&mut self) {
+        let end = self.end;
+        languages::lossless_leave(self, end, &mut unread);
+    }
+
+    fn token(&mut self, kind: Kind, start: Offset, end: Offset) {
+        languages::lossless_token(self, kind_bits(kind), start, end, &mut unread);
+    }
+
+    fn decoded(&mut self, kind: Kind, start: Offset, end: Offset, text: &str) {
+        languages::lossless_decoded_token(
+            self,
+            kind_bits(kind),
+            start,
+            end,
+            languages::NameText(text),
+            &mut unread,
+        );
     }
 }
