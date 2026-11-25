@@ -48,7 +48,7 @@ pub(super) fn run(
         Src::View(v, _)
             if v.filter.is_empty() && matches!(v.base, Native::Tree(_) | Native::Location) =>
         {
-            view_probe::Ids::Range(f.n as u32)
+            view_probe::Ids::Range(f.limit(v.base.extent()) as u32)
         }
         Src::View(v, step) => {
             retained = view_rows(f, run, v, *step);

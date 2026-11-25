@@ -31,7 +31,8 @@ fn smaller<'a>(f: &File<'a>, view: &ViewSpec, node: usize, limit: usize) -> Opti
         return None;
     }
     let n = match view.base {
-        Native::Tree(_) | Native::Location => f.n,
+        Native::Tree(e) => f.limit(e),
+        Native::Location => f.n,
         Native::Fact(i) => f.fact(usize::from(i))?.len(),
         _ => return None,
     };

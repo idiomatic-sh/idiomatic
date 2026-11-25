@@ -55,6 +55,16 @@ impl<'a> FileVersion<'a> {
         }
     }
 
+    /// The ids of a bucket the extent covers: below `own_end` for the file's own tree. One compare to pick the slice, none a row;
+    /// a file with no embedded segment has `own == n` and the slice is returned as it is.
+    pub(crate) fn cut<'s>(&self, ids: &'s [Position], extent: super::Extent) -> &'s [Position] {
+        if extent == super::Extent::Whole || self.own >= self.n {
+            return ids;
+        }
+        let own = self.own as u32;
+        &ids[..ids.partition_point(|p| p.0 < own)]
+    }
+
     pub(crate) fn into_text(self) -> Vec<u32> {
         self.text_memo.into_inner()
     }

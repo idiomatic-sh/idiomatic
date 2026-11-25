@@ -169,13 +169,13 @@ fn pairs_where(
         keep,
         emit,
     };
-    let n = f.n as u64;
+    let n = f.limit(native.0.extent()) as u64;
     let count = match native {
         (Native::Tree(_) | Native::Location, 0) => batch.drive(|key| (key < n).then_some(key as u32)),
         (Native::Child(_), 1) => {
             batch.drive(|key| (key < n && f.has_parent(key as u32)).then_some(key as u32))
         }
-        (Native::Child(_), 0) => batch.drive(|key| f.child_rows(key)),
+        (Native::Child(_), 0) => batch.drive(|key| f.child_rows(key).filter(move |c| u64::from(*c) < n)),
         (Native::Fact(i), c) => {
             if batch.driver.rows.len() == 0 {
                 return Some(0);
