@@ -307,9 +307,7 @@ impl Checks {
             let index = positions[*binding];
             let Some(roots) = &self.roots[index] else { continue };
             let cut = cuts[*binding].as_deref();
-            // A complete output goes straight to delivery, as in the file
-            // visitor's original exact handoff. Only the remaining emits
-            // need the executor's empty-result certificate.
+            // Complete locations can go straight to delivery.
             if cut.is_none() && self.exact_roots[index].1 && self.exact_locations(index).is_some() {
                 continue;
             }
