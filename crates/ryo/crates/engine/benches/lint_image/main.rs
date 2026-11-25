@@ -48,11 +48,14 @@ pub fn run(
     let [pack, input, output] = args else {
         return Err("expected [--retain-findings] PACK REQUEST OUTPUT".into());
     };
-    let mut request: Input = serde_json::from_reader(fs::File::open(input)?)?;
+    let clock = || cpu_time::ProcessTime::now().as_duration().as_secs_f64();
+    let mut request: Input = serde_json::from_slice(&fs::read(input)?)?;
+    let parsed = clock();
     let pack = std::path::Path::new(pack);
     let languages = sdk::Languages(vec![configured_provider(
         request.parser_configuration.as_deref(), pack,
     )?]);
+    let provider = clock();
     let hosted = request
         .rule_context
         .map(|ctx| ctx.tables(&request.selected_rules))
@@ -144,7 +147,7 @@ pub fn run(
         sdk::Workers(NonZeroUsize::MIN).into(),
         cache,
     );
-    eprintln!("HARNESS_STARTUP process_cpu={:.6}", cpu_time::ProcessTime::now().as_duration().as_secs_f64());
+    eprintln!("HARNESS_STARTUP process_cpu={:.6} request={parsed:.6} provider={provider:.6}", clock());
     let [answer]: [Result<sdk::LintReport, sdk::LintError>; 1] = engine
         .lint(vec![request])
         .try_into()

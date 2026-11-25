@@ -208,7 +208,7 @@ impl Observations {
             self.path_hits += 1;
             return Some(file.digest(mode));
         }
-        let name = key(p);
+        let name = key(p.as_os_str().as_encoded_bytes());
         self.stamps.open(&self.dir, &name);
         let saved = self.stamps.get(&name);
         let start = crate::thread_cpu();

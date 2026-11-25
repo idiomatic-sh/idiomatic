@@ -41,12 +41,15 @@ pub(crate) struct Query {
     pub observations: Rc<[crate::lower::Observation]>,
     pub accepted_only: bool,
     pub text: Rc<str>,
+    /// The text's content digest. Identity and hashing use it, so a large root is never hashed twice.
+    pub digest: [u8; 32],
     pub modules: Option<Modules>,
 }
 
 impl From<Rc<str>> for Query {
     fn from(text: Rc<str>) -> Self {
         Self {
+            digest: *blake3::hash(text.as_bytes()).as_bytes(),
             text,
             modules: None,
             observations: Rc::default(),
@@ -57,8 +60,7 @@ impl From<Rc<str>> for Query {
 
 impl Hash for Query {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.text.hash(state);
-        // Preserve the persisted program identity for standalone roots.
+        self.digest.hash(state);
         if !self.observations.is_empty() {
             self.observations.hash(state);
         }

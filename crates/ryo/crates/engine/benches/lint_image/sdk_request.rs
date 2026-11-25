@@ -81,8 +81,10 @@ pub(super) fn query(
     rule: &sdk::Rule,
     inputs: Option<&Rc<[Observation]>>,
 ) -> Query {
+    let (text, digest) = cache.query(rule.query.as_ref());
     Query {
-        text: cache.query(rule.query.as_ref()),
+        text,
+        digest,
         modules: cache.modules(&rule.query),
         accepted_only: rule.applicability == sdk::RuleApplicability::AcceptedSyntax,
         observations: inputs.cloned().unwrap_or_default(),
