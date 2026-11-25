@@ -768,10 +768,9 @@ impl Batch {
             Work::Project(result) => receipt.append(result)?,
             Work::Closed { .. } => return Err("project inputs still open"),
             Work::Refused(reason) | Work::Invalid(reason) => return Err(reason),
-            Work::Pairs(_) => {
-                for slot in work.pair_slots() {
-                    receipt.append(&answers[slot])?;
-                }
+            Work::Pairs(slots) => {
+                answers.visit_pending(slots.first.clone(), |slot| receipt.append(&answers[slot]))?;
+                for &slot in &slots.rest { receipt.append(&answers[slot])?; }
             }
         }
         receipt.unknowns.sort_unstable();

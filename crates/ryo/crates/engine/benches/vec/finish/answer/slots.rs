@@ -7,11 +7,18 @@ const EMPTY: u32 = u32::MAX - 1;
 static UNANSWERED_ANSWER: Answer = Err(String::new());
 static EMPTY_ANSWER: LazyLock<Answer> = LazyLock::new(|| Ok(Reported::default()));
 
-/// Each admission slot holds a four-byte state or an index into the payloads.
-/// Only answers with rows, partials, syntax skips or refusals own a payload.
+/// An empty bit is set only by an explicit, complete empty report. A page
+/// allocates its payload index on the first nonempty or refused answer.
+#[derive(Default)]
+struct Page {
+    empty: u64,
+    payload: Option<Box<[u32; 64]>>,
+}
+
 #[derive(Default)]
 pub(crate) struct ReportSlots {
-    slots: Vec<u32>,
+    pages: Vec<Page>,
+    len: usize,
     payloads: Vec<Answer>,
     unused: Vec<u32>,
 }
@@ -19,17 +26,41 @@ pub(crate) struct ReportSlots {
 impl ReportSlots {
     /// The schedule's slot numbers remain valid in every later admission wave.
     pub(crate) fn grow(&mut self, len: usize) {
-        if self.slots.len() < len {
-            self.slots.resize(len, UNANSWERED);
+        if self.len < len {
+            self.pages.resize_with(len.div_ceil(64), Page::default);
+            self.len = len;
         }
     }
 
     pub(crate) fn get(&self, slot: usize) -> Option<&Answer> {
-        self.slots.get(slot).map(|&state| match state {
+        if slot >= self.len { return None; }
+        let page = &self.pages[slot / 64];
+        let bit = slot % 64;
+        if page.empty & (1 << bit) != 0 { return Some(&*EMPTY_ANSWER); }
+        Some(match page.payload.as_ref().map_or(UNANSWERED, |ids| ids[bit]) {
             UNANSWERED => &UNANSWERED_ANSWER,
-            EMPTY => &*EMPTY_ANSWER,
-            payload => &self.payloads[payload as usize],
+            id => &self.payloads[id as usize],
         })
+    }
+
+    /// Visit every slot except those explicitly established empty. An unanswered
+    /// input still reaches the caller's refusal handling, including the last page.
+    pub(crate) fn visit_pending<E>(
+        &self, slots: std::ops::Range<usize>, mut visit: impl FnMut(usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        if slots.is_empty() { return Ok(()); }
+        assert!(slots.end <= self.len);
+        for page in slots.start / 64..= (slots.end - 1) / 64 {
+            let base = page * 64;
+            let lo = slots.start.saturating_sub(base);
+            let hi = (slots.end - base).min(64);
+            let mut pending = !self.pages[page].empty & (u64::MAX << lo) & (u64::MAX >> (64-hi));
+            while pending != 0 {
+                visit(base + pending.trailing_zeros() as usize)?;
+                pending &= pending - 1;
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn set(&mut self, slot: usize, answer: Answer) {
@@ -43,7 +74,11 @@ impl ReportSlots {
                 EMPTY
             }
             _ => {
-                let previous = self.slots[slot];
+                let page = &mut self.pages[slot / 64];
+                let offset = slot % 64;
+                page.empty &= !(1 << offset);
+                let ids = page.payload.get_or_insert_with(|| Box::new([UNANSWERED; 64]));
+                let previous = ids[offset];
                 if previous < EMPTY {
                     self.payloads[previous as usize] = answer;
                     return;
@@ -59,7 +94,7 @@ impl ReportSlots {
                     self.payloads.push(answer);
                     payload
                 };
-                self.slots[slot] = payload;
+                ids[offset] = payload;
                 return;
             }
         };
@@ -72,7 +107,11 @@ impl ReportSlots {
     }
 
     fn clear(&mut self, slot: usize, marker: u32) {
-        let previous = std::mem::replace(&mut self.slots[slot], marker);
+        let page = &mut self.pages[slot / 64];
+        let offset = slot % 64;
+        if marker == EMPTY { page.empty |= 1 << offset; } else { page.empty &= !(1 << offset); }
+        let Some(ids) = &mut page.payload else { return; };
+        let previous = std::mem::replace(&mut ids[offset], UNANSWERED);
         if previous < EMPTY {
             self.payloads[previous as usize] = Err(String::new());
             self.unused.push(previous);
@@ -95,5 +134,28 @@ impl Slots<Answer> for ReportSlots {
 
     fn set(&mut self, slot: usize, answer: Answer) {
         Self::set(self, slot, answer);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn delivery_skips_only_confirmed_empty_answers_within_the_range() {
+        let mut slots = ReportSlots::default();
+        slots.grow(160);
+        for i in 60..132 { slots.set(i, Ok(Reported::default())); }
+        slots.set(64, Err("partial".to_owned()));
+        slots.release(130);
+        let mut pending = Vec::new();
+        slots.visit_pending::<()>(59..133, |i| { pending.push(i); Ok(()) }).unwrap();
+        assert_eq!(pending, [59, 64, 130, 132]);
+        assert_eq!(slots[64].as_ref().err().unwrap(), "partial");
+        assert!(slots[130].is_err());
+        assert!(slots[129].is_ok());
+        slots.set(64, Ok(Reported::default()));
+        assert!(slots[64].is_ok());
+        assert!(slots.get(160).is_none());
     }
 }
