@@ -67,10 +67,21 @@ pub fn route_differences(
 #[must_use]
 pub fn fixture_route_differences(old: &dyn ParseEngine, walk: &dyn WalkEngine, fixtures: &Path) -> Vec<String> {
     let samples: Vec<SourceFile> = samples_in(fixtures);
-    samples
-        .iter()
-        .flat_map(|sample| route_differences(old, walk, sample.path, sample.bytes))
-        .collect()
+    let mut found = metadata_differences(old, walk);
+    for sample in &samples {
+        let request = ParseRequest {
+            path: sample.path,
+            file: FileId(0),
+            bytes: sample.bytes,
+            notes: NoteRequest::Unwanted,
+            fields: FieldRequest::Wanted,
+        };
+        if old.recognition(&request) != walk.recognizes(sample.path, false) {
+            found.push(format!("{}: recognition differs", sample.path.0));
+        }
+        found.extend(route_differences(old, walk, sample.path, sample.bytes));
+    }
+    found
 }
 
 /// A node as both routes can name it: where it is and what it is. The two routes number a file's nodes in their own ways, so a node
@@ -242,4 +253,32 @@ fn first_difference(old: &[&[Want]], new: &[&[Want]]) -> Option<String> {
         only_new.len(),
         &only_new[..only_new.len().min(3)]
     ))
+}
+
+/// What the language states about itself, by the old route and by the walk: availability and expansions of every relation, the
+/// skipped directories, the configuration, the capabilities and the unknown reasons.
+#[must_use]
+pub fn metadata_differences(old: &dyn ParseEngine, walk: &dyn WalkEngine) -> Vec<String> {
+    let mut found = Vec::new();
+    for &relation in all() {
+        if old.absence_of(relation) != walk.absence_of(relation) {
+            found.push(format!("{relation:?}: availability differs: old {:?}, walk {:?}", old.absence_of(relation), walk.absence_of(relation)));
+        }
+        if old.absence_of(relation).is_none() && old.includes_expansions(relation) != walk.includes_expansions(relation) {
+            found.push(format!("{relation:?}: expansions differ: old {}, walk {}", old.includes_expansions(relation), walk.includes_expansions(relation)));
+        }
+    }
+    if old.skips() != walk.skips() {
+        found.push("skipped directories differ".to_owned());
+    }
+    if old.configuration_identity() != walk.configuration_identity() {
+        found.push("configuration identity differs".to_owned());
+    }
+    if old.capabilities() != walk.capabilities() {
+        found.push(format!("capabilities differ: old {:?}, walk {:?}", old.capabilities(), walk.capabilities()));
+    }
+    if old.unknown_reasons() != walk.unknown_reasons() {
+        found.push("unknown reasons differ".to_owned());
+    }
+    found
 }

@@ -13,7 +13,8 @@ use crate::domain::facts::service::{fixed, syntax_error_rows};
 use crate::domain::diagnostics::types::SyntaxCompleteness;
 use crate::domain::facts::types::{CellWord, FileCompleteness, FileWords, Wanted};
 use crate::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::relations::types::{Bytes, KindBits};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::types::{Bytes, KindBits, Relation};
 use crate::domain::fixed_names::types::{FixedNames, FixedWord};
 use crate::domain::fillers::service::{filled, filled_keyed};
 use crate::domain::fillers::types::{
@@ -319,6 +320,10 @@ impl Fillers for Walking {
 
     fn spells(kind: KindBits) -> bool {
         kind.0 == 2
+    }
+
+    fn absent(_relation: Relation) -> Option<AbsenceCause> {
+        None
     }
 
     /// The fixture's names, each at its code: the kind no element has, the sentence, the word, the quote; no field and the

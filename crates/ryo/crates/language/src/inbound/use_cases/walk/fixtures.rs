@@ -6,6 +6,10 @@
 //! links, and what a growth run held.
 
 use super::errors::WalkError;
+use crate::domain::files::types::SourcePath;
+use crate::inbound::use_cases::parse::types::{ParseConfigurationIdentity, Recognition, SkippedDirectory};
+use ryo_relations::domain::catalog::types::OptionalCapability;
+use ryo_relations::domain::terms::types::UnknownName;
 use super::interface::WalkUseCase;
 use super::types::{FileVisit, RelationNeeds, WalkRequest};
 use crate::domain::facts::service::{base_words, file_words, fixed, text};
@@ -60,6 +64,26 @@ struct Quoted {
 impl WalkUseCase for Walking {
     type Scratch = ();
     const KIND_COUNT: Count = Count(4);
+
+    fn recognizes(&self, path: SourcePath<'_>, _explicit: bool) -> Recognition {
+        if path.0.ends_with(".walk") { Recognition::Reads } else { Recognition::Declines }
+    }
+
+    fn skips(&self) -> &'static [SkippedDirectory] {
+        &[]
+    }
+
+    fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> {
+        ParseConfigurationIdentity("walking")
+    }
+
+    fn capabilities(&self) -> &'static [OptionalCapability] {
+        &[]
+    }
+
+    fn unknown_reasons(&self) -> &'static [UnknownName] {
+        &[]
+    }
 
     fn walk(
         &self,

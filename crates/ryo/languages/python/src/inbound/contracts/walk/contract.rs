@@ -66,6 +66,53 @@ impl Walk for PythonWalk<WalkPorts> {
 
     const KIND_COUNT: Count = Count(Node::COUNT + Token::COUNT + Extra::COUNT);
 
+    fn recognizes(&self, path: languages::SourcePath<'_>, explicit: bool) -> languages::Recognition {
+        if explicit { languages::Recognition::Reads } else { reads(path) }
+    }
+
+    fn skips(&self) -> &'static [languages::SkippedDirectory] {
+        crate::domain::language::constants::SKIPS
+    }
+
+    fn configuration_identity(&self) -> languages::ParseConfigurationIdentity<'_> {
+        self.ports.settings.identity()
+    }
+
+    fn capabilities(&self) -> &'static [languages::OptionalCapability] {
+        crate::inbound::contracts::parse::constants::CAPABILITIES
+    }
+
+    fn unknown_reasons(&self) -> &'static [languages::UnknownName] {
+        crate::domain::language::constants::UNKNOWN_REASONS
+    }
+
+    fn source_words(&self) -> Option<languages::SourceWords> {
+        // Semantic identifiers are normalized and embedded expressions can be decoded.
+        // A missing physical token is insufficient to disprove these fact columns.
+        Some(languages::SourceWords { identifier: super::named::is_identifier, columns: &[] })
+    }
+
+    fn includes_expansions(&self, relation: languages::Relation) -> bool {
+        use languages::Relation as R;
+        matches!(
+            relation,
+            R::BraceFormatField
+                | R::BraceFormatParse | R::BytesLiteral | R::CallArgument | R::ConstantKey | R::EmbeddedExpression
+                | R::ExpressionShape | R::ExpressionType | R::FormatField | R::FormatParse | R::FormatSpecification
+                | R::FunctionTerminal | R::LiteralExpressionParse | R::LiteralProperties | R::NumericLiteral
+                | R::QualifiedName | R::RawFormatField | R::RawFormatSegment | R::SemanticChild | R::SemanticSyntax
+                | R::SourceLocation | R::StringLiteral
+        )
+    }
+
+    fn named_declarations(&self) -> &'static [languages::FileRelation] {
+        super::named::NamedFile::named_schemas()
+    }
+
+    fn uses_project(&self) -> bool {
+        true
+    }
+
     fn walk(
         &self,
         request: WalkRequest<'_>,
