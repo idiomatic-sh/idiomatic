@@ -1,15 +1,15 @@
 //! Real public receipt admission, shared with its strict filesystem unit controls.
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::validate_case_receipts::{
+use benchmark::inbound::use_cases::validate_case_receipts::{
     fixtures::{Scenario, exercise},
     use_case::ValidateCaseReceiptsUseCaseImpl,
 };
+use cucumber::then;
 fn subject(scenario: Scenario) -> Result<usize, &'static str> {
     let use_case = ValidateCaseReceiptsUseCaseImpl::new(
-        std::sync::Arc::new(ryo_benchmark::outbound::receipts::factory::local(
-            ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
+        std::sync::Arc::new(benchmark::outbound::receipts::factory::local(
+            benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
         )),
-        std::sync::Arc::new(ryo_benchmark::outbound::inventory::factory::local()),
+        std::sync::Arc::new(benchmark::outbound::inventory::factory::local()),
     );
     exercise(&use_case, scenario)
 }

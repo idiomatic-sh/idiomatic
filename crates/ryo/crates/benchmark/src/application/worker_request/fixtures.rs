@@ -8,12 +8,12 @@ use crate::outbound::engine::{
         loaded_engine_session::value::LoadedEngineSession,
     },
 };
-use ryo::linter::{Languages, RelativePath, RuleId};
-use ryo_benchmark_contracts::domain::{
+use benchmark_contracts::domain::{
     context::types::{CaseContext, project_context_mode::value::ProjectContextMode},
     reports::errors::ReportsError,
     requests::types::{WorkerRequest, WorkerState},
 };
+use ryo::linter::{Languages, RelativePath, RuleId};
 use std::{collections::BTreeMap, path::Path};
 
 const CHILD_SCENARIO: &str = "engine-trace-child=";
@@ -242,7 +242,7 @@ fn request(scenario: Scenario, scratch: &Path, rules: std::path::PathBuf) -> Wor
     };
     WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
             vec![
                 RuleId::try_from(if matches!(scenario, Scenario::ConfigureRefusal) {
                     "R404"
@@ -253,25 +253,24 @@ fn request(scenario: Scenario, scratch: &Path, rules: std::path::PathBuf) -> Wor
             ],
         ),
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: mode,
         context_manifest: manifest.map_or(
-            ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
-            ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed,
+            benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::requests::types::ContextSeal::Sealed,
         ),
         root,
         rules,
         query_modules: BTreeMap::new(),
         rule_applicability: BTreeMap::new(),
         parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![RelativePath(file.into())],
         state: WorkerState::Fresh,
     }

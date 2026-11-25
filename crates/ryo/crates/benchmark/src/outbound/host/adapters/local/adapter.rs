@@ -1,9 +1,7 @@
 //! Reads the kernel release and container markers of this machine, and decides nothing.
 use super::constants;
 use crate::outbound::host::interface::HostPort;
-use ryo_benchmark_contracts::domain::hosts::types::{
-    HostFacts, HostFamily, HostIsolation, HostKernel,
-};
+use benchmark_contracts::domain::hosts::types::{HostFacts, HostFamily, HostIsolation, HostKernel};
 
 /// The local host probe.
 #[derive(Clone, Copy, Debug, Default)]

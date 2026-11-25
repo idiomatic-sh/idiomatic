@@ -81,7 +81,7 @@ fn refuses() {
 /// The paired verification of the prepared case, which executes both contestants.
 fn shard(
     shape: Shape,
-) -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+) -> Result<Value, benchmark_contracts::domain::reports::errors::ReportsError> {
     let (mut suite, expected) = prepared(shape);
     let mut reference = LinterFake {
         diagnostics: if matches!(shape, Shape::MissingReference) {

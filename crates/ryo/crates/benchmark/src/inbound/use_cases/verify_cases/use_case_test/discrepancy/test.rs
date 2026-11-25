@@ -11,7 +11,7 @@ use crate::outbound::{
     receipts::fixtures::fake::ReceiptsFake,
     suite::fixtures::fake::SuiteFake,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 /// Which candidate answers the documented reference difference.

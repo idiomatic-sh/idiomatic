@@ -1,12 +1,12 @@
 //! Independent diagnostic and execution evidence; unknown metadata is never a clean execution.
-use ryo_benchmark_contracts::domain::reports::service::require_complete_execution;
-use ryo_benchmark_contracts::domain::reports::types::Comparison;
-use ryo_benchmark_contracts::domain::reports::types::ComparisonContract;
-use ryo_benchmark_contracts::domain::reports::types::Difference;
-use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
-use ryo_benchmark_contracts::domain::reports::types::ReportComparison;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, SourceByteOffset};
+use benchmark_contracts::domain::reports::service::require_complete_execution;
+use benchmark_contracts::domain::reports::types::Comparison;
+use benchmark_contracts::domain::reports::types::ComparisonContract;
+use benchmark_contracts::domain::reports::types::Difference;
+use benchmark_contracts::domain::reports::types::ExecutionMetadata;
+use benchmark_contracts::domain::reports::types::ReportComparison;
+use benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::reports::types::{BenchmarkFinding, SourceByteOffset};
 
 /// Compare only authored diagnostic expectations and exact submitted files, not execution claims.
 ///
@@ -135,8 +135,8 @@ pub fn compare_conditions(first: &RunReport, second: &RunReport) -> Result<(), D
 pub fn validate_coverage(
     requested: &[ryo::linter::RelativePath],
     report: &RunReport,
-) -> Result<(), ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
-    use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+) -> Result<(), benchmark_contracts::domain::reports::errors::ReportsError> {
+    use benchmark_contracts::domain::reports::errors::ReportsError as Error;
     let mut expected = requested.to_vec();
     expected.sort();
     if expected
@@ -168,8 +168,8 @@ pub(crate) fn compare_rules(
     selected: &[ryo::linter::RuleId],
     reference: &RunReport,
     candidate: &RunReport,
-) -> Vec<ryo_benchmark_contracts::domain::reports::types::RuleComparison<BenchmarkFinding>> {
-    use ryo_benchmark_contracts::domain::reports::types::{EndPair, FindingCount, RuleComparison};
+) -> Vec<benchmark_contracts::domain::reports::types::RuleComparison<BenchmarkFinding>> {
+    use benchmark_contracts::domain::reports::types::{EndPair, FindingCount, RuleComparison};
     let theirs = sites(reference);
     let ours = sites(candidate);
     let empty = Sites::new();
@@ -250,14 +250,12 @@ pub(crate) fn position(
     source: &ryo::linter::SourceText,
     offset: SourceByteOffset,
 ) -> Result<
-    ryo_benchmark_contracts::domain::reports::types::FindingPosition,
-    ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    benchmark_contracts::domain::reports::types::FindingPosition,
+    benchmark_contracts::domain::reports::errors::ReportsError,
 > {
-    use ryo_benchmark_contracts::domain::reports::types::{
-        FindingPosition, SourceColumn, SourceLine,
-    };
+    use benchmark_contracts::domain::reports::types::{FindingPosition, SourceColumn, SourceLine};
     let outside = || {
-        ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(
+        benchmark_contracts::domain::reports::errors::ReportsError::Invalid(
             super::constants::OFFSET_OUTSIDE_SOURCE.into(),
         )
     };

@@ -2,12 +2,12 @@
 //! and the handles (traits this file declares) it hands back. It never takes an adapter's
 //! configuration (a directory, a budget, a client): the port's factory takes that.
 use super::types::CorpusFiles;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::CaseContext;
-use ryo_benchmark_contracts::domain::context::types::ContextManifest;
-use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
-use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::CaseContext;
+use benchmark_contracts::domain::context::types::ContextManifest;
+use benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::BTreeMap;
 use std::path::Path;
 

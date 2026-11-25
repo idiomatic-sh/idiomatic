@@ -1,13 +1,13 @@
 //! The public worker identity check over the transport double.
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::check_worker_request::{
+use benchmark::inbound::use_cases::check_worker_request::{
     interface::CheckWorkerRequestUseCase as _, types::WorkerExpectation,
     use_case::CheckWorkerRequestUseCaseImpl,
 };
-use ryo_benchmark::outbound::worker::fixtures::{data::request, fake::WorkerFake};
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark::outbound::worker::fixtures::{data::request, fake::WorkerFake};
+use benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, ParserConfigurationName, ParserSelection, RuleLabel,
 };
+use cucumber::then;
 use std::{collections::BTreeMap, sync::Arc};
 
 fn check(received: &str) -> bool {

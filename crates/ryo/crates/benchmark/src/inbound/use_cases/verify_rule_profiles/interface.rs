@@ -1,8 +1,8 @@
 //! Verification of a bench under the settings profile of each rule.
 use crate::outbound::suite::types::ArtifactText;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::types::ShardPartition;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::types::ShardPartition;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::path::Path;
 /// Run a verification over a bench under each rule's own settings profile.
 pub trait VerifyRuleProfilesUseCase {

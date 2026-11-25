@@ -1,15 +1,15 @@
 //! Real local-adapter project context checks. The retained-cache lifecycle of project evidence is proved by core over owned fixtures.
 use super::boundary_failure_test::{BoundaryFailure, failure};
 use super::prepared_engine_test::PreparedEngine as _;
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
-use ryo_benchmark::outbound::engine::factory;
-use ryo_benchmark_contracts::domain::context::types::ContextManifest;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
-use ryo_benchmark_contracts::domain::requests::types::WorkerState;
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use benchmark::cases::{Case, CaseName, Expect, Word, run};
+use benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
+use benchmark::outbound::engine::factory;
+use benchmark_contracts::domain::context::types::ContextManifest;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
+use benchmark_contracts::domain::requests::types::WorkerState;
+use benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -51,9 +51,9 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
         )?;
     }
     let cases =
-        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
-            &ryo_benchmark::outbound::suite::factory::local(),
-            &ryo_benchmark::outbound::context::factory::local(),
+        benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+            &benchmark::outbound::suite::factory::local(),
+            &benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(&profile.join("rules"), &root.join("cases"))?;
     Ok((profile, cases))
@@ -61,13 +61,13 @@ fn staged(root: &Path) -> Result<(PathBuf, Vec<PreparedCase>), Error> {
 fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
     WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
             vec![case.rule.clone()],
         ),
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
         project_search_roots: case.request.project_search_roots.clone(),
         given_project_inventory: case.request.given_project_inventory.clone(),
         project_context_mode: ProjectContextMode::ListedDisk,
@@ -83,32 +83,29 @@ fn request(profile: &Path, case: &PreparedCase, cache: &Path) -> WorkerRequest {
             super::prepared_engine_test::module_names(modules)
         },
         rule_applicability: BTreeMap::new(),
-        parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(
-                ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
-                    "python-target=3.10".into(),
-                ),
+        parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Named(
+            benchmark_contracts::domain::requests::types::ParserConfigurationName(
+                "python-target=3.10".into(),
             ),
+        ),
         source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: case.request.files.clone(),
         state: WorkerState::Retained(cache.to_owned()),
     }
 }
-fn sealed(
-    seal: &ryo_benchmark_contracts::domain::requests::types::ContextSeal,
-) -> &ContextManifest {
+fn sealed(seal: &benchmark_contracts::domain::requests::types::ContextSeal) -> &ContextManifest {
     match seal {
-        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) => manifest,
-        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed => panic!("seal"),
+        benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) => manifest,
+        benchmark_contracts::domain::requests::types::ContextSeal::Unsealed => panic!("seal"),
     }
 }
 fn sealed_mut(
-    seal: &mut ryo_benchmark_contracts::domain::requests::types::ContextSeal,
+    seal: &mut benchmark_contracts::domain::requests::types::ContextSeal,
 ) -> &mut ContextManifest {
     match seal {
-        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) => manifest,
-        ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed => panic!("seal"),
+        benchmark_contracts::domain::requests::types::ContextSeal::Sealed(manifest) => manifest,
+        benchmark_contracts::domain::requests::types::ContextSeal::Unsealed => panic!("seal"),
     }
 }
 fn exact_root_and_package_controls_reach_the_real_local_adapter() -> Result<(), Error> {
@@ -122,12 +119,12 @@ fn exact_root_and_package_controls_reach_the_real_local_adapter() -> Result<(), 
             case,
             &scratch.path().join(format!("cache-{}", case.name.0)),
         ))?;
-        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&result)
+        benchmark_contracts::domain::reports::service::require_complete_execution(&result)
             .map_err(|message| Error::Invalid(format!("{}:{message}", case.name.0)))?;
         // Authored expectations declare diagnostics, not observed execution metadata.
-        ryo_benchmark::domain::diagnostics::service::compare_diagnostics(&case.expected, &result)
+        benchmark::domain::diagnostics::service::compare_diagnostics(&case.expected, &result)
             .map_err(|difference| Error::Invalid(format!("{}:{difference:?}", case.name.0)))?;
-        let ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt) =
+        let benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt) =
             result.project_context
         else {
             panic!("ListedDisk has an active receipt");
@@ -153,9 +150,9 @@ fn changed_undeclared_escaping_and_unreadable_context_never_certify() -> Result<
     let discovered = engine.run_prepared(undeclared)?;
     assert_eq!(
         match discovered.project_context {
-            ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt) =>
+            benchmark_contracts::domain::reports::types::ProjectContext::Observed(receipt) =>
                 receipt,
-            ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested =>
+            benchmark_contracts::domain::reports::types::ProjectContext::NotRequested =>
                 panic!("observed context"),
         }
         .dependencies

@@ -5,11 +5,11 @@ use crate::domain::discrepancy::fixtures::{case, evidence, profile};
 use crate::domain::discrepancy::service::{output_digest, reference_digest};
 use crate::outbound::linter::{fixtures::fake::LinterFake, interface::LinterPort as _};
 use crate::outbound::suite::fixtures::fake::SuiteFake;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::process::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::process::types::{
     OutputPart, ProcessArtifact, ProcessFailure, ProcessObservation,
 };
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use benchmark_contracts::domain::workloads::types::PreparedCase;
 use sha2::Digest as _;
 use std::path::PathBuf;
 
@@ -163,12 +163,12 @@ pub(super) fn archived(record: Record) -> Validation {
         step: Step::Archives(Archive {
             root,
             process: ProcessFailure {
-                exit: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(2),
+                exit: benchmark_contracts::domain::measurements::types::ProcessExitCode(2),
                 stdout: vec![OutputPart::Literal(
-                    ryo_benchmark_contracts::domain::process::types::OutputText("payload".into()),
+                    benchmark_contracts::domain::process::types::OutputText("payload".into()),
                 )],
                 stderr: vec![OutputPart::Literal(
-                    ryo_benchmark_contracts::domain::process::types::OutputText("issue".into()),
+                    benchmark_contracts::domain::process::types::OutputText("issue".into()),
                 )],
                 observations,
             },
@@ -179,13 +179,13 @@ pub(super) fn archived(record: Record) -> Validation {
 
 /// The pinned reference discrepancy every case of these fixtures declares.
 pub(super) fn discrepancy(
-    case: &mut ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
-) -> &mut ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceDiscrepancy {
+    case: &mut benchmark_contracts::domain::workloads::types::PreparedCase,
+) -> &mut benchmark_contracts::domain::workloads::types::PreparedReferenceDiscrepancy {
     match &mut case.reference_discrepancy {
-        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
-            item,
-        ) => item,
-        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => {
+        benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(item) => {
+            item
+        }
+        benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => {
             panic!("fixture discrepancy")
         }
     }

@@ -1,6 +1,6 @@
 //! An injected destination stream owned by the evidence adapter.
 use super::types::{EncodedDocument, MeasureDocument};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{io::Write, sync::Mutex};
 
 /// Where the one document is written when the run finishes; a file is opened only then.

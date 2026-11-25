@@ -2,9 +2,9 @@
 use super::super::canonical::schemas::{Canonical, document};
 use super::super::constants;
 use crate::outbound::inventory::types::RuleInstanceRecord;
-use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
+use benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::ParserSelection;
 use std::collections::BTreeMap;
 
 /// A refusal of the staged profile.
@@ -235,7 +235,7 @@ pub(in super::super) fn instance(record: &RuleInstanceRecord) -> Result<Canonica
     let profile = document(
         &record
             .stage
-            .join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
+            .join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
     )?;
     let mut fields = BTreeMap::from([
         (constants::QUERY_FILE, text(&record.query_file.0)),

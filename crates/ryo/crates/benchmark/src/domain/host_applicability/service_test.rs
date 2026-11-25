@@ -1,7 +1,7 @@
 //! Applicability follows the host facts: WSL outside a container and non-Unix hosts are unreliable.
 use super::service::permissions;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::hosts::types::{
+use benchmark_contracts::domain::hosts::types::{
     FilePermissions, HostFacts, HostFamily, HostIsolation, HostKernel,
 };
 

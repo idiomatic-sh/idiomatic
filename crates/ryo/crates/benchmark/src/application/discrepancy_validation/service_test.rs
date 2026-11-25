@@ -9,9 +9,9 @@ use crate::domain::discrepancy::errors::DiscrepancyError;
 use crate::domain::discrepancy::fixtures::profile;
 use crate::domain::registered_inputs::types::RefusalText;
 use crate::outbound::linter::fixtures::fake::LinterFake;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
-use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::process::types::ReferenceExpectation;
+use benchmark_contracts::domain::workloads::types::CaseComparison;
 use std::path::Path;
 
 /// What an accepted case answers.
@@ -28,7 +28,7 @@ type Failure = DiscrepancyValidationError;
 fn unregistered() -> Validation {
     edited(evidenced, |case| {
         case.reference_discrepancy =
-            ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees
+            benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees
     })
 }
 
@@ -107,13 +107,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 let item = super::fixtures::discrepancy(case);
                 item.evidence.clear();
                 item.evidence.push(
-                ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidence::Language {
+                benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidence::Language {
                     path: "semantic-authority.txt".into(),
                     sha256: ArtifactDigest("f".repeat(64)),
-                    kind: ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidenceKind::LanguageSpec,
-                    language_version: ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::LanguageVersion("toy-v1".into()),
-                    target_configuration: ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::ParserTarget("python3.8".into()),
-                    version_rationale: ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::Rationale("toy fixture contract".into()),
+                    kind: benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::DiscrepancyEvidenceKind::LanguageSpec,
+                    language_version: benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::LanguageVersion("toy-v1".into()),
+                    target_configuration: benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::ParserTarget("python3.8".into()),
+                    version_rationale: benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::Rationale("toy fixture contract".into()),
                 },
             );
             })

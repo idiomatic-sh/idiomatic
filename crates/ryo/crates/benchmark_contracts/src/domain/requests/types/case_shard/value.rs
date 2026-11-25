@@ -16,7 +16,7 @@ pub struct ShardCount(
 
 /// Validated zero-based shard coordinates.
 /// ```compile_fail,E0451
-/// use ryo_benchmark_contracts::domain::requests::types::case_shard::value::{CaseShard, ShardCount, ShardIndex};
+/// use benchmark_contracts::domain::requests::types::case_shard::value::{CaseShard, ShardCount, ShardIndex};
 /// let _ = CaseShard { index: ShardIndex(0), count: ShardCount(1) };
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -51,10 +51,10 @@ impl CaseShard {
     ///
     /// # Examples
     /// ```
-    /// use ryo_benchmark_contracts::domain::requests::types::case_shard::value::{CaseShard, ShardCount, ShardIndex};
+    /// use benchmark_contracts::domain::requests::types::case_shard::value::{CaseShard, ShardCount, ShardIndex};
     /// let shard = CaseShard::new(ShardIndex(1), ShardCount(3))?;
     /// assert_eq!(shard.select(["a", "b", "c", "d", "e"]).collect::<Vec<_>>(), ["b", "e"]);
-    /// # Ok::<(), ryo_benchmark_contracts::domain::reports::errors::ReportsError>(())
+    /// # Ok::<(), benchmark_contracts::domain::reports::errors::ReportsError>(())
     /// ```
     pub fn select<T>(self, items: impl IntoIterator<Item = T>) -> impl Iterator<Item = T> {
         items

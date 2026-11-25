@@ -2,12 +2,12 @@
 use super::constants;
 use crate::outbound::receipts::errors::ReceiptsError;
 use crate::outbound::receipts::types::CapturedProcess;
-use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ObservationDocument, ProcessArtifacts,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ArtifactPointer;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, Sha256Text};
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::ArtifactPointer;
+use benchmark_contracts::domain::documents::types::text::value::{PathText, Sha256Text};
 use sha2::{Digest as _, Sha256};
 use std::{io::Write as _, path::Path};
 
@@ -100,15 +100,15 @@ pub(super) fn record(
             artifacts.remove(constants::STDERR),
             artifacts.remove(constants::INVOCATION),
             match &mut record.process_observation {
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) => Some(process),
-                ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::NotObserved => None,
+                benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) => Some(process),
+                benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::NotObserved => None,
             },
         ) else {
             return Err(ReceiptsError::Invalid(
                 constants::PROCESS_OBSERVATION_NEEDS_RAW_ARTIFACTS.into(),
             ));
         };
-        observation.artifacts = ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Attached(ProcessArtifacts {
+        observation.artifacts = benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Attached(ProcessArtifacts {
             stdout,
             stderr,
             invocation,

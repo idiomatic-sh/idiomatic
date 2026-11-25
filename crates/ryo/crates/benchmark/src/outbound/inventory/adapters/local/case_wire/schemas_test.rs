@@ -3,7 +3,7 @@ use super::case_value;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::inventory::adapters::local::types::RegistrationBytes;
 use crate::outbound::inventory::types::Registration;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
 
 /// The checked-in registration a row reads.
 type Input = &'static str;

@@ -2,11 +2,11 @@
 use super::service::select;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::discrepancy::fixtures::case;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     CaseSelection, ShardPartition,
     case_shard::value::{CaseShard, ShardCount, ShardIndex},
 };
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use benchmark_contracts::domain::workloads::types::PreparedCase;
 
 /// Which shard a row selects.
 #[derive(Clone, Copy)]

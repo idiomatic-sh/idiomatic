@@ -6,11 +6,11 @@ use super::constants::{
 };
 use super::types::{CaseArgument, CaseRun, VerifyTimes};
 use crate::outbound::receipts::types::CaseReceipts;
-use ryo_benchmark_contracts::domain::receipts::constants::{
+use benchmark_contracts::domain::receipts::constants::{
     CASE_RECEIPTS_ARGUMENT, VERIFY_TIMES_ARGUMENT,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     ShardPartition,
     case_shard::value::{CaseShard, ShardCount, ShardIndex},
 };

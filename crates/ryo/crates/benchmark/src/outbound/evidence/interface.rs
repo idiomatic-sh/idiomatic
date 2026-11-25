@@ -1,6 +1,6 @@
 //! Asymptote owns the ratchet; this port gathers one document of observed measures and writes it once.
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{
     ComparisonContract, ReportComparison, RunReport,
 };
 
@@ -24,8 +24,8 @@ pub trait EvidencePort {
     /// An empty set, or a project already added.
     fn costs(
         &self,
-        language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &ryo_benchmark_contracts::domain::costs::types::ProjectCosts,
+        language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        costs: &benchmark_contracts::domain::costs::types::ProjectCosts,
     ) -> Result<(), Error>;
     /// Add each rule's verification times, `<language>/verify/<rule>`, with the measures `total-ms`, `max-case-ms` and
     /// `compile-ms`; nothing is written before `finish`.
@@ -34,7 +34,7 @@ pub trait EvidencePort {
     /// A rule already added.
     fn verification(
         &self,
-        language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
         timings: &crate::outbound::evidence::types::RuleTimings,
     ) -> Result<(), Error>;
     /// Add each shape's growth, `<language>/growth/<shape>`, with the measures `doubling-ratio` and `larger-ms`; nothing is
@@ -44,8 +44,8 @@ pub trait EvidencePort {
     /// A shape already added.
     fn growth(
         &self,
-        language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        growth: &ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
+        language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        growth: &benchmark_contracts::domain::measurements::types::ShapeGrowths,
     ) -> Result<(), Error>;
     /// Read the times the inventory's verification left in `files`, one per verified rule.
     ///

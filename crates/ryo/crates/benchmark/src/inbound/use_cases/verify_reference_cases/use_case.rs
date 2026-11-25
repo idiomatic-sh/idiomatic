@@ -1,6 +1,6 @@
 //! Readable suite orchestration, borrowing the actual injected port owners.
 use super::interface::VerifyReferenceCasesUseCase;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// verify_reference_cases with required borrowed boundaries.
 pub struct VerifyReferenceCasesUseCaseImpl<'a> {
@@ -39,7 +39,7 @@ impl<'a> VerifyReferenceCasesUseCaseImpl<'a> {
     }
 }
 impl VerifyReferenceCasesUseCase for VerifyReferenceCasesUseCaseImpl<'_> {
-    fn verify_reference_cases(&self, rules: &Path, scratch: &Path) -> Result<ryo_benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, ReportsError>{
+    fn verify_reference_cases(&self, rules: &Path, scratch: &Path) -> Result<benchmark_contracts::domain::workloads::types::reference_case_count::value::ReferenceCaseCount, ReportsError>{
         let cases = crate::application::case_preparation::service::cases(
             self.suite,
             self.context,

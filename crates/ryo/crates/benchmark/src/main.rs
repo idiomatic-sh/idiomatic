@@ -13,14 +13,14 @@
 //! Verification preserves raw bytes and invocation metadata beside the explicit receipt file in fresh receipt-scoped attempt directories. Unreferenced attempts and resume history remain immutable. Offline validation uses the same shared comparison:
 //!
 //! ```text
-//! ryo-benchmark-collector validate-case-receipts registration.json shard.cases.jsonl
+//! benchmark-collector validate-case-receipts registration.json shard.cases.jsonl
 //! ```
 //!
 //! The command returns verified identities and explicit errors; process differences count within documented discrepancies and never as raw full-report equality. Authoring adapters delegate to this command using a pinned validator executable. They do not match process failures themselves.
 //!
 //! For authoring tools that delegate process-receipt checks, set both `RYO_BENCHMARK_RECEIPT_VALIDATOR` to the absolute path of this collector and `RYO_BENCHMARK_RECEIPT_VALIDATOR_SHA256` to the independently recorded SHA256 of its bytes. Missing or incorrect configuration fails receipt validation and is retained in the shard error; it never falls back to local matching. A shard with no receipt is unfinished and is rerun on resume.
-use ryo_benchmark::domain::operations::types::BenchDirectory;
-use ryo_benchmark::{
+use benchmark::domain::operations::types::{BenchDirectory, BenchOperation};
+use benchmark::{
     inbound::use_cases::{
         collect::{
             constants as collect_constants, interface::CollectUseCase as _,
@@ -57,8 +57,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         let store = inventory::factory::local();
         let validate = ValidateCaseReceiptsUseCaseImpl::new(
-            Arc::new(ryo_benchmark::outbound::receipts::factory::local(
-                ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
+            Arc::new(benchmark::outbound::receipts::factory::local(
+                benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
             )),
             Arc::new(inventory::factory::local()),
         );
@@ -76,50 +76,80 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(operation) = arguments
         .first()
         .and_then(|argument| argument.to_str())
-        .map(ryo_benchmark::domain::operations::types::OperationVerb)
-        .and_then(ryo_benchmark::domain::operations::service::operation)
+        .map(benchmark::domain::operations::types::OperationVerb)
+        .and_then(benchmark::domain::operations::service::operation)
     {
-        let [_verb, bench] = arguments.as_slice() else {
-            return Err(operate_constants::USAGE.into());
+        let profiling = operation == BenchOperation::Profile;
+        let (bench, other) = match arguments.as_slice() {
+            [_verb, bench] => (bench, None),
+            [_verb, bench, other] if profiling => (bench, Some(other.into())),
+            _ => return Err(operate_constants::USAGE.into()),
         };
+        let executables = Arc::new(benchmark::outbound::executables::factory::cargo(
+            operate_constants::BUILD_TOOL.into(),
+            std::env::join_paths(
+                // ignore: idiomatic.arch/no-env-reads - the reference tool is the first of its name in the starting build tool's toolchain, then on the search path, the operating system's convention for finding a command
+                std::env::var_os(operate_constants::TOOLCHAIN_TOOL)
+                    .map(std::path::PathBuf::from)
+                    .and_then(|tool| tool.parent().map(std::path::Path::to_path_buf))
+                    .into_iter()
+                    .chain(std::env::split_paths(
+                        &std::env::var_os(operate_constants::SEARCH_PATH).unwrap_or_default(),
+                    )),
+            )?,
+        ));
+        let bench_path = std::path::Path::new(bench);
+        if profiling && benchmark::application::image_profile::registered(bench_path) {
+            benchmark::application::image_profile::profile(
+                bench_path,
+                other.as_deref(),
+                &mut std::io::stdout().lock(),
+                &mut std::io::stderr().lock(),
+            )?;
+            return Ok(());
+        }
+        if profiling && benchmark::application::check_profile::registered(bench_path) {
+            let target = benchmark::outbound::executables::interface::ExecutablesPort::target(
+                executables.as_ref(),
+            )?;
+            benchmark::application::check_profile::profile(
+                bench_path,
+                &target,
+                other.as_deref(),
+                &mut std::io::stdout().lock(),
+                &mut std::io::stderr().lock(),
+            )?;
+            return Ok(());
+        }
         let operate = OperateUseCaseImpl::new(
-            Arc::new(ryo_benchmark::outbound::executables::factory::cargo(
-                operate_constants::BUILD_TOOL.into(),
-                std::env::join_paths(
-                    // ignore: idiomatic.arch/no-env-reads - the reference tool is the first of its name in the starting build tool's toolchain, then on the search path, the operating system's convention for finding a command
-                    std::env::var_os(operate_constants::TOOLCHAIN_TOOL)
-                        .map(std::path::PathBuf::from)
-                        .and_then(|tool| tool.parent().map(std::path::Path::to_path_buf))
-                        .into_iter()
-                        .chain(std::env::split_paths(
-                            &std::env::var_os(operate_constants::SEARCH_PATH).unwrap_or_default(),
-                        )),
-                )?,
-            )),
-            Arc::new(ryo_benchmark::outbound::suite::factory::local()),
+            executables,
+            Arc::new(benchmark::outbound::suite::factory::local()),
             Arc::new(inventory::factory::local()),
-            Arc::new(ryo_benchmark::outbound::receipts::factory::local(
-                ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
+            Arc::new(benchmark::outbound::receipts::factory::local(
+                benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
             )),
             Arc::new(execution::factory::bounded(std::time::Duration::from_secs(
                 operate_constants::RULE_TIMEOUT_SECONDS,
             ))),
-            Arc::new(ryo_benchmark::outbound::scheduler::factory::threads()),
-            Arc::new(ryo_benchmark::outbound::host::factory::local()),
+            Arc::new(benchmark::outbound::scheduler::factory::threads()),
+            Arc::new(benchmark::outbound::host::factory::local()),
             // The worker's document is read whole and the operation's class kept; nothing is written to these streams.
-            Arc::new(ryo_benchmark::outbound::evidence::factory::bmf(
+            Arc::new(benchmark::outbound::evidence::factory::bmf(
                 Box::new(std::io::sink()),
                 Box::new(std::io::sink()),
             )),
         );
-        let report = operate.operate(
-            &OperationRequest {
-                operation,
-                bench: BenchDirectory(bench.into()),
-            },
-            &mut std::io::stdout().lock(),
-            &mut std::io::stderr().lock(),
-        )?;
+        let request = OperationRequest {
+            operation,
+            bench: BenchDirectory(bench.into()),
+        };
+        let mut out = std::io::stdout().lock();
+        let mut log = std::io::stderr().lock();
+        let report = if profiling {
+            operate.profile(&request, other, &mut out, &mut log)?
+        } else {
+            operate.operate(&request, &mut out, &mut log)?
+        };
         return if report.verdict == OperationVerdict::Passed {
             Ok(())
         } else {

@@ -1,6 +1,6 @@
 //! Offline checks share the same policy as fresh inventory execution.
-use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::receipts::types::ReceiptAudit;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// Validate one explicit receipt file, including shard-specific raw artifacts.
 pub trait ValidateCaseReceiptsUseCase {

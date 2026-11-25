@@ -1,38 +1,38 @@
 //! Registered cases and native observation rows the receipt validation is proven over.
 use crate::domain::registered_inputs::service::project_inputs_digest;
-use ryo::linter::RelativePath;
-use ryo_benchmark_contracts::domain::artifacts::types::{
+use benchmark_contracts::domain::artifacts::types::{
     FileExecutable, FileMetadataEntry, digest::value::ArtifactDigest,
 };
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::DeclaredScope;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::{
+use benchmark_contracts::domain::documents::types::case_document::value::DeclaredScope;
+use benchmark_contracts::domain::documents::types::case_document::value::{
     CaseContextIdentity, CaseDocument, CaseReference, ContextIdentity, EntryState,
     ExpectationContract, FileMetadata, InventoryCompleteness, ProjectEntry, ProjectInventory,
     ProjectInventoryDocument,
 };
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+use benchmark_contracts::domain::documents::types::finding::value::{
     ExpectedFindings, FindingOffset, RecordedFinding,
 };
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ContextMode, ContextRun, IntentMatch, ObservationDocument, ProjectContextRecord,
     RecordedMetadata, RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips,
     RequestRoot, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity,
     ToolContractRecord, ValidationRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
     DiscrepancyIdentity, DiscrepancyRecord, DiscrepancyValidation, ExpectationKind,
     ObservedExecutable, ProcessExpectation,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, CaseName, ContestantSide, FileMetadataDigest, PathText, Pin,
     ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, YesNo,
 };
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::reports::types::{
     ComparisonContract, CoverageAccounting, ExecutionMetadata, RuleCoverage,
 };
-use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
-use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
+use benchmark_contracts::domain::workloads::types::CaseComparison;
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::workloads::types::FileObservation;
+use ryo::linter::RelativePath;
 
 /// The registered documents and the native rows observed for them.
 pub type Documents = (Vec<CaseDocument>, Vec<ObservationDocument>);
@@ -46,7 +46,7 @@ pub fn finding(rule: &str, file: &str, start: u64, end: u64) -> RecordedFinding 
     RecordedFinding {
         rule: RuleName(rule.into()),
         file: PathText(file.into()),
-        span: ryo_benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
+        span: benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
             start: FindingOffset(start),
             end: FindingOffset(end),
         },
@@ -104,10 +104,10 @@ pub fn observed_row(rule: &str, name: &str, side: ContestantSide) -> Observation
         expectation_contract: ComparisonContract::Diagnostics,
         execution_metadata: RecordedMetadata::Recorded(ExecutionMetadata::Complete),
         coverage: CoverageAccounting::Accounted(RuleCoverage {
-            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-            unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+            selected: benchmark_contracts::domain::reports::types::PairCount(1),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
+            skipped: benchmark_contracts::domain::reports::types::PairCount(0),
+            unknown_or_unread: benchmark_contracts::domain::reports::types::PairCount(0),
         }),
         context_manifest: ContextRun::Isolated,
         project_context: ProjectContextRecord::NotCarried,

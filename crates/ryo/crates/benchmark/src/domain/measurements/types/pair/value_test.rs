@@ -1,8 +1,8 @@
 //! A pair keeps each certified observation, in contestant order, and its eligibility.
 use super::value::Pair;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::measurements::types::Measurement;
-use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
+use benchmark_contracts::domain::measurements::types::Measurement;
+use benchmark_contracts::domain::measurements::types::ResourceObservation;
 
 const CASES: &[Case<(), [u128; 2], ()>] = &[Case {
     name: CaseName("the pair keeps both observations and its eligibility"),
@@ -17,23 +17,22 @@ fn succeeds() {
         let observation = |milliseconds| Measurement {
             wall: std::time::Duration::from_millis(milliseconds),
             resources: ResourceObservation::WallOnly,
-            report: ryo_benchmark_contracts::domain::reports::types::RunReport {
+            phases: None,
+            report: benchmark_contracts::domain::reports::types::RunReport {
                 execution_metadata:
-                    ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
+                    benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
                 project_context:
-                    ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                    benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
                 files: vec![],
                 skipped: Vec::new(),
                 coverage:
-                    ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                        ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                            selected: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
-                                1,
-                            ),
-                            skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                    benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                        benchmark_contracts::domain::reports::types::RuleCoverage {
+                            selected: benchmark_contracts::domain::reports::types::PairCount(1),
+                            evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
+                            skipped: benchmark_contracts::domain::reports::types::PairCount(0),
                             unknown_or_unread:
-                                ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+                                benchmark_contracts::domain::reports::types::PairCount(0),
                         },
                     ),
                 diagnostics: vec![],

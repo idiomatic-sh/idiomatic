@@ -5,11 +5,11 @@ use crate::domain::canonical_text::{
     service::{digest, render},
     types::{Fragment, Label, Quantity},
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::process::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::process::types::{
     OutputPart, PathEncoding, ProcessArtifact, ProcessFailure, ReferenceExpectation,
 };
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::workloads::types::{
     PreparedCase, PreparedReferenceBehavior, Tool,
 };
 use std::collections::{BTreeMap, BTreeSet};

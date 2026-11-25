@@ -6,14 +6,12 @@ use crate::outbound::inventory::types::{
     ProfileProjection, ProviderName, ReceiptFile, Registration, RegistrationAuthority,
     RuleInstanceRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
-    PathText, RuleName, Sha256Text,
-};
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark_contracts::domain::documents::types::text::value::{PathText, RuleName, Sha256Text};
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::receipts::types::ReceiptAudit;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::ParserSelection;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::collections::BTreeMap;
 
 /// The independently specified observations an inventory adapter answers.

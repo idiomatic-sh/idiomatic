@@ -5,14 +5,14 @@
 //!
 //! Audit and certification authority stay in the benchmark workflow.
 //! ```compile_fail,E0432
-//! use ryo_benchmark_contracts::domain::workloads::types::Audit;
+//! use benchmark_contracts::domain::workloads::types::Audit;
 //! ```
 //! ```compile_fail,E0432
-//! use ryo_benchmark_contracts::domain::workloads::types::Certificate;
+//! use benchmark_contracts::domain::workloads::types::Certificate;
 //! ```
 //! Transport encodings belong to the benchmark's outbound schemas.
 //! ```compile_fail,E0277
-//! use ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata;
+//! use benchmark_contracts::domain::reports::types::ExecutionMetadata;
 //! let _ = serde_json::to_string(&ExecutionMetadata::Complete);
 //! ```
 pub mod domain;

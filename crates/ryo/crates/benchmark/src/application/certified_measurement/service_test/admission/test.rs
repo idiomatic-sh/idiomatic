@@ -6,15 +6,15 @@ use crate::outbound::linter::fixtures::fake::LinterFake;
 use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::linter::types::CanonicalText;
 use crate::outbound::suite::interface::SuitePort as _;
-use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::context::types::PreparedRuleContext;
+use benchmark_contracts::domain::measurements::types::{
     Invocation, MeasurementMode, ProcessOutput,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::{CertificationCases, RunRequest};
-use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::requests::types::{CertificationCases, RunRequest};
+use benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
+use benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use std::path::{Path, PathBuf};
 
 /// Whether the candidate's command for a run launches another program than its command for the probe.
@@ -54,7 +54,7 @@ struct Launching {
 impl LinterPort for Launching {
     fn rule_configuration(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+    ) -> benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
         self.inner.rule_configuration()
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
@@ -125,7 +125,7 @@ fn admitted(swapped: bool) -> Result<(), String> {
         ],
         probe,
         execution: crate::outbound::execution::interface::ExecutionPort::profile(&execution),
-        cases: ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(1),
+        cases: benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(1),
     };
     let run_root = tempfile::tempdir().map_err(|error| error.to_string())?;
     admit(

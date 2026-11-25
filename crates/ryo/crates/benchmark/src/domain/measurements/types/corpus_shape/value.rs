@@ -1,9 +1,9 @@
 //! The corpus a language's benchmark measures: that language's projects, two or three of them.
 use super::super::super::constants::{FEWEST_PROJECTS, MOST_PROJECTS, RESERVED_PROJECTS};
 use super::super::LanguageTitle;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Suite;
-use ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::Suite;
+use benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage;
 
 /// The language a benchmark's corpus must be of, and the name its refusal gives it.
 #[derive(Clone, Copy, Debug)]
@@ -22,8 +22,8 @@ impl CorpusShape<'_> {
     ///
     /// # Examples
     /// ```
-    /// use ryo_benchmark::domain::measurements::types::{corpus_shape::value::CorpusShape, LanguageTitle};
-    /// use ryo_benchmark_contracts::domain::workloads::types::Suite;
+    /// use benchmark::domain::measurements::types::{corpus_shape::value::CorpusShape, LanguageTitle};
+    /// use benchmark_contracts::domain::workloads::types::Suite;
     /// let fixture = "fixture".into();
     /// let shape = CorpusShape { language: &fixture, display: LanguageTitle("Fixture") };
     /// let empty = Suite { language: "fixture".into(), projects: Vec::new() };

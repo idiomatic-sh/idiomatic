@@ -4,9 +4,9 @@ use super::prepared_engine_test::PreparedEngine as _;
 use super::prepared_engine_test::default_frontend_projection;
 use super::prepared_engine_test::fixture_cohort;
 use super::prepared_engine_test::python_310;
-use ryo_benchmark::outbound::engine::factory;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use benchmark::outbound::engine::factory;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
 
 /// A syntax-rejected file beside a valid one, as Django ships one: the pytest decorator rules PT020, PT025 and PT026 skip the
@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 /// their plans ran across files and the one rejected file left each of them Unknown at every file.
 pub(super) fn a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_file()
 -> Result<(), Error> {
-    use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, SourceByteOffset};
+    use benchmark_contracts::domain::reports::types::{BenchmarkFinding, SourceByteOffset};
     let root = tempfile::tempdir()?;
     let rules = root.path().join("rules");
     super::rule_fixtures_test::write_suppress_module(root.path())?;
@@ -51,31 +51,31 @@ pub(super) fn a_rejected_file_leaves_pt020_pt025_and_pt026_answering_the_valid_f
     std::fs::write(root.path().join("broken.py"), "def broken(:\n    pass\n")?;
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["PT020", "PT025", "PT026"])),
-        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(fixture_cohort(&["PT020", "PT025", "PT026"])),
+        rule_observations: benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode:
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         rules,
         query_modules: super::prepared_engine_test::module_names(modules),
         rule_applicability: BTreeMap::from([
-            (ryo_benchmark_contracts::domain::requests::types::RuleLabel("PT020".to_owned()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
-            (ryo_benchmark_contracts::domain::requests::types::RuleLabel("PT025".to_owned()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
-            (ryo_benchmark_contracts::domain::requests::types::RuleLabel("PT026".to_owned()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
+            (benchmark_contracts::domain::requests::types::RuleLabel("PT020".to_owned()), benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
+            (benchmark_contracts::domain::requests::types::RuleLabel("PT025".to_owned()), benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
+            (benchmark_contracts::domain::requests::types::RuleLabel("PT026".to_owned()), benchmark_contracts::domain::requests::types::ApplicabilityPolicy("accepted-syntax".to_owned())),
         ]),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
+        parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Named(benchmark_contracts::domain::requests::types::ParserConfigurationName(
             "python-target=3.10".to_owned(),
         )),
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![
             ryo::linter::RelativePath("broken.py".into()),
             ryo::linter::RelativePath("case.py".into()),
         ],
-        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+        state: benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     };
     let report =
         factory::local_with_frontend_diagnostic(python_310(), None, default_frontend_projection()?)

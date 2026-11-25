@@ -8,14 +8,14 @@ use crate::outbound::inventory::{
         Row, RowReason, RuleInstanceRecord, RunState, Summary,
     },
 };
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
-use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
+use benchmark_contracts::domain::measurements::types::{
     CapturedBytes, ExecutionProfile, Invocation, ProcessOutput,
 };
-use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::receipts::types::ReceiptAudit;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 use std::sync::{Barrier, Mutex};
 use std::time::Duration;

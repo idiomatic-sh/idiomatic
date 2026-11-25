@@ -1,5 +1,5 @@
 //! The pure decision from host facts to file-permission applicability.
-use ryo_benchmark_contracts::domain::hosts::types::{
+use benchmark_contracts::domain::hosts::types::{
     FilePermissions, HostFacts, HostFamily, HostIsolation, HostKernel,
 };
 

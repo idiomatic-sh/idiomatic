@@ -3,7 +3,7 @@
 use super::super::errors::ReceiptsError;
 use super::super::interface::ReceiptsPort;
 use super::super::types::{CapturedProcess, CaseReceipts, ReceiptPath};
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
 
 /// What the core's tests stand in for `receipts` with.
 #[derive(Clone, Debug)]

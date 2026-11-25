@@ -1,18 +1,18 @@
 //! clippy owns its invocation; schemas normalize its process response.
 use super::{constants, schemas, settings::LinterClippySettings};
-use ryo::linter::{RelativePath, RuleId};
-use ryo_benchmark::outbound::discovery::interface::DiscoveryPort;
-use ryo_benchmark::outbound::linter::interface::LinterPort;
-use ryo_benchmark::outbound::linter::types::CanonicalText;
-use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
-use ryo_benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark::outbound::discovery::interface::DiscoveryPort;
+use benchmark::outbound::linter::interface::LinterPort;
+use benchmark::outbound::linter::types::CanonicalText;
+use benchmark_contracts::domain::context::types::PreparedRuleContext;
+use benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, RuleContextPreparation, RunRequest,
 };
-use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
+use benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
+use benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
+use ryo::linter::{RelativePath, RuleId};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::path::Path;
@@ -26,8 +26,8 @@ pub(crate) struct LinterClippyAdapter {
 impl LinterPort for LinterClippyAdapter {
     fn rule_configuration(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
-        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
+    ) -> benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         if request.files.is_empty() {
@@ -185,7 +185,7 @@ impl LinterClippyAdapter {
         let mut environment = self.toolchain();
         environment.extend([(
             constants::JOBS_VARIABLE.into(),
-            ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS
+            benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS
                 .to_string()
                 .into(),
         )]);

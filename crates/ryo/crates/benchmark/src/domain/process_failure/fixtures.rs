@@ -1,7 +1,7 @@
 //! A process failure with two archived captures of one exact executable.
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::process::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::process::types::{
     OutputPart, OutputText, PathEncoding, ProcessArtifact, ProcessFailure, ProcessObservation,
 };
 

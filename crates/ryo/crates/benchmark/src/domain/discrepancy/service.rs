@@ -7,13 +7,13 @@ use crate::domain::canonical_text::{
     types::{Fragment, Label, Quantity},
 };
 use crate::domain::diagnostics::service::compare_diagnostics as compare;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::process::types::ReferenceExpectation;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::process::types::ReferenceExpectation;
+use benchmark_contracts::domain::reports::types::{
     CoverageAccounting, PairCount, RunReport, SourceByteOffset,
 };
-use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::requests::types::ParserSelection;
+use benchmark_contracts::domain::workloads::types::{
     CaseComparison, DiscrepancyBasis, PreparedCase, PreparedReferenceBehavior,
     PreparedReferenceDiscrepancy, ReferenceDiscrepancyIdentity, Tool,
     discrepancy_evidence::value::DiscrepancyEvidence,
@@ -77,7 +77,7 @@ pub(crate) fn output_digest(report: &RunReport) -> ArtifactDigest {
             ),
         ),
         (
-            Label::from(ryo_benchmark_contracts::domain::receipts::constants::DIAGNOSTICS),
+            Label::from(benchmark_contracts::domain::receipts::constants::DIAGNOSTICS),
             Fragment::List(diagnostics),
         ),
         (Label::from(constants::SKIPPED), Fragment::List(Vec::new())),
@@ -130,7 +130,7 @@ pub(crate) fn complete(
     }
     let candidate = contestant == Contestant::Candidate;
     if (candidate
-        && ryo_benchmark_contracts::domain::reports::service::require_complete_execution(report)
+        && benchmark_contracts::domain::reports::service::require_complete_execution(report)
             .is_err())
         || !report.skipped.is_empty()
         || match report.coverage {
@@ -229,10 +229,9 @@ pub(crate) fn judge(
     case: &PreparedCase,
     contestant: Contestant,
     mut report: RunReport,
-) -> Result<super::types::Judgement, ryo_benchmark_contracts::domain::reports::errors::ReportsError>
-{
+) -> Result<super::types::Judgement, benchmark_contracts::domain::reports::errors::ReportsError> {
     if contestant == Contestant::Candidate {
-        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&report)?;
+        benchmark_contracts::domain::reports::service::require_complete_execution(&report)?;
     }
     if case.comparison == CaseComparison::Rule {
         report.diagnostics.retain(|finding| {
@@ -255,9 +254,9 @@ pub(crate) fn judge(
 pub(crate) fn describe_difference(
     case: &PreparedCase,
     contestant: Contestant,
-    difference: &ryo_benchmark_contracts::domain::reports::types::Difference,
-) -> ryo_benchmark_contracts::domain::documents::types::text::value::ReasonText {
-    ryo_benchmark_contracts::domain::documents::types::text::value::ReasonText(format!(
+    difference: &benchmark_contracts::domain::reports::types::Difference,
+) -> benchmark_contracts::domain::documents::types::text::value::ReasonText {
+    benchmark_contracts::domain::documents::types::text::value::ReasonText(format!(
         "{}/{} expected-vs-{contestant}: expected={:?}; actual={:?}; expected-skipped={:?}; actual-skipped={:?}",
         case.rule,
         case.name,

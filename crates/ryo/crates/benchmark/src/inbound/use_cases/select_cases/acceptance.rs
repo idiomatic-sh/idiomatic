@@ -1,9 +1,9 @@
 //! The public flag reading.
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::select_cases::{
+use benchmark::inbound::use_cases::select_cases::{
     interface::SelectCasesUseCase as _, types::CaseArgument, use_case::SelectCasesUseCaseImpl,
 };
-use ryo_benchmark_contracts::domain::requests::types::ShardPartition;
+use benchmark_contracts::domain::requests::types::ShardPartition;
+use cucumber::then;
 
 fn select(flags: &[&str]) -> Result<ShardPartition, String> {
     let arguments = flags

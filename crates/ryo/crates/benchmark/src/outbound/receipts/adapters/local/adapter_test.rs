@@ -7,18 +7,18 @@ use crate::outbound::receipts::fixtures::contract::check;
 use crate::outbound::receipts::fixtures::samples::observation;
 use crate::outbound::receipts::interface::ReceiptsPort as _;
 use crate::outbound::receipts::types::{CapturedProcess, CaseReceipts, ReceiptPath};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::documents::types::invocation_document::value::{
     FailedInvocation, InvocationDocument,
 };
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ObservationDocument, ProcessRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ExpectationKind;
-use ryo_benchmark_contracts::domain::documents::types::text::value::ExitStatus;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, ReasonText, YesNo};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::ExpectationKind;
+use benchmark_contracts::domain::documents::types::text::value::ExitStatus;
+use benchmark_contracts::domain::documents::types::text::value::{PathText, ReasonText, YesNo};
+use benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -60,7 +60,7 @@ fn failed_invocation() -> InvocationDocument {
 }
 fn row() -> ObservationDocument {
     let mut document = observation();
-    document.process_observation = ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(ProcessRecord {
+    document.process_observation = benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(ProcessRecord {
         kind: ExpectationKind::ProcessFailure,
         exit: ExitStatus(2),
         signal: Signal::Absent,
@@ -68,23 +68,22 @@ fn row() -> ObservationDocument {
         observer_no_deadline: YesNo::Yes,
         executable_sha256: Pin::Absent,
         settings_sha256: Pin::Absent,
-        metadata_error: ryo_benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason::Absent,
+        metadata_error: benchmark_contracts::domain::documents::types::observation_document::value::RecordedReason::Absent,
         template_sha256: Pin::Absent,
-        artifacts: ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Unattached,
+        artifacts: benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Unattached,
     });
     document
 }
 /// The raw artifacts attached to the process record of a row.
 fn attached(
     document: &ObservationDocument,
-) -> &ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifacts
-{
+) -> &benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifacts {
     match &document.process_observation {
-        ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) => match &process.artifacts {
-            ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Attached(artifacts) => artifacts,
-            ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Unattached => panic!("attached artifacts"),
+        benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) => match &process.artifacts {
+            benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Attached(artifacts) => artifacts,
+            benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Unattached => panic!("attached artifacts"),
         },
-        ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::NotObserved => panic!("observed process"),
+        benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::NotObserved => panic!("observed process"),
     }
 }
 fn write(receipt: &Path, stdout: &[u8]) {

@@ -6,7 +6,7 @@ use crate::inbound::use_cases::verify_cases::fixtures::{
     process_capture::Fixture,
     process_identity::{ContextProbe, Verdict},
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 
 /// What an identity scenario establishes once its assertions hold.
 #[derive(Debug, PartialEq, Eq)]

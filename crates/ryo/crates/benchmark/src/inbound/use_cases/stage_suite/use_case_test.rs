@@ -3,7 +3,7 @@ use super::fixtures::{Refusal, Scenario, exercise, stage_missing};
 use super::{interface::StageSuiteUseCase as _, use_case::StageSuiteUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::interface::SuitePort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// Stage a profile directory through the public use case.
 fn stage(suite: &dyn SuitePort, directory: &Path, destination: &Path) -> Result<(), ReportsError> {
@@ -12,7 +12,7 @@ fn stage(suite: &dyn SuitePort, directory: &Path, destination: &Path) -> Result<
             directory,
             destination,
             &[],
-            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+            benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
         )
         .map(|_staged| ())
 }

@@ -7,16 +7,16 @@ use crate::outbound::{
     context::interface::ContextPort, evidence::interface::EvidencePort,
     execution::interface::ExecutionPort, linter::interface::LinterPort,
 };
-use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::measurements::types::RunOrder;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RunRequest;
 use std::sync::Arc;
 /// Release paired process observations only after the correctness gate succeeds.
 pub struct MeasureUseCaseImpl {
     /// Pinned reference tool preparation and decoding boundary.
     reference: Arc<dyn LinterPort>,
     /// Required workload meaning, independent of timing/collector choices.
-    mode: ryo_benchmark_contracts::domain::measurements::types::MeasurementMode,
+    mode: benchmark_contracts::domain::measurements::types::MeasurementMode,
     /// Candidate tool preparation and decoding boundary.
     candidate: Arc<dyn LinterPort>,
     /// Process launch and resource observation boundary.
@@ -38,7 +38,7 @@ impl MeasureUseCaseImpl {
         suite: Arc<dyn SuitePort>,
         context: Arc<dyn ContextPort>,
         evidence: Arc<dyn EvidencePort>,
-        mode: ryo_benchmark_contracts::domain::measurements::types::MeasurementMode,
+        mode: benchmark_contracts::domain::measurements::types::MeasurementMode,
     ) -> Self {
         Self {
             reference,

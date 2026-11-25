@@ -57,7 +57,7 @@ group = "check"
 # the inputs are the whole workspace (`.`), with what ryo's tests read beyond it (../tastemaker, ../../tastemaker) and the
 # template's entries first. Every test tool of ryo names the same: inputs are coarse and safe. The BDD runners and the doctests,
 # which nextest cannot list, run in `test-bdd` and `test-doc`.
-run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo-core) | package(=idiomatic-sh-ryo-language) | package(=idiomatic-sh-ryo-query_language) | package(=idiomatic-sh-ryo-sdk) | package(=idiomatic-sh-ryo-values) | package(=idiomatic-sh-ryo-benchmark) | package(=idiomatic-sh-ryo-benchmark-contracts) | package(=idiomatic-sh-ryo-derived) | package(=idiomatic-sh-ryo-execution) | package(=idiomatic-sh-ryo-execution-domain) | package(=idiomatic-sh-ryo-execution-runtime) | package(=idiomatic-sh-ryo-matching) | package(=idiomatic-sh-ryo-operators) | package(=idiomatic-sh-ryo-relations)"]
+run = ["cargo", "nextest", "run", "--workspace", "--locked", "--all-features", "-E", "package(=idiomatic-sh-ryo-core) | package(=idiomatic-sh-ryo-language) | package(=idiomatic-sh-ryo-query_language) | package(=idiomatic-sh-ryo-sdk) | package(=idiomatic-sh-ryo-values) | package(=idiomatic-sh-benchmark) | package(=idiomatic-sh-benchmark-contracts) | package(=idiomatic-sh-ryo-derived) | package(=idiomatic-sh-ryo-execution) | package(=idiomatic-sh-ryo-execution-domain) | package(=idiomatic-sh-ryo-execution-runtime) | package(=idiomatic-sh-ryo-matching) | package(=idiomatic-sh-ryo-operators) | package(=idiomatic-sh-ryo-relations)"]
 timeout-seconds = 3600
 inputs = ["Cargo.toml", "Cargo.lock", ".config", "crates", "../../rust-toolchain.toml", "../../.cargo", "../../tastemaker", ".", "../tastemaker"]
 
@@ -232,6 +232,14 @@ timeout-seconds = 7200
 inputs = [".", "../../rust-toolchain.toml", "../../.cargo"]
 
 [[tools]]
+id = "profile"
+group = "profile"
+run = ["benchmark-collector", "profile", "languages/{lang}/benchmarks/linters/{linter}"]
+output = "bmf"
+timeout-seconds = 21600
+inputs = ["languages/{lang}", "languages/{lang}/benchmarks/linters/{linter}", ".", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]
+
+[[tools]]
 id = "test-language"
 group = "check"
 # Each language's tests, one tool per directory of `languages` (the capture), each reported on its own. `--workspace` builds
@@ -282,7 +290,7 @@ group = "bench"
 # `bench` job judges these alone: a shared runner moves the run's times from run to run, so they are `bench-timing`'s,
 # which no pull request is judged by. The whole process tree runs on processors 0-3 with RAYON_NUM_THREADS=4, and the collector refuses any
 # processor count but four. benchmarks.yml's hand-run bench-seed job seeds the lock on the runner that judges it.
-run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "bench", "languages/{lang}/benchmarks/linters/{linter}"]
+run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "benchmark-collector", "bench", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 tolerance-percent = { peak-rss-bytes = 5, warm-peak-rss-bytes = 5, edited-peak-rss-bytes = 5, store-bytes = 1 }
 timeout-seconds = 21600
@@ -296,7 +304,7 @@ group = "bench-timing"
 # by them. It repeats the whole bench, so no workflow runs it (no job runs the bench twice): a developer runs it alone to
 # read a change's cost. The one pin of every timed measure: the whole process tree runs on processors 0-3 with
 # RAYON_NUM_THREADS=4.
-run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "cargo", "run", "--locked", "--release", "-p", "idiomatic-sh-ryo-benchmark", "--bin", "ryo-benchmark-collector", "--", "bench-timing", "languages/{lang}/benchmarks/linters/{linter}"]
+run = ["taskset", "-c", "0-3", "env", "RAYON_NUM_THREADS=4", "benchmark-collector", "bench-timing", "languages/{lang}/benchmarks/linters/{linter}"]
 output = "bmf"
 tolerance-percent = { cpu-s = 10, wall-s = 15, warm-cpu-s = 10, edited-cpu-s = 10, total-ms = 10, max-case-ms = 10, compile-ms = 10, doubling-ratio = 10, larger-ms = 10 }
 timeout-seconds = 21600

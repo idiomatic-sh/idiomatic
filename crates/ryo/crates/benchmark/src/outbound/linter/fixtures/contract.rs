@@ -1,9 +1,9 @@
 //! Every linter prepares the requested workspace and refuses operational failure.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::linter::interface::LinterPort;
-use ryo_benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RunRequest;
 use std::{path::PathBuf, time::Duration};
 #[derive(Clone, Copy, Debug)]
 /// Operations covered by the shared linter contract.
@@ -81,24 +81,22 @@ pub fn check(adapter: &impl LinterPort) {
     let temporary = tempfile::tempdir().expect("isolated linter fixture");
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
         file_metadata:
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: PathBuf::new(),
         state: temporary.path().join("state"),
         files: vec![ryo::linter::RelativePath("input.txt".into())],
     };
-    let subject = |input| {
-        match input {
+    let subject = |input| match input {
         Input::Prepare => adapter
             .prepare(&request)
             .map(|call| call.directory == request.root)
@@ -126,13 +124,19 @@ pub fn check(adapter: &impl LinterPort) {
             Ok(first == second)
         }
         Input::CanonicalTexts => {
-            let context = ryo_benchmark_contracts::domain::context::types::PreparedRuleContext {
-                tables: ryo_benchmark_contracts::domain::context::types::RuleContextTables {
-                    selected: ryo_benchmark_contracts::domain::context::types::TableName("selected".into()),
-                    disabled: ryo_benchmark_contracts::domain::context::types::TableName("disabled".into()),
-                    external: ryo_benchmark_contracts::domain::context::types::TableName("external".into()),
+            let context = benchmark_contracts::domain::context::types::PreparedRuleContext {
+                tables: benchmark_contracts::domain::context::types::RuleContextTables {
+                    selected: benchmark_contracts::domain::context::types::TableName(
+                        "selected".into(),
+                    ),
+                    disabled: benchmark_contracts::domain::context::types::TableName(
+                        "disabled".into(),
+                    ),
+                    external: benchmark_contracts::domain::context::types::TableName(
+                        "external".into(),
+                    ),
                 },
-                configuration: ryo_benchmark_contracts::domain::context::types::RuleConfiguration {
+                configuration: benchmark_contracts::domain::context::types::RuleConfiguration {
                     external_prefixes: Vec::new(),
                     disabled_rules: Default::default(),
                 },
@@ -141,24 +145,27 @@ pub fn check(adapter: &impl LinterPort) {
         }
         Input::VersionLine => {
             let tool = super::data::tool();
-            Ok(adapter.version_line(&tool).0.contains(tool.version.0.as_str()))
+            Ok(adapter
+                .version_line(&tool)
+                .0
+                .contains(tool.version.0.as_str()))
         }
         Input::OperationalFailure => match adapter.decode(
             &request,
             ProcessOutput {
-                signal: ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
-                status: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(2),
-                stdout: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(Vec::new()),
-                stderr: ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(Vec::new()),
+                signal: benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+                status: benchmark_contracts::domain::measurements::types::ProcessExitCode(2),
+                stdout: benchmark_contracts::domain::measurements::types::CapturedBytes(Vec::new()),
+                stderr: benchmark_contracts::domain::measurements::types::CapturedBytes(Vec::new()),
                 wall: Duration::ZERO,
-                resources: ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly,
+                resources:
+                    benchmark_contracts::domain::measurements::types::ResourceObservation::WallOnly,
             },
         ) {
             Err(Error::Invalid(_)) => Err(Failure::Operational),
             Err(_) => Err(Failure::Unexpected),
             Ok(_) => Ok(false),
         },
-    }
     };
     run(CASES, Word::Succeeds, subject);
     run(CASES, Word::Refuses, subject);

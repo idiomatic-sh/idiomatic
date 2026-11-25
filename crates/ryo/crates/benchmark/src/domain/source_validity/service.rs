@@ -1,5 +1,5 @@
 //! The sources the pinned reference refuses to parse, read from one reference run over the whole request and dropped from it.
-use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, RunReport};
+use benchmark_contracts::domain::reports::types::{BenchmarkFinding, RunReport};
 
 /// Drops from `files` each source the reference's `report` names under its invalid-syntax rule `syntax`, and answers those
 /// findings, in the report's order, for the caller to report.

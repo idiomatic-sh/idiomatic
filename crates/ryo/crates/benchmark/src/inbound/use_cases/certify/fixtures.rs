@@ -6,12 +6,12 @@
 use super::constants;
 use crate::inbound::use_cases::prepare_cases::fixtures::{Contestant, Launches, case_document};
 use crate::outbound::linter::interface::LinterPort;
-use ryo_benchmark_contracts::domain::measurements::types::CollectorDigest;
-use ryo_benchmark_contracts::domain::measurements::types::CollectorProfile;
-use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
-use ryo_benchmark_contracts::domain::measurements::types::RunOrder;
-use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::measurements::types::CollectorDigest;
+use benchmark_contracts::domain::measurements::types::CollectorProfile;
+use benchmark_contracts::domain::measurements::types::ExecutionProfile;
+use benchmark_contracts::domain::measurements::types::RunOrder;
+use benchmark_contracts::domain::requests::types::BenchmarkCoverage;
+use benchmark_contracts::domain::requests::types::RunRequest;
 use sha2::{Digest as _, Sha256};
 mod observations;
 use observations::Observations;
@@ -78,7 +78,7 @@ pub fn exercise(
         std::sync::Arc<dyn crate::outbound::inventory::interface::InventoryPort>,
         std::sync::Arc<dyn crate::outbound::scheduler::interface::SchedulerPort>,
     ) -> crate::inbound::use_cases::certify::use_case::CertifyUseCaseImpl,
-) -> Result<ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, ()> {
+) -> Result<benchmark_contracts::domain::workloads::types::case_count::value::CaseCount, ()> {
     let root = tempfile::tempdir().expect(constants::FIXTURE_PRECONDITION);
     let directory = root.path().join(constants::FIXTURE_PROFILE_DIRECTORY);
     let rules = directory.join(constants::FIXTURE_RULE_DIRECTORY_NAME);
@@ -176,7 +176,7 @@ pub fn exercise(
         &rules,
         &root.path().join(constants::FIXTURE_CASE_DIRECTORY),
         BenchmarkCoverage::Accounted,
-        &ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile,
+        &benchmark_contracts::domain::requests::types::CertificationCases::Profile,
     );
     let certificate = match certificate {
         Ok(certificate) => certificate,
@@ -204,20 +204,19 @@ pub fn exercise(
     .expect(constants::FIXTURE_PRECONDITION);
     let request = RunRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
             vec![ryo::linter::RuleId::try_from("A").expect(constants::FIXTURE_PRECONDITION)],
         ),
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
         file_metadata:
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: measured_root,
         files: vec![ryo::linter::RelativePath(
             constants::FIXTURE_SOURCE_FILE.into(),
@@ -275,14 +274,14 @@ pub fn exercise(
         std::sync::Arc::new(crate::outbound::evidence::fixtures::fake::EvidenceFake),
         match change {
             Change::InventoryFull => {
-                ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Benchmark {
+                benchmark_contracts::domain::measurements::types::MeasurementMode::Benchmark {
                     inventory: vec![
                         ryo::linter::RuleId::try_from("A").expect(constants::FIXTURE_PRECONDITION),
                     ],
                 }
             }
             Change::InventoryNarrow => {
-                ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Benchmark {
+                benchmark_contracts::domain::measurements::types::MeasurementMode::Benchmark {
                     inventory: vec![
                         ryo::linter::RuleId::try_from("A").expect(constants::FIXTURE_PRECONDITION),
                         ryo::linter::RuleId::try_from("B").expect(constants::FIXTURE_PRECONDITION),
@@ -301,7 +300,7 @@ pub fn exercise(
             | Change::Command
             | Change::ProbeWrites
             | Change::Launcher => {
-                ryo_benchmark_contracts::domain::measurements::types::MeasurementMode::Diagnostic
+                benchmark_contracts::domain::measurements::types::MeasurementMode::Diagnostic
             }
         },
     );

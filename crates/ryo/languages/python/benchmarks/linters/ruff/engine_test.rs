@@ -1,10 +1,10 @@
 //! The benchmark worker's frontend projection, rule answers beside it and the worker request it builds. Engine, core and SDK
 //! contracts are proved in their owning crates.
+use benchmark::cases::{Case, CaseName, Expect, Word, run};
+use benchmark::outbound::engine::factory;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
 use boundary_failure_test::{BoundaryFailure, failure};
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark::outbound::engine::factory;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
 use std::collections::BTreeMap;
 
 pub(crate) mod boundary_failure_test;
@@ -225,22 +225,22 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
     std::fs::write(root.path().join(file), source_for(scenario))?;
     let request = WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(selected_rules),
-        rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-        rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(selected_rules),
+        rule_observations: benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+        rule_context: benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode:
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().to_owned(),
         rules,
         query_modules: prepared_engine_test::module_names(modules_for(scenario)?),
         rule_applicability: BTreeMap::default(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath(file.into())],
-        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+        state: benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     };
     let report = run_with_projection(scenario, request)?;
     let expected = expected_diagnostics(scenario)?;
@@ -250,7 +250,7 @@ fn exercise(scenario: Input) -> Result<Value, Error> {
 fn run_with_projection(
     scenario: EngineScenario,
     request: WorkerRequest,
-) -> Result<ryo_benchmark_contracts::domain::reports::types::RunReport, Error> {
+) -> Result<benchmark_contracts::domain::reports::types::RunReport, Error> {
     if scenario == EngineScenario::InvalidSyntaxProjectionDisabled {
         return factory::local(python_310(), None).run_prepared(request);
     }

@@ -9,7 +9,7 @@ use crate::outbound::{
     linter::interface::LinterPort, suite::interface::SuitePort,
     workspace::interface::WorkspacePort,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::sync::Arc;
 /// Measures the projects of one certified corpus.
 pub struct MeasureCorpusUseCaseImpl {

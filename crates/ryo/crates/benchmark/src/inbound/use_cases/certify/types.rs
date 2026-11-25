@@ -13,7 +13,7 @@ pub enum PreparedCases {
         /// Where the inventory result is published.
         output: PathBuf,
         /// Which registered rules the certification proves.
-        coverage: ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage,
+        coverage: benchmark_contracts::domain::requests::types::RegisteredCoverage,
     },
 }
 

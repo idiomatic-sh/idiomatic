@@ -1,16 +1,16 @@
 //! The raw invocation record kept beside a captured process.
 use crate::outbound::inventory::adapters::local::constants;
 use crate::outbound::inventory::adapters::local::types::InvocationBytes;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+use benchmark_contracts::domain::documents::types::invocation_document::value::{
     ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, FailedInvocation,
     InvocationDocument, NormalizedSettings,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::ExitStatus;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::ExitStatus;
+use benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, PathText, ReasonText, Sha256Text, YesNo,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 

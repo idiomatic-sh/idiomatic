@@ -2,9 +2,9 @@
 //! sources.
 use super::super::canonical::schemas::{Canonical, invalid};
 use super::super::constants;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
 

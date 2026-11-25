@@ -2,8 +2,8 @@
 
 /// A complete report of one file and no finding, what the comparison evidence is written of.
 #[must_use]
-pub fn report() -> ryo_benchmark_contracts::domain::reports::types::RunReport {
-    use ryo_benchmark_contracts::domain::reports::types::{
+pub fn report() -> benchmark_contracts::domain::reports::types::RunReport {
+    use benchmark_contracts::domain::reports::types::{
         CoverageAccounting, ExecutionMetadata, PairCount, ProjectContext, RuleCoverage, RunReport,
     };
     RunReport {
@@ -23,11 +23,11 @@ pub fn report() -> ryo_benchmark_contracts::domain::reports::types::RunReport {
 
 /// One project's costs over three trials, each condition's values distinct, so a measure read under another name shows.
 #[must_use]
-pub fn costs() -> ryo_benchmark_contracts::domain::costs::types::ProjectCosts {
-    use ryo_benchmark_contracts::domain::costs::types::{
+pub fn costs() -> benchmark_contracts::domain::costs::types::ProjectCosts {
+    use benchmark_contracts::domain::costs::types::{
         ProjectCost, ProjectCosts, RunCost, StoreBytes, StoreFiles, StoreSize,
     };
-    use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
+    use benchmark_contracts::domain::measurements::types::ResidentBytes;
     use std::time::Duration;
     let run = |cpu: u64, wall: u64, peak: u64| RunCost {
         cpu: [cpu, cpu + 2, cpu + 1].map(Duration::from_millis).to_vec(),
@@ -67,8 +67,8 @@ pub fn timings() -> crate::outbound::evidence::types::RuleTimings {
 
 /// One shape grown 1.9 times, 120 ms at the whole size.
 #[must_use]
-pub fn growth() -> ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths {
-    use ryo_benchmark_contracts::domain::measurements::types::{
+pub fn growth() -> benchmark_contracts::domain::measurements::types::ShapeGrowths {
+    use benchmark_contracts::domain::measurements::types::{
         DoublingRatio, GrowthShape, ShapeGrowth, ShapeGrowths,
     };
     ShapeGrowths(std::collections::BTreeMap::from([(
@@ -76,7 +76,7 @@ pub fn growth() -> ryo_benchmark_contracts::domain::measurements::types::ShapeGr
         ShapeGrowth {
             ratio: DoublingRatio(1.9),
             larger: std::time::Duration::from_millis(120),
-            peak: ryo_benchmark_contracts::domain::measurements::types::ResidentBytes(1 << 20),
+            peak: benchmark_contracts::domain::measurements::types::ResidentBytes(1 << 20),
         },
     )]))
 }

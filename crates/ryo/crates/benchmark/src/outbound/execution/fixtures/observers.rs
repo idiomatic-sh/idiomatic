@@ -1,7 +1,7 @@
 //! Execution substitutes that observe fixed byte streams, or declare an observer with no deadline.
 use super::fake::ExecutionFake;
 use crate::outbound::execution::interface::ExecutionPort;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::measurements::types::{
     CapturedBytes, ExecutionProfile, Invocation, ProcessExitCode, ProcessOutput,
     ResourceObservation, TerminationSignal,
 };
@@ -21,7 +21,7 @@ impl ExecutionPort for Streams {
     fn run(
         &self,
         _: Invocation,
-    ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+    ) -> Result<ProcessOutput, benchmark_contracts::domain::reports::errors::ReportsError> {
         Ok(ProcessOutput {
             status: ProcessExitCode(2),
             signal: TerminationSignal::Exited,
@@ -45,7 +45,7 @@ impl ExecutionPort for Observer {
     fn run(
         &self,
         invocation: Invocation,
-    ) -> Result<ProcessOutput, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+    ) -> Result<ProcessOutput, benchmark_contracts::domain::reports::errors::ReportsError> {
         self.0.run(invocation)
     }
 }

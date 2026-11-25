@@ -1,10 +1,10 @@
 //! The scenarios of the Ruff adapter proofs and the invocations they expect.
 use super::super::adapter::LinterRuffAdapter;
 use super::super::settings::LinterRuffSettings;
+use benchmark::outbound::linter::interface::LinterPort as _;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RunRequest;
 use ryo::linter::RuleId;
-use ryo_benchmark::outbound::linter::interface::LinterPort as _;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
 
 #[derive(Clone, Copy)]
 pub(super) enum AdapterScenario {
@@ -40,36 +40,34 @@ pub(super) fn reference_roots_must_match_the_declared_project_scope() -> Result<
     });
     let mut request = RunRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(vec![
-                RelativePath("".into()),
-                RelativePath("src".into()),
-            ]),
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Declared(
+            vec![RelativePath("".into()), RelativePath("src".into())],
+        ),
         given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
         file_metadata:
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: "/tmp".into(),
         files: vec![RelativePath("input.py".into())],
         state: "/tmp/cache".into(),
     };
     let _invocation = adapter.prepare(&request)?;
     request.project_search_roots =
-        ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(vec![
-            RelativePath("".into()),
-        ]);
+        benchmark_contracts::domain::requests::types::SearchRoots::Declared(vec![RelativePath(
+            "".into(),
+        )]);
     assert!(matches!(adapter.prepare(&request), Err(Error::Invalid(_))));
     request.project_search_roots =
-        ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(Vec::new());
+        benchmark_contracts::domain::requests::types::SearchRoots::Declared(Vec::new());
     assert!(matches!(adapter.prepare(&request), Err(Error::Invalid(_))));
     request.project_search_roots =
-        ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared;
+        benchmark_contracts::domain::requests::types::SearchRoots::Undeclared;
     let _invocation = adapter.prepare(&request)?;
     let unrelated = LinterRuffAdapter::new(LinterRuffSettings {
         executable: "/missing-ruff".into(),
@@ -79,9 +77,9 @@ pub(super) fn reference_roots_must_match_the_declared_project_scope() -> Result<
         target_version: "py310".into(),
     });
     request.project_search_roots =
-        ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(vec![
-            RelativePath("".into()),
-        ]);
+        benchmark_contracts::domain::requests::types::SearchRoots::Declared(vec![RelativePath(
+            "".into(),
+        )]);
     assert!(matches!(
         unrelated.prepare(&request),
         Err(Error::Invalid(_))
@@ -117,9 +115,9 @@ pub(super) fn invocation_matches(
     .collect();
     Ok(invocation.arguments == expected
         && invocation.environment.get(std::ffi::OsStr::new(
-            ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN,
+            benchmark_contracts::domain::measurements::constants::THREAD_PIN,
         )) == Some(
-            &ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS
+            &benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS
                 .to_string()
                 .into(),
         )
@@ -151,9 +149,11 @@ pub(super) fn finding_bytes(
     // as a native process would. Keep the captured record independent of the decoder.
     let filename = crate::json_output::bytes(&filename).map_err(|e| Error::Json(Box::new(e)))?;
     let filename = std::str::from_utf8(&filename).expect("UTF-8 encoded fixture path");
-    let record = |code, start, end| format!(
-        r#"{{"code":"{code}","filename":{filename},"cell":null,"location":{{"row":3,"column":{start}}},"end_location":{{"row":3,"column":{end}}}}}"#
-    );
+    let record = |code, start, end| {
+        format!(
+            r#"{{"code":"{code}","filename":{filename},"cell":null,"location":{{"row":3,"column":{start}}},"end_location":{{"row":3,"column":{end}}}}}"#
+        )
+    };
     let mut stdout = format!("[{}", record(code, start, end));
     if matches!(scenario, AdapterScenario::FrontendFinding) {
         stdout.push(',');

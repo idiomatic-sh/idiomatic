@@ -1,7 +1,7 @@
 //! Registered certification retains independent artifact namespaces and refuses changed authority.
 use super::fixtures::*;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::requests::types::{BenchmarkCoverage, CertificationCases};
+use benchmark_contracts::domain::requests::types::{BenchmarkCoverage, CertificationCases};
 use std::borrow::Cow;
 use std::path::PathBuf;
 

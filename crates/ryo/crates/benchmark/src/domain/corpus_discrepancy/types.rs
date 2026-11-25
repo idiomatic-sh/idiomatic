@@ -1,5 +1,5 @@
 //! Data of a corpus comparison's judgement.
-use ryo_benchmark_contracts::domain::reports::types::{FindingCount, LocatedDifference};
+use benchmark_contracts::domain::reports::types::{FindingCount, LocatedDifference};
 
 /// Accepted differences admitted for one corpus: each rule's distinct accepted findings.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

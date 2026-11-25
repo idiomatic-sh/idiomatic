@@ -25,10 +25,10 @@ fn subject((): Input) -> Result<Value, Failure> {
         EngineConfiguration {
             selected_missing: Default::default(),
             selected_rules: match request.selected_rules.clone() {
-                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+                benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
                     selected,
                 ) => selected.into_iter().collect(),
-                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen => {
+                benchmark_contracts::domain::requests::types::CohortSelection::Frozen => {
                     panic!("selected rules")
                 }
             },
@@ -41,7 +41,7 @@ fn subject((): Input) -> Result<Value, Failure> {
         .expect("actual port fake executes")
         .report;
     assert_eq!(report.files, request.files);
-    let ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) =
+    let benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(coverage) =
         report.coverage
     else {
         panic!("accounting retained");

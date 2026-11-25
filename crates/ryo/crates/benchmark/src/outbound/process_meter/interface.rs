@@ -1,7 +1,7 @@
 //! What the `process_meter` port asks of the operating system about this process.
 use super::types::CpuTime;
-use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::ResidentBytes;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 /// Reads this process's CPU time and peak resident memory (Linux: the process clock, `/proc/self/status` VmHWM and
 /// `/proc/self/clear_refs`).

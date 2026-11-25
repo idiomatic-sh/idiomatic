@@ -177,7 +177,15 @@ def test_every_machine_the_checks_run_on_has_a_recorded_archive() -> None:
     for host in ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "aarch64-apple-darwin", "x86_64-pc-windows-msvc"]:
         assert len(install.BINSTALL["sha256"][install.binstall_asset(host)]) == 64
         for tool in install.ARCHIVES.values():
-            assert len(tool["assets"][host][1]) == 64
+            if host in tool.get("unavailable", {}):
+                assert tool["unavailable"][host].strip()
+                continue
+            if "packages" in tool:
+                packages = tool["packages"][host]
+                assert packages
+                assert all(len(checksum) == 64 for _, checksum in packages)
+            else:
+                assert len(tool["assets"][host][1]) == 64
 
 
 def test_an_archive_s_executable_is_its_member_of_that_name_or_the_whole_of_a_gzip() -> None:

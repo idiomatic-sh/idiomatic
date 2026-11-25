@@ -8,13 +8,13 @@ use super::constants::{
     PYTHON_TARGET_3_10, QUERY_RYOQL, RUF200, RULES, RULES_RUF200, UNKNOWN_EXTENSION_STILL_PYTHON,
 };
 use super::prepared_engine_test::{PreparedEngine as _, default_frontend_projection, python_310};
-use ryo_benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
-use ryo_benchmark::outbound::engine::factory;
-use ryo_benchmark::outbound::suite::factory as suite;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
-use ryo_benchmark_contracts::domain::requests::types::WorkerState;
+use benchmark::inbound::use_cases::prepare_cases::interface::PrepareCasesUseCase as _;
+use benchmark::outbound::engine::factory;
+use benchmark::outbound::suite::factory as suite;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
+use benchmark_contracts::domain::requests::types::WorkerState;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
@@ -39,9 +39,9 @@ pub(super) fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() 
     cases_text.push_str(&explicit_python_case()?);
     std::fs::write(&cases_path, cases_text)?;
     let cases =
-        ryo_benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
+        benchmark::inbound::use_cases::prepare_cases::use_case::PrepareCasesUseCaseImpl::new(
             &suite::local(),
-            &ryo_benchmark::outbound::context::factory::local(),
+            &benchmark::outbound::context::factory::local(),
         )
         .prepare_cases(&rules, &scratch.path().join(CASES))?;
     let selected = [
@@ -60,24 +60,40 @@ pub(super) fn listed_project_inputs_and_invalid_sources_keep_distinct_readers() 
         let _new = seen.insert(case.name.0.as_ref());
         let report = engine.run_prepared(WorkerRequest {
             performance: Default::default(),
-            selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![ryo::linter::RuleId::try_from(RUF200).unwrap()]),
-            rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-            rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-            project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+                vec![ryo::linter::RuleId::try_from(RUF200).unwrap()],
+            ),
+            rule_observations:
+                benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            rule_context:
+                benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+            project_search_roots:
+                benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             given_project_inventory: Default::default(),
             project_context_mode: ProjectContextMode::ListedDisk,
             context_manifest: case.request.context_manifest.clone(),
             root: case.request.root.clone(),
             rules: rules.clone(),
             query_modules: BTreeMap::new(),
-            rule_applicability: BTreeMap::from([(ryo_benchmark_contracts::domain::requests::types::RuleLabel(RUF200.into()), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy(ALWAYS.into()))]),
-            parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(PYTHON_TARGET_3_10.into())),
-            source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(ryo_benchmark_contracts::domain::requests::types::SourceLanguageName(PYTHON.into())),
+            rule_applicability: BTreeMap::from([(
+                benchmark_contracts::domain::requests::types::RuleLabel(RUF200.into()),
+                benchmark_contracts::domain::requests::types::ApplicabilityPolicy(ALWAYS.into()),
+            )]),
+            parser_configuration:
+                benchmark_contracts::domain::requests::types::ParserSelection::Named(
+                    benchmark_contracts::domain::requests::types::ParserConfigurationName(
+                        PYTHON_TARGET_3_10.into(),
+                    ),
+                ),
+            source_language:
+                benchmark_contracts::domain::requests::types::ProviderSelection::Selected(
+                    benchmark_contracts::domain::requests::types::SourceLanguageName(PYTHON.into()),
+                ),
             files: case.request.files.clone(),
             state: WorkerState::Fresh,
         })?;
-        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&report)?;
-        ryo_benchmark::domain::diagnostics::service::compare_diagnostics(&case.expected, &report)
+        benchmark_contracts::domain::reports::service::require_complete_execution(&report)?;
+        benchmark::domain::diagnostics::service::compare_diagnostics(&case.expected, &report)
             .map_err(|difference| Error::Invalid(format!("{}: {difference:?}", case.name.0)))?;
         assert_eq!(report.files, case.request.files);
     }

@@ -44,10 +44,12 @@ import io
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import tomllib
 import urllib.error
 import urllib.request
@@ -97,6 +99,7 @@ ROOT_CRATES = [
     Crate("idiomatic-sh-tastemaker", pinned("tastemaker"), bins=("tm",)),
     Crate("idiomatic-sh-asymptote", pinned("asymptote"), bins=("asymptote",)),
     Crate("idiomatic-sh-ryo", "0.1.1", bins=("ryo",)),
+    Crate("idiomatic-sh-benchmark", "0.2.0", bins=("benchmark-collector",)),
     Crate("cargo-deny", "0.20.2"),
     Crate("cargo-nextest", "0.9.146"),
     Crate("cargo-machete", "0.9.2"),
@@ -115,6 +118,7 @@ ROOT_CRATES = [
     # `release-msrv` runs on Linux x64.
     Crate("cargo-msrv", "0.19.6", unavailable={"aarch64-unknown-linux-gnu": "no aarch64 Linux archive in its release"}),
     Crate("hyperfine", "1.20.0"),
+    Crate("samply", "0.13.1"),
     # Reclaims stale build directories; it works across workspaces.
     Crate("cargo-sweep", "0.8.0"),
     # Opens a product's release pull request (ci/release_pr/).
@@ -440,6 +444,57 @@ ARCHIVES = {
 }
 
 
+# Debian's prebuilt profiling tools. Each package is pinned by the SHA-256 from
+# the distribution archive. These tools use the host's libc and system libraries.
+_DEBIAN = "https://deb.debian.org/debian/"
+_PROFILE_UNAVAILABLE = {
+    "aarch64-apple-darwin": "the profiling packages are for Debian Linux",
+    "x86_64-apple-darwin": "the profiling packages are for Debian Linux",
+    "x86_64-pc-windows-msvc": "the profiling packages are for Debian Linux",
+    "aarch64-pc-windows-msvc": "the profiling packages are for Debian Linux",
+}
+ARCHIVES["heaptrack"] = {
+    "version": "1.6.80",
+    "unavailable": _PROFILE_UNAVAILABLE,
+    "commands": ("heaptrack", "heaptrack_print"),
+    "packages": {
+        "aarch64-unknown-linux-gnu": (
+            ("pool/main/h/heaptrack/heaptrack_1.5.0+dfsg1+git20260219.f16e8d3-2+b2_arm64.deb", "7e4d6ac07ff482b5286c4b5b469270f0c5655ba30eb60c18e5b064741645ce21"),
+            ("pool/main/h/heaptrack/libheaptrack_1.5.0+dfsg1+git20260219.f16e8d3-2+b2_arm64.deb", "137b06d5fe5a0abd5543a31b44a96f1fe08c3b0f4845d576862f0e0dbb4e1754"),
+            ("pool/main/b/boost1.92/libboost-filesystem1.92.0_1.92.0-4+b1_arm64.deb", "509620d18b22820fe26fc804a1cccc8dcebefeeba0568b5a54e43c6029d7f84f"),
+            ("pool/main/b/boost1.92/libboost-iostreams1.92.0_1.92.0-4+b1_arm64.deb", "fa1e5e2275cd8c7db263c78a8a298d235d4190dea3a112eca442294895af306a"),
+            ("pool/main/b/boost1.92/libboost-program-options1.92.0_1.92.0-4+b1_arm64.deb", "3a9dd7242ecbbf39aa531760598d3c9a49ae9b699f7cb25931b5379b03e00a89"),
+        ),
+        "x86_64-unknown-linux-gnu": (
+            ("pool/main/h/heaptrack/heaptrack_1.5.0+dfsg1+git20260219.f16e8d3-2+b2_amd64.deb", "d66892cfe1341ecdeac04449f1dc61086b251418f6e2dce73bddbd48d854c6e8"),
+            ("pool/main/h/heaptrack/libheaptrack_1.5.0+dfsg1+git20260219.f16e8d3-2+b2_amd64.deb", "66939a84c18e12cac9d55e57619cfd829c6d30128a85f5daf7b8c2ea12a27c4f"),
+            ("pool/main/b/boost1.92/libboost-filesystem1.92.0_1.92.0-4+b1_amd64.deb", "5b5d50b009b4af62014991e34293885d1fc17bb0c7c5709c196dcbcb1e3ed358"),
+            ("pool/main/b/boost1.92/libboost-iostreams1.92.0_1.92.0-4+b1_amd64.deb", "392b3fc6f6b6d96c41ecdda27816be6da44a0d315c7b911eb118dcd8aa9b46f3"),
+            ("pool/main/b/boost1.92/libboost-program-options1.92.0_1.92.0-4+b1_amd64.deb", "c8ae3cd394f2d71e4df0bd04398d59ef24b35523d7d84a81accd424aec44b767"),
+        ),
+    },
+}
+ARCHIVES["valgrind"] = {
+    "version": "3.24.0",
+    "unavailable": _PROFILE_UNAVAILABLE,
+    "commands": ("valgrind", "cg_annotate"),
+    "packages": {
+        "aarch64-unknown-linux-gnu": (
+            (
+                "pool/main/v/valgrind/valgrind_3.24.0-3_arm64.deb",
+                "77c79eb0fa410c2faf9feae46d603aa0915b8c9b7a48d16e872c635d2082db0c",
+            ),
+        ),
+        "x86_64-unknown-linux-gnu": (
+            (
+                "pool/main/v/valgrind/valgrind_3.24.0-3_amd64.deb",
+                "0359e30820ccee7ee5c8d4c951ca276e3978b18f157d71bd77981de05b344907",
+            ),
+        ),
+    },
+}
+
+
 def fetched(url: str, sha256: str) -> bytes:
     """The file at `url`, once its SHA-256 is `sha256`; the install stops on any other."""
     print("+ fetch", url, flush=True)
@@ -470,6 +525,10 @@ def install_archive(command: str, host: str, bin_dir: Path) -> str:
     """Puts `command`'s release executable for `host` in `bin_dir` unless the one there answers its version: the archive's `member`
     (`{target}` is `host`), or the member named `command` where the tool names none."""
     tool = ARCHIVES[command]
+    if host in tool.get("unavailable", {}):
+        return f"unavailable on {host}: {tool['unavailable'][host]}"
+    if "packages" in tool:
+        return install_distribution_archive(command, host, bin_dir, tool)
     name = command + (".exe" if os.name == "nt" else "")
     found = shutil.which(name, path=str(bin_dir))
     if found and tool["version"] in run([found, "--version"], check=False, capture=True).stdout.split():
@@ -483,6 +542,52 @@ def install_archive(command: str, host: str, bin_dir: Path) -> str:
     (bin_dir / name).write_bytes(data)
     (bin_dir / name).chmod(0o755)
     return "prebuilt archive"
+
+
+def install_distribution_archive(
+    command: str, host: str, bin_dir: Path, tool: dict
+) -> str:
+    """Extract a checksummed binary package and keep its relative runtime files together."""
+    packages = tool["packages"].get(host)
+    if not packages:
+        sys.exit(f"{command} {tool['version']} has no archive recorded for {host}")
+    if shutil.which("dpkg-deb") is None:
+        sys.exit(f"{command} requires dpkg-deb to extract its prebuilt packages")
+    cache = bin_dir.parent / "archives"
+    cache.mkdir(parents=True, exist_ok=True)
+    package_set = hashlib.sha256("".join(checksum for _, checksum in packages).encode()).hexdigest()
+    image = cache / f"{command}-{package_set[:12]}"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    was_installed = image.is_dir()
+    if not was_installed:
+        with tempfile.TemporaryDirectory(dir=cache) as temp:
+            staged = Path(temp) / "image"
+            for asset, sha256 in packages:
+                package = Path(temp) / Path(asset).name
+                package.write_bytes(fetched(_DEBIAN + asset, sha256))
+                run(["dpkg-deb", "-x", str(package), str(staged)])
+            try:
+                staged.rename(image)
+            except OSError:
+                if not image.is_dir():
+                    raise
+    for executable in tool["commands"]:
+        binary = shlex.quote(str(image / "usr/bin" / executable))
+        environment = ""
+        if command == "valgrind":
+            environment = f"export VALGRIND_LIB={shlex.quote(str(image / 'usr/libexec/valgrind'))}\n"
+        elif command == "heaptrack":
+            library = shlex.quote(
+                str(image / "usr/lib" / host.replace("-unknown-", "-"))
+            )
+            environment = f"export LD_LIBRARY_PATH={library}${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}\n"
+        launcher = bin_dir / executable
+        with tempfile.TemporaryDirectory(dir=bin_dir) as temp:
+            script = Path(temp) / executable
+            script.write_text(f'#!/bin/sh\n{environment}exec {binary} "$@"\n', encoding="utf-8")
+            script.chmod(0o755)
+            script.replace(launcher)
+    return "installed" if was_installed else "prebuilt archive"
 
 
 def host_target() -> str:

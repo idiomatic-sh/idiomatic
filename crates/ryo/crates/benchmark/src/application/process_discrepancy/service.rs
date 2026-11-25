@@ -6,13 +6,13 @@ use crate::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactMetadata, CaseArtifacts},
 };
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+use benchmark_contracts::domain::documents::types::invocation_document::value::{
     CompleteInvocation, InvocationDocument,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::YesNo;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use benchmark_contracts::domain::documents::types::text::value::YesNo;
+use benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::path::{Path, PathBuf};
 
 /// The proof and the capture bind the same executable, settings, profile and file metadata.
@@ -50,8 +50,7 @@ pub(crate) fn matches(
 ) -> Result<(), Failure> {
     let process = expected(case).ok_or(Failure::NoProcessExpectation)?;
     let actual = require_identity(invocation, proof)?;
-    if output.signal
-        != ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited
+    if output.signal != benchmark_contracts::domain::measurements::types::TerminationSignal::Exited
         || output.status != process.exit
         || actual.signal != Signal::Absent
         || actual.observer_no_deadline != YesNo::Yes
@@ -75,13 +74,13 @@ pub(crate) fn matches(
     }
     let profile_root = rules.parent().ok_or(Failure::MissingProfileBoundary)?;
     let metadata_files = match &case.request.file_metadata {
-        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
-            values,
-        ) => values
-            .keys()
-            .map(|file| PathBuf::from(file.0.as_ref()))
-            .collect::<Vec<_>>(),
-        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => {
+        benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) => {
+            values
+                .keys()
+                .map(|file| PathBuf::from(file.0.as_ref()))
+                .collect::<Vec<_>>()
+        }
+        benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => {
             Vec::new()
         }
     };

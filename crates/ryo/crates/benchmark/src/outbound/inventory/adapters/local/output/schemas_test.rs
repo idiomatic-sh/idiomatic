@@ -127,7 +127,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         }
         Subject::DeferredSummary => {
             use crate::outbound::inventory::types::{RowReason, RowStatus};
-            use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+            use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
             let mut deferred = summary();
             deferred.rules[0].status = RowStatus::Deferred;
             deferred.rules[0].reason = RowReason::Deferred("control_flow".into());

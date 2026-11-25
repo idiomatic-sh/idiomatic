@@ -10,12 +10,12 @@ use super::types::Registration;
 use super::types::Row;
 use super::types::RuleInstanceRecord;
 use super::types::Summary;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
-use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::receipts::types::ReceiptAudit;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 /// What every `inventory` adapter implements: registrations in, exact observations and results out.

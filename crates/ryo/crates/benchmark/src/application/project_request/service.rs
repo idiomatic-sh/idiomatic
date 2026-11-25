@@ -1,12 +1,12 @@
 //! One run of a corpus project over its explicit files, with its own state directory and its context sealed by its mode.
 use super::types::ProjectCorpus;
 use crate::outbound::context::interface::ContextPort;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     ContextSeal, FileMetadataDeclaration, InputDeclaration, RunRequest, StagedSources,
 };
-use ryo_benchmark_contracts::domain::workloads::types::ConfigurationOverride;
+use benchmark_contracts::domain::workloads::types::ConfigurationOverride;
 use std::path::{Path, PathBuf};
 
 /// The request one run of the project at `root` sends both contestants.

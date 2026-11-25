@@ -156,6 +156,7 @@ impl Batch {
                 Program::prepare("query", &query, ctx, Some("/"), modules, literals)
             });
         self.clocks.prepare += thread_cpu() - t;
+        crate::finish::operators::query(rule, &query.text);
         rule
     }
     fn register_query(

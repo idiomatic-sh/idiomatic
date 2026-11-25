@@ -50,25 +50,23 @@ fn subject(text: Input) -> Result<Value, Failure> {
         text.contains("rule="),
     ) {
         (
-            Some(ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(rule)),
+            Some(benchmark_contracts::domain::workloads::types::ExpectedRule::Explicit(rule)),
             true,
         ) => rule.as_ref() == "invalid-syntax",
-        (Some(ryo_benchmark_contracts::domain::workloads::types::ExpectedRule::Parent), false) => {
-            true
-        }
+        (Some(benchmark_contracts::domain::workloads::types::ExpectedRule::Parent), false) => true,
         (None, _) => true,
         _ => false,
     };
     let comparison = if text.contains("comparison='full'") {
-        ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
+        benchmark_contracts::domain::workloads::types::CaseComparison::Full
     } else {
-        ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Rule
+        benchmark_contracts::domain::workloads::types::CaseComparison::Rule
     };
     let context_bytes = !text.contains("auxiliary-files")
-        || matches!(&case.context, ryo_benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(context)
+        || matches!(&case.context, benchmark_contracts::domain::workloads::types::ContextDeclaration::Declared(context)
             if context.auxiliary_files[std::path::Path::new("pkg/__init__.py")].0 == [0, 1, 255]);
     let inventory = !text.contains("given-project-inventory")
-        || matches!(&case.given_project_inventory, ryo_benchmark_contracts::domain::workloads::types::InventoryDeclaration::Declared(inventory)
+        || matches!(&case.given_project_inventory, benchmark_contracts::domain::workloads::types::InventoryDeclaration::Declared(inventory)
             if inventory.entries.len() == 1
                 && inventory.entries[0].state == ryo::linter::ProjectEntryState::File);
     Ok(case.comparison == comparison && identity_preserved && context_bytes && inventory)

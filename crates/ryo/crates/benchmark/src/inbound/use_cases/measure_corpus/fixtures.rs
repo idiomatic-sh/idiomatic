@@ -16,15 +16,15 @@ use crate::outbound::{
     linter::fixtures::fake::LinterFake, suite::fixtures::fake::SuiteFake,
     workspace::fixtures::fake::WorkspaceFake,
 };
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::measurements::types::{
     ExecutionProfile, Invocation, MeasurementMode, ResidentBytes, ResourceObservation, Resources,
 };
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     CertificationCases, CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
     RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
-use ryo_benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
+use benchmark_contracts::domain::workloads::types::{Project, RuleContextProfile};
 use std::sync::Arc;
 
 pub mod edited;
@@ -64,14 +64,13 @@ fn certificate(covered: &[&str]) -> Certificate {
             missing: vec![],
         },
         paths: vec![],
-        fingerprint:
-            ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
-                "sealed".into(),
-            ),
+        fingerprint: benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
+            "sealed".into(),
+        ),
         probe: request,
         profiles: [profile.clone(), profile],
         execution: ExecutionProfile::Wall,
-        cases: ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
+        cases: benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
     }
 }
 
@@ -104,18 +103,18 @@ pub fn unreliable_host_use_case() -> MeasureCorpusUseCaseImpl {
             LinterFake::default(),
         ),
         Arc::new(SuiteFake {
-            profile: Some(ryo_benchmark_contracts::domain::workloads::types::Tool {
+            profile: Some(benchmark_contracts::domain::workloads::types::Tool {
                 file_observation:
-                    ryo_benchmark_contracts::domain::workloads::types::FileObservation::PosixExecutable,
+                    benchmark_contracts::domain::workloads::types::FileObservation::PosixExecutable,
                 ..crate::outbound::suite::fixtures::samples::tool()
             }),
             ..SuiteFake::default()
         }),
         Arc::new(crate::outbound::host::fixtures::fake::HostFake {
-            facts: ryo_benchmark_contracts::domain::hosts::types::HostFacts {
-                family: ryo_benchmark_contracts::domain::hosts::types::HostFamily::Unix,
-                kernel: ryo_benchmark_contracts::domain::hosts::types::HostKernel::Microsoft,
-                isolation: ryo_benchmark_contracts::domain::hosts::types::HostIsolation::Bare,
+            facts: benchmark_contracts::domain::hosts::types::HostFacts {
+                family: benchmark_contracts::domain::hosts::types::HostFamily::Unix,
+                kernel: benchmark_contracts::domain::hosts::types::HostKernel::Microsoft,
+                isolation: benchmark_contracts::domain::hosts::types::HostIsolation::Bare,
             },
             ..crate::outbound::host::fixtures::fake::HostFake::default()
         }),

@@ -1,6 +1,6 @@
 //! How many rules a tool ships, defers and leaves pending, beside how many are authored.
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
-use ryo_benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount;
+use benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount;
 
 /// How many rules the tool ships, defers and leaves pending, and how many of the shipped ones are authored.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

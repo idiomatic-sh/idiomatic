@@ -21,6 +21,7 @@ pub(super) const RULE_STEP_TARGET: &str = constants::RYO_DIAGNOSTIC_RULE_STEP;
 /// Aggregate phase timings for the explicitly requested execution profile.
 pub(super) const EXECUTION_TARGET: &str =
     ryo_values::domain::table_words::constants::EXECUTION_TARGET;
+const NODE_COUNTERS_TARGET: &str = "ryo::node_counters";
 /// Aggregate stored selection and materialization work.
 pub(super) const SELECTION_TARGET: &str = constants::RYO_DIAGNOSTIC_SELECTION;
 /// Per-prepared-selector counts, enabled only by an explicit diagnostic opt-in.
@@ -79,12 +80,12 @@ pub(super) fn chrome(
 /// Build the filtered JSONL subscriber used by an explicit diagnostic worker.
 pub(super) fn subscriber(
     path: &Path,
-    options: ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions,
+    options: benchmark_contracts::domain::requests::types::DiagnosticOptions,
 ) -> io::Result<impl tracing::Subscriber + Send + Sync + 'static> {
-    let on = |switch: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch| {
+    let on = |switch: benchmark_contracts::domain::requests::types::DiagnosticSwitch| {
         matches!(
             switch,
-            ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
+            benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
         )
     };
     let aggregate_level = if on(options.execution) {
@@ -126,6 +127,14 @@ pub(super) fn subscriber(
                     },
                 )
                 .with_target(EXECUTION_TARGET, aggregate_level)
+                .with_target(
+                    NODE_COUNTERS_TARGET,
+                    if include_steps {
+                        tracing_subscriber::filter::LevelFilter::INFO
+                    } else {
+                        tracing_subscriber::filter::LevelFilter::OFF
+                    },
+                )
                 .with_target(SELECTION_TARGET, aggregate_level)
                 .with_target(
                     SELECTION_DETAIL_TARGET,

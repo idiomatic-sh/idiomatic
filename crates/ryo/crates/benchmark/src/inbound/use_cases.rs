@@ -6,7 +6,6 @@ pub mod compare;
 pub mod measure;
 pub mod measure_corpus;
 pub mod operate;
-pub mod profile;
 pub mod run_ryo;
 
 pub mod certify;

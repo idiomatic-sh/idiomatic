@@ -8,7 +8,7 @@ use crate::outbound::suite::{
         EvidenceRequirement, MaterializedContext,
     },
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Operation {
@@ -234,7 +234,7 @@ pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
                 .verify_tool(
                     ArtifactPath(&missing),
                     &tool,
-                    &ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine::from(&tool),
+                    &benchmark_contracts::domain::workloads::types::version_line::value::VersionLine::from(&tool),
                 )
                 .map(|()| 0)
                 .map_err(classify),
@@ -252,7 +252,7 @@ pub fn check(adapter: &impl SuitePort) -> std::io::Result<()> {
                     ArtifactPath(&destination),
                     &[],
                     &Default::default(),
-                    ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+                    benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
                 )
                 .map(|()| 0)
                 .map_err(classify),

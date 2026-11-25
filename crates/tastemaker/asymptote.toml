@@ -203,3 +203,11 @@ group = "build"
 run = ["bash", "-c", "set -eo pipefail; mkdir -p target/checks/build; cargo check --workspace --all-targets --all-features --locked 2>&1 | tee target/checks/build/compile.log; cargo test --workspace --locked --all-features --no-run 2>&1 | tee target/checks/build/test.log; cargo doc --workspace --no-deps --all-features --locked 2>&1 | tee target/checks/build/doc.log"]
 timeout-seconds = 7200
 inputs = [".", "../ryo", "../../clippy.toml", "../../rust-toolchain.toml", "../../.cargo", "../.."]
+
+[[tools]]
+id = "profile"
+group = "profile"
+run = ["benchmark-collector", "profile", "benchmarks"]
+output = "bmf"
+timeout-seconds = 21600
+inputs = [".", "../ryo/crates", "../ryo/languages", "../../tools/install.py", "../../rust-toolchain.toml", "../../.cargo"]

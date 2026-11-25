@@ -168,7 +168,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         && if text.contains("[query-modules]") {
             tool.query_modules
                 .get(
-                    &ryo_benchmark_contracts::domain::requests::types::QueryModuleName(
+                    &benchmark_contracts::domain::requests::types::QueryModuleName(
                         "python/ruff/suppress".into(),
                     ),
                 )
@@ -184,9 +184,9 @@ fn subject(text: Input) -> Result<Value, Failure> {
                 == ["E501"]
                 && tool
                     .rule_applicability
-                    .get(
-                        &ryo_benchmark_contracts::domain::requests::types::RuleLabel("E501".into()),
-                    )
+                    .get(&benchmark_contracts::domain::requests::types::RuleLabel(
+                        "E501".into(),
+                    ))
                     .map(|policy| policy.0.as_str())
                     == Some("accepted-syntax")
         } else {
@@ -194,23 +194,23 @@ fn subject(text: Input) -> Result<Value, Failure> {
         }
         && if text.contains("project-context-mode='listed-disk'") {
             tool.project_context_mode
-                == ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk
+                == benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk
         } else {
             tool.project_context_mode
-                == ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated
+                == benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::Isolated
         }
         && if text.contains("project-search-roots=[]") {
             tool.project_search_roots
-                == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(
-                    Vec::new(),
-                )
+                == benchmark_contracts::domain::requests::types::SearchRoots::Declared(Vec::new())
         } else {
             tool.project_search_roots
-                == ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
+                == benchmark_contracts::domain::requests::types::SearchRoots::Undeclared
         }
         && if text.contains("[rule-applicability]") {
             tool.rule_applicability
-                .get(&ryo_benchmark_contracts::domain::requests::types::RuleLabel("F401".into()))
+                .get(&benchmark_contracts::domain::requests::types::RuleLabel(
+                    "F401".into(),
+                ))
                 .is_some_and(|value| value.0 == "accepted-syntax")
         } else {
             tool.rule_applicability.is_empty()

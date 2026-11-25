@@ -1,12 +1,12 @@
 //! A deterministic process substitute records the observable result of fixture calls.
 use crate::outbound::execution::interface::ExecutionPort;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
-use ryo_benchmark_contracts::domain::measurements::types::{SignalNumber, TerminationSignal};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::measurements::types::ResourceObservation;
+use benchmark_contracts::domain::measurements::types::{SignalNumber, TerminationSignal};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{path::Path, time::Duration};
 #[derive(Clone, Debug)]
 /// Deterministic execution substitute for orchestration and contract tests.
@@ -46,8 +46,8 @@ fn requested_exit(arguments: &[std::ffi::OsString]) -> Option<i32> {
 }
 
 impl ExecutionPort for ExecutionFake {
-    fn profile(&self) -> ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile {
-        ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall
+    fn profile(&self) -> benchmark_contracts::domain::measurements::types::ExecutionProfile {
+        benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall
     }
     #[expect(
         clippy::expect_used,

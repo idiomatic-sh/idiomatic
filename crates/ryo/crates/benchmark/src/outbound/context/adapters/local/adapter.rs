@@ -6,13 +6,13 @@ use super::writer::{
 };
 use crate::outbound::context::interface::ContextPort;
 use crate::outbound::context::types::CorpusFiles;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::CaseContext;
-use ryo_benchmark_contracts::domain::context::types::ContextBytes;
-use ryo_benchmark_contracts::domain::context::types::ContextManifest;
-use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::CaseContext;
+use benchmark_contracts::domain::context::types::ContextBytes;
+use benchmark_contracts::domain::context::types::ContextManifest;
+use benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
@@ -24,7 +24,7 @@ pub(crate) fn artifact(bytes: &ContextBytes) -> ArtifactDigest {
 
 /// Content seal includes declared absences and stable logical location, never temporary physical directories.
 pub(crate) fn fingerprint(manifest: &ContextManifest) -> ArtifactDigest {
-    ryo_benchmark_contracts::domain::context::service::fingerprint(manifest)
+    benchmark_contracts::domain::context::service::fingerprint(manifest)
 }
 
 /// Validate found and missing dependencies without treating unreadable files as missing.
@@ -386,7 +386,7 @@ impl ContextPort for ContextLocalAdapter {
     fn receipt_text(
         &self,
         receipt: &ProjectContextReceipt,
-    ) -> Result<ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson, Error>
+    ) -> Result<benchmark_contracts::domain::documents::types::text::value::CanonicalJson, Error>
     {
         super::schemas::receipt_text(receipt)
     }

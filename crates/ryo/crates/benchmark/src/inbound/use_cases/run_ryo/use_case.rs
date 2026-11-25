@@ -1,14 +1,17 @@
 //! The worker orchestrates transport and SDK evaluation without reading wire data.
 use super::interface::RunRyoUseCase;
+use crate::application::measurement::phases::{Clock, observation_file};
 use crate::outbound::execution::types::{
     InProcessWorker, RuleCompileTimes, StoredRequest, WorkerResponse,
 };
 use crate::outbound::{
     context::interface::ContextPort, engine::interface::EnginePort, worker::interface::WorkerPort,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{ProjectContext, RunReport};
-use ryo_benchmark_contracts::domain::requests::types::{ContextSeal, WorkerRequest};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{ProjectContext, RunReport};
+use benchmark_contracts::domain::requests::types::{
+    ContextSeal, DiagnosticSwitch, WorkerRequest, WorkerState,
+};
 use std::sync::Arc;
 /// Handles one child-process request through independently injected boundaries; run in the bench's own process, it is the
 /// in-process execution's worker, each stored request read and answered through the same transport.
@@ -37,12 +40,25 @@ impl RunRyoUseCaseImpl {
 }
 impl RunRyoUseCaseImpl {
     /// The report of `request`: prepared, loaded, configured and run, with its sealed context's receipt.
-    fn report(&self, request: WorkerRequest) -> Result<RunReport, Error> {
+    fn report(
+        &self,
+        request: WorkerRequest,
+        mut clock: Option<&mut Clock>,
+    ) -> Result<RunReport, Error> {
         let prepared = crate::application::worker_request::service::prepare(request)?;
         let session = self.engine.load(&prepared.request)?;
+        if let Some(clock) = &mut clock {
+            clock.boundary()?;
+        }
         let configured =
             crate::application::worker_request::service::configure(&prepared.request, session)?;
+        if let Some(clock) = &mut clock {
+            clock.boundary()?;
+        }
         let run = configured.execute()?;
+        if let Some(clock) = &mut clock {
+            clock.boundary()?;
+        }
         let mut report = run.report;
         if let ContextSeal::Sealed(manifest) = &prepared.request.context_manifest {
             report.project_context = ProjectContext::Observed(self.context.receipt(
@@ -70,13 +86,27 @@ impl RunRyoUseCaseImpl {
 impl RunRyoUseCase for RunRyoUseCaseImpl {
     fn run_ryo(&self) -> Result<(), Error> {
         let request = self.worker.receive()?;
-        let report = self.report(request)?;
-        self.worker.respond(&report)
+        let phase_path = match &request.state {
+            WorkerState::Retained(cache)
+                if request.performance.diagnostics.execution == DiagnosticSwitch::On =>
+            {
+                cache.parent().and_then(observation_file)
+            }
+            _ => None,
+        };
+        let mut clock = phase_path.as_ref().map(|_| Clock::started()).transpose()?;
+        let report = self.report(request, clock.as_mut())?;
+        self.worker.respond(&report)?;
+        if let Some((path, mut clock)) = phase_path.zip(clock) {
+            clock.boundary()?;
+            clock.publish(&path)?;
+        }
+        Ok(())
     }
 }
 impl InProcessWorker for RunRyoUseCaseImpl {
     fn run(&self, request: &StoredRequest) -> Result<WorkerResponse, Error> {
-        let report = self.report(self.worker.read(&request.0)?)?;
+        let report = self.report(self.worker.read(&request.0)?, None)?;
         Ok(WorkerResponse(self.worker.encoded(&report)?.0))
     }
     fn compile(&self, request: &StoredRequest) -> Result<Option<RuleCompileTimes>, Error> {

@@ -2,11 +2,11 @@
 use crate::outbound::inventory::types::RegisteredModuleName;
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, RuleQuery};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, InputDeclaration, QueryModuleName,
 };
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::workloads::types::Tool;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 

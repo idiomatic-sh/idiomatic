@@ -12,15 +12,15 @@ use crate::outbound::execution::fixtures::{fake::ExecutionFake, observers::Obser
 use crate::outbound::inventory::fixtures::registrations::complete_of;
 use crate::outbound::linter::fixtures::fake::LinterFake;
 use crate::outbound::receipts::{fixtures::fake::ReceiptsFake, types::CaseReceipts};
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     IntentMatch, RecordedReason, ReportedFindings,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
-use ryo_benchmark_contracts::domain::measurements::types::{SignalNumber, TerminationSignal};
-use ryo_benchmark_contracts::domain::receipts::types::CaseKey;
-use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
-use ryo_benchmark_contracts::domain::workloads::types::benchmark_case_name::value::BenchmarkCaseName;
+use benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
+use benchmark_contracts::domain::measurements::types::{SignalNumber, TerminationSignal};
+use benchmark_contracts::domain::receipts::types::CaseKey;
+use benchmark_contracts::domain::requests::types::RuleLabel;
+use benchmark_contracts::domain::workloads::types::benchmark_case_name::value::BenchmarkCaseName;
 
 /// What a capture scenario establishes once its assertions hold.
 #[derive(Debug, PartialEq, Eq)]

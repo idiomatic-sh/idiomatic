@@ -1,5 +1,5 @@
 [package]
-name = "idiomatic-sh-ryo-benchmark"
+name = "idiomatic-sh-benchmark"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,10 +10,11 @@ description = "Shared correctness and performance harness for Ryo language bench
 autobenches = false
 
 [lib]
-name = "ryo_benchmark"
+name = "benchmark"
 
 [dependencies]
-ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../benchmark_contracts", version = "0.2.0" }
+profile_tools = { package = "idiomatic-sh-profile-tools", path = "profile_tools" }
+benchmark-contracts = { package = "idiomatic-sh-benchmark-contracts", path = "../benchmark_contracts", version = "0.2.0" }
 globset.workspace = true
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.2.0" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
@@ -47,7 +48,7 @@ tempfile.workspace = true
 cucumber.workspace = true
 cargo_metadata.workspace = true
 tokio.workspace = true
-idiomatic-sh-ryo-benchmark = { path = ".", features = ["fixtures"] }
+idiomatic-sh-benchmark = { path = ".", features = ["fixtures"] }
 
 [[test]]
 name = "bdd"
@@ -61,15 +62,15 @@ harness = false
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["ryo/fixtures"]
-# jemalloc built with its heap profiler (`--enable-prof`), for the profile run's heap profile; it samples nothing until the
-# profile run sets `_RJEM_MALLOC_CONF`, so a bench built with it still runs its other commands unprofiled.
-heap-profile = ["tikv-jemallocator/profiling"]
+# The collector uses the system allocator in the Heaptrack companion. Ordinary
+# workers keep the shipping allocator and supply the instruction and CPU data.
+heap-profile = []
 
 [lints]
 workspace = true
 
 [[bin]]
-name = "ryo-benchmark-collector"
+name = "benchmark-collector"
 path = "src/main.rs"
 
 [[test]]

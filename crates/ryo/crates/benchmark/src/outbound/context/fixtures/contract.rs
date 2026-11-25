@@ -3,7 +3,7 @@ use super::data::{ALIAS, LINK_VARIANTS, context, linked, missing, present, sourc
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::context::interface::ContextPort;
 use crate::outbound::context::types::CorpusFiles;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 /// The independently specified observations a context adapter answers.
 #[derive(Clone, Copy, Debug)]
@@ -265,8 +265,8 @@ fn observe(adapter: &impl ContextPort, operation: Operation) -> Result<(), Error
 /// Two manifests with different declared content must not share a seal.
 fn check_differs(
     adapter: &impl ContextPort,
-    first: &ryo_benchmark_contracts::domain::context::types::ContextManifest,
-    second: &ryo_benchmark_contracts::domain::context::types::ContextManifest,
+    first: &benchmark_contracts::domain::context::types::ContextManifest,
+    second: &benchmark_contracts::domain::context::types::ContextManifest,
 ) -> Result<(), Error> {
     if adapter.fingerprint(first) == adapter.fingerprint(second) {
         Err(Error::Invalid("the seal ignores a declared absence".into()))

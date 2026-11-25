@@ -2,7 +2,7 @@
 use super::super::BenchmarkArgument;
 use super::value::WorkerInput;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 type Input = &'static [&'static str];
 /// The request source and the arguments left, rendered as text.

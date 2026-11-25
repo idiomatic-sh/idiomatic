@@ -2,13 +2,11 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::constants;
 use crate::domain::suite::service::audited;
-use ryo_benchmark_contracts::domain::reports::types::AuthoredInventory;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::types::AuthoredInventory;
+use benchmark_contracts::domain::requests::types::{
     ParserSelection, ProviderSelection, SearchRoots,
 };
-use ryo_benchmark_contracts::domain::workloads::types::{
-    FileObservation, RuleContextProfile, Tool,
-};
+use benchmark_contracts::domain::workloads::types::{FileObservation, RuleContextProfile, Tool};
 use std::borrow::Cow;
 
 type Input = AuthoredInventory;
@@ -72,7 +70,7 @@ fn inventory(implemented: &[&str], missing: &[&str]) -> Input {
 fn tool() -> Tool {
     Tool {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+            benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: vec![],
         rule_observations: Default::default(),
         rule_context: RuleContextProfile::Undeclared,

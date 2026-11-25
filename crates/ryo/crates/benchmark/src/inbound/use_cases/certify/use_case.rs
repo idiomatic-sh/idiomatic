@@ -8,7 +8,7 @@ use crate::domain::suite::{
 use crate::outbound::{
     execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::sync::Arc;
 /// Establish independent correctness evidence for the selected execution profile.
 pub struct CertifyUseCaseImpl {
@@ -69,8 +69,8 @@ impl CertifyUseCase for CertifyUseCaseImpl {
         candidate_executable: &std::path::Path,
         selected_rules: &std::path::Path,
         scratch: &std::path::Path,
-        scope: ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage,
-        cases: &ryo_benchmark_contracts::domain::requests::types::CertificationCases,
+        scope: benchmark_contracts::domain::requests::types::BenchmarkCoverage,
+        cases: &benchmark_contracts::domain::requests::types::CertificationCases,
     ) -> Result<Certificate, Error> {
         let suite = self.suite.as_ref();
         let receipts = self.receipts.as_ref();
@@ -87,10 +87,10 @@ impl CertifyUseCase for CertifyUseCaseImpl {
             &reference.version_line(&tool),
         )?;
         let audit = crate::application::suite_auditing::service::audit(suite, directory, &tool)?;
-        if scope == ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted {
-            if let ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
+        if scope == benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted {
+            if let benchmark_contracts::domain::requests::types::CertificationCases::Registered {
                 coverage:
-                    ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Selected {
+                    benchmark_contracts::domain::requests::types::RegisteredCoverage::Selected {
                         ..
                     },
                 ..
@@ -115,17 +115,17 @@ impl CertifyUseCase for CertifyUseCaseImpl {
             reference_executable.to_owned(),
             candidate_executable.to_owned(),
         ];
-        if let ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Isolated(
+        if let benchmark_contracts::domain::measurements::types::ExecutionProfile::Isolated(
             collector,
         ) = &execution_profile
         {
             paths.push(collector.executable.clone());
         }
         let prepared_cases = match case_source {
-            ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile => {
+            benchmark_contracts::domain::requests::types::CertificationCases::Profile => {
                 PreparedCases::Profile
             }
-            ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
+            benchmark_contracts::domain::requests::types::CertificationCases::Registered {
                 registration,
                 output,
                 coverage,
@@ -187,7 +187,7 @@ impl CertifyUseCase for CertifyUseCaseImpl {
                     inventory_store,
                     &rules,
                     prepared,
-                    ryo_benchmark_contracts::domain::requests::types::CaseSelection::default(),
+                    benchmark_contracts::domain::requests::types::CaseSelection::default(),
                 )?
             }
             PreparedCases::Registered {
@@ -209,7 +209,7 @@ impl CertifyUseCase for CertifyUseCaseImpl {
         if before != after || execution.profile() != execution_profile {
             return Err(Error::Invalid(super::constants::CHANGED_EVIDENCE.into()));
         }
-        if let ryo_benchmark_contracts::domain::requests::types::CertificationCases::Registered {
+        if let benchmark_contracts::domain::requests::types::CertificationCases::Registered {
             output,
             ..
         } = case_source

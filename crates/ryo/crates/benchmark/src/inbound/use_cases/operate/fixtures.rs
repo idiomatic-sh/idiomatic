@@ -12,7 +12,7 @@ use crate::domain::operations::types::{BenchDirectory, BenchOperation};
 use crate::outbound::executables::fixtures::fake::{ExecutablesCall, ExecutablesFake};
 use crate::outbound::executables::types::RunVerdict;
 use crate::outbound::execution::fixtures::fake::ExecutionFake;
-use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
+use benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -99,7 +99,7 @@ pub fn use_case_on(executables: Arc<ExecutablesFake>, processors: usize) -> Oper
 pub fn use_case(executables: Arc<ExecutablesFake>) -> OperateUseCaseImpl {
     use_case_on(
         executables,
-        ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS,
+        benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS,
     )
 }
 

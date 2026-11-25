@@ -1,6 +1,6 @@
 //! Preserve signal identity without interpreting Windows exit codes as signals.
 use crate::outbound::execution::errors::ExecutionError;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::measurements::types::{
     ProcessExitCode, SignalNumber, TerminationSignal,
 };
 
@@ -25,7 +25,7 @@ pub(crate) fn decode(status: std::process::ExitStatus) -> Result<ProcessExit, Ex
         return Ok(ProcessExit {
             code: ProcessExitCode(-signal),
             termination: TerminationSignal::Signalled(
-                ryo_benchmark_contracts::domain::measurements::types::SignalNumber(signal),
+                benchmark_contracts::domain::measurements::types::SignalNumber(signal),
             ),
         });
     }

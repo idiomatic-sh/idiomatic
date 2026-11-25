@@ -1,11 +1,11 @@
 //! The verbs of the operations, the directory each writes and the worker command each runs.
 use super::constants::{
     BENCH, BENCH_COMPONENTS, BENCH_TIMING, BENCHMARK, BENCHMARKS, COLLECTOR, DOCUMENT, INVENTORY,
-    LANGUAGES, LINTERS, NOT_A_BENCH_DIRECTORY, REGISTRATION, STATE,
+    LANGUAGES, LINTERS, NOT_A_BENCH_DIRECTORY, PROFILE, REGISTRATION, STATE,
 };
 use super::types::{BenchDirectory, BenchOperation, OperationLayout, OperationVerb};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::constants::{
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::constants::{
     CASE_INVENTORY_ARGUMENT, DOCUMENT_ARGUMENT, MEASURE_ACCOUNTED_VALID, VERIFICATION_ARGUMENT,
 };
 use std::ffi::OsString;
@@ -14,9 +14,13 @@ use std::path::{Component, Path};
 /// The operation a collector verb names.
 #[must_use]
 pub fn operation(verb: OperationVerb<'_>) -> Option<BenchOperation> {
-    [BenchOperation::Bench, BenchOperation::Timing]
-        .into_iter()
-        .find(|operation| verb_of(*operation).0 == verb.0)
+    [
+        BenchOperation::Bench,
+        BenchOperation::Timing,
+        BenchOperation::Profile,
+    ]
+    .into_iter()
+    .find(|operation| verb_of(*operation).0 == verb.0)
 }
 
 /// The collector verb of an operation.
@@ -24,6 +28,7 @@ pub(crate) fn verb_of(operation: BenchOperation) -> OperationVerb<'static> {
     OperationVerb(match operation {
         BenchOperation::Bench => BENCH,
         BenchOperation::Timing => BENCH_TIMING,
+        BenchOperation::Profile => PROFILE,
     })
 }
 
@@ -80,7 +85,7 @@ pub(crate) fn worker_arguments(
     tool: &Path,
 ) -> Vec<OsString> {
     match operation {
-        BenchOperation::Bench | BenchOperation::Timing => {
+        BenchOperation::Bench | BenchOperation::Timing | BenchOperation::Profile => {
             let mut inventory = OsString::from(CASE_INVENTORY_ARGUMENT);
             inventory.push(layout.root.join(REGISTRATION));
             let mut verification = OsString::from(VERIFICATION_ARGUMENT);

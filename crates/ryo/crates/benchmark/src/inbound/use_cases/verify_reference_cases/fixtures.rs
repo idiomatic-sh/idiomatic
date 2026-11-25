@@ -2,7 +2,7 @@
 use crate::outbound::{
     execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 
 /// The public operation under test, given the ports, the rules and the scratch directory.
@@ -52,15 +52,15 @@ pub fn exercise(scenario: Scenario, operate: Operate) -> Result<usize, Refusal> 
                 ),
             }
             result.map_err(|error| match error {
-                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(error)
+                benchmark_contracts::domain::reports::errors::ReportsError::Io(error)
                     if error.kind() == std::io::ErrorKind::NotFound =>
                 {
                     Refusal::MissingSource
                 }
-                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(_)
-                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Io(_)
-                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Json(_)
-                | ryo_benchmark_contracts::domain::reports::errors::ReportsError::Toml(_) => {
+                benchmark_contracts::domain::reports::errors::ReportsError::Invalid(_)
+                | benchmark_contracts::domain::reports::errors::ReportsError::Io(_)
+                | benchmark_contracts::domain::reports::errors::ReportsError::Json(_)
+                | benchmark_contracts::domain::reports::errors::ReportsError::Toml(_) => {
                     Refusal::Unexpected
                 }
             })
@@ -77,8 +77,8 @@ pub(crate) mod authored {
         execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
         receipts::fixtures::fake::ReceiptsFake, suite::fixtures::fake::SuiteFake,
     };
-    use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-    use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
+    use benchmark_contracts::domain::reports::errors::ReportsError;
+    use benchmark_contracts::domain::reports::types::BenchmarkFinding;
     use std::path::Path;
 
     /// The shape of the authored suite the reference answers.
@@ -184,13 +184,13 @@ pub(crate) mod discrepancy {
         linter::{fixtures::fake::LinterFake, interface::LinterPort},
         suite::fixtures::fake::SuiteFake,
     };
-    use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-    use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
-    use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-    use ryo_benchmark_contracts::domain::requests::types::{
+    use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+    use benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
+    use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+    use benchmark_contracts::domain::requests::types::{
         ParserSelection, ProviderSelection, SearchRoots,
     };
-    use ryo_benchmark_contracts::domain::workloads::types::{
+    use benchmark_contracts::domain::workloads::types::{
         CaseComparison, DiscrepancyBasis, DiscrepancyReason, FileObservation,
         MetadataDigestDeclaration, PreparedReferenceBehavior, PreparedReferenceDiscrepancy,
         ReferenceDiscrepancyIdentity, RuleContextProfile, Tool,
@@ -225,7 +225,7 @@ pub(crate) mod discrepancy {
             query_modules: std::collections::BTreeMap::default(),
             rule_applicability: std::collections::BTreeMap::default(),
             parser_configuration: ParserSelection::Named(
-                ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
+                benchmark_contracts::domain::requests::types::ParserConfigurationName(
                     "python-target=3.10".into(),
                 ),
             ),
@@ -244,41 +244,44 @@ pub(crate) mod discrepancy {
             )
             .expect("fixture settings"),
         );
-        case.reference_discrepancy = PreparedReferenceBehavior::Differs(PreparedReferenceDiscrepancy {
-            basis: DiscrepancyBasis::LanguageDefect,
-            identity: ReferenceDiscrepancyIdentity {
-                file_metadata_sha256: MetadataDigestDeclaration::Undeclared,
-                tool: "fixture".into(),
-                version: "1".into(),
-                observed_executable_sha256: binary_hash.clone(),
-                profile_sha256: profile_hash.clone(),
-                settings_sha256: settings,
-                source_sha256: ArtifactDigest("c".repeat(64)),
-                intended_output_sha256: crate::domain::discrepancy::service::output_digest(
-                    &case.expected,
+        case.reference_discrepancy =
+            PreparedReferenceBehavior::Differs(PreparedReferenceDiscrepancy {
+                basis: DiscrepancyBasis::LanguageDefect,
+                identity: ReferenceDiscrepancyIdentity {
+                    file_metadata_sha256: MetadataDigestDeclaration::Undeclared,
+                    tool: "fixture".into(),
+                    version: "1".into(),
+                    observed_executable_sha256: binary_hash.clone(),
+                    profile_sha256: profile_hash.clone(),
+                    settings_sha256: settings,
+                    source_sha256: ArtifactDigest("c".repeat(64)),
+                    intended_output_sha256: crate::domain::discrepancy::service::output_digest(
+                        &case.expected,
+                    ),
+                    reference_output_sha256: crate::domain::discrepancy::service::output_digest(
+                        &reference,
+                    ),
+                },
+                expected:
+                    benchmark_contracts::domain::process::types::ReferenceExpectation::Diagnostics(
+                        reference,
+                    ),
+                reason: DiscrepancyReason(
+                    "independent language contract differs from the pinned reference".into(),
                 ),
-                reference_output_sha256: crate::domain::discrepancy::service::output_digest(&reference),
-            },
-            expected:
-                ryo_benchmark_contracts::domain::process::types::ReferenceExpectation::Diagnostics(
-                    reference,
-                ),
-            reason: DiscrepancyReason(
-                "independent language contract differs from the pinned reference".into(),
-            ),
-            evidence: vec![DiscrepancyEvidence::Language {
-                path: "evidence.json".into(),
-                sha256: ArtifactDigest("d".repeat(64)),
-                kind: DiscrepancyEvidenceKind::IndependentLanguageRun,
-                language_version: LanguageVersion("3.10".into()),
-                target_configuration: ParserTarget("python-target=3.10".into()),
-                version_rationale: Rationale("exact target independently evaluated".into()),
-            }],
-        });
+                evidence: vec![DiscrepancyEvidence::Language {
+                    path: "evidence.json".into(),
+                    sha256: ArtifactDigest("d".repeat(64)),
+                    kind: DiscrepancyEvidenceKind::IndependentLanguageRun,
+                    language_version: LanguageVersion("3.10".into()),
+                    target_configuration: ParserTarget("python-target=3.10".into()),
+                    version_rationale: Rationale("exact target independently evaluated".into()),
+                }],
+            });
         suite.profile = Some(profile);
         let _previous_profile = suite.artifact_digests.insert(
             std::path::Path::new("/profile")
-                .join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
+                .join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
             profile_hash,
         );
         let _previous_binary = suite.artifact_digests.insert("fixture".into(), binary_hash);
@@ -296,8 +299,8 @@ pub(crate) mod discrepancy {
                 ClaimedDiscrepancy, ClaimedEvidence, ClaimedIdentity, ClaimedMetadata,
                 ClaimedProcess,
             };
-            use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
-            use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
+            use benchmark_contracts::domain::documents::types::text::value::Sha256Text;
+            use benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::{
                 LanguageVersion, ParserTarget, Rationale,
             };
             ClaimedDiscrepancy {
@@ -327,16 +330,16 @@ pub(crate) mod discrepancy {
         suite
             .reference_claims
             .push(crate::outbound::suite::types::CaseClaim {
-            rule: ryo_benchmark_contracts::domain::documents::types::text::value::RuleName(
-                authored_case.rule.to_string(),
-            ),
-            name: ryo_benchmark_contracts::domain::documents::types::text::value::CaseName(
-                authored_case.name.to_string(),
-            ),
-            basis:
-                ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
-            discrepancy,
-        });
+                rule: benchmark_contracts::domain::documents::types::text::value::RuleName(
+                    authored_case.rule.to_string(),
+                ),
+                name: benchmark_contracts::domain::documents::types::text::value::CaseName(
+                    authored_case.name.to_string(),
+                ),
+                basis:
+                    benchmark_contracts::domain::workloads::types::DiscrepancyBasis::LanguageDefect,
+                discrepancy,
+            });
         suite
     }
 }

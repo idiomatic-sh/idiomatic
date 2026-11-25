@@ -1,7 +1,7 @@
 //! Readable suite orchestration, borrowing the actual injected port owners.
 use super::interface::VerifyCasesUseCase;
 use crate::application::input_metadata::constants;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// verify_cases with required borrowed boundaries.
 pub struct VerifyCasesUseCaseImpl<'a> {
@@ -47,15 +47,13 @@ impl VerifyCasesUseCase for VerifyCasesUseCaseImpl<'_> {
         &self,
         rules: &Path,
         scratch: &Path,
-        selection: ryo_benchmark_contracts::domain::requests::types::CaseSelection,
-        coverage: ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage,
+        selection: benchmark_contracts::domain::requests::types::CaseSelection,
+        coverage: benchmark_contracts::domain::requests::types::BenchmarkCoverage,
     ) -> Result<
-        ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount,
+        benchmark_contracts::domain::workloads::types::case_count::value::CaseCount,
         ReportsError,
     > {
-        if coverage
-            == ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted
-        {
+        if coverage == benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted {
             let profile = rules.parent().ok_or_else(|| {
                 ReportsError::Invalid(constants::MISSING_CASE_PROFILE_BOUNDARY.into())
             })?;

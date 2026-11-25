@@ -4,8 +4,8 @@ use super::service::{expand, observation_key};
 use super::types::ReceiptKeyParts;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::canonical_text::types::Label;
-use ryo_benchmark_contracts::domain::process::types::OutputPart as Part;
-use ryo_benchmark_contracts::domain::process::types::PathEncoding as Encoding;
+use benchmark_contracts::domain::process::types::OutputPart as Part;
+use benchmark_contracts::domain::process::types::PathEncoding as Encoding;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
@@ -130,14 +130,14 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     match scenario {
         Scenario::UnicodeJsonPath => {
             let parts = [
-                Part::Literal(ryo_benchmark_contracts::domain::process::types::OutputText(
+                Part::Literal(benchmark_contracts::domain::process::types::OutputText(
                     "{\"file\":\"".into(),
                 )),
                 Part::InputPath {
                     file: "é\".py".into(),
                     encoding: Encoding::JsonStringContent,
                 },
-                Part::Literal(ryo_benchmark_contracts::domain::process::types::OutputText(
+                Part::Literal(benchmark_contracts::domain::process::types::OutputText(
                     "\",\"assertion\":\"x < y\"}".into(),
                 )),
             ];

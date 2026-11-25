@@ -6,11 +6,11 @@
 use crate::inbound::use_cases::certify::constants;
 use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::suite::interface::SuitePort;
-use ryo_benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, RunReport};
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::measurements::types::{Invocation, ProcessOutput};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::types::{BenchmarkFinding, RunReport};
+use benchmark_contracts::domain::requests::types::RunRequest;
 use sha2::{Digest as _, Sha256};
 use std::path::Path;
 use std::path::PathBuf;
@@ -113,8 +113,8 @@ impl Contestant {
 impl LinterPort for Contestant {
     fn rule_configuration(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
-        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
+    ) -> benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         if self.writes_root {
@@ -144,31 +144,29 @@ impl LinterPort for Contestant {
                     rule: ryo::linter::RuleId::try_from(constants::FIXTURE_RULE_ID)
                         .expect(constants::FIXTURE_PRECONDITION),
                     file: file.clone(),
-                    start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0),
-                    end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(1),
+                    start: benchmark_contracts::domain::reports::types::SourceByteOffset(0),
+                    end: benchmark_contracts::domain::reports::types::SourceByteOffset(1),
                 })
             })
             .collect();
         Ok(RunReport {
             execution_metadata:
-                ryo_benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
+                benchmark_contracts::domain::reports::types::ExecutionMetadata::Complete,
             project_context:
-                ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
             skipped: Vec::new(),
-            coverage:
-                ryo_benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
-                    ryo_benchmark_contracts::domain::reports::types::RuleCoverage {
-                        selected: ryo_benchmark_contracts::domain::reports::types::PairCount(
-                            request.files.len(),
-                        ),
-                        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
-                            request.files.len(),
-                        ),
-                        skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                        unknown_or_unread:
-                            ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                    },
-                ),
+            coverage: benchmark_contracts::domain::reports::types::CoverageAccounting::Accounted(
+                benchmark_contracts::domain::reports::types::RuleCoverage {
+                    selected: benchmark_contracts::domain::reports::types::PairCount(
+                        request.files.len(),
+                    ),
+                    evaluated: benchmark_contracts::domain::reports::types::PairCount(
+                        request.files.len(),
+                    ),
+                    skipped: benchmark_contracts::domain::reports::types::PairCount(0),
+                    unknown_or_unread: benchmark_contracts::domain::reports::types::PairCount(0),
+                },
+            ),
             files: request.files.clone(),
             diagnostics,
         })
@@ -176,8 +174,8 @@ impl LinterPort for Contestant {
     fn settings_text(
         &self,
         normalized: &Invocation,
-        _case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
-        _profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+        _case: &benchmark_contracts::domain::workloads::types::PreparedCase,
+        _profile: &benchmark_contracts::domain::workloads::types::Tool,
     ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
         Ok(crate::outbound::linter::types::CanonicalText(format!(
             "{normalized:?}"
@@ -185,17 +183,15 @@ impl LinterPort for Contestant {
     }
     fn rule_context_text(
         &self,
-        prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext,
+        prepared: &benchmark_contracts::domain::context::types::PreparedRuleContext,
     ) -> crate::outbound::linter::types::CanonicalText {
         crate::outbound::linter::types::CanonicalText(format!("{prepared:?}"))
     }
     fn version_line(
         &self,
-        tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
-        ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine::from(
-            tool,
-        )
+        tool: &benchmark_contracts::domain::workloads::types::Tool,
+    ) -> benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
+        benchmark_contracts::domain::workloads::types::version_line::value::VersionLine::from(tool)
     }
 }
 /// Assemble the existing independent source cases and real process port for a public suite operation.

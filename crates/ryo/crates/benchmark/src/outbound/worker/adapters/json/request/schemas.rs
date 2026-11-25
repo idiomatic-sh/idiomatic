@@ -1,11 +1,11 @@
 //! The worker request document: the JSON a parent process passes on the command line.
 use crate::outbound::worker::adapters::json::types::{DocumentWire, WorkerPayload};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
-use ryo_benchmark_contracts::domain::context::types::{ContextManifest, PreparedRuleContext};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
+use benchmark_contracts::domain::context::types::{ContextManifest, PreparedRuleContext};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, CohortSelection, ContextSeal, DiagnosticOptions, DiagnosticSwitch,
     InputDeclaration, ParserConfigurationName, ParserSelection, PerformanceOptions,
     ProviderSelection, QueryModuleName, RuleContextPreparation, RuleLabel, SearchRoots,
@@ -123,9 +123,7 @@ impl TryFrom<RequestSchema> for WorkerRequest {
                 ParserSelection::Unspecified,
                 |name| {
                     ParserSelection::Named(
-                        ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(
-                            name,
-                        ),
+                        benchmark_contracts::domain::requests::types::ParserConfigurationName(name),
                     )
                 },
             ),
@@ -133,7 +131,7 @@ impl TryFrom<RequestSchema> for WorkerRequest {
                 ProviderSelection::Unspecified,
                 |name| {
                     ProviderSelection::Selected(
-                        ryo_benchmark_contracts::domain::requests::types::SourceLanguageName(name),
+                        benchmark_contracts::domain::requests::types::SourceLanguageName(name),
                     )
                 },
             ),
@@ -312,7 +310,7 @@ impl From<ManifestSchema> for ContextManifest {
                 .map(|(path, target)| {
                     (
                         path,
-                        ryo_benchmark_contracts::domain::context::types::LinkTarget(target),
+                        benchmark_contracts::domain::context::types::LinkTarget(target),
                     )
                 })
                 .collect(),

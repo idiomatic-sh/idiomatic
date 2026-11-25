@@ -7,7 +7,7 @@ let dev-headings = select * from all-entries where key = "dev-dependencies";
 let dev-tables = select r."id" as "table" from dev-headings as l join "mapping" as r on l."occurrence" = r."owner";
 let dev-dependencies = select r."occurrence" as "dependency" from dev-tables as l join all-entries as r on l."table" = r."owner";
 let bodies = select r."id" as "body", l."dependency" as "dependency" from dev-dependencies as l join "mapping" as r on l."dependency" = r."owner";
-let benchmark-packages = select * from all-entries where key = "package" and glob_any(decoded, "{idiomatic-sh-ryo-benchmark,idiomatic-sh-ryo-benchmark-contracts}");
+let benchmark-packages = select * from all-entries where key = "package" and glob_any(decoded, "{idiomatic-sh-benchmark,idiomatic-sh-benchmark-contracts}");
 let allowed = select l."dependency" as "occurrence", r."occurrence" as "package" from bodies as l join benchmark-packages as r on l."body" = r."owner";
 let allowed-keys = project(from=allowed, columns=["occurrence"]);
 let allowed-packages = select l."package" as "occurrence" from allowed as l;
@@ -98,7 +98,7 @@ given.files.'demo/Cargo.toml' = '''
 name = "idiomatic-sh-ryo-demo"
 version = "0.1.0"
 [dev-dependencies]
-ryo_benchmark = { package = "idiomatic-sh-ryo-benchmark", path = "../../crates/benchmark" }
+benchmark = { package = "idiomatic-sh-benchmark", path = "../../crates/benchmark" }
 '''
 
 [[scenarios]]
@@ -109,7 +109,7 @@ given.files.'demo/Cargo.toml' = '''
 name = "idiomatic-sh-ryo-demo"
 version = "0.1.0"
 [dev-dependencies]
-measure = { package = "idiomatic-sh-ryo-benchmark", path = "../../crates/benchmark" }
+measure = { package = "idiomatic-sh-benchmark", path = "../../crates/benchmark" }
 '''
 
 [[scenarios]]
@@ -120,7 +120,7 @@ given.files.'demo/Cargo.toml' = '''
 name = "idiomatic-sh-ryo-demo"
 version = "0.1.0"
 [dependencies]
-ryo_benchmark = { package = "idiomatic-sh-ryo-benchmark", path = "../../crates/benchmark" }
+benchmark = { package = "idiomatic-sh-benchmark", path = "../../crates/benchmark" }
 '''
 then.findings = [{ path = 'demo/Cargo.toml' }]
 
@@ -132,7 +132,7 @@ given.files.'demo/Cargo.toml' = '''
 name = "idiomatic-sh-ryo-demo"
 version = "0.1.0"
 [build-dependencies]
-measure = { package = "idiomatic-sh-ryo-benchmark", path = "../../crates/benchmark" }
+measure = { package = "idiomatic-sh-benchmark", path = "../../crates/benchmark" }
 '''
 then.findings = [{ path = 'demo/Cargo.toml' }]
 
@@ -144,7 +144,7 @@ given.files.'demo/Cargo.toml' = '''
 name = "idiomatic-sh-ryo-demo"
 version = "0.1.0"
 [dev-dependencies]
-ryo_benchmark = { package = "idiomatic-sh-ryo-core", path = "../../crates/core" }
+benchmark = { package = "idiomatic-sh-ryo-core", path = "../../crates/core" }
 '''
 then.findings = [{ path = 'demo/Cargo.toml' }]
 
@@ -156,13 +156,13 @@ given.files.'demo/Cargo.toml' = '''
 name = "idiomatic-sh-ryo-demo"
 version = "0.1.0"
 [dev-dependencies]
-ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../../crates/benchmark_contracts" }
+benchmark-contracts = { package = "idiomatic-sh-benchmark-contracts", path = "../../crates/benchmark_contracts" }
 '''
 given.files.'runtime/Cargo.toml' = '''
 [package]
 name = "idiomatic-sh-ryo-runtime"
 version = "0.1.0"
 [dependencies]
-ryo-benchmark-contracts = { package = "idiomatic-sh-ryo-benchmark-contracts", path = "../../crates/benchmark_contracts" }
+benchmark-contracts = { package = "idiomatic-sh-benchmark-contracts", path = "../../crates/benchmark_contracts" }
 '''
 then.findings = [{ path = 'runtime/Cargo.toml' }]

@@ -1,8 +1,8 @@
 //! Raw invocation records are read strictly; a surprise field is refused.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::inventory::adapters::local::types::InvocationBytes;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
 
 /// Why a document was refused.
 #[derive(Debug, PartialEq, Eq)]

@@ -7,8 +7,8 @@ use crate::domain::canonical_text::{
     service::digest,
     types::{Fragment, Label},
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::reports::types::ParityProblem;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::reports::types::ParityProblem;
 use std::collections::BTreeMap;
 
 /// The digest of the corpus a request reads: its file list and, when sealed, its context's logical root,
@@ -16,9 +16,9 @@ use std::collections::BTreeMap;
 #[must_use]
 pub(crate) fn corpus_digest(
     files: &[ryo::linter::RelativePath],
-    context: &ryo_benchmark_contracts::domain::requests::types::ContextSeal,
+    context: &benchmark_contracts::domain::requests::types::ContextSeal,
 ) -> ArtifactDigest {
-    use ryo_benchmark_contracts::domain::requests::types::ContextSeal;
+    use benchmark_contracts::domain::requests::types::ContextSeal;
     let path = |path: &std::path::Path| Fragment::Text(Label(path.to_string_lossy().into_owned()));
     let entries = |entries: &BTreeMap<std::path::PathBuf, ArtifactDigest>| {
         Fragment::Object(
@@ -93,7 +93,7 @@ pub(crate) fn corpus_digest(
 /// # Errors
 /// Refuses another corpus, a rule written twice, and a rule without a reason or with no or repeated findings.
 pub(crate) fn admit_accepted(
-    accepted: &ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences,
+    accepted: &benchmark_contracts::domain::reports::types::AcceptedDifferences,
     corpus: &ArtifactDigest,
 ) -> Result<AdmittedDifferences, CorpusDiscrepancyError> {
     if &accepted.corpus != corpus {
@@ -126,10 +126,10 @@ pub(crate) fn admit_accepted(
 /// The problem one unmatched finding of a rule raises: `<rule>: [accepted ]<side> <file>:<line>:<column> ...`.
 fn problem(
     rule: &ryo::linter::RuleId,
-    difference: &ryo_benchmark_contracts::domain::reports::types::LocatedDifference,
+    difference: &benchmark_contracts::domain::reports::types::LocatedDifference,
     verdict: ProblemVerdict,
 ) -> ParityProblem {
-    use ryo_benchmark_contracts::domain::reports::types::DifferenceSide;
+    use benchmark_contracts::domain::reports::types::DifferenceSide;
     let side = match difference.side {
         DifferenceSide::Extra => constants::EXTRA,
         DifferenceSide::Missing => constants::MISSING,
@@ -197,8 +197,8 @@ pub(crate) fn corpus_problems(
 /// contestants report the language's rejected-syntax rule at the same place.
 #[must_use]
 pub(crate) fn outside_problems(
-    outside: &[ryo_benchmark_contracts::domain::reports::types::RuleComparison<
-        ryo_benchmark_contracts::domain::reports::types::LocatedFinding,
+    outside: &[benchmark_contracts::domain::reports::types::RuleComparison<
+        benchmark_contracts::domain::reports::types::LocatedFinding,
     >],
     syntax: &ryo::linter::RuleId,
 ) -> Vec<ParityProblem> {
@@ -213,13 +213,12 @@ pub(crate) fn outside_problems(
             )));
             continue;
         }
-        let located =
-            |finding: &ryo_benchmark_contracts::domain::reports::types::LocatedFinding| {
-                format!(
-                    "{}:{}:{}",
-                    finding.file.0, finding.start.line.0, finding.start.column.0
-                )
-            };
+        let located = |finding: &benchmark_contracts::domain::reports::types::LocatedFinding| {
+            format!(
+                "{}:{}:{}",
+                finding.file.0, finding.start.line.0, finding.start.column.0
+            )
+        };
         problems.extend(comparison.missing.iter().map(|finding| {
             ParityProblem(format!(
                 "{rule}: only the reference rejects {}",
@@ -246,11 +245,11 @@ pub(crate) fn outside_problems(
 /// skipped it too, or, reporting no execution accounting of its own, rejected that file's syntax.
 #[must_use]
 pub(crate) fn skip_problems(
-    reference: &ryo_benchmark_contracts::domain::reports::types::RunReport,
-    candidate: &ryo_benchmark_contracts::domain::reports::types::RunReport,
+    reference: &benchmark_contracts::domain::reports::types::RunReport,
+    candidate: &benchmark_contracts::domain::reports::types::RunReport,
     syntax: &ryo::linter::RuleId,
 ) -> Vec<ParityProblem> {
-    use ryo_benchmark_contracts::domain::reports::types::{ExecutionMetadata, RunReport};
+    use benchmark_contracts::domain::reports::types::{ExecutionMetadata, RunReport};
     let unexplained = |side: &RunReport, other: &RunReport| {
         let rejected: std::collections::BTreeSet<_> = other
             .diagnostics
@@ -271,11 +270,11 @@ pub(crate) fn skip_problems(
     let mut problems = Vec::new();
     for (side, skips) in [
         (
-            ryo_benchmark_contracts::domain::receipts::constants::REFERENCE,
+            benchmark_contracts::domain::receipts::constants::REFERENCE,
             unexplained(reference, candidate),
         ),
         (
-            ryo_benchmark_contracts::domain::receipts::constants::CANDIDATE,
+            benchmark_contracts::domain::receipts::constants::CANDIDATE,
             unexplained(candidate, reference),
         ),
     ] {
@@ -299,15 +298,15 @@ pub(crate) fn skip_problems(
 /// selection the rejected-syntax rule does not explain, and every unexplained skip is a problem.
 #[must_use]
 pub(crate) fn judge(
-    located: &[ryo_benchmark_contracts::domain::reports::types::RuleComparison<
-        ryo_benchmark_contracts::domain::reports::types::LocatedFinding,
+    located: &[benchmark_contracts::domain::reports::types::RuleComparison<
+        benchmark_contracts::domain::reports::types::LocatedFinding,
     >],
     selected: &[ryo::linter::RuleId],
     accepted: &AdmittedDifferences,
-    reports: [&ryo_benchmark_contracts::domain::reports::types::RunReport; 2],
+    reports: [&benchmark_contracts::domain::reports::types::RunReport; 2],
     syntax: &ryo::linter::RuleId,
 ) -> Vec<ParityProblem> {
-    use ryo_benchmark_contracts::domain::reports::types::{
+    use benchmark_contracts::domain::reports::types::{
         DifferenceSide, FindingCount, LocatedDifference, LocatedFinding,
     };
     let (rules, outside) = located.split_at(selected.len().min(located.len()));

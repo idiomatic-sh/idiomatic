@@ -2,8 +2,8 @@
 use super::constants;
 use super::types::ProbedProfiles;
 use crate::outbound::linter::interface::LinterPort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
     RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };

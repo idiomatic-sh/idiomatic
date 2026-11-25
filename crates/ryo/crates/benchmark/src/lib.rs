@@ -8,12 +8,13 @@
     )
 )]
 /// The allocator on Windows: mimalloc, as the command line, ruff and uv ship it.
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "windows", not(feature = "heap-profile")))]
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 /// The allocator wherever jemalloc builds: jemalloc, as the command line, ruff and uv ship it.
 #[cfg(all(
+    not(feature = "heap-profile"),
     not(target_os = "windows"),
     not(target_os = "openbsd"),
     not(target_os = "aix"),

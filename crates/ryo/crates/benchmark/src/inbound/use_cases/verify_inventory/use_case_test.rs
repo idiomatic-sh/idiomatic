@@ -245,7 +245,7 @@ fn registration(root: &Path, registered: Registered) -> serde_json::Value {
             let profile = root.join("profile");
             std::fs::create_dir_all(&profile).expect("profile directory");
             let profile_sha256 = pinned(
-                &profile.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
+                &profile.join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
                 format!("tool = \"fixture\"\nversion = \"1\"\nsha256 = [{reference_sha256:?}]\ndefaults = {defaults:?}\n{deferral}").as_bytes(),
             );
             if matches!(

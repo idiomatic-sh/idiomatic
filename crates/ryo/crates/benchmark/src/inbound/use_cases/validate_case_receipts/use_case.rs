@@ -3,8 +3,8 @@ use super::interface::ValidateCaseReceiptsUseCase;
 use crate::application::receipt_validation::service as receipt_validation;
 use crate::outbound::inventory::interface::InventoryPort;
 use crate::outbound::receipts::{interface::ReceiptsPort, types::ReceiptPath};
-use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::receipts::types::ReceiptAudit;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{path::Path, sync::Arc};
 /// The edge selects the artifact store; application code does not hardwire it.
 pub struct ValidateCaseReceiptsUseCaseImpl {

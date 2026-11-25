@@ -1,11 +1,11 @@
 //! benchmark's linter workload: the shared linter contract run through both constructions of the ryo adapter.
-use ryo_benchmark::outbound::linter::{
+use benchmark::outbound::linter::{
     factory::{ryo, ryo_context},
     fixtures::contract::check,
 };
-use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::requests::types::{ParserSelection, ProviderSelection};
+use benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::requests::types::{ParserSelection, ProviderSelection};
 
 #[divan::bench]
 /// Measure preparation and decoding with the isolated default construction.

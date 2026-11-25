@@ -76,6 +76,7 @@ fn emitted(pass: &PassProgram, counters: &NodeCounters) {
             rows_in = work.rows_in.0,
             rows_out = work.rows_out.0,
             nanos = work.time.as_nanos(),
+            cpu_nanos = work.cpu.as_nanos(),
             empty_nanos = work.empty_time.as_nanos(),
             rules = ?named,
         );
@@ -103,6 +104,7 @@ fn emitted(pass: &PassProgram, counters: &NodeCounters) {
         rows_in = run.rows_in.0,
         rows_out = run.rows_out.0,
         nanos = run.time.as_nanos(),
+        cpu_nanos = run.cpu.as_nanos(),
         empty_nanos = run.empty_time.as_nanos(),
     );
 }

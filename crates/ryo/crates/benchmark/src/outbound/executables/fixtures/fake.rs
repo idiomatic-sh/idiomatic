@@ -1,9 +1,9 @@
 //! A scripted executables boundary that records what an operation asks of it.
 use crate::outbound::executables::interface::ExecutablesPort;
 use crate::outbound::executables::types::{BenchPackage, RunArguments, RunVerdict, Sealed};
-use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
+use benchmark_contracts::domain::documents::types::text::value::Sha256Text;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
 use sha2::{Digest as _, Sha256};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};

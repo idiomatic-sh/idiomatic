@@ -1,7 +1,7 @@
 //! Audit the exact shipped-default inventory.
 use crate::domain::suite::types::audit::value::Audit;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::Tool;
 use std::path::Path;
 /// Audit benchmark artifacts against a pinned default profile.
 pub trait AuditUseCase {

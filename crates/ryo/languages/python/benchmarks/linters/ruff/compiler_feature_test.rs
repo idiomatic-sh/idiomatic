@@ -1,8 +1,8 @@
 //! The Ruff annotation fragments (`future-annotation-context`, `annotation-evaluation-context`) against the language's annotation
 //! context fixture. The provider's own `compiler-feature` rows are proved in the Python crate's `compiler_feature` item test.
 use super::boundary_failure_test::{BoundaryFailure, failure};
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark::cases::{Case, CaseName, Expect, Word, run};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 use super::authored_queries_test::authored_suppression_cohort_queries_validate_through_public_sdk_contracts;

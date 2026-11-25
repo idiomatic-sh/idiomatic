@@ -116,8 +116,8 @@ fn verify_pin(
     (sha256, version, fixture, line): (&[&str], &str, PinFixture, &str),
 ) -> Result<(), Failure> {
     use crate::outbound::suite::interface::SuitePort as _;
-    use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-    use ryo_benchmark_contracts::domain::workloads::types::Tool;
+    use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+    use benchmark_contracts::domain::workloads::types::Tool;
     let directory = tempfile::tempdir().expect("tool directory");
     // Parallel process tests can fork while a temporary executable is still open for writing.
     // Execute immutable repository bytes; only non-executable refusal cases need a new file.
@@ -143,13 +143,13 @@ fn verify_pin(
     };
     let tool = Tool {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+            benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: Default::default(),
-        rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
-        file_observation: ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
+        rule_context: benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+        file_observation: benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
         project_context_mode:
-            ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
+            benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(),
         tool: "fixture".into(),
         version: version.into(),
         sha256: sha256.iter().map(|value| (*value).into()).collect(),
@@ -157,16 +157,16 @@ fn verify_pin(
         pending: std::collections::BTreeMap::default(),
         query_modules: std::collections::BTreeMap::default(),
         rule_applicability: std::collections::BTreeMap::default(),
-        parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-        source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
-        project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         defaults: vec!["E722".try_into().expect("rule identifier")],
     };
     SuiteLocalAdapter
         .verify_tool(
             ArtifactPath(&path),
             &tool,
-            &ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine(
+            &benchmark_contracts::domain::workloads::types::version_line::value::VersionLine(
                 line.into(),
             ),
         )

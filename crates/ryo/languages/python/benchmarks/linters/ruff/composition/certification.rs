@@ -2,19 +2,19 @@
 use super::constants;
 use super::constants::{CANONICAL_BENCHMARK_REQUIRES_EXPLI, REGISTERED_CASE_RESULTS};
 use super::locations;
-use ryo_benchmark::domain::command_line::types::{BenchmarkArgument, Selection};
-use ryo_benchmark::domain::suite::types::audit::value::Audit;
-use ryo_benchmark::inbound::use_cases::stage_suite::{
+use benchmark::domain::command_line::types::{BenchmarkArgument, Selection};
+use benchmark::domain::suite::types::audit::value::Audit;
+use benchmark::inbound::use_cases::stage_suite::{
     interface::StageSuiteUseCase as _, use_case::StageSuiteUseCaseImpl,
 };
-use ryo_benchmark::outbound::suite::interface::SuitePort;
-use ryo_benchmark::outbound::suite::types::{ArtifactPath, ArtifactText};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::constants::CASE_INVENTORY_ARGUMENT;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark::outbound::suite::interface::SuitePort;
+use benchmark::outbound::suite::types::{ArtifactPath, ArtifactText};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::constants::CASE_INVENTORY_ARGUMENT;
+use benchmark_contracts::domain::requests::types::{
     BenchmarkCoverage, CertificationCases, RegisteredCoverage,
 };
-use ryo_benchmark_contracts::domain::workloads::types::{StagePurpose, Tool};
+use benchmark_contracts::domain::workloads::types::{StagePurpose, Tool};
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -124,9 +124,9 @@ pub(super) fn stage(
 pub(super) fn candidate_linter(
     staged: &StagedSuite,
     executable: PathBuf,
-) -> Arc<dyn ryo_benchmark::outbound::linter::interface::LinterPort> {
+) -> Arc<dyn benchmark::outbound::linter::interface::LinterPort> {
     let tool = &staged.tool;
-    Arc::new(ryo_benchmark::outbound::linter::factory::ryo_context(
+    Arc::new(benchmark::outbound::linter::factory::ryo_context(
         executable,
         staged.profile.join(constants::RULES_DIRECTORY),
         tool.query_modules.clone(),

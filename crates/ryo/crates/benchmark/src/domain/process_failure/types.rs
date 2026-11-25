@@ -1,6 +1,6 @@
 //! Data of the raw process an attempt keeps.
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
 
 /// Raw process bytes exist independently of whether a report could be decoded.
 pub(crate) struct ProcessCapture {

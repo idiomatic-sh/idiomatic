@@ -7,9 +7,9 @@ use crate::outbound::{
     },
     suite::{interface::SuitePort, types::ArtifactPath},
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RegisteredCoverage;
+use benchmark_contracts::domain::workloads::types::Tool;
 use std::path::{Path, PathBuf};
 
 /// Require the registration to bind exactly the measured profile, rules and contestants.
@@ -52,7 +52,7 @@ pub fn admit(
             let manifest = if deferred { profile } else { measured_profile };
             if suite
                 .digest(ArtifactPath(&manifest.join(
-                    ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
+                    benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
                 )))?
                 .0
                 != profile_sha256.0
@@ -67,7 +67,7 @@ pub fn admit(
             if source != profile
                 || suite
                     .digest(ArtifactPath(&source.join(
-                        ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
+                        benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
                     )))?
                     .0
                     != profile_sha256.0
@@ -96,7 +96,7 @@ pub fn admit(
     }
     Ok(vec![
         registration.to_owned(),
-        profile.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
+        profile.join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST),
         reference_pin.path.clone(),
         worker.path.clone(),
     ])

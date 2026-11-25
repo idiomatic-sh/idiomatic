@@ -1,14 +1,14 @@
 //! The types of the `inventory` port: plain data, public fields and derives (`Clone`, `Debug`, `PartialEq`), with no constructor and no inherent impl, and no handle, file, lock or `dyn`: a handle is a trait in interface.rs.
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
+use benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, PathText, ReasonText, RuleName, Sha256Text,
 };
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
-use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::requests::types::ParserSelection;
+use benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::PathBuf,

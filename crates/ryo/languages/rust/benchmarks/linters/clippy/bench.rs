@@ -1,4 +1,4 @@
-//! One executable composes the shared benchmark and its linter: the harness records any profile, then the composition runs the command.
+//! The linter bench composes the shared benchmark and its candidate and reference.
 mod adapter;
 mod composition;
 mod constants;
@@ -12,8 +12,8 @@ mod settings;
 fn main() -> std::process::ExitCode {
     let mut output = std::io::stdout().lock();
     let mut observations = std::io::stderr().lock();
-    let outcome = composition::profile::command()
-        .and_then(|command| composition::run(command, &mut output, &mut observations));
+    let command = benchmark::domain::command_line::arguments(std::env::args().skip(1));
+    let outcome = composition::run(command, &mut output, &mut observations);
     match outcome {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {

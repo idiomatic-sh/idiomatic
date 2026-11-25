@@ -9,13 +9,13 @@ use crate::outbound::suite::types::{
     CaseArtifacts, MaterializedCase, MaterializedContext, RetainedDirectory, RuleQuery,
     SourceDigest,
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::costs::types::StoreSize;
-use ryo_benchmark_contracts::domain::growth::types::GrowthTable;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Cases;
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
-use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::costs::types::StoreSize;
+use benchmark_contracts::domain::growth::types::GrowthTable;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::Cases;
+use benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -77,7 +77,7 @@ fn scratch_builder(
 impl SuitePort for SuiteLocalAdapter {
     fn validate_file_metadata(
         &self,
-        request: &ryo_benchmark_contracts::domain::requests::types::RunRequest,
+        request: &benchmark_contracts::domain::requests::types::RunRequest,
     ) -> Result<(), Error> {
         super::file_metadata::schemas::validate(request)
     }
@@ -150,7 +150,7 @@ impl SuitePort for SuiteLocalAdapter {
     fn accepted_differences(
         &self,
         ArtifactPath(file): ArtifactPath<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::reports::types::AcceptedDifferences, Error> {
+    ) -> Result<benchmark_contracts::domain::reports::types::AcceptedDifferences, Error> {
         super::accepted::schemas::accepted(&std::fs::read(file)?)
     }
     fn growth_table(&self, ArtifactPath(file): ArtifactPath<'_>) -> Result<GrowthTable, Error> {
@@ -230,7 +230,7 @@ impl SuitePort for SuiteLocalAdapter {
     fn materialize_case(
         &self,
         ArtifactPath(destination): ArtifactPath<'_>,
-        case: &ryo_benchmark_contracts::domain::workloads::types::Case,
+        case: &benchmark_contracts::domain::workloads::types::Case,
         context: &MaterializedContext,
     ) -> Result<MaterializedCase, Error> {
         super::writer::materialize(destination, case, context)
@@ -255,7 +255,7 @@ impl SuitePort for SuiteLocalAdapter {
         ArtifactPath(destination): ArtifactPath<'_>,
         authored: &[ryo::linter::RuleId],
         definitions: &BTreeSet<ryo::linter::RuleId>,
-        purpose: ryo_benchmark_contracts::domain::workloads::types::StagePurpose,
+        purpose: benchmark_contracts::domain::workloads::types::StagePurpose,
     ) -> Result<(), Error> {
         super::writer::stage(directory, destination, authored, definitions, purpose)
     }
@@ -274,7 +274,7 @@ impl SuitePort for SuiteLocalAdapter {
     fn projects(
         &self,
         ArtifactPath(directory): ArtifactPath<'_>,
-    ) -> Result<ryo_benchmark_contracts::domain::workloads::types::Suite, Error> {
+    ) -> Result<benchmark_contracts::domain::workloads::types::Suite, Error> {
         super::corpus::schemas::suite(&std::fs::read_to_string(
             directory.join(constants::MANIFEST),
         )?)

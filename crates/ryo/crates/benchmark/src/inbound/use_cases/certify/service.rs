@@ -19,10 +19,10 @@ use crate::outbound::{
     receipts::interface::ReceiptsPort,
     suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::documents::types::text::value::{ReasonText, YesNo};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::CaseSelection;
+use benchmark_contracts::domain::workloads::types::{
     PreparedCase, Tool, case_count::value::CaseCount,
 };
 use std::path::Path;
@@ -37,7 +37,7 @@ pub(super) fn prepare(
     rules: &Path,
     reference: &Path,
     candidate: &Path,
-    coverage: &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage,
+    coverage: &benchmark_contracts::domain::requests::types::RegisteredCoverage,
 ) -> Result<RegisteredContext, Error> {
     let loaded = store.load(registration)?;
     crate::application::inventory_verification::authority::service::require_authority(

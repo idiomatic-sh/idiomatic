@@ -2,15 +2,15 @@
 //! of a document oxlint 1.76.0 printed.
 #![cfg(test)]
 use super::{adapter::LinterOxlintAdapter, settings::LinterOxlintSettings};
-use ryo::linter::{RelativePath, RuleId};
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run, slashed};
-use ryo_benchmark::outbound::linter::interface::LinterPort as _;
-use ryo_benchmark::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark::cases::{Case, CaseName, Expect, Word, run, slashed};
+use benchmark::outbound::linter::interface::LinterPort as _;
+use benchmark::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
+use benchmark_contracts::domain::measurements::types::{
     CapturedBytes, ProcessExitCode, ProcessOutput, ResourceObservation, TerminationSignal,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RunRequest;
+use ryo::linter::{RelativePath, RuleId};
 use std::borrow::Cow;
 
 /// `class C { m() { const self = this; return self } }` linted with `-D typescript/no-this-alias`.
@@ -141,18 +141,17 @@ fn adapter() -> Result<LinterOxlintAdapter, Failure> {
 fn request(files: &[&str], state: &std::path::Path) -> RunRequest {
     RunRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
         file_metadata:
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: "root".into(),
         state: state.to_owned(),
         files: files
@@ -176,11 +175,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let adapter = adapter()?;
     match input {
         Call::Contract => {
-            ryo_benchmark::outbound::linter::fixtures::contract::check(&adapter);
+            benchmark::outbound::linter::fixtures::contract::check(&adapter);
             Ok(Cow::Borrowed("contract held"))
         }
         Call::VersionLine => {
-            let tool = ryo_benchmark::outbound::suite::factory::local()
+            let tool = benchmark::outbound::suite::factory::local()
                 .profile(ArtifactPath(std::path::Path::new(env!(
                     "CARGO_MANIFEST_DIR"
                 ))))

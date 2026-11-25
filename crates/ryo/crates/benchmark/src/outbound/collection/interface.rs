@@ -1,8 +1,8 @@
 //! Collector protocol preserves native arguments and actual launch errors.
 use super::types::CollectorMessage;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Encode and validate the protocol independently of execution.
 pub trait CollectionPort {
     /// Encode a native invocation. Errors if serialization fails.

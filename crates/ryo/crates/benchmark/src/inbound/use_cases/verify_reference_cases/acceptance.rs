@@ -1,15 +1,15 @@
 //! Actual public operation acceptance over independent source fixtures.
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::verify_reference_cases::fixtures::{
+use benchmark::inbound::use_cases::verify_reference_cases::fixtures::{
     Refusal, Scenario, exercise,
 };
-use ryo_benchmark::inbound::use_cases::verify_reference_cases::{
+use benchmark::inbound::use_cases::verify_reference_cases::{
     interface::VerifyReferenceCasesUseCase as _, use_case::VerifyReferenceCasesUseCaseImpl,
 };
-use ryo_benchmark::outbound::{
+use benchmark::outbound::{
     execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use cucumber::then;
 use std::path::Path;
 
 /// Verify the authored reference cases through the public use case.
@@ -20,18 +20,18 @@ fn verify(
     rules: &Path,
     scratch: &Path,
 ) -> Result<usize, ReportsError> {
-    let inventory = ryo_benchmark::outbound::inventory::factory::local();
-    let context = ryo_benchmark::outbound::context::factory::local();
-    let receipts = ryo_benchmark::outbound::receipts::fixtures::fake::ReceiptsFake::default();
+    let inventory = benchmark::outbound::inventory::factory::local();
+    let context = benchmark::outbound::context::factory::local();
+    let receipts = benchmark::outbound::receipts::fixtures::fake::ReceiptsFake::default();
     VerifyReferenceCasesUseCaseImpl::new(
         suite,
-        &ryo_benchmark::outbound::host::fixtures::fake::HostFake::default(),
+        &benchmark::outbound::host::fixtures::fake::HostFake::default(),
         &receipts,
         &context,
         reference,
         execution,
         &inventory,
-        &ryo_benchmark::outbound::evidence::fixtures::fake::EvidenceFake,
+        &benchmark::outbound::evidence::fixtures::fake::EvidenceFake,
     )
     .verify_reference_cases(rules, scratch)
     .map(|count| count.0)

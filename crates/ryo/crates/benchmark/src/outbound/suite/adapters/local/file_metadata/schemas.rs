@@ -1,10 +1,10 @@
 //! The shape of the execute bit the filesystem reports for a source file, and its identity digest.
 use crate::outbound::suite::adapters::local::constants;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
-use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RunRequest;
 use std::path::Path;
 
 #[cfg(test)]
@@ -94,7 +94,7 @@ pub(in super::super) fn stage_executable(path: &Path, executable: bool) -> Resul
 
 /// Unconditional per-attempt verification, including Isolated input mode.
 pub(in super::super) fn validate(request: &RunRequest) -> Result<(), Error> {
-    let ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) =
+    let benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) =
         &request.file_metadata
     else {
         return Ok(());

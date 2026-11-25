@@ -1,7 +1,7 @@
 //! The worker request document carries every explicit input of the invocation.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::linter::adapters::ryo::types::RequestJson;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, CohortSelection, ContextSeal, QueryModuleName, RuleLabel, WorkerRequest,
 };
 type Input = (fn() -> WorkerRequest, fn(&serde_json::Value) -> bool);
@@ -49,14 +49,14 @@ fn explicit_cohort_is_serialized(value: &serde_json::Value) -> bool {
 fn listed_context_request() -> WorkerRequest {
     let mut request = crate::outbound::worker::fixtures::data::request();
     request.project_context_mode =
-        ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk;
+        benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk;
     request.context_manifest = ContextSeal::Sealed(
-        ryo_benchmark_contracts::domain::context::types::ContextManifest {
+        benchmark_contracts::domain::context::types::ContextManifest {
             boundary: "/snapshot".into(),
             logical_root: "pkg".into(),
             auxiliary_files: std::collections::BTreeMap::from([(
                 "pkg/__init__.py".into(),
-                ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
+                benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
                     "auxiliary-hash".into(),
                 ),
             )]),

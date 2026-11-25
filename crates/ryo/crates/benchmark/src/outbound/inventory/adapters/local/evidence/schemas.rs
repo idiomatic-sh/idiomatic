@@ -1,7 +1,7 @@
 //! The evidence rows of a documented difference: each matches its authority and its staged bytes.
 use super::super::canonical::schemas::{Canonical, invalid};
 use super::super::constants;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path};

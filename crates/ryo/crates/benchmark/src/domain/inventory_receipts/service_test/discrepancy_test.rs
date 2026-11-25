@@ -1,5 +1,5 @@
 //! A documented reference difference and a process failure are admitted only with bound evidence.
-use ryo_benchmark_contracts::domain::{
+use benchmark_contracts::domain::{
     documents::types::{
         case_document::value::CaseReference,
         finding::value::ExpectedFindings,
@@ -23,7 +23,7 @@ use crate::cases::Expect;
 use crate::cases::Word;
 use crate::cases::run;
 use crate::domain::process_receipts::errors::ProcessReceiptsError;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::ExpectationContract;
+use benchmark_contracts::domain::documents::types::case_document::value::ExpectationContract;
 
 type Input = Documents;
 type Value = ReceiptCounts;

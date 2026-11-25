@@ -4,10 +4,10 @@
     reason = "fake state is a test precondition; a panic fails the unit or acceptance proof that calls this module"
 )]
 use super::super::constants;
-use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::ExecutionProfile;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 
 #[derive(Debug)]
 /// Records launches while allowing independent collection-profile mutation.
@@ -27,11 +27,12 @@ impl crate::outbound::execution::interface::ExecutionPort for Observations {
         let mut output =
             crate::outbound::execution::interface::ExecutionPort::run(&self.0, invocation)?;
         output.resources =
-            ryo_benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(
-                ryo_benchmark_contracts::domain::measurements::types::Resources {
+            benchmark_contracts::domain::measurements::types::ResourceObservation::Collected(
+                benchmark_contracts::domain::measurements::types::Resources {
                     cpu: std::time::Duration::from_millis(1),
-                    peak_rss_bytes:
-                        ryo_benchmark_contracts::domain::measurements::types::ResidentBytes(4096),
+                    peak_rss_bytes: benchmark_contracts::domain::measurements::types::ResidentBytes(
+                        4096,
+                    ),
                 },
             );
         Ok(output)

@@ -1,9 +1,9 @@
 //! The listing adapter runs the tool's command in the worktree and reads one path per line, absolute or relative to the root.
 use super::constants::{DISCOVERED_OUTSIDE, EMPTY_DISCOVERY, NON_UTF8_PATH};
 use crate::outbound::discovery::interface::DiscoveryPort;
+use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use ryo::linter::RelativePath;
-use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 

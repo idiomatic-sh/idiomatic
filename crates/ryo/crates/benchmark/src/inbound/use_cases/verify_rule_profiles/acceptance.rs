@@ -1,11 +1,11 @@
 //! The public operation over a real bench of one rule.
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::verify_rule_profiles::{
+use benchmark::inbound::use_cases::verify_rule_profiles::{
     interface::VerifyRuleProfilesUseCase as _, use_case::VerifyRuleProfilesUseCaseImpl,
 };
-use ryo_benchmark::outbound::suite::types::ArtifactText;
-use ryo_benchmark_contracts::domain::requests::types::ShardPartition;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark::outbound::suite::types::ArtifactText;
+use benchmark_contracts::domain::requests::types::ShardPartition;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use cucumber::then;
 use std::path::Path;
 
 const PROFILE: &str = "tool = \"lint\"\nversion = \"lint 1.0.0\"\nsha256 = [\"0000000000000000000000000000000000000000000000000000000000000000\"]\ndefaults = [\"A1\"]\nparser-configuration = \"target=1\"\n\n[rule-applicability]\nA1 = \"always\"\n";
@@ -32,8 +32,8 @@ fn given(own: bool) -> Vec<bool> {
     }
     write(&bench.join("rules/A1/cases.toml"), CASES);
     write(&bench.join("rules/A1/query.ryoql"), "emit nothing;\n");
-    let suite = ryo_benchmark::outbound::suite::factory::local();
-    let inventory = ryo_benchmark::outbound::inventory::factory::local();
+    let suite = benchmark::outbound::suite::factory::local();
+    let inventory = benchmark::outbound::inventory::factory::local();
     let mut directories = Vec::new();
     let verified = VerifyRuleProfilesUseCaseImpl::new(&suite, &inventory).verify_rule_profiles(
         &bench,

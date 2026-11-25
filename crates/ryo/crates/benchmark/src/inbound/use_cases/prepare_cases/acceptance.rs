@@ -1,16 +1,16 @@
 //! Acceptance uses the same real public prepare_cases operation.
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::prepare_cases::fixtures::{Refusal, Scenario, exercise};
-use ryo_benchmark::inbound::use_cases::prepare_cases::{
+use benchmark::inbound::use_cases::prepare_cases::fixtures::{Refusal, Scenario, exercise};
+use benchmark::inbound::use_cases::prepare_cases::{
     interface::PrepareCasesUseCase as _, use_case::PrepareCasesUseCaseImpl,
 };
-use ryo_benchmark::outbound::suite::interface::SuitePort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark::outbound::suite::interface::SuitePort;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use cucumber::then;
 use std::path::Path;
 
 /// Prepare the authored cases through the public use case.
 fn prepare(suite: &dyn SuitePort, rules: &Path, scratch: &Path) -> Result<usize, ReportsError> {
-    PrepareCasesUseCaseImpl::new(suite, &ryo_benchmark::outbound::context::factory::local())
+    PrepareCasesUseCaseImpl::new(suite, &benchmark::outbound::context::factory::local())
         .prepare_cases(rules, scratch)
         .map(|cases| {
             assert_eq!(

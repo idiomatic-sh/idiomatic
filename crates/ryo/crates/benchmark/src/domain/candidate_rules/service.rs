@@ -1,14 +1,14 @@
 //! Project declared configuration data into existing SDK hosted inputs and exact rule exclusions.
 use super::types::CandidateConfiguration;
 use crate::domain::candidate_rules::constants;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::PairCount;
+use benchmark_contracts::domain::requests::types::{
+    CohortSelection, RuleContextPreparation, WorkerRequest,
+};
 use ryo::linter::{
     Cell, Glob, HostColumn, HostColumnName, HostKind, HostRelation, HostRelationName, HostRow,
     HostText, Rule, RuleId,
-};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::PairCount;
-use ryo_benchmark_contracts::domain::requests::types::{
-    CohortSelection, RuleContextPreparation, WorkerRequest,
 };
 use std::collections::{BTreeMap, BTreeSet};
 

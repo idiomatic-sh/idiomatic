@@ -2,18 +2,18 @@
 //! manifest and the source marks its preparation leaves, and the decoding of a message stream clippy 0.1.100 printed.
 #![cfg(test)]
 use super::{adapter::LinterClippyAdapter, settings::LinterClippySettings};
-use ryo::linter::{RelativePath, RuleId};
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run, slashed};
-use ryo_benchmark::outbound::linter::interface::LinterPort as _;
-use ryo_benchmark::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark::cases::{Case, CaseName, Expect, Word, run, slashed};
+use benchmark::outbound::linter::interface::LinterPort as _;
+use benchmark::outbound::suite::{interface::SuitePort as _, types::ArtifactPath};
+use benchmark_contracts::domain::measurements::types::{
     CapturedBytes, Invocation, ProcessExitCode, ProcessOutput, ResourceObservation,
     TerminationSignal,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, RuleContextPreparation, RunRequest,
 };
+use ryo::linter::{RelativePath, RuleId};
 use std::borrow::Cow;
 use std::path::Path;
 
@@ -182,15 +182,14 @@ fn request(files: &[&str], root: &Path) -> RunRequest {
         performance: Default::default(),
         selected_rules: CohortSelection::Frozen,
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context: RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
         file_metadata:
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.to_owned(),
         state: root.join("state"),
         files: files
@@ -224,11 +223,11 @@ fn subject(input: Input) -> Result<Value, Failure> {
     let adapter = adapter()?;
     match input {
         Call::Contract => {
-            ryo_benchmark::outbound::linter::fixtures::contract::check(&adapter);
+            benchmark::outbound::linter::fixtures::contract::check(&adapter);
             Ok(Cow::Borrowed("contract held"))
         }
         Call::VersionLine => {
-            let tool = ryo_benchmark::outbound::suite::factory::local()
+            let tool = benchmark::outbound::suite::factory::local()
                 .profile(ArtifactPath(Path::new(env!("CARGO_MANIFEST_DIR"))))
                 .map_err(|error| refusal(&error))?;
             Ok(adapter.version_line(&tool).0.into_string().into())
@@ -333,23 +332,22 @@ fn subject(input: Input) -> Result<Value, Failure> {
             let root = case_root(&["src/lib.rs"])?;
             let mut prepared = request(&["src/lib.rs"], root.path());
             prepared.rule_context = RuleContextPreparation::Prepared(
-                ryo_benchmark_contracts::domain::context::types::PreparedRuleContext {
-                    tables: ryo_benchmark_contracts::domain::context::types::RuleContextTables {
-                        selected: ryo_benchmark_contracts::domain::context::types::TableName(
+                benchmark_contracts::domain::context::types::PreparedRuleContext {
+                    tables: benchmark_contracts::domain::context::types::RuleContextTables {
+                        selected: benchmark_contracts::domain::context::types::TableName(
                             "selected".into(),
                         ),
-                        disabled: ryo_benchmark_contracts::domain::context::types::TableName(
+                        disabled: benchmark_contracts::domain::context::types::TableName(
                             "disabled".into(),
                         ),
-                        external: ryo_benchmark_contracts::domain::context::types::TableName(
+                        external: benchmark_contracts::domain::context::types::TableName(
                             "external".into(),
                         ),
                     },
-                    configuration:
-                        ryo_benchmark_contracts::domain::context::types::RuleConfiguration {
-                            external_prefixes: Vec::new(),
-                            disabled_rules: Default::default(),
-                        },
+                    configuration: benchmark_contracts::domain::context::types::RuleConfiguration {
+                        external_prefixes: Vec::new(),
+                        disabled_rules: Default::default(),
+                    },
                 },
             );
             adapter

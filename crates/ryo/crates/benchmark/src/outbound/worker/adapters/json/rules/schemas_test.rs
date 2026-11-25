@@ -1,8 +1,8 @@
 //! The nested rule documents accept their exact shapes and refuse unknown or missing keys.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::worker::adapters::json::types::DocumentWire;
-use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
-use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
+use benchmark_contracts::domain::context::types::PreparedRuleContext;
+use benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 
 /// Which nested document a row decodes.
 #[derive(Clone, Copy, Debug)]

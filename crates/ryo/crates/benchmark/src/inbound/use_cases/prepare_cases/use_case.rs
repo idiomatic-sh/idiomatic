@@ -1,6 +1,6 @@
 //! Readable suite orchestration, borrowing the actual injected port owners.
 use super::interface::PrepareCasesUseCase;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 /// prepare_cases with required borrowed boundaries.
 pub struct PrepareCasesUseCaseImpl<'a> {
@@ -22,7 +22,7 @@ impl PrepareCasesUseCase for PrepareCasesUseCaseImpl<'_> {
         &self,
         rules: &Path,
         scratch: &Path,
-    ) -> Result<Vec<ryo_benchmark_contracts::domain::workloads::types::PreparedCase>, ReportsError>
+    ) -> Result<Vec<benchmark_contracts::domain::workloads::types::PreparedCase>, ReportsError>
     {
         crate::application::case_preparation::service::cases(
             self.suite,

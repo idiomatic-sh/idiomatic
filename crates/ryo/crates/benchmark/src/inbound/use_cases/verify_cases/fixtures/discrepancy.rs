@@ -10,19 +10,19 @@ use crate::outbound::suite::types::ClaimedEvidence;
 use crate::outbound::suite::types::ClaimedIdentity;
 use crate::outbound::suite::types::ClaimedMetadata;
 use crate::outbound::suite::types::ClaimedProcess;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::documents::types::text::value::CaseName;
-use ryo_benchmark_contracts::domain::documents::types::text::value::RuleName;
-use ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text;
-use ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName;
-use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
-use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyReason;
-use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::LanguageVersion;
-use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::ParserTarget;
-use ryo_benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::Rationale;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::documents::types::text::value::CaseName;
+use benchmark_contracts::domain::documents::types::text::value::RuleName;
+use benchmark_contracts::domain::documents::types::text::value::Sha256Text;
+use benchmark_contracts::domain::requests::types::ParserConfigurationName;
+use benchmark_contracts::domain::requests::types::ParserSelection;
+use benchmark_contracts::domain::workloads::types::CaseComparison;
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::workloads::types::DiscrepancyReason;
+use benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::LanguageVersion;
+use benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::ParserTarget;
+use benchmark_contracts::domain::workloads::types::discrepancy_evidence::value::Rationale;
 
 /// A suite whose one case documents how the pinned reference differs from the intended behavior.
 pub(crate) fn discrepancy_suite() -> SuiteFake {
@@ -91,7 +91,7 @@ pub(crate) fn discrepancy_suite() -> SuiteFake {
     suite.reference_claims.push(claim);
     suite.profile = Some(profile);
     let manifest = std::path::Path::new("/profile")
-        .join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
+        .join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
     suite.artifact_digests.insert(manifest, profile_hash);
     suite.artifact_digests.insert("fixture".into(), binary_hash);
     suite.discrepancy_artifacts_valid = true;

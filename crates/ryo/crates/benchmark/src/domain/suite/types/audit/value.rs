@@ -7,7 +7,7 @@
 /// Default coverage produced by auditing a suite, never fabricated by a caller.
 ///
 /// ```compile_fail,E0451
-/// use ryo_benchmark::domain::suite::types::audit::value::Audit;
+/// use benchmark::domain::suite::types::audit::value::Audit;
 /// let forged = Audit { implemented: Vec::new(), missing: Vec::new() };
 /// ```
 pub struct Audit {
@@ -21,8 +21,8 @@ impl Audit {
     #[must_use]
     pub fn authored_count(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount {
-        ryo_benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount(
+    ) -> benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount {
+        benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount(
             self.implemented.len(),
         )
     }
@@ -38,14 +38,14 @@ impl Audit {
     pub fn select(
         &self,
         rules: &[ryo::linter::RuleId],
-    ) -> Result<Self, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+    ) -> Result<Self, benchmark_contracts::domain::reports::errors::ReportsError> {
         let selected: std::collections::BTreeSet<_> = rules.iter().cloned().collect();
         if selected.is_empty()
             || selected.len() != rules.len()
             || selected.iter().any(|rule| !self.implemented.contains(rule))
         {
             return Err(
-                ryo_benchmark_contracts::domain::reports::errors::ReportsError::Invalid(
+                benchmark_contracts::domain::reports::errors::ReportsError::Invalid(
                     crate::domain::suite::constants::INVALID_SELECTION.into(),
                 ),
             );

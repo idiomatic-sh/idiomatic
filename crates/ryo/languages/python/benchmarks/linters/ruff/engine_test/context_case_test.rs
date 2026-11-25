@@ -1,10 +1,10 @@
 //! The declared context cases and the check of each against the real SDK.
 use super::prepared_engine_test::PreparedEngine as _;
-use ryo_benchmark::outbound::engine::factory;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
-use ryo_benchmark_contracts::domain::requests::types::WorkerState;
+use benchmark::outbound::engine::factory;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
+use benchmark_contracts::domain::requests::types::WorkerState;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -119,7 +119,7 @@ pub(super) fn check_case(
     )
     .run_prepared(WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
             super::prepared_engine_test::fixture_cohort(&[
                 "INPUT",
                 "FLAG",
@@ -130,22 +130,21 @@ pub(super) fn check_case(
             ]),
         ),
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: ProjectContextMode::Isolated,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: source,
         rules: root.join("rules"),
         query_modules: super::prepared_engine_test::module_names(modules.clone()),
         rule_applicability: BTreeMap::default(),
         parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![ryo::linter::RelativePath(case.file.clone().into())],
         state: WorkerState::Fresh,
     })?;

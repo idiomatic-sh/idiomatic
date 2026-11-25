@@ -1,5 +1,5 @@
 //! Behavioral proof of `inventory_receipts` over registered cases and native rows.
-use ryo_benchmark_contracts::domain::{
+use benchmark_contracts::domain::{
     documents::types::{
         case_document::value::CaseReference,
         finding::value::ExpectedFindings,
@@ -20,7 +20,7 @@ use ryo_benchmark_contracts::domain::{
     workloads::types::DiscrepancyBasis,
 };
 
-use ryo_benchmark_contracts::domain::{
+use benchmark_contracts::domain::{
     measurements::types::ProcessExitCode, process::types::ProcessFailure,
 };
 
@@ -246,12 +246,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             fixtures::edited(fixtures::passing, |d| {
                 d.1[1].coverage = CoverageAccounting::Accounted(RuleCoverage {
-                    selected: ryo_benchmark_contracts::domain::reports::types::PairCount(2),
-                    evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
-                    skipped: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
-                    unknown_or_unread: ryo_benchmark_contracts::domain::reports::types::PairCount(
-                        0,
-                    ),
+                    selected: benchmark_contracts::domain::reports::types::PairCount(2),
+                    evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
+                    skipped: benchmark_contracts::domain::reports::types::PairCount(0),
+                    unknown_or_unread: benchmark_contracts::domain::reports::types::PairCount(0),
                 })
             })
         },

@@ -1,13 +1,13 @@
 //! Actual public operation acceptance over independent source fixtures.
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::verify_cases::fixtures::{Refusal, Scenario, exercise};
-use ryo_benchmark::inbound::use_cases::verify_cases::{
+use benchmark::inbound::use_cases::verify_cases::fixtures::{Refusal, Scenario, exercise};
+use benchmark::inbound::use_cases::verify_cases::{
     interface::VerifyCasesUseCase as _, use_case::VerifyCasesUseCaseImpl,
 };
-use ryo_benchmark::outbound::{
+use benchmark::outbound::{
     execution::interface::ExecutionPort, linter::interface::LinterPort, suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use cucumber::then;
 use std::path::Path;
 
 /// Verify the authored cases through the public use case.
@@ -19,28 +19,28 @@ fn verify(
     rules: &Path,
     scratch: &Path,
 ) -> Result<usize, ReportsError> {
-    let inventory = ryo_benchmark::outbound::inventory::factory::local();
-    let context = ryo_benchmark::outbound::context::factory::local();
-    let receipts = ryo_benchmark::outbound::receipts::fixtures::fake::ReceiptsFake::default();
+    let inventory = benchmark::outbound::inventory::factory::local();
+    let context = benchmark::outbound::context::factory::local();
+    let receipts = benchmark::outbound::receipts::fixtures::fake::ReceiptsFake::default();
     VerifyCasesUseCaseImpl::new(
         suite,
-        &ryo_benchmark::outbound::host::fixtures::fake::HostFake::default(),
+        &benchmark::outbound::host::fixtures::fake::HostFake::default(),
         &receipts,
         &context,
         reference,
         candidate,
-        ryo_benchmark::inbound::use_cases::verify_cases::types::Executions {
+        benchmark::inbound::use_cases::verify_cases::types::Executions {
             reference: execution,
             candidate: execution,
         },
         &inventory,
-        &ryo_benchmark::outbound::evidence::fixtures::fake::EvidenceFake,
+        &benchmark::outbound::evidence::fixtures::fake::EvidenceFake,
     )
     .verify_cases(
         rules,
         scratch,
-        ryo_benchmark_contracts::domain::requests::types::CaseSelection::default(),
-        ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted,
+        benchmark_contracts::domain::requests::types::CaseSelection::default(),
+        benchmark_contracts::domain::requests::types::BenchmarkCoverage::Accounted,
     )
     .map(|count| count.0)
 }

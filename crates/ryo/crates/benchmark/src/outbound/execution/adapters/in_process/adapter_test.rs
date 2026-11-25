@@ -5,9 +5,9 @@ use crate::outbound::execution::interface::ExecutionPort as _;
 use crate::outbound::execution::types::{
     InProcessWorker, RuleCompileTimes, StoredRequest, WorkerResponse,
 };
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::constants::{REQUEST_FILE, RUN_RYO};
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::constants::{REQUEST_FILE, RUN_RYO};
 /// Which invocation runs, and whether the worker completes it.
 #[derive(Clone, Copy, Debug)]
 enum Worked {

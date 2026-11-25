@@ -1,6 +1,6 @@
 //! The first argument of a measure invocation and the scope it holds the run to.
-use ryo_benchmark_contracts::domain::requests::constants::{MEASURE, MEASURE_ACCOUNTED_VALID};
-use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
+use benchmark_contracts::domain::requests::constants::{MEASURE, MEASURE_ACCOUNTED_VALID};
+use benchmark_contracts::domain::requests::types::BenchmarkCoverage;
 
 /// The first argument of a measure invocation.
 #[derive(Clone, Copy, Debug)]
@@ -11,8 +11,8 @@ impl MeasureCommand<'_> {
     ///
     /// # Examples
     /// ```
-    /// use ryo_benchmark::domain::command_line::types::measure_command::value::MeasureCommand;
-    /// use ryo_benchmark_contracts::domain::requests::types::BenchmarkCoverage;
+    /// use benchmark::domain::command_line::types::measure_command::value::MeasureCommand;
+    /// use benchmark_contracts::domain::requests::types::BenchmarkCoverage;
     /// assert_eq!(MeasureCommand("measure").scope(), BenchmarkCoverage::Accounted);
     /// ```
     #[must_use]

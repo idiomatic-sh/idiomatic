@@ -2,18 +2,18 @@
 /// The configured transition exposes only consuming execution, never mutable rules.
 ///
 /// ```no_run
-/// use ryo_benchmark::outbound::engine::types::configured_engine_session::value::ConfiguredEngineSession;
+/// use benchmark::outbound::engine::types::configured_engine_session::value::ConfiguredEngineSession;
 /// fn execute(configured: ConfiguredEngineSession<'_>) { let _result = configured.execute(); }
 /// ```
 ///
 /// ```compile_fail,E0599
-/// use ryo_benchmark::outbound::engine::types::configured_engine_session::value::ConfiguredEngineSession;
+/// use benchmark::outbound::engine::types::configured_engine_session::value::ConfiguredEngineSession;
 /// fn mutate(mut configured: ConfiguredEngineSession<'_>) {
 ///     configured.request_and_rules();
 /// }
 /// ```
 /// ```compile_fail,E0451
-/// use ryo_benchmark::outbound::engine::types::{configured_engine_session::value::ConfiguredEngineSession, loaded_engine_session::value::LoadedEngineSession, EngineConfiguration};
+/// use benchmark::outbound::engine::types::{configured_engine_session::value::ConfiguredEngineSession, loaded_engine_session::value::LoadedEngineSession, EngineConfiguration};
 /// fn bypass<'a>(session: LoadedEngineSession<'a>, context: EngineConfiguration) -> ConfiguredEngineSession<'a> {
 ///     ConfiguredEngineSession { session, context }
 /// }
@@ -39,7 +39,7 @@ impl<'a> ConfiguredEngineSession<'a> {
     ) -> Option<
         Result<
             std::collections::BTreeMap<ryo::linter::RuleId, std::time::Duration>,
-            ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+            benchmark_contracts::domain::reports::errors::ReportsError,
         >,
     > {
         self.session.compile(&self.context)
@@ -52,7 +52,7 @@ impl<'a> ConfiguredEngineSession<'a> {
         self,
     ) -> Result<
         crate::outbound::engine::types::EngineRun,
-        ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+        benchmark_contracts::domain::reports::errors::ReportsError,
     > {
         self.session.execute(self.context)
     }

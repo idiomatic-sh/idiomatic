@@ -1,5 +1,5 @@
 [package]
-name = "idiomatic-sh-ryo-benchmark-contracts"
+name = "idiomatic-sh-benchmark-contracts"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,7 +12,7 @@ publish = false
 autobenches = false
 
 [lib]
-name = "ryo_benchmark_contracts"
+name = "benchmark_contracts"
 
 [dependencies]
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../sdk", version = "0.2.0" }

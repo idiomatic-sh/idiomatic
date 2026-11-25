@@ -2,19 +2,17 @@
 use super::constants;
 use super::service::{admit_configuration, check_selection, literal_glob, resolve, selected_pairs};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo::linter::{GivenProjectInventory, RelativePath, RuleId};
-use ryo_benchmark_contracts::domain::context::types::{
+use benchmark_contracts::domain::context::types::{
     PreparedRuleContext, RuleConfiguration, RuleContextDeclaration, RuleContextTables, TableName,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration, PerformanceOptions,
     RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
-use ryo_benchmark_contracts::domain::workloads::types::ConfigurationOverride;
-use ryo_benchmark_contracts::domain::workloads::types::{
-    RuleConfigurationSupport, RuleContextProfile,
-};
+use benchmark_contracts::domain::workloads::types::ConfigurationOverride;
+use benchmark_contracts::domain::workloads::types::{RuleConfigurationSupport, RuleContextProfile};
+use ryo::linter::{GivenProjectInventory, RelativePath, RuleId};
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::path::PathBuf;

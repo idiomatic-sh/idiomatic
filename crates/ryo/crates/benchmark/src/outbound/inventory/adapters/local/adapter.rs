@@ -6,16 +6,16 @@ use crate::outbound::inventory::types::{
     CaseDocuments, ContextFiles, ProfileProjection, RawArtifacts, ReceiptFile, Registration, Row,
     RuleInstanceRecord, Summary,
 };
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ArtifactPointer;
-use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::receipts::constants::{
+use benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use benchmark_contracts::domain::documents::types::observation_document::value::ObservationDocument;
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::ArtifactPointer;
+use benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::receipts::constants::{
     CASES_JSONL, INVOCATION_JSON, STDERR_BIN, STDOUT_BIN,
 };
-use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::receipts::types::ReceiptAudit;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -128,10 +128,10 @@ fn raw_artifacts(receipt: &Path, rows: &[ObservationDocument]) -> Result<RawArti
     let mut invocations = BTreeMap::new();
     let mut directories = BTreeSet::new();
     for row in rows {
-        let ryo_benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) = &row.process_observation else {
+        let benchmark_contracts::domain::documents::types::observation_document::value::ReferenceProcess::Observed(process) = &row.process_observation else {
             continue;
         };
-        let ryo_benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Attached(artifacts) = &process.artifacts else {
+        let benchmark_contracts::domain::documents::types::observation_document::value::ProcessArtifactsRecord::Attached(artifacts) = &process.artifacts else {
             continue;
         };
         for (raw, filename) in [

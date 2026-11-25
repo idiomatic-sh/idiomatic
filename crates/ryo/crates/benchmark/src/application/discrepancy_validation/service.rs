@@ -18,14 +18,14 @@ use crate::outbound::{
         },
     },
 };
-use ryo_benchmark_contracts::domain::artifacts::types::FileMetadataEntry;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ExitStatus, YesNo};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::artifacts::types::FileMetadataEntry;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use benchmark_contracts::domain::documents::types::text::value::{ExitStatus, YesNo};
+use benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::process::types::ProcessFailure;
+use benchmark_contracts::domain::workloads::types::{
     PreparedCase, Tool, discrepancy_evidence::value::DiscrepancyEvidence,
 };
 use std::path::{Path, PathBuf};
@@ -97,7 +97,7 @@ pub(crate) fn validate(
     rules: &Path,
     case: &PreparedCase,
 ) -> Result<Option<ReferenceProof>, Failure> {
-    let ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(item) =
+    let benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(item) =
         &case.reference_discrepancy
     else {
         return Ok(None);
@@ -118,7 +118,7 @@ pub(crate) fn validate(
         &profile,
         &actual_executable,
         &suite.digest(ArtifactPath(&profile_root.join(
-            ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
+            benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST,
         )))?,
     )?;
     let settings = text_digest(&settings_text(reference, &invocation, case, &profile)?);
@@ -134,13 +134,13 @@ pub(crate) fn validate(
         .collect::<Vec<_>>();
     check_evidence(item, &profile)?;
     let metadata_files = match &case.request.file_metadata {
-        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
-            values,
-        ) => values
-            .keys()
-            .map(|file| PathBuf::from(file.0.as_ref()))
-            .collect::<Vec<_>>(),
-        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => {
+        benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) => {
+            values
+                .keys()
+                .map(|file| PathBuf::from(file.0.as_ref()))
+                .collect::<Vec<_>>()
+        }
+        benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => {
             Vec::new()
         }
     };
@@ -152,26 +152,28 @@ pub(crate) fn validate(
             file_metadata_files: &metadata_files,
             source_sha256: &identity.source_sha256,
             file_metadata: match &identity.file_metadata_sha256 {
-                ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Declared(value) => ArtifactMetadata::Declared(value),
-                ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared => ArtifactMetadata::Undeclared,
+                benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Declared(value) => ArtifactMetadata::Declared(value),
+                benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared => ArtifactMetadata::Undeclared,
             },
             evidence: &evidence,
         })
         .map_err(refused)?;
     let metadata = ArtifactDigest::file_metadata(match &case.request.file_metadata {
-        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
-            values,
-        ) => Some(values.iter().map(|(path, executable)| FileMetadataEntry {
-            path,
-            executable: *executable,
-        })),
-        ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => {
-            None
+        benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) => {
+            Some(values.iter().map(|(path, executable)| FileMetadataEntry {
+                path,
+                executable: *executable,
+            }))
         }
+        benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared => None,
     })?;
     let declared_metadata = match &identity.file_metadata_sha256 {
-        ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Declared(value) => Some(value.clone()),
-        ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared => None,
+        benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Declared(
+            value,
+        ) => Some(value.clone()),
+        benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared => {
+            None
+        }
     };
     if metadata != declared_metadata
         || settings != identity.settings_sha256
@@ -211,8 +213,8 @@ pub(crate) fn validate(
         reference_output: identity.reference_output_sha256.clone(),
         intended_output: identity.intended_output_sha256.clone(),
         file_metadata: match &identity.file_metadata_sha256 {
-            ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Declared(value) => OptionalDigest::Pinned(value.clone()),
-            ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared => OptionalDigest::Absent,
+            benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Declared(value) => OptionalDigest::Pinned(value.clone()),
+            benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared => OptionalDigest::Absent,
         },
     }))
 }
@@ -228,7 +230,7 @@ pub(crate) fn validate_archives(
     process: &ProcessFailure,
     actual: &ArtifactDigest,
 ) -> Result<(), Failure> {
-    let ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
+    let benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
         discrepancy,
     ) = &case.reference_discrepancy
     else {
@@ -259,7 +261,7 @@ pub(crate) fn validate_archives(
         .map(|(path, bytes)| {
             (
                 path,
-                ryo_benchmark_contracts::domain::measurements::types::CapturedBytes(bytes.0),
+                benchmark_contracts::domain::measurements::types::CapturedBytes(bytes.0),
             )
         })
         .collect::<std::collections::BTreeMap<_, _>>();
@@ -293,12 +295,12 @@ pub(crate) fn validate_archives(
         .map_err(refused)?;
         let source = identity.source_sha256.0.as_str();
         let file_metadata = match &identity.file_metadata_sha256 {
-            ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Declared(digest) => Pin::Sha256(
-                ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text(
+            benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Declared(digest) => Pin::Sha256(
+                benchmark_contracts::domain::documents::types::text::value::Sha256Text(
                     digest.0.clone(),
                 ),
             ),
-            ryo_benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared => Pin::Absent,
+            benchmark_contracts::domain::workloads::types::MetadataDigestDeclaration::Undeclared => Pin::Absent,
         };
         if !metadata.files.iter().map(|file| file.0.as_str()).eq(case
             .request
@@ -309,7 +311,7 @@ pub(crate) fn validate_archives(
             || metadata.profile_sha256.0 != identity.profile_sha256.0
             || metadata.source_sha256
                 != Pin::Sha256(
-                    ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text(
+                    benchmark_contracts::domain::documents::types::text::value::Sha256Text(
                         source.to_owned(),
                     ),
                 )

@@ -14,10 +14,10 @@ const CASES: &[Case<Input, Value, ()>] = &[
         expect: Expect::Value("Some(Disabled)"),
     },
     Case {
-        name: CaseName("the profiling worker command writes a Chrome trace"),
+        name: CaseName("the collector owns profiling"),
         word: Word::Succeeds,
         input: || "profile-ryo",
-        expect: Expect::Value("Some(Chrome)"),
+        expect: Expect::Value("None"),
     },
     Case {
         name: CaseName("the diagnostic worker command writes JSONL events"),

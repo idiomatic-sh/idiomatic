@@ -160,7 +160,7 @@ fn clear_execute(path: &std::path::Path) -> std::fs::Permissions {
 #[cfg(unix)]
 fn declared_mode(
     mode: &str,
-) -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+) -> Result<Value, benchmark_contracts::domain::reports::errors::ReportsError> {
     let root = tempfile::tempdir().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let rules = fixture(root.path(), mode, true);
@@ -214,7 +214,7 @@ fn sealed_missing(rules: &std::path::Path, metadata: &str) {
 }
 
 fn sealed_missing_request()
--> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+-> Result<Value, benchmark_contracts::domain::reports::errors::ReportsError> {
     let root = tempfile::tempdir().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let rules = fixture(root.path(), "listed-disk", true);
@@ -229,7 +229,7 @@ fn sealed_missing_request()
     for case in cases {
         assert!(matches!(
             &case.request.file_metadata,
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) if values.len() == 1
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(values) if values.len() == 1
         ));
         assert!(!case.request.root.join("missing.txt").exists());
         local()
@@ -239,8 +239,8 @@ fn sealed_missing_request()
     Ok(count)
 }
 
-fn fabricated_metadata()
--> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+fn fabricated_metadata() -> Result<Value, benchmark_contracts::domain::reports::errors::ReportsError>
+{
     let root = tempfile::tempdir().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let rules = fixture(root.path(), "listed-disk", true);
@@ -255,7 +255,7 @@ fn fabricated_metadata()
 }
 
 fn omitted_observations()
--> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+-> Result<Value, benchmark_contracts::domain::reports::errors::ReportsError> {
     let root = tempfile::tempdir().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let rules = fixture(root.path(), "isolated", false);
@@ -270,7 +270,7 @@ fn omitted_observations()
 
 fn empty_cases(
     empty_rule: bool,
-) -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+) -> Result<Value, benchmark_contracts::domain::reports::errors::ReportsError> {
     let rules = tempfile::tempdir().expect("rules");
     let scratch = tempfile::tempdir().expect("scratch");
     if empty_rule {
@@ -298,9 +298,9 @@ fn decoded(
 ) -> Result<
     (
         tempfile::TempDir,
-        Vec<ryo_benchmark_contracts::domain::workloads::types::Case>,
+        Vec<benchmark_contracts::domain::workloads::types::Case>,
     ),
-    ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    benchmark_contracts::domain::reports::errors::ReportsError,
 > {
     let root = tempfile::tempdir().unwrap();
     let rule = "fixture".try_into().unwrap();
@@ -311,20 +311,20 @@ fn decoded(
     Ok((root, cases.cases))
 }
 
-fn decoded_parser_case()
--> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+fn decoded_parser_case() -> Result<Value, benchmark_contracts::domain::reports::errors::ReportsError>
+{
     let (_root, cases) = decoded(
         "[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{rule='invalid-syntax',file='case.py',start=0,end=1}]",
     )?;
     assert_eq!(
         cases[0].comparison,
-        ryo_benchmark_contracts::domain::workloads::types::CaseComparison::Full
+        benchmark_contracts::domain::workloads::types::CaseComparison::Full
     );
     Ok(cases.len())
 }
 
-fn inherited_identity()
--> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError> {
+fn inherited_identity() -> Result<Value, benchmark_contracts::domain::reports::errors::ReportsError>
+{
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(root.path().join("rules/fixture")).unwrap();
     std::fs::write(root.path().join("rules/fixture/cases.toml"), "[[cases]]\nname='parser'\ncomparison='full'\nfiles={'case.py'='x'}\nexpected=[{file='case.py',start=0,end=1}]").unwrap();
@@ -344,14 +344,12 @@ fn inherited_identity()
     answer
 }
 
-fn given_sibling() -> Result<Value, ryo_benchmark_contracts::domain::reports::errors::ReportsError>
-{
+fn given_sibling() -> Result<Value, benchmark_contracts::domain::reports::errors::ReportsError> {
     let (_root, cases) = decoded(
         "[[cases]]\nname='sibling'\ncomparison='full'\nrequested-files=['main.py']\nproject-search-roots=['']\nfiles={'main.py'='import localmod', 'localmod.py'='value=1'}\ngiven-project-inventory={completeness='partial', entries=[{path='localmod.py', state='file'}]}\nexpected=[]\n",
     )?;
-    let ryo_benchmark_contracts::domain::workloads::types::InventoryDeclaration::Declared(
-        inventory,
-    ) = &cases[0].given_project_inventory
+    let benchmark_contracts::domain::workloads::types::InventoryDeclaration::Declared(inventory) =
+        &cases[0].given_project_inventory
     else {
         panic!("the case declares its project inventory");
     };

@@ -5,13 +5,13 @@
 use super::schemas::{
     case_manifest, check_status, decode, dep_info_sources, rule_of_code, selector_of_rule,
 };
-use ryo::linter::{RelativePath, RuleId};
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark::cases::{Case, CaseName, Expect, Word, run};
+use benchmark_contracts::domain::measurements::types::{
     CapturedBytes, ProcessExitCode, ProcessOutput, ResourceObservation, TerminationSignal,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::RunRequest;
+use ryo::linter::{RelativePath, RuleId};
 use std::borrow::Cow;
 use std::collections::BTreeSet;
 
@@ -258,20 +258,19 @@ fn rule_id(text: &str) -> Result<RuleId, Failure> {
 fn request(file: &str, rules: &[RuleId]) -> RunRequest {
     RunRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
             rules.to_vec(),
         ),
         rule_observations:
-            ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+            benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
-        staged_sources: ryo_benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
+        staged_sources: benchmark_contracts::domain::requests::types::StagedSources::Unlisted,
         file_metadata:
-            ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+            benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Undeclared,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: "root".into(),
         state: "state".into(),
         files: vec![RelativePath(file.into())],

@@ -2,8 +2,7 @@
 /// Refuse rule directory names outside the query identifier encoding.
 pub(super) const NON_UTF8_RULE: &str = "non-UTF8 rule";
 /// Canonical colocated query filename.
-pub(super) const QUERY_FILE: &str =
-    ryo_benchmark_contracts::domain::requests::constants::QUERY_FILE;
+pub(super) const QUERY_FILE: &str = benchmark_contracts::domain::requests::constants::QUERY_FILE;
 /// Refuse repeated rule identities rather than overwriting queries.
 pub(super) const DUPLICATE_RULE: &str = "duplicate candidate rule identity";
 /// A candidate run must evaluate at least one authored query.
@@ -17,10 +16,10 @@ pub(super) const SPAN_COLUMN: &str = "span";
 /// Refuse absent, duplicate or untyped diagnostic source ranges.
 pub(super) const INVALID_SPAN: &str = "finding requires one typed span column";
 /// Text of the always in this part.
-pub(super) const ALWAYS: &str = ryo_benchmark_contracts::domain::requests::constants::ALWAYS;
+pub(super) const ALWAYS: &str = benchmark_contracts::domain::requests::constants::ALWAYS;
 /// Text of the accepted syntax in this part.
 pub(super) const ACCEPTED_SYNTAX: &str =
-    ryo_benchmark_contracts::domain::requests::constants::ACCEPTED_SYNTAX;
+    benchmark_contracts::domain::requests::constants::ACCEPTED_SYNTAX;
 /// Text of the applicability map does not exactly match in this part.
 pub(super) const APPLICABILITY_MAP_DOES_NOT_EXACTLY_MATCH: &str =
     "applicability map does not exactly match selected candidate rules";
@@ -34,7 +33,7 @@ pub(super) const SKIPPED_RULE_PAIRS_EXCEED_THE_CONFIGURED: &str =
 pub(super) const RULES_DIRECTORY_HAS_NO_PROFILE_ROOT: &str = "rules directory has no profile root";
 /// Text of the module source in this part.
 pub(super) const MODULE_SOURCE: &str =
-    ryo_benchmark_contracts::domain::requests::constants::MODULE_NAME_PROBE;
+    benchmark_contracts::domain::requests::constants::MODULE_NAME_PROBE;
 /// Text of the explicit primary role provider is missing in this part.
 pub(super) const EXPLICIT_PRIMARY_ROLE_PROVIDER_IS_MISSING: &str =
     "explicit primary-role provider is missing or ambiguous";

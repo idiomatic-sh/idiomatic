@@ -1,6 +1,6 @@
 //! The one CPU floor and memory bound every language's growth is held to: Ruff's.
 use super::types::{CpuFloor, MemoryBound};
-use ryo_benchmark_contracts::domain::measurements::types::{DoublingRatio, ResidentBytes};
+use benchmark_contracts::domain::measurements::types::{DoublingRatio, ResidentBytes};
 
 /// A megabyte as the memory bound counts it: the kibibytes `/proc` reports, a thousand and twenty-four of them.
 pub const MEGABYTE: u64 = 1_024 * 1_024;

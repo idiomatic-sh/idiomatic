@@ -1,5 +1,5 @@
 //! Canonical authored declarations shared by invocation identity and durable case receipts.
-use ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
+use benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations;
 
 /// Executable dependency closure. NoQuery is knowledge, not an executable definition.
 pub(crate) fn closure<'a>(
@@ -27,7 +27,7 @@ pub(crate) fn closure<'a>(
 pub(crate) fn project_profile(
     declarations: &RuleObservationDeclarations,
     selected: &[ryo::linter::RuleId],
-    policy: ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy,
+    policy: benchmark_contracts::domain::context::types::ObservationSelectionPolicy,
 ) -> RuleObservationDeclarations {
     if !selected.iter().any(|id| declarations.contains_key(id)) {
         return RuleObservationDeclarations::default();
@@ -48,7 +48,7 @@ pub(crate) fn project_profile(
         };
         let mut bindings = authored.clone();
         if policy
-            == ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Selected
+            == benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Selected
         {
             for binding in &mut bindings {
                 binding.producers.retain(|producer| match producer {

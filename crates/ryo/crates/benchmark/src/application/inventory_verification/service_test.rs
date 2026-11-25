@@ -14,18 +14,18 @@ use crate::outbound::{
         RuleInstance, RuleReason,
     },
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, RuleName, Sha256Text,
 };
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
-use ryo_benchmark_contracts::domain::measurements::types::{Invocation, TerminationSignal};
-use ryo_benchmark_contracts::domain::receipts::constants::{CASE_RECEIPTS_ARGUMENT, VERIFY_CASES};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::ExecutionProfile;
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::measurements::types::ResourceObservation;
+use benchmark_contracts::domain::measurements::types::{Invocation, TerminationSignal};
+use benchmark_contracts::domain::receipts::constants::{CASE_RECEIPTS_ARGUMENT, VERIFY_CASES};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::case_shard::value::ShardCount;
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::{borrow::Cow, path::PathBuf, sync::Mutex, time::Duration};
@@ -118,7 +118,7 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
         .to_vec();
     let profile = context
         .path()
-        .join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
+        .join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
     std::fs::write(&profile, format!("tool = \"fixture\"\nversion = \"1\"\nsha256 = [{reference_sha:?}]\ndefaults = {defaults:?}\n")).unwrap();
     let rules = [(middle, defaults[1].clone()), ("good", defaults[2].clone())]
         .into_iter()
@@ -129,8 +129,8 @@ fn provider(name: &str, middle: &str) -> (Registration, tempfile::TempDir) {
             std::fs::write(&definition, format!("definition for {rule}")).unwrap();
             let evidence = directory.join("evidence/oracle.json");
             std::fs::write(&evidence, format!("independent evidence for {rule}")).unwrap();
-            let context_profile = directory
-                .join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
+            let context_profile =
+                directory.join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
             std::fs::write(
                 &context_profile,
                 format!(
@@ -249,7 +249,7 @@ fn independent_providers() -> Result<InventoryVerdict, Error> {
             ),
             &execution,
             &crate::outbound::inventory::factory::local(),
-            &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+            &benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
             &crate::outbound::scheduler::factory::threads(),
             ShardCount(1),
         )?;
@@ -287,7 +287,7 @@ fn unknown_rule() -> Result<InventoryVerdict, Error> {
         ),
         &execution,
         &crate::outbound::inventory::factory::local(),
-        &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+        &benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
         &crate::outbound::scheduler::factory::threads(),
         ShardCount(1),
     );
@@ -310,7 +310,7 @@ fn undeclared_modules() -> Result<InventoryVerdict, Error> {
         let helper = context.join("helper.ryoql");
         std::fs::write(&helper, "declared helper").unwrap();
         let profile =
-            context.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
+            context.join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
         let content = std::fs::read_to_string(&profile).unwrap()
             + "query-modules={'test/helper'='helper.ryoql'}\n";
         std::fs::write(&profile, content).unwrap();
@@ -331,7 +331,7 @@ fn undeclared_modules() -> Result<InventoryVerdict, Error> {
         ),
         &execution,
         &crate::outbound::inventory::factory::local(),
-        &ryo_benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
+        &benchmark_contracts::domain::requests::types::RegisteredCoverage::Full,
         &crate::outbound::scheduler::factory::threads(),
         ShardCount(1),
     );

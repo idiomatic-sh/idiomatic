@@ -1,9 +1,9 @@
 //! The listed context a case was authored against, framed as the benchmark seals it.
 use super::super::canonical::schemas::{Canonical, invalid, table, text};
 use super::super::constants;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::ContextManifest;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::ContextManifest;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path};
@@ -105,7 +105,7 @@ pub(in super::super) fn context_identity(
             })
             .collect()
     };
-    let seal = ryo_benchmark_contracts::domain::context::service::fingerprint(&ContextManifest {
+    let seal = benchmark_contracts::domain::context::service::fingerprint(&ContextManifest {
         boundary: std::path::PathBuf::new(),
         logical_root: std::path::PathBuf::from(logical),
         auxiliary_files: path_digests(&auxiliary),

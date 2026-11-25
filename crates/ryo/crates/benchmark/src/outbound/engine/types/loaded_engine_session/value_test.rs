@@ -5,9 +5,7 @@ use crate::outbound::{
     engine::{fixtures::fake::EngineFake, interface::EnginePort},
     worker::fixtures::data::request,
 };
-use ryo_benchmark_contracts::domain::{
-    reports::errors::ReportsError, requests::types::WorkerRequest,
-};
+use benchmark_contracts::domain::{reports::errors::ReportsError, requests::types::WorkerRequest};
 type Input = ();
 type Value = usize;
 type Failure = std::convert::Infallible;

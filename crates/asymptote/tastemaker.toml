@@ -8,6 +8,7 @@ rules = [
   { rule = "idiomatic.arch/no-language-names", params = { languages = ["css", "html", "javascript", "python", "rust", "typescript"], written = ["go", "Go", "Go[!A-Za-z0-9]*", "*[!A-Za-z0-9]Go", "*[!A-Za-z0-9]Go[!A-Za-z0-9]*", "*golang*", "*JavaScript*", "*TypeScript*"] }, include = ["crates/core/src/**", "crates/values/src/**", "cli/Cargo.toml"], exclude = ["**/*_test.rs", "**/fixtures/**", "**/fixtures.rs", "**/acceptance.rs"], description = "The core and its values name no language and dispatch on no file extension: a language decides its files, and the query names the relations." },
 ]
 templates = [
+  { template = "idiomatic.arch/unchecked", file = "distribution/benches/profile/{*fixture}", description = "The shared profiler’s workload manifest and frozen one-finding product." },
   { template = "idiomatic.arch/unchecked", file = "crates/core/LICENSE", description = "A link to the repository's LICENSE, the license text the crate ships: a path, never followed." },
   { template = "idiomatic.arch/unchecked", file = "crates/values/LICENSE", description = "A link to the repository's LICENSE, the license text the crate ships: a path, never followed." },
   { template = "idiomatic.arch/clippy-config", file = "clippy.toml", description = "The product's clippy configuration: the in-tests allowances that go with the restriction lints at deny." },

@@ -2,7 +2,7 @@
 use super::prepared_engine_test::fixture_cohort;
 use super::prepared_engine_test::suppress_modules;
 use super::scenario_test::EngineScenario;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::BTreeMap;
 
 pub(super) fn write_rule_fixtures(

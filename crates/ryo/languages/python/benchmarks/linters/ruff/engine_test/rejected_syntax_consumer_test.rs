@@ -1,7 +1,7 @@
 //! A rejected file beside a valid one, with the PT rules feeding RUF100 through the configuration tables: every rule answers the
 //! valid file as Ruff does and skips the rejected one.
 use super::prepared_engine_test::python_310;
-use ryo_benchmark::cases::{Case, CaseName, Expect, Word, run};
+use benchmark::cases::{Case, CaseName, Expect, Word, run};
 use std::collections::BTreeMap;
 
 /// What a row of the cases runs.

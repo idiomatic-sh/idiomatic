@@ -3,20 +3,20 @@ use super::types::{ReportBytes, RequestJson};
 use crate::outbound::linter::adapters::ryo::constants;
 use crate::outbound::linter::interface::LinterPort;
 use crate::outbound::linter::types::CanonicalText;
-use ryo_benchmark_contracts::domain::context::types::PreparedRuleContext;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::ProjectContext;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
-use ryo_benchmark_contracts::domain::requests::types::RunRequest;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::context::types::PreparedRuleContext;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::ProjectContext;
+use benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::requests::types::RunRequest;
+use benchmark_contracts::domain::requests::types::{
     ApplicabilityPolicy, CohortSelection, ContextSeal, InputDeclaration, ParserSelection,
     RuleLabel, WorkerRequest,
 };
-use ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
-use ryo_benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
+use benchmark_contracts::domain::workloads::types::version_line::value::VersionLine;
+use benchmark_contracts::domain::workloads::types::{PreparedCase, Tool};
 use std::path::PathBuf;
 #[derive(Debug)]
 /// Constructs explicit candidate invocations and validates their reports.
@@ -25,29 +25,29 @@ pub(crate) struct LinterRyoAdapter {
     pub defaults: Vec<ryo::linter::RuleId>,
     /// Explicit profile declarations; supporting definitions alone never bind a consumer.
     pub rule_observation_selection:
-        ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy,
+        benchmark_contracts::domain::context::types::ObservationSelectionPolicy,
     pub rule_observations:
-        ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
+        benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations,
     /// Explicit isolation contract selected by the frozen profile.
-    pub project_context_mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,
+    pub project_context_mode: benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode,
     /// Pinned candidate executable.
     pub executable: PathBuf,
     /// Frozen directory of selected rule queries.
     pub rules: PathBuf,
     /// Explicit logical query-module registry under the frozen profile root.
-    pub query_modules: std::collections::BTreeMap<ryo_benchmark_contracts::domain::requests::types::QueryModuleName, PathBuf>,
+    pub query_modules: std::collections::BTreeMap<benchmark_contracts::domain::requests::types::QueryModuleName, PathBuf>,
     /// Exact selected-rule syntax applicability policy from the frozen profile.
-    pub rule_applicability: std::collections::BTreeMap<ryo_benchmark_contracts::domain::requests::types::RuleLabel, ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy>,
+    pub rule_applicability: std::collections::BTreeMap<benchmark_contracts::domain::requests::types::RuleLabel, benchmark_contracts::domain::requests::types::ApplicabilityPolicy>,
     /// Parser configuration forwarded to the isolated SDK worker.
-    pub parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection,
+    pub parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection,
     /// Explicit source provider selected by the request edge, if any.
-    pub source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection,
+    pub source_language: benchmark_contracts::domain::requests::types::ProviderSelection,
 }
 impl LinterPort for LinterRyoAdapter {
     fn rule_configuration(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
-        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Explicit
+    ) -> benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Explicit
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         let selected_rules = match &request.selected_rules {
@@ -81,7 +81,7 @@ impl LinterPort for LinterRyoAdapter {
             parser_configuration: self.parser_configuration.clone(),
             source_language: self.source_language.clone(),
             files: request.files.clone(),
-            state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Retained(
+            state: benchmark_contracts::domain::requests::types::WorkerState::Retained(
                 request.state.join(super::constants::CACHE),
             ),
         };
@@ -90,8 +90,8 @@ impl LinterPort for LinterRyoAdapter {
         std::fs::create_dir_all(&request.state)?;
         std::fs::write(&request_path, request_json.0)?;
         let mut arguments = vec![
-            ryo_benchmark_contracts::domain::requests::constants::RUN_RYO.into(),
-            ryo_benchmark_contracts::domain::requests::constants::REQUEST_FILE.into(),
+            benchmark_contracts::domain::requests::constants::RUN_RYO.into(),
+            benchmark_contracts::domain::requests::constants::REQUEST_FILE.into(),
             request_path.into_os_string(),
         ];
         if let ParserSelection::Named(configuration) = &self.parser_configuration {

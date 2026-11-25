@@ -1,14 +1,14 @@
 //! Every codec preserves native inputs, resources, and actual OS launch errors.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::collection::{interface::CollectionPort, types::CollectorMessage};
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
-use ryo_benchmark_contracts::domain::measurements::types::ResourceObservation;
-use ryo_benchmark_contracts::domain::measurements::types::Resources;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::measurements::types::ResidentBytes;
+use benchmark_contracts::domain::measurements::types::ResourceObservation;
+use benchmark_contracts::domain::measurements::types::Resources;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::time::Duration;
 /// Independently specified protocol observations.
 #[derive(Clone, Copy, Debug)]
@@ -99,8 +99,7 @@ fn observe(codec: &impl CollectionPort, operation: Operation) -> Result<bool, Er
                 peak_rss_bytes: ResidentBytes(456_789),
             };
             let response = codec.response(Ok(ProcessOutput {
-                signal:
-                    ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
+                signal: benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
                 status: ProcessExitCode(127),
                 stdout: CapturedBytes(vec![255, 0, 7]),
                 stderr: CapturedBytes(vec![128, 3]),

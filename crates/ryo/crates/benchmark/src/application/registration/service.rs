@@ -11,17 +11,17 @@ use crate::outbound::inventory::types::{
 };
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::ArtifactPath;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, PathText, ReasonText, RuleName, Sha256Text,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::constants::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::constants::{
     CASES_FILE, PROFILE_MANIFEST, QUERY_FILE, WORKER_SHA256,
 };
-use ryo_benchmark_contracts::domain::requests::types::{ParserSelection, RuleLabel};
-use ryo_benchmark_contracts::domain::workloads::types::Tool;
-use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark_contracts::domain::requests::types::{ParserSelection, RuleLabel};
+use benchmark_contracts::domain::workloads::types::Tool;
+use benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 

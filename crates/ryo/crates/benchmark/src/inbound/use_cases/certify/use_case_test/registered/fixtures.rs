@@ -4,13 +4,13 @@ use crate::inbound::use_cases::prepare_cases::fixtures::Contestant;
 use crate::inbound::use_cases::stage_suite::interface::StageSuiteUseCase as _;
 use crate::inbound::use_cases::stage_suite::use_case::StageSuiteUseCaseImpl;
 use crate::outbound::execution::interface::ExecutionPort;
-use ryo::linter::RuleId;
-use ryo_benchmark_contracts::domain::measurements::types::*;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::measurements::types::*;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::types::{
     BenchmarkCoverage, CertificationCases, RegisteredCoverage,
 };
-use ryo_benchmark_contracts::domain::workloads::types::StagePurpose;
+use benchmark_contracts::domain::workloads::types::StagePurpose;
+use ryo::linter::RuleId;
 use serde_json::{Value as Document, json};
 use sha2::{Digest as _, Sha256};
 use std::{

@@ -11,8 +11,8 @@ use super::super::findings::schemas::{finding, sorted_findings};
 use super::super::project_inputs::schemas::project_inputs;
 use super::super::types::CaseText;
 use crate::outbound::inventory::types::CaseDocuments;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -140,7 +140,7 @@ fn case_document(
 /// Every case the staged profile at `stage` authors, as registered case documents in rule and name order.
 pub(in super::super) fn case_inventory(stage: &Path) -> Result<CaseDocuments, Error> {
     let profile_path =
-        stage.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
+        stage.join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
     let profile = if profile_path.is_file() {
         document(&profile_path)?
     } else {
@@ -160,7 +160,7 @@ pub(in super::super) fn case_inventory(stage: &Path) -> Result<CaseDocuments, Er
     owners.sort();
     let mut documents = Vec::new();
     for owner in owners {
-        let cases = owner.join(ryo_benchmark_contracts::domain::requests::constants::CASES_FILE);
+        let cases = owner.join(benchmark_contracts::domain::requests::constants::CASES_FILE);
         if !cases.is_file() {
             continue;
         }

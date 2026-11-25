@@ -3,11 +3,11 @@ use super::super::rule_tally::value::RuleTally;
 use super::value::CertificationSummary;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::suite::types::{audit::value::Audit, certificate::value::Certificate};
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     BenchmarkCoverage, CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
     RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
-use ryo_benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount;
+use benchmark_contracts::domain::workloads::types::rule_count::value::RuleCount;
 
 /// The scope the summary states.
 type Input = BenchmarkCoverage;
@@ -51,24 +51,23 @@ fn certificate(coverage: Audit) -> Certificate {
         files: vec![],
         state: "cache".into(),
     };
-    let profile = || ryo_benchmark_contracts::domain::measurements::types::Invocation {
+    let profile = || benchmark_contracts::domain::measurements::types::Invocation {
         executable: "fixture".into(),
         arguments: Vec::new(),
         environment: std::collections::BTreeMap::new(),
         directory: ".".into(),
     };
     Certificate {
-        case_source: ryo_benchmark_contracts::domain::requests::types::CertificationCases::Profile,
+        case_source: benchmark_contracts::domain::requests::types::CertificationCases::Profile,
         coverage,
         paths: vec![],
-        fingerprint:
-            ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
-                "sealed".into(),
-            ),
+        fingerprint: benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest(
+            "sealed".into(),
+        ),
         probe,
         profiles: [profile(), profile()],
-        execution: ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall,
-        cases: ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
+        execution: benchmark_contracts::domain::measurements::types::ExecutionProfile::Wall,
+        cases: benchmark_contracts::domain::workloads::types::case_count::value::CaseCount(2),
     }
 }
 

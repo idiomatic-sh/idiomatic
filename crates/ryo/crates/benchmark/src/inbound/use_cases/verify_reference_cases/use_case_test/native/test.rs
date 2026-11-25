@@ -8,7 +8,7 @@ use crate::outbound::{
     execution::fixtures::fake::ExecutionFake, linter::fixtures::fake::LinterFake,
     suite::fixtures::fake::SuiteFake,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 /// What the pinned reference answers against the documented expectation.

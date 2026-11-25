@@ -1,9 +1,9 @@
 //! Child-process execution contract.
 use super::types::ExitObservationMode;
-use ryo_benchmark_contracts::domain::measurements::types::ExecutionProfile;
-use ryo_benchmark_contracts::domain::measurements::types::Invocation;
-use ryo_benchmark_contracts::domain::measurements::types::ProcessOutput;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::measurements::types::ExecutionProfile;
+use benchmark_contracts::domain::measurements::types::Invocation;
+use benchmark_contracts::domain::measurements::types::ProcessOutput;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 /// Execute a prepared invocation and observe its process result.
 pub trait ExecutionPort: Send + Sync {
     /// Whether numeric exits are directly observed with no synthetic timeout status.

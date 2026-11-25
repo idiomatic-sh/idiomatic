@@ -2,25 +2,25 @@
 //! Unknown fields are refused; the documents are a contract.
 use super::super::process_row::schemas::{KindSchema, ProcessRowSchema, pin};
 use crate::outbound::receipts::errors::ReceiptsError;
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+use benchmark_contracts::domain::documents::types::finding::value::{
     ExpectedFindings, FindingOffset, RecordedFinding, RecordedSpan, SkippedPair,
 };
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument, ProjectContextRecord,
     RecordedMetadata, RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips,
     RequestRoot, RuleCohort, RuleContextRecord, RuleObservationsRecord, SourceIdentity,
     ToolContractRecord, ValidationRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::DiscrepancyValidation;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::DiscrepancyValidation;
+use benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, CaseName, ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest,
     ReasonText, RuleName, SchemaName, Sha256Text, YesNo,
 };
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::reports::types::{
     ComparisonContract, CoverageAccounting, ExecutionMetadata, PairCount, RuleCoverage,
     UnavailableReason,
 };
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use serde::Deserialize;
 
 #[cfg(test)]

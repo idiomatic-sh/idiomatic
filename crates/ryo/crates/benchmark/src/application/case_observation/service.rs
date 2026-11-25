@@ -10,34 +10,32 @@ use crate::outbound::receipts::interface::ReceiptsPort;
 use crate::outbound::receipts::types::{CapturedProcess, CaseReceipts, ReceiptPath};
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::{ArtifactPath, ArtifactSet};
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+use benchmark_contracts::domain::documents::types::finding::value::{
     ExpectedFindings, FindingOffset, RecordedFinding, SkippedPair,
 };
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ContextMode, ContextRun, IntentMatch, ListedContext, ObservationDocument,
     ProcessArtifactsRecord, ProcessRecord, ProjectContextRecord, RecordedMetadata, RecordedReason,
     ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot, RuleCohort, RuleContextRecord,
     RuleObservationsRecord, SourceIdentity, ToolContractRecord, ValidationRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
     DiscrepancyValidation, ExpectationKind,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::Pin;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::Pin;
+use benchmark_contracts::domain::documents::types::text::value::{
     CanonicalJson, CaseName, ContestantSide, ExitStatus, FileMetadataDigest, PathText,
     ProjectInputsDigest, ReasonText, RuleName, SchemaName, Sha256Text, YesNo,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{BenchmarkFinding, ComparisonContract};
-use ryo_benchmark_contracts::domain::reports::types::{
-    CoverageAccounting, ProjectContext, RunReport,
-};
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{BenchmarkFinding, ComparisonContract};
+use benchmark_contracts::domain::reports::types::{CoverageAccounting, ProjectContext, RunReport};
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, InputDeclaration, RuleContextPreparation, SearchRoots,
 };
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::workloads::types::PreparedCase;
 use std::path::Path;
 
 fn findings(rows: &[BenchmarkFinding]) -> Vec<RecordedFinding> {
@@ -45,7 +43,7 @@ fn findings(rows: &[BenchmarkFinding]) -> Vec<RecordedFinding> {
         .map(|row| RecordedFinding {
             rule: RuleName(row.rule.as_ref().to_owned()),
             file: PathText(row.file.0.as_ref().to_owned()),
-            span: ryo_benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
+            span: benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
                 start: FindingOffset(u64::try_from(row.start.0).unwrap_or(u64::MAX)),
                 end: FindingOffset(u64::try_from(row.end.0).unwrap_or(u64::MAX)),
             },
@@ -255,12 +253,10 @@ pub(crate) fn write(
         )
     });
     let basis = match &case.reference_discrepancy {
-        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(
-            item,
-        ) => Some(item.basis),
-        ryo_benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => {
-            None
+        benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Differs(item) => {
+            Some(item.basis)
         }
+        benchmark_contracts::domain::workloads::types::PreparedReferenceBehavior::Agrees => None,
     };
     let mut record = ObservationDocument {
         rule: RuleName(case.rule.as_ref().to_owned()),

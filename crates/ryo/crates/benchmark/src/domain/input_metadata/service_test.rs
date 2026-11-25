@@ -2,12 +2,12 @@
 use super::errors::InputMetadataError;
 use super::service::require;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::requests::types::FileMetadataDeclaration;
+use benchmark_contracts::domain::workloads::types::FileObservation;
 use ryo::linter::RelativePath;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::artifacts::types::{FileExecutable, FileMetadataEntry};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration;
-use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
 use std::collections::BTreeMap;
 
 /// What each scenario observes.

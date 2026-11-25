@@ -3,7 +3,7 @@ use super::fixtures::{Refusal, Scenario, exercise};
 use super::{interface::PrepareCasesUseCase as _, use_case::PrepareCasesUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::suite::interface::SuitePort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::path::Path;
 type Input = Scenario;
 type Value = usize;

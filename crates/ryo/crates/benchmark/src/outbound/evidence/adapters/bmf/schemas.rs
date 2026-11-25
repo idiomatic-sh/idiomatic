@@ -5,13 +5,13 @@ use super::types::{BenchmarkName, MeasureDocument, MeasureName, MeasureValue, Ob
 use crate::outbound::evidence::types::{
     MeasureClass, PublishedDocument, RuleTiming, RuleTimings, VerificationTimesFiles,
 };
-use ryo_benchmark_contracts::domain::costs::types::{ProjectCosts, RunCost};
-use ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::costs::types::{ProjectCosts, RunCost};
+use benchmark_contracts::domain::measurements::types::ShapeGrowths;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{
     Comparison, ComparisonContract, ExecutionMetadata, ReportComparison, RunReport,
 };
-use ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage;
+use benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::time::Duration;
@@ -123,7 +123,7 @@ pub(super) fn costs(
 ) -> Result<(), Error> {
     if costs.0.is_empty() {
         return Err(Error::Invalid(
-            ryo_benchmark_contracts::domain::reports::constants::NO_MEASURED_EVIDENCE.into(),
+            benchmark_contracts::domain::reports::constants::NO_MEASURED_EVIDENCE.into(),
         ));
     }
     for cost in &costs.0 {
@@ -221,7 +221,7 @@ pub(super) fn growth(
 pub(super) fn encode(document: &MeasureDocument) -> Result<Vec<u8>, Error> {
     if document.0.is_empty() {
         return Err(Error::Invalid(
-            ryo_benchmark_contracts::domain::reports::constants::NO_MEASURED_EVIDENCE.into(),
+            benchmark_contracts::domain::reports::constants::NO_MEASURED_EVIDENCE.into(),
         ));
     }
     let wire: BTreeMap<&str, BTreeMap<&str, MetricSchema>> = document

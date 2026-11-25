@@ -1,6 +1,6 @@
 //! Why an actual reference process does not match its declared failure.
 use crate::domain::registered_inputs::types::RefusalText;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 
 /// A refused actual reference process.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]

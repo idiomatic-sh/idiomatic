@@ -1,11 +1,11 @@
 //! What the invocation document writes, one row of `CASES` for each input.
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+use benchmark_contracts::domain::documents::types::invocation_document::value::{
     FailedInvocation, InvocationDocument,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::ExitStatus;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{PathText, ReasonText, YesNo};
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use benchmark_contracts::domain::documents::types::text::value::ExitStatus;
+use benchmark_contracts::domain::documents::types::text::value::{PathText, ReasonText, YesNo};
+use benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
 use std::collections::BTreeMap;
 
 type Input = Signal;

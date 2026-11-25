@@ -54,7 +54,7 @@ expected = [{{ rule = "T001", file = "positive.txt", start = 0, end = 1 }}]
                 &source,
                 &staged,
                 &audit.implemented,
-                ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+                benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
             )?;
     let materialized = crate::application::case_preparation::service::cases(
         &adapter,
@@ -106,11 +106,10 @@ fn verify_discrepancy_fixture(
     use crate::outbound::suite::types::{
         ArtifactMetadata, ClaimedEvidence, ClaimedMetadata, EvidenceRequirement,
     };
-    use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-    let digest =
-        |text: &ryo_benchmark_contracts::domain::documents::types::text::value::Sha256Text| {
-            ArtifactDigest(text.0.clone())
-        };
+    use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+    let digest = |text: &benchmark_contracts::domain::documents::types::text::value::Sha256Text| {
+        ArtifactDigest(text.0.clone())
+    };
     let evidence = wire
         .discrepancy
         .evidence

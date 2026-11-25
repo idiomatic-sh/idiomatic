@@ -1,14 +1,14 @@
 //! A request over one case file, a linter that reports no file, and the launches a fake execution recorded.
 use crate::outbound::execution::fixtures::fake::ExecutionFake;
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::measurements::types::{
     CapturedBytes, ExecutionProfile, Invocation, ProcessExitCode, ProcessOutput,
     ResourceObservation, TerminationSignal,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{
     CoverageAccounting, ExecutionMetadata, PairCount, ProjectContext, RuleCoverage, RunReport,
 };
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
     RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
@@ -49,8 +49,8 @@ pub(super) struct Empty;
 impl crate::outbound::linter::interface::LinterPort for Empty {
     fn rule_configuration(
         &self,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
-        ryo_benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
+    ) -> benchmark_contracts::domain::workloads::types::RuleConfigurationSupport {
+        benchmark_contracts::domain::workloads::types::RuleConfigurationSupport::Unsupported
     }
     fn prepare(&self, request: &RunRequest) -> Result<Invocation, Error> {
         Ok(Invocation {
@@ -78,8 +78,8 @@ impl crate::outbound::linter::interface::LinterPort for Empty {
     fn settings_text(
         &self,
         normalized: &Invocation,
-        _case: &ryo_benchmark_contracts::domain::workloads::types::PreparedCase,
-        _profile: &ryo_benchmark_contracts::domain::workloads::types::Tool,
+        _case: &benchmark_contracts::domain::workloads::types::PreparedCase,
+        _profile: &benchmark_contracts::domain::workloads::types::Tool,
     ) -> Result<crate::outbound::linter::types::CanonicalText, Error> {
         Ok(crate::outbound::linter::types::CanonicalText(format!(
             "{normalized:?}"
@@ -87,17 +87,15 @@ impl crate::outbound::linter::interface::LinterPort for Empty {
     }
     fn rule_context_text(
         &self,
-        prepared: &ryo_benchmark_contracts::domain::context::types::PreparedRuleContext,
+        prepared: &benchmark_contracts::domain::context::types::PreparedRuleContext,
     ) -> crate::outbound::linter::types::CanonicalText {
         crate::outbound::linter::types::CanonicalText(format!("{prepared:?}"))
     }
     fn version_line(
         &self,
-        tool: &ryo_benchmark_contracts::domain::workloads::types::Tool,
-    ) -> ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
-        ryo_benchmark_contracts::domain::workloads::types::version_line::value::VersionLine::from(
-            tool,
-        )
+        tool: &benchmark_contracts::domain::workloads::types::Tool,
+    ) -> benchmark_contracts::domain::workloads::types::version_line::value::VersionLine {
+        benchmark_contracts::domain::workloads::types::version_line::value::VersionLine::from(tool)
     }
 }
 impl crate::outbound::execution::interface::ExecutionPort for Empty {

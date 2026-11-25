@@ -21,15 +21,15 @@ use crate::outbound::{
     scheduler::interface::SchedulerPort,
     suite::interface::SuitePort,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::{
     ReasonText, RuleName, Sha256Text,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     RegisteredCoverage, RuleLabel,
     case_shard::value::{CaseShard, ShardCount, ShardIndex},
 };
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 use std::{collections::BTreeSet, path::Path};
 
 /// The directory a rule's verification keeps its observations in: `<inventory>/profiles/<rule>`.

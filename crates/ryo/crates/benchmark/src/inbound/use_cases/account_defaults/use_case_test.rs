@@ -2,7 +2,7 @@
 use super::{interface::AccountDefaultsUseCase as _, use_case::AccountDefaultsUseCaseImpl};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::inbound::use_cases::{admit_measurement::fixtures::tool, audit::fixtures::audited};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 
 /// Whether the audit authored the tool's one default.
 type Input = bool;

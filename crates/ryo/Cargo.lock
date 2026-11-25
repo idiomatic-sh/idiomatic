@@ -1470,6 +1470,51 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 
 [[package]]
+name = "idiomatic-sh-benchmark"
+version = "0.2.0"
+dependencies = [
+ "cargo_metadata",
+ "cpu-time",
+ "cucumber",
+ "divan",
+ "globset",
+ "idiomatic-sh-benchmark",
+ "idiomatic-sh-benchmark-contracts",
+ "idiomatic-sh-profile-tools",
+ "idiomatic-sh-ryo-sdk",
+ "idiomatic-sh-ryo-values",
+ "mimalloc",
+ "rayon",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tikv-jemallocator",
+ "tokio",
+ "toml 1.1.4+spec-1.1.0",
+ "tracing",
+ "tracing-chrome",
+ "tracing-subscriber",
+ "wait4",
+]
+
+[[package]]
+name = "idiomatic-sh-benchmark-contracts"
+version = "0.2.0"
+dependencies = [
+ "idiomatic-sh-ryo-sdk",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.20",
+ "toml 1.1.4+spec-1.1.0",
+]
+
+[[package]]
+name = "idiomatic-sh-profile-tools"
+version = "0.1.0"
+
+[[package]]
 name = "idiomatic-sh-ryo"
 version = "0.2.0"
 dependencies = [
@@ -1524,46 +1569,6 @@ dependencies = [
  "tracing-subscriber",
  "trycmd",
  "unicode-width",
-]
-
-[[package]]
-name = "idiomatic-sh-ryo-benchmark"
-version = "0.2.0"
-dependencies = [
- "cargo_metadata",
- "cpu-time",
- "cucumber",
- "divan",
- "globset",
- "idiomatic-sh-ryo-benchmark",
- "idiomatic-sh-ryo-benchmark-contracts",
- "idiomatic-sh-ryo-sdk",
- "idiomatic-sh-ryo-values",
- "mimalloc",
- "rayon",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.20",
- "tikv-jemallocator",
- "tokio",
- "toml 1.1.4+spec-1.1.0",
- "tracing",
- "tracing-chrome",
- "tracing-subscriber",
- "wait4",
-]
-
-[[package]]
-name = "idiomatic-sh-ryo-benchmark-contracts"
-version = "0.2.0"
-dependencies = [
- "idiomatic-sh-ryo-sdk",
- "serde_json",
- "sha2",
- "thiserror 2.0.20",
- "toml 1.1.4+spec-1.1.0",
 ]
 
 [[package]]
@@ -1801,6 +1806,7 @@ name = "idiomatic-sh-ryo-operators"
 version = "0.2.0"
 dependencies = [
  "cargo_metadata",
+ "cpu-time",
  "cucumber",
  "dhat",
  "divan",
@@ -1835,6 +1841,7 @@ dependencies = [
  "divan",
  "foldhash 0.2.0",
  "idiomatic-sh-ryo-engine",
+ "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-python",
@@ -1874,8 +1881,8 @@ version = "0.2.0"
 dependencies = [
  "cpu-time",
  "dunce",
- "idiomatic-sh-ryo-benchmark",
- "idiomatic-sh-ryo-benchmark-contracts",
+ "idiomatic-sh-benchmark",
+ "idiomatic-sh-benchmark-contracts",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-sdk",
  "serde",
@@ -1891,7 +1898,6 @@ dependencies = [
  "cargo_metadata",
  "cucumber",
  "divan",
- "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-language",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
@@ -1954,8 +1960,8 @@ dependencies = [
 name = "idiomatic-sh-ryo-rust-clippy-benchmark"
 version = "0.2.0"
 dependencies = [
- "idiomatic-sh-ryo-benchmark",
- "idiomatic-sh-ryo-benchmark-contracts",
+ "idiomatic-sh-benchmark",
+ "idiomatic-sh-benchmark-contracts",
  "idiomatic-sh-ryo-rust",
  "idiomatic-sh-ryo-sdk",
  "serde",
@@ -2046,8 +2052,8 @@ dependencies = [
 name = "idiomatic-sh-ryo-typescript-oxlint-benchmark"
 version = "0.2.0"
 dependencies = [
- "idiomatic-sh-ryo-benchmark",
- "idiomatic-sh-ryo-benchmark-contracts",
+ "idiomatic-sh-benchmark",
+ "idiomatic-sh-benchmark-contracts",
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-typescript",
  "serde",

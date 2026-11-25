@@ -1,13 +1,13 @@
 //! Acceptance uses the same real public stage_suite operation.
-use cucumber::then;
-use ryo_benchmark::inbound::use_cases::stage_suite::fixtures::{
+use benchmark::inbound::use_cases::stage_suite::fixtures::{
     Refusal, Scenario, exercise, stage_missing,
 };
-use ryo_benchmark::inbound::use_cases::stage_suite::{
+use benchmark::inbound::use_cases::stage_suite::{
     interface::StageSuiteUseCase as _, use_case::StageSuiteUseCaseImpl,
 };
-use ryo_benchmark::outbound::suite::interface::SuitePort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark::outbound::suite::interface::SuitePort;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use cucumber::then;
 use std::path::Path;
 
 /// Stage a profile directory through the public use case.
@@ -17,7 +17,7 @@ fn stage(suite: &dyn SuitePort, directory: &Path, destination: &Path) -> Result<
             directory,
             destination,
             &[],
-            ryo_benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
+            benchmark_contracts::domain::workloads::types::StagePurpose::Certification,
         )
         .map(|_staged| ())
 }

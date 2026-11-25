@@ -3,15 +3,15 @@ use super::errors::CorpusDiscrepancyError;
 use super::service::{admit_accepted, corpus_digest, corpus_problems, skip_problems};
 use super::types::ObservedDifferences;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo::linter::{RelativePath, RuleId};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::ContextManifest;
-use ryo_benchmark_contracts::domain::reports::types::AcceptanceReason;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::ContextManifest;
+use benchmark_contracts::domain::reports::types::AcceptanceReason;
+use benchmark_contracts::domain::reports::types::{
     AcceptedDifferences, AcceptedRule, DifferenceSide, FindingCount, FindingPosition,
     LocatedDifference, SourceColumn, SourceLine,
 };
-use ryo_benchmark_contracts::domain::requests::types::ContextSeal;
+use benchmark_contracts::domain::requests::types::ContextSeal;
+use ryo::linter::{RelativePath, RuleId};
 use std::collections::BTreeMap;
 
 /// What a case hands the part.
@@ -297,7 +297,7 @@ fn refuses() {
 
 /// The problems of a candidate that skipped F401 on `bad.py`, against the reference `reference` describes.
 fn skips(reference: Reference) -> Value {
-    use ryo_benchmark_contracts::domain::reports::types::{
+    use benchmark_contracts::domain::reports::types::{
         BenchmarkFinding, CoverageAccounting, ExecutionMetadata, ProjectContext, RunReport,
         SourceByteOffset, UnavailableReason,
     };

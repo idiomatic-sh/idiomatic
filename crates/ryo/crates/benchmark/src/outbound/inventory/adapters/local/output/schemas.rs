@@ -4,19 +4,19 @@ use crate::outbound::inventory::adapters::local::types::{AuditJson, RowJson, Sum
 use crate::outbound::inventory::types::{
     ReceiptDigest, Row, RowInstance, RowReason, RowStatus, RunState, Summary,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::receipts::constants::{
+use benchmark_contracts::domain::documents::types::text::value::CanonicalJson;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::receipts::constants::{
     BENCHMARK_INVENTORY_V2, COMPLETE, DEFERRED, FAIL, FAILED, PASS, RUNNING,
 };
-use ryo_benchmark_contracts::domain::receipts::types::ReceiptAudit;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::receipts::types::ReceiptAudit;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
 /// The one-line JSON answer of an offline receipt audit, newline included.
 fn audit(audit: &ReceiptAudit) -> Result<CapturedBytes, Error> {
-    use ryo_benchmark_contracts::domain::receipts::types::CaseKey;
+    use benchmark_contracts::domain::receipts::types::CaseKey;
     let case = |key: &CaseKey| serde_json::json!({"rule": key.rule.0, "name": key.name.0});
     let mut result = serde_json::json!({
         "schema": "benchmark-case-receipt-audit/v1",

@@ -3,8 +3,8 @@
 //! changed, non-canonical or unsealed link, a requested source that is a link, and a target that is not UTF-8 are
 //! refused.
 use super::super::adapter::{seal_existing, validate};
-use ryo_benchmark_contracts::domain::context::types::{ContextManifest, LinkTarget};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::context::types::{ContextManifest, LinkTarget};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 /// Make `at` a symbolic link to `target`.

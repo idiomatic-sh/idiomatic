@@ -1,15 +1,15 @@
 //! The independently authored case and profile the suite fake serves to orchestration tests.
-use ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::context::types::ObservationSelectionPolicy;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::reports::types::{
     BenchmarkFinding, CoverageAccounting, ExecutionMetadata, PairCount, ProjectContext,
     RuleCoverage, RunReport, SourceByteOffset,
 };
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration, ParserSelection,
     ProviderSelection, RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
 };
-use ryo_benchmark_contracts::domain::workloads::types::{
+use benchmark_contracts::domain::workloads::types::{
     CaseComparison, FileObservation, PreparedCase, PreparedReferenceBehavior, RuleContextProfile,
     Tool,
 };

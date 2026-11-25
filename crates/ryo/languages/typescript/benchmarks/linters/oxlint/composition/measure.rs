@@ -6,43 +6,41 @@ use super::commands;
 use super::constants;
 use super::constants::UNEXPECTED_MEASUREMENT_ARGUMENT;
 use super::locations::{default_scratch, directory};
-use ryo_benchmark::domain::command_line::types::{
+use benchmark::domain::command_line::types::{
     BenchmarkArgument, Selection, measure_command::value::MeasureCommand,
 };
-use ryo_benchmark::domain::measurements::types::{
+use benchmark::domain::measurements::types::{
     LanguageTitle, certification_summary::value::CertificationSummary,
     corpus_shape::value::CorpusShape, measurement_environment::value::MeasurementEnvironment,
     rule_tally::value::RuleTally,
 };
-use ryo_benchmark::domain::suite::types::certificate::value::Certificate;
-use ryo_benchmark::inbound::use_cases::admit_measurement::{
+use benchmark::domain::suite::types::certificate::value::Certificate;
+use benchmark::inbound::use_cases::admit_measurement::{
     interface::AdmitMeasurementUseCase as _, types::MeasurementAdmission,
     use_case::AdmitMeasurementUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
-use ryo_benchmark::inbound::use_cases::certify::{
+use benchmark::inbound::use_cases::audit::interface::AuditUseCase as _;
+use benchmark::inbound::use_cases::certify::{
     interface::CertifyUseCase as _, use_case::CertifyUseCaseImpl,
 };
-use ryo_benchmark::inbound::use_cases::measure_corpus::{
+use benchmark::inbound::use_cases::measure_corpus::{
     interface::MeasureCorpusUseCase as _,
     types::{CorpusLanguage, CorpusMeasurement, ProfileLabel, SourceSuffix, ToolTitle},
     use_case::MeasureCorpusUseCaseImpl,
 };
-use ryo_benchmark::outbound::discovery::interface::DiscoveryPort;
-use ryo_benchmark::outbound::evidence::interface::EvidencePort;
-use ryo_benchmark::outbound::execution::interface::ExecutionPort;
-use ryo_benchmark::outbound::linter::interface::LinterPort;
-use ryo_benchmark::outbound::suite::{
+use benchmark::outbound::discovery::interface::DiscoveryPort;
+use benchmark::outbound::evidence::interface::EvidencePort;
+use benchmark::outbound::execution::interface::ExecutionPort;
+use benchmark::outbound::linter::interface::LinterPort;
+use benchmark::outbound::suite::{
     interface::SuitePort,
     types::{ArtifactPath, ArtifactText},
 };
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::measurements::types::MeasurementMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::constants::{
-    DOCUMENT_ARGUMENT, VERIFICATION_ARGUMENT,
-};
-use ryo_benchmark_contracts::domain::workloads::types::Suite;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::measurements::types::MeasurementMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::constants::{DOCUMENT_ARGUMENT, VERIFICATION_ARGUMENT};
+use benchmark_contracts::domain::workloads::types::Suite;
 use std::{path::PathBuf, sync::Arc};
 
 /// Certify both contestants, then measure every project of the corpus and publish or report the samples.
@@ -64,9 +62,9 @@ pub(super) fn measure(
     // The bench verified the reference tool's pinned bytes and version line once, before any rule (`verify-tool`); the
     // registration pins its digest, which the inventory checks before and after every rule.
     let declared_inventory = tool.defaults.clone();
-    let audit = ryo_benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(
-        Arc::clone(&suite_source),
-    )
+    let audit = benchmark::inbound::use_cases::audit::use_case::AuditUseCaseImpl::new(Arc::clone(
+        &suite_source,
+    ))
     .audit(&directory(), &tool)?;
     let authored_total = audit.authored_count();
     let selection_or_inventory = args.next().map(|argument| argument.0);
@@ -117,10 +115,9 @@ pub(super) fn measure(
     let project_search_roots = tool.project_search_roots.clone();
     let declared_rule_context = tool.rule_context.clone();
     let staged = stage(suite_source, &cache, audit.authored())?;
-    let configured_cohort =
-        ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
-            staged.tool.defaults.clone(),
-        );
+    let configured_cohort = benchmark_contracts::domain::requests::types::CohortSelection::Explicit(
+        staged.tool.defaults.clone(),
+    );
     let candidate_executable = staged.scratch.join(constants::CANDIDATE_EXECUTABLE);
     suite_source.copy_file(
         ArtifactPath(&std::env::current_exe()?),
@@ -135,7 +132,7 @@ pub(super) fn measure(
     } = staged;
     let selected_rules = selected_profile.join(constants::RULES_DIRECTORY);
     let discovery: Arc<dyn DiscoveryPort> =
-        Arc::new(ryo_benchmark::outbound::discovery::factory::listing(
+        Arc::new(benchmark::outbound::discovery::factory::listing(
             executable.clone(),
             crate::adapter::LinterOxlintAdapter::discovery_arguments(&selected_scratch)?,
         ));
@@ -149,16 +146,16 @@ pub(super) fn measure(
         default_scratch(suite_source.as_ref(), ArtifactText(constants::CASE_SCRATCH))?;
     let certificate = CertifyUseCaseImpl::new(
         Arc::<_>::clone(&suite_source),
-        Arc::new(ryo_benchmark::outbound::host::factory::local()),
-        Arc::new(ryo_benchmark::outbound::receipts::factory::local(
-            ryo_benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
+        Arc::new(benchmark::outbound::host::factory::local()),
+        Arc::new(benchmark::outbound::receipts::factory::local(
+            benchmark::outbound::receipts::types::CaseReceipts::Unrecorded,
         )),
-        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+        Arc::new(benchmark::outbound::context::factory::local()),
         Arc::<super::super::adapter::LinterOxlintAdapter>::clone(&reference),
         Arc::<_>::clone(&candidate),
         Arc::<_>::clone(&execution),
-        Arc::new(ryo_benchmark::outbound::inventory::factory::local()),
-        Arc::new(ryo_benchmark::outbound::scheduler::factory::threads()),
+        Arc::new(benchmark::outbound::inventory::factory::local()),
+        Arc::new(benchmark::outbound::scheduler::factory::threads()),
     )
     .certify(
         &selected_profile,
@@ -214,9 +211,9 @@ struct Certified {
     discovery: Arc<dyn DiscoveryPort>,
     execution: Arc<dyn ExecutionPort>,
     certificate: Certificate,
-    cohort: ryo_benchmark_contracts::domain::requests::types::CohortSelection,
-    rule_context: ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile,
-    search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots,
+    cohort: benchmark_contracts::domain::requests::types::CohortSelection,
+    rule_context: benchmark_contracts::domain::workloads::types::RuleContextProfile,
+    search_roots: benchmark_contracts::domain::requests::types::SearchRoots,
     context_mode: ProjectContextMode,
     mode: MeasurementMode,
     cache: PathBuf,
@@ -228,7 +225,7 @@ struct Certified {
     /// The file the bench's one document is written to.
     document: PathBuf,
     /// The parser configuration both contestants run with.
-    parser: ryo_benchmark_contracts::domain::requests::types::ParserSelection,
+    parser: benchmark_contracts::domain::requests::types::ParserSelection,
 }
 
 /// Measure the corpus of a certified pair and publish or report the samples.
@@ -261,11 +258,9 @@ fn compare(
         display: LanguageTitle(constants::LANGUAGE_DISPLAY),
     }
     .admit(&suite)?;
-    let evidence: Arc<dyn EvidencePort> =
-        Arc::new(ryo_benchmark::outbound::evidence::factory::bmf_document(
-            document,
-            Box::new(std::io::stderr()),
-        ));
+    let evidence: Arc<dyn EvidencePort> = Arc::new(
+        benchmark::outbound::evidence::factory::bmf_document(document, Box::new(std::io::stderr())),
+    );
     let suffixes = constants::SOURCE_SUFFIXES.map(SourceSuffix);
     let language = constants::TYPESCRIPT.into();
     let invalid_syntax = ryo::linter::RuleId::try_from(crate::constants::INVALID_SYNTAX)
@@ -277,38 +272,37 @@ fn compare(
         discovery,
         execution,
         Arc::<_>::clone(suite_source),
-        Arc::new(ryo_benchmark::outbound::context::factory::local()),
+        Arc::new(benchmark::outbound::context::factory::local()),
         evidence,
-        Arc::new(ryo_benchmark::outbound::workspace::factory::git(
+        Arc::new(benchmark::outbound::workspace::factory::git(
             cache.join(constants::PROJECTS_DIRECTORY),
         )),
-        Arc::new(ryo_benchmark::outbound::host::factory::local()),
+        Arc::new(benchmark::outbound::host::factory::local()),
         Arc::new(
-            ryo_benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
+            benchmark::outbound::engine::factory::local_with_frontend_diagnostic(
                 ryo::linter::Languages(vec![ryo_typescript::linked()]),
                 None,
                 commands::frontend_diagnostic()?,
             ),
         ),
-        Arc::new(ryo_benchmark::outbound::process_meter::factory::linux()),
+        Arc::new(benchmark::outbound::process_meter::factory::linux()),
     )
     .measure_corpus(
         &CorpusMeasurement {
             bench: &bench,
             projects: suite.projects,
-            growth: ryo_benchmark::domain::growth::types::CorpusGrowth::Grown(
-                ryo_benchmark::domain::growth::types::GrowthSource {
+            growth: benchmark::domain::growth::types::CorpusGrowth::Grown(
+                benchmark::domain::growth::types::GrowthSource {
                     bench: &bench,
                     rules: &bench.join(constants::RULES_DIRECTORY),
                     table: &bench.join(constants::GROWTH_TABLE),
                     parser: &parser,
                 },
             ),
-            verification:
-                ryo_benchmark::inbound::use_cases::measure_corpus::types::VerifiedInventory {
-                    directory: &verification,
-                    rules: &verified,
-                },
+            verification: benchmark::inbound::use_cases::measure_corpus::types::VerifiedInventory {
+                directory: &verification,
+                rules: &verified,
+            },
             cache: &cache,
             frozen_workload: &workload,
             certificate: &certificate,

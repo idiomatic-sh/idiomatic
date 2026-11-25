@@ -4,12 +4,12 @@ use crate::outbound::suite::errors::SuiteError;
 use crate::outbound::suite::types::{
     CaseClaim, ClaimedEvidence, ClaimedProcess, MaterializedCase, MaterializedContext,
 };
-use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
-use ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
-use ryo_benchmark_contracts::domain::costs::types::StoreSize;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{CaseName, RuleName};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::{StagePurpose, Tool};
+use benchmark_contracts::domain::artifacts::types::FileExecutable;
+use benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath;
+use benchmark_contracts::domain::costs::types::StoreSize;
+use benchmark_contracts::domain::documents::types::text::value::{CaseName, RuleName};
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::{StagePurpose, Tool};
 use sha2::{Digest as _, Sha256};
 use std::collections::BTreeSet;
 use std::path::{Component, Path};
@@ -291,7 +291,7 @@ pub(super) fn copy_evidence(
 /// Write only selected source facts; semantic preparation and expected reports stay above this port.
 pub(super) fn materialize(
     boundary: &Path,
-    sources: &ryo_benchmark_contracts::domain::workloads::types::Case,
+    sources: &benchmark_contracts::domain::workloads::types::Case,
     context: &MaterializedContext,
 ) -> Result<MaterializedCase, Error> {
     let root = match context {
@@ -307,7 +307,7 @@ pub(super) fn materialize(
                 .ok_or_else(|| Error::Invalid(constants::MISSING_CASE_PARENT.into()))?,
         )?;
         std::fs::write(&path, source.0.as_bytes())?;
-        if let ryo_benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
+        if let benchmark_contracts::domain::requests::types::FileMetadataDeclaration::Declared(
             values,
         ) = &sources.file_metadata
         {

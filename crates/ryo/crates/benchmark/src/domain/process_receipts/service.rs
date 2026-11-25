@@ -6,28 +6,28 @@ use crate::domain::invocation_identity::{
     types::{Boundaries, InvocationText, Variable},
 };
 use crate::domain::process_failure::service::{group_digest, output_digest};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::CaseReference;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::documents::types::case_document::value::CaseDocument;
+use benchmark_contracts::domain::documents::types::case_document::value::CaseReference;
+use benchmark_contracts::domain::documents::types::invocation_document::value::{
     ArgumentText, CompleteInvocation, EnvironmentName, EnvironmentValue, InvocationDocument,
 };
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     IntentMatch, ObservationDocument, ProcessArtifactsRecord, ProcessRecord, RecordedMetadata,
     RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips, RequestRoot,
     ValidationRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
     ArtifactPointer, DiscrepancyRecord, DiscrepancyValidation, ExpectationKind, ProcessExpectation,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::{
     ExitStatus, FileMetadataDigest, PathText, Sha256Text, YesNo,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::process::types::ProcessFailure;
-use ryo_benchmark_contracts::domain::reports::types::CoverageAccounting;
-use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
+use benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::process::types::ProcessFailure;
+use benchmark_contracts::domain::reports::types::CoverageAccounting;
+use benchmark_contracts::domain::workloads::types::CaseComparison;
 use sha2::Digest as _;
 use std::{
     collections::BTreeMap,

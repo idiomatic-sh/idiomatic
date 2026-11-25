@@ -1,10 +1,10 @@
 //! The worker report document the child process prints, decoded into the canonical report.
 use crate::outbound::linter::adapters::ryo::types::ReportBytes;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{
     BenchmarkFinding, CoverageAccounting, ExecutionMetadata, PairCount, ProjectContext,
     RuleCoverage, RunReport, SourceByteOffset, UnavailableReason,
 };
@@ -178,7 +178,7 @@ impl TryFrom<ReportSchema> for RunReport {
                 })
                 .collect::<Result<_, Error>>()?,
         };
-        ryo_benchmark_contracts::domain::reports::service::require_complete_execution(&report)?;
+        benchmark_contracts::domain::reports::service::require_complete_execution(&report)?;
         Ok(report)
     }
 }

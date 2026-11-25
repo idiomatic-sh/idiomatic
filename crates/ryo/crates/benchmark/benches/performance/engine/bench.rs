@@ -3,7 +3,7 @@
     clippy::expect_used,
     reason = "missing benchmark prerequisites must fail visibly"
 )]
-use ryo_benchmark::outbound::engine::{
+use benchmark::outbound::engine::{
     factory::{
         local, local_with_diagnostic_events, local_with_frontend_diagnostic,
         retaining_with_frontend_diagnostic,
@@ -11,8 +11,8 @@ use ryo_benchmark::outbound::engine::{
     interface::EnginePort,
     types::FrontendDiagnosticProjection,
 };
-use ryo_benchmark::outbound::worker::fixtures::data::request;
-use ryo_benchmark_contracts::domain::requests::types::{WorkerRequest, WorkerState};
+use benchmark::outbound::worker::fixtures::data::request;
+use benchmark_contracts::domain::requests::types::{WorkerRequest, WorkerState};
 use std::path::Path;
 
 /// The one authored query every variant loads.

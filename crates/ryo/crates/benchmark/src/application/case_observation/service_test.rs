@@ -6,8 +6,8 @@ use crate::domain::discrepancy::types::Contestant;
 use crate::outbound::receipts::fixtures::fake::ReceiptsFake;
 use crate::outbound::receipts::types::CaseReceipts;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{ContestantSide, YesNo};
-use ryo_benchmark_contracts::domain::workloads::types::PreparedCase;
+use benchmark_contracts::domain::documents::types::text::value::{ContestantSide, YesNo};
+use benchmark_contracts::domain::workloads::types::PreparedCase;
 
 /// What the receipt sink and the case sources are.
 #[derive(Clone, Copy)]

@@ -1,7 +1,7 @@
 //! The plan of a growth run, its bounds and what it observed.
-use ryo_benchmark_contracts::domain::growth::types::{GrowthSize, SourceFileName};
-use ryo_benchmark_contracts::domain::measurements::types::ResidentBytes;
-use ryo_benchmark_contracts::domain::measurements::types::{DoublingRatio, GrowthShape};
+use benchmark_contracts::domain::growth::types::{GrowthSize, SourceFileName};
+use benchmark_contracts::domain::measurements::types::ResidentBytes;
+use benchmark_contracts::domain::measurements::types::{DoublingRatio, GrowthShape};
 use std::collections::BTreeMap;
 
 /// A shape's program at one size.
@@ -58,7 +58,7 @@ pub struct GrowthPlan {
     /// The program's source file name.
     pub file: SourceFileName,
     /// The request each program is linted with: one source file, its root replaced per scene.
-    pub request: ryo_benchmark_contracts::domain::requests::types::WorkerRequest,
+    pub request: benchmark_contracts::domain::requests::types::WorkerRequest,
     /// The shapes.
     pub shapes: BTreeMap<GrowthShape, ShapePrograms>,
 }
@@ -73,7 +73,7 @@ pub struct GrowthSource<'a> {
     /// The language's `growth.toml`.
     pub table: &'a std::path::Path,
     /// The parser configuration every program is linted with.
-    pub parser: &'a ryo_benchmark_contracts::domain::requests::types::ParserSelection,
+    pub parser: &'a benchmark_contracts::domain::requests::types::ParserSelection,
 }
 
 /// Whether a language grows its rules, and where from.

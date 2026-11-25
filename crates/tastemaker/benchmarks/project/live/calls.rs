@@ -30,6 +30,12 @@ use release_sdk::linked_sdk::{finding, report, unknown, unread};
 type Reply = Result<sdk::LintReport, sdk::LintError>;
 
 pub fn link_executor() {
+    let ledger = std::env::temp_dir().join("ryo-operators.tsv");
+    if ledger.is_file() {
+        if let Err(error) = crate::finish::operators::configure(&ledger) {
+            eprintln!("operator ledger: {error}");
+        }
+    }
     release_sdk::linked_sdk::link(execute, |id| {
         measure_worker(|| release_session(id));
     });

@@ -2,7 +2,7 @@
 //! and its sources; an isolated profile refuses a case that declares a context.
 use super::case_inventory;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::documents::types::text::value::FileMetadataDigest;
+use benchmark_contracts::domain::documents::types::text::value::FileMetadataDigest;
 use std::borrow::Cow;
 
 /// One case of `A1`: two sources, one beyond ASCII, one expected finding without its rule, and declared file metadata.

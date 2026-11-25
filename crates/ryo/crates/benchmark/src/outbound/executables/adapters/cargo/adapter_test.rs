@@ -4,7 +4,7 @@ use super::adapter::{ExecutablesCargoAdapter, find, refusal};
 use super::settings::ExecutablesCargoSettings;
 use super::types::BuildPlatform;
 use crate::cases::{Case, CaseName, Expect, Word, run, slashed};
-use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
+use benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
 use std::borrow::Cow;
 
 /// What a row asks of the adapter.
@@ -65,7 +65,7 @@ fn subject(request: Input) -> Result<Value, Failure> {
     let search =
         std::env::join_paths([&root.path().join("empty"), &first, &second]).expect("search path");
     let canonical = root.path().canonicalize().expect("root");
-    let refused = |error: ryo_benchmark_contracts::domain::reports::errors::ReportsError| {
+    let refused = |error: benchmark_contracts::domain::reports::errors::ReportsError| {
         Cow::Owned(error.to_string())
     };
     match request {

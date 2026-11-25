@@ -1,8 +1,6 @@
 //! A fixed answer standing in for the machine.
 use crate::outbound::host::interface::HostPort;
-use ryo_benchmark_contracts::domain::hosts::types::{
-    HostFacts, HostFamily, HostIsolation, HostKernel,
-};
+use benchmark_contracts::domain::hosts::types::{HostFacts, HostFamily, HostIsolation, HostKernel};
 
 /// Deterministic host substitute.
 #[derive(Clone, Copy, Debug)]
@@ -24,7 +22,7 @@ impl Default for HostFake {
             },
             processors: crate::outbound::host::types::ProcessorCount(
                 std::num::NonZeroUsize::new(
-                    ryo_benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS,
+                    benchmark_contracts::domain::measurements::constants::MEASURED_WORKERS,
                 )
                 .unwrap_or(std::num::NonZeroUsize::MIN),
             ),

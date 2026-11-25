@@ -7,36 +7,36 @@ use crate::domain::registered_inputs::{
     service as inputs,
     types::{ObservationDeclaration, RegisteredInputs},
 };
-use ryo::linter::{
-    GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
-    ProjectInventoryCompleteness, RelativePath,
-};
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::DeclaredScope;
-use ryo_benchmark_contracts::domain::documents::types::case_document::value::{
+use benchmark_contracts::domain::documents::types::case_document::value::DeclaredScope;
+use benchmark_contracts::domain::documents::types::case_document::value::{
     CaseContextIdentity, CaseDocument, CaseReference, EntryState, ExpectationContract,
     FileMetadata, InventoryCompleteness, ProjectInventory,
 };
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+use benchmark_contracts::domain::documents::types::finding::value::{
     ExpectedFindings, RecordedFinding,
 };
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::invocation_document::value::InvocationDocument;
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     ContextMode, ContextRun, ObservationDocument, ProjectContextRecord, RecordedMetadata,
     RecordedReason, ReferenceProcess, ReportedFindings, ReportedSkips, SourceIdentity,
     ToolContractRecord, ValidationRecord,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
     DiscrepancyRecord, DiscrepancyValidation, ProcessExpectation,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::{
     ContestantSide, FileMetadataDigest, PathText, ProjectInputsDigest, Sha256Text, YesNo,
 };
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::reports::types::{
     ComparisonContract, CoverageAccounting, ExecutionMetadata,
 };
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
-use ryo_benchmark_contracts::domain::workloads::types::FileObservation;
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::workloads::types::FileObservation;
+use ryo::linter::{
+    GivenProjectInventory, ProjectEntryObservation, ProjectEntryState,
+    ProjectInventoryCompleteness, RelativePath,
+};
 use std::collections::HashSet;
 
 type Failure = InventoryReceiptsError;
@@ -140,9 +140,7 @@ fn normalized(rows: Option<&Vec<RecordedFinding>>) -> Result<Vec<RecordedFinding
 }
 
 fn digest_text(
-    digest: Option<
-        ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest,
-    >,
+    digest: Option<benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest>,
 ) -> Option<Sha256Text> {
     digest.map(|value| Sha256Text(value.0))
 }

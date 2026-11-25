@@ -2,7 +2,7 @@
 use super::adapter::DiscoveryListingAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::discovery::{fixtures::contract::check, interface::DiscoveryPort as _};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::path::Path;
 
 /// Which command the adapter is bound to.

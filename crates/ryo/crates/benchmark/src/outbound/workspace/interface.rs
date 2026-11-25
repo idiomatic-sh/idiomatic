@@ -2,8 +2,8 @@
 use super::types::AppliedPatch;
 use super::types::CommitRevision;
 use super::types::TrackedFiles;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::Project;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::Project;
 use std::path::{Path, PathBuf};
 
 /// An owned checkout and the evidence needed to restore its current edit.

@@ -5,7 +5,7 @@ pub(super) const CACHE: &str = "ryo";
 pub(super) const REQUEST_FILENAME: &str = "request.json";
 /// Text of the accepted syntax in this part.
 pub(super) const ACCEPTED_SYNTAX: &str =
-    ryo_benchmark_contracts::domain::requests::constants::ACCEPTED_SYNTAX;
+    benchmark_contracts::domain::requests::constants::ACCEPTED_SYNTAX;
 /// Text of the candidate skipped an undeclared or always in this part.
 pub(super) const CANDIDATE_SKIPPED_AN_UNDECLARED_OR_ALWAYS: &str =
     "candidate skipped an undeclared or always-applicable rule";

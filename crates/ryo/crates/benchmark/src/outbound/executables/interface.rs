@@ -1,8 +1,8 @@
 //! What the `executables` port asks of the outside, in the core's own vocabulary: plain data in and out.
 //! It never takes an adapter's configuration (the build tool, the search path): the port's factory takes that.
 use super::types::{BenchPackage, RunArguments, RunVerdict, Sealed};
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::tool_name::value::ToolName;
 use std::path::{Path, PathBuf};
 
 /// What every `executables` adapter implements: where builds go, the reference tool, sealed copies and their runs.
@@ -12,6 +12,12 @@ pub trait ExecutablesPort {
     /// # Errors
     /// Refuses a workspace whose metadata cannot be read.
     fn target(&self) -> Result<PathBuf, Error>;
+    /// Resolve the build target from the requested bench's workspace.
+    /// # Errors
+    /// Refuses unavailable metadata.
+    fn target_for(&self, _bench: &Path) -> Result<PathBuf, Error> {
+        self.target()
+    }
     /// The reference tool's executable: the first one of that name on the search path, canonicalized.
     ///
     /// # Errors
@@ -23,6 +29,14 @@ pub trait ExecutablesPort {
     /// # Errors
     /// Refuses a failed build, no or several bench executables, and a platform where a nested build blocks.
     fn seal_worker(&self, bench: &BenchPackage, sealed: &Path) -> Result<Sealed, Error>;
+    /// Build and seal the same worker using an allocator visible to Heaptrack.
+    /// # Errors
+    /// Refuses a bench that cannot build the allocation companion.
+    fn seal_heap_worker(&self, _bench: &BenchPackage, _sealed: &Path) -> Result<Sealed, Error> {
+        Err(Error::Invalid(
+            "worker has no Heaptrack companion build".into(),
+        ))
+    }
     /// Seal the running executable at `sealed`.
     ///
     /// # Errors

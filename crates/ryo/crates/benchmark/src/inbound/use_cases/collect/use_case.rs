@@ -3,7 +3,7 @@ use super::interface::CollectUseCase;
 use crate::outbound::collection::interface::CollectionPort;
 use crate::outbound::collection::types::CollectorMessage;
 use crate::outbound::execution::interface::ExecutionPort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::errors::ReportsError;
 use std::sync::Arc;
 /// Collector operation with explicit boundaries.
 pub struct CollectUseCaseImpl {

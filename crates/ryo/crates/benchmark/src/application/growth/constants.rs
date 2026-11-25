@@ -1,5 +1,5 @@
 //! The one CPU limit of every shape, and how many lints decide a size's time.
-use ryo_benchmark_contracts::domain::measurements::types::DoublingRatio;
+use benchmark_contracts::domain::measurements::types::DoublingRatio;
 
 /// The most a shape's CPU time may grow when its program doubles, over the floored half-size time.
 pub(super) const DOUBLING_LIMIT: DoublingRatio = DoublingRatio(2.2);

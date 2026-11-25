@@ -5,7 +5,7 @@ use super::super::case_identity::schemas::{file_metadata_digest, source_digest};
 use super::super::constants;
 use super::super::evidence::schemas::{evidence, file_digest, lower_digest};
 use super::super::findings::schemas::sorted_findings;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -203,7 +203,7 @@ pub(in super::super) fn reference_discrepancy(
     {
         return Err(invalid(constants::DISCREPANCY_DIGESTS));
     }
-    let staged = stage.join(ryo_benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
+    let staged = stage.join(benchmark_contracts::domain::requests::constants::PROFILE_MANIFEST);
     let pinned = approved.as_list().unwrap_or_default();
     if identity.get(constants::TOOL) != profile.get(constants::TOOL)
         || identity.get(constants::VERSION) != profile.get(constants::VERSION)

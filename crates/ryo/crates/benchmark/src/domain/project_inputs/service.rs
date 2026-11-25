@@ -4,11 +4,11 @@ use crate::domain::canonical_text::{
     service::digest as document_digest,
     types::{Fragment, Label},
 };
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::constants::MISSING;
 use ryo::linter::{
     GivenProjectInventory, ProjectEntryState, ProjectInventoryCompleteness, RelativePath,
 };
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::constants::MISSING;
 use std::collections::BTreeMap;
 
 /// Explicit project context only; legacy undeclared/partial-empty cases retain no new digest.

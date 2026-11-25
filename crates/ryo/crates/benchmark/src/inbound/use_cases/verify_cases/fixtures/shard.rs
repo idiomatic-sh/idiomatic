@@ -8,10 +8,10 @@ use crate::outbound::receipts::fixtures::fake::ReceiptsFake;
 use crate::outbound::receipts::types::CaseReceipts;
 use crate::outbound::suite::fixtures::authored;
 use crate::outbound::suite::fixtures::fake::SuiteFake;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError;
-use ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding;
-use ryo_benchmark_contracts::domain::requests::types::CaseSelection;
-use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
+use benchmark_contracts::domain::reports::errors::ReportsError;
+use benchmark_contracts::domain::reports::types::BenchmarkFinding;
+use benchmark_contracts::domain::requests::types::CaseSelection;
+use benchmark_contracts::domain::workloads::types::CaseComparison;
 use std::path::Path;
 
 /// The shape of the authored suite and of the findings both contestants report.

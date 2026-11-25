@@ -8,12 +8,12 @@ use crate::outbound::process_meter::interface::ProcessMeterPort;
 use crate::outbound::suite::interface::SuitePort;
 use crate::outbound::suite::types::ArtifactPath;
 use crate::outbound::suite::types::ArtifactText;
-use ryo_benchmark_contracts::domain::growth::types::{GrowthFrame, GrowthOperation, GrowthSize};
-use ryo_benchmark_contracts::domain::measurements::types::{
+use benchmark_contracts::domain::growth::types::{GrowthFrame, GrowthOperation, GrowthSize};
+use benchmark_contracts::domain::measurements::types::{
     DoublingRatio, GrowthShape, ResidentBytes, ShapeGrowth, ShapeGrowths,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{
     CohortSelection, ContextSeal, InputDeclaration, ProviderSelection, QueryModuleName,
     RuleContextPreparation, SearchRoots, WorkerRequest, WorkerState,
 };

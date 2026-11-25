@@ -15,7 +15,7 @@ pub struct FrontendDiagnosticProjection {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EngineRun {
     /// The report, without a project context receipt; the use case seals it.
-    pub report: ryo_benchmark_contracts::domain::reports::types::RunReport,
+    pub report: benchmark_contracts::domain::reports::types::RunReport,
     /// Every project lookup the run observed, for the context port to seal.
     pub dependencies: Vec<ryo::linter::ProjectDependency>,
 }

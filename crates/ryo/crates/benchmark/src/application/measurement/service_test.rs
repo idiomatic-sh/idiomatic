@@ -8,9 +8,9 @@ use crate::outbound::context::fixtures::{
 };
 use crate::outbound::linter::fixtures::fake::LinterFake;
 use crate::outbound::linter::fixtures::fake::ObservingLinter;
-use ryo_benchmark_contracts::domain::artifacts::types::FileExecutable;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::{ContextSeal, FileMetadataDeclaration};
+use benchmark_contracts::domain::artifacts::types::FileExecutable;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::{ContextSeal, FileMetadataDeclaration};
 
 /// Which measured request a row runs.
 #[derive(Clone, Copy)]
@@ -166,7 +166,7 @@ fn adapter_pin() -> Result<Value, Error> {
         state.path().join("rules"),
         std::collections::BTreeMap::new(),
         std::collections::BTreeMap::new(),
-        ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+        benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         Vec::new(),
         Default::default(),
     );
@@ -189,7 +189,7 @@ fn adapter_pin() -> Result<Value, Error> {
     let names = last_environment(&execution)
         .ok_or_else(|| Error::Invalid("no launch was recorded".into()))?;
     Ok(usize::from(names.split(',').any(|name| {
-        name == ryo_benchmark_contracts::domain::measurements::constants::THREAD_PIN
+        name == benchmark_contracts::domain::measurements::constants::THREAD_PIN
     })))
 }
 

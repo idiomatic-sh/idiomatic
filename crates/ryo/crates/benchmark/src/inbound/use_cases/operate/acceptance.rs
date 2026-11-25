@@ -1,8 +1,8 @@
 //! A bench's standard output is the worker's alone, a failed verification runs no corpus, and an absent reference tool is named.
 use cucumber::then;
 
-use ryo_benchmark::domain::operations::types::BenchOperation;
-use ryo_benchmark::inbound::use_cases::operate::{
+use benchmark::domain::operations::types::BenchOperation;
+use benchmark::inbound::use_cases::operate::{
     fixtures::{Scenario, run},
     types::OperationVerdict,
 };
@@ -46,7 +46,7 @@ fn failed_inventory(world: &mut crate::Behavior) {
     assert!(
         !observed.calls.iter().any(|call| matches!(
             call,
-            ryo_benchmark::outbound::executables::fixtures::fake::ExecutablesCall::Run(..)
+            benchmark::outbound::executables::fixtures::fake::ExecutablesCall::Run(..)
         )),
         "{:?}",
         observed.calls

@@ -1,16 +1,16 @@
 //! Behavioral proof of `process_receipts`: a reference process receipt is rebuilt from registration and actual roots.
 use std::collections::BTreeMap;
 
-use ryo_benchmark_contracts::domain::documents::types::observation_document::value::{
+use benchmark_contracts::domain::documents::types::observation_document::value::{
     IntentMatch, ProcessArtifactsRecord, RecordedReason, ReferenceProcess, ReportedFindings,
     RequestRoot,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::ProcessExpectation;
-use ryo_benchmark_contracts::domain::documents::types::text::value::ExitStatus;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::ProcessExpectation;
+use benchmark_contracts::domain::documents::types::text::value::ExitStatus;
+use benchmark_contracts::domain::documents::types::text::value::{
     FileMetadataDigest, PathText, ReasonText, Sha256Text, YesNo,
 };
-use ryo_benchmark_contracts::domain::measurements::types::CapturedBytes;
+use benchmark_contracts::domain::measurements::types::CapturedBytes;
 use sha2::Digest as _;
 
 use super::{
@@ -26,11 +26,11 @@ use crate::{
         process_failure::errors::ProcessFailureError, process_output::errors::ProcessOutputError,
     },
 };
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+use benchmark_contracts::domain::documents::types::invocation_document::value::{
     FailedInvocation, InvocationDocument,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
-use ryo_benchmark_contracts::domain::workloads::types::CaseComparison;
+use benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use benchmark_contracts::domain::workloads::types::CaseComparison;
 
 /// What an accepted receipt answers.
 #[derive(Clone, Debug, PartialEq, Eq)]

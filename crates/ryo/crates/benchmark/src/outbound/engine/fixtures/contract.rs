@@ -1,8 +1,8 @@
 //! An engine refuses a corpus with no candidate rules rather than reporting success.
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::engine::interface::EnginePort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::requests::types::WorkerRequest;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::requests::types::WorkerRequest;
 /// No variable input: this contract probes one fixed malformed request.
 type Input = Scenario;
 #[derive(Clone, Copy)]
@@ -49,22 +49,22 @@ pub fn check(adapter: &impl EnginePort) {
     let subject = |scenario| {
         let request = WorkerRequest {
                     performance: Default::default(),
-                    selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
-                    rule_observations: ryo_benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
-                    rule_context: ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-                    project_search_roots: ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+                    selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+                    rule_observations: benchmark_contracts::domain::requests::types::InputDeclaration::Undeclared,
+                    rule_context: benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+                    project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
                     given_project_inventory: Default::default(),
-                    project_context_mode: ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(
+                    project_context_mode: benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::default(
                     ),
-                    context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+                    context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
                     root: temporary.path().into(),
                     rules: temporary.path().into(),
                     query_modules: std::collections::BTreeMap::default(),
                     rule_applicability: std::collections::BTreeMap::default(),
-                    parser_configuration: ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
-                    source_language: ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+                    parser_configuration: benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+                    source_language: benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
                     files: vec![ryo::linter::RelativePath("input.txt".into())],
-                    state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+                    state: benchmark_contracts::domain::requests::types::WorkerState::Fresh,
                 };
         if matches!(scenario, Scenario::Loaded) {
             let mut request = request;
@@ -74,12 +74,12 @@ pub fn check(adapter: &impl EnginePort) {
             std::fs::write(request.rules.join("R1/query.ryoql"), "let missing = select path as file, span from \"filesystem.read-failure\"; emit missing subject file key(file);").expect("query");
             let boundary = temporary.path().join("snapshot");
             request.context_manifest =
-                ryo_benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
+                benchmark_contracts::domain::requests::types::ContextSeal::Sealed(
                     {
                         use crate::outbound::context::interface::ContextPort as _;
                         crate::outbound::context::factory::local().materialize(
                             &boundary,
-                            &ryo_benchmark_contracts::domain::context::types::CaseContext {
+                            &benchmark_contracts::domain::context::types::CaseContext {
                                 logical_root: "project".into(),
                                 auxiliary_files: Default::default(),
                                 missing: vec!["project/missing.py".into()],
@@ -89,11 +89,11 @@ pub fn check(adapter: &impl EnginePort) {
                     }
                     .expect("sealed absence"),
                 );
-            request.project_context_mode = ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk;
+            request.project_context_mode = benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode::ListedDisk;
             request.root = boundary.join("project");
             request.files = vec![ryo::linter::RelativePath("missing.py".into())];
             request.selected_rules =
-                ryo_benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![
+                benchmark_contracts::domain::requests::types::CohortSelection::Explicit(vec![
                     id.clone(),
                 ]);
             let mut session = adapter.load(&request).map_err(|_| Failure::Unexpected)?;
@@ -120,11 +120,11 @@ pub fn check(adapter: &impl EnginePort) {
             assert_eq!(
                 report.diagnostics,
                 vec![
-                    ryo_benchmark_contracts::domain::reports::types::BenchmarkFinding {
+                    benchmark_contracts::domain::reports::types::BenchmarkFinding {
                         rule: id,
                         file: request.files[0].clone(),
-                        start: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0),
-                        end: ryo_benchmark_contracts::domain::reports::types::SourceByteOffset(0)
+                        start: benchmark_contracts::domain::reports::types::SourceByteOffset(0),
+                        end: benchmark_contracts::domain::reports::types::SourceByteOffset(0)
                     }
                 ]
             );

@@ -3,8 +3,8 @@ use crate::outbound::suite::adapters::local::declarations::schemas::{
     ObservationBindingSchema, RuleContextDeclarationSchema, observation_declarations,
     project_search_roots,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types;
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
@@ -86,7 +86,7 @@ impl TryFrom<ToolSchema> for types::Tool {
             )
             .map_err(|error| Error::Invalid(error.to_string()))?;
             let path = std::path::PathBuf::from(path);
-            ryo_benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(&path))?;
+            benchmark_contracts::domain::artifacts::types::relative_artifact_path::value::RelativeArtifactPath::try_from(std::path::Path::new(&path))?;
             if query_modules.insert(id, path).is_some() {
                 return Err(Error::Invalid("duplicate query module ID".into()));
             }
@@ -166,8 +166,8 @@ impl TryFrom<ToolSchema> for types::Tool {
         }
         Ok(Self {
             file_observation: match wire.file_observation.as_deref() {
-                None => ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
-                Some("posix-executable") => ryo_benchmark_contracts::domain::workloads::types::FileObservation::PosixExecutable,
+                None => benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
+                Some("posix-executable") => benchmark_contracts::domain::workloads::types::FileObservation::PosixExecutable,
                 Some(_) => {
                     return Err(Error::Invalid(
                         "unsupported file observation requirement".into(),
@@ -185,14 +185,14 @@ impl TryFrom<ToolSchema> for types::Tool {
             defaults,
             supporting_rules,
             rule_context: match wire.rule_context {
-                Some(declaration) => ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Declared(
+                Some(declaration) => benchmark_contracts::domain::workloads::types::RuleContextProfile::Declared(
                     declaration.try_into().map_err(Error::Invalid)?,
                 ),
-                None => ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+                None => benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
             },
             rule_observation_selection: match wire.rule_observation_selection.as_deref() {
-                None | Some("declared") => ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
-                Some("selected") => ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Selected,
+                None | Some("declared") => benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+                Some("selected") => benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Selected,
                 Some(_) => {
                     return Err(Error::Invalid(
                         "unknown profile observation-selection policy".into(),
@@ -205,24 +205,24 @@ impl TryFrom<ToolSchema> for types::Tool {
             pending,
             query_modules: query_modules
                 .into_iter()
-                .map(|(name, path)| (ryo_benchmark_contracts::domain::requests::types::QueryModuleName(name), path))
+                .map(|(name, path)| (benchmark_contracts::domain::requests::types::QueryModuleName(name), path))
                 .collect(),
             rule_applicability: wire
                 .rule_applicability
                 .into_iter()
-                .map(|(rule, policy)| (ryo_benchmark_contracts::domain::requests::types::RuleLabel(rule), ryo_benchmark_contracts::domain::requests::types::ApplicabilityPolicy(policy)))
+                .map(|(rule, policy)| (benchmark_contracts::domain::requests::types::RuleLabel(rule), benchmark_contracts::domain::requests::types::ApplicabilityPolicy(policy)))
                 .collect(),
             parser_configuration: match wire.parser_configuration {
-                Some(name) => ryo_benchmark_contracts::domain::requests::types::ParserSelection::Named(ryo_benchmark_contracts::domain::requests::types::ParserConfigurationName(name)),
-                None => ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+                Some(name) => benchmark_contracts::domain::requests::types::ParserSelection::Named(benchmark_contracts::domain::requests::types::ParserConfigurationName(name)),
+                None => benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
             },
             source_language: match wire.source_language {
-                Some(name) => ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Selected(ryo_benchmark_contracts::domain::requests::types::SourceLanguageName(name)),
-                None => ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+                Some(name) => benchmark_contracts::domain::requests::types::ProviderSelection::Selected(benchmark_contracts::domain::requests::types::SourceLanguageName(name)),
+                None => benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
             },
             project_search_roots: match project_search_roots(wire.project_search_roots)? {
-                Some(roots) => ryo_benchmark_contracts::domain::requests::types::SearchRoots::Declared(roots),
-                None => ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+                Some(roots) => benchmark_contracts::domain::requests::types::SearchRoots::Declared(roots),
+                None => benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
             },
         })
     }
@@ -233,7 +233,7 @@ fn dispositions(
 ) -> Result<
     BTreeMap<
         ryo::linter::RuleId,
-        ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName,
+        benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName,
     >,
     Error,
 > {
@@ -251,7 +251,7 @@ fn dispositions(
         }
         for value in members {
             if rules
-                .insert(rule(&value)?, ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(capability.clone()))
+                .insert(rule(&value)?, benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName(capability.clone()))
                 .is_some()
             {
                 return Err(Error::Invalid(
@@ -318,7 +318,7 @@ enum ModeSchema {
     ListedDisk,
 }
 impl From<ModeSchema>
-    for ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode
+    for benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode
 {
     fn from(mode: ModeSchema) -> Self {
         match mode {

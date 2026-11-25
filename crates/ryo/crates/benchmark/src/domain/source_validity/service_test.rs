@@ -1,11 +1,11 @@
 //! A source the reference reports under its invalid-syntax rule leaves the run and is answered; the others stay.
 use super::service::exclude_refused;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo::linter::{RelativePath, RuleId};
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::reports::types::{
     BenchmarkFinding, CoverageAccounting, ExecutionMetadata, PairCount, ProjectContext,
     RuleCoverage, RunReport, SourceByteOffset,
 };
+use ryo::linter::{RelativePath, RuleId};
 use std::borrow::Cow;
 
 /// The files the reference reports under its invalid-syntax rule.

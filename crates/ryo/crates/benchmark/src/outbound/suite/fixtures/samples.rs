@@ -1,10 +1,8 @@
 //! Sample requests, cases, inventories and observation rows the suite contract and its fake run over.
 
 /// A request that declares no file metadata.
-pub fn request(
-    root: &std::path::Path,
-) -> ryo_benchmark_contracts::domain::requests::types::RunRequest {
-    use ryo_benchmark_contracts::domain::requests::types::{
+pub fn request(root: &std::path::Path) -> benchmark_contracts::domain::requests::types::RunRequest {
+    use benchmark_contracts::domain::requests::types::{
         CohortSelection, ContextSeal, FileMetadataDeclaration, InputDeclaration,
         RuleContextPreparation, RunRequest, SearchRoots, StagedSources,
     };
@@ -25,11 +23,11 @@ pub fn request(
 }
 
 /// A case whose only source path leaves the directory it is materialized in.
-pub fn escaping_case() -> ryo_benchmark_contracts::domain::workloads::types::Case {
-    use ryo_benchmark_contracts::domain::requests::types::{
+pub fn escaping_case() -> benchmark_contracts::domain::workloads::types::Case {
+    use benchmark_contracts::domain::requests::types::{
         CohortSelection, FileMetadataDeclaration, InputDeclaration, SearchRoots,
     };
-    use ryo_benchmark_contracts::domain::workloads::types::{
+    use benchmark_contracts::domain::workloads::types::{
         Case, CaseComparison, ConfigurationOverride, ContextDeclaration, InventoryDeclaration,
         ReferenceBehavior, RequestedFiles,
     };
@@ -74,16 +72,15 @@ pub fn given_file() -> ryo::linter::GivenProjectInventory {
     clippy::expect_used,
     reason = "the rule identifier is a valid literal, so its parse cannot fail"
 )]
-pub fn tool() -> ryo_benchmark_contracts::domain::workloads::types::Tool {
-    ryo_benchmark_contracts::domain::workloads::types::Tool {
+pub fn tool() -> benchmark_contracts::domain::workloads::types::Tool {
+    benchmark_contracts::domain::workloads::types::Tool {
         rule_observation_selection:
-            ryo_benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
+            benchmark_contracts::domain::context::types::ObservationSelectionPolicy::Declared,
         supporting_rules: Vec::new(),
         rule_observations: Default::default(),
-        rule_context:
-            ryo_benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
+        rule_context: benchmark_contracts::domain::workloads::types::RuleContextProfile::Undeclared,
         file_observation:
-            ryo_benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
+            benchmark_contracts::domain::workloads::types::FileObservation::Undeclared,
         project_context_mode: Default::default(),
         tool: "fixture".into(),
         version: "1".into(),
@@ -93,11 +90,10 @@ pub fn tool() -> ryo_benchmark_contracts::domain::workloads::types::Tool {
         query_modules: Default::default(),
         rule_applicability: Default::default(),
         parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         defaults: vec!["fixture".try_into().expect("rule identifier")],
     }
 }
@@ -116,9 +112,9 @@ pub fn store(root: &std::path::Path) -> std::io::Result<std::path::PathBuf> {
 
 /// How the contract classifies a refusal: a missing artifact, or anything else.
 pub(super) fn classify(
-    error: ryo_benchmark_contracts::domain::reports::errors::ReportsError,
+    error: benchmark_contracts::domain::reports::errors::ReportsError,
 ) -> Refusal {
-    use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+    use benchmark_contracts::domain::reports::errors::ReportsError as Error;
     match error {
         Error::Io(error) if error.kind() == std::io::ErrorKind::NotFound => {
             Refusal::MissingArtifact

@@ -3,7 +3,7 @@
 use super::super::super::service::plan;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::growth::types::GrowthSource;
-use ryo_benchmark_contracts::domain::requests::types::ParserSelection;
+use benchmark_contracts::domain::requests::types::ParserSelection;
 
 /// The rule whose applicability is asked.
 type Input = &'static str;

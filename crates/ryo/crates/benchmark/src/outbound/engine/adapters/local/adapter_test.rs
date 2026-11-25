@@ -37,9 +37,9 @@ fn diagnostic_subscriber_writes_readable_jsonl_events() -> Result<(), Box<dyn st
     let path = directory.path().join("events.jsonl");
     let dispatch = tracing::Dispatch::new(subscriber(
         &path,
-        ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
-            execution: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
-            steps: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
+        benchmark_contracts::domain::requests::types::DiagnosticOptions {
+            execution: benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
+            steps: benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
             ..Default::default()
         },
     )?);
@@ -65,9 +65,9 @@ fn diagnostic_subscriber_records_step_events_with_nested_context()
     let path = directory.path().join("events.jsonl");
     let dispatch = tracing::Dispatch::new(subscriber(
         &path,
-        ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
-            execution: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
-            steps: ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
+        benchmark_contracts::domain::requests::types::DiagnosticOptions {
+            execution: benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
+            steps: benchmark_contracts::domain::requests::types::DiagnosticSwitch::On,
             ..Default::default()
         },
     )?);
@@ -139,11 +139,11 @@ fn aggregate_profile_is_explicit_and_keeps_counter_fields() -> Result<(), Box<dy
         let path = directory.path().join(format!("{level}.jsonl"));
         let dispatch = tracing::Dispatch::new(writer::subscriber(
             &path,
-            ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
+            benchmark_contracts::domain::requests::types::DiagnosticOptions {
                 execution: if level == tracing_subscriber::filter::LevelFilter::TRACE {
-                    ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
+                    benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
                 } else {
-                    ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::Off
+                    benchmark_contracts::domain::requests::types::DiagnosticSwitch::Off
                 },
                 ..Default::default()
             },
@@ -197,11 +197,11 @@ fn resource_route_profile_preserves_generic_aggregate_payload()
         let path = directory.path().join("routes.jsonl");
         let dispatch = tracing::Dispatch::new(writer::subscriber(
             &path,
-            ryo_benchmark_contracts::domain::requests::types::DiagnosticOptions {
+            benchmark_contracts::domain::requests::types::DiagnosticOptions {
                 resource_routes: if enabled {
-                    ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
+                    benchmark_contracts::domain::requests::types::DiagnosticSwitch::On
                 } else {
-                    ryo_benchmark_contracts::domain::requests::types::DiagnosticSwitch::Off
+                    benchmark_contracts::domain::requests::types::DiagnosticSwitch::Off
                 },
                 ..Default::default()
             },
@@ -232,11 +232,11 @@ fn resource_route_profile_preserves_generic_aggregate_payload()
 /// never depend on which case came first (the order a case's expected findings put it in).
 fn each_request_binds_its_own_observations_over_retained_rules()
 -> Result<(), Box<dyn std::error::Error>> {
+    use benchmark_contracts::domain::requests::types::{InputDeclaration, WorkerRequest};
     use ryo::linter::{
         ObservationBinding, ObservationBindingName, ObservationColumn, ObservationColumnName,
         ObservationKind, ObservationName, ObservationProducer, RuleId,
     };
-    use ryo_benchmark_contracts::domain::requests::types::{InputDeclaration, WorkerRequest};
     let root = tempfile::tempdir()?;
     let rules = root.path().join("rules");
     std::fs::create_dir_all(rules.join("F401"))?;
@@ -258,28 +258,27 @@ fn each_request_binds_its_own_observations_over_retained_rules()
     };
     let request = |rule_observations| WorkerRequest {
         performance: Default::default(),
-        selected_rules: ryo_benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
+        selected_rules: benchmark_contracts::domain::requests::types::CohortSelection::Frozen,
         rule_observations,
         rule_context:
-            ryo_benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
-        project_search_roots:
-            ryo_benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
+            benchmark_contracts::domain::requests::types::RuleContextPreparation::Unconfigured,
+        project_search_roots: benchmark_contracts::domain::requests::types::SearchRoots::Undeclared,
         given_project_inventory: Default::default(),
         project_context_mode: Default::default(),
-        context_manifest: ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
+        context_manifest: benchmark_contracts::domain::requests::types::ContextSeal::Unsealed,
         root: root.path().into(),
         rules: rules.clone(),
         query_modules: BTreeMap::default(),
         rule_applicability: BTreeMap::default(),
         parser_configuration:
-            ryo_benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ParserSelection::Unspecified,
         source_language:
-            ryo_benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
+            benchmark_contracts::domain::requests::types::ProviderSelection::Unspecified,
         files: vec![],
-        state: ryo_benchmark_contracts::domain::requests::types::WorkerState::Fresh,
+        state: benchmark_contracts::domain::requests::types::WorkerState::Fresh,
     };
     let declared = InputDeclaration::Declared(
-        ryo_benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations::from(
+        benchmark_contracts::domain::context::types::rule_observation_declarations::value::RuleObservationDeclarations::from(
             BTreeMap::from([(consumer.clone(), vec![binding.clone()])]),
         ),
     );

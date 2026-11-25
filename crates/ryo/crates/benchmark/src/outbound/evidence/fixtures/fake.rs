@@ -1,7 +1,7 @@
 //! The fake of the `evidence` port: a document gathered without external effects.
 use super::super::interface::EvidencePort;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::{
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::{
     ComparisonContract, ReportComparison, RunReport,
 };
 
@@ -22,8 +22,8 @@ impl EvidencePort for EvidenceFake {
     /// An empty set of costs is refused; any other goes nowhere.
     fn costs(
         &self,
-        _language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &ryo_benchmark_contracts::domain::costs::types::ProjectCosts,
+        _language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        costs: &benchmark_contracts::domain::costs::types::ProjectCosts,
     ) -> Result<(), Error> {
         if costs.0.is_empty() {
             return Err(Error::Invalid("no costs".into()));
@@ -33,7 +33,7 @@ impl EvidencePort for EvidenceFake {
     /// The fake has no external effects, so the verification times go nowhere.
     fn verification(
         &self,
-        _language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        _language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
         _timings: &crate::outbound::evidence::types::RuleTimings,
     ) -> Result<(), Error> {
         Ok(())
@@ -41,8 +41,8 @@ impl EvidencePort for EvidenceFake {
     /// The fake has no external effects, so the growth goes nowhere.
     fn growth(
         &self,
-        _language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        _growth: &ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
+        _language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        _growth: &benchmark_contracts::domain::measurements::types::ShapeGrowths,
     ) -> Result<(), Error> {
         Ok(())
     }
@@ -88,11 +88,11 @@ pub struct EvidenceRecorder {
 #[derive(Clone, Debug, Default)]
 pub struct Recorded {
     /// Every project's cost, in the order given.
-    pub costs: Vec<ryo_benchmark_contracts::domain::costs::types::ProjectCost>,
+    pub costs: Vec<benchmark_contracts::domain::costs::types::ProjectCost>,
     /// Every rule's times.
     pub verification: crate::outbound::evidence::types::RuleTimings,
     /// Every shape's growth.
-    pub growth: ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
+    pub growth: benchmark_contracts::domain::measurements::types::ShapeGrowths,
     /// How many documents were finished.
     pub documents: usize,
     /// How many comparisons were reported.
@@ -135,15 +135,15 @@ impl EvidencePort for EvidenceRecorder {
     }
     fn costs(
         &self,
-        language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        costs: &ryo_benchmark_contracts::domain::costs::types::ProjectCosts,
+        language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        costs: &benchmark_contracts::domain::costs::types::ProjectCosts,
     ) -> Result<(), Error> {
         EvidenceFake.costs(language, costs)?;
         self.record(|held| held.costs.extend(costs.0.iter().cloned()))
     }
     fn verification(
         &self,
-        _language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        _language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
         timings: &crate::outbound::evidence::types::RuleTimings,
     ) -> Result<(), Error> {
         self.record(|held| {
@@ -157,8 +157,8 @@ impl EvidencePort for EvidenceRecorder {
     }
     fn growth(
         &self,
-        _language: &ryo_benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
-        growth: &ryo_benchmark_contracts::domain::measurements::types::ShapeGrowths,
+        _language: &benchmark_contracts::domain::workloads::types::suite_language::value::SuiteLanguage,
+        growth: &benchmark_contracts::domain::measurements::types::ShapeGrowths,
     ) -> Result<(), Error> {
         self.record(|held| {
             held.growth.0.extend(

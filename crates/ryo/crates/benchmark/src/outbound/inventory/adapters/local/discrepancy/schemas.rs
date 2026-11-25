@@ -1,24 +1,24 @@
 //! The documented difference from the reference tool a case registers, with its findings and its
 //! explicit process failure.
 use crate::outbound::inventory::adapters::local::types::DiscrepancyText;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::documents::types::finding::value::ExpectedFindings;
-use ryo_benchmark_contracts::domain::documents::types::finding::value::{
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::documents::types::finding::value::ExpectedFindings;
+use benchmark_contracts::domain::documents::types::finding::value::{
     FindingOffset, RecordedFinding,
 };
-use ryo_benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
+use benchmark_contracts::domain::documents::types::reference_discrepancy::value::{
     DiscrepancyIdentity, DiscrepancyRecord, ObservedExecutable, ProcessExpectation,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::FileMetadataDigest;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{
+use benchmark_contracts::domain::documents::types::text::value::FileMetadataDigest;
+use benchmark_contracts::domain::documents::types::text::value::{
     PathText, ReasonText, RuleName, Sha256Text,
 };
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::process::types::{
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::process::types::{
     OutputPart, OutputText, PathEncoding, ProcessArtifact, ProcessFailure, ProcessObservation,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::workloads::types::DiscrepancyBasis;
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -41,7 +41,7 @@ impl From<FindingSchema> for RecordedFinding {
         Self {
             rule: RuleName(wire.rule),
             file: PathText(wire.file),
-            span: ryo_benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
+            span: benchmark_contracts::domain::documents::types::finding::value::RecordedSpan {
                 start: FindingOffset(wire.start),
                 end: FindingOffset(wire.end),
             },

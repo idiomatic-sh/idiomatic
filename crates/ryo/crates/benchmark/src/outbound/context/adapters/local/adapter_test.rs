@@ -2,10 +2,10 @@
 use super::adapter::*;
 use super::fixtures::links::{self, link};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::context::types::CaseContext;
-use ryo_benchmark_contracts::domain::context::types::ContextBytes;
-use ryo_benchmark_contracts::domain::context::types::ContextManifest;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::context::types::CaseContext;
+use benchmark_contracts::domain::context::types::ContextBytes;
+use benchmark_contracts::domain::context::types::ContextManifest;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::{collections::BTreeMap, path::Path};
 fn fixture(root: &Path) -> Result<ContextManifest, Error> {
     materialize(

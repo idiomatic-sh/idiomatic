@@ -2,13 +2,13 @@
 //! never touching the filesystem, and trusts the fingerprints a receipt carries.
 use super::super::interface::ContextPort;
 use super::super::types::CorpusFiles;
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::context::types::CaseContext;
-use ryo_benchmark_contracts::domain::context::types::ContextBytes;
-use ryo_benchmark_contracts::domain::context::types::ContextManifest;
-use ryo_benchmark_contracts::domain::context::types::ProjectContextReceipt;
-use ryo_benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::context::types::CaseContext;
+use benchmark_contracts::domain::context::types::ContextBytes;
+use benchmark_contracts::domain::context::types::ContextManifest;
+use benchmark_contracts::domain::context::types::ProjectContextReceipt;
+use benchmark_contracts::domain::context::types::project_context_mode::value::ProjectContextMode;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Component, Path, PathBuf};
 
@@ -231,10 +231,10 @@ impl ContextPort for ContextFake {
     fn receipt_text(
         &self,
         receipt: &ProjectContextReceipt,
-    ) -> Result<ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson, Error>
+    ) -> Result<benchmark_contracts::domain::documents::types::text::value::CanonicalJson, Error>
     {
         Ok(
-            ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson(
+            benchmark_contracts::domain::documents::types::text::value::CanonicalJson(
                 serde_json::Value::String(format!("{receipt:?}")).to_string(),
             ),
         )
@@ -299,7 +299,7 @@ impl ContextPort for RefusingContext {
     fn receipt_text(
         &self,
         receipt: &ProjectContextReceipt,
-    ) -> Result<ryo_benchmark_contracts::domain::documents::types::text::value::CanonicalJson, Error>
+    ) -> Result<benchmark_contracts::domain::documents::types::text::value::CanonicalJson, Error>
     {
         ContextFake.receipt_text(receipt)
     }

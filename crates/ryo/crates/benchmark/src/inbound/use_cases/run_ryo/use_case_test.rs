@@ -8,8 +8,8 @@ use crate::outbound::{
     engine::interface::EnginePort,
     worker::fixtures::{data::request, fake::WorkerFake},
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
-use ryo_benchmark_contracts::domain::reports::types::RunReport;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::types::RunReport;
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
@@ -36,7 +36,7 @@ struct Trace {
     received: usize,
     loaded: usize,
     closed: usize,
-    evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount,
+    evaluated: benchmark_contracts::domain::reports::types::PairCount,
     responded: usize,
     published: bool,
     /// Context validations, context receipts, and whether the published report observed its context.
@@ -64,7 +64,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 1,
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 1,
             published: true,
             seam: (0, 1, true),
@@ -78,7 +78,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 1,
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 1,
             published: true,
             seam: (0, 0, false),
@@ -94,7 +94,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 1,
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(0),
             responded: 0,
             published: false,
             seam: (0, 0, false),
@@ -108,7 +108,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 0,
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(0),
             responded: 0,
             published: false,
             seam: (0, 0, false),
@@ -122,7 +122,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 1,
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(0),
             responded: 0,
             published: false,
             seam: (0, 0, false),
@@ -136,7 +136,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 1,
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 1,
             published: true,
             seam: (0, 0, false),
@@ -150,7 +150,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 0,
             closed: 0,
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(0),
             responded: 0,
             published: false,
             seam: (0, 0, false),
@@ -164,7 +164,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 1,
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 0,
             published: false,
             seam: (0, 0, false),
@@ -178,7 +178,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 1,
             loaded: 1,
             closed: 1,
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 1,
             published: false,
             seam: (0, 0, false),
@@ -192,7 +192,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 0,
             loaded: 1,
             closed: 1,
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(1),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(1),
             responded: 0,
             published: true,
             seam: (0, 0, false),
@@ -208,7 +208,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             received: 0,
             loaded: 1,
             closed: 1,
-            evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(0),
+            evaluated: benchmark_contracts::domain::reports::types::PairCount(0),
             responded: 0,
             published: false,
             seam: (0, 0, false),
@@ -284,7 +284,7 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         received: transport.receive_calls(),
         loaded: engine.loaded.load(Ordering::SeqCst),
         closed: engine.closed.load(Ordering::SeqCst),
-        evaluated: ryo_benchmark_contracts::domain::reports::types::PairCount(
+        evaluated: benchmark_contracts::domain::reports::types::PairCount(
             engine.calls.load(Ordering::SeqCst),
         ),
         responded: transport.respond_calls(),
@@ -294,7 +294,7 @@ fn subject(stage: Input) -> Result<Value, Failure> {
                     .iter()
                     .map(|report| RunReport {
                         project_context:
-                            ryo_benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
+                            benchmark_contracts::domain::reports::types::ProjectContext::NotRequested,
                         ..report.clone()
                     })
                     .eq([expected.clone()])
@@ -308,7 +308,7 @@ fn subject(stage: Input) -> Result<Value, Failure> {
         seam: (
             context.validated.load(Ordering::SeqCst),
             context.receipted.load(Ordering::SeqCst),
-            matches!(reports.as_slice(), [report] if matches!(report.project_context, ryo_benchmark_contracts::domain::reports::types::ProjectContext::Observed(_))),
+            matches!(reports.as_slice(), [report] if matches!(report.project_context, benchmark_contracts::domain::reports::types::ProjectContext::Observed(_))),
         ),
     };
     result.map(|()| trace).map_err(|error| match error {

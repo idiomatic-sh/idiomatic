@@ -1,10 +1,10 @@
 //! The shape of the raw invocation record kept beside a captured process, and its encoding from the core's document.
 use crate::outbound::receipts::errors::ReceiptsError;
-use ryo_benchmark_contracts::domain::documents::types::invocation_document::value::{
+use benchmark_contracts::domain::documents::types::invocation_document::value::{
     ArgumentText, EnvironmentName, EnvironmentValue, InvocationDocument,
 };
-use ryo_benchmark_contracts::domain::documents::types::text::value::YesNo;
-use ryo_benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
+use benchmark_contracts::domain::documents::types::text::value::YesNo;
+use benchmark_contracts::domain::documents::types::text::value::{Pin, Signal};
 use serde::Serialize;
 use std::collections::BTreeMap;
 

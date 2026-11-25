@@ -1,14 +1,14 @@
 //! Process certificates the case boundary admits: wire shapes map to contract values here.
 use crate::outbound::suite::adapters::local::constants;
-use ryo_benchmark_contracts::domain::artifacts::types::{
+use benchmark_contracts::domain::artifacts::types::{
     digest::value::ArtifactDigest, relative_artifact_path::value::RelativeArtifactPath,
 };
-use ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode;
-use ryo_benchmark_contracts::domain::process::types::OutputText;
-use ryo_benchmark_contracts::domain::process::types::{
+use benchmark_contracts::domain::measurements::types::ProcessExitCode;
+use benchmark_contracts::domain::process::types::OutputText;
+use benchmark_contracts::domain::process::types::{
     OutputPart, PathEncoding, ProcessArtifact, ProcessFailure, ProcessObservation,
 };
-use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
+use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -108,7 +108,7 @@ impl TryFrom<OutputPartSchema> for OutputPart {
     fn try_from(wire: OutputPartSchema) -> Result<Self, Error> {
         match wire {
             OutputPartSchema::Literal { value } => Ok(Self::Literal(
-                ryo_benchmark_contracts::domain::process::types::OutputText(value),
+                benchmark_contracts::domain::process::types::OutputText(value),
             )),
             OutputPartSchema::InputPath { file, encoding } => {
                 let _file = RelativeArtifactPath::try_from(file.as_path())?;
@@ -154,7 +154,7 @@ impl TryFrom<ProcessFailureSchema> for ProcessFailure {
             ));
         }
         Ok(Self {
-            exit: ryo_benchmark_contracts::domain::measurements::types::ProcessExitCode(exit),
+            exit: benchmark_contracts::domain::measurements::types::ProcessExitCode(exit),
             stdout: stdout
                 .into_iter()
                 .map(OutputPart::try_from)

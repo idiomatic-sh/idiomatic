@@ -1,10 +1,10 @@
 //! Proves one value's behaviour: an inventory starts failed and passes only by evidence.
 use super::value::{FailureReason, Inventory, InventoryVerdict, PassedRule};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
-use ryo_benchmark_contracts::domain::requests::types::RuleLabel;
-use ryo_benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
-use ryo_benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
+use benchmark_contracts::domain::artifacts::types::digest::value::ArtifactDigest;
+use benchmark_contracts::domain::requests::types::RuleLabel;
+use benchmark_contracts::domain::workloads::types::capability_name::value::CapabilityName;
+use benchmark_contracts::domain::workloads::types::case_count::value::CaseCount;
 
 /// What a scenario does to a two-rule inventory.
 #[derive(Clone, Copy)]
