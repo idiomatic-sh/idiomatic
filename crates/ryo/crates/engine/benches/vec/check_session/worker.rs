@@ -5,6 +5,8 @@ use std::num::NonZeroUsize;
 pub(crate) trait Slots<T> {
     fn previous(&self, _slot: usize) -> Option<&T> { None }
     fn set(&mut self, slot: usize, value: T);
+    /// A pair whose answer is the empty report. The default builds and stores it.
+    fn set_empty(&mut self, slot: usize, empty: impl FnOnce() -> T) { self.set(slot, empty()); }
 }
 
 impl<T> Slots<T> for [T] {

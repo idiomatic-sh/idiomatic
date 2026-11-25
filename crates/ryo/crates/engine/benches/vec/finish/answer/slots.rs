@@ -135,6 +135,10 @@ impl Slots<Answer> for ReportSlots {
     fn set(&mut self, slot: usize, answer: Answer) {
         Self::set(self, slot, answer);
     }
+
+    fn set_empty(&mut self, slot: usize, _empty: impl FnOnce() -> Answer) {
+        self.clear(slot, EMPTY);
+    }
 }
 
 #[cfg(test)]
