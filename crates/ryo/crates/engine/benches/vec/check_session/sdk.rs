@@ -95,7 +95,7 @@ impl Drop for Live {
     fn drop(&mut self){
         let (writes, pages) = self.state.aliases.counts();
         eprintln!("PAIR_ALIASES pairs={} aliases={writes} allocated_pages={pages}", self.batch.schedule.pairs);
-        if let Some(store)=&mut self.store && let Err(e)=store.publish(){eprintln!("publish completed session: {e}");}
+        if let Some(store)=&mut self.store { store.costs(); if let Err(e)=store.publish(){eprintln!("publish completed session: {e}");} }
     }
 }
 impl Default for Live {
