@@ -6,6 +6,16 @@ fn release_session(id: usize) {
     SESSIONS.with(|sessions| drop(sessions.borrow_mut().remove(&id)));
 }
 
+/// End of the command: publish the store and keep the rest of the session undropped for the OS to reclaim.
+fn retire_session(id: usize) {
+    SESSIONS.with(|sessions| {
+        if let Some(mut live) = sessions.borrow_mut().remove(&id) {
+            live.finish();
+            std::mem::forget(live);
+        }
+    });
+}
+
 fn execution(reason: String) -> sdk::LintError {
     sdk::LintError::Execution { reason }
 }
@@ -91,12 +101,16 @@ struct Live {
     versions: HashMap<(Authority, BTreeMap<String, (Arc<[u8]>, crate::check_session::Permission)>, Option<Arc<str>>), Arc<str>>,
 }
 
-impl Drop for Live {
-    fn drop(&mut self){
+impl Live {
+    /// What a finished session writes: its alias counts and its store.
+    fn finish(&mut self){
         let (writes, pages) = self.state.aliases.counts();
         eprintln!("PAIR_ALIASES pairs={} aliases={writes} allocated_pages={pages}", self.batch.schedule.pairs);
         if let Some(store)=&mut self.store { store.costs(); if let Err(e)=store.publish(){eprintln!("publish completed session: {e}");} }
     }
+}
+impl Drop for Live {
+    fn drop(&mut self){ self.finish(); }
 }
 impl Default for Live {
     fn default() -> Self {

@@ -36,7 +36,23 @@ pub fn link_executor() {
     }
     release_sdk::linked_sdk::link(execute, |id| {
         measure_worker(|| release_session(id));
-    });
+    }, retire_session);
+}
+
+/// Every image's last act, once its outputs are written: flush, report the outcome as the pinned entry
+/// does, and exit without dropping what the session still holds.
+pub fn exit_process(outcome: Result<(), Box<dyn std::error::Error>>) -> ! {
+    use std::io::Write;
+    let _ = std::io::stdout().flush();
+    let code = match outcome {
+        Ok(()) => 0,
+        Err(error) => {
+            eprintln!("Error: {error:?}");
+            1
+        }
+    };
+    let _ = std::io::stderr().flush();
+    std::process::exit(code)
 }
 
 fn execute(

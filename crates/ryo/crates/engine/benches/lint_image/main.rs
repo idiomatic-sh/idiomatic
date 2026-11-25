@@ -147,54 +147,61 @@ pub fn run(
         sdk::Workers(NonZeroUsize::new(tm_project_session::configured_workers()).unwrap_or(NonZeroUsize::MIN)).into(),
         cache,
     );
-    eprintln!("HARNESS_STARTUP process_cpu={:.6} request={parsed:.6} provider={provider:.6}", clock());
-    let [answer]: [Result<sdk::LintReport, sdk::LintError>; 1] = engine
-        .lint(vec![request])
-        .try_into()
-        .map_err(|_| "one request requires one answer")?;
-    tm_project_session::print_measurement();
-    let report = answer?;
-    let mut findings = Vec::new();
-    for row in report.findings {
-        let get = |name: &str| {
-            row.columns
-                .iter()
-                .find(|c| c.name.0.as_ref() == name)
-                .map(|c| &c.value)
-        };
-        let sdk::Slot::Is(sdk::Cell::File(path)) = row.subject else {
-            return Err("location stream requires a file subject".into());
-        };
-        let (start, end) = match get("span") {
-            Some(sdk::Slot::Is(sdk::Cell::Span(span))) => (span.start.0, span.end.0),
-            None => (0, 0),
-            Some(_) => return Err("span column is not a byte range".into()),
-        };
-        findings.push(serde_json::to_vec(&Finding {
-            rule: row.rule.to_string(),
-            file: path.0.to_string(),
-            start,
-            end,
-        })?);
-    }
-    findings.sort_unstable();
-    if distinct_locations {
-        findings.dedup();
-    }
-    let mut writer = BufWriter::new(fs::File::create(output)?);
-    if findings.is_empty() {
-        writer.write_all(b"\n")?;
-    }
-    for finding in findings {
-        writer.write_all(&finding)?;
-        writer.write_all(b"\n")?;
-    }
-    writer.flush()?;
-    // A partial report still contains established findings. Preserve them for
-    // the stream comparison while returning a failure to the receipt gate.
-    if !report.unknowns.is_empty() || !report.unread.is_empty() {
-        return Err(format!("{} unknowns {:?}, {} unread {:?}",
-            report.unknowns.len(), report.unknowns, report.unread.len(), report.unread).into());
-    }
-    Ok(())
+    // Everything below runs against the engine; its outcome is returned to the command's edge,
+    // which retires the session (store published) and exits without dropping it.
+    let outcome = (|| -> Result<(), Box<dyn std::error::Error>> {
+        eprintln!("HARNESS_STARTUP process_cpu={:.6} request={parsed:.6} provider={provider:.6}", clock());
+        let [answer]: [Result<sdk::LintReport, sdk::LintError>; 1] = engine
+            .lint(vec![request])
+            .try_into()
+            .map_err(|_| "one request requires one answer")?;
+        tm_project_session::print_measurement();
+        let report = answer?;
+        let mut findings = Vec::new();
+        for row in report.findings {
+            let get = |name: &str| {
+                row.columns
+                    .iter()
+                    .find(|c| c.name.0.as_ref() == name)
+                    .map(|c| &c.value)
+            };
+            let sdk::Slot::Is(sdk::Cell::File(path)) = row.subject else {
+                return Err("location stream requires a file subject".into());
+            };
+            let (start, end) = match get("span") {
+                Some(sdk::Slot::Is(sdk::Cell::Span(span))) => (span.start.0, span.end.0),
+                None => (0, 0),
+                Some(_) => return Err("span column is not a byte range".into()),
+            };
+            findings.push(serde_json::to_vec(&Finding {
+                rule: row.rule.to_string(),
+                file: path.0.to_string(),
+                start,
+                end,
+            })?);
+        }
+        findings.sort_unstable();
+        if distinct_locations {
+            findings.dedup();
+        }
+        let mut writer = BufWriter::new(fs::File::create(output)?);
+        if findings.is_empty() {
+            writer.write_all(b"\n")?;
+        }
+        for finding in findings {
+            writer.write_all(&finding)?;
+            writer.write_all(b"\n")?;
+        }
+        writer.flush()?;
+        // A partial report still contains established findings. Preserve them for
+        // the stream comparison while returning a failure to the receipt gate.
+        if !report.unknowns.is_empty() || !report.unread.is_empty() {
+            return Err(format!("{} unknowns {:?}, {} unread {:?}",
+                report.unknowns.len(), report.unknowns, report.unread.len(), report.unread).into());
+        }
+        Ok(())
+    
+    })();
+    engine.retire();
+    tm_project_session::exit_process(outcome)
 }
