@@ -3255,7 +3255,9 @@ impl<'p> Exec<'p> {
                     }
                 }
                 "descendant" | "child" => {
-                    if matches!(hier, Hier::Tree) && (x as usize) < f.n {
+                    if matches!(hier, Hier::Tree) && (x as usize) < f.n
+                        && (dir == "child" || node_table::node_count(f.table).0 == f.n)
+                    {
                         if dir == "child" {
                             for c in node_table::children_of(f.table, Position(x as u32)) {
                                 all.push((i, u64::from(c.0)));

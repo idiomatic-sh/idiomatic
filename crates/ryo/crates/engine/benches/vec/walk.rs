@@ -40,7 +40,14 @@ impl Exec<'_> {
         let ic = from.col("id")?;
         let mut out = self.empty(run, node)?;
         let mut row = Vec::new();
-        if tree && size.is_some_and(|n| n < from.n) {
+        // Only the initial syntax-node segment is in subtree preorder. Tokens
+        // and embedded segments retain valid parent links outside that range.
+        let nodes = node_table::node_count(f.table).0;
+        let interval = tree && (nodes == f.n || (
+            matches!(&dom, Dom::Set(ids) if ids.iter().all(|&id| id < nodes as u64))
+                && from.cols[ic].iter().all(|&id| id == NULL || id < nodes as u64)
+        ));
+        if interval && size.is_some_and(|n| n < from.n) {
             // the domain's nodes, sorted (preorder), with their subtree ends
             let mut d: Vec<u32> = match &dom {
                 Dom::Set(x) => x.iter().filter(|v| (**v as usize) < f.n).map(|v| *v as u32).collect(),
@@ -154,7 +161,7 @@ impl Exec<'_> {
             return Ok(Some(out));
         }
         // the first admitted descendant in preorder, over the tree with a domain read per node
-        if !tree {
+        if !interval {
             return Ok(None);
         }
         for r in 0..from.n {
