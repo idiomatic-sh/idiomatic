@@ -181,6 +181,9 @@ pub trait Fillers: Send + Sync + 'static {
     /// Whether a node of this kind carries its source text as its word.
     fn spells(kind: KindBits) -> bool;
 
+    /// Why the language never answers `relation`, or nothing when it does: the static form of `Fill::Absent`.
+    fn absent(relation: Relation) -> Option<AbsenceCause>;
+
     /// The rows of the file-scope relations the language declares beside the catalog's, in request order: a refusal each for a
     /// language that declares none. A language's private relations stay here until they are deleted.
     fn named(_file: &mut Self::File<'_>, request: NamedRequest<'_, '_>) -> Vec<Result<FileRows, ParseError>> {

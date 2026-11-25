@@ -71,6 +71,84 @@ macro_rules! absent {
     };
 }
 
+/// The relations Python does not fill, with the cause: the one list, handed to the macro that makes the fillers of them and to the
+/// one that makes the static answer.
+macro_rules! each_absent {
+    ($callback:ident) => {
+        $callback! {
+            analyzed_source: AnalyzedSource => NotYetRead;
+            attribute_path: AttributePath => NoSuchConstruct;
+            directive: Directive => NoSuchConstruct;
+            entry: Entry => NotAKeyedDocument;
+            file_package: FilePackage => NotYetRead;
+            filesystem_executable: FilesystemExecutable => NotYetRead;
+            filesystem_file: FilesystemFile => NotYetRead;
+            filesystem_line_count: FilesystemLineCount => NotYetRead;
+            filesystem_read_failure: FilesystemReadFailure => NotYetRead;
+            flow_block: FlowBlock => NotYetRead;
+            flow_edge: FlowEdge => NotYetRead;
+            flow_member: FlowMember => NotYetRead;
+            flow_step: FlowStep => NotYetRead;
+            manifest_diagnostic: ManifestDiagnostic => NotYetRead;
+            mapping: Mapping => NotAKeyedDocument;
+            mention: Mention => NoSuchConstruct;
+            module_identity: ModuleIdentity => NotYetRead;
+            package_dependency: PackageDependency => NotYetRead;
+            pattern_child: PatternChild => NotYetRead;
+            pattern_parse: PatternParse => NotYetRead;
+            pattern_syntax: PatternSyntax => NotYetRead;
+            project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
+            prose: Prose => NotADocument;
+            sequence_element: SequenceElement => NotAKeyedDocument;
+            source_dependency: SourceDependency => NotYetRead;
+            visibility: Visibility => NoSuchConstruct;
+            workspace_member: WorkspaceMember => NotYetRead;
+        }
+    };
+    ($callback:ident, $relation:ident) => {
+        $callback! {
+            $relation;
+            analyzed_source: AnalyzedSource => NotYetRead;
+            attribute_path: AttributePath => NoSuchConstruct;
+            directive: Directive => NoSuchConstruct;
+            entry: Entry => NotAKeyedDocument;
+            file_package: FilePackage => NotYetRead;
+            filesystem_executable: FilesystemExecutable => NotYetRead;
+            filesystem_file: FilesystemFile => NotYetRead;
+            filesystem_line_count: FilesystemLineCount => NotYetRead;
+            filesystem_read_failure: FilesystemReadFailure => NotYetRead;
+            flow_block: FlowBlock => NotYetRead;
+            flow_edge: FlowEdge => NotYetRead;
+            flow_member: FlowMember => NotYetRead;
+            flow_step: FlowStep => NotYetRead;
+            manifest_diagnostic: ManifestDiagnostic => NotYetRead;
+            mapping: Mapping => NotAKeyedDocument;
+            mention: Mention => NoSuchConstruct;
+            module_identity: ModuleIdentity => NotYetRead;
+            package_dependency: PackageDependency => NotYetRead;
+            pattern_child: PatternChild => NotYetRead;
+            pattern_parse: PatternParse => NotYetRead;
+            pattern_syntax: PatternSyntax => NotYetRead;
+            project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
+            prose: Prose => NotADocument;
+            sequence_element: SequenceElement => NotAKeyedDocument;
+            source_dependency: SourceDependency => NotYetRead;
+            visibility: Visibility => NoSuchConstruct;
+            workspace_member: WorkspaceMember => NotYetRead;
+        }
+    };
+}
+
+/// The static answer of the absent relations: the cause, when `relation` is one of them.
+macro_rules! absent_arms {
+    ($asked:ident; $( $module:ident: $relation:ident => $cause:ident; )*) => {
+        match $asked {
+            $( languages::Relation::$relation => Some(AbsenceCause::$cause), )*
+            _ => None,
+        }
+    };
+}
+
 impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
     type File<'f>
         = PythonFile<'f>
@@ -131,34 +209,20 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         token_link: TokenLink => crate::inbound::contracts::parse::readers::token_link::composition::TokenLinkItem;
     }
 
-    absent! {
-        analyzed_source: AnalyzedSource => NotYetRead;
-        attribute_path: AttributePath => NoSuchConstruct;
-        directive: Directive => NoSuchConstruct;
-        entry: Entry => NotAKeyedDocument;
-        file_package: FilePackage => NotYetRead;
-        filesystem_executable: FilesystemExecutable => NotYetRead;
-        filesystem_file: FilesystemFile => NotYetRead;
-        filesystem_line_count: FilesystemLineCount => NotYetRead;
-        filesystem_read_failure: FilesystemReadFailure => NotYetRead;
-        flow_block: FlowBlock => NotYetRead;
-        flow_edge: FlowEdge => NotYetRead;
-        flow_member: FlowMember => NotYetRead;
-        flow_step: FlowStep => NotYetRead;
-        manifest_diagnostic: ManifestDiagnostic => NotYetRead;
-        mapping: Mapping => NotAKeyedDocument;
-        mention: Mention => NoSuchConstruct;
-        module_identity: ModuleIdentity => NotYetRead;
-        package_dependency: PackageDependency => NotYetRead;
-        pattern_child: PatternChild => NotYetRead;
-        pattern_parse: PatternParse => NotYetRead;
-        pattern_syntax: PatternSyntax => NotYetRead;
-        project_namespace_membership: ProjectNamespaceMembership => NotYetRead;
-        prose: Prose => NotADocument;
-        sequence_element: SequenceElement => NotAKeyedDocument;
-        source_dependency: SourceDependency => NotYetRead;
-        visibility: Visibility => NoSuchConstruct;
-        workspace_member: WorkspaceMember => NotYetRead;
+    each_absent!(absent);
+
+    fn absent(relation: languages::Relation) -> Option<AbsenceCause> {
+        use languages::Relation as R;
+        // The manifest and filesystem relations are the project contract's and the host's: the language does not say they are absent.
+        if matches!(
+            relation,
+            R::AnalyzedSource | R::FilePackage | R::FilesystemExecutable | R::FilesystemFile | R::FilesystemLineCount
+                | R::FilesystemReadFailure | R::ManifestDiagnostic | R::ModuleIdentity | R::PackageDependency
+                | R::ProjectNamespaceMembership | R::SourceDependency | R::WorkspaceMember
+        ) {
+            return None;
+        }
+        each_absent!(absent_arms, relation)
     }
 
     /// The node's typed expression rendered in the role: not applicable as an assignment target when it is not stored to;
