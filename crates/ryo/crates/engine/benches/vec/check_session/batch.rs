@@ -794,3 +794,23 @@ impl<'a> Receipt<'a> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod slot_tests {
+    use super::{PairSlots, Work};
+
+    #[test]
+    fn compact_slots_preserve_report_order_and_duplicates() {
+        for (input, suffix) in [
+            (&[][..], &[][..]),
+            (&[4][..], &[][..]),
+            (&[4, 5, 6][..], &[][..]),
+            (&[4, 5, 5, 1, 4, 7][..], &[5, 1, 4, 7][..]),
+        ] {
+            let slots: PairSlots = input.iter().copied().collect();
+            assert_eq!(slots.rest, suffix);
+            let work = Work::Pairs(slots);
+            assert!(work.pair_slots().eq(input.iter().copied()));
+        }
+    }
+}
