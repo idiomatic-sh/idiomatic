@@ -161,9 +161,18 @@ impl Row {
         Ok(Some(span))
     }
 
+    /// A closed span gets its source from the emitted file subject.
+    pub(crate) fn span_file(&self) -> Option<Arc<str>> {
+        let (&subject, keys) = self.layout.identity.split_first()?;
+        if self.layout.types[subject] != Ty::File || !keys.iter().any(|&i| self.layout.types[i] == Ty::Span && self.words[i] != NULL) {
+            return None;
+        }
+        self.layout.words.read().expect("finding dictionary").paths.get(self.words[subject] as usize).cloned()
+    }
+
     /// In the shipping emit contract the first located key (then subject) places
     /// the finding. A position is meaningful only in its own file version.
-    pub(crate) fn locate(&mut self, path: &str, tree: &ryo::languages::NodeTable, bytes: &[u8], coordinates: &mut ryo::languages::contract::FindingCoordinates) -> Result<(), String> {
+    pub(crate) fn locate(&mut self, path: &str, tree: Option<&ryo::languages::NodeTable>, bytes: &[u8], coordinates: &mut ryo::languages::contract::FindingCoordinates) -> Result<(), String> {
         use ryo::languages::{Position, node_table};
         let Some((&subject, keys)) = self.layout.identity.split_first() else { return Err("missing finding subject".into()); };
         if !keys.iter().chain([&subject]).any(|&i| matches!(self.layout.types[i], Ty::Span | Ty::Node)) { return Ok(()); }
@@ -177,6 +186,7 @@ impl Row {
             let span = match self.layout.types[column] {
                 Ty::Span => self.byte_span(&self.layout.names[column])?,
                 Ty::Node => {
+                    let Some(tree) = tree else { return Ok(()); };
                     let position = Position(word as u32);
                     if words.paths.get((word >> 32) as usize).is_none_or(|p| p.as_ref() != path)
                         || position >= node_table::own_end(tree)

@@ -15,6 +15,7 @@ pub(crate) struct Input {
 enum Work {
     Project(Rc<Answer>),
     Closed {
+        root: Arc<str>,
         project: Option<usize>,
         pairs: Vec<usize>,
         binding: usize,
@@ -250,6 +251,7 @@ impl Batch {
             };
             self.clocks.project += thread_cpu() - t;
             return Ok(Work::Closed {
+                root: sdk.map_or_else(|| req.root.as_str().into(), |live| live.version.clone()),
                 pairs,
                 project,
                 binding,
@@ -494,13 +496,14 @@ impl Batch {
             *aliases=Default::default();
         }
         self.schedule.delivered(&pending, *keep, |id| self.cut_of[id].is_none());
-        self.finish_projects(languages, contributions, world, answers, populations, project_unread, *keep,store.as_deref_mut());
+        self.finish_projects(languages, reader_states, contributions, world, answers, populations, project_unread, *keep,store.as_deref_mut());
 
     }
 
     fn finish_projects<L: session::source::Source>(
         &mut self,
         languages: &[L],
+        reader_states: &[session::ReaderState],
         contributions: &mut Vec<Option<Rc<project::Contribution>>>,
         world: &mut session::World,
         answers: &mut ReportSlots,
@@ -592,7 +595,7 @@ impl Batch {
             let groups: Vec<_> = groups.into_values().collect();
             self.clocks.project_shards += workers.min(groups.len());
             let worker_cpu = closed_workers::run(
-                workers, self, world, populations, answers, groups.into_iter(), &mut readers,
+                workers, self, world, populations, answers, groups.into_iter(), &mut readers, reader_states,
             );
             readers.release_finished(|slot| {
                 world.release(slot);
@@ -605,6 +608,7 @@ impl Batch {
             self.clocks.project_wall += wall.elapsed().as_secs_f64();
             return;
         }
+        let mut coordinates = HashMap::new();
         let mut reused = [0; 3];
         for ((rule, _), requests) in groups {
             let plan = &self.schedule.programs[rule].as_ref().unwrap().plan;
@@ -613,7 +617,7 @@ impl Batch {
             let mut evaluated = readers::Evaluated::default();
             for i in requests {
                 let Work::Closed {
-                    pairs,
+                    root, pairs,
                     project,
                     binding,
                     inventory,
@@ -655,6 +659,9 @@ impl Batch {
                     let reported = session::Reported::new(rows, unknowns, skipped);
                     if reusable { evaluated.remember(scope, p, &carried, &reported); }
                     Ok(reported)
+                }).and_then(|mut report| {
+                    self.schedule.locate_closed(root, reader_states, &mut report, &mut coordinates)?;
+                    Ok(report)
                 }))};
                 exec.release_request();
                 if let Some(s)=store.as_deref_mut() {

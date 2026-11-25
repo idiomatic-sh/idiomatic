@@ -174,6 +174,7 @@ pub(super) fn run(
     answers: &ReportSlots,
     groups: impl Iterator<Item = Vec<usize>>,
     readers: &mut readers::Closed,
+    reader_states: &[session::ReaderState],
 ) -> f64 {
     let mut programs = Vec::new();
     for slots in groups {
@@ -183,7 +184,7 @@ pub(super) fn run(
             if readers.duplicate[slot].is_some() {
                 continue;
             }
-            let Work::Closed { pairs, project, binding, inventory, files } = &batch.work[slot]
+            let Work::Closed { pairs, project, binding, inventory, files, .. } = &batch.work[slot]
                 else { unreachable!("closed program task") };
             let inventory_key = readers.inventory_id(slot);
             readers.numbers(slot, inventory, world);
@@ -265,8 +266,14 @@ pub(super) fn run(
     let (parts, cpu) = session::jobs::run(0..count.min(programs.len()), run_shard);
     let results = parts.into_iter().flatten();
     drop(programs);
+    let mut coordinates = HashMap::new();
     for (slot, answer) in results {
-        batch.work[slot] = Work::Project(Rc::new(answer));
+        let Work::Closed { root, .. } = &batch.work[slot] else { unreachable!("closed result") };
+        let placed = answer.and_then(|mut report| {
+            batch.schedule.locate_closed(root, reader_states, &mut report, &mut coordinates)?;
+            Ok(report)
+        });
+        batch.work[slot] = Work::Project(Rc::new(placed));
     }
     for (slot, prior) in readers.duplicate.iter().enumerate() {
         if let Some(prior) = prior {

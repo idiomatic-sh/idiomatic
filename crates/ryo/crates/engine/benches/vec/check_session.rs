@@ -233,6 +233,24 @@ impl Schedule {
         self.module_catalogs = HashMap::new();
     }
 
+    /// Resolve locations using the exact request overlay and the bytes verified
+    /// during its file visit. A report never opens a new version from disk.
+    pub(crate) fn locate_closed(
+        &self, root: &str, readers: &[ReaderState], report: &mut Reported,
+        coordinates: &mut HashMap<usize, l::contract::FindingCoordinates>,
+    ) -> Result<()> {
+        for row in &mut report.rows {
+            let Some(path) = row.span_file() else { continue; };
+            let Some(&id) = self.source_ids.get(root).and_then(|files| files.get(path.as_ref())) else { continue; };
+            let bytes = self.sources[id].provided.as_ref()
+                .or_else(|| readers.iter().find_map(|state| state.bytes.get(&id).map(|(bytes, _)| bytes)));
+            if let Some(bytes) = bytes {
+                row.locate(&path, None, bytes, coordinates.entry(id).or_default())?;
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn close(&mut self) {
         self.literal_tables.clear();
         self.prepared = HashMap::new();
@@ -1297,7 +1315,7 @@ pub(crate) fn visit<L: FileSource>(
                 });
             let mut coordinates = l::contract::FindingCoordinates::default();
             let mut locate = |mut report: Reported| -> Result<Reported> {
-                for row in &mut report.rows { row.locate(&source.path, tree, &bytes, &mut coordinates)?; }
+                for row in &mut report.rows { row.locate(&source.path, Some(tree), &bytes, &mut coordinates)?; }
                 Ok(report)
             };
             let mut frame = None;

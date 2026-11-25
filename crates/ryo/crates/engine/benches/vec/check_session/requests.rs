@@ -51,7 +51,7 @@ impl Closed {
         let mut providers = HashMap::<usize, usize>::new();
         for (i, work) in work.iter().enumerate() {
             let Work::Closed {
-                pairs,
+                root, pairs,
                 binding,
                 project,
                 inventory,
@@ -66,7 +66,7 @@ impl Closed {
             request_scopes.insert(i, scope);
             let owner = *owners
                 .entry((
-                    scope,
+                    scope, root.as_ref(),
                     *project,
                     pairs.as_slice(),
                 ))
@@ -216,6 +216,7 @@ mod tests {
         let request = |pairs| Work::Closed {
             pairs,
             binding: 0,
+            root: "/".into(),
             project: Some(7),
             inventory: paths.clone(),
             files: paths.clone(),
