@@ -947,7 +947,9 @@ pub(crate) fn visit<L: FileSource>(
                     .flat_map(|binding| binding.named.iter().copied().map(|s| (s.name, s)))
                     .collect::<BTreeMap<_,_>>().into_values().collect::<Vec<_>>()
             });
-            let cached_ready = cached.as_ref().is_some_and(|(_, file)| file.recovery.is_some());
+            // A retained parse is not a loan of the provider's declared projection.
+            let cached_ready = scoped.is_none_or(|visit| visit.projections().is_empty())
+                && cached.as_ref().is_some_and(|(_, file)| file.recovery.is_some());
             let mut consume = |loan: Option<(l::NumberedFile<'_>, &mut l::Symbols)>| {
                 let (scoped_tree, mut scoped_facts, mut scoped_symbols, words, fields, coverage, notes) = match loan {
                     Some((file, symbols)) => {

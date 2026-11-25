@@ -10,6 +10,10 @@ use ryo_relations::domain::relations::types::RowWriter;
 use std::sync::OnceLock;
 
 impl l::NumberedVisit for ParseContract {
+    fn projections(&self) -> &'static [l::Relation] {
+        &[l::Relation::SemanticSyntax, l::Relation::SemanticChild]
+    }
+
     fn visit(
         &self,
         request: l::ParseRequest<'_>,

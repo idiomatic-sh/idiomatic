@@ -123,6 +123,11 @@ pub trait FileRelations: Send + Sync {
 
 /// A provider that lends its own numbered tree until its consumer finishes.
 pub trait NumberedVisit: Send + Sync {
+    /// Catalog relations whose complete rows are exactly the standard projection
+    /// of the lent node table, its field names and its requested token words.
+    /// A consumer may use this declaration only during this visit and subject
+    /// to the relation's ordinary coverage.
+    fn projections(&self) -> &'static [ryo_relations::domain::relations::types::Relation] { &[] }
     /// Lend the file once. Return a failure when it could not be read.
     fn visit(&self, request: super::types::ParseRequest<'_>,
         catalog: &[ryo_relations::domain::relations::types::Relation],

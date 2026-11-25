@@ -18,6 +18,10 @@ pub(crate) trait Source: Clone + Sync {
     }
 
     fn scoped(&self) -> Option<&dyn l::NumberedVisit> { None }
+    fn numbered_projections(&self) -> &'static [l::Relation] {
+        self.scoped().map_or(&[], |visit| visit.projections())
+    }
+
 
     fn begin_render(&self, _: l::ParseRequest<'_>, _: &mut Self::File) -> l::SemanticSlot {
         l::SemanticSlot::Empty
