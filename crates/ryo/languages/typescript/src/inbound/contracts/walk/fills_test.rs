@@ -300,3 +300,33 @@ fn decorates_fills_equal_reads() {
 fn static_import_fills_equal_reads() {
     equal::<languages::StaticImport>(Relation::StaticImport);
 }
+
+#[test]
+fn defines_fills_equal_reads() {
+    equal::<languages::Defines>(Relation::Defines);
+}
+
+#[test]
+fn reference_fills_equal_reads() {
+    equal::<languages::Reference>(Relation::Reference);
+}
+
+#[test]
+fn scope_fills_equal_reads() {
+    equal::<languages::Scope>(Relation::Scope);
+}
+
+#[test]
+fn resolves_fills_equal_reads() {
+    equal::<languages::Resolves>(Relation::Resolves);
+}
+
+#[test]
+fn binding_read_fills_equal_reads() {
+    equal::<languages::BindingRead>(Relation::BindingRead);
+}
+
+#[test]
+fn binding_use_fills_equal_reads() {
+    equal::<languages::BindingUse>(Relation::BindingUse);
+}

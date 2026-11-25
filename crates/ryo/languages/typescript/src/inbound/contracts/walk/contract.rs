@@ -4,6 +4,7 @@
 use crate::domain::extras::types::Extra;
 use crate::domain::file_view::types::{TypeScriptFile, TypeScriptWalk};
 use crate::domain::language::service::{reading_of, reads};
+use crate::domain::model::types::ReadIndexes;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::{PatternNode, Scripting, Stretch, Written};
 use crate::domain::tokens::types::Token;
@@ -77,7 +78,7 @@ impl Walk for TypeScriptWalk<WalkPorts> {
             Scripting::Script(script, dialect) => self.ports.syntax.walk(SourceText(&script.0), dialect, builder),
         }
         let table = node_table::finished(builder);
-        let mut file = TypeScriptFile { table, source: request.source, file: request.file };
+        let mut file = TypeScriptFile { table, source: request.source, file: request.file, model: ReadIndexes::default() };
         let mut source = fillers::file_source::<TypeScriptWalk<WalkPorts>>(&mut file);
         visit.visit(FileFacts {
             table,

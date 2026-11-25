@@ -24,6 +24,8 @@ pub(crate) trait Syntax {
     fn is_leaf(&self, at: Position) -> bool;
     /// The last element below the element at `at`, in pre-order; `at` itself when it has none.
     fn last_of(&self, at: Position) -> Position;
+    /// Every element of the file.
+    fn positions(&self) -> impl Iterator<Item = Position> + '_;
     /// The bytes of the file.
     fn bytes(&self) -> ByteSlice<'_>;
     /// The number the run gave the file.
@@ -36,6 +38,8 @@ pub(crate) trait Syntax {
 pub(crate) trait Interner {
     /// The cell of a text derived from the file.
     fn derived(&mut self, source: ByteSlice<'_>, text: NameText<'_>) -> Symbol;
+    /// The text of a cell this interned, when it has one.
+    fn text_of<'a>(&'a self, source: ByteSlice<'a>, symbol: Symbol) -> Option<NameText<'a>>;
     /// The cell of the name of a kind.
     fn vocabulary(&mut self, source: ByteSlice<'_>, kind: KindBits, name: NameText<'_>) -> Symbol;
     /// Begins a name made of parts: where its parts start.
@@ -53,6 +57,9 @@ pub(crate) trait Interner {
 impl Interner for Symbols {
     fn derived(&mut self, source: ByteSlice<'_>, text: NameText<'_>) -> Symbol {
         languages::intern_derived(self, source, text)
+    }
+    fn text_of<'a>(&'a self, source: ByteSlice<'a>, symbol: Symbol) -> Option<NameText<'a>> {
+        languages::text_of(self, source, symbol)
     }
     fn vocabulary(&mut self, source: ByteSlice<'_>, kind: KindBits, name: NameText<'_>) -> Symbol {
         languages::vocabulary_symbol(self, source, kind, name)
@@ -93,6 +100,9 @@ impl<'w> WordSink<'w> {
 impl Interner for WordSink<'_> {
     fn derived(&mut self, _source: ByteSlice<'_>, text: NameText<'_>) -> Symbol {
         Symbol(u32::try_from(languages::facts::intern(self.words, text).0).unwrap_or(u32::MAX))
+    }
+    fn text_of<'a>(&'a self, _source: ByteSlice<'a>, symbol: Symbol) -> Option<NameText<'a>> {
+        Some(languages::facts::text(self.words, languages::CellWord(u64::from(symbol.0))))
     }
     fn vocabulary(&mut self, source: ByteSlice<'_>, _kind: KindBits, name: NameText<'_>) -> Symbol {
         self.derived(source, name)
@@ -146,6 +156,9 @@ impl Syntax for Tree<'_> {
     fn last_of(&self, at: Position) -> Position {
         languages::last_at(self.elements, at)
     }
+    fn positions(&self) -> impl Iterator<Item = Position> + '_ {
+        languages::positions(self.elements)
+    }
     fn bytes(&self) -> ByteSlice<'_> {
         self.source
     }
@@ -184,6 +197,9 @@ impl Syntax for TypeScriptFile<'_> {
     }
     fn last_of(&self, at: Position) -> Position {
         Position(node_table::subtree_end_of(self.table, at).0.saturating_sub(1).max(at.0))
+    }
+    fn positions(&self) -> impl Iterator<Item = Position> + '_ {
+        (0..node_table::element_count(self.table).0).map(|index| Position(u32::try_from(index).unwrap_or(u32::MAX)))
     }
     fn bytes(&self) -> ByteSlice<'_> {
         self.source

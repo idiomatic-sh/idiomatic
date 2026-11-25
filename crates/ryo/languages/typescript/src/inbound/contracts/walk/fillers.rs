@@ -59,16 +59,20 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         compiler_feature: CompilerFeature => crate::domain::relations::collections::relations::compiler_feature::item::CompilerFeatureItem;
         decorates: Decorates => crate::domain::relations::collections::relations::decorates::item::DecoratesItem;
         static_import: StaticImport => crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
+        defines: Defines => crate::domain::relations::collections::relations::defines::item::DefinesItem;
+        reference: Reference => crate::domain::relations::collections::relations::reference::item::ReferenceItem;
+        scope: Scope => crate::domain::relations::collections::relations::scope::item::ScopeItem;
+        resolves: Resolves => crate::domain::relations::collections::relations::resolves::item::ResolvesItem;
+        binding_read: BindingRead => crate::domain::relations::collections::relations::binding_read::item::BindingReadItem;
+        binding_use: BindingUse => crate::domain::relations::collections::relations::binding_use::item::BindingUseItem;
     }
 
     absent! {
         binding_event: BindingEvent => NotYetRead;
         binding_resolution: BindingResolution => NotYetRead;
-        binding_use: BindingUse => NotYetRead;
         brace_format_field: BraceFormatField => NotYetRead;
         brace_format_parse: BraceFormatParse => NotYetRead;
         bytes_literal: BytesLiteral => NotYetRead;
-        defines: Defines => NotYetRead;
         embedded_expression: EmbeddedExpression => NotYetRead;
         format_field: FormatField => NotYetRead;
         format_parse: FormatParse => NotYetRead;
@@ -86,7 +90,6 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         source_location: SourceLocation => NotYetRead;
         standard_library_import: StandardLibraryImport => NotYetRead;
         syntax_error: SyntaxError => NotYetRead;
-        binding_read: BindingRead => NotYetRead;
         binding_shadow: BindingShadow => NotYetRead;
         constant_key: ConstantKey => NotYetRead;
         expression_shape: ExpressionShape => NotYetRead;
@@ -94,9 +97,6 @@ impl<P: Send + Sync + 'static> Fillers for TypeScriptWalk<P> {
         inherits: Inherits => NotYetRead;
         lookup_scope: LookupScope => NotYetRead;
         raw_format_segment: RawFormatSegment => NotYetRead;
-        reference: Reference => NotYetRead;
-        resolves: Resolves => NotYetRead;
-        scope: Scope => NotYetRead;
         token_link: TokenLink => NotYetRead;
         analyzed_source: AnalyzedSource => NotYetRead;
         annotates: Annotates => NotYetRead;

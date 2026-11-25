@@ -1,5 +1,6 @@
 //! The types of the `file_view` concept: the language as the engine's walk names it, and the view of one walked file the fillers read.
 
+use crate::domain::model::types::ReadIndexes;
 use ryo::languages::{ByteSlice, FileId, NodeTable};
 
 /// The typescript language as the engine walks it, over the ports `P` its walk calls. Its fillers call no port, so a `fills!` item
@@ -20,4 +21,6 @@ pub(crate) struct TypeScriptFile<'f> {
     pub(crate) source: ByteSlice<'f>,
     /// The file's number.
     pub(crate) file: FileId,
+    /// The indexes the readers of the file build on the first read that asks.
+    pub(crate) model: ReadIndexes,
 }
