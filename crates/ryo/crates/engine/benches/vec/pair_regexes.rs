@@ -4,7 +4,17 @@ use ryo_matching::inbound::use_cases::matching::{
     types::{CompiledTextGlobs, GlobPattern, MatchOutcome, SearchText},
     use_case::MatchingUseCaseImpl,
 };
-use std::cell::OnceCell;
+use std::{cell::{OnceCell, RefCell}, collections::HashMap, rc::Rc, sync::atomic::{AtomicUsize, Ordering}};
+
+/// Matchers compiled in this process: `initialized` is every first use of a pattern instance,
+/// `built` the ones that were not already prepared for the same pattern text.
+pub(in super::super) static INITIALIZED: AtomicUsize = AtomicUsize::new(0);
+pub(in super::super) static BUILT: AtomicUsize = AtomicUsize::new(0);
+
+thread_local! {
+    /// A matcher is prepared once per distinct (kind, text) for the life of the thread.
+    static PREPARED: RefCell<HashMap<(bool, Box<str>), Option<Rc<Matcher>>>> = Default::default();
+}
 
 pub(in super::super) enum Matcher {
     Regex(regex::bytes::Regex),
@@ -57,33 +67,32 @@ pub(super) fn required_literal(glob: &str) -> Option<&str> {
 }
 pub(in super::super) struct Pattern {
     text: Box<str>,
-    matcher: OnceCell<Option<Matcher>>,
+    globs: Option<Box<[String]>>,
+    matcher: OnceCell<Option<Rc<Matcher>>>,
+}
+fn glob_matcher(patterns: &[String]) -> Matcher {
+    let globs = patterns.iter().map(|s| GlobPattern(s)).collect::<Vec<_>>();
+    let literals = patterns
+        .iter()
+        .map(|s| required_literal(s))
+        .collect::<Option<Vec<_>>>();
+    let gate = literals.and_then(|literals| {
+        let mut branches: Vec<_> = literals.into_iter().map(regex::escape).collect();
+        branches.sort_unstable();
+        branches.dedup();
+        regex::bytes::Regex::new(&branches.join("|")).ok()
+    });
+    Matcher::Globs(MatchingUseCaseImpl::new().compile_text_globs(&globs), gate)
 }
 impl Pattern {
     pub(super) fn new(s: &str) -> Self {
-        Self {
-            text: s.into(),
-            matcher: OnceCell::new(),
-        }
+        Self { text: s.into(), globs: None, matcher: OnceCell::new() }
     }
     pub(super) fn globs(patterns: &[String]) -> Self {
-        let globs = patterns.iter().map(|s| GlobPattern(s)).collect::<Vec<_>>();
-        let literals = patterns
-            .iter()
-            .map(|s| required_literal(s))
-            .collect::<Option<Vec<_>>>();
-        let gate = literals.and_then(|literals| {
-            let mut branches: Vec<_> = literals.into_iter().map(regex::escape).collect();
-            branches.sort_unstable();
-            branches.dedup();
-            regex::bytes::Regex::new(&branches.join("|")).ok()
-        });
         Self {
             text: format!("{patterns:?}").into(),
-            matcher: OnceCell::from(Some(Matcher::Globs(
-                MatchingUseCaseImpl::new().compile_text_globs(&globs),
-                gate,
-            ))),
+            globs: Some(patterns.into()),
+            matcher: OnceCell::new(),
         }
     }
     pub(in super::super) fn as_str(&self) -> &str {
@@ -91,7 +100,7 @@ impl Pattern {
     }
     #[allow(dead_code, reason = "Session proof identities distinguish glob sets from regexes")]
     pub(in super::super) fn is_glob(&self) -> bool {
-        matches!(self.matcher.get(), Some(Some(Matcher::Globs(..))))
+        self.globs.is_some()
     }
     pub(in super::super) fn initialized(&self) -> bool {
         self.matcher.get().is_some()
@@ -99,11 +108,21 @@ impl Pattern {
     pub(in super::super) fn compiled(&self) -> Option<&Matcher> {
         self.matcher
             .get_or_init(|| {
-                regex::bytes::Regex::new(&self.text)
-                    .ok()
-                    .map(Matcher::Regex)
+                INITIALIZED.fetch_add(1, Ordering::Relaxed);
+                let key = (self.globs.is_some(), self.text.clone());
+                if let Some(known) = PREPARED.with(|prepared| prepared.borrow().get(&key).cloned()) {
+                    return known;
+                }
+                BUILT.fetch_add(1, Ordering::Relaxed);
+                let built = match &self.globs {
+                    Some(patterns) => Some(glob_matcher(patterns)),
+                    None => regex::bytes::Regex::new(&self.text).ok().map(Matcher::Regex),
+                }
+                .map(Rc::new);
+                PREPARED.with(|prepared| prepared.borrow_mut().insert(key, built.clone()));
+                built
             })
-            .as_ref()
+            .as_deref()
     }
     pub(in super::super) fn is_match(&self, text: &[u8]) -> bool {
         self.compiled().is_none_or(|r| r.is_match(text))

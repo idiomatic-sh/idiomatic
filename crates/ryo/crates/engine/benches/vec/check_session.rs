@@ -1597,4 +1597,8 @@ pub(crate) fn visit<L: FileSource>(
     parts.tree += tree_cpu;
     parts.facts += fact_cpu;
     if std::env::var_os("VEC_STEP_TIME").is_some() { eprintln!("SHARED_STEPS runs={} rows={}",exec.stats.total_runs,exec.stats.total_rows); }
+    if std::env::var_os("VEC_PATTERN_COUNTS").is_some() {
+        use std::sync::atomic::Ordering::Relaxed;
+        eprintln!("PATTERN_MATCHERS first_uses={} compiled={}", crate::pair_summary::regexes::INITIALIZED.load(Relaxed), crate::pair_summary::regexes::BUILT.load(Relaxed));
+    }
 }
