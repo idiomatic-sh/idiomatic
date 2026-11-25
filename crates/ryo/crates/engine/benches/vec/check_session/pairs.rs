@@ -286,8 +286,10 @@ impl Checks {
                         return !partials.iter().any(|p| p.relation == rel) && host_executable(run, id, out);
                     }
                     // The project layout answers for its own file, as the former loop's `identity` did.
-                    if let Some(layout) = layouts.iter().flatten().find(|layout| layout.relation == rel) {
-                        return layout.witness_columns(path, id, words, out);
+                    if let Some((layout, part)) = layouts.iter().flatten()
+                        .find_map(|layout| layout.relations.iter().position(|r| *r == rel).map(|part| (layout, part)))
+                    {
+                        return layout.witness_columns(part, path, id, words, out);
                     }
                     requested.contains(&rel)
                         && !partials.iter().any(|p| p.relation == rel)
@@ -406,8 +408,15 @@ fn host_executable(run: &Run, id: FileId, out: &mut l::FilledColumns) -> bool {
 }
 
 fn domain_steps(cut: Option<&crate::finish::partition::Partition>) -> Vec<(usize, usize)> {
+    // A source with one file-local origin step is absent where that step is.
     cut.into_iter().flat_map(|c| c.inputs.iter().enumerate()
-        .filter_map(|(i, n)| c.domains.get(n).map(|&(_, d)| (i, d)))).collect()
+        .filter_map(|(i, n)| {
+            let nodes = c.domains.get(n).map(|(_, nodes)| nodes).or_else(|| c.reach.get(n))?;
+            let mut steps = Vec::new();
+            nodes.steps(&mut steps);
+            steps.dedup();
+            (steps.len() == 1).then(|| (i, steps[0]))
+        })).collect()
 }
 fn target_steps(program: &Program, cut: Option<&crate::finish::partition::Partition>) -> Vec<usize> {
     match cut {

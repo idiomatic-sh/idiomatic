@@ -88,8 +88,10 @@ struct Admission {
     project_bases: Vec<l::Relation>,
     closed: bool,
     file_cells: bool,
+    /// A caller table keyed by File is read in the visit: its states must be settled at admission.
+    sliced_host: bool,
     file_inventory: bool,
-    layout: Option<(l::Relation, Arc<session::completeness::Contract>)>,
+    layout: Option<(Vec<l::Relation>, Arc<session::completeness::Contract>)>,
     cut: Option<Arc<finish::partition::Partition>>,
 }
 
@@ -107,7 +109,7 @@ struct Batch {
     binding_ids: HashMap<(usize, Option<usize>, Vec<(usize, Option<String>)>), usize>,
     layout_of: Vec<Option<usize>>,
     layouts: Vec<Option<project::Layout>>,
-    layout_ids: HashMap<(String, Authority, Rc<Vec<String>>, l::Relation), Option<usize>>,
+    layout_ids: HashMap<(String, Authority, Rc<Vec<String>>, Vec<l::Relation>), Option<usize>>,
     work: Vec<Work>,
     projects: Vec<ProjectSpec>,
     cut_of: Vec<Option<Arc<finish::partition::Partition>>>,
@@ -156,9 +158,8 @@ impl Admission {
         // File-valued caller cells use the admitted request's file dictionary.
         // The same partition can consume its source subtree locally and bind those
         // cells at the join once the inventory is numbered.
-        let numbered_host = hosted
-            .iter()
-            .any(|table| table.columns.iter().any(|(_, kind)| kind == "File"));
+        let has_files = |table: &Hosted| table.columns.iter().any(|(_, kind)| kind == "File");
+        let numbered_host = hosted.iter().any(has_files);
         let mut run = finish::Run::schema_run(patterns);
         catalog.declare_bases(&mut run, &program.bases);
         let declarations = hosted.iter().map(|h| Hosted {
@@ -168,17 +169,30 @@ impl Admission {
         let mut exec = finish::Exec::new(&program.plan);
         let local = finish::partition::file_steps(&mut exec, &mut run, |name| {
             held.iter().any(|r| relations::service::name(*r).0 == name) || hosted.iter().any(|t| t.name == name)
-        })?;
+        }, |name| hosted.iter().any(|t| t.name == name && has_files(t)))?;
+        // A caller table keyed by File that every reader binds to its own file is
+        // read in the visit, so it need not wait for the numbered inventory.
+        let unsliced = |local: &[bool]| program.plan.nodes.iter().enumerate().any(|(at, step)| {
+            !local[at] && step.base().is_some_and(|name| hosted.iter().any(|t| t.name == name && has_files(t)))
+        });
+        let unsliced_host = unsliced(&local);
         let contract = Arc::new(session::completeness::describe(program, &local)?);
-        let wide = contract.cross || numbered_host;
-        let layout = if !scope_only && !numbered_host
-            && let [relation] = held.as_slice() && project::layout_relation(*relation)
+        let wide = contract.cross || unsliced_host;
+        let layout = if !scope_only
+            && !held.is_empty()
+            // One File cell per row and no node or span cell: the rows are the file's own.
+            // The answer must not depend on any file's parsed notes, which the slice cannot carry.
+            && held.iter().all(|relation| catalog::service::needs_notes(*relation) == catalog::types::RelationNotes::Unneeded)
+            && held.iter().all(|relation| run.catalog(relations::service::name(*relation).0).is_some_and(|(_, _, types)| {
+                types.iter().filter(|ty| **ty == finish::Ty::File).count() == 1
+                    && !types.iter().any(|ty| matches!(ty, finish::Ty::Node | finish::Ty::Span))
+            }))
         {
-            let name = relations::service::name(*relation).0;
-            finish::partition::with_file_slice(&mut exec, &mut run, name, |base| {
+            let names: Vec<&str> = held.iter().map(|relation| relations::service::name(*relation).0).collect();
+            finish::partition::with_file_slice(&mut exec, &mut run, &names, |base| {
                 hosted.iter().any(|table| table.name == base)
-            })?.map(|local| session::completeness::describe(program, &local)
-                .map(|contract| (*relation, Arc::new(contract)))).transpose()?
+            }, |base| hosted.iter().any(|t| t.name == base && has_files(t)))?.filter(|local| !unsliced(local)).map(|local| session::completeness::describe(program, &local)
+                .map(|contract| (held.clone(), Arc::new(contract)))).transpose()?
         } else {
             None
         };
@@ -191,6 +205,7 @@ impl Admission {
             project_bases: held,
             closed: scope_only || wide,
             file_cells: numbered_host,
+            sliced_host: numbered_host && !unsliced_host,
             file_inventory: program.bases.iter().any(|name| name == "filesystem.file"),
             cut,
             layout,
@@ -226,6 +241,7 @@ impl Batch {
         sdk: Option<LiveAdmission<'_>>,
         layouts: Option<(&[L], Option<&project::Environment>)>,
     ) -> Result<Work, String> {
+        let mut inventory_for = Some(inventory_for);
         let rule=self.prepared_rule(query.clone(),&req.parameters);
         let program=match &self.schedule.programs[rule]{Ok(p)=>p,Err(reason)=>return Ok(Work::Invalid(reason.clone()))};
         let mut host_ids = Vec::new();
@@ -252,7 +268,18 @@ impl Batch {
                 class
             }
         };
-        if let (Some((relation, _)), Some((readers, environment)), Some(inventory), Some(authority)) =
+        if class.sliced_host {
+            // The closed phase refuses a partial caller table and an inventory it cannot
+            // number. A program read in the visits may see no file, so refuse here.
+            if let Some(table) = req.hosted.iter().find(|table| table.partial.is_some()) {
+                let reason = table.partial.as_deref().unwrap_or_default();
+                return Ok(Work::Refused(format!("partial {}: {reason}", table.name)));
+            }
+            if (!class.closed || (req.files.is_empty() && !class.contract.cross)) && req.inventory.is_none() && inventory_for.take().ok_or("inventory reader")?(&req.root)?.is_none() {
+                return Err("incomplete project inventory".into());
+            }
+        }
+        if let (Some((relations, _)), Some((readers, environment)), Some(inventory), Some(authority)) =
             (&class.layout, layouts, &req.inventory, &req.repository)
             && !req.files.is_empty()
             && req.files.iter().all(|path| inventory.binary_search(path).is_ok())
@@ -260,9 +287,9 @@ impl Batch {
                 || req.files.windows(2).all(|pair| pair[0] > pair[1])
                 || req.files.iter().collect::<BTreeSet<_>>().len() == req.files.len())
         {
-            let key = (req.root.clone(), authority.clone(), inventory.clone(), *relation);
+            let key = (req.root.clone(), authority.clone(), inventory.clone(), relations.clone());
             let layout = *self.layout_ids.entry(key).or_insert_with(|| {
-                let table = project::layout(readers, authority, inventory, environment, *relation)?;
+                let table = project::layout(readers, authority, inventory, environment, relations)?;
                 let id = self.layouts.len();
                 self.layouts.push(Some(table));
                 Some(id)
@@ -283,7 +310,7 @@ impl Batch {
             let t = thread_cpu();
             let inventory = match req.inventory {
                 Some(paths) => Some(paths),
-                None => inventory_for(&req.root)?,
+                None => inventory_for.take().ok_or("inventory reader")?(&req.root)?,
             }
                 .or_else(|| {
                     (!class.file_cells && (!req.files.is_empty() || !class.file_inventory)).then(|| {
@@ -580,7 +607,17 @@ impl Batch {
                     aliases,
                     answers,
                     |binding, run| {
-                        Ok(bind_tables(&hosted[binding], run, |_| None)?
+                        // A file program reads a caller table keyed by File here, through the
+                        // visit's numbering. A closed program reads it only after closure.
+                        let keyed = self.cut_of[binding].is_none()
+                            && hosted[binding].iter().any(|t| t.columns.iter().any(|(_, kind)| kind == "File"));
+                        let paths = run.paths.clone();
+                        let numbers: HashMap<&str, u32> = if keyed {
+                            paths.iter().zip(0..).map(|(path, number)| (path.as_str(), number)).collect()
+                        } else {
+                            HashMap::new()
+                        };
+                        Ok(bind_tables(&hosted[binding], run, |path| numbers.get(path).copied())?
                             .into_iter()
                             .map(|(n, t)| (n, Rc::new(t)))
                             .collect())
@@ -738,14 +775,20 @@ impl Batch {
                     unreachable!()
                 };
                 let population = project.map(|p| populations[&p].1.as_ref()).transpose();
+                let _profile = finish::operators::scope(rule, "closed");
                 let scope = readers.scope(i);
                 let answer = if let Some(prior)=readers.duplicate[i] {
                     let Work::Project(value)=&self.work[prior] else {unreachable!("same binding evaluated in request order")};
                     value.clone()
                 } else {Rc::new(population.map_err(Clone::clone).and_then(|p| {
+                    let delivering = finish::operators::enter(usize::MAX, 0);
                     let inputs = closed_workers::inputs(&world.run, &self.bound_contracts[*binding],
                         &world.unavailable, pairs, inventory, files, self.cut_of[*binding].as_deref(), p, answers,
-                        |steps| readers.inputs(i, || world.joined(pairs, steps)))?;
+                        |steps| readers.inputs(i, || world.joined(pairs, steps)));
+                    if let Some(start) = delivering {
+                        finish::operators::leave(start, "closed-deliver", 0, true);
+                    }
+                    let inputs = inputs?;
                     let (carried, incomplete, unknowns, skipped) = match inputs {
                         closed_workers::Inputs::Withheld(answer) => return Ok(answer),
                         closed_workers::Inputs::Ready { carried, incomplete, unknowns, skipped } => (carried, incomplete, unknowns, skipped),
@@ -755,6 +798,7 @@ impl Batch {
                         return Ok(answer);
                     }
                     let numbers = readers.numbers(i, inventory, world);
+                    let evaluating = finish::operators::enter(usize::MAX - 1, 0);
                     let rows = execute_ids(
                         &mut exec,
                         &mut world.run,
@@ -766,7 +810,11 @@ impl Batch {
                         p,
                         &incomplete,
                         skipped.is_empty().then_some((&mut operators, scope)),
-                    )?;
+                    );
+                    if let Some(start) = evaluating {
+                        finish::operators::leave(start, "closed-execute", rows.as_ref().map_or(0, Vec::len), true);
+                    }
+                    let rows = rows?;
                     let reported = session::Reported::new(rows, unknowns, skipped);
                     if reusable { evaluated.remember(scope, p, &carried, &reported); }
                     Ok(reported)

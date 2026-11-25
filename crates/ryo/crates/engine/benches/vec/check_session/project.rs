@@ -16,18 +16,16 @@ use std::{
     rc::Rc,
 };
 
-/// The existing project answer is independent of parsed notes and manifests.
-/// Its typed File cell identifies the file that owns the row.
-pub(crate) fn layout_relation(relation: l::Relation) -> bool {
-    matches!(relation, l::Relation::ModuleIdentity)
-}
-
 /// Compact project input indexed by file. Evaluator tables are made only
 /// inside the file visit so they use its file IDs and symbol dictionary.
 pub(crate) struct Layout {
-    pub(crate) relation: l::Relation,
-    columns: Vec<(String, finish::Ty)>,
+    pub(crate) relations: Vec<l::Relation>,
+    parts: Vec<Part>,
     words: Vec<Box<[u8]>>,
+}
+
+struct Part {
+    columns: Vec<(String, finish::Ty)>,
     rows: std::collections::HashMap<String, Vec<u64>>,
 }
 
@@ -36,53 +34,65 @@ pub(crate) fn layout<L: super::FileSource>(
     authority: &Authority,
     inventory: &[String],
     environment: Option<&Environment>,
-    relation: l::Relation,
+    relations: &[l::Relation],
 ) -> Option<Layout> {
     let mut world = super::World::default();
     world.declare_words(readers);
     let input = Rc::new(Contribution::default());
     let population = collect(&mut world, readers, authority, inventory, environment,
-        &vec![input; inventory.len()], &[relation]).ok()?;
+        &vec![input; inventory.len()], relations).ok()?;
     // The established closure path already reports incomplete and refused
     // answers with their exact project or file scope.
     if !population.partials.is_empty() || !population.refused.is_empty() {
         return None;
     }
-    let table = population.tables.get(name(relation).0)?;
-    let mut file_columns = table.tys.iter().enumerate()
-        .filter_map(|(c, ty)| (*ty == finish::Ty::File).then_some(c));
-    let key = file_columns.next()?;
-    if file_columns.next().is_some()
-        || table.tys.iter().any(|ty| matches!(ty, finish::Ty::Node | finish::Ty::Span))
-    {
-        return None;
-    }
-    let mut rows: std::collections::HashMap<String, Vec<u64>> = Default::default();
-    for row in 0..table.n {
-        let path = world.run.paths.get(usize::try_from(table.cols[key][row]).ok()?)?;
-        rows.entry(path.clone()).or_default()
-            .extend(table.cols.iter().map(|column| column[row]));
+    let mut parts = Vec::new();
+    for &relation in relations {
+        let table = population.tables.get(name(relation).0)?;
+        let mut file_columns = table.tys.iter().enumerate()
+            .filter_map(|(c, ty)| (*ty == finish::Ty::File).then_some(c));
+        let key = file_columns.next()?;
+        if file_columns.next().is_some()
+            || table.tys.iter().any(|ty| matches!(ty, finish::Ty::Node | finish::Ty::Span))
+        {
+            return None;
+        }
+        let mut rows: std::collections::HashMap<String, Vec<u64>> = Default::default();
+        for row in 0..table.n {
+            let path = world.run.paths.get(usize::try_from(table.cols[key][row]).ok()?)?;
+            rows.entry(path.clone()).or_default()
+                .extend(table.cols.iter().map(|column| column[row]));
+        }
+        parts.push(Part {
+            columns: table.names.iter().cloned().zip(table.tys.iter().copied()).collect(),
+            rows,
+        });
     }
     Some(Layout {
-        relation,
-        columns: table.names.iter().cloned().zip(table.tys.iter().copied()).collect(),
+        relations: relations.to_vec(),
+        parts,
         words: world.run.texts.iter().map(|word| Box::from(word.as_ref())).collect(),
-        rows,
     })
 }
 
 impl Layout {
-    pub(crate) fn declare(&self, run: &mut finish::Run, alias: &str) {
-        let columns: Vec<_> = self.columns.iter().map(|(name, ty)| (name.as_str(), *ty)).collect();
-        run.declare(alias, &columns, finish::Supplier::Provider);
+    /// Declare each relation under its own alias and say which alias holds which.
+    pub(crate) fn declare(&self, run: &mut finish::Run, prefix: &str) -> Vec<(l::Relation, String)> {
+        self.relations.iter().zip(&self.parts).enumerate().map(|(at, (&relation, part))| {
+            let alias = format!("{prefix}/{at}");
+            let columns: Vec<_> = part.columns.iter().map(|(name, ty)| (name.as_str(), *ty)).collect();
+            run.declare(&alias, &columns, finish::Supplier::Provider);
+            (relation, alias)
+        }).collect()
     }
 
-    /// This file's rows as screening columns, with symbols interned in the file's own word table.
-    pub(crate) fn witness_columns(&self, path: &str, file: l::FileId, words: &mut l::FileWords, out: &mut l::FilledColumns) -> bool {
-        let cells = self.rows.get(path).map_or(&[][..], Vec::as_slice);
-        out.0 = (0..self.columns.len()).map(|_| l::FilledColumn(Vec::new())).collect();
-        for row in cells.chunks_exact(self.columns.len()) {
-            for ((column, (_, ty)), &cell) in out.0.iter_mut().zip(&self.columns).zip(row) {
+    /// This relation's rows for the file as screening columns, with symbols interned in the file's own word table.
+    pub(crate) fn witness_columns(&self, part: usize, path: &str, file: l::FileId, words: &mut l::FileWords, out: &mut l::FilledColumns) -> bool {
+        let part = &self.parts[part];
+        let cells = part.rows.get(path).map_or(&[][..], Vec::as_slice);
+        out.0 = (0..part.columns.len()).map(|_| l::FilledColumn(Vec::new())).collect();
+        for row in cells.chunks_exact(part.columns.len()) {
+            for ((column, (_, ty)), &cell) in out.0.iter_mut().zip(&part.columns).zip(row) {
                 column.0.push(match ty {
                     finish::Ty::File => l::CellWord(u64::from(file.0)),
                     finish::Ty::Sym if cell == finish::NULL => l::CellWord(u64::from(l::NO_SYMBOL.0)),
@@ -97,21 +107,23 @@ impl Layout {
         true
     }
 
-    pub(crate) fn slice(&self, run: &mut finish::Run, alias: &str, path: &str, file: l::FileId) -> Rc<Table> {
-        let (_, names, types) = run.catalog(alias).expect("bound project layout");
-        let cells = self.rows.get(path).map_or(&[][..], Vec::as_slice);
-        let mut table = Table::with_rows(names, types, cells.len() / self.columns.len());
-        for row in cells.chunks_exact(self.columns.len()) {
-            for ((column, (_, ty)), &cell) in table.cols.iter_mut().zip(&self.columns).zip(row) {
-                column.push(match ty {
-                    finish::Ty::File => u64::from(file.0),
-                    finish::Ty::Sym if cell != finish::NULL => u64::from(run.sym(&self.words[cell as usize])),
-                    _ => cell,
-                });
+    pub(crate) fn slice(&self, run: &mut finish::Run, aliases: &[(l::Relation, String)], path: &str, file: l::FileId) -> Vec<(String, Rc<Table>)> {
+        aliases.iter().zip(&self.parts).map(|((_, alias), part)| {
+            let (_, names, types) = run.catalog(alias).expect("bound project layout");
+            let cells = part.rows.get(path).map_or(&[][..], Vec::as_slice);
+            let mut table = Table::with_rows(names, types, cells.len() / part.columns.len());
+            for row in cells.chunks_exact(part.columns.len()) {
+                for ((column, (_, ty)), &cell) in table.cols.iter_mut().zip(&part.columns).zip(row) {
+                    column.push(match ty {
+                        finish::Ty::File => u64::from(file.0),
+                        finish::Ty::Sym if cell != finish::NULL => u64::from(run.sym(&self.words[cell as usize])),
+                        _ => cell,
+                    });
+                }
+                table.n += 1;
             }
-            table.n += 1;
-        }
-        Rc::new(table)
+            (alias.clone(), Rc::new(table))
+        }).collect()
     }
 }
 

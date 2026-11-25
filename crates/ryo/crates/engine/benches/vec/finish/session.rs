@@ -57,14 +57,25 @@ pub(in super::super) fn evaluate_covered(
     // Each input spans the session. File-local views and implicit file equality
     // are inapplicable even when this particular request admits just one file.
     exec.closed_inputs();
-    let mut demanded = vec![false; plan.nodes.len()];
-    let mut stack: Vec<_> = plan.emits.iter().map(|e| e.1).collect();
-    while let Some(i) = stack.pop() {
-        if std::mem::replace(&mut demanded[i], true) || carried.contains_key(&i) {
-            continue;
+    // Which steps the emits demand, and whether the plan's closed checks pass,
+    // depend on the carried steps alone: a program's requests share them.
+    let mut carried_steps: Vec<usize> = carried.keys().copied().collect();
+    carried_steps.sort_unstable();
+    let checked = incomplete.is_empty()
+        && exec.closed_checked.as_ref().is_some_and(|(steps, _)| *steps == carried_steps);
+    let demanded = if let (true, Some((_, demanded))) = (checked, &exec.closed_checked) {
+        demanded.clone()
+    } else {
+        let mut demanded = vec![false; plan.nodes.len()];
+        let mut stack: Vec<_> = plan.emits.iter().map(|e| e.1).collect();
+        while let Some(i) = stack.pop() {
+            if std::mem::replace(&mut demanded[i], true) || carried.contains_key(&i) {
+                continue;
+            }
+            stack.extend(&plan.nodes[i].inputs);
         }
-        stack.extend(&plan.nodes[i].inputs);
-    }
+        demanded
+    };
     for (&i, input) in carried {
         let sc=exec.schema(run,i)?;
         if !input.agrees(&sc.names,&sc.tys) {
@@ -82,7 +93,7 @@ pub(in super::super) fn evaluate_covered(
     }
     let mut bases = BTreeMap::<&str, Rc<Table>>::new();
     for (i, step) in plan.nodes.iter().enumerate() {
-        if !demanded[i] || carried.contains_key(&i) {
+        if !demanded[i] || carried.contains_key(&i) || (checked && step.op() != "base") {
             continue;
         }
         match step.op() {
@@ -157,6 +168,7 @@ pub(in super::super) fn evaluate_covered(
         }
         let _schema = exec.schema(run, i)?;
         match step.op() {
+            _ if checked => {}
             "select" => {
                 let select = exec.sel(run, i)?;
                 for expr in select
@@ -196,15 +208,24 @@ pub(in super::super) fn evaluate_covered(
                 };
                 deps[i] = mask;
                 if step.op() != "base" && !zero[i]
+                    && mask & reuse::VARIABLE == 0
                     && let Some((memo, scope)) = memo.as_mut()
-                    && let Some(table) = memo.get(i, mask, *scope)
                 {
-                    zero[i] = table.n == 0;
-                    exec.run_memo[i] = Some(table);
-                    deps[i] |= reuse::RESTORED;
+                    let hit = memo.get(i, mask, *scope);
+                    if let Some(start) = super::operators::enter(usize::MAX - 2, 0) {
+                        super::operators::leave(start, if hit.is_some() { "memo-hit" } else { "memo-miss" }, 0, true);
+                    }
+                    if let Some(table) = hit {
+                        zero[i] = table.n == 0;
+                        exec.run_memo[i] = Some(table);
+                        deps[i] |= reuse::RESTORED;
+                    }
                 }
             }
         }
+    }
+    if complete && !checked {
+        exec.closed_checked = Some((carried_steps, demanded.clone()));
     }
     super::subject_scope::restrict(exec,run,carried,&admit_file_subject)?;
     let scratch = NodeTable::default();
@@ -564,10 +585,15 @@ pub(in super::super) fn gather(
         } else {
             None
         };
-        if let Some(table) = edges {
-            result.push((i, table, true));
-        } else if incomplete.is_empty()
-            && let Some(table) = contribution::gather(projections, i, slots, frame, run) {
+        let carried = match edges {
+            Some(table) => Some(table),
+            None if incomplete.is_empty() => {
+                let keys = contribution::demanded(projections, i, slots, exec, frame, run, facts)?;
+                contribution::gather(projections, i, slots, frame, run, keys.as_deref())
+            }
+            None => None,
+        };
+        if let Some(table) = carried {
             result.push((i, table, true));
         } else {
             result.push((i, exec.eval(frame, run, facts, slots[i])?, false));
@@ -575,6 +601,11 @@ pub(in super::super) fn gather(
     }
     if !run.missing.is_empty() {
         return Err(format!("unimplemented functions {:?}", run.missing));
+    }
+    for (i, table, _) in &result {
+        if let Some(start) = super::operators::enter(*i, 0) {
+            super::operators::leave(start, &format!("carried-{i}-{}", exec.plan.nodes[slots[*i]].op()), table.n, true);
+        }
     }
     Ok(result)
 }

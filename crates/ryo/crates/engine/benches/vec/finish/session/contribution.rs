@@ -1,13 +1,22 @@
 //! A local projection read after closure can use the provider's ordinal as a join key.
 //! Each child edge has exactly one row with that child ID, in node order.
-use super::super::{E, Exec, File, Native, Op, Run, Schema, Supplier, Table, Ty, ViewSpec, view_cols};
+use super::super::{E, Exec, File, Native, Op, Provider, R, Run, Schema, Supplier, Table, Ty, ViewSpec, view_cols};
+use super::demand::Nodes;
 use std::{
     collections::{BTreeMap, HashMap},
     rc::Rc,
 };
 
+/// Where a reader's keys come from: the demanded rows are those keyed by the
+/// nodes a file-local origin can hold, or the nodes themselves.
+#[derive(Clone)]
+enum Keys {
+    Column(Nodes),
+    Nodes(Nodes),
+}
+
 pub(in super::super::super) struct Projection {
-    demand: Option<(usize, Rc<ViewSpec>)>,
+    demand: Option<Keys>,
     source: usize,
     tree: Rc<ViewSpec>,
     schema: Rc<Schema>,
@@ -27,6 +36,10 @@ enum Rows {
     },
     // The equality links this node ID to the child column of its parent edge.
     WithParent,
+    // The view's rows at the demanded nodes only: a row is a node.
+    Nodes,
+    // The native edges whose parent is a demanded node.
+    Edges,
 }
 
 // Equality is structural within this reader run. Hashing never identifies a
@@ -81,31 +94,14 @@ impl Projection {
         if let Some(cut) = cut {
             for (&node, mask) in &cut.columns {
                 let local_reader = exec.plan.consumers(node).iter().any(|&u| cut.file_steps[u]);
-                if let Some(mut plan) =
-                    Self::prepare(exec, run, node, mask, local_reader, tests.get(&node))
+                let keys = cut
+                    .domains
+                    .get(&node)
+                    .map(|(column, nodes)| (*column, Keys::Column(nodes.clone())))
+                    .or_else(|| cut.reach.get(&node).map(|nodes| (usize::MAX, Keys::Nodes(nodes.clone()))));
+                if let Some(plan) =
+                    Self::prepare(exec, run, node, mask, local_reader, tests.get(&node), keys)
                 {
-                    if let Some(&(c, domain)) = cut.domains.get(&node)
-                        && plan
-                            .columns
-                            .iter()
-                            .any(|&(out, base, col)| out == c && base == Native::Child && col == 0)
-                        && let Some(view) = exec.view(run, domain).ok().flatten()
-                        && view.base == Native::Tree
-                        && !view.filter.is_empty()
-                        && exec
-                            .schema(run, domain)
-                            .ok()
-                            .and_then(|s| s.names.iter().position(|n| n == "id"))
-                            .is_some_and(|id| view.map[id] == 0)
-                        && view
-                            .filter
-                            .iter()
-                            .chain(&plan.tree.filter)
-                            .all(super::certificate::total)
-                    {
-                        plan.demand = Some((domain, view));
-                        plan.share_with_local_reader = false;
-                    }
                     plans.insert(node, plan);
                 }
             }
@@ -124,8 +120,35 @@ impl Projection {
         mask: &[bool],
         local_reader: bool,
         tests: Option<&Vec<(usize, u64)>>,
+        reader_keys: Option<(usize, Keys)>,
     ) -> Option<Self> {
         let step = &exec.plan.nodes[node];
+        if step.op() == "base" {
+            let (column, keys) = reader_keys?;
+            let Keys::Column(_) = keys else {
+                return None;
+            };
+            let tree = exec.view(run, node).ok()??;
+            if tree.base != Native::Child || !tree.filter.is_empty() || tree.map.get(column) != Some(&0) {
+                return None;
+            }
+            let columns = tree
+                .map
+                .iter()
+                .enumerate()
+                .filter(|(c, _)| mask.get(*c) != Some(&false))
+                .map(|(c, &col)| (c, Native::Child, col))
+                .collect();
+            return Some(Self {
+                demand: Some(keys),
+                source: node,
+                schema: exec.schema(run, node).ok()?,
+                tree,
+                columns,
+                rows: Rows::Edges,
+                share_with_local_reader: false,
+            });
+        }
         if step.op() != "select" || step.semi().is_some() || step.counted() {
             return None;
         }
@@ -163,9 +186,37 @@ impl Projection {
             {
                 return None;
             }
+            let Some(tests) = tests else {
+                // A view is read in place by position: with no literal test it is
+                // entered only at the nodes the reader can reach.
+                let (column, keys) = reader_keys?;
+                let key = match keys {
+                    Keys::Column(_) => column,
+                    Keys::Nodes(_) => super::super::pos(&schema.names, "id").ok()?,
+                };
+                if tree.map.get(key) != Some(&0) || !tree.filter.iter().all(super::certificate::total) {
+                    return None;
+                }
+                let columns = tree
+                    .map
+                    .iter()
+                    .enumerate()
+                    .filter(|(c, _)| read(*c))
+                    .map(|(c, &col)| (c, Native::Tree, col))
+                    .collect();
+                return Some(Self {
+                    demand: Some(keys),
+                    source: node,
+                    tree,
+                    schema,
+                    columns,
+                    rows: Rows::Nodes,
+                    share_with_local_reader: false,
+                });
+            };
             let mut kinds = Vec::new();
             let mut words = Vec::new();
-            for &(col, symbol) in tests? {
+            for &(col, symbol) in tests {
                 match tree.map.get(col)? {
                     1 => kinds.push(u32::try_from(symbol).ok()?),
                     2 => words.push(u32::try_from(symbol).ok()?),
@@ -234,18 +285,38 @@ impl Projection {
                 columns.push((c, views[*side].base, views[*side].map[*col]));
             }
         }
+        // Only the edges of the demanded parents can meet the other side.
+        let demand = reader_keys.and_then(|(column, keys)| {
+            let Keys::Column(_) = keys else {
+                return None;
+            };
+            columns
+                .iter()
+                .any(|&(out, base, col)| out == column && base == Native::Child && col == 0)
+                .then_some(keys)
+        });
+        if demand.is_some() && !views[tree_side].filter.iter().all(super::certificate::total) {
+            return None;
+        }
+        let shared = local_reader && demand.is_none();
         Some(Self {
-            demand: None,
+            demand,
             source: plan.srcs[tree_side],
             tree: views[tree_side].clone(),
             schema,
             columns,
             rows: Rows::WithParent,
-            share_with_local_reader: local_reader,
+            share_with_local_reader: shared,
         })
     }
 
-    fn gather(&self, slots: &[usize], file: &mut File<'_>, run: &mut Run) -> Option<Table> {
+    fn gather(
+        &self,
+        slots: &[usize],
+        file: &mut File<'_>,
+        run: &mut Run,
+        keys: Option<&[u32]>,
+    ) -> Option<Table> {
         let rows = match &self.rows {
             Rows::ProviderProjection => return None,
             Rows::Literals { kinds, text_slots } => {
@@ -261,11 +332,14 @@ impl Projection {
                 view_cols::retain_original(file, run, &self.tree, &mut rows);
                 rows
             }
-            Rows::WithParent if self.demand.is_some() => {
-                let (domain, view) = self.demand.as_ref().unwrap();
-                let parents = super::super::view_rows_for(file, run, view, slots[*domain], true);
+            Rows::Nodes => {
+                let mut rows = keys?.to_vec();
+                view_cols::retain_original(file, run, &self.tree, &mut rows);
+                rows
+            }
+            Rows::Edges | Rows::WithParent if self.demand.is_some() => {
                 let mut rows = Vec::new();
-                for &parent in parents.iter() {
+                for &parent in keys? {
                     file.native_probe(run, Native::Child, 0, u64::from(parent), &mut rows);
                 }
                 rows.sort_unstable();
@@ -273,6 +347,7 @@ impl Projection {
                 view_cols::retain_original(file, run, &self.tree, &mut rows);
                 rows
             }
+            Rows::Edges => return None,
             Rows::WithParent => {
                 let nodes = super::super::view_rows_for(file, run, &self.tree, slots[self.source], true);
                 nodes
@@ -292,12 +367,30 @@ impl Projection {
     }
 }
 
+/// The nodes a bound projection can be read at, if its reader demands any.
+pub(super) fn demanded(
+    plans: &BTreeMap<usize, Projection>,
+    node: usize,
+    slots: &[usize],
+    exec: &mut Exec<'_>,
+    file: &mut File<'_>,
+    run: &mut Run,
+    facts: &mut dyn Provider,
+) -> R<Option<Vec<u32>>> {
+    let Some(keys) = plans.get(&node).and_then(|p| p.demand.as_ref()) else {
+        return Ok(None);
+    };
+    let (Keys::Column(nodes) | Keys::Nodes(nodes)) = keys;
+    Ok(Some(super::demand::nodes_of(exec, run, file, facts, slots, nodes)?))
+}
+
 pub(super) fn gather(
     plans: &BTreeMap<usize, Projection>,
     node: usize,
     slots: &[usize],
     file: &mut File<'_>,
     run: &mut Run,
+    keys: Option<&[u32]>,
 ) -> Option<Rc<Table>> {
     let plan = plans.get(&node)?;
     if plan.share_with_local_reader
@@ -305,7 +398,7 @@ pub(super) fn gather(
     {
         return Some(t.clone());
     }
-    let table = Rc::new(plan.gather(slots, file, run)?);
+    let table = Rc::new(plan.gather(slots, file, run, keys)?);
     if plan.share_with_local_reader {
         file.remember(slots[node], super::super::Res::Tab(table.clone()));
     }

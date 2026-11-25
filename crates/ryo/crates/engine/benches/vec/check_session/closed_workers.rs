@@ -155,6 +155,7 @@ impl<'a> SharedPopulation<'a> {
 #[cfg(feature = "product-session")]
 struct Job<'a> {
     slot: usize,
+    program: usize,
     project: Option<usize>,
     pairs: &'a [usize],
     inventory: &'a [String],
@@ -191,6 +192,7 @@ pub(super) fn run(
             plan = Some(&batch.schedule.programs[batch.program_of[*binding]].as_ref().unwrap().plan);
             jobs.push(Job {
                 slot,
+                program: batch.program_of[*binding],
                 project: *project,
                 pairs,
                 inventory,
@@ -237,6 +239,7 @@ pub(super) fn run(
         for (plan, jobs) in programs.iter().skip(shard).step_by(count) {
             let mut exec = finish::Exec::new(plan);
             for job in jobs {
+                let _profile = finish::operators::scope(job.program, "closed");
                 let answer = (|| {
                     let p = match job.project {
                         Some(id) => {
@@ -245,14 +248,23 @@ pub(super) fn run(
                         }
                         None => None,
                     };
-                    match inputs(&run, job.contract, available, job.pairs, job.inventory, job.files,
-                        job.cut, p, answers, |steps| frontier.joined(job.pairs, steps, &mut local_blocks, &mut schemas))?
+                    let delivered = finish::operators::enter(usize::MAX, 0);
+                    let ready = inputs(&run, job.contract, available, job.pairs, job.inventory, job.files,
+                        job.cut, p, answers, |steps| frontier.joined(job.pairs, steps, &mut local_blocks, &mut schemas));
+                    if let Some(start) = delivered {
+                        finish::operators::leave(start, "closed-deliver", 0, true);
+                    }
+                    match ready?
                     {
                         Inputs::Withheld(answer) => Ok(answer),
                         Inputs::Ready { carried, incomplete, unknowns, skipped } => {
-                            execute_ids(&mut exec, &mut run, numbers[job.inventory_key].as_deref().expect("closed inventory assigned"), &carried,
-                                job.inventory, job.files, job.hosted, p, &incomplete, None)
-                                .map(|rows| session::Reported::new(rows, unknowns, skipped))
+                            let evaluated = finish::operators::enter(usize::MAX - 1, 0);
+                            let rows = execute_ids(&mut exec, &mut run, numbers[job.inventory_key].as_deref().expect("closed inventory assigned"), &carried,
+                                job.inventory, job.files, job.hosted, p, &incomplete, None);
+                            if let Some(start) = evaluated {
+                                finish::operators::leave(start, "closed-execute", rows.as_ref().map_or(0, Vec::len), true);
+                            }
+                            rows.map(|rows| session::Reported::new(rows, unknowns, skipped))
                         }
                     }
                 })();
@@ -260,6 +272,7 @@ pub(super) fn run(
                 output.push((job.slot, answer));
             }
         }
+        let _ = finish::operators::flush();
         output
     };
 
