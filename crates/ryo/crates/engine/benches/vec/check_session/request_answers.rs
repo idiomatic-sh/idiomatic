@@ -100,7 +100,7 @@ pub(super) struct Observations {
     pub hash_bytes: usize,
     pub open_cpu: f64,
     files: HashMap<PathBuf, FileObservation>,
-    kinds: HashMap<PathBuf, Option<Key>>,
+    kinds: HashMap<PathBuf, Option<u8>>,
     buffer: Vec<u8>,
     pub path_hits: usize,
     pub inode_hits: usize,
@@ -187,16 +187,20 @@ impl Observations {
         }
     }
 
+    pub(super) fn observe_kind(&mut self, path: &Path) -> Option<u8> {
+        if let Some(&state) = self.kinds.get(path) {
+            self.path_hits += 1;
+            return state;
+        }
+        let state = kind(path).ok();
+        self.kinds.insert(path.to_owned(), state);
+        state
+    }
+
     pub fn observe(&mut self, p: &Path, mode: Probe) -> Option<Key> {
         debug_assert!(!matches!(mode, Probe::Effective | Probe::Inventory));
         if mode == Probe::Kind {
-            if let Some(v) = self.kinds.get(p) {
-                self.path_hits += 1;
-                return *v;
-            }
-            let v = kind(p).ok().map(key);
-            self.kinds.insert(p.to_owned(), v);
-            return v;
+            return self.observe_kind(p).map(key);
         }
         if let Some(file) = self.files.get_mut(p) {
             self.path_hits += 1;
@@ -293,7 +297,7 @@ impl Observations {
             && self
                 .kinds
                 .iter()
-                .all(|(path, prior)| kind(path).ok().map(key) == *prior)
+                .all(|(path, prior)| kind(path).ok() == *prior)
     }
     pub fn checked_groups(&self) -> usize {
         self.groups.len()

@@ -5,7 +5,7 @@ use super::{
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
     hash::{Hash, Hasher},
     io::{self, Write},
@@ -93,6 +93,7 @@ impl Report {
 
 #[derive(Serialize, Deserialize)]
 struct Notes {
+    context: Option<Proof>,
     reader: Option<usize>,
     notes: Vec<u8>,
     manifest: Option<Box<str>>,
@@ -131,6 +132,7 @@ enum BlockId {
 }
 #[derive(Default, Serialize, Deserialize)]
 struct FileAnswers {
+    context: Option<Proof>,
     pairs: BTreeMap<Key, Local>,
     blocks: Vec<BlockId>,
     #[serde(skip)]
@@ -198,12 +200,15 @@ pub(super) struct Store {
     work_inputs: HashMap<usize, InputScope>,
     supplied_versions: HashMap<usize, Key>,
     versions: Vec<Option<Key>>,
+    files_valid: Vec<bool>,
+    notes_valid: Vec<bool>,
     pairs: Vec<Option<(usize, usize)>>,
     program_keys: Vec<Key>,
     binding_keys: Vec<Key>,
     plans: Vec<Option<RequestPlan>>,
     observed_entries: HashMap<Arc<str>, BTreeMap<PathBuf, Option<u8>>>,
     environment_proofs: HashMap<Arc<str>, Option<Proof>>,
+    reused_context: HashSet<(Arc<str>, Proof)>,
     keep_pairs: Vec<bool>,
     local_rows: Vec<bool>,
     project_proofs: HashMap<usize, Option<Proof>>,
@@ -302,12 +307,15 @@ impl Store {
             work_inputs: HashMap::new(),
             supplied_versions: HashMap::new(),
             versions: vec![],
+            files_valid: vec![],
+            notes_valid: vec![],
             pairs: vec![],
             program_keys: vec![],
             binding_keys: vec![],
             plans: vec![],
             observed_entries: HashMap::new(),
             environment_proofs: HashMap::new(),
+            reused_context: HashSet::new(),
             keep_pairs: vec![],
             local_rows: vec![],
             project_proofs: HashMap::new(),
@@ -632,13 +640,10 @@ impl Store {
     ) {
         self.project_proofs.clear();
         self.environment_proofs.clear();
+        self.reused_context.clear();
         let prior = self.versions.len();
         self.versions
             .extend(b.schedule.sources.iter().enumerate().skip(prior).map(|(index, source)| {
-                // This snapshot format records file and project-phase dependencies.
-                // A contextual file supplier can also observe entries during its visit.
-                // Recompute it until those probes are part of the stored proof.
-                if source.environment.is_some() { return None; }
                 if let Some(&version) = self.supplied_versions.get(&index) {
                     return source.version_key(version);
                 }
@@ -689,6 +694,7 @@ impl Store {
         }
         let mut needed = vec![false; self.pairs.len()];
         let mut frontier = vec![false; self.pairs.len()];
+        let mut frontier_sources = vec![false; b.schedule.sources.len()];
         self.keep_pairs = vec![false; self.pairs.len()];
         self.local_rows = vec![false; self.pairs.len()];
         let mut projects = BTreeSet::new();
@@ -713,6 +719,9 @@ impl Store {
                 needed[slot] = true;
                 self.local_rows[slot] |= !closed || scope.is_some();
                 frontier[slot] |= closed;
+                if closed && let Some((source, _)) = self.pairs[slot] {
+                    frontier_sources[source] = true;
+                }
                 self.keep_pairs[slot] |= closed || pairs.len() > 1;
             }
             let local = pairs
@@ -776,14 +785,25 @@ impl Store {
             }
             self.plans.push(proof.map(|proof| RequestPlan { proof, unread: Vec::new(), environments }));
         }
+        self.files_valid.resize(self.versions.len(), false);
+        self.notes_valid.resize(self.versions.len(), false);
+        self.files_valid.fill(false);
+        self.notes_valid.fill(false);
         for (i, src) in b.schedule.sources.iter().enumerate() {
-            if let Some(v) = self.versions[i] {
-                if projects.contains(&i) {
-                    self.notes.open(&self.dir, &v);
-                }
-                if src.bindings.iter().any(|&(_, slot)| self.keep_pairs[slot]) {
-                    self.files.open(&self.dir, &v);
-                }
+            let Some(version) = self.versions[i] else { continue };
+            if projects.contains(&i) {
+                self.notes.open(&self.dir, &version);
+                let context = self.notes.get(&version).map(|notes| notes.context);
+                self.notes_valid[i] = context.is_some_and(|proof| {
+                    self.reuse_context(src.environment.as_deref(), proof)
+                });
+            }
+            if frontier_sources[i] || src.bindings.iter().any(|&(_, slot)| self.keep_pairs[slot]) {
+                self.files.open(&self.dir, &version);
+                let context = self.files.get(&version).map(|file| file.context);
+                self.files_valid[i] = context.is_some_and(|proof| {
+                    self.reuse_context(src.environment.as_deref(), proof)
+                });
             }
         }
         let restore_start = crate::thread_cpu();
@@ -804,8 +824,10 @@ impl Store {
             let Some(version) = self.versions[source] else {
                 continue;
             };
+            if !self.files_valid[source] {
+                continue;
+            }
             let binding = self.binding_keys[binding];
-            self.files.open(&self.dir, &version);
             let Some(file) = self.files.get(&version) else {
                 continue;
             };
@@ -854,10 +876,11 @@ impl Store {
             if !projects.contains(&i) {
                 src.project = false;
             }
-            let held = self.versions[i].and_then(|v| self.files.get(&v));
+            let held = self.versions[i].and_then(|v| self.files.get(&v))
+                .filter(|_| self.files_valid[i]);
             if let Some(notes) = self.versions[i]
                 .and_then(|v| self.notes.get(&v))
-                .filter(|_| src.project)
+                .filter(|_| src.project && self.notes_valid[i])
             {
                 contributions[i] = Some(Rc::new(project::Contribution {
                     reader: notes.reader,
@@ -923,13 +946,21 @@ impl Store {
             if src.bindings.is_empty() && !src.project {
                 continue;
             }
+            let context = match &src.environment {
+                None => None,
+                Some(environment) => match self.environment_proof(environment.id.clone()) {
+                    Some(proof) => Some(proof),
+                    None => continue,
+                },
+            };
             if src.project
                 && let Some(notes) = &contributions[i]
-                && self.notes.get(&version).is_none()
+                && !self.notes_valid[i]
             {
                 self.notes.insert(
                     version,
                     Notes {
+                        context,
                         reader: notes.reader,
                         notes: notes.notes.0.clone(),
                         manifest: notes.manifest.as_ref().map(|m| m.0.clone()),
@@ -939,8 +970,12 @@ impl Store {
             if !src.bindings.iter().any(|&(_, s)| self.keep_pairs[s]) {
                 continue;
             }
-            self.files.open(&self.dir, &version);
             let file = self.files.change(&version);
+            if !self.files_valid[i] {
+                *file = FileAnswers::default();
+                self.files_valid[i] = true;
+            }
+            file.context = context;
             for &(_, slot) in &src.bindings {
                 if !self.keep_pairs[slot] {
                     continue;
@@ -1054,6 +1089,37 @@ impl Store {
         }
     }
 
+    fn reuse_context(&mut self, environment: Option<&project::Environment>, proof: Option<Proof>) -> bool {
+        let Some(environment) = environment else {
+            return proof.is_none();
+        };
+        let Some((group, expected)) = proof else {
+            return false;
+        };
+        let reuse = (environment.id.clone(), (group, expected));
+        if self.reused_context.contains(&reuse) {
+            return true;
+        }
+        self.groups.open(&self.dir, &group);
+        let Some(paths) = self.groups.get(&group) else {
+            return false;
+        };
+        if paths.iter().any(|&(_, mode)| mode != Probe::Kind)
+            || self.observed.group(group, paths, &self.names, None) != Some(expected)
+        {
+            return false;
+        }
+        // A new request may combine a saved contribution with freshly evaluated
+        // files. Its proof must include observations of every saved contribution.
+        let entries = self.observed_entries.entry(environment.id.clone()).or_default();
+        for &(name, _) in paths {
+            let path = &self.names[name as usize];
+            merge_entry(entries, path.clone(), self.observed.observe_kind(path));
+        }
+        self.reused_context.insert(reuse);
+        true
+    }
+
     fn remember_entries(&mut self, environment: &project::Environment) {
         let entries = self.observed_entries.entry(environment.id.clone()).or_default();
         environment.observed(|relative, observed| {
@@ -1064,10 +1130,7 @@ impl Store {
             );
             // Later work can borrow rows from an earlier round in this overlay.
             // Include its observations and decline if a probe gave conflicting evidence.
-            let prior = entries.entry(path).or_insert(state);
-            if *prior != state {
-                *prior = None;
-            }
+            merge_entry(entries, path, state);
         });
     }
 
@@ -1078,8 +1141,7 @@ impl Store {
         let mut paths = Vec::new();
         let proof = self.observed_entries.get(&environment).and_then(|entries| {
             for (path, &state) in entries {
-                let expected = key(state?);
-                if self.observed.observe(path, Probe::Kind) != Some(expected) {
+                if self.observed.observe_kind(path) != Some(state?) {
                     return None;
                 }
                 paths.push((path.clone(), Probe::Kind));
@@ -1110,6 +1172,13 @@ impl Store {
             paths.push((path, probe));
         }
         self.group(paths, None)
+    }
+}
+
+fn merge_entry(entries: &mut BTreeMap<PathBuf, Option<u8>>, path: PathBuf, state: Option<u8>) {
+    let prior = entries.entry(path).or_insert(state);
+    if *prior != state {
+        *prior = None;
     }
 }
 
@@ -1149,8 +1218,14 @@ mod tests {
         store.put(request, Packet::declined("from proved absence"), vec![proof], vec![], String::new);
         assert!(store.publish().unwrap() > 0);
         assert!(open().lookup(request).is_some());
+        let mut reused = open();
+        assert!(!reused.reuse_context(Some(&environment), None));
+        assert!(reused.reuse_context(Some(&environment), Some(proof)));
+        assert_eq!(reused.environment_proof(environment.id.clone()), Some(proof));
         fs::write(root.path().join(marker), b"now present").unwrap();
-        assert!(open().lookup(request).is_none());
+        let mut edited = open();
+        assert!(!edited.reuse_context(Some(&environment), Some(proof)));
+        assert!(edited.lookup(request).is_none());
 
         let unknown = project::Environment::new("unknown".into(), Authority::Given, BTreeSet::new(), epoch);
         assert!(matches!(l::FileProject::entry(&unknown, marker), l::ObservedEntryState::Unknown));
