@@ -222,7 +222,7 @@ impl PNode {
         });
         input
     }
-    pub(super) fn summary_text(&self) -> String {
+    pub(crate) fn summary_text(&self) -> String {
         super::json_output::step(self.step())
     }
     pub(crate) fn step(&self) -> &FinishStep {
