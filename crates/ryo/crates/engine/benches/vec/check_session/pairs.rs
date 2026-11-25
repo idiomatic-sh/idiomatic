@@ -353,10 +353,10 @@ impl Checks {
         }
     }
 
-    /// The catalog relations this screen asks about before it loads any column: the row guards and the symbol
-    /// predicates. Every other relation it reads is loaded, and so filled, only when a witness needs it.
+    /// The catalog relations this screen asks about before it loads any column: the symbol predicates. Every other
+    /// relation it reads, a row guard included, is loaded, and so filled, only when a witness needs it.
     pub(super) fn asked_first(&self) -> Vec<l::Relation> {
-        let mut asked: Vec<_> = self.row_guards.iter().map(|&(_, relation)| relation).collect();
+        let mut asked = Vec::new();
         for domain in &self.program.domains {
             if let pair_summary::Domain::Matching(slot, column, _) = domain {
                 let fact = &self.program.facts[*slot];

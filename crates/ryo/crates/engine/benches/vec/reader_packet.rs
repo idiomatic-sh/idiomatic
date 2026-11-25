@@ -142,6 +142,8 @@ pub(crate) struct Packet {
     spare: RefCell<FxHashMap<usize, FilledColumns>>,
     requested: Vec<bool>,
     indexed: Vec<usize>,
+    /// The file fills its numbered relations when a step first loads them: a relation not yet filled has no row count.
+    pub(crate) lazy_fills: bool,
     pub(crate) ready: bool,
 }
 impl Packet {
@@ -153,6 +155,7 @@ impl Packet {
             spare: Default::default(),
             requested: vec![false; RELATIONS],
             indexed: Vec::new(),
+            lazy_fills: false,
             ready: false,
         }
     }
@@ -175,6 +178,7 @@ impl Packet {
             }
         }
         self.ready = false;
+        self.lazy_fills = false;
     }
     /// The structural projection has its own provider contract. Every filled
     /// catalog relation is published directly in columns, once for this file.
@@ -284,6 +288,11 @@ impl Packet {
     /// caller withholds this observation when the provider declared a partial.
     pub(crate) fn has_rows(&self, relation: l::Relation) -> Option<bool> {
         let slot = catalog::number_of(relation).0;
+        if self.lazy_fills && self.local[slot].get().is_none()
+            && ryo_relations::domain::catalog::service::fact_form(relation) != ryo_relations::domain::relations::types::FactForm::NodeTable
+        {
+            return None;
+        }
         (self.ready && self.requested[slot]).then(|| self.count(slot) != 0)
     }
     /// Visit a complete symbol column without interpreting unrelated node IDs.

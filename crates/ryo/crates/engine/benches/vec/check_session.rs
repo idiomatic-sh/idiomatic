@@ -1214,6 +1214,7 @@ pub(crate) fn visit<L: FileSource>(
                     at: PartialScope::OneFile(PartialAt(file.0)),
                 }))
                 .collect();
+            packet.lazy_fills = lazy_fills;
             let supplier_cell = scoped_facts.take().map(std::cell::RefCell::new);
             let lazy = supplier_cell.as_ref().filter(|_| lazy_fills).map(reader_run::packet::Lazy::new);
             if unknown_permission {
