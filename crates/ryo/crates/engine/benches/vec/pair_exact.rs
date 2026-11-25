@@ -166,7 +166,7 @@ fn fact_projection<'a>(
                 d
             } else if let Some((c, cmp, value)) = numeric_comparison(e) {
                 b.number(Attribute::Cell(slot, column(c)?), cmp, value)?
-            } else if let PlanExpression::Call(f) = e {
+            } else if let PlanExpression::Call(f) = e.as_ref() {
                 let [
                     PlanExpression::Column(c),
                     PlanExpression::Literal(PlanConstant::Text(p)),
