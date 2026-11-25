@@ -193,7 +193,10 @@ pub(crate) fn dispatch<L: FileSource>(
         (a, links, slots, owned, part.transfer(prefix), time, local.bytes, wall.elapsed().as_secs_f64())
     };
     {
-        let (results, children) = jobs::run(&shards, |shard| work(shard));
+        let (results, children) = jobs::run(&shards, |shard| {
+            let _budget = finish::PoolBudget::for_workers(shards.len());
+            work(shard)
+        });
         clocks.file_workers_cpu += children;
         let mut transfers = Vec::with_capacity(shards.len());
         let mut longest = 0.0_f64;

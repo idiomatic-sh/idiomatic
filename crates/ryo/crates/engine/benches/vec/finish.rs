@@ -223,6 +223,27 @@ thread_local! {
 /// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it (redo-alloc c8
 /// tried 64 MB: no fewer misses, 37 MB more live).
 const POOL_CELLS: usize = 1 << 22;
+
+thread_local! {
+    /// The cells this thread's pool may keep: all of `POOL_CELLS` for a lone thread, a share of it for a file worker.
+    static POOL_LIMIT: std::cell::Cell<usize> = const { std::cell::Cell::new(POOL_CELLS) };
+}
+
+/// Retained columns are a request budget. Each participating thread keeps its share locally while it visits its
+/// shard; no other thread reads this pool.
+pub(crate) struct PoolBudget(usize);
+
+impl PoolBudget {
+    pub(crate) fn for_workers(workers: usize) -> Self {
+        POOL_LIMIT.with(|limit| Self(limit.replace(POOL_CELLS / workers.max(1))))
+    }
+}
+
+impl Drop for PoolBudget {
+    fn drop(&mut self) {
+        POOL_LIMIT.with(|limit| limit.set(self.0));
+    }
+}
 /// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 16 = 2^18).
 const CLASSES: usize = 20;
 
@@ -305,7 +326,7 @@ impl Table {
             let (p, cells) = &mut *p.borrow_mut();
             for mut c in self.cols.drain(..) {
                 let cap = c.capacity();
-                if cap == 0 || cap > POOL_CELLS / 16 || *cells + cap > POOL_CELLS {
+                if cap == 0 || cap > POOL_CELLS / 16 || *cells + cap > POOL_LIMIT.with(std::cell::Cell::get) {
                     continue;
                 }
                 c.clear();
