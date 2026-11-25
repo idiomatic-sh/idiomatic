@@ -88,6 +88,8 @@ struct Admission {
     project_bases: Vec<l::Relation>,
     closed: bool,
     file_cells: bool,
+    /// A caller table keyed by File is read in the visit: its states must be settled at admission.
+    sliced_host: bool,
     file_inventory: bool,
     layout: Option<(Vec<l::Relation>, Arc<session::completeness::Contract>)>,
     cut: Option<Arc<finish::partition::Partition>>,
@@ -203,6 +205,7 @@ impl Admission {
             project_bases: held,
             closed: scope_only || wide,
             file_cells: numbered_host,
+            sliced_host: numbered_host && !unsliced_host,
             file_inventory: program.bases.iter().any(|name| name == "filesystem.file"),
             cut,
             layout,
@@ -238,6 +241,7 @@ impl Batch {
         sdk: Option<LiveAdmission<'_>>,
         layouts: Option<(&[L], Option<&project::Environment>)>,
     ) -> Result<Work, String> {
+        let mut inventory_for = Some(inventory_for);
         let rule=self.prepared_rule(query.clone(),&req.parameters);
         let program=match &self.schedule.programs[rule]{Ok(p)=>p,Err(reason)=>return Ok(Work::Invalid(reason.clone()))};
         let mut host_ids = Vec::new();
@@ -264,6 +268,17 @@ impl Batch {
                 class
             }
         };
+        if class.sliced_host {
+            // The closed phase refuses a partial caller table and an inventory it cannot
+            // number. A program read in the visits may see no file, so refuse here.
+            if let Some(table) = req.hosted.iter().find(|table| table.partial.is_some()) {
+                let reason = table.partial.as_deref().unwrap_or_default();
+                return Ok(Work::Refused(format!("partial {}: {reason}", table.name)));
+            }
+            if !class.closed && req.inventory.is_none() && inventory_for.take().ok_or("inventory reader")?(&req.root)?.is_none() {
+                return Err("incomplete project inventory".into());
+            }
+        }
         if let (Some((relations, _)), Some((readers, environment)), Some(inventory), Some(authority)) =
             (&class.layout, layouts, &req.inventory, &req.repository)
             && !req.files.is_empty()
@@ -295,7 +310,7 @@ impl Batch {
             let t = thread_cpu();
             let inventory = match req.inventory {
                 Some(paths) => Some(paths),
-                None => inventory_for(&req.root)?,
+                None => inventory_for.take().ok_or("inventory reader")?(&req.root)?,
             }
                 .or_else(|| {
                     (!class.file_cells && (!req.files.is_empty() || !class.file_inventory)).then(|| {
