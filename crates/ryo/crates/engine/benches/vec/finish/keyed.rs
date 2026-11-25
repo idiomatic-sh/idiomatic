@@ -147,6 +147,10 @@ impl Exec<'_> {
         if let Some(Res::Tab(t)) = &f.memo[node] {
             return Ok(t.n);
         }
+        // a size found in this file is the answer for every later ask of the same step (it only orders reads; 0 is exact)
+        if let Some(&n) = f.keyed_sizes.get(&node) {
+            return Ok(n);
+        }
         if let Some(v) = self.view(run, node)? {
             // a view over a fill not read yet in this file: not read for a size
             if let super::Native::Fact(x) = v.base
@@ -163,7 +167,7 @@ impl Exec<'_> {
             if let Some(r) = f.vrows.slot(&node) {
                 return Ok(r.len());
             }
-            return Ok(match super::kind_set(run, &v.filter, 0, v.base, &[]) {
+            let size = match super::kind_set(run, &v.filter, 0, v.base, &[]) {
                 Some(ks) => super::bucket_len(f, run, &ks),
                 None => match super::select_kernel::lit_file(f, super::select_kernel::LIT_FILTER | node, &v.filter, 0, v.base, &[]) {
                     Some(r) => r.len(),
@@ -173,7 +177,9 @@ impl Exec<'_> {
                         super::Native::Fact(i) => f.fact(usize::from(i)).map_or(0, |t| t.len()),
                     },
                 },
-            });
+            };
+            f.keyed_sizes.insert(node, size);
+            return Ok(size);
         }
         let form = self.keyed_form(run, node)?;
         if matches!(form, Form::Not) {
@@ -212,7 +218,7 @@ impl Exec<'_> {
                 sum
             }
         };
-        if make {
+        if make || n != usize::MAX {
             f.keyed_sizes.insert(node, n);
         }
         Ok(n)
