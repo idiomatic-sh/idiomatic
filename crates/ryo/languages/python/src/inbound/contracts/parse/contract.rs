@@ -29,6 +29,9 @@ pub(crate) struct ParseContract {
     pub(super) settings: PythonParserSettings,
     pub(super) syntax: Arc<dyn SyntaxPort>,
     pub(super) notes: Arc<dyn NotesPort>,
+    /// The walk, lent to the engine as numbered files.
+    #[cfg(feature = "fixtures")]
+    pub(super) numbered: languages::NumberedWalk<crate::domain::file_view::types::PythonWalk<crate::inbound::contracts::walk::contract::WalkPorts>>,
     #[cfg(test)]
     pub(super) model_preparations: std::sync::atomic::AtomicUsize,
 }
@@ -43,6 +46,10 @@ impl ParseContract {
     ) -> Self {
         Self {
             settings,
+            #[cfg(feature = "fixtures")]
+            numbered: languages::NumberedWalk::new(crate::domain::file_view::types::PythonWalk {
+                ports: crate::inbound::contracts::walk::contract::WalkPorts { settings, syntax: syntax.clone() },
+            }),
             syntax,
             notes,
             #[cfg(test)]
@@ -277,7 +284,7 @@ impl Parse for ParseContract {
 
 #[cfg(feature = "fixtures")]
 impl languages::FileRelations for ParseContract {
-    fn numbered(&self) -> Option<&dyn languages::NumberedVisit> { Some(self) }
+    fn numbered(&self) -> Option<&dyn languages::NumberedVisit> { Some(&self.numbered) }
     fn uses_project(&self) -> bool { true }
     fn declarations(&self) -> &'static [languages::FileRelation] {
         crate::fixtures::columns::ColumnFile::named_schemas()
@@ -289,46 +296,5 @@ impl languages::FileRelations for ParseContract {
         schemas.iter().map(|_| Err(languages::ParseError::Library {
             reason: languages::ToolMessage("these facts require the provider's numbered visit".into()),
         })).collect()
-    }
-}
-
-#[cfg(feature = "fixtures")]
-impl ParseContract {
-    /// Answer the named batch while its provider-owned file and model are live.
-    pub(super) fn named_in(
-        &self,
-        file: &mut crate::fixtures::columns::ColumnFile<'_, '_>,
-        projected: &[&languages::FileRelation],
-        request: languages::ParseRequest<'_>,
-        symbols: &mut languages::Symbols,
-        project: Option<&dyn languages::FileProject>,
-    ) -> Vec<Result<languages::FileRows, languages::ParseError>> {
-        let uses_package = |s: &languages::FileRelation| {
-            s.name == "import-head" && file.import_statement_count() != 0
-        };
-        let needs_package: Vec<_> = projected.iter().map(|s| uses_package(s)).collect();
-        let package = project.filter(|_| needs_package.iter().any(|&needed| needed)).map(|project| crate::fixtures::import_environment::package(project, request.path.0)).transpose();
-        let observed_package = package.as_ref().ok().and_then(Option::as_ref)
-            .map(|(_, root)| root.as_str());
-        let mut failure = None;
-        let mut prefixes = |target: &str| {
-            match crate::fixtures::import_environment::prefixes(project.expect("declared roots"), target) {
-                Ok(prefixes) => prefixes,
-                Err(error) => { failure = Some(error); Default::default() }
-            }
-        };
-        let lookup = project.filter(|p| p.roots().is_some()).map(|_| &mut prefixes as &mut dyn FnMut(&str) -> (String, String, bool));
-        let mut answers = file.answer_named_facts_covered(projected, request.file, request.bytes, symbols,
-            observed_package, lookup);
-        for ((schema, answer), needed) in projected.iter().zip(&mut answers).zip(needs_package) {
-            if needed && let Err(error) = &package {
-                *answer = Err(languages::ParseError::Library { reason: languages::ToolMessage(error.as_str().into()) });
-                continue;
-            }
-            if let Some(error) = failure.as_ref().filter(|_| schema.name == "import-head") {
-                *answer = Err(languages::ParseError::Library { reason: languages::ToolMessage(error.as_str().into()) });
-            }
-        }
-        answers
     }
 }

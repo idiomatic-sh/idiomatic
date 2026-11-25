@@ -2,6 +2,7 @@
 
 pub mod errors;
 pub mod interface;
+pub mod numbered;
 pub mod types;
 pub mod use_case;
 

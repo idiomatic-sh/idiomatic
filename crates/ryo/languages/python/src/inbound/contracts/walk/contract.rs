@@ -209,6 +209,7 @@ pub(crate) fn file_view<'a>(
             completeness: tree.completeness,
         },
         target,
+        import_presence: tree.import_presence,
         model: &mut scratch.model,
         built,
         analysed: Analysed::default(),

@@ -2,12 +2,17 @@
 //! the rows of one key, when an enabled program first reads them; a fill appends; the words those rows hold are the run's base
 //! words (the language's fixed names among them) or this file's.
 
+use crate::domain::diagnostics::types::SyntaxCompleteness;
 use crate::domain::files::types::SourcePath;
+use crate::domain::symbols::types::Symbols;
+use crate::inbound::use_cases::parse::errors::ParseError;
+use crate::inbound::use_cases::parse::named::{FileProject, FileRelation, FileRows};
+use crate::inbound::use_cases::parse::types::ParseRequest;
 use crate::domain::node_table::types::NodeTable;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
 use crate::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::types::{Column, Count, FileId, Missing, Relation};
+use ryo_relations::domain::relations::types::{Bytes, Column, Count, FileId, Missing, Relation};
 use std::sync::Arc;
 
 /// One file as the engine reads it: the node table, the bytes, the file's number in the run, and the language's per-file view
@@ -114,6 +119,58 @@ pub trait FactSource {
     ) -> FactAnswer;
     /// The source form of a node in a syntax role, for fixes (replaces `begin_semantics` and the retained parse).
     fn render(&mut self, request: RenderRequest) -> RenderOutcome;
+
+    /// Whether the syntax and the lexical stream of the file were read in full. A host that lends no language file says whole.
+    fn completeness(&self) -> FileCompleteness {
+        FileCompleteness { syntax: SyntaxCompleteness::Complete, lexical: SyntaxCompleteness::Complete }
+    }
+
+    /// Whether no relation of the file can answer in part, so each may be filled the first time a step reads it. A host that
+    /// cannot tell says no.
+    fn fills_are_complete(&mut self) -> bool {
+        false
+    }
+
+    /// APPENDS to `out` the project notes the file's language reads from the file, encoded; nothing for a host without notes.
+    fn notes(&mut self, _table: &NodeTable, _source: ByteSlice<'_>, _out: &mut Bytes) {}
+
+    /// The rows of the file-scope relations a language declares beside the catalog's, in request order; a refusal each for a
+    /// host or a language that declares none.
+    fn named(&mut self, request: NamedRequest<'_, '_>) -> Vec<Result<FileRows, ParseError>> {
+        request.relations.iter().map(|_| Err(ParseError::Unsupported)).collect()
+    }
+}
+
+/// What a language is asked to answer for the file-scope relations it declares.
+pub struct NamedRequest<'a, 'w> {
+    /// The lent node table.
+    pub table: &'a NodeTable,
+    /// The relations asked, in order.
+    pub relations: &'a [&'a FileRelation],
+    /// The file in hand.
+    pub request: ParseRequest<'a>,
+    /// The project's observations, when the run has them.
+    pub project: Option<&'a dyn FileProject>,
+    /// The words the cells of the answers are coded in.
+    pub words: &'w mut FileWords,
+    /// The run's symbols.
+    pub symbols: &'w mut Symbols,
+}
+
+/// How much of a file the language read: the syntax and the lexical stream each in full or in part.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FileCompleteness {
+    /// Whether the syntax was read in full.
+    pub syntax: SyntaxCompleteness,
+    /// Whether the lexical stream was read in full, whatever recovery the syntax needed.
+    pub lexical: SyntaxCompleteness,
+}
+
+/// Names the struct alone: the project's observations have no `Debug` of their own.
+impl std::fmt::Debug for NamedRequest<'_, '_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct(std::any::type_name::<Self>()).finish_non_exhaustive()
+    }
 }
 
 /// The words of the run that every file shares, coded from zero: the empty text, then the language's fixed names, then the

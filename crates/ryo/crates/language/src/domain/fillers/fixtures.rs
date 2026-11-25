@@ -10,7 +10,10 @@
 pub mod growth;
 
 use crate::domain::facts::service::{fixed, syntax_error_rows};
-use crate::domain::facts::types::{CellWord, FileWords, Wanted};
+use crate::domain::diagnostics::types::SyntaxCompleteness;
+use crate::domain::facts::types::{CellWord, FileCompleteness, FileWords, Wanted};
+use crate::domain::symbols::types::ByteSlice;
+use ryo_relations::domain::relations::types::{Bytes, KindBits};
 use crate::domain::fixed_names::types::{FixedNames, FixedWord};
 use crate::domain::fillers::service::{filled, filled_keyed};
 use crate::domain::fillers::types::{
@@ -302,6 +305,20 @@ impl Fillers for Walking {
 
     fn render(_file: &mut WalkingFile<'_>, _request: RenderRequest) -> RenderOutcome {
         RenderOutcome::NotApplicable
+    }
+
+    fn completeness(_file: &WalkingFile<'_>) -> FileCompleteness {
+        FileCompleteness { syntax: SyntaxCompleteness::Complete, lexical: SyntaxCompleteness::Complete }
+    }
+
+    fn fills_are_complete(_file: &mut WalkingFile<'_>) -> bool {
+        false
+    }
+
+    fn notes(_file: &mut WalkingFile<'_>, _table: &NodeTable, _source: ByteSlice<'_>, _out: &mut Bytes) {}
+
+    fn spells(kind: KindBits) -> bool {
+        kind.0 == 2
     }
 
     /// The fixture's names, each at its code: the kind no element has, the sentence, the word, the quote; no field and the
