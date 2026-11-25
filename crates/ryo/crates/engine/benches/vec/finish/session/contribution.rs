@@ -18,6 +18,8 @@ pub(in super::super::super) struct Projection {
 
 #[derive(Clone, Hash, PartialEq, Eq)]
 enum Rows {
+    // The visible projection preserves the native row ordinal.
+    Unfiltered(Native),
     // All consumers require at least one of these kind or text literals.
     Literals {
         kinds: Vec<u32>,
@@ -130,6 +132,33 @@ impl Projection {
         let schema = exec.schema(run, node).ok()?;
         let read = |c: usize| mask.get(c) != Some(&false);
         if let Some(tree) = exec.view(run, node).ok()? {
+            let ordinal = match tree.base {
+                Native::Tree | Native::Location => Some(0),
+                Native::Child => Some(1),
+                _ => None,
+            };
+            if tests.is_none()
+                && tree.filter.is_empty()
+                && ordinal.is_some_and(|ordinal| tree.map.contains(&ordinal))
+            {
+                let base = tree.base;
+                let columns = tree
+                    .map
+                    .iter()
+                    .enumerate()
+                    .filter(|(column, _)| read(*column))
+                    .map(|(out, &source)| (out, base, source))
+                    .collect();
+                return Some(Self {
+                    demand: None,
+                    source: node,
+                    tree,
+                    schema,
+                    columns,
+                    rows: Rows::Unfiltered(base),
+                    share_with_local_reader: false,
+                });
+            }
             // Visiting only the surviving rows must not hide an unsupported
             // expression that the original producer would have reported.
             if tree.base != Native::Tree
@@ -221,6 +250,7 @@ impl Projection {
 
     fn gather(&self, slots: &[usize], file: &mut File<'_>, run: &mut Run) -> Table {
         let rows = match &self.rows {
+            Rows::Unfiltered(base) => file.native_rows(run, *base),
             Rows::Literals { kinds, text_slots } => {
                 let mut rows = super::super::bucket(file, run, kinds);
                 if !text_slots.is_empty() {
