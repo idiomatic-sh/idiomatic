@@ -10,7 +10,7 @@ use crate::outbound::syntax::factory::tree_sitter_go;
 use ryo::languages::{
     self, ByteSlice, CatalogRelation, CellKind, CellWord, FactAnswer, FileFacts, FileId, FileVisit,
     FilledColumns, KindBits, MappingKind, NodeTable, Offset, Position, Relation, RelationNeeds, Term as _,
-    ParameterKind, ValueKind, Walk, WalkRequest, contract, facts, node_table,
+    DeclarationKind, ParameterKind, ValueKind, Walk, WalkRequest, contract, facts, node_table,
 };
 use std::collections::HashMap;
 use std::fmt::Write as _;
@@ -50,17 +50,20 @@ struct Placement {
 }
 
 /// The relations the language fills, and compares.
-const FILLED: [Relation; 15] = [
+const FILLED: [Relation; 18] = [
     Relation::Annotates,
     Relation::Assigns,
     Relation::CallArgument,
     Relation::Comment,
+    Relation::Defines,
     Relation::Directive,
     Relation::Entry,
     Relation::Function,
     Relation::Inherits,
     Relation::Mapping,
     Relation::Parameter,
+    Relation::Reference,
+    Relation::Resolves,
     Relation::Scope,
     Relation::StaticCall,
     Relation::StaticImport,
@@ -72,6 +75,9 @@ const FILLED: [Relation; 15] = [
 fn column_kinds(relation: Relation) -> &'static [CellKind] {
     match relation {
         Relation::Annotates => <languages::Annotates as CatalogRelation>::kinds(),
+        Relation::Defines => <languages::Defines as CatalogRelation>::kinds(),
+        Relation::Reference => <languages::Reference as CatalogRelation>::kinds(),
+        Relation::Resolves => <languages::Resolves as CatalogRelation>::kinds(),
         Relation::Assigns => <languages::Assigns as CatalogRelation>::kinds(),
         Relation::Inherits => <languages::Inherits as CatalogRelation>::kinds(),
         Relation::Parameter => <languages::Parameter as CatalogRelation>::kinds(),
@@ -189,6 +195,7 @@ fn special(word: u64) -> Option<Seen> {
         .find(|kind| languages::term_symbol(*kind) == symbol)
         .map(|kind| kind.text())
         .or_else(|| MappingKind::iter().find(|kind| languages::term_symbol(*kind) == symbol).map(|kind| kind.text()))
+        .or_else(|| DeclarationKind::iter().find(|kind| languages::term_symbol(*kind) == symbol).map(|kind| kind.text()))
         .or_else(|| ParameterKind::iter().find(|kind| languages::term_symbol(*kind) == symbol).map(|kind| kind.text()))
         .map(|text| Seen::Text(format!("term {}", text.0)))
 }

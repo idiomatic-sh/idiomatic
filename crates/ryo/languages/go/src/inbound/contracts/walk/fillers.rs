@@ -50,6 +50,9 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         Self: 'f;
 
     written! {
+        defines: Defines => crate::domain::relations::collections::relations::defines::item::DefinesItem;
+        reference: Reference => crate::domain::relations::collections::relations::reference::item::ReferenceItem;
+        resolves: Resolves => crate::domain::relations::collections::relations::resolves::item::ResolvesItem;
         parameter: Parameter => crate::domain::relations::collections::relations::parameter::item::ParameterItem;
         inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
         annotates: Annotates => crate::domain::relations::collections::relations::annotates::item::AnnotatesItem;
@@ -81,7 +84,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         compiler_feature: CompilerFeature => NoSuchConstruct;
         constant_key: ConstantKey => NoSuchConstruct;
         decorates: Decorates => NoSuchConstruct;
-        defines: Defines => NotYetRead;
         embedded_expression: EmbeddedExpression => NoSuchConstruct;
         expression_shape: ExpressionShape => NoSuchConstruct;
         expression_type: ExpressionType => NoSuchConstruct;
@@ -119,8 +121,6 @@ impl<P: Send + Sync + 'static> Fillers for GoWalk<P> {
         qualified_name: QualifiedName => NoSuchConstruct;
         raw_format_field: RawFormatField => NoSuchConstruct;
         raw_format_segment: RawFormatSegment => NoSuchConstruct;
-        reference: Reference => NotYetRead;
-        resolves: Resolves => NotYetRead;
         sequence_element: SequenceElement => NoSuchConstruct;
         source_location: SourceLocation => NotYetRead;
         source_dependency: SourceDependency => NotYetRead;
