@@ -14,5 +14,5 @@ pub(crate) trait SyntaxPort: Send + Sync {
     fn read(&self, text: SourceText<'_>, at: SourcePath<'_>, builder: &mut TableBuilder<'_>);
 
     /// Reads Markdown text into the node table `builder` builds, numbered as the walk numbers it; `at` is the file's own path.
-    fn walk(&self, text: SourceText<'_>, at: SourcePath<'_>, builder: &mut ryo::languages::NodeTableBuilder<'_>);
+    fn walk(&self, text: SourceText<'_>, at: SourcePath<'_>, decodings: &mut crate::domain::file_view::types::Decodings, builder: &mut ryo::languages::NodeTableBuilder<'_>);
 }
