@@ -205,7 +205,7 @@ impl Checks {
                 let unpartitioned = cuts[binding].is_none();
                 // A project layout has no slot in the packet proof, so only its
                 // exact-location proof may use the screen.
-                let screenable = b.layout.is_none();
+                let screenable = b.layout.is_empty();
                 let exact = can_locate && unpartitioned && self.exact_roots[index].1;
                 if screenable || exact {
                     any |= !roots.is_empty();
@@ -312,7 +312,7 @@ impl Checks {
                 continue;
             }
             let b = bound[binding].as_mut().unwrap();
-            if b.layout.is_some() {
+            if !b.layout.is_empty() {
                 continue;
             }
             let full_absent = roots.iter().any(|&r| !self.live[r])
