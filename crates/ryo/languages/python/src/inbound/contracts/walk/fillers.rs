@@ -14,7 +14,7 @@ use crate::domain::rendering::constants::UNRENDERED;
 use crate::domain::rendering::service::{render, target};
 use crate::domain::syntax::service::{kind_name, kinds};
 use ryo::languages::{
-    self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames, Flag,
+    self, AbsenceCause, CatalogRelation, FieldNames, FileCompleteness, FileWords, Fill, Fillers, FixedNames, Flag,
     NameText, RenderContext, RenderOutcome, RenderRequest, RenderedNode, Rows, WalkKinds,
     WalkVocabulary, Wanted, fillers,
 };
@@ -184,6 +184,54 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
 
     /// Python's names for the run: every kind at its code and every field at its code, as the walk writes them into the node
     /// table, and the fixed names its fillers write by handle.
+    fn completeness(file: &PythonFile<'_>) -> FileCompleteness {
+        FileCompleteness {
+            syntax: file.syntax.completeness.syntax,
+            lexical: file.syntax.completeness.lexical,
+        }
+    }
+
+    /// The syntax was read whole, the flow of the model could be interpreted and the standard library of the target release
+    /// is known: the three causes of a partly read relation.
+    fn fills_are_complete(file: &mut PythonFile<'_>) -> bool {
+        use crate::domain::model::view::types::ModelPart;
+        use crate::domain::model::flow::types::FlowState;
+        use crate::domain::standard_library::{
+            service::contains,
+            types::{ModulePath, StandardLibraryMembership},
+        };
+        use crate::domain::model::view::types::ModelView as _;
+        file.syntax.completeness.syntax == languages::SyntaxCompleteness::Complete
+            && contains(file.target, ModulePath("os")) != StandardLibraryMembership::UnverifiedRelease
+            && file.semantics(ModelPart::Flow).model.flow.state != FlowState::Incomplete
+    }
+
+    fn notes(
+        file: &mut PythonFile<'_>,
+        table: &languages::NodeTable,
+        source: languages::ByteSlice<'_>,
+        out: &mut languages::Bytes,
+    ) {
+        use crate::outbound::notes::interface::NotesPort as _;
+        let note = crate::fixtures::columns::ColumnFile::noted(file, table, source);
+        crate::outbound::notes::factory::postcard().write(&note, out);
+    }
+
+    fn spells(kind: languages::KindBits) -> bool {
+        matches!(
+            crate::domain::syntax::service::kind_of(kind),
+            crate::domain::syntax::types::Kind::Token(_)
+                | crate::domain::syntax::types::Kind::Extra(crate::domain::extras::types::Extra::Whitespace)
+        )
+    }
+
+    fn named(
+        file: &mut PythonFile<'_>,
+        request: languages::NamedRequest<'_, '_>,
+    ) -> Vec<Result<languages::FileRows, languages::ParseError>> {
+        crate::fixtures::columns::ColumnFile::named(file, request)
+    }
+
     fn vocabulary() -> WalkVocabulary {
         WalkVocabulary {
             kinds: WalkKinds(kinds().map(kind_name).collect()),

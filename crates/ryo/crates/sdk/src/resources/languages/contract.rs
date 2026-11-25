@@ -215,6 +215,22 @@ pub fn conformance_with(
     );
 }
 
+/// The routes row: for every catalog relation the language answers, over every sample of its fixtures, the rows of its old
+/// reader and the rows of its walk's fillers are the same rows. A law of every language that links both: a language builder
+/// runs it in the language's own `tests/routes.rs` (`cargo test -p <language crate> --features fixtures --test routes`).
+///
+/// # Panics
+///
+/// When the two routes differ on any relation of any sample, listing each with its first differing row.
+pub fn routes_agree(linked: &super::Language, manifest_dir: ManifestDir) {
+    let differences = ryo_language::inbound::use_cases::parse::fixtures::routes::fixture_route_differences(
+        linked.parse_engine().as_ref(),
+        linked.walk_engine().as_ref(),
+        &Path::new(manifest_dir.0).join(FIXTURES),
+    );
+    assert!(differences.is_empty(), "{} differences between the old reader and the fillers:\n{}", differences.len(), differences.join("\n"));
+}
+
 /// Runs the allocation row against a linked language, with its fixtures under `tests/fixtures` of its directory `manifest_dir`: reading
 /// a file allocates no more than the baseline, what the language's own `read_tree` does for the file alone through a builder that builds nothing. It runs alone in its
 /// process, with `dhat` as the global allocator, so nothing else counts. It runs on libtest-mimic, which answers libtest's

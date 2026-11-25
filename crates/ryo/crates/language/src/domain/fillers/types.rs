@@ -3,15 +3,19 @@
 //! for the whole run, and the fact source the engine reads the fillers through.
 
 use crate::domain::facts::types::{
-    CellWord, FactAnswer, FactSource, FileWords, FillExtent, FilledColumns, FillerSentence,
+    CellWord, FactAnswer, FactSource, FileCompleteness, FileWords, NamedRequest, FillExtent, FilledColumns, FillerSentence,
     PartialRows, Wanted,
 };
 use crate::domain::fixed_names::types::FixedNames;
+use crate::inbound::use_cases::parse::errors::ParseError;
+use crate::inbound::use_cases::parse::named::FileRows;
+use crate::domain::node_table::types::NodeTable;
+use crate::domain::symbols::types::ByteSlice;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
 use ryo_relations::domain::relations::types::{
-    Column, FileId, Missing, Relation, ReportText, Rows,
+    Bytes, Column, FileId, KindBits, Missing, Relation, ReportText, Rows,
 };
 use ryo_relations::domain::terms::types::NameText;
 
@@ -163,6 +167,25 @@ pub trait Fillers: Send + Sync + 'static {
 
     /// The names of the run: the language's kinds, fields and fixed names, each by place.
     fn vocabulary() -> WalkVocabulary;
+
+    /// How much of the file the language read: the syntax and the lexical stream each in full or in part.
+    fn completeness(file: &Self::File<'_>) -> FileCompleteness;
+
+    /// Whether no relation of the file can answer in part (syntax whole, flow interpretable, release known), so each may be
+    /// filled the first time a step reads it. A property of the file's facts, never of a rule; a language that cannot tell says no.
+    fn fills_are_complete(file: &mut Self::File<'_>) -> bool;
+
+    /// APPENDS to `out` the project notes the language reads from the file, encoded; nothing when it has none.
+    fn notes(file: &mut Self::File<'_>, table: &NodeTable, source: ByteSlice<'_>, out: &mut Bytes);
+
+    /// Whether a node of this kind carries its source text as its word.
+    fn spells(kind: KindBits) -> bool;
+
+    /// The rows of the file-scope relations the language declares beside the catalog's, in request order: a refusal each for a
+    /// language that declares none. A language's private relations stay here until they are deleted.
+    fn named(_file: &mut Self::File<'_>, request: NamedRequest<'_, '_>) -> Vec<Result<FileRows, ParseError>> {
+        request.relations.iter().map(|_| Err(ParseError::Unsupported)).collect()
+    }
 }
 
 /// The methods of `Fillers`: each relation's item declaration handed to `filler_method` with its module.
@@ -321,6 +344,22 @@ macro_rules! file_source_answers {
 
             fn render(&mut self, request: RenderRequest) -> RenderOutcome {
                 W::render(self.file, request)
+            }
+
+            fn completeness(&self) -> FileCompleteness {
+                W::completeness(self.file)
+            }
+
+            fn fills_are_complete(&mut self) -> bool {
+                W::fills_are_complete(self.file)
+            }
+
+            fn notes(&mut self, table: &NodeTable, source: ByteSlice<'_>, out: &mut Bytes) {
+                W::notes(self.file, table, source, out);
+            }
+
+            fn named(&mut self, request: NamedRequest<'_, '_>) -> Vec<Result<FileRows, ParseError>> {
+                W::named(self.file, request)
             }
         }
     };
