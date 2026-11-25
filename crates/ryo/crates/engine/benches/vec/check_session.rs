@@ -324,7 +324,11 @@ impl Schedule {
     ) -> Result<(usize, Arc<[u8]>)> {
         let key = (Rc::from(path), bytes.clone(), permission, reader.clone(), environment.as_ref().map(|e| e.id.clone()));
         let (id, canonical) = match self.supplied_ids.get_key_value(&key) {
-            Some(((_, held, _, _, _), &id)) => (id, held.clone()),
+            Some(((_, held, _, _, _), &id)) => {
+                // Delivery released the bytes of an earlier call on this version.
+                self.sources[id].provided.get_or_insert_with(|| held.clone());
+                (id, held.clone())
+            }
             None => {
                 let ids = self.source_ids.entry(root.clone()).or_default();
                 let id = Self::source_in(&mut self.sources, ids, root, path)?;
