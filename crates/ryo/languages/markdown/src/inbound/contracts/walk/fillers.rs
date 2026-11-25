@@ -3,6 +3,7 @@
 //! and its fields. Markdown's fillers write no fixed name.
 
 use crate::domain::file_view::types::{MarkdownFile, MarkdownWalk};
+use crate::domain::extras::types::Extra;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{field_name, fields, kind_name, kind_of, kinds};
 use crate::domain::syntax::types::Kind;
@@ -194,11 +195,22 @@ impl<P: Send + Sync + 'static> Fillers for MarkdownWalk<P> {
     ) {
     }
 
+    /// A kind spells its text when its nodes of the table are leaves of the tree: the tokens, the markers and what the library gives as
+    /// one event (text, code, math, breaks, rules, footnote marks, definitions). A section, and every construct that holds others, is
+    /// a node whose text is the text of its parts. Inline raw HTML is a leaf and a block of it is not: one kind names both, so it
+    /// is left unspelled.
     fn spells(kind: languages::KindBits) -> bool {
         matches!(
             kind_of(kind),
             Kind::Token(_)
-                | Kind::Extra(_)
+                | Kind::Extra(
+                    Extra::Markup
+                        | Extra::TaskChecked
+                        | Extra::TaskUnchecked
+                        | Extra::InlineMath
+                        | Extra::Math
+                        | Extra::Error
+                )
                 | Kind::Node(Node::Text | Node::InlineCode | Node::Definition | Node::Break | Node::ThematicBreak | Node::FootnoteReference)
         )
     }
