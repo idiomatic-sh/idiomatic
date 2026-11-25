@@ -384,7 +384,7 @@ impl Projection<'_> {
         tree: &ryo::languages::NodeTable,
         run: &mut super::finish::Run,
         numbered: Demand,
-        text: &[u32],
+        words: impl FnOnce(&mut FxHashSet<u32>),
         expand: impl FnOnce(&mut super::finish::Run, Projection<'_>),
     ) -> Demand {
         use ryo::languages::node_table;
@@ -401,15 +401,13 @@ impl Projection<'_> {
             self.kinds = None;
         }
         if let Some(set) = self.fields.as_deref_mut().filter(|_| numbered.fields) {
-            project_codes(node_table::field_codes(tree), &run.field_sym, set);
+            project_fields(tree, &run.field_sym, set);
         } else {
             self.fields = None;
         }
         if let Some(set) = self.words.as_deref_mut().filter(|_| numbered.words) {
             set.insert(run.empty);
-            for &symbol in text {
-                set.insert(symbol);
-            }
+            words(set);
         } else {
             self.words = None;
         }
@@ -522,25 +520,13 @@ fn clause_missing<T>(
     missing
 }
 
-/// Translate each distinct provider code only once. A numbered column may
-/// contain many occurrences of the same kind or field.
-fn project_codes(codes: &[u16], names: &[u32], into: &mut FxHashSet<u32>) {
-    // Common small vocabularies need no heap allocation. Complete the dense
-    // prefix first and preserve identities beyond it without truncating them.
-    let mut dense = [0_u64; 4];
-    for &code in codes {
-        let code = usize::from(code);
-        if let Some(word) = dense.get_mut(code / 64) {
-            *word |= 1_u64 << (code % 64);
-        } else {
-            into.insert(names[code]);
-        }
-    }
-    for (group, mut word) in dense.into_iter().enumerate() {
-        while word != 0 {
-            let code = group * 64 + word.trailing_zeros() as usize;
-            into.insert(names[code]);
-            word &= word - 1;
+/// The numbered visit already grouped positions by field, including field zero.
+fn project_fields(tree: &ryo::languages::NodeTable, names: &[u32], into: &mut FxHashSet<u32>) {
+    use ryo::languages::{FieldCode, node_table};
+    for (code, &name) in names.iter().enumerate() {
+        let Ok(code) = u16::try_from(code) else { break };
+        if !node_table::ids_of_field(tree, FieldCode(code)).is_empty() {
+            into.insert(name);
         }
     }
 }
@@ -617,7 +603,14 @@ mod tests {
     fn projection_keeps_codes_outside_the_dense_prefix() {
         let names = (0..=999).rev().collect::<Vec<_>>();
         let mut symbols = FxHashSet::default();
-        project_codes(&[0, 255, 256, 255, 999], &names, &mut symbols);
+        use ryo::languages::{Count, FieldCode, KindBits, NodeTable, Offset, node_table};
+        let mut tree = NodeTable::default();
+        let mut writer = node_table::builder(&mut tree, Count(1));
+        for code in [0, 255, 256, 255, 999] {
+            node_table::enter_node(&mut writer, KindBits(0), FieldCode(code), Offset(0));
+        }
+        for _ in 0..5 { node_table::leave_node(&mut writer, Offset(1)); }
+        project_fields(node_table::finished(&mut writer), &names, &mut symbols);
         assert_eq!(symbols, FxHashSet::from_iter([999, 744, 743, 0]));
     }
 }

@@ -1146,6 +1146,7 @@ pub(crate) fn visit<L: FileSource>(
             use ryo_execution_domain::domain::coverage::service::partial_of;
             let recovery = coverage.or(held.recovery).unwrap_or_else(|| L::recovery(&elements));
             let rejected = l::node_table::acceptance_of(tree) == l::SyntaxAcceptance::Rejected;
+            distinct.get_mut().clear();
             let mut active = Vec::new();
             for (binding, slot) in jobs.iter() {
                 let Ok(b) = &bound[&binding] else { continue };
@@ -1172,7 +1173,7 @@ pub(crate) fn visit<L: FileSource>(
                                 fields: numbered_complete && provider.projects_fields,
                                 words: numbered_complete && provider.projects_words,
                             },
-                            &provider.text,
+                            |words| words.extend(distinct.get_mut().words(&provider.text).iter().copied()),
                             |run, out| {
                                 if scoped_tree.is_some() { return; }
                                 L::expanded_summary(
@@ -1277,7 +1278,6 @@ pub(crate) fn visit<L: FileSource>(
             let t = thread_cpu();
             if recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
             {
-                distinct.get_mut().clear();
                 if !reused {
                     held.literals.get_mut().clear();
                     held.proof_atoms.clear();
