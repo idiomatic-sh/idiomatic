@@ -1481,6 +1481,45 @@ mod tests {
     use session::source::Linked;
 
     #[test]
+    fn mapped_replay_copies_untouched_rows_into_a_changed_file_record() {
+        let dir = tempfile::tempdir().unwrap();
+        let version = key("version");
+        let replaced = key("replaced");
+        let untouched = key("untouched");
+        let removed = key("removed");
+        let origin = Some((key("entries"), key("content")));
+        let local = |rows| Local {
+            report: Report { rows, issues: None },
+            frontier: vec![],
+            unavailable: vec![],
+        };
+        let mut records = Records::<FileAnswers>::new("pairs", Default::default());
+        let row = records.change(&version);
+        row.context = origin;
+        for binding in [replaced, untouched, removed] {
+            row.insert(binding, local(Some(vec![])));
+        }
+        let mut obsolete = vec![];
+        records.flush(dir.path(), &mut obsolete).unwrap();
+
+        let mut reopened = Records::new("pairs", records.index);
+        reopened.open_mapped(dir.path(), &version, FileAnswers::mapped);
+        let row = reopened.change(&version);
+        assert!(matches!(row.read(&untouched), Some(Cow::Owned(_))));
+        row.insert(replaced, local(None));
+        row.remove(&removed);
+        reopened.flush(dir.path(), &mut obsolete).unwrap();
+
+        let mut published = Records::new("pairs", reopened.index);
+        published.open_mapped(dir.path(), &version, FileAnswers::mapped);
+        let row = published.get(&version).unwrap();
+        assert_eq!(row.context, origin);
+        assert_eq!(row.read(&untouched).unwrap().report.rows, Some(vec![]));
+        assert_eq!(row.read(&replaced).unwrap().report.rows, None);
+        assert!(row.read(&removed).is_none());
+    }
+
+    #[test]
     fn contextual_proofs_recheck_absence_and_reject_unknown_entries() {
         let root = tempfile::tempdir().unwrap();
         let open = || Store::open(root.path(), &[] as &[Linked]).unwrap();
