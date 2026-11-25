@@ -1,5 +1,5 @@
 //! Source coordinates of statements within a Python suite, and parsed components of import aliases.
-use super::{ColumnFile, Kind, Node, Numbered, nodes_of_kind};
+use super::{NamedFile, Kind, Node, Numbered, nodes_of_kind};
 use crate::domain::node::service::id_of;
 use ruff_python_ast::AnyNodeRef;
 use ruff_text_size::Ranged;
@@ -8,7 +8,7 @@ use std::collections::HashSet;
 
 /// The parser's import names and their original spelling at one alias.
 #[derive(Debug)]
-pub struct ImportAlias<'a> {
+pub(crate) struct ImportAlias<'a> {
     /// Alias occurrence.
     pub id: u32,
     /// Enclosing import statement.
@@ -41,23 +41,18 @@ pub struct ImportAlias<'a> {
     pub target: &'a str,
 }
 
-impl ColumnFile<'_, '_> {
+impl NamedFile<'_, '_> {
     /// Each import or from-import statement supplies one statement-layout row.
-    pub fn import_statement_count(&self) -> usize {
+    pub(crate) fn import_statement_count(&self) -> usize {
         self.import_presence.statements
     }
 
     /// A statement is an import exactly when the parser produced an import or from-import node.
-    pub fn is_import_statement(&self, id: Position) -> bool {
+    pub(crate) fn is_import_statement(&self, id: Position) -> bool {
         matches!(
             self.file.syntax.nodes.get(usize::from(id)),
             Some(AnyNodeRef::StmtImport(_) | AnyNodeRef::StmtImportFrom(_))
         )
-    }
-
-    /// Standard-library membership is indexed by the file's selected Python release.
-    pub fn import_release(&self) -> (i64, i64) {
-        (self.file.target.major.0, self.file.target.minor.0)
     }
 
     fn import_statements(&self) -> impl Iterator<Item = Numbered<'_>> {
@@ -67,12 +62,12 @@ impl ColumnFile<'_, '_> {
     }
 
     /// The lexical walk saw a physical comment within an import's lines.
-    pub fn can_have_import_line_comments(&self) -> bool {
+    pub(crate) fn can_have_import_line_comments(&self) -> bool {
         self.import_presence.line_comment
     }
 
     /// A comment occupies a physical line. Report every import whose source extent reaches that line before the comment.
-    pub fn visit_import_line_comments(&self, mut visit: impl FnMut(Position, Position, bool)) {
+    pub(crate) fn visit_import_line_comments(&self, mut visit: impl FnMut(Position, Position, bool)) {
         use crate::domain::{syntax::service::kind_bits, tokens::types::Token};
         if !self.can_have_import_line_comments() {
             return;
@@ -107,7 +102,7 @@ impl ColumnFile<'_, '_> {
     }
 
     /// Catalog membership of an absolute module root for the file's configured Python release.
-    pub fn import_catalog(&self, root: &str) -> &'static str {
+    pub(crate) fn import_catalog(&self, root: &str) -> &'static str {
         use crate::domain::standard_library::{
             service::contains,
             types::{ModulePath, StandardLibraryMembership},
@@ -150,21 +145,14 @@ impl ColumnFile<'_, '_> {
     }
 
     /// An import requests a dotted path; the from-clause's leading dots select its relative level and the alias's as-name gives its binding spelling.
-    pub fn visit_import_aliases(&self, mut visit: impl FnMut(ImportAlias<'_>)) {
+    pub(crate) fn visit_import_aliases(&self, mut visit: impl FnMut(ImportAlias<'_>)) {
         self.visit_import_names(self.import_statements().enumerate(), false, |_, alias| {
             visit(alias)
         });
     }
 
-    /// The grammar fixes the first alias of each import statement.
-    pub fn visit_import_heads(&self, mut visit: impl FnMut(ImportAlias<'_>)) {
-        self.visit_import_names(self.import_statements().enumerate(), true, |_, alias| {
-            visit(alias)
-        });
-    }
-
     /// Read heads in the given suite order. An invalid import can lack its first alias.
-    pub fn visit_ordered_import_heads(
+    pub(crate) fn visit_ordered_import_heads(
         &self,
         statements: impl Iterator<Item = Position>,
         visit: impl FnMut(usize, ImportAlias<'_>),
@@ -409,9 +397,9 @@ const CONTEXTUAL_ALIASES_COLUMNS: [ImportColumn; 36] = extend_columns(
     ],
 );
 
-impl ColumnFile<'_, '_> {
+impl NamedFile<'_, '_> {
     /// Schemas whose rows follow from the import syntax and its project context.
-    pub const IMPORT_SCHEMAS: &'static [l::FileRelation] = &[
+    pub(crate) const IMPORT_SCHEMAS: &'static [l::FileRelation] = &[
         l::FileRelation {
             name: STATEMENTS,
             columns: &STATEMENT_COLUMNS,
@@ -461,7 +449,7 @@ impl ColumnFile<'_, '_> {
     ];
 
     /// Sorted lexical links, shared with the import head's comment count.
-    pub fn import_comment_links<'a>(
+    pub(crate) fn import_comment_links<'a>(
         &self,
         links: &'a mut Option<Vec<(Position, Position, bool)>>,
     ) -> &'a [(Position, Position, bool)] {
@@ -480,7 +468,7 @@ impl ColumnFile<'_, '_> {
     /// Project callbacks supply the enclosing package and observations of the
     /// imported module (written root, catalog, module prefix, package prefix,
     /// namespace). Syntax-only relations do not call either project callback.
-    pub fn import_columns<W>(
+    pub(crate) fn import_columns<W>(
         &self,
         schema: &l::FileRelation,
         src: &[u8],
@@ -622,7 +610,7 @@ impl ColumnFile<'_, '_> {
                     .unwrap_or(0)
                     .min(src.len());
                 // Only offsets up to the final import are queried. Read one further byte for a CRLF at the boundary.
-                let starts = super::super::comment_positions::starts(
+                let starts = super::comment_positions::starts(
                     &src[..upto.saturating_add(1).min(src.len())],
                 );
                 let links = self.import_comment_links(comments);
@@ -752,7 +740,7 @@ impl ColumnFile<'_, '_> {
                 0
             };
             let mut statement_text = 0;
-            let starts = super::super::comment_positions::starts(src);
+            let starts = super::comment_positions::starts(src);
             let mut previous_statement = None;
             let mut statement_lines = [0; 2];
             let line = |byte| starts.partition_point(|&s| s <= byte) as u64;
@@ -845,7 +833,7 @@ impl ColumnFile<'_, '_> {
     }
 
     /// Project the observed context of an import using the same dictionary as its syntax.
-    pub fn import_context<W>(
+    pub(crate) fn import_context<W>(
         &self,
         alias: &ImportAlias<'_>,
         target: &str,

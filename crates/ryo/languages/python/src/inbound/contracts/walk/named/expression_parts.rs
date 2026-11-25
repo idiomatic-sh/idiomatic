@@ -1,5 +1,5 @@
 //! Ordered operands of binary expressions and chained comparisons.
-use super::{ColumnFile, Kind, Node, Numbered, qualify_cells};
+use super::{NamedFile, Kind, Node, Numbered, qualify_cells};
 use crate::domain::node::service::{id_of, place_of_id, table_id};
 use crate::domain::syntax::service::kind_bits;
 use ruff_python_ast::{AnyNodeRef, Expr, Operator};
@@ -8,7 +8,7 @@ use ryo::languages::{self as l, CellKind, FileRelation, Position, node_table};
 const BINARY_OPERANDS: &str = "binary-operands";
 const COMPARISONS: &str = "comparison-operands";
 
-impl ColumnFile<'_, '_> {
+impl NamedFile<'_, '_> {
     // Embedded expressions have typed-tree places distinct from their public node ids.
     fn expression_nodes(&self, kind: Node) -> impl Iterator<Item = Numbered<'_>> {
         let tree = self.file.syntax.tree;
@@ -85,7 +85,7 @@ impl ColumnFile<'_, '_> {
     }
 
     /// File-scoped projections of Python operator syntax.
-    pub const EXPRESSION_SCHEMAS: &'static [FileRelation] = &[
+    pub(crate) const EXPRESSION_SCHEMAS: &'static [FileRelation] = &[
         FileRelation {
             name: BINARY_OPERANDS,
             columns: &[
