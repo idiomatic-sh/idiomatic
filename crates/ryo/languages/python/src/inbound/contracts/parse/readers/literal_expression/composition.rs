@@ -8,7 +8,7 @@ use crate::domain::literal_expression_parsing::types::{
 };
 use crate::domain::literal_facts::service::string_tokens;
 use crate::domain::model::names::service::fixed_word;
-use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, written};
+use crate::domain::node::service::{node_cell, semantic_nodes_of_kind, span_at, written};
 use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::raw_format::service::body;
 use crate::domain::raw_format::types::RawFormatToken;
@@ -82,7 +82,7 @@ fn parsed_as_annotation(
     carrier.0.clear();
     carrier.0.push_str(CARRIER_OPEN);
     for token in tokens.iter() {
-        carrier.0.push_str(written(file, *token).0);
+        carrier.0.push_str(languages::node_table::decoded_of(file.table, *token).unwrap_or_else(|| written(file, *token)).0);
         carrier.0.push('\n');
     }
     carrier.0.push(')');
@@ -106,7 +106,7 @@ ryo::fills! {
         } else {
             syntax.completeness.lexical
         };
-        for Numbered { id, node } in nodes_of_kind(&syntax, Kind::Node(Node::Constant)) {
+        for Numbered { id, node } in semantic_nodes_of_kind(&syntax, Kind::Node(Node::Constant)) {
             if !matches!(node, AnyNodeRef::ExprStringLiteral(_)) {
                 continue;
             }

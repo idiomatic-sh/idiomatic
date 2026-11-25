@@ -19,7 +19,7 @@ use crate::domain::format_syntax::types::{FormatDialect, FormatInput};
 use crate::domain::literal_facts::service::string_value;
 use crate::domain::literal_facts::types::{StringValue, TextBuffer};
 use crate::domain::model::names::service::fixed_word;
-use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
+use crate::domain::node::service::{node_cell, semantic_nodes_of_kind, span_at, word};
 use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::{
     model::types::Declarations, nodes::types::Node, semantic_syntax::types::Visibility,
@@ -197,7 +197,7 @@ fn parsed_strings(
     each: &mut dyn FnMut(languages::Position, Option<&FormatParseResult>, DynamicInput),
 ) {
     for kind in [Node::Constant, Node::JoinedStr] {
-        for Numbered { id, node } in nodes_of_kind(file, Kind::Node(kind)) {
+        for Numbered { id, node } in semantic_nodes_of_kind(file, Kind::Node(kind)) {
             match string_value(node, joined) {
                 Some(StringValue::Known(text)) => {
                     let parsed =

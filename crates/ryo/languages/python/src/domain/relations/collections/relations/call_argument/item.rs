@@ -4,7 +4,7 @@ use crate::domain::file_view::types::PythonWalk;
 use crate::domain::model::types::Declarations;
 use crate::domain::name_facts::service::passed as handed_on;
 use crate::domain::names::service::{arguments_of, passed};
-use crate::domain::node::service::{id_of, node_cell, nodes_of_kind, span_at, word};
+use crate::domain::node::service::{id_of, node_cell, semantic_nodes_of_kind, span_at, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node;
 use crate::domain::semantic_syntax::types::Visibility;
@@ -38,7 +38,7 @@ ryo::fills! {
     CallArgumentItem => languages::CallArgument, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::CallArgument as languages::CatalogRelation>::Row;
-        for Numbered { id, node } in nodes_of_kind(&file.syntax, Kind::Node(Node::Call)) {
+        for Numbered { id, node } in semantic_nodes_of_kind(&file.syntax, Kind::Node(Node::Call)) {
             let AnyNodeRef::ExprCall(call) = node else {
                 continue;
             };
@@ -47,9 +47,10 @@ ryo::fills! {
                     ArgOrKeyword::Arg(expression) => expression,
                     ArgOrKeyword::Keyword(keyword) => &keyword.value,
                 };
-                let Some(at) = id_of(expression) else {
+                let Some(place) = id_of(expression) else {
                     continue;
                 };
+                let at = crate::domain::node::service::table_id(file.syntax.tree.segments, place);
                 rows.write(Row {
                     call: node_cell(&file.syntax, id),
                     position: languages::Integer(i64::try_from(position).unwrap_or(i64::MAX)),

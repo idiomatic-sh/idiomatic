@@ -1,8 +1,8 @@
 //! Read lazily interned structural classes; never emit unknown classes that could compare equal.
 use crate::domain::file_view::types::{PythonFile, PythonWalk};
 use crate::domain::model::view::types::PartState;
-use crate::domain::node::service::{keyed_node, node_cell, span_at, typed_nodes};
-use crate::domain::node::types::{Numbered, SyntaxFile};
+use crate::domain::node::service::{keyed_id, node_cell, place_of_id, span_at, table_id};
+use crate::domain::node::types::SyntaxFile;
 use crate::domain::shape_facts::service::shapes;
 use crate::domain::shape_facts::types::ShapeBuild;
 use crate::domain::syntax::service::{category_of, kind_of};
@@ -89,7 +89,8 @@ ryo::fills! {
         }
         shaped(file, words);
         let classes = file.buffers.shapes.classes.iter();
-        for (Numbered { id, .. }, class) in typed_nodes(&file.syntax).zip(classes) {
+        for (place, class) in classes.enumerate() {
+            let id = table_id(file.syntax.tree.segments, languages::Position(u32::try_from(place).unwrap_or(u32::MAX)));
             if let Some(row) = class.and_then(|class| shape_row(&file.syntax, id, class)) {
                 rows.write(row);
             }
@@ -100,8 +101,9 @@ ryo::fills! {
             return;
         }
         shaped(file, words);
-        let found = keyed_node(&file.syntax, key).and_then(|id| {
-            let class = file.buffers.shapes.classes.get(usize::from(id)).copied().flatten()?;
+        let found = keyed_id(file.syntax.file, key).and_then(|id| {
+            let place = place_of_id(file.syntax.tree, id)?;
+            let class = file.buffers.shapes.classes.get(usize::from(place)).copied().flatten()?;
             shape_row(&file.syntax, id, class)
         });
         if let Some(row) = found {
