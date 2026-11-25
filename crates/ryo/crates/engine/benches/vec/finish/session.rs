@@ -576,5 +576,10 @@ pub(in super::super) fn gather(
     if !run.missing.is_empty() {
         return Err(format!("unimplemented functions {:?}", run.missing));
     }
+    for (i, table, _) in &result {
+        if let Some(start) = super::operators::enter(*i, 0) {
+            super::operators::leave(start, &format!("carried-{i}-{}", exec.plan.nodes[*i].op()), table.n, true);
+        }
+    }
     Ok(result)
 }
