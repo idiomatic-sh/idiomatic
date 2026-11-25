@@ -568,6 +568,13 @@ fn bind<'p, L: FileSource>(
         if catalog::service::scope_of(rel) == catalog::types::RowScope::Project {
             return Err(format!("{name} needs closed project facts"));
         }
+        // The supplier certifies its complete projection on this exact loan.
+        // Expanded positions already in the loan share its node namespace.
+        if parser.is_some_and(|p| p.available(rel) && p.numbered_projections().contains(&rel))
+            && finish::reads_numbered(run, name)
+        {
+            continue;
+        }
         if parser.is_some_and(|p| p.expands(rel)) {
             run.reader_tables.insert(name.to_owned());
         }

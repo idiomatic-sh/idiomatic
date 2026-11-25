@@ -652,6 +652,11 @@ fn native_of(run: &Run, rel: &str) -> Option<Native> {
     }
 }
 
+/// Whether file operators can read this declaration directly from the lent columns.
+pub(super) fn reads_numbered(run: &Run, relation: &str) -> bool {
+    native_of(run, relation).is_some()
+}
+
 fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
     match n {
         Native::Tree => &TREE_COLS,
