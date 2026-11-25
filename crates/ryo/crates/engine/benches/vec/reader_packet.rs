@@ -338,7 +338,11 @@ impl Packet {
             lazy.failed.set(true);
             return None;
         };
-        if !matches!(table.answer, l::FactAnswer::Answered(_)) {
+        // The same outcome as the fill up front (`fill_numbered`): a relation the language does not have, answered `Refused` with its
+        // cause, is the relation's absence (the table keeps its answer and `bind` finds no facts); only an answer the late fill
+        // cannot report (a partial one, or a relation with no filler at all) fails the request, for the file's partial coverage is
+        // taken before any step runs.
+        if matches!(table.answer, l::FactAnswer::Partial(_) | l::FactAnswer::Refused(l::AbsenceCause::NotYetRead)) {
             lazy.failed.set(true);
         }
         let _ = self.local[slot].set(table);
@@ -802,6 +806,45 @@ mod file_node_tests {
         }
         assert_eq!(lookup.0.len(), 2);
         assert_eq!(lookup.resolve(&mut run, &unknown, &symbols, b"", l::NO_SYMBOL), run.absent_word.unwrap());
+    }
+    #[test]
+    fn a_relation_the_language_does_not_have_is_the_same_absence_filled_up_front_or_on_first_use() {
+        struct HasNoScope;
+        impl l::NumberedFacts for HasNoScope {
+            fn fill_columns(&mut self, _: l::Relation, _: l::Wanted, _: &mut FileWords,
+                _: &mut FilledColumns) -> l::FactAnswer {
+                l::FactAnswer::Refused(l::AbsenceCause::NoSuchConstruct)
+            }
+            fn project_structure(&mut self, _: &[l::Relation], _: &mut l::Symbols,
+                _: &mut dyn ryo_relations::domain::relations::types::RowWriter) -> Result<(), l::ParseError> {
+                Ok(())
+            }
+            fn named(&mut self, _: &[&l::FileRelation], _: &mut l::Symbols) -> Vec<Result<l::FileRows, l::ParseError>> {
+                unreachable!()
+            }
+            fn render(&mut self, _: l::RenderRequest) -> Result<l::RenderOutcome, l::ParseError> {
+                unreachable!()
+            }
+        }
+        let relation = l::Relation::Scope;
+        let mut words = l::facts::file_words(&l::facts::base_words(Default::default(), &[]));
+        let mut symbols = l::Symbols::default();
+        // Up front.
+        let mut eager = Packet::new();
+        eager.fill_numbered(&mut HasNoScope, &[relation], &mut symbols, &mut words).expect("an absent relation is no failure");
+        let eager_answer = eager.table(relation, &mut words, None).map(|table| (table.rows, format!("{:?}", table.answer)));
+        let eager_partials = eager.rows.partials.len();
+        // On first use.
+        let mut supplier = HasNoScope;
+        let mut supplier: &mut dyn l::NumberedFacts = &mut supplier;
+        let cell = RefCell::new(&mut *supplier);
+        let lazy = Lazy::new(&cell);
+        let mut late = Packet::new();
+        late.lazy_fills = true;
+        let late_answer = late.table(relation, &mut words, Some(&lazy)).map(|table| (table.rows, format!("{:?}", table.answer)));
+        assert_eq!(late_answer, eager_answer);
+        assert_eq!(eager_partials, 0);
+        assert!(!lazy.failed.get(), "an absent relation fails no request on first use");
     }
     #[test]
     fn reset_reclaims_a_local_population_even_if_the_visit_failed_before_index() {
