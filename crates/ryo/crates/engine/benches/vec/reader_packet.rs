@@ -27,6 +27,17 @@ pub(crate) struct FileColumns<'f> {
 #[derive(Debug)]
 pub(crate) struct BadNode;
 
+// Relations may carry file-owned diagnostic identities beyond the syntax tree.
+fn file_node(home: u32, raw: u64) -> Result<u64, BadNode> {
+    if raw == finish::NULL {
+        Ok(raw)
+    } else if raw >> 32 == u64::from(home) {
+        Ok(u64::from(raw as u32))
+    } else {
+        Err(BadNode)
+    }
+}
+
 impl FileColumns<'_> {
     pub(crate) fn column(&self, relation: usize, column: usize) -> Option<&[CellWord]> {
         let table = self.tables.get(relation)?.as_ref()?;
@@ -84,7 +95,7 @@ impl finish::fact_view::FileFacts for OperatorColumns<'_> {
                     .map(|id| run.sym(l::facts::text(self.file.words, CellWord(id)).0.as_bytes())).collect());
             }
             if *kind == CellKind::Node && self.file.column(slot, column).unwrap_or_default().iter()
-                .any(|&value| self.file.position(value).is_err()) {
+                .any(|&value| file_node(self.file.home.0, value.0).is_err()) {
                 return Err(format!("node outside this file in {}", catalog::name(relation).0));
             }
         }
@@ -475,13 +486,7 @@ impl View<'_, '_> {
     ) -> Result<finish::Table, String> {
         let home = self.parsed.file;
         let position = |raw: u64| -> Result<u64, String> {
-            if raw == finish::NULL {
-                Ok(raw)
-            } else if raw >> 32 == u64::from(home) {
-                Ok(u64::from(raw as u32))
-            } else {
-                Err(format!("foreign node in file-scoped {}", catalog::name(rel).0))
-            }
+            file_node(home, raw).map_err(|_| format!("foreign node in file-scoped {}", catalog::name(rel).0))
         };
         let slot = catalog::number_of(rel).0;
         if let Some(t) = self.packet.local(slot) {
@@ -524,5 +529,17 @@ impl View<'_, '_> {
         table.n = offsets.len();
         self.parsed.fills_made += 1;
         Ok(table)
+    }
+}
+
+#[cfg(test)]
+mod file_node_tests {
+    use super::*;
+    #[test]
+    fn a_diagnostic_identity_is_local_to_its_file_without_a_tree_position() {
+        let diagnostic = catalog::diagnostic_id(l::FileId(19), l::ChildOrdinal(7));
+        assert_eq!(file_node(19, diagnostic.0).unwrap(), u64::from(catalog::node_position(diagnostic).0));
+        assert!(file_node(18, diagnostic.0).is_err());
+        assert_eq!(file_node(19, finish::NULL).unwrap(), finish::NULL);
     }
 }
