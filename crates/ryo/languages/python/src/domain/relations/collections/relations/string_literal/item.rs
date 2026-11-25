@@ -13,7 +13,7 @@ use crate::domain::model::view::types::ModelPart;
 use crate::domain::names::service::string_or_unknown;
 use crate::domain::names::service::unknown;
 use crate::domain::names::types::Unresolved;
-use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
+use crate::domain::node::service::{node_cell, semantic_nodes_of_kind, span_at, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node;
 use crate::domain::scopes::service::owner;
@@ -51,9 +51,10 @@ ryo::fills! {
         // The owner of a node is the scope the model says it is evaluated in.
         built(file.model, &mut file.built, ModelPart::Lexical, file.syntax.tree);
         let owned = &file.model.lexical.scope_of;
+        let tree = file.syntax.tree;
         let joined = &mut file.buffers.text;
         for kind in [Node::Constant, Node::JoinedStr, Node::TemplateStr] {
-            for Numbered { id, node } in nodes_of_kind(&file.syntax, Kind::Node(kind)) {
+            for Numbered { id, node } in semantic_nodes_of_kind(&file.syntax, Kind::Node(kind)) {
                 let value = match string_value(node, joined) {
                     Some(StringValue::Known(text)) => word(words, text),
                     Some(StringValue::Interpolated) => unknown(Unresolved::InterpolatedString),
@@ -61,7 +62,7 @@ ryo::fills! {
                 };
                 rows.write(Row {
                     occurrence: node_cell(&file.syntax, id),
-                    owner: node_cell(&file.syntax, owned.get(usize::from(id)).copied().unwrap_or(languages::Position(0))),
+                    owner: node_cell(&file.syntax, crate::domain::node::service::place_of_id(tree, id).and_then(|p| owned.get(usize::from(p))).map_or(languages::Position(0), |&p| crate::domain::node::service::table_id(tree.segments, p))),
                     value,
                     file: file.syntax.file,
                     span: span_at(&file.syntax, id),

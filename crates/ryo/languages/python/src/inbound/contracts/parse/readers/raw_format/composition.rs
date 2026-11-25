@@ -7,7 +7,7 @@ use crate::domain::literal_facts::service::string_tokens;
 use crate::domain::model::names::service::fixed_word;
 use crate::domain::model::names::types::FixedWords;
 use crate::domain::node::service::{
-    keyed_node, node_at, node_cell, nodes_of_kind, span_at, word, written,
+    keyed_id, semantic_node, node_cell, semantic_nodes_of_kind, span_at, word, written,
 };
 use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::raw_format::constants::INCOMPLETE;
@@ -107,7 +107,8 @@ fn raw_segments(
     parses.clear();
     string_tokens(file, node, tokens);
     parses.extend(tokens.iter().map(|token| {
-        body(RawFormatToken(written(file, *token).0))
+        let spelling = languages::node_table::decoded_of(file.table, *token).unwrap_or_else(|| written(file, *token));
+        body(RawFormatToken(spelling.0))
             .map(|raw| RuffLiteralCFormat.parse(FormatInput(raw.0), FormatDialect::PercentString))
     }));
 }
@@ -200,7 +201,7 @@ ryo::fills! {
             tokens: Vec::new(),
             parses: Vec::new(),
         };
-        for numbered in nodes_of_kind(&syntax, Kind::Node(Node::Constant)) {
+        for numbered in semantic_nodes_of_kind(&syntax, Kind::Node(Node::Constant)) {
             if segment_rows(&syntax, words, &mut read, numbered, rows) == languages::SyntaxCompleteness::Incomplete {
                 whole = languages::SyntaxCompleteness::Incomplete;
             }
@@ -212,7 +213,7 @@ ryo::fills! {
     key(languages::Column::RawFormatSegment(languages::RawFormatSegmentColumn::Id)) |file, words, key, rows| {
         let syntax = file.syntax;
         let mut whole = source_whole(&syntax);
-        let found = keyed_node(&syntax, key).and_then(|id| node_at(&syntax, id).map(|node| Numbered { id, node }));
+        let found = keyed_id(syntax.file, key).and_then(|id| semantic_node(&syntax, id).map(|node| Numbered { id, node }));
         if let Some(numbered) = found {
             let mut read = SegmentRead {
                 memo: &mut file.model.words.get_mut().fixed,
@@ -239,7 +240,7 @@ ryo::fills! {
         let source = source_whole(&syntax);
         let mut whole = source;
         let (mut tokens, mut parses) = (Vec::new(), Vec::new());
-        for Numbered { id, node } in nodes_of_kind(&syntax, Kind::Node(Node::Constant)) {
+        for Numbered { id, node } in semantic_nodes_of_kind(&syntax, Kind::Node(Node::Constant)) {
             if !matches!(node, AnyNodeRef::ExprStringLiteral(_)) {
                 continue;
             }

@@ -4,7 +4,7 @@ use super::constants::INCOMPLETE;
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::literal_facts::service::number;
 use crate::domain::model::names::service::fixed_word;
-use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
+use crate::domain::node::service::{node_cell, semantic_nodes_of_kind, span_at, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::{
     model::types::Declarations,
@@ -48,7 +48,7 @@ ryo::fills! {
         type Row = <languages::NumericLiteral as languages::CatalogRelation>::Row;
         let memo = &mut file.model.words.get_mut().fixed;
         let value = &mut file.buffers.text;
-        for Numbered { id, .. } in nodes_of_kind(&file.syntax, Kind::Node(Node::Constant)) {
+        for Numbered { id, .. } in semantic_nodes_of_kind(&file.syntax, Kind::Node(Node::Constant)) {
             if let Some(found) = number(&file.syntax, id, value) {
                 rows.write(Row {
                     id: node_cell(&file.syntax, id),

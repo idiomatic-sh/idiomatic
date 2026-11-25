@@ -129,6 +129,22 @@ pub(crate) fn nodes_of_kind<'f>(
         })
 }
 
+/// A semantic fact uses the public ID even when its typed node lives after a
+/// physical token segment in the table.
+pub(crate) fn semantic_node<'f>(file: &SyntaxFile<'f>, id: Position) -> Option<AnyNodeRef<'f>> {
+    let place = place_of_id(file.tree, id)?;
+    file.tree.nodes.get(usize::from(place)).copied()
+}
+
+pub(crate) fn semantic_nodes_of_kind<'f>(
+    file: &SyntaxFile<'f>, kind: Kind,
+) -> impl Iterator<Item = Numbered<'f>> + use<'f> {
+    let syntax = *file;
+    node_table::ids_of_kind(syntax.table, kind_bits(kind)).iter().filter_map(move |&id| {
+        semantic_node(&syntax, id).map(|node| Numbered { id, node })
+    })
+}
+
 /// Where an element is, as a row's span.
 #[must_use]
 pub(crate) fn span_at(file: &SyntaxFile<'_>, id: Position) -> Span {

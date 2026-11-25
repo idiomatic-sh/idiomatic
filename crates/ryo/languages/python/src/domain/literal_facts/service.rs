@@ -6,7 +6,7 @@ use super::types::{LiteralPiece, NumberFacts, StringValue, TextBuffer};
 use crate::domain::fact_notes::constants::LOADERS;
 use crate::domain::literal_properties::constants::{NULL, STRING};
 use crate::domain::literal_properties::types::Properties;
-use crate::domain::node::service::{id_of, node_at, written};
+use crate::domain::node::service::{id_of, semantic_node, table_id, written};
 use crate::domain::node::types::SyntaxFile;
 use crate::domain::syntax::constants::{
     BOOLEAN_SCALAR, BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, FLOAT_SCALAR, INTEGER_SCALAR,
@@ -135,7 +135,7 @@ pub(crate) fn number(
     id: Position,
     value: &mut TextBuffer,
 ) -> Option<NumberFacts> {
-    let AnyNodeRef::ExprNumberLiteral(literal) = node_at(file, id)? else {
+    let AnyNodeRef::ExprNumberLiteral(literal) = semantic_node(file, id)? else {
         return None;
     };
     value.0.clear();
@@ -263,7 +263,7 @@ pub(crate) fn string_tokens(
             continue;
         };
         tokens.extend(
-            node_table::children_of(file.table, part_id)
+            node_table::children_of(file.table, table_id(file.tree.segments, part_id))
                 .iter()
                 .copied()
                 .filter(|token| {
@@ -278,11 +278,11 @@ pub(crate) fn string_tokens(
 #[must_use]
 pub(crate) fn specifier(file: &SyntaxFile<'_>, id: Position) -> Flag {
     let arguments = node_table::parent_of(file.table, id);
-    let Some(AnyNodeRef::Arguments(typed)) = node_at(file, arguments) else {
+    let Some(AnyNodeRef::Arguments(typed)) = semantic_node(file, arguments) else {
         return Flag::Lowered;
     };
     let call = node_table::parent_of(file.table, arguments);
-    let Some(AnyNodeRef::ExprCall(calling)) = node_at(file, call) else {
+    let Some(AnyNodeRef::ExprCall(calling)) = semantic_node(file, call) else {
         return Flag::Lowered;
     };
     let first = typed
@@ -293,8 +293,8 @@ pub(crate) fn specifier(file: &SyntaxFile<'_>, id: Position) -> Flag {
             ArgOrKeyword::Keyword(keyword) => id_of(keyword),
         });
     let loads = id_of(calling.func.as_ref())
-        .is_some_and(|callee| LOADERS.contains(&written(file, callee).0));
-    if first == Some(id) && loads {
+        .is_some_and(|callee| LOADERS.contains(&written(file, table_id(file.tree.segments, callee)).0));
+    if first.map(|place| table_id(file.tree.segments, place)) == Some(id) && loads {
         Flag::Raised
     } else {
         Flag::Lowered
