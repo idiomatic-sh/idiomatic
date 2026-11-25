@@ -34,6 +34,61 @@ pub(crate) enum SpanInput {
 
 pub(crate) type Checked = Option<Result<Box<[SpanInput]>, ()>>;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Edge { Start, End }
+
+/// Resolve a projected byte offset to an endpoint in this input row. Keep
+/// the join operand as part of its identity: a self-join has two rows.
+fn offset_origin(
+    exec: &mut Exec<'_>, run: &mut Run, join: usize, value: &E, edge: Option<Edge>,
+) -> Option<(usize, usize, usize, Edge)> {
+    let E::Col(operand, column, _) = *value else { return None };
+    let mut node = exec.plan.nodes[join].inputs[operand];
+    let mut column = column;
+    let mut edge = edge;
+    loop {
+        let step = &exec.plan.nodes[node];
+        if !matches!(step.op.as_str(), "span-bounds" | "source-matches") {
+            return Some((operand, node, column, edge?));
+        }
+        let source = exec.arg_rel(node, "from").ok()?;
+        let input = exec.schema(run, source).ok()?;
+        if column >= input.tys.len() {
+            let output = column - input.tys.len();
+            edge = Some(match (step.op.as_str(), output, edge) {
+                ("span-bounds", 0, None) => Edge::Start,
+                ("span-bounds", 1, None) => Edge::End,
+                ("source-matches", 0, Some(_)) => match step.args()["pattern"].as_str()? {
+                    r"\A" => Edge::Start,
+                    r"\z" => Edge::End,
+                    _ => return None,
+                },
+                _ => return None,
+            });
+            column = finish::pos(&input.names, step.args()["span"].as_str()?).ok()?;
+        }
+        node = source;
+    }
+}
+
+/// A composed span is bounded when both inputs are bounded and the select
+/// producing the pair proves their endpoints are in ascending order.
+fn ordered_span(exec: &mut Exec<'_>, run: &mut Run, node: usize, start: usize, end: usize) -> R<bool> {
+    if start == end { return Ok(true); }
+    if exec.plan.nodes[node].op != "select" { return Ok(false); }
+    let select = exec.sel(run, node)?;
+    let Some(lo) = offset_origin(exec, run, node, &select.items[start].1, Some(Edge::Start)) else { return Ok(false) };
+    let Some(hi) = offset_origin(exec, run, node, &select.items[end].1, Some(Edge::End)) else { return Ok(false) };
+    if lo == hi { return Ok(true); }
+    Ok(select.conj.iter().any(|condition| {
+        let E::Cmp(op, left, right) = condition else { return false };
+        let a = offset_origin(exec, run, node, left, None);
+        let b = offset_origin(exec, run, node, right, None);
+        (matches!(op, finish::Op::Lt | finish::Op::Le | finish::Op::Eq) && a == Some(lo) && b == Some(hi))
+            || (matches!(op, finish::Op::Gt | finish::Op::Ge | finish::Op::Eq) && a == Some(hi) && b == Some(lo))
+    }))
+}
+
 /// Trace a span through the same prepared projections used by the operator.
 /// A newly composed span needs a separate ordering proof, even when both
 /// endpoint spans were valid on their own.
@@ -89,6 +144,11 @@ fn span_inputs(
                 } else if step.op == "source-matches" {
                     let index = finish::pos(&incoming.names, finish::s(&step.args()["span"])?)?;
                     pending.push((source, index));
+                } else if step.op == "span-between" {
+                    let start = finish::pos(&incoming.names, finish::s(&step.args()["start"])?)?;
+                    let end = finish::pos(&incoming.names, finish::s(&step.args()["end"])?)?;
+                    if !ordered_span(exec, run, source, start, end)? { return Err("unordered span endpoints".into()); }
+                    pending.extend([(source, start), (source, end)]);
                 } else {
                     return Err("new span without ordered endpoints".into());
                 }
