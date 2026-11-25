@@ -217,6 +217,11 @@ pub(crate) struct Source {
 
 pub(crate) use ryo_values::domain::files::types::ExecutablePermission as Permission;
 type PathIds = HashMap<Rc<str>, usize>;
+pub(crate) static TRACE_EPOCH: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+fn trace_on() -> bool { static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new(); *ON.get_or_init(|| std::env::var_os("VEC_PARSE_TRACE").is_some()) }
+fn trace(kind: &str, source: usize, binding: usize, program: usize, closed: bool) {
+    if trace_on() { eprintln!("{kind}\t{}\t{source}\t{binding}\t{program}\t{}", TRACE_EPOCH.load(std::sync::atomic::Ordering::Relaxed), u8::from(closed)); }
+}
 
 pub(crate) trait ReportSelection: FromIterator<usize> {
     fn assigned(slots: std::ops::Range<usize>) -> Self;
@@ -505,8 +510,10 @@ impl Schedule {
         pending: &mut BTreeSet<usize>,
     ) -> usize {
         if known_binding && let Some(slot) = source.known.lookup(binding) {
+            trace("KNOWN", src, binding, 0, false);
             return slot;
         }
+        trace("ADMIT", src, binding, 0, false);
         let first = source.bindings.is_empty();
         source.bindings.admit(binding, || {
             let slot = *pairs;
@@ -1044,6 +1051,7 @@ pub(crate) fn visit<L: FileSource>(
             if project_slots.is_empty() && !have_plan {
                 continue;
             }
+            if trace_on() { eprintln!("PARSE\t{}\t{}\t{}", TRACE_EPOCH.load(std::sync::atomic::Ordering::Relaxed), index, bytes.len()); }
             let t = thread_cpu();
             run.supplied_permission = source.provided.as_ref().map(|_| (id.0, source.permission));
             run.root_dir.clear();
@@ -1176,6 +1184,7 @@ pub(crate) fn visit<L: FileSource>(
                         world.insert_empty(slot, &source.path, b, &mut run, cut);
                     }
                     answers.set(slot, Ok(Reported::new(Vec::new(), Vec::new(), vec![source.path.clone()])));
+                    trace("REJECT", index, binding, program_of[binding], false);
                     clocks.skipped += 1;
                     continue;
                 }
@@ -1210,6 +1219,7 @@ pub(crate) fn visit<L: FileSource>(
                         partial_of(&[], recovery, &rels).is_empty()
                     } {
                         answers.set_empty(slot, || Ok(Reported::default()));
+                        trace("SCREEN", index, binding, program_of[binding], false);
                         clocks.skipped += 1;
                         continue;
                     }
@@ -1518,6 +1528,7 @@ pub(crate) fn visit<L: FileSource>(
                         world.insert_empty(slot, &source.path, b, &mut run, cut);
                     }
                     answers.set_empty(slot, || Ok(Reported::default()));
+                    trace("EXCL", index, binding, program_of[binding], cut_of[binding].is_some());
                     clocks.skipped += 1;
                     continue;
                 }
@@ -1525,6 +1536,7 @@ pub(crate) fn visit<L: FileSource>(
                 // population still goes through the scoped evaluator.
                 if unknowns.is_empty() && let Some(result) = certified.remove(&slot) {
                     let result = result.and_then(&mut locate);
+                    trace("CERT", index, binding, program_of[binding], false);
                     clocks.certified += 1;
                     clocks.productive += usize::from(result.as_ref().is_ok_and(|r| !r.rows.is_empty()));
                     clocks.empty += usize::from(result.as_ref().is_ok_and(|r| r.rows.is_empty()));
@@ -1533,6 +1545,7 @@ pub(crate) fn visit<L: FileSource>(
                     continue;
                 }
                 clocks.evaluated += 1;
+                trace("EVAL", index, binding, program_of[binding], cut_of[binding].is_some());
                 let version = version.get_or_init(|| {
                     finish::FileVersion::new(&tree, &bytes, id.0, frame_words.take())
                 });

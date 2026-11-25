@@ -524,6 +524,7 @@ impl Batch {
     ) {
         let Active { paths, manifests, readers: reader_states, world, answers, aliases, contributions, .. } = state;
         if pending.is_empty() { self.empty_reader_epochs += 1; }
+        session::TRACE_EPOCH.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let unclaimed = languages.len();
         reader_states.resize_with(unclaimed + 1, Default::default);
         let mut groups = vec![Vec::new(); unclaimed + 1];
