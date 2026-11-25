@@ -28,6 +28,15 @@ impl Catalog {
         Ok(catalog)
     }
 
+    /// A preparation has a private schema run. Install only the named bases it reads.
+    pub(crate) fn declare_bases(&self, run: &mut Run, bases: &[String]) {
+        for name in bases {
+            if let Some(schema) = self.0.get(name.as_str()) {
+                declare(run, schema);
+            }
+        }
+    }
+
     pub(crate) fn declare(&self, run: &mut Run) {
         for schema in self.0.values() {
             if run.catalog(schema.name).is_none() {

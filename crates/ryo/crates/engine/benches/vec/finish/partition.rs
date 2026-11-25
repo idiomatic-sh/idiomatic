@@ -127,28 +127,19 @@ fn classify(
                     if step.inputs.len() < 2 {
                         true
                     } else {
-                        let names = step
-                            .inputs
-                            .iter()
-                            .enumerate()
-                            .map(|(i, &n)| {
-                                Ok((step.alias(i).map(str::to_owned), exec.schema(run, n)?))
-                            })
-                            .collect::<R<Vec<_>>>()?;
-                        let mut components: Vec<_> = (0..names.len()).collect();
-                        let mut terms = Vec::new();
-                        if let Some(cond) = exec.select_condition(run, step, &names)? {
-                            super::flatten(cond, &mut terms);
-                        }
-                        for term in terms {
+                        // The schema above already bound this select with closed inputs,
+                        // preserving file equalities in its flattened conjunction.
+                        let select = exec.sel(run, i)?;
+                        let mut components: Vec<_> = (0..step.inputs.len()).collect();
+                        for term in &select.conj {
                             let E::Cmp(Op::Eq, a, b) = term else { continue };
-                            let (E::Col(left, _, lt), E::Col(right, _, rt)) = (*a, *b) else {
+                            let (E::Col(left, _, lt), E::Col(right, _, rt)) = (&**a, &**b) else {
                                 continue;
                             };
-                            if lt != rt || !anchor(lt) {
+                            if lt != rt || !anchor(*lt) {
                                 continue;
                             }
-                            let (a, b) = (components[left], components[right]);
+                            let (a, b) = (components[*left], components[*right]);
                             for c in &mut components {
                                 if *c == b {
                                     *c = a;

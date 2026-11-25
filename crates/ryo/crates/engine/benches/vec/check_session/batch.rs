@@ -162,7 +162,7 @@ impl Admission {
             .iter()
             .any(|table| table.columns.iter().any(|(_, kind)| kind == "File"));
         let mut run = finish::Run::schema_run(patterns);
-        catalog.declare(&mut run);
+        catalog.declare_bases(&mut run, &program.bases);
         let declarations = hosted.iter().map(|h| Hosted {
             name: h.name.clone(), columns: h.columns.clone(), rows: Default::default(), partial: h.partial.clone(),
         }).collect::<Vec<_>>();
