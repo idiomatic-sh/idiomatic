@@ -69,6 +69,12 @@ pub struct NumberedFile<'a> {
 
 /// Operations on a single borrowed file. A node cell must address its lent table.
 pub trait NumberedFacts {
+    /// Fill the existing catalog relation directly into reusable columns.
+    /// The cell words belong to the supplied file dictionary.
+    fn fill_columns(&mut self, relation: ryo_relations::domain::relations::types::Relation,
+        wanted: crate::domain::facts::types::Wanted, words: &mut crate::domain::facts::types::FileWords,
+        columns: &mut crate::domain::facts::types::FilledColumns) -> crate::domain::facts::types::FactAnswer;
+
     /// Append catalog rows and their coverage into the consumer's writer.
     fn fill(&mut self, relations: &[ryo_relations::domain::relations::types::Relation],
         symbols: &mut Symbols, out: &mut dyn ryo_relations::domain::relations::types::RowWriter)
@@ -132,8 +138,15 @@ pub trait NumberedVisit: Send + Sync {
     /// A consumer may use this declaration only during this visit and subject
     /// to the relation's ordinary coverage.
     fn projections(&self) -> &'static [ryo_relations::domain::relations::types::Relation] { &[] }
+
+    /// Open the reader state once for a worker's visit to this provider's files.
+    fn open(&self) -> Box<dyn NumberedReader + '_>;
+}
+
+/// A numbered walk with buffers that can be reused after each file's loan ends.
+pub trait NumberedReader {
     /// Lend the file once. Return a failure when it could not be read.
-    fn visit(&self, request: super::types::ParseRequest<'_>,
+    fn visit(&mut self, request: super::types::ParseRequest<'_>,
         catalog: &[ryo_relations::domain::relations::types::Relation],
         named: &[&FileRelation], project: Option<&dyn FileProject>,
         symbols: &mut Symbols, consume: &mut dyn FnMut(NumberedFile<'_>, &mut Symbols))

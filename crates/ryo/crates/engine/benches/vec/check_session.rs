@@ -861,6 +861,9 @@ pub(crate) fn visit<L: FileSource>(
     let mut distinct = std::cell::RefCell::new(crate::pair_checks::FileSymbols::default());
     let mut scratch = HeldFile::default();
     let mut packet = reader_run::packet::Packet::new();
+    let scoped = parser.and_then(FileSource::scoped);
+    let mut numbered_reader = None;
+    let mut numbered_symbols = l::Symbols::default();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
     for &index in selected {
         by_path.entry(&sources[index].path).or_default().push(index);
@@ -1002,7 +1005,6 @@ pub(crate) fn visit<L: FileSource>(
                 },
             };
             if projects_words { requested.push(l::Relation::SyntaxTree); }
-            let scoped = parser.and_then(FileSource::scoped);
             let named_demand = scoped.map(|_| {
                 jobs.iter().filter_map(|(binding, _)| bound[&binding].as_ref().ok())
                     .flat_map(|binding| binding.named.iter().copied().map(|s| (s.name, s)))
@@ -1540,16 +1542,23 @@ pub(crate) fn visit<L: FileSource>(
             let before_visit = scoped.filter(|_| !cached_ready).map(|_| thread_cpu());
             let mut called = false;
             let result = if cached_ready { None } else {
-                scoped.map(|supplier| supplier.visit(request, &requested,
-                    named_demand.as_deref().unwrap_or_default(),
-                    source.environment.as_deref().map(|e| e as &dyn l::FileProject),
-                    &mut l::Symbols::default(), &mut |file, dictionary| {
-                        assert!(!called, "a file version was supplied twice");
-                        called = true;
-                        let start = thread_cpu();
-                        consume(Some((file, dictionary)));
-                        spent_in_visit = thread_cpu() - start;
-                    }))
+                scoped.map(|supplier| {
+                    ryo_language::domain::symbols::service::clear_symbols(&mut numbered_symbols);
+                    numbered_reader.get_or_insert_with(|| supplier.open()).visit(
+                        request,
+                        &requested,
+                        named_demand.as_deref().unwrap_or_default(),
+                        source.environment.as_deref().map(|e| e as &dyn l::FileProject),
+                        &mut numbered_symbols,
+                        &mut |file, dictionary| {
+                            assert!(!called, "a file version was supplied twice");
+                            called = true;
+                            let start = thread_cpu();
+                            consume(Some((file, dictionary)));
+                            spent_in_visit = thread_cpu() - start;
+                        },
+                    )
+                })
             };
             match result {
                 None if !called => consume(None),

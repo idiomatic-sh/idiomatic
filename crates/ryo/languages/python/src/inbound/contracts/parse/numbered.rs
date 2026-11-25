@@ -17,8 +17,27 @@ impl l::NumberedVisit for ParseContract {
         &[l::Relation::SemanticSyntax, l::Relation::SemanticChild]
     }
 
+    fn open(&self) -> Box<dyn l::NumberedReader + '_> {
+        let (_, words) = walk_vocabulary();
+        Box::new(Reader {
+            provider: self,
+            walker: ColumnWalk::with_settings(words(), self.settings),
+            tree: l::NodeTable::default(),
+            words: Vec::new(),
+        })
+    }
+}
+
+struct Reader<'a> {
+    provider: &'a ParseContract,
+    walker: ColumnWalk,
+    tree: l::NodeTable,
+    words: Vec<l::Symbol>,
+}
+
+impl l::NumberedReader for Reader<'_> {
     fn visit(
-        &self,
+        &mut self,
         request: l::ParseRequest<'_>,
         catalog: &[l::Relation],
         _named: &[&l::FileRelation],
@@ -26,9 +45,8 @@ impl l::NumberedVisit for ParseContract {
         symbols: &mut l::Symbols,
         consume: &mut dyn FnMut(l::NumberedFile<'_>, &mut l::Symbols),
     ) -> Result<(), l::ParseError> {
-        let (fields, words) = walk_vocabulary();
-        let words = words();
-        let mut walker = ColumnWalk::with_settings(words, self.settings);
+        let (fields, _) = walk_vocabulary();
+        let Self { provider, walker, tree, words } = self;
         walker
             .visit_file(
                 l::WalkRequest {
@@ -37,11 +55,11 @@ impl l::NumberedVisit for ParseContract {
                     source: request.bytes,
                 },
                 l::RelationNeeds(catalog),
-                &mut l::NodeTable::default(),
+                tree,
                 &mut |file| {
                     let tree = file.table;
                     let completeness = file.file.syntax.completeness;
-                    let mut words = Vec::new();
+                    words.clear();
                     if catalog.contains(&l::Relation::SyntaxTree) {
                         words.extend(node_table::kind_codes(tree).iter().enumerate().map(
                             |(at, &kind)| {
@@ -57,13 +75,13 @@ impl l::NumberedVisit for ParseContract {
                     }
                     let mut notes = l::Bytes::default();
                     if request.notes == l::NoteRequest::Wanted {
-                        self.notes.write(
+                        provider.notes.write(
                             &crate::domain::fact_notes::service::noted_walk(file, request.bytes),
                             &mut notes,
                         );
                     }
                     let mut facts = Facts {
-                        provider: self,
+                        provider,
                         request,
                         project,
                         file,
@@ -71,7 +89,7 @@ impl l::NumberedVisit for ParseContract {
                     consume(
                         l::NumberedFile {
                             tree,
-                            words: &words,
+                            words,
                             fields,
                             syntax: completeness.syntax,
                             lexical: completeness.lexical,
@@ -111,6 +129,16 @@ struct Facts<'a, 'b, 'c> {
 }
 
 impl l::NumberedFacts for Facts<'_, '_, '_> {
+    fn fill_columns(
+        &mut self,
+        relation: l::Relation,
+        wanted: l::Wanted,
+        words: &mut l::FileWords,
+        columns: &mut l::FilledColumns,
+    ) -> l::FactAnswer {
+        self.file.fill(relation, wanted, words, columns)
+    }
+
     fn fill(
         &mut self,
         relations: &[l::Relation],

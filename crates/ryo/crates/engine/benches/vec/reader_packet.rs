@@ -8,6 +8,54 @@ use std::rc::Rc;
 
 const RELATIONS: usize = catalog::ALL.len();
 
+/// A file's typed fact columns and the extent of the fill that produced them.
+pub(crate) struct LocalTable {
+    pub(crate) rows: usize,
+    pub(crate) columns: FilledColumns,
+    pub(crate) answer: l::FactAnswer,
+    pub(crate) wanted: l::Wanted,
+}
+
+/// Borrow the file's own IDs and buffers until the consumer finishes its visit.
+pub(crate) struct FileColumns<'f> {
+    pub(crate) home: l::FileId,
+    pub(crate) tree: &'f l::NodeTable,
+    pub(crate) words: &'f FileWords,
+    pub(crate) tables: &'f [Option<LocalTable>],
+}
+
+#[derive(Debug)]
+pub(crate) struct BadNode;
+
+impl FileColumns<'_> {
+    pub(crate) fn column(&self, relation: usize, column: usize) -> Option<&[CellWord]> {
+        let table = self.tables.get(relation)?.as_ref()?;
+        table.columns.0.get(column)?.0.get(..table.rows)
+    }
+
+    pub(crate) fn coverage(&self, relation: usize) -> Option<(&l::FactAnswer, l::Wanted)> {
+        let table = self.tables.get(relation)?.as_ref()?;
+        Some((&table.answer, table.wanted))
+    }
+
+    pub(crate) fn text(&self, word: CellWord) -> l::NameText<'_> {
+        l::facts::text(self.words, word)
+    }
+
+    pub(crate) fn position(&self, word: CellWord) -> Result<Option<l::Position>, BadNode> {
+        if word.0 == finish::NULL {
+            return Ok(None);
+        }
+        let position = word.0 as u32;
+        if word.0 >> 32 != u64::from(self.home.0)
+            || position as usize >= l::node_table::element_count(self.tree).0
+        {
+            return Err(BadNode);
+        }
+        Ok(Some(l::Position(position)))
+    }
+}
+
 fn widths() -> &'static [usize; RELATIONS] {
     static WIDTHS: std::sync::OnceLock<[usize; RELATIONS]> = std::sync::OnceLock::new();
     WIDTHS.get_or_init(|| {
