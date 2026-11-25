@@ -82,3 +82,30 @@ pub(crate) trait FileFacts {
     fn bind(&self, relation: ryo::languages::Relation, run: &mut super::Run) -> Result<bool, String>;
     fn relation(&self, relation: ryo::languages::Relation) -> Option<Fact<'_>>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_columns_match_owned_cells_in_the_executor_namespace() {
+        let local = [
+            FilledColumn(vec![CellWord((3 << 32) | 8), CellWord(NULL)]),
+            FilledColumn(vec![CellWord(1), CellWord(u64::from(ryo::languages::NO_SYMBOL.0))]),
+            FilledColumn(vec![CellWord(0), CellWord(42)]),
+        ];
+        let kinds = [CellKind::Node, CellKind::Symbol, CellKind::Number];
+        let symbols = [33, 44];
+        let file = Columns::Lent(&local, &kinds, &symbols, 55);
+        let expected = [vec![8, NULL], vec![44, 55], vec![0, 42]];
+        let owned = Columns::Owned(&expected);
+        for col in 0..kinds.len() {
+            let left = file.get(col);
+            let right = owned.get(col);
+            assert_eq!(left.len(), right.len());
+            for row in 0..right.len() {
+                assert_eq!(left.at(row), right.at(row));
+            }
+        }
+    }
+}
