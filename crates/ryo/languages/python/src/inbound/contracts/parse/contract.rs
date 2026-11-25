@@ -63,7 +63,9 @@ impl Parse for ParseContract {
 
     #[cfg(feature = "fixtures")]
     fn source_words(&self) -> Option<ryo::languages::SourceWords> {
-        Some(ryo::languages::SourceWords { identifier: crate::fixtures::columns::is_identifier, columns: &crate::fixtures::columns::SPELLED_COLUMNS })
+        // Semantic identifiers are normalized and embedded expressions can be decoded.
+        // A missing physical token is insufficient to disprove these fact columns.
+        Some(ryo::languages::SourceWords { identifier: crate::fixtures::columns::is_identifier, columns: &[] })
     }
 
     type FileModel = Declarations;
