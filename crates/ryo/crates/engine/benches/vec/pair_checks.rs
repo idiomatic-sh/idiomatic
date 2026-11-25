@@ -1338,6 +1338,18 @@ mod word_tests {
     use super::*;
 
     #[test]
+    fn a_partial_read_leaves_no_word_or_row_in_the_next_file() {
+        let mut reusable = WitnessTables::default();
+        let first = &mut reusable.begin_file(1)[0];
+        first.read = true;
+        first.cells.0.push(languages::FilledColumn(vec![CellWord(42)]));
+        first.index.entry(0).or_default().insert(7, vec![0]);
+        let next = &reusable.begin_file(1)[0];
+        assert!(!next.read && !next.complete && !next.answered);
+        assert!(next.index.is_empty() && next.cells.0[0].0.is_empty());
+    }
+
+    #[test]
     fn absent_symbol_and_empty_literal_have_different_witnesses() {
         let mut words = languages::facts::file_words(&languages::facts::base_words(Default::default(), &[]));
         let empty = languages::facts::intern(&mut words, languages::NameText(""));
