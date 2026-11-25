@@ -1038,7 +1038,7 @@ impl File<'_> {
         let m = match self.fact(usize::from(i)) {
             Some(t) => {
                 FACT_IX_ROWS.fetch_add(t.len() as u64, std::sync::atomic::Ordering::Relaxed);
-                { let values = t.columns().get(col); Index::build(t.len(), |r| values.at(r)) }
+                { let values = t.columns().get(col); Index::build_column(t.len(), values) }
             }
             None => Index::build(0, |_| 0),
         };
@@ -3902,9 +3902,22 @@ impl Drop for Index {
 impl Index {
     pub(super) fn build(n: usize, key: impl Fn(usize) -> u64) -> Index {
         // redo-alloc: the scratch and the index's own buffers from the worker's kept ones (same rows, same order)
-        let (mut keys, mut fill, mut order) = IX_SCRATCH.with(|b| std::mem::take(&mut *b.borrow_mut()));
+        let (mut keys, fill, order) = IX_SCRATCH.with(|b| std::mem::take(&mut *b.borrow_mut()));
         keys.clear();
         keys.extend((0..n).map(key));
+        Self::from_keys(n, keys, fill, order)
+    }
+
+    /// The same index over a fact column: its cells are read in one pass that picks the column's representation once.
+    pub(super) fn build_column(n: usize, column: fact_view::Column<'_>) -> Index {
+        let (mut keys, fill, order) = IX_SCRATCH.with(|b| std::mem::take(&mut *b.borrow_mut()));
+        keys.clear();
+        column.extend_into(&mut keys, n);
+        Self::from_keys(n, keys, fill, order)
+    }
+
+    fn from_keys(n: usize, keys: Vec<u64>, mut fill: Vec<u32>, mut order: Vec<(u64, u32)>) -> Index {
+        let mut keys = keys;
         let max = keys.iter().copied().max().unwrap_or(0);
         let ix = if n > 0 && max < (4 * n as u64).max(1024) {
             let m = max as usize + 1;
