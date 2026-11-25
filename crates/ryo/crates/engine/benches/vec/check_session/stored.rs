@@ -5,6 +5,7 @@ use super::{
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
     hash::{Hash, Hasher},
@@ -42,7 +43,7 @@ impl session::Source {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct Report {
     // None means only the closed operator consumed this contribution.
     // Some(empty) proves a local request completed with no rows.
@@ -50,7 +51,7 @@ struct Report {
     issues: Option<Box<ReportIssues>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct ReportIssues {
     rejected_syntax: Vec<String>,
     unknowns: Vec<(String, String)>,
@@ -98,7 +99,7 @@ struct Notes {
     notes: Vec<u8>,
     manifest: Option<Box<str>>,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct Local {
     report: Report,
     frontier: Vec<(usize, usize)>,
@@ -130,13 +131,95 @@ enum BlockId {
     Empty(u32),
     Local(Key),
 }
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Deserialize)]
+struct FileWire<T> {
+    context: Option<Proof>,
+    pairs: BTreeMap<Key, T>,
+    blocks: Vec<BlockId>,
+}
+
+struct RowBytes<T>(T);
+impl<T: AsRef<[u8]>> Serialize for RowBytes<T> {
+    fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
+        out.serialize_bytes(self.0.as_ref())
+    }
+}
+
+#[derive(Default)]
 struct FileAnswers {
     context: Option<Proof>,
     pairs: BTreeMap<Key, Local>,
+    locations: BTreeMap<Key, std::ops::Range<usize>>,
+    mapped: Option<shards::MappedRecord>,
     blocks: Vec<BlockId>,
-    #[serde(skip)]
     known_blocks: HashMap<Key, usize>,
+}
+
+impl FileAnswers {
+    fn mapped(record: shards::MappedRecord) -> Option<Self> {
+        let (locations, blocks, context) = {
+            let bytes = record.as_ref();
+            let FileWire { context, pairs, blocks }: FileWire<&[u8]> = postcard::from_bytes(bytes).ok()?;
+            let locations = pairs.into_iter().map(|(key, body)| {
+                let start = body.as_ptr() as usize - bytes.as_ptr() as usize;
+                (key, start..start + body.len())
+            }).collect();
+            (locations, blocks, context)
+        };
+        Some(Self { locations, mapped: Some(record), blocks, context, ..Self::default() })
+    }
+
+    fn decode(&self, key: &Key) -> Option<Local> {
+        let range = self.locations.get(key)?;
+        postcard::from_bytes(&self.mapped.as_ref()?.as_ref()[range.clone()]).ok()
+    }
+
+    fn read(&self, key: &Key) -> Option<Cow<'_, Local>> {
+        self.pairs.get(key).map(Cow::Borrowed).or_else(|| self.decode(key).map(Cow::Owned))
+    }
+
+    fn remove(&mut self, key: &Key) {
+        self.locations.remove(key);
+        self.pairs.remove(key);
+    }
+
+    fn insert(&mut self, key: Key, local: Local) {
+        self.locations.remove(&key);
+        self.pairs.insert(key, local);
+    }
+}
+
+struct LocalWire<'a>(&'a FileAnswers);
+impl Serialize for LocalWire<'_> {
+    fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::{Error as _, SerializeMap as _};
+        let file = self.0;
+        let mut map = out.serialize_map(Some(file.locations.len() + file.pairs.len()))?;
+        if let Some(payload) = &file.mapped {
+            for (key, range) in &file.locations {
+                map.serialize_entry(key, &RowBytes(&payload.as_ref()[range.clone()]))?;
+            }
+        }
+        let mut buffer = Vec::new();
+        for (key, pair) in &file.pairs {
+            buffer.clear();
+            buffer = postcard::to_extend(pair, buffer).map_err(S::Error::custom)?;
+            map.serialize_entry(key, &RowBytes(&buffer))?;
+        }
+        map.end()
+    }
+}
+
+impl Serialize for FileAnswers {
+    fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        struct Wire<'a> {
+            context: &'a Option<Proof>,
+            pairs: LocalWire<'a>,
+            blocks: &'a [BlockId],
+        }
+        Wire { context: &self.context, pairs: LocalWire(self), blocks: &self.blocks }.serialize(out)
+    }
 }
 fn kind(p: &Path) -> Res<u8> {
     match fs::metadata(p) {
@@ -815,7 +898,7 @@ impl Store {
                 });
             }
             if frontier_sources[i] || src.bindings.iter().any(|&(_, slot)| self.keep_pairs[slot]) {
-                self.files.open(&self.dir, &version);
+                self.files.open_mapped(&self.dir, &version, FileAnswers::mapped);
                 let context = self.files.get(&version).map(|file| file.context);
                 self.files_valid[i] = context.is_some_and(|proof| {
                     self.reuse_context(src.environment.as_deref(), proof)
@@ -847,7 +930,7 @@ impl Store {
             let Some(file) = self.files.get(&version) else {
                 continue;
             };
-            let Some(pair) = file.pairs.get(&binding) else {
+            let Some(pair) = file.read(&binding) else {
                 continue;
             };
             let parts = pair
@@ -884,7 +967,7 @@ impl Store {
             }
         }
         for (version, binding) in damaged {
-            self.files.change(&version).pairs.remove(&binding);
+            self.files.change(&version).remove(&binding);
         }
         self.restored_blocks += restored.len();
         self.frontier_cpu += crate::thread_cpu() - restore_start;
@@ -916,7 +999,7 @@ impl Store {
                     self.absent_file += 1;
                     return true;
                 };
-                let Some(pair) = file.pairs.get(&self.binding_keys[bind]) else {
+                let Some(pair) = file.read(&self.binding_keys[bind]) else {
                     if b.cut_of[binding].is_some() {
                         self.absent_frontier += 1
                     } else {
@@ -1002,9 +1085,7 @@ impl Store {
                 let binding = self.binding_keys[binding];
                 let a = aliases.lookup(slot);
                 let Ok(report) = &answers[a] else { continue };
-                if file
-                    .pairs
-                    .get(&binding)
+                if file.read(&binding)
                     .is_some_and(|p| !self.local_rows[slot] || p.report.rows.is_some())
                 {
                     continue;
@@ -1055,7 +1136,7 @@ impl Store {
                     .flatten()
                     .map(|(n, f)| (n.clone(), world.run.paths[*f as usize].clone()))
                     .collect();
-                file.pairs.insert(
+                file.insert(
                     binding,
                     Local {
                         report: Report::save(report, self.local_rows[slot]),
