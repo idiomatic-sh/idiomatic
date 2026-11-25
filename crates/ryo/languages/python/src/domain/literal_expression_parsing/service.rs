@@ -30,7 +30,7 @@ pub(crate) fn clear(index: &mut LiteralParseIndex) {
     crate::domain::grammar_cache::service::reset(&mut index.occurrences);
     index.embedded.clear();
     if index.embedded.capacity() > constants::EMBEDDED_CAPACITY {
-        index.embedded = HashSet::new();
+        index.embedded = HashSet::default();
     }
     index.state = LiteralParseState::Fresh;
 }
