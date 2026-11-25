@@ -300,7 +300,7 @@ impl World {
         reader: Option<usize>,
         words: &HashMap<u32, u32>,
     ) -> Result<Rc<finish::population::Block>> {
-        use finish::population::Block;
+        use finish::population::{Block, Words};
         if syms.is_empty() {
             if let Some(dictionary) = reader.and_then(|id| self.project_words.get(id)) {
                 syms.extend(words.iter().map(|(reason, &word)| (word, dictionary[reason])));
@@ -315,10 +315,18 @@ impl World {
             if needed.get(c) == Some(&false) {
                 // An unobserved ordinal stays present in the schema for positional
                 // kernels, with no payload to translate, copy or retain.
-                columns.push(Vec::new());
+                columns.push(Words::Constant(finish::NULL));
                 continue;
             }
-            let mut dst = Vec::with_capacity(t.n);
+            if matches!(ty, finish::Ty::File) && src.iter().all(|&v| v == u64::from(home)) {
+                columns.push(Words::Constant(u64::from(origin)));
+                continue;
+            }
+            if !matches!(ty, finish::Ty::File | finish::Ty::Node | finish::Ty::Sym) {
+                columns.push(Words::pack(std::borrow::Cow::Borrowed(src)));
+                continue;
+            }
+            let mut dst = Vec::with_capacity(src.len());
             match ty {
                 finish::Ty::File => {
                     for &v in src {
@@ -372,9 +380,9 @@ impl World {
                         dst.push(u64::from(sym));
                     }
                 }
-                _ => dst.extend_from_slice(src),
+                _ => unreachable!("only translated columns reach this step"),
             }
-            columns.push(dst);
+            columns.push(Words::pack(std::borrow::Cow::Owned(dst)));
         }
         Ok(Rc::new(Block::new(
             origin,

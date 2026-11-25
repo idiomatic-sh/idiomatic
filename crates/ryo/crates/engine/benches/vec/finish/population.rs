@@ -104,7 +104,7 @@ impl StoredValues {
 }
 
 impl Words {
-    fn pack(v: Vec<u64>) -> Self {
+    pub(crate) fn pack(v: std::borrow::Cow<'_, [u64]>) -> Self {
         let first = v.first().copied().unwrap_or(super::NULL);
         if v.iter().all(|&x| x == first) {
             return Self::Constant(first);
@@ -119,10 +119,10 @@ impl Words {
             .iter()
             .fold((first, first), |(lo, hi), &x| (lo.min(x), hi.max(x)));
         match hi - lo {
-            0..=255 => Self::Byte(lo, v.into_iter().map(|x| (x - lo) as u8).collect()),
-            256..=65535 => Self::Short(lo, v.into_iter().map(|x| (x - lo) as u16).collect()),
-            65536..=4294967295 => Self::Int(lo, v.into_iter().map(|x| (x - lo) as u32).collect()),
-            _ => Self::Full(v.into_boxed_slice()),
+            0..=255 => Self::Byte(lo, v.iter().map(|&x| (x - lo) as u8).collect()),
+            256..=65535 => Self::Short(lo, v.iter().map(|&x| (x - lo) as u16).collect()),
+            65536..=4294967295 => Self::Int(lo, v.iter().map(|&x| (x - lo) as u32).collect()),
+            _ => Self::Full(v.into_owned().into_boxed_slice()),
         }
     }
 
@@ -233,13 +233,13 @@ impl Block {
         self.columns[col].append(self.n,&mut out);
         out
     }
-    pub(crate) fn new(home: u32, names: Names, tys: Tys, n: usize, columns: Vec<Vec<u64>>) -> Self {
+    pub(crate) fn new(home: u32, names: Names, tys: Tys, n: usize, columns: Vec<Words>) -> Self {
         Self {
             home,
             names,
             tys,
             n,
-            columns: columns.into_iter().map(Words::pack).collect(),
+            columns,
             postings: Default::default(),
         }
     }
@@ -653,7 +653,7 @@ impl CarriedBlock {
             if let Words::Constant(value) = words {
                 *value = remap(*value);
             } else {
-                *words = Words::pack((0..self.rows).map(|i| remap(words.at(i))).collect());
+                *words = Words::pack(std::borrow::Cow::Owned((0..self.rows).map(|i| remap(words.at(i))).collect()));
             }
         }
         Block {
