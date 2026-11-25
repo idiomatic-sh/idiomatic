@@ -315,7 +315,7 @@ edges = composition.read_text()
 for name in ("rust", "toml", "json", "markdown", "typescript", "python"):
     dependency(cli_manifest, "native_" + name, "idiomatic-sh-ryo-" + name, engine_tree / "languages" / name, ("fixtures",) if name == "python" else ())
     if name in ("rust", "toml", "json", "markdown", "typescript"):
-        factory = "linked_0_1_4" if name == "rust" else "linked"
+        factory = "linked"
         edges = edges.replace(f'ryo_{name}::linked(),', f'{{ let mut provider = ryo_{name}::linked(); provider.native_provider = Some(native_{name}::{factory}()); provider }},')
 composition.write_text(edges)
 for binary, name in (("vec", "python"), ("vec_ts", "typescript"), ("vec_rust", "rust")):

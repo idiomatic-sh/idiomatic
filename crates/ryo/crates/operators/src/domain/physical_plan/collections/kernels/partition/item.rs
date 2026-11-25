@@ -155,7 +155,7 @@ fn ensured(
 
 /// The rest groups member `member` of partition `place` reads: those whose first row its first comparison does not fail (it
 /// holds or faults); bit 63 (the rest's untold rows) always.
-#[expect(clippy::too_many_arguments, reason = "spike (ryo-fmx3): the partition, the member, the rows and the decision state")]
+#[expect(clippy::too_many_arguments, reason = "spike: the partition, the member, the rows and the decision state")]
 fn rest_read(
     plan: &PhysicalPlan,
     place: u32,
@@ -230,7 +230,7 @@ fn stamp_of(buffers: &FileBuffers) -> u32 {
 /// What a sibling's partition answers over `rows`: made now when the file has not made it; `Some(true)` when the sibling
 /// reads no row, `Some(false)` when it reads some (then listed in `partitions.rows` when `listed`), `None` when the partition
 /// is not made of `rows`.
-#[expect(clippy::too_many_arguments, reason = "spike (ryo-fmx3): the sibling, its rows and the buffers' parts it writes")]
+#[expect(clippy::too_many_arguments, reason = "spike: the sibling, its rows and the buffers' parts it writes")]
 fn answered(
     plan: &PhysicalPlan,
     (place, slot, member): (u32, u32, u32),

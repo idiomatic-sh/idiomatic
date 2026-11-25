@@ -275,7 +275,7 @@ fn node_of_place(place: usize) -> u32 {
 }
 
 /// A probe stage's chunk call (`stage_chunk`'s probe arm).
-#[expect(clippy::too_many_arguments, reason = "spike (ryo-fmx3): the probe arm, lifted out for the recorder")]
+#[expect(clippy::too_many_arguments, reason = "spike: the probe arm, lifted out for the recorder")]
 fn probe_chunk(
     run: &mut KernelRun<'_>,
     buffers: &mut FileBuffers,
