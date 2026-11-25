@@ -15,20 +15,27 @@ use std::{
 
 pub(super) type Key = [u8; 32];
 type Res<T> = io::Result<T>;
+/// Collects what a value hashes to and digests it at once: blake3 hashes a short input in one
+/// block, where hashing each field of the value as it is written costs several.
 #[derive(Default)]
-struct Digest(blake3::Hasher);
+struct Digest(Vec<u8>);
+impl Digest {
+    fn digest(&self) -> Key {
+        *blake3::hash(&self.0).as_bytes()
+    }
+}
 impl Hasher for Digest {
     fn write(&mut self, bytes: &[u8]) {
-        self.0.update(bytes);
+        self.0.extend_from_slice(bytes);
     }
     fn finish(&self) -> u64 {
-        u64::from_le_bytes(self.0.finalize().as_bytes()[..8].try_into().unwrap())
+        u64::from_le_bytes(self.digest()[..8].try_into().unwrap())
     }
 }
 pub(super) fn key(value: impl Hash) -> Key {
     let mut h = Digest::default();
     value.hash(&mut h);
-    *h.0.finalize().as_bytes()
+    h.digest()
 }
 
 impl session::Source {
@@ -1074,7 +1081,7 @@ impl Store {
         self.keep_pairs = vec![false; self.pairs.len()];
         self.local_rows = vec![false; self.pairs.len()];
         let mut projects = BTreeSet::new();
-        let mut groups = HashMap::<(Option<InputScope>, Vec<usize>), Option<(Proof, BTreeSet<Arc<str>>)>>::new();
+        let mut groups = rustc_hash::FxHashMap::<(Option<InputScope>, Vec<usize>), Option<(Proof, BTreeSet<Arc<str>>)>>::default();
         let work_inputs = std::mem::take(&mut self.work_inputs);
         self.plans.clear();
         for (index, work) in b.work.iter().enumerate() {

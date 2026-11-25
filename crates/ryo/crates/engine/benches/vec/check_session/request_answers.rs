@@ -5,7 +5,7 @@ use super::{Key, Shards, finish, key, kind, session};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::BTreeMap,
     fs,
     hash::Hash,
     io::Read,
@@ -99,16 +99,16 @@ pub(super) struct Observations {
     pub hash_cpu: f64,
     pub hash_bytes: usize,
     pub open_cpu: f64,
-    files: HashMap<PathBuf, FileObservation>,
-    prior_sources: HashMap<PathBuf, Key>,
-    kinds: HashMap<PathBuf, Option<u8>>,
+    files: FxHashMap<PathBuf, FileObservation>,
+    prior_sources: FxHashMap<PathBuf, Key>,
+    kinds: FxHashMap<PathBuf, Option<u8>>,
     buffer: Vec<u8>,
     pub path_hits: usize,
     pub inode_hits: usize,
     pub reads: [usize; 3],
     pub bytes: [usize; 3],
     pub group_hits: usize,
-    inodes: HashMap<Stamp, Key>,
+    inodes: FxHashMap<Stamp, Key>,
     values: FxHashMap<(u32, Probe, Option<usize>), Option<Key>>,
     groups: FxHashMap<(Key, Option<usize>, Option<usize>), Option<Key>>,
     group_inputs: FxHashMap<Key, (bool, bool)>,
@@ -134,16 +134,16 @@ impl Observations {
             hash_cpu: 0.0,
             hash_bytes: 0,
             open_cpu: 0.0,
-            files: HashMap::new(),
-            prior_sources: HashMap::new(),
-            kinds: HashMap::new(),
+            files: FxHashMap::default(),
+            prior_sources: FxHashMap::default(),
+            kinds: FxHashMap::default(),
             buffer: Vec::new(),
             path_hits: 0,
             inode_hits: 0,
             reads: [0; 3],
             bytes: [0; 3],
             group_hits: 0,
-            inodes: HashMap::new(),
+            inodes: FxHashMap::default(),
             values: FxHashMap::default(),
             groups: FxHashMap::default(),
             group_inputs: FxHashMap::default(),
@@ -359,7 +359,7 @@ impl Observations {
             }
             digest.hash(&mut hash);
         }
-        (*hash.0.finalize().as_bytes() == expected).then_some(changed).flatten()
+        (hash.digest() == expected).then_some(changed).flatten()
     }
 
     pub fn group(&mut self, id: Key, paths: &Group, names: &[PathBuf], scope: Option<InputScope>) -> Option<Key> {
@@ -380,7 +380,7 @@ impl Observations {
             let digest = self.leaf(i, mode, names, scope)?;
             digest.hash(&mut hash);
             Some(())
-        }).map(|()| *hash.0.finalize().as_bytes());
+        }).map(|()| hash.digest());
         self.groups.insert(group, result);
         result
     }
