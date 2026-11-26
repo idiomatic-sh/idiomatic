@@ -3,8 +3,8 @@
 //! program does, so the cost of dropping the session at the end can be read as a number.
 //!
 //! Bench entry points: `--mixed PACK REQUEST OUT`, `--tm-batch MANIFEST OUT [--workers N]`, `--tm-batch-retained ROOT MANIFEST OUT`.
-//! Bench environment for the check (the product's command line has no such flags): `TM_BENCH_WORKERS` (the pool size, set before the
-//! command builds its pool) and `TM_BENCH_REVERSE_FILES` (reverse the file listing: the order gate).
+//! Bench environment for the check (the product's command line has no such flag): `TM_BENCH_WORKERS` (the pool size, set before the
+//! command builds its pool). The SDK lists a walked corpus itself now: there is no file-order hook to set.
 use std::process::ExitCode;
 
 fn start_and_build() -> (String, String) {
@@ -67,9 +67,6 @@ pub fn run(exit_without_destructors: bool) -> ExitCode {
     }
     if let Some(count) = std::env::var("TM_BENCH_WORKERS").ok().and_then(|text| text.parse::<usize>().ok()) {
         tastemaker_core::outbound::scheduler::types::WorkerCount::configure(count);
-    }
-    if std::env::var_os("TM_BENCH_REVERSE_FILES").is_some() {
-        ryo_sdk::linter::configure_reverse_files(true);
     }
     let (start, build) = start_and_build();
     let code = tastemaker_cli::resources::run(&start, &build);
