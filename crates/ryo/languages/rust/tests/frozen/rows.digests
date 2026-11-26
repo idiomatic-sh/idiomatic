@@ -1,4 +1,4 @@
-# the digest of the sorted rows of every sample and relation of rust, recorded from the old reader (routes-rerecord.sh); reason: every fixture of rust, the spelled folder included, at trunk d218f489b, before the old readers go
+# the digest of the sorted rows of every sample and relation of rust, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
 # lines: 704
 allocation/crlf.rs	Function	1	45be8450d7802bbcda71c8352db1aad8
 allocation/crlf.rs	Annotates	1	498c721c5b9f3c0007acb2d3fe6223cc

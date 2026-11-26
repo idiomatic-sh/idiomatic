@@ -304,7 +304,7 @@ pub fn routes_frozen(linked: &super::Language, manifest_dir: ManifestDir, langua
         return;
     }
     let walked = frozen::frozen(old.as_ref(), walk.as_ref(), &fixtures, Side::Walk);
-    let mut found = Vec::new();
+    let mut found = frozen::old_word_differences(old.as_ref(), &fixtures);
     for (name, body) in [("rows.digests", &walked.rows), ("completeness.tsv", &walked.completeness), ("adapter.digests", &walked.adapter), ("metadata.tsv", &walked.metadata)] {
         found.extend(frozen::differences_from_file(&folder.join(name), body));
     }

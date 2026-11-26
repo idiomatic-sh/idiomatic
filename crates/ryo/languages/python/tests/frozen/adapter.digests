@@ -1,4 +1,4 @@
-# the node-table relations and the words of the positions as the numbered adapter lends them of python, recorded from the old reader (routes-rerecord.sh); reason: every fixture of python, the spelled folder included, at trunk d218f489b, before the old readers go
+# the node-table relations and the words of the positions as the numbered adapter lends them of python, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
 # lines: 410
 allocation/annotated_metadata.py	SyntaxTree	354	5494a1542f52770bb6630ff5800aa8e1
 allocation/annotated_metadata.py	SyntaxChild	353	a6c4b0184b9788e07042264c21eff61c
@@ -399,7 +399,7 @@ spelled/embedded_event_order.py	SyntaxTree	78	bb26edf48fba14c7f27517c037b1a0bb
 spelled/embedded_event_order.py	SyntaxChild	77	4ec220839ebf173006a11499812ed091
 spelled/embedded_event_order.py	SemanticSyntax	82	fb4b797e875bb6705622188f462048ce
 spelled/embedded_event_order.py	SemanticChild	81	b2ff8254f04b09d5991487fb80a9bbe1
-spelled/embedded_event_order.py	words	0	49:a39340a942f3874e648b63ca9baa86ba
+spelled/embedded_event_order.py	words	0	50:fed75ce1fad4f98aa8716c03f22fb4b5
 spelled/nonlocal_and_spec.py	SyntaxTree	234	a3b042e33ed2a0ff1f004ade0deae49c
 spelled/nonlocal_and_spec.py	SyntaxChild	233	4dfc8305dd908b0a6c9783b604b2fb82
 spelled/nonlocal_and_spec.py	SemanticSyntax	234	a3b042e33ed2a0ff1f004ade0deae49c

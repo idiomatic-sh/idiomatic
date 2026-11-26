@@ -1,4 +1,4 @@
-# the digest of the sorted rows of every sample and relation of go, recorded from the old reader (routes-rerecord.sh); reason: every fixture of go, the spelled folder included, at trunk d218f489b, before the old readers go
+# the digest of the sorted rows of every sample and relation of go, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
 # lines: 551
 allocation/generics.go	Function	3	807b5aa398bb4d637dbe06da1bd3f9fb
 allocation/generics.go	Annotates	10	2f770ebf9a56c419d95c822709d4d20c
