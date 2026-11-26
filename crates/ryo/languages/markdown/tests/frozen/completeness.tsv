@@ -1,4 +1,4 @@
-# the completeness of every sample of markdown, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
+# the completeness of every sample of markdown, recorded from the old reader (routes-rerecord.sh); reason: annotation-evaluation joins the catalog: its metadata line, and for python its rows
 # lines: 17
 allocation/html-block.md	"Complete"	"Complete"
 allocation/html-inline.md	"Complete"	"Complete"

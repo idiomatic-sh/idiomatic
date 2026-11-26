@@ -247,7 +247,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("relations_of_rows_for_each_element"),
         word: Word::Succeeds,
         input: || relations_of_rows_for_each_element,
-        expect: Expect::Value(67),
+        expect: Expect::Value(68),
     },
     Case {
         name: CaseName("relations_of_a_row_for_a_pair"),

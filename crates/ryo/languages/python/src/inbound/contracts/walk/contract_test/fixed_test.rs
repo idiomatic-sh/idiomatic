@@ -46,13 +46,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_fixed_word_a_filler_writes_is_a_fixed_name_of_the_run"),
         word: Word::Succeeds,
         input: || Asked::Declared,
-        expect: Expect::Value("261 fixed names written by handle; not fixed names: []"),
+        expect: Expect::Value("265 fixed names written by handle; not fixed names: []"),
     },
     Case {
         name: CaseName("each_fixed_name_is_stated_once_and_none_is_empty"),
         word: Word::Succeeds,
         input: || Asked::Stated,
-        expect: Expect::Value("300 fixed names; stated twice: []; empty: 0"),
+        expect: Expect::Value("305 fixed names; stated twice: []; empty: 0"),
     },
 ];
 

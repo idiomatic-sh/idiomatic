@@ -1,5 +1,5 @@
-# the digest of the sorted rows of every sample and relation of python, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
-# lines: 3936
+# the digest of the sorted rows of every sample and relation of python, recorded from the old reader (routes-rerecord.sh); reason: annotation-evaluation joins the catalog: its metadata line, and for python its rows
+# lines: 4067
 allocation/annotated_metadata.py	Function	1	9888b9cc8c1a8587de500f91d5c76880
 allocation/annotated_metadata.py	Annotates	8	95d912bbe9486420c312b3ae9deff73e
 allocation/annotated_metadata.py	Assigns	3	f23a7c7e4ff948ee8a27b64b3887d75f
@@ -29,6 +29,7 @@ allocation/annotated_metadata.py	ExpressionType	64	bfbefc9f143f04852d505dc29c0bc
 allocation/annotated_metadata.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 allocation/annotated_metadata.py	LanguageTarget	1	853e07b71c10dd595b3f07797c723783
 allocation/annotated_metadata.py	CompilerFeature	1	1dd4ff419bd9b57aa5f7443c64cd5091
+allocation/annotated_metadata.py	AnnotationEvaluation	124	ac041588012485fd12bf7948c139e1d9
 allocation/annotated_metadata.py	ConstantKey	21	4c6ab15cb0d29a07d9815f3898c9b079
 allocation/annotated_metadata.py	FormatParse	17	8e4d42162381088a9c17102fd6f0b3f0
 allocation/annotated_metadata.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -77,6 +78,7 @@ allocation/bindings.py	ExpressionType	45	b5332bf457ca05494ca5fb86cb2cf254
 allocation/bindings.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 allocation/bindings.py	LanguageTarget	1	305fe05ba193bdbe70d34a92e298450b
 allocation/bindings.py	CompilerFeature	1	c97c7f38369c61a4a4d2995394ffc1c8
+allocation/bindings.py	AnnotationEvaluation	2	183ab02a13e229aa7d1b8409e6f7ca02
 allocation/bindings.py	ConstantKey	11	8678070c2442e1d2a45415e94f96405d
 allocation/bindings.py	FormatParse	4	20bddfc1e2951c3f06f296774cb6b490
 allocation/bindings.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -125,6 +127,7 @@ allocation/crlf.py	ExpressionType	10	cef44501c791c59255bef666471f4933
 allocation/crlf.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 allocation/crlf.py	LanguageTarget	1	87e5b6f600d47883b823853357b75ecf
 allocation/crlf.py	CompilerFeature	1	712b70e5fdf430c6109fb0eee7974355
+allocation/crlf.py	AnnotationEvaluation	6	1938cc5a2af3c76ad5e1eb36b46bc305
 allocation/crlf.py	ConstantKey	2	4d36a4d2033c74611c598a953666c377
 allocation/crlf.py	FormatParse	1	228b6d48cd674864955c0e96842ccf3a
 allocation/crlf.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -173,6 +176,7 @@ relations/annotates/input.py	ExpressionType	26	089b3d10466e699a60e9928f36db297c
 relations/annotates/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/annotates/input.py	LanguageTarget	1	d07906d5d13eb85cff43ac08afde2323
 relations/annotates/input.py	CompilerFeature	1	23a33e6a17c0cefe81b9065f2f042918
+relations/annotates/input.py	AnnotationEvaluation	35	425bb00b28515522d1c8443af96d34e6
 relations/annotates/input.py	ConstantKey	4	5fc9ef67e18c53b3a085ac92cb2646a5
 relations/annotates/input.py	FormatParse	2	52bb0852e5c7a40cf7a9447e816308e4
 relations/annotates/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -192,6 +196,55 @@ relations/annotates/input.py	SourceLocation	163	272d74f4d4b829aaa4e583044dd83eb2
 relations/annotates/input.py	IndentRegion	3	ec87b0d9046541b524115c1ebdf8719c
 relations/annotates/input.py	NumericLiteral	1	c51ad69dab30629d23498e215fcab4e6
 relations/annotates/input.py	TokenLink	105	94f99629f3ce300bcc9a7eae7a7a2cc9
+relations/annotation_evaluation/input.py	Function	1	6bbff314259e3ca5fd1243774aa72e46
+relations/annotation_evaluation/input.py	Annotates	5	eb6d092c5709457edda7702cf7bdc2cc
+relations/annotation_evaluation/input.py	Assigns	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	Comment	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	Decorates	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	Defines	7	ad939bd53a8dd96656ad5d0a0f26990e
+relations/annotation_evaluation/input.py	Inherits	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	Parameter	2	cd7b7935ec337650c1b5a8936df67ad1
+relations/annotation_evaluation/input.py	Reference	6	9b6e2d3ad55ed2cda9dbd3b4ce27af11
+relations/annotation_evaluation/input.py	Scope	3	88beb9f6716d4bfe7333ab5edcc37cfa
+relations/annotation_evaluation/input.py	StaticCall	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	CallArgument	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	Resolves	1	20f4c82742f974d82ca9aa8b471256b4
+relations/annotation_evaluation/input.py	BindingEvent	14	1ddfc4216f955e44d887aa1804ad6688
+relations/annotation_evaluation/input.py	BindingRead	7	66dc2d39827be9a4a7075488eb6f1fa3
+relations/annotation_evaluation/input.py	BindingUse	1	1eff08a5b7e6a70873868c0a859b02b2
+relations/annotation_evaluation/input.py	BindingResolution	1	71391fd04d19974a478fed3c8a1b1538
+relations/annotation_evaluation/input.py	LookupScope	11	92b2121effeb7e57f57bb1139ff7cb2e
+relations/annotation_evaluation/input.py	BindingShadow	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	ImplicitSymbol	173	96a44e33dea23a156d873d70622e7cd1
+relations/annotation_evaluation/input.py	QualifiedName	7	3d44abccebac030f2c0483c08f7d638e
+relations/annotation_evaluation/input.py	Identifier	15	9c027f7f50aaea8e9376001162f43cc4
+relations/annotation_evaluation/input.py	ExpressionShape	13	d8b89329145f4b7fb25c74a672a33dcf
+relations/annotation_evaluation/input.py	LiteralProperties	2	5b09398d03dd6728712a7b4550682e92
+relations/annotation_evaluation/input.py	FunctionTerminal	1	bc4b74084b476a26b19989ca42214bb2
+relations/annotation_evaluation/input.py	ExpressionType	13	315de39a06fd179b9096fb0cf95af4fd
+relations/annotation_evaluation/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	LanguageTarget	1	473092aab47c14ef4050a45b8382abaa
+relations/annotation_evaluation/input.py	CompilerFeature	1	dc2948989c1daa44780fd7e7ae5644c7
+relations/annotation_evaluation/input.py	AnnotationEvaluation	16	85832627605c36792b8e5ba4b2b71181
+relations/annotation_evaluation/input.py	ConstantKey	2	d50a112dead2f9b3eff8184f70e00de3
+relations/annotation_evaluation/input.py	FormatParse	1	711fc44543a05705d1d0aa5f7668c9e3
+relations/annotation_evaluation/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	BraceFormatParse	1	5e32f99eb0cb66ca68e36aa9af542bb6
+relations/annotation_evaluation/input.py	BraceFormatField	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	RawFormatSegment	1	bfa0489787920f4d13a4369c6bbb5994
+relations/annotation_evaluation/input.py	RawFormatField	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	LiteralExpressionParse	1	00657167c02db04a94c5c4be2e10c4c6
+relations/annotation_evaluation/input.py	StaticImport	1	69642b0702d49114e50562b7d28c53ea
+relations/annotation_evaluation/input.py	StandardLibraryImport	1	610b5c4d8acd7651f2f1596182f40009
+relations/annotation_evaluation/input.py	StringLiteral	1	f70ee617e16f1c7a594dc6f4e0967ad2
+relations/annotation_evaluation/input.py	BytesLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	FormatSpecification	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	SyntaxError	0	e3b0c44298fc1c149afbf4c8996fb924
+relations/annotation_evaluation/input.py	EmbeddedExpression	1	d4070c9e56531efcf71da2352af58da2
+relations/annotation_evaluation/input.py	SourceLocation	103	f8dd6ed2a7375aa57ae7609ff91081a6
+relations/annotation_evaluation/input.py	IndentRegion	3	69e4c185debfee37ce4fc0545c327bb9
+relations/annotation_evaluation/input.py	NumericLiteral	1	5adfb11e24aa1a97b63aec910604074b
+relations/annotation_evaluation/input.py	TokenLink	63	98d64b3aac56fc680bdbefc4d08acb6c
 relations/assigns/input.py	Function	1	31a69ea60670533f81c517b143c6a8be
 relations/assigns/input.py	Annotates	1	fe122fc806c4f19eaa0be266af780040
 relations/assigns/input.py	Assigns	7	d358c00c1568883de863575359314af2
@@ -221,6 +274,7 @@ relations/assigns/input.py	ExpressionType	32	64b740d38017bfc87240ab8e941e36a5
 relations/assigns/input.py	InterpolatedStringLiteral	1	fb5203c016698ccb85549a9c89f27f0e
 relations/assigns/input.py	LanguageTarget	1	3bd3ebe5055f444f5a5c7ca1986c7c7a
 relations/assigns/input.py	CompilerFeature	1	e8c8d7315bae59cb6144a09db57d84d1
+relations/assigns/input.py	AnnotationEvaluation	2	abfefde64226a7c072babdcc0245578d
 relations/assigns/input.py	ConstantKey	10	3860b9e8947c27f661019bf0a3be638c
 relations/assigns/input.py	FormatParse	10	51375bc1f1cb6c38fa315ab72f602bfe
 relations/assigns/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -269,6 +323,7 @@ relations/binding_event/input.py	ExpressionType	3	37648c173fb1372eb680adc4ef9f5d
 relations/binding_event/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_event/input.py	LanguageTarget	1	63689489589282c0822e80d0152002b5
 relations/binding_event/input.py	CompilerFeature	1	928cdc3e479414c881ee58da0e7b1b63
+relations/binding_event/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_event/input.py	ConstantKey	1	eb8101c850a337adf9104007335b064a
 relations/binding_event/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_event/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -317,6 +372,7 @@ relations/binding_read/aiter.py	ExpressionType	1	4f8ae5d882d79e53acbd899ba7fa80c
 relations/binding_read/aiter.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_read/aiter.py	LanguageTarget	1	9171897bbabc9d0f22af25441c6b86b3
 relations/binding_read/aiter.py	CompilerFeature	1	3097124b76d7f68524efd9041c7b29cf
+relations/binding_read/aiter.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_read/aiter.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_read/aiter.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_read/aiter.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -365,6 +421,7 @@ relations/binding_read/input.py	ExpressionType	1	e5c0ec7bad623252418994631fd3518
 relations/binding_read/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_read/input.py	LanguageTarget	1	bdf40561a891066dd0d49e0f37155e71
 relations/binding_read/input.py	CompilerFeature	1	ec2e1c48758afdb7764090b2b8b55503
+relations/binding_read/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_read/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_read/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_read/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -413,6 +470,7 @@ relations/binding_resolution/c2.py	ExpressionType	5	31b832ec0066ecf87c73a73c3d59
 relations/binding_resolution/c2.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c2.py	LanguageTarget	1	2d416181879ffe5d1ec95b8907337bd1
 relations/binding_resolution/c2.py	CompilerFeature	1	8433f216e374ed9ce72d961f14c586c7
+relations/binding_resolution/c2.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c2.py	ConstantKey	2	06b7783638f02cd2489211f0d4df70cf
 relations/binding_resolution/c2.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c2.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -461,6 +519,7 @@ relations/binding_resolution/c3-conditional-delete.py	ExpressionType	5	496190c31
 relations/binding_resolution/c3-conditional-delete.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3-conditional-delete.py	LanguageTarget	1	c4eecc7e4037a9badc21d7c91e2dc2f4
 relations/binding_resolution/c3-conditional-delete.py	CompilerFeature	1	f6a0738b1a377dae065e90168fd95fa3
+relations/binding_resolution/c3-conditional-delete.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3-conditional-delete.py	ConstantKey	1	1f498eccf96c911fcdc4a261e61e3841
 relations/binding_resolution/c3-conditional-delete.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3-conditional-delete.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -509,6 +568,7 @@ relations/binding_resolution/c3-delete.py	ExpressionType	3	9823cde989adc2c525f00
 relations/binding_resolution/c3-delete.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3-delete.py	LanguageTarget	1	2e952aa1789250e535f19795cd349d7b
 relations/binding_resolution/c3-delete.py	CompilerFeature	1	1fc32e341d42f3d9570f5d498ecb2dcb
+relations/binding_resolution/c3-delete.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3-delete.py	ConstantKey	1	4960018e0defcca303eb9a5b54c95a33
 relations/binding_resolution/c3-delete.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3-delete.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -557,6 +617,7 @@ relations/binding_resolution/c3-routed.py	ExpressionType	5	7104cbed25dff9f205af1
 relations/binding_resolution/c3-routed.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3-routed.py	LanguageTarget	1	0f93eb8a7a05f903b73a2c770e3088ee
 relations/binding_resolution/c3-routed.py	CompilerFeature	1	d8fee8416ba26c1f5861a2e38939ac20
+relations/binding_resolution/c3-routed.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3-routed.py	ConstantKey	2	a45e6063301a094859f7d09ba74f22b8
 relations/binding_resolution/c3-routed.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3-routed.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -605,6 +666,7 @@ relations/binding_resolution/c3.py	ExpressionType	5	1372f9058bf9e783b981876fb071
 relations/binding_resolution/c3.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3.py	LanguageTarget	1	a293e350b4628463121d5b136d7c5b9c
 relations/binding_resolution/c3.py	CompilerFeature	1	935b262985382f46f0a3918e3b45a02f
+relations/binding_resolution/c3.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3.py	ConstantKey	2	90b46c6e8e820d3182b8dbb81ae3e3fe
 relations/binding_resolution/c3.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c3.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -653,6 +715,7 @@ relations/binding_resolution/c5-method.py	ExpressionType	1	263f6fdfc296653791f17
 relations/binding_resolution/c5-method.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c5-method.py	LanguageTarget	1	d5ec1792734f7a41ff11ee7c55340418
 relations/binding_resolution/c5-method.py	CompilerFeature	1	23db748e997885f98fabc5061baf2b7d
+relations/binding_resolution/c5-method.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c5-method.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c5-method.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c5-method.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -701,6 +764,7 @@ relations/binding_resolution/c5-outside.py	ExpressionType	6	398e64cd001023211136
 relations/binding_resolution/c5-outside.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c5-outside.py	LanguageTarget	1	315bb8dc656f838b96c59333e2f26912
 relations/binding_resolution/c5-outside.py	CompilerFeature	1	3a4b4dcf337a4d7fb520559e82c0bc67
+relations/binding_resolution/c5-outside.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c5-outside.py	ConstantKey	1	529ee8c495abda31ffea882c6e700f2f
 relations/binding_resolution/c5-outside.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c5-outside.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -749,6 +813,7 @@ relations/binding_resolution/c6.py	ExpressionType	3	7cd082e3476e354e6e79ce5b0021
 relations/binding_resolution/c6.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c6.py	LanguageTarget	1	d59cf0a244e20bab38e9ded1e15b32c7
 relations/binding_resolution/c6.py	CompilerFeature	1	aee376996df053f959864636607fff2e
+relations/binding_resolution/c6.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c6.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c6.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c6.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -797,6 +862,7 @@ relations/binding_resolution/c8.py	ExpressionType	6	e64690bf1e58e2c0f9dd30824b43
 relations/binding_resolution/c8.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c8.py	LanguageTarget	1	0be8b8136450714cda760036ed3280f9
 relations/binding_resolution/c8.py	CompilerFeature	1	d73b1ee8c68745c1d7f5a6481a7f3daf
+relations/binding_resolution/c8.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c8.py	ConstantKey	1	f0789ac2d1b3ea86f871e710af530185
 relations/binding_resolution/c8.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c8.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -845,6 +911,7 @@ relations/binding_resolution/c9.py	ExpressionType	3	ac2e73db8601f85697a1bcca5734
 relations/binding_resolution/c9.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c9.py	LanguageTarget	1	a4f2dbbd42c43cf697e4a690a3a1b4ef
 relations/binding_resolution/c9.py	CompilerFeature	1	7069b814dab7dd958e741a0173b34f02
+relations/binding_resolution/c9.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c9.py	ConstantKey	1	21946193cc601da5328aa47df7c8673b
 relations/binding_resolution/c9.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/c9.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -893,6 +960,7 @@ relations/binding_resolution/input.py	ExpressionType	10	85beafd27d59b60df22fd433
 relations/binding_resolution/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/input.py	LanguageTarget	1	b8480aa90349226e6ea816c4cfc7a21e
 relations/binding_resolution/input.py	CompilerFeature	1	ff449aa06448111d6e619046fbe7d1be
+relations/binding_resolution/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/input.py	ConstantKey	3	d45aa6ff08250691fa7cbbe14ae739a1
 relations/binding_resolution/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_resolution/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -941,6 +1009,7 @@ relations/binding_shadow/distinct.py	ExpressionType	4	6cff3daa311337b65815ac2c9e
 relations/binding_shadow/distinct.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_shadow/distinct.py	LanguageTarget	1	e10aebd43f97b27e505c41028fcbc359
 relations/binding_shadow/distinct.py	CompilerFeature	1	1a8877836853afc205ac91ad65f78caa
+relations/binding_shadow/distinct.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_shadow/distinct.py	ConstantKey	2	d3ff5469959e5658616037a3ee3f4157
 relations/binding_shadow/distinct.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_shadow/distinct.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -989,6 +1058,7 @@ relations/binding_shadow/input.py	ExpressionType	4	bc833ed8c3556b93e8da27bd5c3d8
 relations/binding_shadow/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_shadow/input.py	LanguageTarget	1	7a5f5449439a1e12869b414f2c557f6b
 relations/binding_shadow/input.py	CompilerFeature	1	6d76e3586dcc90c0758f2d2ddc417ebf
+relations/binding_shadow/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_shadow/input.py	ConstantKey	2	d458d638cad0c27f6eb0bcdad06feefc
 relations/binding_shadow/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_shadow/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1037,6 +1107,7 @@ relations/binding_use/builtin.py	ExpressionType	1	aa81b4e04fb94de1efc6712ab42652
 relations/binding_use/builtin.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_use/builtin.py	LanguageTarget	1	25a9f1956459be07f6ac3564738b8e99
 relations/binding_use/builtin.py	CompilerFeature	1	0551faaf0c24fcb5084cf52c0c9d2cb9
+relations/binding_use/builtin.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_use/builtin.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_use/builtin.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_use/builtin.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1085,6 +1156,7 @@ relations/binding_use/input.py	ExpressionType	3	acf65a43c87f3e87befdd78f63567dec
 relations/binding_use/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_use/input.py	LanguageTarget	1	8ad2fc16df3843058942fad18717ab06
 relations/binding_use/input.py	CompilerFeature	1	71037f8ca4fd7f18ebfcbd55639dc999
+relations/binding_use/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_use/input.py	ConstantKey	1	ce833965def917a5c8626a79d83368d2
 relations/binding_use/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/binding_use/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1133,6 +1205,7 @@ relations/brace_format_field/facets.py	ExpressionType	1	0b0a6dd51274d8cefcd4604a
 relations/brace_format_field/facets.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/brace_format_field/facets.py	LanguageTarget	1	6d8dcb609afc0e94ed9d23fbc26965d8
 relations/brace_format_field/facets.py	CompilerFeature	1	eccd9e3853982cee3c59ad91e47bd6c0
+relations/brace_format_field/facets.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/brace_format_field/facets.py	ConstantKey	1	9fe345a0efb992b85fa4a502a120ca86
 relations/brace_format_field/facets.py	FormatParse	1	efc78349fdd7b3e2bf0ef0af82f54a3b
 relations/brace_format_field/facets.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1181,6 +1254,7 @@ relations/brace_format_field/input.py	ExpressionType	1	bbbb813508cd42ec59cea88de
 relations/brace_format_field/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/brace_format_field/input.py	LanguageTarget	1	9b7d1da9bd78b63ac9cf5ee51ab0a67a
 relations/brace_format_field/input.py	CompilerFeature	1	6b0f5ed2355447ad8478f9c537e98cce
+relations/brace_format_field/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/brace_format_field/input.py	ConstantKey	1	34eca38dfba667791d9a437fa0837e0e
 relations/brace_format_field/input.py	FormatParse	1	644b813c50578b94e37f1cea1400a9ed
 relations/brace_format_field/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1229,6 +1303,7 @@ relations/brace_format_parse/automatic.py	ExpressionType	1	4766dd67bad88847ab2cc
 relations/brace_format_parse/automatic.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/brace_format_parse/automatic.py	LanguageTarget	1	7a2ec4f2cfe95d35038196e93bd9c09d
 relations/brace_format_parse/automatic.py	CompilerFeature	1	0452c20a5f5f2b7cc95ac92f5329b018
+relations/brace_format_parse/automatic.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/brace_format_parse/automatic.py	ConstantKey	1	5cdf60e4ebc589661305c2b86a13e3b5
 relations/brace_format_parse/automatic.py	FormatParse	1	14b3814d7898e1222b94a5973ac605ad
 relations/brace_format_parse/automatic.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1277,6 +1352,7 @@ relations/brace_format_parse/facets.py	ExpressionType	1	54b0dbb700ee9cd086d55a70
 relations/brace_format_parse/facets.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/brace_format_parse/facets.py	LanguageTarget	1	1026738c86a081e8f44294836a48e802
 relations/brace_format_parse/facets.py	CompilerFeature	1	f5550d03f71d1d91195cfe87437621fe
+relations/brace_format_parse/facets.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/brace_format_parse/facets.py	ConstantKey	1	c3d05e1d1b6c0977e9e70d1c4df10f82
 relations/brace_format_parse/facets.py	FormatParse	1	6b767695cd9cf52812b5d3dc61050b99
 relations/brace_format_parse/facets.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1325,6 +1401,7 @@ relations/brace_format_parse/input.py	ExpressionType	1	1f0c4b9ba5968637c3c8cc0b5
 relations/brace_format_parse/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/brace_format_parse/input.py	LanguageTarget	1	ab8186e7665e84c556896d001674a8fb
 relations/brace_format_parse/input.py	CompilerFeature	1	018ef0c0a6ac5fad21508bdd4a2c488a
+relations/brace_format_parse/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/brace_format_parse/input.py	ConstantKey	1	f33f922ea0e1d143aaded2ee7695eb22
 relations/brace_format_parse/input.py	FormatParse	1	030bc8395a42fa07de50c57e9eeec2ba
 relations/brace_format_parse/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1373,6 +1450,7 @@ relations/bytes_literal/input.py	ExpressionType	1	b68565ed054099f42d965665be80a8
 relations/bytes_literal/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/bytes_literal/input.py	LanguageTarget	1	785c1b9ec035dda43195423ebb0e0036
 relations/bytes_literal/input.py	CompilerFeature	1	39ef5a32c66561ce76bc84a9e1d0b2eb
+relations/bytes_literal/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/bytes_literal/input.py	ConstantKey	1	974e58f94245467ab78bce966a5edb99
 relations/bytes_literal/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/bytes_literal/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1421,6 +1499,7 @@ relations/call_argument/input.py	ExpressionType	13	b8180c713089b570473d26771f3e6
 relations/call_argument/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/call_argument/input.py	LanguageTarget	1	680e38addd61ed1f67ec617e224fde21
 relations/call_argument/input.py	CompilerFeature	1	b00d78d05c2d73f286fdb9769b138de5
+relations/call_argument/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/call_argument/input.py	ConstantKey	1	7e374f5b2cbe5a4468a999bf34d5ac8c
 relations/call_argument/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/call_argument/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1469,6 +1548,7 @@ relations/comment/input.py	ExpressionType	4	da3a6b3c35c3bdd63438618dd37817bd
 relations/comment/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/comment/input.py	LanguageTarget	1	f4b90e22be91b2164dff4b64b892032d
 relations/comment/input.py	CompilerFeature	1	062f2856b2bdafe9d7f7193b10dc3c4e
+relations/comment/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/comment/input.py	ConstantKey	2	110de28666ef3f7ea850c617f906082e
 relations/comment/input.py	FormatParse	1	119741780fa937f80a9671c7d5e2b8d9
 relations/comment/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1517,6 +1597,7 @@ relations/compiler_feature/disabled.py	ExpressionType	2	9596dbad6a182d0312af4497
 relations/compiler_feature/disabled.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/compiler_feature/disabled.py	LanguageTarget	1	40ebb5a0aaf401fe91019d0f3e40ea9a
 relations/compiler_feature/disabled.py	CompilerFeature	1	65176dd631337eb2ada15d749b3255ed
+relations/compiler_feature/disabled.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/compiler_feature/disabled.py	ConstantKey	1	fd7418dc38a67f66573a5f27ce7e855a
 relations/compiler_feature/disabled.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/compiler_feature/disabled.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1565,6 +1646,7 @@ relations/compiler_feature/input.py	ExpressionType	0	e3b0c44298fc1c149afbf4c8996
 relations/compiler_feature/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/compiler_feature/input.py	LanguageTarget	1	63a6e3f7f4e96402dce590a1951e5ea2
 relations/compiler_feature/input.py	CompilerFeature	1	b891f551c86f0cdc367b21181328b4f4
+relations/compiler_feature/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/compiler_feature/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/compiler_feature/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/compiler_feature/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1613,6 +1695,7 @@ relations/constant_key/input.py	ExpressionType	1	1410d5304ca0607ba72199fe84b779b
 relations/constant_key/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/constant_key/input.py	LanguageTarget	1	1050c5ce74cb8d9cfa59b3f6f9e473e6
 relations/constant_key/input.py	CompilerFeature	1	37c038f7b35598de644eb44f7f27b41a
+relations/constant_key/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/constant_key/input.py	ConstantKey	1	20f36ddeed8dc58ebac3a055c1d0f873
 relations/constant_key/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/constant_key/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1661,6 +1744,7 @@ relations/decorates/input.py	ExpressionType	24	5170bcbdad7dfa42f82a7f272d58248f
 relations/decorates/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/decorates/input.py	LanguageTarget	1	95d95236544c95be46c1b351cf37ccae
 relations/decorates/input.py	CompilerFeature	1	b3fd05e3c7d08869a2a6a13e678bfea6
+relations/decorates/input.py	AnnotationEvaluation	2	f0d16dc0a18edc20dc155185a6dc2f55
 relations/decorates/input.py	ConstantKey	5	ff1e6f18bee4c9b487fed05cfc3a88a9
 relations/decorates/input.py	FormatParse	2	7c0c505d68d1c1f1e74641ca362854b1
 relations/decorates/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1709,6 +1793,7 @@ relations/defines/input.py	ExpressionType	45	83b22a88081792ce8cc5c2fb7b19fccb
 relations/defines/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/defines/input.py	LanguageTarget	1	98bd5985e8fefb388d6bdfbb2018c513
 relations/defines/input.py	CompilerFeature	1	855a5703868ff1824a81a7f16c033eb9
+relations/defines/input.py	AnnotationEvaluation	2	7df956cca920faee7e7a1d88e0956b49
 relations/defines/input.py	ConstantKey	11	0d789bc01c1c5d0a712ff7ae9e7b9e67
 relations/defines/input.py	FormatParse	4	ff1f687047eee17204b292d7473f0dc6
 relations/defines/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1757,6 +1842,7 @@ relations/embedded_expression/input.py	ExpressionType	3	506d799e7f0fe4779e45f74d
 relations/embedded_expression/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/embedded_expression/input.py	LanguageTarget	1	1922603adea8ba612036e062c2c8465b
 relations/embedded_expression/input.py	CompilerFeature	1	56255474cc0ab7bfcd88a80dd65133ac
+relations/embedded_expression/input.py	AnnotationEvaluation	3	990edb450947d664c09685694adba7f0
 relations/embedded_expression/input.py	ConstantKey	1	4365622987881a91deeba759bf9393eb
 relations/embedded_expression/input.py	FormatParse	1	8e2d91421b556e5894a5f585daf8d285
 relations/embedded_expression/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1805,6 +1891,7 @@ relations/expression_shape/input.py	ExpressionType	2	f4b98d32eb4c87986032f6c012c
 relations/expression_shape/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/expression_shape/input.py	LanguageTarget	1	598f5349417cc0e3c4106660cfef3f2d
 relations/expression_shape/input.py	CompilerFeature	1	17b7ae47c0e2fca60e9752f901b82eaa
+relations/expression_shape/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/expression_shape/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/expression_shape/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/expression_shape/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1853,6 +1940,7 @@ relations/expression_type/input.py	ExpressionType	1	820871b5b9a2ba447510afc722fc
 relations/expression_type/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/expression_type/input.py	LanguageTarget	1	62730e68e804fa63f08cc3e093458093
 relations/expression_type/input.py	CompilerFeature	1	ea2dc8d2f29ef91e985031a1f152472e
+relations/expression_type/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/expression_type/input.py	ConstantKey	1	72e5837edbb90aa8b19f8831bfd0ba59
 relations/expression_type/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/expression_type/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -1901,6 +1989,7 @@ relations/format_field/input.py	ExpressionType	4	32ece1c28226d4a2335d3c9243ae0ba
 relations/format_field/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/format_field/input.py	LanguageTarget	1	07b512af5934d5f1735451957220a6ac
 relations/format_field/input.py	CompilerFeature	1	539136bb1a0acf0976d0e9e115b68431
+relations/format_field/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/format_field/input.py	ConstantKey	4	b86e1349890dde594bad75f40f003c29
 relations/format_field/input.py	FormatParse	4	ecdad254da2825993d5a47fc3c0e4d0d
 relations/format_field/input.py	FormatField	4	4e6d078d8a1af30bdec566ba2bef06d7
@@ -1949,6 +2038,7 @@ relations/format_parse/input.py	ExpressionType	4	0e4287c6a2d8cc6e0dd04d3ba7aa78e
 relations/format_parse/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/format_parse/input.py	LanguageTarget	1	2d15815c169ad438e9420dbba9dfbbd7
 relations/format_parse/input.py	CompilerFeature	1	11b932cfd512c60d8acdd387cbacf0af
+relations/format_parse/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/format_parse/input.py	ConstantKey	4	a4ea4b3457b09aa018293bb3ee4c91cf
 relations/format_parse/input.py	FormatParse	4	f204f21e41674aeb6831d5e8e7449da4
 relations/format_parse/input.py	FormatField	3	8626d359c1a055fc965bf06225d0111f
@@ -1997,6 +2087,7 @@ relations/format_specification/input.py	ExpressionType	1	497a19001a838914b758142
 relations/format_specification/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/format_specification/input.py	LanguageTarget	1	c441ced0b3965aac2043dd6a0cd90f88
 relations/format_specification/input.py	CompilerFeature	1	baf72036a885e60673d5331f970af6ae
+relations/format_specification/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/format_specification/input.py	ConstantKey	1	c2aabe70ec06aae9ad8922b737c864a8
 relations/format_specification/input.py	FormatParse	1	d9ce4d869cc02e68674041f10d30b228
 relations/format_specification/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2045,6 +2136,7 @@ relations/function/input.py	ExpressionType	13	d73a4e3bc2a1b3c0f7ec199d6094ba3b
 relations/function/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/function/input.py	LanguageTarget	1	76d86642a5cfdb10f2fbc6312c79d787
 relations/function/input.py	CompilerFeature	1	903a3b395906e6514cb61ed1385310be
+relations/function/input.py	AnnotationEvaluation	3	3bb6462c3d556942822ce0dc183e0c04
 relations/function/input.py	ConstantKey	1	ccf007c8ad0b17a1b9fccc2df54a0dc6
 relations/function/input.py	FormatParse	1	5490a2c9c8b7697c9109454634451056
 relations/function/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2093,6 +2185,7 @@ relations/function_terminal/input.py	ExpressionType	0	e3b0c44298fc1c149afbf4c899
 relations/function_terminal/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/function_terminal/input.py	LanguageTarget	1	25559df026baa80a81d177b0e50d32f9
 relations/function_terminal/input.py	CompilerFeature	1	4e9bc0f1d1cbe505d0e5b26c69860ecf
+relations/function_terminal/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/function_terminal/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/function_terminal/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/function_terminal/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2141,6 +2234,7 @@ relations/identifier/input.py	ExpressionType	1	63b451157de728c3214322a47c18d6ed
 relations/identifier/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/identifier/input.py	LanguageTarget	1	9e64b9a23831ec0487603489cb1a16b1
 relations/identifier/input.py	CompilerFeature	1	0d8700ccc9fe9f6cae810a8df6b0e955
+relations/identifier/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/identifier/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/identifier/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/identifier/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2189,6 +2283,7 @@ relations/implicit_symbol/input.py	ExpressionType	0	e3b0c44298fc1c149afbf4c8996f
 relations/implicit_symbol/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/implicit_symbol/input.py	LanguageTarget	1	e6f0f3d8240eb65168a7491e35419142
 relations/implicit_symbol/input.py	CompilerFeature	1	3f48da74c24aaefab9a4dd1416760d1d
+relations/implicit_symbol/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/implicit_symbol/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/implicit_symbol/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/implicit_symbol/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2237,6 +2332,7 @@ relations/indent_region/input.py	ExpressionType	1	d8b38a388f0f80e6071f2d8f3cfec5
 relations/indent_region/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/indent_region/input.py	LanguageTarget	1	550ec685d0bfd95d7276bdf5f951b180
 relations/indent_region/input.py	CompilerFeature	1	c48662698717259c3e24bf7559caccda
+relations/indent_region/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/indent_region/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/indent_region/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/indent_region/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2285,6 +2381,7 @@ relations/inherits/input.py	ExpressionType	16	09920a1e3fd91d0a046288029af35f42
 relations/inherits/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/inherits/input.py	LanguageTarget	1	9723120a09d3bd1a4997379c3cbfce7d
 relations/inherits/input.py	CompilerFeature	1	476d4d5b48dff570184a43525c855518
+relations/inherits/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/inherits/input.py	ConstantKey	1	c4f4a463fe57a8da3fcfe4e62e75d776
 relations/inherits/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/inherits/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2333,6 +2430,7 @@ relations/interpolated_string_literal/input.py	ExpressionType	2	9b4a95ec29bda246
 relations/interpolated_string_literal/input.py	InterpolatedStringLiteral	1	1b2d254a3d9fdd6535d3514715c8d019
 relations/interpolated_string_literal/input.py	LanguageTarget	1	d9a1f41d1bc88992b0adf09932adee78
 relations/interpolated_string_literal/input.py	CompilerFeature	1	a4c1f2c5160a90215924dbf89b71145e
+relations/interpolated_string_literal/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/interpolated_string_literal/input.py	ConstantKey	1	66c8a0bb160702ad1a4609beafb7db11
 relations/interpolated_string_literal/input.py	FormatParse	2	59452f3005f91cf754fe83ac5a6d105b
 relations/interpolated_string_literal/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2381,6 +2479,7 @@ relations/language_target/input.py	ExpressionType	0	e3b0c44298fc1c149afbf4c8996f
 relations/language_target/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/language_target/input.py	LanguageTarget	1	92b49d7ed64502cb17a3accec0aeb3e6
 relations/language_target/input.py	CompilerFeature	1	5b5ddc0f36b9f5dc2a04216cd9bcf5f5
+relations/language_target/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/language_target/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/language_target/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/language_target/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2429,6 +2528,7 @@ relations/literal_expression_parse/input.py	ExpressionType	1	845ddd9d0349d1790c9
 relations/literal_expression_parse/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/literal_expression_parse/input.py	LanguageTarget	1	4f4c5ff3bda5535ce95b3122e1280660
 relations/literal_expression_parse/input.py	CompilerFeature	1	e7a40e4c7680516731382694464f0b63
+relations/literal_expression_parse/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/literal_expression_parse/input.py	ConstantKey	1	06b48982e9ca11557a4a5021aa7d2bf4
 relations/literal_expression_parse/input.py	FormatParse	1	84ae0203d57aa1a05a0aed693923e842
 relations/literal_expression_parse/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2477,6 +2577,7 @@ relations/literal_properties/input.py	ExpressionType	5	a4fdce851f60bc3399458ecd4
 relations/literal_properties/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/literal_properties/input.py	LanguageTarget	1	0ec089aa59911bd61e5db61a851f3805
 relations/literal_properties/input.py	CompilerFeature	1	7144a8eceaddd967ddc6852b0902a146
+relations/literal_properties/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/literal_properties/input.py	ConstantKey	5	fd4bd784a83da1e2e247367f51c15991
 relations/literal_properties/input.py	FormatParse	2	5710e93e7f9153b5f01c9816cfd89173
 relations/literal_properties/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2525,6 +2626,7 @@ relations/lookup_scope/class.py	ExpressionType	5	8d0fe6036a92366bc36f8a62e7da37d
 relations/lookup_scope/class.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/class.py	LanguageTarget	1	9e70e70da940947b3422eea1e50086b2
 relations/lookup_scope/class.py	CompilerFeature	1	895f77c7d6629a26d70718356ce7a08d
+relations/lookup_scope/class.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/class.py	ConstantKey	2	d8b518a682d6db2ba6b48405f9c25f28
 relations/lookup_scope/class.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/class.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2573,6 +2675,7 @@ relations/lookup_scope/comprehension.py	ExpressionType	5	ccf52c1e501d9fb1da17486
 relations/lookup_scope/comprehension.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/comprehension.py	LanguageTarget	1	32f78cfea5f746c964ac2e44305f8b69
 relations/lookup_scope/comprehension.py	CompilerFeature	1	3db744e9a8e4f787aad6edf74b32192d
+relations/lookup_scope/comprehension.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/comprehension.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/comprehension.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/comprehension.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2621,6 +2724,7 @@ relations/lookup_scope/global.py	ExpressionType	3	43a09badc3c6b6e639fd681452b860
 relations/lookup_scope/global.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/global.py	LanguageTarget	1	f7288e263d3ddfb4d62ec2f1bf7d2ed5
 relations/lookup_scope/global.py	CompilerFeature	1	6512bbbe1d5f4885dece368cf022ea9e
+relations/lookup_scope/global.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/global.py	ConstantKey	1	67c96fdfc028896d299397a3bcdfe4ce
 relations/lookup_scope/global.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/global.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2669,6 +2773,7 @@ relations/lookup_scope/input.py	ExpressionType	3	6810364dbc6d70f568a7082ef1a70d0
 relations/lookup_scope/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/input.py	LanguageTarget	1	7b985ef55500ec71909f13bec9e2312b
 relations/lookup_scope/input.py	CompilerFeature	1	c3860ea999855f4a4f4ad574c42adf73
+relations/lookup_scope/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/input.py	ConstantKey	1	874dd6278a082a0e285640b25b7b501b
 relations/lookup_scope/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2717,6 +2822,7 @@ relations/lookup_scope/nested-global.py	ExpressionType	1	0c0bfc20b784d7d0d2f9b89
 relations/lookup_scope/nested-global.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/nested-global.py	LanguageTarget	1	53ce526c38c722bd9777df54038df210
 relations/lookup_scope/nested-global.py	CompilerFeature	1	868c448d5a66efeafff50e2690a7f9d5
+relations/lookup_scope/nested-global.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/nested-global.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/nested-global.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/nested-global.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2765,6 +2871,7 @@ relations/lookup_scope/type-parameter.py	ExpressionType	8	5c2c7e84159059f3f68158
 relations/lookup_scope/type-parameter.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/type-parameter.py	LanguageTarget	1	83368f61475f2395e6a998663d8ebf8e
 relations/lookup_scope/type-parameter.py	CompilerFeature	1	9d61a0c82bee20af0281c19b7bd39883
+relations/lookup_scope/type-parameter.py	AnnotationEvaluation	2	33682c1a59f40e77b6e23d8a1f05a19e
 relations/lookup_scope/type-parameter.py	ConstantKey	1	3fef6ffaf33650d99cd14e4c7538e453
 relations/lookup_scope/type-parameter.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/lookup_scope/type-parameter.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2813,6 +2920,7 @@ relations/numeric_literal/input.py	ExpressionType	7	dc8c9270522a8f7b8269e3d7f689
 relations/numeric_literal/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/numeric_literal/input.py	LanguageTarget	1	ea5bc6fc09c34ca381fba44ba7ffb3e0
 relations/numeric_literal/input.py	CompilerFeature	1	4e989d67879aa420fecbbc6591d5e37c
+relations/numeric_literal/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/numeric_literal/input.py	ConstantKey	7	a7fd310506a0d052680b99401395a39d
 relations/numeric_literal/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/numeric_literal/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2861,6 +2969,7 @@ relations/parameter/input.py	ExpressionType	13	a8b4339caf4959c1cc742654356dfcc8
 relations/parameter/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/parameter/input.py	LanguageTarget	1	dcb36c128eb3f780ab395593bdd60bf5
 relations/parameter/input.py	CompilerFeature	1	712224c4ba85d30454ba809f15e0d031
+relations/parameter/input.py	AnnotationEvaluation	2	845179e2fb348191c34e103c7772f388
 relations/parameter/input.py	ConstantKey	5	ebb2cf193544b69a6726ece145295e9e
 relations/parameter/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/parameter/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2909,6 +3018,7 @@ relations/qualified_name/input.py	ExpressionType	2	7daeb5a10230cc745e6a4594e4a8b
 relations/qualified_name/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/qualified_name/input.py	LanguageTarget	1	f1bb97ede8e9269bd86e15c6013d50a1
 relations/qualified_name/input.py	CompilerFeature	1	5d705d841155eb5717d2d5b16f4279e5
+relations/qualified_name/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/qualified_name/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/qualified_name/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/qualified_name/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -2957,6 +3067,7 @@ relations/raw_format_field/input.py	ExpressionType	3	e0f94967547db49df856071f1d4
 relations/raw_format_field/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/raw_format_field/input.py	LanguageTarget	1	0f9c489df2d8198fb2cdbe51bd648ed6
 relations/raw_format_field/input.py	CompilerFeature	1	b9c98c5840d626cd6304c96ac420e056
+relations/raw_format_field/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/raw_format_field/input.py	ConstantKey	3	6f8cfd8f0b2196c78a6c8e0f249f51a6
 relations/raw_format_field/input.py	FormatParse	3	b49abc68faeafaf9647aa53ed786bf43
 relations/raw_format_field/input.py	FormatField	4	81f8e8ae413b301a9408c66719628a8e
@@ -3005,6 +3116,7 @@ relations/raw_format_segment/input.py	ExpressionType	3	9fc06335b2c7fe49fcdcd9903
 relations/raw_format_segment/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/raw_format_segment/input.py	LanguageTarget	1	5dcc28068f8af0f2b70dbf14c29700ec
 relations/raw_format_segment/input.py	CompilerFeature	1	133c0ed3ade7266f559f5c795fa11be1
+relations/raw_format_segment/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/raw_format_segment/input.py	ConstantKey	3	b5754f2837a2c87f359e68741d7e3362
 relations/raw_format_segment/input.py	FormatParse	3	950df00bac27fdccd4dd9aeba82af42e
 relations/raw_format_segment/input.py	FormatField	4	3327d3ece6ac309e2068fe888653256d
@@ -3053,6 +3165,7 @@ relations/reference/input.py	ExpressionType	29	16b34b060b8b2003c3495dc1e4f351ae
 relations/reference/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/reference/input.py	LanguageTarget	1	08bac93c67cb4347953c10ed2ed051a3
 relations/reference/input.py	CompilerFeature	1	6ed114f1b05d5b54d9ddda9e6efebdaa
+relations/reference/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/reference/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/reference/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/reference/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3101,6 +3214,7 @@ relations/resolves/input.py	ExpressionType	15	cf8cf0104ef23c4fec32305084954f40
 relations/resolves/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/resolves/input.py	LanguageTarget	1	acaf8891b311bad46b822515d306f100
 relations/resolves/input.py	CompilerFeature	1	da1c96b5f007d3437344464e107a3986
+relations/resolves/input.py	AnnotationEvaluation	25	d8d597c174b112b17523c2c224507294
 relations/resolves/input.py	ConstantKey	1	f507c3b68e5b8c0070ae032bb370c78d
 relations/resolves/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/resolves/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3149,6 +3263,7 @@ relations/scope/input.py	ExpressionType	41	dd48320a54cb8b0c3fda4a7c2f7a1391
 relations/scope/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/scope/input.py	LanguageTarget	1	560dc56d432fd5cda45de2a274968c2c
 relations/scope/input.py	CompilerFeature	1	fb7b5391963349282ac7f3dd27fbc8a9
+relations/scope/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/scope/input.py	ConstantKey	5	56b6f6266518eaffeeaa1b1136030aa7
 relations/scope/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/scope/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3197,6 +3312,7 @@ relations/semantic_child/input.py	ExpressionType	4	30b866a4b9e2091b751059f71a942
 relations/semantic_child/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/semantic_child/input.py	LanguageTarget	1	7d1043269c21ae8eaa9fd619863c5d5d
 relations/semantic_child/input.py	CompilerFeature	1	443cefe46271cd576179b0fd08720340
+relations/semantic_child/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/semantic_child/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/semantic_child/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/semantic_child/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3245,6 +3361,7 @@ relations/semantic_syntax/input.py	ExpressionType	3	4a84964095c6b779637bd3d6714b
 relations/semantic_syntax/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/semantic_syntax/input.py	LanguageTarget	1	241f4fa322e4352c66458df0c88652e1
 relations/semantic_syntax/input.py	CompilerFeature	1	91672dd7a9733e73c07e804a377bac5c
+relations/semantic_syntax/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/semantic_syntax/input.py	ConstantKey	1	cddc6d8ea01a53110b68f179422f89f9
 relations/semantic_syntax/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/semantic_syntax/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3293,6 +3410,7 @@ relations/source_location/input.py	ExpressionType	4	2247c7ea19ad3a454f2e6273813b
 relations/source_location/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/source_location/input.py	LanguageTarget	1	777640b1ab03b2b346b55f84101eef3d
 relations/source_location/input.py	CompilerFeature	1	dd5bc6f2a3d57ddfe79a058a77f1aea6
+relations/source_location/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/source_location/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/source_location/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/source_location/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3341,6 +3459,7 @@ relations/standard_library_import/input.py	ExpressionType	0	e3b0c44298fc1c149afb
 relations/standard_library_import/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/standard_library_import/input.py	LanguageTarget	1	5c171d1acd22adc1f38246c42ca055e7
 relations/standard_library_import/input.py	CompilerFeature	1	b6f7f958986c11b6be3e3eec70fafdc6
+relations/standard_library_import/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/standard_library_import/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/standard_library_import/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/standard_library_import/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3389,6 +3508,7 @@ relations/static_call/input.py	ExpressionType	35	50b8a0f916e75f959bedae77715a350
 relations/static_call/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/static_call/input.py	LanguageTarget	1	bd2320fec20e52e8f5a117752f4a0e89
 relations/static_call/input.py	CompilerFeature	1	15883275d39c9c7ce7d315cb29861f17
+relations/static_call/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/static_call/input.py	ConstantKey	6	d61aa189d76530a356220d77d471a4fe
 relations/static_call/input.py	FormatParse	5	ed2cd9a54859807fba335426a4fd7e1a
 relations/static_call/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3437,6 +3557,7 @@ relations/static_import/input.py	ExpressionType	3	64bda4c8abc259fb924655b29fc7a9
 relations/static_import/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/static_import/input.py	LanguageTarget	1	2fc849dc1ba44c6a7e722582bb14c19b
 relations/static_import/input.py	CompilerFeature	1	cc39c6e2c723a2ce4e30c9c48237b081
+relations/static_import/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/static_import/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/static_import/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/static_import/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3485,6 +3606,7 @@ relations/string_literal/input.py	ExpressionType	39	6a9fa7496150fa8021047624e835
 relations/string_literal/input.py	InterpolatedStringLiteral	4	3cb0a8ec32ed07f94babee0564ab7592
 relations/string_literal/input.py	LanguageTarget	1	c42cf195b92612c08daf9d1bc70148b3
 relations/string_literal/input.py	CompilerFeature	1	9e7e63fbecaf6db5ad6d4e3fa9d46bdd
+relations/string_literal/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/string_literal/input.py	ConstantKey	9	86e4e90d3c5c5cb4521166b0db82c7c1
 relations/string_literal/input.py	FormatParse	11	1589d66a50ce889782331d42d0beebb1
 relations/string_literal/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3533,6 +3655,7 @@ relations/syntax_child/input.py	ExpressionType	4	8397513658bc711c6c1809a7e772949
 relations/syntax_child/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_child/input.py	LanguageTarget	1	db3440bad8f48ca177cce73fa79c6d61
 relations/syntax_child/input.py	CompilerFeature	1	b9c24a8da4bcced0131ac7bf416d772c
+relations/syntax_child/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_child/input.py	ConstantKey	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_child/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_child/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3581,6 +3704,7 @@ relations/syntax_error/input.py	ExpressionType	1	bb0f94efe5612c375fc361298a1115b
 relations/syntax_error/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_error/input.py	LanguageTarget	1	b599c4cc2b5319357b8662bc0006d54a
 relations/syntax_error/input.py	CompilerFeature	1	de091b99e860afcde9e58fb4b2b243a5
+relations/syntax_error/input.py	AnnotationEvaluation	0	31a46c0bf7a01ae6526466a99cb97743
 relations/syntax_error/input.py	ConstantKey	1	96a8491bf8d691e03dba826309137ce1
 relations/syntax_error/input.py	FormatParse	0	4447e1ed61642eca49cb61d73be8dc2f
 relations/syntax_error/input.py	FormatField	0	4447e1ed61642eca49cb61d73be8dc2f
@@ -3629,6 +3753,7 @@ relations/syntax_tree/input.py	ExpressionType	3	9f7243d5e1d8f81d726f6fffbf85864b
 relations/syntax_tree/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_tree/input.py	LanguageTarget	1	60e5dc96cd9d1dbbbb7c4e074e0ee95c
 relations/syntax_tree/input.py	CompilerFeature	1	810a5ac94b8b29d3394186dc2d0bf0af
+relations/syntax_tree/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_tree/input.py	ConstantKey	1	2717871b2c242a847de252939ff44ec1
 relations/syntax_tree/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/syntax_tree/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3677,6 +3802,7 @@ relations/token_link/input.py	ExpressionType	3	8b5193f183d4ab24e09de60696d8acaa
 relations/token_link/input.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/token_link/input.py	LanguageTarget	1	df62b506d4cfb3ce732080adf9b279a2
 relations/token_link/input.py	CompilerFeature	1	05de482769cfaa6b986f7a9a3255fb74
+relations/token_link/input.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/token_link/input.py	ConstantKey	1	8df2cbcae1b64dfb78cbf9d7c3a26d2e
 relations/token_link/input.py	FormatParse	0	e3b0c44298fc1c149afbf4c8996fb924
 relations/token_link/input.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3725,6 +3851,7 @@ spelled/broken.py	ExpressionType	2	4330f7bd029df61f89c1568aea7ce947
 spelled/broken.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 spelled/broken.py	LanguageTarget	1	cf38be240c79e0da88d67690273b6f29
 spelled/broken.py	CompilerFeature	1	1775b15fb4325a852c8d2cc3896903df
+spelled/broken.py	AnnotationEvaluation	0	31a46c0bf7a01ae6526466a99cb97743
 spelled/broken.py	ConstantKey	0	d8d8d94f73a3b7cd1f9dba990d913fe8
 spelled/broken.py	FormatParse	0	4447e1ed61642eca49cb61d73be8dc2f
 spelled/broken.py	FormatField	0	4447e1ed61642eca49cb61d73be8dc2f
@@ -3773,6 +3900,7 @@ spelled/del_parameter.py	ExpressionType	6	9ced20f112fc8e32ce0e3a1dad1cf69a
 spelled/del_parameter.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 spelled/del_parameter.py	LanguageTarget	1	971a4083113e13ee48d560509911a26e
 spelled/del_parameter.py	CompilerFeature	1	829bfc1a608baad088c8c1250f2114fb
+spelled/del_parameter.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 spelled/del_parameter.py	ConstantKey	1	c0dde253fccf490154e02b9ea296bef5
 spelled/del_parameter.py	FormatParse	1	eb6526eae04f58a0c91ca7119f65dfbc
 spelled/del_parameter.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3821,6 +3949,7 @@ spelled/embedded_event_order.py	ExpressionType	15	73a7dbae14cb3698df610eb93b8fcf
 spelled/embedded_event_order.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 spelled/embedded_event_order.py	LanguageTarget	1	3bc805794eff3b6398d434ea1a33bd2f
 spelled/embedded_event_order.py	CompilerFeature	1	83dcaf3983277c5d0e097f9794ac95a2
+spelled/embedded_event_order.py	AnnotationEvaluation	8	e5955ab80f25942da8d356fd49da9ada
 spelled/embedded_event_order.py	ConstantKey	3	ce9cd0dbd67f75cc409cfc4b2e8baab0
 spelled/embedded_event_order.py	FormatParse	3	8c034cf128de48cc31dfa8d5d7037edd
 spelled/embedded_event_order.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3869,6 +3998,7 @@ spelled/nonlocal_and_spec.py	ExpressionType	39	5d9d9d423f010ce65e1f345c74c6f67c
 spelled/nonlocal_and_spec.py	InterpolatedStringLiteral	1	70c1d481873184acb43c154a1b36f19c
 spelled/nonlocal_and_spec.py	LanguageTarget	1	d76eeed1567694bb6c98a4557f83087b
 spelled/nonlocal_and_spec.py	CompilerFeature	1	a897db66df978ceb7dc9222624ec089e
+spelled/nonlocal_and_spec.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 spelled/nonlocal_and_spec.py	ConstantKey	7	9d8d419e40871bedf6e012d4e9fe8bec
 spelled/nonlocal_and_spec.py	FormatParse	6	7fe8f2342100472916f5a7e0801d217f	adjudicated: the walk's digest; the old reader's differs and the walk is right (adjudicated_routes.tsv)
 spelled/nonlocal_and_spec.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
@@ -3917,6 +4047,7 @@ spelled/spelled_kinds.py	ExpressionType	102	c784291ea4d719195bb38f0d18bcf289
 spelled/spelled_kinds.py	InterpolatedStringLiteral	0	e3b0c44298fc1c149afbf4c8996fb924
 spelled/spelled_kinds.py	LanguageTarget	1	07b9ad24c9370f25302ed5e1875c9ab5
 spelled/spelled_kinds.py	CompilerFeature	1	20cd1e573506ba7080d5cf6e65a5adea
+spelled/spelled_kinds.py	AnnotationEvaluation	0	e3b0c44298fc1c149afbf4c8996fb924
 spelled/spelled_kinds.py	ConstantKey	3	4bca4a5bd41b946cb5b6686d4823be55
 spelled/spelled_kinds.py	FormatParse	2	acf8821974959bbbe90d842b1e5b3690
 spelled/spelled_kinds.py	FormatField	0	e3b0c44298fc1c149afbf4c8996fb924
