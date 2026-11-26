@@ -25,7 +25,6 @@ impl NamedFile<'_, '_> {
         static SCHEMAS: OnceLock<Vec<FileRelation>> = OnceLock::new();
         SCHEMAS.get_or_init(|| {
             let mut schemas = Vec::new();
-            schemas.extend_from_slice(Self::EXPRESSION_SCHEMAS);
             schemas.extend_from_slice(Self::IMPORT_SCHEMAS);
             schemas.extend_from_slice(Self::TYPING_SCHEMAS);
             schemas
@@ -80,10 +79,6 @@ impl NamedFile<'_, '_> {
             if let Some(partial) = Self::named_uncovered(schema, coverage.syntax, coverage.lexical)
             {
                 answers.push(Ok(partial));
-                continue;
-            }
-            if Self::EXPRESSION_SCHEMAS.contains(schema) {
-                answers.push(Ok(self.named_expression(schema, file, bytes, symbols)));
                 continue;
             }
             if Self::TYPING_SCHEMAS.contains(schema) {

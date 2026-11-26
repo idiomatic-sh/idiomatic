@@ -1,4 +1,4 @@
-//! The Python language's private file-scope relations (the import relations, comparisons,
+//! The Python language's private file-scope relations (the import relations,
 //! annotation evaluation), answered from a walked file while its view is live: the walk's `named` item hands the request here.
 //! They stay until the rules that read them (I001) read fills instead.
 
@@ -29,7 +29,6 @@ pub(crate) struct NamedFile<'a, 'f> {
     pub(crate) words: &'a mut FileWords,
 }
 
-mod expression_parts;
 mod imports;
 mod schemas;
 mod named_semantics;
