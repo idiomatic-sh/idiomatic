@@ -1,0 +1,47 @@
+[package]
+name = "ryo-lint-images"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# The three linter images (`vec`, `vec_ts`, `vec_rust`) the benchmark's window and gates run, built from the workspace SDK: a package of
+# its own, with its own workspace, so a product build never builds them and no lint table applies to benchmark glue.
+[workspace]
+
+[lib]
+name = "ryo_lint_images"
+path = "main.rs"
+
+[[bin]]
+name = "vec"
+path = "bin/vec.rs"
+
+[[bin]]
+name = "vec_ts"
+path = "bin/vec_ts.rs"
+
+[[bin]]
+name = "vec_rust"
+path = "bin/vec_rust.rs"
+
+[dependencies]
+ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../../sdk", features = ["bench-hooks"] }
+ryo_python = { package = "idiomatic-sh-ryo-python", path = "../../../../languages/python" }
+ryo_typescript = { package = "idiomatic-sh-ryo-typescript", path = "../../../../languages/typescript" }
+ryo_rust = { package = "idiomatic-sh-ryo-rust", path = "../../../../languages/rust" }
+cpu-time = "=1.0.0"
+globset = "=0.4.18"
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+toml = "=1.1.4"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+mimalloc = { version = "=0.1.52", default-features = false, features = ["v2"] }
+
+[target.'cfg(not(any(target_os = "windows", target_os = "openbsd", target_os = "aix", target_os = "android")))'.dependencies]
+tikv-jemallocator = { version = "=0.6.1", default-features = false, features = ["background_threads_runtime_support"] }
+
+# The images are built with the release's profile: fat LTO, one codegen unit.
+[profile.release]
+lto = "fat"
+codegen-units = 1
