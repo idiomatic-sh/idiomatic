@@ -2,12 +2,6 @@
 
 use std::sync::Arc;
 
-use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
-use ryo_core::outbound::scheduler::interface::SchedulerPort as _;
-use ryo_core::inbound::use_cases::lint::types::LintRequest as CoreRequest;
-use ryo_core::inbound::use_cases::open::interface::OpenUseCase as _;
-use ryo_core::inbound::use_cases::open::types::OpenRequest;
-use ryo_core::outbound::language::interface::LanguagePort as _;
 use ryo_execution::inbound::use_cases::compile_rules::interface::CompileRulesUseCase as _;
 use ryo_execution::inbound::use_cases::compile_rules::types::CompileRequest;
 
@@ -155,7 +149,7 @@ impl Linter {
     pub fn retire(self) {
         let (_, _, retire) = super::executor::in_use();
         let session = self.engine().session;
-        let _ = Arc::clone(&self.engine().scheduler).on_owner(&mut || retire(session));
+        drop(Arc::clone(&self.engine().scheduler).on_owner(&mut || retire(session)));
         std::mem::forget(self);
     }
 }
@@ -164,6 +158,6 @@ impl Drop for Linter {
     fn drop(&mut self) {
         let (_, close, _) = super::executor::in_use();
         let session = self.engine().session;
-        let _ = Arc::clone(&self.engine().scheduler).on_owner(&mut || close(session));
+        drop(Arc::clone(&self.engine().scheduler).on_owner(&mut || close(session)));
     }
 }

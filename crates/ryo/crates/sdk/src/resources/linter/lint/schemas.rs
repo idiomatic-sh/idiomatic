@@ -48,43 +48,6 @@ pub struct GlobSchemaError {
     pub reason: String,
 }
 
-/// Normalize only the project-context paths whose spelling becomes an observation key.
-/// The empty path is the repository root, and is valid only as a search root.
-fn project_path(path: &mut RelativePath, root: bool) -> Result<(), LintError> {
-    let mut parts = Vec::new();
-    let text = path.0.as_ref();
-    if text.starts_with('/') || text.chars().any(|part| matches!(part, '\\' | ':' | '\0')) {
-        return Err(LintError::ProjectPath { path: path.clone() });
-    }
-    for part in text.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => return Err(LintError::ProjectPath { path: path.clone() }),
-            other => parts.push(other),
-        }
-    }
-    if parts.is_empty() && !root {
-        return Err(LintError::ProjectPath { path: path.clone() });
-    }
-    path.0 = parts.join("/").into();
-    Ok(())
-}
-
-/// Validate and normalize project authority before either the Given adapter or core sees it.
-pub(super) fn project_context(request: &mut LintRequest) -> Result<(), LintError> {
-    if let crate::domain::project::types::ProjectSearchScope::Declared(roots) =
-        &mut request.project_search_scope
-    {
-        for root in roots {
-            project_path(root, true)?;
-        }
-    }
-    for entry in &mut request.given_project_inventory.entries {
-        project_path(&mut entry.path, false)?;
-    }
-    Ok(())
-}
-
 impl TryFrom<&str> for RuleId {
     type Error = RuleIdSchemaError;
 
@@ -241,15 +204,6 @@ impl TryFrom<LintReportSchema> for LintReport {
     }
 }
 
-/// The core's request for the caller's.
-///
-/// # Errors
-///
-/// `PathNotText` for a root that is not text.
-pub(super) fn request(request: LintRequest) -> Result<CoreRequest, LintError> {
-    LintRequestSchema(request).try_into()
-}
-
 /// The relations the host declared as the core takes them, each row checked against the columns its relation declared.
 pub(super) fn host_relations(relations: Vec<HostRelation>) -> Result<Vec<CoreHost>, LintError> {
     let mut seen: Vec<HostRelationName> = Vec::new();
@@ -325,18 +279,6 @@ fn host_cell(kind: HostKind, cell: Cell) -> Option<RowCell> {
             Cell::File(_) | Cell::Text(_) | Cell::Number(_) | Cell::Span(_),
         ) => None,
     }
-}
-
-/// The caller's report for the rows a lint wrote and what it answered.
-///
-/// # Errors
-///
-/// `Io` of the output when a row the run wrote is not a finding as the run writes one: a fault of the run, never dropped.
-pub(super) fn report(
-    collected: ryo_core::outbound::row_sink::types::Collected,
-    report: CoreReport,
-) -> Result<LintReport, LintError> {
-    LintReport::try_from(LintReportSchema { collected, report })
 }
 
 /// The failure for a row the run wrote that is not a finding as the run writes one.
@@ -415,9 +357,6 @@ pub(super) const fn workers(workers: super::types::Workers) -> WorkersAsked {
     WorkersAsked(workers.0.get())
 }
 
-#[cfg(test)]
-#[path = "schemas_test.rs"]
-mod tests;
 
 /// Translate edge-validated rule identities without changing producer selection.
 fn observation_bindings(

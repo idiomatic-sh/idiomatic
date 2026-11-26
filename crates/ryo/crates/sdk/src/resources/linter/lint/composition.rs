@@ -8,7 +8,7 @@ use ryo_execution::outbound::matching::interface::MatchingPort;
 use ryo_execution::outbound::{matching, query_language};
 use ryo_execution_runtime::outbound::digest;
 
-use crate::domain::capacity::types::{MemoryBudget, WorkerPool};
+use crate::domain::capacity::types::WorkerPool;
 use crate::domain::language::types::Language;
 
 use super::types::LinterLintEngine;

@@ -218,13 +218,4 @@ impl LintError {
         }
     }
 
-    /// The caller's failure for a core failure of opening.
-    pub(super) fn from_open(error: ryo_core::inbound::use_cases::open::errors::OpenError) -> Self {
-        use ryo_core::inbound::use_cases::open::errors::OpenError;
-        let (what, reason) = match error {
-            OpenError::Language { reason } => (Port::Language, reason),
-            OpenError::Memory { reason } => (Port::Memory, reason),
-        };
-        Self::Io { what, reason }
-    }
 }

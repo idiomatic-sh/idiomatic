@@ -10,13 +10,13 @@ static DISPATCH_NANOS: AtomicU64 = AtomicU64::new(0);
 /// Adds worker CPU nanoseconds to the measurement.
 #[doc(hidden)]
 pub fn add_work_nanos(nanos: u64) {
-    WORK_NANOS.fetch_add(nanos, Ordering::Relaxed);
+    let _ = WORK_NANOS.fetch_add(nanos, Ordering::Relaxed);
 }
 
 /// Adds dispatch CPU nanoseconds to the measurement.
 #[doc(hidden)]
 pub fn add_dispatch_nanos(nanos: u64) {
-    DISPATCH_NANOS.fetch_add(nanos, Ordering::Relaxed);
+    let _ = DISPATCH_NANOS.fetch_add(nanos, Ordering::Relaxed);
 }
 
 #[derive(Default)]
@@ -25,7 +25,7 @@ pub(super) struct Measurement {
     pub(super) rounds: Vec<usize>,
     pub(super) empty_reader_epochs: usize,
     pub(super) bulk_screen_files: usize,
-    pub(super) old_route: std::collections::BTreeMap<String, usize>,
+    pub(super) old_route: BTreeMap<String, usize>,
     pub(super) project_counts: [usize; 4],
     pub(super) calls: usize,
     pub(super) requests: usize,
@@ -70,7 +70,7 @@ pub(super) static MEASURED: std::sync::Mutex<Measurement> = std::sync::Mutex::ne
     rounds: Vec::new(),
     empty_reader_epochs: 0,
     bulk_screen_files: 0,
-    old_route: std::collections::BTreeMap::new(),
+    old_route: BTreeMap::new(),
     project_counts: [0; 4],
     calls: 0,
     requests: 0,
@@ -154,7 +154,7 @@ pub fn print_measurement() {
         m.project_prepare_wall, project_wall - m.project_prepare_wall,
     );
     eprintln!("LIVE_PHASE_WALL calls={:.6} admission={admission_wall:.6} files={file_wall:.6} project={project_wall:.6} delivery={delivery_wall:.6}",m.call_wall);
-    let [plans, bindings, sources, reads, parses, pairs, skips, eval, productive, refused] = m.counts;
+    let [plans, bindings, sources, reads, parses, _pairs, skips, eval, productive, refused] = m.counts;
     let empty = m.empty;
     let [inventories, builds, relations, repeated] = m.project_counts;
     eprintln!(

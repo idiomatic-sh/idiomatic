@@ -1,6 +1,6 @@
 //! Immutable inputs shared by SDK calls. File selection depends on paths and glob sets;
 //! authority and file contents still accompany each registration.
-use ryo_executor::check_session::hosted::{HostCell, Hosted, Parameters};
+use ryo_executor::check_session::hosted::{HostCell, Hosted};
 use ryo_executor::check_session::replay::stored;
 use crate::resources::linter as sdk;
 use globset::{GlobBuilder, GlobSet, GlobSetBuilder};
@@ -33,7 +33,7 @@ impl PathFilter {
         }
         let mut builder = GlobSetBuilder::new();
         for name in names {
-            builder.add(
+            let _ = builder.add(
                 GlobBuilder::new(name.as_ref())
                     .literal_separator(true)
                     .build()
@@ -209,7 +209,7 @@ impl CallCache {
             }
         };
         let id = self.intern_paths(&selected);
-        self.selections.insert(key, id);
+        let _ = self.selections.insert(key, id);
         (id, self.paths[id].clone())
     }
 
@@ -222,7 +222,7 @@ impl CallCache {
         }
         let digest = *blake3::hash(query.as_bytes()).as_bytes();
         let text = self.queries.entry(digest).or_insert_with(|| Rc::from(query)).clone();
-        self.query_digests.insert(at, (text.clone(), digest));
+        drop(self.query_digests.insert(at, (text.clone(), digest)));
         (text, digest)
     }
 
@@ -256,7 +256,6 @@ impl CallCache {
                     sdk::HostKind::File => "File",
                     sdk::HostKind::Text => "Text",
                     sdk::HostKind::Number => "Number",
-                    _ => return Err(sdk::LintError::Execution { reason: "unsupported SDK host column type".into() }),
                 };
                 Ok((column.name.0.to_string(), kind.to_owned()))
             })

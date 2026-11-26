@@ -56,23 +56,6 @@ pub enum ExecutablePermission {
 }
 
 impl ExecutablePermission {
-    /// The engine's permission state of the same observation.
-    pub(crate) const fn into_engine(
-        self,
-    ) -> ryo_values::domain::files::types::ExecutablePermission {
-        match self {
-            Self::Unknown => ryo_values::domain::files::types::ExecutablePermission::Unknown,
-            Self::Unsupported => {
-                ryo_values::domain::files::types::ExecutablePermission::Unsupported
-            }
-            Self::PosixNotExecutable => {
-                ryo_values::domain::files::types::ExecutablePermission::PosixNotExecutable
-            }
-            Self::PosixExecutable => {
-                ryo_values::domain::files::types::ExecutablePermission::PosixExecutable
-            }
-        }
-    }
 }
 
 // The conversion from the engine's record is the crate's own: a public `From` impl would put the engine's types on the SDK's surface.
