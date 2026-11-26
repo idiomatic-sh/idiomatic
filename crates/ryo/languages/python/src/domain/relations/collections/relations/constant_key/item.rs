@@ -5,8 +5,8 @@ use crate::domain::file_view::types::{PythonFile, PythonWalk};
 use crate::domain::key_facts::service::keyed;
 use crate::domain::key_facts::types::KeyBuild;
 use crate::domain::model::view::types::PartState;
-use crate::domain::node::service::{keyed_node, node_cell, span_at, typed_nodes};
-use crate::domain::node::types::{Numbered, SyntaxFile};
+use crate::domain::node::service::{keyed_place, node_cell, span_at, table_id};
+use crate::domain::node::types::SyntaxFile;
 use crate::domain::{
     constant_keys::{
         constants::INCOMPLETE,
@@ -60,9 +60,10 @@ fn key_row(
     id: languages::Position,
     class: KeyClass,
 ) -> languages::ConstantKeyRow {
+    let (id, key) = (table_id(file.tree.segments, id), table_id(file.tree.segments, class.representative));
     languages::ConstantKeyRow {
         id: node_cell(file, id),
-        key: node_cell(file, class.representative),
+        key: node_cell(file, key),
         file: file.file,
         span: span_at(file, id),
     }
@@ -91,19 +92,20 @@ ryo::fills! {
     ConstantKeyItem => languages::ConstantKey, walk(PythonWalk) |file, words, rows| {
         keyed_constants(file, words);
         let classes = file.buffers.keys.classes.iter();
-        for (Numbered { id, .. }, class) in typed_nodes(&file.syntax).zip(classes) {
+        for (place, class) in classes.enumerate() {
             if let Some(class) = class {
-                rows.write(key_row(&file.syntax, id, *class));
+                let place = languages::Position(u32::try_from(place).unwrap_or(u32::MAX));
+                rows.write(key_row(&file.syntax, place, *class));
             }
         }
         told_incomplete(file, rows);
     }
     key(languages::Column::ConstantKey(languages::ConstantKeyColumn::Id)) |file, words, key, rows| {
         keyed_constants(file, words);
-        let found = keyed_node(&file.syntax, key)
-            .and_then(|id| Some((id, file.buffers.keys.classes.get(usize::from(id)).copied().flatten()?)));
-        if let Some((id, class)) = found {
-            rows.write(key_row(&file.syntax, id, class));
+        let found = keyed_place(file.syntax.file, file.syntax.tree, key)
+            .and_then(|place| Some((place, file.buffers.keys.classes.get(usize::from(place)).copied().flatten()?)));
+        if let Some((place, class)) = found {
+            rows.write(key_row(&file.syntax, place, class));
         }
         told_incomplete(file, rows);
     }

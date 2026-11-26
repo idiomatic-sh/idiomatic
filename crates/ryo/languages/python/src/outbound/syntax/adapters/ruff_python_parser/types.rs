@@ -79,6 +79,11 @@ pub(super) struct Writer<'b, 'w, 't> {
     pub annotations: Vec<AnnotationCandidate<'t>>,
     /// Current syntactic context, refined by semantic binding before projection.
     pub annotation: AnnotationContext,
+    /// How many places the walk is inside of whose strings are values: an argument of a call, the subscript of `Literal` and the
+    /// metadata of `Annotated`, within an annotation.
+    pub values: usize,
+    /// The ranges of the metadata elements of the `Annotated` subscriptions the walk is inside of.
+    pub metadata: Vec<ruff_text_size::TextRange>,
     /// The first logical source byte emitted by this traversal.
     pub start: Offset,
     /// Whether canonical identifiers must be retained independently of physical spans.
