@@ -7,10 +7,10 @@ use super::fixtures::walk::{differences, dumped};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::syntax::service::kind_name;
 use crate::outbound::syntax::fixtures::contract::{check, elements_of};
-use crate::outbound::syntax::interface::SyntaxPort as _;
-use crate::outbound::syntax::types::SourceText;
-use ryo::languages::SourcePath;
-use ryo::languages::{self, Position};
+
+
+
+use ryo::languages::{Position};
 
 /// What a row reads: a text whose elements are listed, a text and what the standard's reference tool printed for it, or every file
 /// pinned.

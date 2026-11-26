@@ -3,7 +3,7 @@
 
 use super::item::ProjectNamespaceMembershipItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::fixtures::projects::{IMPORTS, Reading, Show, Shown, WORKSPACE, reading};
+use crate::fixtures::projects::{Reading, Show, Shown, WORKSPACE, reading};
 use ryo::languages;
 
 /// The manifests and files of a repository: each file with its path and its text.

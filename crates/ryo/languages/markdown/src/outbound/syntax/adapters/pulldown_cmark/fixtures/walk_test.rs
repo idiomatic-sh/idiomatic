@@ -2,17 +2,17 @@
 //! moved out of the node it belongs in.
 
 use ryo::languages::{NodeTable, node_table};
-use ryo::languages::SourcePath;
+
 use std::borrow::Cow;
 
 use super::walked;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::syntax::service::{kind_name, kind_of};
-use crate::outbound::syntax::adapters::pulldown_cmark::adapter::SyntaxPulldownCmarkAdapter;
-use crate::outbound::syntax::interface::SyntaxPort as _;
-use crate::outbound::syntax::types::SourceText;
+
+
+
 use ryo::languages::contract::{Leafness, Walked};
-use ryo::languages::{self, Position};
+use ryo::languages::{Position};
 
 /// What is read of a file.
 #[derive(Clone, Copy, Debug)]

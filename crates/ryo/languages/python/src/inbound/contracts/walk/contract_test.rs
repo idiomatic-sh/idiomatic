@@ -5,15 +5,12 @@
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::labels::service::{field_bits, field_name, fields};
-use crate::domain::labels::types::Field;
+
 use crate::domain::syntax::service::{kind_name, kind_of, kinds};
 use crate::fixtures::table_laws::broken_laws;
 use crate::fixtures::walking::walked;
 use crate::outbound::syntax::fixtures::library::fixture_sources;
-use ryo::languages::{
-    self, ByteSlice, FileFacts, FileId, FileVisit, KindBits, NodeTable, Offset, RelationNeeds,
-    Walk, WalkError, WalkRequest, node_table,
-};
+use ryo::languages::{self, ByteSlice, FileFacts, FileId, FileVisit, KindBits, NodeTable, Offset, RelationNeeds, Walk, WalkError, WalkRequest, node_table};
 
 /// What a case asks of the walk.
 #[derive(Clone, Copy, Debug)]

@@ -3,7 +3,7 @@
 
 use super::item::SourceDependencyItem;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::fixtures::projects::{IMPORTS, Reading, WORKSPACE, reading};
+use crate::fixtures::projects::{Reading, WORKSPACE, reading};
 
 /// The manifests and files of a repository: each file with its path and its text.
 type Input = &'static [(&'static str, &'static str)];

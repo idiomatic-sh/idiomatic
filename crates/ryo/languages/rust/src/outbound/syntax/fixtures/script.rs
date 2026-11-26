@@ -29,11 +29,6 @@ pub(crate) const fn token(kind: Kind, text: &'static str) -> Piece {
     Piece::Token(kind, text)
 }
 
-/// A token of white space.
-#[must_use]
-pub(crate) const fn space(text: &'static str) -> Piece {
-    Piece::Token(Kind::Token(Token::Whitespace), text)
-}
 
 /// `piece`, a node, with the parser's complaint added after what it holds.
 #[must_use]

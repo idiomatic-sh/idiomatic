@@ -76,13 +76,13 @@ struct FaultyFacts<'a, 'b> {
 
 impl NumberedVisit for FaultyNumbered {
     fn fields(&self) -> Option<&ryo_language::domain::fillers::types::FieldNames> {
-        self.inner.file_relations().and_then(FileRelations::numbered).and_then(NumberedVisit::fields)
+        self.inner.file_relations().map(FileRelations::numbered).and_then(NumberedVisit::fields)
     }
     fn projections(&self) -> &'static [Relation] {
-        self.inner.file_relations().and_then(FileRelations::numbered).map_or(&[], NumberedVisit::projections)
+        self.inner.file_relations().map(FileRelations::numbered).map_or(&[], NumberedVisit::projections)
     }
     fn open(&self) -> Box<dyn NumberedReader + '_> {
-        let inner = self.inner.file_relations().and_then(FileRelations::numbered).expect("TOML lends its numbered tree").open();
+        let inner = self.inner.file_relations().map(FileRelations::numbered).expect("TOML lends its numbered tree").open();
         Box::new(FaultyReader { inner, fault: self.fault })
     }
 }
@@ -129,8 +129,8 @@ impl NumberedFacts for FaultyFacts<'_, '_> {
 }
 
 impl FileRelations for Faulty {
-    fn numbered(&self) -> Option<&dyn NumberedVisit> {
-        Some(&self.numbered)
+    fn numbered(&self) -> &dyn NumberedVisit {
+        &self.numbered
     }
     fn declarations(&self) -> &'static [FileRelation] {
         &DECLARED
@@ -159,35 +159,12 @@ impl ParseEngine for FaultyToml {
     fn file_relations(&self) -> Option<&dyn FileRelations> { Some(&self.faulty) }
     fn capabilities(&self) -> Vec<ryo_relations::domain::catalog::types::OptionalCapability> { self.inner.capabilities() }
     fn configuration_identity(&self) -> ParseConfigurationIdentity<'_> { self.inner.configuration_identity() }
-    fn begin_semantics(&self, request: &ParseRequest<'_>, tree: &Elements, slot: &mut ryo_language::domain::semantics::types::SemanticSlot) {
-        self.inner.begin_semantics(request, tree, slot);
-    }
     fn recognition(&self, request: &ParseRequest<'_>) -> Recognition { self.inner.recognition(request) }
     fn skips(&self) -> &'static [SkippedDirectory] { self.inner.skips() }
     fn kind_count(&self) -> Count { self.inner.kind_count() }
-    fn completion_requirement(&self) -> ryo_language::domain::elements::types::CompletionRequirement { self.inner.completion_requirement() }
     fn kind_names(&self) -> KindNames { self.inner.kind_names() }
     fn stable_fields(&self) -> ryo_language::domain::fillers::types::FieldNames { self.inner.stable_fields() }
     fn unknown_reasons(&self) -> &'static [UnknownName] { self.inner.unknown_reasons() }
-    fn reader_kinds(&self) -> Vec<KindBits> { self.inner.reader_kinds() }
-    fn build_file(&self, request: ParseRequest<'_>, table: &mut Elements, symbols: &mut Symbols, wanted: &[Relation]) -> Result<(), ParseError> {
-        self.inner.build_file(request, table, symbols, wanted)
-    }
-    fn build_file_explicit(&self, request: ParseRequest<'_>, table: &mut Elements, symbols: &mut Symbols, wanted: &[Relation]) -> Result<(), ParseError> {
-        self.inner.build_file_explicit(request, table, symbols, wanted)
-    }
-    fn baseline_file(&self, request: &ParseRequest<'_>) -> Result<(), ParseError> { self.inner.baseline_file(request) }
-    fn read_file(&self, request: ParseRequest<'_>, table: &mut Elements, symbols: &mut Symbols, wanted: &[Relation], out: &mut dyn RowWriter) -> Result<(), ParseError> {
-        self.inner.read_file(request, table, symbols, wanted, out)
-    }
-    fn read_file_explicit(&self, request: ParseRequest<'_>, table: &mut Elements, symbols: &mut Symbols, wanted: &[Relation], out: &mut dyn RowWriter) -> Result<(), ParseError> {
-        self.inner.read_file_explicit(request, table, symbols, wanted, out)
-    }
-    fn walk_file(&self, elements: &mut Elements, symbols: &mut Symbols, source: ByteSlice<'_>, file: FileId, wanted: &[Relation], out: &mut dyn RowWriter) {
-        self.inner.walk_file(elements, symbols, source, file, wanted, out);
-    }
-    fn includes_expansions(&self, relation: Relation) -> bool { self.inner.includes_expansions(relation) }
-    fn absence_of(&self, relation: Relation) -> Option<AbsenceCause> { self.inner.absence_of(relation) }
 }
 
 fn faulty_toml(fault: Fault) -> ryo::languages::Language {
