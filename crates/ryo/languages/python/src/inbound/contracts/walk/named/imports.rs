@@ -610,7 +610,7 @@ impl NamedFile<'_, '_> {
                     .unwrap_or(0)
                     .min(src.len());
                 // Only offsets up to the final import are queried. Read one further byte for a CRLF at the boundary.
-                let starts = super::comment_positions::starts(
+                let starts = starts(
                     &src[..upto.saturating_add(1).min(src.len())],
                 );
                 let links = self.import_comment_links(comments);
@@ -740,7 +740,7 @@ impl NamedFile<'_, '_> {
                 0
             };
             let mut statement_text = 0;
-            let starts = super::comment_positions::starts(src);
+            let starts = starts(src);
             let mut previous_statement = None;
             let mut statement_lines = [0; 2];
             let line = |byte| starts.partition_point(|&s| s <= byte) as u64;
@@ -965,4 +965,15 @@ fn bounds(table: &l::NodeTable, id: Position) -> (u32, u32) {
 
 fn span(start: u32, end: u32) -> u64 {
     (u64::from(start) << 32) | u64::from(end)
+}
+
+/// Byte offsets of physical line starts. A CRLF is a single terminator.
+fn starts(src: &[u8]) -> Vec<u32> {
+    let mut offsets = vec![0];
+    for i in memchr::memchr2_iter(b'\r', b'\n', src) {
+        if src[i] == b'\n' || src.get(i + 1) != Some(&b'\n') {
+            offsets.push((i + 1).try_into().expect("Python parser offset"));
+        }
+    }
+    offsets
 }

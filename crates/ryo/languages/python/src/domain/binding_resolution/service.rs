@@ -10,7 +10,7 @@ use crate::domain::{
     labels::types::Field,
     model::types::{BindingAnalysisIndex, BindingAnalysisState, BindingKey, Declarations},
     nodes::types::Node,
-    scopes::service::{declares_global, enclosing},
+    scopes::service::{declared, declares_global, enclosing},
     syntax::{
         service::{is_root, kind, parent},
         types::{Kind, Rootness},
@@ -261,6 +261,10 @@ impl Walk<'_, '_> {
                     self.namespace(root, event, depth, context, out);
                     break;
                 }
+            }
+            // 4.2.2, 7.5: a deletion binds; a name a block deletes and declares neither global nor nonlocal is the block's own.
+            if context == ReadContext::Deletion && declared(tree, self.model, scope, event.name).is_none() {
+                break;
             }
             if scope == root {
                 break;

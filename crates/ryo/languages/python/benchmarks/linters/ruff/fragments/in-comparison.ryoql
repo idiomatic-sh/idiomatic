@@ -1,4 +1,12 @@
 input expressions: relation<id: node, file: file>;
 output relation<id: node, key: node, container: node, file: file>;
-let result = select l.id as id,r.left as key,r.right as container,l.file as file from expressions as l join "comparison-operands" as r on l.id=r.id and l.file=r.file where r.operator="in" and r.count=1;
+let operator_edges = select parent, child, file from "semantic-child" where field = "ops";
+let operators = select l.id as id, r.child as operator, l.file as file from expressions as l join operator_edges as r on l.id = r.parent and l.file = r.file;
+let operator_counts = group-count(from=operators, keys=["id","file"], count="count", distinct="operator");
+let in_operators = select l.id as id, l.file as file from operators as l join "semantic-syntax" as r on l.operator = r.id and l.file = r.file where r.text = "in";
+let single_in = select l.id as id, l.file as file from in_operators as l join operator_counts as r on l.id = r.id and l.file = r.file where r.count = 1;
+let left_edges = select parent, child, file from "semantic-child" where field = "left";
+let comparator_edges = select parent, child, file from "semantic-child" where field = "comparators";
+let keyed = select l.id as id, r.child as key, l.file as file from single_in as l join left_edges as r on l.id = r.parent and l.file = r.file;
+let result = select l.id as id, l.key as key, r.child as container, l.file as file from keyed as l join comparator_edges as r on l.id = r.parent and l.file = r.file;
 return result;
