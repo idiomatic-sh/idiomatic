@@ -18,6 +18,8 @@ pub mod refusal;
 pub mod kinds;
 #[cfg(test)]
 mod kinds_test;
+#[cfg(test)]
+mod refusal_test;
 pub mod jobs;
 pub mod file_programs;
 use file_programs::FilePrograms;
@@ -1276,6 +1278,12 @@ pub fn visit<L: FileSource>(
             let proof_time = thread_cpu() - t;
             clocks.screen += proof_time;
             clocks.bound_proofs += proof_time;
+            let extent = refusal::Extent {
+                provider: parser.as_ref().map_or("", |p| p.name()),
+                home: id.0,
+                elements: l::node_table::element_count(tree).0 as u64,
+                bytes: bytes.len() as u64,
+            };
             let mut named_tables = Vec::new();
             let mut named_errors = BTreeMap::new();
             let mut named_partials = BTreeMap::new();
@@ -1304,7 +1312,7 @@ pub fn visit<L: FileSource>(
                                 if let Some(reason) = rows.partial {
                                     named_partials.insert(schema.name, reason.0);
                                 }
-                                named::table(&mut empty_named, rows.columns, schema, id, scoped_symbols.as_deref().unwrap_or(&unclaimed_symbols), &bytes, &mut run, unknown, &mut resolved_words)
+                                named::table(&mut empty_named, rows.columns, schema, id, scoped_symbols.as_deref().unwrap_or(&unclaimed_symbols), &bytes, &mut run, unknown, &mut resolved_words, extent)
                             });
                             match table {
                                 Ok(table) => {
@@ -1327,7 +1335,7 @@ pub fn visit<L: FileSource>(
                 let Some(supplier) = &supplier_cell else { return Err("no numbered file to render from".to_owned()); };
                 supplier.borrow_mut().render(request).map_err(|e| e.to_string())
             };
-            let loan = Some(packet.operator_columns(id, dictionary.as_ref(), lazy.as_ref(),
+            let loan = Some(packet.operator_columns(id, extent, dictionary.as_ref(), lazy.as_ref(),
                 &mut run));
             // The frame owns the reader's projected word buffer for this visit.
             let mut frame_words = provider.projects_words.then(|| std::mem::take(&mut provider.text));
