@@ -6,7 +6,7 @@ use ryo::linter::{HostDeclaration, Languages};
 use ryo::query::{RyoQlQuery, ValidateRequest};
 
 use super::constants::{
-    BLANK_QUERY, FILE_KIND, OPERATORS_LISTED, PLACED, PLACED_SUMMARY, RELATIONS_LISTED, TEXT_KIND,
+    BATCH_CAPACITY, BLANK_QUERY, FILE_KIND, OPERATORS_LISTED, PLACED, PLACED_SUMMARY, RELATIONS_LISTED, TEXT_KIND,
     UNKNOWN_OPERATION,
 };
 use super::schemas::{self, error, operator_page, placed_columns, relation_page, report};
@@ -63,6 +63,23 @@ impl AnalysisRyoAdapter {
     }
 }
 
+impl AnalysisRyoAdapter {
+    /// ryo's engine over the languages, built by the first call.
+    fn linter(&self) -> Result<&ryo::linter::Linter, &AnalysisError> {
+        self.linter
+            .get_or_init(|| {
+                // ryo's engine reads files on the invocation's one pool, the scheduler's own.
+                let pool = self.settings.pool.0.as_ref().map_err(engine)?;
+                Ok(ryo::linter::Linter::new(
+                    self.languages.clone(),
+                    ryo::linter::WorkerPool::from(std::sync::Arc::clone(pool)),
+                    self.cache.clone(),
+                ))
+            })
+            .as_ref()
+    }
+}
+
 impl AnalysisPort for AnalysisRyoAdapter {
     fn validate(&self, query: &QueryText) -> Result<QueryVerdict, AnalysisError> {
         let Ok(text) = RyoQlQuery::try_from(&*query.0) else {
@@ -102,26 +119,42 @@ impl AnalysisPort for AnalysisRyoAdapter {
     }
 
     fn lint(&self, request: AnalysisRequest) -> Result<AnalysisReport, AnalysisError> {
-        let sdk = schemas::request(request)?;
-        let linter = self
-            .linter
-            .get_or_init(|| {
-                // ryo's engine reads files on the invocation's one pool, the scheduler's own.
-                let pool = self.settings.pool.0.as_ref().map_err(engine)?;
-                Ok(ryo::linter::Linter::new(
-                    self.languages.clone(),
-                    ryo::linter::WorkerPool::from(std::sync::Arc::clone(pool)),
-                    self.cache.clone(),
-                ))
-            })
-            .as_ref()
-            .map_err(Clone::clone)?;
-        linter
-            .lint(vec![sdk])
+        self.lint_batch(vec![request])
             .pop()
-            .unwrap_or_else(|| Err(ryo::linter::LintError::Execution { reason: "the linter answered no request".into() }))
-            .map(report)
-            .map_err(error)
+            .unwrap_or_else(|| Err(engine("the linter answered no request")))
+    }
+
+    fn batch_capacity(&self) -> usize {
+        BATCH_CAPACITY
+    }
+
+    fn lint_batch(&self, requests: Vec<AnalysisRequest>) -> Vec<Result<AnalysisReport, AnalysisError>> {
+        let linter = match self.linter() {
+            Ok(linter) => linter,
+            Err(failed) => return requests.iter().map(|_| Err(failed.clone())).collect(),
+        };
+        // A request that cannot be made into the engine's is refused alone; the others go to the linter together, in order.
+        let mut sent = Vec::new();
+        let mut order = Vec::new();
+        let mut answers: Vec<Option<Result<AnalysisReport, AnalysisError>>> = Vec::new();
+        for request in requests {
+            match schemas::request(request) {
+                Ok(each) => {
+                    order.push(answers.len());
+                    sent.push(each);
+                    answers.push(None);
+                }
+                Err(refused) => answers.push(Some(Err(refused))),
+            }
+        }
+        let mut linted = linter.lint(sent).into_iter();
+        for at in order {
+            answers[at] = Some(match linted.next() {
+                Some(result) => result.map(report).map_err(error),
+                None => Err(engine("the linter answered fewer requests than it was given")),
+            });
+        }
+        answers.into_iter().map(|answer| answer.unwrap_or_else(|| Err(engine("a request was not answered")))).collect()
     }
 
     fn relations(&self) -> Result<CatalogEntries, AnalysisError> {

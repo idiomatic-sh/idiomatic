@@ -1115,7 +1115,7 @@ impl ValidateUseCaseImpl {
     }
 
     /// Proves one version.
-    fn prove(&self, version: &Version) -> Result<Proof, ValidateError> {
+    async fn prove(&self, version: &Version) -> Result<Proof, ValidateError> {
         let files = version
             .files
             .iter()
@@ -1142,7 +1142,7 @@ impl ValidateUseCaseImpl {
                     Ok(rule) => rule,
                     Err(reason) => return Ok(refused(reason)),
                 };
-                self.rule_proof(&mut problems, &label, version, &version.release, &rule)?;
+                self.rule_proof(&mut problems, &label, version, &version.release, &rule).await?;
             }
             DefinitionKind::Spec => {
                 let spec = match self.manifest.spec(&text) {
@@ -1151,44 +1151,35 @@ impl ValidateUseCaseImpl {
                 };
                 explained(&mut problems, &spec.description, &spec.why);
                 described(&mut problems, &spec);
-                for VersionFile {
-                    path,
-                    text: owned_text,
-                } in files.iter().skip(1)
-                {
+                let owned = batching::ordered(files.iter().skip(1).map(|VersionFile { path, text }| async {
                     let owned = owned_label(&label, path);
+                    let mut problems = Vec::new();
                     if path.0.ends_with(kind_file(DefinitionKind::Rule).0) {
-                        match self.manifest.rule(&DefinitionText(owned_text.0.clone())) {
+                        match self.manifest.rule(&DefinitionText(text.0.clone())) {
                             Ok(rule) => {
-                                let release =
-                                    owned_release(&version.release, DefinitionKind::Rule, path);
-                                self.rule_proof(&mut problems, &owned, version, &release, &rule)?;
+                                let release = owned_release(&version.release, DefinitionKind::Rule, path);
+                                self.rule_proof(&mut problems, &owned, version, &release, &rule).await?;
                             }
-                            Err(reason) => {
-                                problems.push(Problem(format!("`{}`: {reason}", path.0).into()));
-                            }
+                            Err(reason) => problems.push(Problem(format!("`{}`: {reason}", path.0).into())),
                         }
                     }
                     if path.0.ends_with(kind_file(DefinitionKind::Template).0) {
-                        match self
-                            .manifest
-                            .template(&DefinitionText(owned_text.0.clone()))
-                        {
+                        match self.manifest.template(&DefinitionText(text.0.clone())) {
                             Ok(template) => {
-                                let release =
-                                    owned_release(&version.release, DefinitionKind::Template, path);
-                                problems.extend(
-                                    self.template_proof(version, &owned, &release, &template)?,
-                                );
+                                let release = owned_release(&version.release, DefinitionKind::Template, path);
+                                problems.extend(self.template_proof(version, &owned, &release, &template).await?);
                             }
-                            Err(reason) => {
-                                problems.push(Problem(format!("`{}`: {reason}", path.0).into()));
-                            }
+                            Err(reason) => problems.push(Problem(format!("`{}`: {reason}", path.0).into())),
                         }
                     }
+                    Ok::<_, ValidateError>(problems)
+                }));
+                let (owned, scenarios) = batching::together(owned, self.spec_cases(version, &spec)).await;
+                for each in owned {
+                    problems.extend(each?);
                 }
                 covered(&mut problems, &label, &judged_spec(&spec));
-                problems.extend(self.spec_cases(version, &spec)?);
+                problems.extend(scenarios?);
             }
             DefinitionKind::Template => {
                 let template = match self.manifest.template(&text) {
@@ -1201,14 +1192,14 @@ impl ValidateUseCaseImpl {
                     &label,
                     &version.release,
                     &template,
-                )?);
+                ).await?);
             }
         }
         Ok(proof(problems))
     }
 
     /// The problems of a template a spec owns: its description and why, and each of its scenarios.
-    fn template_proof(
+    async fn template_proof(
         &self,
         version: &Version,
         label: &DefinitionLabel,
@@ -1217,12 +1208,12 @@ impl ValidateUseCaseImpl {
     ) -> Result<Vec<Problem>, ValidateError> {
         let mut problems = Vec::new();
         explained(&mut problems, &template.description, &template.why);
-        problems.extend(self.template_proof_cases(version, label, release, template)?);
+        problems.extend(self.template_proof_cases(version, label, release, template).await?);
         Ok(problems)
     }
 
     /// The problems of a template's scenarios: that they cover it, and that each holds.
-    fn template_proof_cases(
+    async fn template_proof_cases(
         &self,
         version: &Version,
         label: &DefinitionLabel,
@@ -1231,13 +1222,13 @@ impl ValidateUseCaseImpl {
     ) -> Result<Vec<Problem>, ValidateError> {
         let mut problems = Vec::new();
         covered(&mut problems, label, &judged_template(template));
-        problems.extend(self.template_cases(version, release, template)?);
+        problems.extend(self.template_cases(version, release, template).await?);
         Ok(problems)
     }
 
     /// The problems of one rule: its description and why, whether its query runs, that its scenarios cover it, and each of
     /// them when the query runs.
-    fn rule_proof(
+    async fn rule_proof(
         &self,
         problems: &mut Vec<Problem>,
         label: &DefinitionLabel,
@@ -1248,7 +1239,7 @@ impl ValidateUseCaseImpl {
         explained(problems, &rule.description, &rule.why);
         covered(problems, label, &judged_rule(rule));
         if self.rule_runs(problems, rule)? == Running::Runs {
-            problems.extend(self.rule_cases(version, release, rule)?);
+            problems.extend(self.rule_cases(version, release, rule).await?);
         }
         Ok(())
     }
@@ -1272,7 +1263,7 @@ impl ValidateUseCaseImpl {
 
     /// The problems of a rule's scenarios, each as the check of a project of its own: the rule placed by the entry the
     /// scenario's `given` writes, or by the `tastemaker.toml` it brings.
-    fn rule_cases(
+    async fn rule_cases(
         &self,
         version: &Version,
         release: &Release,
@@ -1321,33 +1312,25 @@ impl ValidateUseCaseImpl {
             },
             &PackageFile(directory.clone().into()),
             &scenarios,
-        )
+        ).await
     }
 
     /// Runs the scenarios of a spec or a template in parallel, each as the check of a project of its own: the scenario's
     /// files written to a scratch repository, the definition placed there by the `tastemaker.toml` the scenario brings or
     /// one written for it, the project checked, and the findings compared with the ones the scenario expects.
-    fn project_cases(
+    async fn project_cases(
         &self,
         version: &Version,
         place: &(dyn Fn() -> FixturePlace + Sync),
         origin: &PackageFile,
         scenarios: &[ProjectScenario<'_>],
     ) -> Result<Vec<Problem>, ValidateError> {
-        let completed = scenarios
-            .par_iter()
-            .map(|scenario| {
-                self.project_case(
-                    &version.package,
-                    origin,
-                    Some(&FixturePlacing {
-                        version,
-                        place: place(),
-                    }),
-                    scenario,
-                )
-            })
-            .collect::<Vec<_>>();
+        let completed = batching::ordered(scenarios.iter().map(|scenario| async {
+            self.project_case(
+                &version.package, origin,
+                Some(&FixturePlacing { version, place: place() }), scenario,
+            ).await
+        })).await;
         // Every checked scenario's findings and expectations are hosted for one verdict call over them all.
         let mut rows = tastemaker_values::domain::scenario_judging::types::VerdictRows::default();
         let mut judged = Vec::with_capacity(scenarios.len());
@@ -1370,7 +1353,7 @@ impl ValidateUseCaseImpl {
                 ProjectJudged::Unchecked(problem) => judged.push(Some(problem)),
             }
         }
-        let verdicts = self.verdicts(&version.package, rows)?;
+        let verdicts = self.verdicts(&version.package, rows).await?;
         let mut problems = Vec::new();
         for (number, (scenario, unchecked)) in scenarios.iter().zip(judged).enumerate() {
             if let Some(problem) = unchecked {
@@ -1396,7 +1379,7 @@ impl ValidateUseCaseImpl {
 
     /// The verdict of the scenarios `rows` hosts: one lint call over the verdict queries, its corpus empty and every
     /// relation hosted, and the rows it answers; none when no scenario expects, finds, names or proves anything.
-    fn verdicts(
+    async fn verdicts(
         &self,
         package: &PackageRoot,
         rows: tastemaker_values::domain::scenario_judging::types::VerdictRows,
@@ -1411,14 +1394,14 @@ impl ValidateUseCaseImpl {
         {
             return Ok(Vec::new());
         }
-        let report = self.analysis.lint(AnalysisRequest {
+        let report = batching::lint(self.analysis.as_ref(), AnalysisRequest {
             root: MachinePath(package.0.clone()),
             rules: tastemaker_values::domain::scenario_judging::service::rules(),
             placed: Vec::new(),
             corpus: Corpus::Given(Vec::new()),
             beside: Vec::new(),
             hosted: Hosted::Verdict(rows),
-        })?;
+        }).await?;
         Ok(report
             .findings
             .iter()
@@ -1428,7 +1411,7 @@ impl ValidateUseCaseImpl {
 
     /// One scenario as a project: its problems. `placing` is what places a project
     /// without a `tastemaker.toml` of its own: the version proven, and how its definition is placed.
-    fn project_case(
+    async fn project_case(
         &self,
         package: &PackageRoot,
         origin: &PackageFile,
@@ -1439,7 +1422,7 @@ impl ValidateUseCaseImpl {
         let root = MachinePath(format!("{}/project-{number}", self.settings.directory.0).into()); // ignore: idiomatic.arch/stable-ids - a scenario's project is named for no item and lives only as long as its case: the run's counter makes each root its own, and no name is kept past the run
         let held = self.fixtures.project(&root)?;
         let mut written = BTreeMap::new();
-        let outcome = (|| {
+        let outcome = async {
             let files = scenario
                 .files
                 .0
@@ -1472,8 +1455,8 @@ impl ValidateUseCaseImpl {
                 &*held,
                 &written,
                 placing.map(|placing| &placing.version.release),
-            )
-        })();
+            ).await
+        }.await;
         drop(held);
         Ok(match outcome {
             Ok(report) => ProjectJudged::Checked(report),
@@ -1484,7 +1467,7 @@ impl ValidateUseCaseImpl {
     }
 
     /// The scenarios of a spec, each as a project that places the spec at its `at`.
-    fn spec_cases(
+    async fn spec_cases(
         &self,
         version: &Version,
         spec: &SpecFile,
@@ -1509,11 +1492,11 @@ impl ValidateUseCaseImpl {
             },
             &PackageFile(version.subject.directory.0.clone()),
             &scenarios,
-        )
+        ).await
     }
 
     /// The scenarios of a template, the one `release` names, each as a project that places the template at its `file`.
-    fn template_cases(
+    async fn template_cases(
         &self,
         version: &Version,
         release: &Release,
@@ -1554,7 +1537,7 @@ impl ValidateUseCaseImpl {
             },
             &PackageFile(directory.clone().into()),
             &scenarios,
-        )
+        ).await
     }
 
     // A fixture's project is checked as `check` checks a workspace: its files read, its definitions loaded, placed and
@@ -1563,7 +1546,7 @@ impl ValidateUseCaseImpl {
     /// The report of checking the fixture's project `repository`, whose files are `written`: what `check --fix` reports
     /// there, the release `subject` proves pinned at its version and every other entry at the latest its package offers.
     /// Only its findings are compared, so none is fingerprinted.
-    fn checked(
+    async fn checked(
         &self,
         repository: &dyn Repository,
         written: &BTreeMap<RepoPath, FileText>,
@@ -1605,9 +1588,27 @@ impl ValidateUseCaseImpl {
             .collect();
         let mut refused = refusals(&plan, &invalid, &mut findings);
         let corpus = listed(&plan);
-        let report =
-            self.project_lint(root, written, &plan, &corpus, &mut findings, &mut refused)?;
-        findings.extend(self.project_counted(root, &plan, &report, &refused)?);
+        let independent = batching::enabled().then(|| {
+            tastemaker_values::domain::judging::service::host(
+                &plan.counts, &plan.pairs, &BTreeMap::new(), &plan.closings,
+            )
+        }).filter(|rows| !rows.conditions.iter().any(|row| {
+            plan.purposes.values().any(|purpose| {
+                matches!(purpose, tastemaker_values::domain::applications::types::Purpose::Condition { scope, name, .. }
+                    if *scope == row.scope && *name == row.condition)
+            })
+        }));
+        let lint = self.project_lint(root, written, &plan, &corpus, &mut findings, &mut refused);
+        let (report, counted) = if let Some(rows) = independent {
+            let (report, counted) = batching::together(lint, self.project_counted(root, &plan, rows)).await;
+            (report?, counted?)
+        } else {
+            let report = lint.await?;
+            let holds = tastemaker_values::domain::judging::service::holds(&plan, &refused, &report.findings);
+            let rows = tastemaker_values::domain::judging::service::host(&plan.counts, &plan.pairs, &holds, &plan.closings);
+            (report, self.project_counted(root, &plan, rows).await?)
+        };
+        findings.extend(counted);
         let answers = tastemaker_values::domain::governance::types::Answers {
             answers: report
                 .findings
@@ -1662,7 +1663,7 @@ impl ValidateUseCaseImpl {
     /// The project's lint call over `plan`'s rules, but those `refused`: a rule this ryo cannot run is left out, its
     /// refusal a finding, and the call is made again without it. ryo reads the project's files as given, `written` at
     /// `root`, and nothing of the disk.
-    fn project_lint(
+    async fn project_lint(
         &self,
         root: &MachinePath,
         written: &BTreeMap<RepoPath, FileText>,
@@ -1686,12 +1687,12 @@ impl ValidateUseCaseImpl {
                     })
             })
             .collect::<Vec<_>>();
-        self.linted(root, plan, &given, corpus, findings, refused)
+        self.linted(root, plan, &given, corpus, findings, refused).await
     }
 
     /// The lint call of `project_lint` over the files `given`, at the project's `root`, made again without each rule ryo
     /// cannot run.
-    fn linted(
+    async fn linted(
         &self,
         root: &MachinePath,
         plan: &tastemaker_values::domain::applications::types::Plan,
@@ -1710,7 +1711,7 @@ impl ValidateUseCaseImpl {
                 .filter(|rule| !refused.contains(&rule.id))
                 .cloned()
                 .collect::<Vec<_>>();
-            match self.analysis.lint(AnalysisRequest {
+            match batching::lint(self.analysis.as_ref(), AnalysisRequest {
                 root: lint_root(root, &plan.base),
                 rules,
                 placed: plan.placed.clone(),
@@ -1724,7 +1725,7 @@ impl ValidateUseCaseImpl {
                     })
                     .collect(),
                 hosted: Hosted::Nothing,
-            }) {
+            }).await {
                 Ok(report) => return Ok(report),
                 Err(crate::outbound::analysis::errors::AnalysisError::Rule { rule, reason })
                     if !refused.contains(&rule) && plan.purposes.contains_key(&rule) =>
@@ -1748,34 +1749,23 @@ impl ValidateUseCaseImpl {
     /// The findings of the project's counts and pairs, as `check` makes them: a second lint call at the project's `root`,
     /// over the rows they host once the conditions they read have answered in `report`, its corpus empty; none when
     /// `plan` holds neither.
-    fn project_counted(
+    async fn project_counted(
         &self,
         root: &MachinePath,
         plan: &tastemaker_values::domain::applications::types::Plan,
-        report: &AnalysisReport,
-        refused: &BTreeSet<tastemaker_values::domain::applications::types::LintRuleId>,
+        rows: tastemaker_values::domain::judging::types::CountRows,
     ) -> Result<Vec<tastemaker_values::domain::findings::types::Finding>, Problem> {
-        let holds =
-            tastemaker_values::domain::judging::service::holds(plan, refused, &report.findings);
-        let rows = tastemaker_values::domain::judging::service::host(
-            &plan.counts,
-            &plan.pairs,
-            &holds,
-            &plan.closings,
-        );
         if rows.entries.is_empty() && rows.closings.candidates.is_empty() {
             return Ok(Vec::new());
         }
-        let counted = self
-            .analysis
-            .lint(AnalysisRequest {
+        let counted = batching::lint(self.analysis.as_ref(), AnalysisRequest {
                 root: tastemaker_values::domain::linting::service::lint_root(root, &plan.base),
                 rules: tastemaker_values::domain::judging::service::rules(),
                 placed: Vec::new(),
                 corpus: Corpus::Given(Vec::new()),
                 beside: Vec::new(),
                 hosted: Hosted::Counts(rows),
-            })
+            }).await
             .map_err(unchecked)?;
         let judgments = counted
             .findings
@@ -2459,15 +2449,15 @@ impl ValidateUseCaseImpl {
         }
         let mut made = None;
         let ran = self.scheduler.run(&mut || {
-            made = Some(
-                asked
-                    .par_iter()
-                    .map(|each| match &each.held {
+            made = Some(batching::drive(
+                self.analysis.as_ref(),
+                batching::ordered(asked.iter().map(|each| async {
+                    match &each.held {
                         Some(proof) => Ok(proof.clone()),
-                        None => self.prove(&each.version),
-                    })
-                    .collect::<Vec<_>>(),
-            );
+                        None => self.prove(&each.version).await,
+                    }
+                })),
+            ));
         });
         // What this run read and judged is forgotten: the next run reads the definitions as they are then.
         drop(std::mem::take(
@@ -2631,3 +2621,5 @@ impl ValidateUseCase for ValidateUseCaseImpl {
         Ok(ValidateReport { proved })
     }
 }
+
+use super::batching;

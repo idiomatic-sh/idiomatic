@@ -36,3 +36,6 @@ pub(super) const SPAN_TEXT: &str =
 
 /// Ryo's own directory within the store.
 pub(super) const RYO_STORE: &str = "ryo";
+
+/// How many lint calls `validate` may hold pending to send to ryo's engine as one ordered batch.
+pub(super) const BATCH_CAPACITY: usize = 16;

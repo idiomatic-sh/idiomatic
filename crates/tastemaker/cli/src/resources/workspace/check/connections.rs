@@ -36,8 +36,6 @@ pub(crate) fn connect(
             build: build.clone(),
             writing,
         },
-        workers: tastemaker_core::outbound::scheduler::types::WorkerCount(
-            std::thread::available_parallelism().map_or(1, std::num::NonZero::get),
-        ),
+        workers: tastemaker_core::outbound::scheduler::types::WorkerCount::configured(),
     }
 }
