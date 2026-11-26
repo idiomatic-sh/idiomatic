@@ -1596,7 +1596,7 @@ pub fn entry_kind(state: l::ObservedEntryState) -> Option<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use session::source::Linked;
+    use session::source::Fake;
 
     #[test]
     fn mapped_replay_copies_untouched_rows_into_a_changed_file_record() {
@@ -1644,7 +1644,7 @@ mod tests {
     #[test]
     fn contextual_proofs_recheck_absence_and_reject_unknown_entries() {
         let root = tempfile::tempdir().unwrap();
-        let open = || Store::open(root.path(), &[] as &[Linked]).unwrap();
+        let open = || Store::open(root.path(), &[] as &[Fake]).unwrap();
         let epoch = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let environment = project::Environment::new(
             "observed".into(),
@@ -1680,7 +1680,7 @@ mod tests {
     #[test]
     fn answers_replay_after_publish_with_each_requests_inputs() {
         let root = tempfile::tempdir().unwrap();
-        let open = || Store::open(root.path(), &[] as &[Linked]).unwrap();
+        let open = || Store::open(root.path(), &[] as &[Fake]).unwrap();
         let inventory = key("one closed inventory");
         let peers = key("same bound peers");
         let supplied = |body: &str| BTreeMap::from([("input".to_owned(), key(body))]);
