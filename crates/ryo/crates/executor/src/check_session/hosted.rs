@@ -8,6 +8,8 @@ use std::io::{self, BufRead as _, Write as _};
 pub struct Snapshot<'a> {
     pub project: Option<&'a crate::check_session::project::Population>,
     pub has_inventory: bool,
+    /// The listed files the host found not there: they have no `filesystem.file` row.
+    pub missing: BTreeSet<u32>,
     pub tables: BTreeMap<String, Table>,
 }
 
@@ -37,9 +39,12 @@ impl Provider for Snapshot<'_> {
             return Err("all file partitions excluded; no complete inventory contribution".into());
         }
         let (_, names, tys) = run.catalog(name).ok_or("no file inventory declaration")?;
-        let mut t = Table::with_rows(names, tys, files.len());
-        t.cols[0].extend(files.iter().copied().map(u64::from));
-        t.n = files.len();
+        // The host wrote the relation only for a file it observed: a listed file that is not there has no row (its relation is noted
+        // read only in part), and a file that is there and cannot be read keeps its row.
+        let present: Vec<u32> = files.iter().copied().filter(|file| !self.missing.contains(file)).collect();
+        let mut t = Table::with_rows(names, tys, present.len());
+        t.cols[0].extend(present.iter().copied().map(u64::from));
+        t.n = present.len();
         Ok(t)
     }
 
@@ -164,6 +169,13 @@ pub fn execute_ids(
         tables,
         project,
         has_inventory: !inventory.is_empty(),
+        missing: incomplete
+            .get("filesystem.file")
+            .into_iter()
+            .flatten()
+            .flatten()
+            .copied()
+            .collect(),
     };
     finish::session::evaluate_covered(
         exec,
