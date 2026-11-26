@@ -4,31 +4,15 @@
 
 use crate::domain::file_view::service::{decoded as walked_decoded, node_cell, span_at, word};
 use crate::domain::file_view::types::CssWalk;
+use crate::domain::syntax::service::kind_bits;
 use crate::domain::walked_targets::service::{owner as walked_owner, specifier as walked_specifier};
 use ryo::languages::node_table;
-use crate::domain::syntax::service::{decoded, kind_bits};
 use crate::domain::syntax::types::Kind;
-use crate::domain::targets::service::{owner, specifier};
 use crate::domain::tokens::types::Token;
 use ryo::languages;
 
-/// The reader the `parse` contract hands the `string_literal` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the relation is registered on.
 pub(crate) struct StringLiteralItem;
-
-ryo::reads! {
-    StringLiteralItem => languages::StringLiteral |tree, at, symbols| {
-        kinds: [Kind::Token(Token::String)] as kind_bits,
-        given value = decoded(tree, symbols, at)?;
-        row {
-            occurrence: node(at),
-            owner: node(owner(tree, at)),
-            value: value(value),
-            file: file,
-            span: span(at),
-            import: value(specifier(tree, at)),
-        }
-    }
-}
 
 // The engine fills `string_literal` from the walked file: every string the library decoded.
 ryo::fills! {

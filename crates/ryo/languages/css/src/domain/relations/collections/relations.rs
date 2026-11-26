@@ -5,9 +5,5 @@ pub(crate) mod reference;
 pub(crate) mod static_import;
 pub(crate) mod source_location;
 pub(crate) mod string_literal;
-pub(crate) mod syntax_child;
 pub(crate) mod syntax_error;
-pub(crate) mod syntax_tree;
 
-#[cfg(any(test, feature = "fixtures"))]
-pub(crate) mod fixtures;

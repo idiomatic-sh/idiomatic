@@ -14,24 +14,6 @@ use ryo::languages::SourcePath;
 pub(crate) struct SyntaxFake;
 
 impl SyntaxPort for SyntaxFake {
-    fn read(
-        &self,
-        text: SourceText<'_>,
-        _at: SourcePath<'_>,
-        builder: &mut languages::TableBuilder<'_>,
-    ) {
-        let end = languages::Offset(u32::try_from(text.0.len()).unwrap_or(u32::MAX));
-        let start = languages::Offset(0);
-        languages::enter_node(builder, kind_bits(Kind::Node(Node::Stylesheet)), start);
-        languages::decoded_token(
-            builder,
-            kind_bits(Kind::Extra(Extra::Comment)),
-            start,
-            end,
-            languages::NameText(std::str::from_utf8(text.0).unwrap_or_default()),
-        );
-        languages::leave_node(builder, end);
-    }
 
     fn walk(
         &self,
