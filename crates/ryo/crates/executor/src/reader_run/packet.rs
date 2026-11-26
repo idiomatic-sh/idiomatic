@@ -203,7 +203,7 @@ impl Packet {
             match &table.answer {
                 l::FactAnswer::Partial(part) => self.partials.push((relation, part.cause.0.to_string(), part.missing)),
                 l::FactAnswer::Refused(l::AbsenceCause::NotYetRead) => {
-                    self.partials.push((relation, "catalog relation has no numbered filler".into(), l::Missing::Any));
+                    self.partials.push((relation, l::UNAVAILABLE_CAPABILITY.into(), l::Missing::Any));
                 }
                 _ => {}
             }
