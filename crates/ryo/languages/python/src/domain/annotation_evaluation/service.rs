@@ -7,10 +7,10 @@
 
 use super::constants::{CLASSES, MODULE};
 use super::types::{Row, Target};
-use crate::domain::fields::service::field_of;
+
 use crate::domain::labels::service::{field_name, fields};
 use crate::domain::syntax::service::{kind_name, kinds};
-use ryo::languages::{self, Elements, NodeTable, Position, Tree, node_table};
+use ryo::languages::{NodeTable, Position, Tree, node_table};
 use std::cell::RefCell;
 use std::sync::OnceLock;
 
@@ -72,32 +72,7 @@ impl Shape for &NodeTable {
     }
 }
 
-/// The old route's elements, read as the tree of a file.
-pub(crate) struct Old<'t, 'e>(pub(crate) &'t Tree<'e>);
 
-impl Shape for Old<'_, '_> {
-    fn count(&self) -> u32 {
-        languages::end_of(self.0.elements).0
-    }
-    fn kind(&self, p: u32) -> &'static str {
-        kind_names().get(usize::from(languages::kind_at(self.0.elements, Position(p)).0)).copied().unwrap_or("")
-    }
-    fn field(&self, p: u32) -> &'static str {
-        field_name(field_of(self.0, Position(p))).0
-    }
-    fn parent(&self, p: u32) -> u32 {
-        languages::parent_at(self.0.elements, Position(p)).0
-    }
-    fn children(&self, p: u32) -> impl Iterator<Item = u32> {
-        languages::children(self.0.elements, Position(p)).map(|c| c.0)
-    }
-    fn start(&self, p: u32) -> u32 {
-        languages::start_at(self.0.elements, Position(p)).0
-    }
-    fn has_annotation(&self) -> bool {
-        (0..self.count()).any(|p| matches!(self.field(p), "annotation" | "returns"))
-    }
-}
 
 /// The buffers `rows` works in, kept between files so a file after the first allocates nothing.
 #[derive(Default)]
