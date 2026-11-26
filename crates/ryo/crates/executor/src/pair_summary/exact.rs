@@ -5,12 +5,12 @@
 use super::*;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
-struct Value<'a> {
-    depth: u8,
-    field: &'a str,
+pub struct Value<'a> {
+    pub depth: u8,
+    pub field: &'a str,
 }
 impl<'a> Value<'a> {
-    fn shifted(self, depth: u8) -> Self {
+    pub fn shifted(self, depth: u8) -> Self {
         Self {
             depth: if self.field == "file" {
                 0
@@ -22,20 +22,20 @@ impl<'a> Value<'a> {
     }
 }
 #[derive(Clone)]
-struct Row<'a> {
-    nodes: Id,
-    guard: Id,
-    cols: Vec<(&'a str, Value<'a>)>,
+pub struct Row<'a> {
+    pub nodes: Id,
+    pub guard: Id,
+    pub cols: Vec<(&'a str, Value<'a>)>,
     // Presence is exact, but a subsequent projection must discard derived values.
-    derived: bool,
+    pub derived: bool,
 }
 impl<'a> Row<'a> {
-    fn column(&self, name: &str) -> Option<Value<'a>> {
+    pub fn column(&self, name: &str) -> Option<Value<'a>> {
         self.cols.iter().find(|(n, _)| *n == name).map(|(_, v)| *v)
     }
 }
 #[derive(Clone, Debug)]
-pub(crate) struct Certificate {
+pub struct Certificate {
     pub nodes: Id,
     pub guard: Id,
     pub facts: Vec<usize>,
@@ -43,14 +43,14 @@ pub(crate) struct Certificate {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum LocationColumn {
+pub enum LocationColumn {
     File,
     Span,
     Node,
 }
 
 impl LocationColumn {
-    fn named(name: &str) -> Option<Self> {
+    pub fn named(name: &str) -> Option<Self> {
         Some(match name {
             "file" => Self::File,
             "span" => Self::Span,
@@ -60,7 +60,7 @@ impl LocationColumn {
     }
 }
 
-fn base<'a>(b: &mut Builder<'_>, name: &str) -> Option<Row<'a>> {
+pub fn base<'a>(b: &mut Builder<'_>, name: &str) -> Option<Row<'a>> {
     if !b.native(name) { return None; }
     let (nodes, fields): (_, &[&str]) = match name {
         "syntax-tree" | "semantic-syntax" => (ANY, &["id", "file", "kind", "text", "span"]),
@@ -105,7 +105,7 @@ fn base<'a>(b: &mut Builder<'_>, name: &str) -> Option<Row<'a>> {
 
 // A provider fact may contain many rows for one id. Filter its rows before
 // projecting the node key, keeping conjuncts on the same provider row.
-fn fact_projection<'a>(
+pub fn fact_projection<'a>(
     b: &mut Builder<'_>,
     s: &'a SelectStep,
     plan: &FinishPlan,
@@ -199,7 +199,7 @@ fn fact_projection<'a>(
     })
 }
 
-pub(super) struct Grouped {
+pub struct Grouped {
     pub key: usize,
     pub depth: u8,
     pub rows: Id,
@@ -209,7 +209,7 @@ pub(super) struct Grouped {
 
 // In a keyed group each distinct child id counts once, even when a join or
 // union produced duplicate rows. File and one fixed ancestor identify its group.
-fn group<'a>(
+pub fn group<'a>(
     b: &mut Builder<'_>,
     step: usize,
     g: &'a ryo_values::domain::finish_plans::arguments::groups::types::GroupCountArguments,
@@ -272,7 +272,7 @@ fn group<'a>(
     })
 }
 
-fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
+pub fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
     let mut pending = vec![id];
     let mut seen = Vec::new();
     while let Some(id) = pending.pop() {
@@ -312,7 +312,7 @@ fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
     }
 }
 
-fn predicate<'a>(
+pub fn predicate<'a>(
     b: &mut Builder<'_>,
     e: &PlanExpression,
     get: &impl Fn(&ColumnRead) -> Option<Value<'a>>,
@@ -420,21 +420,21 @@ fn predicate<'a>(
 
 // Keep the witness at the deepest row. A named ancestor is functional in
 // that row, however many other rows share that ancestor.
-fn below(b: &mut Builder<'_>, mut set: Id, depth: u8) -> Id {
+pub fn below(b: &mut Builder<'_>, mut set: Id, depth: u8) -> Id {
     for _ in 0..depth {
         set = b.domain(Domain::Children(set));
     }
     set
 }
 
-fn above(b: &mut Builder<'_>, mut set: Id, depth: u8) -> Id {
+pub fn above(b: &mut Builder<'_>, mut set: Id, depth: u8) -> Id {
     for _ in 0..depth {
         set = b.domain(Domain::Parents(set));
     }
     set
 }
 
-fn select<'a>(
+pub fn select<'a>(
     b: &mut Builder<'_>,
     s: &'a SelectStep,
     rows: &[Option<Row<'a>>],
@@ -567,7 +567,7 @@ fn select<'a>(
 }
 
 /// The final slot of a two-slot template, and the literal immediately before it.
-fn captured_suffix(pattern: &str) -> Option<(&str, &[u8])> {
+pub fn captured_suffix(pattern: &str) -> Option<(&str, &[u8])> {
     let (first, rest) = pattern.strip_prefix('{')?.split_once('}')?;
     let (delimiter, last) = rest.strip_suffix('}')?.split_once('{')?;
     let name = last.trim_start_matches('*');
@@ -585,7 +585,7 @@ fn captured_suffix(pattern: &str) -> Option<(&str, &[u8])> {
 
 // Propagate only necessary file-set predicates. A missing or partial provider
 // answer makes the guard possible. An operator without a transfer rule does too.
-fn guards(b: &mut Builder<'_>, plan: &FinishPlan) -> Vec<Id> {
+pub fn guards(b: &mut Builder<'_>, plan: &FinishPlan) -> Vec<Id> {
     use FinishStep::*;
     let mut out = Vec::with_capacity(plan.steps.len());
     let mut bases = Map::default();
@@ -679,7 +679,7 @@ fn guards(b: &mut Builder<'_>, plan: &FinishPlan) -> Vec<Id> {
 // Bound the exact proof frontier before following demand backwards. Any
 // operator outside the proof language breaks that path. A base remains
 // possible here because its provider may support an exact key projection.
-fn possible_rows(plan: &FinishPlan) -> Vec<bool> {
+pub fn possible_rows(plan: &FinishPlan) -> Vec<bool> {
     use FinishStep::*;
     let mut possible = Vec::with_capacity(plan.steps.len());
     for step in &plan.steps {
@@ -710,7 +710,7 @@ fn possible_rows(plan: &FinishPlan) -> Vec<bool> {
     possible
 }
 
-pub(super) fn prepare<'a>(
+pub fn prepare<'a>(
     b: &mut Builder<'_>,
     plan: &'a FinishPlan,
     live: &[bool],
@@ -1023,16 +1023,16 @@ pub(super) fn prepare<'a>(
         .collect()
 }
 
-pub(super) struct Exclusion<'a> {
-    id: &'a str,
-    keys: Vec<(&'a str, Attribute)>,
-    domain: Id,
-    guard: Id,
-    slots: Vec<usize>,
+pub struct Exclusion<'a> {
+    pub id: &'a str,
+    pub keys: Vec<(&'a str, Attribute)>,
+    pub domain: Id,
+    pub guard: Id,
+    pub slots: Vec<usize>,
 }
 
 impl Exclusion<'_> {
-    pub(super) fn apply(&self, b: &mut Builder<'_>, row: &mut Summary<'_>) {
+    pub fn apply(&self, b: &mut Builder<'_>, row: &mut Summary<'_>) {
         let Some(node) = row.column(self.id) else {
             return;
         };

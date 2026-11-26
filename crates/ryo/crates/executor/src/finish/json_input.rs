@@ -2,23 +2,23 @@
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
-pub(crate) type Accepted = HashSet<String>;
+pub type Accepted = HashSet<String>;
 
 #[derive(Deserialize)]
-pub(crate) struct Request {
-    rule_context: Option<serde::de::IgnoredAny>,
-    rule_observations: Option<serde::de::IgnoredAny>,
-    pub(crate) root: String,
-    pub(crate) files: Vec<String>,
-    pub(crate) selected_rules: Vec<String>,
+pub struct Request {
+    pub rule_context: Option<serde::de::IgnoredAny>,
+    pub rule_observations: Option<serde::de::IgnoredAny>,
+    pub root: String,
+    pub files: Vec<String>,
+    pub selected_rules: Vec<String>,
     #[serde(default)]
-    pub(crate) file_rules: HashMap<String, String>,
+    pub file_rules: HashMap<String, String>,
     #[serde(default, deserialize_with = "accepted")]
-    pub(crate) rule_applicability: Option<Accepted>,
+    pub rule_applicability: Option<Accepted>,
 }
 
 impl Request {
-    pub(crate) fn check_file_context(&self) {
+    pub fn check_file_context(&self) {
         assert!(
             self.rule_context.is_none() && self.rule_observations.is_none(),
             "this host provides no named context tables"
@@ -26,13 +26,13 @@ impl Request {
     }
 }
 
-fn accepted<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Accepted>, D::Error> {
+pub fn accepted<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Accepted>, D::Error> {
     Ok(Option::<serde_json::Value>::deserialize(d)?
         .as_ref()
         .map(accepted_rules))
 }
 
-fn accepted_rules(value: &serde_json::Value) -> Accepted {
+pub fn accepted_rules(value: &serde_json::Value) -> Accepted {
     value
         .as_object()
         .into_iter()
@@ -42,17 +42,17 @@ fn accepted_rules(value: &serde_json::Value) -> Accepted {
         .collect()
 }
 
-pub(crate) fn request(path: &str) -> Request {
+pub fn request(path: &str) -> Request {
     decode(&std::fs::read(path).expect("read request")).expect("request")
 }
 
-pub(crate) fn applicability(path: &str) -> Accepted {
+pub fn applicability(path: &str) -> Accepted {
     let input: serde_json::Value =
         decode(&std::fs::read(path).expect("read applicability")).expect("applicability");
     accepted_rules(input.get("rule_applicability").unwrap_or(&input))
 }
 
-pub(crate) fn check_context(path: &str) {
+pub fn check_context(path: &str) {
     #[derive(Deserialize)]
     struct Context {
         rule_context: Option<serde::de::IgnoredAny>,
@@ -66,12 +66,12 @@ pub(crate) fn check_context(path: &str) {
 }
 
 /// Reference tools and fixture manifests supply typed wire records at this boundary.
-pub(crate) fn decode<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T, serde_json::Error> {
+pub fn decode<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T, serde_json::Error> {
     serde_json::from_slice(bytes)
 }
 
 /// The stage command supplies the engine's plan codec for its external snapshot.
-pub(crate) fn snapshot<T, E: std::fmt::Display>(
+pub fn snapshot<T, E: std::fmt::Display>(
     path: &str,
     decode_plan: impl FnOnce(&[u8]) -> Result<T, E>,
 ) -> T {

@@ -1,8 +1,8 @@
 //! Names used to bind a reader’s pair program.
 use super::super::first;
-use ryo::languages as l;
+use crate::languages as l;
 
-pub(in super::super) fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> first::Vocab {
+pub fn vocabulary(kinds: &[l::NameText<'_>], fields: l::FieldNames) -> first::Vocab {
     fn codes(names: &[l::NameText<'_>]) -> std::collections::HashMap<String, u16> {
         let mut codes = std::collections::HashMap::new();
         let mut ambiguous = std::collections::HashSet::new();

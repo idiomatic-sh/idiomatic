@@ -7,19 +7,19 @@ use std::{
     sync::Arc,
 };
 
-pub(super) type ColumnDemand<'a> = BTreeMap<&'a str, Vec<bool>>;
+pub type ColumnDemand<'a> = BTreeMap<&'a str, Vec<bool>>;
 
-pub(super) struct FileInputs<'a> {
-    columns: &'a ColumnDemand<'a>,
-    carried_bases: HashMap<String, Rc<Block>>,
-    produced: HashMap<usize, Rc<Block>>,
+pub struct FileInputs<'a> {
+    pub columns: &'a ColumnDemand<'a>,
+    pub carried_bases: HashMap<String, Rc<Block>>,
+    pub produced: HashMap<usize, Rc<Block>>,
 }
 impl<'a> FileInputs<'a> {
-    pub(super) fn new(columns: &'a ColumnDemand<'a>) -> Self {
+    pub fn new(columns: &'a ColumnDemand<'a>) -> Self {
         Self { columns, carried_bases: HashMap::new(), produced: HashMap::new() }
     }
 
-    pub(super) fn column_demand(
+    pub fn column_demand(
         active: &[(usize, usize, bool)],
         bound: &super::Bindings<'_>,
         programs: &'a [Result<Program>],
@@ -58,7 +58,7 @@ impl<'a> FileInputs<'a> {
         }
         shared_columns
     }
-    pub(super) fn contribute(
+    pub fn contribute(
         &mut self,
         b: &mut Bound<'_>,
         exec: &mut finish::Exec<'_>,
@@ -183,14 +183,14 @@ impl<'a> FileInputs<'a> {
         Ok(())
     }
 }
-type Part = (usize, Rc<Block>);
-pub(super) type EmptyFrontier = Rc<[Part]>;
-enum FileFrontier {
+pub type Part = (usize, Rc<Block>);
+pub type EmptyFrontier = Rc<[Part]>;
+pub enum FileFrontier {
     Rows(Box<[Part]>),
     Empty(EmptyFrontier),
 }
 impl FileFrontier {
-    fn parts(&self) -> &[Part] {
+    pub fn parts(&self) -> &[Part] {
         match self {
             Self::Rows(parts) => parts,
             Self::Empty(parts) => parts,
@@ -201,24 +201,22 @@ impl FileFrontier {
 /// space once. The destination run owns stable file and symbol identities for
 /// every request. Positions inside a file remain byte-range pairs.
 #[derive(Default)]
-pub(crate) struct World {
+pub struct World {
     pub run: Run,
-    pub(super) boundaries: Option<Vec<(usize, usize, usize)>>,
-    pub(super) project_words: Vec<HashMap<u32, u32>>,
+    pub boundaries: Option<Vec<(usize, usize, usize)>>,
+    pub project_words: Vec<HashMap<u32, u32>>,
     pub files: HashMap<String, u32>,
-    frontiers: HashMap<usize, FileFrontier>,
-    empty_blocks: HashMap<(usize, usize), Rc<finish::population::Block>>,
+    pub frontiers: HashMap<usize, FileFrontier>,
+    pub empty_blocks: HashMap<(usize, usize), Rc<finish::population::Block>>,
     pub unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
 }
 
-#[cfg(feature = "product-session")]
-pub(crate) struct SharedFrontier<'a> {
-    slots: HashMap<usize, Vec<(usize, usize)>>,
-    blocks: Vec<finish::population::SharedBlock<'a>>,
+pub struct SharedFrontier<'a> {
+    pub slots: HashMap<usize, Vec<(usize, usize)>>,
+    pub blocks: Vec<finish::population::SharedBlock<'a>>,
 }
-#[cfg(feature = "product-session")]
 impl<'a> SharedFrontier<'a> {
-    pub(crate) fn new(world: &'a World, pairs: impl Iterator<Item = usize>) -> Self {
+    pub fn new(world: &'a World, pairs: impl Iterator<Item = usize>) -> Self {
         let mut slots = HashMap::new();
         let mut blocks = Vec::new();
         let mut ids = HashMap::new();
@@ -239,7 +237,7 @@ impl<'a> SharedFrontier<'a> {
         Self { slots, blocks }
     }
 
-    pub(crate) fn joined(
+    pub fn joined(
         &self,
         slots: &[usize],
         cut: &[usize],
@@ -266,10 +264,10 @@ impl<'a> SharedFrontier<'a> {
 }
 
 impl World {
-    pub(crate) fn frontier_parts(&self, slot: usize) -> Option<&[Part]> {
+    pub fn frontier_parts(&self, slot: usize) -> Option<&[Part]> {
         self.frontiers.get(&slot).map(FileFrontier::parts)
     }
-    pub(crate) fn restore_frontier(&mut self, slot: usize, parts: Vec<Part>) {
+    pub fn restore_frontier(&mut self, slot: usize, parts: Vec<Part>) {
         self.frontiers.insert(slot, FileFrontier::Rows(parts.into_boxed_slice()));
     }
 
@@ -283,13 +281,13 @@ impl World {
         i
     }
 
-    fn empty_block(&mut self, t: &Table) -> Rc<Block> {
+    pub fn empty_block(&mut self, t: &Table) -> Rc<Block> {
         let schema = (Rc::as_ptr(&t.names) as usize, Rc::as_ptr(&t.tys) as usize);
         self.empty_blocks.entry(schema).or_insert_with(|| {
             Rc::new(Block::new(0, t.names.clone(), t.tys.clone(), 0, Vec::new()))
         }).clone()
     }
-    pub(super) fn insert_empty(
+    pub fn insert_empty(
         &mut self, slot: usize, path: &str, binding: &mut Bound<'_>, run: &mut Run, cut: &Partition,
     ) {
         let parts = binding.empty_frontier.get_or_insert_with(|| {
@@ -300,10 +298,10 @@ impl World {
         if !parts.is_empty() { self.file(path); }
         self.frontiers.insert(slot, FileFrontier::Empty(parts.clone()));
     }
-    pub(super) fn productive(&self, slot: usize) -> bool {
+    pub fn productive(&self, slot: usize) -> bool {
         self.frontiers.get(&slot).is_some_and(|v| v.parts().iter().any(|(_, block)| block.n != 0))
     }
-    fn carry(
+    pub fn carry(
         &mut self,
         source: &Run,
         home: u32,
@@ -436,19 +434,19 @@ impl World {
 
 /// Slot ordinals survive the join. A repeated block in different request frontiers
 /// is transferred once, including the reference to its file and symbol domains.
-pub(super) struct Transfer {
-    slots: Vec<(usize, Vec<(usize, usize)>)>,
-    blocks: Vec<finish::population::CarriedBlock>,
-    schemas: finish::population::CarriedSchemas,
-    paths: Vec<String>,
-    words: Vec<Vec<u8>>,
-    prefix: usize,
-    boundaries: Vec<(usize, usize, usize)>,
-    unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
+pub struct Transfer {
+    pub slots: Vec<(usize, Vec<(usize, usize)>)>,
+    pub blocks: Vec<finish::population::CarriedBlock>,
+    pub schemas: finish::population::CarriedSchemas,
+    pub paths: Vec<String>,
+    pub words: Vec<Vec<u8>>,
+    pub prefix: usize,
+    pub boundaries: Vec<(usize, usize, usize)>,
+    pub unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
 }
 
 impl World {
-    pub(super) fn transfer(mut self, prefix: usize) -> Transfer {
+    pub fn transfer(mut self, prefix: usize) -> Transfer {
         self.empty_blocks.clear();
         let mut ids = HashMap::new();
         let mut blocks = Vec::new();
@@ -497,7 +495,7 @@ impl World {
     /// The serial reader visits relative paths lexically. Assign file and symbol
     /// ordinals in that same order, including cross-file references first seen
     /// in another path's frontier. Worker completion order has no effect.
-    pub(super) fn receive(&mut self, parts: Vec<Transfer>, sources: &[super::Source]) {
+    pub fn receive(&mut self, parts: Vec<Transfer>, sources: &[super::Source]) {
         let mut groups = Vec::new();
         let mut maps = Vec::with_capacity(parts.len());
         for (worker, part) in parts.iter().enumerate() {
@@ -530,7 +528,7 @@ impl World {
         }
     }
 
-    fn receive_blocks(&mut self, part: Transfer, files: &[u32], symbols: &[u32]) {
+    pub fn receive_blocks(&mut self, part: Transfer, files: &[u32], symbols: &[u32]) {
         let schemas = part.schemas.receive();
         let blocks: Vec<_> = part
             .blocks

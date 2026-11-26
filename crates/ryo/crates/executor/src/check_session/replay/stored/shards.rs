@@ -9,18 +9,18 @@ use std::{
     sync::Arc,
 };
 
-pub(super) type Index = BTreeMap<u8, Key>;
+pub type Index = BTreeMap<u8, Key>;
 
-pub(super) struct Shards<T> {
-    name: &'static str,
+pub struct Shards<T> {
+    pub name: &'static str,
     pub read_bytes: usize,
     pub read_cpu: f64,
     pub write_bytes: usize,
     pub index: Index,
-    opened: BTreeMap<u8, BTreeMap<Key, T>>,
-    changed: BTreeSet<u8>,
+    pub opened: BTreeMap<u8, BTreeMap<Key, T>>,
+    pub changed: BTreeSet<u8>,
     // Key bits dropped when choosing a shard: a table every run reads whole keeps few files.
-    shift: u8,
+    pub shift: u8,
 }
 impl<T: Serialize + DeserializeOwned> Shards<T> {
     pub fn new(name: &'static str, index: Index) -> Self {
@@ -40,7 +40,7 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
         self.shift = shift;
         self
     }
-    fn shard(&self, key: &Key) -> u8 {
+    pub fn shard(&self, key: &Key) -> u8 {
         key[0] >> self.shift
     }
     pub fn open(&mut self, dir: &Path, key: &Key) {
@@ -112,13 +112,13 @@ impl<T: Serialize + DeserializeOwned> Shards<T> {
 
 /// Answer packets have immutable keys. Append new packets as a postcard table
 /// and fold the append tables into their affected shards after a bounded number.
-pub(super) struct Packets<T> {
-    name: &'static str,
-    base: Shards<T>,
+pub struct Packets<T> {
+    pub name: &'static str,
+    pub base: Shards<T>,
     pub layers: Vec<Key>,
-    pending: BTreeMap<Key, T>,
-    seen: BTreeMap<Key, T>,
-    opened: bool,
+    pub pending: BTreeMap<Key, T>,
+    pub seen: BTreeMap<Key, T>,
+    pub opened: bool,
     pub read_bytes: usize,
     pub read_cpu: f64,
     pub write_bytes: usize,
@@ -216,24 +216,24 @@ impl<T: Serialize + DeserializeOwned> Packets<T> {
 /// File contributions are much larger than request indexes. A shard has a sorted
 /// postcard directory followed by independent postcard records. A closure can
 /// read one record without deserializing any neighboring file's columns.
-type Location = (u64, usize, Key);
-type Directory = BTreeMap<Key, Location>;
+pub type Location = (u64, usize, Key);
+pub type Directory = BTreeMap<Key, Location>;
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
-pub(super) struct Segment {
-    name: Key,
-    directory: Key,
-    bytes: usize,
-    length: usize,
+pub struct Segment {
+    pub name: Key,
+    pub directory: Key,
+    pub bytes: usize,
+    pub length: usize,
 }
-pub(super) type Segments = BTreeMap<u8, Segment>;
-pub(super) struct Records<T> {
-    name: &'static str,
+pub type Segments = BTreeMap<u8, Segment>;
+pub struct Records<T> {
+    pub name: &'static str,
     pub index: Segments,
-    directories: BTreeMap<u8, (fs::File, Directory, u64)>,
-    rows: BTreeMap<Key, T>,
-    mapped: BTreeMap<u8, Arc<memmap2::Mmap>>,
-    unavailable: BTreeSet<u8>,
-    changed: BTreeSet<Key>,
+    pub directories: BTreeMap<u8, (fs::File, Directory, u64)>,
+    pub rows: BTreeMap<Key, T>,
+    pub mapped: BTreeMap<u8, Arc<memmap2::Mmap>>,
+    pub unavailable: BTreeSet<u8>,
+    pub changed: BTreeSet<Key>,
     pub read_bytes: usize,
     pub read_cpu: f64,
     pub write_bytes: usize,
@@ -253,7 +253,7 @@ impl<T: Serialize + Default> Records<T> {
             write_bytes: 0,
         }
     }
-    fn part(&mut self, dir: &Path, prefix: u8) -> Option<&(fs::File, Directory, u64)> {
+    pub fn part(&mut self, dir: &Path, prefix: u8) -> Option<&(fs::File, Directory, u64)> {
         use std::os::unix::fs::FileExt;
         if self.unavailable.contains(&prefix) {
             return None;
@@ -317,7 +317,7 @@ impl<T: Serialize + Default> Records<T> {
         self.read_cpu += crate::thread_cpu() - start;
     }
 
-    fn mapped_record(&mut self, dir: &Path, key: &Key) -> Option<(MappedRecord, usize)> {
+    pub fn mapped_record(&mut self, dir: &Path, key: &Key) -> Option<(MappedRecord, usize)> {
         let prefix = key[0];
         self.part(dir, prefix)?;
         let (file, entries, base) = self.directories.get(&prefix)?;
@@ -419,9 +419,9 @@ impl<T: Serialize + Default> Records<T> {
 }
 
 
-pub(super) struct MappedRecord {
-    map: Arc<memmap2::Mmap>,
-    range: Range<usize>,
+pub struct MappedRecord {
+    pub map: Arc<memmap2::Mmap>,
+    pub range: Range<usize>,
 }
 impl MappedRecord {
     pub fn postcard_bytes(mut self) -> Option<Self> {

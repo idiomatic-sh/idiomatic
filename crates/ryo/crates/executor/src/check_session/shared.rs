@@ -4,17 +4,17 @@ use ryo_engine::domain::plan_lowering::shared::SharedSteps;
 use ryo_values::domain::finish_plans::types::{FinishPlan, FinishStep};
 use std::{collections::HashMap, rc::Rc};
 
-type Aliases = HashMap<String, String>;
+pub type Aliases = HashMap<String, String>;
 
 #[derive(Default)]
-pub(super) struct ReaderPlan {
-    steps: SharedSteps,
-    hosts: HashMap<Rc<Table>, String>,
-    outputs: Vec<(String, usize, String, Vec<String>)>,
+pub struct ReaderPlan {
+    pub steps: SharedSteps,
+    pub hosts: HashMap<Rc<Table>, String>,
+    pub outputs: Vec<(String, usize, String, Vec<String>)>,
 }
 
 impl ReaderPlan {
-    pub(super) fn add(&mut self, b: &mut Bound<'_>, run: &mut Run) {
+    pub fn add(&mut self, b: &mut Bound<'_>, run: &mut Run) {
         let mut given = Aliases::with_capacity(b.hosted.len());
         for (name, table) in &b.hosted {
             let next = self.hosts.len();
@@ -39,7 +39,7 @@ impl ReaderPlan {
         self.append(b, &given);
     }
 
-    fn append(&mut self, b: &mut Bound<'_>, given: &Aliases) {
+    pub fn append(&mut self, b: &mut Bound<'_>, given: &Aliases) {
         let slots = Rc::make_mut(&mut b.slots);
         slots.reserve(b.plan.nodes.len());
         for node in &b.plan.nodes {
@@ -62,7 +62,7 @@ impl ReaderPlan {
         }
     }
 
-    fn plan(&mut self) -> Rc<Plan> {
+    pub fn plan(&mut self) -> Rc<Plan> {
         let mut plan = finish::from_typed(std::sync::Arc::new(FinishPlan {
             steps: std::mem::take(&mut self.steps).finish(),
             rules: Vec::new(),
@@ -72,7 +72,7 @@ impl ReaderPlan {
         Rc::new(plan)
     }
 
-    pub(super) fn finish(mut self) -> (Rc<Plan>, rustc_hash::FxHashMap<String, Rc<Table>>) {
+    pub fn finish(mut self) -> (Rc<Plan>, rustc_hash::FxHashMap<String, Rc<Table>>) {
         let plan = self.plan();
         let tables = self
             .hosts

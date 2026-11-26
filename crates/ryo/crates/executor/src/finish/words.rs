@@ -5,13 +5,13 @@ use ryo_values::domain::words::{
     types::{WordOutput, WordScratch},
 };
 use ryo_values::domain::row_texts::types::CellText;
-struct Words(Vec<Box<str>>);
+pub struct Words(Vec<Box<str>>);
 impl WordOutput for Words {
     fn word(&mut self, text: CellText<'_>) {
         self.0.push(text.0.into());
     }
 }
-pub(super) fn write(run: &mut Run, from: &Table, col: usize, out: &mut Table) -> R<()> {
+pub fn write(run: &mut Run, from: &Table, col: usize, out: &mut Table) -> R<()> {
     let mut emitted = Words(Vec::new());
     let mut scratch = String::new();
     let mut row = Vec::new();

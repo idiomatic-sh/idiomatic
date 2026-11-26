@@ -13,14 +13,14 @@ use std::{
     sync::Arc,
 };
 
-pub(super) type Key = [u8; 32];
-type Res<T> = io::Result<T>;
+pub type Key = [u8; 32];
+pub type Res<T> = io::Result<T>;
 /// Collects what a value hashes to and digests it at once: blake3 hashes a short input in one
 /// block, where hashing each field of the value as it is written costs several.
 #[derive(Default)]
-struct Digest(Vec<u8>);
+pub struct Digest(Vec<u8>);
 impl Digest {
-    fn digest(&self) -> Key {
+    pub fn digest(&self) -> Key {
         *blake3::hash(&self.0).as_bytes()
     }
 }
@@ -32,7 +32,7 @@ impl Hasher for Digest {
         u64::from_le_bytes(self.digest()[..8].try_into().unwrap())
     }
 }
-pub(super) fn key(value: impl Hash) -> Key {
+pub fn key(value: impl Hash) -> Key {
     let mut h = Digest::default();
     value.hash(&mut h);
     h.digest()
@@ -42,7 +42,7 @@ impl session::Source {
     /// Attach the source's stable contextual inputs to its effective byte and
     /// permission key. A file record also needs the provider's observed-entry
     /// proof before its rows can be restored. Reader settings scope the store.
-    fn version_key(&self, effective: Key) -> Option<Key> {
+    pub fn version_key(&self, effective: Key) -> Option<Key> {
         match self.environment.as_deref() {
             Some(environment) => Some(key((environment.version_scope?, effective))),
             None => Some(effective),
@@ -51,21 +51,21 @@ impl session::Source {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-struct Report {
+pub struct Report {
     // None means only the closed operator consumed this contribution.
     // Some(empty) proves a local request completed with no rows.
-    rows: Option<Vec<u8>>,
-    issues: Option<Box<ReportIssues>>,
+    pub rows: Option<Vec<u8>>,
+    pub issues: Option<Box<ReportIssues>>,
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
-struct ReportIssues {
-    rejected_syntax: Vec<String>,
-    unknowns: Vec<(String, String)>,
+pub struct ReportIssues {
+    pub rejected_syntax: Vec<String>,
+    pub unknowns: Vec<(String, String)>,
 }
 
 impl Report {
-    fn save(answer: &session::Reported, keep_rows: bool) -> Self {
+    pub fn save(answer: &session::Reported, keep_rows: bool) -> Self {
         Self {
             rows: keep_rows.then(|| {
                 if answer.rows.is_empty() {
@@ -81,7 +81,7 @@ impl Report {
                 })),
         }
     }
-    fn read(&self, need_rows: bool) -> Option<session::Reported> {
+    pub fn read(&self, need_rows: bool) -> Option<session::Reported> {
         let rows = if need_rows {
             let data = self.rows.as_ref()?;
             if data.is_empty() {
@@ -100,67 +100,67 @@ impl Report {
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize)]
-struct Notes {
-    context: Option<Proof>,
-    reader: Option<usize>,
-    notes: Vec<u8>,
-    manifest: Option<Box<str>>,
+pub struct Notes {
+    pub context: Option<Proof>,
+    pub reader: Option<usize>,
+    pub notes: Vec<u8>,
+    pub manifest: Option<Box<str>>,
 }
 #[derive(Clone, Serialize, Deserialize)]
-struct Local {
-    report: Report,
-    frontier: Vec<(usize, usize)>,
-    unavailable: Vec<(String, String)>,
+pub struct Local {
+    pub report: Report,
+    pub frontier: Vec<(usize, usize)>,
+    pub unavailable: Vec<(String, String)>,
 }
 // A mapped segment backs retained columns. Only new columns own an allocation.
 #[derive(Default)]
-struct EncodedBlock(Option<finish::population::BlockBytes>);
+pub struct EncodedBlock(Option<finish::population::BlockBytes>);
 impl Serialize for EncodedBlock {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
         out.serialize_bytes(self.0.as_ref().expect("complete block").as_ref().as_ref())
     }
 }
 impl EncodedBlock {
-    fn mapped(record: shards::MappedRecord) -> Option<Self> {
+    pub fn mapped(record: shards::MappedRecord) -> Option<Self> {
         Some(Self(Some(Arc::new(record.postcard_bytes()?))))
     }
 
-    fn restore(&self, world: &mut session::World) -> Option<Rc<finish::population::Block>> {
+    pub fn restore(&self, world: &mut session::World) -> Option<Rc<finish::population::Block>> {
         session::stored_block::restore(self.0.clone()?, world)
     }
 
-    fn save(data: Vec<u8>) -> Self {
+    pub fn save(data: Vec<u8>) -> Self {
         Self(Some(Arc::new(data)))
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-enum BlockId {
+pub enum BlockId {
     Empty(u32),
     Local(Key),
 }
 #[derive(Deserialize)]
-struct FileWire<T> {
-    context: Option<Proof>,
-    pairs: BTreeMap<Key, T>,
-    blocks: Vec<BlockId>,
-    complete: Vec<u8>,
-    closed: Vec<u8>,
+pub struct FileWire<T> {
+    pub context: Option<Proof>,
+    pub pairs: BTreeMap<Key, T>,
+    pub blocks: Vec<BlockId>,
+    pub complete: Vec<u8>,
+    pub closed: Vec<u8>,
 }
 
 /// A pair's stable identity and its number in the store's binding table. A file record
 /// names its trivially empty pairs by number only, so an unchanged file costs a few bytes
 /// however many programs were checked against it.
 #[derive(Clone, Copy)]
-struct Binding {
-    key: Key,
-    id: u32,
+pub struct Binding {
+    pub key: Key,
+    pub id: u32,
 }
 
-fn has_bit(bits: &[u8], id: u32) -> bool {
+pub fn has_bit(bits: &[u8], id: u32) -> bool {
     bits.get(id as usize / 8).is_some_and(|byte| byte & (1 << (id % 8)) != 0)
 }
 
-fn put_bit(bits: &mut Vec<u8>, id: u32, on: bool) {
+pub fn put_bit(bits: &mut Vec<u8>, id: u32, on: bool) {
     let at = id as usize / 8;
     if on {
         if bits.len() <= at {
@@ -172,7 +172,7 @@ fn put_bit(bits: &mut Vec<u8>, id: u32, on: bool) {
     }
 }
 
-struct RowBytes<T>(T);
+pub struct RowBytes<T>(T);
 impl<T: AsRef<[u8]>> Serialize for RowBytes<T> {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
         out.serialize_bytes(self.0.as_ref())
@@ -180,20 +180,20 @@ impl<T: AsRef<[u8]>> Serialize for RowBytes<T> {
 }
 
 #[derive(Default)]
-struct FileAnswers {
-    context: Option<Proof>,
-    pairs: BTreeMap<Key, Local>,
-    locations: BTreeMap<Key, std::ops::Range<usize>>,
-    mapped: Option<shards::MappedRecord>,
-    blocks: Vec<BlockId>,
-    known_blocks: HashMap<BlockId, usize>,
+pub struct FileAnswers {
+    pub context: Option<Proof>,
+    pub pairs: BTreeMap<Key, Local>,
+    pub locations: BTreeMap<Key, std::ops::Range<usize>>,
+    pub mapped: Option<shards::MappedRecord>,
+    pub blocks: Vec<BlockId>,
+    pub known_blocks: HashMap<BlockId, usize>,
     // Pairs that completed with nothing to report: with rows kept, or only consumed by a closed operator.
-    complete: Vec<u8>,
-    closed: Vec<u8>,
+    pub complete: Vec<u8>,
+    pub closed: Vec<u8>,
 }
 
 impl Local {
-    fn empty(rows: bool) -> Self {
+    pub fn empty(rows: bool) -> Self {
         Self {
             report: Report { rows: rows.then(Vec::new), issues: None },
             frontier: Vec::new(),
@@ -201,7 +201,7 @@ impl Local {
         }
     }
 
-    fn trivial(&self) -> Option<bool> {
+    pub fn trivial(&self) -> Option<bool> {
         (self.frontier.is_empty() && self.unavailable.is_empty() && self.report.issues.is_none())
             .then(|| match &self.report.rows {
                 None => Some(false),
@@ -213,7 +213,7 @@ impl Local {
 }
 
 impl FileAnswers {
-    fn mapped(record: shards::MappedRecord) -> Option<Self> {
+    pub fn mapped(record: shards::MappedRecord) -> Option<Self> {
         let parsed = {
             let bytes = record.as_ref();
             let FileWire { context, pairs, blocks, complete, closed }: FileWire<&[u8]> = postcard::from_bytes(bytes).ok()?;
@@ -227,12 +227,12 @@ impl FileAnswers {
         Some(Self { locations, mapped: Some(record), blocks, context, complete, closed, ..Self::default() })
     }
 
-    fn decode(&self, key: &Key) -> Option<Local> {
+    pub fn decode(&self, key: &Key) -> Option<Local> {
         let range = self.locations.get(key)?;
         postcard::from_bytes(&self.mapped.as_ref()?.as_ref()[range.clone()]).ok()
     }
 
-    fn read(&self, binding: Binding) -> Option<Cow<'_, Local>> {
+    pub fn read(&self, binding: Binding) -> Option<Cow<'_, Local>> {
         if let Some(local) = self.pairs.get(&binding.key) {
             return Some(Cow::Borrowed(local));
         }
@@ -249,18 +249,18 @@ impl FileAnswers {
     }
 
     /// The pair finished with no rows, issues or frontier, and kept its (empty) rows.
-    fn complete_empty(&self, binding: Binding) -> bool {
+    pub fn complete_empty(&self, binding: Binding) -> bool {
         has_bit(&self.complete, binding.id)
     }
 
-    fn remove(&mut self, binding: Binding) {
+    pub fn remove(&mut self, binding: Binding) {
         self.locations.remove(&binding.key);
         self.pairs.remove(&binding.key);
         put_bit(&mut self.complete, binding.id, false);
         put_bit(&mut self.closed, binding.id, false);
     }
 
-    fn insert(&mut self, binding: Binding, local: Local) {
+    pub fn insert(&mut self, binding: Binding, local: Local) {
         self.remove(binding);
         match local.trivial() {
             Some(true) => put_bit(&mut self.complete, binding.id, true),
@@ -272,7 +272,7 @@ impl FileAnswers {
     }
 }
 
-struct LocalWire<'a>(&'a FileAnswers);
+pub struct LocalWire<'a>(&'a FileAnswers);
 impl Serialize for LocalWire<'_> {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
         use serde::ser::{Error as _, SerializeMap as _};
@@ -313,7 +313,7 @@ impl Serialize for FileAnswers {
         .serialize(out)
     }
 }
-fn kind(p: &Path) -> Res<u8> {
+pub fn kind(p: &Path) -> Res<u8> {
     match fs::metadata(p) {
         Ok(m) => Ok(if m.is_file() {
             1
@@ -326,110 +326,110 @@ fn kind(p: &Path) -> Res<u8> {
         Err(e) => Err(e),
     }
 }
-mod request_answers;
-mod shards;
-pub(super) use request_answers::{InputScope, Packet};
+pub mod request_answers;
+pub mod shards;
+pub use request_answers::{InputScope, Packet};
 use request_answers::{Group, Observations, Probe, Proof, Record};
 use shards::{Index, Packets, Records, Segments, Shards};
 
 #[derive(Default, Serialize, Deserialize)]
-struct Snapshot {
-    names: Option<Key>,
-    build: Key,
-    files: Segments,
-    notes: Index,
-    requests: Index,
-    groups: Index,
-    packets: Index,
-    packet_layers: Vec<Key>,
-    blocks: Segments,
-    stamps: Index,
-    empty_schemas: Vec<Key>,
-    request_layers: Vec<Key>,
-    program_inputs: BTreeMap<Key, Vec<String>>,
-    bindings: Vec<Key>,
+pub struct Snapshot {
+    pub names: Option<Key>,
+    pub build: Key,
+    pub files: Segments,
+    pub notes: Index,
+    pub requests: Index,
+    pub groups: Index,
+    pub packets: Index,
+    pub packet_layers: Vec<Key>,
+    pub blocks: Segments,
+    pub stamps: Index,
+    pub empty_schemas: Vec<Key>,
+    pub request_layers: Vec<Key>,
+    pub program_inputs: BTreeMap<Key, Vec<String>>,
+    pub bindings: Vec<Key>,
 }
-pub(super) struct PriorClosed {
-    work: usize,
-    source: usize,
-    version: Key,
-    record: Record,
-}
-
-struct RequestPlan {
-    proof: Vec<Proof>,
-    unread: Vec<(String, String)>,
-    environments: BTreeSet<Arc<str>>,
+pub struct PriorClosed {
+    pub work: usize,
+    pub source: usize,
+    pub version: Key,
+    pub record: Record,
 }
 
-pub(super) struct Store {
-    dir: PathBuf,
-    names: Vec<PathBuf>,
-    name_ids: HashMap<PathBuf, u32>,
-    names_digest: Option<Key>,
-    saved_names: usize,
-    previous: Vec<u8>,
-    build: Key,
-    files: Records<FileAnswers>,
-    blocks: Records<EncodedBlock>,
-    empty_schemas: Vec<Key>,
-    schema_ids: HashMap<Key, u32>,
-    notes: Shards<Notes>,
-    requests: Packets<Record>,
-    groups: Shards<Group>,
-    packets: Packets<Packet>,
-    observed: Observations,
-    work_inputs: HashMap<usize, InputScope>,
-    pending_requests: Vec<(usize, Key)>,
-    updated_proofs: HashMap<usize, Record>,
-    prior_groups: HashMap<(Key, Key, Option<InputScope>), Option<(PathBuf, Key)>>,
-    supplied_versions: HashMap<usize, Key>,
-    versions: Vec<Option<Key>>,
-    files_valid: Vec<bool>,
-    notes_valid: Vec<bool>,
-    pairs: Vec<Option<(usize, usize)>>,
-    program_keys: Vec<Key>,
-    program_inputs: BTreeMap<Key, Vec<String>>,
-    bindings: Vec<Binding>,
-    binding_table: Vec<Key>,
-    binding_numbers: HashMap<Key, u32>,
-    plans: Vec<Option<RequestPlan>>,
-    observed_entries: HashMap<Arc<str>, BTreeMap<PathBuf, Option<u8>>>,
-    environment_proofs: HashMap<Arc<str>, Option<Proof>>,
-    reused_context: HashSet<(Arc<str>, Proof)>,
-    keep_pairs: Vec<bool>,
-    local_rows: Vec<bool>,
-    project_proofs: HashMap<usize, Option<Proof>>,
+pub struct RequestPlan {
+    pub proof: Vec<Proof>,
+    pub unread: Vec<(String, String)>,
+    pub environments: BTreeSet<Arc<str>>,
+}
+
+pub struct Store {
+    pub dir: PathBuf,
+    pub names: Vec<PathBuf>,
+    pub name_ids: HashMap<PathBuf, u32>,
+    pub names_digest: Option<Key>,
+    pub saved_names: usize,
+    pub previous: Vec<u8>,
+    pub build: Key,
+    pub files: Records<FileAnswers>,
+    pub blocks: Records<EncodedBlock>,
+    pub empty_schemas: Vec<Key>,
+    pub schema_ids: HashMap<Key, u32>,
+    pub notes: Shards<Notes>,
+    pub requests: Packets<Record>,
+    pub groups: Shards<Group>,
+    pub packets: Packets<Packet>,
+    pub observed: Observations,
+    pub work_inputs: HashMap<usize, InputScope>,
+    pub pending_requests: Vec<(usize, Key)>,
+    pub updated_proofs: HashMap<usize, Record>,
+    pub prior_groups: HashMap<(Key, Key, Option<InputScope>), Option<(PathBuf, Key)>>,
+    pub supplied_versions: HashMap<usize, Key>,
+    pub versions: Vec<Option<Key>>,
+    pub files_valid: Vec<bool>,
+    pub notes_valid: Vec<bool>,
+    pub pairs: Vec<Option<(usize, usize)>>,
+    pub program_keys: Vec<Key>,
+    pub program_inputs: BTreeMap<Key, Vec<String>>,
+    pub bindings: Vec<Binding>,
+    pub binding_table: Vec<Key>,
+    pub binding_numbers: HashMap<Key, u32>,
+    pub plans: Vec<Option<RequestPlan>>,
+    pub observed_entries: HashMap<Arc<str>, BTreeMap<PathBuf, Option<u8>>>,
+    pub environment_proofs: HashMap<Arc<str>, Option<Proof>>,
+    pub reused_context: HashSet<(Arc<str>, Proof)>,
+    pub keep_pairs: Vec<bool>,
+    pub local_rows: Vec<bool>,
+    pub project_proofs: HashMap<usize, Option<Proof>>,
     pub file_hits: usize,
     pub closed_hits: usize,
     pub evaluated_pairs: usize,
     pub evaluated_closed: usize,
     pub request_hits: usize,
-    absent_file: usize,
-    absent_local: usize,
-    absent_frontier: usize,
-    restored_blocks: usize,
-    frontier_cpu: f64,
-    packets_packed: usize,
-    empty_packet: Option<Key>,
-    empty_packet_reuses: usize,
-    packed_rows: usize,
-    rendered_packets: usize,
-    pack_cpu: f64,
+    pub absent_file: usize,
+    pub absent_local: usize,
+    pub absent_frontier: usize,
+    pub restored_blocks: usize,
+    pub frontier_cpu: f64,
+    pub packets_packed: usize,
+    pub empty_packet: Option<Key>,
+    pub empty_packet_reuses: usize,
+    pub packed_rows: usize,
+    pub rendered_packets: usize,
+    pub pack_cpu: f64,
 }
-fn table(dir: &Path, name: &str, digest: Key) -> PathBuf {
+pub fn table(dir: &Path, name: &str, digest: Key) -> PathBuf {
     dir.join(format!(
         "{name}-{}.postcard",
         blake3::Hash::from_bytes(digest).to_hex()
     ))
 }
-fn load<T: DeserializeOwned>(p: &Path, digest: Key) -> Option<T> {
+pub fn load<T: DeserializeOwned>(p: &Path, digest: Key) -> Option<T> {
     let b = fs::read(p).ok()?;
     (*blake3::hash(&b).as_bytes() == digest)
         .then(|| postcard::from_bytes(&b).ok())
         .flatten()
 }
-fn atomic(dir: &Path, p: &Path, b: &[u8]) -> Res<()> {
+pub fn atomic(dir: &Path, p: &Path, b: &[u8]) -> Res<()> {
     let mut tmp = tempfile::NamedTempFile::new_in(dir)?;
     tmp.write_all(b)?;
     tmp.as_file().sync_all()?;
@@ -437,10 +437,10 @@ fn atomic(dir: &Path, p: &Path, b: &[u8]) -> Res<()> {
     Ok(())
 }
 impl Store {
-    pub(super) fn open(root: &Path, readers: &[impl session::source::Source]) -> Res<Self> {
+    pub fn open(root: &Path, readers: &[impl session::source::Source]) -> Res<Self> {
         Self::directory(root.join(".ryo_cache"), readers)
     }
-    pub(super) fn directory(dir: PathBuf, readers: &[impl session::source::Source]) -> Res<Self> {
+    pub fn directory(dir: PathBuf, readers: &[impl session::source::Source]) -> Res<Self> {
         use object::Object;
         let executable = std::env::current_exe()?;
         let image = object::read::ReadCache::new(fs::File::open(&executable)?);
@@ -536,7 +536,7 @@ impl Store {
             pack_cpu: 0.0,
         })
     }
-    pub(super) fn publish(&mut self) -> Res<usize> {
+    pub fn publish(&mut self) -> Res<usize> {
         if !(self.files.dirty()
             || self.blocks.dirty()
             || self.notes.dirty()
@@ -626,7 +626,7 @@ impl Store {
         );
         Ok(written)
     }
-    pub(super) fn costs(&self) {
+    pub fn costs(&self) {
         eprintln!(
             "table_read_cpu pairs={:.6} project={:.6} requests={:.6} inputs={:.6} answers={:.6}",
             self.files.read_cpu,
@@ -687,15 +687,15 @@ impl Store {
     }
     /// Recover which inputs a previously prepared program reads. This is
     /// independent of the values the current request binds to those inputs.
-    pub(super) fn program_inputs(&self, program: Key) -> Option<&[String]> {
+    pub fn program_inputs(&self, program: Key) -> Option<&[String]> {
         self.program_inputs.get(&program).map(Vec::as_slice)
     }
 
-    pub(super) fn remember_program_inputs(&mut self, program: Key, names: &[String]) {
+    pub fn remember_program_inputs(&mut self, program: Key, names: &[String]) {
         self.program_inputs.entry(program).or_insert_with(|| names.to_vec());
     }
 
-    pub(super) fn request_inputs(
+    pub fn request_inputs(
         &mut self,
         root: &Path,
         inventory: Key,
@@ -705,24 +705,24 @@ impl Store {
         self.observed.request_inputs(root, inventory, peers, supplied)
     }
 
-    pub(super) fn bind_work(&mut self, work: usize, scope: InputScope) {
+    pub fn bind_work(&mut self, work: usize, scope: InputScope) {
         self.work_inputs.insert(work, scope);
     }
 
-    pub(super) fn offer(&mut self, work: usize, id: Key) {
+    pub fn offer(&mut self, work: usize, id: Key) {
         self.pending_requests.push((work, id));
     }
 
-    pub(super) fn truncate_work(&mut self, len: usize) {
+    pub fn truncate_work(&mut self, len: usize) {
         self.pending_requests.retain(|&(work, _)| work < len);
         self.work_inputs.retain(|&work, _| work < len);
     }
 
     /// Admission supplies the durable identity once the source has been resolved.
-    pub(super) fn bind_version(&mut self, source: usize, version: Key) {
+    pub fn bind_version(&mut self, source: usize, version: Key) {
         self.supplied_versions.insert(source, version);
     }
-    pub(super) fn inventory(&mut self, i: usize, path: PathBuf, expected: Option<Key>) {
+    pub fn inventory(&mut self, i: usize, path: PathBuf, expected: Option<Key>) {
         let evidence = self.group(vec![(path, Probe::Bytes)], None);
         if expected.is_some()
             && let Some(g) = evidence
@@ -733,18 +733,18 @@ impl Store {
             self.plans[i] = None;
         }
     }
-    pub(super) fn contract_file(&mut self, p: &Path) -> Option<Key> {
+    pub fn contract_file(&mut self, p: &Path) -> Option<Key> {
         self.observed.observe(p, Probe::Bytes)
     }
-    pub(super) fn lookup(&mut self, id: Key) -> Option<(Key, &[(String, String)])> {
+    pub fn lookup(&mut self, id: Key) -> Option<(Key, &[(String, String)])> {
         self.lookup_for(None, id)
     }
 
-    pub(super) fn lookup_in(&mut self, scope: InputScope, id: Key) -> Option<(Key, &[(String, String)])> {
+    pub fn lookup_in(&mut self, scope: InputScope, id: Key) -> Option<(Key, &[(String, String)])> {
         self.lookup_for(Some(scope), id)
     }
 
-    fn lookup_for(&mut self, scope: Option<InputScope>, id: Key) -> Option<(Key, &[(String, String)])> {
+    pub fn lookup_for(&mut self, scope: Option<InputScope>, id: Key) -> Option<(Key, &[(String, String)])> {
         self.requests.open(&self.dir, &id);
         let r = self.requests.get(&id)?;
         for &(group, expected) in &r.proof {
@@ -758,10 +758,10 @@ impl Store {
         self.request_hits += 1;
         Some((r.packet, &r.unread))
     }
-    pub(super) fn packet(&self, id: &Key) -> &Packet {
+    pub fn packet(&self, id: &Key) -> &Packet {
         self.packets.get(id).expect("verified packet")
     }
-    pub(super) fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
+    pub fn save(&mut self, id: Key, idx: usize, r: &super::Receipt<'_>) -> Option<Key> {
         if let Some(record) = self.updated_proofs.remove(&idx) {
             let packet = record.packet;
             self.requests.insert(id, record);
@@ -789,10 +789,10 @@ impl Store {
         self.pack_cpu += crate::thread_cpu() - start;
         Some(k)
     }
-    pub(super) fn decline(&mut self, id: Key, reason: &str) {
+    pub fn decline(&mut self, id: Key, reason: &str) {
         self.put(id, Packet::declined(reason), vec![], vec![], String::new);
     }
-    fn put(
+    pub fn put(
         &mut self,
         id: Key,
         mut packet: Packet,
@@ -810,7 +810,7 @@ impl Store {
         self.record(id, k, proof, unread);
         k
     }
-    fn record(&mut self, id: Key, packet: Key, proof: Vec<Proof>, unread: Vec<(String, String)>) {
+    pub fn record(&mut self, id: Key, packet: Key, proof: Vec<Proof>, unread: Vec<(String, String)>) {
         self.requests.open(&self.dir, &id);
         self.requests.insert(
             id,
@@ -821,7 +821,7 @@ impl Store {
             },
         );
     }
-    fn group(&mut self, mut paths: Vec<(PathBuf, Probe)>, scope: Option<InputScope>) -> Option<Proof> {
+    pub fn group(&mut self, mut paths: Vec<(PathBuf, Probe)>, scope: Option<InputScope>) -> Option<Proof> {
         if self.name_ids.is_empty() && !self.names.is_empty() {
             self.name_ids.extend(
                 self.names
@@ -852,7 +852,7 @@ impl Store {
         }
         Some((id, expected))
     }
-    pub(super) fn prepare(&mut self, b: &Batch) {
+    pub fn prepare(&mut self, b: &Batch) {
         self.project_proofs.clear();
         self.environment_proofs.clear();
         self.reused_context.clear();
@@ -909,7 +909,7 @@ impl Store {
         }
     }
 
-    fn changed_record(&mut self, id: Key, scope: Option<InputScope>) -> Option<((PathBuf, Key), Record)> {
+    pub fn changed_record(&mut self, id: Key, scope: Option<InputScope>) -> Option<((PathBuf, Key), Record)> {
         self.requests.open(&self.dir, &id);
         let mut record = self.requests.get(&id)?.clone();
         // The previous result must not hide a changed or transient read failure.
@@ -937,7 +937,7 @@ impl Store {
     }
 
     /// Prove the unchanged inputs before opening their saved contributions.
-    pub(super) fn probe(&mut self, b: &Batch) -> (Vec<usize>, Vec<PriorClosed>) {
+    pub fn probe(&mut self, b: &Batch) -> (Vec<usize>, Vec<PriorClosed>) {
         self.updated_proofs.clear();
         self.prior_groups.clear();
         let pending = std::mem::take(&mut self.pending_requests);
@@ -991,7 +991,7 @@ impl Store {
         (files.into_iter().collect(), candidates)
     }
 
-    pub(super) fn reuse_closed(&mut self, b: &mut Batch, candidates: Vec<PriorClosed>) {
+    pub fn reuse_closed(&mut self, b: &mut Batch, candidates: Vec<PriorClosed>) {
         let count = candidates.len();
         let already_reused = self.closed_hits;
         let started = crate::thread_cpu();
@@ -1035,7 +1035,7 @@ impl Store {
         );
     }
 
-    fn same_frontier(&mut self, before: Key, after: Key, binding: Binding) -> bool {
+    pub fn same_frontier(&mut self, before: Key, after: Key, binding: Binding) -> bool {
         self.files.open_mapped(&self.dir, &before, FileAnswers::mapped);
         let (Some(old), Some(new)) = (self.files.get(&before), self.files.get(&after)) else {
             return false;
@@ -1062,7 +1062,7 @@ impl Store {
         })
     }
 
-    pub(super) fn admit(
+    pub fn admit(
         &mut self,
         b: &mut Batch,
         world: &mut session::World,
@@ -1318,7 +1318,7 @@ impl Store {
         });
     }
 
-    pub(super) fn local(
+    pub fn local(
         &mut self,
         b: &Batch,
         world: &session::World,
@@ -1451,7 +1451,7 @@ impl Store {
         }
     }
 
-    pub(super) fn closed(
+    pub fn closed(
         &mut self,
         idx: usize,
         value: &Answer,
@@ -1489,7 +1489,7 @@ impl Store {
         }
     }
 
-    fn reuse_context(&mut self, environment: Option<&project::Environment>, proof: Option<Proof>) -> bool {
+    pub fn reuse_context(&mut self, environment: Option<&project::Environment>, proof: Option<Proof>) -> bool {
         let Some(environment) = environment else {
             return proof.is_none();
         };
@@ -1520,7 +1520,7 @@ impl Store {
         true
     }
 
-    fn remember_entries(&mut self, environment: &project::Environment) {
+    pub fn remember_entries(&mut self, environment: &project::Environment) {
         let entries = self.observed_entries.entry(environment.id.clone()).or_default();
         environment.observed(|relative, observed| {
             let state = environment.authority.disk().and_then(|_| entry_kind(observed));
@@ -1534,7 +1534,7 @@ impl Store {
         });
     }
 
-    fn environment_proof(&mut self, environment: Arc<str>) -> Option<Proof> {
+    pub fn environment_proof(&mut self, environment: Arc<str>) -> Option<Proof> {
         if let Some(&proof) = self.environment_proofs.get(&environment) {
             return proof;
         }
@@ -1552,7 +1552,7 @@ impl Store {
         proof
     }
 
-    fn population_proof(&mut self, p: &Population, root: &str) -> Option<Proof> {
+    pub fn population_proof(&mut self, p: &Population, root: &str) -> Option<Proof> {
         let mut paths = vec![(PathBuf::from(root), Probe::Kind)];
         for entry in &p.observations {
             let k = entry_kind(entry.state)?;
@@ -1575,14 +1575,14 @@ impl Store {
     }
 }
 
-fn merge_entry(entries: &mut BTreeMap<PathBuf, Option<u8>>, path: PathBuf, state: Option<u8>) {
+pub fn merge_entry(entries: &mut BTreeMap<PathBuf, Option<u8>>, path: PathBuf, state: Option<u8>) {
     let prior = entries.entry(path).or_insert(state);
     if *prior != state {
         *prior = None;
     }
 }
 
-fn entry_kind(state: l::ObservedEntryState) -> Option<u8> {
+pub fn entry_kind(state: l::ObservedEntryState) -> Option<u8> {
     use l::ObservedEntryState::*;
     Some(match state {
         Missing => 0,
@@ -1596,7 +1596,7 @@ fn entry_kind(state: l::ObservedEntryState) -> Option<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use session::source::Linked;
+    use session::source::Fake;
 
     #[test]
     fn mapped_replay_copies_untouched_rows_into_a_changed_file_record() {
@@ -1644,7 +1644,7 @@ mod tests {
     #[test]
     fn contextual_proofs_recheck_absence_and_reject_unknown_entries() {
         let root = tempfile::tempdir().unwrap();
-        let open = || Store::open(root.path(), &[] as &[Linked]).unwrap();
+        let open = || Store::open(root.path(), &[] as &[Fake]).unwrap();
         let epoch = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let environment = project::Environment::new(
             "observed".into(),
@@ -1680,7 +1680,7 @@ mod tests {
     #[test]
     fn answers_replay_after_publish_with_each_requests_inputs() {
         let root = tempfile::tempdir().unwrap();
-        let open = || Store::open(root.path(), &[] as &[Linked]).unwrap();
+        let open = || Store::open(root.path(), &[] as &[Fake]).unwrap();
         let inventory = key("one closed inventory");
         let peers = key("same bound peers");
         let supplied = |body: &str| BTreeMap::from([("input".to_owned(), key(body))]);

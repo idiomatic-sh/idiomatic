@@ -2,16 +2,16 @@
 //! cardinality. Preserve the original pair order for order-sensitive consumers.
 use super::{Extent, File, Native, Run, Src, ViewSpec, cold_bucket::Rows, view_probe};
 use super::select_kernel::Pushed;
-use ryo::languages::{Position, node_table};
+use crate::languages::{Position, node_table};
 use view_probe::Ids;
 
-enum Input<'a> {
+pub enum Input<'a> {
     Range(u32),
     Rows(Rows<'a>),
 }
 
 impl Input<'_> {
-    fn ids(&self) -> Ids<'_> {
+    pub fn ids(&self) -> Ids<'_> {
         match self {
             Self::Range(n) => Ids::Range(*n),
             Self::Rows(rows) => Ids::View(rows),
@@ -19,7 +19,7 @@ impl Input<'_> {
     }
 }
 
-fn smaller<'a>(f: &File<'a>, view: &ViewSpec, node: usize, limit: usize) -> Option<Input<'a>> {
+pub fn smaller<'a>(f: &File<'a>, view: &ViewSpec, node: usize, limit: usize) -> Option<Input<'a>> {
     if let Some(slot) = f.vrows.slot(&node) {
         return (slot.len() < limit).then(|| Input::Rows(slot.resolve(f.table)));
     }
@@ -39,7 +39,7 @@ fn smaller<'a>(f: &File<'a>, view: &ViewSpec, node: usize, limit: usize) -> Opti
     (n < limit).then_some(Input::Range(n as u32))
 }
 
-pub(super) fn reverse(
+pub fn reverse(
     f: &File<'_>,
     run: &mut Run,
     sources: &[Src],

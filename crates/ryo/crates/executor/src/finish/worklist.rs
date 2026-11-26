@@ -2,7 +2,7 @@
 use super::{Args, R, Schema, Table, Ty, pos, s, strs};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-pub(super) fn schema(
+pub fn schema(
     a: &Args,
     roots: &Schema,
     edges: &Schema,
@@ -41,13 +41,13 @@ pub(super) fn schema(
     Ok((names, types))
 }
 
-struct Lattice {
-    bottom: u64,
-    joins: BTreeMap<(u64, u64), u64>,
+pub struct Lattice {
+    pub bottom: u64,
+    pub joins: BTreeMap<(u64, u64), u64>,
 }
 
 impl Lattice {
-    fn read(t: &Table, lower: usize, upper: usize) -> R<Option<Self>> {
+    pub fn read(t: &Table, lower: usize, upper: usize) -> R<Option<Self>> {
         let mut above = BTreeMap::<u64, BTreeSet<u64>>::new();
         for (&l, &u) in t.cols[lower].iter().zip(&t.cols[upper]) {
             above.entry(l).or_default().extend([l, u]);
@@ -83,7 +83,7 @@ impl Lattice {
         Ok(Some(Self { bottom, joins }))
     }
 
-    fn join(&self, left: u64, right: u64) -> R<u64> {
+    pub fn join(&self, left: u64, right: u64) -> R<u64> {
         self.joins
             .get(&(left, right))
             .copied()
@@ -91,7 +91,7 @@ impl Lattice {
     }
 }
 
-pub(super) fn trace(
+pub fn trace(
     a: &Args,
     roots: &Table,
     edges: &Table,

@@ -5,7 +5,7 @@ use std::cell::RefCell;
 
 #[repr(u8)]
 #[derive(Clone, Copy, Default, Eq, PartialEq, Debug)]
-pub(crate) enum Family {
+pub enum Family {
     #[default]
     Logic,
     Shape,
@@ -22,21 +22,21 @@ pub(crate) enum Family {
     Project,
 }
 use Family::*;
-pub(crate) const FAMILIES: [Family; 13] = [
+pub const FAMILIES: [Family; 13] = [
     Logic, Shape, Text, Fact, Parent, Child, Exclusion, Row, Schedule, Count, Sets, Filename,
     Project,
 ];
 impl Family {
-    pub(crate) fn name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         [
             "logic", "shape", "text", "fact", "parent", "child", "exclude", "row", "schedule",
             "count", "sets", "filename", "project",
         ][self as usize]
     }
-    fn bit(self) -> u16 {
+    pub fn bit(self) -> u16 {
         1 << self as u8
     }
-    fn price(self) -> u8 {
+    pub fn price(self) -> u8 {
         match self {
             Logic => 0,
             Shape => 1,
@@ -53,7 +53,7 @@ impl Family {
         }
     }
 }
-pub(crate) fn family(d: &Domain, facts: &[super::Fact]) -> Family {
+pub fn family(d: &Domain, facts: &[super::Fact]) -> Family {
     match *d {
         Domain::Member(..) | Domain::Unmatched(..) => Project,
         Domain::Any | Domain::Empty | Domain::When(..) | Domain::Both(..) | Domain::Either(..) => {
@@ -76,7 +76,7 @@ pub(crate) fn family(d: &Domain, facts: &[super::Fact]) -> Family {
         | Domain::SameRow(slot, _) => facts[slot].family,
     }
 }
-pub(crate) fn file_family(p: &Program, id: Id) -> Family {
+pub fn file_family(p: &Program, id: Id) -> Family {
     match p.needs[id] {
         Need::CapturedPath(_) | Need::PathGlob(_) | Need::PathMatches(..) => Filename,
         Need::SourceContains(_) => Sets,
@@ -87,32 +87,32 @@ pub(crate) fn file_family(p: &Program, id: Id) -> Family {
 }
 
 #[derive(Default, Clone, Copy)]
-struct Price {
-    mask: u16,
-    cost: u8,
+pub struct Price {
+    pub mask: u16,
+    pub cost: u8,
 }
 impl Price {
-    fn of(f: Family) -> Self {
+    pub fn of(f: Family) -> Self {
         Self {
             mask: f.bit(),
             cost: f.price(),
         }
     }
-    fn with(self, r: Self) -> Self {
+    pub fn with(self, r: Self) -> Self {
         Self {
             mask: self.mask | r.mask,
             cost: self.cost.max(r.cost),
         }
     }
 }
-struct SchedulePlan<'a> {
-    p: &'a mut Program,
-    nodes: Vec<Option<Price>>,
-    files: Vec<Option<Price>>,
-    omit: u16,
+pub struct SchedulePlan<'a> {
+    pub p: &'a mut Program,
+    pub nodes: Vec<Option<Price>>,
+    pub files: Vec<Option<Price>>,
+    pub omit: u16,
 }
 impl SchedulePlan<'_> {
-    fn file(&mut self, id: Id) -> Price {
+    pub fn file(&mut self, id: Id) -> Price {
         if let Some(z) = self.files[id] {
             return z;
         }
@@ -138,7 +138,7 @@ impl SchedulePlan<'_> {
         self.files[id] = Some(z);
         z
     }
-    fn node(&mut self, id: Id) -> Price {
+    pub fn node(&mut self, id: Id) -> Price {
         if let Some(z) = self.nodes[id] {
             return z;
         }
@@ -204,7 +204,7 @@ impl SchedulePlan<'_> {
         z
     }
 }
-pub(super) fn arrange(p: &mut Program, omit: u16) {
+pub fn arrange(p: &mut Program, omit: u16) {
     let mut walk = SchedulePlan {
         nodes: vec![None; p.domains.len()],
         files: vec![None; p.needs.len()],
@@ -231,17 +231,17 @@ pub(super) fn arrange(p: &mut Program, omit: u16) {
 }
 /// Costly downward masks and scheduled-row projections are optional only
 /// on the positive pass. The proof pass always sees the declared relation.
-pub(super) fn omit_positive(d: &Domain, facts: &[super::Fact], omit: u16) -> bool {
+pub fn omit_positive(d: &Domain, facts: &[super::Fact], omit: u16) -> bool {
     let class = family(d, facts);
     matches!(class, Child | Schedule | Count) && omit & class.bit() != 0
 }
 #[cfg(not(feature = "pair-diagnostics"))]
-pub(super) fn omitted() -> u16 {
+pub fn omitted() -> u16 {
     Child.bit() | Schedule.bit() | Count.bit()
 }
 
 #[cfg(feature = "pair-diagnostics")]
-pub(super) fn omitted() -> u16 {
+pub fn omitted() -> u16 {
     if std::env::var_os("VEC_PAIR_FULL").is_some() {
         return 0;
     }
@@ -257,13 +257,13 @@ pub(super) fn omitted() -> u16 {
     })
 }
 #[derive(Default, Clone, Copy)]
-pub(crate) struct Sample {
+pub struct Sample {
     pub calls: u64,
     pub hits: u64,
     pub cross: u64,
     pub ns: f64,
 }
-pub(crate) struct Meter {
+pub struct Meter {
     pub rows: RefCell<[Sample; 13]>,
     pub loads: RefCell<Vec<u64>>,
     pub overhead: f64,
@@ -271,7 +271,7 @@ pub(crate) struct Meter {
 }
 impl Meter {
     #[cfg(feature = "pair-diagnostics")]
-    pub(super) fn new(slots: usize) -> Self {
+    pub fn new(slots: usize) -> Self {
         let total = (0..1000)
             .map(|_| {
                 let t = super::super::thread_cpu();
@@ -285,7 +285,7 @@ impl Meter {
             overhead: total / 1000.,
         }
     }
-    pub(crate) fn report(&self, p: &Program) {
+    pub fn report(&self, p: &Program) {
         println!(
             "PAYREGEX finish {} {}",
             p.regexes.iter().filter(|r| r.initialized()).count(),

@@ -4,10 +4,10 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 #[derive(Default)]
-struct Driver {
-    calls: u64,
-    rows: u64,
-    seconds: f64,
+pub struct Driver {
+    pub calls: u64,
+    pub rows: u64,
+    pub seconds: f64,
 }
 
 thread_local! {
@@ -17,7 +17,7 @@ thread_local! {
 
 /// A leaf-only CPU clock for the share of an otherwise unclocked second half.
 #[inline]
-pub(super) fn table_clock() -> f64 {
+pub fn table_clock() -> f64 {
     if sw!("VEC_LEAF_CLOCK") {
         super::super::thread_cpu()
     } else {
@@ -27,7 +27,7 @@ pub(super) fn table_clock() -> f64 {
 
 /// Diagnostic only. Keep the existing evaluator and short-circuit order, recording
 /// the number of candidate rows each top-level compiled conjunct actually sees.
-pub(super) fn count_tests(
+pub fn count_tests(
     f: &File<'_>,
     run: &mut Run,
     v: &ViewSpec,
@@ -51,7 +51,7 @@ pub(super) fn count_tests(
 }
 
 /// A cold row-list read outside materialization is timed in its consumer's step.
-pub(super) fn row_list(node: usize, materialize: bool, entered: usize, kept: usize, start: f64) {
+pub fn row_list(node: usize, materialize: bool, entered: usize, kept: usize, start: f64) {
     let seconds = step_clock() - start;
     LISTS.with_borrow_mut(|all| {
         let (d, scanned) = all.entry((node, materialize)).or_default();
@@ -63,7 +63,7 @@ pub(super) fn row_list(node: usize, materialize: bool, entered: usize, kept: usi
 }
 
 impl Exec<'_> {
-    pub(crate) fn leaf_report(&mut self, run: &mut Run) {
+    pub fn leaf_report(&mut self, run: &mut Run) {
         if sw!("VEC_LEAF_CLOCK") {
             let mut brackets = [0.0; 1001];
             for cost in &mut brackets {
@@ -103,7 +103,7 @@ impl Exec<'_> {
 
 /// Physical buckets for a shared scan. A multi-value filter can subscribe to
 /// several buckets. Fact entries group by family so other filters share its scan.
-fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
+pub fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
     let (base, column) = match v.base {
         Native::Tree(_) => ("tree", Some(1)),
         Native::Child(_) => ("child", Some(3)),
@@ -134,7 +134,7 @@ fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
 
 /// Current view_rows entries. Fact column/value lookup follows the conjunct and
 /// column order of lit_pick. The child relation presently reads every child.
-pub(super) fn fact_entry(
+pub fn fact_entry(
     run: &mut Run,
     i: u16,
     filter: &[super::E],
@@ -167,7 +167,7 @@ pub(super) fn fact_entry(
     None
 }
 
-fn current_entries(run: &mut Run, v: &ViewSpec) -> Vec<Vec<String>> {
+pub fn current_entries(run: &mut Run, v: &ViewSpec) -> Vec<Vec<String>> {
     let (prefix, values) = match v.base {
         Native::Tree(_) => (
             vec!["tree".to_owned()],

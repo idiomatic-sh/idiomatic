@@ -5,7 +5,7 @@ use std::borrow::Cow;
 
 #[derive(Serialize)]
 #[serde(untagged)]
-pub(crate) enum Cell<'a> {
+pub enum Cell<'a> {
     Absent,
     Text(Cow<'a, str>),
     Number(i64),
@@ -13,7 +13,7 @@ pub(crate) enum Cell<'a> {
     Span { span: [u64; 2] },
 }
 
-pub(crate) fn query_row(
+pub fn query_row(
     columns: &[(&str, Cell<'_>)],
     key: &[&Cell<'_>],
     rule: &str,
@@ -35,7 +35,7 @@ pub(crate) fn query_row(
     .map_err(|e| e.to_string())
 }
 
-fn row(
+pub fn row(
     run: &Run,
     table: &Table,
     row: usize,
@@ -84,21 +84,21 @@ fn row(
     query_row(&columns, &key, rule, &columns[identity[0]].1)
 }
 
-pub(crate) fn quoted(text: &str) -> String {
+pub fn quoted(text: &str) -> String {
     serde_json::to_string(text).expect("encode output string")
 }
-pub(crate) fn buckets(keys: &[Vec<String>]) -> String {
+pub fn buckets(keys: &[Vec<String>]) -> String {
     serde_json::to_string(keys).expect("encode bucket names")
 }
 
 /// Completed output records. Readers can contribute rows without carrying a wire format.
 #[derive(Default)]
-pub(crate) struct Records {
-    lines: Vec<String>,
+pub struct Records {
+    pub lines: Vec<String>,
 }
 
 impl Records {
-    pub(crate) fn query(
+    pub fn query(
         &mut self,
         run: &Run,
         table: &Table,
@@ -112,24 +112,24 @@ impl Records {
         Ok(())
     }
 
-    pub(crate) fn wire(mut self) -> (usize, String) {
+    pub fn wire(mut self) -> (usize, String) {
         self.lines.sort_unstable();
         (self.lines.len(), self.lines.join("\n") + "\n")
     }
 
-    pub(crate) fn write(self, path: &str) {
+    pub fn write(self, path: &str) {
         std::fs::write(path, self.wire().1).expect("write findings");
     }
 }
 
 /// Lint diagnostics use byte offsets. Query comparisons carry the complete output record.
-pub(crate) fn snapshot(plan: &ryo_values::domain::finish_plans::types::FinishPlan) -> Vec<u8> {
+pub fn snapshot(plan: &ryo_values::domain::finish_plans::types::FinishPlan) -> Vec<u8> {
     use ryo_engine::outbound::plan_codec::{factory, interface::PlanCodecPort as _};
     factory::json().encoded(plan)
 }
 
 /// The cold-list/profile TSV embeds a complete node using the public plan wire schema.
-pub(crate) fn step(step: &ryo_values::domain::finish_plans::types::FinishStep) -> String {
+pub fn step(step: &ryo_values::domain::finish_plans::types::FinishStep) -> String {
     use ryo_engine::outbound::plan_codec::{factory, interface::PlanCodecPort as _};
     let mut bytes = Vec::new();
     factory::json()
@@ -142,7 +142,7 @@ use super::answer::{Row, Value};
 use ryo_values::domain::row_texts::types::Cell as AnswerCell;
 // These wrappers serialize directly into the final command output. Subject and
 // key columns are borrowed from their declared slots, including null values.
-struct Published(Value);
+pub struct Published(Value);
 impl Serialize for Published {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeMap;
@@ -164,7 +164,7 @@ impl Serialize for Published {
     }
 }
 
-struct Columns<'a>(&'a Row);
+pub struct Columns<'a>(&'a Row);
 impl Serialize for Columns<'_> {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
         out.collect_seq(
@@ -177,7 +177,7 @@ impl Serialize for Columns<'_> {
     }
 }
 
-struct Keys<'a>(&'a Row);
+pub struct Keys<'a>(&'a Row);
 impl Serialize for Keys<'_> {
     fn serialize<S: serde::Serializer>(&self, out: S) -> Result<S::Ok, S::Error> {
         out.collect_seq(
@@ -189,7 +189,7 @@ impl Serialize for Keys<'_> {
 }
 
 /// Canonical command output, with the release's column order and escaping.
-fn write_finding(dst: &mut Vec<u8>, row: &Row) {
+pub fn write_finding(dst: &mut Vec<u8>, row: &Row) {
     #[derive(Serialize)]
     struct Finding<'a> {
         columns: Columns<'a>,
@@ -210,7 +210,7 @@ fn write_finding(dst: &mut Vec<u8>, row: &Row) {
 }
 
 /// Canonical ordering is lexical over the complete output bytes, including escapes.
-pub(crate) fn ordered_rows<'a>(
+pub fn ordered_rows<'a>(
     rows: impl IntoIterator<Item = &'a Row>,
     mut emit: impl FnMut(&[u8]),
 ) {

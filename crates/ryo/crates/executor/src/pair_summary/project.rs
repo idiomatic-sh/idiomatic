@@ -2,7 +2,7 @@
 use super::*;
 use ryo_values::domain::finish_plans::arguments::joins::types::AntijoinArguments;
 
-fn origins(a: Attribute, facts: &[Fact]) -> Option<(usize, u64)> {
+pub fn origins(a: Attribute, facts: &[Fact]) -> Option<(usize, u64)> {
     match a {
         Attribute::Cell(slot, col)
             if col < 64
@@ -15,7 +15,7 @@ fn origins(a: Attribute, facts: &[Fact]) -> Option<(usize, u64)> {
         _ => None,
     }
 }
-pub(super) fn columns(mut mask: u64) -> impl Iterator<Item = usize> {
+pub fn columns(mut mask: u64) -> impl Iterator<Item = usize> {
     std::iter::from_fn(move || {
         if mask == 0 {
             return None;
@@ -25,7 +25,7 @@ pub(super) fn columns(mut mask: u64) -> impl Iterator<Item = usize> {
         Some(i)
     })
 }
-pub(super) fn common(a: Attribute, b: Attribute, facts: &[Fact]) -> Option<Attribute> {
+pub fn common(a: Attribute, b: Attribute, facts: &[Fact]) -> Option<Attribute> {
     if a == b {
         return Some(a);
     }
@@ -34,7 +34,7 @@ pub(super) fn common(a: Attribute, b: Attribute, facts: &[Fact]) -> Option<Attri
     (slot == other).then_some(Attribute::ProjectChoices(slot, aa | bb))
 }
 impl Builder<'_> {
-    pub(super) fn project_membership(&mut self, a: Column, b: Column) -> Option<(usize, Id)> {
+    pub fn project_membership(&mut self, a: Column, b: Column) -> Option<(usize, Id)> {
         for (candidate, project) in [(a, b), (b, a)] {
             let (Attribute::Cell(slot, col), Attribute::Cell(set, field)) =
                 (candidate.attr, project.attr)
@@ -57,7 +57,7 @@ impl Builder<'_> {
     // A left row passing the right filter supplies its own matching key and
     // cannot survive. If a union renamed several columns to the tested name,
     // at least one possible origin must fail the filter for this file to pass.
-    pub(super) fn rejected_filter(
+    pub fn rejected_filter(
         &mut self,
         j: &AntijoinArguments,
         steps: &[FinishStep],

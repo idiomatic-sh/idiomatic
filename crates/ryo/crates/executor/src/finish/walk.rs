@@ -10,12 +10,12 @@
 //! No rule id: the shape is the axis's own arguments.
 
 use super::{Dom, Exec, File, Hier, NULL, Provider, R, Run, Table, bucket, bucket_len, hier_step, kind_set, node_table, s, view_holds};
-use ryo::languages::Position;
+use crate::languages::Position;
 use super::Args;
 
 impl Exec<'_> {
     /// The axis `node` over `from` in one of the forms above, or None (the axis runs as before).
-    pub(super) fn walk_axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, from: &Table) -> R<Option<Table>> {
+    pub fn walk_axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, from: &Table) -> R<Option<Table>> {
         if f.after_last_file || sw!("VEC_NO_AXISWALK") {
             return Ok(None);
         }

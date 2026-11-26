@@ -12,30 +12,30 @@ use rustc_hash::FxHashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-struct Leaf {
-    node: usize,
+pub struct Leaf {
+    pub node: usize,
     /// The leaf's column of each output column.
-    map: Box<[usize]>,
+    pub map: Box<[usize]>,
     /// The map is the identity over the leaf's columns.
-    ident: bool,
+    pub ident: bool,
 }
 
-pub(super) struct Prep {
-    leaves: Box<[Leaf]>,
-    k: usize,
-    names: Names,
-    tys: Tys,
-    empty: Rc<Table>,
+pub struct Prep {
+    pub leaves: Box<[Leaf]>,
+    pub k: usize,
+    pub names: Names,
+    pub tys: Tys,
+    pub empty: Rc<Table>,
 }
 
 #[derive(Default)]
-struct Work {
+pub struct Work {
     /// The rows kept: (answer, row).
-    kept: Vec<(u32, u32)>,
+    pub kept: Vec<(u32, u32)>,
     /// Their hashes (small path), or the next row of the same hash (map path).
-    hs: Vec<u64>,
-    next: Vec<u32>,
-    head: FxHashMap<u64, u32>,
+    pub hs: Vec<u64>,
+    pub next: Vec<u32>,
+    pub head: FxHashMap<u64, u32>,
 }
 
 thread_local! {
@@ -45,10 +45,10 @@ thread_local! {
 }
 
 /// Rows this many or fewer are made distinct by a scan of the rows kept.
-const SCAN: usize = 16;
-const NONE: u32 = u32::MAX;
+pub const SCAN: usize = 16;
+pub const NONE: u32 = u32::MAX;
 
-pub(super) fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
+pub fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
     if let Some(pr) = &ex.union_preps[node] {
         return Ok(pr.clone());
     }
@@ -81,7 +81,7 @@ pub(super) fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>>
     Ok(pr)
 }
 
-fn order(ex: &Exec<'_>, u: usize, tree: &[usize], out: &mut Vec<usize>) -> R<()> {
+pub fn order(ex: &Exec<'_>, u: usize, tree: &[usize], out: &mut Vec<usize>) -> R<()> {
     for side in ["left", "right"] {
         let x = ex.arg_rel(u, side)?;
         if tree.contains(&x) && x != u {
@@ -94,7 +94,7 @@ fn order(ex: &Exec<'_>, u: usize, tree: &[usize], out: &mut Vec<usize>) -> R<()>
 }
 
 /// The union made whole (its leaves made whole). pass 2: handed on shared, a single answer passed through uncopied.
-pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+pub fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
     let pr = prep(ex, run, node)?;
     let mut got = take_got();
     for (i, lf) in pr.leaves.iter().enumerate() {
@@ -110,7 +110,7 @@ pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
 
 /// redo-whole pass 2 (keyed.rs): the union read by key: each leaf read by the same keys on its own column, combined as
 /// a whole run combines; (answer, whether it is a leaf's answer handed on).
-pub(super) fn keyed(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<(Rc<Table>, bool)> {
+pub fn keyed(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<(Rc<Table>, bool)> {
     let pr = prep(ex, run, node)?;
     let mut got = take_got();
     for (i, lf) in pr.leaves.iter().enumerate() {
@@ -125,11 +125,11 @@ pub(super) fn keyed(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
     Ok((out, handed))
 }
 
-fn take_got() -> Vec<(Rc<Table>, u32)> {
+pub fn take_got() -> Vec<(Rc<Table>, u32)> {
     GOT.with(|k| k.borrow_mut().pop()).unwrap_or_default()
 }
 
-fn give_got(mut v: Vec<(Rc<Table>, u32)>) {
+pub fn give_got(mut v: Vec<(Rc<Table>, u32)>) {
     // redo-alloc: the leaves' answers given back (recycle.rs)
     for (t, _) in v.drain(..) {
         super::recycle::recycle(t);
@@ -137,7 +137,7 @@ fn give_got(mut v: Vec<(Rc<Table>, u32)>) {
     GOT.with(|k| k.borrow_mut().push(v));
 }
 
-fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
+pub fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
     if got.is_empty() {
         return pr.empty.clone();
     }

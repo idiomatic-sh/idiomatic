@@ -8,13 +8,13 @@ use std::{collections::HashMap, rc::Rc, sync::Arc};
 // pointer shortcut avoids hashing the same list again. Separate allocations
 // compare by their complete, ordered contents, including repetitions.
 #[derive(Default)]
-struct PathLists<'a> {
-    allocations: HashMap<*const Vec<String>, usize>,
-    lists: HashMap<&'a [String], usize>,
+pub struct PathLists<'a> {
+    pub allocations: HashMap<*const Vec<String>, usize>,
+    pub lists: HashMap<&'a [String], usize>,
 }
 
 impl<'a> PathLists<'a> {
-    fn id(&mut self, paths: &'a Rc<Vec<String>>) -> usize {
+    pub fn id(&mut self, paths: &'a Rc<Vec<String>>) -> usize {
         let next = self.lists.len();
         *self.allocations.entry(Rc::as_ptr(paths)).or_insert_with(|| {
             *self.lists.entry(paths.as_slice()).or_insert(next)
@@ -22,21 +22,21 @@ impl<'a> PathLists<'a> {
     }
 }
 
-pub(super) struct Closed {
-    scopes: HashMap<usize, [usize; 3]>,
-    repeats: HashMap<[usize; 3], usize>,
-    pub(super) number_wall: f64,
-    pub(super) numbered: usize,
-    numbers: Vec<Option<Vec<u32>>>,
-    pub(super) duplicate: Vec<Option<usize>>,
-    reads: Vec<Option<usize>>,
-    last: HashMap<usize, usize>,
-    remaining: Vec<usize>,
-    providers: HashMap<usize, usize>,
-    shared: HashMap<usize, Inputs>,
+pub struct Closed {
+    pub scopes: HashMap<usize, [usize; 3]>,
+    pub repeats: HashMap<[usize; 3], usize>,
+    pub number_wall: f64,
+    pub numbered: usize,
+    pub numbers: Vec<Option<Vec<u32>>>,
+    pub duplicate: Vec<Option<usize>>,
+    pub reads: Vec<Option<usize>>,
+    pub last: HashMap<usize, usize>,
+    pub remaining: Vec<usize>,
+    pub providers: HashMap<usize, usize>,
+    pub shared: HashMap<usize, Inputs>,
 }
 impl Closed {
-    pub(super) fn new(work: &[Work], cut_of: &[Option<Arc<Partition>>]) -> Self {
+    pub fn new(work: &[Work], cut_of: &[Option<Arc<Partition>>]) -> Self {
         // Slots name a canonical source version and binding. Order and repetitions
         // are part of the population identity. A live host can open another epoch.
         let mut lists = PathLists::default();
@@ -112,19 +112,19 @@ impl Closed {
             shared: HashMap::new(),
         }
     }
-    pub(super) fn scope(&self, request: usize) -> [usize; 3] { self.scopes[&request] }
+    pub fn scope(&self, request: usize) -> [usize; 3] { self.scopes[&request] }
 
-    pub(super) fn may_repeat(&self, scope: [usize; 3]) -> bool {
+    pub fn may_repeat(&self, scope: [usize; 3]) -> bool {
         self.repeats.get(&scope).is_some_and(|&n| n > 1)
     }
 
-    pub(super) fn inventory_id(&self, request: usize) -> usize {
+    pub fn inventory_id(&self, request: usize) -> usize {
         self.scopes[&request][1]
     }
-    pub(super) fn numbered_inventories(&self) -> &[Option<Vec<u32>>] {
+    pub fn numbered_inventories(&self) -> &[Option<Vec<u32>>] {
         &self.numbers
     }
-    pub(super) fn numbers(
+    pub fn numbers(
         &mut self,
         request: usize,
         paths: &[String],
@@ -138,7 +138,7 @@ impl Closed {
             numbers
         })
     }
-    pub(super) fn inputs(
+    pub fn inputs(
         &mut self,
         i: usize,
         make: impl FnOnce() -> Result<Inputs, String>,
@@ -155,7 +155,7 @@ impl Closed {
             }
         })
     }
-    pub(super) fn release(
+    pub fn release(
         &mut self,
         i: usize,
         pairs: &[usize],
@@ -191,7 +191,7 @@ impl Closed {
     }
 
     /// The worker scope has joined and no borrowed frontier remains.
-    pub(super) fn release_finished(
+    pub fn release_finished(
         &mut self,
         mut release_pair: impl FnMut(usize),
         mut release_population: impl FnMut(usize),
@@ -245,20 +245,20 @@ mod tests {
 /// Compare complete typed contents only for scopes that can actually repeat.
 /// Bound retention to small inputs and outputs of this prepared program.
 #[derive(Default)]
-pub(super) struct Evaluated {
-    entries: HashMap<[usize; 3], Vec<Evaluation>>,
-    cells: usize,
-    pub(super) hits: usize,
+pub struct Evaluated {
+    pub entries: HashMap<[usize; 3], Vec<Evaluation>>,
+    pub cells: usize,
+    pub hits: usize,
 }
 
-struct Evaluation {
-    project: Option<std::collections::BTreeMap<String, Rc<finish::Table>>>,
-    inputs: Inputs,
-    answer: session::Reported,
+pub struct Evaluation {
+    pub project: Option<std::collections::BTreeMap<String, Rc<finish::Table>>>,
+    pub inputs: Inputs,
+    pub answer: session::Reported,
 }
 
 impl Evaluated {
-    pub(super) fn find(
+    pub fn find(
         &mut self,
         scope: [usize; 3],
         project: Option<&super::Population>,
@@ -276,7 +276,7 @@ impl Evaluated {
         Some(match_.answer.clone())
     }
 
-    pub(super) fn remember(
+    pub fn remember(
         &mut self,
         scope: [usize; 3],
         project: Option<&super::Population>,

@@ -1,9 +1,8 @@
 //! Closed programs can borrow the same immutable inputs after the last file.
 use super::*;
-#[cfg(feature = "product-session")]
 use std::sync::Arc;
 
-pub(super) enum Inputs {
+pub enum Inputs {
     Withheld(session::Reported),
     Ready {
         carried: finish::population::Inputs,
@@ -13,12 +12,12 @@ pub(super) enum Inputs {
     },
 }
 
-pub(super) fn accepted_files<'a>(files: &'a [String], rejected: &[String]) -> std::borrow::Cow<'a, [String]> {
+pub fn accepted_files<'a>(files: &'a [String], rejected: &[String]) -> std::borrow::Cow<'a, [String]> {
     if rejected.is_empty() { return std::borrow::Cow::Borrowed(files); }
     std::borrow::Cow::Owned(files.iter().filter(|p| rejected.binary_search(p).is_err()).cloned().collect())
 }
 
-pub(super) fn inputs(
+pub fn inputs(
     run: &finish::Run,
     contract: &session::completeness::Contract,
     unavailable: &HashMap<usize, BTreeSet<(String, u32)>>,
@@ -102,23 +101,20 @@ pub(super) fn inputs(
     Ok(Inputs::Ready { carried, incomplete, unknowns, skipped })
 }
 
-#[cfg(feature = "product-session")]
-struct SharedTable<'a> {
-    name: &'a str,
-    names: &'a [String],
-    types: &'a [finish::Ty],
-    columns: &'a [Vec<u64>],
-    rows: usize,
+pub struct SharedTable<'a> {
+    pub name: &'a str,
+    pub names: &'a [String],
+    pub types: &'a [finish::Ty],
+    pub columns: &'a [Vec<u64>],
+    pub rows: usize,
 }
 
-#[cfg(feature = "product-session")]
-struct SharedPopulation<'a> {
-    tables: Vec<SharedTable<'a>>,
-    partials: &'a [ryo_execution_domain::domain::coverage::types::Partial],
+pub struct SharedPopulation<'a> {
+    pub tables: Vec<SharedTable<'a>>,
+    pub partials: &'a [ryo_execution_domain::domain::coverage::types::Partial],
 }
-#[cfg(feature = "product-session")]
 impl<'a> SharedPopulation<'a> {
-    fn from(p: &'a Population) -> Self {
+    pub fn from(p: &'a Population) -> Self {
         Self {
             tables: p.tables.iter().map(|(name, table)| SharedTable {
                 name,
@@ -133,7 +129,7 @@ impl<'a> SharedPopulation<'a> {
 
     // Provider tables are small and shared by every program in this worker.
     // The large file frontier shares its compressed columns by ownership.
-    fn local(&self) -> Population {
+    pub fn local(&self) -> Population {
         Population {
             tables: self.tables.iter().map(|table| {
                 let data = finish::Table {
@@ -152,22 +148,20 @@ impl<'a> SharedPopulation<'a> {
     }
 }
 
-#[cfg(feature = "product-session")]
-struct Job<'a> {
-    slot: usize,
-    program: usize,
-    project: Option<usize>,
-    pairs: &'a [usize],
-    inventory: &'a [String],
-    inventory_key: usize,
-    files: &'a [String],
-    hosted: &'a [Hosted],
-    contract: &'a session::completeness::Contract,
-    cut: Option<&'a finish::partition::Partition>,
+pub struct Job<'a> {
+    pub slot: usize,
+    pub program: usize,
+    pub project: Option<usize>,
+    pub pairs: &'a [usize],
+    pub inventory: &'a [String],
+    pub inventory_key: usize,
+    pub files: &'a [String],
+    pub hosted: &'a [Hosted],
+    pub contract: &'a session::completeness::Contract,
+    pub cut: Option<&'a finish::partition::Partition>,
 }
 
-#[cfg(feature = "product-session")]
-pub(super) fn run(
+pub fn run(
     count: usize,
     batch: &mut Batch,
     world: &mut session::World,

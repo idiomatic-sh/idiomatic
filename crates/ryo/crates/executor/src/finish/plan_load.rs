@@ -16,16 +16,16 @@ use std::sync::Arc;
 
 /// Each operand list occupies one range in the immutable plan. Select kernels
 /// keep the same range as the numbered step that produced them.
-struct IndexedSteps {
-    plan: Arc<FinishPlan>,
-    offsets: Vec<usize>,
-    operands: Vec<usize>,
+pub struct IndexedSteps {
+    pub plan: Arc<FinishPlan>,
+    pub offsets: Vec<usize>,
+    pub operands: Vec<usize>,
 }
 
 #[derive(Clone)]
-pub(crate) struct StepInputs {
-    graph: Arc<IndexedSteps>,
-    slot: usize,
+pub struct StepInputs {
+    pub graph: Arc<IndexedSteps>,
+    pub slot: usize,
 }
 
 impl std::ops::Deref for StepInputs {
@@ -48,7 +48,7 @@ impl<'a> IntoIterator for &'a StepInputs {
     fn into_iter(self) -> Self::IntoIter { self.iter() }
 }
 
-pub(crate) fn from_typed(plan: Arc<FinishPlan>) -> Plan {
+pub fn from_typed(plan: Arc<FinishPlan>) -> Plan {
     let mut offsets = Vec::with_capacity(plan.steps.len() + 1);
     let mut operands = Vec::with_capacity(plan.steps.len());
     let mut rels = Vec::new();
@@ -92,7 +92,7 @@ pub(crate) fn from_typed(plan: Arc<FinishPlan>) -> Plan {
     }
 }
 /// Read dependency names from the immutable graph shared with lowering.
-fn visit_slots<'a>(step: &'a FinishStep, mut visit: impl FnMut(&'a str, usize)) -> &'a str {
+pub fn visit_slots<'a>(step: &'a FinishStep, mut visit: impl FnMut(&'a str, usize)) -> &'a str {
     use FinishStep::*;
     match step {
         Base(_) => "base",
@@ -211,30 +211,30 @@ fn visit_slots<'a>(step: &'a FinishStep, mut visit: impl FnMut(&'a str, usize)) 
     }
 }
 impl PNode {
-    pub(crate) fn op(&self) -> &str {
+    pub fn op(&self) -> &str {
         visit_slots(self.step(), |_, _| {})
     }
 
-    pub(crate) fn relation_input(&self, name: &str) -> Option<usize> {
+    pub fn relation_input(&self, name: &str) -> Option<usize> {
         let mut input = None;
         visit_slots(self.step(), |key, source| {
             if key == name && input.is_none() { input = Some(source); }
         });
         input
     }
-    pub(super) fn summary_text(&self) -> String {
+    pub fn summary_text(&self) -> String {
         super::json_output::step(self.step())
     }
-    pub(crate) fn step(&self) -> &FinishStep {
+    pub fn step(&self) -> &FinishStep {
         &self.inputs.graph.plan.steps[self.inputs.slot]
     }
-    pub(crate) fn base(&self) -> Option<&str> {
+    pub fn base(&self) -> Option<&str> {
         match self.step() {
             FinishStep::Base(r) => Some(&r.0),
             _ => None,
         }
     }
-    pub(crate) fn semi(&self) -> Option<usize> {
+    pub fn semi(&self) -> Option<usize> {
         match self.step() {
             FinishStep::Select(s) => match s.probe {
                 ProbeMark::Probed(n) => Some(n.0),
@@ -243,35 +243,35 @@ impl PNode {
             _ => None,
         }
     }
-    pub(super) fn distinct_count(&self) -> bool {
+    pub fn distinct_count(&self) -> bool {
         match self.step() {
             FinishStep::GroupCount(g) => matches!(g.distinct, CountedRows::Distinct(_)),
             _ => false,
         }
     }
-    pub(crate) fn counted(&self) -> bool {
+    pub fn counted(&self) -> bool {
         match self.step() {
             FinishStep::Select(s) => s.count == CountMark::Counted,
             _ => false,
         }
     }
-    pub(crate) fn tested(&self) -> bool {
+    pub fn tested(&self) -> bool {
         match self.step() {
             FinishStep::Select(s) => s.condition != RowCondition::Every,
             _ => false,
         }
     }
-    pub(crate) fn exists(&self) -> bool {
+    pub fn exists(&self) -> bool {
         match self.step() {
             FinishStep::Axis(s) => s.exists == ExistsMark::Marked,
             _ => false,
         }
     }
-    pub(crate) fn args(&self) -> &Args {
+    pub fn args(&self) -> &Args {
         self.args.get_or_init(|| parameters(self.step()))
     }
 }
-fn parameters(step: &FinishStep) -> Args {
+pub fn parameters(step: &FinishStep) -> Args {
     use FinishStep::*;
     let mut m = BTreeMap::new();
     let mut set = |key: &str, value: Param| {

@@ -4,10 +4,10 @@ use super::{FileId, FileSource, Result, Run, Table, finish, l, reader_run::packe
 use std::{collections::{BTreeMap, HashMap}, rc::Rc};
 
 #[derive(Default)]
-pub(crate) struct Catalog(BTreeMap<&'static str, &'static FileRelation>);
+pub struct Catalog(BTreeMap<&'static str, &'static FileRelation>);
 
 impl Catalog {
-    pub(crate) fn from_readers<L: FileSource>(readers: &[L]) -> Result<Self> {
+    pub fn from_readers<L: FileSource>(readers: &[L]) -> Result<Self> {
         let mut catalog = Self::default();
         for schema in readers.iter().flat_map(FileSource::declarations) {
             if schema.columns.is_empty() || schema.name.is_empty() {
@@ -29,7 +29,7 @@ impl Catalog {
     }
 
     /// A preparation has a private schema run. Install only the named bases it reads.
-    pub(crate) fn declare_bases(&self, run: &mut Run, bases: &[String]) {
+    pub fn declare_bases(&self, run: &mut Run, bases: &[String]) {
         for name in bases {
             if let Some(schema) = self.0.get(name.as_str()) {
                 declare(run, schema);
@@ -37,7 +37,7 @@ impl Catalog {
         }
     }
 
-    pub(crate) fn declare(&self, run: &mut Run) {
+    pub fn declare(&self, run: &mut Run) {
         for schema in self.0.values() {
             if run.catalog(schema.name).is_none() {
                 declare(run, schema);
@@ -45,7 +45,7 @@ impl Catalog {
         }
     }
 }
-pub(super) fn declare(run: &mut Run, schema: &FileRelation) {
+pub fn declare(run: &mut Run, schema: &FileRelation) {
     let columns: Vec<_> = schema
         .columns
         .iter()
@@ -57,9 +57,9 @@ pub(super) fn declare(run: &mut Run, schema: &FileRelation) {
 /// Empty rows have no file-local cells. Share their immutable table across
 /// visits in this reader run after validating each supplier response.
 #[derive(Default)]
-pub(super) struct EmptyTables(rustc_hash::FxHashMap<&'static str, Rc<Table>>);
+pub struct EmptyTables(rustc_hash::FxHashMap<&'static str, Rc<Table>>);
 
-pub(super) fn table(
+pub fn table(
     empty: &mut EmptyTables,
     mut columns: super::source::Columns,
     schema: &FileRelation,

@@ -8,29 +8,29 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-mod report;
-pub(crate) use report::Reported;
+pub mod report;
+pub use report::Reported;
 
-pub(crate) type Value = Option<Cell<Arc<str>>>;
+pub type Value = Option<Cell<Arc<str>>>;
 
 /// Only strings named by a retained answer outlive the input file.
 #[derive(Default)]
-pub(crate) struct Words {
-    symbols: FxHashMap<u32, Arc<str>>,
-    paths: Vec<Arc<str>>,
-    path_ids: FxHashMap<Arc<str>, u32>,
+pub struct Words {
+    pub symbols: FxHashMap<u32, Arc<str>>,
+    pub paths: Vec<Arc<str>>,
+    pub path_ids: FxHashMap<Arc<str>, u32>,
 }
 
-pub(crate) struct Layout {
+pub struct Layout {
     pub rule: Box<str>,
     pub names: Box<[String]>,
     pub identity: Box<[usize]>,
-    types: Box<[Ty]>,
-    words: Arc<RwLock<Words>>,
+    pub types: Box<[Ty]>,
+    pub words: Arc<RwLock<Words>>,
 }
 
 impl Layout {
-    fn new(
+    pub fn new(
         run: &mut Run,
         rule: &str,
         names: &[String],
@@ -57,7 +57,7 @@ impl Layout {
 }
 
 impl Exec<'_> {
-    pub(super) fn answer_layout(
+    pub fn answer_layout(
         &mut self,
         run: &mut Run,
         emit: (usize, usize),
@@ -75,7 +75,7 @@ impl Exec<'_> {
     }
 }
 
-pub(super) fn location_layout(
+pub fn location_layout(
     exec: &mut Exec<'_>, run: &mut Run, emit: (usize, usize), rule: &str, subject: &str,
     keys: &[String], columns: &[crate::pair_summary::LocationColumn], file: u32,
 ) -> Result<(Arc<Layout>, u32), String> {
@@ -98,20 +98,18 @@ pub(super) fn location_layout(
 
 /// The schema gives each word its type. Node words retain their file and position.
 #[derive(Clone)]
-pub(crate) struct Row {
+pub struct Row {
     pub layout: Arc<Layout>,
-    words: Box<[u64]>,
-    pub(crate) place: (u32, u32),
+    pub words: Box<[u64]>,
+    pub place: (u32, u32),
 }
 
-#[allow(dead_code, reason = "only the retained check session restores rows under a shared packet dictionary")]
-pub(crate) struct RestoredRows {
-    dictionary: Arc<RwLock<Words>>,
-    layouts: Vec<FxHashMap<Vec<Ty>, Arc<Layout>>>,
+pub struct RestoredRows {
+    pub dictionary: Arc<RwLock<Words>>,
+    pub layouts: Vec<FxHashMap<Vec<Ty>, Arc<Layout>>>,
 }
-#[allow(dead_code, reason = "file readers share the answer module without loading stored packets")]
 impl RestoredRows {
-    pub(crate) fn new(words: Vec<Box<str>>, schemas: usize) -> Self {
+    pub fn new(words: Vec<Box<str>>, schemas: usize) -> Self {
         let paths: Vec<Arc<str>> = words.into_iter().map(Arc::from).collect();
         let symbols = paths.iter().enumerate().map(|(i, s)| {
             (u32::try_from(i).expect("stored word dictionary"), s.clone())
@@ -122,7 +120,7 @@ impl RestoredRows {
         }
     }
 
-    pub(crate) fn row(&mut self, schema: usize, rule: &str, names: &[Box<str>], identity: &[usize], cells: impl Iterator<Item = (Ty, u64)>) -> Row {
+    pub fn row(&mut self, schema: usize, rule: &str, names: &[Box<str>], identity: &[usize], cells: impl Iterator<Item = (Ty, u64)>) -> Row {
         // Null in a numeric column must remain distinct from the number -1.
         let (types, words): (Vec<_>, Vec<_>) = cells.unzip();
         let layout = self.layouts[schema].entry(types).or_insert_with_key(|types| Arc::new(Layout {
@@ -137,11 +135,11 @@ impl RestoredRows {
 }
 
 impl Row {
-    pub(super) fn resolved(layout: &Arc<Layout>, words: Box<[u64]>) -> Self {
+    pub fn resolved(layout: &Arc<Layout>, words: Box<[u64]>) -> Self {
         Self { layout: layout.clone(), words, place: (0, 0) }
     }
 
-    fn decode<T: From<String> + From<&'static str>, D: std::ops::Deref<Target = Words>>(
+    pub fn decode<T: From<String> + From<&'static str>, D: std::ops::Deref<Target = Words>>(
         &self,
         index: usize,
         dictionary: impl FnOnce() -> D,
@@ -167,7 +165,7 @@ impl Row {
 
     /// The original byte range of a declared location column. Absence is
     /// distinct from an invalid schema. The typed cell remains in the row.
-    pub(crate) fn byte_span(&self, column: &str) -> Result<Option<Span>, String> {
+    pub fn byte_span(&self, column: &str) -> Result<Option<Span>, String> {
         let index = self.layout.names.iter().position(|name| name == column)
             .ok_or_else(|| format!("missing location column {column}"))?;
         if self.layout.types[index] != Ty::Span {
@@ -188,7 +186,7 @@ impl Row {
     }
 
     /// A closed span gets its source from the emitted file subject.
-    pub(crate) fn span_file(&self) -> Option<Arc<str>> {
+    pub fn span_file(&self) -> Option<Arc<str>> {
         let (&subject, keys) = self.layout.identity.split_first()?;
         if self.layout.types[subject] != Ty::File || !keys.iter().any(|&i| self.layout.types[i] == Ty::Span && self.words[i] != NULL) {
             return None;
@@ -198,8 +196,8 @@ impl Row {
 
     /// In the shipping emit contract the first located key (then subject) places
     /// the finding. A position is meaningful only in its own file version.
-    pub(crate) fn locate(&mut self, path: &str, tree: Option<&ryo::languages::NodeTable>, bytes: &[u8], coordinates: &mut ryo::languages::contract::FindingCoordinates) -> Result<(), String> {
-        use ryo::languages::{Position, node_table};
+    pub fn locate(&mut self, path: &str, tree: Option<&crate::languages::NodeTable>, bytes: &[u8], coordinates: &mut crate::languages::contract::FindingCoordinates) -> Result<(), String> {
+        use crate::languages::{Position, node_table};
         let Some((&subject, keys)) = self.layout.identity.split_first() else { return Err("missing finding subject".into()); };
         if !keys.iter().chain([&subject]).any(|&i| matches!(self.layout.types[i], Ty::Span | Ty::Node)) { return Ok(()); }
         let words = self.layout.words.read().expect("finding dictionary");
@@ -231,11 +229,11 @@ impl Row {
         Ok(())
     }
 
-    pub(crate) fn value(&self, index: usize) -> Value {
+    pub fn value(&self, index: usize) -> Value {
         self.decode(index, || self.layout.words.read().expect("answer words"), Arc::clone)
     }
 
-    pub(crate) fn cells_with<'a, T: From<String> + From<&'static str>>(
+    pub fn cells_with<'a, T: From<String> + From<&'static str>>(
         &'a self,
         text: impl Fn(&Arc<str>) -> T + 'a,
     ) -> impl Iterator<Item = Option<Cell<T>>> + 'a {
@@ -243,27 +241,24 @@ impl Row {
         (0..self.words.len()).map(move |i| self.decode(i, || &*dictionary, &text))
     }
 
-    #[cfg(feature = "product-session")]
-    pub(crate) fn dictionary(&self) -> &RwLock<Words> {
+    pub fn dictionary(&self) -> &RwLock<Words> {
         &self.layout.words
     }
 
-    #[cfg(feature = "product-session")]
-    pub(crate) fn value_from(&self, index: usize, words: &Words) -> Value {
+    pub fn value_from(&self, index: usize, words: &Words) -> Value {
         self.decode(index, || words, Arc::clone)
     }
 
-    #[cfg(feature = "product-session")]
-    pub(crate) fn width(&self) -> usize {
+    pub fn width(&self) -> usize {
         self.words.len()
     }
 
-    pub(crate) fn cells(&self) -> impl Iterator<Item = Value> + '_ {
+    pub fn cells(&self) -> impl Iterator<Item = Value> + '_ {
         self.cells_with(Arc::clone)
     }
 }
 
-fn unpack_span(word: u64) -> Span {
+pub fn unpack_span(word: u64) -> Span {
     Span {
         start: Offset((word >> 32) as u32),
         end: Offset(word as u32),
@@ -271,7 +266,7 @@ fn unpack_span(word: u64) -> Span {
 }
 
 impl Words {
-    fn symbol(&mut self, run: &Run, id: u32) -> Result<&Arc<str>, String> {
+    pub fn symbol(&mut self, run: &Run, id: u32) -> Result<&Arc<str>, String> {
         Ok(match self.symbols.entry(id) {
             Entry::Occupied(slot) => slot.into_mut(),
             Entry::Vacant(slot) => {
@@ -283,7 +278,7 @@ impl Words {
 
     // Project bindings can number a new inventory from zero in the same run.
     // Retained node and file cells name the path from the producing inventory.
-    fn path(&mut self, text: &str) -> Result<u32, String> {
+    pub fn path(&mut self, text: &str) -> Result<u32, String> {
         if let Some(&id) = self.path_ids.get(text) {
             return Ok(id);
         }
@@ -295,7 +290,7 @@ impl Words {
     }
 }
 
-pub(crate) fn typed(
+pub fn typed(
     run: &Run,
     table: &Table,
     row: usize,

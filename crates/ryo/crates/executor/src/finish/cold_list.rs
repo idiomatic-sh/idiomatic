@@ -5,50 +5,50 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 #[derive(Default)]
-pub(super) struct Plan {
-    ids: Vec<usize>,
-    probes: std::cell::RefCell<Vec<[u64; 3]>>,
-    forms: Vec<&'static str>,
-    keys: Vec<[Metric; 2]>,
-    handoffs: Vec<Option<Handoff>>,
-    by_handoff: std::collections::BTreeMap<&'static str, (u64, u64)>,
-    metrics: FxHashMap<(&'static str, bool, bool), Metric>,
-    fan: std::collections::BTreeMap<(usize, usize), u64>,
-    slots: [u64; 6],
-    phases: std::collections::BTreeMap<&'static str, (u64, f64, f64)>,
+pub struct Plan {
+    pub ids: Vec<usize>,
+    pub probes: std::cell::RefCell<Vec<[u64; 3]>>,
+    pub forms: Vec<&'static str>,
+    pub keys: Vec<[Metric; 2]>,
+    pub handoffs: Vec<Option<Handoff>>,
+    pub by_handoff: std::collections::BTreeMap<&'static str, (u64, u64)>,
+    pub metrics: FxHashMap<(&'static str, bool, bool), Metric>,
+    pub fan: std::collections::BTreeMap<(usize, usize), u64>,
+    pub slots: [u64; 6],
+    pub phases: std::collections::BTreeMap<&'static str, (u64, f64, f64)>,
 }
 
 #[derive(Default)]
-pub(super) struct PerFile {
-    seen: FxHashMap<usize, Seen>,
-    consumer: Option<usize>,
-    counts: [Metric; 2],
+pub struct PerFile {
+    pub seen: FxHashMap<usize, Seen>,
+    pub consumer: Option<usize>,
+    pub counts: [Metric; 2],
 }
 
 #[derive(Default)]
-struct Seen {
-    consumers: FxHashSet<usize>,
-    builders: usize,
-    first: Option<Rc<Vec<u32>>>,
+pub struct Seen {
+    pub consumers: FxHashSet<usize>,
+    pub builders: usize,
+    pub first: Option<Rc<Vec<u32>>>,
 }
 
 #[derive(Default, Clone, Copy)]
-pub(super) struct Metric {
-    pub(super) builds: u64,
-    pub(super) entered: u64,
-    pub(super) tests: u64,
-    pub(super) kept: u64,
-    pub(super) seconds: f64,
+pub struct Metric {
+    pub builds: u64,
+    pub entered: u64,
+    pub tests: u64,
+    pub kept: u64,
+    pub seconds: f64,
 }
 impl Metric {
-    pub(super) fn add(&mut self, x: Self) {
+    pub fn add(&mut self, x: Self) {
         self.builds += x.builds;
         self.entered += x.entered;
         self.tests += x.tests;
         self.kept += x.kept;
         self.seconds += x.seconds;
     }
-    pub(super) fn tsv(self) -> String {
+    pub fn tsv(self) -> String {
         format!(
             "{}\t{}\t{}\t{}\t{:.9}",
             self.builds, self.entered, self.tests, self.kept, self.seconds
@@ -57,7 +57,7 @@ impl Metric {
 }
 
 #[inline]
-pub(super) fn auditing() -> bool {
+pub fn auditing() -> bool {
     static ACTIVE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ACTIVE.get_or_init(|| {
         [
@@ -71,7 +71,7 @@ pub(super) fn auditing() -> bool {
     })
 }
 
-pub(super) fn clock() -> f64 {
+pub fn clock() -> f64 {
     if sw!("VEC_COLD_CLOCK") || sw!("VEC_COLD_PHASE") {
         thread_local! {static START: cpu_time::ThreadTime = cpu_time::ThreadTime::now();}
         START.with(|t| t.elapsed().as_secs_f64())
@@ -84,7 +84,7 @@ pub(super) fn clock() -> f64 {
 // conjunctions and alternatives, intern literal membership as a set, retain seed and regex identity.
 /// The entire expression is a positive literal membership on this column. The entry
 /// planner may extract only one side of an AND, which is insufficient for identity.
-pub(super) fn members(e: &E, col: usize) -> Option<Vec<u32>> {
+pub fn members(e: &E, col: usize) -> Option<Vec<u32>> {
     match e {
         E::Or(a, b) => {
             let mut values = members(a, col)?;
@@ -97,7 +97,7 @@ pub(super) fn members(e: &E, col: usize) -> Option<Vec<u32>> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(super) enum FilterKey {
+pub enum FilterKey {
     Member(usize, Vec<u32>),
     Col(usize, usize, Ty),
     Lit(V),
@@ -116,7 +116,7 @@ pub(super) enum FilterKey {
     List(Vec<Self>),
 }
 
-fn normalized(e: &E) -> FilterKey {
+pub fn normalized(e: &E) -> FilterKey {
     use FilterKey as K;
     if let E::Cmp(Op::Eq, a, b) = e {
         if let (E::Col(0, c, super::Ty::Sym), E::Text(t))
@@ -194,7 +194,7 @@ fn normalized(e: &E) -> FilterKey {
     }
 }
 
-pub(super) fn conjuncts(es: &[E]) -> Vec<FilterKey> {
+pub fn conjuncts(es: &[E]) -> Vec<FilterKey> {
     fn append(e: &E, out: &mut Vec<FilterKey>) {
         if let E::And(a, b) = e {
             append(a, out);
@@ -211,7 +211,7 @@ pub(super) fn conjuncts(es: &[E]) -> Vec<FilterKey> {
     xs.dedup();
     xs
 }
-fn uses(e: &E, col: usize) -> bool {
+pub fn uses(e: &E, col: usize) -> bool {
     match e {
         E::Col(0, c, _) => *c == col,
         E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) | E::In(a, b, _) => {
@@ -222,7 +222,7 @@ fn uses(e: &E, col: usize) -> bool {
         _ => false,
     }
 }
-pub(super) fn form(v: &ViewSpec) -> &'static str {
+pub fn form(v: &ViewSpec) -> &'static str {
     if v.filter.is_empty() {
         return "unfiltered";
     }
@@ -237,7 +237,7 @@ pub(super) fn form(v: &ViewSpec) -> &'static str {
 }
 
 impl Exec<'_> {
-    pub(crate) fn cold_load(&mut self, run: &mut Run) {
+    pub fn cold_load(&mut self, run: &mut Run) {
         if !auditing() {
             return;
         }
@@ -276,7 +276,7 @@ impl Exec<'_> {
         run.cold = plan;
     }
 
-    pub(super) fn cold_make(
+    pub fn cold_make(
         &mut self,
         f: &mut File<'_>,
         run: &mut Run,
@@ -292,7 +292,7 @@ impl Exec<'_> {
     }
 }
 impl Plan {
-    pub(super) fn probe(&self, f: &File<'_>, bulk_keys: Option<usize>) {
+    pub fn probe(&self, f: &File<'_>, bulk_keys: Option<usize>) {
         let owner = f.cold.consumer.unwrap_or(self.ids.len());
         let mut all = self.probes.borrow_mut();
         let n = &mut all[owner];
@@ -304,11 +304,11 @@ impl Plan {
         }
     }
 
-    pub(super) fn ask(&self, f: &mut File<'_>, node: usize) {
+    pub fn ask(&self, f: &mut File<'_>, node: usize) {
         let seen = f.cold.seen.entry(self.ids[node]).or_default();
         let _ = seen.consumers.insert(f.cold.consumer.unwrap_or(node));
     }
-    pub(super) fn built(
+    pub fn built(
         &mut self,
         f: &mut File<'_>,
         node: usize,
@@ -359,7 +359,7 @@ impl Plan {
             self.keys[key][usize::from(dup)].add(m);
         }
     }
-    pub(crate) fn end_file(&mut self, f: &mut File<'_>) {
+    pub fn end_file(&mut self, f: &mut File<'_>) {
         if !auditing() {
             return;
         }
@@ -387,13 +387,13 @@ impl Plan {
         }
         f.cold.seen.clear();
     }
-    pub(super) fn phase(&mut self, node: usize, entry: f64, filter: f64) {
+    pub fn phase(&mut self, node: usize, entry: f64, filter: f64) {
         let t = self.phases.entry(self.forms[self.ids[node]]).or_default();
         t.0 += 1;
         t.1 += entry;
         t.2 += filter;
     }
-    pub(crate) fn report(&self) {
+    pub fn report(&self) {
         if !auditing() {
             return;
         }
@@ -443,7 +443,7 @@ impl Plan {
 }
 
 impl Exec<'_> {
-    pub(crate) fn cold_end(&mut self, f: &mut File<'_>, run: &mut Run) {
+    pub fn cold_end(&mut self, f: &mut File<'_>, run: &mut Run) {
         run.cold.end_file(f);
         if sw!("VEC_COLD_ENTRIES") {
             let mut audit = std::mem::take(&mut run.cold_entries);
@@ -454,7 +454,7 @@ impl Exec<'_> {
 }
 
 impl Exec<'_> {
-    pub(crate) fn cold_report(&self, run: &Run) {
+    pub fn cold_report(&self, run: &Run) {
         super::cold_test::report();
         super::cold_bucket::report();
         super::cold_text::report();
@@ -465,13 +465,13 @@ impl Exec<'_> {
 }
 
 /// Whether the file's existing, ordered provider buckets already contain the result.
-pub(super) struct Handoff {
-    fields: bool,
-    codes: Vec<u16>,
-    extent: super::Extent,
+pub struct Handoff {
+    pub fields: bool,
+    pub codes: Vec<u16>,
+    pub extent: super::Extent,
 }
 impl Handoff {
-    pub(super) fn compile(run: &Run, v: &ViewSpec) -> Option<Self> {
+    pub fn compile(run: &Run, v: &ViewSpec) -> Option<Self> {
         let (col, fields, vocab) = match v.base {
             Native::Tree(_) => (1, false, &run.kind_sym),
             Native::Child(_) if !run.file_field_codes => (3, true, &run.field_sym),
@@ -496,15 +496,15 @@ impl Handoff {
             .collect();
         Some(Self { fields, codes, extent: v.base.extent() })
     }
-    pub(super) fn codes(&self) -> &[u16] {
+    pub fn codes(&self) -> &[u16] {
         &self.codes
     }
-    pub(super) fn select(&self, f: &File<'_>) -> super::cold_bucket::Slot {
+    pub fn select(&self, f: &File<'_>) -> super::cold_bucket::Slot {
         super::cold_bucket::select(f, self.fields, &self.codes, self.extent)
     }
 
-    fn check(&self, f: &File<'_>, rows: &[u32]) -> &'static str {
-        use ryo::languages::{FieldCode, KindBits, node_table};
+    pub fn check(&self, f: &File<'_>, rows: &[u32]) -> &'static str {
+        use crate::languages::{FieldCode, KindBits, node_table};
         let mut live = self
             .codes
             .iter()

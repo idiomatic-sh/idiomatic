@@ -3,7 +3,7 @@ use super::{Args, R, Run, Table, Ty, s, strs};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use std::hash::Hasher;
 
-pub(super) fn select_rows(left: &Table, right: &Table, intersection: bool) -> R<Table> {
+pub fn select_rows(left: &Table, right: &Table, intersection: bool) -> R<Table> {
     let order = left
         .names
         .iter()
@@ -34,7 +34,7 @@ pub(super) fn select_rows(left: &Table, right: &Table, intersection: bool) -> R<
 
 /// Mirror the shipping reduction: hash resolved values, sort and deduplicate the
 /// hashes, then fold them in order. File and text cells hash their spelling.
-pub(super) fn digest(run: &Run, file: u32, args: &Args, input: &Table, output: &mut Table) -> R<()> {
+pub fn digest(run: &Run, file: u32, args: &Args, input: &Table, output: &mut Table) -> R<()> {
     let keys = strs(&args["keys"])?
         .map(|name| input.col(name))
         .collect::<R<Vec<_>>>()?;

@@ -1,19 +1,19 @@
 //! A cache slot can name an ordered slice in this file's provider table. Multiple
 //! disjoint slices keep their lengths and are merged only on the first ordered read.
 use super::{File, KindBits, NodeTable, Position, node_table, recycle};
-use ryo::languages::FieldCode;
+use crate::languages::FieldCode;
 use std::cell::{OnceCell, RefCell};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::rc::Rc;
 
 #[derive(Clone, Copy)]
-enum Bucket {
+pub enum Bucket {
     Field(u16),
     Kind(u16),
 }
 impl Bucket {
-    fn rows(self, t: &NodeTable) -> &[Position] {
+    pub fn rows(self, t: &NodeTable) -> &[Position] {
         match self {
             Self::Field(c) => node_table::ids_of_field(t, FieldCode(c)),
             Self::Kind(c) => node_table::ids_of_kind(t, KindBits(c)),
@@ -21,25 +21,25 @@ impl Bucket {
     }
 }
 #[derive(Clone, Copy)]
-pub(super) struct Part {
-    bucket: Bucket,
-    lo: usize,
-    hi: usize,
+pub struct Part {
+    pub bucket: Bucket,
+    pub lo: usize,
+    pub hi: usize,
 }
 impl Part {
-    fn rows(self, t: &NodeTable) -> &[Position] {
+    pub fn rows(self, t: &NodeTable) -> &[Position] {
         &self.bucket.rows(t)[self.lo..self.hi]
     }
 }
 
-pub(super) struct Merge {
-    parts: Vec<Part>,
-    len: usize,
-    form: &'static str,
-    ordered: OnceCell<Rc<Vec<u32>>>,
+pub struct Merge {
+    pub parts: Vec<Part>,
+    pub len: usize,
+    pub form: &'static str,
+    pub ordered: OnceCell<Rc<Vec<u32>>>,
 }
 impl Merge {
-    fn write(&self, table: &NodeTable, out: &mut Vec<u32>) {
+    pub fn write(&self, table: &NodeTable, out: &mut Vec<u32>) {
         out.reserve(self.len);
         let mut streams: Vec<_> = self.parts.iter().map(|p| p.rows(table).iter()).collect();
         let mut heap: BinaryHeap<_> = streams
@@ -57,7 +57,7 @@ impl Merge {
             }
         }
     }
-    fn read(&self, table: &NodeTable) -> &[u32] {
+    pub fn read(&self, table: &NodeTable) -> &[u32] {
         self.ordered.get_or_init(|| {
             let start = super::cold_list::clock();
             let rows = recycle::rows_with(|out| self.write(table, out));
@@ -71,7 +71,7 @@ impl Merge {
 }
 
 #[derive(Clone)]
-pub(super) enum Slot {
+pub enum Slot {
     Owned(Rc<Vec<u32>>),
     Empty,
     Slice(Part),
@@ -83,7 +83,7 @@ impl From<Rc<Vec<u32>>> for Slot {
     }
 }
 impl Slot {
-    pub(super) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         match self {
             Self::Owned(rows) => rows.len(),
             Self::Slice(p) => p.hi - p.lo,
@@ -91,13 +91,13 @@ impl Slot {
             Self::Empty => 0,
         }
     }
-    pub(super) fn owned(&self) -> &Rc<Vec<u32>> {
+    pub fn owned(&self) -> &Rc<Vec<u32>> {
         match self {
             Self::Owned(r) => r,
             _ => unreachable!("owned auxiliary slot"),
         }
     }
-    pub(super) fn resolve<'a>(&self, table: &'a NodeTable) -> Rows<'a> {
+    pub fn resolve<'a>(&self, table: &'a NodeTable) -> Rows<'a> {
         match self {
             Self::Owned(r) => Rows::Owned(r.clone()),
             Self::Slice(p) => Rows::Provider(p.rows(table)),
@@ -105,7 +105,7 @@ impl Slot {
             Self::Merge(m) => Rows::Merge(table, m.clone()),
         }
     }
-    pub(super) fn recycle(self) {
+    pub fn recycle(self) {
         match self {
             Self::Owned(r) => recycle::recycle_rows(r),
             Self::Merge(m) => {
@@ -120,7 +120,7 @@ impl Slot {
     }
 }
 
-pub(super) enum Rows<'a> {
+pub enum Rows<'a> {
     Owned(Rc<Vec<u32>>),
     Provider(&'a [Position]),
     Merge(&'a NodeTable, Rc<Merge>),
@@ -131,17 +131,17 @@ impl From<Rc<Vec<u32>>> for Rows<'_> {
     }
 }
 impl Rows<'_> {
-    pub(super) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         match self {
             Self::Owned(r) => r.len(),
             Self::Provider(p) => p.len(),
             Self::Merge(_, m) => m.len,
         }
     }
-    pub(super) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-    pub(super) fn iter(&self) -> impl Iterator<Item = &u32> {
+    pub fn iter(&self) -> impl Iterator<Item = &u32> {
         let (rows, positions): (&[u32], &[Position]) = match self {
             Self::Owned(r) => (r, &[]),
             Self::Provider(p) => (&[], p),
@@ -149,20 +149,20 @@ impl Rows<'_> {
         };
         rows.iter().chain(positions.iter().map(|p| &p.0))
     }
-    pub(super) fn extend_into(&self, out: &mut Vec<u32>) {
+    pub fn extend_into(&self, out: &mut Vec<u32>) {
         match self {
             Self::Owned(r) => out.extend_from_slice(r),
             Self::Provider(p) => out.extend(p.iter().map(|p| p.0)),
             Self::Merge(t, m) => out.extend_from_slice(m.read(t)),
         }
     }
-    pub(super) fn to_vec(&self) -> Vec<u32> {
+    pub fn to_vec(&self) -> Vec<u32> {
         let mut ids = Vec::with_capacity(self.len());
         self.extend_into(&mut ids);
         ids
     }
     // The oracle must not force a pending merge into the production cache.
-    pub(super) fn shadow(&self) -> Vec<u32> {
+    pub fn shadow(&self) -> Vec<u32> {
         match self {
             Self::Merge(t, m) => {
                 let mut ids = Vec::with_capacity(m.len);
@@ -174,7 +174,7 @@ impl Rows<'_> {
     }
 }
 
-pub(super) fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::Extent) -> Slot {
+pub fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::Extent) -> Slot {
     let mut first = None;
     let mut more = Vec::new();
     let mut len = 0;
@@ -246,7 +246,7 @@ pub(super) fn select(f: &File<'_>, fields: bool, codes: &[u16], extent: super::E
 thread_local! {
     static COUNTS: RefCell<std::collections::BTreeMap<(&'static str, &'static str), (u64,u64,f64)>> = const { RefCell::new(std::collections::BTreeMap::new()) };
 }
-fn record(form: &'static str, what: &'static str, rows: usize, seconds: f64) {
+pub fn record(form: &'static str, what: &'static str, rows: usize, seconds: f64) {
     COUNTS.with_borrow_mut(|m| {
         let v = m.entry((form, what)).or_default();
         v.0 += 1;
@@ -257,7 +257,7 @@ fn record(form: &'static str, what: &'static str, rows: usize, seconds: f64) {
 thread_local! {
     static ROOTS: std::cell::Cell<[u64; 3]> = const { std::cell::Cell::new([0; 3]) };
 }
-pub(super) fn roots(extra: usize, capacity: usize) {
+pub fn roots(extra: usize, capacity: usize) {
     ROOTS.with(|state| {
         let [files, roots, bytes] = state.get();
         state.set([
@@ -267,7 +267,7 @@ pub(super) fn roots(extra: usize, capacity: usize) {
         ]);
     });
 }
-pub(super) fn report() {
+pub fn report() {
     if sw!("VEC_COLD_COUNT") {
         let [files, roots, bytes] = ROOTS.with(|s| s.get());
         println!("COLD_ROOTS\t{files}\t{roots}\t{bytes}");

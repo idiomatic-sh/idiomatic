@@ -4,14 +4,14 @@ use super::{Extent, File, Native, Run, Src, ViewSpec, fill_prof, view_cols};
 use super::select_kernel::Pushed;
 
 #[derive(Clone, Copy)]
-pub(super) enum Ids<'a> {
+pub enum Ids<'a> {
     Slice(&'a [u32]),
     Range(u32),
     View(&'a super::cold_bucket::Rows<'a>),
 }
 
 impl Ids<'_> {
-    pub(super) fn len(self) -> usize {
+    pub fn len(self) -> usize {
         match self {
             Self::Slice(ids) => ids.len(),
             Self::Range(n) => n as usize,
@@ -20,7 +20,7 @@ impl Ids<'_> {
     }
 
     #[inline]
-    fn visit(self, f: impl FnMut(u32)) {
+    pub fn visit(self, f: impl FnMut(u32)) {
         match self {
             Self::Slice(ids) => ids.iter().copied().for_each(f),
             Self::Range(n) => (0..n).for_each(f),
@@ -29,7 +29,7 @@ impl Ids<'_> {
     }
 }
 
-pub(super) fn supports(f: &File<'_>, v: &ViewSpec, col: usize) -> bool {
+pub fn supports(f: &File<'_>, v: &ViewSpec, col: usize) -> bool {
     let singleton = matches!(
         (v.base, col),
         (Native::Tree(_) | Native::Location, 0) | (Native::Child(_), 1)
@@ -38,13 +38,13 @@ pub(super) fn supports(f: &File<'_>, v: &ViewSpec, col: usize) -> bool {
         && Filter::bind(f, v, singleton).is_some()
 }
 
-pub(super) struct Driver<'a> {
-    pub(super) rows: Ids<'a>,
-    pub(super) source: usize,
-    pub(super) column: usize,
+pub struct Driver<'a> {
+    pub rows: Ids<'a>,
+    pub source: usize,
+    pub column: usize,
 }
 
-enum Filter<'a> {
+pub enum Filter<'a> {
     All,
     Code(&'a [u16], u16),
     Codes(&'a [u16], &'a [u16]),
@@ -53,7 +53,7 @@ enum Filter<'a> {
 }
 
 impl<'a> Filter<'a> {
-    fn bind(f: &'a File<'_>, v: &'a ViewSpec, single: bool) -> Option<Self> {
+    pub fn bind(f: &'a File<'_>, v: &'a ViewSpec, single: bool) -> Option<Self> {
         if v.tests.is_empty() {
             return Some(Self::All);
         }
@@ -83,7 +83,7 @@ impl<'a> Filter<'a> {
     }
 
     #[inline]
-    fn accepts(&self, f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
+    pub fn accepts(&self, f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
         match self {
             Self::All => true,
             Self::Code(column, code) => column[row as usize] == *code,
@@ -94,7 +94,7 @@ impl<'a> Filter<'a> {
     }
 }
 
-fn fact_test(test: &view_cols::Test) -> bool {
+pub fn fact_test(test: &view_cols::Test) -> bool {
     use view_cols::Test;
     match test {
         Test::Eval(_) => false,
@@ -106,7 +106,7 @@ fn fact_test(test: &view_cols::Test) -> bool {
 
 /// Each supported native key yields a singleton or an iterator into existing
 /// storage. The file's fact index is obtained once for the entire driving batch.
-pub(super) fn pairs(
+pub fn pairs(
     f: &File<'_>,
     run: &mut Run,
     srcs: &[Src],
@@ -119,7 +119,7 @@ pub(super) fn pairs(
 }
 
 /// Apply the same source-local test in either physical join direction.
-pub(super) fn filtered_pairs(
+pub fn filtered_pairs(
     f: &File<'_>,
     run: &mut Run,
     srcs: &[Src],
@@ -143,7 +143,7 @@ pub(super) fn filtered_pairs(
     }
 }
 
-fn pairs_where(
+pub fn pairs_where(
     f: &File<'_>,
     run: &mut Run,
     srcs: &[Src],
@@ -201,20 +201,20 @@ fn pairs_where(
     Some(count)
 }
 
-struct Batch<'a, 'file, F, K> {
-    f: &'a File<'file>,
-    run: &'a mut Run,
-    srcs: &'a [Src],
-    driver: Driver<'a>,
-    view: &'a ViewSpec,
-    filter: Filter<'a>,
-    emit: F,
-    keep: K,
+pub struct Batch<'a, 'file, F, K> {
+    pub f: &'a File<'file>,
+    pub run: &'a mut Run,
+    pub srcs: &'a [Src],
+    pub driver: Driver<'a>,
+    pub view: &'a ViewSpec,
+    pub filter: Filter<'a>,
+    pub emit: F,
+    pub keep: K,
 }
 
 impl<F: FnMut(&mut Run, u32, u32), K: FnMut(&mut Run, u32) -> bool> Batch<'_, '_, F, K> {
     #[inline]
-    fn drive<I: IntoIterator<Item = u32>>(&mut self, hits: impl Fn(u64) -> I) -> u64 {
+    pub fn drive<I: IntoIterator<Item = u32>>(&mut self, hits: impl Fn(u64) -> I) -> u64 {
         let mut touched = 0;
         let key_column =
             super::view_key::Key::bind(self.f, &self.srcs[self.driver.source], self.driver.column);

@@ -1,5 +1,5 @@
 //! Wire rows for the shipping comparison and project replay receipts.
-use super::finish::json_output::{self as wire, Cell as WireCell};
+use ryo_executor::finish::json_output::{self as wire, Cell as WireCell};
 use ryo::linter::{Cell, Finding, Slot};
 use serde_json::json;
 fn value(slot: &Slot) -> WireCell<'_> {

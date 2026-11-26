@@ -10,12 +10,12 @@ thread_local! {
     static TALLY: RefCell<BTreeMap<(String, String), (u64, u64)>> = const { RefCell::new(BTreeMap::new()) };
 }
 
-fn made_empty(f: &File<'_>, n: usize) -> bool {
+pub fn made_empty(f: &File<'_>, n: usize) -> bool {
     matches!(&f.memo[n], Some(Res::Tab(t)) if t.n == 0)
 }
 
 /// The class of a run of `node` at its entry.
-pub(super) fn class(ex: &mut Exec<'_>, f: &File<'_>, run: &mut Run, node: usize) -> (String, Option<usize>) {
+pub fn class(ex: &mut Exec<'_>, f: &File<'_>, run: &mut Run, node: usize) -> (String, Option<usize>) {
     let c = class_(ex, f, run, node);
     let first = match ex.plan.nodes[node].op() {
         "antijoin" | "ordered-match" | "as-of" => ex.arg_rel(node, "left").ok(),
@@ -26,7 +26,7 @@ pub(super) fn class(ex: &mut Exec<'_>, f: &File<'_>, run: &mut Run, node: usize)
     (c, first)
 }
 
-fn class_(ex: &mut Exec<'_>, f: &File<'_>, run: &mut Run, node: usize) -> String {
+pub fn class_(ex: &mut Exec<'_>, f: &File<'_>, run: &mut Run, node: usize) -> String {
     let pn = &ex.plan.nodes[node];
     let op = pn.op();
     if op == "select" {
@@ -59,7 +59,7 @@ fn class_(ex: &mut Exec<'_>, f: &File<'_>, run: &mut Run, node: usize) -> String
 }
 
 /// After the run: tallied (runs, and of them returning nothing).
-pub(super) fn tally(ex: &Exec<'_>, f: &File<'_>, node: usize, class: (String, Option<usize>), empty: bool) {
+pub fn tally(ex: &Exec<'_>, f: &File<'_>, node: usize, class: (String, Option<usize>), empty: bool) {
     let pn = &ex.plan.nodes[node];
     let (mut class, first) = class;
     if empty && class.ends_with("nothing known") {
@@ -80,7 +80,7 @@ pub(super) fn tally(ex: &Exec<'_>, f: &File<'_>, node: usize, class: (String, Op
     });
 }
 
-pub(crate) fn print() {
+pub fn print() {
     TALLY.with(|t| {
         let t = t.borrow();
         let mut v: Vec<_> = t.iter().collect();

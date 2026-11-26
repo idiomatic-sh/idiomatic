@@ -1,16 +1,16 @@
 //! A missing row kind is immaterial only when every direct consumer excludes it.
 use super::finish::{Plan, PNode};
 use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
-use ryo::languages::Relation;
+use crate::languages::Relation;
 use ryo_relations::domain::relations::service as catalog;
 use ryo_relations::domain::relations::types::{Missing, RowKind};
 use std::collections::HashMap;
 
 #[derive(Default)]
-pub(crate) struct Coverage(HashMap<(Relation, RowKind), bool>);
+pub struct Coverage(HashMap<(Relation, RowKind), bool>);
 
 impl Coverage {
-    pub(crate) fn needed(&mut self, plan: &Plan, relation: Relation, missing: Missing) -> bool {
+    pub fn needed(&mut self, plan: &Plan, relation: Relation, missing: Missing) -> bool {
         let Missing::Kind(kind) = missing else {
             return true;
         };
@@ -38,7 +38,7 @@ impl Coverage {
     }
 }
 
-fn excludes_kind(node: &PNode, column: &str, kind: &str) -> bool {
+pub fn excludes_kind(node: &PNode, column: &str, kind: &str) -> bool {
     if let FinishStep::Select(select) = node.step() {
         matches!(&select.condition, RowCondition::Tested(e) if typed_excludes(e, column, kind))
     } else {
@@ -46,7 +46,7 @@ fn excludes_kind(node: &PNode, column: &str, kind: &str) -> bool {
     }
 }
 
-fn typed_excludes(e: &PlanExpression, c: &str, k: &str) -> bool {
+pub fn typed_excludes(e: &PlanExpression, c: &str, k: &str) -> bool {
     let different = |a: &PlanExpression, b: &PlanExpression| matches!((a,b),(PlanExpression::Column(n),PlanExpression::Literal(PlanConstant::Text(t))) if n.column.0.as_ref()==c && t.0.as_ref()!=k);
     match e {
         PlanExpression::Compare(p) if p.comparator == Comparator::Equal => {

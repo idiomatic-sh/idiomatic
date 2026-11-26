@@ -2,41 +2,41 @@
 //! differ by the file's ordinal. Overlapping selections retain one binding each.
 use std::sync::Arc;
 
-type Job = (usize, usize);
+pub type Job = (usize, usize);
 
 #[derive(Clone)]
-struct Selection {
-    bases: Arc<[Job]>,
-    ordinal: usize,
+pub struct Selection {
+    pub bases: Arc<[Job]>,
+    pub ordinal: usize,
 }
 
 /// Most inventories admit one program set. Only scopes with irregular overlap
 /// or store hits need individually addressed jobs.
 #[derive(Clone, Default)]
-pub(crate) struct FilePrograms {
-    common: Option<Selection>,
-    individual: Vec<Job>,
+pub struct FilePrograms {
+    pub common: Option<Selection>,
+    pub individual: Vec<Job>,
 }
 
 impl FilePrograms {
     /// Shared program order regardless of the file's ordinal. The source retains
     /// the Arc for the entire visit; irregular overlaps have no shared identity.
-    pub(super) fn common_id(&self) -> Option<usize> {
+    pub fn common_id(&self) -> Option<usize> {
         self.common.as_ref().filter(|_| self.individual.is_empty()).map(|s| s.bases.as_ptr() as usize)
     }
 
-    pub(crate) fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.common.as_ref().map_or(0, |s| s.bases.len()) + self.individual.len()
     }
-    pub(crate) fn is_empty(&self) -> bool { self.len() == 0 }
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = Job> + Clone + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = Job> + Clone + '_ {
         self.common.iter().flat_map(|s|
             s.bases.iter().map(|&(binding, base)| (binding, base + s.ordinal))
         ).chain(self.individual.iter().copied())
     }
 
-    fn materialize(&mut self) -> &mut Vec<Job> {
+    pub fn materialize(&mut self) -> &mut Vec<Job> {
         if self.common.is_some() {
             let entries = self.iter().collect();
             self.individual = entries;
@@ -45,7 +45,7 @@ impl FilePrograms {
         &mut self.individual
     }
 
-    pub(super) fn lookup(&self, binding: usize) -> Option<usize> {
+    pub fn lookup(&self, binding: usize) -> Option<usize> {
         if let Some(selection) = &self.common
             && let Ok(i) = selection.bases.binary_search_by_key(&binding, |j| j.0)
         {
@@ -54,12 +54,12 @@ impl FilePrograms {
         self.individual.binary_search_by_key(&binding, |j| j.0).ok().map(|i| self.individual[i].1)
     }
 
-    pub(super) fn admit(&mut self, binding: usize, new: impl FnOnce() -> usize) -> usize {
+    pub fn admit(&mut self, binding: usize, new: impl FnOnce() -> usize) -> usize {
         if self.common.is_some() && let Some(slot) = self.lookup(binding) { return slot; }
         super::admitted_slot(self.materialize(), binding, new)
     }
 
-    pub(super) fn share(&mut self, bases: &Arc<[Job]>, ordinal: usize) {
+    pub fn share(&mut self, bases: &Arc<[Job]>, ordinal: usize) {
         if self.is_empty() {
             self.common = Some(Selection { bases: bases.clone(), ordinal });
         } else {
@@ -69,16 +69,16 @@ impl FilePrograms {
         }
     }
 
-    pub(super) fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.common = None;
         self.individual.clear();
     }
 
-    pub(crate) fn keep(&mut self, mut f: impl FnMut(Job) -> bool) {
+    pub fn keep(&mut self, mut f: impl FnMut(Job) -> bool) {
         self.materialize().retain(|job| f(*job));
     }
 
-    pub(super) fn keep_programs(
+    pub fn keep_programs(
         &mut self, eligible: &impl Fn(usize) -> bool,
         cache: &mut std::collections::HashMap<usize, (Arc<[Job]>, Arc<[Job]>)>,
     ) {
@@ -95,7 +95,7 @@ impl FilePrograms {
         self.individual.retain(|&(b, _)| eligible(b));
     }
 
-    pub(super) fn append(&mut self, incoming: &mut Self) {
+    pub fn append(&mut self, incoming: &mut Self) {
         if self.is_empty() {
             std::mem::swap(self, incoming);
         } else if !incoming.is_empty() {

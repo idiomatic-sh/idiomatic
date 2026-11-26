@@ -29,6 +29,7 @@ smallvec = "1"
 unicode-width = "=0.2.2"
 toml = "1"
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../../../ryo/crates/engine" }
+ryo_executor = { package = "idiomatic-sh-ryo-executor", path = "../../../../ryo/crates/executor" }
 ryo_execution_domain = { package = "idiomatic-sh-ryo-execution-domain", path = "../../../../ryo/crates/execution_domain" }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../../../../ryo/crates/language" }
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../../../../ryo/crates/query_language" }

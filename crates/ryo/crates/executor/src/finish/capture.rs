@@ -3,7 +3,7 @@
 //! holds no separator character, `{*name}` may; the text between slots is literal. (The harness took one regex match, the first, so a rule
 //! that needs each split saw one.)
 
-fn walk(
+pub fn walk(
     pattern: &str,
     sep: &str,
     whole: &str,
@@ -69,7 +69,7 @@ fn walk(
 }
 
 /// Locate the requested capture columns once while preparing the step.
-pub(super) fn columns<'a>(
+pub fn columns<'a>(
     pattern: &str,
     requested: impl Iterator<Item = &'a str>,
 ) -> Vec<Option<usize>> {
@@ -84,12 +84,12 @@ pub(super) fn columns<'a>(
 }
 
 #[derive(Default)]
-struct Ways {
-    count: usize,
-    cells: Vec<u64>,
+pub struct Ways {
+    pub count: usize,
+    pub cells: Vec<u64>,
 }
 
-fn append_cells(
+pub fn append_cells(
     run: &mut super::Run,
     text: &str,
     columns: &[Option<usize>],
@@ -103,7 +103,7 @@ fn append_cells(
     }
 }
 
-fn captured(
+pub fn captured(
     run: &mut super::Run,
     text: &str,
     pattern: &str,
@@ -122,7 +122,7 @@ fn captured(
 /// A closed capture may omit a split that cannot survive any direct consumer.
 /// Every participating select reads this result as its only input. An emit,
 /// a different operator or an unknown predicate contributes no proof.
-pub(super) fn required_equalities(
+pub fn required_equalities(
     exec: &mut super::Exec<'_>, run: &mut super::Run, node: usize,
 ) -> Vec<(usize, usize)> {
     use super::{E, Op};
@@ -152,7 +152,7 @@ pub(super) fn required_equalities(
     common.unwrap_or_default()
 }
 
-pub(super) fn write(
+pub fn write(
     run: &mut super::Run,
     input: &super::Table,
     path: usize,

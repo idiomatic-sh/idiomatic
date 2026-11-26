@@ -9,9 +9,9 @@ use std::hash::Hasher;
 
 thread_local! {
     /// The step kind that asked the provider for the fill in flight.
-    pub(in super::super) static SITE: Cell<&'static str> = const { Cell::new("other") };
+    pub static SITE: Cell<&'static str> = const { Cell::new("other") };
     /// Calls: native_get, view_holds, lit_rows, view_rows, native_probe, native_rows; cells an expression read of a view, of a base.
-    pub(in super::super) static READS: RefCell<[u64; 8]> = const { RefCell::new([0; 8]) };
+    pub static READS: RefCell<[u64; 8]> = const { RefCell::new([0; 8]) };
     /// Per fact slot: files filled, files whose fill no step read (size only, or never).
     static FILLED: RefCell<Vec<(u64, u64)>> = const { RefCell::new(Vec::new()) };
     /// native_get calls by (relation kind: tree, child, location, token, fact; column).
@@ -24,18 +24,18 @@ thread_local! {
 }
 
 /// Whether the fills' section clock runs.
-pub(in super::super) fn timed() -> bool {
+pub fn timed() -> bool {
     sw!("VEC_FILL_TIME")
 }
 
 /// Whether the fills are counted by kind (zero-row fills, the step kind that asked): `VEC_FILL_COUNT`.
-pub(in super::super) fn counting() -> bool {
+pub fn counting() -> bool {
     sw!("VEC_FILL_COUNT")
 }
 
 /// Counts a native read of reader `i` (under `VEC_READ_COUNT`).
 #[inline]
-pub(in super::super) fn read(i: usize) {
+pub fn read(i: usize) {
     if sw!("VEC_READ_COUNT") {
         READS.with(|r| r.borrow_mut()[i] += 1);
     }
@@ -43,7 +43,7 @@ pub(in super::super) fn read(i: usize) {
 
 /// Counts a native_get of a relation kind and column (under `VEC_READ_COUNT`).
 #[inline]
-pub(in super::super) fn read_at(kind: usize, col: usize) {
+pub fn read_at(kind: usize, col: usize) {
     if sw!("VEC_READ_COUNT") {
         AT.with(|r| r.borrow_mut()[kind][col.min(15)] += 1);
     }
@@ -51,12 +51,12 @@ pub(in super::super) fn read_at(kind: usize, col: usize) {
 
 /// Sets the step kind asking now; the previous comes back for the caller to restore.
 #[inline]
-pub(in super::super) fn site(s: &'static str) -> &'static str {
+pub fn site(s: &'static str) -> &'static str {
     SITE.with(|c| c.replace(s))
 }
 
 /// The reads line for the report.
-pub(in super::super) fn reads_line() -> String {
+pub fn reads_line() -> String {
     let r = READS.with(|r| *r.borrow());
     let at = AT.with(|a| *a.borrow());
     let by: Vec<String> = ["tree", "child", "location", "token", "fact"].iter().enumerate().flat_map(|(k, n)| at[k].iter().enumerate().filter(|(_, v)| **v > 0).map(move |(c, v)| format!("{n}.{c}={v}"))).collect();
@@ -64,7 +64,7 @@ pub(in super::super) fn reads_line() -> String {
 }
 
 /// One fill's line in the dump (under `VEC_FILL_DUMP`).
-pub(in super::super) fn dump(run: &Run, file: u32, rel: &str, t: &Table) {
+pub fn dump(run: &Run, file: u32, rel: &str, t: &Table) {
     static PATH: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
     let Some(path) = PATH.get_or_init(|| std::env::var("VEC_FILL_DUMP").ok()) else { return };
     let mut h = rustc_hash::FxHasher::default();
@@ -100,7 +100,7 @@ pub(in super::super) fn dump(run: &Run, file: u32, rel: &str, t: &Table) {
 }
 
 /// Flushes the dump.
-pub(in super::super) fn flush() {
+pub fn flush() {
     DUMP.with(|d| {
         if let Some(w) = d.borrow_mut().as_mut() {
             std::io::Write::flush(w).expect("fill dump flush");
@@ -109,13 +109,13 @@ pub(in super::super) fn flush() {
 }
 
 /// Whether `node` asks a fill for the first time in the run (for `VEC_ASKER_PLAN`'s one line a step).
-pub(in super::super) fn first_asker(node: u32) -> bool {
+pub fn first_asker(node: u32) -> bool {
     thread_local! { static SEEN: RefCell<std::collections::HashSet<u32>> = RefCell::new(std::collections::HashSet::new()); }
     SEEN.with(|s| s.borrow_mut().insert(node))
 }
 
 /// The step `node` asks fact slot `i`'s fill (under `VEC_FILL_COUNT`).
-pub(in super::super) fn asked(i: usize, node: u32) {
+pub fn asked(i: usize, node: u32) {
     ASKER.with(|a| {
         let mut a = a.borrow_mut();
         if a.len() <= i {
@@ -126,7 +126,7 @@ pub(in super::super) fn asked(i: usize, node: u32) {
 }
 
 /// A file's fill of fact slot `i` ended; `read`: a step read its rows.
-pub(in super::super) fn fact_filled(i: usize, read: bool) {
+pub fn fact_filled(i: usize, read: bool) {
     if !read {
         let by = ASKER.with(|a| a.borrow().get(i).copied().unwrap_or(u32::MAX));
         UNREAD_BY.with(|u| *u.borrow_mut().entry((i, by)).or_default() += 1);
@@ -142,7 +142,7 @@ pub(in super::super) fn fact_filled(i: usize, read: bool) {
 }
 
 /// The fills no step read, by relation, for the report; then by relation and asking step.
-pub(in super::super) fn unread_lines(run: &Run) -> Vec<String> {
+pub fn unread_lines(run: &Run) -> Vec<String> {
     let mut out: Vec<String> = FILLED.with(|f| f.borrow().iter().enumerate().filter(|(_, v)| v.0 > 0).map(|(i, v)| format!("UNREAD\t{}\t{}\t{}", run.fact_rels[i].0, v.0, v.1)).collect());
     UNREAD_BY.with(|u| out.extend(u.borrow().iter().map(|((i, n), c)| format!("UNREAD-BY\t{}\t{}\t{c}", run.fact_rels[*i].0, *n as i64))));
     out

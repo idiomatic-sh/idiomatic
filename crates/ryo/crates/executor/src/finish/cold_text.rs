@@ -6,15 +6,15 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
-pub(super) struct Plan {
-    by_symbol: Vec<u32>,
-    slots: usize,
-    by_bytes: FxHashMap<Rc<[u8]>, u32>,
-    one_byte: Vec<u32>,
-    longest: usize,
-    tests: FxHashMap<Vec<super::cold_list::FilterKey>, Rc<Predicate>>,
+pub struct Plan {
+    pub by_symbol: Vec<u32>,
+    pub slots: usize,
+    pub by_bytes: FxHashMap<Rc<[u8]>, u32>,
+    pub one_byte: Vec<u32>,
+    pub longest: usize,
+    pub tests: FxHashMap<Vec<super::cold_list::FilterKey>, Rc<Predicate>>,
 }
-pub(super) fn slots(run: &mut Run, words: &[u32]) -> Vec<usize> {
+pub fn slots(run: &mut Run, words: &[u32]) -> Vec<usize> {
     words
         .iter()
         .map(|word| {
@@ -44,14 +44,14 @@ pub(super) fn slots(run: &mut Run, words: &[u32]) -> Vec<usize> {
 }
 
 impl Plan {
-    fn symbol_slot(&self, symbol: u32) -> u32 {
+    pub fn symbol_slot(&self, symbol: u32) -> u32 {
         self.by_symbol
             .get(symbol as usize)
             .copied()
             .unwrap_or(u32::MAX)
     }
 
-    fn spelling_slot(&self, text: &[u8]) -> u32 {
+    pub fn spelling_slot(&self, text: &[u8]) -> u32 {
         match text {
             [byte] => self
                 .one_byte
@@ -65,15 +65,15 @@ impl Plan {
 }
 
 #[derive(Default)]
-pub(super) struct Dictionary {
-    postings: RefCell<Vec<Vec<u32>>>,
+pub struct Dictionary {
+    pub postings: RefCell<Vec<Vec<u32>>>,
 }
 
-pub(super) struct Predicate {
-    test: super::Bound<Test>,
+pub struct Predicate {
+    pub test: super::Bound<Test>,
 }
 impl Predicate {
-    pub(super) fn compile(run: &mut Run, expr: &E, test: Test) -> Rc<Self> {
+    pub fn compile(run: &mut Run, expr: &E, test: Test) -> Rc<Self> {
         let key = super::cold_list::conjuncts(std::slice::from_ref(expr));
         run.cold_text
             .tests
@@ -81,7 +81,7 @@ impl Predicate {
             .or_insert_with(|| Rc::new(Self { test: super::Bound::new(test) }))
             .clone()
     }
-    pub(super) fn accepts(&self, f: &File<'_>, run: &mut Run, row: u32) -> bool {
+    pub fn accepts(&self, f: &File<'_>, run: &mut Run, row: u32) -> bool {
         let symbol = f.elem_text(run, row);
         if sw!("VEC_COLD_COUNT") {
             counts(|n| n[4] += 1);
@@ -95,7 +95,7 @@ impl Predicate {
     }
 }
 
-pub(super) fn candidates(
+pub fn candidates(
     extent: super::Extent,
     f: &File<'_>,
     run: &mut Run,
@@ -154,14 +154,14 @@ pub(super) fn candidates(
 thread_local! {
     static TOTALS: std::cell::Cell<[u64; 5]> = const { std::cell::Cell::new([0; 5]) };
 }
-fn counts(add: impl FnOnce(&mut [u64; 5])) {
+pub fn counts(add: impl FnOnce(&mut [u64; 5])) {
     TOTALS.with(|all| {
         let mut n = all.get();
         add(&mut n);
         all.set(n);
     });
 }
-pub(super) fn report() {
+pub fn report() {
     if sw!("VEC_COLD_COUNT") {
         let [files, indexed, postings, evaluated, requests] = TOTALS.with(|c| c.get());
         println!("COLD_TEXT\t{files}\t{indexed}\t{postings}\t{evaluated}\t{requests}");

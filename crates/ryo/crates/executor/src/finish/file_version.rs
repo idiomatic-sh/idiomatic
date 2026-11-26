@@ -3,32 +3,32 @@ use super::{Index, KindBits, NodeTable, Position, Run, Tokens, node_table};
 use std::cell::{OnceCell, RefCell};
 use std::rc::Rc;
 
-pub(crate) struct FileVersion<'a> {
-    pub(crate) table: &'a NodeTable,
-    pub(crate) src: &'a [u8],
-    pub(crate) file: u32,
-    pub(crate) n: usize,
+pub struct FileVersion<'a> {
+    pub table: &'a NodeTable,
+    pub src: &'a [u8],
+    pub file: u32,
+    pub n: usize,
     /// How many elements are the file's own tree: the table below `own_end`, the elements of a relation of extent `Own`.
-    pub(crate) own: usize,
-    pub(crate) kind: &'a [u16],
-    pub(crate) start: &'a [u32],
-    pub(crate) end: &'a [u32],
-    pub(crate) parent: &'a [u32],
-    pub(super) field: &'a [u16],
-    pub(super) text_memo: RefCell<Vec<u32>>,
-    pub(super) present_fields: OnceCell<rustc_hash::FxHashSet<u32>>,
-    pub(super) by_start: RefCell<Option<Index>>,
-    pub(super) by_end: RefCell<Option<Index>>,
-    pub(super) by_line: [RefCell<Option<Index>>; 2],
-    pub(super) tokens: RefCell<Option<Rc<Tokens>>>,
-    roots: OnceCell<Vec<(u16, u32)>>,
-    attached: OnceCell<Vec<(u32, u32)>>,
-    lines: OnceCell<Vec<u32>>,
-    kinds: OnceCell<Vec<u64>>,
+    pub own: usize,
+    pub kind: &'a [u16],
+    pub start: &'a [u32],
+    pub end: &'a [u32],
+    pub parent: &'a [u32],
+    pub field: &'a [u16],
+    pub text_memo: RefCell<Vec<u32>>,
+    pub present_fields: OnceCell<rustc_hash::FxHashSet<u32>>,
+    pub by_start: RefCell<Option<Index>>,
+    pub by_end: RefCell<Option<Index>>,
+    pub by_line: [RefCell<Option<Index>>; 2],
+    pub tokens: RefCell<Option<Rc<Tokens>>>,
+    pub roots: OnceCell<Vec<(u16, u32)>>,
+    pub attached: OnceCell<Vec<(u32, u32)>>,
+    pub lines: OnceCell<Vec<u32>>,
+    pub kinds: OnceCell<Vec<u64>>,
 }
 
 impl<'a> FileVersion<'a> {
-    pub(crate) fn new(table: &'a NodeTable, src: &'a [u8], file: u32, text: Option<Vec<u32>>) -> Self {
+    pub fn new(table: &'a NodeTable, src: &'a [u8], file: u32, text: Option<Vec<u32>>) -> Self {
         let kind = node_table::kind_codes(table);
         if let Some(symbols) = &text {
             assert_eq!(symbols.len(), kind.len());
@@ -49,7 +49,7 @@ impl<'a> FileVersion<'a> {
     }
 
     /// How many elements of the table a node relation of `extent` covers.
-    pub(crate) fn limit(&self, extent: super::Extent) -> usize {
+    pub fn limit(&self, extent: super::Extent) -> usize {
         match extent {
             super::Extent::Own => self.own,
             super::Extent::Whole => self.n,
@@ -58,7 +58,7 @@ impl<'a> FileVersion<'a> {
 
     /// The ids of a bucket the extent covers: below `own_end` for the file's own tree. One compare to pick the slice, none a row;
     /// a file with no embedded segment has `own == n` and the slice is returned as it is.
-    pub(crate) fn cut<'s>(&self, ids: &'s [Position], extent: super::Extent) -> &'s [Position] {
+    pub fn cut<'s>(&self, ids: &'s [Position], extent: super::Extent) -> &'s [Position] {
         if extent == super::Extent::Whole || self.own >= self.n {
             return ids;
         }
@@ -67,11 +67,11 @@ impl<'a> FileVersion<'a> {
         &ids[..ids.partition_point(|p| p.0 < own)]
     }
 
-    pub(crate) fn into_text(self) -> Vec<u32> {
+    pub fn into_text(self) -> Vec<u32> {
         self.text_memo.into_inner()
     }
 
-    pub(super) fn extra_roots(&self) -> &Vec<(u16, u32)> {
+    pub fn extra_roots(&self) -> &Vec<(u16, u32)> {
         self.roots.get_or_init(|| self.parent.iter().enumerate().skip(1)
             .filter(|(i, parent)| *i == **parent as usize)
             .map(|(i, _)| (self.field[i], i as u32))
@@ -80,7 +80,7 @@ impl<'a> FileVersion<'a> {
 
     /// The inverse of the parent column also includes roots attached after their host closed.
     /// The concrete child slice only contains positions from the host's own segment.
-    pub(super) fn child_rows(&self, parent: u64) -> impl Iterator<Item = u32> + '_ {
+    pub fn child_rows(&self, parent: u64) -> impl Iterator<Item = u32> + '_ {
         let host = u32::try_from(parent).unwrap_or(u32::MAX);
         let attached = self.attached.get_or_init(|| {
             let mut roots: Vec<_> = node_table::embedded_segments(self.table)
@@ -95,7 +95,7 @@ impl<'a> FileVersion<'a> {
             .filter(move |&child| child != host && self.parent.get(child as usize) == Some(&host))
     }
 
-    fn line_offsets(&self) -> &[u32] {
+    pub fn line_offsets(&self) -> &[u32] {
         self.lines.get_or_init(|| {
             let mut offsets = vec![0];
             for (i, &byte) in self.src.iter().enumerate() {
@@ -106,14 +106,14 @@ impl<'a> FileVersion<'a> {
             offsets
         })
     }
-    pub(super) fn line(&self, off: u32) -> i64 {
+    pub fn line(&self, off: u32) -> i64 {
         self.line_offsets().partition_point(|&s| s <= off) as i64
     }
-    pub(super) fn column(&self, off: u32) -> i64 {
+    pub fn column(&self, off: u32) -> i64 {
         let starts = self.line_offsets();
         i64::from(off - starts[starts.partition_point(|&s| s <= off) - 1])
     }
-    pub(super) fn kind_bits(&self, run: &Run) -> &[u64] {
+    pub fn kind_bits(&self, run: &Run) -> &[u64] {
         self.kinds.get_or_init(|| {
             let mut bits = vec![0; run.kind_sym.len().div_ceil(64).max(1)];
             for c in 0..run.kind_sym.len() {
@@ -129,7 +129,7 @@ impl<'a> FileVersion<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ryo::languages::{Count, EmbeddedMapping, EmbeddedText, FieldCode, NameText, Offset};
+    use crate::languages::{Count, EmbeddedMapping, EmbeddedText, FieldCode, NameText, Offset};
 
     #[test]
     fn parent_probe_includes_each_attached_root_and_concrete_child() {
