@@ -364,7 +364,7 @@ pub fn differences_from_file(path: &Path, body: &str) -> Vec<String> {
         found.push(format!("{}: the header says {expected:?} lines, the file holds {}: it was cut", path.display(), frozen.len()));
     }
     let computed: Vec<&str> = body.lines().collect();
-    let first = frozen.iter().zip(&computed).position(|(frozen, computed)| frozen != computed);
+    let first = frozen.iter().zip(&computed).position(|(frozen, computed)| frozen.split("\tadjudicated").next() != Some(*computed));
     if let Some(at) = first {
         found.push(format!(
             "{}: line {} differs: frozen {:?}, walk {:?} ({} lines frozen, {} from the walk); the rows of both routes can be made again at the tag `{TAG}`",
