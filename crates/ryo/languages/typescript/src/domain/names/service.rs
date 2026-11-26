@@ -89,11 +89,6 @@ fn template(tree: &impl Syntax, symbols: &mut impl Interner, at: Position) -> Op
     tree.decoded_of(token)
         .map(|value| symbols.derived(tree.bytes(), value))
 }
-/// A comment's content without delimiters.
-pub(crate) fn comment(tree: &impl Syntax, symbols: &mut impl Interner, at: Position) -> Symbol {
-    let content = comment_content(text(tree, at).0);
-    symbols.derived(tree.bytes(), languages::NameText(content))
-}
 /// The content of a comment written as `raw`, without its delimiters.
 pub(crate) fn comment_content(raw: &str) -> &str {
     raw.strip_prefix(LINE_COMMENT)

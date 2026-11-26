@@ -76,26 +76,24 @@ pub(crate) fn project() -> ProjectContract {
 /// The notes the language's own parse leaves of the file at `path` whose text is `text`; none for a file it does not read.
 #[must_use]
 pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
-    let (mut elements, mut symbols) = (
-        languages::Elements::default(),
-        languages::Symbols::default(),
-    );
-    let built = languages::contract::build(
-        crate::linked().parse_engine().as_ref(),
-        languages::ParseRequest {
+    let linked = crate::linked();
+    let engine = linked.parse_engine();
+    let mut notes = languages::Bytes::default();
+    if let Some(relations) = engine.file_relations() {
+        let request = languages::ParseRequest {
             path: languages::SourcePath(path),
             file: languages::FileId(0),
             bytes: languages::ByteSlice(text.as_bytes()),
             notes: languages::NoteRequest::Wanted,
             fields: languages::FieldRequest::Unwanted,
-        },
-        &mut elements,
-        &mut symbols,
-    );
-    match built {
-        Ok(()) => languages::contract::notes_of(&elements).clone(),
-        Err(_) => languages::Bytes::default(),
+        };
+        let mut symbols = languages::Symbols::default();
+        let mut reader = relations.numbered().open();
+        let _ = reader.visit(request, languages::all(), &[], None, &mut symbols, &mut |file, _| {
+            notes = file.notes.clone();
+        });
     }
+    notes
 }
 
 /// The request of a run over the repository whose files are `files`, each with its path and its text, that asks for the relations

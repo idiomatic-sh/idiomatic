@@ -4,23 +4,14 @@ use crate::domain::bindings::service as bindings;
 use crate::domain::file_view::service::{node_cell, of_kinds, span_at};
 use crate::domain::file_view::types::TypeScriptWalk;
 use crate::domain::syntax::reading::WordSink;
-use crate::domain::model::types::ReadIndexes;
 use crate::domain::names::service as names;
 use crate::domain::nodes::types::Node;
 use crate::domain::resolutions::service as resolutions;
-use crate::domain::syntax::{service::kind_bits, types::Kind};
+use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
 /// Reads the `resolves` rows of one TypeScript file from its syntax tree.
 pub(crate) struct ResolvesItem;
-ryo::reads! { ResolvesItem => languages::Resolves, model(ReadIndexes) |tree, model, at, symbols| {
- kinds: [Kind::Node(Node::TSTypeReference)] as kind_bits,
- given written = resolutions::plain_type_name(tree, at)?;
- given name = names::identifier(tree, symbols, written);
- given index = bindings::indexed(tree, &model.bindings);
- given definition = bindings::declaration(tree, &index, written)?;
- row { occurrence: node(at), owner: value(resolutions::holder(tree, at)), name: value(name), definition: node(definition), file: file, span: span(at) }
-} }
 
 // The engine fills `resolves` from the walked file: every row of the file, once.
 ryo::fills! {
