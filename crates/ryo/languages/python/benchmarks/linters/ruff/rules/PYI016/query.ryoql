@@ -1,8 +1,9 @@
 import observation_matches from "python/ruff/suppress-matches";
 import type_context from "python/ruff/type-definition-context";
+import pipe_operands from "python/ruff/pipe-operands";
 let nodes = select id, kind, file from "semantic-syntax";
 let children = select parent, child, field, ordinal, file from "semantic-child";
-let pipes = select id,left,right,file from "binary-operands" where operator="|";
+let pipes = pipe_operands();
 let pipe_tokens = select file from "semantic-syntax" where text="|";
 let pipe_files = group-count(from=pipe_tokens,keys=[file],count="count");
 let binary_unions = select l.id as id,l.left as left,l.right as right,l.file as file from pipe_files as r join pipes as l on l.file=r.file;

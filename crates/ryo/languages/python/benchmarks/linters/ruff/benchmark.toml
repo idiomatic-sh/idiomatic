@@ -871,9 +871,6 @@ YTT303 = "accepted-syntax"
 # Private provider relations this pack still reads. The provider declares nothing else outside the shared vocabulary.
 # Provisional shared vocabulary, awaiting the owner's decision on each:
 #   annotation-evaluation: owner decides the shared evaluation-region fact that replaces it.
-#   binary-operands: owner decides whether ordered operand roles join the shared syntax-edge family.
-#   comparison-operands: owner decides whether ordered operand roles join the shared syntax-edge family.
-#   comment-position: owner decides whether physical lexical position joins the shared token family.
 # Held; the general-forms builder's query for each is not yet the cheaper form:
 #   import-head: I001 reads it. Its general form reads project-namespace-membership and module-identity and costs more; taken into the pack when the file-local slice of project-namespace-membership lands (cross-file builder).
 #   import-alias-parts: I001 reads it (F401 and F811 read the general form). Replaced together with import-head.
@@ -951,6 +948,7 @@ YTT303 = "accepted-syntax"
 "python/ruff/noqa-ranges" = "fragments/noqa-ranges.ryoql"
 "python/ruff/noqa-suppressions-with-additional-lines" = "fragments/noqa-suppressions-with-additional-lines.ryoql"
 "python/ruff/origins-at-annotation" = "fragments/origins-at-annotation.ryoql"
+"python/ruff/pipe-operands" = "fragments/pipe-operands.ryoql"
 "python/ruff/paired-elements" = "fragments/paired-elements.ryoql"
 "python/ruff/pep604-candidates" = "fragments/pep604-candidates.ryoql"
 "python/ruff/postponed-expression-members" = "fragments/postponed-expression-members.ryoql"

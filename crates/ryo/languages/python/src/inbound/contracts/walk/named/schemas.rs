@@ -25,8 +25,6 @@ impl NamedFile<'_, '_> {
         static SCHEMAS: OnceLock<Vec<FileRelation>> = OnceLock::new();
         SCHEMAS.get_or_init(|| {
             let mut schemas = Vec::new();
-            schemas.extend_from_slice(crate::inbound::contracts::walk::named::comment_positions::SCHEMAS);
-            schemas.extend_from_slice(Self::EXPRESSION_SCHEMAS);
             schemas.extend_from_slice(Self::IMPORT_SCHEMAS);
             schemas.extend_from_slice(Self::TYPING_SCHEMAS);
             schemas
@@ -42,15 +40,9 @@ impl NamedFile<'_, '_> {
         if syntax == l::SyntaxCompleteness::Complete && lexical == l::SyntaxCompleteness::Complete {
             return None;
         }
-        let lexical_only = crate::inbound::contracts::walk::named::comment_positions::SCHEMAS.contains(schema);
-        let extent = if lexical == l::SyntaxCompleteness::Incomplete
-            && (lexical_only || Self::named_import_requires_tokens(schema))
-        {
+        let extent = if lexical == l::SyntaxCompleteness::Incomplete && Self::named_import_requires_tokens(schema) {
             "lexical stream"
-        } else if syntax == l::SyntaxCompleteness::Incomplete
-            && !lexical_only
-            && Self::named_schemas().contains(schema)
-        {
+        } else if syntax == l::SyntaxCompleteness::Incomplete && Self::named_schemas().contains(schema) {
             "syntax"
         } else {
             return None;
@@ -89,19 +81,13 @@ impl NamedFile<'_, '_> {
                 answers.push(Ok(partial));
                 continue;
             }
-            if Self::EXPRESSION_SCHEMAS.contains(schema) {
-                answers.push(Ok(self.named_expression(schema, file, bytes, symbols)));
-                continue;
-            }
             if Self::TYPING_SCHEMAS.contains(schema) {
                 semantic_order.push(slot);
                 semantic.push(*schema);
                 answers.push(Err(l::ParseError::Unsupported));
                 continue;
             }
-            let answer = if crate::inbound::contracts::walk::named::comment_positions::SCHEMAS.contains(schema) {
-                crate::inbound::contracts::walk::named::comment_positions::columns(schema, file, self.table, bytes)
-            } else if Self::IMPORT_SCHEMAS.contains(schema) {
+            let answer = if Self::IMPORT_SCHEMAS.contains(schema) {
                 self.named_import(
                     schema,
                     file,

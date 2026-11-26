@@ -1,0 +1,9 @@
+output relation<id: node, left: node, right: node, file: file>;
+let pipe_tokens = select id, file from "semantic-syntax" where text = "|";
+let operator_edges = select parent, child, file from "semantic-child" where field = "op";
+let pipe_operations = select l.parent as id, l.file as file from operator_edges as l join pipe_tokens as r on l.child = r.id and l.file = r.file;
+let left_edges = select parent, child, file from "semantic-child" where field = "left";
+let right_edges = select parent, child, file from "semantic-child" where field = "right";
+let lefts = select l.id as id, r.child as left, l.file as file from pipe_operations as l join left_edges as r on l.id = r.parent and l.file = r.file;
+let pipes = select l.id as id, l.left as left, r.child as right, l.file as file from lefts as l join right_edges as r on l.id = r.parent and l.file = r.file;
+return pipes;

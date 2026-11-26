@@ -1,6 +1,6 @@
-//! The Python language's private file-scope relations (`comment-position`, the import relations, binary operands, comparisons,
+//! The Python language's private file-scope relations (the import relations,
 //! annotation evaluation), answered from a walked file while its view is live: the walk's `named` item hands the request here.
-//! They stay until the rules that read them (I001, the noqa heads) read fills instead.
+//! They stay until the rules that read them (I001) read fills instead.
 
 use crate::domain::file_view::types::{PythonFile, PythonWalk};
 use crate::domain::node::service::nodes_of_kind;
@@ -29,7 +29,6 @@ pub(crate) struct NamedFile<'a, 'f> {
     pub(crate) words: &'a mut FileWords,
 }
 
-mod expression_parts;
 mod imports;
 mod schemas;
 mod named_semantics;
@@ -75,5 +74,4 @@ impl NamedFile<'_, '_> {
     }
 }
 
-mod comment_positions;
 mod import_environment;
