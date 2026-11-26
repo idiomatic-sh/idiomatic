@@ -1,0 +1,101 @@
+# what the language states of itself of json, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of json at trunk c5b3b4a77, before the old readers go
+# lines: 99
+relation	Function	Some(NotCode)	false
+relation	Annotates	Some(NotCode)	false
+relation	Assigns	Some(NotCode)	false
+relation	Comment	None	false
+relation	Directive	Some(NoSuchConstruct)	false
+relation	Decorates	Some(NotCode)	false
+relation	Defines	Some(NotCode)	false
+relation	Visibility	Some(NotCode)	false
+relation	Inherits	Some(NotCode)	false
+relation	Parameter	Some(NotCode)	false
+relation	Reference	Some(NotCode)	false
+relation	Mention	Some(NotCode)	false
+relation	Scope	Some(NotCode)	false
+relation	StaticCall	Some(NotCode)	false
+relation	CallArgument	Some(NotCode)	false
+relation	Resolves	Some(NotCode)	false
+relation	BindingEvent	Some(NotYetRead)	false
+relation	BindingRead	Some(NotYetRead)	false
+relation	BindingUse	Some(NotYetRead)	false
+relation	BindingResolution	Some(NotYetRead)	false
+relation	LookupScope	Some(NotYetRead)	false
+relation	BindingShadow	Some(NotYetRead)	false
+relation	ImplicitSymbol	Some(NotYetRead)	false
+relation	QualifiedName	Some(NotCode)	false
+relation	Identifier	Some(NotCode)	false
+relation	ExpressionShape	Some(NotYetRead)	false
+relation	LiteralProperties	Some(NotYetRead)	false
+relation	FunctionTerminal	Some(NotYetRead)	false
+relation	ExpressionType	Some(NotYetRead)	false
+relation	InterpolatedStringLiteral	Some(NotYetRead)	false
+relation	LanguageTarget	Some(NotYetRead)	false
+relation	CompilerFeature	Some(NotYetRead)	false
+relation	ConstantKey	Some(NotYetRead)	false
+relation	FormatParse	Some(NotYetRead)	false
+relation	FormatField	Some(NotYetRead)	false
+relation	BraceFormatParse	Some(NotYetRead)	false
+relation	BraceFormatField	Some(NotYetRead)	false
+relation	RawFormatSegment	Some(NotYetRead)	false
+relation	RawFormatField	Some(NotYetRead)	false
+relation	LiteralExpressionParse	Some(NotYetRead)	false
+relation	StaticImport	Some(NotCode)	false
+relation	StandardLibraryImport	Some(NotYetRead)	false
+relation	StringLiteral	None	false
+relation	BytesLiteral	Some(NotYetRead)	false
+relation	FormatSpecification	Some(NotYetRead)	false
+relation	SyntaxChild	None	false
+relation	SyntaxError	None	false
+relation	SyntaxTree	None	false
+relation	SemanticSyntax	None	false
+relation	SemanticChild	None	false
+relation	EmbeddedExpression	Some(NotYetRead)	false
+relation	SourceLocation	None	true
+relation	IndentRegion	Some(NoSuchConstruct)	false
+relation	Mapping	None	false
+relation	Entry	None	false
+relation	SequenceElement	None	false
+relation	Prose	Some(NotADocument)	false
+relation	NumericLiteral	Some(NotYetRead)	false
+relation	TokenLink	Some(NotYetRead)	false
+relation	PatternParse	Some(NotYetRead)	false
+relation	PatternSyntax	Some(NotYetRead)	false
+relation	PatternChild	Some(NotYetRead)	false
+relation	FlowEdge	Some(NotYetRead)	false
+relation	FlowBlock	Some(NotYetRead)	false
+relation	FlowMember	Some(NotYetRead)	false
+relation	FlowStep	Some(NotYetRead)	false
+relation	AttributePath	Some(NotCode)	false
+relation	PackageDependency	None	false
+relation	WorkspaceMember	None	false
+relation	SourceDependency	None	false
+relation	AnalyzedSource	None	false
+relation	FilePackage	None	false
+relation	ModuleIdentity	None	false
+relation	ProjectNamespaceMembership	None	false
+relation	ManifestDiagnostic	None	false
+relation	FilesystemFile	None	false
+relation	FilesystemLineCount	None	false
+relation	FilesystemExecutable	None	false
+relation	FilesystemReadFailure	None	false
+skips	[]
+configuration	ParseConfigurationIdentity("")
+capabilities	[QualifiedName, Identifier, AttributePath]
+unknown-reasons	[]
+recognizes	allocation/byte-order-mark.json	true
+recognizes	allocation/empty.json	true
+recognizes	allocation/package.json	true
+recognizes	allocation/tsconfig.base.json	true
+recognizes	allocation/whitespace.json	true
+recognizes	relations/comment/input.jsonc	true
+recognizes	relations/entry/input.json	true
+recognizes	relations/mapping/input.json	true
+recognizes	relations/semantic_child/input.json	true
+recognizes	relations/semantic_syntax/input.json	true
+recognizes	relations/sequence_element/input.json	true
+recognizes	relations/source_location/input.json	true
+recognizes	relations/string_literal/input.json	true
+recognizes	relations/syntax_child/input.json	true
+recognizes	relations/syntax_error/input.json	true
+recognizes	relations/syntax_tree/input.json	true
