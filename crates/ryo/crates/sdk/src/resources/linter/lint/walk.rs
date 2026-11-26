@@ -6,18 +6,18 @@ use ryo_core::outbound::corpus::interface::CorpusPort as _;
 use ryo_values::domain::files::types::{CorpusInput, CorpusListing};
 
 use super::errors::LintError;
-use super::types::{Cache, Corpus, LintRequest, LinterLintEngine, Port};
-use crate::domain::file::types::RelativePath;
+use super::types::{Cache, Corpus, LintReport, LintRequest, LinterLintEngine, Port};
+use crate::domain::file::types::{ReadFailure, RelativePath, Unreadable};
 
 /// `request` with its corpus listed: a walked corpus becomes the files below the root, as the walk finds them; every other corpus is
-/// the caller's and stays as it is.
+/// the caller's and stays as it is. With it, the files the walk found but could not read, and why: the report names them unread.
 ///
 /// # Errors
 ///
 /// `Io` of the corpus when the walk fails.
-pub(super) fn listed(mut request: LintRequest, engine: &LinterLintEngine) -> Result<LintRequest, LintError> {
+pub(super) fn listed(mut request: LintRequest, engine: &LinterLintEngine) -> Result<(LintRequest, Vec<(RelativePath, Box<str>)>), LintError> {
     if !matches!(request.corpus, Corpus::Walked) {
-        return Ok(request);
+        return Ok((request, Vec::new()));
     }
     let mut skipped = engine.skipped.clone();
     if let Cache::At(directory) = &engine.cache
@@ -34,13 +34,19 @@ pub(super) fn listed(mut request: LintRequest, engine: &LinterLintEngine) -> Res
     );
     let inventory = walk.inventory().map_err(|error| LintError::Io { what: Port::Corpus, reason: error.to_string() })?;
     let mut paths = Vec::new();
+    let mut failed = Vec::new();
     for input in inventory.0 {
-        if let CorpusInput::Available(entry) | CorpusInput::ReadFailed { entry, .. } = input {
-            paths.push(RelativePath(entry.path.0.clone()));
+        match input {
+            CorpusInput::Available(entry) => paths.push(RelativePath(entry.path.0.clone())),
+            CorpusInput::ReadFailed { entry, reason } => {
+                paths.push(RelativePath(entry.path.0.clone()));
+                failed.push((RelativePath(entry.path.0.clone()), reason.0));
+            }
+            CorpusInput::Unreadable { .. } => {}
         }
     }
     request.corpus = Corpus::Listed(paths);
-    Ok(request)
+    Ok((request, failed))
 }
 
 /// Where `path` is, written from the current directory without `.` or `..` components: the same place whatever its spelling.
@@ -92,3 +98,14 @@ pub(super) fn store_skip(
 
 /// The separator of a skipped path, as the walk reads it.
 const SKIP_SEPARATOR: char = '/';
+
+/// `report` with the files the walk could not read named unread, beside those the executor reported, in path order.
+pub(super) fn naming_unread(mut report: LintReport, failed: Vec<(RelativePath, Box<str>)>) -> LintReport {
+    for (path, reason) in failed {
+        if !report.unread.iter().any(|each| each.path == path) {
+            report.unread.push(super::executor::unread(path, Unreadable::Failed(ReadFailure(reason))));
+        }
+    }
+    report.unread.sort_by(|left, right| left.path.cmp(&right.path));
+    report
+}

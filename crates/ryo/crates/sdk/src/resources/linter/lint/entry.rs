@@ -36,15 +36,17 @@ impl Linter {
         // A walked corpus is listed here, for the executor takes a closed inventory: a request whose walk fails is answered by its error.
         let mut answers: Vec<Option<Result<LintReport, LintError>>> = Vec::with_capacity(requests.len());
         let mut runnable = Vec::new();
+        let mut failed = Vec::new();
         for request in requests {
             if let Err(refused) = super::admission::admit(&request, engine) {
                 answers.push(Some(Err(refused)));
                 continue;
             }
             match super::walk::listed(request, engine) {
-                Ok(listed) => {
+                Ok((listed, unreadable)) => {
                     answers.push(None);
                     runnable.push(listed);
+                    failed.push(unreadable);
                 }
                 Err(error) => answers.push(Some(Err(error))),
             }
@@ -67,10 +69,15 @@ impl Linter {
         } else {
             fail("the worker pool is empty".into())
         };
-        let mut ran = ran.into_iter();
+        let mut ran = ran.into_iter().zip(failed);
         answers
             .into_iter()
-            .map(|answer| answer.unwrap_or_else(|| ran.next().unwrap_or_else(|| Err(LintError::Execution { reason: "the executor answered fewer requests than it was given".into() }))))
+            .map(|answer| {
+                answer.unwrap_or_else(|| match ran.next() {
+                    Some((answered, unreadable)) => answered.map(|report| super::walk::naming_unread(report, unreadable)),
+                    None => Err(LintError::Execution { reason: "the executor answered fewer requests than it was given".into() }),
+                })
+            })
             .collect()
     }
 }

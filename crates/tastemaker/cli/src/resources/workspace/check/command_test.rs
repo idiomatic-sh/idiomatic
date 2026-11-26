@@ -51,7 +51,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((Vec::new(), Outcome::Failure)),
     },
     Case {
-        name: CaseName("the_lint_store_holds_every_file_read_and_one_edit_keeps_the_rest"),
+        name: CaseName("a_rerun_answers_as_the_first_run_one_edit_answers_as_a_cold_check_and_the_store_stays_small"),
         word: Word::Succeeds,
         input: || vec!["lint-store"],
         expect: Expect::Value((Vec::new(), Outcome::Success)),
@@ -165,34 +165,46 @@ fn probed(wrong: Vec<String>) -> Value {
     (wrong, Outcome::Success)
 }
 
-/// The lint store `check` keeps holds every file its lint call read, though a second lint call judges the counts after
-/// it: that call keeps nothing, so one edit leaves the store of every other file as it was.
+/// What a user of `check` sees of its store: an unchanged rerun answers as the first run did, a check after one edit answers as a
+/// cold check of the edited tree does, and the store does not grow with what was read (the fixture's stays under the bound).
 fn lint_store() -> Result<Value, Failure> {
     let directory = workspace();
     proven(&directory)?;
-    let store = directory.path().join(".tastemaker_cache/ryo/lint.store");
-    let read = ["src/a/errors.toml", "src/b/notes.toml"];
-    let holds = || {
-        std::fs::read(&store).is_ok_and(|kept| {
-            read.iter().all(|path| {
-                kept.windows(path.len())
-                    .any(|window| window == path.as_bytes())
-            })
-        })
-    };
+    let store = directory.path().join(".tastemaker_cache");
     let mut wrong = Vec::new();
-    drop(found(&directory, &["check", "--fix"])?);
-    if !holds() {
-        wrong.push("a cold check does not keep every file it read".to_owned());
+    let cold = found(&directory, &["check", "--fix"])?;
+    if bytes_of(&store) > STORE_BOUND {
+        wrong.push("the store of a cold check is larger than the fixture's bound".to_owned());
     }
-    std::fs::write(directory.path().join("src/b/notes.toml"), "b = [1]\n")
-        .map_err(|_error| Outcome::Error)?;
-    drop(found(&directory, &["check", "--fix"])?);
-    if !holds() {
-        wrong.push("a check after one edit does not keep the files it did not re-read".to_owned());
+    if found(&directory, &["check", "--fix"])? != cold {
+        wrong.push("an unchanged rerun does not answer as the first run did".to_owned());
+    }
+    std::fs::write(directory.path().join("src/b/notes.toml"), "b = [1]\n").map_err(|_error| Outcome::Error)?;
+    let edited = found(&directory, &["check", "--fix"])?;
+    // A cold check of the edited tree: the store is gone, and the proofs of the definitions are made again.
+    std::fs::remove_dir_all(&store).map_err(|_error| Outcome::Error)?;
+    proven(&directory)?;
+    if found(&directory, &["check", "--fix"])? != edited {
+        wrong.push("a check after one edit does not answer as a cold check of the edited tree".to_owned());
     }
     Ok(probed(wrong))
 }
+
+/// The bytes of every file below `path`.
+fn bytes_of(path: &std::path::Path) -> u64 {
+    std::fs::read_dir(path).map_or(0, |entries| {
+        entries
+            .filter_map(Result::ok)
+            .map(|entry| {
+                let inner = entry.path();
+                if inner.is_dir() { bytes_of(&inner) } else { entry.metadata().map_or(0, |meta| meta.len()) }
+            })
+            .sum()
+    })
+}
+
+/// The most the store of a cold check of the fixture may hold, in bytes.
+const STORE_BOUND: u64 = 1 << 20;
 
 /// Moves the file's modification time to `time`, so a change to its bytes leaves no sign in its metadata.
 fn stamp(file: &std::path::Path, time: std::time::SystemTime) -> Result<(), Failure> {

@@ -30,10 +30,17 @@ fn close(session: usize) {
     CLOSED.lock().expect("closed sessions").push(session);
 }
 
+/// A directory with nothing in it, which a walked request reads: this test is about the executor's linking, not the walk.
+fn empty_root() -> std::path::PathBuf {
+    let root = std::env::temp_dir().join(format!("ryo-sdk-entry-test-{}", std::process::id()));
+    std::fs::create_dir_all(&root).expect("an empty directory");
+    root
+}
+
 fn request() -> LintRequest {
     LintRequest {
         source_language: SourceLanguage::Recognized,
-        root: std::path::PathBuf::new(),
+        root: empty_root(),
         project_search_scope: Default::default(),
         given_project_inventory: Default::default(),
         rules: BTreeMap::new(),
