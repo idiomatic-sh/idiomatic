@@ -6,6 +6,3 @@ mod constants;
 pub(crate) mod fixtures;
 mod schemas;
 pub(crate) mod types;
-
-#[cfg(test)]
-mod adapter_test;

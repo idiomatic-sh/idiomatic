@@ -3,7 +3,7 @@
 //! variable declaration or a `range` clause declares, each in the function that holds it. The blank identifier declares nothing. An
 //! import of `.` brings in names it cannot list: its name is the unknown value of a dot import.
 
-use crate::domain::definitions::service::{declarations, declared_name, word};
+
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
@@ -15,33 +15,6 @@ use ryo::languages::node_table;
 
 /// The reader the `parse` contract hands the `defines` relation to, which reads its rows from a file's tree.
 pub(crate) struct DefinesItem;
-
-ryo::reads! {
-    DefinesItem => languages::Defines |tree, at, symbols| {
-        kinds: [
-            Kind::Node(Node::FuncDecl),
-            Kind::Node(Node::TypeSpec),
-            Kind::Node(Node::ValueSpec),
-            Kind::Node(Node::ImportSpec),
-            Kind::Node(Node::Field),
-            Kind::Node(Node::AssignStmt),
-            Kind::Node(Node::RangeStmt),
-            Kind::Node(Node::LabeledStmt),
-        ] as kind_bits,
-        each (declarations(tree, at)) as declared {
-            given name = declared_name(tree, &declared)?;
-            row {
-                id: node(at),
-                kind: value(declared.defined.kind),
-                refinement: value(word(tree, symbols, declared.defined.word)),
-                name: value(name),
-                owner: node(declared.owner),
-                file: file,
-                span: span(declared.named),
-            }
-        }
-    }
-}
 
 // The engine fills `defines` from the walked file: every name the file declares or brings in, each in the function that holds it.
 ryo::fills! {

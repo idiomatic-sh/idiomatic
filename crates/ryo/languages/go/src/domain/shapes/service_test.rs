@@ -3,7 +3,7 @@
 use super::service::find;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::pieces::service::arrange;
-use crate::fixtures::reading::found_by;
+use crate::fixtures::found::found_by;
 
 /// A source.
 type Input = &'static str;

@@ -173,12 +173,17 @@ impl<Row> languages::Rows<Row> for Sink<Row> {
     }
 }
 
-/// The notes the language's own parse leaves of the file at `path` whose text is `text`; none for a file it does not read.
+/// The notes the language's own walk leaves of the file at `path` whose text is `text`; none for a file it does not read.
 #[must_use]
 pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
-    let (mut elements, mut symbols) = (languages::Elements::default(), Symbols::default());
-    let built = languages::contract::build(
-        crate::linked().parse_engine().as_ref(),
+    let linked = crate::linked();
+    let engine = linked.parse_engine();
+    let Some(relations) = engine.file_relations() else {
+        return languages::Bytes::default();
+    };
+    let mut symbols = Symbols::default();
+    let mut notes = languages::Bytes::default();
+    let visited = relations.numbered().open().visit(
         languages::ParseRequest {
             path: languages::SourcePath(path),
             file: languages::FileId(0),
@@ -186,11 +191,14 @@ pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
             notes: languages::NoteRequest::Wanted,
             fields: languages::FieldRequest::Unwanted,
         },
-        &mut elements,
+        &[],
+        &[],
+        None,
         &mut symbols,
+        &mut |file, _| notes.clone_from(file.notes),
     );
-    match built {
-        Ok(()) => languages::contract::notes_of(&elements).clone(),
+    match visited {
+        Ok(()) => notes,
         Err(_) => languages::Bytes::default(),
     }
 }

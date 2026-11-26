@@ -67,12 +67,6 @@ pub(crate) trait Output {
     fn diagnose(&mut self, message: &str, start: ryo::languages::Offset, end: ryo::languages::Offset);
 }
 
-/// The old reading's table, written through `Output`.
-pub(crate) struct Tabled<'b, 'w> {
-    /// What it is written through.
-    pub builder: &'b mut ryo::languages::TableBuilder<'w>,
-}
-
 /// The walk's node table, written through `Output`: every element with no field; the fields are given to the table when it is
 /// written, by `classify_written_fields`, which reads each element's role from the finished siblings.
 pub(crate) struct Numbered<'b, 'w> {

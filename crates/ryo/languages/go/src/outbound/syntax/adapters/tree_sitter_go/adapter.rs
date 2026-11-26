@@ -11,22 +11,17 @@ use ryo::languages::{self, ByteSlice, Offset};
 use tree_sitter::{Node as Library, Parser, TreeCursor};
 
 use crate::domain::extras::types::Extra;
-use crate::domain::grammar::types::{
-    ByteIndex, Concrete, Form, GoText, Index, Naming, Presence, Raw,
-};
+use crate::domain::grammar::types::{ByteIndex, Concrete, Form, GoText, Index, Naming, Presence, Raw};
 use crate::domain::nodes::types::Node;
 use crate::domain::pieces::service::{arrange, value_of};
 use crate::domain::pieces::types::Pieces;
 use crate::domain::shapes::service::find;
-use crate::domain::syntax::types::{Kind, Numbered, Output, Tabled};
+use crate::domain::syntax::types::{Kind, Numbered, Output};
 use crate::domain::tokens::types::Token;
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::SourceText;
 
-use super::constants::{
-    BYTE_ORDER_MARK, MISSING, NEEDS_COMMA, NOT_UTF8, OUTSIDE_FUNCTION, UNREADABLE, UNTERMINATED,
-    WHITE_SPACE,
-};
+use super::constants::{BYTE_ORDER_MARK, MISSING, NEEDS_COMMA, NOT_UTF8, OUTSIDE_FUNCTION, UNREADABLE, UNTERMINATED, WHITE_SPACE};
 use super::schemas::{closing, form_of, misreading, role_of};
 use super::types::{Base, Misreading, Report, Said};
 
@@ -369,10 +364,6 @@ fn write(read: &Read<'_>, out: &mut dyn Output) {
 }
 
 impl SyntaxPort for SyntaxTreeSitterGoAdapter {
-    fn read(&self, text: SourceText<'_>, builder: &mut languages::TableBuilder<'_>) {
-        write(&read_once(text), &mut Tabled { builder });
-    }
-
     fn walk(&self, text: SourceText<'_>, builder: &mut languages::NodeTableBuilder<'_>) {
         write(&read_once(text), &mut Numbered { builder });
     }

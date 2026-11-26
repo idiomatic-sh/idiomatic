@@ -5,11 +5,10 @@ use std::sync::Arc;
 use ryo::languages;
 
 use crate::inbound::contracts::parse::contract::ParseContract;
-use crate::outbound::notes::factory::postcard;
 use crate::outbound::syntax::factory::tree_sitter_go;
 
-/// The `parse` contract, over the language's syntax and notes ports.
+/// The `parse` contract, over the language's syntax port.
 #[must_use]
 pub fn parse() -> impl languages::Parse {
-    ParseContract::new(Arc::new(tree_sitter_go()), Arc::new(postcard()))
+    ParseContract::new(Arc::new(tree_sitter_go()))
 }
