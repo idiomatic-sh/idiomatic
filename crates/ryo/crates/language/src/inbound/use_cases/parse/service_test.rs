@@ -14,7 +14,7 @@ use crate::domain::elements::types::Elements;
 use crate::domain::files::types::SourcePath;
 use crate::domain::symbols::types::ByteSlice;
 use crate::domain::symbols::types::Symbols;
-use crate::inbound::use_cases::parse::fixtures::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use crate::selects;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::{FileId, KindBits, Offset, Relation};

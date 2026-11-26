@@ -3,7 +3,7 @@
 use super::super::service::read;
 use super::super::types::ParseEngine;
 use super::super::types::{ParseRequest, Recognition};
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::configuration::Selection;
 use super::expected::{Cell, Point};
 use super::findings::Findings;

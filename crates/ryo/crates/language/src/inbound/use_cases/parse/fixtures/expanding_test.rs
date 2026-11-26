@@ -8,7 +8,7 @@ use crate::domain::files::types::SourcePath;
 use crate::domain::symbols::service::text_of;
 use crate::domain::symbols::types::{ByteSlice, Symbols};
 use crate::inbound::use_cases::parse::errors::ParseError;
-use crate::inbound::use_cases::parse::fixtures::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use crate::inbound::use_cases::parse::service::read;
 use crate::inbound::use_cases::parse::types::{FieldRequest, NoteRequest, ParseRequest};
 use ryo_relations::domain::relations::service::node_id;

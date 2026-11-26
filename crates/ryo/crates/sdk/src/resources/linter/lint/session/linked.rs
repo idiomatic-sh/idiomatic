@@ -14,7 +14,7 @@ pub(crate) struct Linked {
 impl From<l::Language> for Linked {
     fn from(language: l::Language) -> Self {
         Self {
-            parser: language.parse_engine(),
+            parser: language.parse_use_case(),
             language,
         }
     }
@@ -39,7 +39,7 @@ impl Source for Linked {
     }
     fn manifests(&self) -> Vec<&'static str> {
         self.language
-            .project()
+            .project_use_case()
             .manifest_names()
             .iter()
             .map(|m| m.0)
@@ -69,18 +69,18 @@ impl Source for Linked {
         self.parser.absence_of(rel).is_some()
     }
     fn entries(&self, req: &l::ProjectRequest, out: &mut ProjectEntries) -> Result<()> {
-        self.language.project().project_entries(req, out);
+        self.language.project_use_case().project_entries(req, out);
         Ok(())
     }
     fn project(
         &self,
         req: &l::ProjectRequest,
         symbols: &mut l::Symbols,
-        rows: &mut l::contract::Collect,
+        rows: &mut ryo_executor::languages::contract::Collect,
     ) -> Result<l::Resolved> {
         let reply = self
             .language
-            .project()
+            .project_use_case()
             .project(req, symbols, rows)
             .map_err(|e| e.to_string())?;
         if reply.observed_entries.as_slice() != req.observed_entries.0.as_ref() {
