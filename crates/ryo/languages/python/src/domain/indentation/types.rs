@@ -18,10 +18,6 @@ pub(crate) enum IndentationState {
     /// No relation has requested the current file's regions.
     #[default]
     Fresh,
-    /// The current file has a balanced complete lexical token stream.
-    Complete,
-    /// Parser diagnostics or an unbalanced token stream prevent a complete answer.
-    Incomplete,
 }
 /// Scratch capacity belongs to the retained file model; scanning is lazy.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

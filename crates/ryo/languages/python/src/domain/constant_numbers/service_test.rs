@@ -1,55 +1,37 @@
-//! The `constant_numbers` service's cases: the exact key each parsed numeric or boolean literal normalizes to, its negation, and the
-//! floats that become integers.
+//! The `constant_numbers` service's cases: the exact key a float normalizes to, its negation, and the floats that become integers.
 
-use super::service::{float_key, negate, number, to_float};
+use super::service::{float_key, negate, to_float};
 use super::types::{Binary64, RealKey};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::semantic_syntax::service::positions;
-use crate::fixtures::reading::parsed;
-use ryo::languages::{self, ByteSlice, Tree};
 
 /// What a row asks of the service.
 #[derive(Clone, Copy, Debug)]
 enum Given {
-    /// The key of every literal of a source, as `real` or `real+imaginary j`.
-    Keys(&'static str),
-    /// The negation of the real part of every literal of a source.
-    Negated(&'static str),
+    /// The negation of the key of each float.
+    Negated(&'static [f64]),
     /// The key of each float, then the float it converts back to.
     Floats(&'static [f64]),
 }
 /// What a row is given.
 type Input = Given;
-/// The keys, in source order, joined by `,`.
+/// The keys, in order, joined by `,`.
 type Value = &'static str;
-/// A source the parser refuses.
+/// Nothing is refused.
 type Failure = ();
 
 /// The rows of this concept's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("integers_radixes_booleans_and_whole_floats_key_as_integers"),
-        word: Word::Succeeds,
-        input: || Given::Keys("1\n0x10\nTrue\nFalse\n2.0\n2.5\n"),
-        expect: Expect::Value("1+0j,16+0j,1+0j,0+0j,2+0j,2.5f+0j"),
-    },
-    Case {
-        name: CaseName("a_complex_literal_keys_its_imaginary_part"),
-        word: Word::Succeeds,
-        input: || Given::Keys("3j\n1.5j\n"),
-        expect: Expect::Value("0+3j,0+1.5fj"),
-    },
-    Case {
-        name: CaseName("an_integer_past_u64_and_non_numbers_have_no_key"),
-        word: Word::Succeeds,
-        input: || Given::Keys("18446744073709551616\n'1'\nNone\n"),
-        expect: Expect::Value(""),
-    },
-    Case {
         name: CaseName("negation_flips_integers_and_floats"),
         word: Word::Succeeds,
-        input: || Given::Negated("5\n2.5\n0.0\n"),
+        input: || Given::Negated(&[5.0, 2.5, 0.0]),
         expect: Expect::Value("-5,-2.5f,0"),
+    },
+    Case {
+        name: CaseName("whole_floats_key_as_integers_and_the_others_stay_floats"),
+        word: Word::Succeeds,
+        input: || Given::Floats(&[2.0, 2.5]),
+        expect: Expect::Value("2=2.0,2.5f=2.5"),
     },
     Case {
         name: CaseName("floats_past_the_u64_bound_or_infinite_stay_floats"),
@@ -79,23 +61,10 @@ fn subject(given: Input) -> Result<Value, Failure> {
                 format!("{}={:?}", shown(key), to_float(key).0)
             })
             .collect(),
-        Given::Keys(source) | Given::Negated(source) => {
-            let file = parsed(source.as_bytes()).map_err(|_| ())?;
-            let tree = Tree {
-                elements: &file.elements,
-                source: ByteSlice(file.bytes),
-                file: languages::FileId(0),
-            };
-            positions(&tree)
-                .filter_map(|at| number(&tree, at))
-                .map(|key| match given {
-                    Given::Negated(_) => negate(key.real).map_or_else(|| "none".to_owned(), shown),
-                    Given::Keys(_) | Given::Floats(_) => {
-                        format!("{}+{}j", shown(key.real), shown(key.imaginary))
-                    }
-                })
-                .collect()
-        }
+        Given::Negated(floats) => floats
+            .iter()
+            .map(|each| negate(float_key(Binary64(*each))).map_or_else(|| "none".to_owned(), shown))
+            .collect(),
     };
     Ok(Box::leak(texts.join(",").into_boxed_str()))
 }

@@ -1,12 +1,10 @@
 //! Certify lexical facts from the parser's consumed token stream and lexer state errors.
 use super::constants::UNREADABLE;
-use super::types::{
-    ByteIndex, Decoded, DelimiterEof, LexicallyComplete, Readable, Strings, UnclosedDelimiter,
-};
+use super::types::{ByteIndex, DelimiterEof, LexicallyComplete, Readable, Strings, UnclosedDelimiter};
 use crate::outbound::syntax::types::SourceText;
 use ruff_python_ast::Mod;
 use ruff_python_ast::token::{Token, TokenKind};
-use ruff_python_ast::{AnyNodeRef, NodeKind as RuffNode};
+use ruff_python_ast::{NodeKind as RuffNode};
 use ruff_python_parser::{LexicalErrorType, ParseErrorType, Parsed};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{self, Offset};
@@ -135,18 +133,6 @@ pub(super) fn readable(bytes: SourceText<'_>) -> Readable<'_> {
         text.extend(chunk.invalid().iter().map(|_| UNREADABLE));
     }
     Readable(Cow::Owned(text))
-}
-
-/// The text the library decoded for the tokens of a node: a string's value, or the literal part of an f-string's or a t-string's. Only
-/// these two kinds of the library's nodes carry it; every other kind carries none.
-pub(super) fn decoded_of(node: AnyNodeRef<'_>) -> Option<Decoded<'_>> {
-    if let AnyNodeRef::StringLiteral(literal) = node {
-        return Some(Decoded(&literal.value));
-    }
-    if let AnyNodeRef::InterpolatedStringLiteralElement(element) = node {
-        return Some(Decoded(&element.value));
-    }
-    None
 }
 
 /// The offset of a byte index of the text.

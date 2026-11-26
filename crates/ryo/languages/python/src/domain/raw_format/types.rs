@@ -58,7 +58,6 @@ pub(crate) struct RawTokenOrdinal(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RawCompleteness {
     Complete,
-    Partial,
 }
 /// A preserved logical source token, including its envelope.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -16,25 +16,3 @@ pub(crate) struct ParameterPlace {
     /// The function or lambda whose parameter it is.
     pub callable: ryo::languages::Position,
 }
-
-/// What a definition is: its shared kind and its word.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Defined {
-    /// The shared kind.
-    pub kind: ryo::languages::DeclarationKind,
-    /// The same in Python's own words.
-    pub word: Refinement,
-}
-
-/// A name a file defines, as the `defines` relation says it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Definition {
-    /// What it defines: the shared kind and Python's word for it.
-    pub defined: Defined,
-    /// The name.
-    pub name: ryo::languages::Symbol,
-    /// The scope that binds it.
-    pub owner: ryo::languages::Position,
-    /// The element whose span is the name's.
-    pub named: ryo::languages::Position,
-}

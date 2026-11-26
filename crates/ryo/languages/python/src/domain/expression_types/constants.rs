@@ -1,7 +1,5 @@
 //! Text vocabulary at the Python type-fact boundary.
 use super::types::BasicType;
-/// Unary logical negation spelling.
-pub(super) const NOT: &str = "not";
 /// Decode the closed literal-provider vocabulary, retaining its unrecognized label.
 pub(crate) fn literal_type(name: ryo::languages::NameText<'_>) -> BasicType {
     match name.0 {

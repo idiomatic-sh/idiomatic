@@ -6,33 +6,10 @@ use crate::domain::node::types::SyntaxFile;
 use crate::domain::shape_facts::service::shapes;
 use crate::domain::shape_facts::types::ShapeBuild;
 use crate::domain::syntax::service::{category_of, kind_of};
-use crate::domain::{
-    expression_shapes::{constants::INCOMPLETE, service::prepare},
-    model::types::Declarations,
-    nodes::types::{Category, Node},
-    syntax::{
-        service::{category, kind_bits},
-        types::Kind,
-    },
-};
+use crate::domain::{expression_shapes::{constants::INCOMPLETE}, nodes::types::{Category}};
 use ryo::languages::{self, node_table};
 /// One class per original Python expression occurrence.
 pub(crate) struct ExpressionShapeItem;
-ryo::reads! {
- ExpressionShapeItem=>languages::ExpressionShape,model(Declarations)|tree,model,at,symbols|{
- kinds:[Kind::Node(Node::Module)] as kind_bits, expanded,
- when prepare(tree,model,symbols){
-  Some(index)=>{
-   each(crate::domain::semantic_syntax::service::positions(tree))as expression{
-    require category(tree,expression)==Category::Expression;
-    given shape=languages::shape_class_at(&index,expression)?;
-    row{id:node(expression),shape:node(shape),file:file,span:span(expression),}
-   }
-  }
-  None=>{partial INCOMPLETE=>languages::Missing::Any;}
- }
- }
-}
 
 /// Whether the parser read the whole file, so that its shapes can be told; when it did not, the relation is said read only in
 /// part.

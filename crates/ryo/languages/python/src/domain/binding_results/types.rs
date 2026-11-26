@@ -192,8 +192,6 @@ pub(crate) enum PathsMade {
     /// No reader has asked for this file's lookup paths.
     #[default]
     NotYet,
-    /// The rows are this file's.
-    Made,
 }
 
 /// The lookup paths of the current file, made on the first read of their relation; the buffer is kept between files.

@@ -163,14 +163,3 @@ pub(crate) enum Field {
     /// `asname`: the name an import binds after `as`.
     Asname,
 }
-
-/// Where the parameters of an `arguments` stand, by the `/` and the `*` before or after them.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Section {
-    /// Before a `/` that follows.
-    PositionalOnly,
-    /// Neither before a `/` nor after a `*`.
-    Positional,
-    /// After a `*`, bare or a parameter's.
-    KeywordOnly,
-}

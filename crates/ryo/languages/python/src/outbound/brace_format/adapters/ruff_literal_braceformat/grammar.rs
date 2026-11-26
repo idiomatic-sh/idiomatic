@@ -12,9 +12,6 @@ use crate::outbound::brace_format::interface::BraceFormatSyntaxPort;
 pub(crate) struct RuffLiteralBraceFormat;
 
 impl BraceFormatSyntaxPort for RuffLiteralBraceFormat {
-    const GRAMMAR: crate::domain::format_syntax::types::GrammarIdentity =
-        crate::domain::brace_format::constants::GRAMMAR;
-
     fn parse(&self, input: FormatInput<'_>) -> BraceFormatResult {
         match parse(input) {
             Ok(parsed) => BraceFormatResult::Parsed(parsed),

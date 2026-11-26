@@ -1,20 +1,14 @@
-//! The clauses of the lookup path, each from a source and the rows of one reference, rendered by source line: the same rows
-//! from today's parse (`paths`) and from the semantic model (`stepped`).
-use super::service::{paths, stepped};
+//! The clauses of the lookup path, each from a source and the rows of one reference, rendered by source line: the rows (`paths`) and from the semantic model (`stepped`).
+use super::service::stepped;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::{
-    binding_results::types::ReadContext,
     model::flow::types::FlowContext,
     model::lexical::constants::MODULE,
     model::lexical::service::span_of,
-    model::types::Declarations,
     model::view::types::{ModelPart, ModelRead, ModelView as _},
-    syntax::service::{is_root, written},
-    syntax::types::Rootness,
 };
-use crate::fixtures::reading::parsed;
 use crate::outbound::syntax::fixtures::model_view::{ModelFixture, viewed};
-use ryo::languages::{self, ByteSlice, FileId, Position, Tree};
+use ryo::languages::{FileId, Position};
 /// A source, and the line and text of the reference whose rows are rendered.
 type Input = (&'static str, u32, &'static str);
 type Value = &'static str;
@@ -124,80 +118,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// The clause today's parse alone answers: the semantic model reads a file the parser refuses, by the tree it recovers.
-const INCOMPLETE: &[Case<Input, Value, Failure>] = &[Case {
-    name: CaseName("P6 an incomplete file answers nothing, not an empty path"),
-    word: Word::Succeeds,
-    input: || ("if:\n    pass\n", 1, "x"),
-    expect: Expect::Value("incomplete"),
-}];
-
-/// One line of a node: `module`, or its line and the first line of its text.
-fn node(tree: &Tree<'_>, at: Position) -> String {
-    if is_root(tree, at) == Rootness::Root {
-        return "module".to_owned();
-    }
-    let start = usize::try_from(languages::start_at(tree.elements, at).0).unwrap_or(0);
-    let line = tree
-        .source
-        .0
-        .get(..start)
-        .unwrap_or_default()
-        .iter()
-        .filter(|byte| **byte == b'\n')
-        .count()
-        + 1;
-    let text = written(tree, at).0;
-    format!("{line}:{}", text.lines().next().unwrap_or_default())
-}
-
-fn subject((source, line, text): Input) -> Result<Value, Failure> {
-    use crate::inbound::contracts::parse::contract::ParseContract;
-    use crate::outbound::{notes::factory::postcard, syntax::factory::ruff_python_parser};
-    use ryo::languages::Parse as _;
-    use std::sync::Arc;
-    let Ok(mut file) = parsed(source.as_bytes()) else {
-        return Err(());
-    };
-    let tree = Tree {
-        elements: &file.elements,
-        source: ByteSlice(file.bytes),
-        file: FileId(0),
-    };
-    let parser = ParseContract::new(
-        crate::settings::PythonParserSettings::default(),
-        Arc::new(ruff_python_parser(
-            crate::settings::PythonParserSettings::default(),
-        )),
-        Arc::new(postcard()),
-    );
-    let mut model = Declarations::default();
-    parser.file_model(&tree, &mut model);
-    let Some(scratch) = paths(&tree, &model, &mut file.symbols) else {
-        return Ok("incomplete");
-    };
-    let wanted = format!("{line}:{text}");
-    let rows: Vec<String> = scratch
-        .rows
-        .iter()
-        .filter(|row| node(&tree, row.reference) == wanted)
-        .map(|row| {
-            let context = match row.context {
-                ReadContext::Value => "value",
-                ReadContext::Type => "type",
-                ReadContext::Deletion => "deletion",
-            };
-            format!(
-                "d{} {context} scope=[{}]",
-                row.depth.0,
-                node(&tree, row.scope)
-            )
-        })
-        .collect();
-    // A test-only rendering: leaked so the cases table compares it as a static string.
-    Ok(Box::leak(rows.join(" | ").into_boxed_str()))
-}
-
 /// One line of a node of the model's tree: `module`, or its line and the first line of its text.
 fn modelled_node(read: ModelRead<'_>, source: &str, at: Position) -> String {
     if at == MODULE {
@@ -262,8 +182,6 @@ const MODELLED: &[Case<Input, Value, Failure>] = &[Case {
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, subject);
-    run(INCOMPLETE, Word::Succeeds, subject);
     run(CASES, Word::Succeeds, modelled);
     run(MODELLED, Word::Succeeds, modelled);
 }

@@ -4,23 +4,16 @@
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::layout_facts::service::tokens;
 use crate::domain::layout_facts::types::TokenAt;
-use crate::domain::model::types::Declarations;
+
 use crate::domain::node::service::{node_cell, span_at, word, written};
-use crate::domain::syntax::service::{comment_text, kind_bits};
-use crate::domain::syntax::types::Kind;
-use crate::domain::tokens::types::Token;
+
+
+
 use crate::domain::tokens::types::Token as Lexed;
 use ryo::languages;
 
 /// Reads the `comment` rows of one Python file from its syntax tree.
 pub(crate) struct CommentItem;
-
-ryo::reads! {
-    CommentItem => languages::Comment, model(Declarations) |tree, model, at, symbols| {
-        kinds: [Kind::Token(Token::Comment)] as kind_bits,
-        row { id: node(at), text: value(comment_text(tree, symbols, at)), file: file, span: span(at), doc: value(languages::Flag::Lowered) }
-    }
-}
 
 // The engine fills `comment` from the walked file: every row of the file, once.
 ryo::fills! {

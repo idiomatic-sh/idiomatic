@@ -5,13 +5,13 @@
 use std::sync::Arc;
 
 use crate::domain::links::types::Linked;
-use crate::inbound::contracts::parse::contract::ParseContract;
+
 use crate::inbound::contracts::project::contract::ProjectContract;
 use crate::outbound::manifest_reading::factory::{pep621, pip, pipenv, poetry, uv};
 use crate::outbound::manifest_reading::interface::ManifestReadingPort;
 use crate::outbound::manifest_reading::types::AvailableManifests;
 use crate::outbound::notes::factory::postcard;
-use crate::outbound::syntax::factory::ruff_python_parser;
+
 use ryo::languages::{self, Project as _, Symbols};
 
 /// What an item wrote for a repository.
@@ -172,33 +172,10 @@ fn adapters(available: &[languages::ManifestFile]) -> Vec<Arc<dyn ManifestReadin
     ]
 }
 
-/// The notes the language's own parse leaves of the file at `path` whose text is `text`; none for a file it does not read.
+/// The notes of the file at `path`: none, the walk leaves no notes of a file.
 #[must_use]
-pub(crate) fn notes_of(path: &str, text: &str) -> languages::Bytes {
-    let parse = ParseContract::new(
-        crate::settings::PythonParserSettings::default(),
-        Arc::new(ruff_python_parser(
-            crate::settings::PythonParserSettings::default(),
-        )),
-        Arc::new(postcard()),
-    );
-    let (mut elements, mut symbols) = (languages::Elements::default(), Symbols::default());
-    let built = languages::contract::build(
-        &parse,
-        languages::ParseRequest {
-            path: languages::SourcePath(path),
-            file: languages::FileId(0),
-            bytes: languages::ByteSlice(text.as_bytes()),
-            notes: languages::NoteRequest::Wanted,
-            fields: languages::FieldRequest::Unwanted,
-        },
-        &mut elements,
-        &mut symbols,
-    );
-    match built {
-        Ok(()) => languages::contract::notes_of(&elements).clone(),
-        Err(_) => languages::Bytes::default(),
-    }
+pub(crate) fn notes_of(_path: &str, _text: &str) -> languages::Bytes {
+    languages::Bytes::default()
 }
 
 /// What the item writes for the repository whose files are `files`, each with its path and its text, shown with every column: the
