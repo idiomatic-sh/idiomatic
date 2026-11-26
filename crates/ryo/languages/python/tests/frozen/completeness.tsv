@@ -1,4 +1,4 @@
-# the completeness of every sample of python, recorded from the old reader (routes-rerecord.sh); reason: the fixtures of python at trunk c5b3b4a77, before the old readers go
+# the completeness of every sample of python, recorded from the old reader (routes-rerecord.sh); reason: fixtures added by the adjudicated-pairs unit
 # lines: 77
 allocation/annotated_metadata.py	"Complete"	"Complete"
 allocation/bindings.py	"Complete"	"Complete"
