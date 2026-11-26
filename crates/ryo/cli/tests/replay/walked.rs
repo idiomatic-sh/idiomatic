@@ -24,7 +24,7 @@ fn summary(answer: Result<LintReport, LintError>) -> String {
             unread.sort();
             format!("found {found:?} unread {unread:?}")
         }
-        Err(error) => { eprintln!("WALKED_ERROR {error}"); format!("refused {}", format!("{error:?}").split([' ', '{', '(']).next().unwrap_or_default()) },
+        Err(error) => format!("refused {}", format!("{error:?}").split([' ', '{', '(']).next().unwrap_or_default()),
     }
 }
 
@@ -107,7 +107,7 @@ fn a_file_a_rule_needs_and_cannot_read_is_reported_unread() {
     let _beside = crate::beside();
     let root = with_a_locked_file();
     let comments = "let c = select * from \"comment\"; emit c subject file key(span);";
-    println!("WALKED needed: {}", walked_by(root.path(), Cache::None, comments));
+    assert_eq!(walked_by(root.path(), Cache::None, comments), "found [\"src/a.rs\"] unread [\"src/locked.rs\"]");
 }
 
 #[test]
