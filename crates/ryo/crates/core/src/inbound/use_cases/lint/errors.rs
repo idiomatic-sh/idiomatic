@@ -1,8 +1,6 @@
 //! The `lint` use case's failures.
 
 use super::types::ProviderFault;
-use crate::domain::budget::errors::BudgetError;
-use crate::domain::visit::errors::VisitError;
 use crate::outbound::corpus::errors::CorpusError;
 use crate::outbound::language::errors::LanguageError;
 use crate::outbound::lint_store::errors::LintStoreError;
@@ -170,36 +168,6 @@ impl From<RuleRequestsError> for LintError {
     }
 }
 
-impl From<BudgetError> for LintError {
-    fn from(error: BudgetError) -> Self {
-        match error {
-            BudgetError::TooLarge { size, budget } => Self::TooLarge {
-                size: size.0,
-                budget: budget.0,
-            },
-            BudgetError::Exceeded {
-                used,
-                budget,
-                plans,
-            } => Self::MemoryBudgetExceeded {
-                used: used.0,
-                budget: budget.0,
-                plans: plans.into_iter().map(|id| id.0.to_string()).collect(),
-            },
-        }
-    }
-}
-
-impl From<VisitError> for LintError {
-    fn from(error: VisitError) -> Self {
-        match error {
-            VisitError::UnknownRelation { relation } => Self::Language {
-                reason: format!("the catalog does not list {relation:?}"),
-            },
-        }
-    }
-}
-
 impl From<FactsError> for LintError {
     fn from(error: FactsError) -> Self {
         Self::Facts {
@@ -257,35 +225,6 @@ impl From<RowSinkError> for LintError {
     }
 }
 
-impl From<crate::application::file_analysis::errors::FileAnalysisError> for LintError {
-    fn from(error: crate::application::file_analysis::errors::FileAnalysisError) -> Self {
-        use crate::application::file_analysis::errors::FileAnalysisError;
-        match error {
-            FileAnalysisError::Execution(error) => Self::Execution {
-                reason: error.to_string(),
-            },
-            FileAnalysisError::ProjectObservationMismatch => Self::Language {
-                reason: "project entry observation receipt did not match the engine batch"
-                    .to_owned(),
-            },
-            FileAnalysisError::SourceLanguage { name } => Self::SourceLanguage { name },
-            FileAnalysisError::Store(error) => error.into(),
-            FileAnalysisError::Corpus(error) => error.into(),
-            FileAnalysisError::Provider { provider, code } => Self::Provider {
-                provider,
-                code: code.into(),
-            },
-            FileAnalysisError::Facts(error) => error.into(),
-            FileAnalysisError::Rules(error) => error.into(),
-            FileAnalysisError::Budget(error) => error.into(),
-            FileAnalysisError::Memory(error) => error.into(),
-            FileAnalysisError::Language(error) => error.into(),
-            FileAnalysisError::Scheduler(error) => error.into(),
-            FileAnalysisError::Output(error) => error.into(),
-        }
-    }
-}
-
 /// What was wrong with a language's output, as the `Provider` failure shows it: a value the failure carries, not a failure of its own.
 impl std::fmt::Display for ProviderFault {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -333,18 +272,3 @@ impl From<ryo_execution::inbound::use_cases::compile_rules::interface::RuleCompi
     }
 }
 
-impl From<crate::application::cross_file::errors::CrossFileError> for LintError {
-    fn from(error: crate::application::cross_file::errors::CrossFileError) -> Self {
-        use crate::application::cross_file::errors::CrossFileError;
-        match error {
-            CrossFileError::Operating(error) => Self::ObservationExecution {
-                reason: error.to_string(),
-            },
-            CrossFileError::Rules(error) => error.into(),
-            CrossFileError::Facts(error) => error.into(),
-            CrossFileError::Scheduler(error) => error.into(),
-            CrossFileError::Budget(error) => error.into(),
-            CrossFileError::Memory(error) => error.into(),
-        }
-    }
-}
