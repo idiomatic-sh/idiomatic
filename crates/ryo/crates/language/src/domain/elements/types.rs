@@ -300,6 +300,42 @@ impl<'a> AsMut<BuilderEngine<'a>> for TableBuilder<'a> {
     }
 }
 
+/// What a language completes the table of a file through, once its tree is built: it names its kinds and writes its notes, and reaches
+/// nothing else of the table (`name_kind`, `write_notes`); its fields are the engine's.
+///
+/// ```compile_fail,E0603
+/// let forged = ryo_language::domain::elements::types::Completion(todo!());
+/// ```
+#[derive(Debug)]
+pub struct Completion<'a>(CompletionEngine<'a>);
+
+/// What a [`Completion`] completes, the engine's: the table, the names, the file's bytes and its number.
+#[derive(Debug)]
+pub(crate) struct CompletionEngine<'a> {
+    /// The file's table, whose kinds are named and whose notes are written.
+    pub elements: &'a mut Elements,
+    /// The names the kinds are named with.
+    pub symbols: &'a mut Symbols,
+    /// The bytes of the file.
+    pub source: ByteSlice<'a>,
+    /// The number the run gave the file.
+    pub file: FileId,
+}
+
+impl<'a> From<CompletionEngine<'a>> for Completion<'a> {
+    /// The completion of what `engine` holds.
+    fn from(engine: CompletionEngine<'a>) -> Self {
+        Self(engine)
+    }
+}
+
+impl<'a> AsMut<CompletionEngine<'a>> for Completion<'a> {
+    /// What the completion writes, for the crate's operations on it.
+    fn as_mut(&mut self) -> &mut CompletionEngine<'a> {
+        &mut self.0
+    }
+}
+
 /// A file's element table read in place, with the file's bytes and number: what every reader
 /// reads its rows from. The table is only read; the names a reader makes are in the symbols it is given beside it.
 #[derive(Clone, Copy, Debug)]
