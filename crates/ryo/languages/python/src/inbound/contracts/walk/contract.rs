@@ -105,14 +105,6 @@ impl Walk for PythonWalk<WalkPorts> {
         )
     }
 
-    fn named_declarations(&self) -> &'static [languages::FileRelation] {
-        super::named::NamedFile::named_schemas()
-    }
-
-    fn uses_project(&self) -> bool {
-        true
-    }
-
     fn walk(
         &self,
         request: WalkRequest<'_>,

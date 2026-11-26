@@ -36,7 +36,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::BindingRead),
         expect: Expect::Value(
-            "598 files, 19698 rows whole, 3707 keys of BindingRead(Name) wrote 19698: no difference",
+            "599 files, 19705 rows whole, 3712 keys of BindingRead(Name) wrote 19705: no difference",
         ),
     },
     Case {
@@ -44,7 +44,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::BindingShadow),
         expect: Expect::Value(
-            "598 files, 2519 rows whole, 1202 keys of BindingShadow(Binding) wrote 2519: no difference",
+            "599 files, 2519 rows whole, 1202 keys of BindingShadow(Binding) wrote 2519: no difference",
         ),
     },
     Case {
@@ -52,7 +52,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::ConstantKey),
         expect: Expect::Value(
-            "598 files, 7934 rows whole, 7934 keys of ConstantKey(Id) wrote 7934: no difference",
+            "599 files, 7936 rows whole, 7936 keys of ConstantKey(Id) wrote 7936: no difference",
         ),
     },
     Case {
@@ -60,7 +60,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::ExpressionShape),
         expect: Expect::Value(
-            "598 files, 47715 rows whole, 47715 keys of ExpressionShape(Id) wrote 47715: no difference",
+            "599 files, 47728 rows whole, 47728 keys of ExpressionShape(Id) wrote 47728: no difference",
         ),
     },
     Case {
@@ -68,7 +68,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::ExpressionType),
         expect: Expect::Value(
-            "598 files, 51103 rows whole, 51101 keys of ExpressionType(Id) wrote 51103: no difference",
+            "599 files, 51116 rows whole, 51114 keys of ExpressionType(Id) wrote 51116: no difference",
         ),
     },
     Case {
@@ -76,7 +76,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::Function),
         expect: Expect::Value(
-            "598 files, 1130 rows whole, 1130 keys of Function(Id) wrote 1130: no difference",
+            "599 files, 1131 rows whole, 1131 keys of Function(Id) wrote 1131: no difference",
         ),
     },
     Case {
@@ -84,7 +84,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::Inherits),
         expect: Expect::Value(
-            "598 files, 120 rows whole, 120 keys of Inherits(Occurrence) wrote 120: no difference",
+            "599 files, 120 rows whole, 120 keys of Inherits(Occurrence) wrote 120: no difference",
         ),
     },
     Case {
@@ -92,7 +92,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::LookupScope),
         expect: Expect::Value(
-            "598 files, 38564 rows whole, 19686 keys of LookupScope(Reference) wrote 38564: no difference",
+            "599 files, 38575 rows whole, 19693 keys of LookupScope(Reference) wrote 38575: no difference",
         ),
     },
     Case {
@@ -100,7 +100,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::RawFormatSegment),
         expect: Expect::Value(
-            "598 files, 3096 rows whole, 3003 keys of RawFormatSegment(Id) wrote 3096: no difference",
+            "599 files, 3097 rows whole, 3004 keys of RawFormatSegment(Id) wrote 3097: no difference",
         ),
     },
     Case {
@@ -108,7 +108,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::Reference),
         expect: Expect::Value(
-            "598 files, 20737 rows whole, 20737 keys of Reference(Occurrence) wrote 20737: no difference",
+            "599 files, 20743 rows whole, 20743 keys of Reference(Occurrence) wrote 20743: no difference",
         ),
     },
     Case {
@@ -116,7 +116,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::Resolves),
         expect: Expect::Value(
-            "598 files, 15586 rows whole, 15586 keys of Resolves(Occurrence) wrote 15586: no difference",
+            "599 files, 15587 rows whole, 15587 keys of Resolves(Occurrence) wrote 15587: no difference",
         ),
     },
     Case {
@@ -124,7 +124,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::Scope),
         expect: Expect::Value(
-            "598 files, 2366 rows whole, 2366 keys of Scope(Child) wrote 2366: no difference",
+            "599 files, 2369 rows whole, 2369 keys of Scope(Child) wrote 2369: no difference",
         ),
     },
     Case {
@@ -132,7 +132,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::TokenLink),
         expect: Expect::Value(
-            "598 files, 208473 rows whole, 140563 keys of TokenLink(Source) wrote 208473, 140534 keys of TokenLink(Target) wrote 208473: no difference",
+            "599 files, 208536 rows whole, 140614 keys of TokenLink(Source) wrote 208536, 140585 keys of TokenLink(Target) wrote 208536: no difference",
         ),
     },
     Case {
@@ -147,7 +147,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_key_of_a_column_with_no_body_writes_every_row_and_says_so"),
         word: Word::Succeeds,
         input: || Asked::Undeclared,
-        expect: Expect::Value("598 files, 208473 rows whole: no difference"),
+        expect: Expect::Value("599 files, 208536 rows whole: no difference"),
     },
 ];
 

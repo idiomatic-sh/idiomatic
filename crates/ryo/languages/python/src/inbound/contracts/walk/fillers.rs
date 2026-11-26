@@ -167,6 +167,7 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         bytes_literal: BytesLiteral => crate::domain::relations::collections::relations::bytes_literal::item::BytesLiteralItem;
         call_argument: CallArgument => crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem;
         comment: Comment => crate::domain::relations::collections::relations::comment::item::CommentItem;
+        annotation_evaluation: AnnotationEvaluation => crate::domain::relations::collections::relations::annotation_evaluation::item::AnnotationEvaluationItem;
         compiler_feature: CompilerFeature => crate::domain::relations::collections::relations::compiler_feature::item::CompilerFeatureItem;
         decorates: Decorates => crate::domain::relations::collections::relations::decorates::item::DecoratesItem;
         defines: Defines => crate::domain::relations::collections::relations::defines::item::DefinesItem;
@@ -289,13 +290,6 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         )
     }
 
-    fn named(
-        file: &mut PythonFile<'_>,
-        request: languages::NamedRequest<'_, '_>,
-    ) -> Vec<Result<languages::FileRows, languages::ParseError>> {
-        crate::inbound::contracts::walk::named::NamedFile::named(file, request)
-    }
-
     fn vocabulary() -> WalkVocabulary {
         WalkVocabulary {
             kinds: WalkKinds(kinds().map(kind_name).collect()),
@@ -313,13 +307,14 @@ const PROVENANCE: &[&str] = &[BUILTIN, LOCAL, UNRESOLVED, AMBIGUOUS];
 /// word is its place, so each text is stated once, at the place of the first concept that writes it, and the empty text, which
 /// is word 0 of every run, is no fixed name.
 pub(crate) fn fixed_names() -> FixedNames {
-    let concepts: [&[&'static str]; 17] = [
+    let concepts: [&[&'static str]; 18] = [
         crate::domain::token_links::constants::FIXED_NAMES,
         crate::domain::relations::collections::relations::expression_type::constants::FIXED_NAMES,
         crate::domain::expression_types::constants::FIXED_NAMES,
         crate::domain::literal_properties::constants::FIXED_NAMES,
         crate::domain::semantic_syntax::constants::FIXED_NAMES,
         crate::domain::relations::collections::relations::compiler_feature::constants::FIXED_NAMES,
+        crate::domain::annotation_evaluation::constants::FIXED_NAMES,
         crate::domain::format_specification::constants::FIXED_NAMES,
         crate::inbound::contracts::parse::readers::format_specification::constants::FIXED_NAMES,
         crate::inbound::contracts::parse::readers::format::constants::FIXED_NAMES,

@@ -1,5 +1,5 @@
-# what the language states of itself of python, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
-# lines: 165
+# what the language states of itself of python, recorded from the old reader (routes-rerecord.sh); reason: annotation-evaluation joins the catalog: its metadata line, and for python its rows
+# lines: 167
 relation	Function	None	false
 relation	Annotates	None	false
 relation	Assigns	None	false
@@ -32,6 +32,7 @@ relation	ExpressionType	None	true
 relation	InterpolatedStringLiteral	None	false
 relation	LanguageTarget	None	false
 relation	CompilerFeature	None	false
+relation	AnnotationEvaluation	None	false
 relation	ConstantKey	None	true
 relation	FormatParse	None	true
 relation	FormatField	None	true
@@ -81,12 +82,13 @@ relation	FilesystemExecutable	None	false
 relation	FilesystemReadFailure	None	false
 skips	[SkippedDirectory(".venv"), SkippedDirectory("venv"), SkippedDirectory("__pycache__"), SkippedDirectory(".tox"), SkippedDirectory(".nox"), SkippedDirectory(".eggs"), SkippedDirectory(".mypy_cache"), SkippedDirectory(".pytest_cache"), SkippedDirectory(".ruff_cache")]
 configuration	ParseConfigurationIdentity("python-target=latest")
-capabilities	[BindingEvent, BindingRead, BindingUse, BindingResolution, LookupScope, BindingShadow, ImplicitSymbol, QualifiedName, Identifier, ExpressionShape, LiteralProperties, FunctionTerminal, ExpressionType, InterpolatedStringLiteral, LanguageTarget, CompilerFeature, ConstantKey, FormatParse, FormatField, BraceFormatParse, BraceFormatField, RawFormatSegment, RawFormatField, LiteralExpressionParse, StandardLibraryImport, BytesLiteral, FormatSpecification, EmbeddedExpression, NumericLiteral, TokenLink, AttributePath, ModuleIdentity]
+capabilities	[BindingEvent, BindingRead, BindingUse, BindingResolution, LookupScope, BindingShadow, ImplicitSymbol, QualifiedName, Identifier, ExpressionShape, LiteralProperties, FunctionTerminal, ExpressionType, InterpolatedStringLiteral, LanguageTarget, CompilerFeature, AnnotationEvaluation, ConstantKey, FormatParse, FormatField, BraceFormatParse, BraceFormatField, RawFormatSegment, RawFormatField, LiteralExpressionParse, StandardLibraryImport, BytesLiteral, FormatSpecification, EmbeddedExpression, NumericLiteral, TokenLink, AttributePath, ModuleIdentity]
 unknown-reasons	[UnknownName { reason: UnknownReason(16), text: ReasonName("wildcard-import") }, UnknownName { reason: UnknownReason(17), text: ReasonName("dynamic-decorator") }, UnknownName { reason: UnknownReason(18), text: ReasonName("dynamic-base") }, UnknownName { reason: UnknownReason(19), text: ReasonName("star-base") }, UnknownName { reason: UnknownReason(20), text: ReasonName("dynamic-callee") }, UnknownName { reason: UnknownReason(21), text: ReasonName("interpolated-string") }, UnknownName { reason: UnknownReason(22), text: ReasonName("unnamed-requirement") }, UnknownName { reason: UnknownReason(23), text: ReasonName("qualified-origin") }, UnknownName { reason: UnknownReason(24), text: ReasonName("semantic-rendering-unsupported") }]
 recognizes	allocation/annotated_metadata.py	true
 recognizes	allocation/bindings.py	true
 recognizes	allocation/crlf.py	true
 recognizes	relations/annotates/input.py	true
+recognizes	relations/annotation_evaluation/input.py	true
 recognizes	relations/assigns/input.py	true
 recognizes	relations/binding_event/input.py	true
 recognizes	relations/binding_read/aiter.py	true

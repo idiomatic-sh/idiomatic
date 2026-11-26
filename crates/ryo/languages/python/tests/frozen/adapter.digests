@@ -1,5 +1,5 @@
-# the node-table relations and the words of the positions as the numbered adapter lends them of python, recorded from the old reader (routes-rerecord.sh); reason: words defined by the leaf rule, not by the old reader's token keys
-# lines: 410
+# the node-table relations and the words of the positions as the numbered adapter lends them of python, recorded from the old reader (routes-rerecord.sh); reason: annotation-evaluation joins the catalog: its metadata line, and for python its rows
+# lines: 415
 allocation/annotated_metadata.py	SyntaxTree	354	5494a1542f52770bb6630ff5800aa8e1
 allocation/annotated_metadata.py	SyntaxChild	353	a6c4b0184b9788e07042264c21eff61c
 allocation/annotated_metadata.py	SemanticSyntax	360	b8356041afd35afec74131256d408b4d
@@ -20,6 +20,11 @@ relations/annotates/input.py	SyntaxChild	154	c88e7f8b6c423e96d470ff21989b162b
 relations/annotates/input.py	SemanticSyntax	163	ec918cefb507d1d1645990bf8e067ef5
 relations/annotates/input.py	SemanticChild	162	da52e7e65a59ff6cfe4cc50b8c2db8ed
 relations/annotates/input.py	words	0	109:fa04056ad432ddaab3dd86ef84443524
+relations/annotation_evaluation/input.py	SyntaxTree	101	001a141d2c544cac243c226d37f9d471
+relations/annotation_evaluation/input.py	SyntaxChild	100	8e4c2ea19f3f9dea8971fd1c63909b9c
+relations/annotation_evaluation/input.py	SemanticSyntax	103	b551efb3c2a881b7997c3884b9939b97
+relations/annotation_evaluation/input.py	SemanticChild	102	dd0c5bd8329e4da7f225df8ebbf4974b
+relations/annotation_evaluation/input.py	words	0	71:5c6f4d3c9b95a4fa3cc65fda9397a6c8
 relations/assigns/input.py	SyntaxTree	162	574a83cc4c544a9706bf06fe42e2bc61
 relations/assigns/input.py	SyntaxChild	161	db15cac7bad37400c7c11c291074897b
 relations/assigns/input.py	SemanticSyntax	162	574a83cc4c544a9706bf06fe42e2bc61
