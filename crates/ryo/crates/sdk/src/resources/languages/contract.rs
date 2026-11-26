@@ -120,6 +120,11 @@ pub fn routes_frozen(linked: &super::Language, manifest_dir: ManifestDir, langua
         let roots: Vec<std::path::PathBuf> = std::env::split_paths(&roots).filter(|root| !root.as_os_str().is_empty()).collect();
         (frozen::corpus_files(parser.as_ref(), &roots), name)
     });
+    use ryo_language::inbound::use_cases::parse::fixtures::routes::{UNREACHABLE_KINDS, coverage, coverage_failures};
+    let covered = coverage(parser.as_ref(), walk.as_ref(), &fixtures);
+    let exemptions = std::fs::read_to_string(fixtures.join(UNREACHABLE_KINDS)).unwrap_or_default();
+    let uncovered = coverage_failures(&covered, &exemptions);
+    eprintln!("COVERAGE spelled {} | numbered {} | failures {}", covered.spelled.len(), covered.numbered, uncovered.len());
     let walked = frozen::record(parser.as_ref(), walk.as_ref(), &fixtures);
     if let Ok(reason) = std::env::var("RYO_ROUTES_RECORD") {
         let write = |name: &str, what: &str, body: &str| frozen::write_file(&folder.join(name), what, language, &reason, body);
@@ -139,6 +144,7 @@ pub fn routes_frozen(linked: &super::Language, manifest_dir: ManifestDir, langua
     if let Some((files, name)) = &corpus {
         found.extend(frozen::differences_from_file(&folder.join(format!("rows.{name}.digests")), &frozen::corpus_text(parser.as_ref(), walk.as_ref(), files)));
     }
+    assert!(uncovered.is_empty(), "the fixtures leave {} spelled kinds without text on the walk:\n{}", uncovered.len(), uncovered.join("\n"));
     assert!(found.is_empty(), "{} differences between the walk and the frozen rows of {language}:\n{}", found.len(), found.join("\n"));
 }
 
