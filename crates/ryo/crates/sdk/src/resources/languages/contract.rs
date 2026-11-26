@@ -250,6 +250,12 @@ pub fn routes_agree(linked: &super::Language, manifest_dir: ManifestDir) {
             "routes corpus: {} files, {} relations compared, {} rows filled, {} files differing, {} differences, ADJUDICATED {}",
             report.files, report.relations, report.rows, report.differing, report.differences.len(), report.adjudicated
         );
+        // `RYO_ROUTES_RESIDUE=<file>` writes the mechanical shape of every differing pair, one line each, for a record of what differed.
+        if let Some(file) = std::env::var_os("RYO_ROUTES_RESIDUE") {
+            let mut lines = adjudication.residue.clone();
+            lines.sort();
+            std::fs::write(&file, lines.join("\n") + "\n").expect("the residue file is written");
+        }
         assert!(
             report.differences.is_empty(),
             "the routes differ on {} of {} files; first differences:\n{}",

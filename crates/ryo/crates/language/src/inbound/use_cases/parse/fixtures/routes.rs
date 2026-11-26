@@ -331,6 +331,7 @@ impl Compare<'_, '_> {
         };
         if let Some((rows, first)) = first_difference(old.rows, new.rows) {
             let (path, name) = (path.0, format!("{relation:?}"));
+            self.found.adjudication.residue.push(residue_line(path, relation, old.rows, new.rows));
             if let Some(difference) = self.found.adjudication.settle(path, &name, rows, format!("{shown}: {first}")) {
                 self.found.found.push(difference);
             }
@@ -877,6 +878,8 @@ pub struct Adjudication {
     used: Vec<bool>,
     /// How many differing pairs this run judged right on one side.
     pub adjudicated: usize,
+    /// The shape of every differing pair of the run, one line each (`residue_line`): what `RYO_ROUTES_RESIDUE` writes.
+    pub residue: Vec<String>,
 }
 
 /// The name of the list in a fixtures folder.
@@ -902,7 +905,7 @@ impl Adjudication {
             lines.push(Adjudged { path: (*path).to_owned(), relation: (*relation).to_owned(), rows, reason: (*reason).trim().to_owned() });
         }
         let count = lines.len();
-        Ok(Self { lines, visited: vec![false; count], used: vec![false; count], adjudicated: 0 })
+        Ok(Self { lines, visited: vec![false; count], used: vec![false; count], adjudicated: 0, residue: Vec::new() })
     }
 
     /// The list of a fixtures folder.
@@ -973,5 +976,87 @@ mod adjudication_tests {
         assert_eq!(list.stale().len(), 1, "read, and no difference: stale");
         assert!(Adjudication::parse("a.py\tBindingEvent\t2\t8\twalk\t").is_err(), "no reason");
         assert!(Adjudication::parse("a.py\tBindingEvent\t2\t8\tneither\tr").is_err(), "no side");
+    }
+}
+
+/// The mechanical shape of one differing (path, relation), as one tab-separated line: the path, the relation, how many rows differ
+/// (only in old plus only in the fill), a label, and the values of the relation's `kind` column over the differing rows (`-` for none).
+/// The label judges nothing: `ordinal-only` when the rows only one side has are the rows only the other side has once the
+/// `ordinal` column is erased; `walk-only-rows` when every differing row is the fill's; `old-only-rows` when every one is the old
+/// reader's; else `mixed`.
+fn residue_line(path: &str, relation: Relation, old: &[&[Want]], new: &[&[Want]]) -> String {
+    let columns = ryo_relations::domain::relations::service::columns(relation);
+    let column_at = |name: &str| columns.iter().position(|column| ryo_relations::domain::relations::service::column_name(*column).0 == name);
+    let (ordinal, kind) = (column_at("ordinal"), column_at("kind"));
+    let key = |row: &[Want], skipping: Option<usize>| row.iter().enumerate().filter(|(at, _)| Some(*at) != skipping).map(|(_, cell)| format!("{cell:?}")).collect::<Vec<_>>().join("|");
+    let mut in_old: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for row in old {
+        *in_old.entry(key(row, None)).or_default() += 1;
+    }
+    let mut only_new: Vec<&[Want]> = Vec::new();
+    for row in new {
+        match in_old.get_mut(&key(row, None)) {
+            Some(count) if *count > 0 => *count -= 1,
+            _ => only_new.push(row),
+        }
+    }
+    let mut only_old: Vec<&[Want]> = Vec::new();
+    for row in old {
+        if let Some(count) = in_old.get_mut(&key(row, None))
+            && *count > 0
+        {
+            *count -= 1;
+            only_old.push(row);
+        }
+    }
+    let label = if only_old.is_empty() {
+        "walk-only-rows"
+    } else if only_new.is_empty() {
+        "old-only-rows"
+    } else {
+        let sorted = |rows: &[&[Want]]| {
+            let mut keys: Vec<String> = rows.iter().map(|row| key(row, ordinal)).collect();
+            keys.sort();
+            keys
+        };
+        if ordinal.is_some() && sorted(&only_old) == sorted(&only_new) { "ordinal-only" } else { "mixed" }
+    };
+    let mut kinds: Vec<String> = kind
+        .map(|at| {
+            only_old.iter().chain(&only_new).filter_map(|row| row.get(at)).map(|cell| match cell {
+                Want::Name(text) | Want::Unknown(text) => (*text).to_owned(),
+                other => format!("{other:?}"),
+            }).collect()
+        })
+        .unwrap_or_default();
+    kinds.sort();
+    kinds.dedup();
+    format!("{path}\t{relation:?}\t{}\t{label}\t{}", only_old.len() + only_new.len(), if kinds.is_empty() { "-".to_owned() } else { kinds.join(",") })
+}
+
+#[cfg(test)]
+mod residue_tests {
+    use super::{Relation, Want, residue_line};
+
+    /// A `BindingEvent` row: occurrence, name, scope, phase, kind, ordinal, file, span, lexical.
+    fn event(ordinal: i64, kind: &'static str) -> Vec<Want> {
+        let point = super::super::expected::Point { line: 1, column: 1 };
+        vec![Want::Node(1), Want::Name("x"), Want::Node(2), Want::Node(3), Want::Name(kind), Want::Number(ordinal), Want::File("a.py"), Want::Span(point, point), Want::Node(2)]
+    }
+
+    #[test]
+    fn rows_that_differ_only_in_the_ordinal_are_labelled_so_and_extra_rows_by_their_side() {
+        let (a, b, c) = (event(1, "read"), event(2, "read"), event(3, "delete"));
+        fn rows<'a>(all: &[&'a Vec<Want>]) -> Vec<&'a [Want]> {
+            all.iter().map(|row| row.as_slice()).collect()
+        }
+        let shown = residue_line("a.py", Relation::BindingEvent, &rows(&[&a]), &rows(&[&b]));
+        assert!(shown.ends_with("\t2\tordinal-only\tread"), "{shown}");
+        let extra = residue_line("a.py", Relation::BindingEvent, &rows(&[&a]), &rows(&[&a, &c]));
+        assert!(extra.ends_with("\t1\twalk-only-rows\tdelete"), "{extra}");
+        let gone = residue_line("a.py", Relation::BindingEvent, &rows(&[&a, &c]), &rows(&[&a]));
+        assert!(gone.ends_with("\t1\told-only-rows\tdelete"), "{gone}");
+        let both = residue_line("a.py", Relation::BindingEvent, &rows(&[&a]), &rows(&[&c]));
+        assert!(both.ends_with("\t2\tmixed\tdelete,read"), "{both}");
     }
 }
