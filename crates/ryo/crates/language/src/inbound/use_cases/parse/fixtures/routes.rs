@@ -2,7 +2,7 @@
 //! numbering of the nodes of a row, and the coverage of the spelled kinds by the fixtures. The old reader these were once compared with is
 //! gone: the rows it wrote are frozen (`frozen.rs`), and the walk is held to them.
 
-use super::collect::Collect;
+use crate::inbound::use_cases::parse::collect::Collect;
 use super::reading::written;
 use super::samples::routes_samples;
 use crate::domain::facts::service::text;
