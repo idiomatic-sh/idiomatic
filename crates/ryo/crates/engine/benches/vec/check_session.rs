@@ -639,12 +639,11 @@ fn bind<'p, L: FileSource>(
         {
             continue;
         }
-        if parser.is_some_and(|p| p.expands(rel)) {
-            run.reader_tables.insert(name.to_owned());
-        }
-        if catalog::service::fact_form(rel) != relations::types::FactForm::NodeTable
-            || run.reader_tables.contains(name)
-        {
+        // The node-table relations are read from the numbered table by the executor; every other relation the language fills.
+        if catalog::service::fact_form(rel) != relations::types::FactForm::NodeTable {
+            if parser.is_some_and(|p| p.expands(rel)) {
+                run.reader_tables.insert(name.to_owned());
+            }
             if parser.is_some_and(|p| !p.available(rel)) {
                 return Err(format!("provider does not read {name}"));
             }
@@ -1191,7 +1190,7 @@ pub(crate) fn visit<L: FileSource>(
                 && !missing.is_empty()
             {
                 let fact_start = thread_cpu();
-                let filled = packet.fill_numbered(supplier, &missing, scoped_symbols.as_deref_mut().expect("scoped dictionary"), fact_words.as_deref_mut().expect("file word dictionary"));
+                let filled = packet.fill_numbered(supplier, &missing, fact_words.as_deref_mut().expect("file word dictionary"));
                 fact_cpu += thread_cpu() - fact_start;
                 if let Err(reason) = filled {
                     for (_, slot) in jobs.iter() {
@@ -1200,8 +1199,7 @@ pub(crate) fn visit<L: FileSource>(
                     return;
                 }
             }
-            let partials = std::mem::take(&mut packet.rows.partials);
-            let partials_at = std::mem::take(&mut packet.rows.partials_at);
+            let partials = std::mem::take(&mut packet.partials);
             use ryo_values::domain::stored_facts::types::{
                 PartialAt, PartialCause, PartialScope, ReadInPart,
             };
@@ -1213,12 +1211,6 @@ pub(crate) fn visit<L: FileSource>(
                     lacking: *lacking,
                     at: PartialScope::OneFile(PartialAt(id.0)),
                 })
-                .chain(partials_at.iter().map(|(relation, file, why)| ReadInPart {
-                    relation: *relation,
-                    cause: PartialCause(why.as_str().into()),
-                    lacking: ryo_relations::domain::relations::types::Missing::Any,
-                    at: PartialScope::OneFile(PartialAt(file.0)),
-                }))
                 .collect();
             packet.lazy_fills = lazy_fills;
             let supplier_cell = scoped_facts.take().map(std::cell::RefCell::new);
@@ -1323,7 +1315,7 @@ pub(crate) fn visit<L: FileSource>(
                 supplier.borrow_mut().render(request).map_err(|e| e.to_string())
             };
             let loan = Some(packet.operator_columns(id, dictionary.as_ref(), lazy.as_ref(),
-                Some(reader_run::packet::RowsContext { symbols: scoped_symbols.as_deref().unwrap_or(&unclaimed_symbols), bytes: &bytes, unknown }), &mut run));
+                &mut run));
             // The frame owns the reader's projected word buffer for this visit.
             let mut frame_words = provider.projects_words.then(|| std::mem::take(&mut provider.text));
             let mut facts_view = packet.view(&mut provider, scoped_symbols.as_deref().unwrap_or(&unclaimed_symbols), &bytes, dictionary.as_ref(), lazy.as_ref());
