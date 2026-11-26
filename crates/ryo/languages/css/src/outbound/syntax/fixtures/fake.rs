@@ -37,6 +37,7 @@ impl SyntaxPort for SyntaxFake {
         &self,
         text: SourceText<'_>,
         _at: SourcePath<'_>,
+        _decodings: &mut crate::domain::file_view::types::Decodings,
         builder: &mut languages::NodeTableBuilder<'_>,
     ) {
         use languages::{FieldCode, node_table};
