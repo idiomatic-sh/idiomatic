@@ -3,71 +3,19 @@
 
 use crate::domain::file_view::service::{node_cell, sectioned, span_at, word};
 use crate::domain::file_view::types::MarkdownWalk;
+use crate::domain::labels::service::anchors_in;
+use crate::domain::labels::types::Defined;
 use crate::domain::syntax::service::kind_name;
 use crate::domain::walked_model::service::{defined as walked_defined, owner as walked_owner};
 use crate::domain::walked_prose::service::section_text;
 use ryo::languages::node_table;
-use crate::domain::labels::service::{anchors_in, defined};
-use crate::domain::labels::types::Defined;
-use crate::domain::model::service::owner;
-use crate::domain::model::types::Sections;
 use crate::domain::nodes::types::Node;
-use crate::domain::prose::service::section_name;
-use crate::domain::syntax::service::{kind_bits, kind_symbol, name_of};
+use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use ryo::languages;
 
-/// The reader the `parse` contract hands the `defines` relation to, which reads its rows from a file's tree.
+/// The item the engine's fill of the relation is registered on.
 pub(crate) struct DefinesItem;
-
-ryo::reads! {
-    DefinesItem => languages::Defines, model(Sections) |tree, model, at, symbols| {
-        kinds: [
-            Kind::Node(Node::Heading),
-            Kind::Node(Node::FootnoteDefinition),
-            Kind::Node(Node::Definition),
-            Kind::Node(Node::Html),
-        ] as kind_bits,
-        when defined(tree, at) {
-            Defined::Section => {
-                row {
-                    id: node(at),
-                    kind: value(languages::DeclarationKind::Section),
-                    refinement: value(kind_symbol(tree, symbols, at)),
-                    name: value(section_name(tree, symbols, at)),
-                    owner: value(owner(tree, model, at)),
-                    file: file,
-                    span: span(at),
-                }
-            }
-            Defined::Label(label) => {
-                row {
-                    id: node(at),
-                    kind: value(languages::DeclarationKind::Label),
-                    refinement: value(kind_symbol(tree, symbols, at)),
-                    name: value(name_of(tree, symbols, languages::NameText(label.0))),
-                    owner: value(owner(tree, model, at)),
-                    file: file,
-                    span: span(at),
-                }
-            }
-            Defined::Html(html) => {
-                each (anchors_in(html)) as anchor {
-                    row {
-                        id: node(at),
-                        kind: value(languages::DeclarationKind::Label),
-                        refinement: value(kind_symbol(tree, symbols, at)),
-                        name: value(name_of(tree, symbols, languages::NameText(anchor.0))),
-                        owner: value(owner(tree, model, at)),
-                        file: file,
-                        span: span(at),
-                    }
-                }
-            }
-            Defined::Nothing => {}
-        }
-    }
-}
 
 // The engine fills `defines` from the walked file: each heading a section, each definition and footnote a label, each anchor of raw HTML.
 ryo::fills! {

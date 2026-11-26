@@ -2,4 +2,3 @@
 
 pub(crate) mod contract;
 pub(crate) mod fake;
-pub(crate) mod library;

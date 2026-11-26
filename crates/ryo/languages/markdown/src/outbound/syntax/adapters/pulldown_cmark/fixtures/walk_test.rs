@@ -1,6 +1,7 @@
 //! The walk's cases: the library's tree of a file, written out by hand, and the adapter's tree held to it, as it is and with a piece
 //! moved out of the node it belongs in.
 
+use ryo::languages::{NodeTable, node_table};
 use ryo::languages::SourcePath;
 use std::borrow::Cow;
 
@@ -11,7 +12,7 @@ use crate::outbound::syntax::adapters::pulldown_cmark::adapter::SyntaxPulldownCm
 use crate::outbound::syntax::interface::SyntaxPort as _;
 use crate::outbound::syntax::types::SourceText;
 use ryo::languages::contract::{Leafness, Walked};
-use ryo::languages::{self, ByteSlice, Elements, Position, Symbols};
+use ryo::languages::{self, Position};
 
 /// What is read of a file.
 #[derive(Clone, Copy, Debug)]
@@ -75,17 +76,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 /// The piece at `at` of the adapter's table, with everything under it.
-fn table_piece(elements: &Elements, at: Position) -> Walked {
+fn table_piece(elements: &NodeTable, at: Position) -> Walked {
     Walked {
-        kind: languages::kind_at(elements, at),
-        leaf: if languages::flags_at(elements, at).0 & languages::TOKEN.0 == 0 {
+        kind: node_table::kind_of(elements, at),
+        leaf: if !node_table::is_token(elements, at) {
             Leafness::Node
         } else {
             Leafness::Token
         },
-        start: languages::start_at(elements, at),
-        end: languages::end_at(elements, at),
-        children: languages::children(elements, at)
+        start: node_table::span_of(elements, at).start,
+        end: node_table::span_of(elements, at).end,
+        children: node_table::children_of(elements, at).iter().copied()
             .map(|each| table_piece(elements, each))
             .collect(),
     }
@@ -93,12 +94,7 @@ fn table_piece(elements: &Elements, at: Position) -> Walked {
 
 /// The adapter's tree of `text`.
 fn adapter_tree(text: &str) -> Walked {
-    let (mut elements, mut symbols) = (Elements::default(), Symbols::default());
-    SyntaxPulldownCmarkAdapter.read(
-        SourceText(text.as_bytes()),
-        SourcePath("a.md"),
-        &mut languages::table_builder(&mut elements, &mut symbols, ByteSlice(text.as_bytes())),
-    );
+    let elements = crate::outbound::syntax::adapters::pulldown_cmark::fixtures::projection::walked_table(text);
     table_piece(&elements, Position(0))
 }
 
