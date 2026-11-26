@@ -181,6 +181,10 @@ pub(crate) struct LinterLintEngine {
     pub scan_engine: Arc<dyn ryo_execution_runtime::outbound::engine::interface::EnginePort>,
     /// Which engines run the files of every run: the ones `RYO_ENGINE` selected when the linter was built.
     pub engines: ryo_operators::spike::EngineMode,
+    /// The languages the linter was built over, which a linked executor reads the files with.
+    pub languages: crate::domain::language::types::Languages,
+    /// The linked executor's session of this linter.
+    pub session: usize,
 }
 
 impl Linter {
