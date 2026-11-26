@@ -120,38 +120,38 @@ let named = extend(from=rows, values={"problem": "a comment"});
 emit named subject "file" key("span");"#;
     let root = workspace(&[("a.toml", "# one\n")]);
     let error = refused(request(root.path(), vec![("idiomatic/with-parameter", rule(query))]));
-    assert!(matches!(error, LintError::Unrunnable { .. }), "{error:?}");
+    assert!(matches!(error, LintError::MissingParameter { .. }), "{error:?}");
 }
 
-/// Old: `an_unknown_semantic_kind_is_refused_before_a_file_is_read`. DIFFERS: the old engine refused the run before any file was read;
-/// the executor answers a clean empty report for a query that names a kind no language has.
+/// Old: `an_unknown_semantic_kind_is_refused_before_a_file_is_read`: refused by the admission checks, before any file is read, as
+/// `Unrunnable` (the old engine's `UnknownKind` is answered to the caller as `Unrunnable` with the reason).
 #[test]
-fn a_query_naming_a_kind_no_language_has_is_answered_with_no_findings() {
+fn a_query_naming_a_kind_no_language_has_is_refused_before_a_file_is_read() {
     let query = r#"let rows = select * from "syntax-tree" where kind = "no-such-kind";
 let named = extend(from=rows, values={"problem": "a kind"});
 emit named subject "file" key("id");"#;
     let root = workspace(&[("a.toml", "# one\n")]);
-    let report = linter().lint(vec![request(root.path(), vec![("idiomatic/kinds", rule(query))])]).pop().expect("one answer").expect("answered");
-    assert!(report.findings.is_empty() && report.unread.is_empty() && report.unknowns.is_empty(), "{report:?}");
+    let error = refused(request(root.path(), vec![("idiomatic/kinds", rule(query))]));
+    assert!(matches!(error, LintError::Unrunnable { .. }), "{error:?}");
 }
 
-/// Old: `a_source_provider_the_request_names_but_no_language_links_is_refused`. DIFFERS in the variant: the old engine answered
-/// `SourceLanguage`; the executor answers `Execution` ("named reader <name> is absent or ambiguous").
+/// Old: `a_source_provider_the_request_names_but_no_language_links_is_refused`: `SourceLanguage`, answered by the admission checks.
 #[test]
 fn a_provider_no_language_links_is_refused() {
     let root = workspace(&[("a.toml", "# one\n")]);
     let mut asked = request(root.path(), vec![("idiomatic/comments", rule(COMMENTS))]);
     asked.source_language = SourceLanguage::Named(ryo::languages::LanguageName("no-such-language".into()));
     let error = refused(asked);
-    assert!(matches!(error, LintError::Execution { .. }), "{error:?}");
+    assert!(matches!(error, LintError::SourceLanguage { .. }), "{error:?}");
 }
 
-/// NEW (no old test): the old engine walked the repository for `Corpus::Walked`; the executor reads the files a host lists.
+/// The old engine walked the repository for `Corpus::Walked`; the SDK lists the files itself for the executor, which takes a closed
+/// inventory.
 #[test]
-fn a_walked_corpus_is_refused_because_the_executor_needs_a_closed_inventory() {
-    let root = workspace(&[("a.toml", "# one\n")]);
+fn a_walked_corpus_walks_the_repository() {
+    let root = workspace(&[("a.toml", "# one\n"), ("sub/b.toml", "# two\n")]);
     let mut asked = request(root.path(), vec![("idiomatic/comments", rule(COMMENTS))]);
     asked.corpus = Corpus::Walked;
-    let error = refused(asked);
-    assert!(matches!(error, LintError::Execution { .. }), "{error:?}");
+    let report = linter().lint(vec![asked]).pop().expect("one answer").expect("the walked lint is answered");
+    assert_eq!(report.findings.len(), 2, "{:?}", report.findings);
 }
