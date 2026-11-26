@@ -94,6 +94,7 @@ pub use ryo::languages::EmbeddedSpan
 pub use ryo::languages::EmbeddedText
 pub use ryo::languages::Entry
 pub use ryo::languages::EntryColumn
+pub use ryo::languages::EntryObservation
 pub use ryo::languages::EntryRow
 pub use ryo::languages::ExpandedPosition
 pub use ryo::languages::ExpansionId
@@ -272,6 +273,7 @@ pub use ryo::languages::NumberedWalk
 pub use ryo::languages::NumericLiteral
 pub use ryo::languages::NumericLiteralColumn
 pub use ryo::languages::NumericLiteralRow
+pub use ryo::languages::ObservedEntries
 pub use ryo::languages::ObservedEntryState
 pub use ryo::languages::Offset
 pub use ryo::languages::OptionalCapability
@@ -307,6 +309,7 @@ pub use ryo::languages::ProjectNamespaceMembership
 pub use ryo::languages::ProjectNamespaceMembershipColumn
 pub use ryo::languages::ProjectNamespaceMembershipRow
 pub use ryo::languages::ProjectRequest
+pub use ryo::languages::ProjectSearchScope
 pub use ryo::languages::PropertyId
 pub use ryo::languages::Prose
 pub use ryo::languages::ProseColumn
@@ -348,6 +351,7 @@ pub use ryo::languages::ResolvesRow
 pub use ryo::languages::RetainedKeyIndex
 pub use ryo::languages::RootPath
 pub use ryo::languages::RowKind
+pub use ryo::languages::RowWriter
 pub use ryo::languages::Rows
 pub use ryo::languages::Sample
 pub use ryo::languages::SampleText

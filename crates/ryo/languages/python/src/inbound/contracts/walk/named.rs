@@ -1,6 +1,5 @@
-//! The Python language's private file-scope relations (the import relations,
-//! annotation evaluation), answered from a walked file while its view is live: the walk's `named` item hands the request here.
-//! They stay until the rules that read them (I001) read fills instead.
+//! The Python language's private file-scope relation (annotation evaluation), answered from a walked file while its view is live: the walk's
+//! `named` item hands the request here; and the project notes of a walked file (its imports, read in source order) are made here.
 
 use crate::domain::file_view::types::{PythonFile, PythonWalk};
 use crate::domain::node::service::nodes_of_kind;
@@ -25,7 +24,6 @@ pub(crate) struct NamedFile<'a, 'f> {
     /// The node table.
     pub(crate) table: &'a NodeTable,
     pub(crate) file: &'a mut PythonFile<'f>,
-    import_presence: crate::domain::node::types::ImportPresence,
     pub(crate) words: &'a mut FileWords,
 }
 
@@ -57,11 +55,9 @@ fn qualify_cells(
 impl NamedFile<'_, '_> {
     /// The project notes of a walked file: its imports, read in source order.
     pub(crate) fn noted(file: &mut PythonFile<'_>, table: &NodeTable, source: languages::ByteSlice<'_>) -> crate::domain::fact_notes::types::Note {
-        let import_presence = file.import_presence;
         let walked = NamedFile {
             table,
             file,
-            import_presence,
             words: &mut FileWords::default(),
         };
         crate::domain::fact_notes::service::noted_walk(&walked, source)
@@ -74,4 +70,3 @@ impl NamedFile<'_, '_> {
     }
 }
 
-mod import_environment;
