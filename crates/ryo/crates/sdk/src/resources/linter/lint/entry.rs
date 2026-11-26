@@ -32,22 +32,42 @@ impl Linter {
             return Vec::new();
         }
         let (execute, _) = super::executor::in_use();
-        let count = requests.len();
+        let engine = self.engine();
+        // A walked corpus is listed here, for the executor takes a closed inventory: a request whose walk fails is answered by its error.
+        let mut answers: Vec<Option<Result<LintReport, LintError>>> = Vec::with_capacity(requests.len());
+        let mut runnable = Vec::new();
+        for request in requests {
+            match super::walk::listed(request, engine) {
+                Ok(listed) => {
+                    answers.push(None);
+                    runnable.push(listed);
+                }
+                Err(error) => answers.push(Some(Err(error))),
+            }
+        }
+        let count = runnable.len();
         let fail = |reason: String| -> Vec<Result<LintReport, LintError>> {
             (0..count).map(|_| Err(LintError::Io { what: super::types::Port::Scheduler, reason: reason.clone() })).collect()
         };
-        let engine = self.engine();
-        let Some(workers) = std::num::NonZeroUsize::new(engine.workers.0 as usize) else {
-            return fail("the worker pool is empty".into());
+        let ran = if count == 0 {
+            Vec::new()
+        } else if let Some(workers) = std::num::NonZeroUsize::new(engine.workers.0 as usize) {
+            let (mut pending, mut done) = (Some(runnable), Vec::new());
+            let mut job = || {
+                done = execute(engine.session, pending.take().unwrap_or_default(), &engine.languages, &engine.cache, workers);
+            };
+            match Arc::clone(&engine.scheduler).on_owner(&mut job) {
+                Ok(()) => done,
+                Err(reason) => fail(reason.to_string()),
+            }
+        } else {
+            fail("the worker pool is empty".into())
         };
-        let (mut requests, mut answers) = (Some(requests), Vec::new());
-        let mut job = || {
-            answers = execute(engine.session, requests.take().unwrap_or_default(), &engine.languages, &engine.cache, workers);
-        };
-        match Arc::clone(&engine.scheduler).on_owner(&mut job) {
-            Ok(()) => answers,
-            Err(reason) => fail(reason.to_string()),
-        }
+        let mut ran = ran.into_iter();
+        answers
+            .into_iter()
+            .map(|answer| answer.unwrap_or_else(|| ran.next().unwrap_or_else(|| Err(LintError::Execution { reason: "the executor answered fewer requests than it was given".into() }))))
+            .collect()
     }
 }
 

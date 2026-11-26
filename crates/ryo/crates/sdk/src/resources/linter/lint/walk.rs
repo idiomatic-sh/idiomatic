@@ -1,0 +1,94 @@
+//! A request that says `Corpus::Walked` is listed here: the executor takes a closed inventory, so the SDK, which composes, walks the
+//! root the way the engine always did (the repository's ignore files, the languages' skipped directories and the directory that holds the
+//! store) and hands the executor the list.
+
+use ryo_core::outbound::corpus::interface::CorpusPort as _;
+use ryo_values::domain::files::types::{CorpusInput, CorpusListing};
+
+use super::errors::LintError;
+use super::types::{Cache, Corpus, LintRequest, LinterLintEngine, Port};
+use crate::domain::file::types::RelativePath;
+
+/// `request` with its corpus listed: a walked corpus becomes the files below the root, as the walk finds them; every other corpus is
+/// the caller's and stays as it is.
+///
+/// # Errors
+///
+/// `Io` of the corpus when the walk fails.
+pub(super) fn listed(mut request: LintRequest, engine: &LinterLintEngine) -> Result<LintRequest, LintError> {
+    if !matches!(request.corpus, Corpus::Walked) {
+        return Ok(request);
+    }
+    let mut skipped = engine.skipped.clone();
+    if let Cache::At(directory) = &engine.cache
+        && let Some(skip) = store_skip(directory, &request.root)
+        && let Some(skip) = skip.to_str()
+    {
+        skipped.push(skip.into());
+    }
+    let walk = ryo_core::outbound::corpus::factory::ignore(
+        ryo_language::inbound::use_cases::project::types::RootPath(request.root.to_string_lossy().into()),
+        CorpusListing::Walked,
+        Vec::new(),
+        ryo_core::outbound::corpus::types::SkippedDirectories(skipped),
+    );
+    let inventory = walk.inventory().map_err(|error| LintError::Io { what: Port::Corpus, reason: error.to_string() })?;
+    let mut paths = Vec::new();
+    for input in inventory.0 {
+        if let CorpusInput::Available(entry) | CorpusInput::ReadFailed { entry, .. } = input {
+            paths.push(RelativePath(entry.path.0.clone()));
+        }
+    }
+    request.corpus = Corpus::Listed(paths);
+    Ok(request)
+}
+
+/// Where `path` is, written from the current directory without `.` or `..` components: the same place whatever its spelling.
+fn normalized(path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let Ok(absolute) = std::path::absolute(path) else {
+        return None;
+    };
+    let mut parts = std::path::PathBuf::new();
+    for part in absolute.components() {
+        match part {
+            std::path::Component::ParentDir => {
+                let _popped = parts.pop();
+            }
+            std::path::Component::CurDir => {}
+            kept @ (std::path::Component::Prefix(_)
+            | std::path::Component::RootDir
+            | std::path::Component::Normal(_)) => parts.push(kept),
+        }
+    }
+    Some(parts)
+}
+
+/// The walk's skip for the directory that holds the store: `./` and the path beneath `root`, however either is spelled, when the
+/// store is kept beneath the root; none when it is kept elsewhere. A path, not a name: only that directory is skipped.
+pub(super) fn store_skip(
+    store: &std::path::Path,
+    root: &std::path::Path,
+) -> Option<std::path::PathBuf> {
+    let (Some(store), Some(root)) = (normalized(store), normalized(root)) else {
+        return None;
+    };
+    let Ok(beneath) = store.strip_prefix(root) else {
+        return None;
+    };
+    if beneath.as_os_str().is_empty() {
+        return None;
+    }
+    // Joined by `/` on every platform, as the walk reads every path it skips.
+    let mut skip = std::path::Component::CurDir
+        .as_os_str()
+        .to_string_lossy()
+        .into_owned();
+    for part in beneath.components() {
+        skip.push(SKIP_SEPARATOR);
+        skip.push_str(&part.as_os_str().to_string_lossy());
+    }
+    Some(std::path::PathBuf::from(skip))
+}
+
+/// The separator of a skipped path, as the walk reads it.
+const SKIP_SEPARATOR: char = '/';

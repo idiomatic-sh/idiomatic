@@ -18,7 +18,9 @@ use crate::domain::project::types::{DependencyBytes, DependencyFingerprint};
 /// catalog, and the matching.
 pub(crate) fn build_engine(languages: Vec<Language>, pool: WorkerPool, cache: super::types::Cache) -> LinterLintEngine {
     let workers = pool.workers();
+    let skipped = languages.iter().flat_map(|language| language.skips().iter().map(|skip| Box::<str>::from(skip.0))).collect();
     LinterLintEngine {
+        skipped,
         scheduler: pool.of(),
         workers,
         cache,

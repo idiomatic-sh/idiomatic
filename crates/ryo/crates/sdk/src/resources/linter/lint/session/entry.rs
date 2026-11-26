@@ -32,9 +32,6 @@ pub(crate) fn execute_round(
         session.batch.workers = Some(workers);
         session.lint(requests, languages)
     };
-    // What the session keeps for the next run is on disk when the call returns: a host that ends its process without running
-    // destructors loses nothing.
-    session.publish();
     drop(SESSIONS.with(|sessions| sessions.borrow_mut().insert(id, session)));
     answers
 }

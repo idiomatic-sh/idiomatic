@@ -24,12 +24,13 @@ pub struct CheckArguments {
 }
 
 /// Checks the arguments, composes the service, calls it once and shapes its answer for `format`, with the outcome the
-/// answer ends the command as; when it cannot answer, the error is said on stderr and its outcome returned.
-pub(super) fn answer(
+/// answer ends the command as; when it cannot answer, the error is said on stderr and its outcome returned. The composed services
+/// come back beside the answer, for `run` to keep until the process ends.
+fn answered(
     arguments: CheckArguments,
     edge: &crate::edge::Edge,
     format: Format,
-) -> Result<impl crate::output::Encoded + Ending + use<>, Outcome> {
+) -> Result<(impl crate::output::Encoded + Ending + use<>, impl Sized + use<>), Outcome> {
     let request = super::schemas::request(arguments.paths, arguments.fix, edge)
         .map_err(|error| crate::output::fail(&error, Outcome::Failure))?;
     let (check, validate) = super::composition::build(
@@ -37,10 +38,21 @@ pub(super) fn answer(
         &super::connections::connect(&edge.store, &edge.start, &edge.build, edge.writing),
     );
     proved(&validate, edge)?;
-    check
+    let answer = check
         .check(request)
         .map(|report| super::schemas::answer(&report, format))
-        .map_err(|error| crate::output::fail(&error, Outcome::Error))
+        .map_err(|error| crate::output::fail(&error, Outcome::Error))?;
+    Ok((answer, (check, validate)))
+}
+
+/// The answer of `answered`, without the services.
+#[cfg(test)]
+pub(super) fn answer(
+    arguments: CheckArguments,
+    edge: &crate::edge::Edge,
+    format: Format,
+) -> Result<impl crate::output::Encoded + Ending + use<>, Outcome> {
+    answered(arguments, edge, format).map(|(answer, _composed)| answer)
 }
 
 /// Proves every definition as `tm validate` does, a lookup for each whose proof is current; when one does not hold, the
@@ -63,8 +75,15 @@ fn proved(validate: &impl ValidateUseCase, edge: &crate::edge::Edge) -> Result<(
 /// ends as a failure when there is a finding, every finding being an error.
 pub fn run(arguments: CheckArguments, edge: &crate::edge::Edge) -> Outcome {
     let format = edge.format;
-    match answer(arguments, edge, format) {
-        Ok(answer) => crate::output::present(format, &answer, answer.ending()),
+    match answered(arguments, edge, format) {
+        Ok((answer, composed)) => {
+            let outcome = crate::output::present(format, &answer, answer.ending());
+            // The command's last act: the answer is printed and the stores are written, so the process ends without freeing the engine
+            // the check ran on (the plans, tables and strings of a project, which take seconds to free): a binary's choice, as a
+            // library user's linter drops normally.
+            std::mem::forget(composed);
+            outcome
+        }
         Err(outcome) => outcome,
     }
 }

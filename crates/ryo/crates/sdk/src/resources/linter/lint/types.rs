@@ -139,6 +139,8 @@ pub(crate) struct LinterLintEngine {
     pub cache: Cache,
     /// The languages the linter was built over, which the executor reads the files with.
     pub languages: crate::domain::language::types::Languages,
+    /// The directories the walk of a root never enters: the languages' own.
+    pub skipped: Vec<Box<str>>,
     /// The executor's session of this linter.
     pub session: usize,
 }

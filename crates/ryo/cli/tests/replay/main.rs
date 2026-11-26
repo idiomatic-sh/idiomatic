@@ -78,6 +78,7 @@ mod rule_fixtures;
 mod scenarios;
 mod sdk;
 mod snapshot;
+mod walked;
 
 use std::sync::{PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
