@@ -131,6 +131,28 @@ impl<P: ProjectUseCase> ProjectEngine for P {
         ProjectUseCase::project_entries(self, request, entries);
     }
 
+    fn file_entries(
+        &self,
+        request: &ProjectRequest,
+        file: usize,
+        notes: &ryo_relations::domain::relations::types::Bytes,
+        entries: &mut crate::domain::files::types::ProjectEntries,
+    ) {
+        ProjectUseCase::file_entries(self, request, file, notes, entries);
+    }
+
+    fn file_rows(
+        &self,
+        request: &ProjectRequest,
+        file: usize,
+        notes: &ryo_relations::domain::relations::types::Bytes,
+        observed: &crate::domain::project_context::types::ObservedEntries,
+        symbols: &mut Symbols,
+        out: &mut dyn RowWriter,
+    ) -> Result<Resolved, ProjectError> {
+        ProjectUseCase::file_rows(self, request, file, notes, observed, symbols, out)
+    }
+
     fn manifest_names(&self) -> &'static [ManifestName] {
         ProjectUseCase::manifests(self)
     }
