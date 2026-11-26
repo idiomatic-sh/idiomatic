@@ -4,6 +4,7 @@
 
 use crate::domain::file_view::types::{HtmlFile, HtmlWalk};
 use crate::domain::syntax::service::{field_name, fields, kind_name, kind_of, kinds};
+use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
 use ryo::languages::{
     self, AbsenceCause, ByteSlice, Bytes, CatalogRelation, FileCompleteness, KindBits, NodeTable, SyntaxCompleteness, node_table, FieldNames, FileWords, Fill, Fillers, FixedNames, NameText, RenderOutcome, RenderRequest,
@@ -250,7 +251,15 @@ impl<P: Send + Sync + 'static> Fillers for HtmlWalk<P> {
     fn notes(_file: &mut HtmlFile<'_>, _table: &NodeTable, _source: ByteSlice<'_>, _out: &mut Bytes) {}
 
     fn spells(kind: KindBits) -> bool {
-        matches!(kind_of(kind), Kind::Token(_) | Kind::Extra(_))
+        // the tokens and extras of the file, and the properties the tree holds as leaves of their own: each has its text for a word
+        matches!(
+            kind_of(kind),
+            Kind::Token(_)
+                | Kind::Extra(_)
+                | Kind::Node(
+                    Node::Name | Node::Namespace | Node::Prefix | Node::Value | Node::PublicId | Node::SystemId | Node::DocumentMode
+                )
+        )
     }
 
     fn render(_file: &mut HtmlFile<'_>, _request: RenderRequest) -> RenderOutcome {
