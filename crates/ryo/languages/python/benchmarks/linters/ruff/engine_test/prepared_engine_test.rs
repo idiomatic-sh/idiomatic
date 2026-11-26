@@ -1,6 +1,6 @@
 //! The prepared engine and the SDK fixtures every engine proof shares, below the proofs that use them.
 use benchmark::outbound::context::interface::ContextPort as _;
-use benchmark::outbound::engine::{factory, interface::EnginePort};
+use benchmark::outbound::engine::interface::EnginePort;
 use benchmark_contracts::domain::reports::errors::ReportsError as Error;
 use benchmark_contracts::domain::reports::types::ProjectContext;
 use benchmark_contracts::domain::requests::types::{ContextSeal, WorkerRequest};
@@ -131,15 +131,4 @@ emit diagnostics subject file key(id);
 "#)
             .map_err(|error| Error::Invalid(error.to_string()))?,
     })
-}
-
-/// One lint of `request` over `linter`: the answer of the one request, as the SDK gives it.
-pub(super) fn lint_with(
-    linter: &ryo::linter::Linter,
-    request: ryo::linter::LintRequest,
-) -> Result<ryo::linter::LintReport, ryo::linter::LintError> {
-    linter
-        .lint(vec![request])
-        .pop()
-        .unwrap_or_else(|| Err(ryo::linter::LintError::Execution { reason: "the linter answered no request".into() }))
 }

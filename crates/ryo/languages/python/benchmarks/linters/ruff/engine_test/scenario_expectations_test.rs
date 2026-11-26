@@ -15,12 +15,9 @@ pub(super) fn input_file(scenario: EngineScenario) -> &'static str {
         | EngineScenario::UnknownFutureWithoutConsumer
         | EngineScenario::FrontendRuleCollision
         | EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile
-        | EngineScenario::ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile
         | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
-        | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
         | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
         | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders
-        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory
         | EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
@@ -47,12 +44,9 @@ pub(super) fn source_for(scenario: EngineScenario) -> &'static str {
             "x = 1\nfrom __future__ import annotations\n"
         }
         EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile
-        | EngineScenario::ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile
         | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
-        | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
         | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
         | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders
-        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory
         | EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
@@ -121,12 +115,9 @@ pub(super) fn expected_diagnostics(
         EngineScenario::LateFutureDirectiveProjection => ("F404", 6, 40),
         EngineScenario::FrontendRuleCollision
         | EngineScenario::ARejectedFileLeavesPt020Pt025AndPt026AnsweringTheValidFile
-        | EngineScenario::ARejectedFileLeavesI001Plw0406AndRuf100AnsweringTheValidFile
         | EngineScenario::SharedSuppressionFragmentMatchesTheHistoricalInlineQueries
-        | EngineScenario::ActualI001MixedNamespaceObservationStaysUnknownOnColdAndWarmReplay
         | EngineScenario::LazyFutureStaysVisibleWithoutADedicatedSelectedRule
         | EngineScenario::ListedProjectInputsAndInvalidSourcesKeepDistinctReaders
-        | EngineScenario::I001HiddenMatchAndRuf100OutputFollowFirstImportAndUnknownInventory
         | EngineScenario::Pie794RootedEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::SparseDescendantConsumersEquivalenceReportsNothingAcrossUnrelatedGrowth
         | EngineScenario::Plr1708RootedEquivalenceReportsNothingAcrossUnrelatedGrowth

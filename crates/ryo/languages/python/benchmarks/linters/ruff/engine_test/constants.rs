@@ -32,70 +32,8 @@ pub(crate) const TRUE: &str = "True";
 pub(crate) const INVALID_SYNTAX: &str = "invalid-syntax";
 /// Text `benchmark.toml`.
 pub(crate) const BENCHMARK_TOML: &str = "benchmark.toml";
-/// Text `query-modules`.
-pub(crate) const QUERY_MODULES: &str = "query-modules";
-/// Text `I001`.
-pub(crate) const I001: &str = "I001";
-/// Text `RUF100`.
-pub(crate) const RUF100: &str = "RUF100";
-/// Text `HIDDEN`.
-pub(crate) const HIDDEN: &str = "HIDDEN";
-/// Text `directive`.
-pub(crate) const DIRECTIVE: &str = "directive";
-/// Text `file`.
-pub(crate) const FILE: &str = "file";
-/// Text `code`.
-pub(crate) const CODE: &str = "code";
-/// Text `noqa_matches`.
-pub(crate) const NOQA_MATCHES: &str = "noqa_matches";
-/// Text `test/I001`.
-pub(crate) const TEST_I001: &str = "test/I001";
-/// Text `rules/I001/query.ryoql`.
-pub(crate) const RULES_I001_QUERY_RYOQL: &str = "rules/I001/query.ryoql";
-/// Text `**`.
-pub(crate) const TEXT: &str = "**";
-/// Text `test/RUF100`.
-pub(crate) const TEST_RUF100: &str = "test/RUF100";
-/// Text `rules/RUF100/query.ryoql`.
-pub(crate) const RULES_RUF100_QUERY_RYOQL: &str = "rules/RUF100/query.ryoql";
-/// Text `suppression_matches`.
-pub(crate) const SUPPRESSION_MATCHES: &str = "suppression_matches";
-/// Text `let located = select l.directive as i...`.
-pub(crate) const LET_LOCATED_SELECT_L_DIRECTIVE_AS: &str = "let located = select l.directive as id, l.file as file, r.span as span from incoming as l join \"source-location\" as r on l.directive = r.id and l.file = r.file; emit located subject file key(id);";
-/// Text `test/HIDDEN`.
-pub(crate) const TEST_HIDDEN: &str = "test/HIDDEN";
-/// Text `incoming`.
-pub(crate) const INCOMING: &str = "incoming";
-/// Text `config.selected`.
-pub(crate) const CONFIG_SELECTED: &str = "config.selected";
-/// Text `config.disabled`.
-pub(crate) const CONFIG_DISABLED: &str = "config.disabled";
-/// Text `config.external`.
-pub(crate) const CONFIG_EXTERNAL: &str = "config.external";
-/// Text `prefix`.
-pub(crate) const PREFIX: &str = "prefix";
-/// Text `import local  # noqa: I001 import num...`.
-pub(crate) const IMPORT_LOCAL_NOQA_I001_IMPORT_NUMP: &str =
-    "import local  # noqa: I001\nimport numpy\nimport unresolved\n";
-/// Text `import local import numpy  # noqa: I0...`.
-pub(crate) const IMPORT_LOCAL_IMPORT_NUMPY_NOQA_I00: &str =
-    "import local\nimport numpy  # noqa: I001\nimport unresolved\n";
-/// Text ``.
-pub(crate) const EMPTY: &str = "";
-/// Text `local.py`.
-pub(crate) const LOCAL_PY: &str = "local.py";
 /// Text `case.py`.
 pub(crate) const CASE_PY: &str = "case.py";
-/// Text `broken.py`.
-pub(crate) const BROKEN_PY: &str = "broken.py";
-/// Text `def broken(  # noqa: I001 `.
-pub(crate) const DEF_BROKEN_NOQA_I001: &str = "def broken(  # noqa: I001\n";
-/// Text `other.py`.
-pub(crate) const OTHER_PY: &str = "other.py";
-/// Text `import b import a `.
-pub(crate) const IMPORT_B_IMPORT_A: &str = "import b\nimport a\n";
-/// Text `import a import b `.
-pub(crate) const IMPORT_A_IMPORT_B: &str = "import a\nimport b\n";
 /// Text `profile`.
 pub(crate) const PROFILE: &str = "profile";
 /// Text `RUF200`.
