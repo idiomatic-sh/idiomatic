@@ -1,13 +1,6 @@
 //! `query run`: parses, checks, composes, calls the service, presents.
 
-#[cfg(test)]
-use ryo_core::inbound::use_cases::lint::interface::LintUseCase as _;
-#[cfg(test)]
-use ryo_core::inbound::use_cases::lint::types::LintRequest;
-
 use crate::outcome::Outcome;
-#[cfg(test)]
-use ryo_core::inbound::use_cases::lint::errors::LintError;
 
 /// The arguments of `query run`.
 #[derive(Clone, Debug, clap::Args)]
@@ -30,27 +23,6 @@ pub struct RunArguments {
     /// How many rows are shown; every row is counted.
     #[arg(long, default_value_t = ryo_core::inbound::use_cases::lint::constants::DEFAULT_LIMIT)]
     pub(super) limit: u64,
-}
-
-/// The old engine's answer, which the comparison test holds the executor's against until the old engine is deleted.
-#[cfg(test)]
-pub(super) fn answer(
-    request: LintRequest,
-    budget: ryo_values::domain::runs::types::Budget,
-    edge: &crate::edge::Edge,
-    out: Box<dyn std::io::Write + Send>,
-) -> Result<(), LintError> {
-    let store = super::schemas::store(edge, &request.session.root);
-    super::composition::build(
-        out,
-        edge,
-        store,
-        request.session.root.clone(),
-        budget,
-        ryo_values::domain::runs::types::WorkersAsked(0),
-    )
-    .lint(request)
-    .map(|_| ())
 }
 
 /// Answers through the SDK's `query run` and writes the answer to `out` as the edge's format prints it: one whole document for JSON,

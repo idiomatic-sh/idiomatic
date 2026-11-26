@@ -279,8 +279,8 @@ const DEPENDENCIES: &str =
 /// What one path printed or how it ended: the bytes of the answer, or the text of the error the command reports.
 type Printed = Result<String, String>;
 
-/// Runs `line` through the SDK's `query run` (`through_executor`) or the old engine, and gives what the command would show.
-fn printed(line: &[&'static str], through_executor: bool) -> Printed {
+/// Runs `line` through the SDK's `query run`, and gives what the command would show.
+fn printed(line: &[&'static str]) -> Printed {
     let parsed = <Line as clap::Parser>::try_parse_from(std::iter::once("ryo").chain(line.iter().copied()))
         .map_err(|refused| refused.to_string())?;
     let format = parsed.output.format();
@@ -289,22 +289,8 @@ fn printed(line: &[&'static str], through_executor: bool) -> Printed {
     let root = edge.start.0.to_string();
     let bytes = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let out = Box::new(Shared(std::sync::Arc::clone(&bytes)));
-    if through_executor {
-        let _checked = super::schemas::request(root, &parsed.arguments.text, limit).map_err(|refused| refused.to_string())?;
-        answered(&parsed.arguments.text, limit, parsed.arguments.memory_budget, &edge, out).map_err(|error| error.to_string())?;
-    } else {
-        let budget = super::schemas::budget(parsed.arguments.memory_budget);
-        let request = super::schemas::old_request(root, parsed.arguments.text, limit)
-            .map_err(|refused| refused.to_string())?;
-        let rules = request.rules.clone();
-        crate::output::written(
-            format,
-            out,
-            |rows| super::command::answer(request, budget, &edge, rows),
-            super::schemas::old_unwritten,
-        )
-        .map_err(|error| super::schemas::old_failure(error, &rules).to_string())?;
-    }
+    let _checked = super::schemas::request(root, &parsed.arguments.text, limit).map_err(|refused| refused.to_string())?;
+    answered(&parsed.arguments.text, limit, parsed.arguments.memory_budget, &edge, out).map_err(|error| error.to_string())?;
     let text = bytes
         .lock()
         .map(|held| String::from_utf8_lossy(&held).into_owned())
@@ -330,11 +316,9 @@ const SHARED_KEY: &str = "let functions = select \"file\", \"span\" from \"funct
 /// engine gave them; and a limit counts the rows past it without writing them.
 #[test]
 fn the_rows_shape_keeps_every_row_and_counts_past_the_limit() {
-    let all = printed(&["--root", SAMPLE, "--text", SHARED_KEY], true).expect("the query runs");
-    let old = printed(&["--root", SAMPLE, "--text", SHARED_KEY], false).expect("the query runs");
-    assert_eq!(all.lines().count(), 3, "a heading and two rows, though the key is shared: {all}; the old engine: {old}");
-    assert_eq!(all, old, "the same rows in the same order as the old engine");
-    let cut = printed(&["--root", SAMPLE, "--text", SHARED_KEY, "--limit", "1"], true).expect("the query runs");
+    let all = printed(&["--root", SAMPLE, "--text", SHARED_KEY]).expect("the query runs");
+    assert_eq!(all.lines().count(), 3, "a heading and two rows, though the key is shared: {all}");
+    let cut = printed(&["--root", SAMPLE, "--text", SHARED_KEY, "--limit", "1"]).expect("the query runs");
     assert_eq!(cut.lines().count(), 3, "a heading, one row and the count: {cut}");
     assert!(cut.contains("2 rows; showing 1"), "every row is counted: {cut}");
 }
@@ -375,8 +359,8 @@ fn digest_of(text: &str) -> String {
     sha2::Sha256::digest(text.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-/// The answer of every line is the one the old engine gave, which the files beside this test hold, and, until the old engine is deleted, the
-/// one the old engine gives now: the same rows, in the same order, under the same limit, and the same error text when it refuses.
+/// The answer of every line is the one the old engine gave, which the files beside this test hold: the same rows, in the same order,
+/// under the same limit, and the same error text when it refuses.
 #[test]
 fn the_executor_answers_as_the_old_engine_does() {
     let mut differing = Vec::new();
@@ -387,10 +371,9 @@ fn the_executor_answers_as_the_old_engine_does() {
         let frozen = std::fs::read_to_string(format!("{FROZEN}/{at:02}.txt")).expect("a frozen answer");
         let expected = index.lines().nth(at).and_then(|entry| entry.split('\t').nth(1)).expect("an index entry");
         assert_eq!(digest_of(&frozen), expected, "the frozen answer {at:02} is as it was recorded");
-        let old = steady(printed(line, false));
-        let new = steady(printed(line, true));
-        if recorded(&old) != frozen || recorded(&new) != frozen {
-            differing.push(format!("{at:02} {line:?}\n  frozen: {frozen:?}\n  old: {old:?}\n  new: {new:?}"));
+        let new = steady(printed(line));
+        if recorded(&new) != frozen {
+            differing.push(format!("{at:02} {line:?}\n  frozen: {frozen:?}\n  new: {new:?}"));
         }
     }
     assert!(differing.is_empty(), "{} of the lines differ:\n{}", differing.len(), differing.join("\n"));

@@ -12,8 +12,6 @@ enum Given {
     Line(Vec<&'static str>),
     /// What the stream the JSON answer is written to refuses each write with: a reader that closed it, or a full disk.
     Stream(std::io::ErrorKind),
-    /// The project the edge starts from: where the store is kept beneath it, and for which build.
-    Store(&'static str),
 }
 
 /// What the schemas answer.
@@ -24,10 +22,6 @@ enum Answered {
     Request(u64, usize),
     /// Of a stream: the run ended with no error.
     Delivered,
-    /// Of an edge: the store is in the edge's cache directory beneath the project, for the edge's build.
-    StoreIsTheEdges,
-    /// Of an edge: the directory the store was kept in and the build, when they are not the edge's.
-    Stored(String, String),
 }
 
 /// What a row gives the schemas.
@@ -79,12 +73,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Error(RunSchemaError::BlankText),
     },
     Case {
-        name: CaseName("the_store_is_the_edges_directory_beneath_the_project_for_the_edges_build"),
-        word: Word::Succeeds,
-        input: || Given::Store("some/project"),
-        expect: Expect::Value(Answered::StoreIsTheEdges),
-    },
-    Case {
         name: CaseName("a_closed_stream_ends_the_json_answer_as_closed"),
         word: Word::Succeeds,
         input: || Given::Stream(std::io::ErrorKind::BrokenPipe),
@@ -106,24 +94,6 @@ fn subject(input: Input) -> Result<Value, Failure> {
     match input {
         Given::Line(line) => requested(line),
         Given::Stream(kind) => json_ended_by(kind).map(|()| Answered::Delivered),
-        Given::Store(root) => {
-            let here = ryo_language::inbound::use_cases::project::types::RootPath(root.into());
-            let edge = crate::resources::edge_at(
-                here.clone(),
-                here.clone(),
-                ryo_values::domain::runs::types::MachineWorkers(1),
-                crate::output::Format::Quiet,
-            );
-            let store = super::store(&edge, &here);
-            let directory = format!("{root}/{}", edge.store.0);
-            Ok(
-                if *store.directory.0 == *directory && store.build == edge.build {
-                    Answered::StoreIsTheEdges
-                } else {
-                    Answered::Stored(store.directory.0.into(), store.build.0.into())
-                },
-            )
-        }
     }
 }
 

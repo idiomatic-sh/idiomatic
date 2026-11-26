@@ -1,8 +1,6 @@
 //! `query run`.
 
 pub mod command;
-#[cfg(test)]
-pub(crate) mod composition;
 pub(crate) mod rendering;
 pub(crate) mod schemas;
 
