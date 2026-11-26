@@ -789,7 +789,7 @@ impl Store {
         self.pack_cpu += crate::thread_cpu() - start;
         Some(k)
     }
-    pub fn decline(&mut self, id: Key, reason: &str) {
+    pub fn decline(&mut self, id: Key, reason: &crate::check_session::refusal::Refusal) {
         self.put(id, Packet::declined(reason), vec![], vec![], String::new);
     }
     pub fn put(
@@ -1658,7 +1658,7 @@ mod tests {
         store.remember_entries(&environment);
         let proof = store.environment_proof(environment.id.clone()).unwrap();
         let request = key("observed request");
-        store.put(request, Packet::declined("from proved absence"), vec![proof], vec![], String::new);
+        store.put(request, Packet::declined(&"from proved absence".into()), vec![proof], vec![], String::new);
         assert!(store.publish().unwrap() > 0);
         assert!(open().lookup(request).is_some());
         let mut reused = open();
@@ -1697,7 +1697,7 @@ mod tests {
                 vec![("input".into(), Probe::Effective), (PathBuf::new(), Probe::Inventory)],
                 Some(input),
             ).unwrap();
-            store.put(key(request), Packet::declined(request), vec![evidence], vec![], String::new);
+            store.put(key(request), Packet::declined(&request.into()), vec![evidence], vec![], String::new);
         }
         assert!(store.publish().unwrap() > 0);
 
@@ -1708,7 +1708,7 @@ mod tests {
         let old = scope(&mut store, "old bytes");
         for (input, request) in [(new, "second"), (old, "first"), (new, "second")] {
             let (packet, _) = store.lookup_in(input, key(request)).unwrap();
-            assert_eq!(store.packet(&packet).refusal.as_deref(), Some(request));
+            assert_eq!(store.packet(&packet).refusal, Some(request.into()));
         }
         assert!(store.lookup_in(new, key("first")).is_none());
         assert!(store.lookup_in(old, key("second")).is_none());
@@ -1721,7 +1721,7 @@ mod tests {
         ).unwrap();
         store.put(
             key("first"),
-            Packet::declined("replacement"),
+            Packet::declined(&"replacement".into()),
             vec![evidence],
             vec![("input".into(), "unreadable project input".into()); 2],
             String::new,
@@ -1741,7 +1741,7 @@ mod tests {
             } else {
                 assert!(unread.is_empty());
             }
-            assert_eq!(store.packet(&packet).refusal.as_deref(), Some(text));
+            assert_eq!(store.packet(&packet).refusal, Some(text.into()));
         }
         assert!(store.lookup_in(new, key("first")).is_none());
     }

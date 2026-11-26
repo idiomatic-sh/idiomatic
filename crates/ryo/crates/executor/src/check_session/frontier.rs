@@ -22,7 +22,7 @@ impl<'a> FileInputs<'a> {
     pub fn column_demand(
         active: &[(usize, usize, bool)],
         bound: &super::Bindings<'_>,
-        programs: &'a [Result<Program>],
+        programs: &'a [crate::check_session::refusal::Planned],
         program_of: &[usize],
         cut_of: &[Option<Arc<Partition>>],
     ) -> ColumnDemand<'a> {

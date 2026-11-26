@@ -61,7 +61,7 @@ pub fn dispatch<L: FileSource>(
     reader_id: Option<usize>,
     manifests: &BTreeSet<&str>,
     contributions: &mut [Option<Rc<project::Contribution>>],
-    programs: &[Result<Program>],
+    programs: &[crate::check_session::refusal::Planned],
     rules: &[usize],
     contracts: &[Arc<completeness::Contract>],
     cuts: &[Option<Arc<finish::partition::Partition>>],
