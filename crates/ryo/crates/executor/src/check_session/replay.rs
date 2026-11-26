@@ -1,8 +1,8 @@
 //! The corpus runner's TSV is a list of invocations, not an execution schedule.
 //! Only the final comparison has access to a reference digest.
-#[path = "../../../ryo/crates/engine/benches/vec/check_session/requests.rs"]
+#[path = "requests.rs"]
 mod readers;
-#[path = "../../../ryo/crates/engine/benches/vec/check_session/stored.rs"]
+#[path = "stored.rs"]
 mod stored;
 
 use super::{Hosted, Parameters, bind_tables, execute_ids, finish, read_parameters};
@@ -21,7 +21,7 @@ use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use serde::Deserialize;
 use crate::{json_input, json_output};
 use sha2::{Digest, Sha256};
-#[path = "../../../ryo/crates/engine/benches/vec/check_session/closed_workers.rs"]
+#[path = "closed_workers.rs"]
 mod closed_workers;
 
 use std::{
@@ -46,7 +46,7 @@ fn canonical_inventory(mut paths: Vec<String>) -> Rc<Vec<String>> {
     Rc::new(paths)
 }
 
-include!("../../../ryo/crates/engine/benches/vec/check_session/batch.rs");
+include!("batch.rs");
 
 #[derive(Default, Deserialize)]
 struct Authorities {
@@ -356,5 +356,5 @@ fn one_source<L: session::source::Source>(
 }
 
 #[cfg(feature = "product-session")]
-#[path = "live/calls.rs"]
+#[path = "../../../../../../tastemaker/benchmarks/project/live/calls.rs"]
 pub(super) mod calls;
