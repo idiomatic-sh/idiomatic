@@ -720,16 +720,20 @@ impl Batch {
             }
             let provider = std::time::Instant::now();
             let population = (|| {
+                // A project input the host could not read has no contribution: the project is read without it, and the file is
+                // named unread (a refused input), as a manifest the tools refuse is.
+                let mut missing = Vec::new();
                 let sources = s
                     .slots
                     .iter()
                     .map(|&slot| {
-                        contributions[slot].clone().ok_or_else(|| {
-                            format!("missing project input {}", self.schedule.sources[slot].path)
+                        contributions[slot].clone().unwrap_or_else(|| {
+                            missing.push(slot);
+                            Rc::default()
                         })
                     })
-                    .collect::<Result<Vec<_>, _>>()?;
-                project::collect(
+                    .collect::<Vec<_>>();
+                let mut read = project::collect(
                     world,
                     languages,
                     &s.authority,
@@ -737,7 +741,12 @@ impl Batch {
                     { let mut held = s.slots.iter().filter_map(|&slot| self.schedule.sources[slot].environment.as_ref()); let first = held.next(); debug_assert!(held.all(|each| first.is_some_and(|first| Arc::ptr_eq(first, each))), "one project input spans two versions"); first.map(Arc::as_ref) },
                     &sources,
                     &s.wanted.iter().copied().collect::<Vec<_>>(),
-                )
+                )?;
+                read.refused.extend(missing.into_iter().map(|slot| l::Refused {
+                    path: l::FilePath(self.schedule.sources[slot].path.as_str().into()),
+                    reason: ryo_language::domain::reasons::types::ToolMessage("cannot read the file".into()),
+                }));
+                Ok(read)
             })();
             self.clocks.project_provider_wall += provider.elapsed().as_secs_f64();
             if let Ok(p) = &population && !p.refused.is_empty() {

@@ -752,7 +752,7 @@ pub fn versions<'s>(
             // host's row, its other relations are read only in part, and the file is named unread.
             Err(error) => vec![Version {
                 origin: idx,
-                project_slots: Vec::new(),
+                project_slots: src.project.then_some(idx).into_iter().collect(),
                 data: Arc::from(Vec::new()),
                 jobs: std::borrow::Cow::Borrowed(&src.bindings),
                 failed: Some(error.to_string()),
@@ -817,7 +817,7 @@ pub fn versions<'s>(
             }
             Err(e) => files.push(Version {
                 origin: idx,
-                project_slots: Vec::new(),
+                project_slots: src.project.then_some(idx).into_iter().collect(),
                 data: Arc::from(Vec::new()),
                 jobs: std::borrow::Cow::Borrowed(&src.bindings),
                 failed: Some(e.to_string()),
@@ -1106,8 +1106,8 @@ pub fn visit<L: FileSource>(
             clocks.files += usize::from(scoped_tree.is_some());
             if !project_slots.is_empty() {
                 let c = contributions.previous(index).and_then(Option::as_ref).cloned().unwrap_or_else(|| {
-                    let manifest = manifests
-                        .contains(source.path.rsplit('/').next().unwrap())
+                    let manifest = (failed.is_none() && manifests
+                        .contains(source.path.rsplit('/').next().unwrap()))
                         .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
                     Rc::new(project::Contribution { reader: reader_id, notes: notes.cloned().unwrap_or_default(), manifest })
                 });

@@ -94,7 +94,8 @@ pub fn inputs(
             return Ok(Inputs::Withheld(session::Reported::new(Vec::new(), unknowns, skipped)));
         }
         // A pair whose file could not be read has no frontier: the file is unread, and the rule's other files are joined.
-        let readable: Vec<usize> = pairs.iter().copied().filter(|&slot| answers.get(slot).and_then(|held| held.as_ref().ok()).is_none_or(|held| held.unread.is_empty())).collect();
+        // A pair whose file could not be read was run as a host-only file: it has its frontier, like every other pair.
+        let readable: Vec<usize> = pairs.to_vec();
         carried = frontier(&readable, &cut.inputs)?;
         if carried.len() != cut.inputs.len() {
             return Err("source frontier has not been closed".into());
