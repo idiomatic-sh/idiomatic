@@ -24,7 +24,7 @@ fn summary(answer: Result<LintReport, LintError>) -> String {
             unread.sort();
             format!("found {found:?} unread {unread:?}")
         }
-        Err(error) => format!("refused {}", format!("{error:?}").split([' ', '{', '(']).next().unwrap_or_default()),
+        Err(error) => { eprintln!("WALKED_ERROR {error}"); format!("refused {}", format!("{error:?}").split([' ', '{', '(']).next().unwrap_or_default()) },
     }
 }
 
