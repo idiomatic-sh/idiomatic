@@ -30,11 +30,6 @@ use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::runs::types::RuleId;
 
-/// The place of the `kind` column of a relation, when it has one.
-pub(crate) fn kind_place(relation: Relation) -> Option<ColumnIndex> {
-    kind_column_place(relation)
-}
-
 /// Whether a comparison lets a row of this kind through, as far as it can be told from the comparison alone.
 pub(crate) fn admits(comparison: &PlanComparison, kind: &LackingKind) -> Passage {
     let kind: &str = &kind.0;
@@ -189,50 +184,6 @@ pub fn blocked(needs: &[RelationRead], partial: &[Partial]) -> Blocking {
     } else {
         Blocking::Free
     }
-}
-
-/// The files in which any of the reads `needs` is of a relation read in part, once each, in order; none for the repository as a whole.
-/// A file skipped for the rule is not among them: see [`skipped_files`].
-#[must_use]
-pub(crate) fn partial_files_for(
-    partials: &Partials,
-    needs: &[RelationRead],
-) -> Vec<Option<FileId>> {
-    let mut files: Vec<Option<FileId>> = partials
-        .entries
-        .iter()
-        .filter(|each| {
-            needs
-                .iter()
-                .any(|read| matches!(matters(read, &each.partial), Bearing::Matters))
-        })
-        .map(|each| match each.file {
-            crate::domain::coverage::types::PartialPlace::File(file) => Some(file),
-            crate::domain::coverage::types::PartialPlace::Repository => None,
-        })
-        .collect();
-    files.sort();
-    files.dedup();
-    files
-}
-
-/// The files skipped for the rule before its cross-file steps, sorted, once each; they lack input without a relation read in part.
-#[must_use]
-pub(crate) fn skipped_files(partials: &Partials) -> Vec<FileId> {
-    let mut files = partials.unavailable_files.clone();
-    files.sort();
-    files.dedup();
-    files
-}
-
-/// The files in which any of the reads `needs` is of a relation read in part, or which were skipped for the rule, once each.
-#[must_use]
-pub(crate) fn files_for(partials: &Partials, needs: &[RelationRead]) -> Vec<Option<FileId>> {
-    let mut files = partial_files_for(partials, needs);
-    files.extend(skipped_files(partials).into_iter().map(Some));
-    files.sort();
-    files.dedup();
-    files
 }
 
 /// What the rules could not decide because a relation of the project they trust the absence of rows of is read in part: at the file
