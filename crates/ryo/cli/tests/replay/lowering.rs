@@ -2,9 +2,6 @@
 //! owned rules is proved by the SDK (`a_shared_linter_gives_what_fresh_linters_give`), not over a corpus here.
 #![cfg(feature = "html")]
 
-use std::sync::Arc;
-
-use ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake;
 
 /// Native DOM order, scalar values and missing locations must survive every run.
 #[test]
@@ -28,7 +25,6 @@ fn html_dom_and_absent_locations_are_stable_across_runs() -> Result<(), Box<dyn 
     ];
     let mut answers = Vec::new();
     for _run in 0..2 {
-        let store = tempfile::tempdir()?;
         let html = ryo_html::linked();
         let result = crate::base::lint_report_with_languages(
             directory.path(),
@@ -38,13 +34,10 @@ fn html_dom_and_absent_locations_are_stable_across_runs() -> Result<(), Box<dyn 
                     crate::tools::rule_from_query(name, query, &["**/*.html".to_owned()])
                 })
                 .collect(),
-            Arc::new(ryo_execution_runtime::outbound::facts::factory::spill(
-                store.path().to_path_buf(),
-            )),
-            Arc::new(LintStoreFake::default()),
+            ryo_sdk::linter::Cache::None,
             Vec::new(),
             false,
-            vec![ryo_core::outbound::language::factory::LanguageConnection::from(html)],
+            vec![html],
         );
         let (mut rows, report) = result?;
         assert!(report.unread.is_empty(), "HTML is actually read");

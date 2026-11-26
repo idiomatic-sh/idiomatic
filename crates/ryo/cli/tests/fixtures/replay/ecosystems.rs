@@ -62,15 +62,13 @@ pub(crate) fn entries<'value>(
 #[cfg(feature = "typescript")]
 pub(crate) fn package_json_languages() -> Vec<(
     &'static str,
-    ryo_core::outbound::language::factory::LanguageConnection,
+    ryo_sdk::languages::Language,
 )> {
     vec![
         #[cfg(feature = "typescript")]
         (
             "typescript",
-            ryo_core::outbound::language::factory::LanguageConnection::from(
-                ryo_typescript::linked(),
-            ),
+            ryo_typescript::linked(),
         ),
     ]
 }

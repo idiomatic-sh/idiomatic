@@ -123,7 +123,7 @@ fn ryo_says_what_go_says_of_the_manifests_of_a_workspace() {
     .expect("the Go language's fixture project is there");
     let ours = ryo_lines(
         &root,
-        vec![ryo_core::outbound::language::factory::LanguageConnection::from(ryo_go::linked())],
+        vec![ryo_go::linked()],
         DEPENDENCIES,
     );
     let theirs = go_lines(&root);

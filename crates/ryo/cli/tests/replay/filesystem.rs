@@ -2,7 +2,6 @@
 //! that asks for it is answered for a Markdown file no linked language reads.
 
 use crate::base;
-use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::Rule;
 use ryo_values::domain::files::types::Glob;
@@ -37,8 +36,7 @@ fn every_inventoried_file_is_a_row_whatever_it_holds() {
     let (rows, _) = base::lint_with(
         root.path(),
         vec![rule],
-        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
-        Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
+        ryo_sdk::linter::Cache::None,
     )
     .expect("the rule runs");
     let mut paths: Vec<&str> = rows

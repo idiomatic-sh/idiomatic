@@ -13,6 +13,9 @@ mod languages;
 /// The handles of the languages this build links, as `ryo lint` links them: test support, not public API.
 #[cfg(feature = "fixtures")]
 pub use languages::linked_connections;
+/// The languages this build links, as the SDK lists them: test support, not public API.
+#[cfg(feature = "fixtures")]
+pub use languages::linked_sdk;
 #[cfg(all(test, feature = "typescript", feature = "python", feature = "rust"))]
 mod languages_test;
 pub mod outcome;

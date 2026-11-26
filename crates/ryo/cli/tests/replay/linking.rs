@@ -1,7 +1,6 @@
 //! What links the files to one another follows an edit of one of them, whatever the store holds.
 
 use crate::unbounded;
-use std::sync::Arc;
 
 use ryo_core::inbound::use_cases::lint::types::Rule;
 #[cfg(all(feature = "json", feature = "typescript"))]
@@ -42,18 +41,18 @@ fn what_links_the_files_follows_an_edit_of_one_whatever_the_store_holds() {
     );
     let rows = |kept| {
         sorted(
-            unbounded::lint_counting(root.path(), linking(), kept)
+            unbounded::lint_cached(root.path(), linking(), kept)
                 .expect("a run")
                 .rows,
         )
     };
     assert_eq!(
-        rows(Arc::clone(&store)),
+        rows(store.clone()),
         Vec::<Vec<String>>::new(),
         "nothing refers to anything yet"
     );
     assert_eq!(
-        rows(Arc::clone(&store)),
+        rows(store.clone()),
         Vec::<Vec<String>>::new(),
         "and the run after it says the same"
     );
@@ -65,12 +64,12 @@ fn what_links_the_files_follows_an_edit_of_one_whatever_the_store_holds() {
             "use crate::b::g;\npub fn f() { g(); }\n".to_owned(),
         )],
     );
-    let after = rows(Arc::clone(&store));
+    let after = rows(store.clone());
     let oracle = sorted(
-        unbounded::lint_counting(
+        unbounded::lint_cached(
             root.path(),
             linking(),
-            Arc::new(ryo_core::outbound::lint_store::factory::memory()),
+            ryo_sdk::linter::Cache::None,
         )
         .expect("a run that keeps nothing")
         .rows,

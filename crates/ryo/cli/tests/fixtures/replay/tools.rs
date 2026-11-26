@@ -3,7 +3,6 @@
 
 use std::collections::BTreeSet;
 use std::path::Path;
-use std::sync::Arc;
 
 /// The query of the members every reference check compares: each workspace with each package it holds.
 const MEMBERS: &str =
@@ -36,7 +35,7 @@ pub(crate) fn rule_from_query(
 /// `dependencies`, the id of its rule and its key, each column as ryo shows it, joined by commas.
 pub(crate) fn ryo_lines(
     root: &Path,
-    languages: Vec<ryo_core::outbound::language::factory::LanguageConnection>,
+    languages: Vec<ryo_sdk::languages::Language>,
     dependencies: &str,
 ) -> BTreeSet<String> {
     let rules = vec![
@@ -46,8 +45,7 @@ pub(crate) fn ryo_lines(
     let (rows, _) = crate::base::lint_report_with_languages(
         root,
         rules,
-        Arc::new(ryo_execution_runtime::outbound::facts::factory::memory()),
-        Arc::new(ryo_core::outbound::lint_store::fixtures::fake::LintStoreFake::default()),
+        ryo_sdk::linter::Cache::None,
         Vec::new(),
         false,
         languages,
