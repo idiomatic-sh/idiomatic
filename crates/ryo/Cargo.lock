@@ -1698,7 +1698,6 @@ dependencies = [
  "dhat",
  "divan",
  "idiomatic-sh-ryo-derived",
- "idiomatic-sh-ryo-engine",
  "idiomatic-sh-ryo-execution-domain",
  "idiomatic-sh-ryo-execution-runtime",
  "idiomatic-sh-ryo-language",
