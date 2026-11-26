@@ -37,7 +37,7 @@ pub(crate) fn capability_cache(query: &str) -> Result<Outcome, LintError> {
         crate::domain::language::types::Language::from_parts(
             crate::domain::language::types::LanguageName("fixture".into()),
             crate::domain::language::types::LanguageBuild("same-build".into()),
-            std::sync::Arc::new(CapabilityProvider(caps, configuration, name)),
+            std::sync::Arc::new(CapabilityProvider(caps, configuration)),
             std::sync::Arc::new(
                 ryo_language::inbound::use_cases::project::use_case::ProjectUseCaseImpl,
             ),
