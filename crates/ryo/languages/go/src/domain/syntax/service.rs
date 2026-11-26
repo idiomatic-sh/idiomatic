@@ -208,18 +208,10 @@ impl Output for Numbered<'_, '_> {
         languages::node_table::enter_node(self.builder, kind_bits(kind), languages::FieldCode(0), start);
     }
 
-    fn token(&mut self, kind: Kind, start: languages::Offset, end: languages::Offset, decoded: Option<&str>) {
-        match decoded {
-            Some(text) => languages::node_table::decoded_token(
-                self.builder,
-                kind_bits(kind),
-                languages::FieldCode(0),
-                start,
-                end,
-                languages::NameText(text),
-            ),
-            None => languages::node_table::token(self.builder, kind_bits(kind), languages::FieldCode(0), start, end),
-        }
+    /// A token's text in the numbered table is the text written in the file, so what the library decoded of a string is not kept
+    /// there: the value of a literal is read from its written text where a relation needs it.
+    fn token(&mut self, kind: Kind, start: languages::Offset, end: languages::Offset, _decoded: Option<&str>) {
+        languages::node_table::token(self.builder, kind_bits(kind), languages::FieldCode(0), start, end);
     }
 
     fn leave(&mut self, end: languages::Offset) {

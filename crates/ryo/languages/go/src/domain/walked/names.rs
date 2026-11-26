@@ -123,7 +123,7 @@ pub(crate) fn string_or_unknown(
 ) -> Symbol {
     string_token(tree, at)
         .and_then(|token| decoded_at(tree, token))
-        .map_or(unknown(Unresolved::NotText), |decoded| word(symbols, decoded))
+        .map_or(unknown(Unresolved::NotText), |decoded| word(symbols, &decoded))
 }
 
 /// Whether the string at `at` is an import specifier: the path of an `import` spec.
