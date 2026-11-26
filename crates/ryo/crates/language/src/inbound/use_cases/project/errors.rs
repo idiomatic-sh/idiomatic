@@ -17,4 +17,7 @@ pub enum ProjectError {
         /// What was wrong.
         reason: ToolMessage,
     },
+    /// The language does not answer the relations of one file alone: they are read from every file's notes together, in the project phase.
+    #[error("the language does not read a file's project relations alone")]
+    Unsupported,
 }

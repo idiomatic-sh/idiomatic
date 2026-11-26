@@ -30,6 +30,20 @@ pub trait Source: Clone + Sync {
     /// Whether the language never answers `rel`, for whatever cause: static, so known before any step runs.
     fn absent(&self, rel: l::Relation) -> bool;
     fn entries(&self, req: &l::ProjectRequest, out: &mut ProjectEntries) -> Result<()>;
+    /// The candidate entries the wanted relations need for the file `file` of `req.files` alone, from its own notes: the per-file half of
+    /// `entries`. A language that does not answer a relation from one file's notes asks for nothing.
+    fn file_entries(&self, _req: &l::ProjectRequest, _file: usize, _notes: &l::Bytes, _out: &mut ProjectEntries) -> Result<()> { Ok(()) }
+    /// The rows of the wanted relations about the file `file` of `req.files`, from its own notes and the observation of the entries
+    /// `file_entries` asked for; none when the language reads these relations only from every file's notes together.
+    fn file_rows(
+        &self,
+        _req: &l::ProjectRequest,
+        _file: usize,
+        _notes: &l::Bytes,
+        _observed: &l::ObservedEntries,
+        _symbols: &mut l::Symbols,
+        _rows: &mut l::contract::Collect,
+    ) -> Result<Option<l::Resolved>> { Ok(None) }
     fn project(
         &self,
         req: &l::ProjectRequest,

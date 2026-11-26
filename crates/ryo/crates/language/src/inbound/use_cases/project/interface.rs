@@ -46,6 +46,35 @@ pub trait ProjectUseCase: Send + Sync {
         entries: &mut crate::domain::files::types::ProjectEntries,
     );
 
+    /// Appends to `entries` the candidate entry paths the wanted relations need for the file `file` of `request.files` alone, from the
+    /// notes the language wrote of it: the per-file half of `project_entries`. The default asks for nothing.
+    fn file_entries(
+        &self,
+        _request: &ProjectRequest,
+        _file: usize,
+        _notes: &ryo_relations::domain::relations::types::Bytes,
+        _entries: &mut crate::domain::files::types::ProjectEntries,
+    ) {
+    }
+
+    /// Writes into `out` the rows of the wanted relations that are about the file `file` of `request.files`, from the notes the language
+    /// wrote of that file alone and from `observed`, the observation of the entries `file_entries` asked for.
+    ///
+    /// # Errors
+    ///
+    /// `Unsupported` (the default) when the language reads these relations only from every file's notes together.
+    fn file_rows(
+        &self,
+        _request: &ProjectRequest,
+        _file: usize,
+        _notes: &ryo_relations::domain::relations::types::Bytes,
+        _observed: &crate::domain::project_context::types::ObservedEntries,
+        _symbols: &mut crate::domain::symbols::types::Symbols,
+        _out: &mut dyn ryo_relations::domain::relations::types::RowWriter,
+    ) -> Result<super::types::Resolved, ProjectError> {
+        Err(ProjectError::Unsupported)
+    }
+
     /// Reads the manifests through the language's own tools and answers what the readers below read their
     /// rows from, and the manifests the tools refused; nothing of it is kept for another run. A manifest that does not
     /// parse is refused and the others are read: it is a finding of the run, as a syntax error is.
