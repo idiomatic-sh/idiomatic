@@ -4,7 +4,6 @@
 use super::{
     constants::{HTML_WHITESPACE, NOT_UTF8},
     output::{Elements, Numbered, Output},
-    schemas::published,
     types::{PropertyValue, Recording, SourceLength},
 };
 use crate::domain::{
@@ -90,7 +89,7 @@ fn enter(out: &mut impl Output, kind: Node, span: Span) {
     }
 }
 
-/// Both the typed fields used by readers and the published node value come directly from SWC. Each property is also a node of its
+/// The typed fields readers use come directly from SWC. Each property is also a node of its
 /// own under the node, with no bytes of its own, whose value is the property's: the structure a rule reads the name or the value
 /// of an element or an attribute by. A property the DOM leaves empty has none, except a value, which an attribute, a text and a
 /// comment always have.
@@ -98,15 +97,11 @@ fn properties(out: &mut impl Output, values: &[PropertyValue<'_>]) {
     for PropertyValue { key, value } in values {
         out.property(property_id(*key), *value);
     }
-    let published = published(values);
-    out.property(languages::PropertyId(0), languages::NameText(&published.0));
     for PropertyValue { key, value } in values {
         if value.0.is_empty() && *key != Property::Value {
             continue;
         }
-        out.imply(Kind::Node(property_node(*key)));
-        out.property(languages::PropertyId(0), *value);
-        out.leave(languages::NO_SPAN.end);
+        out.leaf(Kind::Node(property_node(*key)), *value);
     }
 }
 

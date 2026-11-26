@@ -12,6 +12,8 @@ pub(super) trait Output {
     fn enter(&mut self, kind: Kind, start: Offset);
     /// Opens a node of `kind` the parser implied: it has no bytes of its own and no location.
     fn imply(&mut self, kind: Kind);
+    /// Writes a leaf with no bytes of its own whose text is `value`: a property of the node open, as its own element.
+    fn leaf(&mut self, kind: Kind, value: languages::NameText<'_>);
     /// Gives the node open a property: its number and its value.
     fn property(&mut self, id: languages::PropertyId, value: languages::NameText<'_>);
     /// Closes the node open where it ends.
@@ -31,6 +33,11 @@ impl Output for Elements<'_, '_> {
     }
     fn imply(&mut self, kind: Kind) {
         languages::enter_implied_node(self.0, kind_bits(kind));
+    }
+    fn leaf(&mut self, kind: Kind, value: languages::NameText<'_>) {
+        languages::enter_implied_node(self.0, kind_bits(kind));
+        languages::node_property(self.0, languages::PropertyId(0), value);
+        languages::leave_node(self.0, languages::NO_SPAN.end);
     }
     fn property(&mut self, id: languages::PropertyId, value: languages::NameText<'_>) {
         languages::node_property(self.0, id, value);
@@ -60,6 +67,10 @@ impl Output for Numbered<'_, '_> {
     }
     fn imply(&mut self, kind: Kind) {
         node_table::enter_unlocated_node(self.0, kind_bits(kind), field(kind));
+    }
+    fn leaf(&mut self, kind: Kind, value: languages::NameText<'_>) {
+        // a token of its own: the decoded text is its word, and it has no place in the file's bytes
+        node_table::decoded_token(self.0, kind_bits(kind), field(kind), languages::NO_SPAN.start, languages::NO_SPAN.end, value);
     }
     fn property(&mut self, id: languages::PropertyId, value: languages::NameText<'_>) {
         node_table::node_property(self.0, id, value);
