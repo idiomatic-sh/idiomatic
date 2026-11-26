@@ -51,10 +51,6 @@ idiomatic-sh-ryo-core = { path = ".", features = ["fixtures"] }
 name = "bdd"
 harness = false
 
-[[test]]
-name = "allocation"
-harness = false
-
 [[bench]]
 name = "performance"
 path = "benches/performance.rs"

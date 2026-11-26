@@ -6,9 +6,6 @@ mod describe_operator;
 #[path = "../src/inbound/use_cases/describe_relation/acceptance.rs"]
 mod describe_relation;
 
-#[path = "../src/inbound/use_cases/lint/acceptance.rs"]
-mod lint;
-
 #[path = "../src/inbound/use_cases/list_operators/acceptance.rs"]
 mod list_operators;
 
@@ -28,8 +25,6 @@ struct Behavior {
     input: String,
     /// What the last when step answered, which a then step asserts.
     answer: String,
-    /// The warnings the last when step printed, a line for each.
-    warned: String,
 }
 
 /// The colocated acceptance features of this crate, sorted.
@@ -60,8 +55,9 @@ fn features()
             }
         }
     }
+    // A use case whose implementation lives in the sdk (lint) has no feature here.
     features.retain(|path| {
-        path.extension()
+        path.exists() && path.extension()
             .is_some_and(|extension| extension == "feature")
     });
     features.sort();
