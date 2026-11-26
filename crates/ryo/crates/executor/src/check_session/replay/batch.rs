@@ -1,3 +1,6 @@
+//! The batch of requests a session admits, schedules and answers.
+use super::*;
+
 #[derive(Deserialize)]
 pub(crate) struct Input {
     root: String,

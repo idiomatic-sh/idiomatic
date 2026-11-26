@@ -1,27 +1,21 @@
 //! The corpus runner's TSV is a list of invocations, not an execution schedule.
 //! Only the final comparison has access to a reference digest.
-#[path = "requests.rs"]
 mod readers;
-#[path = "stored.rs"]
 mod stored;
 
-use super::{Hosted, Parameters, bind_tables, execute_ids, finish, read_parameters};
+use super::hosted::{Hosted, Parameters, bind_tables, execute_ids, read_parameters};
 use crate::check_session::{query::Query, report_slots::ReportSlots};
 use crate::check_session::project::{self, Authority, Population};
 use crate::{
     check_session::{self as session, Answer, Clock, Program},
-    thread_cpu,
+    finish, request_input, thread_cpu,
 };
 use ryo::languages as l;
-use ryo::{
-    languages::{Language, Recognition},
-    linter::{Languages, RelativePath},
-};
 use ryo_relations::domain::{catalog, labels::types::NameRef, relations};
 use serde::Deserialize;
-use crate::{json_input, json_output};
 use sha2::{Digest, Sha256};
-#[path = "closed_workers.rs"]
+mod batch;
+pub(crate) use batch::*;
 mod closed_workers;
 
 use std::{
@@ -46,7 +40,6 @@ fn canonical_inventory(mut paths: Vec<String>) -> Rc<Vec<String>> {
     Rc::new(paths)
 }
 
-include!("batch.rs");
 
 #[derive(Default, Deserialize)]
 struct Authorities {
@@ -58,7 +51,7 @@ struct Authorities {
 impl Authorities {
     fn from_input() -> Result<Self, String> {
         match std::env::var_os("TM_CORPUS_PROJECTS") {
-            Some(path) => json_input::decode(&std::fs::read(path).map_err(|e| e.to_string())?)
+            Some(path) => request_input::decode(&std::fs::read(path).map_err(|e| e.to_string())?)
                 .map_err(|e| e.to_string()),
             None => Ok(Self::default()),
         }
@@ -115,7 +108,7 @@ impl ReplayInputs {
                     path.to_owned(),
                     Rc::new({
                         let mut paths: Vec<String> =
-                            json_input::decode(&bytes).map_err(|e| e.to_string())?;
+                            request_input::decode(&bytes).map_err(|e| e.to_string())?;
                         paths.sort_unstable();
                         paths.dedup();
                         paths
@@ -157,7 +150,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
     let mut replay = ReplayInputs { authorities: Authorities::from_input().expect("repository declarations"), ..Default::default() };
     if let Some(index) = std::env::var_os("TM_CORPUS_INVENTORIES") {
         let bytes = std::fs::read(index).expect("closed input inventories");
-        replay.roots = json_input::decode(&bytes).expect("source roots and their inventories");
+        replay.roots = request_input::decode(&bytes).expect("source roots and their inventories");
     }
     let mut store=root.map(|p|stored::Store::open(p, readers).expect("open request store"));
     let authority=store.as_mut().map(|s| {
@@ -197,7 +190,7 @@ fn batch_mode_with_workers<L:session::source::Source>(readers:&[L], manifest:&st
                 entries.push(Entry::Stored(answer));
             }else {
                 let result=std::fs::read(req).map_err(|e|e.to_string())
-                    .and_then(|bytes|json_input::decode::<Input>(&bytes).map_err(|e|e.to_string()))
+                    .and_then(|bytes|request_input::decode::<Input>(&bytes).map_err(|e|e.to_string()))
                     .and_then(|input|{
                         let inherited=if closed.is_none() && store.is_some(){replay.roots.get(&input.root).cloned()}else{None};
                         let work=replay.register(&mut session,pack,input,closed,store.is_none().then_some(readers))?;
@@ -354,7 +347,3 @@ fn one_source<L: session::source::Source>(
     });
     std::fs::write(output, stream).map_err(|e| e.to_string())
 }
-
-#[cfg(feature = "product-session")]
-#[path = "../../../../../../tastemaker/benchmarks/project/live/calls.rs"]
-pub(super) mod calls;

@@ -8,7 +8,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-#[path = "answer/report.rs"]
 mod report;
 pub(crate) use report::Reported;
 

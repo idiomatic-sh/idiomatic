@@ -5,9 +5,7 @@ use rustc_hash::FxHashMap as Map;
 use ryo::languages::{self, CellWord, FileWords, FilledColumns, NodeTable, Position, node_table};
 use std::rc::Rc;
 
-#[path = "pair_counts.rs"]
 mod counts;
-#[path = "pair_witness.rs"]
 mod witness;
 
 pub(super) type Bits = Rc<Vec<u64>>;

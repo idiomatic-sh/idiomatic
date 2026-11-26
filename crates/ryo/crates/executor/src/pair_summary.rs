@@ -12,24 +12,15 @@ use ryo_values::domain::finish_plans::{
 use ryo_values::domain::plan_parts::types::Direction;
 use std::borrow::Cow;
 
-#[path = "pair_compact.rs"]
 mod compact;
-#[path = "pair_cost.rs"]
 pub(super) mod cost;
-#[path = "pair_exact.rs"]
 mod exact;
 pub(super) use exact::LocationColumn;
-#[path = "pair_groups.rs"]
 mod groups;
-#[path = "pair_patterns.rs"]
 mod patterns;
-#[path = "pair_paths.rs"]
 pub(super) mod paths;
-#[path = "pair_precheck.rs"]
 mod precheck;
-#[path = "pair_project.rs"]
 mod project;
-#[path = "pair_regexes.rs"]
 pub(super) mod regexes;
 
 pub(super) fn inputs(s: &FinishStep) -> smallvec::SmallVec<[StepNumber; 4]> {

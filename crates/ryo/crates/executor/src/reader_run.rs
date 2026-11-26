@@ -4,13 +4,10 @@ use ryo::languages as l;
 use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 
-#[path = "reader_packet.rs"]
 pub(super) mod packet;
 
-#[path = "reader_pairs.rs"]
 pub(super) mod pairs;
 
-#[path = "reader_coverage.rs"]
 pub(super) mod coverage;
 
 pub(super) fn file_requirements(

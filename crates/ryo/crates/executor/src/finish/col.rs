@@ -2,7 +2,6 @@
 use super::{E, Exec, File, Provider, R, Run, Table, recycle};
 use std::rc::Rc;
 
-#[path = "col/project.rs"]
 mod project;
 use project::{Projection, Work};
 

@@ -12,35 +12,24 @@ use std::{
     sync::Arc,
 };
 
-#[path = "check_session/completeness.rs"]
 pub(crate) mod completeness;
-#[path = "check_session/pairs.rs"]
 mod pairs;
-#[path = "check_session/jobs.rs"]
 pub(crate) mod jobs;
-#[path = "check_session/file_programs.rs"]
 mod file_programs;
 use file_programs::FilePrograms;
-#[path = "check_session/project.rs"]
 pub(crate) mod project;
 
-#[path = "check_session/source.rs"]
 pub(crate) mod source;
 use source::Source as FileSource;
-#[path = "check_session/named.rs"]
 pub(crate) mod named;
-#[path = "check_session/frontier.rs"]
 mod frontier;
 pub(crate) use frontier::World;
 #[cfg(feature = "product-session")]
 pub(crate) use frontier::SharedFrontier;
-#[path = "check_session/shared.rs"]
 mod shared;
 
-#[path="check_session/stored_block.rs"]
 pub(crate) mod stored_block;
 
-#[path = "check_session/query.rs"]
 pub(crate) mod query;
 use query::Query;
 
@@ -50,8 +39,9 @@ type Parameters =
 type Result<T> = std::result::Result<T, String>;
 pub(crate) type Answer = Result<Reported>;
 
-#[path = "finish/answer/slots.rs"]
 pub(crate) mod report_slots;
+pub mod hosted;
+pub mod replay;
 
 pub(crate) use finish::answer::Reported;
 pub(crate) type Tables = Vec<(String, Rc<Table>)>;
@@ -836,7 +826,6 @@ struct HeldFile {
 /// Each binding gets its own prepared column positions for this reader and host
 /// schema. Symbols and file IDs live in the reader session. Source trees never
 /// escape the visit. Every request for the same pair refers to its answer slot.
-#[path = "check_session/worker.rs"]
 pub(crate) mod worker;
 use worker::Slots;
 

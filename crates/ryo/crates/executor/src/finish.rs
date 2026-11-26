@@ -14,11 +14,8 @@ use rustc_hash::FxHashMap;
 
 pub(crate) use ryo_values::profile as operators;
 
-#[path = "finish/plan_load.rs"]
 mod plan_load;
-#[path = "finish/plan_args.rs"]
 mod plan_args;
-#[path = "finish/plan_select.rs"]
 mod plan_select;
 pub(crate) use plan_load::from_typed;
 use plan_args::{Args, Param, s};
@@ -43,120 +40,69 @@ pub(super) fn step_clock() -> f64 {
 }
 
 #[allow(dead_code, reason = "file, native-reference and project hosts read different request fields")]
-#[path = "json_input.rs"]
 pub(crate) mod json_input;
 #[allow(dead_code, reason = "benchmark hosts select lint locations or full query output")]
-#[path = "json_output.rs"]
 pub(crate) mod json_output;
-#[path = "finish/symbol_predicate.rs"]
 mod symbol_predicate;
 use symbol_predicate::{Bound, TextTest};
 
-#[path = "finish/file_version.rs"]
 mod file_version;
 pub(super) use file_version::FileVersion;
 
-#[path = "finish/answer.rs"]
 pub(super) mod answer;
-#[path = "finish/recycle.rs"]
 mod recycle;
-#[path = "finish/inline_key.rs"]
 mod inline_key;
-#[path = "finish/col.rs"]
 mod col;
-#[path = "finish/select_kernel.rs"]
 mod select_kernel;
-#[path = "band.rs"]
 pub(super) mod band;
-#[path = "walk.rs"]
 mod walk;
-#[path = "filter_order.rs"]
 mod filter_order;
-#[path = "finish/union_kernel.rs"]
 mod union_kernel;
-#[path = "finish/antijoin_kernel.rs"]
 mod antijoin_kernel;
-#[path = "tree_class.rs"]
 mod tree_class;
-#[path = "finish/frame.rs"]
 mod frame;
-#[path = "finish/known.rs"]
 mod known;
-#[path = "finish/set_ops.rs"]
 mod set_ops;
-#[path = "finish/empty_why.rs"]
 pub(super) mod empty_why;
-#[path = "finish/empty_sel.rs"]
 pub(super) mod empty_sel;
-#[path = "prefixes.rs"]
 mod prefixes;
-#[path = "finish/ordered_dfs.rs"]
 mod ordered_dfs;
-#[path = "finish/worklist.rs"]
 mod worklist;
-#[path = "finish/lazy_view.rs"]
 mod lazy_view;
-#[path = "finish/fill_len.rs"]
 pub(super) mod fill_len;
-#[path = "finish/fact_view.rs"]
 pub(crate) mod fact_view;
-#[path = "finish/host.rs"]
 pub(super) mod host;
 
-#[path = "finish/capture.rs"]
 mod capture;
-#[path = "finish/fill_prof.rs"]
 pub(super) mod fill_prof;
-#[path = "finish/view_cols.rs"]
 mod view_cols;
 /// redo-empty: emptiness for the file, by propagation over the plan.
-#[path = "finish/emptyprop.rs"]
 pub(super) mod emptyprop;
-#[path = "ordering.rs"]
 mod ordering;
-#[path = "finish/leaf_scan.rs"]
 mod leaf_scan;
-#[path = "finish/cold_bucket.rs"]
 mod cold_bucket;
-#[path = "finish/view_join/probe.rs"]
 mod view_probe;
-#[path = "finish/view_join/choice.rs"]
 mod view_choice;
-#[path = "finish/view_join/key.rs"]
 mod view_key;
-#[path = "finish/view_join/pair.rs"]
 mod view_pair;
-#[path = "finish/view_join/entry.rs"]
 mod view_entry;
-#[path = "finish/view_join/input.rs"]
 mod view_input;
-#[path = "finish/cold_text.rs"]
 mod cold_text;
-#[path = "finish/cold_list.rs"]
 mod cold_list;
-#[path = "finish/cold_entries.rs"]
 mod cold_entries;
-#[path = "finish/cold_test.rs"]
 mod cold_test;
-#[path = "finish/cold_pred.rs"]
 mod cold_pred;
-#[path = "finish/cold_word.rs"]
 mod cold_word;
-#[path = "finish/keyed.rs"]
 mod keyed;
 
 #[allow(dead_code, reason = "file-only benchmark binaries share the executor modules")]
-#[path = "finish/session.rs"]
 pub(super) mod session;
 #[allow(dead_code, reason = "file-only benchmark binaries have no project frontier")]
-#[path = "finish/population.rs"]
 pub(super) mod population;
 
 #[allow(dead_code, reason = "file-only benchmark binaries have no project frontier")]
-#[path = "finish/subject_scope.rs"]
 mod subject_scope;
 #[allow(dead_code)]
-#[path = "finish/partition.rs"]
 pub(super) mod partition;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, serde::Deserialize, serde::Serialize)]
@@ -4418,9 +4364,7 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
     }
 }
 
-#[path = "finish/words.rs"]
 mod words;
-#[path = "finish/populations.rs"]
 mod populations;
 use super::glob_pattern;
 
